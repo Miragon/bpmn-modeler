@@ -51,6 +51,8 @@ describe("protocol messages", () => {
                 "SyncDmnDiffViewQuery",
                 "DmnDiffScrollChangedCommand",
                 "SyncDmnDiffScrollQuery",
+                "DiffPlaneChangedCommand",
+                "SyncDiffPlaneQuery",
             ]),
         );
     });

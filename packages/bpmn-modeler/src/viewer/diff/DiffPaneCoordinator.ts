@@ -1,9 +1,10 @@
-import { DiffResult, sideView } from "@miragon/bpmn-modeler-diff";
+import { DiffResult, type DiffSide, sideView } from "@miragon/bpmn-modeler-diff";
 import {
     DIFF_CATEGORIES,
     DIFF_MARKERS,
     DisposableStore,
     stepCursor,
+    type Viewport,
 } from "@miragon/bpmn-modeler-types";
 
 import { DiffNavigator } from "./DiffNavigator";
@@ -19,7 +20,8 @@ import { DiffViewer } from "./DiffViewer";
  *     guard kills the echo so the sync never ping-pongs);
  *   - paints each pane with its side's highlights and builds a
  *     {@link DiffNavigator} per pane from one {@link DiffResult};
- *   - steps a single shared cursor across both navigators.
+ *   - steps a single shared cursor across both navigators;
+ *   - takes each pane into the plane the user enters on its partner.
  *
  * The shared cursor is sound because both panes navigate the same
  * `navigationOrder`, so their cycles have identical length — the same
@@ -35,6 +37,11 @@ export class DiffPaneCoordinator {
 
     private readonly store = new DisposableStore();
 
+    private readonly planeListeners = new Set<(side: DiffSide, missing: boolean) => void>();
+
+    // Whether a side's version lacks the plane the user entered on the other side.
+    private readonly planeMissing = { before: false, after: false };
+
     private _cursor = -1;
 
     constructor(
@@ -44,8 +51,10 @@ export class DiffPaneCoordinator {
         this.beforeNav = new DiffNavigator(before);
         this.afterNav = new DiffNavigator(after);
         this.store.add(
-            before.onViewportChanged((viewport) => after.setViewport(viewport)),
-            after.onViewportChanged((viewport) => before.setViewport(viewport)),
+            before.onViewportChanged((viewport) => this.syncViewport(after, viewport)),
+            after.onViewportChanged((viewport) => this.syncViewport(before, viewport)),
+            before.onPlaneChanged((planeId) => this.syncPlane("before", planeId)),
+            after.onPlaneChanged((planeId) => this.syncPlane("after", planeId)),
         );
     }
 
@@ -89,6 +98,7 @@ export class DiffPaneCoordinator {
 
     /** Takes both panes back to the whole diagram, before the first change. */
     reset(): void {
+        this.clearPlaneMissing();
         this._cursor = -1;
         this.beforeNav.reset();
         this.afterNav.reset();
@@ -99,8 +109,47 @@ export class DiffPaneCoordinator {
         return this.beforeNav.cycleLength;
     }
 
+    /**
+     * Calls back with each side's state whenever the planes move: `missing`
+     * is `true` while that side's version lacks the plane the user entered on
+     * the other side, and its label can say so.
+     */
+    onPlaneMissingChanged(listener: (side: DiffSide, missing: boolean) => void): () => void {
+        this.planeListeners.add(listener);
+        return () => this.planeListeners.delete(listener);
+    }
+
     destroy(): void {
         this.store.dispose();
+        this.planeListeners.clear();
+    }
+
+    private syncPlane(source: DiffSide, planeId: string): void {
+        const partner: DiffSide = source === "before" ? "after" : "before";
+        const found = this.viewerOf(partner).showPlane(planeId);
+        this.setPlaneMissing(source, false);
+        this.setPlaneMissing(partner, !found);
+    }
+
+    // Panes on different planes would map one plane's coordinates onto another.
+    private syncViewport(target: DiffViewer, viewport: Viewport): void {
+        if (!this.planeMissing.before && !this.planeMissing.after) {
+            target.setViewport(viewport);
+        }
+    }
+
+    private clearPlaneMissing(): void {
+        this.setPlaneMissing("before", false);
+        this.setPlaneMissing("after", false);
+    }
+
+    private setPlaneMissing(side: DiffSide, missing: boolean): void {
+        this.planeMissing[side] = missing;
+        this.planeListeners.forEach((listener) => listener(side, missing));
+    }
+
+    private viewerOf(side: DiffSide): DiffViewer {
+        return side === "before" ? this.before : this.after;
     }
 
     private step(direction: 1 | -1): void {
@@ -108,6 +157,7 @@ export class DiffPaneCoordinator {
         if (len === 0) {
             return;
         }
+        this.clearPlaneMissing();
         this._cursor = stepCursor(this._cursor, direction, len);
         this.beforeNav.applyCursor(this._cursor, direction);
         this.afterNav.applyCursor(this._cursor, direction);

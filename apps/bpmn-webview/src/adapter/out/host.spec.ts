@@ -4,6 +4,7 @@ import {
     ApplyDiffHighlightsQuery,
     CleanupReportCommand,
     CursorChangedCommand,
+    DiffPlaneChangedCommand,
     DiagramFormattedCommand,
     DiffReadyCommand,
     DocumentFlushedCommand,
@@ -47,7 +48,7 @@ import {
     ViewportChangedCommand,
     WorkspaceDefinitionsQuery,
     type BpmnEditorCommandType,
-    type DiffPaneCommandType,
+    type BpmnDiffPaneCommandType,
     type MessageOfType,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -118,10 +119,11 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     CleanupReportCommand: new CleanupReportCommand({ status: "reported", items: [] }, false),
 };
 
-const DIFF_PANE_COMMANDS: { [Type in DiffPaneCommandType]: MessageOfType<Type> } = {
+const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Type> } = {
     DiffReadyCommand: new DiffReadyCommand(),
     ViewportChangedCommand: new ViewportChangedCommand({ x: 0, y: 0, width: 1, height: 1 }),
     CursorChangedCommand: new CursorChangedCommand(0),
+    DiffPlaneChangedCommand: new DiffPlaneChangedCommand("Process_1"),
     SwapCompareSidesCommand: new SwapCompareSidesCommand(),
     LogErrorCommand: new LogErrorCommand("error"),
 };

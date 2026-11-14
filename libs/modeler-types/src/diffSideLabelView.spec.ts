@@ -57,6 +57,17 @@ describe("DiffSideLabelView", () => {
         expect(text()).toBe("Old version");
     });
 
+    it("says when the pane's version lacks the plane its partner entered", () => {
+        const { label, text } = mount("before");
+
+        label.showPlaneMissing(true);
+        const missing = text();
+        label.showPlaneMissing(false);
+
+        expect(missing).toBe("Old version · Not in this version");
+        expect(text()).toBe("Old version");
+    });
+
     it("speaks the user's language when it changes", () => {
         const { text } = mount("after");
 

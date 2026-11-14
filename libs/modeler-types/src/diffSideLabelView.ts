@@ -1,5 +1,5 @@
 import type { DiffLegendTranslator } from "./diffLegendView";
-import { DIFF_SIDE_TEXTS } from "./diffVocabulary";
+import { DIFF_PLANE_MISSING_TEXT, DIFF_SIDE_TEXTS } from "./diffVocabulary";
 import { createElement } from "./dom";
 
 /**
@@ -12,6 +12,8 @@ export class DiffSideLabelView {
     readonly element = createElement("span", "diff-side-label diff-legend-theme");
 
     private filename: string | undefined;
+
+    private planeMissing = false;
 
     private readonly stopTranslating: () => void;
 
@@ -31,13 +33,21 @@ export class DiffSideLabelView {
         this.render();
     }
 
+    /** Adds "Not in this version" while the pane's version lacks the plane its partner entered. */
+    showPlaneMissing(missing: boolean): void {
+        this.planeMissing = missing;
+        this.render();
+    }
+
     destroy(): void {
         this.stopTranslating();
         this.element.remove();
     }
 
     private render(): void {
-        this.element.textContent =
-            this.filename ?? this.translator.translate(DIFF_SIDE_TEXTS[this.side]);
+        const name = this.filename ?? this.translator.translate(DIFF_SIDE_TEXTS[this.side]);
+        this.element.textContent = this.planeMissing
+            ? `${name} · ${this.translator.translate(DIFF_PLANE_MISSING_TEXT)}`
+            : name;
     }
 }

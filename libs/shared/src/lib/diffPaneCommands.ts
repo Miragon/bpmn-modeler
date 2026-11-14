@@ -20,6 +20,16 @@ export type DiffPaneCommandType = (typeof DIFF_PANE_COMMAND_TYPES)[number];
 
 export type DiffPaneCommand = MessageOfType<DiffPaneCommandType>;
 
+/** Every command a BPMN diff pane posts once its host named it a diff pane. */
+export const BPMN_DIFF_PANE_COMMAND_TYPES = [
+    ...DIFF_PANE_COMMAND_TYPES,
+    "DiffPlaneChangedCommand",
+] as const satisfies readonly ProtocolCommandType[];
+
+export type BpmnDiffPaneCommandType = (typeof BPMN_DIFF_PANE_COMMAND_TYPES)[number];
+
+export type BpmnDiffPaneCommand = MessageOfType<BpmnDiffPaneCommandType>;
+
 /**
  * The editor commands the BPMN page posts before its host names it a diff
  * pane, so a diff host receives them too.

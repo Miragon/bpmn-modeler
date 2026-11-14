@@ -3,6 +3,7 @@ import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type Canvas from "diagram-js/lib/core/Canvas";
 import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
 import type EventBus from "diagram-js/lib/core/EventBus";
+import type { Event as EventBusEvent } from "diagram-js/lib/core/EventBus";
 import type { Point } from "diagram-js/lib/util/Types";
 
 import {
@@ -20,6 +21,14 @@ import {
 import { centreOf, type PositionedElement } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
+
+type DiagramRoot = { id: string; businessObject?: { id?: string } };
+
+/**
+ * How a pane names the plane it opened on, so a process on one side and a
+ * collaboration on the other still meet there.
+ */
+const OPENING_PLANE = "";
 
 /** CSS class applied to each element category on the canvas, as `DIFF_MARKERS` maps them. */
 export type DiffMarkerClass = DiffMarker;
@@ -80,9 +89,20 @@ export class DiffViewer {
             this.viewer = undefined;
         });
         this.store.add(() => this.sizeObserver.dispose());
+        this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
+    }
+
+    /**
+     * bpmn-js shows a plane the user drills into from its top-left corner at
+     * 100 %, where a subprocess's content often is not; fit it instead.
+     */
+    private fitEnteredPlane(): void {
+        this.positionProgrammatically(() => this.fitViewport());
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {
+        // The import sets its own root; no plane change to report until it is done.
+        this.openingRoot = undefined;
         const result = await this.getViewer().importXML(xml);
         this.openingRoot = this.getCanvas().getRootElement();
 
@@ -232,6 +252,46 @@ export class DiffViewer {
     }
 
     /**
+     * Calls back with the id of the subprocess whose plane the user enters, by
+     * drilling down or through the breadcrumbs, or {@link OPENING_PLANE} for the
+     * plane the pane opened on, whatever its process or collaboration is
+     * called. Planes the pane enters itself, stepping or following its
+     * partner, are not reported. Every plane the user enters is fitted.
+     * Returns a disposer.
+     */
+    onPlaneChanged(cb: (planeId: string) => void): () => void {
+        const eventBus = this.getViewer().get<EventBus>("eventBus");
+        const listener = (event: EventBusEvent & { element?: DiagramRoot }): void => {
+            if (event.element && this.openingRoot && this.programmaticPositioningDepth === 0) {
+                cb(this.planeIdOf(event.element));
+            }
+        };
+        eventBus.on("root.set", listener);
+        return () => eventBus.off("root.set", listener);
+    }
+
+    /**
+     * Enters the plane `planeId` names, as {@link onPlaneChanged} reports it,
+     * and fits it; `false`, leaving the plane as it is, when this version has
+     * none.
+     */
+    showPlane(planeId: string): boolean {
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
+        const plane = registry.find(
+            (element) => !element.parent && this.planeIdOf(element) === planeId,
+        );
+        if (!plane) {
+            return false;
+        }
+        this.clearSelectionMarker();
+        this.positionProgrammatically(() => {
+            this.getCanvas().setRootElement(plane);
+            this.fitViewport();
+        });
+        return true;
+    }
+
+    /**
      * Centres the viewport on `id` without touching the selection marker.
      * Used by the diff stepper to anchor the viewport on a surviving
      * neighbour when the target id only exists on the partner pane (e.g. a
@@ -335,5 +395,13 @@ export class DiffViewer {
         } finally {
             this.programmaticPositioningDepth -= 1;
         }
+    }
+
+    // A subprocess's plane root is `<id>_plane`; its business object names the subprocess.
+    private planeIdOf(root: DiagramRoot): string {
+        if (root === this.openingRoot) {
+            return OPENING_PLANE;
+        }
+        return root.businessObject?.id ?? root.id;
     }
 }

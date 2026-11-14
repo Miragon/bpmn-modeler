@@ -1585,6 +1585,35 @@ export class SyncCursorQuery extends Query<"SyncCursorQuery"> {
 }
 
 /**
+ * Sent from a BPMN diff pane when the user enters another plane, such as a
+ * collapsed subprocess's. `planeId` is the id of the subprocess the plane
+ * shows, or empty for the plane the pane opened on. The host forwards it to
+ * the partner pane via
+ * {@link SyncDiffPlaneQuery}.
+ */
+export class DiffPlaneChangedCommand extends Command<"DiffPlaneChangedCommand"> {
+    public readonly planeId: string;
+
+    constructor(planeId: string) {
+        super("DiffPlaneChangedCommand");
+        this.planeId = planeId;
+    }
+}
+
+/**
+ * Sent from the host to a BPMN diff pane to enter the plane its partner
+ * entered. The pane must not re-emit {@link DiffPlaneChangedCommand} for it.
+ */
+export class SyncDiffPlaneQuery extends Query<"SyncDiffPlaneQuery"> {
+    public readonly planeId: string;
+
+    constructor(planeId: string) {
+        super("SyncDiffPlaneQuery");
+        this.planeId = planeId;
+    }
+}
+
+/**
  * Sent from a viewer pane once it has finished importing the initial XML
  * diagram.  The host tracks this per pane to know when a diff pair is armed
  * (both panes ready) and it can safely post {@link ApplyDiffHighlightsQuery}.

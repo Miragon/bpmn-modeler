@@ -90,6 +90,7 @@ interface DiagramElement extends PositionedElement {
 interface CanvasService {
     findRoot(element: DiagramElement): DiagramElement | undefined;
     getRootElement(): DiagramElement;
+    setRootElement(element: DiagramElement): void;
     scroll(delta: { dx: number; dy: number }): void;
     viewbox(): { x: number; y: number; width: number; height: number };
     zoom(scale?: number): number;
@@ -274,6 +275,97 @@ describe("DiffViewer opening fit", () => {
 
         expect(onViewportChanged).not.toHaveBeenCalled();
         dispose();
+        viewer.destroy();
+    });
+});
+
+describe("DiffViewer planes", () => {
+    async function subprocessPane() {
+        const viewer = new DiffViewer(mountCanvas(800, 600));
+        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        await settleObserver();
+        const { canvas, registry } = getServices(viewer);
+        const rootId = () => (canvas.getRootElement() as { id: string }).id;
+        const enter = (planeRootId: string) => canvas.setRootElement(registry.get(planeRootId)!);
+        return { viewer, rootId, enter };
+    }
+
+    it("reports a subprocess plane by its id and the plane it opened on as an empty id", async () => {
+        const { viewer, enter } = await subprocessPane();
+        const entered: string[] = [];
+        viewer.onPlaneChanged((planeId) => entered.push(planeId));
+
+        enter("Main_Subprocess_plane");
+        enter("Process_1");
+
+        expect(entered).toEqual(["Main_Subprocess", ""]);
+        viewer.destroy();
+    });
+
+    it("goes back to the plane it opened on for an empty id, whatever its root is called", async () => {
+        const { viewer, rootId } = await subprocessPane();
+        viewer.showPlane("Main_Subprocess");
+
+        const found = viewer.showPlane("");
+
+        expect([found, rootId()]).toEqual([true, "Process_1"]);
+        viewer.destroy();
+    });
+
+    it("reports no plane when a diagram is imported again", async () => {
+        const { viewer } = await subprocessPane();
+        const entered: string[] = [];
+        viewer.onPlaneChanged((planeId) => entered.push(planeId));
+
+        await viewer.importXML(COLLAPSED_SUBPROCESS_AFTER_XML);
+
+        expect(entered).toEqual([]);
+        viewer.destroy();
+    });
+
+    it("fits the plane the user enters, instead of bpmn-js' top-left corner, and tells no partner", async () => {
+        const { viewer, enter } = await subprocessPane();
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        enter("Main_Subprocess_plane");
+        await waitForViewportNotification();
+
+        const viewport = viewer.getViewport();
+        const { registry } = getServices(viewer);
+        for (const id of ["Inner_Start", "Inner_Task", "Inner_End"]) {
+            const shape = registry.get(id) as unknown as { x: number; y: number };
+            expect(shape.x, id).toBeGreaterThanOrEqual(viewport.x);
+            expect(shape.x, id).toBeLessThanOrEqual(viewport.x + viewport.width);
+            expect(shape.y, id).toBeGreaterThanOrEqual(viewport.y);
+            expect(shape.y, id).toBeLessThanOrEqual(viewport.y + viewport.height);
+        }
+        expect(onViewportChanged).not.toHaveBeenCalled();
+        viewer.destroy();
+    });
+
+    it("reports no plane it entered itself, stepping or showing the whole diagram", async () => {
+        const { viewer } = await subprocessPane();
+        const entered: string[] = [];
+        viewer.onPlaneChanged((planeId) => entered.push(planeId));
+
+        viewer.focusElement("Nested_Task");
+        viewer.fitDiagram();
+        viewer.showPlane("Main_Subprocess");
+
+        expect(entered).toEqual([]);
+        viewer.destroy();
+    });
+
+    it("enters the plane its partner entered, and says when its version has none", async () => {
+        const { viewer, rootId } = await subprocessPane();
+
+        const found = viewer.showPlane("Main_Subprocess");
+        const entered = rootId();
+        const missing = viewer.showPlane("Not_There");
+
+        expect([found, entered]).toEqual([true, "Main_Subprocess_plane"]);
+        expect([missing, rootId()]).toEqual([false, "Main_Subprocess_plane"]);
         viewer.destroy();
     });
 });

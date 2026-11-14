@@ -60,6 +60,9 @@ export const DIFF_SIDE_TEXTS: Readonly<Record<"before" | "after", string>> = {
     after: "New version",
 };
 
+/** The i18n key a side label adds when its version lacks the plane the partner entered. */
+export const DIFF_PLANE_MISSING_TEXT = "Not in this version";
+
 /** The legend label key of each diff category. */
 export const DIFF_CATEGORY_LABELS: Readonly<Record<DiffCategory, string>> = {
     added: DIFF_LEGEND_TEXTS.added,

@@ -8,6 +8,7 @@ import {
     type SwapCompareSidesCommand,
     type SyncDocumentCommand,
     SyncCursorQuery,
+    SyncDiffPlaneQuery,
     SyncViewportQuery,
     type ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -23,6 +24,11 @@ const fakes = vi.hoisted(() => {
         clearHighlights = vi.fn();
         applyHighlights = vi.fn();
         setViewport = vi.fn();
+        showPlane = vi.fn((_planeId: string) => true);
+        planeListener: ((planeId: string) => void) | undefined;
+        onPlaneChanged = vi.fn((listener: (planeId: string) => void) => {
+            this.planeListener = listener;
+        });
         viewportListener: ((viewport: Viewport) => void) | undefined;
         onViewportChanged = vi.fn((listener: (viewport: Viewport) => void) => {
             this.viewportListener = listener;
@@ -65,6 +71,7 @@ const fakes = vi.hoisted(() => {
     class FakeDiffSideLabel {
         static last: FakeDiffSideLabel | undefined;
         showFilename = vi.fn();
+        showPlaneMissing = vi.fn();
         constructor(
             readonly parent: HTMLElement,
             readonly side: "before" | "after",
@@ -347,6 +354,57 @@ describe("DiffMode", () => {
             expect(legend().update).toHaveBeenLastCalledWith(
                 expect.objectContaining({ position: { index: 2, total: 3 } }),
             );
+        });
+
+        it("reports the plane the user enters to the host", async () => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            viewer().planeListener?.("Sub_1");
+
+            expect(posted()).toEqual([
+                expect.objectContaining({ type: "DiffPlaneChangedCommand", planeId: "Sub_1" }),
+            ]);
+        });
+
+        it("enters the partner's plane, and labels the pane when its version has none", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            host.postMessage.mockClear();
+            viewer().showPlane.mockReturnValueOnce(true).mockReturnValueOnce(false);
+
+            dispatch(new SyncDiffPlaneQuery("Sub_1"));
+            dispatch(new SyncDiffPlaneQuery("Sub_2"));
+
+            expect(viewer().showPlane.mock.calls).toEqual([["Sub_1"], ["Sub_2"]]);
+            expect(sideLabel()?.showPlaneMissing.mock.calls).toEqual([[false], [true]]);
+            expect(host.postMessage).not.toHaveBeenCalled();
+        });
+
+        it("clears the missing-plane note once the panes step or show all", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            navigator().advance.mockReturnValueOnce(0);
+
+            legend().callbacks.onNext();
+            dispatch(new SyncCursorQuery(1));
+            legend().callbacks.onShowAll?.();
+
+            expect(sideLabel()?.showPlaneMissing.mock.calls).toEqual([[false], [false], [false]]);
+        });
+
+        it("syncs no viewport while its version lacks the partner's plane", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            viewer().showPlane.mockReturnValueOnce(false);
+            dispatch(new SyncDiffPlaneQuery("Sub_2"));
+            host.postMessage.mockClear();
+
+            dispatch(new SyncViewportQuery({ x: 1, y: 2, width: 3, height: 4 }));
+            viewer().viewportListener?.({ x: 5, y: 6, width: 7, height: 8 });
+
+            expect(viewer().setViewport).not.toHaveBeenCalled();
+            expect(host.postMessage).not.toHaveBeenCalled();
         });
 
         it("reports a user pan or zoom to the host", async () => {

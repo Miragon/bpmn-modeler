@@ -2,6 +2,7 @@ import {
     ApplyDiffHighlightsQuery,
     asProtocolMessage,
     CursorChangedCommand,
+    DiffPlaneChangedCommand,
     DiffReadyCommand,
     LogErrorCommand,
     Query,
@@ -53,6 +54,9 @@ export class DiffMode {
 
     private legendContext: DiffLegendContext | undefined;
 
+    // Whether this version lacks the plane the user entered on the partner pane.
+    private planeMissing = false;
+
     private initialImportSettled = false;
 
     private highlightsBeforeImport: ApplyDiffHighlightsQuery | undefined;
@@ -77,8 +81,16 @@ export class DiffMode {
         // diff.css starts the canvas below the bar.
         this.legend.reserveRoomOn(document.body);
 
+        this.viewer.onPlaneChanged((planeId) => {
+            this.setPlaneMissing(false);
+            this.host.postMessage(new DiffPlaneChangedCommand(planeId));
+        });
+
         this.viewer.onViewportChanged((viewport) => {
-            this.host.postMessage(new ViewportChangedCommand(viewport));
+            // On a plane the partner lacks, its coordinates would mean nothing there.
+            if (!this.planeMissing) {
+                this.host.postMessage(new ViewportChangedCommand(viewport));
+            }
         });
     }
 
@@ -106,13 +118,18 @@ export class DiffMode {
                     this.highlightsBeforeImport = query;
                 }
                 break;
+            case "SyncDiffPlaneQuery":
+                this.setPlaneMissing(!this.viewer.showPlane(query.planeId));
+                break;
             case "SyncViewportQuery":
+                if (this.planeMissing) break;
                 this.viewer.setViewport(query.viewport);
                 break;
             case "SyncCursorQuery":
                 if (query.index === SHOW_ALL_CURSOR) {
                     this.backToWholeDiagram();
                 } else {
+                    this.setPlaneMissing(false);
                     this.navigator.applyCursor(query.index);
                     this.showPosition(query.index);
                 }
@@ -188,9 +205,15 @@ export class DiffMode {
 
     private backToWholeDiagram(): void {
         this.navigator.reset();
+        this.setPlaneMissing(false);
         if (this.legendContext) {
             this.legend.update(this.legendContext);
         }
+    }
+
+    private setPlaneMissing(missing: boolean): void {
+        this.planeMissing = missing;
+        this.sideLabel?.showPlaneMissing(missing);
     }
 
     private showPosition(index: number): void {
@@ -210,6 +233,7 @@ export class DiffMode {
     private step(direction: 1 | -1): void {
         const cursor = this.navigator.advance(direction);
         if (cursor !== undefined) {
+            this.setPlaneMissing(false);
             this.showPosition(cursor);
             this.host.postMessage(new CursorChangedCommand(cursor));
         }
