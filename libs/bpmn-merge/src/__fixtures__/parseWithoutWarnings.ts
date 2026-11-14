@@ -1,35 +1,18 @@
 import { loadBpmnModdle, loadExecutionPackage } from "@miragon/bpmn-modeler-diff";
-import type { BpmnModdleFactory, ExecutionEngine } from "@miragon/bpmn-modeler-diff";
+import type { BpmnModdleFactory } from "@miragon/bpmn-modeler-diff";
 
-export type EnginePlatform = "c7" | "c8";
+import { executionEngineOf } from "../executionEngine";
 
 type BpmnModdle = ReturnType<BpmnModdleFactory>;
 type ParsedBpmn = Awaited<ReturnType<BpmnModdle["fromXML"]>>;
 
-export const ENGINE_NAMESPACES: Readonly<Record<EnginePlatform, string>> = {
-    c7: "http://camunda.org/schema/1.0/bpmn",
-    c8: "http://camunda.org/schema/zeebe/1.0",
-};
-
-function platformOf(xml: string): EnginePlatform | undefined {
-    if (xml.includes(`"${ENGINE_NAMESPACES.c8}"`)) {
-        return "c8";
-    }
-    return xml.includes(`"${ENGINE_NAMESPACES.c7}"`) ? "c7" : undefined;
-}
-
-const EXECUTION_ENGINES: Readonly<Record<EnginePlatform, ExecutionEngine>> = {
-    c7: "camunda",
-    c8: "zeebe",
-};
-
 async function engineModdle(xml: string): Promise<BpmnModdle> {
     const createBpmnModdle = await loadBpmnModdle();
-    const platform = platformOf(xml);
-    if (platform === undefined) {
+    const executionEngine = executionEngineOf(xml);
+    if (executionEngine === undefined) {
         return createBpmnModdle();
     }
-    const { prefix, descriptor } = await loadExecutionPackage(EXECUTION_ENGINES[platform]);
+    const { prefix, descriptor } = await loadExecutionPackage(executionEngine);
     return createBpmnModdle({ [prefix]: descriptor });
 }
 

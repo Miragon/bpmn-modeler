@@ -38,7 +38,7 @@ Where code belongs and which imports are allowed is in the
 
 | Package | What it holds |
 | --- | --- |
-| [`bpmn-merge`](bpmn-merge/README.md) | The three-way BPMN merge: classify, decide, build. Not published; the VS Code merge view will use it. |
+| [`bpmn-merge`](bpmn-merge/README.md) | The three-way BPMN merge: classifies each element of base, current and incoming. Not published; the VS Code merge view will use it. |
 | [`bpmn-i18n-extras`](bpmn-i18n-extras/README.md) | The few translations the shared `@miragon/bpmn-modeler-i18n` library lacks; also inlined into `@miragon/dmn-modeler`. |
 | [`element-template-builder`](element-template-builder) | The form of the element template editor, used by the `bpmn-webview` template editor page. |
 | [`standalone-extension`](standalone-extension/README.md) | The Theia frontend extension of the desktop app. |

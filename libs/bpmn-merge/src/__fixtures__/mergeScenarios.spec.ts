@@ -1,3 +1,4 @@
+import { ENGINE_NAMESPACE } from "@miragon/bpmn-modeler-types/engine";
 import { describe, expect, it } from "vitest";
 
 import { baseModel, removeNode } from "./baseModel";
@@ -8,11 +9,7 @@ import {
     PLATFORM_ONLY_SCENARIO,
     scenarioNamed,
 } from "./mergeScenarios";
-import {
-    ENGINE_NAMESPACES,
-    parseWithoutWarnings,
-    serializeAsModeler,
-} from "./parseWithoutWarnings";
+import { parseWithoutWarnings, serializeAsModeler } from "./parseWithoutWarnings";
 
 const scenarioVersions = MERGE_SCENARIOS.flatMap((scenario) =>
     (["base", "current", "incoming"] as const).flatMap((version) => {
@@ -45,13 +42,13 @@ describe("merge scenarios", () => {
     it.each(scenarioVersions.filter(({ name }) => !NAMED_BY_PLATFORM_ONLY.has(name)))(
         "$name declares its engine namespace",
         ({ platform, xml }) => {
-            expect(xml).toContain(`="${ENGINE_NAMESPACES[platform]}"`);
+            expect(xml).toContain(`="${ENGINE_NAMESPACE[platform].uri}"`);
         },
     );
 
     it.each([...NAMED_BY_PLATFORM_ONLY])("%s names its engine by the platform only", (name) => {
         const version = scenarioVersions.find((candidate) => candidate.name === name)!;
-        expect(version.xml).not.toContain(ENGINE_NAMESPACES[version.platform]);
+        expect(version.xml).not.toContain(ENGINE_NAMESPACE[version.platform].uri);
         expect(version.xml).toContain('modeler:executionPlatform="Camunda Cloud"');
     });
 
@@ -83,7 +80,7 @@ describe("renderBpmn", () => {
             model.processAttributes = {};
             const xml = renderBpmn(model);
 
-            expect(xml).not.toContain(ENGINE_NAMESPACES[platform]);
+            expect(xml).not.toContain(ENGINE_NAMESPACE[platform].uri);
             expect(await serializeAsModeler(xml)).toBe(xml);
         },
     );
@@ -96,6 +93,19 @@ describe("renderBpmn", () => {
 
         await expect(parseWithoutWarnings(xml)).resolves.toBeDefined();
         expect(await serializeAsModeler(xml)).toBe(xml);
+    });
+});
+
+describe("serializeAsModeler", () => {
+    it("round-trips with the engine the modeler detects, not with every namespace the file binds", async () => {
+        const camunda7WithZeebeBinding = renderBpmn(baseModel("c7")).replace(
+            "<bpmn:definitions ",
+            `<bpmn:definitions xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}" `,
+        );
+
+        expect(await serializeAsModeler(camunda7WithZeebeBinding)).toContain(
+            `xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}"`,
+        );
     });
 });
 

@@ -1,5 +1,8 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
-import { ENGINE_LABEL, detectEngineWithNamespaceFallback } from "@miragon/bpmn-modeler-types/engine";
+import {
+    ENGINE_LABEL,
+    detectEngineWithNamespaceFallback,
+} from "@miragon/bpmn-modeler-types/engine";
 
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";

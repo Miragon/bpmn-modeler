@@ -12,16 +12,19 @@ export type ResolvedState =
     | "removedByIncoming"
     | "removedByBoth";
 
-export type ConflictState =
-    | "bothChanged"
-    | "bothAdded"
-    | "removedAndChanged"
-    | "changedAndRemoved"
-    /** Without a base: only one side has the element. */
-    | "onlyInCurrent"
-    | "onlyInIncoming"
-    /** Without a base: both sides have the element, differently. */
-    | "differs";
+const CONFLICT_STATES = [
+    "bothChanged",
+    "bothAdded",
+    "removedAndChanged",
+    "changedAndRemoved",
+    // Without a base: only one side has the element.
+    "onlyInCurrent",
+    "onlyInIncoming",
+    // Without a base: both sides have the element, differently.
+    "differs",
+] as const;
+
+export type ConflictState = (typeof CONFLICT_STATES)[number];
 
 export type ElementState = ResolvedState | ConflictState;
 
@@ -70,16 +73,8 @@ export interface MergeResult {
     readonly elements: readonly MergeElement[];
 }
 
-const CONFLICT_STATES: ReadonlySet<ElementState> = new Set<ConflictState>([
-    "bothChanged",
-    "bothAdded",
-    "removedAndChanged",
-    "changedAndRemoved",
-    "onlyInCurrent",
-    "onlyInIncoming",
-    "differs",
-]);
+const CONFLICT_STATE_SET: ReadonlySet<ElementState> = new Set(CONFLICT_STATES);
 
 export function isConflictState(state: ElementState): state is ConflictState {
-    return CONFLICT_STATES.has(state);
+    return CONFLICT_STATE_SET.has(state);
 }

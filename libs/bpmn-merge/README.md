@@ -26,7 +26,7 @@ const conflicts = result.elements.filter((element) => isConflictState(element.st
   lazily. Import the engine rule from `@miragon/bpmn-modeler-types/engine`, never the barrel, whose
   modules are DOM-typed.
 - Fixtures are generated in `src/__fixtures__/` from a plain model and must equal a moddle round trip
-  with the engine descriptor.
+  with the descriptor of the engine the modeler detects (`executionEngineOf`).
 
 Why the merge decides on its own set of elements and what a state compares is in the
 [Merge ADR](../../docs/adr/merge.md).

@@ -1,11 +1,12 @@
+import type { Engine } from "@miragon/bpmn-modeler-types/engine";
+
 import { baseModel, cloneModel, nodeById, removeFlow, removeNode, removeRoot } from "./baseModel";
 import { renderBpmn } from "./bpmnModelBuilder";
 import type { BpmnFixtureModel, FixtureNode } from "./bpmnModelBuilder";
-import type { EnginePlatform } from "./parseWithoutWarnings";
 
 export interface MergeScenario {
     readonly name: string;
-    readonly platform: EnginePlatform;
+    readonly platform: Engine;
     readonly base?: string;
     readonly current: string;
     readonly incoming: string;
@@ -21,7 +22,7 @@ export const PLATFORM_ONLY_SCENARIO = "engine: Camunda 8 named by the platform o
 interface ScenarioEdits {
     readonly name: string;
     readonly expect?: string;
-    readonly platform?: EnginePlatform;
+    readonly platform?: Engine;
     readonly withoutBase?: boolean;
     /** Applied to the base before the sides are derived from it. */
     readonly base?: ModelEdit;
@@ -191,7 +192,7 @@ const tableScenarios = TABLE_ROWS.map((row) =>
     scenario({ name: `table: ${row.state}`, current: row.current, incoming: row.incoming }),
 );
 
-const everyTableRow = (platform: EnginePlatform) =>
+const everyTableRow = (platform: Engine) =>
     scenario({
         name: `table: every row (${platform})`,
         platform,

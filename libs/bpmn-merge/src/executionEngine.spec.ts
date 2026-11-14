@@ -1,12 +1,9 @@
+import { ENGINE_NAMESPACE, MODELER_NAMESPACE_URI } from "@miragon/bpmn-modeler-types/engine";
 import { describe, expect, it } from "vitest";
 
 import { baseModel, removeNode } from "./__fixtures__/baseModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { executionEngineOf } from "./executionEngine";
-
-const MODELER_NAMESPACE = "http://camunda.org/schema/modeler/1.0";
-const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";
-const ZEEBE_NAMESPACE = "http://camunda.org/schema/zeebe/1.0";
 
 function definitions(attributes: string, processAttributes = ""): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -27,39 +24,39 @@ describe("executionEngineOf", () => {
         {
             given: "a Camunda 8 execution platform without the zeebe namespace",
             xml: definitions(
-                `xmlns:modeler="${MODELER_NAMESPACE}" modeler:executionPlatform="Camunda Cloud"`,
+                `xmlns:modeler="${MODELER_NAMESPACE_URI}" modeler:executionPlatform="Camunda Cloud"`,
             ),
             engine: "zeebe",
         },
         {
             given: "a Camunda 7 execution platform that also declares the zeebe namespace",
             xml: definitions(
-                `xmlns:camunda="${CAMUNDA_NAMESPACE}" xmlns:zeebe="${ZEEBE_NAMESPACE}" xmlns:modeler="${MODELER_NAMESPACE}" modeler:executionPlatform="Camunda Platform"`,
+                `xmlns:camunda="${ENGINE_NAMESPACE.c7.uri}" xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}" xmlns:modeler="${MODELER_NAMESPACE_URI}" modeler:executionPlatform="Camunda Platform"`,
             ),
             engine: "camunda",
         },
         {
             given: "an execution platform version alone",
             xml: definitions(
-                `xmlns:modeler="${MODELER_NAMESPACE}" modeler:executionPlatformVersion="8.6.0"`,
+                `xmlns:modeler="${MODELER_NAMESPACE_URI}" modeler:executionPlatformVersion="8.6.0"`,
             ),
             engine: "zeebe",
         },
         {
             given: "both engine namespaces and no execution platform",
             xml: definitions(
-                `xmlns:camunda="${CAMUNDA_NAMESPACE}" xmlns:zeebe="${ZEEBE_NAMESPACE}"`,
+                `xmlns:camunda="${ENGINE_NAMESPACE.c7.uri}" xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}"`,
             ),
             engine: "camunda",
         },
         {
             given: "the zeebe namespace alone",
-            xml: definitions(`xmlns:zeebe="${ZEEBE_NAMESPACE}"`),
+            xml: definitions(`xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}"`),
             engine: "zeebe",
         },
         {
             given: "a zeebe namespace declared only on a nested element",
-            xml: definitions("", `xmlns:zeebe="${ZEEBE_NAMESPACE}"`),
+            xml: definitions("", `xmlns:zeebe="${ENGINE_NAMESPACE.c8.uri}"`),
             engine: undefined,
         },
     ])("names $engine for $given", ({ xml, engine }) => {

@@ -1,5 +1,9 @@
-import { ENGINE_NAMESPACES } from "./parseWithoutWarnings";
-import type { EnginePlatform } from "./parseWithoutWarnings";
+import {
+    ENGINE_EXECUTION_PLATFORM,
+    ENGINE_NAMESPACE,
+    type Engine,
+    MODELER_NAMESPACE_URI,
+} from "@miragon/bpmn-modeler-types/engine";
 
 /** Extension XML the builder writes as given, unknown to it. */
 export interface XmlElement {
@@ -113,7 +117,7 @@ interface FixtureDataObject {
 }
 
 export interface BpmnFixtureModel {
-    platform: EnginePlatform;
+    platform: Engine;
     /** Prefix to URI, declared after the BPMN, DI and engine namespaces. */
     namespaces: Record<string, string>;
     roots: FixtureRoot[];
@@ -135,13 +139,10 @@ const STANDARD_NAMESPACES: Readonly<Record<string, string>> = {
     di: "http://www.omg.org/spec/DD/20100524/DI",
     xsi: "http://www.w3.org/2001/XMLSchema-instance",
 };
-const MODELER_NAMESPACE = "http://camunda.org/schema/modeler/1.0";
 
-const ENGINE: Readonly<
-    Record<EnginePlatform, { prefix: string; platform: string; version: string }>
-> = {
-    c7: { prefix: "camunda", platform: "Camunda Platform", version: "7.23.0" },
-    c8: { prefix: "zeebe", platform: "Camunda Cloud", version: "8.6.0" },
+const EXECUTION_PLATFORM_VERSION: Readonly<Record<Engine, string>> = {
+    c7: "7.23.0",
+    c8: "8.6.0",
 };
 
 const DEFAULT_SIZE: Partial<Record<FlowNodeType, readonly [number, number]>> = {
@@ -573,14 +574,12 @@ function definitionsAttributes(
     model: BpmnFixtureModel,
     usesEngineNamespace: boolean,
 ): Record<string, string> {
-    const engine = ENGINE[model.platform];
-    const engineDeclaration = usesEngineNamespace
-        ? { [engine.prefix]: ENGINE_NAMESPACES[model.platform] }
-        : {};
+    const { prefix, uri } = ENGINE_NAMESPACE[model.platform];
+    const engineDeclaration = usesEngineNamespace ? { [prefix]: uri } : {};
     const namespaceDeclarations = Object.entries({
         ...STANDARD_NAMESPACES,
         ...engineDeclaration,
-        modeler: MODELER_NAMESPACE,
+        modeler: MODELER_NAMESPACE_URI,
         ...model.namespaces,
     }).map(([prefix, uri]) => [`xmlns:${prefix}`, uri]);
     return {
@@ -589,8 +588,8 @@ function definitionsAttributes(
         "targetNamespace": "http://bpmn.io/schema/bpmn",
         "exporter": "Camunda Modeler",
         "exporterVersion": "5.40.0",
-        "modeler:executionPlatform": engine.platform,
-        "modeler:executionPlatformVersion": engine.version,
+        "modeler:executionPlatform": ENGINE_EXECUTION_PLATFORM[model.platform],
+        "modeler:executionPlatformVersion": EXECUTION_PLATFORM_VERSION[model.platform],
     };
 }
 
@@ -602,7 +601,7 @@ export function renderBpmn(model: BpmnFixtureModel): string {
         ...processElements(model),
         ...diagramElements(model),
     ];
-    const enginePrefix = `${ENGINE[model.platform].prefix}:`;
+    const enginePrefix = `${ENGINE_NAMESPACE[model.platform].prefix}:`;
     const usesEngineNamespace = content
         .flatMap((child) => writeElement(child, 0))
         .some((line) => line.includes(`<${enginePrefix}`) || line.includes(` ${enginePrefix}`));

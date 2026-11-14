@@ -1,7 +1,8 @@
-import type { BpmnFixtureModel, FixtureNode, XmlElement } from "./bpmnModelBuilder";
-import type { EnginePlatform } from "./parseWithoutWarnings";
+import type { Engine } from "@miragon/bpmn-modeler-types/engine";
 
-const CHECK_TASK_EXTENSIONS: Readonly<Record<EnginePlatform, XmlElement[]>> = {
+import type { BpmnFixtureModel, FixtureNode, XmlElement } from "./bpmnModelBuilder";
+
+const CHECK_TASK_EXTENSIONS: Readonly<Record<Engine, XmlElement[]>> = {
     c7: [
         {
             tag: "camunda:inputOutput",
@@ -25,13 +26,13 @@ const CHECK_TASK_EXTENSIONS: Readonly<Record<EnginePlatform, XmlElement[]>> = {
     ],
 };
 
-const CHECK_TASK_ENGINE_ATTRIBUTES: Readonly<Record<EnginePlatform, Record<string, string>>> = {
+const CHECK_TASK_ENGINE_ATTRIBUTES: Readonly<Record<Engine, Record<string, string>>> = {
     c7: { "camunda:delegateExpression": "${checkOrder}" },
     c8: {},
 };
 
 /** Camunda Modeler sets a history time to live on every new Camunda 7 process. */
-const PROCESS_ENGINE_ATTRIBUTES: Readonly<Record<EnginePlatform, Record<string, string>>> = {
+const PROCESS_ENGINE_ATTRIBUTES: Readonly<Record<Engine, Record<string, string>>> = {
     c7: { "camunda:historyTimeToLive": "180" },
     c8: {},
 };
@@ -41,7 +42,7 @@ const PROCESS_ENGINE_ATTRIBUTES: Readonly<Record<EnginePlatform, Record<string, 
  * attribute, a non-interrupting timer on it, a gateway with a default flow, an expanded sub-process, an error end,
  * a data object read by the task and an annotation. Small enough to enumerate picks over.
  */
-export function baseModel(platform: EnginePlatform): BpmnFixtureModel {
+export function baseModel(platform: Engine): BpmnFixtureModel {
     return {
         platform,
         namespaces: { custom: "urn:miragon:custom" },
