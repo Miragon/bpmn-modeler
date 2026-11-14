@@ -5,55 +5,34 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./types/bpmn-js-differ.d.ts" />
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="./types/bpmn-moddle.d.ts" />
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./types/execution-moddle.d.ts" />
 
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
+import {
+    BpmnModdleFactory,
+    ModdleParseResult,
+    loadBpmnModdle,
+    moddleDescriptor,
+    skippedContentWarning,
+} from "./bpmnModdleFactory";
+import { containmentProperties, walkContainment } from "./moddleContainment";
+import { ModdleElement, isModdleElement } from "./moddleElement";
+import {
+    NamespaceDeclaration,
+    isNamespaceDeclaration,
+    namePrefix,
+    namespaceDeclarations,
+} from "./namespaceDeclarations";
+import { trackedElementOf } from "./trackedElements";
 import { categoryIds, runDiff } from "./upstreamInternals/differResult";
 import { collectDrawnEdgeIds, layoutOnlyEdgeIds } from "./drawnEdges";
 import { DiffCounts, DiffResult } from "./diffResult";
 
-const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";
-const ZEEBE_NAMESPACE = "http://camunda.org/schema/zeebe/1.0";
-
-type Engine = "camunda" | "zeebe";
-
-interface PropertyDescriptor {
-    name: string;
-    isAttr?: boolean;
-    isAttribute?: boolean;
-    isReference?: boolean;
-    isVirtual?: boolean;
-}
-
-interface ModdleElement {
-    $type: string;
-    $attrs?: Record<string, string>;
-    $children?: ModdleElement[];
-    $descriptor: {
-        isGeneric?: boolean;
-        ns?: { prefix?: string; uri?: string };
-        properties?: PropertyDescriptor[];
-    };
-    $instanceOf?: (type: string) => boolean;
-    id?: string;
-    [key: string]: unknown;
-}
-
-interface ParseWarning {
-    message?: string;
-}
-
-interface ParseResult {
-    rootElement: ModdleElement;
-    warnings?: ParseWarning[];
-}
-
-interface ModdleFactory {
-    (packages?: Record<string, unknown>): {
-        fromXML: (xml: string) => Promise<ParseResult>;
-    };
+/** A Camunda 7 or 8 moddle descriptor with the namespace it describes. */
+interface ExecutionPackage {
+    prefix: string;
+    uri: string;
+    descriptor: unknown;
 }
 
 interface EngineParse {
@@ -76,59 +55,52 @@ interface AttributeSnapshot {
  * every execution property is considered exactly once with its typed defaults.
  * Unknown namespaced attributes are compared textually in a supplemental pass.
  *
- * Node- and browser-safe: it touches no DOM. The parser and descriptors load
- * lazily, so consumers that never call this function do not pay their cost.
+ * Node- and browser-safe: it touches no DOM. The parser, the descriptors and
+ * the differ load lazily, so consumers that never call this function do not
+ * pay their cost.
  *
  * Throws on parse or diff failure — callers that need a soft failure path
  * (e.g. the extension host) wrap this in their own try/catch.
  */
 export async function computeDiff(beforeXml: string, afterXml: string): Promise<DiffResult> {
-    const [moddleMod, camundaMod, zeebeMod] = await Promise.all([
-        import("bpmn-moddle"),
-        import("camunda-bpmn-moddle/resources/camunda.json"),
-        import("zeebe-bpmn-moddle/resources/zeebe.json"),
-    ]);
+    const [createBpmnModdle, camundaMod, zeebeMod, beforeDeclarations, afterDeclarations] =
+        await Promise.all([
+            loadBpmnModdle(),
+            import("camunda-bpmn-moddle/resources/camunda.json"),
+            import("zeebe-bpmn-moddle/resources/zeebe.json"),
+            namespaceDeclarations(beforeXml),
+            namespaceDeclarations(afterXml),
+        ]);
 
-    const moddleModule = moddleMod as unknown as {
-        default?: ModdleFactory;
-        BpmnModdle?: ModdleFactory;
-    };
-    const createBpmnModdle = moddleModule.default ?? moddleModule.BpmnModdle;
-    if (typeof createBpmnModdle !== "function") {
-        throw new Error("bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.");
-    }
-
-    const camundaDescriptor = descriptorValue(camundaMod);
-    const zeebeDescriptor = descriptorValue(zeebeMod);
-    const beforeCamundaPrefixes = namespacePrefixes(beforeXml, CAMUNDA_NAMESPACE, "camunda");
-    const afterCamundaPrefixes = namespacePrefixes(afterXml, CAMUNDA_NAMESPACE, "camunda");
-    const beforeZeebePrefixes = namespacePrefixes(beforeXml, ZEEBE_NAMESPACE, "zeebe");
-    const afterZeebePrefixes = namespacePrefixes(afterXml, ZEEBE_NAMESPACE, "zeebe");
+    const camundaPackage = executionPackage(camundaMod);
+    const zeebePackage = executionPackage(zeebeMod);
+    const beforeCamundaPrefixes = namespacePrefixes(beforeDeclarations, camundaPackage);
+    const afterCamundaPrefixes = namespacePrefixes(afterDeclarations, camundaPackage);
+    const beforeZeebePrefixes = namespacePrefixes(beforeDeclarations, zeebePackage);
+    const afterZeebePrefixes = namespacePrefixes(afterDeclarations, zeebePackage);
 
     const [camunda, zeebe] = await Promise.all([
         parseForEngine(
             createBpmnModdle,
-            "camunda",
-            camundaDescriptor,
+            camundaPackage,
             beforeXml,
             afterXml,
-            ZEEBE_NAMESPACE,
+            zeebePackage.uri,
             beforeZeebePrefixes,
             afterZeebePrefixes,
         ),
         parseForEngine(
             createBpmnModdle,
-            "zeebe",
-            zeebeDescriptor,
+            zeebePackage,
             beforeXml,
             afterXml,
-            CAMUNDA_NAMESPACE,
+            camundaPackage.uri,
             beforeCamundaPrefixes,
             afterCamundaPrefixes,
         ),
     ]);
 
-    const compared = [compare(camunda), compare(zeebe)];
+    const compared = await Promise.all([compare(camunda), compare(zeebe)]);
     const added = categoryIds(compared, "added");
     const removed = categoryIds(compared, "removed");
     const changed = categoryIds(compared, "changed");
@@ -197,40 +169,45 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
     };
 }
 
-function descriptorValue(module: unknown): unknown {
-    const descriptorModule = module as { default?: unknown };
-    return descriptorModule.default ?? module;
+function executionPackage(module: unknown): ExecutionPackage {
+    const descriptor = moddleDescriptor(module);
+    const { prefix, uri } = descriptor as { prefix?: unknown; uri?: unknown };
+    if (typeof prefix !== "string" || typeof uri !== "string") {
+        throw new Error("A Camunda moddle descriptor names no `prefix` and `uri`.");
+    }
+    return { prefix, uri, descriptor };
 }
 
 async function parseForEngine(
-    createBpmnModdle: ModdleFactory,
-    engine: Engine,
-    descriptor: unknown,
+    createBpmnModdle: BpmnModdleFactory,
+    engine: ExecutionPackage,
     beforeXml: string,
     afterXml: string,
     excludedNamespace: string,
     beforeExcludedPrefixes: ReadonlySet<string>,
     afterExcludedPrefixes: ReadonlySet<string>,
 ): Promise<EngineParse> {
-    const moddle = createBpmnModdle({ [engine]: descriptor });
+    const moddle = createBpmnModdle({ [engine.prefix]: engine.descriptor });
     const [beforeResult, afterResult] = await Promise.all([
         moddle.fromXML(beforeXml),
         moddle.fromXML(afterXml),
     ]);
-    assertNoSkippedContent(beforeResult, engine, "before");
-    assertNoSkippedContent(afterResult, engine, "after");
+    assertNoSkippedContent(beforeResult, engine.prefix, "before");
+    assertNoSkippedContent(afterResult, engine.prefix, "after");
     stripEngineData(beforeResult.rootElement, excludedNamespace, beforeExcludedPrefixes);
     stripEngineData(afterResult.rootElement, excludedNamespace, afterExcludedPrefixes);
     return { before: beforeResult.rootElement, after: afterResult.rootElement };
 }
 
-function assertNoSkippedContent(result: ParseResult, engine: Engine, revision: string): void {
-    const skipped = result.warnings?.find((warning) =>
-        warning.message?.toLowerCase().includes("unparsable content"),
-    );
+function assertNoSkippedContent(
+    result: ModdleParseResult,
+    descriptorName: string,
+    revision: string,
+): void {
+    const skipped = skippedContentWarning(result);
     if (skipped) {
         throw new Error(
-            `Failed to parse ${revision} BPMN with the ${engine} descriptor: ${skipped.message}`,
+            `Failed to parse ${revision} BPMN with the ${descriptorName} descriptor: ${skipped}`,
         );
     }
 }
@@ -239,11 +216,13 @@ function compare(parsed: EngineParse): ReturnType<typeof runDiff> {
     return runDiff(parsed.before, parsed.after);
 }
 
-function namespacePrefixes(xml: string, namespace: string, canonicalPrefix: string): Set<string> {
-    const prefixes = new Set([canonicalPrefix]);
-    const declaration = /\bxmlns:([\w.-]+)\s*=\s*(["'])(.*?)\2/g;
-    for (const match of xml.matchAll(declaration)) {
-        if (match[3] === namespace) prefixes.add(match[1]);
+function namespacePrefixes(
+    declarations: readonly NamespaceDeclaration[],
+    engine: ExecutionPackage,
+): Set<string> {
+    const prefixes = new Set([engine.prefix]);
+    for (const { prefix, uri } of declarations) {
+        if (prefix && uri === engine.uri) prefixes.add(prefix);
     }
     return prefixes;
 }
@@ -308,45 +287,8 @@ function belongsToNamespace(
 }
 
 function hasPrefix(name: string, prefixes: ReadonlySet<string>): boolean {
-    const separator = name.indexOf(":");
-    return separator > 0 && prefixes.has(name.slice(0, separator));
-}
-
-function walkContainment(root: ModdleElement, visit: (element: ModdleElement) => void): void {
-    const seen = new Set<ModdleElement>();
-    const walk = (element: ModdleElement): void => {
-        if (seen.has(element)) return;
-        seen.add(element);
-        visit(element);
-        for (const property of containmentProperties(element)) {
-            const value = element[property];
-            if (Array.isArray(value)) {
-                for (const child of value) if (isModdleElement(child)) walk(child);
-            } else if (isModdleElement(value)) {
-                walk(value);
-            }
-        }
-    };
-    walk(root);
-}
-
-function containmentProperties(element: ModdleElement): string[] {
-    if (element.$descriptor.isGeneric) return element.$children ? ["$children"] : [];
-    return (element.$descriptor.properties ?? [])
-        .filter(
-            (property) =>
-                !property.isVirtual &&
-                !property.isReference &&
-                !property.isAttr &&
-                !property.isAttribute,
-        )
-        .map((property) => property.name);
-}
-
-function isModdleElement(value: unknown): value is ModdleElement {
-    return Boolean(
-        value && typeof value === "object" && "$type" in value && "$descriptor" in value,
-    );
+    const prefix = namePrefix(name);
+    return prefix !== undefined && prefixes.has(prefix);
 }
 
 function collectNamespacedAttributes(
@@ -355,13 +297,12 @@ function collectNamespacedAttributes(
     zeebePrefixes: ReadonlySet<string>,
 ): AttributeSnapshot {
     const snapshot: AttributeSnapshot = { owners: new Set(), attributes: new Map() };
-    const processVisuals = trackedProcessVisuals(root);
     const seen = new Set<ModdleElement>();
 
     const walk = (element: ModdleElement, inheritedOwner?: string, path = element.$type): void => {
         if (seen.has(element)) return;
         seen.add(element);
-        const owner = trackedId(element, processVisuals) ?? inheritedOwner;
+        const owner = trackedElementOf(element)?.id ?? inheritedOwner;
         if (owner) snapshot.owners.add(owner);
 
         if (owner) {
@@ -411,39 +352,7 @@ function customAttributes(
 }
 
 function isQualifiedAttribute(name: string): boolean {
-    return name.includes(":") && name !== "xmlns" && !name.startsWith("xmlns:");
-}
-
-function trackedProcessVisuals(root: ModdleElement): Map<ModdleElement, string> {
-    const visuals = new Map<ModdleElement, string>();
-    walkContainment(root, (element) => {
-        if (!isType(element, "bpmn:Participant") || !element.id) return;
-        const processRef = element.processRef;
-        if (isModdleElement(processRef)) visuals.set(processRef, element.id);
-    });
-    return visuals;
-}
-
-function trackedId(
-    element: ModdleElement,
-    processVisuals: Map<ModdleElement, string>,
-): string | undefined {
-    if (isType(element, "bpmn:DataObject")) return undefined;
-    if (isType(element, "bpmn:Process")) return processVisuals.get(element) ?? element.id;
-    const tracked = [
-        "bpmn:Participant",
-        "bpmn:Collaboration",
-        "bpmn:FlowElement",
-        "bpmn:SequenceFlow",
-        "bpmn:MessageFlow",
-        "bpmn:Lane",
-        "bpmn:DataAssociation",
-    ].some((type) => isType(element, type));
-    return tracked ? element.id : undefined;
-}
-
-function isType(element: ModdleElement, type: string): boolean {
-    return element.$type === type || element.$instanceOf?.(type) === true;
+    return name.includes(":") && !isNamespaceDeclaration(name);
 }
 
 function mergeAttributeSnapshots(snapshots: readonly AttributeSnapshot[]): AttributeSnapshot {

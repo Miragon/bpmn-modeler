@@ -12,5 +12,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["**/*.ts", "../../../../libs/modeler-core/src/types/bpmn-moddle.d.ts"]
+  "include": ["**/*.ts"]
 }

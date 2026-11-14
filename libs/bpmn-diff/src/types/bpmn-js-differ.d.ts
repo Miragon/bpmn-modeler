@@ -1,7 +1,7 @@
 /**
  * Ambient type declarations for `bpmn-js-differ`, which ships without its own
- * `.d.ts`.  Covers only the subset used by the BPMN diff feature — `diff()`
- * and the shape of its return value.
+ * `.d.ts`.  Covers only the subset used by the BPMN diff feature — `diff()`,
+ * the shape of its return value and the tracked-element check its specs pin.
  */
 declare module "bpmn-js-differ" {
     /**
@@ -28,4 +28,10 @@ declare module "bpmn-js-differ" {
     }
 
     export function diff(before: ModdleElement, after: ModdleElement): DiffResult;
+
+    export class ChangeHandler {
+        _isTracked(
+            element: ModdleElement,
+        ): { element: ModdleElement; property: string } | false | undefined;
+    }
 }

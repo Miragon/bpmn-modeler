@@ -1,5 +1,6 @@
 import { dirname } from "path";
 
+import { type BpmnModdleFactory, loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
@@ -18,13 +19,6 @@ import { RulePackageGate, RulePackageSources } from "./RulePackageGate";
 import { Linter } from "bpmnlint";
 import NodeResolver from "bpmnlint/lib/resolver/node-resolver";
 import { createScopedRequire } from "bpmnlint/lib/resolver/helper";
-
-/**
- * `bpmn-moddle`'s default export is a factory that returns a moddle instance
- * pre-loaded with the core BPMN packages, optionally merged with additional
- * (e.g. Camunda) moddle extensions — the same call `bpmnlint`'s CLI uses.
- */
-type BpmnModdleFactory = (extensions?: Record<string, unknown>) => BpmnModdle;
 
 interface BpmnModdle {
     fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
@@ -190,7 +184,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
     }
 
     private loadModdleFactory(): Promise<BpmnModdleFactory> {
-        this.moddleFactory ??= importModdleFactory();
+        this.moddleFactory ??= loadBpmnModdle();
         return this.moddleFactory;
     }
 }
@@ -280,20 +274,4 @@ const refuseLocalRequire = ((id: string) => {
     throw new Error(`Refused to load ${id} relative to the config folder`);
 }) as unknown as NodeRequire;
 
-/**
- * `bpmn-moddle` has no `default` export on some bundler interops — its ESM
- * dist re-exports the factory as `BpmnModdle` too. Accept both (mirrors
- * `BpmnDiffService`).
- */
-async function importModdleFactory(): Promise<BpmnModdleFactory> {
-    const mod = (await import("bpmn-moddle")) as unknown as {
-        default?: BpmnModdleFactory;
-        BpmnModdle?: BpmnModdleFactory;
-    };
-    const factory = mod.default ?? mod.BpmnModdle;
-    if (typeof factory !== "function") {
-        throw new Error("bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.");
-    }
-    return factory;
-}
 
