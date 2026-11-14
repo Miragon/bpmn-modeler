@@ -104,7 +104,7 @@ so no host translates it; a host passes only a `post` and the page's commands.
 ### READMEs
 
 A detail shows the README of a plugin, a rule package or a marketplace below the core's facts
-(proposed, PR-pending).
+([#2467](https://github.com/Miragon/bpmn-modeler/pull/2467), proposed).
 
 - *The page asks per detail; the catalog does not carry it.* Every build goes to every view, and a
   README can be large. The page asks for the target it shows, again for a newer revision, and the
