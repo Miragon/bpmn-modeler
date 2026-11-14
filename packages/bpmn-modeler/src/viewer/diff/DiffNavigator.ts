@@ -38,7 +38,7 @@ export class DiffNavigator {
         viewOrNavigationOrder: DiffSideView | readonly string[],
         navigationOrder: readonly string[] = [],
     ): void {
-        if (isNavigationOrder(viewOrNavigationOrder)) {
+        if (DiffNavigator.isNavigationOrder(viewOrNavigationOrder)) {
             this.changeIds = viewOrNavigationOrder;
         } else {
             const skipped = layoutOnlyEdgeIds(viewOrNavigationOrder, (id) =>
@@ -119,9 +119,11 @@ export class DiffNavigator {
         this.viewer.clearSelectionMarker();
         return false;
     }
-}
 
-// Array.isArray does not narrow a union with a readonly array.
-function isNavigationOrder(value: DiffSideView | readonly string[]): value is readonly string[] {
-    return Array.isArray(value);
+    // Array.isArray does not narrow a union with a readonly array.
+    private static isNavigationOrder(
+        value: DiffSideView | readonly string[],
+    ): value is readonly string[] {
+        return Array.isArray(value);
+    }
 }
