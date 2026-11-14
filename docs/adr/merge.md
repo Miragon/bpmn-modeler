@@ -16,7 +16,7 @@ covers the data library; the merge view gets its own section when it is built.
 ### One unpublished library
 
 `libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, flat, DOM-free like `libs/bpmn-diff`)
-holds `computeMerge`; the decisions (#2451) and building the file (#2452) come next. It is not in `libs/bpmn-diff`,
+holds `computeMerge` and `MergeDecisions`; building the file (#2452) comes next. It is not in `libs/bpmn-diff`,
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `release-please-config.json` excludes the workspace from the npm component.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
@@ -81,9 +81,40 @@ base, an element only one side has, or that the sides hold differently, is a con
   definitions root), names each side's engine. Detected engines must agree; a side without
   one merges with either, since a save drops an engine namespace nothing uses.
 
+### Decisions and reference rules
+
+`MergeDecisions` holds the decisions of one merge: the automatic resolutions, the user's
+picks and what keeps the result whole. It imports only the result types; a spec mocks the
+parser and asserts that the module still loads.
+
+- *One rule.* Every element in the result needs, in the version its side gives, its
+  parent, the container it sits in, each of its lanes and every reference target the parse
+  lists (both flow ends, boundary host, `default`, the event definitions' message, error,
+  signal and escalation, data object and store, data association ends, compensation,
+  `processRef`, `categoryValueRef`, item definitions, operations). A reference or container
+  inside another element (a data association's target property, a lane's lane set) also
+  needs that element's chosen version to hold the part. A generic walk over the
+  descriptors' references covers every reference the parse resolves.
+- *Automatic resolutions are checked too.* One that breaks the rule becomes an open
+  conflict for the element and its target, computed again after each pick.
+- *A pick names its consequences.* It pulls in a target only its side has, or holds the
+  part, and drops the dependents of an element it removes. It is blocked, says why and
+  changes nothing when that would change an element the user picked, when no side
+  satisfies it, or when a dependent both versions hold would have to switch sides.
+  `pickWithContents` decides a container and everything in it at once; a later pick inside
+  overrides it. `unpick` returns an element to its automatic resolution or to open, which
+  is the way out of two picks that name each other.
+- *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
+  from its own side when the preferred side does not draw it, or draws it in another
+  parent, lane, host or between other ends, since bpmn-js reads lane membership and
+  attachment from geometry. Containers settle first: an element follows its host, parent,
+  pool or lane when that side moved the container, or when its own side draws it on
+  another plane (a collapsed sub-process), and a flow follows its ends when one of them had
+  to.
+
 ## Consequences
 
-- References held in plain strings are invisible to the classification: link events
+- References held in plain strings are invisible to the reference rules: link events
   pair by name, a Camunda 8 embedded form names its `zeebe:userTaskForm`, and the
   classification parses without engine descriptors, so engine extension references stay
   generic. `computeDiff` does not see a change to an element without an id.

@@ -1,4 +1,6 @@
-export type MergeSide = "current" | "incoming";
+export const MERGE_SIDES = ["current", "incoming"] as const;
+
+export type MergeSide = (typeof MERGE_SIDES)[number];
 
 export type ResolvedState =
     | "unchanged"

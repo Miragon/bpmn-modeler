@@ -1,18 +1,24 @@
 # `@miragon/bpmn-modeler-merge`
 
 The three-way merge of a BPMN file: classify each element from Git's base, current and incoming
-versions. Deciding what is left (#2451) and building one valid file (#2452) follow. It runs in Node
-and in the browser.
+versions and decide what is left. Building one valid file (#2452) follows. It runs in Node and in
+the browser.
 
 Internal workspace, not published, not inlined into `@miragon/bpmn-modeler`.
 
 ## Usage
 
 ```ts
-import { computeMerge, isConflictState } from "@miragon/bpmn-modeler-merge";
+import { computeMerge, MergeDecisions } from "@miragon/bpmn-modeler-merge";
 
-const result = await computeMerge({ base, current, incoming }); // base is optional
-const conflicts = result.elements.filter((element) => isConflictState(element.state));
+const decisions = MergeDecisions.from(await computeMerge({ base, current, incoming })); // base is optional
+
+for (const conflict of decisions.openConflicts) {
+    const outcome = decisions.pick(conflict.id, "incoming");
+    // outcome.applied ? outcome.pulledIn / outcome.dropped : outcome.blockedBy
+}
+decisions.unpick("Task_1"); // back to its automatic resolution, or open
+const resolution = decisions.resolution(); // throws while conflicts are open
 ```
 
 `MergeResult` holds only ids, states, per-version facts and a fingerprint of each version's XML
@@ -27,8 +33,10 @@ and a root element or lane without an id.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
   lazily. Import the engine rule from `@miragon/bpmn-modeler-types/engine`, never the barrel, whose
   modules are DOM-typed.
+- `mergeDecisions.ts` and its helpers import no parser: `mergeDecisionsPurity.spec.ts` mocks the parser
+  and loads them.
 - Fixtures are generated in `src/__fixtures__/` from a plain model and must equal a moddle round trip
   with the descriptor of the engine the modeler detects (`executionEngineOf`).
 
-Why the merge decides on its own set of elements and what a state compares is in the
-[Merge ADR](../../docs/adr/merge.md).
+Why the merge decides on its own set of elements, what a state compares and which references a
+pick must keep is in the [Merge ADR](../../docs/adr/merge.md).
