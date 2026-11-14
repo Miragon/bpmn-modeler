@@ -83,6 +83,15 @@ export class DiffViewer {
             this.viewer = undefined;
         });
         this.store.add(() => this.sizeObserver.dispose());
+        this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
+    }
+
+    /**
+     * bpmn-js shows a plane the user drills into from its top-left corner at
+     * 100 %, where a subprocess's content often is not; fit it instead.
+     */
+    private fitEnteredPlane(): void {
+        this.positionProgrammatically(() => this.fitViewport());
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {

@@ -302,6 +302,27 @@ describe("DiffViewer planes", () => {
         viewer.destroy();
     });
 
+    it("fits the plane the user enters, instead of bpmn-js' top-left corner, and tells no partner", async () => {
+        const { viewer, enter } = await subprocessPane();
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        enter("Main_Subprocess_plane");
+        await waitForViewportNotification();
+
+        const viewport = viewer.getViewport();
+        const { registry } = getServices(viewer);
+        for (const id of ["Inner_Start", "Inner_Task", "Inner_End"]) {
+            const shape = registry.get(id) as unknown as { x: number; y: number };
+            expect(shape.x, id).toBeGreaterThanOrEqual(viewport.x);
+            expect(shape.x, id).toBeLessThanOrEqual(viewport.x + viewport.width);
+            expect(shape.y, id).toBeGreaterThanOrEqual(viewport.y);
+            expect(shape.y, id).toBeLessThanOrEqual(viewport.y + viewport.height);
+        }
+        expect(onViewportChanged).not.toHaveBeenCalled();
+        viewer.destroy();
+    });
+
     it("reports no plane it entered itself, stepping or showing the whole diagram", async () => {
         const { viewer } = await subprocessPane();
         const entered: string[] = [];
