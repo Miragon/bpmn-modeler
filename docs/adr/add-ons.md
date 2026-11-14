@@ -105,7 +105,7 @@ so no host translates it; a host passes only a `post` and the page's commands.
 
 A detail shows, below the core's facts, the README and license of a plugin, a rule package or a
 marketplace, and a marketplace's stars
-([#2467](https://github.com/Miragon/bpmn-modeler/pull/2467), proposed).
+([#2467](https://github.com/Miragon/bpmn-modeler/pull/2467)).
 
 - *The page asks per detail; the catalog does not carry it.* Every build goes to every view, and a
   README can be large. The page asks about the target it shows, again for a newer revision, and the
@@ -113,8 +113,13 @@ marketplace, and a marketplace's stars
 - *The core reads only places it recorded.* A build keeps, by the id the view knows, the folder of
   each plugin and rule package and what each marketplace's cache holds (`aboutPlacesOf`). A view
   names an id and never a path, as for every request.
-- *A folder add-on's license is the one it declares*, the `license` of its own `package.json`, read
-  when its detail asks, so a listing reads no extra file per plugin.
+- *One rule finds a README* (`readmeFileNameIn`, in `kernel`): `README.md`, `README.markdown` or
+  `README` in any case, in a folder add-on and at a marketplace's root alike. A remote source lists
+  its root files for it, which costs GitHub one API request per update, rather than asking the host
+  for the README it shows, whose rule differs by host.
+- *A folder add-on's license is the one it declares*, the `license` of its own `package.json` as the
+  core's one manifest parser reads it, when its detail asks, so a listing reads no extra file per
+  plugin.
 - *A marketplace's README, stars and license are fetched with its manifest*, in the same
   authenticated run, and cached: its 404 means none and never prompts for a token, and another
   failure keeps the cached copy. They come from the host's repository request (GitHub
@@ -131,12 +136,14 @@ marketplace, and a marketplace's stars
   repository, which the marketplace's license does not cover. Its cached folder carries its own
   README, read like a workspace plugin's.
 - *A marketplace has a detail of its own*, opened from its header, because its README describes the
-  marketplace, not any one template.
+  marketplace, not any one template. The core marks such a source (`hasDetail`); the page and VS
+  Code's detail tab both read that mark.
 - *Markdown becomes DOM from `marked`'s tokens, never HTML.* A README is workspace text, and a
   plugin's README is read before the user allows its code. Raw HTML is dropped, an image shows its
   alt text, and only an absolute `http(s):` or `mailto:` link stays a link. The cost: badges,
   screenshots and HTML layout in a README do not show, and a relative link is text.
-  `markdownView.spec.ts` checks it.
+  `markdownView.spec.ts` checks it. VS Code and Theia open a link in the browser themselves;
+  IntelliJ's pages open links externally, as an off-screen JCEF browser drops a popup.
 
 ### The page
 

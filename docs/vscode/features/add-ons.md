@@ -46,7 +46,11 @@ Click a row to open its details in an editor tab, **Add-on:** and its name, in t
 - where it lies: the folder and the source;
 - a problem or a note, if the add-on has one;
 - what you can do with it, as buttons: **Revoke**, **Disable** or **Enable**;
-- for code you can allow, the review, always open: what the code can do and how far an allowance reaches, its folder, its version (rule packages) and **Allowed in**: every worktree of its repository, or this folder only outside a repository, with **Allow** at its end.
+- for code you can allow, the review, always open: what the code can do and how far an allowance reaches, its folder, its version (rule packages) and **Allowed in**: every worktree of its repository, or this folder only outside a repository, with **Allow** at its end;
+- the license its `package.json` declares, at the end of the top line, for a plugin or rule package that declares one;
+- its README, below everything else, when its folder has a `README.md` (any case; `README.markdown` and `README` too).
+
+A README shows as text: headings, lists, tables, code and links that start with `http(s):` or `mailto:`, which open in your browser. Images show only their description, and HTML in a README is left out, so a README is safe to read before you allow its code. A README longer than 200,000 characters is cut, and the details say so.
 
 When an add-on cannot be read or is not trusted to run, its state reads **Not loaded** before its own state, for example *Not loaded · Allowed*, and the problem says why.
 
@@ -74,7 +78,7 @@ Each template with an id offers **Disable** or **Enable** in its details. Each c
 
 ## Marketplaces and plugin copies
 
-**Marketplaces** follows **Installed** once a marketplace is registered; when the registrations cannot be read, it says why. Each marketplace's **⋯** menu offers **Remove**, which asks before it unregisters the marketplace. The [marketplace commands](/vscode/features/template-marketplace#add-a-marketplace) work as before.
+**Marketplaces** follows **Installed** once a marketplace is registered; when the registrations cannot be read, it says why. Each marketplace's **⋯** menu offers **Remove**, which asks before it unregisters the marketplace. The **ⓘ** button in a marketplace's header opens its own details, in a **Marketplace:** tab: where it is registered, its template count and actions, the stars and license GitHub or GitLab reports for its repository, and the README at its root. A repository without a license file shows **No license**: its content grants no reuse. Stars, license and README come with **Update marketplaces**; a local folder has no stars and no license. The [marketplace commands](/vscode/features/template-marketplace#add-a-marketplace) work as before.
 
 **More actions** (**⋯**, at the end of the top line) holds **Add marketplace…**, **Update marketplaces** and **Remove unused plugin copies**. When the view lists nothing at all, neither an add-on nor a marketplace, it offers **Add marketplace…** in the empty list too. **Remove unused plugin copies** deletes every plugin copy in VS Code's global storage that no open editor of this window uses. Another window that still needs a copy writes it again the next time an editor there opens.
 
