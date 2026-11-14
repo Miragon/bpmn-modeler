@@ -413,7 +413,7 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(getComputedStyle(row.parentElement!).outlineStyle).toBe("none");
     });
 
-    it("fits the DRD below the top inset without zooming in, and brings it back after a table", async () => {
+    it("fits the DRD centred below the top inset without zooming in, and brings it back after a table", async () => {
         const container = document.createElement("div");
         container.style.cssText = "position: relative; width: 520px; height: 400px;";
         document.body.append(container);
@@ -425,8 +425,12 @@ describe("DMN diff pane (real dmn-js)", () => {
         const fitted = viewer.getViewport()!;
         const scale = 520 / fitted.width;
         expect(scale).toBeLessThanOrEqual(1);
-        // The topmost shape starts at y = 80, below the inset and a 24px margin.
-        expect((80 - fitted.y) * scale).toBeCloseTo(124, 0);
+        // Centred like the BPMN diff, in the 300px the inset leaves below it.
+        const content = container
+            .querySelector<SVGGElement>(".djs-container svg .viewport")!
+            .getBBox();
+        expect((content.y + content.height / 2 - fitted.y) * scale).toBeCloseTo(100 + 300 / 2, 0);
+        expect((content.x + content.width / 2 - fitted.x) * scale).toBeCloseTo(520 / 2, 0);
 
         viewer.setViewport({ ...fitted, x: fitted.x + 50 });
         await viewer.openView("Decision_1");

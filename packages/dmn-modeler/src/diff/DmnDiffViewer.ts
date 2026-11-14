@@ -444,7 +444,7 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
 
     /**
      * dmn-js renders the DRD anew each time it opens. The first time the
-     * diagram is fitted below the top inset, never zoomed past 100 %; after
+     * diagram is fitted and centred below the top inset, never zoomed past 100 %; after
      * that it comes back where it was.
      */
     private placeDrd(): void {
@@ -463,9 +463,11 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
             (outer.height - this.topInset - 2 * margin) / inner.height,
         );
         const width = outer.width / scale;
+        // Centred in the room below the inset, as the BPMN diff centres its panes.
+        const centreY = this.topInset + (outer.height - this.topInset) / 2;
         this.setViewport({
             x: inner.x + inner.width / 2 - width / 2,
-            y: inner.y - (this.topInset + margin) / scale,
+            y: inner.y + inner.height / 2 - centreY / scale,
             width,
             height: outer.height / scale,
         });
