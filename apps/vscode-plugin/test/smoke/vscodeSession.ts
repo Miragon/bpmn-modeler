@@ -104,6 +104,12 @@ export interface VsCodeLaunchOptions {
     timeoutMs: number;
 }
 
+/** The user settings a test changes while VS Code runs. */
+interface ChangingUserSettings {
+    colorTheme: string;
+    gitEnabled: boolean;
+}
+
 export class VsCodeSession {
     private readonly reportedCspViolations: string[] = [];
 
@@ -111,6 +117,7 @@ export class VsCodeSession {
         readonly app: ElectronApplication,
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
+        private changingSettings: ChangingUserSettings,
     ) {
         // Chromium reports each violation as a console message of the webview frame
         // that caused it; the context sees them all, including those raised at load.
@@ -130,7 +137,8 @@ export class VsCodeSession {
         const extensionsDirectory = join(options.rootDirectory, "extensions");
         await mkdir(join(userDataDirectory, "User"), { recursive: true });
         await mkdir(extensionsDirectory, { recursive: true });
-        await writeUserSettings(options, options.colorTheme);
+        const changingSettings = { colorTheme: options.colorTheme, gitEnabled: false };
+        await writeUserSettings(options, changingSettings);
 
         const app = await electron.launch({
             executablePath: options.executablePath,
@@ -163,7 +171,7 @@ export class VsCodeSession {
             await app.evaluate(({ BrowserWindow }, { width, height }) => {
                 BrowserWindow.getAllWindows()[0]?.setContentSize(width, height);
             }, WINDOW_SIZE);
-            return new VsCodeSession(app, page, options);
+            return new VsCodeSession(app, page, options, changingSettings);
         } catch (error) {
             await closeApplication(app);
             throw error;
@@ -384,7 +392,31 @@ export class VsCodeSession {
 
     /** VS Code watches its settings file, so this switches the theme as a user's change does. */
     async setColorTheme(colorTheme: string): Promise<void> {
-        await writeUserSettings(this.options, colorTheme);
+        await this.changeSettings({ colorTheme });
+    }
+
+    /** The Git extension opens the workspace's repositories when enabled and closes them when disabled. */
+    async setGitEnabled(gitEnabled: boolean): Promise<void> {
+        await this.changeSettings({ gitEnabled });
+    }
+
+    private async changeSettings(change: Partial<ChangingUserSettings>): Promise<void> {
+        this.changingSettings = { ...this.changingSettings, ...change };
+        await writeUserSettings(this.options, this.changingSettings);
+    }
+
+    /**
+     * Opens the change of `fileName` from the Source Control view, as a click on its
+     * row does. The row appears once Git has scanned the repository.
+     */
+    async openSourceControlChange(fileName: string): Promise<void> {
+        await this.runCommand("Source Control: Focus on Changes View");
+        await this.page
+            .locator(".scm-view .monaco-list-row .resource")
+            .filter({ hasText: fileName })
+            .first()
+            .click();
+        await this.movePointerAway();
     }
 
     workbenchHasClass(className: string): Promise<boolean> {
@@ -448,7 +480,10 @@ function pageOf(outerFrame: Locator): FrameLocator {
     return outerFrame.contentFrame().locator("iframe#active-frame").contentFrame();
 }
 
-async function writeUserSettings(options: VsCodeLaunchOptions, colorTheme: string): Promise<void> {
+async function writeUserSettings(
+    options: VsCodeLaunchOptions,
+    { colorTheme, gitEnabled }: ChangingUserSettings,
+): Promise<void> {
     const settings = {
         "workbench.colorTheme": colorTheme,
         "workbench.editorAssociations": options.customEditors,
@@ -471,7 +506,7 @@ async function writeUserSettings(options: VsCodeLaunchOptions, colorTheme: strin
         "extensions.autoUpdate": false,
         "extensions.ignoreRecommendations": true,
         "security.workspace.trust.enabled": false,
-        "git.enabled": false,
+        "git.enabled": gitEnabled,
         // The saved text must be exactly what the modeler wrote.
         "files.autoSave": "off",
         "files.insertFinalNewline": false,

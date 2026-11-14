@@ -1,3 +1,4 @@
+import { DiffRevision } from "../diff/domain/DiffRevision";
 import { DiffPaneHandle } from "../diff/port/DiffPaneHandle";
 
 /** One diff pane whose document and webview live in memory; `posted` records what reached the webview. */
@@ -8,6 +9,7 @@ export class FakeDiffPaneHandle implements DiffPaneHandle {
     constructor(
         readonly uri: string,
         private readonly text = "",
+        readonly revision: DiffRevision = { kind: "unknown" },
     ) {}
 
     isReady(): boolean {

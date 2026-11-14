@@ -1,3 +1,5 @@
+import { DiffRevision } from "../domain/DiffRevision";
+
 /**
  * Port for a single diff pane.
  *
@@ -12,6 +14,8 @@
  */
 export interface DiffPaneHandle {
     readonly uri: string;
+    /** Which version of its file the pane shows; it names the versions in a title. */
+    readonly revision: DiffRevision;
     /**
      * `true` once the webview has imported its XML and emitted
      * `DiffReadyCommand`. The session is armed — and the differ runs —

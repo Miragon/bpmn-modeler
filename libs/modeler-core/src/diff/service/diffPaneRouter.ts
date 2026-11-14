@@ -53,8 +53,11 @@ export function createDiffPaneRouter(
         ],
         DiffSelectionChangedCommand: [
             (command, pane) => diffService.forwardSelection(pane, command.elementId),
+            (command, pane) => diffService.followSelectionWithElementXml(pane, command.elementId),
         ],
-        ShowElementXmlChangesCommand: { ignored: "the host shows no element XML diff" },
+        ShowElementXmlChangesCommand: diffService.showsElementXmlChanges
+            ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
+            : { ignored: "the host shows no element XML diff" },
         ...hostRoutes(extensions),
     });
 }

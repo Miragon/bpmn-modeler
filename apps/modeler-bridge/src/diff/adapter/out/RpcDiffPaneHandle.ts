@@ -14,7 +14,7 @@
  * panes in one shot.
  */
 
-import { DiffPaneHandle } from "@miragon/bpmn-modeler-core";
+import { DiffPaneHandle, DiffRevision } from "@miragon/bpmn-modeler-core";
 
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
@@ -31,6 +31,8 @@ import { METHODS } from "../../../protocol/domain/descriptor";
  * it with the diff id so two simultaneous diffs of the same file never collide.
  */
 export class RpcDiffPaneHandle implements DiffPaneHandle {
+    // IntelliJ sends no revision with `diff/open`.
+    readonly revision: DiffRevision = { kind: "unknown" };
     private ready = false;
 
     constructor(

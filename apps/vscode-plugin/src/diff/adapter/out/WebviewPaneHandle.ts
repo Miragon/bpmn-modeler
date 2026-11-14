@@ -1,10 +1,11 @@
 import { TextDocument, WebviewPanel } from "vscode";
 
-import { DiffPaneHandle } from "@miragon/bpmn-modeler-core";
+import { DiffPaneHandle, DiffRevision } from "@miragon/bpmn-modeler-core";
 import {
     bootstrapWebview,
     DiffPaneSurface,
 } from "../../../shared/adapter/out/bootstrapWebview";
+import { revisionOfDocument } from "./documentRevision";
 
 /**
  * Outbound adapter that wraps a real `WebviewPanel` + `TextDocument`
@@ -26,6 +27,10 @@ export class WebviewPaneHandle implements DiffPaneHandle {
 
     get uri(): string {
         return this.document.uri.toString();
+    }
+
+    get revision(): DiffRevision {
+        return revisionOfDocument(this.document.uri);
     }
 
     isReady(): boolean {

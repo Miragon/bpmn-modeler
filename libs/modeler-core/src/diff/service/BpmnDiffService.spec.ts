@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createTestHost, FakeDiffPaneHandle } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
-import { BpmnDiffService } from "./BpmnDiffService";
+import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
 
 // ─── Sample BPMN ──────────────────────────────────────────────────────────────
 
@@ -29,10 +29,10 @@ const RIGHT = "file:///repo/diagram.bpmn";
 
 const fakeHandle = (uri: string, text = "") => new FakeDiffPaneHandle(uri, text);
 
-function createService() {
+function createService(elementXml?: ElementXmlChanges) {
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
-    const service = new BpmnDiffService(notifier, settings, store);
+    const service = new BpmnDiffService(notifier, settings, store, elementXml);
     return { service, notifier, store };
 }
 
@@ -149,6 +149,30 @@ describe("BpmnDiffService", () => {
                 .find((m) => m.type === "ApplyDiffHighlightsQuery")?.paneFilename;
         expect(paneFilenameOf(before)).toBe("diagram.bpmn");
         expect(paneFilenameOf(after)).toBe("diagram.bpmn");
+    });
+
+    it.each<[string, ElementXmlChanges | undefined, boolean]>([
+        [
+            "offers an element's XML changes in the highlights when the host shows them",
+            { show: async () => undefined, follow: async () => undefined },
+            true,
+        ],
+        ["does not offer an element's XML changes on a host without them", undefined, false],
+    ])("%s", async (_case, elementXml, offered) => {
+        const { service, store } = createService(elementXml);
+        const { before, after } = attachedPair(store, beforeBpmn, afterBpmn);
+
+        await service.markReady(before);
+        await service.markReady(after);
+
+        for (const pane of [before, after]) {
+            expect(pane.posted).toContainEqual(
+                expect.objectContaining({
+                    type: "ApplyDiffHighlightsQuery",
+                    elementXmlChanges: offered,
+                }),
+            );
+        }
     });
 
     it("logs and posts no highlights when computeDiff rejects on invalid XML", async () => {

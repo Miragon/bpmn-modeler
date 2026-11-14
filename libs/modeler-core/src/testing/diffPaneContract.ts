@@ -48,7 +48,11 @@ const REVISION = "git:/repo/order.bpmn?ref=HEAD";
  * panes, and forwards viewport and cursor to the partner; a host detaches a pane
  * from its session as the pane is disposed.
  *
+ * The element XML diff names both panes' revisions in its title.
+ *
  * Left out, because the hosts differ and the core relies on none of it:
+ * - Which revision a pane reports. VS Code reads it from the URI of the Git
+ *   extension's document, the bridge cannot tell and reports it as unknown.
  * - What `postMessage` resolves to. VS Code answers whether the webview took the
  *   message, the bridge always `true`; the core awaits it only for a rejection.
  * - Whether a post has arrived once `postMessage` resolves. The bridge resolves
@@ -111,6 +115,19 @@ export function describeDiffPaneContract(
                 expect([fixture.before.uri, fixture.after.uri]).toEqual([before, after]);
             },
         );
+
+        it("keeps the revision it reports, once ready and once disposed", () => {
+            const { before, after } = openScmDiff();
+            const opened = [before.revision, after.revision];
+
+            before.setReady();
+            after.setReady();
+            const ready = [before.revision, after.revision];
+            before.dispose();
+            after.dispose();
+
+            expect([ready, [before.revision, after.revision]]).toStrictEqual([opened, opened]);
+        });
 
         it("becomes ready only by its own setReady, not by serving its file", async () => {
             const fixture = openScmDiff();
