@@ -48,7 +48,7 @@ export interface EngineCapabilities {
     readonly inlineScripting: boolean;
     /** Transaction boundaries are a Camunda 7 overlay. */
     readonly transactionBoundaries: boolean;
-    /** Only Camunda 8 links user tasks to Camunda Forms by id. */
+    /** Only Camunda 8 links user tasks and start events to Camunda Forms by id. */
     readonly formReferenceStatus: boolean;
 }
 

@@ -75,5 +75,5 @@ Available in Design and Implement.
 ## Next steps
 
 - [Inline scripts](/vscode/features/inline-scripting): edit scripts in a real editor tab.
-- [Forms](/vscode/features/form-editing): edit the `.form` files a user task links to.
+- [Forms](/vscode/features/form-editing): edit the `.form` files a user task or start event links to.
 - [Configuration](/vscode/configuration): `configFolder` and the other settings.

@@ -1,7 +1,8 @@
 /**
  * bpmn-js DI module that adds a "Navigate to referenced model" entry to the
  * context pad around Call Activities (BPMN→BPMN), Business Rule Tasks
- * (BPMN→DMN), and C8 User Tasks with a resolvable linked form (BPMN→form).
+ * (BPMN→DMN), and C8 User Tasks and top-level none Start Events with a
+ * resolvable linked form (BPMN→form).
  *
  * The module is built by {@link createModelNavigationModule}, which takes the
  * {@link ModelNavigationPort} and embeds it as the `modelNavigationPort` DI

@@ -1,6 +1,6 @@
 # Forms
 
-Build Camunda Forms for user tasks in a visual editor ([form-js](https://bpmn.io/toolkit/form-js/)), preview them and test their data inside VS Code.
+Build Camunda Forms for user tasks and start events in a visual editor ([form-js](https://bpmn.io/toolkit/form-js/)), preview them and test their data inside VS Code.
 
 ## Create or open a form
 
@@ -35,5 +35,5 @@ The form `id` identifies the file, not the file name. If several forms share an 
 
 ## Next steps
 
-- [Jump to code and models](/vscode/features/code-navigation): open a form from its user task.
+- [Jump to code and models](/vscode/features/code-navigation): open a form from its user task or start event.
 - [Deployment](/vscode/features/deployment): deploy the form with its process.

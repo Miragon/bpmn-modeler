@@ -90,12 +90,16 @@ const REFERENCE_KINDS = Object.keys(REFERENCE_SOURCES) as ReferenceKind[];
 
 /** The kind of model the element references, or `undefined` for an element that holds none. */
 export function referenceKindOf(element: ReferenceElement): ReferenceKind | undefined {
+    // An external label shares its event's business object but is not the holder.
+    if (element.type === "label") {
+        return undefined;
+    }
     const businessObject: BusinessObjectLike = element.businessObject ?? element;
     return REFERENCE_KINDS.find((kind) =>
         REFERENCE_SOURCES[kind].holders.some(
             (holder) =>
                 is(element, holder.elementType) &&
-                (holder.holdsReference?.(businessObject) ?? true),
+                (!holder.holdsReference || holder.holdsReference(businessObject)),
         ),
     );
 }

@@ -44,12 +44,12 @@ describe("referenceKindOf", () => {
         expect(referenceKindOf(elementOfType("bpmn:Task", "bpmn:ServiceTask"))).toBe(undefined);
     });
 
-    function startEvent(parentType: string, eventDefinitions?: unknown[]) {
+    function startEvent(parentType?: string, eventDefinitions?: unknown[]) {
         return {
             businessObject: {
                 $instanceOf: (type: string) => ["bpmn:Event", "bpmn:StartEvent"].includes(type),
                 eventDefinitions,
-                $parent: { $instanceOf: (type: string) => type === parentType },
+                $parent: parentType && { $instanceOf: (type: string) => type === parentType },
             },
         };
     }
@@ -67,6 +67,12 @@ describe("referenceKindOf", () => {
             startEvent("bpmn:Process", [{ $type: "bpmn:MessageEventDefinition" }]),
         ],
         ["a none start event inside a subprocess", undefined, startEvent("bpmn:SubProcess")],
+        ["a none start event without a parent", undefined, startEvent()],
+        [
+            "the external label of a none start event of a process",
+            undefined,
+            { ...startEvent("bpmn:Process"), type: "label" },
+        ],
     ])("maps %s to %s", (_label, kind, element) => {
         expect(referenceKindOf(element)).toBe(kind);
     });
