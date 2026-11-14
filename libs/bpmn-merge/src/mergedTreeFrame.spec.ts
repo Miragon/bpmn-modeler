@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { type DocumentFrame, mergeFrames } from "./mergedTreeFrame";
+import { createMergeModdle } from "./engineModdle";
+import { type DocumentFrame, applyFrame, frameOf, mergeFrames } from "./mergedTreeFrame";
 
 const frame = (
     attributes: Record<string, string>,
@@ -94,5 +95,37 @@ describe("mergeFrames", () => {
                 { kind: "frameDiffers", attribute: "imports" },
             ],
         });
+    });
+});
+
+describe("the frame of a file with an engine that extends the definitions", () => {
+    const camunda7File = (diagramRelationId: string) =>
+        `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" camunda:diagramRelationId="${diagramRelationId}">
+  <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="180" />
+</bpmn:definitions>
+`;
+    const versions = {
+        base: camunda7File("relation-1"),
+        current: camunda7File("relation-1"),
+        incoming: camunda7File("relation-2"),
+    };
+
+    it("takes an engine attribute of the definitions only incoming changed", async () => {
+        const mergeModdle = await createMergeModdle(versions);
+        const [base, current, incoming] = await Promise.all(
+            [versions.base, versions.current, versions.incoming].map((xml) =>
+                frameOf(mergeModdle, xml),
+            ),
+        );
+
+        const { takenFromIncoming, notes } = mergeFrames({ base, current, incoming });
+        const { rootElement } = await mergeModdle.moddle.fromXML(versions.current);
+        applyFrame(rootElement, takenFromIncoming);
+
+        expect(notes).toEqual([]);
+        expect((await mergeModdle.moddle.toXML(rootElement)).xml).toContain(
+            'camunda:diagramRelationId="relation-2"',
+        );
     });
 });

@@ -17,16 +17,6 @@ export interface FrameMerge {
     readonly notes: readonly BuildNote[];
 }
 
-const DEFINITIONS_ATTRIBUTES = [
-    "id",
-    "name",
-    "targetNamespace",
-    "expressionLanguage",
-    "typeLanguage",
-    "exporter",
-    "exporterVersion",
-];
-
 const FRAME_CONTENTS = ["extensionElements", "imports"] as const;
 
 /**
@@ -70,7 +60,7 @@ export function mergeFrames(frames: {
 export async function frameOf({ moddle }: MergeModdle, xml: string): Promise<DocumentFrame> {
     const definitions = (await moddle.fromXML(xml)).rootElement;
     const attributes: Record<string, string> = {};
-    for (const name of DEFINITIONS_ATTRIBUTES) {
+    for (const name of typedAttributesOf(definitions)) {
         // A descriptor default is read through the prototype; only a value the file sets is the file's.
         if (Object.hasOwn(definitions, name)) attributes[name] = String(definitions[name]);
     }
@@ -95,11 +85,17 @@ export function applyFrame(
     definitions: ModdleElement,
     takenFromIncoming: Readonly<Record<string, string | undefined>>,
 ): void {
+    const typedAttributes = typedAttributesOf(definitions);
     for (const [name, value] of Object.entries(takenFromIncoming)) {
-        const holder = DEFINITIONS_ATTRIBUTES.includes(name)
-            ? definitions
-            : (definitions.$attrs ??= {});
+        const holder = typedAttributes.includes(name) ? definitions : (definitions.$attrs ??= {});
         if (value === undefined) delete holder[name];
         else holder[name] = value;
     }
+}
+
+/** The definitions' attributes its descriptors type, an engine's extension of `bpmn:Definitions` included; the rest are in `$attrs`. */
+function typedAttributesOf(definitions: ModdleElement): string[] {
+    return (definitions.$descriptor.properties ?? [])
+        .filter((property) => property.isAttr === true && property.isReference !== true)
+        .map((property) => property.name);
 }

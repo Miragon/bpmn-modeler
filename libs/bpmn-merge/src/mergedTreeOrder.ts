@@ -1,3 +1,12 @@
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
+
+/** How a member of a collection is known in every version: by its id, or as the object itself without one. */
+export type ItemKey = string | ModdleElement;
+
+export function itemKeyOf(element: ModdleElement): ItemKey {
+    return element.id ?? element;
+}
+
 /**
  * The members of one collection of the merged document: current's order,
  * then each member only incoming's order places, after its nearest

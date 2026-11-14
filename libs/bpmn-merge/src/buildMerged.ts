@@ -1,15 +1,16 @@
 import type { ElementSnapshot, ModdleElement } from "@miragon/bpmn-modeler-diff";
 
 import { checkMergedXml } from "./buildChecks";
-import { type MergeSources, mergeSourcesOf } from "./buildMergedSources";
+import type { MergeSources } from "./buildMergedSources";
 import {
     type BuildNote,
     addedAtSamePlaceNotes,
     drawnApartFromContainerNotes,
     flowEndsNotes,
 } from "./buildNotes";
-import type { MergeVersions } from "./computeMerge";
-import { assembleDiagrams, boundsIn, diagramIndexOf, drawnByShape } from "./diagramMerge";
+import { isEnclosingContainer } from "./containerContents";
+import { boundsIn, diagramIndexOf } from "./diagramIndex";
+import { assembleDiagrams, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
 import type { MergeDecisions } from "./mergeDecisions";
 import type { MergeSide } from "./mergeResult";
@@ -26,20 +27,19 @@ export interface MergedDocument {
 }
 
 /**
- * Writes the merged BPMN: current's file as the frame with the definitions
- * attributes only incoming changed, each element and its drawing as its side
- * wrote them, derived references rebuilt, serialised as the modeler saves.
- * Throws on open conflicts and refuses a result that fails its checks, naming
- * the ids.
+ * Writes the merged BPMN of the sources' versions: current's file as the
+ * frame with the definitions attributes only incoming changed, each element
+ * and its drawing as its side wrote them, derived references rebuilt,
+ * serialised as the modeler saves. Throws on open conflicts and refuses a
+ * result that fails its checks, naming the ids.
  */
 export async function buildMerged(
-    versions: MergeVersions,
+    sources: MergeSources,
     decisions: MergeDecisions,
 ): Promise<MergedDocument> {
     const resolution = decisions.resolution();
     const result = decisions.result;
-    const sources = await mergeSourcesOf(versions);
-    const { mergeModdle } = sources;
+    const { mergeModdle, versions } = sources;
     const [current, incoming] = await Promise.all([
         parsedVersion(mergeModdle, versions.current),
         parsedVersion(mergeModdle, versions.incoming),
@@ -72,7 +72,9 @@ export async function buildMerged(
             ...addedAtSamePlaceNotes(result, resolution, (id, side) =>
                 boundsIn(diagramIndexes[side], id),
             ),
-            ...drawnApartFromContainerNotes(result, resolution),
+            ...drawnApartFromContainerNotes(result, resolution, (id) =>
+                isEnclosingContainer(resultUnits.get(id)),
+            ),
             ...frame.notes,
         ],
     };

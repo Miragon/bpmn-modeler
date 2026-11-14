@@ -3,20 +3,21 @@ import {
     type ModdleElement,
     type ModdleParseResult,
     elementSnapshots,
-    isModdleElement,
+    idsOf,
+    moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
+import { enclosingSubProcessOf } from "./containerContents";
+import { type DiagramIndex, contentsPlaneIn, diagramIndexOf } from "./diagramIndex";
 import type { MergeModdle } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
 import {
-    enclosingSubProcessOf,
     flowsBySourceOf,
     flowsByTargetOf,
-    idOf,
-    idsOf,
     isAttachedBoundaryEvent,
     semanticElementsOf,
 } from "./mergedTreeDerived";
+import { sameLanes } from "./mergeResult";
 
 /** What the merged file must hold, known before it is written. */
 export interface BuildExpectations {
@@ -40,8 +41,9 @@ export async function checkMergedXml(
 ): Promise<void> {
     const parsed = await moddle.fromXML(xml);
     requireNoParserWarnings(parsed);
-    requireOneDrawingPerDrawnElement(parsed.rootElement, expectations.drawnByShape);
-    requireDrawingsOnTheirContainersPlane(parsed.rootElement);
+    const diagramIndex = diagramIndexOf(parsed.rootElement);
+    requireOneDrawingPerDrawnElement(diagramIndex, expectations.drawnByShape);
+    requireDrawingsOnTheirContainersPlane(diagramIndex);
     requireRebuiltDerivedReferences(parsed.rootElement, expectations.laneMembers);
     const resultSnapshots = await elementSnapshots(xml, { prefixSources, isUnit: isMergeElement });
     requireSourceContent(resultSnapshots, expectations.sourceSnapshots);
@@ -54,53 +56,30 @@ export function requireNoParserWarnings(parsed: ModdleParseResult): void {
 }
 
 export function requireOneDrawingPerDrawnElement(
-    definitions: ModdleElement,
+    diagramIndex: DiagramIndex,
     drawnByShape: ReadonlySet<string>,
 ): void {
-    const drawingCounts = new Map<string, number>();
-    for (const diagram of moddleElements(definitions.diagrams)) {
-        for (const drawing of moddleElements(
-            (diagram.plane as ModdleElement | undefined)?.planeElement,
-        )) {
-            const id = idOf(drawing.bpmnElement);
-            if (id !== undefined) drawingCounts.set(id, (drawingCounts.get(id) ?? 0) + 1);
-        }
-    }
-    const drawnTwice = [...drawingCounts].filter(([, count]) => count > 1).map(([id]) => id);
+    const drawnTwice = [...diagramIndex.drawingsByElement]
+        .filter(([id, drawings]) => id !== "" && drawings.length > 1)
+        .map(([id]) => id);
     if (drawnTwice.length > 0) refuse("elements have more than one shape or edge", drawnTwice);
-    const undrawn = [...drawnByShape].filter((id) => !drawingCounts.has(id));
+    const undrawn = [...drawnByShape].filter((id) => !diagramIndex.drawingsByElement.has(id));
     if (undrawn.length > 0) refuse("drawn elements have no shape or edge", undrawn);
 }
 
-/**
- * A sub-process's contents lie on its own plane when it is collapsed and has
- * one, otherwise on the plane its shape lies on, as bpmn-js reads them.
- */
-export function requireDrawingsOnTheirContainersPlane(definitions: ModdleElement): void {
-    const planeOwnerByElement = new Map<string, string>();
-    const drawingByElement = new Map<string, ModdleElement>();
-    const planeOwners = new Set<string>();
-    for (const diagram of moddleElements(definitions.diagrams)) {
-        const plane = diagram.plane as ModdleElement | undefined;
-        const planeOwner = idOf(plane?.bpmnElement) ?? "";
-        planeOwners.add(planeOwner);
-        for (const drawing of moddleElements(plane?.planeElement)) {
-            const id = idOf(drawing.bpmnElement);
-            if (id === undefined) continue;
-            planeOwnerByElement.set(id, planeOwner);
-            drawingByElement.set(id, drawing);
-        }
-    }
-    const contentsPlaneOf = (subProcess: string) =>
-        planeOwners.has(subProcess) && drawingByElement.get(subProcess)?.isExpanded !== true
-            ? subProcess
-            : planeOwnerByElement.get(subProcess);
-    const misplaced = [...drawingByElement]
-        .filter(([id, drawing]) => {
-            const subProcess = enclosingSubProcessOf(drawing.bpmnElement as ModdleElement);
-            const expected = subProcess === undefined ? undefined : contentsPlaneOf(subProcess);
-            return expected !== undefined && expected !== planeOwnerByElement.get(id);
-        })
+/** Every drawing lies where `contentsPlaneOf` puts the contents of its sub-process. */
+export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex): void {
+    const misplaced = [...diagramIndex.drawingsByElement]
+        .filter(([id, drawings]) =>
+            drawings.some(({ element, planeOwner }) => {
+                const subProcess = enclosingSubProcessOf(element.bpmnElement as ModdleElement);
+                const expected =
+                    id === "" || subProcess === undefined
+                        ? undefined
+                        : contentsPlaneIn(diagramIndex, subProcess);
+                return expected !== undefined && expected !== planeOwner;
+            }),
+        )
         .map(([id]) => id);
     if (misplaced.length > 0) {
         refuse("drawings lie on another plane than their sub-process implies", misplaced);
@@ -120,14 +99,22 @@ export function requireRebuiltDerivedReferences(
         ...flowNodes
             .filter(
                 (node) =>
-                    !sameIds(idsOf(node.incoming), flowIdsByTarget.get(node.id ?? "") ?? []) ||
-                    !sameIds(idsOf(node.outgoing), flowIdsBySource.get(node.id ?? "") ?? []),
+                    !sameIdsInAnyOrder(
+                        idsOf(node.incoming),
+                        flowIdsByTarget.get(node.id ?? "") ?? [],
+                    ) ||
+                    !sameIdsInAnyOrder(
+                        idsOf(node.outgoing),
+                        flowIdsBySource.get(node.id ?? "") ?? [],
+                    ),
             )
             .map((node) => node.id),
         ...lanes
             .filter(
                 (lane) =>
-                    !sameIds(idsOf(lane.flowNodeRef), [...(laneMembers.get(lane.id ?? "") ?? [])]),
+                    !sameIdsInAnyOrder(idsOf(lane.flowNodeRef), [
+                        ...(laneMembers.get(lane.id ?? "") ?? []),
+                    ]),
             )
             .map((lane) => lane.id),
         ...activities
@@ -154,7 +141,7 @@ export function requireSourceContent(
                 merged === undefined ||
                 merged.content !== source.content ||
                 merged.parent !== source.parent ||
-                !sameIds(merged.lanes, source.lanes)
+                !sameLanes(merged.lanes, source.lanes)
             );
         })
         .map(([id]) => id);
@@ -164,18 +151,13 @@ export function requireSourceContent(
     }
 }
 
-function sameIds(
-    actual: readonly (string | undefined)[],
-    expected: readonly (string | undefined)[],
-): boolean {
-    const expectedIds = new Set(expected);
-    return actual.length === expected.length && actual.every((id) => expectedIds.has(id));
+/** The derived lists keep the order an element had, so only which ids and how often counts. */
+function sameIdsInAnyOrder(actual: readonly string[], expected: readonly string[]): boolean {
+    const sorted = (ids: readonly string[]) =>
+        JSON.stringify([...ids].sort((left, right) => left.localeCompare(right)));
+    return sorted(actual) === sorted(expected);
 }
 
 function refuse(reason: string, details: readonly (string | undefined)[]): never {
     throw new Error(`The merged BPMN is refused, ${reason}: ${details.join(", ")}`);
-}
-
-function moddleElements(value: unknown): ModdleElement[] {
-    return Array.isArray(value) ? value.filter(isModdleElement) : [];
 }

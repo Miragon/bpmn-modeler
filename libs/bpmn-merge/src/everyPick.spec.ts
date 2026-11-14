@@ -8,6 +8,7 @@ import {
 } from "./__fixtures__/mergeScenarios";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { buildMerged } from "./buildMerged";
+import { type MergeSources, prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
 import { MERGE_SIDES, type ElementState, type MergeResult, type MergeSide } from "./mergeResult";
@@ -88,13 +89,13 @@ function explore(result: MergeResult, picks: readonly Pick[], exploration: Explo
 }
 
 async function expectSoundBuild(
-    versions: MergeVersions,
+    sources: MergeSources,
     result: MergeResult,
     { resolution, picks }: EndState,
 ) {
     const decisions = replay(result, picks);
     expect(decisions.resolution()).toEqual(resolution);
-    const { xml } = await buildMerged(versions, decisions);
+    const { xml } = await buildMerged(sources, decisions);
     const parsed = await parseWithoutWarnings(xml);
     const drawingCounts = new Map<string, number>();
     for (const diagram of parsed.rootElement.diagrams as {
@@ -116,13 +117,16 @@ async function expectSoundBuild(
 }
 
 async function exploreScenario(versions: MergeVersions, startPicks: readonly Pick[] = []) {
-    const result = await computeMerge(versions);
+    const [result, sources] = await Promise.all([
+        computeMerge(versions),
+        prepareMergeSources(versions),
+    ]);
     const exploration: Exploration = { endStates: new Map(), blockedPicks: 0, deadEnds: [] };
     explore(result, startPicks, exploration);
     for (const endState of exploration.endStates.values()) {
-        await expectSoundBuild(versions, result, endState);
+        await expectSoundBuild(sources, result, endState);
     }
-    return { result, exploration };
+    return { result, sources, exploration };
 }
 
 /** The resolution of the elements whose versions differ: two end states alike there build the same file. */
@@ -139,11 +143,7 @@ function distinctionOf(result: MergeResult, resolution: MergeResolution): string
  * differ, closes the conflicts that opens with both sides, and builds every
  * end state not reached before.
  */
-async function exploreOverrides(
-    versions: MergeVersions,
-    result: MergeResult,
-    reached: Exploration,
-) {
+async function exploreOverrides(sources: MergeSources, result: MergeResult, reached: Exploration) {
     const distinct = new Set(
         [...reached.endStates.values()].map(({ resolution }) => distinctionOf(result, resolution)),
     );
@@ -169,7 +169,7 @@ async function exploreOverrides(
         distinct.add(distinction);
     }
     for (const endState of added.values()) {
-        await expectSoundBuild(versions, result, endState);
+        await expectSoundBuild(sources, result, endState);
     }
     return { overrides, distinctEndStates: distinct.size };
 }
@@ -257,26 +257,36 @@ const OVERRIDES_COVERED_ELSEWHERE: ReadonlySet<string> = new Set([
 /** Sub_Ship and Task_Pack are decided by the container pick; five conflicts remain open. */
 const CONFLICTS_OUTSIDE_SUB_SHIP_END_STATES = 32;
 
-describe("every end state the picks reach, overriding one automatic resolution each", () => {
-    it.each(MERGE_SCENARIOS.map((scenario) => ({ ...scenario })))(
-        "$name: every end state builds a sound file",
-        async (scenario) => {
-            const { result, exploration } = await exploreScenario(scenario);
+/** 192 builds: about 3 s under coverage locally and 6 s on a CI runner, past Vitest's 5 s default. */
+const ALL_CONFLICTS_TIMEOUT_MS = 20_000;
 
-            expect(exploration.deadEnds).toEqual([]);
-            expect(exploration.endStates.size).toBe(EXPECTED_END_STATES[scenario.name] ?? 1);
-            expect(exploration.endStates.size).toBeLessThanOrEqual(
-                2 ** MergeDecisions.from(result).openConflicts.length,
-            );
-            if (OVERRIDES_COVERED_ELSEWHERE.has(scenario.name)) return;
-            const { overrides, distinctEndStates } = await exploreOverrides(
-                scenario,
-                result,
-                exploration,
-            );
-            expect(overrides.deadEnds).toEqual([]);
-            expect(distinctEndStates).toBe(EXPECTED_DISTINCT_END_STATES[scenario.name] ?? 1);
-        },
+async function expectEveryEndStateBuildsSoundly(
+    scenario: MergeVersions & { readonly name: string },
+) {
+    const { result, sources, exploration } = await exploreScenario(scenario);
+
+    expect(exploration.deadEnds).toEqual([]);
+    expect(exploration.endStates.size).toBe(EXPECTED_END_STATES[scenario.name] ?? 1);
+    expect(exploration.endStates.size).toBeLessThanOrEqual(
+        2 ** MergeDecisions.from(result).openConflicts.length,
+    );
+    if (OVERRIDES_COVERED_ELSEWHERE.has(scenario.name)) return;
+    const { overrides, distinctEndStates } = await exploreOverrides(sources, result, exploration);
+    expect(overrides.deadEnds).toEqual([]);
+    expect(distinctEndStates).toBe(EXPECTED_DISTINCT_END_STATES[scenario.name] ?? 1);
+}
+
+describe("every end state the picks reach, overriding one automatic resolution each", () => {
+    it.each(
+        MERGE_SCENARIOS.filter(({ name }) => name !== ALL_CONFLICTS_SCENARIO).map((scenario) => ({
+            ...scenario,
+        })),
+    )("$name: every end state builds a sound file", expectEveryEndStateBuildsSoundly);
+
+    it(
+        `${ALL_CONFLICTS_SCENARIO}: every end state builds a sound file`,
+        () => expectEveryEndStateBuildsSoundly(scenarioNamed(ALL_CONFLICTS_SCENARIO)),
+        ALL_CONFLICTS_TIMEOUT_MS,
     );
 
     it.each(SIDES)(

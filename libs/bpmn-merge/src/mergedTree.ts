@@ -6,10 +6,8 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import { isMergeElement } from "./mergeElements";
-import { orderMembers } from "./mergedTreeOrder";
+import { type ItemKey, itemKeyOf, orderMembers } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
-
-type ItemKey = string | ModdleElement;
 
 interface PathStep {
     readonly property: string;
@@ -187,8 +185,4 @@ function slotKeyOf({ owner, path, property }: UnitPlacement): string {
 
 function stepKeyOf(element: ModdleElement, index: number): string {
     return element.id ?? `${element.$type}#${index}`;
-}
-
-function itemKeyOf(element: ModdleElement): ItemKey {
-    return element.id ?? element;
 }

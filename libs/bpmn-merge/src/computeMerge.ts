@@ -2,7 +2,12 @@ import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-di
 
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
-import type { ElementVersion, MergeElement, MergeResult } from "./mergeResult";
+import {
+    type ElementVersion,
+    type MergeElement,
+    type MergeResult,
+    lanesKeyOf,
+} from "./mergeResult";
 import {
     type MergeVersions,
     VERSION_NAMES,
@@ -104,7 +109,11 @@ function mergeElementOf(
 
 function classifiedVersionOf(snapshot: ElementSnapshot | undefined): ClassifiedVersion | undefined {
     if (!snapshot) return undefined;
-    const key = JSON.stringify([snapshot.content, snapshot.parent ?? null, snapshot.lanes]);
+    const key = JSON.stringify([
+        snapshot.content,
+        snapshot.parent ?? null,
+        lanesKeyOf(snapshot.lanes),
+    ]);
     return snapshot.layout === undefined ? { key } : { key, layout: snapshot.layout };
 }
 

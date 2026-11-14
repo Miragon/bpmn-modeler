@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { buildMerged } from "./buildMerged";
+import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { isMergeElement } from "./mergeElements";
@@ -91,7 +92,10 @@ const collapsed = (taskX = 180) =>
     );
 
 async function automaticMerge(versions: MergeVersions) {
-    return buildMerged(versions, MergeDecisions.from(await computeMerge(versions)));
+    return buildMerged(
+        await prepareMergeSources(versions),
+        MergeDecisions.from(await computeMerge(versions)),
+    );
 }
 
 async function layoutsOf(xml: string, versions: MergeVersions) {
@@ -109,12 +113,12 @@ async function planesOf(xml: string) {
             rootElement.diagrams as {
                 plane: {
                     bpmnElement: { id: string };
-                    planeElement: { bpmnElement: { id: string } }[];
+                    planeElement?: { bpmnElement: { id: string } }[];
                 };
             }[]
         ).map(({ plane }) => [
             plane.bpmnElement.id,
-            plane.planeElement.map(({ bpmnElement }) => bpmnElement.id),
+            (plane.planeElement ?? []).map(({ bpmnElement }) => bpmnElement.id),
         ]),
     );
 }
@@ -154,6 +158,32 @@ describe("buildMerged with a collapsed sub-process", () => {
         });
         expect(xml).toContain('<dc:Bounds x="260" y="100" width="100" height="80" />');
         expect(notes).toEqual([]);
+    });
+});
+
+describe("buildMerged with an expanded sub-process that has a plane of its own", () => {
+    const expandedWithOwnPlane = (taskX = 260) =>
+        expanded(taskX).replace(
+            "</bpmndi:BPMNDiagram>",
+            `</bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Sub">
+    <bpmndi:BPMNPlane id="BPMNPlane_Sub" bpmnElement="Sub_1" />
+  </bpmndi:BPMNDiagram>`,
+        );
+
+    it("keeps the contents on the plane of the sub-process's shape, as bpmn-js reads them", async () => {
+        const versions = {
+            base: expandedWithOwnPlane(),
+            current: expandedWithOwnPlane(),
+            incoming: expandedWithOwnPlane(280),
+        };
+        const { xml } = await automaticMerge(versions);
+
+        expect(await planesOf(xml)).toEqual({
+            Process_1: ["Start_1", "Sub_1", "Task_In", "End_1", "Flow_1", "Flow_2"],
+            Sub_1: [],
+        });
+        expect(xml).toContain('<dc:Bounds x="280" y="100" width="100" height="80" />');
     });
 });
 

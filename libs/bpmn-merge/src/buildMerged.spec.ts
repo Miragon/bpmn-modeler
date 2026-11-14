@@ -16,6 +16,7 @@ import {
 } from "./__fixtures__/mergeScenarios";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
+import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
 import { isMergeElement } from "./mergeElements";
@@ -35,11 +36,14 @@ async function everyElementFrom(versions: MergeVersions, side: MergeSide) {
         pending = blocked;
     }
     expect(pending, `picks from ${side}`).toEqual([]);
-    return { ...(await buildMerged(versions, decisions)), resolution: decisions.resolution() };
+    return {
+        ...(await buildMerged(await prepareMergeSources(versions), decisions)),
+        resolution: decisions.resolution(),
+    };
 }
 
 async function automaticMerge(versions: MergeVersions) {
-    return buildMerged(versions, await decisionsFor(versions));
+    return buildMerged(await prepareMergeSources(versions), await decisionsFor(versions));
 }
 
 function snapshotsOf(xml: string, versions: MergeVersions) {
@@ -353,12 +357,12 @@ describe("buildMerged", () => {
         it.each(buildable)("$name: builds or names its open conflicts", async (scenario) => {
             const decisions = await decisionsFor(scenario);
             if (!decisions.canBuild) {
-                await expect(buildMerged(scenario, decisions)).rejects.toThrow(
-                    decisions.openConflicts[0]!.id,
-                );
+                await expect(
+                    buildMerged(await prepareMergeSources(scenario), decisions),
+                ).rejects.toThrow(decisions.openConflicts[0]!.id);
                 return;
             }
-            const { xml } = await buildMerged(scenario, decisions);
+            const { xml } = await buildMerged(await prepareMergeSources(scenario), decisions);
             await expect(parseWithoutWarnings(xml)).resolves.toBeDefined();
         });
     });
@@ -392,18 +396,19 @@ describe("buildMerged", () => {
             const openIds = decisions.openConflicts.map(({ id }) => id);
 
             expect(openIds.length).toBeGreaterThan(1);
-            await expect(buildMerged(scenario, decisions)).rejects.toThrow(openIds.join(", "));
+            await expect(
+                buildMerged(await prepareMergeSources(scenario), decisions),
+            ).rejects.toThrow(openIds.join(", "));
         });
 
         it("refuses a version with an unresolved reference, naming the version", async () => {
             const scenario = scenarioNamed("table: unchanged");
-            const decisions = await decisionsFor(scenario);
             const dangling = {
                 ...scenario,
                 current: scenario.current.replace('default="Flow_No"', 'default="Flow_Gone"'),
             };
 
-            await expect(buildMerged(dangling, decisions)).rejects.toThrow(
+            await expect(prepareMergeSources(dangling)).rejects.toThrow(
                 /current does not parse: .*unresolved reference <Flow_Gone>/,
             );
         });
@@ -412,7 +417,9 @@ describe("buildMerged", () => {
             const decisions = await decisionsFor(scenarioNamed("table: unchanged"));
             const other = scenarioNamed("root element only incoming adds");
 
-            await expect(buildMerged(other, decisions)).rejects.toThrow("Message_Reminder");
+            await expect(buildMerged(await prepareMergeSources(other), decisions)).rejects.toThrow(
+                "Message_Reminder",
+            );
         });
     });
 
@@ -431,7 +438,7 @@ describe("buildMerged", () => {
             const decisions = await decisionsFor(scenario);
             expect(decisions.canBuild).toBe(true);
 
-            const { xml } = await buildMerged(scenario, decisions);
+            const { xml } = await buildMerged(await prepareMergeSources(scenario), decisions);
 
             expect(await boundaryEventRefsOf(xml)).toEqual([]);
         });
@@ -566,7 +573,7 @@ describe("buildMerged", () => {
                 for (const { id } of decisions.openConflicts) {
                     decisions.pick(id, "incoming");
                 }
-                const { xml } = await buildMerged(scenario, decisions);
+                const { xml } = await buildMerged(await prepareMergeSources(scenario), decisions);
                 const [rootDiagram, ...others] = await diagramsOf(xml);
 
                 expect(others).toEqual([]);

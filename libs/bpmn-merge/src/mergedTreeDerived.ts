@@ -1,6 +1,7 @@
 import {
     type ModdleElement,
-    isModdleElement,
+    idOf,
+    idsOf,
     isType,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
@@ -95,28 +96,6 @@ export function semanticElementsOf(definitions: ModdleElement) {
         else if (isType(element, "bpmn:Lane")) lanes.push(element);
     });
     return { flowElements, flowNodes, sequenceFlows, lanes, activities };
-}
-
-/** The sub-process whose plane, or whose shape's plane, draws the element; none for an element of a process. */
-export function enclosingSubProcessOf(element: ModdleElement | undefined): string | undefined {
-    for (
-        let container = element?.$parent as ModdleElement | undefined;
-        container !== undefined && !isType(container, "bpmn:Process");
-        container = container.$parent as ModdleElement | undefined
-    ) {
-        if (isType(container, "bpmn:SubProcess")) return container.id;
-    }
-    return undefined;
-}
-
-export function idOf(value: unknown): string | undefined {
-    return isModdleElement(value) ? value.id : undefined;
-}
-
-export function idsOf(value: unknown): string[] {
-    return Array.isArray(value)
-        ? value.map(idOf).filter((id): id is string => id !== undefined)
-        : [];
 }
 
 function setInOrder(

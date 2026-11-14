@@ -13,6 +13,7 @@ import {
     computeMerge,
     describeUnmetRequirement,
     MergeDecisions,
+    prepareMergeSources,
 } from "@miragon/bpmn-modeler-merge";
 
 const versions = { base, current, incoming }; // base is optional
@@ -26,7 +27,8 @@ for (const conflict of decisions.openConflicts) {
 }
 decisions.unpick("Task_1"); // back to its automatic resolution or open, unless another pick needs it
 
-const { xml, notes } = await buildMerged(versions, decisions); // throws while conflicts are open
+const sources = await prepareMergeSources(versions); // once per merge; keep it for every build
+const { xml, notes } = await buildMerged(sources, decisions); // throws while conflicts are open
 ```
 
 An applied pick leaves the element on the picked side: an automatic element that clashes with it or
@@ -36,8 +38,8 @@ choice that applies, is refused with its reasons.
 `MergeResult` holds only ids, states, per-version facts and a fingerprint of each version's XML
 (`versionKeys`), so it is JSON-serialisable. `computeMerge` refuses, naming the version: sides for
 different engines, a version that parses with any warning, also under the merge's engine descriptor,
-and a root element or lane without an id. `buildMerged` refuses the same versions and a result that
-fails its checks instead of repairing it.
+and a root element or lane without an id. `prepareMergeSources` refuses the same versions, and
+`buildMerged` refuses a result that fails its checks instead of repairing it.
 
 ## Rules
 

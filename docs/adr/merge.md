@@ -151,10 +151,18 @@ parser and asserts that the module still loads.
 
 ### Building the file
 
-`buildMerged(versions, decisions)` refuses open conflicts and builds the file on a fresh
+`buildMerged(sources, decisions)` refuses open conflicts and builds the file on a fresh
 parse of current, which keeps everything outside the merge elements (label styles, the
 `definitions` extensions and imports). Building a fresh tree would have to copy each of
 those.
+
+- *The caller owns what builds share.* `prepareMergeSources(versions)` parses each version
+  once (its snapshots, its frame, the shared moddle) and refuses one with a warning; the
+  merge view keeps that value for the session and passes it to every build, so a preview
+  per pick does not parse the versions again. On the 800 KB `large-c8.bpmn` a build takes
+  about 290 ms with the sources reused and 630 ms when it prepares them itself. A cache
+  keyed by the versions object did the same out of sight: a caller that copied the object
+  lost it, and one that changed it relied on a string guard.
 
 - *Same parse as the modeler's save.* Current and incoming are parsed with current's
   engine descriptor and one prefix map built from all versions, current first, and
@@ -166,20 +174,25 @@ those.
   go after the sibling they followed. References inside a moved element still point at
   the other tree's objects and serialise by id.
 - *The frame is three-way.* Each `definitions` attribute takes incoming's value when only
-  incoming changed it and current's otherwise; without a base, current's.
+  incoming changed it and current's otherwise; without a base, current's. Which attributes
+  are typed comes from the loaded descriptors, so an engine's extension of
+  `bpmn:Definitions` (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
 - *Diagrams by what they draw.* One root diagram for the collaboration and the processes
   its participants name, under current's ids, and one per collapsed sub-process. Drawings
-  take their layout side's DI unchanged and go on the plane their sub-process implies; an
-  edge's `sourceElement` and `targetElement` point at the result's drawings.
+  take their layout side's DI unchanged and go on the plane their sub-process implies, as
+  bpmn-js reads it: its own plane when it has one and its shape is not expanded, otherwise
+  its shape's plane. The build and the check share that one rule. An edge's
+  `sourceElement` and `targetElement` point at the result's drawings.
 - *Derived references are rebuilt, never merged:* `incoming` and `outgoing` from the
   flows, `flowNodeRef` from each element's chosen lanes; `boundaryEventRefs` is only
   shortened to the boundary events still attached, since bpmn-js never writes it. Stale
   ones parse without a warning, so nothing else would notice.
 - *Refused, not repaired.* Before it returns, a fresh parse of the result must give no
   warning at all, every drawn element must have exactly one shape or edge on the plane its
-  container implies, the derived references must equal the rebuilt ones, and every
-  element's compared text, parent and lanes must equal its source side's, which catches
-  dropped attributes and namespace swaps.
+  container implies, the derived references must list the rebuilt ids, each as often, in
+  any order, and every element's compared text, parent and lanes must equal its source
+  side's, which catches dropped attributes and namespace swaps. Lanes are listed outermost
+  first, so the classification, the layout side and the check all compare them in order.
 - *Notes for the reviewer:* a flow whose layout and its ends' layouts come from different
   sides, an element drawn from another side than its container, elements both sides added
   at the same place, and every frame difference the result does not carry (attributes both

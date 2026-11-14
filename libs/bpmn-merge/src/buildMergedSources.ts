@@ -6,8 +6,13 @@ import { isMergeElement } from "./mergeElements";
 import { type DocumentFrame, frameOf } from "./mergedTreeFrame";
 import type { MergeSide } from "./mergeResult";
 
-/** What every build from the same versions shares: nothing in it is changed by a build. */
+/**
+ * What every build of one merge shares, parsed once: the caller keeps it for
+ * the merge's lifetime and passes it to each build. Nothing in it is changed
+ * by a build.
+ */
 export interface MergeSources {
+    readonly versions: MergeVersions;
     readonly mergeModdle: MergeModdle;
     readonly snapshots: Readonly<Record<MergeSide, ReadonlyMap<string, ElementSnapshot>>>;
     readonly frames: {
@@ -17,32 +22,8 @@ export interface MergeSources {
     };
 }
 
-interface PreparedSources {
-    readonly current: string;
-    readonly incoming: string;
-    readonly base?: string;
-    readonly sources: Promise<MergeSources>;
-}
-
-// A merge view builds once per pick from the same versions object; the strings guard against a reused object.
-const preparedByVersions = new WeakMap<MergeVersions, PreparedSources>();
-
-export function mergeSourcesOf(versions: MergeVersions): Promise<MergeSources> {
-    const prepared = preparedByVersions.get(versions);
-    if (
-        prepared?.current === versions.current &&
-        prepared.incoming === versions.incoming &&
-        prepared.base === versions.base
-    ) {
-        return prepared.sources;
-    }
-    const sources = prepareSources(versions);
-    preparedByVersions.set(versions, { ...versions, sources });
-    sources.catch(() => preparedByVersions.delete(versions));
-    return sources;
-}
-
-async function prepareSources(versions: MergeVersions): Promise<MergeSources> {
+/** Rejects a version that parses with any warning, naming it. */
+export async function prepareMergeSources(versions: MergeVersions): Promise<MergeSources> {
     const mergeModdle = await createMergeModdle(versions);
     const [current, incoming] = await Promise.all([
         versionSnapshots(mergeModdle, "current", versions.current),
@@ -54,6 +35,11 @@ async function prepareSources(versions: MergeVersions): Promise<MergeSources> {
         versions.base === undefined ? undefined : frameOf(mergeModdle, versions.base),
     ]);
     return {
+        versions: {
+            current: versions.current,
+            incoming: versions.incoming,
+            ...(versions.base === undefined ? {} : { base: versions.base }),
+        },
         mergeModdle,
         snapshots: { current, incoming },
         frames: {

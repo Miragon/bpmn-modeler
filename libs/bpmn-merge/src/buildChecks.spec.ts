@@ -11,6 +11,7 @@ import {
     requireRebuiltDerivedReferences,
     requireSourceContent,
 } from "./buildChecks";
+import { diagramIndexOf } from "./diagramIndex";
 import { moddleFor } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
 
@@ -104,7 +105,7 @@ describe("requireOneDrawingPerDrawnElement", () => {
 
         const definitions = (await parse(twice)).rootElement;
 
-        expect(() => requireOneDrawingPerDrawnElement(definitions, drawn)).toThrow(
+        expect(() => requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn)).toThrow(
             "elements have more than one shape or edge: Task_Check",
         );
     });
@@ -114,7 +115,7 @@ describe("requireOneDrawingPerDrawnElement", () => {
 
         const definitions = (await parse(undrawn)).rootElement;
 
-        expect(() => requireOneDrawingPerDrawnElement(definitions, drawn)).toThrow(
+        expect(() => requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn)).toThrow(
             "drawn elements have no shape or edge: Task_Check",
         );
     });
@@ -122,7 +123,9 @@ describe("requireOneDrawingPerDrawnElement", () => {
     it("accepts one shape per drawn element", async () => {
         const definitions = (await parse(valid)).rootElement;
 
-        expect(() => requireOneDrawingPerDrawnElement(definitions, drawn)).not.toThrow();
+        expect(() =>
+            requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn),
+        ).not.toThrow();
     });
 });
 
@@ -160,6 +163,21 @@ describe("requireRebuiltDerivedReferences", () => {
         const definitions = (await parse(valid)).rootElement;
 
         expect(() => requireRebuiltDerivedReferences(definitions, moved)).toThrow(
+            "derived references do not match the flows and lane decisions: Lane_Clerk",
+        );
+    });
+
+    it("refuses a lane that lists one node twice and misses another", async () => {
+        const { laneMembers } = await expectationsFor(valid);
+        const [kept, missed] = [...laneMembers.get("Lane_Clerk")!];
+        const repeated = valid.replace(
+            `<bpmn:flowNodeRef>${missed}</bpmn:flowNodeRef>`,
+            `<bpmn:flowNodeRef>${kept}</bpmn:flowNodeRef>`,
+        );
+
+        const definitions = (await parse(repeated)).rootElement;
+
+        expect(() => requireRebuiltDerivedReferences(definitions, laneMembers)).toThrow(
             "derived references do not match the flows and lane decisions: Lane_Clerk",
         );
     });
@@ -278,6 +296,14 @@ ${content}
             ),
         },
         {
+            drawing:
+                "children of an expanded sub-process with a plane of its own on its shape's plane",
+            xml: definitionsWith(
+                [shape("Sub_1", ' isExpanded="true"'), ...contents].join("\n"),
+                subPlane(""),
+            ),
+        },
+        {
             drawing: "children of a collapsed sub-process on its own plane",
             xml: definitionsWith(shape("Sub_1"), subPlane(contents.join("\n"))),
         },
@@ -288,7 +314,9 @@ ${content}
     ])("accepts $drawing", async ({ xml }) => {
         const definitions = (await parse(xml)).rootElement;
 
-        expect(() => requireDrawingsOnTheirContainersPlane(definitions)).not.toThrow();
+        expect(() =>
+            requireDrawingsOnTheirContainersPlane(diagramIndexOf(definitions)),
+        ).not.toThrow();
     });
 
     it.each([
@@ -314,7 +342,7 @@ ${content}
     ])("refuses $drawing", async ({ xml, refused }) => {
         const definitions = (await parse(xml)).rootElement;
 
-        expect(() => requireDrawingsOnTheirContainersPlane(definitions)).toThrow(
+        expect(() => requireDrawingsOnTheirContainersPlane(diagramIndexOf(definitions))).toThrow(
             `drawings lie on another plane than their sub-process implies${refused}`,
         );
     });

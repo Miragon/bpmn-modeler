@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
-import {
-    type DiagramBounds,
-    addedAtSamePlaceNotes,
-    drawnApartFromContainerNotes,
-    flowEndsNotes,
-} from "./buildNotes";
+import { addedAtSamePlaceNotes, drawnApartFromContainerNotes, flowEndsNotes } from "./buildNotes";
+import type { DiagramBounds } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
 import type { LayoutState, MergeSide } from "./mergeResult";
 
@@ -179,6 +175,11 @@ describe("addedAtSamePlaceNotes", () => {
 });
 
 describe("drawnApartFromContainerNotes", () => {
+    const enclosing =
+        (...containers: string[]) =>
+        (id: string) =>
+            containers.includes(id);
+
     function taskInContainers(layouts: { task: LayoutState; sub: LayoutState; lane: LayoutState }) {
         return mergeResult(
             mergeElement("Lane_A", "unchanged", { type: "bpmn:Lane", layout: layouts.lane }),
@@ -226,7 +227,11 @@ describe("drawnApartFromContainerNotes", () => {
         },
     ] as const)("$rule", ({ layouts, sides, expected }) => {
         expect(
-            drawnApartFromContainerNotes(taskInContainers(layouts), resolutionWithLayout(sides)),
+            drawnApartFromContainerNotes(
+                taskInContainers(layouts),
+                resolutionWithLayout(sides),
+                enclosing("Sub_1", "Lane_A"),
+            ),
         ).toEqual(expected);
     });
 
@@ -246,12 +251,12 @@ describe("drawnApartFromContainerNotes", () => {
             layout: { Sub_1: "incoming", Task_In: "current" },
         };
 
-        expect(drawnApartFromContainerNotes(result, resolution)).toEqual([
+        expect(drawnApartFromContainerNotes(result, resolution, enclosing("Sub_1"))).toEqual([
             { kind: "drawnApartFromContainer", id: "Task_In", containers: ["Sub_1"] },
         ]);
     });
 
-    it("ignores a parent that is no sub-process, such as a process or an activity", () => {
+    it("ignores a parent that does not enclose its contents, such as a process or an activity", () => {
         const result = mergeResult(
             mergeElement("Process_1", "unchanged", { type: "bpmn:Process", layout: "bothChanged" }),
             mergeElement("Task_A", "unchanged", { parent: "Process_1", layout: "bothChanged" }),
@@ -270,6 +275,7 @@ describe("drawnApartFromContainerNotes", () => {
                     Task_A: "current",
                     Association_A: "incoming",
                 }),
+                enclosing(),
             ),
         ).toEqual([]);
     });
