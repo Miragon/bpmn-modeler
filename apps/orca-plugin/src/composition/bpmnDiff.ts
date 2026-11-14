@@ -100,6 +100,10 @@ function markChanges(
     const legend = new DiffLegend(panes.bar, {
         onPrevious: step(() => coordinator.previous()),
         onNext: step(() => coordinator.next()),
+        onShowAll: () => {
+            coordinator.reset();
+            legend.update(shown);
+        },
     });
     legend.update(shown);
     return legend;
