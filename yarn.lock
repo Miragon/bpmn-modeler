@@ -3636,6 +3636,7 @@ __metadata:
     bpmn-js: "npm:18.31.1"
     bpmn-js-bpmnlint: "npm:0.25.0"
     bpmnlint: "npm:12.0.0"
+    diagram-js: "npm:15.28.1"
     jsdom: "npm:30.1.3"
     portless: "npm:0.16.0"
     tslib: "npm:2.9.1"

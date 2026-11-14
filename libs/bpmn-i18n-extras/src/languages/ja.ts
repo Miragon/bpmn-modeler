@@ -34,6 +34,7 @@ const dictionary: Record<string, string> = {
     "Changes": "変更",
     "No changes": "変更なし",
     "Show all": "すべて表示",
+    "Show XML changes": "XML の変更を表示",
     "Old version": "旧バージョン",
     "New version": "新バージョン",
     "Not in this version": "このバージョンにはありません",

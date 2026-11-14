@@ -84,6 +84,18 @@ describe("BpmnDiffService", () => {
         expect(messageTypes(before)).toEqual(["SyncCursorQuery"]);
     });
 
+    it("forwardSelection selects the element in the partner pane", async () => {
+        const { service, store } = createService();
+        const { before, after } = attachedPair(store);
+
+        await service.forwardSelection(before, "Task_1");
+
+        expect(after.posted).toEqual([
+            expect.objectContaining({ type: "SyncDiffSelectionQuery", elementId: "Task_1" }),
+        ]);
+        expect(before.posted).toEqual([]);
+    });
+
     it("forwarding is a no-op when the session has no partner attached", async () => {
         const { service, store } = createService();
         const session = store.registerCompareFiles(LEFT, RIGHT);

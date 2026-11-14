@@ -7,7 +7,7 @@ import {
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
 
-import { centreOf, type PositionedElement } from "./elementGeometry";
+import { centreOf, type PositionedElement, viewboxCentredOn } from "./elementGeometry";
 import type { CoreServiceAccessor } from "./coreServices";
 import { InitialViewportLatch } from "./initialViewport";
 
@@ -238,12 +238,7 @@ export class CanvasViewportManager implements ViewportManager {
         const height =
             scale < MIN_FOCUS_ZOOM ? viewbox.outer.height / MIN_FOCUS_ZOOM : viewbox.height;
 
-        canvas.viewbox({
-            x: centre.x - width / 2,
-            y: centre.y - height / 2,
-            width,
-            height,
-        });
+        canvas.viewbox(viewboxCentredOn(centre, { width, height }));
         this.latch.markDecided();
         return true;
     }

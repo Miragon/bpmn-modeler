@@ -33,6 +33,7 @@ const dictionary: Record<string, string> = {
     "Changes": "변경 사항",
     "No changes": "변경 사항 없음",
     "Show all": "모두 표시",
+    "Show XML changes": "XML 변경 사항 표시",
     "Old version": "이전 버전",
     "New version": "새 버전",
     "Not in this version": "이 버전에 없음",

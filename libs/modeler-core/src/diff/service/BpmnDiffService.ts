@@ -3,6 +3,7 @@ import {
     BpmnFileQuery,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
+    SyncDiffSelectionQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -103,6 +104,15 @@ export class BpmnDiffService {
     /** Posts the plane the user entered to the partner pane, so both show the same subprocess. */
     forwardPlane(handle: DiffPaneHandle, planeId: string): Promise<void> {
         return this.relay.toPartner(handle, new SyncDiffPlaneQuery(planeId), "syncPlane");
+    }
+
+    /** Selects the element the pane selected in its partner pane too. */
+    forwardSelection(handle: DiffPaneHandle, elementId: string): Promise<void> {
+        return this.relay.toPartner(
+            handle,
+            new SyncDiffSelectionQuery(elementId),
+            "syncDiffSelection",
+        );
     }
 
     /**

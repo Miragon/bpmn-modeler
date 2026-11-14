@@ -25,11 +25,13 @@ export type { ViewState } from "../viewState";
 
 // Diff computation is also usable in Node through @miragon/bpmn-modeler/diff.
 export { DiffViewer } from "./diff/DiffViewer";
-export type { DiffMarkerClass } from "./diff/DiffViewer";
+export type { DiffMarkerClass, DiffViewerOptions } from "./diff/DiffViewer";
 export { DiffLegend } from "./diff/DiffLegend";
 export type { DiffLegendCallbacks, DiffLegendContext } from "./diff/DiffLegend";
 export { DiffNavigator } from "./diff/DiffNavigator";
 export { DiffSideLabel } from "./diff/DiffSideLabel";
+export { bpmnElementIdOf } from "./diff/diffSelection";
+export type { BpmnDiagramElement } from "./diff/diffSelection";
 export { DiffPaneCoordinator } from "./diff/DiffPaneCoordinator";
 
 export { NoModelerError } from "@miragon/bpmn-modeler-types";

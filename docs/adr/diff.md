@@ -133,6 +133,36 @@ resolving merge conflicts on the diagram (#2459).
   dependency of `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads
   the Camunda 7 and 8 prefixes and URIs from the descriptors; `BpmnDocument`'s copy is
   #2464.
+- *The panes share one selection.* `DiffViewer` takes `DiffViewerOptions.additionalModules`,
+  as `createViewer` does, so only the webview adds a context pad and an outline. The
+  viewer reports the single selected element (`onSelectedElementChanged`, a BPMN id or
+  `undefined` for an empty or multiple selection) and applies the partner's
+  (`mirrorSelection`, which clears on `undefined`, on an absent element and on another
+  plane, and reports nothing back). The names differ from
+  `SelectionManager.onSelectionChanged`, which reports diagram ids such as `X_label` that
+  do not name the same element in two versions; `bpmnElementIdOf` is the one rule that
+  maps a label to its element and a plane to its subprocess, for the selection, the
+  context pad and the plane a pane reports. An import reports no selection, so a pane
+  that loads late does not clear its partner's. Every background click posts
+  `NO_DIFF_SELECTION`, which the core ignores for the XML diff. Which selection and
+  viewport changes are the user's is one guard (`UserChangeGuard`), read by the
+  listeners and the resize rule alike, so a selection the pane does not report as the
+  user's is not centred as the user's on resize either.
+- *Resize.* Opening the group below takes the panes' lower half. diagram-js's
+  KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in the pane the
+  user selected in: when a resize cuts off a selected element that was fully in view,
+  the pane centres it as a user pan, so the partner follows through the viewport sync;
+  the mirroring pane never scrolls, since its own scroll posted a competing viewport. A
+  selection the user panned away from, or one still in view, stays put. The rule runs
+  on every viewbox, selection and size change instead of upstream's debounce. The cost:
+  the partner follows after the viewport debounce, and the stepper's focus
+  (`focusedId`) stays apart from the selection, so a resize after stepping keeps the
+  selection in view, not the stepped change. The webview depends on diagram-js directly
+  at the package's pin, because bpmn-js's context pad needs `modeling`, which a viewer
+  lacks.
+- *One switch per host.* `ApplyDiffHighlightsQuery.elementXmlChanges` tells the panes
+  to offer the entry. No host sets it yet, so the entry stays hidden and every router
+  ignores `ShowElementXmlChangesCommand`; every host mirrors the selection.
 
 
 ### DMN diff
