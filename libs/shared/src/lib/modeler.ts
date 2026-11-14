@@ -1561,6 +1561,13 @@ export class ViewportChangedCommand extends Command<"ViewportChangedCommand"> {
 export const SHOW_ALL_CURSOR = -1;
 
 /**
+ * The `elementId` of {@link DiffSelectionChangedCommand} and
+ * {@link SyncDiffSelectionQuery} for no single selection: an empty selection or
+ * several elements.
+ */
+export const NO_DIFF_SELECTION = "";
+
+/**
  * Sent from a viewer pane after the user advances the diff stepper.  The host
  * forwards the new cursor index to the partner pane via {@link SyncCursorQuery}
  * so both panes' steppers stay in lockstep.  The index refers to a position in
@@ -1660,15 +1667,16 @@ export class ShowElementXmlChangesCommand extends Command<"ShowElementXmlChanges
 
 /**
  * Sent from a BPMN diff pane whenever the user changes the selection:
- * `elementId` names the one selected element, or is `""` when the selection is
- * empty or holds several elements. The host mirrors it to the partner pane via
- * {@link SyncDiffSelectionQuery} and moves an open element XML diff to a named
- * element; `""` leaves that diff on its element.
+ * `elementId` names the one selected element, or is {@link NO_DIFF_SELECTION}
+ * when the selection is empty or holds several elements. The host mirrors it to
+ * the partner pane via {@link SyncDiffSelectionQuery} and moves an open element
+ * XML diff to a named element; {@link NO_DIFF_SELECTION} leaves that diff on its
+ * element.
  */
 export class DiffSelectionChangedCommand extends Command<"DiffSelectionChangedCommand"> {
     public readonly elementId: string;
 
-    constructor(elementId = "") {
+    constructor(elementId = NO_DIFF_SELECTION) {
         super("DiffSelectionChangedCommand");
         this.elementId = elementId;
     }
@@ -1676,13 +1684,14 @@ export class DiffSelectionChangedCommand extends Command<"DiffSelectionChangedCo
 
 /**
  * Sent from the host to a BPMN diff pane to select the element its partner
- * selected; `""`, or an element the pane does not show, clears its selection.
- * The pane must NOT re-emit {@link DiffSelectionChangedCommand}.
+ * selected; {@link NO_DIFF_SELECTION}, or an element the pane does not show,
+ * clears its selection. The pane must NOT re-emit
+ * {@link DiffSelectionChangedCommand}.
  */
 export class SyncDiffSelectionQuery extends Query<"SyncDiffSelectionQuery"> {
     public readonly elementId: string;
 
-    constructor(elementId = "") {
+    constructor(elementId = NO_DIFF_SELECTION) {
         super("SyncDiffSelectionQuery");
         this.elementId = elementId;
     }

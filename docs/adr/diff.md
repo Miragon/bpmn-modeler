@@ -141,9 +141,13 @@ resolving merge conflicts on the diagram (#2459).
   plane, and reports nothing back). The names differ from
   `SelectionManager.onSelectionChanged`, which reports diagram ids such as `X_label` that
   do not name the same element in two versions; `bpmnElementIdOf` is the one rule that
-  maps a label to its element, for the selection and the context pad. An import reports
-  no selection, so a pane that loads late does not clear its partner's. Every background
-  click posts an empty selection, which the core ignores for the XML diff.
+  maps a label to its element and a plane to its subprocess, for the selection, the
+  context pad and the plane a pane reports. An import reports no selection, so a pane
+  that loads late does not clear its partner's. Every background click posts
+  `NO_DIFF_SELECTION`, which the core ignores for the XML diff. Which selection and
+  viewport changes are the user's is one guard (`UserChangeGuard`), read by the
+  listeners and the resize rule alike, so a selection the pane does not report as the
+  user's is not centred as the user's on resize either.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
   KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in the pane the
   user selected in: when a resize cuts off a selected element that was fully in view,

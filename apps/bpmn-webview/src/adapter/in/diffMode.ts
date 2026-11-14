@@ -6,6 +6,7 @@ import {
     DiffReadyCommand,
     DiffSelectionChangedCommand,
     LogErrorCommand,
+    NO_DIFF_SELECTION,
     Query,
     SHOW_ALL_CURSOR,
     ShowElementXmlChangesCommand,
@@ -23,9 +24,6 @@ import {
 } from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { createElementXmlChangesModule } from "./elementXmlContextPad";
-
-// How the selection messages name an empty or multiple selection.
-const NO_ELEMENT = "";
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
@@ -113,7 +111,7 @@ export class DiffMode {
             }
         });
         this.viewer.onSelectedElementChanged((elementId) => {
-            this.host.postMessage(new DiffSelectionChangedCommand(elementId ?? NO_ELEMENT));
+            this.host.postMessage(new DiffSelectionChangedCommand(elementId ?? NO_DIFF_SELECTION));
         });
     }
 
@@ -159,7 +157,7 @@ export class DiffMode {
                 break;
             case "SyncDiffSelectionQuery":
                 this.viewer.mirrorSelection(
-                    query.elementId === NO_ELEMENT ? undefined : query.elementId,
+                    query.elementId === NO_DIFF_SELECTION ? undefined : query.elementId,
                 );
                 break;
         }

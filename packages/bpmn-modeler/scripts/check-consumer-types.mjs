@@ -74,7 +74,7 @@ const CONSUMER_FIXTURES = {
     "viewer.ts": `
         import { bpmnElementIdOf, createViewer, type BpmnDiagramElement } from "${PKG}/viewer";
 
-        const task: BpmnDiagramElement = { businessObject: { id: "Task_1" } };
+        const task: BpmnDiagramElement = { id: "Task_1", businessObject: { id: "Task_1" } };
         export const taskId: string = bpmnElementIdOf(task);
 
         export async function useViewer(

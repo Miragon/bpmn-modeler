@@ -41,7 +41,7 @@ in-repo hosts in one change; the public contract is the factory/handle API.
   message posted without a construction and a webview that never constructs `HostApiImpl`;
   such a webview drops out without a sign, and the spec fails only when no webview is left.
 - A diff pane posts through its own list. The BPMN pane's is the handshake plus
-  `BPMN_DIFF_PANE_COMMAND_TYPES`: the pane list and the element XML diff's two commands, where an empty element id means no single selection
+  `BPMN_DIFF_PANE_COMMAND_TYPES`: the pane list and the element XML diff's two commands, where an empty element id, `NO_DIFF_SELECTION` beside `SHOW_ALL_CURSOR`, means no single selection
   ([Diff](diff.md#element-xml-diff)). The DMN pane's list spreads the commands every diff pane posts and adds its own, and
   it has no handshake: its bootstrap creates its modeler before the file arrives, so VS Code
   names the page a diff pane in its HTML (`<body data-surface="dmnDiffPane">`) and the page
