@@ -55,6 +55,7 @@
             "@miragon/bpmn-modeler-inline-scripting": ["./libs/inline-scripting/src/index.ts"],
             "@miragon/bpmn-modeler-flow-navigation": ["./libs/flow-navigation/src/index.ts"],
             "@miragon/bpmn-modeler-layout": ["./libs/bpmn-layout/src/index.ts"],
+            "@miragon/bpmn-modeler-element-ids": ["./libs/element-ids/src/index.ts"],
             "@miragon/bpmn-modeler-webview": ["./apps/bpmn-webview/src/index.ts"],
             "@miragon/architecture-testing": ["./tools/architecture-testing/src/index.ts"]
         }

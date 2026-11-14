@@ -4,6 +4,7 @@ import {
     BpmnLintDisabledQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
+    ElementIdConventionQuery,
     GetBpmnPluginsCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { LintResults } from "@miragon/bpmn-modeler-types";
@@ -107,6 +108,9 @@ function createService({ content = XML, config }: { content?: string; config?: s
     );
     const lintRunner = {
         lint: vi.fn<LintRunnerPort["lint"]>().mockResolvedValue(hostRun(RESULTS)),
+        elementIdConventionOptions: vi
+            .fn<LintRunnerPort["elementIdConventionOptions"]>()
+            .mockResolvedValue({}),
     };
 
     const service = new BpmnLintConfigService(
@@ -476,6 +480,75 @@ describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
     });
 });
 
+describe("BpmnLintConfigService — the convention for IDs generated from names", () => {
+    const sentOptions = (editor: FakeEditorHandle) =>
+        editor
+            .postedOfType<ElementIdConventionQuery>("ElementIdConventionQuery")
+            .map((query) => query.options);
+
+    it("sends the webview what the config gives element-id-naming", async () => {
+        const { service, editor, lintRunner } = createService({ config: COVERED_RAW });
+        lintRunner.elementIdConventionOptions.mockResolvedValue({ case: "snake_case" });
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(lintRunner.elementIdConventionOptions).toHaveBeenCalledWith(
+            CONFIG_PATH,
+            COVERED_CONFIG,
+        );
+        expect(sentOptions(editor)).toEqual([{ case: "snake_case" }]);
+    });
+
+    it("sends the rule's defaults when no config is found", async () => {
+        const { service, editor, lintRunner } = createService();
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(lintRunner.elementIdConventionOptions).not.toHaveBeenCalled();
+        expect(sentOptions(editor)).toEqual([{}]);
+    });
+
+    it("sends the convention while linting is off, since it still names the IDs", async () => {
+        const { service, host, editor } = createService({ config: COVERED_RAW });
+        host.settings.values.lintingEnabled = false;
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(sentOptions(editor)).toEqual([{}]);
+    });
+
+    it("sends unchanged options once, and again when a reloaded webview asks", async () => {
+        const { service, editor } = createService({ config: COVERED_RAW });
+
+        await service.setBpmnlintConfig(editor.id);
+        await service.setBpmnlintConfig(editor.id);
+        expect(sentOptions(editor)).toHaveLength(1);
+
+        await service.answerLintConfigRequest(editor.id);
+        expect(sentOptions(editor)).toHaveLength(2);
+    });
+
+    it("sends options again once they changed", async () => {
+        const { service, editor, lintRunner } = createService({ config: COVERED_RAW });
+        lintRunner.elementIdConventionOptions
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ case: "PascalCase" });
+
+        await service.setBpmnlintConfig(editor.id);
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(sentOptions(editor)).toEqual([{}, { case: "PascalCase" }]);
+    });
+
+    it("sends nothing for a config it cannot read, which the lint run reports", async () => {
+        const { service, editor } = createService({ config: "{ not json" });
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(sentOptions(editor)).toEqual([]);
+    });
+});
+
 describe("BpmnLintConfigService.clearDiagnostics", () => {
     it("forgets the negotiation so a re-open re-negotiates a fresh token", async () => {
         const { service, editor, token } = await coveredSession();
@@ -733,6 +806,9 @@ function createSessionHost(files: Record<string, string> = {}) {
     );
     const lintRunner = {
         lint: vi.fn<LintRunnerPort["lint"]>().mockResolvedValue(hostRun(RESULTS)),
+        elementIdConventionOptions: vi
+            .fn<LintRunnerPort["elementIdConventionOptions"]>()
+            .mockResolvedValue({}),
     };
     const service = new BpmnLintConfigService(
         host.store,
@@ -1019,6 +1095,9 @@ describe("BpmnLintConfigService — workspace rule packages the user has not all
                     refused,
                 };
             }),
+            elementIdConventionOptions: vi.fn<LintRunnerPort["elementIdConventionOptions"]>(
+                async () => ({}),
+            ),
         };
         const service = new BpmnLintConfigService(
             host.store,

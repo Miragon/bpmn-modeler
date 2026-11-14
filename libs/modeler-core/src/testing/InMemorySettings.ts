@@ -65,6 +65,10 @@ export class InMemorySettings implements SettingsPort {
         return this.values.scriptingSpin;
     }
 
+    getElementIdsFollowName(): boolean {
+        return this.values.elementIdsFollowName;
+    }
+
     getMarketplaces(): MarketplaceSettingsEntry[] {
         return this.values.marketplaces;
     }

@@ -23,6 +23,7 @@ import { RpcNotifier } from "./kernel/adapter/out/RpcNotifier";
 import { RpcPicker } from "./kernel/adapter/out/RpcPicker";
 import { RpcSecretStore } from "./deployment/adapter/out/RpcSecretStore";
 import { RpcStatusBar } from "./kernel/adapter/out/RpcStatusBar";
+import { RpcElementIdReview } from "./modeler/bpmn/adapter/out/RpcElementIdReview";
 import { RpcMarketplacePrompt } from "./templateMarketplace/adapter/out/RpcMarketplacePrompt";
 import { RpcMarketplaceRegistrations } from "./templateMarketplace/adapter/out/RpcMarketplaceRegistrations";
 import { RpcTokenPrompt } from "./templateMarketplace/adapter/out/RpcTokenPrompt";
@@ -367,6 +368,18 @@ describe("BridgeSettings", () => {
         settings.apply({ formPreviewAutomatic: false });
         expect(settings.getFormPreviewAutomatic()).toBe(false);
         expect(events.map((event) => event.affects("formPreview.automatic"))).toEqual([true]);
+    });
+
+    it("reports a changed follow-name choice once, under its central key", () => {
+        const settings = new BridgeSettings();
+        const events: SettingChange[] = [];
+        settings.onDidChange((event) => events.push(event));
+
+        settings.apply({ elementIdsFollowName: true });
+        settings.apply({ elementIdsFollowName: true });
+
+        expect(settings.getElementIdsFollowName()).toBe(true);
+        expect(events.map((event) => event.affects("elementIds.followName"))).toEqual([true]);
     });
 });
 
@@ -832,6 +845,25 @@ describe("RpcStatusBar", () => {
             method: "statusBar/update",
             params: { slot: "bpmnlint", view: null },
         });
+    });
+});
+
+describe("RpcElementIdReview", () => {
+    it("sends the review's view to the host's tool window, and closes it", () => {
+        const { frames, rpc } = harness();
+        const review = new RpcElementIdReview(rpc);
+        const view = {
+            title: "order.bpmn",
+            message: "No element has a name yet.",
+            groups: [],
+            renameCount: 0,
+        };
+
+        review.show(view);
+        expect(last(frames)).toEqual({ method: "elementIdReview/show", params: { view } });
+
+        review.close();
+        expect(last(frames)).toEqual({ method: "elementIdReview/close", params: {} });
     });
 });
 

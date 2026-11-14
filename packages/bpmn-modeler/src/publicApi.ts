@@ -6,6 +6,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     CleanupOutcome,
+    ElementIdProposals,
     ElementTemplateRef,
     Engine,
     LintResults,
@@ -22,6 +23,34 @@ import type { ThemeMode } from "./themeMode";
 
 export type { ModelerMode } from "./mode/mode";
 export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
+
+/**
+ * [B] The convention IDs generated from names follow, in the shape of the
+ * bpmnlint rule `@miragon/rules/element-id-naming`'s `ElementIdConvention`.
+ * `createElementIdConvention` from `@miragon/bpmn-modeler/lint` builds it, with
+ * the rule's options from a `.bpmnlintrc` or its Miragon defaults. Until one is
+ * handed in, an ID is the element's type in camelCase, then a camelCase name.
+ */
+export interface ElementIdConvention {
+    /** Every prefix an ID of this business object may start with, the one to write first. */
+    prefixesFor(element: object): string[];
+    /** The case of the name after the prefix. */
+    readonly case: { readonly label: string; readonly pattern: RegExp };
+}
+
+/** [B] What {@link BpmnModelerHandle.setElementIdSettings} sets; a field left out keeps its value. */
+export interface ElementIdOptions {
+    /** Rename an ID that is still random or generated whenever its element's name or type changes. */
+    readonly followName?: boolean;
+    readonly convention?: ElementIdConvention;
+    /**
+     * Open the host's own review of the whole diagram, which "Review all IDs…"
+     * under the ID field asks for; without it, the link is not offered. The
+     * host lists the review with {@link BpmnModelerHandle.proposeElementIds}
+     * and applies it with {@link BpmnModelerHandle.renameElementIds}.
+     */
+    readonly openReview?: () => void;
+}
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -309,6 +338,23 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
+    /**
+     * [A] The rows of a review of IDs generated from element names, for a host
+     * to show in its own panel: every named element with the ID its name yields
+     * and whether it changes, and the IDs left `unchecked`, which keep their ID.
+     * Without `unchecked`, the rows a review starts with: process IDs unchecked.
+     * Recomputed from the live diagram on each call.
+     */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
+
+    /**
+     * [A] Rename every element {@link proposeElementIds} lists as changing,
+     * except the `unchecked` IDs, in one undo step; returns how many changed.
+     * DI and label IDs that follow the old ID follow the new one. References
+     * from other files are not updated.
+     */
+    renameElementIds(unchecked: readonly string[]): number;
+
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;
 
@@ -339,6 +385,14 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
      * empty list clears the row. Takes effect the next time the menu opens.
      */
     setFavouriteBpmnElements(types: readonly string[]): void;
+
+    /**
+     * [A] Set the convention IDs generated from names follow, and whether an ID
+     * that is still random or generated follows its element's name and type as
+     * they change (as `setSettings({ elementIdsFollowName })` does). Present on
+     * {@link BpmnDesignerHandle} too.
+     */
+    setElementIdSettings(options: ElementIdOptions): void;
 
     /**
      * [B] Switch the design/implement mode live on this same instance — no

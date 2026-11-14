@@ -14,6 +14,7 @@ import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createDefinitionSearchModule } from "@miragon/bpmn-modeler-definition-search";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -28,18 +29,26 @@ import type { LintHandleMethods } from "../lintHandle";
 import { wireContentSaved } from "../contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../diagramXml";
 import {
+    applyElementIdSettings,
     applyFavouriteBpmnElements,
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../editableSurface";
 import { SurfaceCore } from "../surfaceCore";
 import { createReporter, type SurfaceReporter } from "../reporting/reporting";
-import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
-import type { ThemeMode } from "../publicApi";
+import type {
+    BpmnlintConfig,
+    CleanupOutcome,
+    ElementIdProposals,
+    LintResults,
+} from "@miragon/bpmn-modeler-types";
+import type { ElementIdOptions, ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
 /**
@@ -131,6 +140,9 @@ export class BpmnDesigner {
         if (this.options.favouriteBpmnElements) {
             this.setFavouriteBpmnElements(this.options.favouriteBpmnElements);
         }
+        if (this.options.elementIdSettings) {
+            this.setElementIdSettings(this.options.elementIdSettings);
+        }
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
@@ -171,6 +183,8 @@ export class BpmnDesigner {
                 // Formatting is pure geometry, so it is engine-neutral and
                 // belongs on this surface as much as on the modeler.
                 createBpmnLayoutModule(),
+                // Names and IDs are engine-neutral, so IDs follow names here too.
+                ElementIdsModule,
                 MinimapModule,
                 TokenSimulationModule,
                 // Design never enabled linting implicitly, so omission needs no migration notice.
@@ -229,6 +243,21 @@ export class BpmnDesigner {
     /** @see BpmnDesignerHandle.setFavouriteBpmnElements */
     setFavouriteBpmnElements(types: readonly string[]): void {
         applyFavouriteBpmnElements(this.core, types);
+    }
+
+    /** @see BpmnDesignerHandle.setElementIdSettings */
+    setElementIdSettings(options: ElementIdOptions): void {
+        applyElementIdSettings(this.core, options);
+    }
+
+    /** @see BpmnDesignerHandle.proposeElementIds */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
+        return proposeSurfaceElementIds(this.core, unchecked);
+    }
+
+    /** @see BpmnDesignerHandle.renameElementIds */
+    renameElementIds(unchecked: readonly string[]): number {
+        return renameSurfaceElementIds(this.core, unchecked);
     }
 
     /**

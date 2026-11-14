@@ -280,6 +280,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Использовать определение задачи",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Пользователи не могут вводить FEEL в поле, которое нельзя редактировать.",
+    "Generate from name": "Создать из имени",
+    "Review all IDs…": "Проверить все ID…",
+    "Rename the ID to {id}": "Переименовать ID в {id}",
+    "The ID already follows the name.": "ID уже соответствует имени.",
+    "Add a name to generate the ID from it.": "Добавьте имя, чтобы создать из него ID.",
 };
 
 export default dictionary;

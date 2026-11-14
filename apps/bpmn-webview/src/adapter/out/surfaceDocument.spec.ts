@@ -48,13 +48,15 @@ function viewerSurface() {
 function surfaceDocumentOn(initialSurface: object) {
     const posted: (Command | Query)[] = [];
     let surface = initialSurface;
+    const afterImport = vi.fn();
     const surfaceDocument = createSurfaceDocument(
         { postMessage: (message) => posted.push(message) },
-        { getSurface: () => surface as unknown as SurfaceHandle },
+        { getSurface: () => surface as unknown as SurfaceHandle, afterImport },
     );
     return {
         surfaceDocument,
         posted,
+        afterImport,
         replaceSurface: (next: object) => {
             surface = next;
         },
@@ -94,6 +96,18 @@ describe("createSurfaceDocument", () => {
                 expect(surface.reloadDiagram).not.toHaveBeenCalled();
             },
         );
+
+        it("tells the page once the host XML is in, so views of the diagram catch up", async () => {
+            const surface = modelerSurface();
+            const { surfaceDocument, afterImport } = surfaceDocumentOn(surface);
+
+            await surfaceDocument.importDocument("<definitions />");
+
+            expect(afterImport).toHaveBeenCalledOnce();
+            expect(afterImport.mock.invocationCallOrder[0]).toBeGreaterThan(
+                surface.reloadDiagram.mock.invocationCallOrder[0]!,
+            );
+        });
 
         it("hands missing content to the readonly viewer as empty XML", async () => {
             const surface = viewerSurface();

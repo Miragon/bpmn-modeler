@@ -51,6 +51,7 @@ export const TYPESCRIPT_ONLY_SETTINGS_CASES: readonly SettingsNormalizationCase[
             scriptingSpin: null,
             lintingEnabled: "false",
             formPreviewAutomatic: "false",
+            elementIdsFollowName: "true",
         },
         normalized: {},
     },
@@ -101,6 +102,7 @@ export function readSettingsSnapshot(settings: SettingsPort): ModelerSettingsSna
         scriptingSpin: settings.getScriptingSpin(),
         lintingEnabled: settings.getLintingEnabled(),
         formPreviewAutomatic: settings.getFormPreviewAutomatic(),
+        elementIdsFollowName: settings.getElementIdsFollowName(),
         marketplaces: settings.getMarketplaces(),
     };
 }

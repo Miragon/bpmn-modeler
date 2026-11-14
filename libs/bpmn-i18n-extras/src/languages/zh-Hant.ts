@@ -261,6 +261,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "使用工作定義",
     "Users cannot enter FEEL into a field they cannot edit.":
         "使用者無法在不可編輯的欄位中輸入 FEEL。",
+    "Generate from name": "根據名稱產生",
+    "Review all IDs…": "檢查所有 ID…",
+    "Rename the ID to {id}": "將 ID 重新命名為 {id}",
+    "The ID already follows the name.": "ID 已與名稱一致。",
+    "Add a name to generate the ID from it.": "新增名稱後即可據此產生 ID。",
 };
 
 export default dictionary;

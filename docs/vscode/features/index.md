@@ -10,6 +10,8 @@ The desktop app runs the same extension, and the IntelliJ plugin shares the BPMN
 - [Append menu](/vscode/features/append-menu): add the next element from one searchable popup with BPMN elements
   and element templates.
 - [Flow navigation](/vscode/features/flow-navigation): move along sequence flows with Tab, Shift+Tab and Enter.
+- [IDs from names](/vscode/features/element-ids): rename IDs like `Activity_0x1y2z3` to `serviceTask_checkStock`
+  from the element names, for one element or the whole diagram in one undo step.
 - [Element templates](/vscode/features/element-template-chooser): browse, preview and apply Camunda element
   templates.
 - [Element template editor](/vscode/features/element-template-editor): build Camunda 7 and 8 templates in a form,

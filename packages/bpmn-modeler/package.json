@@ -141,6 +141,7 @@
         "@miragon/bpmn-modeler-code-link": "workspace:*",
         "@miragon/bpmn-modeler-definition-search": "workspace:*",
         "@miragon/bpmn-modeler-diff": "workspace:*",
+        "@miragon/bpmn-modeler-element-ids": "workspace:*",
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "@miragon/bpmn-modeler-flow-navigation": "workspace:*",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",

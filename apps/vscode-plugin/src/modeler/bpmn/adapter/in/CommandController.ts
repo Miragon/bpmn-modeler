@@ -24,7 +24,7 @@ import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
 import { ModelerPreferences } from "../../../../shared/port/ModelerPreferences";
 import { promptNewFileTarget } from "../../../../shared/adapter/in/newFileTarget";
 import { VsCodeTextEditor } from "../../../../shared/adapter/in/VsCodeTextEditor";
-import { BpmnLayoutService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService, ElementIdsService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "@miragon/bpmn-modeler-core";
 
@@ -46,6 +46,7 @@ export const NEW_FORM_MODEL_CMD = "bpmn-modeler.newFormModel";
 export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
 export const FORMAT_DIAGRAM_CMD = "bpmn-modeler.formatDiagram";
 export const CLEANUP_DIAGRAM_CMD = "bpmn-modeler.cleanupDiagram";
+export const GENERATE_ELEMENT_IDS_CMD = "bpmn-modeler.generateElementIds";
 
 export type DocumentFlusher = Pick<PendingEditsFlush, "flushIntoDocument" | "release">;
 
@@ -69,6 +70,7 @@ export class CommandController {
         private readonly picker: PickerPort,
         private readonly documentFlush: DocumentFlusher,
         private readonly layoutSvc: BpmnLayoutService,
+        private readonly elementIds: ElementIdsService,
         private readonly preferences: ModelerPreferences,
         private readonly languageService: ModelerLanguageService,
     ) {}
@@ -95,6 +97,7 @@ export class CommandController {
             commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
             commands.registerCommand(FORMAT_DIAGRAM_CMD, this.formatDiagram, this),
             commands.registerCommand(CLEANUP_DIAGRAM_CMD, this.cleanupDiagram, this),
+            commands.registerCommand(GENERATE_ELEMENT_IDS_CMD, this.generateElementIds, this),
         );
     }
 
@@ -103,19 +106,23 @@ export class CommandController {
      * `DiagramFormattedCommand` and is surfaced by {@link BpmnLayoutService},
      * so there is nothing to report here.
      */
-    async formatDiagram(): Promise<void> {
-        try {
-            await this.layoutSvc.format(this.editorStore.getActiveEditorId());
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            this.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);
-        }
+    formatDiagram(): Promise<void> {
+        return this.withActiveDiagram((editorId) => this.layoutSvc.format(editorId));
     }
 
     /** Reports what a cleanup would remove; removal happens only after confirmation. */
-    async cleanupDiagram(): Promise<void> {
+    cleanupDiagram(): Promise<void> {
+        return this.withActiveDiagram((editorId) => this.layoutSvc.inspectCleanup(editorId));
+    }
+
+    /** Opens the review in the active diagram; {@link ElementIdsService} reports its outcome. */
+    generateElementIds(): Promise<void> {
+        return this.withActiveDiagram((editorId) => this.elementIds.generate(editorId));
+    }
+
+    private async withActiveDiagram(action: (editorId: string) => Promise<void>): Promise<void> {
         try {
-            await this.layoutSvc.inspectCleanup(this.editorStore.getActiveEditorId());
+            await action(this.editorStore.getActiveEditorId());
         } catch (error) {
             this.notifier.logError(error as Error);
             this.notifier.showInfo(FOCUS_BPMN_DIAGRAM_MESSAGE);

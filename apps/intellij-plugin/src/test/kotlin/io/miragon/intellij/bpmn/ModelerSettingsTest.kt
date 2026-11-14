@@ -50,6 +50,7 @@ class ModelerSettingsTest {
                 scriptingSpin = false,
                 lintingEnabled = true,
                 formPreviewAutomatic = false,
+                elementIdsFollowName = true,
                 marketplaces = listOf("https://changed"),
             )
 
@@ -83,6 +84,13 @@ class ModelerSettingsTest {
                     loaded = LOADED,
                     edited = LOADED.copy(language = "de"),
                     expected = LOADED.copy(language = "de", lintingEnabled = true),
+                ),
+                case(
+                    "keeps a follow-name choice stored while the page was open",
+                    stored = LOADED.copy(elementIdsFollowName = true),
+                    loaded = LOADED,
+                    edited = LOADED.copy(language = "de"),
+                    expected = LOADED.copy(language = "de", elementIdsFollowName = true),
                 ),
                 case(
                     "keeps an automatic preview toggle made while the page was open",

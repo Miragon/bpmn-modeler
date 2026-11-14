@@ -273,6 +273,12 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug("[DEBUG] CleanupReportCommand", message);
                 break;
             }
+            case "ElementIdProposalsCommand":
+            case "ElementIdsAppliedCommand":
+            case "OpenElementIdReviewCommand": {
+                console.debug(`[DEBUG] ${command.type}`, message);
+                break;
+            }
             case "GetFormPreviewCommand": {
                 dispatchEvent(
                     new FormPreviewQuery(command.requestId, {

@@ -2,6 +2,10 @@ import {
     CleanupReportCommand,
     Command,
     DiagramFormattedCommand,
+    ElementIdProposalsCommand,
+    ElementIdsAppliedCommand,
+    GetBpmnFileCommand,
+    OpenElementIdReviewCommand,
     SetClipboardCommand,
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
@@ -20,6 +24,7 @@ import { BpmnLayoutService } from "../../service/BpmnLayoutService";
 import { BpmnLintConfigService } from "../../service/BpmnLintConfigService";
 import { BpmnPropertiesPanelService } from "../../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
+import { ElementIdsService } from "../../service/ElementIdsService";
 
 // Factories that turn a BPMN-webview command into a call on the owning service,
 // registered on each host's WebviewMessageRouter. A handler awaits its service
@@ -48,7 +53,7 @@ export function answerWithoutPluginsHandler(store: EditorSessionStore): MessageH
  */
 export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): MessageHandler {
     return async (_message: Command, editorId: string) => {
-        await lintSvc.setBpmnlintConfig(editorId);
+        await lintSvc.answerLintConfigRequest(editorId);
     };
 }
 
@@ -174,4 +179,36 @@ export function cleanupReportHandler(
     return async (message, editorId) => {
         await layoutSvc.reportCleanup(message, editorId);
     };
+}
+
+/** `ElementIdProposalsCommand` → the host's review panel shows the rows. */
+export function elementIdProposalsHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<ElementIdProposalsCommand> {
+    return (message, editorId) => {
+        elementIdsSvc.reportProposals(editorId, message);
+    };
+}
+
+/** `ElementIdsAppliedCommand` → the host's review is over. */
+export function elementIdsAppliedHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<ElementIdsAppliedCommand> {
+    return (message, editorId) => {
+        elementIdsSvc.reportApplied(editorId, message);
+    };
+}
+
+/** `OpenElementIdReviewCommand` → "Review all IDs…" opens the host's review of this diagram. */
+export function openElementIdReviewHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<OpenElementIdReviewCommand> {
+    return (_message, editorId) => elementIdsSvc.generate(editorId);
+}
+
+/** `GetBpmnFileCommand` → a restarted page lists the open review's rows again. */
+export function resumeElementIdReviewHandler(
+    elementIdsSvc: ElementIdsService,
+): MessageHandler<GetBpmnFileCommand> {
+    return (_message, editorId) => elementIdsSvc.resume(editorId);
 }

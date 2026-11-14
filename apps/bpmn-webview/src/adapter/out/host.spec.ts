@@ -8,6 +8,9 @@ import {
     DiagramFormattedCommand,
     DiffReadyCommand,
     DocumentFlushedCommand,
+    ElementIdProposalsCommand,
+    ElementIdsAppliedCommand,
+    OpenElementIdReviewCommand,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
@@ -117,6 +120,9 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     UpdateScriptVariablesCommand: new UpdateScriptVariablesCommand([]),
     DiagramFormattedCommand: new DiagramFormattedCommand("formatted", []),
     CleanupReportCommand: new CleanupReportCommand({ status: "reported", items: [] }, false),
+    ElementIdProposalsCommand: new ElementIdProposalsCommand("listed", [], []),
+    ElementIdsAppliedCommand: new ElementIdsAppliedCommand(0),
+    OpenElementIdReviewCommand: new OpenElementIdReviewCommand(),
 };
 
 const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Type> } = {

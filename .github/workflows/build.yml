@@ -36,12 +36,13 @@ jobs:
               # ProtocolHandlerCoverageTest checks the Kotlin handlers against it.
               - 'apps/modeler-bridge/src/protocol/domain/protocol.json'
               # ModelerSettingsStoreTest runs the core's settings rows and checks
-              # the Kotlin defaults against the VS Code manifest, the Kotlin
-              # default modes against SURFACE_MODES and the Kotlin colour themes
-              # against COLOR_THEMES, ModelerLocalesTest the Kotlin languages,
-              # ModelerSettingsConfigurableTest the Settings page's modes and
-              # labels against the manifest and the mode strip.
+              # the Kotlin defaults against the VS Code manifest under the core's
+              # snapshot names, the Kotlin default modes against SURFACE_MODES and
+              # the Kotlin colour themes against COLOR_THEMES, ModelerLocalesTest
+              # the Kotlin languages, ModelerSettingsConfigurableTest the Settings
+              # page's modes and labels against the manifest and the mode strip.
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
+              - 'libs/modeler-core/src/kernel/domain/modelerSettings.ts'
               - 'apps/vscode-plugin/package.json'
               - 'libs/modeler-types/src/surfaceMode.ts'
               - 'libs/modeler-types/src/settings.ts'

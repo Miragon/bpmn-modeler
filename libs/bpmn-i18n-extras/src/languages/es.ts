@@ -291,6 +291,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Usar la definición de tarea",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Los usuarios no pueden introducir FEEL en un campo que no pueden editar.",
+    "Generate from name": "Generar a partir del nombre",
+    "Review all IDs…": "Revisar todos los ID…",
+    "Rename the ID to {id}": "Renombrar el ID a {id}",
+    "The ID already follows the name.": "El ID ya sigue al nombre.",
+    "Add a name to generate the ID from it.": "Añada un nombre para generar el ID a partir de él.",
 };
 
 export default dictionary;

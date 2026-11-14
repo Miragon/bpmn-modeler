@@ -14,6 +14,8 @@ export interface BpmnModelerSetting {
     readonly colorTheme: ColorThemeSetting;
     // BPMN type strings to pin at the top of the append menu palette (max 6).
     readonly favouriteBpmnElements?: string[];
+    /** Rename a still-generated ID whenever its element's name or type changes; off when absent. */
+    readonly elementIdsFollowName?: boolean;
 }
 
 /**

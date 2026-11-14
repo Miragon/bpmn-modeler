@@ -277,6 +277,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Use the task definition",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Users cannot enter FEEL into a field they cannot edit.",
+    "Generate from name": "Generate from name",
+    "Review all IDs…": "Review all IDs…",
+    "Rename the ID to {id}": "Rename the ID to {id}",
+    "The ID already follows the name.": "The ID already follows the name.",
+    "Add a name to generate the ID from it.": "Add a name to generate the ID from it.",
 };
 
 export default dictionary;

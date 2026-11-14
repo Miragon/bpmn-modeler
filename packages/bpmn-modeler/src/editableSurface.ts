@@ -1,4 +1,5 @@
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
+import type { ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
 import {
     type CleanupService,
     LAYOUT_FORMATTED_EVENT,
@@ -6,8 +7,10 @@ import {
     type Layouter,
 } from "@miragon/bpmn-modeler-layout";
 import {
+    type BpmnModelerSetting,
     type CleanupOutcome,
     type Disposer,
+    type ElementIdProposals,
     type DisposableStore,
     type MinimalEventBus,
     subscribe,
@@ -16,7 +19,7 @@ import {
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
-import type { ClipboardOptions } from "./publicApi";
+import type { ClipboardOptions, ElementIdOptions } from "./publicApi";
 import type { SurfaceReporter } from "./reporting/reporting";
 import type { SurfaceServices } from "./surfaceCore";
 
@@ -105,6 +108,39 @@ export function applyFavouriteBpmnElements(
     surface
         .optionalService<AppendMenuOverrideService>("appendMenuOverride")
         ?.setFavourites([...types]);
+}
+
+const NO_ELEMENT_IDS: ElementIdProposals = { rows: [], unchecked: [] };
+
+export function proposeSurfaceElementIds(
+    surface: SurfaceServices,
+    unchecked: readonly string[] | undefined,
+): ElementIdProposals {
+    return (
+        surface
+            .optionalService<ElementIdsService>("elementIds")
+            ?.list(unchecked && new Set(unchecked)) ?? NO_ELEMENT_IDS
+    );
+}
+
+export function renameSurfaceElementIds(
+    surface: SurfaceServices,
+    unchecked: readonly string[],
+): number {
+    return (
+        surface.optionalService<ElementIdsService>("elementIds")?.rename(new Set(unchecked)) ?? 0
+    );
+}
+
+export function applyElementIdSettings(surface: SurfaceServices, options: ElementIdOptions): void {
+    surface.optionalService<ElementIdsService>("elementIds")?.configure(options);
+}
+
+/** The element ID option among the modeler settings, as the element ID module takes it. */
+export function elementIdSettingsOf(settings: Partial<BpmnModelerSetting>): ElementIdOptions {
+    return settings.elementIdsFollowName === undefined
+        ? {}
+        : { followName: settings.elementIdsFollowName };
 }
 
 export function createSurfaceLintHandle(

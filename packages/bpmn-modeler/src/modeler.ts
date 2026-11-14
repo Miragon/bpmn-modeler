@@ -8,6 +8,7 @@ import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
@@ -20,6 +21,7 @@ import {
     BpmnModelerSetting,
     describeScriptSurface,
     DisposableStore,
+    type ElementIdProposals,
     type ElementTemplateRef,
     Engine,
     engineSupports,
@@ -49,11 +51,15 @@ import { capabilityModules } from "./capabilityModules";
 import { wireContentSaved } from "./contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "./diagramXml";
 import {
+    applyElementIdSettings,
     applyFavouriteBpmnElements,
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
+    elementIdSettingsOf,
     formatSurfaceDiagram,
     installClipboardSupport,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "./editableSurface";
@@ -77,7 +83,12 @@ import {
 import { ModeUiModule } from "./mode/modeModules";
 import { ElementTemplateOfferModule, type ElementTemplateOffer } from "./elementTemplateOffer";
 import { DrilldownFitModule } from "./viewState";
-import type { CoreModelerServices, CreateModelerOptions, ThemeMode } from "./publicApi";
+import type {
+    CoreModelerServices,
+    CreateModelerOptions,
+    ElementIdOptions,
+    ThemeMode,
+} from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
@@ -233,6 +244,7 @@ export class BpmnModeler {
             ReplaceTemplatesTabModule,
             FlowNavigationModule,
             createBpmnLayoutModule(),
+            ElementIdsModule,
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
@@ -285,6 +297,7 @@ export class BpmnModeler {
         );
 
         this.applyHiddenElementTemplates();
+        applyElementIdSettings(this.core, elementIdSettingsOf(this.settings));
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
@@ -516,11 +529,31 @@ export class BpmnModeler {
         if (settings.favouriteBpmnElements !== undefined) {
             applyFavouriteBpmnElements(this.core, settings.favouriteBpmnElements);
         }
+
+        applyElementIdSettings(this.core, elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
     setFavouriteBpmnElements(types: readonly string[]): void {
         this.setSettings({ favouriteBpmnElements: [...types] });
+    }
+
+    /** @see BpmnModelerHandle.setElementIdSettings */
+    setElementIdSettings({ followName, ...options }: ElementIdOptions): void {
+        if (followName !== undefined) {
+            this.setSettings({ elementIdsFollowName: followName });
+        }
+        applyElementIdSettings(this.core, options);
+    }
+
+    /** @see BpmnModelerHandle.proposeElementIds */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
+        return proposeSurfaceElementIds(this.core, unchecked);
+    }
+
+    /** @see BpmnModelerHandle.renameElementIds */
+    renameElementIds(unchecked: readonly string[]): number {
+        return renameSurfaceElementIds(this.core, unchecked);
     }
 
     /** @internal */

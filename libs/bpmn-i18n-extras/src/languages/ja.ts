@@ -286,6 +286,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "タスク定義を使用",
     "Users cannot enter FEEL into a field they cannot edit.":
         "編集できないフィールドに FEEL は入力できません。",
+    "Generate from name": "名前から生成",
+    "Review all IDs…": "すべての ID を確認…",
+    "Rename the ID to {id}": "ID を {id} に変更",
+    "The ID already follows the name.": "ID は既に名前と一致しています。",
+    "Add a name to generate the ID from it.": "名前を追加すると、そこから ID を生成できます。",
 };
 
 export default dictionary;

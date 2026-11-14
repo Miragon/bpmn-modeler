@@ -34,6 +34,7 @@ export class BpmnModelerService {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
+        private readonly options: { readonly hostElementIdReview?: boolean } = {},
     ) {
         this.documents = new EditorDocumentSync(editorStore, document);
     }
@@ -79,6 +80,7 @@ export class BpmnModelerService {
                         snapshot.revision,
                         this.settings.getDefaultMode(),
                         this.settings.getLanguage(),
+                        this.options.hostElementIdReview ?? false,
                     ),
                 );
                 if (outcome === "hidden") {

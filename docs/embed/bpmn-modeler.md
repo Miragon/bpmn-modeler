@@ -517,10 +517,13 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 | `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode; fits it to view like a load. |
 | `formatDiagram()`                                                                              | Lay the diagram out left to right as one undoable step; resolves a `LayoutOutcome`.   |
 | `cleanupDiagram({ apply? })`                                                                   | Report orphan DI and other leftovers as a `CleanupOutcome`; `apply` removes them.     |
+| `proposeElementIds(unchecked?)`                                                                | The rows of a review of [IDs from names](/vscode/features/element-ids) for a host to show in its own panel, as `{ rows, unchecked }`: each named element's current and new ID, its kind and status (`rename`, `unchecked`, `matches`, `skipped`), whether a counter was added, and the element to reveal. Without `unchecked`, process IDs start unchecked. Also on `BpmnDesignerHandle`. |
+| `renameElementIds(unchecked)`                                                                  | Rename every element `proposeElementIds` lists as changing, except the `unchecked` IDs, in one undo step; returns how many IDs changed. Also on `BpmnDesignerHandle`. |
 | `setElementTemplates(templates)`                                                               | Push a new template set (data, never a path).                                         |
 | `setHiddenElementTemplates(refs)`                                                              | Keep templates, named by `{ id, version? }`, out of new choices: the chooser, the create, append and replace menus and the default template of a new shape or connection. Elements that use one keep it. Replaces the previous set and outlives `setElementTemplates`; a hidden latest version hides its id. |
 | `setSettings(settings)`                                                                        | Merge a partial settings update (`colorTheme` excluded — theme is host policy).       |
 | `setFavouriteBpmnElements(types)`                                                              | Replace the append/create-menu favourites live; same as `setSettings({ favouriteBpmnElements })`. Also on `BpmnDesignerHandle`. |
+| `setElementIdSettings({ followName?, convention?, openReview? })`                              | The convention IDs generated from names follow (`createElementIdConvention()` from [`/lint`](#lint) builds the one of `@miragon/rules/element-id-naming`, with a `.bpmnlintrc`'s options or its Miragon defaults), and whether a still random or generated ID follows its element's name and type, as `setSettings({ elementIdsFollowName })` sets it. `openReview` hands **Review all IDs…** under the ID field to the host's own panel; without it the link is not offered. Also on `BpmnDesignerHandle`. |
 | `viewport` / `selection`                                                                       | Viewport (zoom/scroll/fit) and selection accessors.                                   |
 | `captureViewState()` / `applyViewState(state)`                                                 | [View state](#view-state-capture--restore) capture/restore across an instance switch. |
 | `setTheme(theme)`                                                                              | Switch the colour theme live; a no-op once destroyed.                                 |
@@ -701,6 +704,7 @@ designer.getService( "commandStack" ); // editable: modelling services are prese
 | `theme`                              | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute.                                                                                                                 |
 | `locale`                             | `string`                           | `"en"`        | UI locale — Design mode has translatable UI (unlike the viewer).                                                                                                                  |
 | `favouriteBpmnElements`              | `string[]`                         | —             | Element types offered first in the append/create menu (at most six); change them live with `setFavouriteBpmnElements`.                                                            |
+| `elementIdSettings`                  | `ElementIdOptions`                 | —             | The convention IDs generated from names follow and whether they follow names, as on the modeler; change them live with `setElementIdSettings`. |
 | `clipboard`                          | `ClipboardOptions`                 | native        | Clipboard override for sandboxed hosts.                                                                                                                                           |
 | `moddleExtensions`                   | `Record<string, object>`           | —             | Extra moddle extensions for a host's own BPMN namespace.                                                                                                                          |
 | `additionalModules`                  | `unknown[]`                        | —             | Escape hatch: extra bpmn-js DI modules.                                                                                                                                           |
@@ -730,7 +734,9 @@ compile time. Unlike the root `ModelerCapabilities`, the design
 `cleanupDiagram`, `getDiagramSvg`, `viewport`, `selection`,
 `captureViewState`, `applyViewState`, `setTheme`, `getService`,
 `applyLintResults`, `applyLintingDisabled`, `startInPageLinting`,
-`setFavouriteBpmnElements`, `onCommandStackChanged`, `onFormatted`, and
+`setFavouriteBpmnElements`, `proposeElementIds`, `renameElementIds`,
+`setElementIdSettings`,
+`onCommandStackChanged`, `onFormatted`, and
 `destroy` — each **signature-identical** to its `BpmnModelerHandle`
 counterpart, so a modeler handle narrows to a designer handle with no adapter.
 The outcome types `LayoutOutcome`, `CleanupOutcome` and `CleanupStatus` are exported from `/design` too.
@@ -938,8 +944,11 @@ await createModeler( container, {
 } );
 ```
 
-The single export is `createLintModule` (matching the public `LintModule`
-interface). The lint chrome's CSS is not code-split — it always lands in
+`createLintModule` matches the public `LintModule` interface.
+`createElementIdConvention(options?)` builds the convention of the rule
+`@miragon/rules/element-id-naming` for `setElementIdSettings({ convention })`:
+its Miragon defaults, or the options a `.bpmnlintrc` gives the rule. Without
+one, an ID generated from a name starts with the element's type in camelCase. The lint chrome's CSS is not code-split — it always lands in
 `@miragon/bpmn-modeler/styles.css` (and, for a design-only page, in
 `@miragon/bpmn-modeler/design.css`), which every consumer already loads — so importing the subpath
 brings no extra stylesheet wiring.

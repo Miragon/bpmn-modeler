@@ -26,6 +26,12 @@ describe("DEFAULT_MODELER_SETTINGS", () => {
         expect(normalizeSettings({})).toHaveProperty("formPreviewAutomatic", true);
     });
 
+    it("spells generated IDs with the type prefix and leaves IDs alone by default", () => {
+        expect(normalizeSettings({})).toMatchObject({
+            elementIdsFollowName: false,
+        });
+    });
+
     it("keeps its lists unchangeable", () => {
         const favourites = DEFAULT_MODELER_SETTINGS.favouriteBpmnElements as string[];
         const marketplaces = DEFAULT_MODELER_SETTINGS.marketplaces as string[];
@@ -63,6 +69,18 @@ describe("normalizeSettings", () => {
             expect(normalizeSettings(raw)).toHaveProperty("formPreviewAutomatic", expected);
         },
     );
+
+    it.each([
+        { rawValue: true, expected: true },
+        { rawValue: false, expected: false },
+        { rawValue: "true", expected: false },
+        { rawValue: 1, expected: false },
+        { rawValue: undefined, expected: false },
+    ])("reads IDs following names from $rawValue as $expected", ({ rawValue, expected }) => {
+        expect(normalizeSettings({ elementIdsFollowName: rawValue }).elementIdsFollowName).toBe(
+            expected,
+        );
+    });
 
     it.each(ALL_CASES)("$name", ({ raw, normalized }) => {
         expect(normalizeSettings(raw)).toEqual({ ...DEFAULT_MODELER_SETTINGS, ...normalized });
@@ -109,6 +127,7 @@ describe("settingKeyOf", () => {
         { key: "scriptingSpin", settingKey: "scripting.spin" },
         { key: "lintingEnabled", settingKey: "linting.enabled" },
         { key: "formPreviewAutomatic", settingKey: "formPreview.automatic" },
+        { key: "elementIdsFollowName", settingKey: "elementIds.followName" },
     ])("names $key by the key VS Code stores it under", ({ key, settingKey }) => {
         expect(settingKeyOf(key)).toBe(settingKey);
     });
@@ -183,6 +202,7 @@ describe("changedSettingKeys", () => {
         { next: { scriptingSpin: false }, changed: "scripting.spin" },
         { next: { lintingEnabled: false }, changed: "linting.enabled" },
         { next: { formPreviewAutomatic: false }, changed: "formPreview.automatic" },
+        { next: { elementIdsFollowName: true }, changed: "elementIds.followName" },
         { next: { marketplaces: ["https://github.com/acme/templates"] }, changed: "marketplaces" },
     ])(
         "names a changed value by the key VS Code stores it under: $changed",

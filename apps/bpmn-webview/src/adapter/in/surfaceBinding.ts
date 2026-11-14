@@ -16,6 +16,7 @@ import type { SurfaceHandle } from "../../domain/surface";
 import type { WebviewState } from "../../port/webviewState";
 import type { BpmnDocumentSession } from "../../service/documentSession";
 import type { HostChannel } from "../../port/hostChannel";
+import type { HostElementIdReview } from "../../service/hostElementIdReview";
 import { createProcessVariablePublisher } from "../../service/processVariablePublisher";
 
 export interface SurfaceBinding {
@@ -36,18 +37,29 @@ interface SurfaceBinderPorts {
     engine: DetectedEngine;
     capabilities: Pick<ModelerCapabilities, "scripting">;
     elementTemplatesReply: { done(reply: ElementTemplatesQuery | undefined): void };
+    elementIdReview: Pick<HostElementIdReview, "refresh">;
 }
 
 export function createSurfaceBinder(
     host: HostChannel & WebviewStateHost<WebviewState>,
-    { session, panelRoot, engine, capabilities, elementTemplatesReply }: SurfaceBinderPorts,
+    {
+        session,
+        panelRoot,
+        engine,
+        capabilities,
+        elementTemplatesReply,
+        elementIdReview,
+    }: SurfaceBinderPorts,
 ): SurfaceBinder {
     const stateStore = createWebviewStateStore(host);
 
     function bindSurface(handle: SurfaceHandle): SurfaceBinding {
         // The readonly viewer never schedules a sync, so a host flush finds nothing pending.
         if (isEditableSurface(handle)) {
-            handle.onCommandStackChanged(() => session.scheduleSync());
+            handle.onCommandStackChanged(() => {
+                session.scheduleSync();
+                elementIdReview.refresh();
+            });
 
             // One report per format, whether the host command, the palette or the
             // canvas shortcut started it; only the host command has a caller.
@@ -92,6 +104,8 @@ export function createSurfaceBinder(
     // A viewer or designer never receives templates, so the restore chain would
     // stall on a reply that never comes; the designer still lints.
     function requestSurfaceResources(handle: SurfaceHandle): void {
+        // A surface built by a mode switch has its diagram by now; View mode says it cannot rename.
+        elementIdReview.refresh();
         if (isModelerSurface(handle)) {
             host.postMessage(new GetElementTemplatesCommand());
         } else {

@@ -68,6 +68,15 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
     }
 
     /**
+     * Fires `elementIds/generate` for the core's active editor, which opens its
+     * review of IDs generated from names. Like [formatDiagram], no editorId.
+     */
+    fun generateElementIds() {
+        deps.channel.notify(HostToCoreMethod.ELEMENT_IDS_GENERATE, linkedMapOf<String, Any>())
+        deps.ensureStartedAsync()
+    }
+
+    /**
      * Fires `deployment/switchTarget` for the project root. The core shows the
      * target picker over `picker/show`, persists the choice, and refreshes the
      * status bar + an open sidebar. Guarded on a non-null basePath — the targets

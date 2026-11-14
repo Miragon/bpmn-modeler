@@ -40,6 +40,7 @@ export class BpmnSettingsBroadcaster {
                             showTransactionBoundaries: settings.showTransactionBoundaries,
                             colorTheme: settings.colorTheme,
                             favouriteBpmnElements: settings.favouriteBpmnElements,
+                            elementIdsFollowName: this.settings.getElementIdsFollowName(),
                         },
                         this.settings.getFormPreviewAutomatic(),
                     ),
@@ -76,6 +77,7 @@ export class BpmnSettingsBroadcaster {
                 event.affects("showTransactionBoundaries") ||
                 event.affects("colorTheme") ||
                 event.affects("formPreview.automatic") ||
+                event.affects("elementIds.followName") ||
                 event.affects("favouriteBpmnElements")
             ) {
                 // The change listener has no caller to await it, so guard the

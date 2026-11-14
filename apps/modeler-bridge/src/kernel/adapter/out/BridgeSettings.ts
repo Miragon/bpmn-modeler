@@ -96,6 +96,9 @@ export class BridgeSettings implements SettingsPort, HostSettingsMirror {
     getScriptingSpin(): boolean {
         return this.snapshot.scriptingSpin;
     }
+    getElementIdsFollowName(): boolean {
+        return this.snapshot.elementIdsFollowName;
+    }
     getMarketplaces(): MarketplaceSettingsEntry[] {
         return this.snapshot.marketplaces;
     }

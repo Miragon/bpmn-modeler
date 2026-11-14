@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    Command,
+    ElementIdProposalsQuery,
+    GetDiagramAsSVGCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 // A two-language fixture keeps the picker specs independent of the shipped
 // catalogue. The literal is inlined because the mock factory is hoisted above
@@ -73,6 +77,7 @@ vi.mock("vscode", () => ({
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
+    ElementIdsService,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     getLatestVersion,
     newModelEnginePrompt,
@@ -110,6 +115,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
         host.picker,
         documentFlush as never,
         layoutSvc as never,
+        new ElementIdsService(host.store, host.notifier, { show: vi.fn(), close: vi.fn() }),
         vsCodeModelerPreferences,
         new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
     );
@@ -215,8 +221,24 @@ describe("CommandController.showLogging", () => {
     });
 });
 
+describe("CommandController.generateElementIds", () => {
+    it("asks the active diagram for the rows of the review of IDs generated from names", async () => {
+        const { controller, host, editor, notifier } = createController();
+        const focused = host.openEditor("/work/other.bpmn");
+        host.store.setActiveEditor(focused.id);
+
+        await controller.generateElementIds();
+
+        expect(focused.postedOfType("ElementIdProposalsQuery")).toEqual([
+            new ElementIdProposalsQuery(null),
+        ]);
+        expect(editor.posted).toEqual([]);
+        expect(notifier.infos).toEqual([]);
+    });
+});
+
 describe("CommandController layout commands", () => {
-    it.each(["formatDiagram", "cleanupDiagram"] as const)(
+    it.each(["formatDiagram", "cleanupDiagram", "generateElementIds"] as const)(
         "%s logs and hints to focus a diagram when none is open",
         async (command) => {
             const { controller, host, editor, notifier } = createController();

@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     BpmnPluginsQuery,
     Command,
+    ElementIdProposalsCommand,
+    ElementIdProposalsQuery,
+    ElementIdsAppliedCommand,
+    GetBpmnFileCommand,
+    OpenElementIdReviewCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -10,14 +15,19 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost } from "../../../../testing";
+import { ElementIdsService } from "../../service/ElementIdsService";
 import {
     answerWithoutPluginsHandler,
+    elementIdProposalsHandler,
+    elementIdsAppliedHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
     getElementTemplatesHandler,
     getPropertiesPanelStateHandler,
     getTextClipboardHandler,
+    openElementIdReviewHandler,
+    resumeElementIdReviewHandler,
     setClipboardHandler,
     setPropertiesPanelStateHandler,
     setTextClipboardHandler,
@@ -141,8 +151,8 @@ describe("a rejecting service promise propagates through the handler", () => {
         await expect(getElementTemplatesHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
     });
 
-    it("getBpmnlintConfigHandler rejects when setBpmnlintConfig rejects", async () => {
-        const svc = { setBpmnlintConfig: vi.fn().mockRejectedValue(boom) };
+    it("getBpmnlintConfigHandler rejects when answering the lint config request rejects", async () => {
+        const svc = { answerLintConfigRequest: vi.fn().mockRejectedValue(boom) };
         await expect(getBpmnlintConfigHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
     });
 
@@ -181,5 +191,40 @@ describe("answerWithoutPluginsHandler", () => {
             answerWithoutPluginsHandler(host.store)(ANY, editor.id),
         ).resolves.toBeUndefined();
         expect(editor.posted).toEqual([]);
+    });
+});
+
+describe("the host's own element ID review", () => {
+    function setUp() {
+        const host = createTestHost();
+        const editor = host.openEditor("/work/order.bpmn");
+        const panel = { show: vi.fn(), close: vi.fn() };
+        const service = new ElementIdsService(host.store, host.notifier, panel);
+        return { editor, panel, service };
+    }
+
+    it("opens the review from the editor's own link and shows the rows it lists", async () => {
+        const { editor, panel, service } = setUp();
+
+        await openElementIdReviewHandler(service)(new OpenElementIdReviewCommand(), editor.id);
+        await elementIdProposalsHandler(service)(
+            new ElementIdProposalsCommand("listed", [], []),
+            editor.id,
+        );
+
+        expect(editor.posted).toEqual([new ElementIdProposalsQuery(null)]);
+        expect(panel.show).toHaveBeenCalledOnce();
+    });
+
+    it("asks a restarted page for the rows again and closes the panel once applied", async () => {
+        const { editor, panel, service } = setUp();
+        await service.generate(editor.id);
+        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", [], ["P"]));
+
+        await resumeElementIdReviewHandler(service)(new GetBpmnFileCommand(), editor.id);
+        await elementIdsAppliedHandler(service)(new ElementIdsAppliedCommand(0), editor.id);
+
+        expect(editor.posted.at(-1)).toEqual(new ElementIdProposalsQuery(["P"]));
+        expect(panel.close).toHaveBeenCalledOnce();
     });
 });

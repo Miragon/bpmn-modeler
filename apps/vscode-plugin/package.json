@@ -274,6 +274,13 @@
                     "title": "Deploy",
                     "icon": "$(rocket)"
                 }
+            ],
+            "panel": [
+                {
+                    "id": "bpmn-modeler-element-ids",
+                    "title": "Element IDs",
+                    "icon": "./icons/komet.svg"
+                }
             ]
         },
         "views": {
@@ -291,6 +298,13 @@
                     "id": "bpmn-modeler.deploymentView",
                     "name": "Deploy",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                }
+            ],
+            "bpmn-modeler-element-ids": [
+                {
+                    "id": "bpmn-modeler.elementIdReview",
+                    "name": "Element IDs",
+                    "when": "bpmn-modeler.elementIdReviewOpen"
                 }
             ]
         },
@@ -500,6 +514,28 @@
                 "title": "Clean Up Diagram",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(clear-all)"
+            },
+            {
+                "command": "bpmn-modeler.generateElementIds",
+                "title": "Generate IDs from Names",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.elementIdReview.apply",
+                "title": "Apply ID Changes",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(check)"
+            },
+            {
+                "command": "bpmn-modeler.elementIdReview.discard",
+                "title": "Discard ID Changes",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(close)"
+            },
+            {
+                "command": "bpmn-modeler.elementIdReview.reveal",
+                "title": "Reveal Element in Diagram",
+                "category": "Miragon BPMN Modeler"
             }
         ],
         "keybindings": [
@@ -631,6 +667,22 @@
                 {
                     "command": "bpmn-modeler.cleanupDiagram",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.generateElementIds",
+                    "when": "bpmn-modeler.openCustomEditors > 0 && bpmn-modeler.elementIdReviewAvailable"
+                },
+                {
+                    "command": "bpmn-modeler.elementIdReview.apply",
+                    "when": "bpmn-modeler.elementIdReviewCanApply"
+                },
+                {
+                    "command": "bpmn-modeler.elementIdReview.discard",
+                    "when": "bpmn-modeler.elementIdReviewOpen"
+                },
+                {
+                    "command": "bpmn-modeler.elementIdReview.reveal",
+                    "when": "false"
                 }
             ],
             "view/title": [
@@ -638,6 +690,16 @@
                     "command": "bpmn-modeler.refreshAddOns",
                     "when": "view == bpmn-modeler.addOnsView",
                     "group": "navigation"
+                },
+                {
+                    "command": "bpmn-modeler.elementIdReview.apply",
+                    "when": "view == bpmn-modeler.elementIdReview && bpmn-modeler.elementIdReviewCanApply",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "bpmn-modeler.elementIdReview.discard",
+                    "when": "view == bpmn-modeler.elementIdReview",
+                    "group": "navigation@2"
                 }
             ],
             "explorer/context": [
@@ -712,6 +774,11 @@
                     "command": "bpmn-modeler.formatDiagram",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                },
+                {
+                    "command": "bpmn-modeler.generateElementIds",
+                    "group": "1_modeler",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' && bpmn-modeler.elementIdReviewAvailable"
                 }
             ],
             "file/newFile": [
@@ -805,6 +872,11 @@
                         "View"
                     ],
                     "markdownDescription": "The mode a BPMN editor opens in when it has no remembered mode. `implement` is the full Camunda modeler, `design` is the engine-neutral editable surface, and `view` is the readonly viewer. Applies only per new editor — an already-open editor keeps its mode. On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`."
+                },
+                "miragon.bpmnModeler.elementIds.followName": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Rename an element's ID as you change its name or type while the ID is still one the modeler made for that kind of element (`Activity_0x1y2z3`, `StartEvent_1`) or was generated from the old name and type. IDs you typed yourself, such as `Invoice_1`, and process IDs never change."
                 },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",

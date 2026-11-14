@@ -276,6 +276,12 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "작업 정의 사용",
     "Users cannot enter FEEL into a field they cannot edit.":
         "사용자는 편집할 수 없는 필드에 FEEL을 입력할 수 없습니다.",
+    "Generate from name": "이름으로 생성",
+    "Review all IDs…": "모든 ID 검토…",
+    "Rename the ID to {id}": "ID를 {id}(으)로 변경",
+    "The ID already follows the name.": "ID가 이미 이름과 일치합니다.",
+    "Add a name to generate the ID from it.":
+        "이름을 추가하면 그 이름으로 ID를 생성할 수 있습니다.",
 };
 
 export default dictionary;

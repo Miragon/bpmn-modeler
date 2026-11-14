@@ -1,6 +1,7 @@
 import {
     COLOR_THEMES,
     ColorThemeSetting,
+    DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
     SURFACE_MODES,
     SurfaceMode,
@@ -51,6 +52,7 @@ export interface ModelerSettingsSnapshot {
     scriptingSpin: boolean;
     lintingEnabled: boolean;
     formPreviewAutomatic: boolean;
+    elementIdsFollowName: boolean;
     marketplaces: MarketplaceSettingsEntry[];
 }
 
@@ -67,6 +69,7 @@ const SETTING_KEY_OF_SNAPSHOT_KEY = {
     scriptingSpin: "scripting.spin",
     lintingEnabled: "linting.enabled",
     formPreviewAutomatic: "formPreview.automatic",
+    elementIdsFollowName: "elementIds.followName",
     marketplaces: "marketplaces",
 } as const satisfies Record<keyof ModelerSettingsSnapshot, string>;
 
@@ -111,6 +114,7 @@ export const DEFAULT_MODELER_SETTINGS: FrozenModelerSettings = Object.freeze({
     scriptingSpin: true,
     lintingEnabled: true,
     formPreviewAutomatic: DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    elementIdsFollowName: DEFAULT_ELEMENT_IDS_FOLLOW_NAME,
     marketplaces: Object.freeze([]),
 });
 
@@ -135,6 +139,7 @@ const SETTING_PARSERS: {
     scriptingSpin: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.scriptingSpin),
     lintingEnabled: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.lintingEnabled),
     formPreviewAutomatic: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.formPreviewAutomatic),
+    elementIdsFollowName: (raw) => booleanOr(raw, DEFAULT_MODELER_SETTINGS.elementIdsFollowName),
     // Each entry is validated where it becomes a registration.
     marketplaces: (raw) => (Array.isArray(raw) ? raw : []),
 };
@@ -167,6 +172,7 @@ export function normalizeSettings(raw: RawModelerSettings): ModelerSettingsSnaps
         scriptingSpin: parseSetting("scriptingSpin", raw.scriptingSpin),
         lintingEnabled: parseSetting("lintingEnabled", raw.lintingEnabled),
         formPreviewAutomatic: parseSetting("formPreviewAutomatic", raw.formPreviewAutomatic),
+        elementIdsFollowName: parseSetting("elementIdsFollowName", raw.elementIdsFollowName),
         marketplaces: parseSetting("marketplaces", raw.marketplaces),
     };
 }

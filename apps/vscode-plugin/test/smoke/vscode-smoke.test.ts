@@ -512,6 +512,62 @@ describe("the packaged extension in a real VS Code", () => {
         expectNoCspViolations();
     });
 
+    // The review opens in its own Panel tab beside Problems and Output, a native checkbox tree.
+    // The process row starts unticked, so 3 of the 4 changing IDs are renamed.
+    it("generates IDs from names, keeps an unticked one and saves them", async () => {
+        const file = join(workspaceDirectory, BPMN_FILE);
+        await vscode().openFromExplorer(BPMN_FILE);
+        await vscode().showInCustomEditor(BPMN_FILE, diagramRendered);
+        const workbench = vscode().page;
+
+        await vscode().runCommand("Generate IDs from Names");
+        const review = workbench.locator(".part.panel");
+        await expect
+            .poll(() => review.getByText(/3 of 4 IDs will change\./).count(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(1);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, "element-ids.png"));
+
+        const endEvent = review.locator('.monaco-list-row[aria-label^="Order checked:"]');
+        await endEvent.locator(".custom-view-tree-node-item-checkbox").click();
+        await expect
+            .poll(() => review.getByText(/2 of 4 IDs will change\./).count(), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(1);
+        await workbench.getByRole("button", { name: "Apply ID Changes" }).click();
+        await expect
+            .poll(() => review.getByText(/IDs will change/).count(), { timeout: TIMEOUT_MS })
+            .toBe(0);
+        await vscode().runCommand("View: Focus Active Editor Group");
+        await workbench.keyboard.press(`${COMMAND_KEY}+s`);
+
+        await expect
+            .poll(() => readFile(file, "utf8"), { timeout: TIMEOUT_MS })
+            .toContain('<bpmn:task id="task_checkOrder" name="Check order">');
+        const xml = await readFile(file, "utf8");
+        expect(xml).toContain('<bpmn:endEvent id="End_Order" name="Order checked">');
+        expect(xml).toContain('sourceRef="startEvent_orderReceived" targetRef="task_checkOrder"');
+        expect(xml).toContain(
+            '<bpmndi:BPMNShape id="task_checkOrder_di" bpmnElement="task_checkOrder">',
+        );
+        expectNoCspViolations();
+    });
+
+    it("undoes all generated IDs in one step", async () => {
+        const file = join(workspaceDirectory, BPMN_FILE);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+z`);
+        await vscode().page.keyboard.press(`${COMMAND_KEY}+s`);
+
+        await expect
+            .poll(() => readFile(file, "utf8"), { timeout: TIMEOUT_MS })
+            .toContain(`<bpmn:task id="${TASK_ID}" name="${ORIGINAL_TASK_NAME}">`);
+        expect(await readFile(file, "utf8")).toContain(
+            'sourceRef="Start_Order" targetRef="Task_Check"',
+        );
+    });
+
     it("opens a DMN file in the DMN custom editor", async () => {
         await vscode().openFromExplorer(DMN_FILE);
         await vscode().showInCustomEditor(DMN_FILE, (webview) =>

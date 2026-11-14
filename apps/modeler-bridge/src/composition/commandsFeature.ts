@@ -3,6 +3,7 @@ import {
     BpmnMigrationService,
     BpmnModelerService,
     CoreWriteRenderer,
+    ElementIdsService,
     ModelerLanguageService,
     EngineVersionSelectionService,
 } from "@miragon/bpmn-modeler-core";
@@ -16,9 +17,10 @@ import { RpcLanguagePreference } from "../modelerSettings/adapter/out/RpcLanguag
  * Wires portable modeler commands as Host→Core notifications. Core services
  * choose through the generic picker and persist through host ports.
  *
- * The engine-version change and the layout commands reuse the BPMN editor's
- * {@link BpmnModelerService} and {@link BpmnLayoutService} (handed in via
- * `handles`) so they share the store and document mirror. Migration gets its own
+ * The engine-version change, the layout commands and Generate IDs from Names
+ * reuse the BPMN editor's {@link BpmnModelerService}, {@link BpmnLayoutService}
+ * and {@link ElementIdsService} (handed in via `handles`) so they share the
+ * store and document mirror. Migration gets its own
  * {@link BpmnMigrationService} — its orchestration (scope/version pickers + bulk
  * fs writes) has no per-editor state.
  */
@@ -27,6 +29,7 @@ export function register(
     handles: {
         bpmnService: BpmnModelerService;
         layout: BpmnLayoutService;
+        elementIds: ElementIdsService;
         coreWriteRenderer: CoreWriteRenderer;
     },
 ): void {
@@ -53,6 +56,7 @@ export function register(
                 ".bpmn": (id) => handles.bpmnService.changeEngineVersion(id),
             }),
             layout: handles.layout,
+            elementIds: handles.elementIds,
             migration,
             store: deps.store,
             notifier: deps.notifier,

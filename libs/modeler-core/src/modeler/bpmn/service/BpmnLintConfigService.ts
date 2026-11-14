@@ -4,6 +4,7 @@ import {
     BpmnLintDisabledQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
+    ElementIdConventionQuery,
 } from "@miragon/bpmn-modeler-shared";
 import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
@@ -70,6 +71,9 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
+    /** The convention options each webview last received, so unchanged ones are not sent again. */
+    private readonly sentConventions = new Map<string, string>();
+    private readonly latestConventionRuns = new Map<string, symbol>();
     private readonly rulePackageFollowUp: RulePackageFollowUp;
 
     /** Monotonic source for opaque config-version tokens; never reset. */
@@ -105,8 +109,18 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     /** Re-evaluates the lint tier for the document and drives it. */
-    setBpmnlintConfig(editorId: string): Promise<boolean> {
-        return this.lintAndPush(editorId);
+    async setBpmnlintConfig(editorId: string): Promise<boolean> {
+        const [pushed] = await Promise.all([
+            this.lintAndPush(editorId),
+            this.pushElementIdConvention(editorId),
+        ]);
+        return pushed;
+    }
+
+    /** A webview asks on every load, so a reloaded one gets the convention again even when it is unchanged. */
+    answerLintConfigRequest(editorId: string): Promise<boolean> {
+        this.sentConventions.delete(editorId);
+        return this.setBpmnlintConfig(editorId);
     }
 
     lintsInPage(editorId: string): boolean {
@@ -118,6 +132,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
+        this.sentConventions.delete(editorId);
+        this.latestConventionRuns.delete(editorId);
         this.rulePackageFollowUp.release(editorId);
     }
 
@@ -175,6 +191,47 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             // A malformed .bpmnlintrc or a linter blow-up must not crash the editor.
             this.logLintFailure(error);
             return this.dispatch(editorId, { type: "configFailed" });
+        }
+    }
+
+    /**
+     * Sends the webview the options the lint config gives
+     * `element-id-naming`, whether or not linting runs, so IDs generated from
+     * names never break the rule. A malformed config reaches the user through
+     * the lint run instead.
+     */
+    private async pushElementIdConvention(editorId: string): Promise<void> {
+        if (!this.editorStore.hasEditor(editorId)) return;
+        const run = Symbol(editorId);
+        this.latestConventionRuns.set(editorId, run);
+        try {
+            const dir = posix.dirname(this.documents.getFilePath(editorId));
+            const configPath = await this.locator.findNearestConfig(dir);
+            const options = configPath
+                ? await this.lintRunner.elementIdConventionOptions(
+                      configPath,
+                      JSON.parse(await this.locator.readConfig(configPath)) as Record<
+                          string,
+                          unknown
+                      >,
+                  )
+                : {};
+            const sent = JSON.stringify(options);
+            if (
+                this.latestConventionRuns.get(editorId) !== run ||
+                this.sentConventions.get(editorId) === sent
+            ) {
+                return;
+            }
+            if (
+                await this.editorStore.postMessage(editorId, new ElementIdConventionQuery(options))
+            ) {
+                this.sentConventions.set(editorId, sent);
+            }
+        } catch (error) {
+            this.notifier.logDebug(
+                `[bpmnlint] element ID convention not sent: ${(error as Error).message}`,
+            );
         }
     }
 

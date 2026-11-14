@@ -87,6 +87,11 @@ export class VsCodeSettings implements SettingsPort {
         return readSetting("scriptingSpin");
     }
 
+
+    getElementIdsFollowName(): boolean {
+        return readSetting("elementIdsFollowName");
+    }
+
     /**
      * The union of the User- and Workspace-level marketplace lists, as the
      * core's `registeredMarketplaces` merges them. Forwards the raw entries

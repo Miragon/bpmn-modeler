@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { HostModelerState } from "./hostModelerState";
+import { elementIdSettingsOf, HostModelerState } from "./hostModelerState";
 
 const settings = (alignToOrigin: boolean) => ({
     alignToOrigin,
@@ -52,32 +52,70 @@ describe("HostModelerState", () => {
         expect(modeler.setSettings).not.toHaveBeenCalled();
     });
 
-    it("hands a designer the favourites pushed after the settings it was built with", () => {
+    it("hands a designer the favourites and element ID settings pushed after it was built", () => {
         const state = new HostModelerState();
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
         state.rememberSettings(settings(false));
         const builtWith = state.settings;
 
-        state.rememberSettings({ ...settings(false), favouriteBpmnElements: ["bpmn:UserTask"] });
-        state.applyFavouritesPushedSince(builtWith, designer);
+        state.rememberSettings({
+            ...settings(false),
+            favouriteBpmnElements: ["bpmn:UserTask"],
+            elementIdsFollowName: true,
+        });
+        state.applyDesignerSettingsPushedSince(builtWith, designer);
 
         expect(designer.setFavouriteBpmnElements).toHaveBeenCalledExactlyOnceWith([
             "bpmn:UserTask",
         ]);
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({ followName: true });
     });
 
-    it("leaves a designer alone when no favourites were pushed since it was built", () => {
+    it("leaves a designer alone when nothing was pushed since it was built", () => {
         const state = new HostModelerState();
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
 
-        state.applyFavouritesPushedSince(state.settings, designer);
+        state.applyDesignerSettingsPushedSince(state.settings, designer);
         state.rememberSettings({ ...settings(true), favouriteBpmnElements: ["bpmn:UserTask"] });
-        state.applyFavouritesPushedSince(state.settings, designer);
-        const builtWith = state.settings;
-        state.rememberSettings(settings(false));
-        state.applyFavouritesPushedSince(builtWith, designer);
+        state.applyDesignerSettingsPushedSince(state.settings, designer);
 
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
+        expect(designer.setElementIdSettings).not.toHaveBeenCalled();
+    });
+
+    it("leaves a designer's favourites alone when a push carries none", () => {
+        const state = new HostModelerState();
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
+        state.rememberSettings({ ...settings(true), favouriteBpmnElements: ["bpmn:UserTask"] });
+        const builtWith = state.settings;
+
+        state.rememberSettings(settings(false));
+        state.applyDesignerSettingsPushedSince(builtWith, designer);
+
+        expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
+            followName: undefined,
+        });
+    });
+
+    it("reads a designer's element ID settings from the host settings", () => {
+        expect(
+            elementIdSettingsOf({
+                ...settings(true),
+                elementIdsFollowName: false,
+            }),
+        ).toEqual({ followName: false });
+        expect(elementIdSettingsOf(undefined)).toEqual({ followName: undefined });
+    });
+
+    it("keeps the lint rule options the host sent last for surfaces built later", () => {
+        const state = new HostModelerState();
+        expect(state.elementIdConventionOptions).toBeUndefined();
+
+        state.rememberElementIdConvention({ case: "PascalCase" });
+        state.rememberElementIdConvention({ case: "snake_case" });
+
+        expect(state.elementIdConventionOptions).toEqual({ case: "snake_case" });
     });
 
     it("leaves a modeler's open-script locks alone before the host reported any", () => {
