@@ -381,6 +381,32 @@ describe("DiffMode", () => {
             expect(host.postMessage).not.toHaveBeenCalled();
         });
 
+        it("clears the missing-plane note once the panes step or show all", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            navigator().advance.mockReturnValueOnce(0);
+
+            legend().callbacks.onNext();
+            dispatch(new SyncCursorQuery(1));
+            legend().callbacks.onShowAll?.();
+
+            expect(sideLabel()?.showPlaneMissing.mock.calls).toEqual([[false], [false], [false]]);
+        });
+
+        it("syncs no viewport while its version lacks the partner's plane", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            viewer().showPlane.mockReturnValueOnce(false);
+            dispatch(new SyncDiffPlaneQuery("Sub_2"));
+            host.postMessage.mockClear();
+
+            dispatch(new SyncViewportQuery({ x: 1, y: 2, width: 3, height: 4 }));
+            viewer().viewportListener?.({ x: 5, y: 6, width: 7, height: 8 });
+
+            expect(viewer().setViewport).not.toHaveBeenCalled();
+            expect(host.postMessage).not.toHaveBeenCalled();
+        });
+
         it("reports a user pan or zoom to the host", async () => {
             await startDiffPane();
             const viewport = { x: 1, y: 2, width: 3, height: 4 };

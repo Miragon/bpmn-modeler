@@ -290,7 +290,7 @@ describe("DiffViewer planes", () => {
         return { viewer, rootId, enter };
     }
 
-    it("reports the plane the user enters by the id of its process or subprocess", async () => {
+    it("reports a subprocess plane by its id and the plane it opened on as an empty id", async () => {
         const { viewer, enter } = await subprocessPane();
         const entered: string[] = [];
         viewer.onPlaneChanged((planeId) => entered.push(planeId));
@@ -298,7 +298,28 @@ describe("DiffViewer planes", () => {
         enter("Main_Subprocess_plane");
         enter("Process_1");
 
-        expect(entered).toEqual(["Main_Subprocess", "Process_1"]);
+        expect(entered).toEqual(["Main_Subprocess", ""]);
+        viewer.destroy();
+    });
+
+    it("goes back to the plane it opened on for an empty id, whatever its root is called", async () => {
+        const { viewer, rootId } = await subprocessPane();
+        viewer.showPlane("Main_Subprocess");
+
+        const found = viewer.showPlane("");
+
+        expect([found, rootId()]).toEqual([true, "Process_1"]);
+        viewer.destroy();
+    });
+
+    it("reports no plane when a diagram is imported again", async () => {
+        const { viewer } = await subprocessPane();
+        const entered: string[] = [];
+        viewer.onPlaneChanged((planeId) => entered.push(planeId));
+
+        await viewer.importXML(COLLAPSED_SUBPROCESS_AFTER_XML);
+
+        expect(entered).toEqual([]);
         viewer.destroy();
     });
 

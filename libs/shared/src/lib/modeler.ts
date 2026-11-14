@@ -1586,8 +1586,9 @@ export class SyncCursorQuery extends Query<"SyncCursorQuery"> {
 
 /**
  * Sent from a BPMN diff pane when the user enters another plane, such as a
- * collapsed subprocess's. `planeId` is the id of the process or subprocess the
- * plane shows. The host forwards it to the partner pane via
+ * collapsed subprocess's. `planeId` is the id of the subprocess the plane
+ * shows, or empty for the plane the pane opened on. The host forwards it to
+ * the partner pane via
  * {@link SyncDiffPlaneQuery}.
  */
 export class DiffPlaneChangedCommand extends Command<"DiffPlaneChangedCommand"> {

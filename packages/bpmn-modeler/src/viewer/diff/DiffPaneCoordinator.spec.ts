@@ -186,24 +186,45 @@ describe("DiffPaneCoordinator", () => {
         expect(coord.cursor).toBe(0);
     });
 
-    it("takes the partner into the plane the user enters, and says when its version has none", () => {
+    it("takes the partner into the plane the user enters, and says which side lacks it", () => {
         const before = stubViewer([], ["Sub_1"]);
         const after = stubViewer([], ["Sub_2"]);
         const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
-        const synced: [string, boolean][] = [];
-        coord.onPlaneSynced((side, found) => synced.push([side, found]));
+        const missing: [string, boolean][] = [];
+        coord.onPlaneMissingChanged((side, isMissing) => missing.push([side, isMissing]));
 
         before.enterPlane("Sub_2");
-        after.enterPlane("Sub_1");
-
-        expect(after.calls.planes).toEqual(["Sub_2"]);
-        expect(before.calls.planes).toEqual(["Sub_1"]);
-        expect(synced).toEqual([
-            ["after", true],
-            ["before", true],
-        ]);
         before.enterPlane("Sub_3");
-        expect(synced.at(-1)).toEqual(["after", false]);
+
+        expect(after.calls.planes).toEqual(["Sub_2", "Sub_3"]);
+        expect(missing).toEqual([
+            ["before", false],
+            ["after", false],
+            ["before", false],
+            ["after", true],
+        ]);
+    });
+
+    it("syncs no viewport while one side lacks the other's plane, and clears that on reset", () => {
+        const before = stubViewer();
+        const after = stubViewer();
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        const missing: [string, boolean][] = [];
+        coord.onPlaneMissingChanged((side, isMissing) => missing.push([side, isMissing]));
+        coord.apply(RESULT);
+
+        before.enterPlane("Sub_9");
+        before.fireViewport(VP);
+        after.fireViewport(VP);
+        coord.reset();
+        before.fireViewport(VP);
+
+        expect(after.calls.setViewport).toEqual([VP]);
+        expect(before.calls.setViewport).toEqual([]);
+        expect(missing.slice(-2)).toEqual([
+            ["before", false],
+            ["after", false],
+        ]);
     });
 
     it("ignores navigation before any diff is applied", () => {

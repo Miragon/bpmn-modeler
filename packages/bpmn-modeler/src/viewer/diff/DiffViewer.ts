@@ -24,6 +24,12 @@ import { subscribeViewboxChanged } from "../../viewport";
 
 type DiagramRoot = { id: string; businessObject?: { id?: string } };
 
+/**
+ * How a pane names the plane it opened on, so a process on one side and a
+ * collaboration on the other still meet there.
+ */
+const OPENING_PLANE = "";
+
 /** CSS class applied to each element category on the canvas, as `DIFF_MARKERS` maps them. */
 export type DiffMarkerClass = DiffMarker;
 
@@ -95,6 +101,8 @@ export class DiffViewer {
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {
+        // The import sets its own root; no plane change to report until it is done.
+        this.openingRoot = undefined;
         const result = await this.getViewer().importXML(xml);
         this.openingRoot = this.getCanvas().getRootElement();
 
@@ -244,16 +252,18 @@ export class DiffViewer {
     }
 
     /**
-     * Calls back with the id of the process or subprocess whose plane the user
-     * enters, by drilling down or through the breadcrumbs. Planes the pane
-     * enters itself, stepping or following its partner, are not reported.
+     * Calls back with the id of the subprocess whose plane the user enters, by
+     * drilling down or through the breadcrumbs, or {@link OPENING_PLANE} for the
+     * plane the pane opened on, whatever its process or collaboration is
+     * called. Planes the pane enters itself, stepping or following its
+     * partner, are not reported. Every plane the user enters is fitted.
      * Returns a disposer.
      */
     onPlaneChanged(cb: (planeId: string) => void): () => void {
         const eventBus = this.getViewer().get<EventBus>("eventBus");
         const listener = (event: EventBusEvent & { element?: DiagramRoot }): void => {
             if (event.element && this.openingRoot && this.programmaticPositioningDepth === 0) {
-                cb(DiffViewer.planeIdOf(event.element));
+                cb(this.planeIdOf(event.element));
             }
         };
         eventBus.on("root.set", listener);
@@ -261,13 +271,14 @@ export class DiffViewer {
     }
 
     /**
-     * Enters the plane of the process or subprocess `planeId` names and fits
-     * it; `false`, leaving the plane as it is, when this version has none.
+     * Enters the plane `planeId` names, as {@link onPlaneChanged} reports it,
+     * and fits it; `false`, leaving the plane as it is, when this version has
+     * none.
      */
     showPlane(planeId: string): boolean {
         const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
         const plane = registry.find(
-            (element) => !element.parent && DiffViewer.planeIdOf(element) === planeId,
+            (element) => !element.parent && this.planeIdOf(element) === planeId,
         );
         if (!plane) {
             return false;
@@ -387,7 +398,10 @@ export class DiffViewer {
     }
 
     // A subprocess's plane root is `<id>_plane`; its business object names the subprocess.
-    private static planeIdOf(root: DiagramRoot): string {
+    private planeIdOf(root: DiagramRoot): string {
+        if (root === this.openingRoot) {
+            return OPENING_PLANE;
+        }
         return root.businessObject?.id ?? root.id;
     }
 }
