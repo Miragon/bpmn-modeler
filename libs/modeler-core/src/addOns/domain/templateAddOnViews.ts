@@ -191,6 +191,7 @@ export function marketplaceSourceOf(
             description: marketplace.scopeText,
             ...optional("problem", marketplace.problem),
             ...optional("stateText", sourceSwitch?.stateText),
+            hasDetail: true,
             actions,
             addOns: templates.map(({ view }) => view).sort(byKindThenName),
         },

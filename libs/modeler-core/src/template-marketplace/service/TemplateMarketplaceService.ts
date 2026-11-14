@@ -9,11 +9,17 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
+import { MarketplaceAboutFetch } from "../domain/marketplaceAbout";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
-import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
+import {
+    RepositorySource,
+    RepositorySourceFactory,
+    TokenPromptPort,
+    TokenStorePort,
+} from "../port/marketplacePorts";
 import {
     declaredPrivateHosts,
     describeSourceConfig,
@@ -29,6 +35,8 @@ import {
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
 import { HostTokenSession } from "./HostTokenSession";
+import { fetchMarketplaceAbout } from "./fetchMarketplaceAbout";
+import { CachedMarketplaceAbout, MarketplaceAboutCache } from "./MarketplaceAboutCache";
 import { MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
@@ -61,6 +69,7 @@ export class TemplateMarketplaceService {
     constructor(
         private readonly sourceFactory: RepositorySourceFactory,
         private readonly cache: MarketplaceCache,
+        private readonly aboutCache: MarketplaceAboutCache,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
         private readonly tokens: TokenStorePort,
@@ -223,6 +232,11 @@ export class TemplateMarketplaceService {
         return this.cache.cachedTemplatePathsByRegistration();
     }
 
+    /** The README and repository facts a marketplace's detail shows. */
+    cachedAboutByRegistration(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
+        return this.aboutCache.cachedAboutByRegistration();
+    }
+
     /**
      * Manifest-level failures propagate (the marketplace is unusable) and leave
      * the cache untouched; source-level failures are logged, keep that source's
@@ -234,9 +248,8 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
     ): Promise<FetchReport> {
-        const { sources, skipped } = parseMarketplace(
-            JSON.parse(await this.readManifest(registration, tokenSession)),
-        );
+        const { manifest, about } = await this.readManifest(registration, tokenSession);
+        const { sources, skipped } = parseMarketplace(JSON.parse(manifest));
         const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
         this.notifier.logDebug(
             `Manifest of "${registration.url}": ${sources.length} usable source(s)${skippedNote}`,
@@ -295,6 +308,7 @@ export class TemplateMarketplaceService {
                 }
             }
         }
+        await this.aboutCache.store(registration, about);
         return FetchReport.of({
             usableSources: sources.length,
             cached,
@@ -360,14 +374,14 @@ export class TemplateMarketplaceService {
     private async readManifest(
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
-    ): Promise<string> {
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
-                this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
+                this.manifestAndAbout(this.sourceFactory(config)),
             );
         } catch (error) {
             // `ErrorOptions` is not in this lib target, so the cause is attached directly.
@@ -378,6 +392,14 @@ export class TemplateMarketplaceService {
                 { cause: error },
             );
         }
+    }
+
+    /** In the same run as the manifest, so a 404 of what describes it never asks for a token. */
+    private async manifestAndAbout(
+        repository: RepositorySource,
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
+        const manifest = await repository.fetchFile(MARKETPLACE_MANIFEST);
+        return { manifest, about: await fetchMarketplaceAbout(repository) };
     }
 
     /**

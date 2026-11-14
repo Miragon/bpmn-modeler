@@ -6,7 +6,10 @@ import { InvalidMarketplaceError } from "../domain/marketplace";
 import { RepositoryAccessError } from "../domain/repositoryAccessError";
 import { RepositorySource, RepositorySourceFactory } from "../port/marketplacePorts";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
+import { MarketplaceAboutCache } from "./MarketplaceAboutCache";
 import { MarketplaceCache } from "./MarketplaceCache";
+import { WriteQueue } from "./WriteQueue";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({
@@ -38,9 +41,11 @@ function serviceOver(
     for (const [tokenHost, token] of Object.entries(storedTokens)) {
         host.tokens.tokens.set(tokenHost, token);
     }
+    const writes = new WriteQueue();
     const service = new TemplateMarketplaceService(
         factory,
-        new MarketplaceCache("/cache", host.workspace),
+        new MarketplaceCache("/cache", host.workspace, writes),
+        new MarketplaceAboutCache("/cache", host.workspace, host.notifier, writes),
         host.settings,
         host.notifier,
         host.tokens,
@@ -50,7 +55,12 @@ function serviceOver(
     return {
         service,
         cachedPaths: () =>
-            [...host.workspace.files.keys()].filter((path) => !path.endsWith("/slot.json")),
+            [...host.workspace.files.keys()].filter(
+                (path) =>
+                    !path.endsWith("/slot.json") &&
+                    !path.includes("/readme/") &&
+                    !path.includes("/repository/"),
+            ),
         workspace: host.workspace,
         settings: host.settings,
         notifier: host.notifier,
@@ -64,22 +74,43 @@ function serviceOver(
  * serves `marketplace.json` and whose every other source serves one file.
  */
 function createService(
-    opts: { manifest?: string | Error; cachedFiles?: Record<string, string> } = {},
+    opts: {
+        manifest?: string | Error;
+        readme?: string | Error;
+        repository?: RepositoryFacts | Error;
+        cachedFiles?: Record<string, string>;
+    } = {},
 ) {
     const sourceFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
+                listRootFiles: vi.fn(async () =>
+                    opts.readme === undefined
+                        ? ["marketplace.json"]
+                        : ["marketplace.json", "readme.md"],
+                ),
+                fetchFile: vi.fn(async (repoPath: string) => {
+                    if (repoPath === "readme.md") {
+                        if (opts.readme instanceof Error) throw opts.readme;
+                        return opts.readme!;
+                    }
                     if (opts.manifest instanceof Error) {
                         throw opts.manifest;
                     }
                     return opts.manifest ?? MANIFEST;
                 }),
+                ...(opts.repository !== undefined && {
+                    repositoryFacts: vi.fn(async () => {
+                        if (opts.repository instanceof Error) throw opts.repository;
+                        return opts.repository!;
+                    }),
+                }),
             };
         }
         return {
             listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn().mockResolvedValue(`{"from":"${config.path}"}`),
         };
     });
@@ -105,6 +136,7 @@ function tokenGatedFactory({
             const denied = expectedToken === undefined || token !== expectedToken;
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi.fn(async () => {
                     if (denied) {
                         throw new RepositoryAccessError("github.com", 404, "acme/templates", false);
@@ -115,6 +147,7 @@ function tokenGatedFactory({
         }
         return {
             listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn().mockResolvedValue("{}"),
         };
     });
@@ -122,6 +155,83 @@ function tokenGatedFactory({
 
 beforeEach(() => {
     vi.clearAllMocks();
+});
+
+describe("TemplateMarketplaceService, a marketplace's README", () => {
+    const README_PATH = "/cache/acme__templates/readme/README.md";
+
+    it("caches the README beside the manifest", async () => {
+        const { service, workspace } = createService({ readme: "# Acme templates" });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("# Acme templates");
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { readmeFile: README_PATH }]]),
+        );
+    });
+
+    it("removes the cached README once the marketplace has none, and never asks for a token", async () => {
+        const { service, workspace, tokenPrompt } = createService({
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.has(README_PATH)).toBe(false);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("keeps the cached README when it cannot be fetched, and warns", async () => {
+        const { service, workspace, notifier } = createService({
+            readme: new Error("socket hang up"),
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("old");
+        expect(notifier.logged("warning")).toContain(
+            'Kept the cached README of "https://github.com/acme/templates": socket hang up',
+        );
+    });
+});
+
+describe("TemplateMarketplaceService, a marketplace's repository facts", () => {
+    const FACTS: RepositoryFacts = {
+        host: "github",
+        stars: 1234,
+        license: { kind: "known", id: "MIT", name: "MIT License" },
+    };
+
+    it("caches the stars and license its host reports", async () => {
+        const { service } = createService({ repository: FACTS });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+    });
+
+    it("keeps the cached facts when the host cannot be asked, and warns", async () => {
+        const { service, notifier } = createService({ repository: FACTS });
+        await service.addMarketplace("https://github.com/acme/templates");
+        const offline = createService({
+            repository: new Error("socket hang up"),
+            cachedFiles: { "/cache/acme__templates/repository/facts.json": JSON.stringify(FACTS) },
+        });
+
+        await offline.service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await offline.service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+        expect(offline.notifier.logged("warning")).toContain(
+            'Kept the cached repository facts of "https://github.com/acme/templates": socket hang up',
+        );
+        expect(notifier.logged("warning")).toEqual([]);
+    });
 });
 
 describe("TemplateMarketplaceService.addMarketplace", () => {
@@ -182,10 +292,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.kind === "github" && config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue(["connector.json"]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -233,17 +345,20 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(MANIFEST),
                 };
             }
             if (config.path === "resources") {
                 return {
                     listTemplateFiles: vi.fn().mockRejectedValue(new Error("rate limited")),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn(),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["element-templates/t.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
@@ -262,10 +377,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(MANIFEST),
                 };
             }
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles:
                     config.path === "resources"
                         ? vi.fn().mockRejectedValue(new Error("rate limited"))
@@ -339,10 +456,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn(),
                   },
         );
@@ -363,10 +482,12 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockRejectedValue(new Error("unreadable")),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn(),
                   },
         );
@@ -425,11 +546,13 @@ describe("TemplateMarketplaceService.updateAll", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(manifest),
                 };
             }
             const unreachable = config.kind === "github" && config.repo === "one";
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles: unreachable
                     ? vi.fn().mockRejectedValue(new Error("offline"))
                     : vi.fn().mockResolvedValue(["element-templates/t.json"]),
@@ -463,11 +586,13 @@ describe("TemplateMarketplaceService.updateAll", () => {
             if (config.kind === "github" && config.owner === "acme" && config.repo === "one") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockRejectedValue(new Error("offline")),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["t.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi
                     .fn()
                     .mockResolvedValue(
@@ -631,10 +756,12 @@ describe("TemplateMarketplaceService include filtering", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue(listing),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -694,11 +821,13 @@ describe("TemplateMarketplaceService include filtering", () => {
             if (config.kind === "github" && config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn().mockResolvedValue(manifest),
                 };
             }
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue(["a.json", "sub/b.json"]),
+                listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                 fetchFile: vi.fn().mockResolvedValue("{}"),
             };
         });
@@ -808,10 +937,12 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             config.path === ""
                 ? {
                       listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue(manifest),
                   }
                 : {
                       listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                      listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                       fetchFile: vi.fn().mockResolvedValue("{}"),
                   },
         );
@@ -892,6 +1023,7 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
     it("names a failing object entry by its host/repo label", async () => {
         const factory = vi.fn((): RepositorySource => ({
             listTemplateFiles: vi.fn().mockResolvedValue([]),
+            listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
             fetchFile: vi.fn(async () => {
                 throw new Error("offline");
             }),
@@ -923,10 +1055,12 @@ describe("TemplateMarketplaceService cache retention", () => {
             if (config.path === "") {
                 return {
                     listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    listRootFiles: vi.fn().mockResolvedValue(["marketplace.json"]),
                     fetchFile: vi.fn(async () => JSON.stringify({ sources: upstream.sources })),
                 };
             }
             return {
+                listRootFiles: vi.fn().mockResolvedValue([]),
                 listTemplateFiles: vi.fn(async () => {
                     if (upstream.unreachablePaths.has(config.path)) {
                         throw new Error("offline");

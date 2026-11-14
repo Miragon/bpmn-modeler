@@ -11,6 +11,7 @@ import { DirectoryEntryKind } from "../../kernel/domain/directoryEntry";
 import { DirectoryNotFound, FileNotFound } from "../../kernel/domain/errors";
 import { staysInsideFolder } from "../../kernel/domain/rootContainment";
 import { WorkspacePort } from "../../kernel/port/hostPorts";
+import { WriteQueue } from "./WriteQueue";
 
 /**
  * The content-type segment the template pipeline owns. `cachedTemplatePathsByRegistration`
@@ -40,17 +41,17 @@ const SLOT_RECORD = "slot.json";
  * registered.
  */
 export class MarketplaceCache {
-    // Two replaces of one slot in flight pick the same generation, or one
-    // drops the generation the other writes, so the writes run one at a time.
-    private writes: Promise<unknown> = Promise.resolve();
-
     /**
      * @param cacheRoot Absolute path to the `marketplaces/` directory under the
      *   host's global storage.
+     * @param writes Two replaces of one slot in flight pick the same
+     *   generation, or one drops the generation the other writes, so the
+     *   writes run one at a time.
      */
     constructor(
         private readonly cacheRoot: string,
         private readonly workspace: WorkspacePort,
+        private readonly writes: WriteQueue = new WriteQueue(),
     ) {}
 
     async cachedSlots(marketplaceId: string): Promise<CachedSourceSlot[]> {
@@ -90,21 +91,15 @@ export class MarketplaceCache {
                 throw new Error(`Rejected unsafe template path "${repoPath}"`);
             }
         }
-        return this.oneAtATime(() =>
+        return this.writes.run(() =>
             this.writeGeneration(marketplaceId, sourceIndex, sourceIdentity, files),
         );
     }
 
     removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {
-        return this.oneAtATime(() =>
+        return this.writes.run(() =>
             this.workspace.deleteDirectory(this.sourceDir(marketplaceId, sourceIndex)),
         );
-    }
-
-    private oneAtATime<T>(write: () => Promise<T>): Promise<T> {
-        const written = this.writes.then(write);
-        this.writes = written.catch(() => undefined);
-        return written;
     }
 
     private async writeGeneration(
@@ -193,7 +188,7 @@ export class MarketplaceCache {
      * @returns the ids of the slots actually deleted, for the caller to log.
      */
     prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
-        return this.oneAtATime(async () => {
+        return this.writes.run(async () => {
             const pruned: string[] = [];
             for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
                 const id = this.marketplaceIdOf(marketplaceDir);

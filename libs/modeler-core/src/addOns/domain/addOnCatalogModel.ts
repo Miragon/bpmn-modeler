@@ -46,6 +46,8 @@ export interface AddOnSourceView {
     readonly problem?: string;
     /** Only for a source whose templates the user switched off. */
     readonly stateText?: string;
+    /** A source with a detail of its own, which says what the source is. */
+    readonly hasDetail?: true;
     readonly actions: readonly ActionView<SourceActionKind>[];
     readonly addOns: readonly AddOnView[];
 }

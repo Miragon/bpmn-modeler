@@ -139,6 +139,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         GetAddOnCatalogCommand: HANDLED,
         AddOnRequestCommand: HANDLED,
         OpenAddOnDetailCommand: HANDLED,
+        GetAddOnAboutCommand: HANDLED,
     },
 };
 

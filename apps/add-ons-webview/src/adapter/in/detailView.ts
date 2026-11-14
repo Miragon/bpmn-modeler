@@ -2,9 +2,10 @@ import type {
     ActionViewPayload,
     AddOnActionKindPayload,
     AddOnPayload,
+    AddOnAboutPayload,
     AddOnReviewPayload,
 } from "@miragon/bpmn-modeler-shared";
-import { ArrowLeft, Info } from "lucide";
+import { ArrowLeft } from "lucide";
 
 import { addOnActionEmphasis } from "../../domain/actionEmphasis";
 import { detailStatusOf } from "../../domain/addOnStatus";
@@ -12,6 +13,8 @@ import type { Placement } from "../../domain/catalogQueries";
 import { CHROME_TEXT } from "../../domain/chromeTexts";
 import { placedActions, reviewOf } from "../../domain/placedActions";
 import { isBusy, ViewState } from "../../domain/viewState";
+import { aboutBadgesOf, aboutFor, readmeSection } from "./aboutView";
+import { noteOf, separator } from "./detailParts";
 import { actionButton, button, el, hiddenText, icon, markFocus, setBusy } from "./dom";
 import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
@@ -38,7 +41,8 @@ export function detailOf(placement: Placement, state: ViewState, revealed: boole
     detail.setAttribute("aria-label", addOn.name);
     setBusy(detail, busy);
     if (busy) detail.append(el("div", "ds-busy-bar av-detail-busy"));
-    detail.append(headOf(placement, revealed));
+    const about = aboutFor(state, addOn.id);
+    detail.append(headOf(placement, revealed, about));
     if (addOn.problem !== undefined) detail.append(statusBox("danger", addOn.problem));
     if (addOn.note !== undefined) detail.append(noteOf(addOn.note));
     const { rowLine, allow } = placedActions(addOn);
@@ -51,6 +55,7 @@ export function detailOf(placement: Placement, state: ViewState, revealed: boole
     if (review !== undefined) {
         detail.append(reviewSection(review, allow && addOnButton(allow, addOn, busy)));
     }
+    detail.append(...readmeSection(about?.readme));
     return detail;
 }
 
@@ -68,7 +73,11 @@ function addOnButton(
     });
 }
 
-function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLElement {
+function headOf(
+    { group, source, addOn }: Placement,
+    revealed: boolean,
+    about: AddOnAboutPayload | undefined,
+): HTMLElement {
     const head = el("header", `av-detail-head${revealed ? " av-revealed" : ""}`);
     // Takes focus after Back's opposite, a reveal or an action, never by Tab.
     const name = markFocus(el("h2", "av-detail-name", addOn.name), "name", addOn.id);
@@ -89,7 +98,7 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
         stateLine.append(el("span", "av-state-word", word));
     });
     const top = el("div", "av-detail-top");
-    top.append(kindTag(addOn.kind), stateLine);
+    top.append(kindTag(addOn.kind), stateLine, ...aboutBadgesOf(about));
     const where = el("p", "av-location");
     where.append(
         icon(SOURCE_ICON[source.kind], 14, "av-location-icon"),
@@ -99,18 +108,6 @@ function headOf({ group, source, addOn }: Placement, revealed: boolean): HTMLEle
     );
     head.append(top, name, metaLine, where);
     return head;
-}
-
-function separator(glyph: string): HTMLElement {
-    const sep = el("span", "av-sep", glyph);
-    sep.setAttribute("aria-hidden", "true");
-    return sep;
-}
-
-function noteOf(note: string): HTMLElement {
-    const line = el("p", "av-note");
-    line.append(icon(Info, 16, "av-note-icon"), el("span", "", note));
-    return line;
 }
 
 /** One detail shows at a time, so one id names its warning. */

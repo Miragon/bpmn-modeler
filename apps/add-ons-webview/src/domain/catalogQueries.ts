@@ -11,6 +11,12 @@ export interface Placement {
     readonly addOn: AddOnPayload;
 }
 
+/** Where a source with a detail sits: its detail names it, its scope and its add-ons. */
+export interface SourcePlacement {
+    readonly group: AddOnGroupPayload;
+    readonly source: AddOnSourcePayload;
+}
+
 /** Every add-on of these groups, in list order. */
 export function addOnsOf(groups: readonly AddOnGroupPayload[]): AddOnPayload[] {
     return groups.flatMap(({ sources }) => sources.flatMap(({ addOns }) => addOns));
@@ -34,4 +40,20 @@ export function sourceOf(
     sourceId: string,
 ): AddOnSourcePayload | undefined {
     return groups.flatMap(({ sources }) => sources).find(({ id }) => id === sourceId);
+}
+
+/** Only a source the core gave a detail of its own. */
+export function sourcePlacementOf(
+    groups: readonly AddOnGroupPayload[],
+    sourceId: string,
+): SourcePlacement | undefined {
+    for (const group of groups) {
+        const source = group.sources.find(({ id }) => id === sourceId);
+        if (source?.hasDetail === true) return { group, source };
+    }
+    return undefined;
+}
+
+export function isDetailSource(groups: readonly AddOnGroupPayload[], id: string): boolean {
+    return sourcePlacementOf(groups, id) !== undefined;
 }

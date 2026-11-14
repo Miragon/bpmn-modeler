@@ -4,6 +4,7 @@ import type {
     AddOnReveal,
     AddOnRevealTarget,
 } from "../domain/addOnCatalogModel";
+import { AddOnAbout, NO_ABOUT } from "../domain/addOnAbout";
 import { AddOnActionResult, AddOnRequest, CLOSED_VIEW } from "../domain/addOnRequests";
 import { firstRevisionOf } from "../domain/shownRevisions";
 import { AddOnCatalogService } from "./AddOnCatalogService";
@@ -12,6 +13,7 @@ import { AddOnWatchers } from "./AddOnWatchers";
 export interface AddOnViewConnection {
     /** A new model is posted once the action's effects are listed. */
     handle(request: AddOnRequest): Promise<AddOnActionResult>;
+    about(targetId: string): Promise<AddOnAbout>;
     setVisible(visible: boolean): void;
     dispose(): void;
 }
@@ -65,6 +67,8 @@ export class AddOnViewHub {
         return {
             handle: (request) =>
                 this.views.has(view) ? this.catalog.handle(request) : Promise.resolve(CLOSED_VIEW),
+            about: (targetId) =>
+                this.views.has(view) ? this.catalog.about(targetId) : Promise.resolve(NO_ABOUT),
             setVisible: (nowVisible) => this.setVisible(view, nowVisible),
             dispose: () => {
                 this.views.delete(view);

@@ -398,3 +398,95 @@ describe("GitHubSource on GitHub Enterprise (baseUrl)", () => {
         });
     });
 });
+
+describe("GitHubSource.repositoryFacts", () => {
+    it("reads stars and license from the repository request the default branch already made", async () => {
+        const http = createHttp();
+        http.getJson
+            .mockResolvedValueOnce(
+                ok(
+                    JSON.stringify({
+                        default_branch: "main",
+                        stargazers_count: 42,
+                        license: { spdx_id: "MIT", name: "MIT License" },
+                    }),
+                ),
+            )
+            .mockResolvedValueOnce(ok(JSON.stringify({ tree: [] })));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            path: "",
+        });
+
+        await source.listTemplateFiles();
+        const facts = await source.repositoryFacts();
+
+        expect(facts).toEqual({
+            host: "github",
+            stars: 42,
+            license: { kind: "known", id: "MIT", name: "MIT License" },
+        });
+        expect(http.getJson.mock.calls.map(([url]) => url)).toEqual([
+            "https://api.github.com/repos/acme/repo",
+            "https://api.github.com/repos/acme/repo/git/trees/main?recursive=1",
+        ]);
+    });
+
+    it("maps a denied repository request to an access error", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 404, body: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+        });
+
+        await expect(source.repositoryFacts()).rejects.toBeInstanceOf(RepositoryAccessError);
+    });
+});
+
+describe("GitHubSource.listRootFiles", () => {
+    it("lists the files at the root of the configured ref, not its folders", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue(
+            ok(
+                JSON.stringify([
+                    { name: "readme.md", type: "file" },
+                    { name: "marketplace.json", type: "file" },
+                    { name: "templates", type: "dir" },
+                ]),
+            ),
+        );
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "release/1",
+            path: "templates",
+        });
+
+        expect(await source.listRootFiles()).toEqual(["readme.md", "marketplace.json"]);
+        expect(http.getJson.mock.calls.map(([url]) => url)).toEqual([
+            "https://api.github.com/repos/acme/repo/contents?ref=release%2F1",
+        ]);
+    });
+
+    it("maps a denied listing to an access error and an odd answer to an error", async () => {
+        const http = createHttp();
+        http.getJson
+            .mockResolvedValueOnce({ status: 404, body: "" })
+            .mockResolvedValueOnce(ok("{}"));
+        const config = { kind: "github", owner: "acme", repo: "repo", ref: "main", path: "" } as const;
+
+        await expect(new GitHubSource(http as never, config).listRootFiles()).rejects.toBeInstanceOf(
+            RepositoryAccessError,
+        );
+        await expect(new GitHubSource(http as never, config).listRootFiles()).rejects.toThrow(
+            "Unexpected GitHub contents response for acme/repo@main",
+        );
+    });
+});

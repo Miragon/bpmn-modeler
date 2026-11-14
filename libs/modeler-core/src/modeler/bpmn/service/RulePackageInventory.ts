@@ -8,9 +8,9 @@ import {
 import { ListedPresence } from "../../../kernel/domain/listedCode";
 import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
+import { manifestPathOf } from "../../../kernel/domain/packageManifest";
 import {
     InstalledEntry,
-    manifestPathOf,
     rulePackageFolderNames,
     rulePackageScopesToList,
 } from "../domain/installedPackage";

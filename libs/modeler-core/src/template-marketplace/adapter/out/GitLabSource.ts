@@ -1,5 +1,7 @@
 import { HttpClient } from "../../../kernel/port/HttpClient";
 import { HttpResponse } from "../../../kernel/domain/http";
+import { RepositoryFacts } from "../../../kernel/domain/repositoryFacts";
+import { gitlabRepositoryFactsOf } from "../../domain/repositoryFactsParsing";
 import { GitLabSourceConfig, hostForConfig } from "../../domain/repositorySourceConfig";
 import { RepositoryAccessError } from "../../domain/repositoryAccessError";
 import { RepositorySource } from "../../port/marketplacePorts";
@@ -76,6 +78,38 @@ export class GitLabSource implements RepositorySource {
             this.throwFor(response, `Failed to fetch ${repoPath} from ${this.config.projectPath}`);
         }
         return response.body;
+    }
+
+    /** One page: a README sorts among the first hundred files of any root but a runaway one. */
+    async listRootFiles(): Promise<string[]> {
+        const { projectPath, ref } = this.config;
+        let url =
+            `${this.apiRoot()}/projects/${encodeURIComponent(projectPath)}/repository/tree` +
+            `?per_page=${TREE_PAGE_SIZE}`;
+        if (ref) {
+            url += `&ref=${encodeURIComponent(ref)}`;
+        }
+        const response = await this.http.getJson(url, this.headers());
+        if (response.status !== 200) {
+            this.throwFor(response, `Failed to list the root of ${projectPath}`);
+        }
+        const entries: unknown = JSON.parse(response.body);
+        if (!Array.isArray(entries)) {
+            throw new Error(`Unexpected GitLab tree response for ${projectPath}`);
+        }
+        return entries
+            .filter((entry) => entry?.type === "blob" && typeof entry.name === "string")
+            .map((entry) => entry.name as string);
+    }
+
+    async repositoryFacts(): Promise<RepositoryFacts> {
+        const { projectPath } = this.config;
+        const url = `${this.apiRoot()}/projects/${encodeURIComponent(projectPath)}?license=true`;
+        const response = await this.http.getJson(url, this.headers());
+        if (response.status !== 200) {
+            this.throwFor(response, `Failed to read the project ${projectPath}`);
+        }
+        return gitlabRepositoryFactsOf(JSON.parse(response.body));
     }
 
     /**

@@ -1006,6 +1006,7 @@ describe("catalogModelOf for marketplaces", () => {
                     kind: "marketplace",
                     label: "https://github.com/acme/shared",
                     description: "All my projects",
+                    hasDetail: true,
                     actions: [{ kind: "removeMarketplace", label: "Remove" }],
                     addOns: [
                         {
@@ -1025,6 +1026,7 @@ describe("catalogModelOf for marketplaces", () => {
                     label: "/work/local",
                     description: "This project",
                     problem: "No templates fetched yet. Update the marketplaces to fetch them.",
+                    hasDetail: true,
                     actions: [{ kind: "removeMarketplace", label: "Remove" }],
                     addOns: [],
                 },

@@ -21,6 +21,7 @@ import {
 } from "./addOnTexts";
 import { byKindThenName, compare, optional } from "./addOnViewParts";
 import { AddOnSession, CodeAddOnFacts, codeAddOnsOf, ShownCode } from "./codeAddOnCatalog";
+import { AboutPlace, aboutPlacesOf, MarketplaceAbout } from "./addOnAbout";
 import { TemplateAddOnFacts, templateAddOnsOf } from "./templateAddOnCatalog";
 import { ShownSource, ShownTemplate, SourceSwitchView } from "./templateAddOnViews";
 
@@ -37,6 +38,8 @@ export interface CatalogBuild {
     readonly templates: ReadonlyMap<string, ShownTemplate>;
     /** What the catalog itself offered, so a request is checked against it. */
     readonly catalogActions: readonly CatalogActionKind[];
+    /** By add-on or source id, where a detail reads its README and license. */
+    readonly aboutPlaces: ReadonlyMap<string, AboutPlace>;
 }
 
 const SOURCE_DESCRIPTION: Record<FolderSourceKind, (place: SourcePlace, root: string) => string> = {
@@ -71,13 +74,24 @@ export function catalogModelOf(
         ...templates.marketplacesGroup,
     ];
     const actions = [...templates.marketplaceActions, ...PRUNE_ACTIONS];
+    const shown = new Map(code.map(({ view, shown }) => [view.id, shown]));
     return {
         model: { revision, groups, actions, ...emptyTextOf(facts.folders, groups) },
-        shown: new Map(code.map(({ view, shown }) => [view.id, shown])),
+        shown,
         sources: templates.sources,
         templates: templates.templates,
         catalogActions: actions.map(({ kind }) => kind),
+        aboutPlaces: aboutPlacesOf(shown, marketplaceAboutOf(facts)),
     };
+}
+
+function marketplaceAboutOf({ marketplaces }: AddOnFacts): MarketplaceAbout[] {
+    if (marketplaces?.kind !== "listed") return [];
+    return marketplaces.sources.map(({ id, readmeFile, repository }) => ({
+        sourceId: sourceIdOf("marketplace", id),
+        ...optional("readmeFile", readmeFile),
+        ...optional("repository", repository),
+    }));
 }
 
 function groupOf(

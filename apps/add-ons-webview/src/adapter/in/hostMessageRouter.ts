@@ -27,6 +27,9 @@ export function routeHostMessage(
         case "ShowAddOnQuery":
             dispatch({ kind: "addOnShown", addOnId: query.addOnId });
             break;
+        case "AddOnAboutQuery":
+            dispatch({ kind: "aboutArrived", targetId: query.targetId, about: query.about });
+            break;
         case "BrandModeQuery":
             showBrandMode(query.mode);
             break;

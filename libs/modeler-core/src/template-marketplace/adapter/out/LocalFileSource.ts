@@ -27,6 +27,11 @@ export class LocalFileSource implements RepositorySource {
         return this.workspace.readFile(this.absolute(repoPath));
     }
 
+    async listRootFiles(): Promise<string[]> {
+        const entries = await this.workspace.readDirectory(this.absolute(""));
+        return entries.filter(([, type]) => type === "file").map(([name]) => name);
+    }
+
     /**
      * A missing directory yields `[]` rather than throwing, so a typo'd `path`
      * warns-and-skips instead of failing the whole add.

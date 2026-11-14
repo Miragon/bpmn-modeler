@@ -114,7 +114,8 @@ Templates with an `engines` field are only offered on Camunda 8 diagrams whose `
 - Templates are cached per workspace and fetched only on Add and Update. A new workspace, such as a git worktree, starts without them: when the extension starts and a registered marketplace has nothing cached in this workspace, a notification offers **Update marketplaces**. Nothing is fetched until you click it.
 - A source that cannot be fetched keeps its last fetched templates until an update reaches it again, unless it moved to another place in `sources`. An update lists a marketplace as failed when none of its sources can be fetched.
 - If the cache of a removed marketplace cannot be deleted, for example because another program holds a file in it, Update and Remove still finish and write the error to the log. Its templates stay offered until a later Update or Remove deletes them.
-- Unauthenticated GitHub access allows 60 requests per hour; a token raises the limit.
+- Unauthenticated GitHub access allows 60 requests per hour; a token raises the limit. An update of a GitHub marketplace spends one request on the repository (its default branch, stars and license) and one to find its README, besides those that list its sources.
+- A marketplace's stars, license and README in the [Add-ons](/vscode/features/add-ons#marketplaces-and-plugin-copies) view are as of the last update. A marketplace you registered before this version shows them after the next **Update marketplaces**.
 - Very large repositories fail to list (GitHub's tree limit, 10,000 files under the path on GitLab). Point `path` at a narrower folder.
 - Templates control how processes run. Only add marketplaces you trust.
 

@@ -12,6 +12,8 @@
     --ds-kind-rulePackage-fg: var(--cd-ui-plot);
     --ds-kind-elementTemplate-bg: var(--cd-gruen);
     --ds-kind-elementTemplate-fg: var(--cd-schwarz);
+    --ds-kind-marketplace-bg: var(--cd-ui-flaeche-hoch);
+    --ds-kind-marketplace-fg: var(--cd-ui-text);
 
     --ds-font: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
     --ds-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -248,6 +250,12 @@ body {
 .ds-kind-elementTemplate {
     --ds-kind-bg: var(--ds-kind-elementTemplate-bg);
     --ds-kind-fg: var(--ds-kind-elementTemplate-fg);
+}
+
+.ds-kind-marketplace {
+    --ds-kind-bg: var(--ds-kind-marketplace-bg);
+    --ds-kind-fg: var(--ds-kind-marketplace-fg);
+    box-shadow: inset 0 0 0 1px var(--cd-ui-linie);
 }
 
 .ds-kind-tag {
