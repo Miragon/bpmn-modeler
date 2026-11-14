@@ -366,6 +366,37 @@ describe("AddOnsFeature", () => {
             expect(view.addOns()).toEqual([]);
         });
 
+        it("lists the plugins of a nested config folder before any editor opened", async () => {
+            const local = "/work/project-a/.camunda/plugins/my-local-plugin";
+            const { addOns, view } = setUp({
+                files: {
+                    ...RESIZE_FILES,
+                    [`${local}/plugin.json`]: '{ "name": "Local Tools", "script": "client.js" }',
+                    [`${local}/client.js`]: "registerLocalTools();",
+                },
+            });
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.addOns().map(({ name }) => name)).toEqual(["Resize Tasks", "Local Tools"]);
+        });
+
+        it("lists no plugin of a config folder inside an installed package", async () => {
+            const vendored = "/work/node_modules/some-lib/.camunda/plugins/vendored";
+            const { addOns, view } = setUp({
+                files: {
+                    [`${vendored}/plugin.json`]: '{ "name": "Vendored", "script": "client.js" }',
+                    [`${vendored}/client.js`]: "registerVendored();",
+                },
+            });
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.addOns()).toEqual([]);
+        });
+
         it("lists the plugins of a nested config folder an editor looked in", async () => {
             const nested = "/work/orders/.camunda/plugins/order-tools";
             const { host, plugins, addOns, view } = setUp({
@@ -398,6 +429,18 @@ describe("AddOnsFeature", () => {
             const { install, rulePackageInventory, addOns, view } = setUp({ files: {} });
             install(`${ORDERS}/node_modules/bpmnlint-plugin-orders`, "bpmnlint-plugin-orders");
             rulePackageInventory.noteLintConfig(`${ORDERS}/.bpmnlintrc`);
+
+            view.attachTo(addOns);
+            await shown(addOns);
+
+            expect(view.addOns().map(({ name }) => name)).toEqual(["bpmnlint-plugin-orders@1.2.0"]);
+        });
+
+        it("lists a rule package installed below a nested lint config before any lint ran", async () => {
+            const { install, addOns, view } = setUp({
+                files: { [`${ORDERS}/.bpmnlintrc`]: '{ "extends": "plugin:orders/all" }' },
+            });
+            install(`${ORDERS}/node_modules/bpmnlint-plugin-orders`, "bpmnlint-plugin-orders");
 
             view.attachTo(addOns);
             await shown(addOns);
@@ -1719,8 +1762,8 @@ describe("AddOnsFeature", () => {
             ]);
         });
 
-        it("lists the templates of a nested config folder once an editor loads them", async () => {
-            const { host, templatesService, addOns, view } = setUp({
+        it("lists the templates of a nested config folder before any editor loads them", async () => {
+            const { addOns, view } = setUp({
                 files: {
                     [`${NESTED_TEMPLATES}/order.json`]: JSON.stringify({
                         id: "order",
@@ -1728,14 +1771,25 @@ describe("AddOnsFeature", () => {
                     }),
                 },
             });
+
             view.attachTo(addOns);
             await shown(addOns);
-            const listedBefore = view.addOns().map(({ name }) => name);
 
-            await templatesService.setElementTemplates(host.openEditor(`${WORK}/orders/o.bpmn`).id);
+            expect(view.addOns().map(({ name }) => name)).toEqual(["Order"]);
+        });
+
+        it("lists the templates of a config folder created below a workspace folder", async () => {
+            const { host, addOns, view } = setUp({ files: {} });
+            view.attachTo(addOns);
             await shown(addOns);
 
-            expect([listedBefore, view.addOns().map(({ name }) => name)]).toEqual([[], ["Order"]]);
+            await host.workspace.writeFile(
+                `${NESTED_TEMPLATES}/order.json`,
+                JSON.stringify({ id: "order", name: "Order" }),
+            );
+            await shown(addOns);
+
+            expect(view.addOns().map(({ name }) => name)).toEqual(["Order"]);
         });
     });
 

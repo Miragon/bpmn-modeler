@@ -6,7 +6,7 @@ import {
     nodeModulesDirOf,
 } from "../../../kernel/domain/installedPackagePath";
 import { ListedPresence } from "../../../kernel/domain/listedCode";
-import { joinWorkspacePath, parentWorkspacePath } from "../../../kernel/domain/workspacePath";
+import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { AllowanceLocator } from "../../../kernel/service/AllowanceLocator";
 import { manifestPathOf } from "../../../kernel/domain/packageManifest";
 import {
@@ -22,6 +22,7 @@ import {
     rulePackageOf,
 } from "../domain/rulePackageApproval";
 import { ROOT_KIND_UNKNOWN_TEXT, ruleModuleRefusalText } from "../domain/rulePackageLog";
+import { LINT_CONFIG_FILES_GLOB, lintConfigDirOf } from "../domain/lintConfigFile";
 import { InstalledPackagesPort } from "../port/installedPackagesPort";
 import { RulePackageCatalog } from "./RulePackageCatalog";
 
@@ -33,6 +34,7 @@ import { RulePackageCatalog } from "./RulePackageCatalog";
  */
 export class RulePackageInventory {
     readonly texts = RULE_PACKAGE_CODE_TEXTS;
+    readonly lintConfigFiles = LINT_CONFIG_FILES_GLOB;
 
     /** Real folders a `node_modules` entry linked to in the last listing, so a linked folder reads as a package. */
     private linkedFolders: ReadonlySet<string> = new Set();
@@ -77,7 +79,7 @@ export class RulePackageInventory {
 
     /** The folders of the lint configs read so far, whose `node_modules` the add-on catalog lists. */
     noteLintConfig(configPath: string): void {
-        const configDir = parentWorkspacePath(configPath);
+        const configDir = lintConfigDirOf(configPath);
         if (configDir === undefined || this.lintConfigFolders.has(configDir)) return;
         this.lintConfigFolders.add(configDir);
         this.notifyListing();
@@ -93,6 +95,10 @@ export class RulePackageInventory {
 
     lintConfigDirs(): readonly string[] {
         return [...this.lintConfigFolders];
+    }
+
+    lintConfigDirOf(configPath: string): string | undefined {
+        return lintConfigDirOf(configPath);
     }
 
     currentRulePackage(id: string): ListedPresence {

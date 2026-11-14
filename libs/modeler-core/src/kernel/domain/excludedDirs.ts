@@ -51,6 +51,14 @@ export function isIgnoredWatchDirName(name: string): boolean {
 }
 
 /**
+ * The exclude of a listing that keeps the config folder: the folders
+ * {@link isIgnoredWatchDirName} names, at any depth.
+ */
+export function unwatchedDirsGlob(): string {
+    return `**/{${[...EXCLUDED_DIRS, ...TOOL_OWNED_DOT_DIRS].join(",")}}/**`;
+}
+
+/**
  * The exclude a listing hands `WorkspacePort.findFiles`, so the host prunes
  * the excluded folders while it walks: the files inside them and inside
  * `additionalDirNames` at any depth below each workspace folder. A host takes

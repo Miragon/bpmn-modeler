@@ -18,6 +18,7 @@ import {
     RulePackageAddOnSource,
     TemplateAddOnSource,
 } from "../port/addOnSourcePorts";
+import { AddOnPlaces, AddOnPlaceSearch } from "./AddOnPlaceSearch";
 
 export interface AddOnInventoryPorts {
     readonly workspace: WorkspacePort;
@@ -31,11 +32,15 @@ export interface AddOnInventoryPorts {
     readonly workspaceTrust: Pick<WorkspaceTrustPort, "isTrusted">;
 }
 
-type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder">;
+type ListingFacts = Pick<AddOnFacts, "folders" | "configFolder"> & AddOnPlaces;
 
-/** Collects what the owners find in the open workspace folders. */
+/** Collects what the owners find in the open workspace folders, nested projects included. */
 export class AddOnInventoryReader {
-    constructor(private readonly ports: AddOnInventoryPorts) {}
+    private readonly places: AddOnPlaceSearch;
+
+    constructor(private readonly ports: AddOnInventoryPorts) {
+        this.places = new AddOnPlaceSearch(ports.workspace, ports.rulePackages);
+    }
 
     async read(): Promise<AddOnFacts> {
         // From the host, so a mirror not yet seeded never makes every row look new.
@@ -47,9 +52,10 @@ export class AddOnInventoryReader {
         const templatePreferences = await this.ports.templatePreferences?.readStored();
         const folders = this.ports.workspace.getWorkspaceFolderPaths();
         const configFolder = this.ports.settings.getConfigFolder();
-        const facts = { folders, configFolder };
+        const facts = { folders, configFolder, ...(await this.places.find(folders, configFolder)) };
         return {
-            ...facts,
+            folders,
+            configFolder,
             trusted: this.ports.workspaceTrust.isTrusted(),
             approvalsByKind,
             plugins: await this.plugins(facts),
@@ -63,6 +69,7 @@ export class AddOnInventoryReader {
     private async templates({
         folders,
         configFolder,
+        holders,
     }: ListingFacts): Promise<readonly FolderTemplateFileListing[]> {
         const { templates } = this.ports;
         if (templates === undefined) {
@@ -71,7 +78,7 @@ export class AddOnInventoryReader {
         return templates.templatesIn(
             configAreaDirsToList({
                 folders,
-                rootDirs: folders.map((root) => templates.templatesDirOf(root, configFolder)),
+                holderDirs: holders.map((dir) => templates.templatesDirOf(dir, configFolder)),
                 knownDirs: templates.knownTemplateDirs(),
             }),
         );
@@ -96,12 +103,16 @@ export class AddOnInventoryReader {
         return { marketplaces: { kind: "listed", sources } };
     }
 
-    private async plugins({ folders, configFolder }: ListingFacts): Promise<OwnedPresence[]> {
+    private async plugins({
+        folders,
+        configFolder,
+        holders,
+    }: ListingFacts): Promise<OwnedPresence[]> {
         const { plugins } = this.ports;
         const listed = await plugins.pluginsIn(
             configAreaDirsToList({
                 folders,
-                rootDirs: folders.map((root) => plugins.pluginsDirOf(root, configFolder)),
+                holderDirs: holders.map((dir) => plugins.pluginsDirOf(dir, configFolder)),
                 knownDirs: plugins.knownPluginDirs(),
             }),
         );
@@ -112,14 +123,17 @@ export class AddOnInventoryReader {
         }));
     }
 
-    private rulePackages({ folders }: ListingFacts): OwnedPresence[] {
+    private rulePackages({ folders, lintConfigDirs }: ListingFacts): OwnedPresence[] {
         const { rulePackages } = this.ports;
         if (rulePackages === undefined) {
             return [];
         }
         const ids = rulePackageIdsToList(folders, {
             installed: rulePackages.installedIn(
-                rulePackageDirsToList(folders, rulePackages.lintConfigDirs()),
+                rulePackageDirsToList(folders, [
+                    ...rulePackages.lintConfigDirs(),
+                    ...lintConfigDirs,
+                ]),
             ),
             seen: rulePackages.seenPackageIds(),
         });
