@@ -85,8 +85,6 @@ export type {
     ElementIdKind,
     EventDefinitionQualifierMode,
     ElementIdProposals,
-    ElementIdReviewOutcome,
-    ElementIdReviewStatus,
     ElementIdRow,
     ElementIdRowStatus,
     ElementIdSettings,

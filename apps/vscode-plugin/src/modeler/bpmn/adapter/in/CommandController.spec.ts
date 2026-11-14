@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     Command,
-    GenerateElementIdsQuery,
+    ElementIdProposalsQuery,
     GetDiagramAsSVGCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -115,7 +115,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
         host.picker,
         documentFlush as never,
         layoutSvc as never,
-        new ElementIdsService(host.store, host.notifier),
+        new ElementIdsService(host.store, host.notifier, { show: vi.fn(), close: vi.fn() }),
         vsCodeModelerPreferences,
         new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
     );
@@ -222,15 +222,15 @@ describe("CommandController.showLogging", () => {
 });
 
 describe("CommandController.generateElementIds", () => {
-    it("asks the active diagram to open the review of IDs generated from names", async () => {
+    it("asks the active diagram for the rows of the review of IDs generated from names", async () => {
         const { controller, host, editor, notifier } = createController();
         const focused = host.openEditor("/work/other.bpmn");
         host.store.setActiveEditor(focused.id);
 
         await controller.generateElementIds();
 
-        expect(focused.postedOfType("GenerateElementIdsQuery")).toEqual([
-            new GenerateElementIdsQuery(),
+        expect(focused.postedOfType("ElementIdProposalsQuery")).toEqual([
+            new ElementIdProposalsQuery(null),
         ]);
         expect(editor.posted).toEqual([]);
         expect(notifier.infos).toEqual([]);

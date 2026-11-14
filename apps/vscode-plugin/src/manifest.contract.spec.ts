@@ -213,6 +213,7 @@ describe("package.json ↔ code contract", () => {
             category: "Miragon BPMN Modeler",
         });
     });
+    // Only where the Element IDs panel can take the review: VS Code 1.80 on.
     it("offers Generate IDs from Names in the palette and the BPMN editor's title overflow, without a key", () => {
         expect(
             manifest.contributes.commands.find(
@@ -221,7 +222,7 @@ describe("package.json ↔ code contract", () => {
         ).toMatchObject({ title: "Generate IDs from Names", category: "Miragon BPMN Modeler" });
         expect(manifest.contributes.menus.commandPalette).toContainEqual({
             command: GENERATE_ELEMENT_IDS_CMD,
-            when: "bpmn-modeler.openCustomEditors > 0",
+            when: "bpmn-modeler.openCustomEditors > 0 && bpmn-modeler.elementIdReviewAvailable",
         });
         const titleEntry = manifest.contributes.menus["editor/title"].find(
             ({ command }) => command === GENERATE_ELEMENT_IDS_CMD,
@@ -229,7 +230,7 @@ describe("package.json ↔ code contract", () => {
         expect(titleEntry).toEqual({
             command: GENERATE_ELEMENT_IDS_CMD,
             group: "1_modeler",
-            when: `activeWebviewPanelId == '${BPMN_VIEW_TYPE}'`,
+            when: `activeWebviewPanelId == '${BPMN_VIEW_TYPE}' && bpmn-modeler.elementIdReviewAvailable`,
         });
         expect(
             manifest.contributes.keybindings.filter(
@@ -716,6 +717,7 @@ describe("package.json ↔ code contract", () => {
             "bpmn-modeler.dmnCompareSelectionActive",
             "bpmn-modeler.isElementTemplate",
             "bpmn-modeler.templateEditorShowsFile",
+            "bpmn-modeler.elementIdReviewAvailable",
             "bpmn-modeler.elementIdReviewOpen",
             "bpmn-modeler.elementIdReviewCanApply",
         ];

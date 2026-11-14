@@ -60,7 +60,6 @@ function modelerSurface() {
         setElementTemplates: vi.fn(),
         setHiddenElementTemplates: vi.fn(),
         setSettings: vi.fn(),
-        openElementIdReview: vi.fn(() => ({ status: "opened" as const })),
     };
 }
 
@@ -71,7 +70,6 @@ function designerSurface() {
         cleanupDiagram: vi.fn(() => ({ status: "clean", items: [] })),
         setFavouriteBpmnElements: vi.fn(),
         setElementIdSettings: vi.fn(),
-        openElementIdReview: vi.fn(() => ({ status: "opened" as const })),
     };
 }
 
@@ -228,30 +226,6 @@ describe("createSurfaceRequests", () => {
     });
 
     describe("element IDs", () => {
-        it.each([
-            ["modeler", modelerSurface],
-            ["designer", designerSurface],
-        ])("opens the review on the %s and says so", (_, makeSurface) => {
-            const { host, surface, handlers } = surfaceRequestsOn(makeSurface());
-
-            handlers.GenerateElementIdsQuery();
-
-            expect(surface.openElementIdReview).toHaveBeenCalledOnce();
-            expect(host.sent).toEqual([
-                expect.objectContaining({ type: "ElementIdReviewCommand", status: "opened" }),
-            ]);
-        });
-
-        it("answers the readonly viewer as unsupported", () => {
-            const { host, handlers } = surfaceRequestsOn(viewerSurface());
-
-            handlers.GenerateElementIdsQuery();
-
-            expect(host.sent).toEqual([
-                expect.objectContaining({ type: "ElementIdReviewCommand", status: "unsupported" }),
-            ]);
-        });
-
         it("keeps the lint rule options and hands the editable surface their convention", async () => {
             const { surface, handlers, hostModelerState } = surfaceRequestsOn(designerSurface());
 

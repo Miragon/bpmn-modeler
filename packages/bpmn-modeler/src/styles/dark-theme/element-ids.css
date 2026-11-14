@@ -1,43 +1,14 @@
 /**
- * Dark theme for the element ID review and the ID-from-name links.
+ * Dark theme for the ID-from-name links under the properties panel's ID field.
  *
  * Redefines the --eid-* tokens (libs/element-ids/src/elementIds.css) from
- * VS Code's own widget, button and diff tokens, so the review reads like VS
- * Code's Refactor Preview; the --dt-* palette stands in where a host injects
- * no --vscode-* variables. High contrast arrives through the same variables,
- * with --vscode-contrastBorder drawing the outlines.
+ * VS Code's own tokens; the --dt-* palette stands in where a host injects no
+ * --vscode-* variables.
  */
 @import "colors.css";
 
-/* The panel mounts outside its instance's container and copies the theme onto
- * its own root; the links render inside the themed properties panel. */
-[data-bpmn-theme="dark"] .eid-root,
-.eid-root[data-bpmn-theme="dark"],
 [data-bpmn-theme="dark"] .eid-id-actions {
-    --eid-bg: var(--vscode-editorWidget-background, var(--dt-surface-a10));
-    --eid-bar-bg: var(--vscode-editorWidget-background, var(--dt-surface-a10));
-    --eid-border: var(--vscode-editorWidget-border, var(--dt-surface-a30));
-    --eid-border-strong: var(--vscode-input-border, var(--dt-surface-a30));
-    --eid-fg: var(--vscode-foreground, var(--dt-surface-a70));
     --eid-fg-muted: var(--vscode-descriptionForeground, var(--dt-surface-a50));
-    --eid-accent: var(--vscode-button-background, var(--dt-primary-a0));
-    --eid-accent-hover: var(--vscode-button-hoverBackground, var(--dt-primary-a10));
-    --eid-accent-fg: var(--vscode-button-foreground, var(--dt-dark-a0));
-    --eid-secondary-bg: var(--vscode-button-secondaryBackground, var(--dt-surface-a20));
-    --eid-secondary-hover: var(--vscode-button-secondaryHoverBackground, var(--dt-surface-a30));
-    --eid-secondary-fg: var(--vscode-button-secondaryForeground, var(--dt-surface-a70));
-    --eid-hover: var(--vscode-list-hoverBackground, var(--dt-surface-a20));
     --eid-focus: var(--vscode-focusBorder, var(--dt-primary-a0));
     --eid-link: var(--vscode-textLink-foreground, var(--dt-color-blue-a50));
-    --eid-added-bg: var(--vscode-diffEditor-insertedTextBackground, rgba(87, 171, 90, 0.3));
-    --eid-added-fg: var(--vscode-foreground, var(--dt-surface-a70));
-    --eid-added-border: var(--vscode-diffEditor-insertedTextBorder, transparent);
-    --eid-removed-bg: var(--vscode-diffEditor-removedTextBackground, rgba(244, 112, 103, 0.3));
-    --eid-removed-fg: var(--vscode-foreground, var(--dt-surface-a70));
-    --eid-warn: var(--vscode-editorWarning-foreground, #cca700);
-    --eid-warn-bg: color-mix(in srgb, var(--vscode-editorWarning-foreground, #cca700) 14%, transparent);
-    --eid-badge-bg: var(--vscode-badge-background, var(--dt-surface-a30));
-    --eid-badge-fg: var(--vscode-badge-foreground, var(--dt-surface-a70));
-    --eid-contrast: var(--vscode-contrastBorder, transparent);
-    --eid-shadow: 0 0 8px 2px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
 }

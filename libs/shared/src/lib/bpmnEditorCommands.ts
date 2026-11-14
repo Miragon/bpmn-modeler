@@ -40,7 +40,6 @@ export const BPMN_EDITOR_COMMAND_TYPES = [
     "UpdateScriptVariablesCommand",
     "DiagramFormattedCommand",
     "CleanupReportCommand",
-    "ElementIdReviewCommand",
     "ElementIdProposalsCommand",
     "ElementIdsAppliedCommand",
     "OpenElementIdReviewCommand",

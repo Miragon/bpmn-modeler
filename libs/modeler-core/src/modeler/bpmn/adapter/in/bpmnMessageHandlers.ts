@@ -3,7 +3,6 @@ import {
     Command,
     DiagramFormattedCommand,
     ElementIdProposalsCommand,
-    ElementIdReviewCommand,
     ElementIdsAppliedCommand,
     GetBpmnFileCommand,
     OpenElementIdReviewCommand,
@@ -212,13 +211,4 @@ export function resumeElementIdReviewHandler(
     elementIdsSvc: ElementIdsService,
 ): MessageHandler<GetBpmnFileCommand> {
     return (_message, editorId) => elementIdsSvc.resume(editorId);
-}
-
-/** `ElementIdReviewCommand` → tell the user when the review could not open. */
-export function elementIdReviewHandler(
-    elementIdsSvc: ElementIdsService,
-): MessageHandler<ElementIdReviewCommand> {
-    return (message) => {
-        elementIdsSvc.reportReview(message);
-    };
 }

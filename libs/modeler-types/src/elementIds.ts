@@ -34,10 +34,7 @@ export interface ElementIdSettings {
 export type ElementIdKind =
     "process" | "participant" | "lane" | "activity" | "event" | "gateway" | "flow" | "other";
 
-/**
- * The review's groups in the order it lists them, with their labels; the
- * webview translates a label, a host panel shows it as it is.
- */
+/** The review's groups in the order a host's panel lists them, with their labels. */
 export const ELEMENT_ID_GROUPS: readonly {
     readonly kind: ElementIdKind;
     readonly label: string;
@@ -84,11 +81,4 @@ export interface ElementIdRow {
 export interface ElementIdProposals {
     readonly rows: readonly ElementIdRow[];
     readonly unchecked: readonly string[];
-}
-
-/** `unsupported` comes from a surface that cannot change IDs, such as View mode. */
-export type ElementIdReviewStatus = "opened" | "unsupported";
-
-export interface ElementIdReviewOutcome {
-    readonly status: ElementIdReviewStatus;
 }

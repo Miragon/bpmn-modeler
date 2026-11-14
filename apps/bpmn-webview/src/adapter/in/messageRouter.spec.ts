@@ -53,7 +53,6 @@ function fakeSessionHandlers() {
         OpenAllScriptTasksQuery: vi.fn(),
         FormatDiagramQuery: vi.fn(),
         CleanupDiagramQuery: vi.fn(),
-        GenerateElementIdsQuery: vi.fn(),
         ElementIdConventionQuery: vi.fn(),
         ElementIdProposalsQuery: vi.fn(),
         ApplyElementIdsQuery: vi.fn(),

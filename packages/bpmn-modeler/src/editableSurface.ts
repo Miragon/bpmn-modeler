@@ -1,5 +1,5 @@
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-import type { ElementIdReview, ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
+import type { ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
 import {
     type CleanupService,
     LAYOUT_FORMATTED_EVENT,
@@ -11,7 +11,6 @@ import {
     type CleanupOutcome,
     type Disposer,
     type ElementIdProposals,
-    type ElementIdReviewOutcome,
     type DisposableStore,
     type MinimalEventBus,
     subscribe,
@@ -109,16 +108,6 @@ export function applyFavouriteBpmnElements(
     surface
         .optionalService<AppendMenuOverrideService>("appendMenuOverride")
         ?.setFavourites([...types]);
-}
-
-/** A surface built without the element ID module cannot open the review. */
-export function openSurfaceElementIdReview(surface: SurfaceServices): ElementIdReviewOutcome {
-    const review = surface.optionalService<ElementIdReview>("elementIdReview");
-    if (!review) {
-        return { status: "unsupported" };
-    }
-    review.open();
-    return { status: "opened" };
 }
 
 const NO_ELEMENT_IDS: ElementIdProposals = { rows: [], unchecked: [] };

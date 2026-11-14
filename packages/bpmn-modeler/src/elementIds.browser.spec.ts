@@ -119,7 +119,6 @@ const handles: { destroy(): void }[] = [];
 afterEach(() => {
     handles.splice(0).forEach((handle) => handle.destroy());
     removeMounts();
-    document.querySelectorAll(".eid-root").forEach((root) => root.remove());
 });
 
 async function openModeler(
@@ -163,23 +162,24 @@ function servicesOf(handle: { getService(name: never): unknown }): Services {
     };
 }
 
-const panelRoot = () => document.querySelector<HTMLElement>(".eid-root");
+type ElementIdHandle = Pick<BpmnModeler, "proposeElementIds" | "renameElementIds">;
 
-const proposedIds = () =>
-    [...panelRoot()!.querySelectorAll(".eid-row:not(.eid-plain) .eid-new")].map(
-        (n) => n.textContent,
-    );
+const proposedIds = (handle: ElementIdHandle) =>
+    handle.proposeElementIds().rows.map((row) => row.newId);
 
-async function tickProcesses(): Promise<void> {
-    panelRoot()!
-        .querySelector<HTMLInputElement>('input[aria-label="Rename all Processes"]')!
-        .click();
-    await afterPaint();
-}
+/** Renames what a review renames as it starts, with process IDs unchecked unless `processes`. */
+const renameAll = (handle: ElementIdHandle, { processes = false } = {}) =>
+    handle.renameElementIds(processes ? [] : handle.proposeElementIds().unchecked);
 
-async function apply(): Promise<void> {
-    panelRoot()!.querySelector<HTMLButtonElement>(".eid-primary")!.click();
-    await afterPaint();
+async function showGeneralGroup(panel: HTMLElement): Promise<void> {
+    if (!panel.querySelector(".eid-id-actions")) {
+        panel
+            .querySelector<HTMLElement>(
+                '[data-group-id="group-general"] .bio-properties-panel-group-header',
+            )
+            ?.click();
+        await afterPaint();
+    }
 }
 
 // bpmn-js re-measures external labels on every property update, and its undo keeps the measured
@@ -195,34 +195,26 @@ const ids = (services: Services) =>
         .sort();
 
 describe("generating element IDs from names", () => {
-    it("opens the review along the bottom of the canvas with every ID a name would change", async () => {
-        const { handle, container } = await openModeler();
+    it("lists the rows for a host's panel, with process IDs unchecked", async () => {
+        const { handle } = await openModeler();
 
-        expect(handle.openElementIdReview()).toEqual({ status: "opened" });
-        await afterPaint();
+        const { rows, unchecked } = handle.proposeElementIds();
 
-        const root = panelRoot()!;
-        expect(container.contains(root)).toBe(true);
-        expect(proposedIds()).toEqual([
-            "orderFulfilment",
-            "serviceTask_checkStock",
-            "task_shipOrder",
-            "startEvent_orderReceived",
-            "flow_inStock",
+        expect(unchecked).toEqual(["Process_0d1e2f3"]);
+        expect(rows.map((row) => [row.id, row.status, row.newId])).toEqual([
+            ["Process_0d1e2f3", "unchecked", "orderFulfilment"],
+            ["Event_0k3j1vq", "rename", "startEvent_orderReceived"],
+            ["Activity_1x9f2ab", "rename", "serviceTask_checkStock"],
+            ["Activity_0h7g6f5", "rename", "task_shipOrder"],
+            ["Flow_0aaaaaa", "skipped", undefined],
+            ["Flow_1m2n3b4", "rename", "flow_inStock"],
         ]);
-        expect(root.querySelector(".eid-summary")?.textContent).toBe("4 of 5 IDs will change");
-        expect(
-            root.querySelector<HTMLInputElement>('input[aria-label="Rename Order fulfilment"]')!
-                .checked,
-        ).toBe(false);
     });
 
     it("renames the elements, their references, DI and labels, and leaves unnamed ones and the process alone", async () => {
         const { handle, services } = await openModeler();
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await apply();
+        expect(renameAll(handle)).toBe(4);
 
         const xml = await handle.exportDiagram();
         expect(xml).toContain('<bpmn:process id="Process_0d1e2f3"');
@@ -239,16 +231,12 @@ describe("generating element IDs from names", () => {
         expect(services.elementRegistry.get("startEvent_orderReceived")?.label?.id).toBe(
             "startEvent_orderReceived_label",
         );
-        expect(panelRoot()).toBeNull();
     });
 
-    it("renames the process and its plane once its group is ticked", async () => {
+    it("renames the process and its plane once it is checked", async () => {
         const { handle } = await openModeler();
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await tickProcesses();
-        await apply();
+        renameAll(handle, { processes: true });
 
         const xml = await handle.exportDiagram();
         expect(xml).toContain('<bpmn:process id="orderFulfilment"');
@@ -260,10 +248,8 @@ describe("generating element IDs from names", () => {
         services.modeling.updateProperties(services.elementRegistry.get("Flow_0aaaaaa")!, {
             id: "flow_inStock",
         });
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await apply();
+        renameAll(handle);
 
         expect(services.elementRegistry.get("flow_inStock")?.businessObject.name).toBe(undefined);
         expect(services.elementRegistry.get("flow_inStock2")?.businessObject.name).toBe("in stock");
@@ -273,9 +259,7 @@ describe("generating element IDs from names", () => {
         const { handle, services } = await openModeler();
         const before = ids(services);
         const xmlBefore = await handle.exportDiagram();
-        handle.openElementIdReview();
-        await afterPaint();
-        await apply();
+        renameAll(handle);
         const after = ids(services);
 
         services.commandStack.undo();
@@ -290,25 +274,23 @@ describe("generating element IDs from names", () => {
 
     it("keeps the ID of an unchecked row", async () => {
         const { handle, services } = await openModeler();
-        handle.openElementIdReview();
-        await afterPaint();
 
-        panelRoot()!
-            .querySelector<HTMLInputElement>('input[aria-label="Rename Ship order"]')!
-            .click();
-        await afterPaint();
-        await apply();
+        expect(handle.renameElementIds(["Process_0d1e2f3", "Activity_0h7g6f5"])).toBe(3);
 
-        expect(services.elementRegistry.get("Activity_0h7g6f5")).toBeDefined();
-        expect(services.elementRegistry.get("serviceTask_checkStock")).toBeDefined();
+        expect(ids(services)).toEqual([
+            "Activity_0h7g6f5",
+            "Flow_0aaaaaa",
+            "Process_0d1e2f3",
+            "flow_inStock",
+            "serviceTask_checkStock",
+            "startEvent_orderReceived",
+        ]);
     });
 
     it("swaps the IDs, and the DI IDs, of two elements whose names ask for it", async () => {
         const { handle, services } = await openModeler(SWAPPED_NAMES);
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await apply();
+        renameAll(handle);
 
         expect(services.elementRegistry.get("task_a")?.businessObject.name).toBe("A");
         expect(services.elementRegistry.get("task_b")?.businessObject.name).toBe("B");
@@ -322,11 +304,8 @@ describe("generating element IDs from names", () => {
 
     it("renames a pool's process after the pool and a collapsed sub-process with its plane", async () => {
         const { handle, services } = await openModeler(POOL_AND_SUB_PROCESS);
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await tickProcesses();
-        await apply();
+        renameAll(handle, { processes: true });
 
         const xml = await handle.exportDiagram();
         expect(xml).toContain(
@@ -347,10 +326,8 @@ describe("generating element IDs from names", () => {
         const { handle, services } = await openModeler(ORDER_PROCESS, {
             convention: createElementIdConvention({ case: "snake_case" }),
         });
-        handle.openElementIdReview();
-        await afterPaint();
 
-        await apply();
+        renameAll(handle);
 
         expect(services.elementRegistry.get("serviceTask_check_stock")).toBeDefined();
         expect(services.elementRegistry.get("task_ship_order")).toBeDefined();
@@ -358,10 +335,8 @@ describe("generating element IDs from names", () => {
 
     it("spells IDs after the element's own type until a convention is handed in", async () => {
         const { handle } = await openModeler(ORDER_PROCESS, { convention: null });
-        handle.openElementIdReview();
-        await afterPaint();
 
-        expect(proposedIds()).toContain("sequenceFlow_inStock");
+        expect(proposedIds(handle)).toContain("sequenceFlow_inStock");
     });
 
     describe("IDs following names", () => {
@@ -428,98 +403,52 @@ describe("generating element IDs from names", () => {
             type: "bpmn:ServiceTask",
         });
 
-        handle.openElementIdReview();
-        await afterPaint();
-
         expect(services.elementRegistry.get("task_shipOrder")?.businessObject.$type).toBe(
             "bpmn:ServiceTask",
         );
-        expect(proposedIds()).toContain("serviceTask_shipOrder");
+        expect(proposedIds(handle)).toContain("serviceTask_shipOrder");
     });
 
-    it("renames one element from the link under the ID field", async () => {
-        const { panel, services } = await openModeler();
-        services.selection.select(services.elementRegistry.get("Activity_1x9f2ab")!);
-        await afterPaint();
-        if (!panel.querySelector(".eid-id-actions")) {
-            panel
-                .querySelector<HTMLElement>(
-                    '[data-group-id="group-general"] .bio-properties-panel-group-header',
-                )
-                ?.click();
+    describe("the links under the ID field", () => {
+        it("renames one element, and offers no review where the host has none", async () => {
+            const { panel, services } = await openModeler();
+            services.selection.select(services.elementRegistry.get("Activity_1x9f2ab")!);
             await afterPaint();
-        }
+            await showGeneralGroup(panel);
 
-        const generate = panel.querySelector<HTMLButtonElement>(".eid-id-actions .eid-link")!;
-        expect(generate.title).toBe("Rename the ID to serviceTask_checkStock");
-        generate.click();
-        await afterPaint();
+            const links = panel.querySelectorAll<HTMLButtonElement>(".eid-id-actions .eid-link");
+            expect([...links].map((link) => link.textContent)).toEqual(["Generate from name"]);
+            expect(links[0]!.title).toBe("Rename the ID to serviceTask_checkStock");
+            links[0]!.click();
+            await afterPaint();
 
-        expect(services.elementRegistry.get("serviceTask_checkStock")).toBeDefined();
-        expect(panel.querySelector<HTMLButtonElement>(".eid-id-actions .eid-link")!.disabled).toBe(
-            true,
-        );
-    });
-
-    describe("a host's own review panel", () => {
-        it("lists the rows for the host's panel, with process IDs unchecked", async () => {
-            const { handle } = await openModeler();
-
-            const { rows, unchecked } = handle.proposeElementIds();
-
-            expect(unchecked).toEqual(["Process_0d1e2f3"]);
-            expect(rows.map((row) => [row.id, row.status, row.newId])).toEqual([
-                ["Process_0d1e2f3", "unchecked", "orderFulfilment"],
-                ["Event_0k3j1vq", "rename", "startEvent_orderReceived"],
-                ["Activity_1x9f2ab", "rename", "serviceTask_checkStock"],
-                ["Activity_0h7g6f5", "rename", "task_shipOrder"],
-                ["Flow_0aaaaaa", "skipped", undefined],
-                ["Flow_1m2n3b4", "rename", "flow_inStock"],
-            ]);
+            expect(services.elementRegistry.get("serviceTask_checkStock")).toBeDefined();
+            expect(
+                panel.querySelector<HTMLButtonElement>(".eid-id-actions .eid-link")!.disabled,
+            ).toBe(true);
         });
 
-        it("renames the rows the host left checked in one undo step", async () => {
-            const { handle, services } = await openModeler();
-
-            expect(handle.renameElementIds(["Process_0d1e2f3", "Activity_0h7g6f5"])).toBe(3);
-            expect(ids(services)).toEqual([
-                "Activity_0h7g6f5",
-                "Flow_0aaaaaa",
-                "Process_0d1e2f3",
-                "flow_inStock",
-                "serviceTask_checkStock",
-                "startEvent_orderReceived",
-            ]);
-
-            services.commandStack.undo();
-
-            expect(services.elementRegistry.get("Activity_1x9f2ab")).toBeDefined();
-            expect(services.elementRegistry.get("Event_0k3j1vq")).toBeDefined();
-        });
-
-        it("opens the host's panel from the link under the ID field instead of the canvas panel", async () => {
+        it("opens the host's own review of the whole diagram", async () => {
             const { handle, panel, services } = await openModeler();
             let opened = 0;
             handle.setElementIdSettings({ openReview: () => opened++ });
             services.selection.select(services.elementRegistry.get("Activity_1x9f2ab")!);
             await afterPaint();
-            if (!panel.querySelector(".eid-id-actions")) {
-                panel
-                    .querySelector<HTMLElement>(
-                        '[data-group-id="group-general"] .bio-properties-panel-group-header',
-                    )
-                    ?.click();
-                await afterPaint();
-            }
+            await showGeneralGroup(panel);
 
-            panel.querySelectorAll<HTMLButtonElement>(".eid-id-actions .eid-link")[1]!.click();
+            const review = panel.querySelectorAll<HTMLButtonElement>(
+                ".eid-id-actions .eid-link",
+            )[1]!;
+            expect(review.textContent).toBe("Review all IDs…");
+            review.click();
             await afterPaint();
 
             expect(opened).toBe(1);
-            expect(panelRoot()).toBeNull();
         });
+    });
 
-        it("lists and renames on the designer too", async () => {
+    describe("the engine-neutral designer", () => {
+        it("lists and renames as the modeler does", async () => {
             const { container, panel } = mountWithPanel(1200, 800);
             const designer = (await createDesigner(container, {
                 propertiesPanel: { parent: panel },
@@ -532,39 +461,23 @@ describe("generating element IDs from names", () => {
                 "unchecked",
             );
             expect(designer.renameElementIds(["Process_0d1e2f3"])).toBe(4);
+            expect(
+                servicesOf(designer).elementRegistry.get("serviceTask_checkStock"),
+            ).toBeDefined();
         });
-    });
 
-    it("works on the engine-neutral designer too", async () => {
-        const { container, panel } = mountWithPanel(1200, 800);
-        const designer = (await createDesigner(container, {
-            propertiesPanel: { parent: panel },
-            elementIdSettings: { convention: miragon },
-        })) as BpmnDesigner;
-        handles.push(designer);
-        await designer.loadDiagram(ORDER_PROCESS);
-        await afterPaint();
+        it("takes the element ID settings it is created with", async () => {
+            const { container, panel } = mountWithPanel(1200, 800);
+            const designer = (await createDesigner(container, {
+                propertiesPanel: { parent: panel },
+                elementIdSettings: {
+                    convention: createElementIdConvention({ case: "snake_case" }),
+                },
+            })) as BpmnDesigner;
+            handles.push(designer);
+            await designer.loadDiagram(ORDER_PROCESS);
 
-        expect(designer.openElementIdReview()).toEqual({ status: "opened" });
-        await afterPaint();
-        await apply();
-
-        expect(servicesOf(designer).elementRegistry.get("serviceTask_checkStock")).toBeDefined();
-    });
-
-    it("takes the element ID settings the designer is created with", async () => {
-        const { container, panel } = mountWithPanel(1200, 800);
-        const designer = (await createDesigner(container, {
-            propertiesPanel: { parent: panel },
-            elementIdSettings: { convention: createElementIdConvention({ case: "snake_case" }) },
-        })) as BpmnDesigner;
-        handles.push(designer);
-        await designer.loadDiagram(ORDER_PROCESS);
-        await afterPaint();
-
-        designer.openElementIdReview();
-        await afterPaint();
-
-        expect(proposedIds()).toContain("serviceTask_check_stock");
+            expect(proposedIds(designer)).toContain("serviceTask_check_stock");
+        });
     });
 });

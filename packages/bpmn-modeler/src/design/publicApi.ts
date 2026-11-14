@@ -5,7 +5,6 @@ import type {
     BpmnlintConfig,
     CleanupOutcome,
     ElementIdProposals,
-    ElementIdReviewOutcome,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
@@ -194,14 +193,9 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
     /**
-     * Open the review of IDs generated from element names; applying it renames
-     * the checked elements in one undo step. Engine-neutral like formatting.
-     */
-    openElementIdReview(): ElementIdReviewOutcome;
-
-    /**
-     * The rows of that review for a host's own panel, as
-     * {@link BpmnModelerHandle.proposeElementIds} lists them.
+     * The rows of a review of IDs generated from names for a host's own panel,
+     * as {@link BpmnModelerHandle.proposeElementIds} lists them. Engine-neutral
+     * like formatting.
      */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
 

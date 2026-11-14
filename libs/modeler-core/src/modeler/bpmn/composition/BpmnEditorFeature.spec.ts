@@ -108,7 +108,6 @@ const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     UpdateScriptVariablesCommand: HANDLED,
     DiagramFormattedCommand: HANDLED,
     CleanupReportCommand: HANDLED,
-    ElementIdReviewCommand: HANDLED,
     ElementIdProposalsCommand: HANDLED,
     ElementIdsAppliedCommand: HANDLED,
     OpenElementIdReviewCommand: HANDLED,

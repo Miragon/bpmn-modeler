@@ -163,6 +163,9 @@ describe("VsCodeElementIdReview", () => {
 
         expect(treeView.id).toBe(ELEMENT_ID_REVIEW_VIEW);
         expect(provider.getChildren()).toEqual([]);
+        expect(vscodeFake.executed).toEqual([
+            ["setContext", "bpmn-modeler.elementIdReviewAvailable", true],
+        ]);
     });
 
     // VS Code would otherwise untick a group with one of its rows and report the group too.
@@ -217,6 +220,7 @@ describe("VsCodeElementIdReview", () => {
 
     it("reveals the panel when a review opens, and not again for its later rows", async () => {
         const { review } = setUp();
+        vscodeFake.executed.length = 0;
 
         review.show(VIEW);
         review.show({ ...VIEW, renameCount: 0 });

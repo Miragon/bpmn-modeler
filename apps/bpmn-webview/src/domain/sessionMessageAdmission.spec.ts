@@ -18,7 +18,6 @@ const sessionMessageTypes = Object.keys({
     OpenAllScriptTasksQuery: true,
     FormatDiagramQuery: true,
     CleanupDiagramQuery: true,
-    GenerateElementIdsQuery: true,
     ElementIdConventionQuery: true,
     ElementIdProposalsQuery: true,
     ApplyElementIdsQuery: true,

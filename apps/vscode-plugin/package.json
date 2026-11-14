@@ -671,7 +671,7 @@
                 },
                 {
                     "command": "bpmn-modeler.generateElementIds",
-                    "when": "bpmn-modeler.openCustomEditors > 0"
+                    "when": "bpmn-modeler.openCustomEditors > 0 && bpmn-modeler.elementIdReviewAvailable"
                 },
                 {
                     "command": "bpmn-modeler.elementIdReview.apply",
@@ -779,7 +779,7 @@
                 {
                     "command": "bpmn-modeler.generateElementIds",
                     "group": "1_modeler",
-                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' && bpmn-modeler.elementIdReviewAvailable"
                 }
             ],
             "file/newFile": [

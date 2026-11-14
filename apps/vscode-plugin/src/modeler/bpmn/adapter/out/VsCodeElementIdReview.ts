@@ -20,6 +20,7 @@ import type {
 } from "@miragon/bpmn-modeler-core";
 
 export const ELEMENT_ID_REVIEW_VIEW = "bpmn-modeler.elementIdReview";
+const REVIEW_AVAILABLE_KEY = "bpmn-modeler.elementIdReviewAvailable";
 const REVIEW_OPEN_KEY = "bpmn-modeler.elementIdReviewOpen";
 const REVIEW_CAN_APPLY_KEY = "bpmn-modeler.elementIdReviewCanApply";
 
@@ -80,6 +81,8 @@ export class VsCodeElementIdReview
             treeDataProvider: this,
             manageCheckboxStateManually: true,
         });
+        // Generate IDs from Names shows only where this panel can take its review.
+        void commands.executeCommand("setContext", REVIEW_AVAILABLE_KEY, true);
     }
 
     /** Reports each checkbox change as the rows it ticks or unticks; a group's checkbox stands for its rows. */
