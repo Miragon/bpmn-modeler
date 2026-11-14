@@ -205,7 +205,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         const run = Symbol(editorId);
         this.latestConventionRuns.set(editorId, run);
         try {
-            const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
+            const dir = posix.dirname(this.documents.getFilePath(editorId));
             const configPath = await this.locator.findNearestConfig(dir);
             const options = configPath
                 ? await this.lintRunner.elementIdConventionOptions(
