@@ -4,7 +4,8 @@ import type { FormPreviewRequest } from "./ModelNavigationPort";
 import type { BusinessObjectLike } from "./extractReference";
 
 vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
-    is: (element: { type?: string }, type: string) => element.type === type,
+    is: (element: { type?: string; $type?: string }, type: string) =>
+        (element.type ?? element.$type) === type,
 }));
 afterEach(() => vi.unstubAllGlobals());
 
@@ -451,6 +452,27 @@ describe("automatic linked form preview", () => {
             businessObject: {
                 get: (name: string) => (name === "camunda:decisionRef" ? "Decision_1" : undefined),
             },
+        });
+        expect(open).not.toHaveBeenCalled();
+    });
+    it("previews the linked form of a start event of a process", () => {
+        const { select, open } = setup();
+        const process = { $type: "bpmn:Process" };
+        select({
+            ...task(),
+            type: "bpmn:StartEvent",
+            businessObject: { ...task("Form_Start").businessObject, $parent: process },
+        });
+        expect(open).toHaveBeenCalledOnce();
+        expect(open.mock.calls[0][0].id).toBe("Form_Start");
+    });
+    it("does not preview the form of a start event inside a subprocess", () => {
+        const { select, open } = setup();
+        const subProcess = { $type: "bpmn:SubProcess" };
+        select({
+            ...task(),
+            type: "bpmn:StartEvent",
+            businessObject: { ...task().businessObject, $parent: subProcess },
         });
         expect(open).not.toHaveBeenCalled();
     });

@@ -28,8 +28,8 @@ Test data lives only for the open editor session. It is not written to the works
 
 ## Open a form from a user task
 
-1. Set the user task's **Form ID** to the top-level `id` of the form.
-2. Select the user task and click **Navigate to referenced model** in the context pad, or press <kbd>G</kbd>.
+1. Set the user task's **Form ID** to the top-level `id` of the form. A Camunda 8 none start event directly in a process can link a form the same way.
+2. Select the element and click **Navigate to referenced model** in the context pad, or press <kbd>G</kbd>.
 
 The form `id` identifies the file, not the file name. If several forms share an id, the modeler asks which one to open.
 

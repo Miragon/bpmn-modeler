@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Drives the `is()` import below.  Tests set `isMatchers` to control which
-// BPMN types the helper says the current element implements.
+// BPMN types the helper says the current element implements; a fixture with a
+// `$type`, such as a parent, answers for itself.
 const isMatchers: Set<string> = new Set();
 vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
-    is: (_element: unknown, type: string) => isMatchers.has(type),
+    is: (element: { $type?: string } | undefined, type: string) =>
+        element?.$type === undefined ? isMatchers.has(type) : element.$type === type,
 }));
 
 import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
@@ -13,6 +15,7 @@ interface MutableElement {
     businessObject: {
         get(name: string): unknown;
         extensionElements?: { values?: unknown[] };
+        $parent?: { $type: string };
     };
 }
 
@@ -253,6 +256,35 @@ describe("NavigateContextPadProvider", () => {
         ];
 
         expect(entry).toBeDefined();
+    });
+
+    it("offers form navigation and preview for a linked form on a start event of a process", () => {
+        const controller = { isVisible: () => false, openManual: vi.fn() };
+        const { provider, element, port } = build({
+            types: ["bpmn:StartEvent"],
+            anchored: true,
+            controller,
+        });
+        element.businessObject.$parent = { $type: "bpmn:Process" };
+        element.businessObject.extensionElements = {
+            values: [{ $type: "zeebe:FormDefinition", formId: "Form_Request" }],
+        };
+
+        const entries = provider.getContextPadEntries(element as never);
+        entries["navigate-to-referenced-model"].action.click({} as never, element as never);
+
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Form_Request", kind: "form" });
+        expect(entries["preview-linked-form"]).toBeDefined();
+    });
+
+    it("offers nothing for a form on a start event inside a subprocess", () => {
+        const { provider, element } = build({ types: ["bpmn:StartEvent"], anchored: true });
+        element.businessObject.$parent = { $type: "bpmn:SubProcess" };
+        element.businessObject.extensionElements = {
+            values: [{ $type: "zeebe:FormDefinition", formId: "Form_Request" }],
+        };
+
+        expect(provider.getContextPadEntries(element as never)).toEqual({});
     });
 
     it("hides form navigation when the host cannot resolve the form id", () => {
