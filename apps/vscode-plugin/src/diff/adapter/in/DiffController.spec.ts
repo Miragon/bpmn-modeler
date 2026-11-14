@@ -264,6 +264,46 @@ describe("DiffController.resolveDiffPane", () => {
         expect(sessions[0]!.attachedPanes()).not.toContain(sessions[1]!.after());
     });
 
+    it("pairs two diffs of one file opening interleaved, each Git side with a working-tree side", () => {
+        const { controller, store } = createController();
+        const open = (scheme: string, value: string) =>
+            controller.resolveDiffPane(fakePanel().panel, fakeDoc(scheme, "/x.bpmn", value));
+
+        open("git", "git:/x.bpmn");
+        open("git", "git:/x.bpmn");
+        open("file", "file:///x.bpmn");
+        open("file", "file:///x.bpmn");
+
+        const sides = [...store.allSessions()].map((session) =>
+            session.attachedPanes().map((pane) => pane.uri),
+        );
+        expect(sides).toEqual([
+            ["git:/x.bpmn", "file:///x.bpmn"],
+            ["git:/x.bpmn", "file:///x.bpmn"],
+        ]);
+    });
+
+    it("closes one of two diff tabs of a file and keeps the other whole", () => {
+        const { controller, store } = createController();
+        const panels: ReturnType<typeof fakePanel>[] = [];
+        const open = (scheme: string, value: string) => {
+            const panel = fakePanel();
+            panels.push(panel);
+            controller.resolveDiffPane(panel.panel, fakeDoc(scheme, "/x.bpmn", value));
+        };
+        open("git", "git:/x.bpmn");
+        open("file", "file:///x.bpmn");
+        open("git", "git:/x.bpmn");
+        open("file", "file:///x.bpmn");
+        const [kept] = store.allSessions();
+
+        panels[2]!.cbs.dispose?.();
+        panels[3]!.cbs.dispose?.();
+
+        expect([...store.allSessions()]).toEqual([kept]);
+        expect(kept!.attachedPanes()).toHaveLength(2);
+    });
+
     it("retires the session once its last pane is disposed", () => {
         const { controller, store } = createController();
         store.registerCompareFiles("file:///a.bpmn", "file:///b.bpmn");

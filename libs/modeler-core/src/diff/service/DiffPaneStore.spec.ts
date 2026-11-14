@@ -69,16 +69,31 @@ describe("DiffPaneStore", () => {
 
     // ─── pending SCM panes ────────────────────────────────────────────────────
 
-    it("add/get/delete pending SCM panes by key", () => {
+    it("pairs a pending SCM pane only with one of another URI", () => {
         const store = new DiffPaneStore();
-        const handle = fakeHandle(RIGHT);
         const key = "/repo/diagram.bpmn";
+        const firstGit = fakeHandle(LEFT);
+        const secondGit = fakeHandle(LEFT);
+        store.addPendingScm(key, firstGit);
 
-        store.addPendingScm(key, handle);
-        expect(store.getPendingScm(key)).toBe(handle);
+        const twoGitSides = store.takePendingPartner(key, secondGit);
+        store.addPendingScm(key, secondGit);
+        const partner = store.takePendingPartner(key, fakeHandle(RIGHT));
 
-        store.deletePendingScm(key);
-        expect(store.getPendingScm(key)).toBeUndefined();
+        expect(twoGitSides).toBeUndefined();
+        expect(partner).toBe(firstGit);
+        expect(store.paneCountFor(LEFT)).toBe(1);
+    });
+
+    it("hands the newest compare session waiting for a pane, not an older one VS Code never opened", () => {
+        const store = new DiffPaneStore();
+        const shown = store.registerCompareFiles(LEFT, RIGHT);
+        shown.attachPane(fakeHandle(LEFT));
+        shown.attachPane(fakeHandle(RIGHT));
+        store.registerCompareFiles(LEFT, RIGHT);
+        const swapped = store.registerCompareFiles(RIGHT, LEFT);
+
+        expect(store.awaitingPaneFor(LEFT)).toBe(swapped);
     });
 
     it("removePendingByHandle drops the matching entry and reports success", () => {

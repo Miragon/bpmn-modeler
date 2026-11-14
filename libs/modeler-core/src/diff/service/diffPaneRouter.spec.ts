@@ -125,6 +125,29 @@ describe("createDiffPaneRouter", () => {
         ]);
     });
 
+    it("forwards to the partner in the pane's own diff when one file is open in two", async () => {
+        const { notifier, settings } = createTestHost();
+        const store = new DiffPaneStore();
+        const pair = () => {
+            const session = store.registerCompareFiles(BEFORE, AFTER);
+            const before = new FakeDiffPaneHandle(BEFORE, XML);
+            const after = new FakeDiffPaneHandle(AFTER, XML);
+            session.attachPane(before);
+            session.attachPane(after);
+            return { before, after };
+        };
+        const first = pair();
+        const second = pair();
+        const router = createDiffPaneRouter(new BpmnDiffService(notifier, settings, store), {});
+
+        await router.dispatch(new CursorChangedCommand(1), second.before);
+
+        expect(first.after.posted).toStrictEqual([]);
+        expect(second.after.posted).toStrictEqual([
+            expect.objectContaining({ type: "SyncCursorQuery", index: 1 }),
+        ]);
+    });
+
     it("swaps the sides of the pane's diff through the host", async () => {
         const swapped: string[] = [];
         const { router, before } = diffPanes({

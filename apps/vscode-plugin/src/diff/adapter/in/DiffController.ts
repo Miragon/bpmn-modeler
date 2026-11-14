@@ -251,14 +251,13 @@ export class DiffController {
      */
     private attachOrPendScmPane(handle: DiffPaneHandle, documentUri: Uri): void {
         const key = this.scmPairingKey(documentUri);
-        const pending = this.store.getPendingScm(key);
+        const pending = this.store.takePendingPartner(key, handle);
 
         if (!pending) {
             this.store.addPendingScm(key, handle);
             return;
         }
 
-        this.store.deletePendingScm(key);
         const { before, after } = resolveScmSides(pending, handle);
         const session = DiffSession.forScm(before, after);
         session.attachPane(before);
