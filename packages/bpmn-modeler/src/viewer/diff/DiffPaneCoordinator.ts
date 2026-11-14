@@ -1,4 +1,4 @@
-import { DiffResult, sideView } from "@miragon/bpmn-modeler-diff";
+import { DiffResult, type DiffSide, sideView } from "@miragon/bpmn-modeler-diff";
 import {
     DIFF_CATEGORIES,
     DIFF_MARKERS,
@@ -19,7 +19,8 @@ import { DiffViewer } from "./DiffViewer";
  *     guard kills the echo so the sync never ping-pongs);
  *   - paints each pane with its side's highlights and builds a
  *     {@link DiffNavigator} per pane from one {@link DiffResult};
- *   - steps a single shared cursor across both navigators.
+ *   - steps a single shared cursor across both navigators;
+ *   - takes each pane into the plane the user enters on its partner.
  *
  * The shared cursor is sound because both panes navigate the same
  * `navigationOrder`, so their cycles have identical length — the same
@@ -35,6 +36,8 @@ export class DiffPaneCoordinator {
 
     private readonly store = new DisposableStore();
 
+    private readonly planeListeners = new Set<(side: DiffSide, found: boolean) => void>();
+
     private _cursor = -1;
 
     constructor(
@@ -46,6 +49,8 @@ export class DiffPaneCoordinator {
         this.store.add(
             before.onViewportChanged((viewport) => after.setViewport(viewport)),
             after.onViewportChanged((viewport) => before.setViewport(viewport)),
+            before.onPlaneChanged((planeId) => this.syncPlane("after", after, planeId)),
+            after.onPlaneChanged((planeId) => this.syncPlane("before", before, planeId)),
         );
     }
 
@@ -99,8 +104,22 @@ export class DiffPaneCoordinator {
         return this.beforeNav.cycleLength;
     }
 
+    /**
+     * Calls back each time a pane followed the plane the user entered on its
+     * partner: `found` is `false` when that pane's version has no such plane.
+     */
+    onPlaneSynced(listener: (side: DiffSide, found: boolean) => void): () => void {
+        this.planeListeners.add(listener);
+        return () => this.planeListeners.delete(listener);
+    }
+
     destroy(): void {
         this.store.dispose();
+    }
+
+    private syncPlane(side: DiffSide, viewer: DiffViewer, planeId: string): void {
+        const found = viewer.showPlane(planeId);
+        this.planeListeners.forEach((listener) => listener(side, found));
     }
 
     private step(direction: 1 | -1): void {

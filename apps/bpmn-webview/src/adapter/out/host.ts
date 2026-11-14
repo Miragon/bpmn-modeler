@@ -217,6 +217,10 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug("[DEBUG] CursorChangedCommand (no partner in dev)", command.index);
                 break;
             }
+            case "DiffPlaneChangedCommand": {
+                console.debug("[DEBUG] DiffPlaneChangedCommand (no partner in dev)", command.planeId);
+                break;
+            }
             case "GetBpmnlintConfigCommand": {
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;

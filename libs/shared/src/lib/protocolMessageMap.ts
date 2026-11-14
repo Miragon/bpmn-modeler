@@ -42,6 +42,7 @@ import type {
     ClipboardQuery,
     CreateTargetCommand,
     CursorChangedCommand,
+    DiffPlaneChangedCommand,
     DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
@@ -104,6 +105,7 @@ import type {
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
     SyncCursorQuery,
+    SyncDiffPlaneQuery,
     SyncViewportQuery,
     TargetSavedQuery,
     TextClipboardQuery,
@@ -162,6 +164,7 @@ export type ProtocolQuery =
     | ApplyDiffHighlightsQuery
     | SyncViewportQuery
     | SyncCursorQuery
+    | SyncDiffPlaneQuery
     | ApplyDmnDiffHighlightsQuery
     | SyncDmnDiffViewQuery
     | SyncDmnDiffScrollQuery
@@ -225,6 +228,7 @@ export type ProtocolCommand =
     | RequestPayloadFilesCommand
     | ViewportChangedCommand
     | CursorChangedCommand
+    | DiffPlaneChangedCommand
     | DiffReadyCommand
     | SwapCompareSidesCommand
     | DmnDiffViewChangedCommand

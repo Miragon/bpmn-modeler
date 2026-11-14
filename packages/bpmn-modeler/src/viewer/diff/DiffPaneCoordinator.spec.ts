@@ -10,9 +10,10 @@ import { Viewport } from "@miragon/bpmn-modeler-types";
  * {@link DiffViewer} stub recording highlight/viewport calls and letting the
  * test fire a user-driven viewport change.
  */
-function stubViewer(present: string[] = []) {
+function stubViewer(present: string[] = [], planes: string[] = []) {
     const has = new Set(present);
     let vpCb: ((v: Viewport) => void) | undefined;
+    let planeCb: ((planeId: string) => void) | undefined;
     const calls = {
         setViewport: [] as Viewport[],
         highlights: {} as Record<string, readonly string[]>,
@@ -20,6 +21,7 @@ function stubViewer(present: string[] = []) {
         disposed: false,
         disposeCount: 0,
         fits: 0,
+        planes: [] as string[],
     };
     const viewer = {
         onViewportChanged: (cb: (v: Viewport) => void) => {
@@ -31,6 +33,16 @@ function stubViewer(present: string[] = []) {
             };
         },
         setViewport: (v: Viewport) => calls.setViewport.push(v),
+        onPlaneChanged: (cb: (planeId: string) => void) => {
+            planeCb = cb;
+            return () => {
+                planeCb = undefined;
+            };
+        },
+        showPlane: (planeId: string) => {
+            calls.planes.push(planeId);
+            return planes.includes(planeId);
+        },
         clearHighlights: () => undefined,
         applyHighlights: (ids: readonly string[], klass: string) => {
             calls.highlights[klass] = ids;
@@ -46,7 +58,12 @@ function stubViewer(present: string[] = []) {
             calls.fits++;
         },
     } as unknown as DiffViewer;
-    return { viewer, calls, fireViewport: (v: Viewport) => vpCb?.(v) };
+    return {
+        viewer,
+        calls,
+        fireViewport: (v: Viewport) => vpCb?.(v),
+        enterPlane: (planeId: string) => planeCb?.(planeId),
+    };
 }
 
 const RESULT: DiffResult = {
@@ -167,6 +184,26 @@ describe("DiffPaneCoordinator", () => {
         expect([before.calls.fits, after.calls.fits]).toEqual([1, 1]);
         coord.next();
         expect(coord.cursor).toBe(0);
+    });
+
+    it("takes the partner into the plane the user enters, and says when its version has none", () => {
+        const before = stubViewer([], ["Sub_1"]);
+        const after = stubViewer([], ["Sub_2"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        const synced: [string, boolean][] = [];
+        coord.onPlaneSynced((side, found) => synced.push([side, found]));
+
+        before.enterPlane("Sub_2");
+        after.enterPlane("Sub_1");
+
+        expect(after.calls.planes).toEqual(["Sub_2"]);
+        expect(before.calls.planes).toEqual(["Sub_1"]);
+        expect(synced).toEqual([
+            ["after", true],
+            ["before", true],
+        ]);
+        before.enterPlane("Sub_3");
+        expect(synced.at(-1)).toEqual(["after", false]);
     });
 
     it("ignores navigation before any diff is applied", () => {

@@ -2,6 +2,7 @@ import {
     ApplyDiffHighlightsQuery,
     asProtocolMessage,
     CursorChangedCommand,
+    DiffPlaneChangedCommand,
     DiffReadyCommand,
     LogErrorCommand,
     Query,
@@ -77,6 +78,11 @@ export class DiffMode {
         // diff.css starts the canvas below the bar.
         this.legend.reserveRoomOn(document.body);
 
+        this.viewer.onPlaneChanged((planeId) => {
+            this.sideLabel?.showPlaneMissing(false);
+            this.host.postMessage(new DiffPlaneChangedCommand(planeId));
+        });
+
         this.viewer.onViewportChanged((viewport) => {
             this.host.postMessage(new ViewportChangedCommand(viewport));
         });
@@ -105,6 +111,9 @@ export class DiffMode {
                 } else {
                     this.highlightsBeforeImport = query;
                 }
+                break;
+            case "SyncDiffPlaneQuery":
+                this.sideLabel?.showPlaneMissing(!this.viewer.showPlane(query.planeId));
                 break;
             case "SyncViewportQuery":
                 this.viewer.setViewport(query.viewport);
@@ -188,6 +197,7 @@ export class DiffMode {
 
     private backToWholeDiagram(): void {
         this.navigator.reset();
+        this.sideLabel?.showPlaneMissing(false);
         if (this.legendContext) {
             this.legend.update(this.legendContext);
         }

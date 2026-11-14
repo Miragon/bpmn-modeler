@@ -55,6 +55,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         DiffReadyCommand: HANDLED,
         ViewportChangedCommand: HANDLED,
         CursorChangedCommand: HANDLED,
+        DiffPlaneChangedCommand: HANDLED,
         // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
         SwapCompareSidesCommand: ignored("the host does not swap diff sides through the core"),
         LogErrorCommand: HANDLED,

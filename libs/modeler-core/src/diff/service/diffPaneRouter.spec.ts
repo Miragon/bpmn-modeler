@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    BPMN_DIFF_PANE_COMMAND_TYPES,
     CursorChangedCommand,
-    DIFF_PANE_COMMAND_TYPES,
+    DiffPlaneChangedCommand,
     DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
     DMN_DIFF_PANE_COMMAND_TYPES,
     DiffReadyCommand,
@@ -56,6 +57,7 @@ describe("createDiffPaneRouter", () => {
                 DiffReadyCommand: "handled",
                 ViewportChangedCommand: "handled",
                 CursorChangedCommand: "handled",
+                DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "handled",
                 LogErrorCommand: "handled",
             },
@@ -70,6 +72,7 @@ describe("createDiffPaneRouter", () => {
                 DiffReadyCommand: "handled",
                 ViewportChangedCommand: "handled",
                 CursorChangedCommand: "handled",
+                DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "ignored",
                 LogErrorCommand: "ignored",
             },
@@ -78,7 +81,7 @@ describe("createDiffPaneRouter", () => {
         const { router } = diffPanes(extensions);
 
         const routes = Object.fromEntries(
-            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...DIFF_PANE_COMMAND_TYPES].map((type) => [
+            [...DIFF_PANE_HANDSHAKE_COMMAND_TYPES, ...BPMN_DIFF_PANE_COMMAND_TYPES].map((type) => [
                 type,
                 router.routeOf(type).kind,
             ]),
@@ -106,17 +109,19 @@ describe("createDiffPaneRouter", () => {
         expect(after.posted).toStrictEqual([expect.objectContaining({ type: "LanguageQuery" })]);
     });
 
-    it("forwards a pane's viewport and cursor to its partner", async () => {
+    it("forwards a pane's viewport, cursor and plane to its partner", async () => {
         const { router, before, after } = diffPanes();
         const viewport = { x: 1, y: 2, width: 3, height: 4 };
 
         await router.dispatch(new ViewportChangedCommand(viewport), before);
         await router.dispatch(new CursorChangedCommand(5), before);
+        await router.dispatch(new DiffPlaneChangedCommand("Sub_1"), before);
 
         expect(before.posted).toStrictEqual([]);
         expect(after.posted).toStrictEqual([
             expect.objectContaining({ type: "SyncViewportQuery", viewport }),
             expect.objectContaining({ type: "SyncCursorQuery", index: 5 }),
+            expect.objectContaining({ type: "SyncDiffPlaneQuery", planeId: "Sub_1" }),
         ]);
     });
 

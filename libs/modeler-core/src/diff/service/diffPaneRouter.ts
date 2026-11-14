@@ -1,5 +1,5 @@
 import {
-    DiffPaneCommandType,
+    BpmnDiffPaneCommandType,
     DiffPaneHandshakeCommandType,
     DmnDiffPaneCommandType,
 } from "@miragon/bpmn-modeler-shared";
@@ -35,7 +35,7 @@ export function createDiffPaneRouter(
     extensions: DiffPaneHostExtensions,
 ): WebviewMessageRouter<DiffPaneHandle> {
     return WebviewMessageRouter.fromTable<
-        DiffPaneHandshakeCommandType | DiffPaneCommandType,
+        DiffPaneHandshakeCommandType | BpmnDiffPaneCommandType,
         DiffPaneHandle
     >({
         GetBpmnFileCommand: [(_command, pane) => diffService.sendViewerFile(pane)],
@@ -48,6 +48,9 @@ export function createDiffPaneRouter(
             (command, pane) => diffService.forwardViewport(pane, command.viewport),
         ],
         CursorChangedCommand: [(command, pane) => diffService.forwardCursor(pane, command.index)],
+        DiffPlaneChangedCommand: [
+            (command, pane) => diffService.forwardPlane(pane, command.planeId),
+        ],
         ...hostRoutes(extensions),
     });
 }

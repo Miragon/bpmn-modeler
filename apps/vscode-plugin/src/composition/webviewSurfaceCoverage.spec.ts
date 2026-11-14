@@ -73,6 +73,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         DiffReadyCommand: HANDLED,
         ViewportChangedCommand: HANDLED,
         CursorChangedCommand: HANDLED,
+        DiffPlaneChangedCommand: HANDLED,
         SwapCompareSidesCommand: HANDLED,
         LogErrorCommand: HANDLED,
     },

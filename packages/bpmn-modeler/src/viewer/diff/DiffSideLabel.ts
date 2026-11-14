@@ -18,6 +18,11 @@ export class DiffSideLabel {
         this.view.showFilename(filename);
     }
 
+    /** Adds "Not in this version" while the pane's version lacks the plane its partner entered. */
+    showPlaneMissing(missing: boolean): void {
+        this.view.showPlaneMissing(missing);
+    }
+
     destroy(): void {
         this.view.destroy();
     }

@@ -77,6 +77,12 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
 - Each pane fits its own diagram when it opens and tells its partner nothing: an
   opening fit sent as a viewport could reach the partner while VS Code still laid one
   pane out and leave it off-centre. The panes sync from the user's first pan or zoom.
+- Both BPMN panes show the same plane: a pane reports the plane the user enters
+  (`DiffViewer.onPlaneChanged`, by the id of its process or subprocess, never one it
+  entered itself) and its partner enters it (`showPlane`). In-page the
+  `DiffPaneCoordinator` relays it; across webviews `DiffPlaneChangedCommand` goes to
+  the host, which forwards `SyncDiffPlaneQuery`, as for viewport and cursor. A
+  version without that plane keeps its own and says so on its side label.
 
 The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs) and the
 [data-library tests](../../libs/bpmn-diff/src) guard the data/browser split.
