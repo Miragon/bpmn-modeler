@@ -4,11 +4,14 @@ import {
     ApplyDiffHighlightsQuery,
     type CursorChangedCommand,
     type DiffReadyCommand,
+    type DiffSelectionChangedCommand,
     type LogErrorCommand,
+    type ShowElementXmlChangesCommand,
     type SwapCompareSidesCommand,
     type SyncDocumentCommand,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
+    SyncDiffSelectionQuery,
     SyncViewportQuery,
     type ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -33,7 +36,15 @@ const fakes = vi.hoisted(() => {
         onViewportChanged = vi.fn((listener: (viewport: Viewport) => void) => {
             this.viewportListener = listener;
         });
-        constructor() {
+        mirrorSelection = vi.fn((_elementId: string | undefined) => true);
+        selectionListener: ((elementId: string | undefined) => void) | undefined;
+        onSelectedElementChanged = vi.fn((listener: (elementId: string | undefined) => void) => {
+            this.selectionListener = listener;
+        });
+        constructor(
+            readonly container: HTMLElement,
+            readonly options: { additionalModules?: unknown[] } = {},
+        ) {
             FakeDiffViewer.last = this;
         }
     }
@@ -80,8 +91,27 @@ const fakes = vi.hoisted(() => {
         }
     }
 
-    return { FakeDiffViewer, FakeDiffNavigator, FakeDiffLegend, FakeDiffSideLabel };
+    type ElementXmlChangesEntryConfig = {
+        canShowElementXmlChanges(): boolean;
+        showElementXmlChanges(elementId: string): void;
+    };
+    const elementXmlChanges = { config: undefined as ElementXmlChangesEntryConfig | undefined };
+
+    return {
+        FakeDiffViewer,
+        FakeDiffNavigator,
+        FakeDiffLegend,
+        FakeDiffSideLabel,
+        elementXmlChanges,
+    };
 });
+
+vi.mock("./elementXmlContextPad", () => ({
+    createElementXmlChangesModule: (config: NonNullable<typeof fakes.elementXmlChanges.config>) => {
+        fakes.elementXmlChanges.config = config;
+        return { elementXmlChangesEntryConfig: ["value", config] };
+    },
+}));
 
 vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     DiffViewer: fakes.FakeDiffViewer,
@@ -103,7 +133,11 @@ function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
 }
 
-function highlights(origin: DiffOrigin, side: "before" | "after" = "after") {
+function highlights(
+    origin: DiffOrigin,
+    side: "before" | "after" = "after",
+    elementXmlChanges = false,
+) {
     return new ApplyDiffHighlightsQuery(
         side,
         ["Added_1"],
@@ -114,6 +148,7 @@ function highlights(origin: DiffOrigin, side: "before" | "after" = "after") {
         ["Changed_1", "Added_1", "Removed_1"],
         origin,
         "after.bpmn",
+        elementXmlChanges,
     );
 }
 
@@ -419,6 +454,82 @@ describe("DiffMode", () => {
         });
     });
 
+    describe("element XML changes", () => {
+        const entryConfig = () => fakes.elementXmlChanges.config!;
+
+        it("gives the pane its context pad", async () => {
+            await startDiffPane();
+
+            expect(viewer().options.additionalModules).toEqual([
+                { elementXmlChangesEntryConfig: ["value", entryConfig()] },
+            ]);
+        });
+
+        it("offers the entry only while the host says it can show XML changes", async () => {
+            await startDiffPane();
+            const offered = [entryConfig().canShowElementXmlChanges()];
+
+            dispatch(highlights("scm", "after", true));
+            offered.push(entryConfig().canShowElementXmlChanges());
+            dispatch(highlights("scm", "after", false));
+            offered.push(entryConfig().canShowElementXmlChanges());
+
+            expect(offered).toEqual([false, true, false]);
+        });
+
+        it("asks the host for an element's XML changes", async () => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            entryConfig().showElementXmlChanges("Task_1");
+
+            expect(posted()).toEqual([
+                expect.objectContaining({
+                    type: "ShowElementXmlChangesCommand",
+                    elementId: "Task_1",
+                }),
+            ]);
+        });
+
+        it("reports the element the user selects to the host", async () => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            viewer().selectionListener?.("Task_1");
+
+            expect(posted()).toEqual([
+                expect.objectContaining({
+                    type: "DiffSelectionChangedCommand",
+                    elementId: "Task_1",
+                }),
+            ]);
+        });
+
+        it("reports a cleared or multiple selection to the host as no element", async () => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            viewer().selectionListener?.(undefined);
+
+            expect(posted()).toEqual([
+                expect.objectContaining({ type: "DiffSelectionChangedCommand", elementId: "" }),
+            ]);
+        });
+
+        it.each([
+            ["the partner's element", "Task_1", "Task_1"],
+            ["no element when the partner selected none", "", undefined],
+        ])("selects %s without echoing it", async (_case, partnerElementId, mirrored) => {
+            await startDiffPane();
+            host.postMessage.mockClear();
+
+            dispatch(new SyncDiffSelectionQuery(partnerElementId));
+
+            expect(viewer().mirrorSelection).toHaveBeenCalledExactlyOnceWith(mirrored);
+            expect(host.postMessage).not.toHaveBeenCalled();
+        });
+    });
+
     describe("legend controls", () => {
         it("steps forward and backward and reports the new cursor", async () => {
             await startDiffPane();
@@ -495,6 +606,8 @@ describe("DiffMode's host channel", () => {
         expectTypeOf<ViewportChangedCommand>().toExtend<PostedByDiffMode>();
         expectTypeOf<CursorChangedCommand>().toExtend<PostedByDiffMode>();
         expectTypeOf<SwapCompareSidesCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<ShowElementXmlChangesCommand>().toExtend<PostedByDiffMode>();
+        expectTypeOf<DiffSelectionChangedCommand>().toExtend<PostedByDiffMode>();
         expectTypeOf<LogErrorCommand>().toExtend<PostedByDiffMode>();
     });
 

@@ -1,9 +1,11 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModuleDeclaration } from "didi";
 import type Canvas from "diagram-js/lib/core/Canvas";
 import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
 import type EventBus from "diagram-js/lib/core/EventBus";
 import type { Event as EventBusEvent } from "diagram-js/lib/core/EventBus";
+import type Selection from "diagram-js/lib/features/selection/Selection";
 import type { Point } from "diagram-js/lib/util/Types";
 
 import {
@@ -14,15 +16,16 @@ import {
     MIN_CANVAS_SIZE_PX,
     MutableDisposable,
     NoModelerError,
+    subscribe,
     Viewport,
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
 
-import { centreOf, type PositionedElement } from "../../elementGeometry";
+import { centreOf, type PositionedElement, viewboxCentredOn } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
-
-type DiagramRoot = { id: string; businessObject?: { id?: string } };
+import { bpmnElementIdOf, singleSelectedElementId, type BpmnDiagramElement } from "./diffSelection";
+import { armKeepUserSelectionVisible, UserChangeGuard } from "./selectionPolicy";
 
 /**
  * How a pane names the plane it opened on, so a process on one side and a
@@ -32,6 +35,21 @@ const OPENING_PLANE = "";
 
 /** CSS class applied to each element category on the canvas, as `DIFF_MARKERS` maps them. */
 export type DiffMarkerClass = DiffMarker;
+
+/** Per-pane config for {@link DiffViewer}. */
+export interface DiffViewerOptions {
+    /**
+     * Extra bpmn-js/didi modules for the pane, such as a context pad. Without
+     * them the pane stays the plain readonly viewer.
+     */
+    additionalModules?: unknown[];
+}
+
+/**
+ * Replaces diagram-js's KeepSelectionVisible: its scroll on resize would post a
+ * viewport that competes with the partner pane's.
+ */
+const NO_KEEP_SELECTION_VISIBLE_MODULE = { keepSelectionVisible: ["value", {}] };
 
 const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SELECTED_MARKER];
 
@@ -45,15 +63,14 @@ const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SE
 export class DiffViewer {
     private viewer: NavigatedViewer | undefined;
 
-    private programmaticPositioningDepth = 0;
+    private readonly changes = new UserChangeGuard();
 
     /**
-     * Id of the element currently highlighted as the stepper's focus, or
-     * `undefined` when nothing is selected.  Tracked so {@link focusElement}
-     * can remove the marker from the previous target before adding it to
-     * the new one.
+     * Id of the element highlighted as the stepper's focus, or `undefined`.
+     * Tracked so {@link focusElement} can remove the marker from the previous
+     * target before adding it to the new one. Independent of the selection.
      */
-    private selectedId: string | undefined;
+    private focusedId: string | undefined;
 
     private readonly store = new DisposableStore();
 
@@ -75,9 +92,15 @@ export class DiffViewer {
         fitViewport: () => this.fitViewport(),
     });
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, options: DiffViewerOptions = {}) {
         try {
-            this.viewer = new NavigatedViewer({ container });
+            this.viewer = new NavigatedViewer({
+                container,
+                additionalModules: [
+                    NO_KEEP_SELECTION_VISIBLE_MODULE,
+                    ...(options.additionalModules ?? []),
+                ] as ModuleDeclaration[],
+            });
         } catch (error) {
             // A partially-constructed bpmn-js attaches `.bjs-container` with no
             // handle to destroy; clear the dedicated container before rethrowing.
@@ -90,6 +113,16 @@ export class DiffViewer {
         });
         this.store.add(() => this.sizeObserver.dispose());
         this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
+        this.store.add(
+            ...armKeepUserSelectionVisible(
+                {
+                    eventBus: this.getViewer().get<EventBus>("eventBus"),
+                    canvas: this.getCanvas(),
+                    selection: this.getViewer().get<Selection>("selection"),
+                },
+                { changes: this.changes, isPaneSized: () => this.isPaneSized() },
+            ),
+        );
     }
 
     /**
@@ -97,13 +130,17 @@ export class DiffViewer {
      * 100 %, where a subprocess's content often is not; fit it instead.
      */
     private fitEnteredPlane(): void {
-        this.positionProgrammatically(() => this.fitViewport());
+        this.changes.positionProgrammatically(() => this.fitViewport());
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {
         // The import sets its own root; no plane change to report until it is done.
         this.openingRoot = undefined;
-        const result = await this.getViewer().importXML(xml);
+        // bpmn-js clears the diagram and sets its root; diagram-js answers both with
+        // an empty selection the user never made, which would clear the partner's.
+        const result = await this.changes.selectProgrammaticallyUntilDone(() =>
+            this.getViewer().importXML(xml),
+        );
         this.openingRoot = this.getCanvas().getRootElement();
 
         // Panes open side by side, so one regularly has no box yet when the
@@ -131,7 +168,7 @@ export class DiffViewer {
         }
         // diagram-js accepts the "auto" centring sentinel at runtime, but its
         // Canvas.zoom types `center` as a Point only.
-        this.positionProgrammatically(() =>
+        this.changes.positionProgrammatically(() =>
             this.getCanvas().zoom("fit-viewport", "auto" as unknown as Point),
         );
         return true;
@@ -166,7 +203,7 @@ export class DiffViewer {
                 canvas.removeMarker(element.id, markerClass);
             }
         });
-        this.selectedId = undefined;
+        this.focusedId = undefined;
     }
 
     getViewport(): Viewport {
@@ -189,7 +226,7 @@ export class DiffViewer {
     }
 
     private applyViewbox(viewport: Viewport): void {
-        this.positionProgrammatically(() => this.getCanvas().viewbox({ ...viewport }));
+        this.changes.positionProgrammatically(() => this.getCanvas().viewbox({ ...viewport }));
     }
 
     /**
@@ -203,7 +240,7 @@ export class DiffViewer {
             eventBus: this.getViewer().get<EventBus>("eventBus"),
             // Diff sync latency is unchanged from the hand-rolled version.
             debounceMs: 80,
-            accept: () => this.programmaticPositioningDepth === 0,
+            accept: () => this.changes.isUserPositioning(),
             map: ({ x, y, width, height }) => ({ x, y, width, height }),
             onChange: cb,
         });
@@ -224,11 +261,11 @@ export class DiffViewer {
             return false;
         }
         const canvas = this.getCanvas();
-        if (this.selectedId && this.selectedId !== id) {
-            canvas.removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
+        if (this.focusedId && this.focusedId !== id) {
+            canvas.removeMarker(this.focusedId, DIFF_SELECTED_MARKER);
         }
         canvas.addMarker(id, DIFF_SELECTED_MARKER);
-        this.selectedId = id;
+        this.focusedId = id;
         return true;
     }
 
@@ -238,7 +275,7 @@ export class DiffViewer {
      */
     fitDiagram(): void {
         this.clearSelectionMarker();
-        this.positionProgrammatically(() => {
+        this.changes.positionProgrammatically(() => {
             this.showOpeningRoot();
             this.fitViewport();
         });
@@ -261,8 +298,8 @@ export class DiffViewer {
      */
     onPlaneChanged(cb: (planeId: string) => void): () => void {
         const eventBus = this.getViewer().get<EventBus>("eventBus");
-        const listener = (event: EventBusEvent & { element?: DiagramRoot }): void => {
-            if (event.element && this.openingRoot && this.programmaticPositioningDepth === 0) {
+        const listener = (event: EventBusEvent & { element?: BpmnDiagramElement }): void => {
+            if (event.element && this.openingRoot && this.changes.isUserPositioning()) {
                 cb(this.planeIdOf(event.element));
             }
         };
@@ -284,7 +321,7 @@ export class DiffViewer {
             return false;
         }
         this.clearSelectionMarker();
-        this.positionProgrammatically(() => {
+        this.changes.positionProgrammatically(() => {
             this.getCanvas().setRootElement(plane);
             this.fitViewport();
         });
@@ -318,18 +355,56 @@ export class DiffViewer {
         if (!root) {
             return false;
         }
-        this.positionProgrammatically(() => {
+        this.changes.positionProgrammatically(() => {
             if (canvas.getRootElement() !== root) {
                 canvas.setRootElement(root);
             }
-            canvas.viewbox({
-                x: centre.x - viewbox.width / 2,
-                y: centre.y - viewbox.height / 2,
-                width: viewbox.width,
-                height: viewbox.height,
-            });
+            canvas.viewbox(viewboxCentredOn(centre, viewbox));
         });
         return true;
+    }
+
+    /**
+     * Selects the element its partner pane selected, by BPMN id, or nothing for
+     * `undefined`, without telling {@link onSelectedElementChanged} listeners.
+     * Returns `false`, clearing the selection instead, when the element is not
+     * on the plane shown. A mirrored selection stays put when the pane resizes.
+     */
+    mirrorSelection(elementId: string | undefined): boolean {
+        const element =
+            elementId === undefined
+                ? undefined
+                : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
+        const canvas = this.getCanvas();
+        const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
+        this.changes.selectProgrammatically(() =>
+            this.getViewer()
+                .get<Selection>("selection")
+                .select(shown ? element : null),
+        );
+        return shown || elementId === undefined;
+    }
+
+    /**
+     * Subscribes to the user changing the selection: the selected element's
+     * BPMN id (a label as the element it labels), or `undefined` when the
+     * selection is empty or holds several elements. Not reported are
+     * {@link mirrorSelection}, the selection an {@link importXML} drops and a
+     * selection the pane drops by entering a plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports every
+     * selection as diagram element ids, it names one BPMN element, so two
+     * versions of a diagram can share it. Returns a disposer that unsubscribes.
+     */
+    onSelectedElementChanged(listener: (elementId: string | undefined) => void): () => void {
+        const eventBus = this.getViewer().get<EventBus>("eventBus");
+        return subscribe(
+            eventBus,
+            "selection.changed",
+            (event: { newSelection: BpmnDiagramElement[] }) => {
+                if (this.changes.isUserSelectionChange()) {
+                    listener(singleSelectedElementId(event.newSelection));
+                }
+            },
+        );
     }
 
     /**
@@ -347,11 +422,11 @@ export class DiffViewer {
      * the user into thinking it is still the active step.
      */
     clearSelectionMarker(): void {
-        if (!this.selectedId) {
+        if (!this.focusedId) {
             return;
         }
-        this.getCanvas().removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
-        this.selectedId = undefined;
+        this.getCanvas().removeMarker(this.focusedId, DIFF_SELECTED_MARKER);
+        this.focusedId = undefined;
     }
 
     /**
@@ -386,22 +461,8 @@ export class DiffViewer {
         return this.viewer;
     }
 
-    // The synchronous viewbox/root events fired inside `action` are rejected by
-    // the subscription guard, which also cancels a stale pending notification.
-    private positionProgrammatically(action: () => void): void {
-        this.programmaticPositioningDepth += 1;
-        try {
-            action();
-        } finally {
-            this.programmaticPositioningDepth -= 1;
-        }
-    }
-
-    // A subprocess's plane root is `<id>_plane`; its business object names the subprocess.
-    private planeIdOf(root: DiagramRoot): string {
-        if (root === this.openingRoot) {
-            return OPENING_PLANE;
-        }
-        return root.businessObject?.id ?? root.id;
+    // A subprocess's plane root is `<id>_plane`; bpmnElementIdOf names the subprocess.
+    private planeIdOf(root: BpmnDiagramElement): string {
+        return root === this.openingRoot ? OPENING_PLANE : bpmnElementIdOf(root);
     }
 }

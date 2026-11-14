@@ -398,6 +398,34 @@ new DiffLegend( document.querySelector( "#before" )!, {
 } ).update( { counts: result.counts, canStep: coordinator.canStep } );
 ```
 
+A `DiffViewer` takes optional `additionalModules`, as `createViewer` does; without them
+it has no context pad. To share a selection between two panes, report it with
+`onSelectedElementChanged` and apply it with `mirrorSelection`, which does not report back:
+
+```ts
+import ContextPadModule from "diagram-js/lib/features/context-pad";
+import OutlineModule from "bpmn-js/lib/features/outline";
+
+const modules = [ ContextPadModule, OutlineModule ];
+const before = new DiffViewer( beforeContainer, { additionalModules: modules } );
+const after = new DiffViewer( afterContainer, { additionalModules: modules } );
+before.onSelectedElementChanged( ( elementId ) => after.mirrorSelection( elementId ) );
+after.onSelectedElementChanged( ( elementId ) => before.mirrorSelection( elementId ) );
+```
+
+The listener receives the selected element's BPMN id, or `undefined` when the user clears the
+selection or selects several elements. A selected label reports the element it labels; use
+`bpmnElementIdOf( element )` for the same id in your own context-pad entries. `mirrorSelection`
+clears the selection, and returns `false`, when the element is absent or on a plane the pane does
+not show, so a pane never keeps an element its partner no longer selects. It differs from
+`SelectionManager.onSelectionChanged` on purpose: that one reports every selection as diagram
+element ids (a label as `<id>_label`), which do not identify the same element across two versions.
+`importXML` reports nothing, so a pane that imports late does not clear its partner's selection.
+When a resize cuts off a selection that was fully in view, only the pane the user selected in
+centres it, as a user pan, so `DiffPaneCoordinator` carries the new viewport to the partner; the
+mirroring pane stays put. A selection the user panned away from, or one still in full view, stays
+where it is. Pass `OutlineModule` with a context pad so the selection is visible.
+
 `DiffPaneCoordinator` keeps the two panes' pan/zoom in lockstep and steps a single shared cursor
 across both. Pass its `canStep` to each legend so **Prev** and **Next** are enabled only when there is
 a change to step to; without it the legend enables them whenever a count is above zero. A pane that

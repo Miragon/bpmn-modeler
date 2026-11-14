@@ -221,6 +221,18 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug("[DEBUG] DiffPlaneChangedCommand (no partner in dev)", command.planeId);
                 break;
             }
+            case "DiffSelectionChangedCommand": {
+                console.debug(
+                    "[DEBUG] DiffSelectionChangedCommand (no partner in dev)",
+                    command.elementId,
+                );
+                break;
+            }
+            case "ShowElementXmlChangesCommand": {
+                // No editor group to open a text diff in.
+                console.debug("[DEBUG] ShowElementXmlChangesCommand", command.elementId);
+                break;
+            }
             case "GetBpmnlintConfigCommand": {
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;
@@ -370,6 +382,8 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 // renders its filename, the branch that exercises the most chrome.
                 "compare-files",
                 side === "before" ? "before.bpmn" : "after.bpmn",
+                // Shows the context pad's "Show XML changes" entry in the preview.
+                true,
             ),
         );
     }
