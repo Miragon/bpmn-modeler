@@ -21,7 +21,7 @@ export class MarketplaceInventory {
         private readonly registrations: MarketplaceRegistrationsPort,
         private readonly cache: Pick<
             TemplateMarketplaceService,
-            "cachedTemplatePathsByRegistration"
+            "cachedTemplatePathsByRegistration" | "cachedReadmesByRegistration"
         >,
         private readonly commands: Pick<
             MarketplaceCommands,
@@ -37,7 +37,11 @@ export class MarketplaceInventory {
         }
         return {
             kind: "listed",
-            sources: marketplaceSourcesOf(registered, await this.cachedTemplates()),
+            sources: marketplaceSourcesOf(
+                registered,
+                await this.cachedTemplates(),
+                await this.cachedReadmes(),
+            ),
         };
     }
 
@@ -75,6 +79,16 @@ export class MarketplaceInventory {
         } catch (error) {
             this.logError(error);
             return { kind: "failed" };
+        }
+    }
+
+    /** A README only describes a marketplace, so a failed read lists none. */
+    private async cachedReadmes(): Promise<ReadonlyMap<string, string>> {
+        try {
+            return await this.cache.cachedReadmesByRegistration();
+        } catch (error) {
+            this.logError(error);
+            return new Map();
         }
     }
 

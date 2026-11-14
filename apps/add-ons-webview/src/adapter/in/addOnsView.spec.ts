@@ -628,7 +628,7 @@ describe("AddOnsView", () => {
 
             button("Allow").click();
 
-            expect(host.posted.length).toBe(1);
+            expect(host.requests().length).toBe(1);
         });
 
         // The view selects an add-on whenever its list shows one, so the hint only meets an empty list.
@@ -648,6 +648,71 @@ describe("AddOnsView", () => {
                     sep.getAttribute("aria-hidden"),
                 ),
             ).toEqual(["true", "true"]);
+        });
+    });
+
+    describe("a README", () => {
+        const readme = (markdown: string, truncated = false) =>
+            ({ kind: "shown", markdown, truncated }) as const;
+
+        it("shows below the detail once the host sends it, with a note when cut", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            expect(root.querySelector(".av-readme")).toBeNull();
+            session.dispatch({
+                kind: "readmeArrived",
+                targetId: PALETTE.id,
+                readme: readme("# Palette\n\nGroups the palette.", true),
+            });
+
+            expect([
+                text(root.querySelector(".av-readme-heading")),
+                text(root.querySelector(".av-readme h4")),
+                text(root.querySelector(".av-readme .av-note")),
+            ]).toEqual([
+                "README",
+                "Palette",
+                "The README is longer than this view shows; open its file to read the rest.",
+            ]);
+        });
+
+        it("shows nothing for none and says so when it cannot be read", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            session.dispatch({ kind: "readmeArrived", targetId: PALETTE.id, readme: { kind: "none" } });
+            const none = root.querySelector(".av-readme");
+            session.dispatch({
+                kind: "readmeArrived",
+                targetId: PALETTE.id,
+                readme: { kind: "unreadable", text: "Its README could not be read." },
+            });
+
+            expect([none, text(root.querySelector(".av-readme-problem"))]).toEqual([
+                null,
+                "Its README could not be read.",
+            ]);
+        });
+
+        it("opens a marketplace's detail from its header, with its actions and README", () => {
+            const { root, button, session } = mountedView(CATALOG);
+
+            button("Details: /shared").click();
+            session.dispatch({
+                kind: "readmeArrived",
+                targetId: MARKETPLACE_SOURCE.id,
+                readme: readme("Shared templates."),
+            });
+
+            const card = root.querySelector(".av-detail-card")!;
+            expect([
+                text(card.querySelector(".av-detail-name")),
+                text(card.querySelector(".ds-kind-marketplace")),
+                [...card.querySelectorAll(".av-actions .ds-btn-label")].map(text),
+                text(card.querySelector(".av-md p")),
+                button("Details: /shared").getAttribute("aria-current"),
+            ]).toEqual(["/shared", "Marketplace", ["Remove", "Disable templates"], "Shared templates.", "true"]);
         });
     });
 
@@ -793,7 +858,7 @@ describe("AddOnsView", () => {
 
             button(PRUNE.label).click();
 
-            expect([host.posted.length, root.querySelector("[role=menu]")]).toEqual([1, null]);
+            expect([host.requests().length, root.querySelector("[role=menu]")]).toEqual([1, null]);
         });
 
         it("leave the Escape key alone while closed", () => {

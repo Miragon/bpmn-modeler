@@ -5,6 +5,7 @@ import { PluginApprovalStorePort } from "../../kernel/port/approvalPorts";
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { ContentRows } from "../../kernel/service/ContentRowMigration";
 import { catalogModelOf, failedCatalogOf } from "../domain/addOnCatalog";
+import { AddOnReadme, ReadmePlace } from "../domain/addOnReadme";
 import type { AddOnCatalogModel } from "../domain/addOnCatalogModel";
 import { CatalogActionKind, CodeAddOnKind } from "../domain/addOnIds";
 import {
@@ -34,6 +35,7 @@ import {
     RulePackageAddOnSource,
 } from "../port/addOnSourcePorts";
 import { AddOnInventoryReader } from "./AddOnInventoryReader";
+import { AddOnReadmeReader } from "./AddOnReadmeReader";
 import { TemplateSwitchActions } from "./TemplateSwitchActions";
 
 export interface AddOnCatalogPorts {
@@ -71,6 +73,7 @@ export class AddOnCatalogService {
     private latestSources: ReadonlyMap<string, ShownSource> = new Map();
     private latestTemplates: ReadonlyMap<string, ShownTemplate> = new Map();
     private latestCatalogActions: readonly CatalogActionKind[] = [];
+    private latestReadmes: ReadonlyMap<string, ReadmePlace> = new Map();
     private active = false;
     private building?: Promise<void>;
     private dirty = false;
@@ -81,6 +84,7 @@ export class AddOnCatalogService {
     constructor(
         private readonly reader: AddOnInventoryReader,
         private readonly templateSwitches: TemplateSwitchActions,
+        private readonly readmes: AddOnReadmeReader,
         private readonly ports: AddOnCatalogPorts,
     ) {}
 
@@ -117,6 +121,11 @@ export class AddOnCatalogService {
             settling = this.work;
             await settling;
         } while (settling !== this.work);
+    }
+
+    /** Only for what the latest model listed, so a view never names a path of its own. */
+    readme(targetId: string): Promise<AddOnReadme> {
+        return this.readmes.read(this.latestReadmes.get(targetId));
     }
 
     handle(request: AddOnRequest): Promise<AddOnActionResult> {
@@ -239,7 +248,7 @@ export class AddOnCatalogService {
         const { plugins, rulePackages, restart } = this.ports;
         const facts = await this.reader.read();
         const revision = ++this.revision;
-        const { model, shown, sources, templates, catalogActions } = catalogModelOf(
+        const { model, shown, sources, templates, catalogActions, readmes } = catalogModelOf(
             facts,
             {
                 answers: {
@@ -258,6 +267,7 @@ export class AddOnCatalogService {
         this.latestSources = sources;
         this.latestTemplates = templates;
         this.latestCatalogActions = catalogActions;
+        this.latestReadmes = readmes;
         this.latestReadModel = model;
         this.publish(model);
     }

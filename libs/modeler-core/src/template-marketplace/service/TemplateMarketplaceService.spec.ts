@@ -16,6 +16,8 @@ const MANIFEST = JSON.stringify({
     ],
 });
 
+const NO_README = new RepositoryAccessError("github.com", 404, "acme/templates", false);
+
 /**
  * Builds a service over `factory` and the in-memory host, caching into a real
  * {@link MarketplaceCache} under `/cache`. `tokenAnswers` scripts the prompt per
@@ -50,7 +52,9 @@ function serviceOver(
     return {
         service,
         cachedPaths: () =>
-            [...host.workspace.files.keys()].filter((path) => !path.endsWith("/slot.json")),
+            [...host.workspace.files.keys()].filter(
+                (path) => !path.endsWith("/slot.json") && !path.includes("/readme/"),
+            ),
         workspace: host.workspace,
         settings: host.settings,
         notifier: host.notifier,
@@ -64,13 +68,23 @@ function serviceOver(
  * serves `marketplace.json` and whose every other source serves one file.
  */
 function createService(
-    opts: { manifest?: string | Error; cachedFiles?: Record<string, string> } = {},
+    opts: {
+        manifest?: string | Error;
+        readme?: string | Error;
+        cachedFiles?: Record<string, string>;
+    } = {},
 ) {
     const sourceFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
+                fetchFile: vi.fn(async (repoPath: string) => {
+                    if (repoPath === "README.md") {
+                        if (opts.readme === undefined || opts.readme instanceof Error) {
+                            throw opts.readme ?? NO_README;
+                        }
+                        return opts.readme;
+                    }
                     if (opts.manifest instanceof Error) {
                         throw opts.manifest;
                     }
@@ -105,8 +119,8 @@ function tokenGatedFactory({
             const denied = expectedToken === undefined || token !== expectedToken;
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
-                    if (denied) {
+                fetchFile: vi.fn(async (repoPath: string) => {
+                    if (denied || repoPath === "README.md") {
                         throw new RepositoryAccessError("github.com", 404, "acme/templates", false);
                     }
                     return manifest;
@@ -122,6 +136,46 @@ function tokenGatedFactory({
 
 beforeEach(() => {
     vi.clearAllMocks();
+});
+
+describe("TemplateMarketplaceService, a marketplace's README", () => {
+    const README_PATH = "/cache/acme__templates/readme/README.md";
+
+    it("caches the README beside the manifest", async () => {
+        const { service, workspace } = createService({ readme: "# Acme templates" });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("# Acme templates");
+        expect(await service.cachedReadmesByRegistration()).toEqual(
+            new Map([["acme__templates", README_PATH]]),
+        );
+    });
+
+    it("removes the cached README once the marketplace has none, and never asks for a token", async () => {
+        const { service, workspace, tokenPrompt } = createService({
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.has(README_PATH)).toBe(false);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("keeps the cached README when it cannot be fetched, and warns", async () => {
+        const { service, workspace, notifier } = createService({
+            readme: new Error("socket hang up"),
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("old");
+        expect(notifier.logged("warning")).toContain(
+            'Kept the cached README.md of "https://github.com/acme/templates": socket hang up',
+        );
+    });
 });
 
 describe("TemplateMarketplaceService.addMarketplace", () => {

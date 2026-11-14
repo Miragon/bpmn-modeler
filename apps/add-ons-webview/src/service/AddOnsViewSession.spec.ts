@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { AddOnRequestCommand, asProtocolMessage } from "@miragon/bpmn-modeler-shared";
+import {
+    AddOnRequestCommand,
+    asProtocolMessage,
+    GetAddOnReadmeCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import { CATALOG, MAIL, MARKETPLACE_SOURCE, PALETTE } from "../__fixtures__/catalogs";
 import { RecordingHost } from "../__fixtures__/recordingHost";
@@ -17,6 +21,15 @@ function setUp(host = new RecordingHost()) {
 }
 
 describe("AddOnsViewSession", () => {
+    it("asks the host for the README of the add-on its detail shows", () => {
+        const { host, session } = setUp();
+        session.dispatch({ kind: "modelArrived", model: CATALOG });
+
+        session.dispatch({ kind: "addOnSelected", addOnId: PALETTE.id });
+
+        expect(host.posted.at(-1)).toEqual(new GetAddOnReadmeCommand(PALETTE.id));
+    });
+
     it("posts each request with a rising id", () => {
         const { host, session } = setUp();
         session.dispatch({ kind: "modelArrived", model: CATALOG });
@@ -24,7 +37,7 @@ describe("AddOnsViewSession", () => {
         session.dispatch({ kind: "actionChosen", actionKind: "revoke", targetId: PALETTE.id });
         session.dispatch({ kind: "actionChosen", actionKind: "pruneCache" });
 
-        expect(host.posted).toEqual([
+        expect(host.requests()).toEqual([
             new AddOnRequestCommand(1, { kind: "revoke", addOnId: PALETTE.id }),
             new AddOnRequestCommand(2, { kind: "pruneCache" }),
         ]);

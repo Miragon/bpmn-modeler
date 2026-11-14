@@ -2,18 +2,20 @@ import type {
     ActionViewPayload,
     AddOnActionKindPayload,
     AddOnPayload,
+    AddOnReadmePayload,
     AddOnReviewPayload,
 } from "@miragon/bpmn-modeler-shared";
-import { ArrowLeft, Info } from "lucide";
+import { ArrowLeft, BookOpen, Info, Store } from "lucide";
 
-import { addOnActionEmphasis } from "../../domain/actionEmphasis";
+import { addOnActionEmphasis, sourceActionEmphasis } from "../../domain/actionEmphasis";
 import { detailStatusOf } from "../../domain/addOnStatus";
-import type { Placement } from "../../domain/catalogQueries";
-import { CHROME_TEXT } from "../../domain/chromeTexts";
+import type { Placement, SourcePlacement } from "../../domain/catalogQueries";
+import { CHROME_TEXT, templateCountText } from "../../domain/chromeTexts";
 import { placedActions, reviewOf } from "../../domain/placedActions";
 import { isBusy, ViewState } from "../../domain/viewState";
 import { actionButton, button, el, hiddenText, icon, markFocus, setBusy } from "./dom";
-import { ADD_ON_ACTION_ICON, SOURCE_ICON } from "./icons";
+import { ADD_ON_ACTION_ICON, SOURCE_ACTION_ICON, SOURCE_ICON } from "./icons";
+import { markdownOf } from "./markdownView";
 import { kindTag, statusBox, statusMark } from "./statusMarks";
 
 export function backButton(onBack: () => void): HTMLButtonElement {
@@ -51,7 +53,73 @@ export function detailOf(placement: Placement, state: ViewState, revealed: boole
     if (review !== undefined) {
         detail.append(reviewSection(review, allow && addOnButton(allow, addOn, busy)));
     }
+    detail.append(...readmeSection(readmeFor(state, addOn.id)));
     return detail;
+}
+
+/** A marketplace: what the core says of it, its actions as real buttons, and its README. */
+export function sourceDetailOf({ group, source }: SourcePlacement, state: ViewState): HTMLElement {
+    const busy = isBusy(state, source.id);
+    const detail = el("article", "av-detail-card");
+    detail.setAttribute("aria-label", source.label);
+    setBusy(detail, busy);
+    if (busy) detail.append(el("div", "ds-busy-bar av-detail-busy"));
+    const head = el("header", "av-detail-head");
+    const top = el("div", "av-detail-top");
+    const tag = el("span", "ds-kind-tag ds-kind-marketplace");
+    tag.append(icon(Store, 14), el("span", "", CHROME_TEXT.marketplace));
+    top.append(tag);
+    if (source.stateText !== undefined) top.append(el("span", "av-badge", source.stateText));
+    const name = markFocus(el("h2", "av-detail-name", source.label), "name", source.id);
+    name.tabIndex = -1;
+    const metaLine = el("p", "av-detail-meta");
+    metaLine.append(
+        el("span", "", source.description),
+        separator("·"),
+        el("span", "", templateCountText(source.addOns.length)),
+    );
+    const where = el("p", "av-location");
+    where.append(icon(SOURCE_ICON[source.kind], 14, "av-location-icon"), el("span", "", group.label));
+    head.append(top, name, metaLine, where);
+    detail.append(head);
+    if (source.problem !== undefined) detail.append(statusBox("danger", source.problem));
+    if (source.actions.length > 0) {
+        const bar = el("div", "av-actions");
+        bar.append(
+            ...source.actions.map((action) =>
+                actionButton(action, {
+                    targetId: source.id,
+                    busy,
+                    emphasis: sourceActionEmphasis(action.kind),
+                    icon: SOURCE_ACTION_ICON[action.kind],
+                    focus: "action",
+                }),
+            ),
+        );
+        detail.append(bar);
+    }
+    detail.append(...readmeSection(readmeFor(state, source.id)));
+    return detail;
+}
+
+function readmeFor(state: ViewState, targetId: string): AddOnReadmePayload | undefined {
+    return state.readme?.targetId === targetId ? state.readme.readme : undefined;
+}
+
+/** Nothing until the host answered, and nothing for none, so a detail never flashes an empty section. */
+function readmeSection(readme: AddOnReadmePayload | undefined): HTMLElement[] {
+    if (readme === undefined || readme.kind === "none") return [];
+    const section = el("section", "av-readme");
+    const heading = el("h3", "av-readme-heading");
+    heading.append(icon(BookOpen, 14, "av-readme-icon"), el("span", "", CHROME_TEXT.readme));
+    section.append(heading);
+    if (readme.kind === "unreadable") {
+        section.append(el("p", "av-readme-problem", readme.text));
+        return [section];
+    }
+    section.append(markdownOf(readme.markdown));
+    if (readme.truncated) section.append(noteOf(CHROME_TEXT.readmeTruncated));
+    return [section];
 }
 
 function addOnButton(

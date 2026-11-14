@@ -1,7 +1,7 @@
 # Add-ons
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-14
 
 ## Context
 
@@ -18,6 +18,7 @@ decided by its [allowance](code-allowance.md); this topic records the catalog an
 - [Catalog](#catalog)
 - [Allow and revoke](#allow-and-revoke)
 - [Page protocol and reveals](#page-protocol-and-reveals)
+- [READMEs](#readmes)
 - [The page](#the-page)
 - [Brand look](#brand-look)
 - [VS Code](#vs-code)
@@ -99,6 +100,30 @@ so no host translates it; a host passes only a `post` and the page's commands.
   asks instead. **Review Add-ons** is host-first: the host shows its view and then asks the core,
   because the IntelliJ tab must open at once while a cold bridge still starts.
   `describeAddOnViewRevealContract` runs against both hosts' adapters.
+
+### READMEs
+
+A detail shows the README of a plugin, a rule package or a marketplace below the core's facts
+(proposed, PR-pending).
+
+- *The page asks per detail; the catalog does not carry it.* Every build goes to every view, and a
+  README can be large. The page asks for the target it shows, again for a newer revision, and the
+  core answers with `NO_README` for anything without one. A README is cut at 200 000 characters.
+- *The core reads only places it recorded.* A build keeps, by the id the view knows, the folder of
+  each plugin and rule package and the cached README of each marketplace (`readmePlacesOf`). A view
+  names an id and never a path, as for every request.
+- *A marketplace caches its root `README.md` with the manifest*, in the same authenticated run, so
+  its 404 means no README and never prompts for a token. Another failure keeps the cached one. It
+  sits in a `readme` folder beside the source slots, which no slot index can name. Once marketplaces
+  serve plugins ([#2243](https://github.com/Miragon/bpmn-modeler/issues/2243)), a cached plugin
+  folder carries its own README and its detail reads it like a workspace plugin's.
+- *A marketplace has a detail of its own*, opened from its header, because its README describes the
+  marketplace, not any one template.
+- *Markdown becomes DOM from `marked`'s tokens, never HTML.* A README is workspace text, and a
+  plugin's README is read before the user allows its code. Raw HTML is dropped, an image shows its
+  alt text, and only an absolute `http(s):` or `mailto:` link stays a link. The cost: badges,
+  screenshots and HTML layout in a README do not show, and a relative link is text.
+  `markdownView.spec.ts` checks it.
 
 ### The page
 
@@ -196,6 +221,9 @@ The standalone app's handling of restored view containers is in
   so each would be a protocol field no other view reads. Keeping them in `chromeTexts.ts` costs a
   second home for words, so a review checks that a new word there names the view and does not
   restate a model text.
+- **The README in the catalog model**, read on every build. It costs a read per plugin on each
+  rebuild and resends every README to every view. **`innerHTML` behind a sanitizer** would show
+  more of a README, but puts one library between workspace text and the page's DOM.
 - **A roving tree** kept the list one tab stop. The list-and-detail layout of #2321 puts each row's
   actions in the detail pane, and the product decision put that layout before the tree model.
   Dropping it costs keyboard users one Tab per shown row and header.

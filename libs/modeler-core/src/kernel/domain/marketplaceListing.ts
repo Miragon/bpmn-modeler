@@ -12,6 +12,8 @@ export interface MarketplaceListing {
     readonly problem?: string;
     /** Where the user's switches for its templates live; absent for an entry that cannot be parsed. */
     readonly templateSource?: TemplateSourceRef;
+    /** The README its cache holds; absent before one was fetched. */
+    readonly readmeFile?: string;
 }
 
 /** One group of cached template files editors load, with where the user's switches for it live. */

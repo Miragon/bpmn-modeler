@@ -2,6 +2,7 @@ import type {
     AddOnActionResultPayload,
     AddOnCatalogPayload,
     AddOnPayload,
+    AddOnReadmePayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
     AddOnsPage,
@@ -16,7 +17,7 @@ import {
     needsReview,
     NO_FILTER,
 } from "./catalogFilter";
-import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
+import { addOnsOf, isDetailSource, placementOf, sourceOf } from "./catalogQueries";
 import { settledSelection } from "./catalogSelection";
 import {
     ancestorsOf,
@@ -59,6 +60,10 @@ export interface ViewState {
     readonly nextRequestId: number;
     /** What Review Add-ons found, for a screen reader, until the user searches or filters. */
     readonly reviewCount?: number;
+    /** The README of the add-on or marketplace the detail shows, once the host answered. */
+    readonly readme?: { readonly targetId: string; readonly readme: AddOnReadmePayload };
+    /** What the view last asked a README for, so it asks again only for another target or model. */
+    readonly readmeAsked?: { readonly targetId: string; readonly revision: number };
 }
 
 /**
@@ -84,7 +89,13 @@ export type ViewEvent =
       }
     | { readonly kind: "toggled"; readonly key: string }
     | { readonly kind: "bannerDismissed" }
+    /** An add-on, or a marketplace whose detail the list opens. */
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
+    | {
+          readonly kind: "readmeArrived";
+          readonly targetId: string;
+          readonly readme: AddOnReadmePayload;
+      }
     | { readonly kind: "addOnShown"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
     | { readonly kind: "queryChanged"; readonly query: string }
@@ -98,6 +109,8 @@ export interface Transition {
     readonly focus?: FocusTarget;
     /** The add-on whose details the host is to show in its tab. */
     readonly openDetail?: string;
+    /** The add-on or marketplace whose README the host is to send. */
+    readonly askReadme?: string;
 }
 
 /** Busy rows and sources, and the catalog actions under {@link CATALOG_TARGET}. */
@@ -153,7 +166,7 @@ export function listExpansionOf(state: ViewState): ListExpansion {
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
     const change = withSelection(withFilterExpansionEnded(changedBy(state, event)), state);
-    return withFocus(change, change.state.model !== state.model);
+    return withReadmeAsked(withFocus(change, change.state.model !== state.model));
 }
 
 type Change = {
@@ -183,6 +196,10 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return selected(state, event.addOnId);
         case "addOnShown":
             return { state: shown(state, event.addOnId) };
+        case "readmeArrived":
+            return event.targetId === state.selectedId
+                ? { state: { ...state, readme: { targetId: event.targetId, readme: event.readme } } }
+                : { state };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
@@ -424,6 +441,7 @@ function withSelection(change: Change, before: ViewState): Change {
             ? []
             : displayOrderOf(shownSectionsOf(before.model, before.filter));
     const remembered = state.selectedId;
+    if (remembered !== undefined && isDetailSource(model.groups, remembered)) return change;
     const selected = settledSelection(remembered, shown.addOns, orderBefore, shown.inSight);
     if (selected === remembered) return change;
     const { selectedId: _dropped, ...rest } = state;
@@ -453,6 +471,28 @@ function withFocus(change: Change, modelChanged: boolean): Transition {
           : undefined;
     if (focus === undefined && !modelChanged) return change;
     return { ...change, state: { ...state, awaitingFocus: undefined }, focus };
+}
+
+/**
+ * Asks the host for the README of what the detail shows, again once a new
+ * model lists it, as a rebuild follows a change in its folder. A list whose
+ * rows open a tab shows no detail, so it asks for none.
+ */
+function withReadmeAsked(transition: Transition): Transition {
+    const { state } = transition;
+    const { model, selectedId, readmeAsked } = state;
+    if (model === undefined || selectedId === undefined || state.page === "listWithTab") {
+        return transition;
+    }
+    if (readmeAsked?.targetId === selectedId && readmeAsked.revision === model.revision) {
+        return transition;
+    }
+    const readme = state.readme?.targetId === selectedId ? state.readme : undefined;
+    return {
+        ...transition,
+        state: { ...state, readme, readmeAsked: { targetId: selectedId, revision: model.revision } },
+        askReadme: selectedId,
+    };
 }
 
 function fallbackFocus(

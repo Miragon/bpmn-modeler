@@ -1,9 +1,11 @@
 import type {
     AddOnActionResultQuery,
     AddOnCatalogQuery,
+    AddOnReadmeQuery,
     AddOnRequestCommand,
     BrandModeQuery,
     GetAddOnCatalogCommand,
+    GetAddOnReadmeCommand,
     OpenAddOnDetailCommand,
     RevealAddOnsQuery,
     ShowAddOnQuery,
@@ -172,6 +174,7 @@ export type ProtocolQuery =
     | AddOnActionResultQuery
     | RevealAddOnsQuery
     | ShowAddOnQuery
+    | AddOnReadmeQuery
     | BrandModeQuery;
 
 export type ProtocolCommand =
@@ -235,7 +238,8 @@ export type ProtocolCommand =
     | DmnDiffScrollChangedCommand
     | GetAddOnCatalogCommand
     | AddOnRequestCommand
-    | OpenAddOnDetailCommand;
+    | OpenAddOnDetailCommand
+    | GetAddOnReadmeCommand;
 
 export type ProtocolMessage = ProtocolQuery | ProtocolCommand;
 

@@ -25,4 +25,9 @@ export class RecordingHost implements AddOnsHost {
     postMessage = (message: AddOnsViewCommand): void => {
         this.posted.push(message);
     };
+
+    /** What the user asked the core to do, without the README a detail asks for. */
+    requests(): AddOnsViewCommand[] {
+        return this.posted.filter(({ type }) => type !== "GetAddOnReadmeCommand");
+    }
 }

@@ -118,6 +118,12 @@ export type AddOnActionResultPayload =
     | { readonly kind: "failed"; readonly message: string }
     | { readonly kind: "reportedByFlow" };
 
+/** An add-on's or a marketplace's README as Markdown its author wrote, which the page renders without HTML. */
+export type AddOnReadmePayload =
+    | { readonly kind: "shown"; readonly markdown: string; readonly truncated: boolean }
+    | { readonly kind: "none" }
+    | { readonly kind: "unreadable"; readonly text: string };
+
 /** Where a view is to go, once: rows a "Review…" left to it, or every add-on that needs review. */
 export type AddOnRevealPayload =
     | { readonly kind: "rows"; readonly revealId: number; readonly addOnIds: readonly string[] }
@@ -147,6 +153,28 @@ export class ShowAddOnQuery extends Query<"ShowAddOnQuery"> {
     constructor(addOnId: string) {
         super("ShowAddOnQuery");
         this.addOnId = addOnId;
+    }
+}
+
+/** A detail asks for the README of the add-on or marketplace it shows; the host answers with an {@link AddOnReadmeQuery}. */
+export class GetAddOnReadmeCommand extends Command<"GetAddOnReadmeCommand"> {
+    public readonly targetId: string;
+
+    constructor(targetId: string) {
+        super("GetAddOnReadmeCommand");
+        this.targetId = targetId;
+    }
+}
+
+export class AddOnReadmeQuery extends Query<"AddOnReadmeQuery"> {
+    public readonly targetId: string;
+
+    public readonly readme: AddOnReadmePayload;
+
+    constructor(targetId: string, readme: AddOnReadmePayload) {
+        super("AddOnReadmeQuery");
+        this.targetId = targetId;
+        this.readme = readme;
     }
 }
 

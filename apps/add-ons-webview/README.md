@@ -12,6 +12,9 @@ the desktop app and IntelliJ load it. Internal workspace, not published on its o
 - **One empty shell.** Every host ships only `<div id="app"></div>` and writes the brand mode
   (`data-cd-theme`, `data-cd-kontrast`) on `<html>`; `src/adapter/in/addOnsView.ts` builds the DOM
   with the DOM API, never `innerHTML`, because names and paths are workspace text.
+- **READMEs as DOM, never HTML.** A detail asks the host for the README of the add-on or marketplace
+  it shows; `src/adapter/in/markdownView.ts` builds it from `marked`'s tokens, drops raw HTML, shows an
+  image's alt text and keeps only absolute web and mail links.
 - **One reducer.** `src/domain/viewState.ts` decides what a model, a reveal, a result or a user
   choice changes, which add-on the list selects, what to ask the host and where focus goes. Actions
   resolve from the model, never from the markup. The selection and open headers survive a reload;

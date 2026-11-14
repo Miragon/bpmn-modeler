@@ -9,11 +9,21 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
+import {
+    MARKETPLACE_README,
+    MarketplaceReadmeFetch,
+    readmeFetchFailureOf,
+} from "../domain/marketplaceReadme";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
-import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
+import {
+    RepositorySource,
+    RepositorySourceFactory,
+    TokenPromptPort,
+    TokenStorePort,
+} from "../port/marketplacePorts";
 import {
     declaredPrivateHosts,
     describeSourceConfig,
@@ -223,6 +233,11 @@ export class TemplateMarketplaceService {
         return this.cache.cachedTemplatePathsByRegistration();
     }
 
+    /** The README a marketplace's detail shows. */
+    cachedReadmesByRegistration(): Promise<ReadonlyMap<string, string>> {
+        return this.cache.cachedReadmesByRegistration();
+    }
+
     /**
      * Manifest-level failures propagate (the marketplace is unusable) and leave
      * the cache untouched; source-level failures are logged, keep that source's
@@ -234,9 +249,8 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
     ): Promise<FetchReport> {
-        const { sources, skipped } = parseMarketplace(
-            JSON.parse(await this.readManifest(registration, tokenSession)),
-        );
+        const { manifest, readme } = await this.readManifest(registration, tokenSession);
+        const { sources, skipped } = parseMarketplace(JSON.parse(manifest));
         const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
         this.notifier.logDebug(
             `Manifest of "${registration.url}": ${sources.length} usable source(s)${skippedNote}`,
@@ -295,6 +309,7 @@ export class TemplateMarketplaceService {
                 }
             }
         }
+        await this.cacheReadme(registration, readme);
         return FetchReport.of({
             usableSources: sources.length,
             cached,
@@ -334,6 +349,32 @@ export class TemplateMarketplaceService {
         }
     }
 
+    /** Never fails the fetch: a README only describes the marketplace. */
+    private async cacheReadme(
+        registration: MarketplaceRegistration,
+        readme: MarketplaceReadmeFetch,
+    ): Promise<void> {
+        try {
+            switch (readme.kind) {
+                case "found":
+                    await this.cache.replaceReadme(registration.id, readme.content);
+                    return;
+                case "absent":
+                    await this.cache.removeReadme(registration.id);
+                    return;
+                case "failed":
+                    this.notifier.logWarning(
+                        `Kept the cached ${MARKETPLACE_README} of "${registration.url}": ${readme.reason}`,
+                    );
+                    return;
+            }
+        } catch (error) {
+            this.notifier.logWarning(
+                `Could not cache the ${MARKETPLACE_README} of "${registration.url}": ${(error as Error).message}`,
+            );
+        }
+    }
+
     private sourceFailure(
         registration: MarketplaceRegistration,
         source: TemplateSource,
@@ -360,14 +401,14 @@ export class TemplateMarketplaceService {
     private async readManifest(
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
-    ): Promise<string> {
+    ): Promise<{ readonly manifest: string; readonly readme: MarketplaceReadmeFetch }> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
-                this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
+                this.manifestAndReadme(this.sourceFactory(config)),
             );
         } catch (error) {
             // `ErrorOptions` is not in this lib target, so the cause is attached directly.
@@ -378,6 +419,18 @@ export class TemplateMarketplaceService {
                 { cause: error },
             );
         }
+    }
+
+    /** The README in the same run, so its 404 never asks for a token. */
+    private async manifestAndReadme(
+        repository: RepositorySource,
+    ): Promise<{ readonly manifest: string; readonly readme: MarketplaceReadmeFetch }> {
+        const manifest = await repository.fetchFile(MARKETPLACE_MANIFEST);
+        const readme = await repository.fetchFile(MARKETPLACE_README).then(
+            (content): MarketplaceReadmeFetch => ({ kind: "found", content }),
+            readmeFetchFailureOf,
+        );
+        return { manifest, readme };
     }
 
     /**

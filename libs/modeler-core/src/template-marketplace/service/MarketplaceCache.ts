@@ -1,4 +1,5 @@
 import { MarketplaceContentType } from "../domain/marketplace";
+import { MARKETPLACE_README } from "../domain/marketplaceReadme";
 import {
     CachedSourceSlot,
     FetchedTemplateFile,
@@ -93,6 +94,41 @@ export class MarketplaceCache {
         return this.oneAtATime(() =>
             this.writeGeneration(marketplaceId, sourceIndex, sourceIdentity, files),
         );
+    }
+
+    /** Beside the source slots, in a folder no slot index can name, so a scan of slots never reads it. */
+    replaceReadme(marketplaceId: string, content: string): Promise<void> {
+        return this.oneAtATime(() =>
+            this.workspace.writeFile(
+                `${this.readmeDir(marketplaceId)}/${MARKETPLACE_README}`,
+                content,
+            ),
+        );
+    }
+
+    removeReadme(marketplaceId: string): Promise<void> {
+        return this.oneAtATime(() => this.workspace.deleteDirectory(this.readmeDir(marketplaceId)));
+    }
+
+    /** The cached README of each marketplace that has one, by the id its slots are keyed by. */
+    async cachedReadmesByRegistration(): Promise<ReadonlyMap<string, string>> {
+        const byRegistration = new Map<string, string>();
+        for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+            const id = this.marketplaceIdOf(marketplaceDir);
+            const readmeDir = this.readmeDir(id);
+            const entries = await this.workspace.readDirectory(readmeDir).catch((error) => {
+                if (error instanceof DirectoryNotFound) return [];
+                throw error;
+            });
+            if (entries.some(([name, type]) => name === MARKETPLACE_README && type === "file")) {
+                byRegistration.set(id, `${readmeDir}/${MARKETPLACE_README}`);
+            }
+        }
+        return byRegistration;
+    }
+
+    private readmeDir(marketplaceId: string): string {
+        return `${this.cacheRoot}/${marketplaceId}/readme`;
     }
 
     removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {

@@ -3,7 +3,7 @@ import type {
     AddOnPayload,
     AddOnSourcePayload,
 } from "@miragon/bpmn-modeler-shared";
-import { ChevronRight } from "lucide";
+import { ChevronRight, Info } from "lucide";
 
 import { sourceActionEmphasis } from "../../domain/actionEmphasis";
 import { rowStatusOf } from "../../domain/addOnStatus";
@@ -13,11 +13,21 @@ import {
     headSummaryText,
     KIND_TEXT,
     sourceActionsText,
+    sourceDetailsText,
 } from "../../domain/chromeTexts";
 import { headSummaryOf } from "../../domain/headSummary";
 import type { ListSections } from "../../domain/listSections";
 import { isBusy, ViewState } from "../../domain/viewState";
-import { actionButton, el, hiddenText, icon, markFocus, setBusy, toggleButton } from "./dom";
+import {
+    actionButton,
+    button,
+    el,
+    hiddenText,
+    icon,
+    markFocus,
+    setBusy,
+    toggleButton,
+} from "./dom";
 import { KIND_ICON, SOURCE_ACTION_ICON, SOURCE_ICON } from "./icons";
 import { menuAnchor } from "./menu";
 import { problemLine, statusBadge } from "./statusMarks";
@@ -148,6 +158,7 @@ function sourceOf(
     const heading = el(`h${level}`, "av-source-heading");
     heading.append(control);
     head.append(heading);
+    if (source.kind === "marketplace") head.append(detailsButton(source, context));
     if (source.actions.length > 0) {
         const items = source.actions.map((action) =>
             actionButton(action, {
@@ -175,6 +186,20 @@ function sourceOf(
         block.append(rows);
     }
     return block;
+}
+
+/** A marketplace opens a detail of its own, as a row does; its header stays the toggle. */
+function detailsButton(source: AddOnSourcePayload, context: ListContext): HTMLButtonElement {
+    const details = markFocus(
+        button("ds-icon-btn av-source-details", sourceDetailsText(source.label)),
+        "row",
+        source.id,
+    );
+    details.title = sourceDetailsText(source.label);
+    if (source.id === context.selectedId) details.setAttribute("aria-current", "true");
+    details.append(icon(Info, 16));
+    details.addEventListener("click", () => context.onSelect(source.id));
+    return details;
 }
 
 /** The whole header row is the toggle. */

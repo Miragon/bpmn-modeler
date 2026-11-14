@@ -8,8 +8,10 @@ import {
     ADD_ONS_VIEW_COMMAND_TYPES,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
+    AddOnReadmeQuery,
     AddOnRequestCommand,
     GetAddOnCatalogCommand,
+    GetAddOnReadmeCommand,
     GetBpmnPluginsCommand,
     Query,
     RevealAddOnsQuery,
@@ -1277,6 +1279,62 @@ describe("AddOnsFeature", () => {
                     ),
             };
         }
+
+        describe("a detail's README", () => {
+            it("reads a plugin's README in its folder", async () => {
+                const { addOns } = setUp({
+                    files: { ...RESIZE_FILES, [`${RESIZE}/README.md`]: "# Resize Tasks" },
+                });
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+
+                await list.handle(new GetAddOnReadmeCommand(`plugin:${RESIZE}`));
+
+                expect(page.posted.at(-1)).toEqual(
+                    new AddOnReadmeQuery(`plugin:${RESIZE}`, {
+                        kind: "shown",
+                        markdown: "# Resize Tasks",
+                        truncated: false,
+                    }),
+                );
+            });
+
+            it("reads nothing for an id the catalog did not list, so a page never names a path", async () => {
+                const { addOns } = setUp({ files: { ...RESIZE_FILES, "/etc/README.md": "secret" } });
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+
+                await list.handle(new GetAddOnReadmeCommand("plugin:/etc"));
+
+                expect(page.posted.at(-1)).toEqual(new AddOnReadmeQuery("plugin:/etc", { kind: "none" }));
+            });
+
+            it("reads a marketplace's README the update cached", async () => {
+                const { addOns, view } = setUp({
+                    files: { ...MARKETPLACE_FILES, [`${LOCAL}/README.md`]: "Local templates." },
+                    marketplaceAnswers: [{ location: LOCAL, scope: "project" }],
+                });
+                view.attachTo(addOns);
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+                await view.connection!.handle({ kind: "addMarketplace" });
+                await shown(addOns);
+                const [source] = marketplaceGroupOf(view)?.sources ?? [];
+
+                await list.handle(new GetAddOnReadmeCommand(source.id));
+
+                expect(page.posted.at(-1)).toEqual(
+                    new AddOnReadmeQuery(source.id, {
+                        kind: "shown",
+                        markdown: "Local templates.",
+                        truncated: false,
+                    }),
+                );
+            });
+        });
 
         describe("a detail tab", () => {
             function recordingDetail() {

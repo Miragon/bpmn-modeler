@@ -1,6 +1,7 @@
 import {
     AddOnRequestCommand,
     AddOnsPage,
+    GetAddOnReadmeCommand,
     OpenAddOnDetailCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -31,7 +32,7 @@ export class AddOnsViewSession {
     }
 
     dispatch(event: ViewEvent): void {
-        const { state, send, focus, openDetail } = nextViewState(this.current, event);
+        const { state, send, focus, openDetail, askReadme } = nextViewState(this.current, event);
         this.current = state;
         this.host.setState(persistedChoicesOf(state));
         this.render(state, focus);
@@ -40,5 +41,6 @@ export class AddOnsViewSession {
             this.host.postMessage(new AddOnRequestCommand(send.requestId, send.request));
         }
         if (openDetail !== undefined) this.host.postMessage(new OpenAddOnDetailCommand(openDetail));
+        if (askReadme !== undefined) this.host.postMessage(new GetAddOnReadmeCommand(askReadme));
     }
 }

@@ -7,6 +7,7 @@ export const ADD_ONS_VIEW_COMMAND_TYPES = [
     "GetAddOnCatalogCommand",
     "AddOnRequestCommand",
     "OpenAddOnDetailCommand",
+    "GetAddOnReadmeCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type AddOnsViewCommandType = (typeof ADD_ONS_VIEW_COMMAND_TYPES)[number];
