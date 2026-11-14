@@ -7,48 +7,142 @@
  * fallbacks and its `body.vscode-light`/`body.vscode-high-contrast` variants with
  * it; the VS Code seam and `body.viewer-mode` stay in `diff.css`.
  *
- * Element marker colours intentionally match the bpmn.io/diff demo so users
- * familiar with that UI see the same visual cues.
+ * Element markers follow Diagit's diff panel, in the Miragon CI status colours.
  */
 @import "../../../../libs/modeler-types/src/diffLegend.css";
 
 /* ─── Element markers ──────────────────────────────────────────────────── */
 
-.djs-element.diff-added .djs-visual > :nth-child(1) {
-    stroke: #52b415 !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-removed .djs-visual > :nth-child(1) {
-    stroke: #cc0000 !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-changed .djs-visual > :nth-child(1) {
-    stroke: #316fbe !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-layout-changed .djs-visual > :nth-child(1) {
-    stroke-dasharray: 5 3 !important;
+/* Diagit's markers in the CI status colours. Green and amber stay below 3:1 on
+   white, so added and moved shapes are tinted fills with a dark contour. Moved
+   comes first: an element that also changed shows the change. */
+.djs-shape.diff-layout-changed .djs-visual > :nth-child(1) {
+    stroke: #1d1d1d !important;
     stroke-width: 2px !important;
 }
 
-/* Sequence-flow edges carry their colour on the marker (arrowhead) too, so
-   we override the path stroke directly. */
-.djs-connection.diff-added .djs-visual path {
-    stroke: #52b415 !important;
-}
-.djs-connection.diff-removed .djs-visual path {
-    stroke: #cc0000 !important;
-}
-.djs-connection.diff-changed .djs-visual path {
-    stroke: #316fbe !important;
+.djs-shape.diff-added .djs-visual > :nth-child(1) {
+    stroke: #1d1d1d !important;
+    stroke-width: 2px !important;
 }
 
-/* Stepper selection — a warm glow layered on top of whichever category
-   colour the element already carries.  `filter: drop-shadow` leaves the
-   stroke intact so both shapes and edges light up uniformly. */
+.djs-shape.diff-removed .djs-visual > :nth-child(1) {
+    stroke: #cd1839 !important;
+    stroke-width: 2px !important;
+}
+
+.djs-shape.diff-changed .djs-visual > :nth-child(1) {
+    stroke: #335de5 !important;
+    stroke-width: 2px !important;
+}
+
+.djs-shape.diff-layout-changed:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #fff1d2 !important;
+}
+
+.djs-shape.diff-added:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #dafbeb !important;
+}
+
+.djs-shape.diff-removed:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #fbeef0 !important;
+}
+
+.djs-shape.diff-changed:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #eef1fd !important;
+}
+
+/* A connection draws its arrowhead from a marker in its own <defs>, so the
+   colour goes on every path and the width and dashes only on the line. In light
+   mode an added connection is told apart by its width, a moved one by dashes. */
+.djs-connection.diff-layout-changed .djs-visual path {
+    stroke: #1d1d1d !important;
+}
+
+.djs-connection.diff-added .djs-visual path {
+    stroke: #1d1d1d !important;
+}
+
+.djs-connection.diff-removed .djs-visual path {
+    stroke: #cd1839 !important;
+}
+
+.djs-connection.diff-changed .djs-visual path {
+    stroke: #335de5 !important;
+}
+
+.djs-connection:is(.diff-added, .diff-removed, .diff-changed, .diff-layout-changed)
+    .djs-visual
+    > path {
+    stroke-width: 2px !important;
+}
+
+.djs-connection.diff-layout-changed .djs-visual > path {
+    stroke-dasharray: 6 4 !important;
+}
+
+/* Dark mode never tints a surface (the fills above skip an instance themed
+   dark): the status colour goes on a wider stroke. */
+[data-bpmn-theme="dark"] .djs-shape.diff-layout-changed .djs-visual > :nth-child(1) {
+    stroke: #ffb000 !important;
+    stroke-width: 3px !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.diff-added .djs-visual > :nth-child(1) {
+    stroke: #00e676 !important;
+    stroke-width: 3px !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.diff-removed .djs-visual > :nth-child(1) {
+    stroke: #fb6d73 !important;
+    stroke-width: 3px !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.diff-changed .djs-visual > :nth-child(1) {
+    stroke: #6b8aff !important;
+    stroke-width: 3px !important;
+}
+
+[data-bpmn-theme="dark"] .djs-connection.diff-layout-changed .djs-visual path {
+    stroke: #ffb000 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-connection.diff-added .djs-visual path {
+    stroke: #00e676 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-connection.diff-removed .djs-visual path {
+    stroke: #fb6d73 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-connection.diff-changed .djs-visual path {
+    stroke: #6b8aff !important;
+}
+
+/* The change the stepper is on glows in the interaction blue. */
 .djs-element.diff-selected .djs-visual {
-    filter: drop-shadow(0 0 6px #ffbe00) drop-shadow(0 0 3px #ffbe00);
+    filter: drop-shadow(0 0 6px #335de5) drop-shadow(0 0 3px #335de5);
+}
+
+/* ─── Side label ───────────────────────────────────────────────────────── */
+
+/* Its parent, the pane's canvas container, positions it. */
+.diff-side-label {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    z-index: 10;
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+    padding: 2px 8px;
+    font-family: var(--diff-legend-font-family);
+    font-size: 12px;
+    font-weight: var(--diff-legend-font-weight);
+    line-height: 1.5;
+    color: var(--diff-legend-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: var(--diff-legend-button-hover);
+    border-radius: 6px;
+    pointer-events: none;
 }

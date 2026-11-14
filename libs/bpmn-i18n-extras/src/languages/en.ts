@@ -31,6 +31,9 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "The form preview could not be loaded. Refresh to try again.",
     "Changes": "Changes",
+    "No changes": "No changes",
+    "Old version": "Old version",
+    "New version": "New version",
     "Not in this version": "Not in this version",
     "It was removed. The version on the left shows it.":
         "It was removed. The version on the left shows it.",

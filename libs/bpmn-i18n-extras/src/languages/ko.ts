@@ -31,6 +31,9 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "양식 미리보기를 불러올 수 없습니다. 새로 고침하여 다시 시도하세요.",
     "Changes": "변경 사항",
+    "No changes": "변경 사항 없음",
+    "Old version": "이전 버전",
+    "New version": "새 버전",
     "Not in this version": "이 버전에 없음",
     "It was removed. The version on the left shows it.": "제거되었습니다. 왼쪽 버전에 표시됩니다.",
     "It is new. The version on the right shows it.":

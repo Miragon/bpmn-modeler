@@ -32,6 +32,9 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "フォームのプレビューを読み込めませんでした。更新して再試行してください。",
     "Changes": "変更",
+    "No changes": "変更なし",
+    "Old version": "旧バージョン",
+    "New version": "新バージョン",
     "Not in this version": "このバージョンにはありません",
     "It was removed. The version on the left shows it.":
         "削除されました。左側のバージョンに表示されています。",

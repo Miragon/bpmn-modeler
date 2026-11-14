@@ -36,6 +36,7 @@ const fakes = vi.hoisted(() => {
         static last: FakeDiffNavigator;
         canStep = true;
         setChanges = vi.fn();
+        cycleLength = 3;
         applyCursor = vi.fn();
         advance = vi.fn((_direction: 1 | -1): number | undefined => undefined);
         constructor() {
@@ -54,13 +55,25 @@ const fakes = vi.hoisted(() => {
         }
     }
 
-    return { FakeDiffViewer, FakeDiffNavigator, FakeDiffLegend };
+    class FakeDiffSideLabel {
+        static last: FakeDiffSideLabel | undefined;
+        showFilename = vi.fn();
+        constructor(
+            readonly parent: HTMLElement,
+            readonly side: "before" | "after",
+        ) {
+            FakeDiffSideLabel.last = this;
+        }
+    }
+
+    return { FakeDiffViewer, FakeDiffNavigator, FakeDiffLegend, FakeDiffSideLabel };
 });
 
 vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     DiffViewer: fakes.FakeDiffViewer,
     DiffNavigator: fakes.FakeDiffNavigator,
     DiffLegend: fakes.FakeDiffLegend,
+    DiffSideLabel: fakes.FakeDiffSideLabel,
 }));
 
 import { DiffMode } from "./diffMode";
@@ -68,6 +81,7 @@ import { DiffMode } from "./diffMode";
 const viewer = () => fakes.FakeDiffViewer.last;
 const navigator = () => fakes.FakeDiffNavigator.last;
 const legend = () => fakes.FakeDiffLegend.last;
+const sideLabel = () => fakes.FakeDiffSideLabel.last;
 
 type PostedByDiffMode = Parameters<ConstructorParameters<typeof DiffMode>[2]["postMessage"]>[0];
 
@@ -75,9 +89,9 @@ function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
 }
 
-function highlights(origin: DiffOrigin) {
+function highlights(origin: DiffOrigin, side: "before" | "after" = "after") {
     return new ApplyDiffHighlightsQuery(
-        "after",
+        side,
         ["Added_1"],
         ["Removed_1"],
         ["Changed_1"],
@@ -119,6 +133,7 @@ describe("DiffMode", () => {
         }
         vi.restoreAllMocks();
         host.postMessage.mockReset();
+        fakes.FakeDiffSideLabel.last = undefined;
         delete document.body.dataset.diffSide;
     });
 
@@ -193,7 +208,7 @@ describe("DiffMode", () => {
             );
         });
 
-        it("shows the file name and swap button only when comparing files", async () => {
+        it("offers the swap button only when comparing files", async () => {
             await startDiffPane();
             const counts = { added: 1, removed: 1, changed: 1, layoutChanged: 1 };
 
@@ -201,9 +216,32 @@ describe("DiffMode", () => {
             dispatch(highlights("scm"));
 
             expect(legend().update.mock.calls).toEqual([
-                [{ counts, filename: "after.bpmn", showSwap: true, canStep: true }],
-                [{ counts, filename: undefined, showSwap: false, canStep: true }],
+                [{ counts, showSwap: true, canStep: true, showChanges: true }],
+                [{ counts, showSwap: false, canStep: true, showChanges: true }],
             ]);
+        });
+
+        it("labels the pane with its side, or with the file when comparing files", async () => {
+            const canvas = document.createElement("div");
+            const diffMode = new DiffMode(canvas, document.createElement("div"), host);
+            await diffMode.startWith("<before />");
+
+            dispatch(highlights("compare-files", "before"));
+            dispatch(highlights("scm", "before"));
+
+            expect(sideLabel()?.parent).toBe(canvas);
+            expect(sideLabel()?.side).toBe("before");
+            expect(sideLabel()?.showFilename.mock.calls).toEqual([["after.bpmn"], [undefined]]);
+        });
+
+        it("leaves the changes to the after pane's bar, so both bars read as one", async () => {
+            await startDiffPane();
+
+            dispatch(highlights("compare-files", "before"));
+
+            expect(legend().update).toHaveBeenCalledWith(
+                expect.objectContaining({ showChanges: false, showSwap: false }),
+            );
         });
     });
 
@@ -282,6 +320,17 @@ describe("DiffMode", () => {
             expect(host.postMessage).not.toHaveBeenCalled();
         });
 
+        it("shows the position of the change the partner stepped to", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+
+            dispatch(new SyncCursorQuery(2));
+
+            expect(legend().update).toHaveBeenLastCalledWith(
+                expect.objectContaining({ position: { index: 2, total: 3 } }),
+            );
+        });
+
         it("reports a user pan or zoom to the host", async () => {
             await startDiffPane();
             const viewport = { x: 1, y: 2, width: 3, height: 4 };
@@ -308,6 +357,21 @@ describe("DiffMode", () => {
                 expect.objectContaining({ type: "CursorChangedCommand", index: 3 }),
                 expect.objectContaining({ type: "CursorChangedCommand", index: 2 }),
             ]);
+        });
+
+        it("shows the position of the change it stepped to", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+            navigator().advance.mockReturnValueOnce(0);
+
+            legend().callbacks.onNext();
+
+            expect(legend().update).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    counts: expect.any(Object),
+                    position: { index: 0, total: 3 },
+                }),
+            );
         });
 
         it("reports nothing when there is no change to step to", async () => {

@@ -24,6 +24,10 @@ export interface DiffLegendState {
     readonly filename?: string;
     readonly showSwap: boolean;
     readonly canStep: boolean;
+    /** `false` leaves an empty bar, for a pane whose partner's bar shows the changes. */
+    readonly showChanges?: boolean;
+    /** The change the stepper is on, counted from 0; omitted before the first step. */
+    readonly position?: { readonly index: number; readonly total: number };
 }
 
 // Published styling hooks: the BPMN viewer's consumers select the swatches by these modifiers.
@@ -48,11 +52,11 @@ interface StatusSlot {
 }
 
 /**
- * The chip both diffs float over a pane, styled by `diffLegend.css`: counts
- * with their swatches, or a status chip for a single change, Previous and
- * Next, and on compare-files panes the file name and a swap button. Hidden
- * until the first {@link update}; re-renders its words when the language
- * changes.
+ * The bar both diffs put along the top of a pane, styled by `diffLegend.css`:
+ * the categories that changed with their swatches, or a status chip for a
+ * single change, Previous and Next with the position, and on compare-files
+ * panes the file name and a swap button. Hidden until the first
+ * {@link update}; re-renders its words when the language changes.
  */
 export class DiffLegendView {
     readonly element: HTMLElement;
@@ -62,6 +66,8 @@ export class DiffLegendView {
     // Created on the first status, so a legend that only ever counts keeps its published DOM.
     private status?: StatusSlot;
     private readonly countSlots: readonly CountSlot[];
+    private readonly none: HTMLElement;
+    private readonly position: HTMLElement;
     private readonly previousButton: HTMLButtonElement;
     private readonly nextButton: HTMLButtonElement;
     private readonly swapGroup: HTMLElement;
@@ -83,15 +89,21 @@ export class DiffLegendView {
         this.element.append(this.filename, this.countsRow);
 
         this.countSlots = DIFF_CATEGORIES.map(countSlot);
-        this.countsRow.append(...this.countSlots.map(({ slot }) => slot));
+        this.none = element("span", "diff-legend__none");
+        this.none.hidden = true;
+        this.countsRow.append(...this.countSlots.map(({ slot }) => slot), this.none);
 
         this.previousButton = button(
             "diff-legend__nav-btn diff-legend__prev-btn",
             actions.onPrevious,
         );
+        this.previousButton.append(chevron(CHEVRON_LEFT));
         this.nextButton = button("diff-legend__nav-btn diff-legend__next-btn", actions.onNext);
+        this.nextButton.append(chevron(CHEVRON_RIGHT));
+        this.position = element("span", "diff-legend__position");
+        this.position.hidden = true;
         const nav = element("div", "diff-legend__nav");
-        nav.append(this.previousButton, this.nextButton);
+        nav.append(this.previousButton, this.nextButton, this.position);
 
         // Shares the nav buttons' class so both groups align and theme alike.
         this.swapButton = button("diff-legend__nav-btn diff-legend__swap-btn", () =>
@@ -111,6 +123,7 @@ export class DiffLegendView {
     update(state: DiffLegendState): void {
         this.state = state;
         this.element.hidden = false;
+        this.countsRow.hidden = state.showChanges === false;
         this.previousButton.disabled = !state.canStep;
         this.nextButton.disabled = !state.canStep;
         this.swapGroup.hidden = !(state.showSwap && this.actions.onSwap);
@@ -124,9 +137,15 @@ export class DiffLegendView {
             this.status.slot.hidden = !state.status;
         }
         for (const { category, slot, count } of this.countSlots) {
-            slot.hidden = !state.counts;
-            count.textContent = state.counts ? String(state.counts[category]) : "";
+            const changes = state.counts?.[category] ?? 0;
+            slot.hidden = changes === 0;
+            count.textContent = String(changes);
         }
+        this.none.hidden = !state.counts || hasChanges(state.counts);
+        this.position.hidden = !state.position;
+        this.position.textContent = state.position
+            ? `${state.position.index + 1}/${state.position.total}`
+            : "";
         this.renderWords();
     }
 
@@ -151,12 +170,36 @@ export class DiffLegendView {
         if (this.status) {
             this.status.label.data = status ? translate(DIFF_CATEGORY_LABELS[status]) : "";
         }
-        this.previousButton.textContent = `‹ ${translate(DIFF_LEGEND_TEXTS.previous)}`;
-        this.nextButton.textContent = `${translate(DIFF_LEGEND_TEXTS.next)} ›`;
-        const swapLabel = translate(DIFF_LEGEND_TEXTS.swap);
-        this.swapButton.title = swapLabel;
-        this.swapButton.setAttribute("aria-label", swapLabel);
+        this.none.textContent = translate(DIFF_LEGEND_TEXTS.none);
+        name(this.previousButton, translate(DIFF_LEGEND_TEXTS.previous));
+        name(this.nextButton, translate(DIFF_LEGEND_TEXTS.next));
+        name(this.swapButton, translate(DIFF_LEGEND_TEXTS.swap));
     }
+}
+
+const CHEVRON_LEFT = "m15 18-6-6 6-6";
+const CHEVRON_RIGHT = "m9 18 6-6-6-6";
+
+function hasChanges(counts: DiffCounts): boolean {
+    return DIFF_CATEGORIES.some((category) => counts[category] > 0);
+}
+
+/** An icon-only button's name, for its tooltip and for screen readers. */
+function name(node: HTMLButtonElement, label: string): void {
+    node.title = label;
+    node.setAttribute("aria-label", label);
+}
+
+function chevron(path: string): SVGSVGElement {
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const icon = document.createElementNS(svgNamespace, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.classList.add("diff-legend__icon");
+    const line = document.createElementNS(svgNamespace, "path");
+    line.setAttribute("d", path);
+    icon.append(line);
+    return icon;
 }
 
 function countSlot(category: DiffCategory): CountSlot {

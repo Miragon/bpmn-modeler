@@ -35,7 +35,7 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   [DMN diff](#dmn-diff) asks too. A consumer that read `navigationOrder` as
   every changed id sees fewer stops.
 - Browser rendering lives on `/viewer` (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
-  `DiffPaneCoordinator`); the root re-exports are deprecated aliases. `DiffNavigator`
+  `DiffPaneCoordinator`, `DiffSideLabel`); the root re-exports are deprecated aliases. `DiffNavigator`
   owns stepping for in-page coordination and host-relayed panes and walks
   `navigationOrder` as given; the older `setChanges(view, navigationOrder)` stays as a
   deprecated overload that still leaves out layout-only connections, so an order from an
@@ -49,8 +49,15 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   then enables them whenever a count is above zero, which overstates a diff of
   connections that only moved. The legend takes a translator instead of importing one,
   so the library stays free of the i18n package.
-- Both legends wear one look, the Miragon one, held as defaults of the `--diff-legend-*`
-  custom properties, which stay the theming hook for consumers. The VS Code tokens and
+- Both legends wear one look, the Miragon one of Diagit's diff panel: a bar along the
+  pane's top edge with only the categories that changed, icon buttons for stepping and
+  the position, and markers in the CI status colours (tinted fills with a dark contour
+  in light mode, the status colour on the stroke in dark mode). Where two webviews hold
+  the panes, both draw the bar and only the after pane's half carries the changes, so
+  the halves read as one across the sash. The bar covers its parent's top edge, so a
+  consumer starts the canvas `--diff-legend-height` (40px unless it measures the bar)
+  lower, as the webviews do. The look is held as defaults of the
+  `--diff-legend-*` custom properties, which stay the theming hook for consumers. The VS Code tokens and
   body classes it reads are optional fallbacks, so the stylesheet stays host-agnostic.
   Neither the BPMN package nor the DMN pane sets a `--diff-legend-*` property, and a spec
   in each keeps it so. The published package adds no font; the webviews bundle Geist for

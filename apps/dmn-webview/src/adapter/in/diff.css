@@ -80,8 +80,15 @@ body.dmn-diff-page[data-diff-side="after"] {
     color: var(--dmn-diff-removed);
 }
 
+/* The status green stays below 3:1 on white: a tinted mark with a dark contour, as on the canvas. */
 .dmn-diff-empty__card[data-kind="added"] .dmn-diff-empty__mark {
+    color: var(--diff-legend-text);
+    background-color: #dafbeb;
+}
+
+:root[data-dmn-theme="dark"] .dmn-diff-empty__card[data-kind="added"] .dmn-diff-empty__mark {
     color: var(--dmn-diff-added);
+    background-color: transparent;
 }
 
 .dmn-diff-empty__title {

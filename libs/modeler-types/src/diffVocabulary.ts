@@ -35,6 +35,8 @@ export interface DiffLegendTexts {
     readonly previous: string;
     readonly next: string;
     readonly swap: string;
+    /** Stands in for the counts when nothing changed. */
+    readonly none: string;
 }
 
 export const DIFF_LEGEND_TEXTS: DiffLegendTexts = {
@@ -46,6 +48,13 @@ export const DIFF_LEGEND_TEXTS: DiffLegendTexts = {
     previous: "Prev change",
     next: "Next change",
     swap: "Swap sides",
+    none: "No changes",
+};
+
+/** The i18n key of each side's label, shown when the pane names no file. */
+export const DIFF_SIDE_TEXTS: Readonly<Record<"before" | "after", string>> = {
+    before: "Old version",
+    after: "New version",
 };
 
 /** The legend label key of each diff category. */

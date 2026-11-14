@@ -26,7 +26,7 @@ Both panes open on the DRD. Decisions, input data, business knowledge models, kn
 | Green | After pane | Added |
 | Red | Before pane | Removed |
 | Blue | Both panes | Changed: a name or property, or the decision's table or expression |
-| Dashed outline | Both panes | Moved: only the layout changed |
+| Amber, dashed requirements | Both panes | Moved: only the layout changed |
 
 In the after pane, a decision whose table changed carries a badge that counts the table's changes.
 
@@ -49,7 +49,7 @@ The rule numbers stay in view while the table scrolls sideways. Scroll one table
 
 ## Step through the changes
 
-The legend above each pane counts the changes in the open view: the DRD, or the open table. **Prev change** and **Next change** step through them and move both panes together; the current change glows gold. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. A requirement or association that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
+The bar above each pane counts the changes in the open view: the DRD, or the open table. The arrows **‹** and **›** (tooltips **Prev change** and **Next change**) step through them and move both panes together; the current change glows blue. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. A requirement or association that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
 
 The comparison follows element ids, as the [BPMN diff](/vscode/features/bpmn-diff) does: a rule you copy and paste gets a new id and shows as removed and added. The colours are the BPMN diff's.
 

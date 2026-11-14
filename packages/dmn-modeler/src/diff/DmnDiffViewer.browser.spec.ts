@@ -24,9 +24,9 @@ const MARKS: DmnDiffMarks = {
     expressions: [],
 };
 
-const ADDED = "rgb(82, 180, 21)";
-const CHANGED = "rgb(49, 111, 190)";
-const CURRENT = "rgb(255, 190, 0)";
+const ADDED = "rgb(0, 230, 118)";
+const CHANGED = "rgb(51, 93, 229)";
+const CURRENT = "rgb(51, 93, 229)";
 
 const viewers: DmnDiffViewerHandle[] = [];
 const mounts: HTMLElement[] = [];
@@ -97,9 +97,9 @@ describe("DMN diff pane (real dmn-js)", () => {
 
         expect(stroke).toBe(ADDED);
         expect(addedWidth).toBe(ownWidth);
-        expect(shapeWidth).toBe("3px");
+        expect(shapeWidth).toBe("2px");
         expect(movedWidth).toBe(ownWidth);
-        expect(strokeDasharray).toBe("5px, 3px");
+        expect(strokeDasharray).toBe("6px, 4px");
     });
 
     it("marks a decision table's rules, cells, columns and hit policy", async () => {
@@ -271,7 +271,7 @@ describe("DMN diff pane (real dmn-js)", () => {
             expect(container.dataset.dmnDiffView).toBe(status);
             expect(viewer.getViewStatus()).toBe(status);
             expect(styleOf(container, ".tjs-table-container").boxShadow).toContain(
-                status === "added" ? ADDED : "rgb(204, 0, 0)",
+                status === "added" ? ADDED : "rgb(205, 24, 57)",
             );
             await viewer.openView(null);
             expect(container.dataset.dmnDiffView).toBeUndefined();

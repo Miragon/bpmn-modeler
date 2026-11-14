@@ -139,6 +139,16 @@ describe("DiffPaneCoordinator", () => {
         expect(coord.canStep).toBe(false);
     });
 
+    it("counts the changes it steps through, for a legend's position", () => {
+        const coord = new DiffPaneCoordinator(stubViewer().viewer, stubViewer().viewer);
+        const beforeAnyDiff = coord.cycleLength;
+
+        coord.apply(RESULT);
+
+        expect(beforeAnyDiff).toBe(0);
+        expect(coord.cycleLength).toBe(4);
+    });
+
     it("ignores navigation before any diff is applied", () => {
         const before = stubViewer();
         const after = stubViewer();

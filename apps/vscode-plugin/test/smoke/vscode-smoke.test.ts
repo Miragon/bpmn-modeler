@@ -35,8 +35,8 @@ const DIFF_LEGEND_SLOTS = [
     "diff-legend__slot diff-legend__slot--changed",
     "diff-legend__slot diff-legend__slot--layout",
 ];
-const DIFF_ADDED = "rgb(82, 180, 21)";
-const DIFF_REMOVED = "rgb(204, 0, 0)";
+const DIFF_ADDED = "rgb(0, 230, 118)";
+const DIFF_REMOVED = "rgb(205, 24, 57)";
 const FORM_FILE = "smoke.form";
 const TEMPLATE_FILE = "smoke-template.json";
 const UPPER_CASE_TEMPLATE_FILE = "smoke-upper-case.JSON";
@@ -559,12 +559,12 @@ describe("the packaged extension in a real VS Code", () => {
             .toContain("Added 2");
 
         await expect
-            .poll(() => before.locator(".diff-legend__filename").textContent(), {
+            .poll(() => before.locator(".diff-side-label").textContent(), {
                 timeout: TIMEOUT_MS,
             })
             .toBe(BPMN_BEFORE_FILE);
         await expect
-            .poll(() => after.locator(".diff-legend__filename").textContent(), {
+            .poll(() => after.locator(".diff-side-label").textContent(), {
                 timeout: TIMEOUT_MS,
             })
             .toBe(BPMN_AFTER_FILE);

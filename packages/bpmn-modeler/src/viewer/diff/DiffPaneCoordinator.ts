@@ -87,6 +87,11 @@ export class DiffPaneCoordinator {
         return this.beforeNav.canStep;
     }
 
+    /** How many changes Next and Previous cycle through; pass it to a legend's `position`. */
+    get cycleLength(): number {
+        return this.beforeNav.cycleLength;
+    }
+
     destroy(): void {
         this.store.dispose();
     }

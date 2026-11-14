@@ -61,6 +61,7 @@ describe("DIFF_LEGEND_TEXTS", () => {
             previous: "Prev change",
             next: "Next change",
             swap: "Swap sides",
+            none: "No changes",
         });
     });
 });

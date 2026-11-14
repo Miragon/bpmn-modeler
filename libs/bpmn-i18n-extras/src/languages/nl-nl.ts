@@ -32,6 +32,9 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "Het formuliervoorbeeld kon niet worden geladen. Vernieuw om opnieuw te proberen.",
     "Changes": "Wijzigingen",
+    "No changes": "Geen wijzigingen",
+    "Old version": "Oude versie",
+    "New version": "Nieuwe versie",
     "Not in this version": "Niet in deze versie",
     "It was removed. The version on the left shows it.":
         "Het is verwijderd. De versie links toont het.",

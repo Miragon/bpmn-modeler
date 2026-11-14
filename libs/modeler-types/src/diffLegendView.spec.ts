@@ -15,6 +15,7 @@ const GERMAN: Readonly<Record<string, string>> = {
     "Prev change": "Vorherige Änderung",
     "Next change": "Nächste Änderung",
     "Swap sides": "Seiten tauschen",
+    "No changes": "Keine Änderungen",
 };
 
 class SwitchableTranslator implements DiffLegendTranslator {
@@ -116,13 +117,73 @@ describe("DiffLegendView", () => {
 
         expect(disabledWithoutStep).toEqual([true, true]);
         expect([previous.disabled, next.disabled]).toEqual([false, false]);
-        expect(previous.textContent).toBe("‹ Prev change");
-        expect(next.textContent).toBe("Next change ›");
         expect(actions.onPrevious).toHaveBeenCalledOnce();
         expect(actions.onNext).toHaveBeenCalledOnce();
     });
 
-    it("names the file above the counts only when it has one", () => {
+    it("steps with icon-only buttons named by their title and label", () => {
+        mount();
+        const previous = find<HTMLButtonElement>(".diff-legend__prev-btn");
+        const next = find<HTMLButtonElement>(".diff-legend__next-btn");
+
+        expect([previous.textContent, next.textContent]).toEqual(["", ""]);
+        expect([previous.title, previous.getAttribute("aria-label")]).toEqual([
+            "Prev change",
+            "Prev change",
+        ]);
+        expect([next.title, next.getAttribute("aria-label")]).toEqual([
+            "Next change",
+            "Next change",
+        ]);
+        expect(previous.querySelector("svg")).not.toBeNull();
+        expect(next.querySelector("svg")).not.toBeNull();
+    });
+
+    it("shows only the categories that changed", () => {
+        const { view } = mount();
+
+        view.update({ ...SHOWN, counts: { added: 3, removed: 0, changed: 2, layoutChanged: 0 } });
+
+        expect(visibleSlotTexts()).toEqual(["Added 3", "Changed 2"]);
+        expect(visible(".diff-legend__none")).toBe(false);
+    });
+
+    it("says so when nothing changed", () => {
+        const { view } = mount();
+
+        view.update({
+            counts: { added: 0, removed: 0, changed: 0, layoutChanged: 0 },
+            showSwap: false,
+            canStep: false,
+        });
+
+        expect(visibleSlotTexts()).toEqual([]);
+        expect(visible(".diff-legend__none")).toBe(true);
+        expect(find(".diff-legend__none").textContent).toBe("No changes");
+    });
+
+    it("shows which change the stepper is on, once it is on one", () => {
+        const { view } = mount();
+
+        view.update(SHOWN);
+        const shownBeforeStepping = visible(".diff-legend__position");
+        view.update({ ...SHOWN, position: { index: 2, total: 8 } });
+
+        expect(shownBeforeStepping).toBe(false);
+        expect(visible(".diff-legend__position")).toBe(true);
+        expect(find(".diff-legend__position").textContent).toBe("3/8");
+    });
+
+    it("can stay an empty bar, for a pane whose partner's bar shows the changes", () => {
+        const { view } = mount();
+
+        view.update({ ...SHOWN, showSwap: true, showChanges: false });
+
+        expect(view.element.hidden).toBe(false);
+        expect(visible(".diff-legend__counts")).toBe(false);
+    });
+
+    it("names the file before the counts only when it has one", () => {
         const { view } = mount();
 
         view.update({ ...SHOWN, filename: "after.bpmn" });
@@ -213,8 +274,8 @@ describe("DiffLegendView", () => {
         expect(view.element.getAttribute("aria-label")).toBe("Änderungen");
         expect(parent.textContent).toContain("Hinzugefügt 3");
         expect(parent.textContent).toContain("Verschoben 4");
-        expect(find(".diff-legend__prev-btn").textContent).toBe("‹ Vorherige Änderung");
-        expect(find(".diff-legend__next-btn").textContent).toBe("Nächste Änderung ›");
+        expect(find(".diff-legend__prev-btn").title).toBe("Vorherige Änderung");
+        expect(find(".diff-legend__next-btn").getAttribute("aria-label")).toBe("Nächste Änderung");
         expect(find(".diff-legend__swap-btn").title).toBe("Seiten tauschen");
     });
 

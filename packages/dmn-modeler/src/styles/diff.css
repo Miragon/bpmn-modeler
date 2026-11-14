@@ -1,39 +1,106 @@
 /*
- * A read-only DMN diff pane (`createDiffViewer`). The change colours are the
- * BPMN diff's (packages/bpmn-modeler/src/styles/diffView.css), so both diffs
- * read the same; `diffPalette.spec.ts` keeps them equal.
+ * A read-only DMN diff pane (`createDiffViewer`). The DRD markers are the BPMN
+ * diff's (packages/bpmn-modeler/src/styles/diffView.css) and the status colours
+ * the legend's, so both diffs read the same; `diffPalette.spec.ts` keeps them equal.
  */
 .dmn-diff {
-    --dmn-diff-added: #52b415;
-    --dmn-diff-removed: #cc0000;
-    --dmn-diff-changed: #316fbe;
-    --dmn-diff-moved: #888;
-    --dmn-diff-current: #ffbe00;
+    --dmn-diff-added: #00e676;
+    --dmn-diff-removed: #cd1839;
+    --dmn-diff-changed: #335de5;
+    --dmn-diff-moved: #ffb000;
+    --dmn-diff-current: #335de5;
 }
 
 /* ─── DRD markers ─────────────────────────────────────────────────────── */
 
-.dmn-diff .djs-shape.diff-added .djs-visual > :nth-child(1) {
-    stroke: var(--dmn-diff-added) !important;
-    stroke-width: 3px !important;
-}
-
-.dmn-diff .djs-shape.diff-removed .djs-visual > :nth-child(1) {
-    stroke: var(--dmn-diff-removed) !important;
-    stroke-width: 3px !important;
-}
-
-.dmn-diff .djs-shape.diff-changed .djs-visual > :nth-child(1) {
-    stroke: var(--dmn-diff-changed) !important;
-    stroke-width: 3px !important;
-}
-
+/* The BPMN diff's markers. The theme attribute sits on the pane itself or
+   above it. Moved comes first: an element that also changed shows the change. */
 .dmn-diff .djs-shape.diff-layout-changed .djs-visual > :nth-child(1) {
-    stroke-dasharray: 5 3 !important;
+    stroke: #1d1d1d !important;
     stroke-width: 2px !important;
 }
 
-/* Requirement edges keep their width: dmn-js scales an arrowhead with its edge. */
+.dmn-diff .djs-shape.diff-added .djs-visual > :nth-child(1) {
+    stroke: #1d1d1d !important;
+    stroke-width: 2px !important;
+}
+
+.dmn-diff .djs-shape.diff-removed .djs-visual > :nth-child(1) {
+    stroke: #cd1839 !important;
+    stroke-width: 2px !important;
+}
+
+.dmn-diff .djs-shape.diff-changed .djs-visual > :nth-child(1) {
+    stroke: #335de5 !important;
+    stroke-width: 2px !important;
+}
+
+.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-layout-changed
+    .djs-visual
+    > :nth-child(1) {
+    fill: #fff1d2 !important;
+}
+
+.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-added
+    .djs-visual
+    > :nth-child(1) {
+    fill: #dafbeb !important;
+}
+
+.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-removed
+    .djs-visual
+    > :nth-child(1) {
+    fill: #fbeef0 !important;
+}
+
+.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-changed
+    .djs-visual
+    > :nth-child(1) {
+    fill: #eef1fd !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-layout-changed
+    .djs-visual
+    > :nth-child(1) {
+    stroke: #ffb000 !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-added
+    .djs-visual
+    > :nth-child(1) {
+    stroke: #00e676 !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-removed
+    .djs-visual
+    > :nth-child(1) {
+    stroke: #fb6d73 !important;
+    stroke-width: 3px !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-shape.diff-changed
+    .djs-visual
+    > :nth-child(1) {
+    stroke: #6b8aff !important;
+    stroke-width: 3px !important;
+}
+
+/* Requirement edges keep their width, since dmn-js scales an arrowhead with its
+   edge: an added one keeps the status green, its only mark. */
+.dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
+    stroke: #1d1d1d !important;
+}
+
 .dmn-diff .djs-connection.diff-added .djs-visual path {
     stroke: var(--dmn-diff-added) !important;
 }
@@ -47,7 +114,35 @@
 }
 
 .dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
-    stroke-dasharray: 5 3 !important;
+    stroke-dasharray: 6 4 !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-layout-changed
+    .djs-visual
+    path {
+    stroke: #ffb000 !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-added
+    .djs-visual
+    path {
+    stroke: #00e676 !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-removed
+    .djs-visual
+    path {
+    stroke: #fb6d73 !important;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-changed
+    .djs-visual
+    path {
+    stroke: #6b8aff !important;
 }
 
 .dmn-diff .djs-element.diff-selected .djs-visual {
@@ -96,7 +191,7 @@
     content: "↕";
     width: auto;
     height: auto;
-    color: var(--dmn-diff-moved);
+    color: inherit;
 }
 
 /* ─── Decision tables ─────────────────────────────────────────────────── */

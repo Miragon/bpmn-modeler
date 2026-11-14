@@ -126,7 +126,18 @@ describe("DiffLegend", () => {
 
         i18n.setLanguage("de");
 
-        expect(q(".diff-legend__next-btn").textContent).toBe("Nächste Änderung ›");
+        expect(q(".diff-legend__next-btn").title).toBe("Nächste Änderung");
+    });
+
+    it("hands the position and an empty bar through to the shared legend", () => {
+        const { legend, q } = mount();
+
+        legend.update({ counts: SOME_CHANGES, position: { index: 0, total: 3 } });
+        const position = q(".diff-legend__position").textContent;
+        legend.update({ counts: SOME_CHANGES, showChanges: false });
+
+        expect(position).toBe("1/3");
+        expect(q(".diff-legend__counts").hidden).toBe(true);
     });
 
     it("removes itself from the DOM on destroy", () => {

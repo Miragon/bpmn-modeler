@@ -29,6 +29,9 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "無法載入表單預覽。請重新整理後再試。",
     "Changes": "變更",
+    "No changes": "無變更",
+    "Old version": "舊版本",
+    "New version": "新版本",
     "Not in this version": "此版本中不存在",
     "It was removed. The version on the left shows it.": "它已被刪除。左側版本中可以看到它。",
     "It is new. The version on the right shows it.": "它是新增的。右側版本中可以看到它。",

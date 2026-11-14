@@ -5,7 +5,6 @@ import { userEvent } from "vitest/browser";
 
 import { DiffLegend } from "./DiffLegend";
 
-const MIRAGON_BLUE = "rgb(51, 93, 229)";
 const WCAG_AA_NORMAL_TEXT_CONTRAST = 4.5;
 
 const mountedRoots: HTMLElement[] = [];
@@ -68,14 +67,21 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 describe("the published diff legend's look", () => {
-    it("is the Miragon look: Geist, a blue Next button, 12px chip and 8px button radii", () => {
+    it("is a bar along the top edge in the Miragon look: Geist, unfilled icon buttons with 8px radii", () => {
         const { chip, prev, next } = mountLegend();
 
         expect(chip.fontFamily).toMatch(/^"Geist Variable", Geist, /);
-        expect(chip.borderRadius).toBe("12px");
+        expect([chip.position, chip.top, chip.left, chip.right]).toEqual([
+            "absolute",
+            "0px",
+            "0px",
+            "0px",
+        ]);
+        expect(chip.borderRadius).toBe("0px");
+        expect(chip.borderBottomStyle).toBe("solid");
+        expect(chip.boxShadow).toBe("none");
         expect(chip.backgroundColor).toBe("rgb(255, 255, 255)");
-        expect(next.backgroundColor).toBe(MIRAGON_BLUE);
-        expect(next.color).toBe("rgb(255, 255, 255)");
+        expect(next.backgroundColor).toBe("rgba(0, 0, 0, 0)");
         expect(next.borderRadius).toBe("8px");
         expect(prev.backgroundColor).toBe("rgba(0, 0, 0, 0)");
     });
@@ -90,7 +96,7 @@ describe("the published diff legend's look", () => {
         expect(contrastRatio(chip.color, chip.backgroundColor)).toBeGreaterThanOrEqual(
             WCAG_AA_NORMAL_TEXT_CONTRAST,
         );
-        expect(contrastRatio(next.color, next.backgroundColor)).toBeGreaterThanOrEqual(
+        expect(contrastRatio(next.color, chip.backgroundColor)).toBeGreaterThanOrEqual(
             WCAG_AA_NORMAL_TEXT_CONTRAST,
         );
     });
@@ -117,11 +123,10 @@ describe("the published diff legend's look", () => {
         expect(chip.backgroundColor).toBe("rgb(255, 255, 255)");
     });
 
-    it("turns dark under the instance's dark theme and keeps the blue Next button", () => {
-        const { chip, next } = mountLegend("dark");
+    it("turns dark under the instance's dark theme", () => {
+        const { chip } = mountLegend("dark");
 
         expect(chip.backgroundColor).toBe("rgb(37, 37, 38)");
-        expect(next.backgroundColor).toBe(MIRAGON_BLUE);
     });
 
     it("drops the fills and the shadow in VS Code's high contrast", () => {
