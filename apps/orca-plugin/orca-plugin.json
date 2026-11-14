@@ -45,7 +45,7 @@
     }
   ],
   "engines": {
-    "orca": ">=1.4.248"
+    "orca": ">=1.4.259"
   },
   "execution": "sandboxed-ui",
   "pluginApi": 1,
@@ -58,7 +58,8 @@
           ".bpmn"
         ],
         "entry": "editor/bpmn/index.html",
-        "frame": "isolated"
+        "frame": "isolated",
+        "diff": true
       },
       {
         "id": "dmn",
