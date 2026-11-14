@@ -9,11 +9,23 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
+import {
+    AboutFetch,
+    aboutFetchFailureOf,
+    MARKETPLACE_README,
+    MarketplaceAboutFetch,
+} from "../domain/marketplaceAbout";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
-import { RepositorySourceFactory, TokenPromptPort, TokenStorePort } from "../port/marketplacePorts";
+import {
+    RepositorySource,
+    RepositorySourceFactory,
+    TokenPromptPort,
+    TokenStorePort,
+} from "../port/marketplacePorts";
 import {
     declaredPrivateHosts,
     describeSourceConfig,
@@ -29,7 +41,7 @@ import {
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
 import { HostTokenSession } from "./HostTokenSession";
-import { MarketplaceCache } from "./MarketplaceCache";
+import { CachedMarketplaceAbout, MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";
@@ -223,6 +235,11 @@ export class TemplateMarketplaceService {
         return this.cache.cachedTemplatePathsByRegistration();
     }
 
+    /** The README and repository facts a marketplace's detail shows. */
+    cachedAboutByRegistration(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
+        return this.cache.cachedAboutByRegistration();
+    }
+
     /**
      * Manifest-level failures propagate (the marketplace is unusable) and leave
      * the cache untouched; source-level failures are logged, keep that source's
@@ -234,9 +251,8 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
     ): Promise<FetchReport> {
-        const { sources, skipped } = parseMarketplace(
-            JSON.parse(await this.readManifest(registration, tokenSession)),
-        );
+        const { manifest, about } = await this.readManifest(registration, tokenSession);
+        const { sources, skipped } = parseMarketplace(JSON.parse(manifest));
         const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
         this.notifier.logDebug(
             `Manifest of "${registration.url}": ${sources.length} usable source(s)${skippedNote}`,
@@ -295,6 +311,7 @@ export class TemplateMarketplaceService {
                 }
             }
         }
+        await this.cacheAbout(registration, about);
         return FetchReport.of({
             usableSources: sources.length,
             cached,
@@ -334,6 +351,48 @@ export class TemplateMarketplaceService {
         }
     }
 
+    /** Never fails the fetch: a README and the repository facts only describe the marketplace. */
+    private async cacheAbout(
+        registration: MarketplaceRegistration,
+        { readme, repository }: MarketplaceAboutFetch,
+    ): Promise<void> {
+        await this.cacheAboutPart(registration, MARKETPLACE_README, readme, {
+            replace: (content) => this.cache.replaceReadme(registration.id, content),
+            remove: () => this.cache.removeReadme(registration.id),
+        });
+        await this.cacheAboutPart(registration, "repository facts", repository, {
+            replace: (facts) => this.cache.replaceRepositoryFacts(registration.id, facts),
+            remove: () => this.cache.removeRepositoryFacts(registration.id),
+        });
+    }
+
+    private async cacheAboutPart<T>(
+        registration: MarketplaceRegistration,
+        what: string,
+        fetched: AboutFetch<T>,
+        cached: { replace(value: T): Promise<void>; remove(): Promise<void> },
+    ): Promise<void> {
+        try {
+            switch (fetched.kind) {
+                case "found":
+                    await cached.replace(fetched.value);
+                    return;
+                case "absent":
+                    await cached.remove();
+                    return;
+                case "failed":
+                    this.notifier.logWarning(
+                        `Kept the cached ${what} of "${registration.url}": ${fetched.reason}`,
+                    );
+                    return;
+            }
+        } catch (error) {
+            this.notifier.logWarning(
+                `Could not cache the ${what} of "${registration.url}": ${(error as Error).message}`,
+            );
+        }
+    }
+
     private sourceFailure(
         registration: MarketplaceRegistration,
         source: TemplateSource,
@@ -360,14 +419,14 @@ export class TemplateMarketplaceService {
     private async readManifest(
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
-    ): Promise<string> {
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
-                this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
+                this.manifestAndAbout(this.sourceFactory(config)),
             );
         } catch (error) {
             // `ErrorOptions` is not in this lib target, so the cause is attached directly.
@@ -378,6 +437,25 @@ export class TemplateMarketplaceService {
                 { cause: error },
             );
         }
+    }
+
+    /** In the same run as the manifest, so a 404 of what describes it never asks for a token. */
+    private async manifestAndAbout(
+        repository: RepositorySource,
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
+        const manifest = await repository.fetchFile(MARKETPLACE_MANIFEST);
+        const readme = await repository.fetchFile(MARKETPLACE_README).then(
+            (value): AboutFetch<string> => ({ kind: "found", value }),
+            (error) => aboutFetchFailureOf<string>(error),
+        );
+        const facts: AboutFetch<RepositoryFacts> =
+            repository.repositoryFacts === undefined
+                ? { kind: "absent" }
+                : await repository.repositoryFacts().then(
+                      (value): AboutFetch<RepositoryFacts> => ({ kind: "found", value }),
+                      (error) => aboutFetchFailureOf<RepositoryFacts>(error),
+                  );
+        return { manifest, about: { readme, repository: facts } };
     }
 
     /**

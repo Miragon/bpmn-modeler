@@ -447,6 +447,19 @@ button.av-head:hover .av-head-count {
     margin: 2px 8px 0 24px;
 }
 
+.av-source .av-source-details {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin-top: 2px;
+    color: var(--cd-ui-text-leise);
+}
+
+.av-source .av-source-details[aria-current="true"] {
+    color: var(--cd-ui-interaktion);
+    background: var(--cd-ui-hover);
+}
+
 .av-source .av-menu-trigger {
     width: 28px;
     height: 28px;
@@ -781,6 +794,208 @@ button.av-head:hover .av-head-count {
     padding-top: 4px;
 }
 
+/* --- Stars and license: quiet badges at the end of the detail's top row --- */
+
+.av-about-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.av-about-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-pill);
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.av-about-icon {
+    color: var(--cd-ui-text-leise);
+}
+
+.av-stars .av-about-icon {
+    color: var(--cd-ui-warning);
+    fill: currentColor;
+}
+
+.av-stars {
+    font-family: var(--ds-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Amber marks it; the word keeps the text colour, as amber text fails contrast on a light card. */
+.av-license-none {
+    border-color: var(--cd-ui-warning);
+}
+
+.av-license-none .av-about-icon {
+    color: var(--cd-ui-warning);
+}
+
+/* --- README: the author's Markdown, set in the brand type, below a divider like the review --- */
+
+.av-readme {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--cd-ui-linie);
+}
+
+.av-readme-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: var(--cd-ui-text-leise);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.av-readme-problem {
+    margin: 0;
+    color: var(--cd-ui-text-leise);
+}
+
+.av-md {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.av-md > :first-child,
+.av-md > .av-md-h:first-child {
+    margin-top: 0;
+}
+
+.av-md > :last-child {
+    margin-bottom: 0;
+}
+
+.av-md p,
+.av-md ul,
+.av-md ol,
+.av-md blockquote,
+.av-md .av-md-pre,
+.av-md .av-md-table {
+    margin: 0 0 10px;
+}
+
+.av-md .av-md-h {
+    margin: 18px 0 8px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.av-md .av-md-h1 {
+    font-size: 17px;
+}
+
+.av-md .av-md-h2 {
+    font-size: 14px;
+}
+
+.av-md .av-md-h3 {
+    font-size: 13px;
+}
+
+.av-md ul,
+.av-md ol {
+    padding-left: 20px;
+}
+
+.av-md li + li {
+    margin-top: 2px;
+}
+
+.av-md li > p {
+    margin: 0;
+}
+
+.av-md .av-md-task {
+    margin: 0 6px 0 -18px;
+    vertical-align: -2px;
+}
+
+.av-md blockquote {
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--cd-ui-linie);
+    color: var(--cd-ui-text-leise);
+}
+
+.av-md .av-md-code,
+.av-md .av-md-pre {
+    font-family: var(--ds-mono);
+    font-size: 12px;
+    background: var(--cd-ui-grund);
+}
+
+/* The detail sits on the card in two panes and on the page in a drill-down, so a hairline sets code off on both. */
+.av-md .av-md-code {
+    padding: 0 4px;
+    border-radius: var(--cd-radius-sm);
+    box-shadow: inset 0 0 0 1px var(--cd-ui-linie);
+}
+
+.av-md .av-md-pre {
+    padding: 10px 12px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-sm);
+    overflow-x: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+}
+
+.av-md .av-md-link {
+    color: var(--cd-ui-interaktion);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.av-md .av-md-image {
+    padding: 0 4px;
+    border: 1px dashed var(--cd-ui-linie);
+    border-radius: var(--cd-radius-sm);
+    color: var(--cd-ui-text-leise);
+    font-size: 12px;
+}
+
+.av-md .av-md-table {
+    overflow-x: auto;
+}
+
+.av-md table {
+    border-collapse: collapse;
+}
+
+.av-md th,
+.av-md td {
+    padding: 4px 10px;
+    border: 1px solid var(--cd-ui-linie);
+    text-align: left;
+}
+
+.av-md th {
+    font-weight: 600;
+    background: var(--cd-ui-grund);
+}
+
+.av-md hr {
+    margin: 14px 0;
+    border: 0;
+    border-top: 1px solid var(--cd-ui-linie);
+}
+
 .av-hint {
     display: flex;
     align-items: center;
@@ -1001,7 +1216,8 @@ button.av-head:hover .av-head-count {
 
 /* --- High contrast and forced colours --- */
 
-[data-cd-kontrast="hoch"] .av-badge {
+[data-cd-kontrast="hoch"] .av-badge,
+[data-cd-kontrast="hoch"] .av-about-badge {
     outline: 1px solid var(--cd-ui-kontur);
 }
 

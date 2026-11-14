@@ -1,6 +1,6 @@
 import type { AddOnCatalogPayload } from "@miragon/bpmn-modeler-shared";
 
-import { placementOf } from "../../domain/catalogQueries";
+import { placementOf, sourcePlacementOf } from "../../domain/catalogQueries";
 import { announcementOf, CHROME_TEXT, reviewCountText } from "../../domain/chromeTexts";
 import { headsOf, isShownOpen } from "../../domain/expansion";
 import { FocusTarget, isRequestedByHost } from "../../domain/focusAfter";
@@ -13,7 +13,7 @@ import {
     ViewEvent,
     ViewState,
 } from "../../domain/viewState";
-import { backButton, detailOf, hintOf } from "./detailView";
+import { backButton, detailOf, hintOf, sourceDetailOf } from "./detailView";
 import { el, elementAt, setBusy } from "./dom";
 import { catalogEmptyOf, loadingOf, noMatchOf } from "./emptyStates";
 import { FocusKeeper } from "./focusKeeper";
@@ -206,11 +206,16 @@ export class AddOnsView {
         const selectedId = selectedIdOf(state);
         const placement =
             selectedId === undefined ? undefined : placementOf(model.groups, selectedId);
+        const marketplace =
+            selectedId === undefined || placement !== undefined
+                ? undefined
+                : sourcePlacementOf(model.groups, selectedId);
         const inputs = [
             placement?.addOn,
-            placement?.source,
-            placement?.group,
+            placement?.source ?? marketplace?.source,
+            placement?.group ?? marketplace?.group,
             state.pending,
+            state.about,
             this.revealedId,
         ];
         if (sameInputs(inputs, this.detailInputs)) return;
@@ -218,9 +223,11 @@ export class AddOnsView {
         const back = backButton(() => this.back());
         this.detail.replaceChildren(
             back,
-            placement === undefined
-                ? hintOf(state.page === "detail" && selectedId !== undefined)
-                : detailOf(placement, state, placement.addOn.id === this.revealedId),
+            placement !== undefined
+                ? detailOf(placement, state, placement.addOn.id === this.revealedId)
+                : marketplace !== undefined
+                  ? sourceDetailOf(marketplace, state)
+                  : hintOf(state.page === "detail" && selectedId !== undefined),
         );
         if (this.shownDetailId !== selectedId) {
             this.detail.scrollTop = 0;

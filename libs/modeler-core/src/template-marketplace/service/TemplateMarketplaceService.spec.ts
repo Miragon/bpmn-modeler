@@ -6,6 +6,7 @@ import { InvalidMarketplaceError } from "../domain/marketplace";
 import { RepositoryAccessError } from "../domain/repositoryAccessError";
 import { RepositorySource, RepositorySourceFactory } from "../port/marketplacePorts";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { MarketplaceCache } from "./MarketplaceCache";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -15,6 +16,8 @@ const MANIFEST = JSON.stringify({
         { provider: "github", repo: "camunda/camunda-modeler", ref: "develop", path: "resources" },
     ],
 });
+
+const NO_README = new RepositoryAccessError("github.com", 404, "acme/templates", false);
 
 /**
  * Builds a service over `factory` and the in-memory host, caching into a real
@@ -50,7 +53,11 @@ function serviceOver(
     return {
         service,
         cachedPaths: () =>
-            [...host.workspace.files.keys()].filter((path) => !path.endsWith("/slot.json")),
+            [...host.workspace.files.keys()].filter(
+                (path) => !path.endsWith("/slot.json") &&
+                    !path.includes("/readme/") &&
+                    !path.includes("/repository/"),
+            ),
         workspace: host.workspace,
         settings: host.settings,
         notifier: host.notifier,
@@ -64,17 +71,34 @@ function serviceOver(
  * serves `marketplace.json` and whose every other source serves one file.
  */
 function createService(
-    opts: { manifest?: string | Error; cachedFiles?: Record<string, string> } = {},
+    opts: {
+        manifest?: string | Error;
+        readme?: string | Error;
+        repository?: RepositoryFacts | Error;
+        cachedFiles?: Record<string, string>;
+    } = {},
 ) {
     const sourceFactory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
+                fetchFile: vi.fn(async (repoPath: string) => {
+                    if (repoPath === "README.md") {
+                        if (opts.readme === undefined || opts.readme instanceof Error) {
+                            throw opts.readme ?? NO_README;
+                        }
+                        return opts.readme;
+                    }
                     if (opts.manifest instanceof Error) {
                         throw opts.manifest;
                     }
                     return opts.manifest ?? MANIFEST;
+                }),
+                ...(opts.repository !== undefined && {
+                    repositoryFacts: vi.fn(async () => {
+                        if (opts.repository instanceof Error) throw opts.repository;
+                        return opts.repository!;
+                    }),
                 }),
             };
         }
@@ -105,8 +129,8 @@ function tokenGatedFactory({
             const denied = expectedToken === undefined || token !== expectedToken;
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
-                    if (denied) {
+                fetchFile: vi.fn(async (repoPath: string) => {
+                    if (denied || repoPath === "README.md") {
                         throw new RepositoryAccessError("github.com", 404, "acme/templates", false);
                     }
                     return manifest;
@@ -122,6 +146,83 @@ function tokenGatedFactory({
 
 beforeEach(() => {
     vi.clearAllMocks();
+});
+
+describe("TemplateMarketplaceService, a marketplace's README", () => {
+    const README_PATH = "/cache/acme__templates/readme/README.md";
+
+    it("caches the README beside the manifest", async () => {
+        const { service, workspace } = createService({ readme: "# Acme templates" });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("# Acme templates");
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { readmeFile: README_PATH }]]),
+        );
+    });
+
+    it("removes the cached README once the marketplace has none, and never asks for a token", async () => {
+        const { service, workspace, tokenPrompt } = createService({
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.has(README_PATH)).toBe(false);
+        expect(tokenPrompt.prompts).toEqual([]);
+    });
+
+    it("keeps the cached README when it cannot be fetched, and warns", async () => {
+        const { service, workspace, notifier } = createService({
+            readme: new Error("socket hang up"),
+            cachedFiles: { [README_PATH]: "old" },
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(workspace.files.get(README_PATH)).toBe("old");
+        expect(notifier.logged("warning")).toContain(
+            'Kept the cached README.md of "https://github.com/acme/templates": socket hang up',
+        );
+    });
+});
+
+describe("TemplateMarketplaceService, a marketplace's repository facts", () => {
+    const FACTS: RepositoryFacts = {
+        host: "github",
+        stars: 1234,
+        license: { kind: "known", id: "MIT", name: "MIT License" },
+    };
+
+    it("caches the stars and license its host reports", async () => {
+        const { service } = createService({ repository: FACTS });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+    });
+
+    it("keeps the cached facts when the host cannot be asked, and warns", async () => {
+        const { service, notifier } = createService({ repository: FACTS });
+        await service.addMarketplace("https://github.com/acme/templates");
+        const offline = createService({
+            repository: new Error("socket hang up"),
+            cachedFiles: { "/cache/acme__templates/repository/facts.json": JSON.stringify(FACTS) },
+        });
+
+        await offline.service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await offline.service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+        expect(offline.notifier.logged("warning")).toContain(
+            'Kept the cached repository facts of "https://github.com/acme/templates": socket hang up',
+        );
+        expect(notifier.logged("warning")).toEqual([]);
+    });
 });
 
 describe("TemplateMarketplaceService.addMarketplace", () => {

@@ -118,6 +118,30 @@ export type AddOnActionResultPayload =
     | { readonly kind: "failed"; readonly message: string }
     | { readonly kind: "reportedByFlow" };
 
+/** An add-on's or a marketplace's README as Markdown its author wrote, which the page renders without HTML. */
+export type AddOnReadmePayload =
+    | { readonly kind: "shown"; readonly markdown: string; readonly truncated: boolean }
+    | { readonly kind: "none" }
+    | { readonly kind: "unreadable"; readonly text: string };
+
+export interface AddOnLicensePayload {
+    readonly kind: "known" | "other" | "none";
+    readonly text: string;
+    readonly label: string;
+}
+
+export interface AddOnStarsPayload {
+    readonly text: string;
+    readonly label: string;
+}
+
+/** What a detail shows below the core's facts. */
+export interface AddOnAboutPayload {
+    readonly readme: AddOnReadmePayload;
+    readonly license?: AddOnLicensePayload;
+    readonly stars?: AddOnStarsPayload;
+}
+
 /** Where a view is to go, once: rows a "Review…" left to it, or every add-on that needs review. */
 export type AddOnRevealPayload =
     | { readonly kind: "rows"; readonly revealId: number; readonly addOnIds: readonly string[] }
@@ -147,6 +171,28 @@ export class ShowAddOnQuery extends Query<"ShowAddOnQuery"> {
     constructor(addOnId: string) {
         super("ShowAddOnQuery");
         this.addOnId = addOnId;
+    }
+}
+
+/** A detail asks for the README and license of the add-on or marketplace it shows; the host answers with an {@link AddOnAboutQuery}. */
+export class GetAddOnAboutCommand extends Command<"GetAddOnAboutCommand"> {
+    public readonly targetId: string;
+
+    constructor(targetId: string) {
+        super("GetAddOnAboutCommand");
+        this.targetId = targetId;
+    }
+}
+
+export class AddOnAboutQuery extends Query<"AddOnAboutQuery"> {
+    public readonly targetId: string;
+
+    public readonly about: AddOnAboutPayload;
+
+    constructor(targetId: string, about: AddOnAboutPayload) {
+        super("AddOnAboutQuery");
+        this.targetId = targetId;
+        this.about = about;
     }
 }
 

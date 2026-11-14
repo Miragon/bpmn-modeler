@@ -524,6 +524,62 @@ describe("nextViewState", () => {
         });
     });
 
+    describe("a detail's README and license", () => {
+        const about = { readme: { kind: "shown", markdown: "# Resize", truncated: false } } as const;
+
+        it("asks about the selected add-on once a model lists it", () => {
+            const { askAbout, state } = after([shown()]);
+
+            expect([askAbout, state.aboutAsked]).toEqual([
+                selectedIdOf(state),
+                { targetId: selectedIdOf(state), revision: CATALOG.revision },
+            ]);
+        });
+
+        it("asks again for another selection or a newer model, never twice for the same", () => {
+            const first = after([shown()]).state;
+
+            expect(nextViewState(first, { kind: "toggled", key: CONFIG_SOURCE.id }).askAbout).toBeUndefined();
+            expect(nextViewState(first, { kind: "addOnSelected", addOnId: PALETTE.id }).askAbout).toBe(
+                PALETTE.id,
+            );
+            expect(nextViewState(first, shown(withRevision(11))).askAbout).toBe(
+                selectedIdOf(first),
+            );
+        });
+
+        it("keeps what it heard only for the add-on the detail shows", () => {
+            const selected = after([shown(), { kind: "addOnSelected", addOnId: RESIZE.id }]).state;
+
+            const kept = nextViewState(selected, { kind: "aboutArrived", targetId: RESIZE.id, about });
+            const stale = nextViewState(kept.state, { kind: "aboutArrived", targetId: PALETTE.id, about });
+            const moved = nextViewState(kept.state, { kind: "addOnSelected", addOnId: PALETTE.id });
+
+            expect([kept.state.about, stale.state.about, moved.state.about]).toEqual([
+                { targetId: RESIZE.id, about },
+                { targetId: RESIZE.id, about },
+                undefined,
+            ]);
+        });
+
+        it("asks none on a list whose rows open a tab", () => {
+            expect(after([shown()], initialViewState(undefined, "listWithTab")).askAbout).toBeUndefined();
+        });
+
+        it("selects a marketplace for its own detail, and keeps it across a new model", () => {
+            const selected = after([
+                shown(),
+                { kind: "addOnSelected", addOnId: MARKETPLACE_SOURCE.id },
+            ]);
+            const rebuilt = nextViewState(selected.state, shown(withRevision(11)));
+
+            expect([selected.askAbout, selectedIdOf(rebuilt.state)]).toEqual([
+                MARKETPLACE_SOURCE.id,
+                MARKETPLACE_SOURCE.id,
+            ]);
+        });
+    });
+
     describe("selection", () => {
         it("selects no template while every marketplace is closed", () => {
             const { state } = after([

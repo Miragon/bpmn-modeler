@@ -28,6 +28,7 @@ import {
 import type { AddOnDetailPort } from "../port/addOnViewPorts";
 import { AddOnCatalogService } from "../service/AddOnCatalogService";
 import { AddOnInventoryReader } from "../service/AddOnInventoryReader";
+import { AddOnAboutReader } from "../service/AddOnAboutReader";
 import { AddOnViewConnection, AddOnViewHub } from "../service/AddOnViewHub";
 import { AddOnWatchers } from "../service/AddOnWatchers";
 import { TemplateSwitchActions } from "../service/TemplateSwitchActions";
@@ -99,6 +100,7 @@ export class AddOnsFeature {
         this.catalog = new AddOnCatalogService(
             new AddOnInventoryReader({ ...ports, workspaceTrust }),
             new TemplateSwitchActions(ports.templatePreferences, ports.notifier),
+            new AddOnAboutReader(ports.workspace, ports.notifier),
             {
                 approvals: ports.approvals,
                 plugins: ports.plugins,
@@ -152,6 +154,7 @@ export class AddOnsFeature {
             post,
             {
                 openDetail: (addOnId, model) => this.openDetail(addOnId, model),
+                about: (targetId) => connection.about(targetId),
                 ...(shows !== undefined && { shows }),
             },
         );

@@ -628,7 +628,7 @@ describe("AddOnsView", () => {
 
             button("Allow").click();
 
-            expect(host.posted.length).toBe(1);
+            expect(host.requests().length).toBe(1);
         });
 
         // The view selects an add-on whenever its list shows one, so the hint only meets an empty list.
@@ -648,6 +648,108 @@ describe("AddOnsView", () => {
                     sep.getAttribute("aria-hidden"),
                 ),
             ).toEqual(["true", "true"]);
+        });
+    });
+
+    describe("a README, stars and license", () => {
+        const readme = (markdown: string, truncated = false) =>
+            ({ kind: "shown", markdown, truncated }) as const;
+
+        it("shows below the detail once the host sends it, with a note when cut", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            expect(root.querySelector(".av-readme")).toBeNull();
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: { readme: readme("# Palette\n\nGroups the palette.", true) },
+            });
+
+            expect([
+                text(root.querySelector(".av-readme-heading")),
+                text(root.querySelector(".av-readme h4")),
+                text(root.querySelector(".av-readme .av-note")),
+            ]).toEqual([
+                "README",
+                "Palette",
+                "The README is longer than this view shows; open its file to read the rest.",
+            ]);
+        });
+
+        it("shows nothing for none and says so when it cannot be read", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: { readme: { kind: "none" } },
+            });
+            const none = root.querySelector(".av-readme");
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: { readme: { kind: "unreadable", text: "Its README could not be read." } },
+            });
+
+            expect([none, text(root.querySelector(".av-readme-problem"))]).toEqual([
+                null,
+                "Its README could not be read.",
+            ]);
+        });
+
+        it("shows an add-on's license as a badge that says it in full", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: {
+                    readme: { kind: "none" },
+                    license: { kind: "known", text: "MIT", label: "License: MIT, as its package.json says" },
+                },
+            });
+
+            const badge = root.querySelector<HTMLElement>(".av-detail-top .av-license");
+            expect([badge?.title, text(badge), root.querySelector(".av-stars")]).toEqual([
+                "License: MIT, as its package.json says",
+                "MIT, License: MIT, as its package.json says",
+                null,
+            ]);
+        });
+
+        it("opens a marketplace's detail from its header, with its actions and README", () => {
+            const { root, button, session } = mountedView(CATALOG);
+
+            button("Details: /shared").click();
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: MARKETPLACE_SOURCE.id,
+                about: {
+                    readme: readme("Shared templates."),
+                    stars: { text: "1.2k", label: "1,234 stars on GitHub" },
+                    license: { kind: "none", text: "No license", label: "GitHub found no license file." },
+                },
+            });
+
+            const card = root.querySelector(".av-detail-card")!;
+            expect([
+                text(card.querySelector(".av-detail-name")),
+                text(card.querySelector(".ds-kind-marketplace")),
+                [...card.querySelectorAll(".av-actions .ds-btn-label")].map(text),
+                text(card.querySelector(".av-md p")),
+                button("Details: /shared").getAttribute("aria-current"),
+                [...card.querySelectorAll(".av-about-badge")].map((badge) => badge.className),
+            ]).toEqual([
+                "/shared",
+                "Marketplace",
+                ["Remove", "Disable templates"],
+                "Shared templates.",
+                "true",
+                ["av-about-badge av-stars", "av-about-badge av-license av-license-none"],
+            ]);
         });
     });
 
@@ -793,7 +895,7 @@ describe("AddOnsView", () => {
 
             button(PRUNE.label).click();
 
-            expect([host.posted.length, root.querySelector("[role=menu]")]).toEqual([1, null]);
+            expect([host.requests().length, root.querySelector("[role=menu]")]).toEqual([1, null]);
         });
 
         it("leave the Escape key alone while closed", () => {

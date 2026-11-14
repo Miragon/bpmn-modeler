@@ -26,7 +26,18 @@ export const CHROME_TEXT = {
     unlisted: "This add-on is no longer listed.",
     back: "Back",
     moreActions: "More actions",
+    readme: "README",
+    readmeTruncated: "The README is longer than this view shows; open its file to read the rest.",
+    marketplace: "Marketplace",
 } as const;
+
+export function sourceDetailsText(sourceLabel: string): string {
+    return `Details: ${sourceLabel}`;
+}
+
+export function templateCountText(count: number): string {
+    return `${count} ${count === 1 ? "element template" : "element templates"}`;
+}
 
 /** `short` names a kind's segment, where four must fit in a side bar; `plural` is its full name. */
 export const KIND_TEXT: Readonly<

@@ -8,6 +8,7 @@ import {
 } from "../domain/marketplaceSources";
 import { RegistrationsByScope } from "../domain/marketplaceRegistrations";
 import { MarketplaceRegistrationsPort } from "../port/marketplacePorts";
+import { CachedMarketplaceAbout } from "./MarketplaceCache";
 import { MarketplaceCommands } from "./MarketplaceCommands";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -21,7 +22,7 @@ export class MarketplaceInventory {
         private readonly registrations: MarketplaceRegistrationsPort,
         private readonly cache: Pick<
             TemplateMarketplaceService,
-            "cachedTemplatePathsByRegistration"
+            "cachedTemplatePathsByRegistration" | "cachedAboutByRegistration"
         >,
         private readonly commands: Pick<
             MarketplaceCommands,
@@ -37,7 +38,11 @@ export class MarketplaceInventory {
         }
         return {
             kind: "listed",
-            sources: marketplaceSourcesOf(registered, await this.cachedTemplates()),
+            sources: marketplaceSourcesOf(
+                registered,
+                await this.cachedTemplates(),
+                await this.cachedAbout(),
+            ),
         };
     }
 
@@ -75,6 +80,16 @@ export class MarketplaceInventory {
         } catch (error) {
             this.logError(error);
             return { kind: "failed" };
+        }
+    }
+
+    /** A README and repository facts only describe a marketplace, so a failed read lists none. */
+    private async cachedAbout(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
+        try {
+            return await this.cache.cachedAboutByRegistration();
+        } catch (error) {
+            this.logError(error);
+            return new Map();
         }
     }
 

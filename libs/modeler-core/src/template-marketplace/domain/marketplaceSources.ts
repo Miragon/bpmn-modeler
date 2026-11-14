@@ -32,6 +32,7 @@ const CACHE_FAILED_TEXT = "Its cached templates could not be read. The log says 
 export function marketplaceSourcesOf(
     registered: RegistrationsByScope,
     cached: CachedTemplates,
+    about: ReadonlyMap<string, MarketplaceAbout> = new Map(),
 ): MarketplaceListing[] {
     const listed = registeredMarketplaces(registered);
     const { entries } = MarketplaceRegistry.fromEntries(listed.map(({ entry }) => entry));
@@ -43,6 +44,7 @@ export function marketplaceSourcesOf(
         scopeText: marketplaceListingScopeText(scopes, switched[index]?.source.scope),
         ...templatesOf(entries[index], cached),
         ...optionalSource(switched[index]),
+        ...aboutOf(entries[index], about),
     }));
 }
 
@@ -81,6 +83,16 @@ function optionalSource(
     switched: SwitchedRegistration | undefined,
 ): Pick<MarketplaceListing, "templateSource"> {
     return switched === undefined ? {} : { templateSource: switched.source };
+}
+
+/** A marketplace's cached README and repository facts, as the cache read them. */
+export type MarketplaceAbout = Pick<MarketplaceListing, "readmeFile" | "repository">;
+
+function aboutOf(
+    parsed: ParsedMarketplaceEntry,
+    about: ReadonlyMap<string, MarketplaceAbout>,
+): MarketplaceAbout {
+    return parsed.kind === "registered" ? (about.get(parsed.registration.id) ?? {}) : {};
 }
 
 function templatesOf(

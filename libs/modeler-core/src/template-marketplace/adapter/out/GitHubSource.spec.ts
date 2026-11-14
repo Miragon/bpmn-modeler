@@ -398,3 +398,53 @@ describe("GitHubSource on GitHub Enterprise (baseUrl)", () => {
         });
     });
 });
+
+describe("GitHubSource.repositoryFacts", () => {
+    it("reads stars and license from the repository request the default branch already made", async () => {
+        const http = createHttp();
+        http.getJson
+            .mockResolvedValueOnce(
+                ok(
+                    JSON.stringify({
+                        default_branch: "main",
+                        stargazers_count: 42,
+                        license: { spdx_id: "MIT", name: "MIT License" },
+                    }),
+                ),
+            )
+            .mockResolvedValueOnce(ok(JSON.stringify({ tree: [] })));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            path: "",
+        });
+
+        await source.listTemplateFiles();
+        const facts = await source.repositoryFacts();
+
+        expect(facts).toEqual({
+            host: "github",
+            stars: 42,
+            license: { kind: "known", id: "MIT", name: "MIT License" },
+        });
+        expect(http.getJson.mock.calls.map(([url]) => url)).toEqual([
+            "https://api.github.com/repos/acme/repo",
+            "https://api.github.com/repos/acme/repo/git/trees/main?recursive=1",
+        ]);
+    });
+
+    it("maps a denied repository request to an access error", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 404, body: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+        });
+
+        await expect(source.repositoryFacts()).rejects.toBeInstanceOf(RepositoryAccessError);
+    });
+});

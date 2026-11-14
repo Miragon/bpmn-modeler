@@ -109,3 +109,5 @@ export function addOnDetailTitle(name: string): string {
 
 export const UNLISTED_DETAIL_TEXT =
     "Opened no add-on details: the list no longer holds the add-on.";
+
+export const README_UNREADABLE_TEXT = "Its README could not be read. The log says why.";

@@ -7,6 +7,8 @@ import {
     AddOnActionResultQuery,
     AddOnCatalogPayload,
     AddOnCatalogQuery,
+    AddOnAboutPayload,
+    AddOnAboutQuery,
     AddOnRefusalPayload,
     AddOnRequestCommand,
     AddOnRequestPayload,
@@ -15,6 +17,7 @@ import {
     CodeAddOnKindPayload,
     CodeStatePayload,
     GetAddOnCatalogCommand,
+    GetAddOnAboutCommand,
     GroupKindPayload,
     LogErrorCommand,
     LogInfoCommand,
@@ -27,6 +30,7 @@ import {
 
 import { RecordingNotifier } from "../../../testing/RecordingNotifier";
 import type { AddOnCatalogModel, AddOnReveal } from "../../domain/addOnCatalogModel";
+import type { AddOnAbout } from "../../domain/addOnAbout";
 import type {
     AddOnActionKind,
     CatalogActionKind,
@@ -72,12 +76,60 @@ function setUp(
 }
 
 describe("AddOnViewMessages", () => {
+    describe("a detail's README and license", () => {
+        it("answers with what the core read for the id", async () => {
+            const posted: Query[] = [];
+            const asked: string[] = [];
+            const messages = new AddOnViewMessages(
+                async () => ({ kind: "done" }),
+                new RecordingNotifier(),
+                (message) => posted.push(message),
+                {
+                    about: async (targetId) => {
+                        asked.push(targetId);
+                        return { readme: { kind: "shown", markdown: "# Acme", truncated: false } };
+                    },
+                },
+            );
+
+            await messages.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
+
+            expect(asked).toEqual(["plugin:/work/acme"]);
+            expect(posted).toEqual([
+                new AddOnAboutQuery("plugin:/work/acme", {
+                    readme: { kind: "shown", markdown: "# Acme", truncated: false },
+                }),
+            ]);
+        });
+
+        it("answers nothing on a panel that reads none, and logs a throw", async () => {
+            const { posted, messages } = setUp();
+            const logger = new RecordingNotifier();
+            const failing = new AddOnViewMessages(
+                async () => ({ kind: "done" }),
+                logger,
+                (message) => posted.push(message),
+                { about: () => Promise.reject(new Error("boom")) },
+            );
+
+            await messages.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
+            await failing.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
+
+            expect(posted).toEqual([
+                new AddOnAboutQuery("plugin:/work/acme", { readme: { kind: "none" } }),
+                new AddOnAboutQuery("plugin:/work/acme", { readme: { kind: "none" } }),
+            ]);
+            expect(logger.loggedErrors.map(({ message }) => message)).toEqual(["boom"]);
+        });
+    });
+
     describe("pins each protocol copy to its home", () => {
         it("pins the whole messages", () => {
             expectTypeOf<AddOnCatalogPayload>().toEqualTypeOf<AddOnCatalogModel>();
             expectTypeOf<AddOnRequestPayload>().toEqualTypeOf<AddOnRequest>();
             expectTypeOf<AddOnActionResultPayload>().toEqualTypeOf<AddOnActionResult>();
             expectTypeOf<AddOnRevealPayload>().toEqualTypeOf<AddOnReveal>();
+            expectTypeOf<AddOnAboutPayload>().toEqualTypeOf<AddOnAbout>();
         });
 
         it("pins each value set", () => {

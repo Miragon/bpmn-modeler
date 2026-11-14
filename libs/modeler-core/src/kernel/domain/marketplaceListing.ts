@@ -1,4 +1,5 @@
 import { MarketplaceSettingsEntry } from "./modelerSettings";
+import { RepositoryFacts } from "./repositoryFacts";
 import { TemplateSourceRef } from "./templatePreferences";
 
 /** One registered marketplace as the marketplace owner lists it, before its cached templates are read. */
@@ -12,6 +13,10 @@ export interface MarketplaceListing {
     readonly problem?: string;
     /** Where the user's switches for its templates live; absent for an entry that cannot be parsed. */
     readonly templateSource?: TemplateSourceRef;
+    /** The README its cache holds; absent before one was fetched. */
+    readonly readmeFile?: string;
+    /** Stars and license as its host reported them at the last update. */
+    readonly repository?: RepositoryFacts;
 }
 
 /** One group of cached template files editors load, with where the user's switches for it live. */

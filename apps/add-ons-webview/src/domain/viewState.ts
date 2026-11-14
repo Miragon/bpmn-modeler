@@ -2,6 +2,7 @@ import type {
     AddOnActionResultPayload,
     AddOnCatalogPayload,
     AddOnPayload,
+    AddOnAboutPayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
     AddOnsPage,
@@ -16,7 +17,7 @@ import {
     needsReview,
     NO_FILTER,
 } from "./catalogFilter";
-import { addOnsOf, placementOf, sourceOf } from "./catalogQueries";
+import { addOnsOf, isDetailSource, placementOf, sourceOf } from "./catalogQueries";
 import { settledSelection } from "./catalogSelection";
 import {
     ancestorsOf,
@@ -59,6 +60,10 @@ export interface ViewState {
     readonly nextRequestId: number;
     /** What Review Add-ons found, for a screen reader, until the user searches or filters. */
     readonly reviewCount?: number;
+    /** The README and license of the add-on or marketplace the detail shows, once the host answered. */
+    readonly about?: { readonly targetId: string; readonly about: AddOnAboutPayload };
+    /** What the view last asked about, so it asks again only for another target or model. */
+    readonly aboutAsked?: { readonly targetId: string; readonly revision: number };
 }
 
 /**
@@ -84,7 +89,13 @@ export type ViewEvent =
       }
     | { readonly kind: "toggled"; readonly key: string }
     | { readonly kind: "bannerDismissed" }
+    /** An add-on, or a marketplace whose detail the list opens. */
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
+    | {
+          readonly kind: "aboutArrived";
+          readonly targetId: string;
+          readonly about: AddOnAboutPayload;
+      }
     | { readonly kind: "addOnShown"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
     | { readonly kind: "queryChanged"; readonly query: string }
@@ -98,6 +109,8 @@ export interface Transition {
     readonly focus?: FocusTarget;
     /** The add-on whose details the host is to show in its tab. */
     readonly openDetail?: string;
+    /** The add-on or marketplace whose README and license the host is to send. */
+    readonly askAbout?: string;
 }
 
 /** Busy rows and sources, and the catalog actions under {@link CATALOG_TARGET}. */
@@ -153,7 +166,7 @@ export function listExpansionOf(state: ViewState): ListExpansion {
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
     const change = withSelection(withFilterExpansionEnded(changedBy(state, event)), state);
-    return withFocus(change, change.state.model !== state.model);
+    return withAboutAsked(withFocus(change, change.state.model !== state.model));
 }
 
 type Change = {
@@ -183,6 +196,10 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return selected(state, event.addOnId);
         case "addOnShown":
             return { state: shown(state, event.addOnId) };
+        case "aboutArrived":
+            return event.targetId === state.selectedId
+                ? { state: { ...state, about: { targetId: event.targetId, about: event.about } } }
+                : { state };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
         case "queryChanged":
@@ -424,6 +441,7 @@ function withSelection(change: Change, before: ViewState): Change {
             ? []
             : displayOrderOf(shownSectionsOf(before.model, before.filter));
     const remembered = state.selectedId;
+    if (remembered !== undefined && isDetailSource(model.groups, remembered)) return change;
     const selected = settledSelection(remembered, shown.addOns, orderBefore, shown.inSight);
     if (selected === remembered) return change;
     const { selectedId: _dropped, ...rest } = state;
@@ -453,6 +471,28 @@ function withFocus(change: Change, modelChanged: boolean): Transition {
           : undefined;
     if (focus === undefined && !modelChanged) return change;
     return { ...change, state: { ...state, awaitingFocus: undefined }, focus };
+}
+
+/**
+ * Asks the host for the README and license of what the detail shows, again once a new
+ * model lists it, as a rebuild follows a change in its folder. A list whose
+ * rows open a tab shows no detail, so it asks for none.
+ */
+function withAboutAsked(transition: Transition): Transition {
+    const { state } = transition;
+    const { model, selectedId, aboutAsked } = state;
+    if (model === undefined || selectedId === undefined || state.page === "listWithTab") {
+        return transition;
+    }
+    if (aboutAsked?.targetId === selectedId && aboutAsked.revision === model.revision) {
+        return transition;
+    }
+    const about = state.about?.targetId === selectedId ? state.about : undefined;
+    return {
+        ...transition,
+        state: { ...state, about, aboutAsked: { targetId: selectedId, revision: model.revision } },
+        askAbout: selectedId,
+    };
 }
 
 function fallbackFocus(

@@ -1,4 +1,7 @@
 import { MarketplaceContentType } from "../domain/marketplace";
+import { MARKETPLACE_README } from "../domain/marketplaceAbout";
+import { formatRepositoryFacts, parseRepositoryFacts } from "../domain/repositoryFactsParsing";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import {
     CachedSourceSlot,
     FetchedTemplateFile,
@@ -20,6 +23,19 @@ import { WorkspacePort } from "../../kernel/port/hostPorts";
 const ELEMENT_TEMPLATES_SEGMENT: MarketplaceContentType = "element-templates";
 
 const SLOT_RECORD = "slot.json";
+
+type AboutPart = "readme" | "repository";
+
+const ABOUT_FILE: Record<AboutPart, string> = {
+    readme: MARKETPLACE_README,
+    repository: "facts.json",
+};
+
+/** A marketplace's cached README and repository facts, each absent until fetched. */
+export interface CachedMarketplaceAbout {
+    readonly readmeFile?: string;
+    readonly repository?: RepositoryFacts;
+}
 
 /**
  * Local on-disk cache of fetched template files, the bridge between a remote
@@ -93,6 +109,70 @@ export class MarketplaceCache {
         return this.oneAtATime(() =>
             this.writeGeneration(marketplaceId, sourceIndex, sourceIdentity, files),
         );
+    }
+
+    /**
+     * Beside the source slots, each in a folder of its own that no slot index
+     * can name: the port deletes folders, not files, and a scan of slots never
+     * reads them.
+     */
+    replaceReadme(marketplaceId: string, content: string): Promise<void> {
+        return this.writeAbout(marketplaceId, "readme", content);
+    }
+
+    removeReadme(marketplaceId: string): Promise<void> {
+        return this.removeAbout(marketplaceId, "readme");
+    }
+
+    replaceRepositoryFacts(marketplaceId: string, facts: RepositoryFacts): Promise<void> {
+        return this.writeAbout(marketplaceId, "repository", formatRepositoryFacts(facts));
+    }
+
+    removeRepositoryFacts(marketplaceId: string): Promise<void> {
+        return this.removeAbout(marketplaceId, "repository");
+    }
+
+    /** What each marketplace's detail shows besides its templates, by the id its slots are keyed by. */
+    async cachedAboutByRegistration(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
+        const byRegistration = new Map<string, CachedMarketplaceAbout>();
+        for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+            const id = this.marketplaceIdOf(marketplaceDir);
+            const readmeFile = this.aboutFileOf(id, "readme");
+            const hasReadme = (await this.readOptional(readmeFile)) !== undefined;
+            const factsText = await this.readOptional(this.aboutFileOf(id, "repository"));
+            const repository = factsText === undefined ? undefined : parseRepositoryFacts(factsText);
+            if (!hasReadme && repository === undefined) continue;
+            byRegistration.set(id, {
+                ...(hasReadme && { readmeFile }),
+                ...(repository !== undefined && { repository }),
+            });
+        }
+        return byRegistration;
+    }
+
+    private writeAbout(marketplaceId: string, part: AboutPart, content: string): Promise<void> {
+        return this.oneAtATime(() =>
+            this.workspace.writeFile(this.aboutFileOf(marketplaceId, part), content),
+        );
+    }
+
+    private removeAbout(marketplaceId: string, part: AboutPart): Promise<void> {
+        return this.oneAtATime(() =>
+            this.workspace.deleteDirectory(`${this.cacheRoot}/${marketplaceId}/${part}`),
+        );
+    }
+
+    private aboutFileOf(marketplaceId: string, part: AboutPart): string {
+        return `${this.cacheRoot}/${marketplaceId}/${part}/${ABOUT_FILE[part]}`;
+    }
+
+    private async readOptional(path: string): Promise<string | undefined> {
+        try {
+            return await this.workspace.readFile(path);
+        } catch (error) {
+            if (error instanceof FileNotFound) return undefined;
+            throw error;
+        }
     }
 
     removeSource(marketplaceId: string, sourceIndex: number): Promise<void> {

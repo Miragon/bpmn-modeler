@@ -1,4 +1,5 @@
 import { MarketplaceSettingsEntry } from "../../kernel/domain/modelerSettings";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { MarketplaceAddAnswer, MarketplaceAddPrompt } from "../domain/marketplacePrompts";
 import { MarketplaceRegistrations, MarketplaceScope } from "../domain/marketplaceRegistrations";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
@@ -19,6 +20,9 @@ export interface RepositorySource {
     listTemplateFiles(): Promise<string[]>;
 
     fetchFile(repoPath: string): Promise<string>;
+
+    /** Stars and license as the host reports them; absent for a folder without a host. */
+    repositoryFacts?(): Promise<RepositoryFacts>;
 }
 
 /**

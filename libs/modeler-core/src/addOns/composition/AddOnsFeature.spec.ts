@@ -8,8 +8,10 @@ import {
     ADD_ONS_VIEW_COMMAND_TYPES,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
+    AddOnAboutQuery,
     AddOnRequestCommand,
     GetAddOnCatalogCommand,
+    GetAddOnAboutCommand,
     GetBpmnPluginsCommand,
     Query,
     RevealAddOnsQuery,
@@ -1277,6 +1279,67 @@ describe("AddOnsFeature", () => {
                     ),
             };
         }
+
+        describe("a detail's README and license", () => {
+            it("reads a plugin's README and package.json license in its folder", async () => {
+                const { addOns } = setUp({
+                    files: {
+                        ...RESIZE_FILES,
+                        [`${RESIZE}/README.md`]: "# Resize Tasks",
+                        [`${RESIZE}/package.json`]: '{ "license": "MIT" }',
+                    },
+                });
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+
+                await list.handle(new GetAddOnAboutCommand(`plugin:${RESIZE}`));
+
+                expect(page.posted.at(-1)).toEqual(
+                    new AddOnAboutQuery(`plugin:${RESIZE}`, {
+                        readme: { kind: "shown", markdown: "# Resize Tasks", truncated: false },
+                        license: {
+                            kind: "known",
+                            text: "MIT",
+                            label: "License: MIT, as its package.json says",
+                        },
+                    }),
+                );
+            });
+
+            it("reads nothing for an id the catalog did not list, so a page never names a path", async () => {
+                const { addOns } = setUp({ files: { ...RESIZE_FILES, "/etc/README.md": "secret" } });
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+
+                await list.handle(new GetAddOnAboutCommand("plugin:/etc"));
+
+                expect(page.posted.at(-1)).toEqual(new AddOnAboutQuery("plugin:/etc", { readme: { kind: "none" } }));
+            });
+
+            it("reads a marketplace's README the update cached", async () => {
+                const { addOns, view } = setUp({
+                    files: { ...MARKETPLACE_FILES, [`${LOCAL}/README.md`]: "Local templates." },
+                    marketplaceAnswers: [{ location: LOCAL, scope: "project" }],
+                });
+                view.attachTo(addOns);
+                const page = recordingPanel();
+                const list = addOns.attachPanel(page.post, true);
+                await shown(addOns);
+                await view.connection!.handle({ kind: "addMarketplace" });
+                await shown(addOns);
+                const [source] = marketplaceGroupOf(view)?.sources ?? [];
+
+                await list.handle(new GetAddOnAboutCommand(source.id));
+
+                expect(page.posted.at(-1)).toEqual(
+                    new AddOnAboutQuery(source.id, {
+                        readme: { kind: "shown", markdown: "Local templates.", truncated: false },
+                    }),
+                );
+            });
+        });
 
         describe("a detail tab", () => {
             function recordingDetail() {
