@@ -1,7 +1,5 @@
-import { ancestorsUpTo } from "../../kernel/domain/ancestorsUpTo";
-import { folderOfConfigFolder } from "../../kernel/domain/configArtifacts";
-import { isIgnoredWatchDirName } from "../../kernel/domain/excludedDirs";
-import { isWithinRoot, relativeToRoot } from "../../kernel/domain/rootContainment";
+import { isWithinRoot } from "../../kernel/domain/rootContainment";
+import { configFolderHoldersOf } from "./addOnPaths";
 
 /** Every file of every config folder, at any depth below a workspace folder. */
 export function configFolderFilesGlob(configFolder: string): string {
@@ -11,8 +9,7 @@ export function configFolderFilesGlob(configFolder: string): string {
 /**
  * Each workspace folder, and each folder below one whose config folder holds
  * one of `files`, so a nested project's add-ons are listed before an editor
- * opens there. A config folder inside an installed package or a build output
- * is not the workspace's own.
+ * opens there.
  */
 export function configFolderHoldersIn(
     files: readonly string[],
@@ -22,22 +19,12 @@ export function configFolderHoldersIn(
     const holders = new Set(folders);
     for (const file of files) {
         for (const folder of folders) {
-            holdersAbove(file, folder, configFolder).forEach((holder) => holders.add(holder));
+            configFolderHoldersOf(file, folder, configFolder).forEach((holder) =>
+                holders.add(holder),
+            );
         }
     }
     return [...holders];
-}
-
-function holdersAbove(file: string, folder: string, configFolder: string): string[] {
-    return ancestorsUpTo(file, folder).flatMap((dir) => {
-        const holder = folderOfConfigFolder(dir, configFolder);
-        return holder !== undefined && isOwnFolderBelow(holder, folder) ? [holder] : [];
-    });
-}
-
-function isOwnFolderBelow(holder: string, folder: string): boolean {
-    const below = relativeToRoot(holder, folder);
-    return below !== undefined && !below.split("/").some(isIgnoredWatchDirName);
 }
 
 /** Where one kind of add-on sits in config folders: a plugins or a templates folder. */

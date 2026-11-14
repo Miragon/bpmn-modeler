@@ -103,6 +103,11 @@ describe("configFolderHoldersIn", () => {
             holders: FOLDERS,
         },
         {
+            case: "no config folder whose file lies in an installed package inside it",
+            files: ["/work/project-a/.camunda/plugins/x/node_modules/dep/index.js"],
+            holders: FOLDERS,
+        },
+        {
             case: "no config folder outside every workspace folder",
             files: ["/elsewhere/.camunda/plugins/x/plugin.json"],
             holders: FOLDERS,

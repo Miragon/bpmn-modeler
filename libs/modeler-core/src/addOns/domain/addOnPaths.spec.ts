@@ -28,6 +28,20 @@ describe("affectsAddOns", () => {
         expect(affectsAddOns(path, "/work", ".camunda")).toBe(affects);
     });
 
+    it.each([
+        {
+            case: "a nested plugin file",
+            path: "/work/orders/.camunda/plugins/a/plugin.json",
+            affects: true,
+        },
+        { case: "a diagram", path: "/work/orders/order.bpmn", affects: false },
+    ])(
+        "is $affects for $case with a config folder setting ending in a slash",
+        ({ path, affects }) => {
+            expect(affectsAddOns(path, "/work", ".camunda/")).toBe(affects);
+        },
+    );
+
     it("follows a config folder of several segments", () => {
         expect(affectsAddOns("/work/config/camunda/plugins/a", "/work", "config/camunda")).toBe(
             true,
