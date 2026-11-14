@@ -24,6 +24,11 @@ const XML = FAR_FROM_ORIGIN_XML.replace(
     '<bpmn:userTask id="Task_1"><bpmn:extensionElements><zeebe:formDefinition formId="Form_1" /></bpmn:extensionElements></bpmn:userTask>',
 );
 
+const START_EVENT_XML = XML.replace(
+    '<bpmn:startEvent id="StartEvent_1" />',
+    '<bpmn:startEvent id="StartEvent_1" name="Start"><bpmn:extensionElements><zeebe:formDefinition formId="Form_Start" /></bpmn:extensionElements></bpmn:startEvent>',
+);
+
 let handle: { destroy(): void } | undefined;
 afterEach(async () => {
     await afterPaint();
@@ -105,4 +110,40 @@ describe("linked form preview preference in real bpmn-js surfaces", () => {
             expect(listeners.size).toBe(0);
         },
     );
+
+    it("previews the linked form of a start event, not when its label is selected", async () => {
+        const requests: FormPreviewRequest[] = [];
+        const port: ModelNavigationPort = {
+            openReference: () => undefined,
+            formPreview: {
+                isAutomaticEnabled: () => true,
+                open: (request) => {
+                    requests.push(request);
+                    return { close: () => undefined, reposition: () => undefined };
+                },
+            },
+        };
+        const { container, panel } = mountWithPanel();
+        const surface = await createModeler(container, {
+            capabilities: { modelNavigation: port },
+            moddleExtensions: { zeebe: zeebeDescriptor },
+            propertiesPanel: { parent: panel },
+            engine: "c8",
+        });
+        handle = surface;
+        await surface.loadDiagram(START_EVENT_XML);
+        await afterPaint();
+        const selected: string[][] = [];
+        surface.selection.onSelectionChanged((ids) => selected.push(ids));
+
+        surface.selection.selectElementsByIds(["StartEvent_1_label"]);
+        expect(selected).toEqual([["StartEvent_1_label"]]);
+        expect(requests).toEqual([]);
+
+        surface.selection.selectElementsByIds(["StartEvent_1"]);
+        expect(requests.map((request) => request.id)).toEqual(["Form_Start"]);
+        expect(
+            container.querySelector('[data-action="navigate-to-referenced-model"]'),
+        ).not.toBeNull();
+    });
 });

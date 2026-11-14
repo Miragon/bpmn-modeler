@@ -6,7 +6,8 @@
  * element (`calledElement` / `camunda:decisionRef`).  Camunda 8 wraps it in a
  * `zeebe:calledElement` / `zeebe:calledDecision` extension element.  Both
  * shapes are checked so the caller does not need to know the active engine.
- * Camunda 8 linked forms use `zeebe:formDefinition formId`.
+ * Camunda 8 linked forms use `zeebe:formDefinition formId`, on a user task or
+ * on a none start event of a process.
  */
 
 import { is } from "bpmn-js/lib/util/ModelUtil";
@@ -24,7 +25,10 @@ import { resolveQualifiedReference, type ModdleElementLike } from "./qualifiedRe
 export interface BusinessObjectLike extends ModdleElementLike {
     get(attr: string): unknown;
     extensionElements?: { values?: ExtensionElementLike[] };
+    eventDefinitions?: unknown[];
 }
+
+type ReferenceElement = Parameters<typeof is>[0];
 
 interface ExtensionElementLike {
     $type?: string;
@@ -33,10 +37,16 @@ interface ExtensionElementLike {
     formId?: string;
 }
 
-/** Which element holds a reference of one kind, and where it writes it. */
-interface ReferenceSource {
-    /** The BPMN type of the element that holds the reference. */
+/** One kind of element that holds a reference. */
+interface ReferenceHolder {
     readonly elementType: string;
+    /** Narrows the type to the elements of it that may hold the reference. */
+    readonly holdsReference?: (businessObject: BusinessObjectLike) => boolean;
+}
+
+/** Which elements hold a reference of one kind, and where they write it. */
+interface ReferenceSource {
+    readonly holders: readonly ReferenceHolder[];
     /** The Camunda 7 attribute on the element itself. */
     readonly attribute?: string;
     /** The Camunda 8 extension element and its property that holds the id. */
@@ -48,21 +58,29 @@ interface ReferenceSource {
     readonly qualifiedName: boolean;
 }
 
+/** The properties panel offers a linked form on these start events only. */
+function isNoneStartEventOfProcess(businessObject: BusinessObjectLike): boolean {
+    return !businessObject.eventDefinitions?.length && is(businessObject.$parent, "bpmn:Process");
+}
+
 const REFERENCE_SOURCES: Readonly<Record<ReferenceKind, ReferenceSource>> = {
     process: {
-        elementType: "bpmn:CallActivity",
+        holders: [{ elementType: "bpmn:CallActivity" }],
         attribute: "calledElement",
         extensionElement: { type: "zeebe:CalledElement", property: "processId" },
         qualifiedName: true,
     },
     decision: {
-        elementType: "bpmn:BusinessRuleTask",
+        holders: [{ elementType: "bpmn:BusinessRuleTask" }],
         attribute: "camunda:decisionRef",
         extensionElement: { type: "zeebe:CalledDecision", property: "decisionId" },
         qualifiedName: false,
     },
     form: {
-        elementType: "bpmn:UserTask",
+        holders: [
+            { elementType: "bpmn:UserTask" },
+            { elementType: "bpmn:StartEvent", holdsReference: isNoneStartEventOfProcess },
+        ],
         extensionElement: { type: "zeebe:FormDefinition", property: "formId" },
         qualifiedName: false,
     },
@@ -71,8 +89,19 @@ const REFERENCE_SOURCES: Readonly<Record<ReferenceKind, ReferenceSource>> = {
 const REFERENCE_KINDS = Object.keys(REFERENCE_SOURCES) as ReferenceKind[];
 
 /** The kind of model the element references, or `undefined` for an element that holds none. */
-export function referenceKindOf(element: Parameters<typeof is>[0]): ReferenceKind | undefined {
-    return REFERENCE_KINDS.find((kind) => is(element, REFERENCE_SOURCES[kind].elementType));
+export function referenceKindOf(element: ReferenceElement): ReferenceKind | undefined {
+    // An external label shares its event's business object but is not the holder.
+    if (element.type === "label") {
+        return undefined;
+    }
+    const businessObject: BusinessObjectLike = element.businessObject ?? element;
+    return REFERENCE_KINDS.find((kind) =>
+        REFERENCE_SOURCES[kind].holders.some(
+            (holder) =>
+                is(element, holder.elementType) &&
+                (!holder.holdsReference || holder.holdsReference(businessObject)),
+        ),
+    );
 }
 
 /**

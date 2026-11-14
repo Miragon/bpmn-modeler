@@ -4,7 +4,8 @@
  * selected element for Call Activities (with a resolvable
  * `calledElement` / `zeebe:calledElement processId`), Business Rule Tasks
  * (with `camunda:decisionRef` / `zeebe:calledDecision decisionId`), and C8 User
- * Tasks whose `zeebe:formDefinition formId` resolves to a workspace form.
+ * Tasks and top-level none Start Events whose `zeebe:formDefinition formId`
+ * resolves to a workspace form.
  *
  * Clicking the entry calls {@link ModelNavigationPort.openReference}; the
  * consumer performs the workspace lookup and opens the referenced `.bpmn`,

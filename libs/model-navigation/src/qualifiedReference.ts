@@ -7,6 +7,7 @@
  */
 
 export interface ModdleElementLike {
+    $type?: string;
     $parent?: ModdleElementLike;
     $attrs?: Record<string, unknown>;
 }

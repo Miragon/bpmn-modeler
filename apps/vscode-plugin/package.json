@@ -750,7 +750,7 @@
                     "type": "boolean",
                     "default": true,
                     "scope": "application",
-                    "description": "Automatically preview linked Camunda Forms when selecting a user task. The context-pad eye still opens previews manually when disabled."
+                    "description": "Automatically preview linked Camunda Forms when selecting a user task or start event. The context-pad eye still opens previews manually when disabled."
                 },
                 "miragon.bpmnModeler.linting.enabled": {
                     "type": "boolean",

@@ -1,8 +1,8 @@
 # `@miragon/bpmn-model-navigation`
 
 The **Navigate to referenced model** context-pad action: from a call activity to its BPMN process, from a
-business-rule task to its DMN decision, from a Camunda 8 user task to the `.form` file whose `id` matches
-its `formId`. It also shows the linked form preview. `@miragon/bpmn-modeler` registers it when the host
+business-rule task to its DMN decision, from a Camunda 8 user task or top-level none start event to the
+`.form` file whose `id` matches its `formId`. It also shows the linked form preview. `@miragon/bpmn-modeler` registers it when the host
 supplies `capabilities.modelNavigation`, on the modeler, `/design` and `/viewer`.
 
 Internal workspace, not published on its own.
@@ -14,7 +14,7 @@ Internal workspace, not published on its own.
 - Finding and opening the file is the host's job; the library only calls `openReference` on the
   `ModelNavigationPort`.
 - Form links are pessimistic where the host knows its forms: with `isReferenceAvailable` and
-  `onReferenceAvailabilityChanged`, a user task shows no link until its form is known to exist. Without
+  `onReferenceAvailabilityChanged`, a form holder shows no link until its form is known to exist. Without
   these hooks every valid reference counts as available.
 - `formPreview` on the port opens the anchored form preview; `isAutomaticEnabled` and
   `onAutomaticChanged` control automatic previews. See the

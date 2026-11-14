@@ -1,6 +1,6 @@
 # Forms
 
-Build Camunda Forms for user tasks in a visual editor ([form-js](https://bpmn.io/toolkit/form-js/)), preview them and test their data inside VS Code.
+Build Camunda Forms for user tasks and start events in a visual editor ([form-js](https://bpmn.io/toolkit/form-js/)), preview them and test their data inside VS Code.
 
 ## Create or open a form
 
@@ -28,12 +28,12 @@ Test data lives only for the open editor session. It is not written to the works
 
 ## Open a form from a user task
 
-1. Set the user task's **Form ID** to the top-level `id` of the form.
-2. Select the user task and click **Navigate to referenced model** in the context pad, or press <kbd>G</kbd>.
+1. Set the user task's **Form ID** to the top-level `id` of the form. A Camunda 8 none start event directly in a process can link a form the same way.
+2. Select the element and click **Navigate to referenced model** in the context pad, or press <kbd>G</kbd>.
 
 The form `id` identifies the file, not the file name. If several forms share an id, the modeler asks which one to open.
 
 ## Next steps
 
-- [Jump to code and models](/vscode/features/code-navigation): open a form from its user task.
+- [Jump to code and models](/vscode/features/code-navigation): open a form from its user task or start event.
 - [Deployment](/vscode/features/deployment): deploy the form with its process.

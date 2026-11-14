@@ -29,7 +29,7 @@ Flow navigation works while the canvas has focus. <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>
 |---|---|---|
 | <kbd>Enter</kbd> | Collapsed sub-process | Drill in and select its first start event |
 | <kbd>U</kbd> | Inside a sub-process | Drill out one level and select the sub-process |
-| <kbd>G</kbd> | Element with a model or code link (call activity, business rule, service, send or user task) | Open the referenced model, form or implementation file |
+| <kbd>G</kbd> | Element with a model or code link (call activity, business rule, service, send or user task, or a start event with a linked form) | Open the referenced model, form or implementation file |
 | <kbd>O</kbd> | Script task, or task with Camunda 7 listeners | Open the first script in an editor tab |
 | <kbd>A</kbd> | Any shape | Open the [append menu](/vscode/features/append-menu) |
 | <kbd>M</kbd> | Any shape | Open the element actions menu |
