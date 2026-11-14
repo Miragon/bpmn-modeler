@@ -29,6 +29,7 @@ const dictionary: Record<string, string> = {
     "Changes": "更改",
     "No changes": "无更改",
     "Show all": "显示全部",
+    "Show XML changes": "显示 XML 更改",
     "Old version": "旧版本",
     "New version": "新版本",
     "Not in this version": "此版本中不存在",

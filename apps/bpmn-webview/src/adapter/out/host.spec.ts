@@ -7,6 +7,7 @@ import {
     DiffPlaneChangedCommand,
     DiagramFormattedCommand,
     DiffReadyCommand,
+    DiffSelectionChangedCommand,
     DocumentFlushedCommand,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
@@ -37,6 +38,7 @@ import {
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
+    ShowElementXmlChangesCommand,
     ShowInfoCommand,
     SwapCompareSidesCommand,
     SyncActivitiesCommand,
@@ -126,6 +128,8 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     DiffPlaneChangedCommand: new DiffPlaneChangedCommand("Process_1"),
     SwapCompareSidesCommand: new SwapCompareSidesCommand(),
     LogErrorCommand: new LogErrorCommand("error"),
+    ShowElementXmlChangesCommand: new ShowElementXmlChangesCommand("Task_1"),
+    DiffSelectionChangedCommand: new DiffSelectionChangedCommand("Task_1"),
 };
 
 describe("getHostApi", () => {
@@ -272,6 +276,7 @@ describe("development preview host", () => {
                 side,
                 origin: "compare-files",
                 paneFilename,
+                elementXmlChanges: true,
                 counts: expected.counts,
                 navigationOrder: expected.navigationOrder,
             });

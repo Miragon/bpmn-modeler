@@ -1,19 +1,24 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModuleDeclaration } from "didi";
 import type Canvas from "diagram-js/lib/core/Canvas";
 import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
 import type EventBus from "diagram-js/lib/core/EventBus";
 import type { Event as EventBusEvent } from "diagram-js/lib/core/EventBus";
+import type Selection from "diagram-js/lib/features/selection/Selection";
+import { getBBox } from "diagram-js/lib/util/Elements";
 import type { Point } from "diagram-js/lib/util/Types";
 
 import {
     DIFF_MARKERS,
     type DiffMarker,
     DIFF_SELECTED_MARKER,
+    type Disposer,
     DisposableStore,
     MIN_CANVAS_SIZE_PX,
     MutableDisposable,
     NoModelerError,
+    subscribe,
     Viewport,
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
@@ -21,6 +26,8 @@ import {
 import { centreOf, type PositionedElement } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
+import { singleSelectedElementId, type BpmnDiagramElement } from "./diffSelection";
+import { liesWithin } from "./selectionVisibility";
 
 type DiagramRoot = { id: string; businessObject?: { id?: string } };
 
@@ -30,8 +37,28 @@ type DiagramRoot = { id: string; businessObject?: { id?: string } };
  */
 const OPENING_PLANE = "";
 
+function viewboxCentredOn(centre: Point, size: { width: number; height: number }) {
+    const { width, height } = size;
+    return { x: centre.x - width / 2, y: centre.y - height / 2, width, height };
+}
+
 /** CSS class applied to each element category on the canvas, as `DIFF_MARKERS` maps them. */
 export type DiffMarkerClass = DiffMarker;
+
+/** Per-pane config for {@link DiffViewer}. */
+export interface DiffViewerOptions {
+    /**
+     * Extra bpmn-js/didi modules for the pane, such as a context pad. Without
+     * them the pane stays the plain readonly viewer.
+     */
+    additionalModules?: unknown[];
+}
+
+/**
+ * Replaces diagram-js's KeepSelectionVisible: its scroll on resize would post a
+ * viewport that competes with the partner pane's.
+ */
+const NO_KEEP_SELECTION_VISIBLE_MODULE = { keepSelectionVisible: ["value", {}] };
 
 const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SELECTED_MARKER];
 
@@ -47,13 +74,20 @@ export class DiffViewer {
 
     private programmaticPositioningDepth = 0;
 
+    private programmaticSelectionDepth = 0;
+
+    // Only the pane the user selected in centres its selection on resize.
+    private selectionMirrored = false;
+
+    // Measured on every viewbox, selection and size change, so a resize can tell what it cut off.
+    private selectionWasVisible = false;
+
     /**
-     * Id of the element currently highlighted as the stepper's focus, or
-     * `undefined` when nothing is selected.  Tracked so {@link focusElement}
-     * can remove the marker from the previous target before adding it to
-     * the new one.
+     * Id of the element highlighted as the stepper's focus, or `undefined`.
+     * Tracked so {@link focusElement} can remove the marker from the previous
+     * target before adding it to the new one. Independent of the selection.
      */
-    private selectedId: string | undefined;
+    private focusedId: string | undefined;
 
     private readonly store = new DisposableStore();
 
@@ -75,9 +109,15 @@ export class DiffViewer {
         fitViewport: () => this.fitViewport(),
     });
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, options: DiffViewerOptions = {}) {
         try {
-            this.viewer = new NavigatedViewer({ container });
+            this.viewer = new NavigatedViewer({
+                container,
+                additionalModules: [
+                    NO_KEEP_SELECTION_VISIBLE_MODULE,
+                    ...(options.additionalModules ?? []),
+                ] as ModuleDeclaration[],
+            });
         } catch (error) {
             // A partially-constructed bpmn-js attaches `.bjs-container` with no
             // handle to destroy; clear the dedicated container before rethrowing.
@@ -90,6 +130,8 @@ export class DiffViewer {
         });
         this.store.add(() => this.sizeObserver.dispose());
         this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
+        this.store.add(this.trackWhetherSelectionIsMirrored());
+        this.store.add(...this.keepUserSelectionVisibleOnResize());
     }
 
     /**
@@ -100,10 +142,70 @@ export class DiffViewer {
         this.positionProgrammatically(() => this.fitViewport());
     }
 
+    private trackWhetherSelectionIsMirrored(): () => void {
+        const eventBus = this.getViewer().get<EventBus>("eventBus");
+        return subscribe(eventBus, "selection.changed", () => {
+            this.selectionMirrored = this.programmaticSelectionDepth > 0;
+        });
+    }
+
+    // A pane that loses height, as when an editor opens below the diff, can cut
+    // the selection off at its bottom edge. As diagram-js's KeepSelectionVisible
+    // did, only a selection that was fully in view is brought back, so a user who
+    // panned away keeps their place. The pane centres it as a user pan would, so
+    // the partner follows through the viewport sync.
+    private keepUserSelectionVisibleOnResize(): Disposer[] {
+        const eventBus = this.getViewer().get<EventBus>("eventBus");
+        const recordSelectionVisibility = () => {
+            this.selectionWasVisible = this.isSelectionVisible();
+        };
+        // `canvas.resized()` drops the cached viewbox, so it measures the new size here.
+        const centreSelectionCutOff = () => {
+            if (!this.isPaneSized()) {
+                return;
+            }
+            const element = this.singleSelectedElement();
+            const centre = element ? centreOf(element as PositionedElement) : undefined;
+            if (
+                centre &&
+                !this.selectionMirrored &&
+                this.selectionWasVisible &&
+                !this.isSelectionVisible()
+            ) {
+                const canvas = this.getCanvas();
+                canvas.viewbox(viewboxCentredOn(centre, canvas.viewbox()));
+            }
+            recordSelectionVisibility();
+        };
+        return [
+            subscribe(eventBus, "canvas.viewbox.changed", recordSelectionVisibility),
+            subscribe(eventBus, "selection.changed", recordSelectionVisibility),
+            subscribe(eventBus, "canvas.resized", centreSelectionCutOff),
+        ];
+    }
+
+    private singleSelectedElement() {
+        const selected = this.getViewer().get<Selection>("selection").get();
+        return selected.length === 1 ? selected[0] : undefined;
+    }
+
+    private isSelectionVisible(): boolean {
+        const element = this.singleSelectedElement();
+        return !!element && liesWithin(getBBox(element), this.getCanvas().viewbox());
+    }
+
     async importXML(xml: string): Promise<ImportXMLResult> {
         // The import sets its own root; no plane change to report until it is done.
         this.openingRoot = undefined;
-        const result = await this.getViewer().importXML(xml);
+        // bpmn-js clears the diagram and sets its root; diagram-js answers both with
+        // an empty selection the user never made, which would clear the partner's.
+        this.programmaticSelectionDepth += 1;
+        let result: ImportXMLResult;
+        try {
+            result = await this.getViewer().importXML(xml);
+        } finally {
+            this.programmaticSelectionDepth -= 1;
+        }
         this.openingRoot = this.getCanvas().getRootElement();
 
         // Panes open side by side, so one regularly has no box yet when the
@@ -166,7 +268,7 @@ export class DiffViewer {
                 canvas.removeMarker(element.id, markerClass);
             }
         });
-        this.selectedId = undefined;
+        this.focusedId = undefined;
     }
 
     getViewport(): Viewport {
@@ -224,11 +326,11 @@ export class DiffViewer {
             return false;
         }
         const canvas = this.getCanvas();
-        if (this.selectedId && this.selectedId !== id) {
-            canvas.removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
+        if (this.focusedId && this.focusedId !== id) {
+            canvas.removeMarker(this.focusedId, DIFF_SELECTED_MARKER);
         }
         canvas.addMarker(id, DIFF_SELECTED_MARKER);
-        this.selectedId = id;
+        this.focusedId = id;
         return true;
     }
 
@@ -322,14 +424,56 @@ export class DiffViewer {
             if (canvas.getRootElement() !== root) {
                 canvas.setRootElement(root);
             }
-            canvas.viewbox({
-                x: centre.x - viewbox.width / 2,
-                y: centre.y - viewbox.height / 2,
-                width: viewbox.width,
-                height: viewbox.height,
-            });
+            canvas.viewbox(viewboxCentredOn(centre, viewbox));
         });
         return true;
+    }
+
+    /**
+     * Selects the element its partner pane selected, by BPMN id, or nothing for
+     * `undefined`, without telling {@link onSelectedElementChanged} listeners.
+     * Returns `false`, clearing the selection instead, when the element is not
+     * on the plane shown. A mirrored selection stays put when the pane resizes.
+     */
+    mirrorSelection(elementId: string | undefined): boolean {
+        const element =
+            elementId === undefined
+                ? undefined
+                : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
+        const canvas = this.getCanvas();
+        const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
+        this.programmaticSelectionDepth += 1;
+        try {
+            this.getViewer()
+                .get<Selection>("selection")
+                .select(shown ? element : null);
+        } finally {
+            this.programmaticSelectionDepth -= 1;
+        }
+        return shown || elementId === undefined;
+    }
+
+    /**
+     * Subscribes to the user changing the selection: the selected element's
+     * BPMN id (a label as the element it labels), or `undefined` when the
+     * selection is empty or holds several elements. Not reported are
+     * {@link mirrorSelection}, the selection an {@link importXML} drops and a
+     * selection the pane drops by entering a plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports every
+     * selection as diagram element ids, it names one BPMN element, so two
+     * versions of a diagram can share it. Returns a disposer that unsubscribes.
+     */
+    onSelectedElementChanged(listener: (elementId: string | undefined) => void): () => void {
+        const eventBus = this.getViewer().get<EventBus>("eventBus");
+        return subscribe(
+            eventBus,
+            "selection.changed",
+            (event: { newSelection: BpmnDiagramElement[] }) => {
+                if (this.programmaticSelectionDepth > 0 || this.programmaticPositioningDepth > 0) {
+                    return;
+                }
+                listener(singleSelectedElementId(event.newSelection));
+            },
+        );
     }
 
     /**
@@ -347,11 +491,11 @@ export class DiffViewer {
      * the user into thinking it is still the active step.
      */
     clearSelectionMarker(): void {
-        if (!this.selectedId) {
+        if (!this.focusedId) {
             return;
         }
-        this.getCanvas().removeMarker(this.selectedId, DIFF_SELECTED_MARKER);
-        this.selectedId = undefined;
+        this.getCanvas().removeMarker(this.focusedId, DIFF_SELECTED_MARKER);
+        this.focusedId = undefined;
     }
 
     /**

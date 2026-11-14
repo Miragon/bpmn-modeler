@@ -7,6 +7,7 @@ import {
     DIFF_PANE_HANDSHAKE_COMMAND_TYPES,
     DMN_DIFF_PANE_COMMAND_TYPES,
     DiffReadyCommand,
+    DiffSelectionChangedCommand,
     DmnDiffScrollChangedCommand,
     DmnDiffViewChangedCommand,
     GetBpmnFileCommand,
@@ -30,7 +31,9 @@ const BEFORE = "git:/repo/order.bpmn?ref=HEAD";
 const AFTER = "file:///repo/order.bpmn";
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false" />
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="Task_1" />
+  </bpmn:process>
 </bpmn:definitions>`;
 
 function diffPanes(extensions: DiffPaneHostExtensions = {}) {
@@ -60,6 +63,8 @@ describe("createDiffPaneRouter", () => {
                 DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "handled",
                 LogErrorCommand: "handled",
+                ShowElementXmlChangesCommand: "ignored",
+                DiffSelectionChangedCommand: "handled",
             },
         ],
         [
@@ -75,6 +80,8 @@ describe("createDiffPaneRouter", () => {
                 DiffPlaneChangedCommand: "handled",
                 SwapCompareSidesCommand: "ignored",
                 LogErrorCommand: "ignored",
+                ShowElementXmlChangesCommand: "ignored",
+                DiffSelectionChangedCommand: "handled",
             },
         ],
     ])("routes every command a diff pane posts for %s", (_host, extensions, expected) => {
@@ -145,6 +152,17 @@ describe("createDiffPaneRouter", () => {
         expect(first.after.posted).toStrictEqual([]);
         expect(second.after.posted).toStrictEqual([
             expect.objectContaining({ type: "SyncCursorQuery", index: 1 }),
+        ]);
+    });
+
+    it("selects a pane's selection in its partner", async () => {
+        const { router, before, after } = diffPanes();
+
+        await router.dispatch(new DiffSelectionChangedCommand("Task_1"), after);
+
+        expect(after.posted).toStrictEqual([]);
+        expect(before.posted).toStrictEqual([
+            expect.objectContaining({ type: "SyncDiffSelectionQuery", elementId: "Task_1" }),
         ]);
     });
 
