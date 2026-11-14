@@ -4,9 +4,11 @@ import {
     CursorChangedCommand,
     DiffPlaneChangedCommand,
     DiffReadyCommand,
+    DiffSelectionChangedCommand,
     LogErrorCommand,
     Query,
     SHOW_ALL_CURSOR,
+    ShowElementXmlChangesCommand,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -20,6 +22,10 @@ import {
     DiffViewer,
 } from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
+import { createElementXmlChangesModule } from "./elementXmlContextPad";
+
+// How the selection messages name an empty or multiple selection.
+const NO_ELEMENT = "";
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
@@ -34,9 +40,13 @@ import type { DiffPaneChannel } from "../../port/hostChannel";
  *   - Incoming {@link SyncViewportQuery} → apply partner's viewport.
  *   - Incoming {@link SyncCursorQuery} → advance the local navigator without
  *     re-emitting (would otherwise ping-pong the two panes forever).
+ *   - Incoming {@link SyncDiffSelectionQuery} → mirror the partner's selection
+ *     without re-emitting, for the same reason.
  *   - Outgoing {@link ViewportChangedCommand} on user pan/zoom.
  *   - Outgoing {@link CursorChangedCommand} on user-driven Next/Prev so the
  *     partner pane's stepper stays in lockstep.
+ *   - Outgoing {@link DiffSelectionChangedCommand} on every user selection, and
+ *     {@link ShowElementXmlChangesCommand} from the context pad's entry.
  *
  * The stepper and anchor walk live in {@link DiffNavigator}; the host's
  * navigationOrder already leaves out connections whose only change is layout.
@@ -61,12 +71,22 @@ export class DiffMode {
 
     private highlightsBeforeImport: ApplyDiffHighlightsQuery | undefined;
 
+    private hostShowsElementXmlChanges = false;
+
     constructor(
         private readonly canvas: HTMLElement,
         legendParent: HTMLElement,
         private readonly host: DiffPaneChannel,
     ) {
-        this.viewer = new DiffViewer(canvas);
+        this.viewer = new DiffViewer(canvas, {
+            additionalModules: [
+                createElementXmlChangesModule({
+                    canShowElementXmlChanges: () => this.hostShowsElementXmlChanges,
+                    showElementXmlChanges: (elementId) =>
+                        this.host.postMessage(new ShowElementXmlChangesCommand(elementId)),
+                }),
+            ],
+        });
         this.navigator = new DiffNavigator(this.viewer);
         this.legend = new DiffLegend(legendParent, {
             onPrevious: () => this.step(-1),
@@ -91,6 +111,9 @@ export class DiffMode {
             if (!this.planeMissing) {
                 this.host.postMessage(new ViewportChangedCommand(viewport));
             }
+        });
+        this.viewer.onSelectedElementChanged((elementId) => {
+            this.host.postMessage(new DiffSelectionChangedCommand(elementId ?? NO_ELEMENT));
         });
     }
 
@@ -134,6 +157,11 @@ export class DiffMode {
                     this.showPosition(query.index);
                 }
                 break;
+            case "SyncDiffSelectionQuery":
+                this.viewer.mirrorSelection(
+                    query.elementId === NO_ELEMENT ? undefined : query.elementId,
+                );
+                break;
         }
     }
 
@@ -163,6 +191,7 @@ export class DiffMode {
         // partner pane — the two borders meet at VS Code's sash, giving the
         // user a visible hint of where to drag to resize the split.
         document.body.dataset.diffSide = query.side;
+        this.hostShowsElementXmlChanges = query.elementXmlChanges;
 
         this.viewer.clearHighlights();
         for (const category of DIFF_CATEGORIES) {

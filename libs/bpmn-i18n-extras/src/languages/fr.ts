@@ -34,6 +34,7 @@ const dictionary: Record<string, string> = {
     "Changes": "Modifications",
     "No changes": "Aucune modification",
     "Show all": "Tout afficher",
+    "Show XML changes": "Afficher les modifications XML",
     "Old version": "Ancienne version",
     "New version": "Nouvelle version",
     "Not in this version": "Absent de cette version",

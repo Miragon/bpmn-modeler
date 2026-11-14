@@ -24,6 +24,8 @@ export type DiffPaneCommand = MessageOfType<DiffPaneCommandType>;
 export const BPMN_DIFF_PANE_COMMAND_TYPES = [
     ...DIFF_PANE_COMMAND_TYPES,
     "DiffPlaneChangedCommand",
+    "ShowElementXmlChangesCommand",
+    "DiffSelectionChangedCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type BpmnDiffPaneCommandType = (typeof BPMN_DIFF_PANE_COMMAND_TYPES)[number];

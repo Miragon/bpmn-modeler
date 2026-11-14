@@ -1495,6 +1495,12 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
      */
     public readonly paneFilename: string;
 
+    /**
+     * Whether the host opens an element's XML changes, so the pane offers
+     * {@link ShowElementXmlChangesCommand} on an element's context pad.
+     */
+    public readonly elementXmlChanges: boolean;
+
     constructor(
         side: DiffSide,
         added: readonly string[],
@@ -1505,6 +1511,7 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         navigationOrder: readonly string[],
         origin: DiffOrigin,
         paneFilename: string,
+        elementXmlChanges = false,
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -1516,6 +1523,7 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         this.navigationOrder = navigationOrder;
         this.origin = origin;
         this.paneFilename = paneFilename;
+        this.elementXmlChanges = elementXmlChanges;
     }
 }
 
@@ -1633,6 +1641,50 @@ export class DiffReadyCommand extends Command<"DiffReadyCommand"> {
 export class SwapCompareSidesCommand extends Command<"SwapCompareSidesCommand"> {
     constructor() {
         super("SwapCompareSidesCommand");
+    }
+}
+
+/**
+ * Sent from a BPMN diff pane when the user picks "Show XML changes" on an
+ * element's context pad. The host shows that element's XML from both versions
+ * in a text diff.
+ */
+export class ShowElementXmlChangesCommand extends Command<"ShowElementXmlChangesCommand"> {
+    public readonly elementId: string;
+
+    constructor(elementId = "") {
+        super("ShowElementXmlChangesCommand");
+        this.elementId = elementId;
+    }
+}
+
+/**
+ * Sent from a BPMN diff pane whenever the user changes the selection:
+ * `elementId` names the one selected element, or is `""` when the selection is
+ * empty or holds several elements. The host mirrors it to the partner pane via
+ * {@link SyncDiffSelectionQuery} and moves an open element XML diff to a named
+ * element; `""` leaves that diff on its element.
+ */
+export class DiffSelectionChangedCommand extends Command<"DiffSelectionChangedCommand"> {
+    public readonly elementId: string;
+
+    constructor(elementId = "") {
+        super("DiffSelectionChangedCommand");
+        this.elementId = elementId;
+    }
+}
+
+/**
+ * Sent from the host to a BPMN diff pane to select the element its partner
+ * selected; `""`, or an element the pane does not show, clears its selection.
+ * The pane must NOT re-emit {@link DiffSelectionChangedCommand}.
+ */
+export class SyncDiffSelectionQuery extends Query<"SyncDiffSelectionQuery"> {
+    public readonly elementId: string;
+
+    constructor(elementId = "") {
+        super("SyncDiffSelectionQuery");
+        this.elementId = elementId;
     }
 }
 
