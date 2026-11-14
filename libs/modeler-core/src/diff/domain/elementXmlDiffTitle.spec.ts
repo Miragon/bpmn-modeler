@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
 
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";
+import { diffTabLabelNamesFile } from "./diffTabLabel";
 import { elementXmlDiffTitle } from "./elementXmlDiffTitle";
 
 const WORKING_TREE: DiffRevision = { kind: "working-tree" };
@@ -80,11 +81,11 @@ describe("elementXmlDiffTitle", () => {
             "Gateway_7 (XML): order.bpmn (HEAD~1) ↔ order.bpmn (HEAD)",
         ],
         [
-            "names a commit and its parent by their short hashes, as VS Code's timeline does",
+            "names commits as the host names them",
             "Gateway_7",
             "scm",
-            side("git:/repo/order.bpmn?ref=x", ref("3f2a1b4c5d6e7f8091a2b3c4d5e6f708192a3b4c^")),
-            side("git:/repo/order.bpmn?ref=y", ref("3f2a1b4c5d6e7f8091a2b3c4d5e6f708192a3b4c")),
+            side("git:/repo/order.bpmn?ref=x", ref("3f2a1b4^")),
+            side("git:/repo/order.bpmn?ref=y", ref("3f2a1b4")),
             "Gateway_7 (XML): order.bpmn (3f2a1b4^) ↔ order.bpmn (3f2a1b4)",
         ],
         [
@@ -121,5 +122,19 @@ describe("elementXmlDiffTitle", () => {
         ],
     ])("%s", (_case, elementId, origin, before, after, expected) => {
         expect(elementXmlDiffTitle(elementId, origin, before, after)).toBe(expected);
+    });
+});
+
+describe("an element XML diff title", () => {
+    it("names no diagram diff's file, so it never counts as a diff tab of it", () => {
+        const title = elementXmlDiffTitle(
+            "Activity_1",
+            "compare-files",
+            side("file:///repo/a.bpmn", WORKING_TREE),
+            side("file:///repo/b.bpmn", WORKING_TREE),
+        );
+
+        expect(diffTabLabelNamesFile(title, "a.bpmn")).toBe(false);
+        expect(diffTabLabelNamesFile(title, "b.bpmn")).toBe(false);
     });
 });

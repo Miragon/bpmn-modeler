@@ -1,4 +1,5 @@
 import { elementXml } from "@miragon/bpmn-modeler-diff";
+import { NO_DIFF_SELECTION } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../../kernel/port/hostPorts";
 import { ElementXmlRequests } from "../domain/ElementXmlRequests";
@@ -71,6 +72,7 @@ export class ElementXmlDiffService {
     }
 
     private async request(pane: DiffPaneHandle, elementId: string, opens: boolean): Promise<void> {
+        if (elementId === NO_DIFF_SELECTION) return;
         const session = this.store.sessionOf(pane);
         const before = session?.before();
         const after = session?.after();

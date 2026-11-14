@@ -15,17 +15,9 @@ import {
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
+import { isGitProvidedDocument } from "../../domain/documentRevision";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
-
-/**
- * URI schemes used by Git-provider extensions to surface ref/index/working-tree
- * documents. VS Code's built-in Git extension uses `git:`; Theia's `@theia/git`
- * (used by the standalone desktop shell) uses `gitfs:`. Both are always
- * readonly and always belong to a diff, so the scheme alone is a sufficient
- * signal for `shouldResolveAsDiff`.
- */
-const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
 
 /** A diff pane whose webview loads its page on `bootstrap`, once its listeners are attached. */
 export interface BootstrappableDiffPane extends DiffPaneHandle {
@@ -141,10 +133,8 @@ export class DiffController {
      * Decision tree:
      *   1. A pre-registered `compare-files` session waits for a pane on this
      *      URI → true.
-     *   2. The URI uses a Git-provided scheme (see
-     *      {@link GIT_PROVIDED_SCHEMES}) → true. Covers VS Code's `git:` and
-     *      Theia's `gitfs:` — both are always readonly and always belong to a
-     *      diff.
+     *   2. The document comes from a Git provider ({@link isGitProvidedDocument})
+     *      → true: such a document is read-only and always belongs to a diff.
      *   3. More diff tabs name the file, per the label heuristic, than diff
      *      panes already render it → true. A file opened in a normal editor
      *      tab beside its diff stays an editable modeler, while a second diff
@@ -156,7 +146,7 @@ export class DiffController {
         if (this.store.awaitingPaneFor(needle)) {
             return true;
         }
-        if (GIT_PROVIDED_SCHEMES.has(uri.scheme)) {
+        if (isGitProvidedDocument(uri)) {
             return true;
         }
         return this.diffTabsNaming(uri) > this.store.paneCountFor(needle);

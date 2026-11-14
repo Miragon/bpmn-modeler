@@ -9,18 +9,17 @@ export type ElementXmlRequestOutcome = "show" | "refresh" | "superseded";
  */
 export class ElementXmlRequests {
     private latestRequest = 0;
-    private latestElementId = "";
+    private latestElementId: string | undefined;
     private showPending = false;
     private showSettled = false;
     private closed = false;
 
     /**
      * Starts a request and returns its number, or `undefined` when there is
-     * nothing to do: no element, a selection before any show, or a selection
-     * of the element requested last.
+     * nothing to do: a selection before any show, or a selection of the
+     * element requested last.
      */
     begin(elementId: string, opens: boolean): number | undefined {
-        if (elementId === "") return undefined;
         if (!opens && (!this.follows() || elementId === this.latestElementId)) return undefined;
         this.latestElementId = elementId;
         this.showPending ||= opens;
@@ -52,7 +51,7 @@ export class ElementXmlRequests {
     abandon(request: number): void {
         if (request !== this.latestRequest) return;
         this.showPending = false;
-        this.latestElementId = "";
+        this.latestElementId = undefined;
     }
 
     private follows(): boolean {

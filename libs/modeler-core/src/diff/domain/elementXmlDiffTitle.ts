@@ -2,7 +2,7 @@ import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";
-import { compareTabLabel } from "./diffTabLabel";
+import { ELEMENT_XML_TITLE_INFIX, compareTabLabel } from "./diffTabLabel";
 
 /**
  * The title of the text diff that shows one element's XML from both sides of
@@ -15,7 +15,7 @@ export function elementXmlDiffTitle(
     before: DiffSideVersion,
     after: DiffSideVersion,
 ): string {
-    return `${elementId} (XML): ${sidesLabel(origin, before, after)}`;
+    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${sidesLabel(origin, before, after)}`;
 }
 
 function sidesLabel(origin: DiffOrigin, before: DiffSideVersion, after: DiffSideVersion): string {
@@ -56,17 +56,8 @@ function revisionLabel(revision: DiffRevision): string | undefined {
         case "index-or-head":
             return "Index";
         case "ref":
-            return shortRef(revision.ref);
+            return revision.ref;
         case "unknown":
             return undefined;
     }
-}
-
-const FULL_COMMIT_HASH = /^([0-9a-f]{40})(\^?)$/i;
-// The Git extension's default `git.commitShortHashLength`.
-const SHORT_HASH_LENGTH = 7;
-
-function shortRef(ref: string): string {
-    const commit = FULL_COMMIT_HASH.exec(ref);
-    return commit ? `${commit[1].slice(0, SHORT_HASH_LENGTH)}${commit[2]}` : ref;
 }
