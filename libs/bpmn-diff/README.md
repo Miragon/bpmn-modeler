@@ -26,11 +26,25 @@ const taskXml = await elementXml(afterXml, "Task_1", [beforeXml, afterXml]); // 
 ```
 
 `elementXml` returns one element's XML for a text diff: no diagram interchange, no children that are
-diff elements of their own, and a participant followed by its process. It is re-serialised, so it is
+diff elements of their own (a child without an id stays), and a participant followed by its process. It is re-serialised, so it is
 not the file's bytes. Each namespace takes one prefix from the declarations in the third argument
 (default: the document itself); pass both versions on both calls so a prefix renamed between them is
 no change. It loads no engine descriptor, so Camunda 7 and 8 extensions keep their XML as
 written. Not exported from `@miragon/bpmn-modeler`.
+
+```ts
+import { elementSnapshots } from "@miragon/bpmn-modeler-diff";
+
+const snapshots = await elementSnapshots(xml, { prefixSources: [base, current, incoming], isUnit });
+const task = snapshots.get("Task_1"); // { type, parent, container, lanes, parts, plane, xml, content, references, layout }
+```
+
+`elementSnapshots` parses once and returns every element's snapshot in document order, with the same
+text as `elementXml` for the default set of elements. `isUnit` chooses which elements stand on their
+own, and only elements with an id can; the three-way merge (#2450) passes its own set.
+`content` leaves out the derived references (`incoming`, `outgoing`, `flowNodeRef`,
+`boundaryEventRefs`). `rejectWarnings: true` rejects any parse warning, such as an unresolved
+reference; by default only skipped content rejects, as in `elementXml`.
 
 ## Rules
 

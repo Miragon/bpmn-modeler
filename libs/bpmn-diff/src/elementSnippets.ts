@@ -1,0 +1,124 @@
+import { containmentProperties, walkContainment } from "./moddleContainment";
+import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import { XMLNS_PREFIX, namePrefix } from "./namespaceDeclarations";
+import { trackedElementOf } from "./trackedElements";
+import type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
+
+export type UnitRule = (element: ModdleElement) => boolean;
+
+export function isSemanticElement(element: ModdleElement): boolean {
+    return isType(element, "bpmn:BaseElement") && !isType(element, "bpmn:Definitions");
+}
+
+/** The diff's rule: an element whose changes the diff reports under its own id. */
+export function isDiffUnit(element: ModdleElement): boolean {
+    return trackedElementOf(element) === element;
+}
+
+/**
+ * Nothing can name an element without an id, so whatever `isUnit` says it
+ * stays part of its enclosing unit instead of vanishing from every snapshot.
+ */
+export function unitRuleRequiringId(isUnit: UnitRule): UnitRule {
+    return (element) =>
+        isSemanticElement(element) && typeof element.id === "string" && isUnit(element);
+}
+
+/** Declaring sources first, then the document, so its own prefixes fill the gaps. */
+export function prefixSourcesWith(
+    prefixSources: readonly string[],
+    xml: string,
+): readonly string[] {
+    return prefixSources.includes(xml) ? prefixSources : [...prefixSources, xml];
+}
+
+/**
+ * `unit` and, for a participant, the process the diff folds into it when that
+ * process is no unit of its own. Read before any strip: the fold looks at the
+ * definitions' root elements.
+ */
+export function snippetRootsOf(unit: ModdleElement, isUnit: UnitRule): ModdleElement[] {
+    const pooledProcess = unit.processRef;
+    return isModdleElement(pooledProcess) &&
+        !isUnit(pooledProcess) &&
+        trackedElementOf(pooledProcess) === unit
+        ? [unit, pooledProcess]
+        : [unit];
+}
+
+/**
+ * Removes every unit from the collections of `elements`, which the caller
+ * collects before: a walk that strips as it goes never reaches the children
+ * it removed. BPMN contains units only in collections.
+ */
+export function stripUnits(elements: readonly ModdleElement[], isUnit: UnitRule): void {
+    const isUnitChild = (child: unknown) =>
+        isModdleElement(child) && isSemanticElement(child) && isUnit(child);
+    for (const element of elements) {
+        for (const property of containmentProperties(element)) {
+            const value = element[property];
+            if (!Array.isArray(value)) continue;
+            const kept = value.filter((child) => !isUnitChild(child));
+            if (kept.length === 0) delete element[property];
+            else if (kept.length !== value.length) element[property] = kept;
+        }
+    }
+}
+
+export async function serialiseSnippet(
+    { moddle, declarationsFor }: PrefixedModdle,
+    roots: readonly ModdleElement[],
+    subject: string,
+): Promise<string> {
+    const snippets: string[] = [];
+    for (const root of roots) {
+        sortAttributesWithoutDescriptor(root);
+        declareNamespaces(root, declarationsFor(usedPrefixes(root), subject));
+        const { xml } = await moddle.toXML(root, { format: true, preamble: false });
+        snippets.push(xml.trimEnd());
+    }
+    return snippets.join("\n\n");
+}
+
+/**
+ * The serializer writes attributes without a descriptor in source order, so
+ * two files that order them differently would give different text.
+ * Declarations inside the snippet are dropped, since the parser has already
+ * renamed their prefixes to the document's.
+ */
+function sortAttributesWithoutDescriptor(root: ModdleElement): void {
+    walkContainment(root, (element) => {
+        const attributes = attributesWithoutDescriptor(element);
+        const sortedEntries = Object.entries(attributes)
+            .filter(([name]) => !name.startsWith("$") && !name.startsWith(XMLNS_PREFIX))
+            .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+        for (const name of Object.keys(attributes)) {
+            if (!name.startsWith("$")) delete attributes[name];
+        }
+        for (const [name, value] of sortedEntries) attributes[name] = value;
+    });
+}
+
+function usedPrefixes(root: ModdleElement): string[] {
+    const prefixes = new Set<string>();
+    walkContainment(root, (element) => {
+        const qualifiedNames = element.$descriptor.isGeneric
+            ? [element.$type, ...Object.keys(element)]
+            : Object.keys(element.$attrs ?? {});
+        for (const name of qualifiedNames) {
+            const prefix = namePrefix(name);
+            if (prefix) prefixes.add(prefix);
+        }
+    });
+    return [...prefixes];
+}
+
+/** Without a descriptor the serializer drops prefixed names whose namespace the snippet does not declare. */
+function declareNamespaces(root: ModdleElement, uriByPrefix: ReadonlyMap<string, string>): void {
+    const attributes = (root.$attrs ??= {});
+    for (const [prefix, uri] of uriByPrefix) attributes[XMLNS_PREFIX + prefix] = uri;
+}
+
+function attributesWithoutDescriptor(element: ModdleElement): Record<string, unknown> {
+    return element.$descriptor.isGeneric ? element : (element.$attrs ?? {});
+}

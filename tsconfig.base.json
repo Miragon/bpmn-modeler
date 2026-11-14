@@ -31,6 +31,7 @@
             "@miragon/dmn-modeler": ["./packages/dmn-modeler/src/index.ts"],
             "@miragon/bpmn-modeler-shared": ["./libs/shared/src/index.ts"],
             "@miragon/bpmn-modeler-types": ["./libs/modeler-types/src/index.ts"],
+            "@miragon/bpmn-modeler-types/engine": ["./libs/modeler-types/src/engine.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/dmn-modeler-diff": ["./libs/dmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-core": ["./libs/modeler-core/src/index.ts"],

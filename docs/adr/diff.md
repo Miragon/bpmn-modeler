@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-14
 
 ## Context
 
@@ -121,7 +121,10 @@ resolving merge conflicts on the diagram (#2459).
   adapter (see [dependencies](dependencies.md#private-upstream-apis)); its spec, the
   guard and the namespace specs turn an upgrade that changes them into a failing
   build. A call builds two moddle instances and parses the whole document: about
-  50 ms at 0.8 MB, two calls per selection.
+  50 ms at 0.8 MB, two calls per selection. `elementSnapshots` gives every element's text
+  from one parse through the same serialiser, with the set of elements as a parameter. A
+  child without an id is never an element of its own: it stays in its parent's text, since
+  nothing else could report it.
 - *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only production
   code outside bpmn-js that resolves bpmn-moddle's factory, and `moddleDescriptor`
   beside it unwraps a dynamically imported engine descriptor. `libs/bpmn-layout`, the
@@ -131,8 +134,9 @@ resolving merge conflicts on the diagram (#2459).
   that imports the library for the loader loads none of them; a spec holds this. saxen
   is a direct dependency of `bpmn-diff` at moddle-xml's version and so a runtime
   dependency of `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads
-  the Camunda 7 and 8 prefixes and URIs from the descriptors; `BpmnDocument`'s copy is
-  #2464.
+  the Camunda 7 and 8 prefixes and URIs from the descriptors; the copy `ENGINE_NAMESPACE`
+  in `@miragon/bpmn-modeler-types`, beside the engine rule the modeler and the merge share,
+  is #2464.
 - *The panes share one selection.* `DiffViewer` takes `DiffViewerOptions.additionalModules`,
   as `createViewer` does, so only the webview adds a context pad and an outline. The
   viewer reports the single selected element (`onSelectedElementChanged`, a BPMN id or

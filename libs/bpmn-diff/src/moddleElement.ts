@@ -4,6 +4,8 @@ interface ModdlePropertyDescriptor {
     isAttribute?: boolean;
     isReference?: boolean;
     isVirtual?: boolean;
+    /** The qualified name, for example `bpmn:incoming`. */
+    ns?: { name?: string };
 }
 
 export interface ModdleElement {

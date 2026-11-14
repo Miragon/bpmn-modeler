@@ -9,9 +9,10 @@
 
 import {
     DetectedEngine,
-    detectEngine,
+    detectEngineWithNamespaceFallback,
     Engine,
     ENGINE_EXECUTION_PLATFORM,
+    ENGINE_NAMESPACE,
     ENGINE_LABEL,
     ExecutionPlatformAttributeNames,
     executionPlatformAttributeNames,
@@ -38,14 +39,6 @@ export type MigrationOutcome =
     | { readonly kind: "platformStamped"; readonly document: BpmnDocument };
 
 const BPMN_MODEL_NAMESPACE_URI = "http://www.omg.org/spec/BPMN/20100524/MODEL";
-
-const ENGINE_NAMESPACE: Record<
-    Engine,
-    { readonly prefix: "camunda" | "zeebe"; readonly uri: string }
-> = {
-    c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
-    c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
-};
 
 const EMPTY_DIAGRAM: Record<Engine, (version: string) => string> = {
     c7: (version) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -77,8 +70,6 @@ const EMPTY_DIAGRAM: Record<Engine, (version: string) => string> = {
 </bpmn:definitions>
 `,
 };
-
-const ENGINES_BY_DETECTION_PRIORITY: readonly Engine[] = ["c7", "c8"];
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -138,12 +129,11 @@ export class BpmnDocument {
      * Detects the Camunda execution platform from the XML, or `undefined` for
      * an engine-neutral (untagged) model — the caller owns the fallback policy.
      *
-     * Delegates to the shared {@link detectEngine} helper for the spec-defined
-     * `modeler:*` signals, then falls back to the engine namespace the
-     * `definitions` root binds: the Camunda 7 one for C7, else the Zeebe one for C8.
+     * Delegates to {@link detectEngineWithNamespaceFallback}, the one rule the
+     * merge applies too.
      */
     detectEngine(): DetectedEngine {
-        return detectEngine(this.xml) ?? engineOfNamespaceOnDefinitionsRoot(this.xml);
+        return detectEngineWithNamespaceFallback(this.xml);
     }
 
     /**
@@ -265,15 +255,6 @@ function bpmnElementName(xml: string, localName: string): string {
         }
     }
     return `bpmn:${localName}`;
-}
-
-function engineOfNamespaceOnDefinitionsRoot(xml: string): DetectedEngine {
-    const namespaceUris = (readDefinitionsStartTag(xml)?.attributes ?? [])
-        .filter(({ name }) => name.startsWith("xmlns:"))
-        .map(({ value }) => value);
-    return ENGINES_BY_DETECTION_PRIORITY.find((engine) =>
-        namespaceUris.includes(ENGINE_NAMESPACE[engine].uri),
-    );
 }
 
 function startTagsNamed(xml: string, qualifiedName: string): XmlStartTag[] {
