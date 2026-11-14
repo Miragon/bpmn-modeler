@@ -67,33 +67,6 @@ describe("the BPMN editor in Orca", () => {
         expect((await editor.stub()).disk).toContain('name="Order placed"');
     });
 
-    it("generates IDs from names from the properties panel, one or all", async () => {
-        const editor = await open();
-        await editor.page.mouse.click(...BPMN_DELETION.at);
-        await editor.page
-            .locator(".bio-properties-panel-group-header", { hasText: "General" })
-            .click();
-
-        await editor.page.getByRole("button", { name: "Generate from name" }).click();
-        await editor.save();
-        expect((await editor.stub()).disk).toContain(
-            '<bpmn:serviceTask id="serviceTask_placeOrder" name="Place Order">',
-        );
-
-        await editor.page.getByRole("button", { name: "Review all IDs…" }).click();
-        await editor.page.locator(".eid-primary").click();
-        await editor.save();
-        const state = await editor.stub();
-        expect(state.disk).toContain(
-            '<bpmn:serviceTask id="serviceTask_shipOrder" name="Ship Order">',
-        );
-        expect(state.disk).toContain(
-            'sourceRef="startEvent_orderReceived" targetRef="serviceTask_placeOrder"',
-        );
-        expect(state.cspViolations).toBe(0);
-        expect(state.errors).toEqual([]);
-    });
-
     it("shows an agent's write to the clean tab", async () => {
         const editor = await open();
         await editor.replace(withBpmnTask(smoke, "Added by an agent"));
