@@ -65,6 +65,8 @@ export interface DmnDiffViewerHandle {
     focus(id: string | undefined): void;
     /** Brings a DRD element, rule, column or table into view without outlining it. */
     reveal(id: string): void;
+    /** Clears the outline and shows the open view whole: the DRD as it first opened, a table from its top. */
+    showWholeView(): void;
     getViewport(): Viewport | undefined;
     setViewport(viewport: Viewport): void;
     /** Calls back when the user pans or zooms the DRD. */
@@ -237,6 +239,16 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         this.focused = id;
         this.applyMarks();
         if (id !== undefined) this.reveal(id);
+    }
+
+    showWholeView(): void {
+        this.focus(undefined);
+        if (this.drd()) {
+            this.drdViewport = undefined;
+            this.placeDrd();
+        } else {
+            this.setTableScroll({ offset: 0, left: 0 });
+        }
     }
 
     reveal(id: string): void {
@@ -432,7 +444,7 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
 
     /**
      * dmn-js renders the DRD anew each time it opens. The first time the
-     * diagram is fitted below the top inset, never zoomed past 100 %; after
+     * diagram is fitted and centred below the top inset, never zoomed past 100 %; after
      * that it comes back where it was.
      */
     private placeDrd(): void {
@@ -451,9 +463,11 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
             (outer.height - this.topInset - 2 * margin) / inner.height,
         );
         const width = outer.width / scale;
+        // Centred in the room below the inset, as the BPMN diff centres its panes.
+        const centreY = this.topInset + (outer.height - this.topInset) / 2;
         this.setViewport({
             x: inner.x + inner.width / 2 - width / 2,
-            y: inner.y - (this.topInset + margin) / scale,
+            y: inner.y + inner.height / 2 - centreY / scale,
             width,
             height: outer.height / scale,
         });

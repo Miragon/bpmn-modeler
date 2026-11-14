@@ -48,6 +48,9 @@ export class DiffViewer {
 
     private readonly store = new DisposableStore();
 
+    // The plane the pane opened on: stepping into a collapsed subprocess leaves it.
+    private openingRoot: ReturnType<Canvas["getRootElement"]> | undefined;
+
     // Re-armed per importXML, so it can't be a plain store entry.
     private readonly sizeObserver = new MutableDisposable();
 
@@ -81,6 +84,7 @@ export class DiffViewer {
 
     async importXML(xml: string): Promise<ImportXMLResult> {
         const result = await this.getViewer().importXML(xml);
+        this.openingRoot = this.getCanvas().getRootElement();
 
         // Panes open side by side, so one regularly has no box yet when the
         // import lands; the fit retries until it does.
@@ -96,14 +100,20 @@ export class DiffViewer {
         return result;
     }
 
-    /** Fits the diagram into the pane; `false` if it has no usable box yet. */
+    /**
+     * Fits the diagram into the pane; `false` if it has no usable box yet.
+     * Positioned programmatically: each pane fits its own box, so a fit taken
+     * while one pane is still being laid out never moves the other.
+     */
     private fitViewport(): boolean {
         if (!this.isPaneSized()) {
             return false;
         }
         // diagram-js accepts the "auto" centring sentinel at runtime, but its
         // Canvas.zoom types `center` as a Point only.
-        this.getCanvas().zoom("fit-viewport", "auto" as unknown as Point);
+        this.positionProgrammatically(() =>
+            this.getCanvas().zoom("fit-viewport", "auto" as unknown as Point),
+        );
         return true;
     }
 
@@ -200,6 +210,25 @@ export class DiffViewer {
         canvas.addMarker(id, DIFF_SELECTED_MARKER);
         this.selectedId = id;
         return true;
+    }
+
+    /**
+     * Fits the whole diagram into the pane without a selection, on the plane
+     * and as the pane opened. A partner pane keeps its own fit.
+     */
+    fitDiagram(): void {
+        this.clearSelectionMarker();
+        this.positionProgrammatically(() => {
+            this.showOpeningRoot();
+            this.fitViewport();
+        });
+    }
+
+    private showOpeningRoot(): void {
+        const canvas = this.getCanvas();
+        if (this.openingRoot && canvas.getRootElement() !== this.openingRoot) {
+            canvas.setRootElement(this.openingRoot);
+        }
     }
 
     /**

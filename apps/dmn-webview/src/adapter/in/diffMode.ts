@@ -7,9 +7,12 @@ import {
     GetDmnFileCommand,
     LogErrorCommand,
     type Query,
+    SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
+import { DiffSideLabelView } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
 import {
@@ -42,18 +45,20 @@ import { DiffEmptyState, DiffLegend } from "./diffLegend";
 export class DiffMode {
     private readonly legend: DiffLegend;
     private readonly emptyState: DiffEmptyState;
+    private sideLabel?: DiffSideLabelView;
     /** Changes only through {@link nextDiffPaneState}; this class renders it. */
     private state: DiffPaneState = INITIAL_DIFF_PANE_STATE;
 
     constructor(
         private readonly viewer: DmnDiffViewerHandle,
-        chromeParent: HTMLElement,
+        private readonly chromeParent: HTMLElement,
         private readonly host: DmnDiffPaneHost,
     ) {
         this.legend = new DiffLegend(chromeParent, {
             onPrevious: () => this.step(-1),
             onNext: () => this.step(1),
             onSwap: () => host.postMessage(new SwapCompareSidesCommand()),
+            onShowAll: () => this.showAll(),
         });
         this.emptyState = new DiffEmptyState(chromeParent, () => void this.openDrdForBoth());
         viewer.onViewChanged((elementId) => {
@@ -75,6 +80,7 @@ export class DiffMode {
             window.removeEventListener("message", listener);
             this.legend.dispose();
             this.emptyState.dispose();
+            this.sideLabel?.destroy();
         };
     }
 
@@ -103,6 +109,10 @@ export class DiffMode {
                 this.viewer.setTableScroll(query.scroll);
                 break;
             case "SyncCursorQuery": {
+                if (query.index === SHOW_ALL_CURSOR) {
+                    this.showWholeView();
+                    break;
+                }
                 const { target } = this.dispatch({
                     kind: "cursorMoved",
                     index: query.index,
@@ -143,6 +153,15 @@ export class DiffMode {
         // diff.css draws the divider on the edge that faces the partner pane.
         document.body.dataset.diffSide = highlights.side;
         this.viewer.setMarks(highlights.view, { countBadges: highlights.side === "after" });
+        this.label(highlights);
+    }
+
+    /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
+    private label(highlights: PaneHighlights): void {
+        this.sideLabel ??= new DiffSideLabelView(this.chromeParent, highlights.side, i18n);
+        this.sideLabel.showFilename(
+            highlights.origin === "compare-files" ? highlights.paneFilename : undefined,
+        );
     }
 
     private enterView(elementId: string | null, found: boolean): void {
@@ -173,6 +192,17 @@ export class DiffMode {
         if (!target) return;
         this.show(target);
         this.host.postMessage(new CursorChangedCommand(this.state.cursor));
+    }
+
+    /** Show all: both panes show their open view whole, the partner through the host. */
+    private showAll(): void {
+        this.showWholeView();
+        this.host.postMessage(new CursorChangedCommand(SHOW_ALL_CURSOR));
+    }
+
+    private showWholeView(): void {
+        this.dispatch({ kind: "shownWhole" });
+        this.viewer.showWholeView();
     }
 
     private show(target: StepTarget): void {

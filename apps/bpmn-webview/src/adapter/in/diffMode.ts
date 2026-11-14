@@ -5,12 +5,19 @@ import {
     DiffReadyCommand,
     LogErrorCommand,
     Query,
+    SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { DIFF_CATEGORIES, DIFF_MARKERS } from "@miragon/bpmn-modeler-types";
 
-import { DiffLegend, DiffNavigator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
+import {
+    DiffLegend,
+    type DiffLegendContext,
+    DiffNavigator,
+    DiffSideLabel,
+    DiffViewer,
+} from "@miragon/bpmn-modeler/viewer";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 
 /**
@@ -42,12 +49,16 @@ export class DiffMode {
 
     private readonly navigator: DiffNavigator;
 
+    private sideLabel: DiffSideLabel | undefined;
+
+    private legendContext: DiffLegendContext | undefined;
+
     private initialImportSettled = false;
 
     private highlightsBeforeImport: ApplyDiffHighlightsQuery | undefined;
 
     constructor(
-        canvas: HTMLElement,
+        private readonly canvas: HTMLElement,
         legendParent: HTMLElement,
         private readonly host: DiffPaneChannel,
     ) {
@@ -60,7 +71,11 @@ export class DiffMode {
             // `showSwap` is set (compare-files only).  The host still validates
             // origin defensively before acting on the command.
             onSwap: () => this.host.postMessage(new SwapCompareSidesCommand()),
+            onShowAll: () => this.showAll(),
         });
+
+        // diff.css starts the canvas below the bar.
+        this.legend.reserveRoomOn(document.body);
 
         this.viewer.onViewportChanged((viewport) => {
             this.host.postMessage(new ViewportChangedCommand(viewport));
@@ -95,7 +110,12 @@ export class DiffMode {
                 this.viewer.setViewport(query.viewport);
                 break;
             case "SyncCursorQuery":
-                this.navigator.applyCursor(query.index);
+                if (query.index === SHOW_ALL_CURSOR) {
+                    this.backToWholeDiagram();
+                } else {
+                    this.navigator.applyCursor(query.index);
+                    this.showPosition(query.index);
+                }
                 break;
         }
     }
@@ -133,19 +153,53 @@ export class DiffMode {
         }
 
         this.navigator.setChanges(query.navigationOrder);
+        this.label(query);
+        this.updateLegend(query);
+    }
 
-        // Both panes render the legend now: counts are symmetric across sides,
-        // and each pane drives a synced cursor over the same navigationOrder, so
-        // the user can step from either side.  The filename subtitle and swap
-        // button are compare-files affordances — SCM panes show neither because
-        // VS Code's tab title already carries that metadata.
-        const isCompareFiles = query.origin === "compare-files";
-        this.legend.update({
+    /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
+    private label(query: ApplyDiffHighlightsQuery): void {
+        this.sideLabel ??= new DiffSideLabel(this.canvas, query.side);
+        this.sideLabel.showFilename(
+            query.origin === "compare-files" ? query.paneFilename : undefined,
+        );
+    }
+
+    /**
+     * Both panes draw the bar, so the two halves read as one across VS Code's
+     * sash; the after pane's half carries the changes, stepping and swapping.
+     */
+    private updateLegend(query: ApplyDiffHighlightsQuery): void {
+        const isAfter = query.side === "after";
+        this.legendContext = {
             counts: query.counts,
-            filename: isCompareFiles ? query.paneFilename : undefined,
-            showSwap: isCompareFiles,
+            showSwap: isAfter && query.origin === "compare-files",
             canStep: this.navigator.canStep,
-        });
+            showChanges: isAfter,
+        };
+        this.legend.update(this.legendContext);
+    }
+
+    /** Show all: both panes go back to the whole diagram, the partner through the host. */
+    private showAll(): void {
+        this.backToWholeDiagram();
+        this.host.postMessage(new CursorChangedCommand(SHOW_ALL_CURSOR));
+    }
+
+    private backToWholeDiagram(): void {
+        this.navigator.reset();
+        if (this.legendContext) {
+            this.legend.update(this.legendContext);
+        }
+    }
+
+    private showPosition(index: number): void {
+        if (this.legendContext) {
+            this.legend.update({
+                ...this.legendContext,
+                position: { index, total: this.navigator.cycleLength },
+            });
+        }
     }
 
     /**
@@ -156,6 +210,7 @@ export class DiffMode {
     private step(direction: 1 | -1): void {
         const cursor = this.navigator.advance(direction);
         if (cursor !== undefined) {
+            this.showPosition(cursor);
             this.host.postMessage(new CursorChangedCommand(cursor));
         }
     }

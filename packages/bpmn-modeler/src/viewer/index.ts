@@ -29,6 +29,7 @@ export type { DiffMarkerClass } from "./diff/DiffViewer";
 export { DiffLegend } from "./diff/DiffLegend";
 export type { DiffLegendCallbacks, DiffLegendContext } from "./diff/DiffLegend";
 export { DiffNavigator } from "./diff/DiffNavigator";
+export { DiffSideLabel } from "./diff/DiffSideLabel";
 export { DiffPaneCoordinator } from "./diff/DiffPaneCoordinator";
 
 export { NoModelerError } from "@miragon/bpmn-modeler-types";

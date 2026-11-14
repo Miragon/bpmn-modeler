@@ -32,6 +32,10 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "Não foi possível carregar a prévia do formulário. Atualize para tentar novamente.",
     "Changes": "Alterações",
+    "No changes": "Nenhuma alteração",
+    "Show all": "Mostrar tudo",
+    "Old version": "Versão antiga",
+    "New version": "Versão nova",
     "Not in this version": "Não está nesta versão",
     "It was removed. The version on the left shows it.":
         "Foi removido. A versão à esquerda o mostra.",

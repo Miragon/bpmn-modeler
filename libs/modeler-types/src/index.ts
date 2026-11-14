@@ -22,6 +22,8 @@ export * from "./implementation";
 export * from "./referenceKind";
 export * from "./diff";
 export * from "./diffLegendView";
+export * from "./diffSideLabelView";
+export * from "./dom";
 export * from "./diffStepper";
 export * from "./diffVocabulary";
 export * from "./layout";

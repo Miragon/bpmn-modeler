@@ -1,5 +1,7 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
+    createButton,
+    createElement,
     type DiffLegendActions as SharedDiffLegendActions,
     DiffLegendView,
 } from "@miragon/bpmn-modeler-types";
@@ -21,19 +23,11 @@ const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
  */
 export class DiffLegend {
     private readonly view: DiffLegendView;
-    private readonly sizeObserver?: ResizeObserver;
 
     constructor(parent: HTMLElement, actions: DiffLegendActions) {
         this.view = new DiffLegendView(parent, actions, i18n);
-        // The views below leave room for the chip, which wraps on a narrow pane.
-        if (typeof ResizeObserver !== "undefined") {
-            const chip = this.view.element;
-            this.sizeObserver = new ResizeObserver(() => {
-                const height = chip.hidden ? 0 : chip.offsetHeight;
-                document.body.style.setProperty("--dmn-diff-chrome-height", `${height}px`);
-            });
-            this.sizeObserver.observe(chip);
-        }
+        // The views below leave room for the bar, which wraps on a narrow pane.
+        this.view.reserveRoomOn(document.body);
     }
 
     update(state: DiffLegendState): void {
@@ -41,7 +35,6 @@ export class DiffLegend {
     }
 
     dispose(): void {
-        this.sizeObserver?.disconnect();
         this.view.destroy();
     }
 }
@@ -59,7 +52,7 @@ export class DiffEmptyState {
         parent: HTMLElement,
         private readonly onViewDrd: () => void,
     ) {
-        this.root = element("div", "dmn-diff dmn-diff-empty");
+        this.root = createElement("div", "dmn-diff dmn-diff-empty");
         this.root.hidden = true;
         parent.append(this.root);
         this.stopTranslating = i18n.onChange(() => this.render());
@@ -81,36 +74,22 @@ export class DiffEmptyState {
         this.root.hidden = status === undefined;
         document.body.classList.toggle("dmn-diff-page--missing", status !== undefined);
         if (status === undefined) return;
-        const card = element("div", "dmn-diff-empty__card diff-legend-theme");
+        const card = createElement("div", "dmn-diff-empty__card diff-legend-theme");
         card.dataset.kind = status;
         card.append(
-            element("div", "dmn-diff-empty__mark"),
-            element("div", "dmn-diff-empty__title", i18n.translate(DMN_DIFF_TEXTS.notInVersion)),
-            element("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
-            button(
+            createElement("div", "dmn-diff-empty__mark"),
+            createElement(
+                "div",
+                "dmn-diff-empty__title",
+                i18n.translate(DMN_DIFF_TEXTS.notInVersion),
+            ),
+            createElement("div", "dmn-diff-empty__text", i18n.translate(MISSING_TEXTS[status])),
+            createButton(
                 "dmn-diff-empty__action",
-                i18n.translate(DMN_DIFF_TEXTS.viewDrd),
                 this.onViewDrd,
+                i18n.translate(DMN_DIFF_TEXTS.viewDrd),
             ),
         );
         this.root.replaceChildren(card);
     }
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(
-    tag: K,
-    className: string,
-    text?: string,
-): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-}
-
-function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
-    const node = element("button", className, label);
-    node.type = "button";
-    node.addEventListener("click", onClick);
-    return node;
 }

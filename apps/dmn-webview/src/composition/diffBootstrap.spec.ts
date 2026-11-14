@@ -51,7 +51,7 @@ describe("bootstrapDiffPane", () => {
 
         expect(createDiffViewer).toHaveBeenCalledWith(document.getElementById("js-canvas"), {
             theme: "light",
-            topInset: 96,
+            topInset: 72,
         });
         expect(document.body.classList).toContain("dmn-diff-page");
         expect(posted.map((message) => message.type)).toEqual(["GetDmnFileCommand"]);

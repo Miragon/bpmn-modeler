@@ -2,7 +2,7 @@
 
 See what changed between two versions of a `.dmn` file as two decision requirements diagrams (DRDs) and their decision tables side by side, not as an XML diff.
 
-<figure class="shot"><img src="/shots/dmn-diff.png" alt="Two DMN decision requirements diagrams side by side with added, removed, changed and moved elements highlighted and a change counter above each pane"><figcaption>Before on the left, after on the right. Pan and zoom in one pane and the other follows.</figcaption></figure>
+<figure class="shot"><img src="/shots/dmn-diff.png" alt="Two DMN decision requirements diagrams side by side with added, removed, changed and moved elements highlighted, each pane labelled with its version, and one bar of change counts and stepping arrows across the top"><figcaption>Before on the left, after on the right. Pan and zoom in one pane and the other follows.</figcaption></figure>
 
 ## Open a diff
 
@@ -26,7 +26,7 @@ Both panes open on the DRD. Decisions, input data, business knowledge models, kn
 | Green | After pane | Added |
 | Red | Before pane | Removed |
 | Blue | Both panes | Changed: a name or property, or the decision's table or expression |
-| Dashed outline | Both panes | Moved: only the layout changed |
+| Amber, dashed requirements | Both panes | Moved: only the layout changed |
 
 In the after pane, a decision whose table changed carries a badge that counts the table's changes.
 
@@ -49,7 +49,7 @@ The rule numbers stay in view while the table scrolls sideways. Scroll one table
 
 ## Step through the changes
 
-The legend above each pane counts the changes in the open view: the DRD, or the open table. **Prev change** and **Next change** step through them and move both panes together; the current change glows gold. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. A requirement or association that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
+Each pane names its version in its top left corner, or its file when you compare two files. The bar above the panes counts the changes in the open view: the DRD, or the open table. The arrows **‹** and **›** (tooltips **Prev change** and **Next change**) step through them, move both panes together and show which change of how many you are on; the current change glows blue. In the DRD they go from top to bottom, then left to right; in a table, the table's settings first, then the columns, then the rules. **Show all** takes both panes back to the whole view: the DRD as it opened, or the table from its top. A requirement or association that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only, but you can pan and zoom the DRD and scroll the tables.
 
 The comparison follows element ids, as the [BPMN diff](/vscode/features/bpmn-diff) does: a rule you copy and paste gets a new id and shows as removed and added. The colours are the BPMN diff's.
 

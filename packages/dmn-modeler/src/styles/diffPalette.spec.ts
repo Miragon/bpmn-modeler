@@ -26,40 +26,74 @@ function dmnColor(name: string): string | undefined {
     return new RegExp(`--dmn-diff-${name}: (#[0-9a-f]+);`, "i").exec(dmnCss)?.[1];
 }
 
-function bpmnStroke(kind: string): string | undefined {
-    return new RegExp(
-        `\\.djs-element\\.diff-${kind} \\.djs-visual > :nth-child\\(1\\) \\{\\s*stroke: (#[0-9a-f]+)`,
-        "i",
-    ).exec(bpmnCss)?.[1];
+/** The declarations of the one rule with exactly this selector, whitespace aside. */
+function ruleFor(css: string, selector: string): string | undefined {
+    const matches = css
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("}")
+        .map((rule) => rule.split("{"))
+        .filter(([head, body]) => body !== undefined && selectorOf(head!) === selector)
+        .map(([, body]) => body!.replace(/\s+/g, " ").trim());
+    expect(matches.length, `rules for ${selector}`).toBeLessThanOrEqual(1);
+    return matches[0];
 }
 
-describe("the DMN diff palette", () => {
-    it.each(["added", "removed", "changed"])("marks %s like the BPMN diff", (kind) => {
-        expect(dmnColor(kind)).toBeDefined();
-        expect(dmnColor(kind)).toBe(bpmnStroke(kind));
-    });
+/** A rule's selector, without an at-rule such as `@import` before it. */
+function selectorOf(head: string): string {
+    return head.split(";").pop()!.replace(/\s+/g, " ").trim();
+}
 
-    it("outlines the current change and draws moved rules like the BPMN diff", () => {
+const SHAPE = (kind: string) => `.djs-shape.diff-${kind} .djs-visual > :nth-child(1)`;
+const LIGHT_BPMN_SHAPE = (kind: string) =>
+    `.djs-shape.diff-${kind}:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1)`;
+const DMN_IN_LIGHT = '.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)';
+const DMN_IN_DARK = '.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)';
+
+describe("the DMN diff palette", () => {
+    it.each(["added", "removed", "changed", "layout-changed"])(
+        "outlines and tints a %s shape like the BPMN diff, in light and dark",
+        (kind) => {
+            const outline = ruleFor(bpmnCss, SHAPE(kind));
+            const lightFill = ruleFor(bpmnCss, LIGHT_BPMN_SHAPE(kind));
+            const darkOutline = ruleFor(bpmnCss, `[data-bpmn-theme="dark"] ${SHAPE(kind)}`);
+
+            expect([outline, lightFill, darkOutline]).not.toContain(undefined);
+            expect(ruleFor(dmnCss, `.dmn-diff ${SHAPE(kind)}`)).toBe(outline);
+            expect(ruleFor(dmnCss, `${DMN_IN_LIGHT} ${SHAPE(kind)}`)).toBe(lightFill);
+            expect(ruleFor(dmnCss, `${DMN_IN_DARK} ${SHAPE(kind)}`)).toBe(darkOutline);
+        },
+    );
+
+    it.each(["added", "removed", "changed", "layout-changed"])(
+        "colours a %s requirement in dark mode like a BPMN connection",
+        (kind) => {
+            const edge = `.djs-connection.diff-${kind} .djs-visual path`;
+            const bpmnDark = ruleFor(bpmnCss, `[data-bpmn-theme="dark"] ${edge}`);
+
+            expect(bpmnDark).toBeDefined();
+            expect(ruleFor(dmnCss, `${DMN_IN_DARK} ${edge}`)).toBe(bpmnDark);
+        },
+    );
+
+    it("outlines the current change like the BPMN diff", () => {
         expect(dmnColor("current")).toBe(
             /\.diff-selected \.djs-visual \{\s*filter: drop-shadow\(0 0 6px (#[0-9a-f]+)\)/i.exec(
                 bpmnCss,
             )?.[1],
         );
-        expect(dmnColor("moved")).toBeDefined();
-        expect(dmnColor("moved")).toBe(legendColor("moved"));
     });
 
-    it.each(["added", "removed", "changed"])(
-        "gives the legend's %s swatch the marker's colour",
+    it.each(["added", "removed", "changed", "moved"])(
+        "gives the legend's %s swatch the DMN status colour",
         (kind) => {
             expect(legendColor(kind)).toBeDefined();
-            expect(legendColor(kind)).toBe(bpmnStroke(kind));
+            expect(legendColor(kind)).toBe(dmnColor(kind));
         },
     );
 });
 
 describe("the shared diff legend's stylesheet", () => {
-    it("gives both legends the Miragon look: Geist, the blue Next button and its radii", () => {
+    it("gives both legends the Miragon look: Geist, the blue primary action and its radii", () => {
         const look = declarationsOf(".diff-legend,\n.diff-legend-theme");
 
         expect(look).toMatch(/--diff-legend-font-family:\s*"Geist Variable", "Geist",/);

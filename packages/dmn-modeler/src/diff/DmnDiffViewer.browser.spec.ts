@@ -24,9 +24,9 @@ const MARKS: DmnDiffMarks = {
     expressions: [],
 };
 
-const ADDED = "rgb(82, 180, 21)";
-const CHANGED = "rgb(49, 111, 190)";
-const CURRENT = "rgb(255, 190, 0)";
+const ADDED = "rgb(0, 230, 118)";
+const CHANGED = "rgb(51, 93, 229)";
+const CURRENT = "rgb(51, 93, 229)";
 
 const viewers: DmnDiffViewerHandle[] = [];
 const mounts: HTMLElement[] = [];
@@ -81,13 +81,13 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(badge.fontFamily).toMatch(/^"Geist Variable", Geist, .*sans-serif$/);
     });
 
-    it("colours a requirement at its own width, so its arrowhead keeps its size", async () => {
+    it("marks a requirement at its own width, so its arrowhead keeps its size", async () => {
         const { viewer, container } = await pane();
         const edge = '.djs-element[data-element-id="IR_1"] .djs-visual path';
         const ownWidth = styleOf(container, edge).strokeWidth;
 
         viewer.setMarks({ ...MARKS, added: ["Input_1", "IR_1"], layoutChanged: [] });
-        const { stroke, strokeWidth: addedWidth } = styleOf(container, edge);
+        const { stroke, strokeWidth: addedWidth, filter } = styleOf(container, edge);
         const shapeWidth = styleOf(
             container,
             '.djs-element[data-element-id="Input_1"] .djs-visual > :nth-child(1)',
@@ -95,11 +95,12 @@ describe("DMN diff pane (real dmn-js)", () => {
         viewer.setMarks(MARKS);
         const { strokeWidth: movedWidth, strokeDasharray } = styleOf(container, edge);
 
-        expect(stroke).toBe(ADDED);
+        expect(stroke).toBe("rgb(29, 29, 29)");
+        expect(filter).toContain(ADDED);
         expect(addedWidth).toBe(ownWidth);
-        expect(shapeWidth).toBe("3px");
+        expect(shapeWidth).toBe("2px");
         expect(movedWidth).toBe(ownWidth);
-        expect(strokeDasharray).toBe("5px, 3px");
+        expect(strokeDasharray).toBe("6px, 4px");
     });
 
     it("marks a decision table's rules, cells, columns and hit policy", async () => {
@@ -271,7 +272,7 @@ describe("DMN diff pane (real dmn-js)", () => {
             expect(container.dataset.dmnDiffView).toBe(status);
             expect(viewer.getViewStatus()).toBe(status);
             expect(styleOf(container, ".tjs-table-container").boxShadow).toContain(
-                status === "added" ? ADDED : "rgb(204, 0, 0)",
+                status === "added" ? ADDED : "rgb(205, 24, 57)",
             );
             await viewer.openView(null);
             expect(container.dataset.dmnDiffView).toBeUndefined();
@@ -288,6 +289,25 @@ describe("DMN diff pane (real dmn-js)", () => {
 
         expect(withoutMarks).toBeUndefined();
         expect(viewer.getViewStatus()).toBeUndefined();
+    });
+
+    it("shows the DRD whole again, as it opened, without an outline or a report", async () => {
+        const { viewer, container } = await pane();
+        viewer.setMarks(MARKS);
+        const opening = viewer.getViewport()!;
+        const reported: unknown[] = [];
+        viewer.onViewportChanged((viewport) => reported.push(viewport));
+
+        viewer.focus("Decision_1");
+        viewer.showWholeView();
+        await new Promise((resolve) => setTimeout(resolve, 120));
+
+        const viewport = viewer.getViewport()!;
+        expect(viewport.x).toBeCloseTo(opening.x, 0);
+        expect(viewport.y).toBeCloseTo(opening.y, 0);
+        expect(viewport.width).toBeCloseTo(opening.width, 0);
+        expect(container.querySelectorAll(".diff-selected")).toHaveLength(0);
+        expect(reported).toHaveLength(0);
     });
 
     it("reports the user's pan, not a viewport the partner pane sent", async () => {
@@ -394,7 +414,7 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(getComputedStyle(row.parentElement!).outlineStyle).toBe("none");
     });
 
-    it("fits the DRD below the top inset without zooming in, and brings it back after a table", async () => {
+    it("fits the DRD centred below the top inset without zooming in, and brings it back after a table", async () => {
         const container = document.createElement("div");
         container.style.cssText = "position: relative; width: 520px; height: 400px;";
         document.body.append(container);
@@ -406,8 +426,12 @@ describe("DMN diff pane (real dmn-js)", () => {
         const fitted = viewer.getViewport()!;
         const scale = 520 / fitted.width;
         expect(scale).toBeLessThanOrEqual(1);
-        // The topmost shape starts at y = 80, below the inset and a 24px margin.
-        expect((80 - fitted.y) * scale).toBeCloseTo(124, 0);
+        // Centred like the BPMN diff, in the 300px the inset leaves below it.
+        const content = container
+            .querySelector<SVGGElement>(".djs-container svg .viewport")!
+            .getBBox();
+        expect((content.y + content.height / 2 - fitted.y) * scale).toBeCloseTo(100 + 300 / 2, 0);
+        expect((content.x + content.width / 2 - fitted.x) * scale).toBeCloseTo(520 / 2, 0);
 
         viewer.setViewport({ ...fitted, x: fitted.x + 50 });
         await viewer.openView("Decision_1");

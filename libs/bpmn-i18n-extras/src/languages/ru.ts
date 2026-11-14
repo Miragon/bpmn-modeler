@@ -32,6 +32,10 @@ const dictionary: Record<string, string> = {
     "The form preview could not be loaded. Refresh to try again.":
         "Не удалось загрузить предпросмотр формы. Обновите для повторной попытки.",
     "Changes": "Изменения",
+    "No changes": "Нет изменений",
+    "Show all": "Показать все",
+    "Old version": "Старая версия",
+    "New version": "Новая версия",
     "Not in this version": "Нет в этой версии",
     "It was removed. The version on the left shows it.":
         "Элемент удалён. Он показан в версии слева.",

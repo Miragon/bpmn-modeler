@@ -137,6 +137,7 @@ describe("nextDiffPaneState", () => {
         const stepped = stateAfter(imported(), highlighted(), { kind: "stepped", direction: 1 });
 
         expect(stepped.cursor).toBe(0);
+        expect(nextDiffPaneState(stepped, { kind: "shownWhole" }).state.cursor).toBe(-1);
         expect(nextDiffPaneState(stepped, highlighted()).state.cursor).toBe(-1);
         expect(nextDiffPaneState(stepped, viewEntered("Decision_Shipping")).state.cursor).toBe(-1);
     });
@@ -242,9 +243,9 @@ describe("legendOf", () => {
         expect(legendOf(stateAfter(imported(), highlighted()), "changed")).toEqual({
             counts: VIEW.counts,
             status: undefined,
-            filename: undefined,
             showSwap: false,
             canStep: true,
+            showChanges: true,
         });
     });
 
@@ -272,12 +273,29 @@ describe("legendOf", () => {
         });
     });
 
-    it("names the file and offers the swap on a compare-files pane", () => {
-        const state = stateAfter(imported(), highlighted("after", "compare-files"));
+    it("leaves the changes to the after pane's bar, so both bars read as one", () => {
+        const state = stateAfter(imported(), highlighted("before", "compare-files"));
 
         expect(legendOf(state, undefined)).toMatchObject({
-            filename: "shipping.dmn",
-            showSwap: true,
+            showSwap: false,
+            showChanges: false,
         });
+    });
+
+    it("shows which change the stepper is on, once it is on one", () => {
+        const before = legendOf(stateAfter(imported(), highlighted()), undefined);
+        const stepped = legendOf(
+            stateAfter(imported(), highlighted(), { kind: "stepped", direction: 1 }),
+            undefined,
+        );
+
+        expect(before?.position).toBeUndefined();
+        expect(stepped?.position).toEqual({ index: 0, total: expect.any(Number) });
+    });
+
+    it("offers the swap on a compare-files pane", () => {
+        const state = stateAfter(imported(), highlighted("after", "compare-files"));
+
+        expect(legendOf(state, undefined)).toMatchObject({ showSwap: true });
     });
 });

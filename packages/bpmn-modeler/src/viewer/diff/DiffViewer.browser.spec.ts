@@ -261,6 +261,45 @@ describe("DiffViewer collapsed-subprocess navigation", () => {
     });
 });
 
+describe("DiffViewer opening fit", () => {
+    it("fits each pane for itself and tells no partner", async () => {
+        const testContainer = mountCanvas(800, 600);
+        const viewer = new DiffViewer(testContainer);
+        const onViewportChanged = vi.fn();
+        const dispose = viewer.onViewportChanged(onViewportChanged);
+
+        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        await settleObserver();
+        await waitForViewportNotification();
+
+        expect(onViewportChanged).not.toHaveBeenCalled();
+        dispose();
+        viewer.destroy();
+    });
+});
+
+describe("DiffViewer fitDiagram", () => {
+    it("goes back to the opening fit without a selection, and tells no partner", async () => {
+        const testContainer = mountCanvas(800, 600);
+        const viewer = new DiffViewer(testContainer);
+        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        await settleObserver();
+        const opening = viewer.getViewport();
+        const onViewportChanged = vi.fn();
+        const dispose = viewer.onViewportChanged(onViewportChanged);
+
+        viewer.focusElement("Nested_Task");
+        viewer.fitDiagram();
+        await waitForViewportNotification();
+
+        expect(viewer.getViewport()).toEqual(opening);
+        expect(testContainer.querySelectorAll(".diff-selected")).toHaveLength(0);
+        expect(onViewportChanged).not.toHaveBeenCalled();
+        dispose();
+        viewer.destroy();
+    });
+});
+
 describe("DiffViewer destroy", () => {
     it("throws NoModelerError from accessors after destroy and is idempotent", async () => {
         container = mountCanvas(800, 600);

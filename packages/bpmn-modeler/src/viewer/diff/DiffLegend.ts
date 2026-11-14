@@ -12,6 +12,8 @@ export interface DiffLegendCallbacks {
      * the consumer, not this primitive.
      */
     onSwap?: () => void;
+    /** Invoked by Show all, which goes back to the whole diagram. Omit it to drop the button. */
+    onShowAll?: () => void;
 }
 
 /**
@@ -39,13 +41,18 @@ export interface DiffLegendContext {
      * counts and enables the buttons whenever any count is above zero.
      */
     readonly canStep?: boolean;
+    /** `false` leaves an empty bar, for a pane whose partner's bar shows the changes. */
+    readonly showChanges?: boolean;
+    /** The change the stepper is on, counted from 0, e.g. a `DiffNavigator`'s `cursor`. */
+    readonly position?: { readonly index: number; readonly total: number };
 }
 
 /**
- * Floating legend chip anchored to the top of the canvas.
+ * Bar along the top edge of its parent.
  *
- * Shows per-category counts with matching colour swatches plus prev/next
- * navigation buttons that step through the diff's changed elements.  Stays
+ * Shows the counts of the categories that changed with matching colour
+ * swatches, plus prev/next buttons that step through the diff's changed
+ * elements and the position of the current one.  Stays
  * hidden until {@link update} is called so the canvas isn't cluttered while
  * the diagram is still importing.
  *
@@ -64,13 +71,23 @@ export class DiffLegend {
     }
 
     update(context: DiffLegendContext): void {
-        const { counts, filename, showSwap, canStep } = context;
+        const { counts, filename, showSwap, canStep, showChanges, position } = context;
         this.view.update({
             counts,
             filename,
             showSwap: showSwap ?? false,
             canStep: canStep ?? DIFF_CATEGORIES.some((category) => counts[category] > 0),
+            showChanges,
+            position,
         });
+    }
+
+    /**
+     * Keeps `--diff-legend-height` on `target` at the bar's height once it
+     * shows, so the canvas below can start under it even when its counts wrap.
+     */
+    reserveRoomOn(target: HTMLElement): void {
+        this.view.reserveRoomOn(target);
     }
 
     destroy(): void {

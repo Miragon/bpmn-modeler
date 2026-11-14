@@ -1,6 +1,6 @@
 /*
- * The legend chip both diffs float over a pane (`DiffLegendView`), in the
- * Miragon look: Geist, a blue Next button, 12px chip and 8px button radii. It
+ * The bar both diffs put along the top of a pane (`DiffLegendView`), in the
+ * Miragon look: Geist, the CI status colours, 12px card and 8px button radii. It
  * takes the VS Code widget colours where a webview has them. A host retheming it
  * sets the `--diff-legend-*` properties on `.diff-legend`; the `diff-legend__*`
  * classes are published styling hooks of the BPMN viewer. `.diff-legend-theme`
@@ -18,7 +18,6 @@
     --diff-legend-shadow: 0 6px 20px rgba(29, 29, 29, 0.1), 0 1px 2px rgba(29, 29, 29, 0.06);
     --diff-legend-radius: 12px;
     --diff-legend-button-surface: transparent;
-    --diff-legend-button-border: var(--diff-legend-border);
     --diff-legend-button-hover: var(--vscode-toolbar-hoverBackground, rgba(29, 29, 29, 0.06));
     --diff-legend-button-hover-outline: none;
     --diff-legend-button-radius: 8px;
@@ -27,10 +26,12 @@
     --diff-legend-primary-text: #fff;
     --diff-legend-primary-hover: #2b50d4;
     --diff-legend-focus: var(--vscode-focusBorder, #335de5);
-    --diff-legend-added: #52b415;
-    --diff-legend-removed: #cc0000;
-    --diff-legend-changed: #316fbe;
-    --diff-legend-moved: #888;
+    --diff-legend-muted: var(--vscode-descriptionForeground, #6b6666);
+    --diff-legend-swatch-border: #1d1d1d;
+    --diff-legend-added: #00e676;
+    --diff-legend-removed: #cd1839;
+    --diff-legend-changed: #335de5;
+    --diff-legend-moved: #ffb000;
 }
 
 [data-bpmn-theme="dark"] :is(.diff-legend, .diff-legend-theme),
@@ -40,6 +41,10 @@
     --diff-legend-text: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #e8e8e8));
     --diff-legend-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     --diff-legend-button-hover: var(--vscode-toolbar-hoverBackground, #383838);
+    --diff-legend-muted: var(--vscode-descriptionForeground, #9d9d9d);
+    --diff-legend-swatch-border: #464646;
+    --diff-legend-removed: #fb6d73;
+    --diff-legend-changed: #6b8aff;
 }
 
 body.vscode-light :is(.diff-legend, .diff-legend-theme) {
@@ -62,29 +67,26 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
     --diff-legend-primary-hover: transparent;
 }
 
-/* Centred with left/right: a chip at left: 50% would wrap at half the pane's width. */
 .diff-legend {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    left: 12px;
+    top: 0;
+    right: 0;
+    left: 0;
     z-index: 100;
+    box-sizing: border-box;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    width: fit-content;
-    margin: 0 auto;
-    padding: 8px 12px;
+    gap: 4px 16px;
+    min-height: var(--diff-legend-height, 40px);
+    padding: 4px 8px 4px 12px;
     font-family: var(--diff-legend-font-family);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: var(--diff-legend-font-weight);
     line-height: 1.3;
     color: var(--diff-legend-text);
     background: var(--diff-legend-surface);
-    border: 1px solid var(--diff-legend-border);
-    border-radius: var(--diff-legend-radius);
-    box-shadow: var(--diff-legend-shadow);
+    border-bottom: 1px solid var(--diff-legend-border);
     user-select: none;
 }
 
@@ -95,7 +97,7 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
 
 /* Compare-files panes only: there the tab title alone does not say which pane shows which file. */
 .diff-legend__filename {
-    max-width: 360px;
+    max-width: 240px;
     overflow: hidden;
     font-weight: 600;
     text-overflow: ellipsis;
@@ -104,10 +106,11 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
 
 .diff-legend__counts {
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 6px 12px;
+    gap: 4px 16px;
+    min-width: 0;
 }
 
 .diff-legend__slot {
@@ -118,14 +121,27 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
 }
 
 .diff-legend__count {
-    font-weight: 650;
+    font-weight: inherit;
+}
+
+.diff-legend__none,
+.diff-legend__position {
+    color: var(--diff-legend-muted);
+    white-space: nowrap;
+}
+
+.diff-legend__position {
+    padding: 0 4px;
+    font-variant-numeric: tabular-nums;
 }
 
 .diff-legend__swatch {
+    flex: none;
+    box-sizing: border-box;
     display: inline-block;
     width: 12px;
     height: 12px;
-    border: 1px solid transparent;
+    border: 1px solid var(--diff-legend-swatch-border);
     border-radius: 3px;
 }
 
@@ -142,34 +158,51 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
 }
 
 .diff-legend__swatch--layout {
-    border-color: var(--diff-legend-moved);
-    background: repeating-linear-gradient(
-        135deg,
-        var(--diff-legend-moved),
-        var(--diff-legend-moved) 2px,
-        transparent 2px,
-        transparent 4px
-    );
+    background: var(--diff-legend-moved);
 }
 
-/* The swap group has its own divider: a compare-files affordance, apart from the always-on stepping. */
-.diff-legend__nav,
+.diff-legend__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+/* A compare-files affordance, set apart from the always-on stepping. */
 .diff-legend__swap-group {
     display: inline-flex;
-    gap: 6px;
-    padding-left: 12px;
+    padding-left: 8px;
     border-left: 1px solid var(--diff-legend-border);
 }
 
 .diff-legend__nav-btn {
-    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
     font: inherit;
     color: var(--diff-legend-text);
-    white-space: nowrap;
     background: var(--diff-legend-button-surface);
-    border: 1px solid var(--diff-legend-button-border);
+    border: 1px solid transparent;
     border-radius: var(--diff-legend-button-radius);
     cursor: pointer;
+}
+
+.diff-legend__show-all-btn {
+    margin-left: 4px;
+    padding: 0 8px;
+}
+
+.diff-legend__icon {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .diff-legend__nav-btn:hover:not(:disabled) {
@@ -182,27 +215,35 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
     outline-offset: -1px;
 }
 
-.diff-legend__next-btn {
-    color: var(--diff-legend-primary-text);
-    background: var(--diff-legend-primary-surface);
-    border-color: var(--diff-legend-primary-border);
-}
-
-.diff-legend__next-btn:hover:not(:disabled) {
-    background: var(--diff-legend-primary-hover);
-}
-
-/* Icon-only: its name is in the title and aria-label. */
-.diff-legend__swap-btn {
-    min-width: 28px;
-}
-
 .diff-legend__nav-btn:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: default;
 }
 
 .diff-legend__nav-btn:focus-visible {
     outline: 1px solid var(--diff-legend-focus);
     outline-offset: 2px;
+}
+
+/* ─── Side label ───────────────────────────────────────────────────────── */
+
+/* `DiffSideLabelView`; its parent, the pane's canvas container, positions it. */
+.diff-side-label {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    z-index: 10;
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+    padding: 2px 8px;
+    font-family: var(--diff-legend-font-family);
+    font-size: 12px;
+    font-weight: var(--diff-legend-font-weight);
+    line-height: 1.5;
+    color: var(--diff-legend-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: var(--diff-legend-button-hover);
+    border-radius: 6px;
+    pointer-events: none;
 }

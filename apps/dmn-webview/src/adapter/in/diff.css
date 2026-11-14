@@ -22,7 +22,12 @@
 .dmn-diff-page .dmn-decision-table-container,
 .dmn-diff-page .dmn-literal-expression-container,
 .dmn-diff-page .dmn-boxed-expression-container {
-    padding-top: calc(var(--dmn-diff-chrome-height, 64px) + 24px);
+    padding-top: calc(var(--diff-legend-height, 40px) + 24px);
+}
+
+/* The side label sits below the bar, which the views below leave room for. */
+.dmn-diff-page .diff-side-label {
+    top: calc(var(--diff-legend-height, 40px) + 8px);
 }
 
 /* The two panes' edges meet at VS Code's sash: a dashed line shows where to drag. */
@@ -32,6 +37,17 @@ body.dmn-diff-page[data-diff-side="before"] {
 
 body.dmn-diff-page[data-diff-side="after"] {
     border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
+}
+
+/* As in the BPMN diff: VS Code's group border is near-invisible against the canvas in dark themes. */
+body.vscode-dark.dmn-diff-page[data-diff-side="before"],
+body.vscode-high-contrast.dmn-diff-page[data-diff-side="before"] {
+    border-right-color: #8a8a8a;
+}
+
+body.vscode-dark.dmn-diff-page[data-diff-side="after"],
+body.vscode-high-contrast.dmn-diff-page[data-diff-side="after"] {
+    border-left-color: #8a8a8a;
 }
 
 /* ─── A decision the version lacks ────────────────────────────────────── */
@@ -80,8 +96,15 @@ body.dmn-diff-page[data-diff-side="after"] {
     color: var(--dmn-diff-removed);
 }
 
+/* The status green stays below 3:1 on white: a tinted mark with a dark contour, as on the canvas. */
 .dmn-diff-empty__card[data-kind="added"] .dmn-diff-empty__mark {
+    color: var(--diff-legend-text);
+    background-color: #dafbeb;
+}
+
+:root[data-dmn-theme="dark"] .dmn-diff-empty__card[data-kind="added"] .dmn-diff-empty__mark {
     color: var(--dmn-diff-added);
+    background-color: transparent;
 }
 
 .dmn-diff-empty__title {

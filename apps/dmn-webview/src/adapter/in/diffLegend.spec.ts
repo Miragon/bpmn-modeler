@@ -19,12 +19,12 @@ afterEach(() => {
     parent.remove();
     i18n.setLanguage("en");
     document.body.className = "";
-    document.body.style.removeProperty("--dmn-diff-chrome-height");
+    document.body.style.removeProperty("--diff-legend-height");
     vi.unstubAllGlobals();
 });
 
 function legend() {
-    const actions = { onPrevious: vi.fn(), onNext: vi.fn(), onSwap: vi.fn() };
+    const actions = { onPrevious: vi.fn(), onNext: vi.fn(), onSwap: vi.fn(), onShowAll: vi.fn() };
     return { legend: new DiffLegend(parent, actions), actions };
 }
 
@@ -64,7 +64,7 @@ describe("DiffLegend", () => {
         i18n.setLanguage("de");
 
         expect(parent.textContent).toContain("Hinzugefügt 2");
-        expect(button(".diff-legend__next-btn").textContent).toBe("Nächste Änderung ›");
+        expect(button(".diff-legend__next-btn").title).toBe("Nächste Änderung");
     });
 
     it("tells the views below how much room it takes", () => {
@@ -82,15 +82,12 @@ describe("DiffLegend", () => {
         const { legend: chip } = legend();
         const root = parent.querySelector<HTMLElement>(".diff-legend")!;
         Object.defineProperty(root, "offsetHeight", { value: 88 });
-        const room = () => document.body.style.getPropertyValue("--dmn-diff-chrome-height");
+        const room = () => document.body.style.getPropertyValue("--diff-legend-height");
 
-        observer.callback();
-        const whileHidden = room();
         chip.update({ counts: COUNTS, showSwap: false, canStep: true });
         observer.callback();
         chip.dispose();
 
-        expect(whileHidden).toBe("0px");
         expect(room()).toBe("88px");
         expect(observer.disconnect).toHaveBeenCalledOnce();
     });
