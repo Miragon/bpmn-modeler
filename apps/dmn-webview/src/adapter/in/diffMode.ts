@@ -29,6 +29,9 @@ import type { StepTarget } from "../../domain/diffSteps";
 import type { DmnDiffPaneHost } from "../../port/dmnHost";
 import { DiffEmptyState, DiffLegend } from "./diffLegend";
 
+/** The cursor of a stepper that is on no change, which a partner reads as Show all. */
+const BEFORE_THE_FIRST_CHANGE = -1;
+
 /**
  * One side of a DMN diff: translates between the host's queries and the
  * read-only {@link DmnDiffViewerHandle}.
@@ -57,6 +60,7 @@ export class DiffMode {
             onPrevious: () => this.step(-1),
             onNext: () => this.step(1),
             onSwap: () => host.postMessage(new SwapCompareSidesCommand()),
+            onShowAll: () => this.showAll(),
         });
         this.emptyState = new DiffEmptyState(chromeParent, () => void this.openDrdForBoth());
         viewer.onViewChanged((elementId) => {
@@ -107,6 +111,10 @@ export class DiffMode {
                 this.viewer.setTableScroll(query.scroll);
                 break;
             case "SyncCursorQuery": {
+                if (query.index === BEFORE_THE_FIRST_CHANGE) {
+                    this.showWholeView();
+                    break;
+                }
                 const { target } = this.dispatch({
                     kind: "cursorMoved",
                     index: query.index,
@@ -186,6 +194,17 @@ export class DiffMode {
         if (!target) return;
         this.show(target);
         this.host.postMessage(new CursorChangedCommand(this.state.cursor));
+    }
+
+    /** Show all: both panes show their open view whole, the partner through the host. */
+    private showAll(): void {
+        this.showWholeView();
+        this.host.postMessage(new CursorChangedCommand(BEFORE_THE_FIRST_CHANGE));
+    }
+
+    private showWholeView(): void {
+        this.dispatch({ kind: "shownWhole" });
+        this.viewer.showWholeView();
     }
 
     private show(target: StepTarget): void {

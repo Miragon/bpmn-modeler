@@ -137,6 +137,7 @@ describe("nextDiffPaneState", () => {
         const stepped = stateAfter(imported(), highlighted(), { kind: "stepped", direction: 1 });
 
         expect(stepped.cursor).toBe(0);
+        expect(nextDiffPaneState(stepped, { kind: "shownWhole" }).state.cursor).toBe(-1);
         expect(nextDiffPaneState(stepped, highlighted()).state.cursor).toBe(-1);
         expect(nextDiffPaneState(stepped, viewEntered("Decision_Shipping")).state.cursor).toBe(-1);
     });

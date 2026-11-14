@@ -65,6 +65,8 @@ export interface DmnDiffViewerHandle {
     focus(id: string | undefined): void;
     /** Brings a DRD element, rule, column or table into view without outlining it. */
     reveal(id: string): void;
+    /** Clears the outline and shows the open view whole: the DRD as it first opened, a table from its top. */
+    showWholeView(): void;
     getViewport(): Viewport | undefined;
     setViewport(viewport: Viewport): void;
     /** Calls back when the user pans or zooms the DRD. */
@@ -237,6 +239,16 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         this.focused = id;
         this.applyMarks();
         if (id !== undefined) this.reveal(id);
+    }
+
+    showWholeView(): void {
+        this.focus(undefined);
+        if (this.drd()) {
+            this.drdViewport = undefined;
+            this.placeDrd();
+        } else {
+            this.setTableScroll({ offset: 0, left: 0 });
+        }
     }
 
     reveal(id: string): void {

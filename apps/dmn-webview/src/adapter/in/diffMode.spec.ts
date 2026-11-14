@@ -73,6 +73,9 @@ class FakeViewer implements DmnDiffViewerHandle {
     focus(id: string | undefined): void {
         this.calls.push(["focus", id]);
     }
+    showWholeView(): void {
+        this.calls.push(["showWholeView"]);
+    }
     reveal(id: string): void {
         this.calls.push(["reveal", id]);
     }
@@ -207,6 +210,28 @@ describe("DiffMode", () => {
         expect(legendText()).toContain("Removed 1");
         expect(chrome.querySelector(".diff-side-label")?.textContent).toBe("New version");
         expect(chrome.querySelector<HTMLElement>(".diff-legend__swap-group")?.hidden).toBe(true);
+    });
+
+    it("shows the open view whole with Show all, and takes the partner along", async () => {
+        await readyPane();
+        posted.length = 0;
+
+        click(".diff-legend__show-all-btn");
+
+        expect(viewer.called("showWholeView")).toHaveLength(1);
+        expect(posted).toEqual([
+            expect.objectContaining({ type: "CursorChangedCommand", index: -1 }),
+        ]);
+    });
+
+    it("shows the open view whole when the partner does, without echoing it", async () => {
+        const mode = await readyPane();
+        posted.length = 0;
+
+        await mode.handle(new SyncCursorQuery(-1));
+
+        expect(viewer.called("showWholeView")).toHaveLength(1);
+        expect(posted).toEqual([]);
     });
 
     it("names the file and swaps the sides on a compare-files pane", async () => {

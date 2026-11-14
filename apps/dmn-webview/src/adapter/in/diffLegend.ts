@@ -10,8 +10,7 @@ import type { DiffLegendState } from "../../domain/diffPaneState";
 import type { DmnMissingStatus } from "../../domain/diffSteps";
 import { DMN_DIFF_TEXTS } from "../../domain/diffTexts";
 
-// The DMN stepper has no way back to the whole view yet, so its bar offers no Show all.
-export type DiffLegendActions = Required<Omit<SharedDiffLegendActions, "onShowAll">>;
+export type DiffLegendActions = Required<SharedDiffLegendActions>;
 
 const MISSING_TEXTS: Readonly<Record<DmnMissingStatus, string>> = {
     removed: DMN_DIFF_TEXTS.removedHere,

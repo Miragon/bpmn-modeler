@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 function legend() {
-    const actions = { onPrevious: vi.fn(), onNext: vi.fn(), onSwap: vi.fn() };
+    const actions = { onPrevious: vi.fn(), onNext: vi.fn(), onSwap: vi.fn(), onShowAll: vi.fn() };
     return { legend: new DiffLegend(parent, actions), actions };
 }
 

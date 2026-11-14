@@ -290,6 +290,25 @@ describe("DMN diff pane (real dmn-js)", () => {
         expect(viewer.getViewStatus()).toBeUndefined();
     });
 
+    it("shows the DRD whole again, as it opened, without an outline or a report", async () => {
+        const { viewer, container } = await pane();
+        viewer.setMarks(MARKS);
+        const opening = viewer.getViewport()!;
+        const reported: unknown[] = [];
+        viewer.onViewportChanged((viewport) => reported.push(viewport));
+
+        viewer.focus("Decision_1");
+        viewer.showWholeView();
+        await new Promise((resolve) => setTimeout(resolve, 120));
+
+        const viewport = viewer.getViewport()!;
+        expect(viewport.x).toBeCloseTo(opening.x, 0);
+        expect(viewport.y).toBeCloseTo(opening.y, 0);
+        expect(viewport.width).toBeCloseTo(opening.width, 0);
+        expect(container.querySelectorAll(".diff-selected")).toHaveLength(0);
+        expect(reported).toHaveLength(0);
+    });
+
     it("reports the user's pan, not a viewport the partner pane sent", async () => {
         const { viewer, container } = await pane();
         const reported: unknown[] = [];

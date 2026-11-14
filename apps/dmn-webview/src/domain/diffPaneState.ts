@@ -51,7 +51,8 @@ export type DiffPaneEvent =
     | { readonly kind: "viewRequested"; readonly elementId: string | null }
     | { readonly kind: "viewEntered"; readonly elementId: string | null; readonly found: boolean }
     | { readonly kind: "stepped"; readonly direction: 1 | -1 }
-    | { readonly kind: "cursorMoved"; readonly index: number; readonly direction: 1 | -1 };
+    | { readonly kind: "cursorMoved"; readonly index: number; readonly direction: 1 | -1 }
+    | { readonly kind: "shownWhole" };
 
 export interface DiffPaneTransition {
     readonly state: DiffPaneState;
@@ -114,6 +115,8 @@ export function nextDiffPaneState(state: DiffPaneState, event: DiffPaneEvent): D
         }
         case "cursorMoved":
             return cursorMoved(state, event.index, event.direction);
+        case "shownWhole":
+            return { state: { ...state, cursor: -1 } };
     }
 }
 
