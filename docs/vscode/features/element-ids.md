@@ -21,7 +21,7 @@ Turn random IDs like `Activity_0x1y2z3` into IDs that read like the element's ty
 | Already match | Elements whose ID already follows their name, with or without a counter. They keep their ID. |
 | No name, skipped | Elements without a name, or with a name that has no letter or digit to build an ID from. |
 
-The Element IDs tab needs VS Code 1.80 or later. In an older VS Code the same review opens as a panel along the bottom of the canvas, with **Apply** and **Discard** buttons.
+The Element IDs tab needs VS Code 1.80 or later. An older VS Code offers only **Generate from name** under the ID field (see below).
 
 ## One element
 
