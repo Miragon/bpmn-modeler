@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-14
 
 ## Context
 
@@ -171,6 +171,16 @@ failing session hooks); the price is indirection.
   a diagram's scripts live (below its workspace root's config folder, or the OS temp
   folder for a diagram that is not a file); a failed workspace lookup rejects instead of
   moving scripts somewhere the user did not configure.
+- The element ID review ([IDs from names](bpmn-modeler-features.md#ids-from-names)) is drawn
+  natively by each host from a view the core builds: VS Code's Panel area holds an Element IDs
+  tab, a checkbox tree beside Problems and Output, and IntelliJ an Element IDs tool window. The
+  core's `ElementIdsService` keeps the review's state behind `ElementIdReviewPort`; the webview
+  lists the rows (`ElementIdProposalsQuery` → `ElementIdProposalsCommand`) after every change,
+  host import and mode switch and applies them (`ApplyElementIdsQuery` →
+  `ElementIdsAppliedCommand`), and IntelliJ reaches the port over `elementIdReview/*`. VS Code
+  wires the port only from 1.80, by `vscode.version`: 1.76 to 1.79 export the checkbox API only
+  as a proposal, which fails the activation, so an older VS Code hides the command behind
+  `bpmn-modeler.elementIdReviewAvailable` and keeps Generate from name.
 
 **The core builds every user-visible text; a host renders it.** Hosts that word their own
 text drift (engine-version label, add-marketplace dialog title, "Saved in …" hints), so
