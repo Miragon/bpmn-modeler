@@ -9,7 +9,10 @@ const PLUGIN = "/work/.camunda/plugins/acme";
 
 function readerOver(files: Record<string, string>) {
     const notifier = new RecordingNotifier();
-    return { reader: new AddOnAboutReader(new InMemoryWorkspace(["/work"], files), notifier), notifier };
+    return {
+        reader: new AddOnAboutReader(new InMemoryWorkspace(["/work"], files), notifier),
+        notifier,
+    };
 }
 
 describe("AddOnAboutReader", () => {
@@ -22,14 +25,20 @@ describe("AddOnAboutReader", () => {
 
         expect(await reader.read({ kind: "folder", dir: PLUGIN })).toEqual({
             readme: { kind: "shown", markdown: "# Acme", truncated: false },
-            license: { kind: "known", text: "MIT", label: "License: MIT, as its package.json says" },
+            license: {
+                kind: "known",
+                text: "MIT",
+                label: "License: MIT, as its package.json says",
+            },
         });
     });
 
     it("has nothing for a folder without either, one that is gone, or no place", async () => {
         const { reader } = readerOver({ [`${PLUGIN}/index.js`]: "" });
 
-        expect(await reader.read({ kind: "folder", dir: PLUGIN })).toEqual({ readme: { kind: "none" } });
+        expect(await reader.read({ kind: "folder", dir: PLUGIN })).toEqual({
+            readme: { kind: "none" },
+        });
         expect(await reader.read({ kind: "folder", dir: "/work/gone" })).toEqual({
             readme: { kind: "none" },
         });

@@ -58,12 +58,9 @@ describe("markdownOf", () => {
             [false, true],
         ]);
         expect(root.querySelector("ul li")?.textContent).toBe("done");
-        expect(Array.from(root.querySelectorAll("th, td")).map((cell) => cell.textContent)).toEqual([
-            "Rule",
-            "Level",
-            "no-gap",
-            "warn",
-        ]);
+        expect(Array.from(root.querySelectorAll("th, td")).map((cell) => cell.textContent)).toEqual(
+            ["Rule", "Level", "no-gap", "warn"],
+        );
         expect(root.querySelector<HTMLElement>("td:last-child")?.style.textAlign).toBe("right");
     });
 });

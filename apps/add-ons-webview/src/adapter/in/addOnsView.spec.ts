@@ -708,7 +708,11 @@ describe("AddOnsView", () => {
                 targetId: PALETTE.id,
                 about: {
                     readme: { kind: "none" },
-                    license: { kind: "known", text: "MIT", label: "License: MIT, as its package.json says" },
+                    license: {
+                        kind: "known",
+                        text: "MIT",
+                        label: "License: MIT, as its package.json says",
+                    },
                 },
             });
 
@@ -730,7 +734,11 @@ describe("AddOnsView", () => {
                 about: {
                     readme: readme("Shared templates."),
                     stars: { text: "1.2k", label: "1,234 stars on GitHub" },
-                    license: { kind: "none", text: "No license", label: "GitHub found no license file." },
+                    license: {
+                        kind: "none",
+                        text: "No license",
+                        label: "GitHub found no license file.",
+                    },
                 },
             });
 

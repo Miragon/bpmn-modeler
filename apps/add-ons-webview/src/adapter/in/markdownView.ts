@@ -64,7 +64,8 @@ function blockOf(token: Token): Node[] {
 
 function listOf({ ordered, start, items }: Tokens.List): HTMLElement {
     const list = ordered ? el("ol") : el("ul");
-    if (ordered && typeof start === "number" && start !== 1) list.setAttribute("start", String(start));
+    if (ordered && typeof start === "number" && start !== 1)
+        list.setAttribute("start", String(start));
     list.append(
         ...items.map(({ task, checked, tokens }) => {
             const item = el("li");

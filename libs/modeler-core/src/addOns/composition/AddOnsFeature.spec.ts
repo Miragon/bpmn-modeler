@@ -1308,14 +1308,18 @@ describe("AddOnsFeature", () => {
             });
 
             it("reads nothing for an id the catalog did not list, so a page never names a path", async () => {
-                const { addOns } = setUp({ files: { ...RESIZE_FILES, "/etc/README.md": "secret" } });
+                const { addOns } = setUp({
+                    files: { ...RESIZE_FILES, "/etc/README.md": "secret" },
+                });
                 const page = recordingPanel();
                 const list = addOns.attachPanel(page.post, true);
                 await shown(addOns);
 
                 await list.handle(new GetAddOnAboutCommand("plugin:/etc"));
 
-                expect(page.posted.at(-1)).toEqual(new AddOnAboutQuery("plugin:/etc", { readme: { kind: "none" } }));
+                expect(page.posted.at(-1)).toEqual(
+                    new AddOnAboutQuery("plugin:/etc", { readme: { kind: "none" } }),
+                );
             });
 
             it("reads a marketplace's README the update cached", async () => {

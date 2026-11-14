@@ -22,7 +22,9 @@ describe("githubRepositoryFactsOf", () => {
     });
 
     it("tells a license file GitHub did not recognise from none", () => {
-        expect(githubRepositoryFactsOf({ license: { spdx_id: "NOASSERTION", name: "Other" } })).toEqual({
+        expect(
+            githubRepositoryFactsOf({ license: { spdx_id: "NOASSERTION", name: "Other" } }),
+        ).toEqual({
             host: "github",
             license: { kind: "other" },
         });
@@ -56,7 +58,9 @@ describe("gitlabRepositoryFactsOf", () => {
     });
 
     it("tells a license file GitLab did not recognise from none", () => {
-        expect(gitlabRepositoryFactsOf({ license: { key: "other", name: "Other" } }).license).toEqual({
+        expect(
+            gitlabRepositoryFactsOf({ license: { key: "other", name: "Other" } }).license,
+        ).toEqual({
             kind: "other",
         });
         expect(gitlabRepositoryFactsOf({ license: null }).license).toEqual({ kind: "none" });
