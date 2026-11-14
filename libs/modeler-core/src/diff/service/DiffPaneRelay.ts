@@ -32,7 +32,7 @@ export class DiffPaneRelay {
         handle.setReady();
         await this.sendLanguage(handle);
 
-        const session = this.store.findByUri(handle.uri);
+        const session = this.store.sessionOf(handle);
         if (!session || !session.isArmed()) {
             return undefined;
         }
@@ -54,7 +54,7 @@ export class DiffPaneRelay {
 
     /** Posts the query to the pane's partner, if it has one. */
     async toPartner(handle: DiffPaneHandle, query: Query, name: string): Promise<void> {
-        const partner = this.store.findByUri(handle.uri)?.partnerOf(handle);
+        const partner = this.store.sessionOf(handle)?.partnerOf(handle);
         if (partner) {
             await this.post(partner, query, name);
         }

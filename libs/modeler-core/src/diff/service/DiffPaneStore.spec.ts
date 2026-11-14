@@ -19,6 +19,23 @@ describe("DiffPaneStore", () => {
 
     // ─── compare-files registration & lookup ────────────────────────────────
 
+    it("keeps two sessions of the same files apart, each with its own panes", () => {
+        const store = new DiffPaneStore();
+        const first = store.registerCompareFiles(LEFT, RIGHT);
+        const firstPane = fakeHandle(RIGHT);
+        first.attachPane(firstPane);
+        const second = store.registerCompareFiles(LEFT, RIGHT);
+        const secondPane = fakeHandle(RIGHT);
+
+        const awaiting = store.awaitingPaneFor(RIGHT);
+        second.attachPane(secondPane);
+
+        expect(awaiting).toBe(second);
+        expect(store.sessionOf(firstPane)).toBe(first);
+        expect(store.sessionOf(secondPane)).toBe(second);
+        expect(store.paneCountFor(RIGHT)).toBe(2);
+    });
+
     it("registerCompareFiles indexes both URIs to the same session", () => {
         const store = new DiffPaneStore();
         const session = store.registerCompareFiles(LEFT, RIGHT);
@@ -33,21 +50,21 @@ describe("DiffPaneStore", () => {
         expect(store.findByUri("file:///nothing.bpmn")).toBeUndefined();
     });
 
-    // ─── hasPaneForUri ───────────────────────────────────────────────────────
+    // ─── paneCountFor ───────────────────────────────────────────────────────
 
-    it("hasPaneForUri is true once a pane is attached to the session", () => {
+    it("paneCountFor counts a pane once it is attached to the session", () => {
         const store = new DiffPaneStore();
         const session = store.registerCompareFiles(LEFT, RIGHT);
 
-        expect(store.hasPaneForUri(LEFT)).toBe(false); // registered, not attached
+        expect(store.paneCountFor(LEFT)).toBe(0); // registered, not attached
         session.attachPane(fakeHandle(LEFT));
-        expect(store.hasPaneForUri(LEFT)).toBe(true);
+        expect(store.paneCountFor(LEFT)).toBe(1);
     });
 
-    it("hasPaneForUri is true for a pending SCM pane", () => {
+    it("paneCountFor counts a pending SCM pane", () => {
         const store = new DiffPaneStore();
         store.addPendingScm("/repo/diagram.bpmn", fakeHandle(RIGHT));
-        expect(store.hasPaneForUri(RIGHT)).toBe(true);
+        expect(store.paneCountFor(RIGHT)).toBe(1);
     });
 
     // ─── pending SCM panes ────────────────────────────────────────────────────
@@ -71,7 +88,7 @@ describe("DiffPaneStore", () => {
 
         expect(store.removePendingByHandle(handle)).toBe(true);
         expect(store.removePendingByHandle(handle)).toBe(false); // already gone
-        expect(store.hasPaneForUri(RIGHT)).toBe(false);
+        expect(store.paneCountFor(RIGHT)).toBe(0);
     });
 
     // ─── remove ────────────────────────────────────────────────────────────────

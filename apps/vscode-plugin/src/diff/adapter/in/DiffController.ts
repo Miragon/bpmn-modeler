@@ -110,7 +110,7 @@ export class DiffController {
      *
      * Session registration must happen before `vscode.diff` so that when VS
      * Code immediately resolves each pane through the
-     * `CustomTextEditorProvider`, pane lookup via {@link DiffPaneStore.findByUri}
+     * `CustomTextEditorProvider`, pane lookup via {@link DiffPaneStore.awaitingPaneFor}
      * succeeds synchronously — otherwise the panes would fall through to the
      * SCM label heuristic.
      *
@@ -138,32 +138,27 @@ export class DiffController {
      * Returns `true` when this URI should resolve as a (new) diff pane.
      *
      * Decision tree:
-     *   1. A pane (full session or pending SCM entry) already exists for
-     *      this URI → false.  The caller is a *second* resolve, e.g. the
-     *      user opened the working-tree file in a normal editor tab after
-     *      the SCM diff was already open — that second tab is an editable
-     *      modeler, not another diff pane.
-     *   2. A pre-registered `compare-files` session exists → true.
-     *   3. The URI uses a Git-provided scheme (see
+     *   1. A pre-registered `compare-files` session waits for a pane on this
+     *      URI → true.
+     *   2. The URI uses a Git-provided scheme (see
      *      {@link GIT_PROVIDED_SCHEMES}) → true. Covers VS Code's `git:` and
      *      Theia's `gitfs:` — both are always readonly and always belong to a
      *      diff.
-     *   4. The URI sits in a diff tab per the label heuristic → true.  This
-     *      is the only signal for SCM diffs when both URIs share the `file:`
-     *      scheme (uncommon but possible for some diff-to-working-tree flows).
+     *   3. More diff tabs name the file, per the label heuristic, than diff
+     *      panes already render it → true. A file opened in a normal editor
+     *      tab beside its diff stays an editable modeler, while a second diff
+     *      tab of the same file (a restored tab opened again) gets a pane of
+     *      its own.
      */
     shouldResolveAsDiff(uri: Uri): boolean {
         const needle = uri.toString();
-        if (this.store.hasPaneForUri(needle)) {
-            return false;
-        }
-        if (this.store.findByUri(needle)) {
+        if (this.store.awaitingPaneFor(needle)) {
             return true;
         }
         if (GIT_PROVIDED_SCHEMES.has(uri.scheme)) {
             return true;
         }
-        return this.isPartOfDiff(uri);
+        return this.diffTabsNaming(uri) > this.store.paneCountFor(needle);
     }
 
     /**
@@ -208,7 +203,7 @@ export class DiffController {
         );
         panel.onDidDispose(() => this.disposePane(handle));
 
-        const session = this.store.findByUri(handle.uri);
+        const session = this.store.awaitingPaneFor(handle.uri);
         if (session) {
             session.attachPane(handle);
             this.store.cancelTtl(session);
@@ -220,7 +215,7 @@ export class DiffController {
     }
 
     /**
-     * Returns `true` when `uri` belongs to an open diff tab of this format.
+     * Counts the open diff tabs of this format that name `uri`'s file.
      *
      * Label-based heuristic: when a file type has a `CustomTextEditorProvider`
      * registered as default, VS Code's diff tabs surface as `Tab` objects with
@@ -232,22 +227,15 @@ export class DiffController {
      * differ.  The label must name this file: a compare tab of two other
      * files must not turn every file opened afterwards into a diff pane.
      */
-    private isPartOfDiff(uri: Uri): boolean {
+    private diffTabsNaming(uri: Uri): number {
         const basename = lastWorkspacePathSegment(uri.path);
         if (!basename.endsWith(this.format.extension)) {
-            return false;
+            return 0;
         }
-        for (const group of window.tabGroups.all) {
-            for (const tab of group.tabs) {
-                if (tab.input !== undefined) {
-                    continue;
-                }
-                if (diffTabLabelNamesFile(tab.label, basename)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return window.tabGroups.all
+            .flatMap((group) => group.tabs)
+            .filter((tab) => tab.input === undefined && diffTabLabelNamesFile(tab.label, basename))
+            .length;
     }
 
     /**
@@ -298,7 +286,7 @@ export class DiffController {
         }
 
         // Drop from session; retire the session if both panes are gone.
-        const session = this.store.findByUri(handle.uri);
+        const session = this.store.sessionOf(handle);
         if (!session) {
             return;
         }
@@ -323,7 +311,7 @@ export class DiffController {
      * fresh session with the reversed before/after assignment.
      */
     private async swapCompareFilesSides(handle: DiffPaneHandle): Promise<void> {
-        const session = this.store.findByUri(handle.uri);
+        const session = this.store.sessionOf(handle);
         if (!session || session.origin !== "compare-files") {
             return;
         }

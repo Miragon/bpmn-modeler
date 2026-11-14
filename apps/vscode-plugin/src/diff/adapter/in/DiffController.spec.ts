@@ -104,6 +104,16 @@ describe("DiffController.shouldResolveAsDiff", () => {
         expect(controller.shouldResolveAsDiff(uri("file", value))).toBe(false);
     });
 
+    it("opens the file as an editor beside a diff tab that already shows it", () => {
+        const { controller, store } = createController();
+        const value = "file:///repo/diagram.bpmn";
+        tabs.push({ input: undefined, label: "diagram.bpmn (Working Tree)" });
+        const session = store.registerCompareFiles("git:/repo/diagram.bpmn", value);
+        session.attachPane(new FakeDiffPaneHandle(value));
+
+        expect(controller.shouldResolveAsDiff(uri("file", value))).toBe(false);
+    });
+
     it("returns true for a pre-registered compare-files URI with no pane yet", () => {
         const { controller, store } = createController();
         const value = "file:///repo/diagram.bpmn";
@@ -211,7 +221,7 @@ describe("DiffController.resolveDiffPane", () => {
 
         controller.resolveDiffPane(panel, fakeDoc("file", "/a.bpmn", "file:///a.bpmn"));
 
-        expect(store.hasPaneForUri("file:///a.bpmn")).toBe(true);
+        expect(store.paneCountFor("file:///a.bpmn")).toBe(1);
         expect(bootstrapSpy).toHaveBeenCalled();
     });
 
@@ -227,6 +237,31 @@ describe("DiffController.resolveDiffPane", () => {
         controller.resolveDiffPane(fakePanel().panel, fakeDoc("file", "/x.bpmn", "file:///x.bpmn"));
         expect(store.findByUri("file:///x.bpmn")).toBeDefined();
         expect(store.findByUri("git:/x.bpmn")).toBeDefined();
+    });
+
+    it("gives a second diff tab of the same file a session of its own", () => {
+        const { controller, store } = createController();
+        const open = () => {
+            tabs.push({ input: undefined, label: "x.bpmn (Working Tree)" });
+            const git = fakePanel();
+            controller.resolveDiffPane(git.panel, fakeDoc("git", "/x.bpmn", "git:/x.bpmn"));
+            const fileUri = uri("file", "file:///x.bpmn");
+            const resolvesAsDiff = controller.shouldResolveAsDiff(fileUri);
+            controller.resolveDiffPane(
+                fakePanel().panel,
+                fakeDoc("file", "/x.bpmn", "file:///x.bpmn"),
+            );
+            return resolvesAsDiff;
+        };
+
+        const first = open();
+        const second = open();
+
+        expect([first, second]).toEqual([true, true]);
+        const sessions = [...store.allSessions()];
+        expect(sessions).toHaveLength(2);
+        expect(sessions.every((session) => session.isEmpty() === false)).toBe(true);
+        expect(sessions[0]!.attachedPanes()).not.toContain(sessions[1]!.after());
     });
 
     it("retires the session once its last pane is disposed", () => {
@@ -254,7 +289,7 @@ describe("DiffController.resolveWhenDiffPane", () => {
         );
 
         expect(handled).toBe(true);
-        expect(store.hasPaneForUri("file:///a.bpmn")).toBe(true);
+        expect(store.paneCountFor("file:///a.bpmn")).toBe(1);
         expect(bootstrapSpy).toHaveBeenCalled();
     });
 
@@ -268,7 +303,7 @@ describe("DiffController.resolveWhenDiffPane", () => {
         );
 
         expect(handled).toBe(false);
-        expect(store.hasPaneForUri("file:///c.bpmn")).toBe(false);
+        expect(store.paneCountFor("file:///c.bpmn")).toBe(0);
         expect(bootstrapSpy).not.toHaveBeenCalled();
     });
 });

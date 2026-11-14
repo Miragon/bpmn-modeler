@@ -24,15 +24,8 @@ const COMPARE_FILES_TTL_MS = 30_000;
  * host can clear any armed TTL timers on deactivate.
  */
 export class DiffPaneStore implements EditorSubscription {
-    // Every live session, keyed by `${beforeUri}|${afterUri}`.
-    private readonly sessions = new Map<string, DiffSession>();
-
-    /**
-     * Lookup index: URI string → session it belongs to.  Populated as soon as
-     * a session is created, whether pre-registered (`compare-files`) or
-     * lazily formed (`scm`).
-     */
-    private readonly sessionByUri = new Map<string, DiffSession>();
+    // Every live session. One file can sit in several, one per open diff tab of it.
+    private readonly sessions = new Set<DiffSession>();
 
     /**
      * SCM panes awaiting their partner, keyed by pairing key (the shared
@@ -74,45 +67,46 @@ export class DiffPaneStore implements EditorSubscription {
      * funnel through here so the two maps never drift out of sync.
      */
     index(session: DiffSession): void {
-        this.sessions.set(this.sessionIdOf(session), session);
-        this.sessionByUri.set(session.beforeUri, session);
-        this.sessionByUri.set(session.afterUri, session);
+        this.sessions.add(session);
     }
 
     /**
-     * Returns the session this URI belongs to, or `undefined` when none
+     * Returns a session this URI belongs to, or `undefined` when none
      * exists yet.  Covers both pre-registered `compare-files` sessions and
      * `scm` sessions that have already been promoted from a pending pane.
      */
     findByUri(uri: string): DiffSession | undefined {
-        return this.sessionByUri.get(uri);
+        return [...this.sessions].find((session) => session.sideFor(uri) !== undefined);
+    }
+
+    /** The session `handle` is attached to, among several sessions of the same file. */
+    sessionOf(handle: DiffPaneHandle): DiffSession | undefined {
+        return [...this.sessions].find((session) => session.attachedPanes().includes(handle));
+    }
+
+    /** A pre-registered session that still waits for a pane on `uri`'s side. */
+    awaitingPaneFor(uri: string): DiffSession | undefined {
+        return [...this.sessions].find(
+            (session) => session.sideFor(uri) !== undefined && !session.hasPaneFor(uri),
+        );
     }
 
     /**
-     * Removes `session` from both indexes and disarms its TTL timer.
+     * Removes `session` and disarms its TTL timer.
      */
     remove(session: DiffSession): void {
-        this.sessions.delete(this.sessionIdOf(session));
-        this.sessionByUri.delete(session.beforeUri);
-        this.sessionByUri.delete(session.afterUri);
+        this.sessions.delete(session);
         this.cancelTtl(session);
     }
 
     /**
-     * Returns `true` when any pane — attached to a session or still pending
-     * SCM pairing — currently renders `uri`.
+     * How many diff panes, attached to a session or still pending SCM pairing,
+     * currently render `uri`.
      */
-    hasPaneForUri(uri: string): boolean {
-        const session = this.sessionByUri.get(uri);
-        if (session?.hasPaneFor(uri)) {
-            return true;
-        }
-        for (const handle of this.pendingScm.values()) {
-            if (handle.uri === uri) {
-                return true;
-            }
-        }
-        return false;
+    paneCountFor(uri: string): number {
+        const attached = [...this.sessions].filter((session) => session.hasPaneFor(uri)).length;
+        const pending = [...this.pendingScm.values()].filter((handle) => handle.uri === uri).length;
+        return attached + pending;
     }
 
     /**
@@ -165,10 +159,6 @@ export class DiffPaneStore implements EditorSubscription {
             clearTimeout(timer);
         }
         this.ttlTimers.clear();
-    }
-
-    private sessionIdOf(session: DiffSession): string {
-        return `${session.beforeUri}|${session.afterUri}`;
     }
 
     /**
