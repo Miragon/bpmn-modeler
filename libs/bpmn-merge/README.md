@@ -9,13 +9,19 @@ Internal workspace, not published, not inlined into `@miragon/bpmn-modeler`.
 ## Usage
 
 ```ts
-import { computeMerge, MergeDecisions } from "@miragon/bpmn-modeler-merge";
+import {
+    computeMerge,
+    describeUnmetRequirement,
+    MergeDecisions,
+} from "@miragon/bpmn-modeler-merge";
 
 const decisions = MergeDecisions.from(await computeMerge({ base, current, incoming })); // base is optional
 
 for (const conflict of decisions.openConflicts) {
     const outcome = decisions.pick(conflict.id, "incoming");
-    // outcome.applied ? outcome.pulledIn / outcome.dropped : outcome.blockedBy
+    if (!outcome.applied) {
+        outcome.blockedBy.map(({ reason }) => describeUnmetRequirement(reason)); // or the view's own words
+    }
 }
 decisions.unpick("Task_1"); // back to its automatic resolution, or open
 const resolution = decisions.resolution(); // throws while conflicts are open

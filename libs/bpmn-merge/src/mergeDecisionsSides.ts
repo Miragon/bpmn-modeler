@@ -40,7 +40,7 @@ export class DecidedSides {
         );
     }
 
-    sideOf(id: string): MergeSide | undefined {
+    decidedSideOf(id: string): MergeSide | undefined {
         const decided = this.picked.get(id) ?? this.consequences.get(id);
         if (decided !== undefined) {
             return decided;
@@ -56,13 +56,16 @@ export class DecidedSides {
     }
 
     isPresent(id: string): boolean {
-        const side = this.sideOf(id);
+        const side = this.decidedSideOf(id);
         return side !== undefined && this.elementsById.get(id)?.versions[side] !== undefined;
     }
 
     /** Decided to a side without it, or unknown to every version; an open element is pending, not absent. */
     isAbsent(id: string): boolean {
-        return !this.elementsById.has(id) || (this.sideOf(id) !== undefined && !this.isPresent(id));
+        return (
+            !this.elementsById.has(id) ||
+            (this.decidedSideOf(id) !== undefined && !this.isPresent(id))
+        );
     }
 
     /** Its target is absent, or present on a side whose version lacks the part it names; an open target is pending. */
@@ -70,7 +73,7 @@ export class DecidedSides {
         if (this.isAbsent(requirement.target)) {
             return true;
         }
-        const side = this.sideOf(requirement.target);
+        const side = this.decidedSideOf(requirement.target);
         const target = this.elementsById.get(requirement.target);
         return (
             side !== undefined &&

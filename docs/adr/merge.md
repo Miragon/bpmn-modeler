@@ -101,6 +101,9 @@ parser and asserts that the module still loads.
   part, and drops the dependents of an element it removes. It is blocked, says why and
   changes nothing when that would change an element the user picked, when no side
   satisfies it, or when a dependent both versions hold would have to switch sides.
+  A blocked pick and a dangling resolution give the reason as data (element, requirement,
+  obstacle), not as a sentence: the library ships one English `describeUnmetRequirement`,
+  and a view in another locale replaces it.
   `pickWithContents` decides a container and everything in it at once; a later pick inside
   overrides it. `unpick` returns an element to its automatic resolution or to open, which
   is the way out of two picks that name each other.
@@ -118,5 +121,8 @@ parser and asserts that the module still loads.
   pair by name, a Camunda 8 embedded form names its `zeebe:userTaskForm`, and the
   classification parses without engine descriptors, so engine extension references stay
   generic. `computeDiff` does not see a change to an element without an id.
+- The reference rules read a reference's property as `owner#property`, the text
+  `bpmn-diff` writes into its snapshot; `referenceRules.ts` is the one reader, and a
+  change to the format is a change to both libraries.
 - `content` and `layout` are opaque texts, only fit for equality; the view cannot say what
   changed inside an element without its text.

@@ -1,4 +1,5 @@
 import { MERGE_SIDES, type MergeElement } from "./mergeResult";
+import { isProcessReference } from "./referenceRules";
 
 /** Everything inside the container in current or incoming: its children, their children, a lane's flow nodes and a participant's process. */
 export function descendantsOf(
@@ -39,7 +40,7 @@ function contentsByContainer(
                 contain(lane, element.id);
             }
             for (const reference of version.references) {
-                if (reference.property.endsWith("#processRef")) {
+                if (isProcessReference(reference)) {
                     contain(element.id, reference.target);
                 }
             }

@@ -17,16 +17,19 @@ import {
     type MergeSide,
 } from "./mergeResult";
 import { dependentsByTarget } from "./referenceRules";
+import type { UnmetRequirement } from "./unmetRequirement";
 
-export type { PickOutcome } from "./pickOutcome";
+export type { BlockedPick, PickOutcome } from "./pickOutcome";
 
-export interface OpenConflict {
-    readonly id: string;
-    readonly state: ConflictState | "danglingReference";
-    /** For danglingReference: the elements and reference that broke it. */
-    readonly reason?: string;
-    readonly related: readonly string[];
-}
+export type OpenConflict =
+    | { readonly id: string; readonly state: ConflictState; readonly related: readonly string[] }
+    | {
+          readonly id: string;
+          readonly state: "danglingReference";
+          /** The requirements an automatic resolution left unmet, on this element or naming it. */
+          readonly reasons: readonly UnmetRequirement[];
+          readonly related: readonly string[];
+      };
 
 export interface MergeResolution {
     /** Every element id of the MergeResult: the side whose version is taken; absent on that side = not in the result. */
@@ -73,15 +76,13 @@ export class MergeDecisions {
         );
     }
 
+    /** Undefined while the element is open, a dangling automatic resolution included. */
     sideOf(id: string): MergeSide | undefined {
-        return this.dangling.has(id) ? undefined : this.sides.sideOf(id);
+        return this.dangling.has(id) ? undefined : this.sides.decidedSideOf(id);
     }
 
     isInResult(id: string): boolean | undefined {
-        const side = this.sideOf(id);
-        return side === undefined
-            ? undefined
-            : this.context.elementsById.get(id)?.versions[side] !== undefined;
+        return this.sideOf(id) === undefined ? undefined : this.sides.isPresent(id);
     }
 
     pick(id: string, side: MergeSide): PickOutcome {
@@ -114,14 +115,11 @@ export class MergeDecisions {
         }
         const elements: Record<string, MergeSide> = {};
         for (const element of this.mergeResult.elements) {
-            elements[element.id] = this.sides.sideOf(element.id) as MergeSide;
+            elements[element.id] = this.sides.decidedSideOf(element.id) as MergeSide;
         }
-        const layout = layoutSidesOf(this.mergeResult.elements, (id) => {
-            const side = elements[id];
-            return this.context.elementsById.get(id)?.versions[side] === undefined
-                ? undefined
-                : side;
-        });
+        const layout = layoutSidesOf(this.mergeResult.elements, (id) =>
+            this.sides.isPresent(id) ? elements[id] : undefined,
+        );
         return { elements, layout };
     }
 
@@ -149,11 +147,11 @@ export class MergeDecisions {
             return {
                 id: element.id,
                 state: "danglingReference",
-                reason: dangling.reason,
+                reasons: dangling.reasons,
                 related: dangling.related,
             };
         }
-        if (this.sides.sideOf(element.id) === undefined && isConflictState(element.state)) {
+        if (this.sides.decidedSideOf(element.id) === undefined && isConflictState(element.state)) {
             return { id: element.id, state: element.state, related: [] };
         }
         return undefined;

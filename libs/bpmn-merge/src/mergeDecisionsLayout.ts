@@ -1,13 +1,24 @@
-import type { ElementReference, ElementVersion, MergeElement, MergeSide } from "./mergeResult";
+import type {
+    ElementReference,
+    ElementVersion,
+    LayoutState,
+    MergeElement,
+    MergeSide,
+} from "./mergeResult";
+import { isEdgeEnd, isHostReference, isProcessReference } from "./referenceRules";
 
-const EDGE_END_PROPERTIES = ["#sourceRef", "#targetRef"] as const;
-
-const HOST_PROPERTY = "#attachedToRef";
+/** Current's layout unless only incoming changed it. */
+const PREFERRED_LAYOUT_SIDE: Record<LayoutState, MergeSide> = {
+    unchanged: "current",
+    takenFromCurrent: "current",
+    bothChanged: "current",
+    takenFromIncoming: "incoming",
+};
 
 /** References whose targets fix where an element is drawn: an edge's ends, a boundary event's host. */
-const PLACING_PROPERTIES: readonly string[] = [...EDGE_END_PROPERTIES, HOST_PROPERTY];
-
-const PROCESS_PROPERTY = "#processRef";
+function isPlacingReference(reference: ElementReference): boolean {
+    return isEdgeEnd(reference) || isHostReference(reference);
+}
 
 type SideInResult = (id: string) => MergeSide | undefined;
 
@@ -16,7 +27,6 @@ type ContainerKind = "host" | "parent" | "lane";
 
 interface LayoutChoice {
     readonly side: MergeSide;
-    /** Current's layout unless only incoming changed it. */
     readonly preferred: MergeSide;
 }
 
@@ -52,7 +62,7 @@ export function layoutSidesOf(
 
 /** The preferred side, or the element's own when the preferred one does not draw it in place. */
 function layoutChoiceOf(element: MergeElement, elementSide: MergeSide): LayoutChoice | undefined {
-    const preferred: MergeSide = element.layout === "takenFromIncoming" ? "incoming" : "current";
+    const preferred = PREFERRED_LAYOUT_SIDE[element.layout];
     const keepsPreferred = drawsInPlace(element.versions[preferred], element.versions[elementSide]);
     const side = keepsPreferred ? preferred : elementSide;
     if (!element.versions[side]?.drawn) {
@@ -147,7 +157,7 @@ function drawingContainersOf(
     if (version === undefined) {
         return [];
     }
-    const hosts = targetsOf(version.references, [HOST_PROPERTY]);
+    const hosts = targetsOf(version.references, isHostReference);
     const parents =
         version.parent === undefined
             ? []
@@ -169,7 +179,7 @@ function poolsByProcess(
     for (const element of elements) {
         const side = sideInResult(element.id);
         const version = side === undefined ? undefined : element.versions[side];
-        for (const process of targetsOf(version?.references ?? [], [PROCESS_PROPERTY])) {
+        for (const process of targetsOf(version?.references ?? [], isProcessReference)) {
             pools.set(process, element.id);
         }
     }
@@ -183,7 +193,7 @@ function edgeSideFromEnds(
     settled: ReadonlyMap<string, MergeSide>,
 ): MergeSide | undefined {
     const contentVersion = element.versions[sideInResult(element.id) as MergeSide];
-    const ends = targetsOf(contentVersion?.references ?? [], EDGE_END_PROPERTIES).map((end) => ({
+    const ends = targetsOf(contentVersion?.references ?? [], isEdgeEnd).map((end) => ({
         side: settled.get(end),
         leftPreferred: settled.get(end) !== choices.get(end)?.preferred,
     }));
@@ -219,9 +229,7 @@ function samePlacingReferences(
 ): boolean {
     const placing = (references: readonly ElementReference[]) =>
         references
-            .filter(({ property }) =>
-                PLACING_PROPERTIES.some((suffix) => property.endsWith(suffix)),
-            )
+            .filter(isPlacingReference)
             .map(({ property, target, targetPart }) => `${property} ${target} ${targetPart ?? ""}`);
     return sameIds(placing(left), placing(right));
 }
@@ -230,8 +238,9 @@ function sameIds(left: readonly string[], right: readonly string[]): boolean {
     return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
-function targetsOf(references: readonly ElementReference[], suffixes: readonly string[]): string[] {
-    return references
-        .filter(({ property }) => suffixes.some((suffix) => property.endsWith(suffix)))
-        .map(({ target }) => target);
+function targetsOf(
+    references: readonly ElementReference[],
+    isWanted: (reference: ElementReference) => boolean,
+): string[] {
+    return references.filter(isWanted).map(({ target }) => target);
 }

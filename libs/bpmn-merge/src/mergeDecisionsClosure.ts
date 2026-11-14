@@ -1,14 +1,13 @@
-import type { PickOutcome } from "./pickOutcome";
+import type { BlockedPick, PickOutcome } from "./pickOutcome";
 import type { DecidedSides } from "./mergeDecisionsSides";
 import { MERGE_SIDES, type MergeElement, type MergeSide } from "./mergeResult";
 import {
-    describeRequirement,
     holdsRequiredPart,
-    requiredPartOf,
     requirementsOf,
     type Dependent,
     type Requirement,
 } from "./referenceRules";
+import type { RequirementObstacle } from "./unmetRequirement";
 
 export interface PickContext {
     readonly elementsById: ReadonlyMap<string, MergeElement>;
@@ -67,10 +66,7 @@ function close(
 class PickClosure {
     readonly pulledIn: string[] = [];
     readonly dropped: string[] = [];
-    private readonly blockedBy = new Map<
-        string,
-        { readonly id: string; readonly reason: string }
-    >();
+    private readonly blockedBy = new Map<string, BlockedPick>();
     private readonly changed: Set<string>;
     private readonly queue: string[];
 
@@ -83,7 +79,7 @@ class PickClosure {
         this.queue = [...changedIds];
     }
 
-    run(): readonly { readonly id: string; readonly reason: string }[] {
+    run(): readonly BlockedPick[] {
         for (let index = 0; index < this.queue.length; index++) {
             const element = this.context.elementsById.get(
                 this.queue[index] as string,
@@ -97,43 +93,47 @@ class PickClosure {
     }
 
     private pullInTargetsOf(element: MergeElement): void {
-        const side = this.sides.sideOf(element.id) as MergeSide;
+        const side = this.sides.decidedSideOf(element.id) as MergeSide;
         for (const requirement of requirementsOf(element, side)) {
             if (!this.sides.isUnmet(requirement)) {
                 continue;
             }
-            const targetId = requirement.target;
-            const blocked = (why: string) =>
-                this.block(
-                    targetId,
-                    `${describeElement(element)} ${describeRequirement(requirement)}, but ${why}`,
-                );
-            const target = this.context.elementsById.get(targetId);
-            const part = requiredPartOf(requirement);
-            const lacking = this.sides.isPresent(targetId) ? part : undefined;
-            const targetSide = this.sides.sideOf(targetId);
-            if (target === undefined) {
-                blocked(`no version has ${targetId}`);
-            } else if (this.sides.isPicked(targetId)) {
-                blocked(
-                    lacking === undefined
-                        ? `${targetId} is picked from ${targetSide}, which does not have it`
-                        : `${targetId} is picked from ${targetSide}, which does not hold ${lacking}`,
-                );
-            } else if (this.changed.has(targetId)) {
-                blocked(
-                    lacking === undefined
-                        ? `this pick drops ${targetId}`
-                        : `this pick takes ${targetId} from ${targetSide}, which does not hold ${lacking}`,
-                );
-            } else if (target.versions[side] === undefined) {
-                blocked(`${side} does not have ${targetId}`);
-            } else if (!holdsRequiredPart(target, side, requirement)) {
-                blocked(`${side} does not hold ${part} inside ${targetId}`);
+            const obstacle = this.obstacleToPullingIn(requirement, side);
+            if (obstacle === undefined) {
+                this.decide(requirement.target, side, this.pulledIn);
             } else {
-                this.decide(targetId, side, this.pulledIn);
+                this.block(requirement.target, element, requirement, obstacle);
             }
         }
+    }
+
+    private obstacleToPullingIn(
+        requirement: Requirement,
+        side: MergeSide,
+    ): RequirementObstacle | undefined {
+        const targetId = requirement.target;
+        const target = this.context.elementsById.get(targetId);
+        const missing = this.sides.isPresent(targetId) ? "part" : "target";
+        // Decided whenever it is picked or present.
+        const targetSide = this.sides.decidedSideOf(targetId) as MergeSide;
+        if (target === undefined) {
+            return { kind: "targetInNoVersion" };
+        }
+        if (this.sides.isPicked(targetId)) {
+            return { kind: "targetPickedWithout", side: targetSide, missing };
+        }
+        if (this.changed.has(targetId)) {
+            return missing === "target"
+                ? { kind: "targetDroppedByThisPick" }
+                : { kind: "targetTakenByThisPickWithoutPart", side: targetSide };
+        }
+        if (target.versions[side] === undefined) {
+            return { kind: "sideLacksTarget", side, missing: "target" };
+        }
+        if (!holdsRequiredPart(target, side, requirement)) {
+            return { kind: "sideLacksTarget", side, missing: "part" };
+        }
+        return undefined;
     }
 
     private dropDependentsOf(targetId: string): void {
@@ -143,7 +143,7 @@ class PickClosure {
             if (!this.sides.isUnmet(requirement)) {
                 continue;
             }
-            const elementSide = this.sides.sideOf(element.id);
+            const elementSide = this.sides.decidedSideOf(element.id);
             if (elementSide === undefined) {
                 this.dropOpenDependent(element, targetId);
             } else if (elementSide === side) {
@@ -157,18 +157,13 @@ class PickClosure {
         side: MergeSide,
         requirement: Requirement,
     ): void {
-        const blocked = (why: string) =>
-            this.block(
-                element.id,
-                `${describeElement(element)} ${describeRequirement(requirement)} and ${why}`,
-            );
         const sideWithoutIt = sideWithout(element);
         if (this.sides.isPicked(element.id)) {
-            blocked(`is picked from ${side}`);
+            this.block(element.id, element, requirement, { kind: "dependentPicked", side });
         } else if (this.changed.has(element.id)) {
-            blocked("this pick pulls it in");
+            this.block(element.id, element, requirement, { kind: "dependentPulledInByThisPick" });
         } else if (sideWithoutIt === undefined) {
-            blocked("is in both versions");
+            this.block(element.id, element, requirement, { kind: "dependentInBothVersions" });
         } else {
             this.decide(element.id, sideWithoutIt, this.dropped);
         }
@@ -195,13 +190,18 @@ class PickClosure {
         this.queue.push(id);
     }
 
-    private block(id: string, reason: string): void {
-        this.blockedBy.set(`${id}\n${reason}`, { id, reason });
+    private block(
+        id: string,
+        element: MergeElement,
+        requirement: Requirement,
+        obstacle: RequirementObstacle,
+    ): void {
+        const blocked: BlockedPick = {
+            id,
+            reason: { element: { id: element.id, state: element.state }, requirement, obstacle },
+        };
+        this.blockedBy.set(JSON.stringify(blocked), blocked);
     }
-}
-
-function describeElement(element: MergeElement): string {
-    return `${element.id} (${element.state})`;
 }
 
 function sideWithout(element: MergeElement): MergeSide | undefined {

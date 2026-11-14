@@ -1,4 +1,10 @@
-import { MERGE_SIDES, type ElementVersion, type MergeElement, type MergeSide } from "./mergeResult";
+import {
+    MERGE_SIDES,
+    type ElementReference,
+    type ElementVersion,
+    type MergeElement,
+    type MergeSide,
+} from "./mergeResult";
 
 /**
  * What an element in the result needs in the result, read from the version its side gives. A `part` is an id inside
@@ -65,21 +71,6 @@ export function holdsRequiredPart(
     return part === undefined || (target.versions[side]?.parts.includes(part) ?? false);
 }
 
-export function describeRequirement(requirement: Requirement): string {
-    switch (requirement.kind) {
-        case "parent":
-            return requirement.part === undefined
-                ? `lies in ${requirement.target}`
-                : `lies in ${requirement.part} inside ${requirement.target}`;
-        case "lane":
-            return `lies in lane ${requirement.target}`;
-        case "reference":
-            return requirement.part === undefined
-                ? `names ${requirement.target} in ${requirement.property}`
-                : `names ${requirement.part} inside ${requirement.target} in ${requirement.property}`;
-    }
-}
-
 export function dependentsByTarget(
     elements: readonly MergeElement[],
 ): ReadonlyMap<string, readonly Dependent[]> {
@@ -94,4 +85,33 @@ export function dependentsByTarget(
         }
     }
     return dependents;
+}
+
+type ReferenceRole = "process" | "edgeEnd" | "host";
+
+/** References the merge reads beyond the one rule, by the property name of `owner#property`. */
+const REFERENCE_ROLES = new Map<string, ReferenceRole>([
+    ["processRef", "process"],
+    ["sourceRef", "edgeEnd"],
+    ["targetRef", "edgeEnd"],
+    ["attachedToRef", "host"],
+]);
+
+/** `ElementReference.property` reads `owner#property`, as `@miragon/bpmn-modeler-diff` writes it. */
+function roleOf(reference: ElementReference): ReferenceRole | undefined {
+    return REFERENCE_ROLES.get(reference.property.slice(reference.property.indexOf("#") + 1));
+}
+
+/** A participant's process, which its pool draws. */
+export function isProcessReference(reference: ElementReference): boolean {
+    return roleOf(reference) === "process";
+}
+
+export function isEdgeEnd(reference: ElementReference): boolean {
+    return roleOf(reference) === "edgeEnd";
+}
+
+/** A boundary event's host. */
+export function isHostReference(reference: ElementReference): boolean {
+    return roleOf(reference) === "host";
 }

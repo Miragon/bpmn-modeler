@@ -7,12 +7,39 @@ import {
     refersTo,
 } from "./__fixtures__/mergeResultBuilder";
 import { MergeDecisions } from "./mergeDecisions";
-import type { ConflictState, MergeElement, MergeSide, ResolvedState } from "./mergeResult";
+import type {
+    ConflictState,
+    ElementState,
+    MergeElement,
+    MergeSide,
+    ResolvedState,
+} from "./mergeResult";
+import type { Requirement } from "./referenceRules";
+import {
+    describeUnmetRequirement,
+    type RequirementObstacle,
+    type UnmetRequirement,
+} from "./unmetRequirement";
 
 function sidesOfEveryElement(decisions: MergeDecisions): Record<string, MergeSide | undefined> {
     return Object.fromEntries(
         decisions.result.elements.map((element) => [element.id, decisions.sideOf(element.id)]),
     );
+}
+
+function unmet(
+    id: string,
+    state: ElementState,
+    requirement: Requirement,
+    obstacle: RequirementObstacle,
+): UnmetRequirement {
+    return { element: { id, state }, requirement, obstacle };
+}
+
+function names(property: string, target: string, part?: string): Requirement {
+    return part === undefined
+        ? { kind: "reference", target, property }
+        : { kind: "reference", target, property, part };
 }
 
 function openIds(decisions: MergeDecisions): string[] {
@@ -306,10 +333,22 @@ describe("MergeDecisions", () => {
 
                 expect(openIds(decisions)).toEqual([dependent.id, target]);
                 for (const conflict of decisions.openConflicts) {
-                    expect(conflict.state).toBe("danglingReference");
-                    expect(conflict.related).toEqual([dependent.id, target]);
-                    expect(conflict.reason).toContain(fragment);
-                    expect(conflict.reason).toContain(target);
+                    expect(conflict).toMatchObject({
+                        state: "danglingReference",
+                        related: [dependent.id, target],
+                        reasons: [
+                            {
+                                element: { id: dependent.id },
+                                requirement: { target },
+                                obstacle: {
+                                    kind: "targetNotInResult",
+                                    targetState: "removedByCurrent",
+                                },
+                            },
+                        ],
+                    });
+                    const [reason] = conflict.state === "danglingReference" ? conflict.reasons : [];
+                    expect(reason && describeUnmetRequirement(reason)).toContain(fragment);
                 }
                 expect(decisions.canBuild).toBe(false);
             },
@@ -398,7 +437,14 @@ describe("MergeDecisions", () => {
                 {
                     id: "Event",
                     state: "danglingReference",
-                    reason: expect.stringContaining("Signal_Unknown"),
+                    reasons: [
+                        unmet(
+                            "Event",
+                            "addedByIncoming",
+                            names("bpmn:SignalEventDefinition#signalRef", "Signal_Unknown"),
+                            { kind: "targetInNoVersion" },
+                        ),
+                    ],
                     related: ["Event", "Signal_Unknown"],
                 },
             ]);
@@ -408,18 +454,24 @@ describe("MergeDecisions", () => {
     describe("the examples of #2451", () => {
         it("opens a flow from a task that current removed, and the task, instead of a flow without a source", () => {
             const decisions = MergeDecisions.from(flowFromARemovedTask());
+            const flowWithoutSource = unmet(
+                "F",
+                "addedByIncoming",
+                names("bpmn:SequenceFlow#sourceRef", "A"),
+                { kind: "targetNotInResult", targetState: "removedByCurrent" },
+            );
 
             expect(decisions.openConflicts).toEqual([
                 {
                     id: "A",
                     state: "danglingReference",
-                    reason: "F (addedByIncoming) names A in bpmn:SequenceFlow#sourceRef, but A is not in the result (removedByCurrent)",
+                    reasons: [flowWithoutSource],
                     related: ["A", "F"],
                 },
                 {
                     id: "F",
                     state: "danglingReference",
-                    reason: "F (addedByIncoming) names A in bpmn:SequenceFlow#sourceRef, but A is not in the result (removedByCurrent)",
+                    reasons: [flowWithoutSource],
                     related: ["A", "F"],
                 },
             ]);
@@ -469,7 +521,12 @@ describe("MergeDecisions", () => {
                 blockedBy: [
                     {
                         id: "Host",
-                        reason: "Boundary (bothChanged) names Host in bpmn:BoundaryEvent#attachedToRef, but Host is picked from incoming, which does not have it",
+                        reason: unmet(
+                            "Boundary",
+                            "bothChanged",
+                            names("bpmn:BoundaryEvent#attachedToRef", "Host"),
+                            { kind: "targetPickedWithout", side: "incoming", missing: "target" },
+                        ),
                     },
                 ],
             });
@@ -656,7 +713,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "F",
-                            reason: "F (addedByIncoming) names A in bpmn:SequenceFlow#sourceRef and is picked from incoming",
+                            reason: unmet(
+                                "F",
+                                "addedByIncoming",
+                                names("bpmn:SequenceFlow#sourceRef", "A"),
+                                { kind: "dependentPicked", side: "incoming" },
+                            ),
                         },
                     ],
                 });
@@ -674,7 +736,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "A",
-                            reason: "F (addedByIncoming) names A in bpmn:SequenceFlow#sourceRef, but A is picked from current, which does not have it",
+                            reason: unmet(
+                                "F",
+                                "addedByIncoming",
+                                names("bpmn:SequenceFlow#sourceRef", "A"),
+                                { kind: "targetPickedWithout", side: "current", missing: "target" },
+                            ),
                         },
                     ],
                 });
@@ -707,7 +774,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "Gateway",
-                            reason: "Gateway (takenFromCurrent) names Flow_Default in bpmn:ExclusiveGateway#default and is in both versions",
+                            reason: unmet(
+                                "Gateway",
+                                "takenFromCurrent",
+                                names("bpmn:ExclusiveGateway#default", "Flow_Default"),
+                                { kind: "dependentInBothVersions" },
+                            ),
                         },
                     ],
                 });
@@ -728,7 +800,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "Ghost",
-                            reason: "F (bothAdded) names Ghost in bpmn:SequenceFlow#targetRef, but no version has Ghost",
+                            reason: unmet(
+                                "F",
+                                "bothAdded",
+                                names("bpmn:SequenceFlow#targetRef", "Ghost"),
+                                { kind: "targetInNoVersion" },
+                            ),
                         },
                     ],
                 });
@@ -749,7 +826,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "A",
-                            reason: "F (bothAdded) names A in bpmn:SequenceFlow#targetRef, but incoming does not have A",
+                            reason: unmet(
+                                "F",
+                                "bothAdded",
+                                names("bpmn:SequenceFlow#targetRef", "A"),
+                                { kind: "sideLacksTarget", side: "incoming", missing: "target" },
+                            ),
                         },
                     ],
                 });
@@ -786,7 +868,12 @@ describe("MergeDecisions", () => {
                     blockedBy: [
                         {
                             id: "Event",
-                            reason: "Event (takenFromIncoming) names Boundary in bpmn:CompensateEventDefinition#activityRef and is in both versions",
+                            reason: unmet(
+                                "Event",
+                                "takenFromIncoming",
+                                names("bpmn:CompensateEventDefinition#activityRef", "Boundary"),
+                                { kind: "dependentInBothVersions" },
+                            ),
                         },
                     ],
                 });
@@ -942,11 +1029,21 @@ describe("MergeDecisions", () => {
                 blockedBy: [
                     {
                         id: "Association",
-                        reason: "Task_NamingTheAssociation (addedByIncoming) names Association in bpmn:Activity#default, but this pick drops Association",
+                        reason: unmet(
+                            "Task_NamingTheAssociation",
+                            "addedByIncoming",
+                            names("bpmn:Activity#default", "Association"),
+                            { kind: "targetDroppedByThisPick" },
+                        ),
                     },
                     {
                         id: "Task_NamingTheAssociation",
-                        reason: "Task_NamingTheAssociation (addedByIncoming) names Association in bpmn:Activity#default and is picked from incoming",
+                        reason: unmet(
+                            "Task_NamingTheAssociation",
+                            "addedByIncoming",
+                            names("bpmn:Activity#default", "Association"),
+                            { kind: "dependentPicked", side: "incoming" },
+                        ),
                     },
                 ],
             });
@@ -976,11 +1073,71 @@ describe("MergeDecisions", () => {
                 blockedBy: [
                     {
                         id: "X",
-                        reason: "X (removedByCurrent) names Task_CurrentOnly in bpmn:Association#targetRef and this pick pulls it in",
+                        reason: unmet(
+                            "X",
+                            "removedByCurrent",
+                            names("bpmn:Association#targetRef", "Task_CurrentOnly"),
+                            { kind: "dependentPulledInByThisPick" },
+                        ),
                     },
                     {
                         id: "Task_CurrentOnly",
-                        reason: "X (removedByCurrent) names Task_CurrentOnly in bpmn:Association#targetRef, but Task_CurrentOnly is picked from incoming, which does not have it",
+                        reason: unmet(
+                            "X",
+                            "removedByCurrent",
+                            names("bpmn:Association#targetRef", "Task_CurrentOnly"),
+                            { kind: "targetPickedWithout", side: "incoming", missing: "target" },
+                        ),
+                    },
+                ],
+            });
+        });
+    });
+
+    describe("pickWithContents with a target pulled in for another part", () => {
+        it("stops when the pick takes a target from a side without the part another picked element names", () => {
+            const associationInto = (id: string, part: string) =>
+                mergeElement(id, "addedByIncoming", {
+                    parent: "SubProcess",
+                    references: [refersTo("bpmn:DataInputAssociation#targetRef", "T", part)],
+                });
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process,
+                    mergeElement("SubProcess", "unchanged", {
+                        type: "bpmn:SubProcess",
+                        parent: "Process",
+                    }),
+                    mergeElement("T", "takenFromCurrent", {
+                        parent: "Process",
+                        parts: ["Property_Incoming"],
+                        current: { parent: "Process", parts: ["Property_Current"] },
+                    }),
+                    associationInto("Needs_Incoming_Property", "Property_Incoming"),
+                    associationInto("Needs_Current_Property", "Property_Current"),
+                ),
+            );
+
+            expect(decisions.pickWithContents("SubProcess", "incoming")).toEqual({
+                applied: false,
+                blockedBy: [
+                    {
+                        id: "T",
+                        reason: unmet(
+                            "Needs_Current_Property",
+                            "addedByIncoming",
+                            names("bpmn:DataInputAssociation#targetRef", "T", "Property_Current"),
+                            { kind: "targetTakenByThisPickWithoutPart", side: "incoming" },
+                        ),
+                    },
+                    {
+                        id: "Needs_Current_Property",
+                        reason: unmet(
+                            "Needs_Current_Property",
+                            "addedByIncoming",
+                            names("bpmn:DataInputAssociation#targetRef", "T", "Property_Current"),
+                            { kind: "dependentPicked", side: "incoming" },
+                        ),
                     },
                 ],
             });
@@ -1234,7 +1391,12 @@ describe("MergeDecisions", () => {
             expect(outcome.applied || outcome.blockedBy).toEqual([
                 {
                     id: "T",
-                    reason: "DIA (addedByCurrent) names Property_1 inside T in bpmn:DataInputAssociation#targetRef, but T is picked from incoming, which does not hold Property_1",
+                    reason: unmet(
+                        "DIA",
+                        "addedByCurrent",
+                        names("bpmn:DataInputAssociation#targetRef", "T", "Property_1"),
+                        { kind: "targetPickedWithout", side: "incoming", missing: "part" },
+                    ),
                 },
             ]);
             expect(decisions.isInResult("DIA")).toBe(false);
@@ -1255,7 +1417,12 @@ describe("MergeDecisions", () => {
             expect(outcome.applied || outcome.blockedBy).toEqual([
                 {
                     id: "T",
-                    reason: "DIA (bothAdded) names Property_9 inside T in bpmn:DataInputAssociation#targetRef, but current does not hold Property_9 inside T",
+                    reason: unmet(
+                        "DIA",
+                        "bothAdded",
+                        names("bpmn:DataInputAssociation#targetRef", "T", "Property_9"),
+                        { kind: "sideLacksTarget", side: "current", missing: "part" },
+                    ),
                 },
             ]);
         });
@@ -1274,17 +1441,24 @@ describe("MergeDecisions", () => {
                 ),
             );
 
+            const associationIntoMissingProperty = unmet(
+                "DIA",
+                "unchanged",
+                names("bpmn:DataInputAssociation#targetRef", "T", "Property_1"),
+                { kind: "targetTakenWithoutPart", side: "incoming" },
+            );
+
             expect(decisions.openConflicts).toEqual([
                 {
                     id: "T",
                     state: "danglingReference",
-                    reason: "DIA (unchanged) names Property_1 inside T in bpmn:DataInputAssociation#targetRef, but T is taken from incoming, which does not hold Property_1",
+                    reasons: [associationIntoMissingProperty],
                     related: ["T", "DIA"],
                 },
                 {
                     id: "DIA",
                     state: "danglingReference",
-                    reason: "DIA (unchanged) names Property_1 inside T in bpmn:DataInputAssociation#targetRef, but T is taken from incoming, which does not hold Property_1",
+                    reasons: [associationIntoMissingProperty],
                     related: ["T", "DIA"],
                 },
             ]);
@@ -1354,9 +1528,16 @@ describe("MergeDecisions", () => {
             );
 
             expect(openIds(decisions)).toEqual(["Process", "Lane_A"]);
-            expect(decisions.openConflicts[0]?.reason).toBe(
-                "Lane_A (unchanged) lies in LaneSet_1 inside Process, but Process is taken from current, which does not hold LaneSet_1",
-            );
+            expect(decisions.openConflicts[0]).toMatchObject({
+                reasons: [
+                    unmet(
+                        "Lane_A",
+                        "unchanged",
+                        { kind: "parent", target: "Process", part: "LaneSet_1" },
+                        { kind: "targetTakenWithoutPart", side: "current" },
+                    ),
+                ],
+            });
         });
     });
 
