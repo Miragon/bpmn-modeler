@@ -10,10 +10,12 @@ import {
     TemplateSource,
 } from "../domain/marketplace";
 import {
+    AboutFetch,
+    aboutFetchFailureOf,
     MARKETPLACE_README,
-    MarketplaceReadmeFetch,
-    readmeFetchFailureOf,
-} from "../domain/marketplaceReadme";
+    MarketplaceAboutFetch,
+} from "../domain/marketplaceAbout";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { CachePrune, MarketplaceRegistry } from "../domain/marketplaceRegistry";
 import { registeredTemplateFiles } from "../domain/marketplaceSources";
 import { notFetchedMarketplaces } from "../domain/notFetchedMarketplaces";
@@ -39,7 +41,7 @@ import {
     SourceSlotAction,
 } from "../domain/sourceCacheRefresh";
 import { HostTokenSession } from "./HostTokenSession";
-import { MarketplaceCache } from "./MarketplaceCache";
+import { CachedMarketplaceAbout, MarketplaceCache } from "./MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";
@@ -233,9 +235,9 @@ export class TemplateMarketplaceService {
         return this.cache.cachedTemplatePathsByRegistration();
     }
 
-    /** The README a marketplace's detail shows. */
-    cachedReadmesByRegistration(): Promise<ReadonlyMap<string, string>> {
-        return this.cache.cachedReadmesByRegistration();
+    /** The README and repository facts a marketplace's detail shows. */
+    cachedAboutByRegistration(): Promise<ReadonlyMap<string, CachedMarketplaceAbout>> {
+        return this.cache.cachedAboutByRegistration();
     }
 
     /**
@@ -249,7 +251,7 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
     ): Promise<FetchReport> {
-        const { manifest, readme } = await this.readManifest(registration, tokenSession);
+        const { manifest, about } = await this.readManifest(registration, tokenSession);
         const { sources, skipped } = parseMarketplace(JSON.parse(manifest));
         const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
         this.notifier.logDebug(
@@ -309,7 +311,7 @@ export class TemplateMarketplaceService {
                 }
             }
         }
-        await this.cacheReadme(registration, readme);
+        await this.cacheAbout(registration, about);
         return FetchReport.of({
             usableSources: sources.length,
             cached,
@@ -349,28 +351,44 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** Never fails the fetch: a README only describes the marketplace. */
-    private async cacheReadme(
+    /** Never fails the fetch: a README and the repository facts only describe the marketplace. */
+    private async cacheAbout(
         registration: MarketplaceRegistration,
-        readme: MarketplaceReadmeFetch,
+        { readme, repository }: MarketplaceAboutFetch,
+    ): Promise<void> {
+        await this.cacheAboutPart(registration, MARKETPLACE_README, readme, {
+            replace: (content) => this.cache.replaceReadme(registration.id, content),
+            remove: () => this.cache.removeReadme(registration.id),
+        });
+        await this.cacheAboutPart(registration, "repository facts", repository, {
+            replace: (facts) => this.cache.replaceRepositoryFacts(registration.id, facts),
+            remove: () => this.cache.removeRepositoryFacts(registration.id),
+        });
+    }
+
+    private async cacheAboutPart<T>(
+        registration: MarketplaceRegistration,
+        what: string,
+        fetched: AboutFetch<T>,
+        cached: { replace(value: T): Promise<void>; remove(): Promise<void> },
     ): Promise<void> {
         try {
-            switch (readme.kind) {
+            switch (fetched.kind) {
                 case "found":
-                    await this.cache.replaceReadme(registration.id, readme.content);
+                    await cached.replace(fetched.value);
                     return;
                 case "absent":
-                    await this.cache.removeReadme(registration.id);
+                    await cached.remove();
                     return;
                 case "failed":
                     this.notifier.logWarning(
-                        `Kept the cached ${MARKETPLACE_README} of "${registration.url}": ${readme.reason}`,
+                        `Kept the cached ${what} of "${registration.url}": ${fetched.reason}`,
                     );
                     return;
             }
         } catch (error) {
             this.notifier.logWarning(
-                `Could not cache the ${MARKETPLACE_README} of "${registration.url}": ${(error as Error).message}`,
+                `Could not cache the ${what} of "${registration.url}": ${(error as Error).message}`,
             );
         }
     }
@@ -401,14 +419,14 @@ export class TemplateMarketplaceService {
     private async readManifest(
         registration: MarketplaceRegistration,
         tokenSession: HostTokenSession,
-    ): Promise<{ readonly manifest: string; readonly readme: MarketplaceReadmeFetch }> {
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
         const baseConfig = manifestConfig(registration.location);
         this.notifier.logDebug(
             `Fetching ${MARKETPLACE_MANIFEST} from ${describeSourceConfig(baseConfig)}`,
         );
         try {
             return await tokenSession.run(baseConfig, (config) =>
-                this.manifestAndReadme(this.sourceFactory(config)),
+                this.manifestAndAbout(this.sourceFactory(config)),
             );
         } catch (error) {
             // `ErrorOptions` is not in this lib target, so the cause is attached directly.
@@ -421,16 +439,23 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** The README in the same run, so its 404 never asks for a token. */
-    private async manifestAndReadme(
+    /** In the same run as the manifest, so a 404 of what describes it never asks for a token. */
+    private async manifestAndAbout(
         repository: RepositorySource,
-    ): Promise<{ readonly manifest: string; readonly readme: MarketplaceReadmeFetch }> {
+    ): Promise<{ readonly manifest: string; readonly about: MarketplaceAboutFetch }> {
         const manifest = await repository.fetchFile(MARKETPLACE_MANIFEST);
         const readme = await repository.fetchFile(MARKETPLACE_README).then(
-            (content): MarketplaceReadmeFetch => ({ kind: "found", content }),
-            readmeFetchFailureOf,
+            (value): AboutFetch<string> => ({ kind: "found", value }),
+            (error) => aboutFetchFailureOf<string>(error),
         );
-        return { manifest, readme };
+        const facts: AboutFetch<RepositoryFacts> =
+            repository.repositoryFacts === undefined
+                ? { kind: "absent" }
+                : await repository.repositoryFacts().then(
+                      (value): AboutFetch<RepositoryFacts> => ({ kind: "found", value }),
+                      (error) => aboutFetchFailureOf<RepositoryFacts>(error),
+                  );
+        return { manifest, about: { readme, repository: facts } };
     }
 
     /**

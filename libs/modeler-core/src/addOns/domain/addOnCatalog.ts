@@ -21,7 +21,7 @@ import {
 } from "./addOnTexts";
 import { byKindThenName, compare, optional } from "./addOnViewParts";
 import { AddOnSession, CodeAddOnFacts, codeAddOnsOf, ShownCode } from "./codeAddOnCatalog";
-import { MarketplaceReadme, ReadmePlace, readmePlacesOf } from "./addOnReadme";
+import { AboutPlace, aboutPlacesOf, MarketplaceAbout } from "./addOnAbout";
 import { TemplateAddOnFacts, templateAddOnsOf } from "./templateAddOnCatalog";
 import { ShownSource, ShownTemplate, SourceSwitchView } from "./templateAddOnViews";
 
@@ -38,8 +38,8 @@ export interface CatalogBuild {
     readonly templates: ReadonlyMap<string, ShownTemplate>;
     /** What the catalog itself offered, so a request is checked against it. */
     readonly catalogActions: readonly CatalogActionKind[];
-    /** By add-on or source id, where a detail reads its README. */
-    readonly readmes: ReadonlyMap<string, ReadmePlace>;
+    /** By add-on or source id, where a detail reads its README and license. */
+    readonly aboutPlaces: ReadonlyMap<string, AboutPlace>;
 }
 
 const SOURCE_DESCRIPTION: Record<FolderSourceKind, (place: SourcePlace, root: string) => string> = {
@@ -81,15 +81,16 @@ export function catalogModelOf(
         sources: templates.sources,
         templates: templates.templates,
         catalogActions: actions.map(({ kind }) => kind),
-        readmes: readmePlacesOf(shown, marketplaceReadmesOf(facts)),
+        aboutPlaces: aboutPlacesOf(shown, marketplaceAboutOf(facts)),
     };
 }
 
-function marketplaceReadmesOf({ marketplaces }: AddOnFacts): MarketplaceReadme[] {
+function marketplaceAboutOf({ marketplaces }: AddOnFacts): MarketplaceAbout[] {
     if (marketplaces?.kind !== "listed") return [];
-    return marketplaces.sources.map(({ id, readmeFile }) => ({
+    return marketplaces.sources.map(({ id, readmeFile, repository }) => ({
         sourceId: sourceIdOf("marketplace", id),
         ...optional("readmeFile", readmeFile),
+        ...optional("repository", repository),
     }));
 }
 

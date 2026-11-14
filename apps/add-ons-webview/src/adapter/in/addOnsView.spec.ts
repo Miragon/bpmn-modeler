@@ -651,7 +651,7 @@ describe("AddOnsView", () => {
         });
     });
 
-    describe("a README", () => {
+    describe("a README, stars and license", () => {
         const readme = (markdown: string, truncated = false) =>
             ({ kind: "shown", markdown, truncated }) as const;
 
@@ -661,9 +661,9 @@ describe("AddOnsView", () => {
 
             expect(root.querySelector(".av-readme")).toBeNull();
             session.dispatch({
-                kind: "readmeArrived",
+                kind: "aboutArrived",
                 targetId: PALETTE.id,
-                readme: readme("# Palette\n\nGroups the palette.", true),
+                about: { readme: readme("# Palette\n\nGroups the palette.", true) },
             });
 
             expect([
@@ -681,12 +681,16 @@ describe("AddOnsView", () => {
             const { root, row, session } = mountedView(CATALOG);
             row(PALETTE.name).click();
 
-            session.dispatch({ kind: "readmeArrived", targetId: PALETTE.id, readme: { kind: "none" } });
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: { readme: { kind: "none" } },
+            });
             const none = root.querySelector(".av-readme");
             session.dispatch({
-                kind: "readmeArrived",
+                kind: "aboutArrived",
                 targetId: PALETTE.id,
-                readme: { kind: "unreadable", text: "Its README could not be read." },
+                about: { readme: { kind: "unreadable", text: "Its README could not be read." } },
             });
 
             expect([none, text(root.querySelector(".av-readme-problem"))]).toEqual([
@@ -695,14 +699,39 @@ describe("AddOnsView", () => {
             ]);
         });
 
+        it("shows an add-on's license as a badge that says it in full", () => {
+            const { root, row, session } = mountedView(CATALOG);
+            row(PALETTE.name).click();
+
+            session.dispatch({
+                kind: "aboutArrived",
+                targetId: PALETTE.id,
+                about: {
+                    readme: { kind: "none" },
+                    license: { kind: "known", text: "MIT", label: "License: MIT, as its package.json says" },
+                },
+            });
+
+            const badge = root.querySelector<HTMLElement>(".av-detail-top .av-license");
+            expect([badge?.title, text(badge), root.querySelector(".av-stars")]).toEqual([
+                "License: MIT, as its package.json says",
+                "MIT, License: MIT, as its package.json says",
+                null,
+            ]);
+        });
+
         it("opens a marketplace's detail from its header, with its actions and README", () => {
             const { root, button, session } = mountedView(CATALOG);
 
             button("Details: /shared").click();
             session.dispatch({
-                kind: "readmeArrived",
+                kind: "aboutArrived",
                 targetId: MARKETPLACE_SOURCE.id,
-                readme: readme("Shared templates."),
+                about: {
+                    readme: readme("Shared templates."),
+                    stars: { text: "1.2k", label: "1,234 stars on GitHub" },
+                    license: { kind: "none", text: "No license", label: "GitHub found no license file." },
+                },
             });
 
             const card = root.querySelector(".av-detail-card")!;
@@ -712,7 +741,15 @@ describe("AddOnsView", () => {
                 [...card.querySelectorAll(".av-actions .ds-btn-label")].map(text),
                 text(card.querySelector(".av-md p")),
                 button("Details: /shared").getAttribute("aria-current"),
-            ]).toEqual(["/shared", "Marketplace", ["Remove", "Disable templates"], "Shared templates.", "true"]);
+                [...card.querySelectorAll(".av-about-badge")].map((badge) => badge.className),
+            ]).toEqual([
+                "/shared",
+                "Marketplace",
+                ["Remove", "Disable templates"],
+                "Shared templates.",
+                "true",
+                ["av-about-badge av-stars", "av-about-badge av-license av-license-none"],
+            ]);
         });
     });
 

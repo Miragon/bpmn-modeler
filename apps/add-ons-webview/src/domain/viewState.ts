@@ -2,7 +2,7 @@ import type {
     AddOnActionResultPayload,
     AddOnCatalogPayload,
     AddOnPayload,
-    AddOnReadmePayload,
+    AddOnAboutPayload,
     AddOnRequestPayload,
     AddOnRevealPayload,
     AddOnsPage,
@@ -60,10 +60,10 @@ export interface ViewState {
     readonly nextRequestId: number;
     /** What Review Add-ons found, for a screen reader, until the user searches or filters. */
     readonly reviewCount?: number;
-    /** The README of the add-on or marketplace the detail shows, once the host answered. */
-    readonly readme?: { readonly targetId: string; readonly readme: AddOnReadmePayload };
-    /** What the view last asked a README for, so it asks again only for another target or model. */
-    readonly readmeAsked?: { readonly targetId: string; readonly revision: number };
+    /** The README and license of the add-on or marketplace the detail shows, once the host answered. */
+    readonly about?: { readonly targetId: string; readonly about: AddOnAboutPayload };
+    /** What the view last asked about, so it asks again only for another target or model. */
+    readonly aboutAsked?: { readonly targetId: string; readonly revision: number };
 }
 
 /**
@@ -92,9 +92,9 @@ export type ViewEvent =
     /** An add-on, or a marketplace whose detail the list opens. */
     | { readonly kind: "addOnSelected"; readonly addOnId: string }
     | {
-          readonly kind: "readmeArrived";
+          readonly kind: "aboutArrived";
           readonly targetId: string;
-          readonly readme: AddOnReadmePayload;
+          readonly about: AddOnAboutPayload;
       }
     | { readonly kind: "addOnShown"; readonly addOnId: string }
     | { readonly kind: "backChosen" }
@@ -109,8 +109,8 @@ export interface Transition {
     readonly focus?: FocusTarget;
     /** The add-on whose details the host is to show in its tab. */
     readonly openDetail?: string;
-    /** The add-on or marketplace whose README the host is to send. */
-    readonly askReadme?: string;
+    /** The add-on or marketplace whose README and license the host is to send. */
+    readonly askAbout?: string;
 }
 
 /** Busy rows and sources, and the catalog actions under {@link CATALOG_TARGET}. */
@@ -166,7 +166,7 @@ export function listExpansionOf(state: ViewState): ListExpansion {
  */
 export function nextViewState(state: ViewState, event: ViewEvent): Transition {
     const change = withSelection(withFilterExpansionEnded(changedBy(state, event)), state);
-    return withReadmeAsked(withFocus(change, change.state.model !== state.model));
+    return withAboutAsked(withFocus(change, change.state.model !== state.model));
 }
 
 type Change = {
@@ -196,9 +196,9 @@ function changedBy(state: ViewState, event: ViewEvent): Change {
             return selected(state, event.addOnId);
         case "addOnShown":
             return { state: shown(state, event.addOnId) };
-        case "readmeArrived":
+        case "aboutArrived":
             return event.targetId === state.selectedId
-                ? { state: { ...state, readme: { targetId: event.targetId, readme: event.readme } } }
+                ? { state: { ...state, about: { targetId: event.targetId, about: event.about } } }
                 : { state };
         case "backChosen":
             return { state: { ...state, pane: "list" } };
@@ -474,24 +474,24 @@ function withFocus(change: Change, modelChanged: boolean): Transition {
 }
 
 /**
- * Asks the host for the README of what the detail shows, again once a new
+ * Asks the host for the README and license of what the detail shows, again once a new
  * model lists it, as a rebuild follows a change in its folder. A list whose
  * rows open a tab shows no detail, so it asks for none.
  */
-function withReadmeAsked(transition: Transition): Transition {
+function withAboutAsked(transition: Transition): Transition {
     const { state } = transition;
-    const { model, selectedId, readmeAsked } = state;
+    const { model, selectedId, aboutAsked } = state;
     if (model === undefined || selectedId === undefined || state.page === "listWithTab") {
         return transition;
     }
-    if (readmeAsked?.targetId === selectedId && readmeAsked.revision === model.revision) {
+    if (aboutAsked?.targetId === selectedId && aboutAsked.revision === model.revision) {
         return transition;
     }
-    const readme = state.readme?.targetId === selectedId ? state.readme : undefined;
+    const about = state.about?.targetId === selectedId ? state.about : undefined;
     return {
         ...transition,
-        state: { ...state, readme, readmeAsked: { targetId: selectedId, revision: model.revision } },
-        askReadme: selectedId,
+        state: { ...state, about, aboutAsked: { targetId: selectedId, revision: model.revision } },
+        askAbout: selectedId,
     };
 }
 

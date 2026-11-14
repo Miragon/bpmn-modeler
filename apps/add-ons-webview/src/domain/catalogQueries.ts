@@ -42,7 +42,7 @@ export function sourceOf(
     return groups.flatMap(({ sources }) => sources).find(({ id }) => id === sourceId);
 }
 
-/** A marketplace has a detail of its own: what it is, its actions and its README. */
+/** A marketplace has a detail of its own: what it is, its actions, its stars, license and README. */
 export function sourcePlacementOf(
     groups: readonly AddOnGroupPayload[],
     sourceId: string,

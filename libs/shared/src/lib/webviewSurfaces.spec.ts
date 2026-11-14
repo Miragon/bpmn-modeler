@@ -43,7 +43,7 @@ describe("WEBVIEW_SURFACE_COMMAND_TYPES", () => {
             "GetAddOnCatalogCommand",
             "AddOnRequestCommand",
             "OpenAddOnDetailCommand",
-            "GetAddOnReadmeCommand",
+            "GetAddOnAboutCommand",
         ]);
     });
 

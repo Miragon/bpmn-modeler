@@ -215,7 +215,7 @@ export class AddOnsView {
             placement?.source ?? marketplace?.source,
             placement?.group ?? marketplace?.group,
             state.pending,
-            state.readme,
+            state.about,
             this.revealedId,
         ];
         if (sameInputs(inputs, this.detailInputs)) return;

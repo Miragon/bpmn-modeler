@@ -6,6 +6,7 @@ import { InvalidMarketplaceError } from "../domain/marketplace";
 import { RepositoryAccessError } from "../domain/repositoryAccessError";
 import { RepositorySource, RepositorySourceFactory } from "../port/marketplacePorts";
 import { RepositorySourceConfig } from "../domain/repositorySourceConfig";
+import { RepositoryFacts } from "../../kernel/domain/repositoryFacts";
 import { MarketplaceCache } from "./MarketplaceCache";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
@@ -53,7 +54,9 @@ function serviceOver(
         service,
         cachedPaths: () =>
             [...host.workspace.files.keys()].filter(
-                (path) => !path.endsWith("/slot.json") && !path.includes("/readme/"),
+                (path) => !path.endsWith("/slot.json") &&
+                    !path.includes("/readme/") &&
+                    !path.includes("/repository/"),
             ),
         workspace: host.workspace,
         settings: host.settings,
@@ -71,6 +74,7 @@ function createService(
     opts: {
         manifest?: string | Error;
         readme?: string | Error;
+        repository?: RepositoryFacts | Error;
         cachedFiles?: Record<string, string>;
     } = {},
 ) {
@@ -89,6 +93,12 @@ function createService(
                         throw opts.manifest;
                     }
                     return opts.manifest ?? MANIFEST;
+                }),
+                ...(opts.repository !== undefined && {
+                    repositoryFacts: vi.fn(async () => {
+                        if (opts.repository instanceof Error) throw opts.repository;
+                        return opts.repository!;
+                    }),
                 }),
             };
         }
@@ -147,8 +157,8 @@ describe("TemplateMarketplaceService, a marketplace's README", () => {
         await service.addMarketplace("https://github.com/acme/templates");
 
         expect(workspace.files.get(README_PATH)).toBe("# Acme templates");
-        expect(await service.cachedReadmesByRegistration()).toEqual(
-            new Map([["acme__templates", README_PATH]]),
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { readmeFile: README_PATH }]]),
         );
     });
 
@@ -175,6 +185,43 @@ describe("TemplateMarketplaceService, a marketplace's README", () => {
         expect(notifier.logged("warning")).toContain(
             'Kept the cached README.md of "https://github.com/acme/templates": socket hang up',
         );
+    });
+});
+
+describe("TemplateMarketplaceService, a marketplace's repository facts", () => {
+    const FACTS: RepositoryFacts = {
+        host: "github",
+        stars: 1234,
+        license: { kind: "known", id: "MIT", name: "MIT License" },
+    };
+
+    it("caches the stars and license its host reports", async () => {
+        const { service } = createService({ repository: FACTS });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+    });
+
+    it("keeps the cached facts when the host cannot be asked, and warns", async () => {
+        const { service, notifier } = createService({ repository: FACTS });
+        await service.addMarketplace("https://github.com/acme/templates");
+        const offline = createService({
+            repository: new Error("socket hang up"),
+            cachedFiles: { "/cache/acme__templates/repository/facts.json": JSON.stringify(FACTS) },
+        });
+
+        await offline.service.addMarketplace("https://github.com/acme/templates");
+
+        expect(await offline.service.cachedAboutByRegistration()).toEqual(
+            new Map([["acme__templates", { repository: FACTS }]]),
+        );
+        expect(offline.notifier.logged("warning")).toContain(
+            'Kept the cached repository facts of "https://github.com/acme/templates": socket hang up',
+        );
+        expect(notifier.logged("warning")).toEqual([]);
     });
 });
 

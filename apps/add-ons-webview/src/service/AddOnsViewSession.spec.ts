@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     AddOnRequestCommand,
     asProtocolMessage,
-    GetAddOnReadmeCommand,
+    GetAddOnAboutCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { CATALOG, MAIL, MARKETPLACE_SOURCE, PALETTE } from "../__fixtures__/catalogs";
@@ -27,7 +27,7 @@ describe("AddOnsViewSession", () => {
 
         session.dispatch({ kind: "addOnSelected", addOnId: PALETTE.id });
 
-        expect(host.posted.at(-1)).toEqual(new GetAddOnReadmeCommand(PALETTE.id));
+        expect(host.posted.at(-1)).toEqual(new GetAddOnAboutCommand(PALETTE.id));
     });
 
     it("posts each request with a rising id", () => {

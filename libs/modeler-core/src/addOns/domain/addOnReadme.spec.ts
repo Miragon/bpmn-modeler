@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    README_MAX_LENGTH,
-    readmeFileNameIn,
-    readmeOf,
-    readmePlacesOf,
-} from "./addOnReadme";
-import { ShownCode } from "./codeAddOnCatalog";
+import { README_MAX_LENGTH, readmeFileNameIn, readmeOf } from "./addOnReadme";
 
 describe("readmeFileNameIn", () => {
     it("finds README.md in any case", () => {
@@ -65,40 +59,5 @@ describe("readmeOf", () => {
 
     it("counts a blank README as none", () => {
         expect(readmeOf(" \n\t\n")).toEqual({ kind: "none" });
-    });
-});
-
-describe("readmePlacesOf", () => {
-    const shown = (id: string): ShownCode => ({
-        kind: "plugin",
-        id,
-        name: "x",
-        allowance: {} as ShownCode["allowance"],
-        actions: [],
-        allowedFollowUp: "",
-        revokedFollowUp: "",
-    });
-
-    it("reads a code add-on's README in the folder it was found at", () => {
-        const places = readmePlacesOf(
-            new Map([["plugin:/work/.camunda/plugins/acme", shown("/work/.camunda/plugins/acme")]]),
-            [],
-        );
-        expect(places.get("plugin:/work/.camunda/plugins/acme")).toEqual({
-            kind: "folder",
-            dir: "/work/.camunda/plugins/acme",
-        });
-    });
-
-    it("reads a marketplace's README from the file its cache holds", () => {
-        const places = readmePlacesOf(new Map(), [
-            { sourceId: "marketplace:acme", readmeFile: "/cache/acme/README.md" },
-            { sourceId: "marketplace:none" },
-        ]);
-        expect(places.get("marketplace:acme")).toEqual({
-            kind: "file",
-            path: "/cache/acme/README.md",
-        });
-        expect(places.has("marketplace:none")).toBe(false);
     });
 });

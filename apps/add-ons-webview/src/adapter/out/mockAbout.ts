@@ -1,6 +1,10 @@
-import type { AddOnReadmePayload } from "@miragon/bpmn-modeler-shared";
+import type {
+    AddOnAboutPayload,
+    AddOnLicensePayload,
+    AddOnReadmePayload,
+} from "@miragon/bpmn-modeler-shared";
 
-/* The preview's READMEs, by the add-on or marketplace id the mock catalog lists. */
+/* The preview's READMEs, licenses and stars, by the add-on or marketplace id the mock catalog lists. */
 
 const RESIZE_TASKS = `# Resize Tasks
 
@@ -72,21 +76,38 @@ The element templates every Acme team uses: mail, Slack, the order service and t
 Open a pull request against \`main\`; the [template style guide](https://example.com/acme/templates/STYLE.md) lists what a review checks.
 `;
 
-export const MOCK_READMES: Readonly<Record<string, AddOnReadmePayload>> = {
-    "plugin:/work/.camunda/plugins/resize": { kind: "shown", markdown: RESIZE_TASKS, truncated: false },
-    "plugin:/work/.camunda/plugins/palette": { kind: "shown", markdown: PALETTE, truncated: false },
+const shown = (markdown: string): AddOnReadmePayload => ({ kind: "shown", markdown, truncated: false });
+
+const packageLicense = (text: string, declared = text): AddOnLicensePayload => ({
+    kind: text === declared ? "known" : "other",
+    text,
+    label: `License: ${declared}, as its package.json says`,
+});
+
+/* The texts copy the core's so the preview reads like a host; the core stays their home. */
+export const MOCK_ABOUT: Readonly<Record<string, AddOnAboutPayload>> = {
+    "plugin:/work/.camunda/plugins/resize": { readme: shown(RESIZE_TASKS), license: packageLicense("MIT") },
+    "plugin:/work/.camunda/plugins/palette": { readme: shown(PALETTE), license: packageLicense("Apache-2.0") },
     "rulePackage:/work/node_modules/@acme/bpmnlint-plugin-rules": {
-        kind: "shown",
-        markdown: ACME_RULES,
-        truncated: false,
+        readme: shown(ACME_RULES),
+        license: packageLicense("Custom license", "SEE LICENSE IN LICENSE.md"),
     },
-    "marketplace:shared": { kind: "shown", markdown: SHARED_MARKETPLACE, truncated: false },
+    "marketplace:shared": {
+        readme: shown(SHARED_MARKETPLACE),
+        license: { kind: "known", text: "MIT", label: "License: MIT License, as GitHub detected it" },
+        stars: { text: "1.2k", label: "1,234 stars on GitHub, as of the last marketplace update" },
+    },
+    // Cached by an earlier update; the last one failed.
+    "marketplace:broken": {
+        readme: { kind: "none" },
+        license: { kind: "none", text: "No license", label: "GitHub found no license file in the repository." },
+        stars: { text: "3", label: "3 stars on GitHub, as of the last marketplace update" },
+    },
     "plugin:/work/.camunda/plugins/lasso": {
-        kind: "unreadable",
-        text: "Its README could not be read. The log says why.",
+        readme: { kind: "unreadable", text: "Its README could not be read. The log says why." },
     },
 };
 
-export function mockReadmeOf(targetId: string): AddOnReadmePayload {
-    return MOCK_READMES[targetId] ?? { kind: "none" };
+export function mockAboutOf(targetId: string): AddOnAboutPayload {
+    return MOCK_ABOUT[targetId] ?? { readme: { kind: "none" } };
 }

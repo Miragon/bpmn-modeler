@@ -8,7 +8,7 @@ import {
     AddOnsViewCommandType,
     BrandModeQuery,
     GetAddOnCatalogCommand,
-    GetAddOnReadmeCommand,
+    GetAddOnAboutCommand,
     HostApiImpl,
     LogErrorCommand,
     LogInfoCommand,
@@ -26,7 +26,7 @@ const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
     GetAddOnCatalogCommand: new GetAddOnCatalogCommand(),
     AddOnRequestCommand: new AddOnRequestCommand(1, { kind: "refresh" }),
     OpenAddOnDetailCommand: new OpenAddOnDetailCommand("plugin:/work/x"),
-    GetAddOnReadmeCommand: new GetAddOnReadmeCommand("plugin:/work/x"),
+    GetAddOnAboutCommand: new GetAddOnAboutCommand("plugin:/work/x"),
 };
 
 type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery | BrandModeQuery;

@@ -794,6 +794,53 @@ button.av-head:hover .av-head-count {
     padding-top: 4px;
 }
 
+/* --- Stars and license: quiet badges at the end of the detail's top row --- */
+
+.av-about-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.av-about-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border: 1px solid var(--cd-ui-linie);
+    border-radius: var(--cd-radius-pill);
+    color: var(--cd-ui-text);
+    background: var(--cd-ui-flaeche);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.av-about-icon {
+    color: var(--cd-ui-text-leise);
+}
+
+.av-stars .av-about-icon {
+    color: var(--cd-ui-warning);
+    fill: currentColor;
+}
+
+.av-stars {
+    font-family: var(--ds-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Amber marks it; the word keeps the text colour, as amber text fails contrast on a light card. */
+.av-license-none {
+    border-color: var(--cd-ui-warning);
+}
+
+.av-license-none .av-about-icon {
+    color: var(--cd-ui-warning);
+}
+
 /* --- README: the author's Markdown, set in the brand type, below a divider like the review --- */
 
 .av-readme {
@@ -1169,7 +1216,8 @@ button.av-head:hover .av-head-count {
 
 /* --- High contrast and forced colours --- */
 
-[data-cd-kontrast="hoch"] .av-badge {
+[data-cd-kontrast="hoch"] .av-badge,
+[data-cd-kontrast="hoch"] .av-about-badge {
     outline: 1px solid var(--cd-ui-kontur);
 }
 

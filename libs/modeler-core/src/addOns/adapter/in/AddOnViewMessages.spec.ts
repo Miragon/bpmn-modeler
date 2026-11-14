@@ -7,8 +7,8 @@ import {
     AddOnActionResultQuery,
     AddOnCatalogPayload,
     AddOnCatalogQuery,
-    AddOnReadmePayload,
-    AddOnReadmeQuery,
+    AddOnAboutPayload,
+    AddOnAboutQuery,
     AddOnRefusalPayload,
     AddOnRequestCommand,
     AddOnRequestPayload,
@@ -17,7 +17,7 @@ import {
     CodeAddOnKindPayload,
     CodeStatePayload,
     GetAddOnCatalogCommand,
-    GetAddOnReadmeCommand,
+    GetAddOnAboutCommand,
     GroupKindPayload,
     LogErrorCommand,
     LogInfoCommand,
@@ -30,7 +30,7 @@ import {
 
 import { RecordingNotifier } from "../../../testing/RecordingNotifier";
 import type { AddOnCatalogModel, AddOnReveal } from "../../domain/addOnCatalogModel";
-import type { AddOnReadme } from "../../domain/addOnReadme";
+import type { AddOnAbout } from "../../domain/addOnAbout";
 import type {
     AddOnActionKind,
     CatalogActionKind,
@@ -76,8 +76,8 @@ function setUp(
 }
 
 describe("AddOnViewMessages", () => {
-    describe("a detail's README", () => {
-        it("answers with the README the core read for the id", async () => {
+    describe("a detail's README and license", () => {
+        it("answers with what the core read for the id", async () => {
             const posted: Query[] = [];
             const asked: string[] = [];
             const messages = new AddOnViewMessages(
@@ -85,41 +85,39 @@ describe("AddOnViewMessages", () => {
                 new RecordingNotifier(),
                 (message) => posted.push(message),
                 {
-                    readme: async (targetId) => {
+                    about: async (targetId) => {
                         asked.push(targetId);
-                        return { kind: "shown", markdown: "# Acme", truncated: false };
+                        return { readme: { kind: "shown", markdown: "# Acme", truncated: false } };
                     },
                 },
             );
 
-            await messages.handle(new GetAddOnReadmeCommand("plugin:/work/acme"));
+            await messages.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
 
             expect(asked).toEqual(["plugin:/work/acme"]);
             expect(posted).toEqual([
-                new AddOnReadmeQuery("plugin:/work/acme", {
-                    kind: "shown",
-                    markdown: "# Acme",
-                    truncated: false,
+                new AddOnAboutQuery("plugin:/work/acme", {
+                    readme: { kind: "shown", markdown: "# Acme", truncated: false },
                 }),
             ]);
         });
 
-        it("answers none on a panel that reads no README, and logs a throw", async () => {
+        it("answers nothing on a panel that reads none, and logs a throw", async () => {
             const { posted, messages } = setUp();
             const logger = new RecordingNotifier();
             const failing = new AddOnViewMessages(
                 async () => ({ kind: "done" }),
                 logger,
                 (message) => posted.push(message),
-                { readme: () => Promise.reject(new Error("boom")) },
+                { about: () => Promise.reject(new Error("boom")) },
             );
 
-            await messages.handle(new GetAddOnReadmeCommand("plugin:/work/acme"));
-            await failing.handle(new GetAddOnReadmeCommand("plugin:/work/acme"));
+            await messages.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
+            await failing.handle(new GetAddOnAboutCommand("plugin:/work/acme"));
 
             expect(posted).toEqual([
-                new AddOnReadmeQuery("plugin:/work/acme", { kind: "none" }),
-                new AddOnReadmeQuery("plugin:/work/acme", { kind: "none" }),
+                new AddOnAboutQuery("plugin:/work/acme", { readme: { kind: "none" } }),
+                new AddOnAboutQuery("plugin:/work/acme", { readme: { kind: "none" } }),
             ]);
             expect(logger.loggedErrors.map(({ message }) => message)).toEqual(["boom"]);
         });
@@ -131,7 +129,7 @@ describe("AddOnViewMessages", () => {
             expectTypeOf<AddOnRequestPayload>().toEqualTypeOf<AddOnRequest>();
             expectTypeOf<AddOnActionResultPayload>().toEqualTypeOf<AddOnActionResult>();
             expectTypeOf<AddOnRevealPayload>().toEqualTypeOf<AddOnReveal>();
-            expectTypeOf<AddOnReadmePayload>().toEqualTypeOf<AddOnReadme>();
+            expectTypeOf<AddOnAboutPayload>().toEqualTypeOf<AddOnAbout>();
         });
 
         it("pins each value set", () => {

@@ -1,5 +1,7 @@
 import { HttpClient } from "../../../kernel/port/HttpClient";
 import { HttpResponse } from "../../../kernel/domain/http";
+import { RepositoryFacts } from "../../../kernel/domain/repositoryFacts";
+import { githubRepositoryFactsOf } from "../../domain/repositoryFactsParsing";
 import { GitHubSourceConfig, hostForConfig } from "../../domain/repositorySourceConfig";
 import { RepositoryAccessError } from "../../domain/repositoryAccessError";
 import { RepositorySource } from "../../port/marketplacePorts";
@@ -24,6 +26,8 @@ export class GitHubSource implements RepositorySource {
     // Memoized so a missing `ref` triggers exactly one default-branch lookup
     // shared by listing and every fetch.
     private resolvedRef: string | undefined;
+    // One repository request serves the default branch and the facts.
+    private repository: Promise<unknown> | undefined;
 
     constructor(
         private readonly http: HttpClient,
@@ -123,19 +127,33 @@ export class GitHubSource implements RepositorySource {
         }
 
         const { owner, repo } = this.config;
+        const branch = ((await this.repositoryJson()) as { default_branch?: unknown })
+            .default_branch;
+        if (typeof branch !== "string") {
+            throw new Error(`GitHub returned no default_branch for ${owner}/${repo}`);
+        }
+        return (this.resolvedRef = branch);
+    }
+
+    async repositoryFacts(): Promise<RepositoryFacts> {
+        return githubRepositoryFactsOf(await this.repositoryJson());
+    }
+
+    private repositoryJson(): Promise<unknown> {
+        this.repository ??= this.fetchRepositoryJson();
+        return this.repository;
+    }
+
+    private async fetchRepositoryJson(): Promise<unknown> {
+        const { owner, repo } = this.config;
         const response = await this.http.getJson(
             `${this.apiRoot()}/repos/${owner}/${repo}`,
             this.apiHeaders(),
         );
         if (response.status !== 200) {
-            this.throwFor(response, `Failed to resolve default branch for ${owner}/${repo}`);
+            this.throwFor(response, `Failed to read the repository ${owner}/${repo}`);
         }
-
-        const branch = (JSON.parse(response.body) as { default_branch?: unknown }).default_branch;
-        if (typeof branch !== "string") {
-            throw new Error(`GitHub returned no default_branch for ${owner}/${repo}`);
-        }
-        return (this.resolvedRef = branch);
+        return JSON.parse(response.body);
     }
 
     /** `<baseUrl>/api/v3` for GitHub Enterprise, else public `api.github.com`. */

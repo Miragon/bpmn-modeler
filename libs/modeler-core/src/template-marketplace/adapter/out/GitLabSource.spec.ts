@@ -203,3 +203,31 @@ describe("GitLabSource error mapping", () => {
         expect(error.message).toMatch(/HTTP 500/);
     });
 });
+
+describe("GitLabSource.repositoryFacts", () => {
+    it("asks the project with its license and reads the stars", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue(
+            ok(JSON.stringify({ star_count: 3, license: { key: "mit", name: "MIT License" } })),
+        );
+
+        const facts = await source({ token: "t" }, http).repositoryFacts();
+
+        expect(facts).toEqual({
+            host: "gitlab",
+            stars: 3,
+            license: { kind: "known", id: "MIT", name: "MIT License" },
+        });
+        expect(http.getJson).toHaveBeenCalledWith(
+            "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproject?license=true",
+            expect.objectContaining({ "PRIVATE-TOKEN": "t" }),
+        );
+    });
+
+    it("maps a denied project request to an access error", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 404, body: "" });
+
+        await expect(source({}, http).repositoryFacts()).rejects.toBeInstanceOf(RepositoryAccessError);
+    });
+});

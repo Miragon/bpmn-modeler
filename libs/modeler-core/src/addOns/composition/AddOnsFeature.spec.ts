@@ -8,10 +8,10 @@ import {
     ADD_ONS_VIEW_COMMAND_TYPES,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
-    AddOnReadmeQuery,
+    AddOnAboutQuery,
     AddOnRequestCommand,
     GetAddOnCatalogCommand,
-    GetAddOnReadmeCommand,
+    GetAddOnAboutCommand,
     GetBpmnPluginsCommand,
     Query,
     RevealAddOnsQuery,
@@ -1280,22 +1280,29 @@ describe("AddOnsFeature", () => {
             };
         }
 
-        describe("a detail's README", () => {
-            it("reads a plugin's README in its folder", async () => {
+        describe("a detail's README and license", () => {
+            it("reads a plugin's README and package.json license in its folder", async () => {
                 const { addOns } = setUp({
-                    files: { ...RESIZE_FILES, [`${RESIZE}/README.md`]: "# Resize Tasks" },
+                    files: {
+                        ...RESIZE_FILES,
+                        [`${RESIZE}/README.md`]: "# Resize Tasks",
+                        [`${RESIZE}/package.json`]: '{ "license": "MIT" }',
+                    },
                 });
                 const page = recordingPanel();
                 const list = addOns.attachPanel(page.post, true);
                 await shown(addOns);
 
-                await list.handle(new GetAddOnReadmeCommand(`plugin:${RESIZE}`));
+                await list.handle(new GetAddOnAboutCommand(`plugin:${RESIZE}`));
 
                 expect(page.posted.at(-1)).toEqual(
-                    new AddOnReadmeQuery(`plugin:${RESIZE}`, {
-                        kind: "shown",
-                        markdown: "# Resize Tasks",
-                        truncated: false,
+                    new AddOnAboutQuery(`plugin:${RESIZE}`, {
+                        readme: { kind: "shown", markdown: "# Resize Tasks", truncated: false },
+                        license: {
+                            kind: "known",
+                            text: "MIT",
+                            label: "License: MIT, as its package.json says",
+                        },
                     }),
                 );
             });
@@ -1306,9 +1313,9 @@ describe("AddOnsFeature", () => {
                 const list = addOns.attachPanel(page.post, true);
                 await shown(addOns);
 
-                await list.handle(new GetAddOnReadmeCommand("plugin:/etc"));
+                await list.handle(new GetAddOnAboutCommand("plugin:/etc"));
 
-                expect(page.posted.at(-1)).toEqual(new AddOnReadmeQuery("plugin:/etc", { kind: "none" }));
+                expect(page.posted.at(-1)).toEqual(new AddOnAboutQuery("plugin:/etc", { readme: { kind: "none" } }));
             });
 
             it("reads a marketplace's README the update cached", async () => {
@@ -1324,13 +1331,11 @@ describe("AddOnsFeature", () => {
                 await shown(addOns);
                 const [source] = marketplaceGroupOf(view)?.sources ?? [];
 
-                await list.handle(new GetAddOnReadmeCommand(source.id));
+                await list.handle(new GetAddOnAboutCommand(source.id));
 
                 expect(page.posted.at(-1)).toEqual(
-                    new AddOnReadmeQuery(source.id, {
-                        kind: "shown",
-                        markdown: "Local templates.",
-                        truncated: false,
+                    new AddOnAboutQuery(source.id, {
+                        readme: { kind: "shown", markdown: "Local templates.", truncated: false },
                     }),
                 );
             });

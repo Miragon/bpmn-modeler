@@ -3,7 +3,7 @@ import {
     addOnsPageOf,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
-    AddOnReadmeQuery,
+    AddOnAboutQuery,
     AddOnsViewCommand,
     asProtocolMessage,
     type BrandMode,
@@ -20,7 +20,7 @@ import {
 import type { PersistedChoices } from "../../domain/viewState";
 import type { AddOnsHost } from "../../port/addOnsHost";
 import { MockCatalog, previewStateOf } from "./mockCatalog";
-import { mockReadmeOf } from "./mockReadmes";
+import { mockAboutOf } from "./mockAbout";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -83,8 +83,8 @@ class MockHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
             case "OpenAddOnDetailCommand":
                 console.debug("[add-ons preview] a host would open the detail tab of", command.addOnId);
                 return;
-            case "GetAddOnReadmeCommand":
-                dispatch(new AddOnReadmeQuery(command.targetId, mockReadmeOf(command.targetId)));
+            case "GetAddOnAboutCommand":
+                dispatch(new AddOnAboutQuery(command.targetId, mockAboutOf(command.targetId)));
                 return;
             case "AddOnRequestCommand": {
                 const { result, changed } = this.catalog.act(command.request);

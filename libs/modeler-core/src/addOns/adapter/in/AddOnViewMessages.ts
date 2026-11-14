@@ -1,11 +1,11 @@
 import {
     AddOnActionResultQuery,
     AddOnCatalogQuery,
-    AddOnReadmeQuery,
+    AddOnAboutQuery,
     AddOnRequestCommand,
     AddOnsViewCommandType,
     Command,
-    GetAddOnReadmeCommand,
+    GetAddOnAboutCommand,
     ProtocolCommandType,
     OpenAddOnDetailCommand,
     Query,
@@ -21,7 +21,7 @@ import {
     WebviewMessageRouter,
 } from "../../../editorSession/service/WebviewMessageRouter";
 import type { AddOnCatalogModel, AddOnReveal } from "../../domain/addOnCatalogModel";
-import { AddOnReadme, NO_README } from "../../domain/addOnReadme";
+import { AddOnAbout, NO_ABOUT } from "../../domain/addOnAbout";
 import {
     AddOnActionResult,
     AddOnRequest,
@@ -41,7 +41,7 @@ export class AddOnViewMessages implements RouteLookup {
         GetAddOnCatalogCommand: [() => this.repost()],
         AddOnRequestCommand: [(command) => this.request(command)],
         OpenAddOnDetailCommand: [(command) => this.openDetail(command)],
-        GetAddOnReadmeCommand: [(command) => this.readme(command)],
+        GetAddOnAboutCommand: [(command) => this.about(command)],
     });
     private model?: AddOnCatalogModel;
     /** Held only until a listening page has it, so a page loaded later lands on no old rows. */
@@ -53,7 +53,7 @@ export class AddOnViewMessages implements RouteLookup {
 
     /**
      * @param actOn the core's answer to a request the page made, in a shape it knows
-     * @param panel what the page opens in a tab, the add-on a detail page shows, and where a detail's README comes from
+     * @param panel what the page opens in a tab, the add-on a detail page shows, and where a detail's README and license come from
      */
     constructor(
         private readonly actOn: (request: AddOnRequest) => Promise<AddOnActionResult>,
@@ -62,7 +62,7 @@ export class AddOnViewMessages implements RouteLookup {
         private readonly panel: {
             readonly openDetail?: (addOnId: string, model?: AddOnCatalogModel) => void;
             readonly shows?: string;
-            readonly readme?: (targetId: string) => Promise<AddOnReadme>;
+            readonly about?: (targetId: string) => Promise<AddOnAbout>;
         } = {},
     ) {
         if (panel.shows !== undefined) this.show(panel.shows);
@@ -121,14 +121,14 @@ export class AddOnViewMessages implements RouteLookup {
         this.panel.openDetail?.(addOnId, this.model);
     }
 
-    private async readme({ targetId }: GetAddOnReadmeCommand): Promise<void> {
-        let readme = NO_README;
+    private async about({ targetId }: GetAddOnAboutCommand): Promise<void> {
+        let about = NO_ABOUT;
         try {
-            readme = (await this.panel.readme?.(targetId)) ?? NO_README;
+            about = (await this.panel.about?.(targetId)) ?? NO_ABOUT;
         } catch (error) {
             this.logError(error);
         }
-        this.send(new AddOnReadmeQuery(targetId, readme));
+        this.send(new AddOnAboutQuery(targetId, about));
     }
 
     private async request({ requestId, request }: AddOnRequestCommand): Promise<void> {
