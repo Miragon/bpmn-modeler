@@ -96,30 +96,93 @@ describe("DiffPaneStore", () => {
         expect(store.awaitingPaneFor(LEFT)).toBe(swapped);
     });
 
-    it("removePendingByHandle drops the matching entry and reports success", () => {
+    // ─── detach ───────────────────────────────────────────────────────────────
+
+    it("drops a detached pending SCM pane without closing a session", () => {
         const store = new DiffPaneStore();
+        const closed: unknown[] = [];
+        store.onSessionClosed((session) => closed.push(session));
         const handle = fakeHandle(RIGHT);
         store.addPendingScm("/repo/diagram.bpmn", handle);
 
-        expect(store.removePendingByHandle(handle)).toBe(true);
-        expect(store.removePendingByHandle(handle)).toBe(false); // already gone
+        store.detach(handle);
+
         expect(store.paneCountFor(RIGHT)).toBe(0);
+        expect(store.takePendingPartner("/repo/diagram.bpmn", fakeHandle(LEFT))).toBeUndefined();
+        expect(closed).toStrictEqual([]);
     });
 
-    // ─── remove ────────────────────────────────────────────────────────────────
-
-    it("remove clears both index entries", () => {
+    it("keeps a session open while one of its panes is still attached", () => {
         const store = new DiffPaneStore();
+        const closed: unknown[] = [];
+        store.onSessionClosed((session) => closed.push(session));
         const session = store.registerCompareFiles(LEFT, RIGHT);
+        const left = fakeHandle(LEFT);
+        const right = fakeHandle(RIGHT);
+        session.attachPane(left);
+        session.attachPane(right);
 
-        store.remove(session);
+        store.detach(left);
+
+        expect(store.sessionOf(right)).toBe(session);
+        expect(store.awaitingPaneFor(LEFT)).toBe(session);
+        expect(closed).toStrictEqual([]);
+    });
+
+    it("closes a session once its last pane is detached and tells every listener", () => {
+        const store = new DiffPaneStore();
+        const closed: unknown[] = [];
+        store.onSessionClosed((session) => closed.push(["first", session]));
+        store.onSessionClosed((session) => closed.push(["second", session]));
+        const session = store.registerCompareFiles(LEFT, RIGHT);
+        const left = fakeHandle(LEFT);
+        const right = fakeHandle(RIGHT);
+        session.attachPane(left);
+        session.attachPane(right);
+
+        store.detach(left);
+        store.detach(right);
+
         expect(store.findByUri(LEFT)).toBeUndefined();
         expect(store.findByUri(RIGHT)).toBeUndefined();
+        expect(closed).toStrictEqual([
+            ["first", session],
+            ["second", session],
+        ]);
     });
 
-    it("a removed session's TTL never sweeps the same pair opened again", () => {
+    it("changes nothing when a pane it never held is detached", () => {
         const store = new DiffPaneStore();
-        store.remove(store.registerCompareFiles(LEFT, RIGHT));
+        const closed: unknown[] = [];
+        store.onSessionClosed((session) => closed.push(session));
+        const session = store.registerCompareFiles(LEFT, RIGHT);
+        const pane = fakeHandle(LEFT);
+        session.attachPane(pane);
+
+        store.detach(fakeHandle(LEFT));
+
+        expect(store.sessionOf(pane)).toBe(session);
+        expect(closed).toStrictEqual([]);
+    });
+
+    it("tells a listener nothing once its subscription is disposed", () => {
+        const store = new DiffPaneStore();
+        const closed: unknown[] = [];
+        store.onSessionClosed((session) => closed.push(session)).dispose();
+        const session = store.registerCompareFiles(LEFT, RIGHT);
+        const pane = fakeHandle(LEFT);
+        session.attachPane(pane);
+
+        store.detach(pane);
+
+        expect(closed).toStrictEqual([]);
+    });
+
+    it("a closed session's TTL never sweeps the same pair opened again", () => {
+        const store = new DiffPaneStore();
+        const closedPane = fakeHandle(LEFT);
+        store.registerCompareFiles(LEFT, RIGHT).attachPane(closedPane);
+        store.detach(closedPane);
         vi.advanceTimersByTime(10_000);
 
         const reopened = store.registerCompareFiles(LEFT, RIGHT);

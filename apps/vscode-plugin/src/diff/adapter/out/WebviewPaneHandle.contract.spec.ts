@@ -13,8 +13,14 @@ vi.mock("../../../shared/adapter/out/bootstrapWebview", () => ({
 
 /** VS Code's `Uri` as a diff pane's document carries it: only `toString()` spells the whole URI. */
 function documentUri(uri: string) {
-    const { protocol, pathname } = new URL(uri);
-    return { scheme: protocol.slice(0, -1), path: pathname, fsPath: pathname, toString: () => uri };
+    const { protocol, pathname, search } = new URL(uri);
+    return {
+        scheme: protocol.slice(0, -1),
+        path: pathname,
+        fsPath: pathname,
+        query: decodeURIComponent(search.slice(1)),
+        toString: () => uri,
+    };
 }
 
 /**

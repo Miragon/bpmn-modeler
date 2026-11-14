@@ -10,21 +10,14 @@ import {
     DiffFileExtension,
     diffTabLabelNamesFile,
     lastWorkspacePathSegment,
+    scmSides,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
+import { isGitProvidedDocument } from "../../domain/documentRevision";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
-
-/**
- * URI schemes used by Git-provider extensions to surface ref/index/working-tree
- * documents. VS Code's built-in Git extension uses `git:`; Theia's `@theia/git`
- * (used by the standalone desktop shell) uses `gitfs:`. Both are always
- * readonly and always belong to a diff, so the scheme alone is a sufficient
- * signal for `shouldResolveAsDiff`.
- */
-const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
 
 /** A diff pane whose webview loads its page on `bootstrap`, once its listeners are attached. */
 export interface BootstrappableDiffPane extends DiffPaneHandle {
@@ -140,10 +133,8 @@ export class DiffController {
      * Decision tree:
      *   1. A pre-registered `compare-files` session waits for a pane on this
      *      URI → true.
-     *   2. The URI uses a Git-provided scheme (see
-     *      {@link GIT_PROVIDED_SCHEMES}) → true. Covers VS Code's `git:` and
-     *      Theia's `gitfs:` — both are always readonly and always belong to a
-     *      diff.
+     *   2. The document comes from a Git provider ({@link isGitProvidedDocument})
+     *      → true: such a document is read-only and always belongs to a diff.
      *   3. More diff tabs name the file, per the label heuristic, than diff
      *      panes already render it → true. A file opened in a normal editor
      *      tab beside its diff stays an editable modeler, while a second diff
@@ -155,7 +146,7 @@ export class DiffController {
         if (this.store.awaitingPaneFor(needle)) {
             return true;
         }
-        if (GIT_PROVIDED_SCHEMES.has(uri.scheme)) {
+        if (isGitProvidedDocument(uri)) {
             return true;
         }
         return this.diffTabsNaming(uri) > this.store.paneCountFor(needle);
@@ -201,7 +192,7 @@ export class DiffController {
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             }),
         );
-        panel.onDidDispose(() => this.disposePane(handle));
+        panel.onDidDispose(() => this.store.detach(handle));
 
         const session = this.store.awaitingPaneFor(handle.uri);
         if (session) {
@@ -241,13 +232,8 @@ export class DiffController {
     /**
      * Either pairs `handle` with a pending SCM pane that shares its path
      * (promoting both into a full {@link DiffSession}) or stashes `handle`
-     * as the pending pane for later pairing.
-     *
-     * Side assignment for SCM:
-     *   - If one URI is `file:` it is the working tree → `after`.
-     *   - Otherwise (ref-vs-ref, both `git:`) the first-registered pane is
-     *     `before`, second is `after` — arbitrary but matches the visual
-     *     order VS Code's SCM diff chose.
+     * as the pending pane for later pairing. The core's `scmSides` assigns
+     * the sides from the panes' revisions.
      */
     private attachOrPendScmPane(handle: DiffPaneHandle, documentUri: Uri): void {
         const key = this.scmPairingKey(documentUri);
@@ -258,7 +244,7 @@ export class DiffController {
             return;
         }
 
-        const { before, after } = resolveScmSides(pending, handle);
+        const { before, after } = scmSides(pending, handle);
         const session = DiffSession.forScm(before, after);
         session.attachPane(before);
         session.attachPane(after);
@@ -278,23 +264,6 @@ export class DiffController {
         return uri.path;
     }
 
-    private disposePane(handle: DiffPaneHandle): void {
-        // Drop from pending (no session ever formed).
-        if (this.store.removePendingByHandle(handle)) {
-            return;
-        }
-
-        // Drop from session; retire the session if both panes are gone.
-        const session = this.store.sessionOf(handle);
-        if (!session) {
-            return;
-        }
-        session.detachPane(handle);
-        if (session.isEmpty()) {
-            this.store.remove(session);
-        }
-    }
-
     /**
      * Closes the current diff tab and reopens it with the two URIs swapped.
      *
@@ -304,9 +273,8 @@ export class DiffController {
      * there — but we still guard against misuse since message routing cannot
      * encode origin at the type level.
      *
-     * Disposing the webview panels triggers {@link disposePane} for both
-     * sides, which tears down the old session and removes it from the
-     * indexes.  The subsequent {@link openCompareFilesDiff} then registers a
+     * Disposing the webview panels detaches both sides from the store, which
+     * closes the old session.  The subsequent {@link openCompareFilesDiff} then registers a
      * fresh session with the reversed before/after assignment.
      */
     private async swapCompareFilesSides(handle: DiffPaneHandle): Promise<void> {
@@ -332,28 +300,4 @@ export class DiffController {
         }
         this.format.rebroadcastLanguage();
     }
-}
-
-/**
- * SCM-diff side assignment for two panes that share a path.
- *
- * Invariant: `file:` URIs represent the working tree and must be `after`.
- * For ref-vs-ref diffs (both `git:` in VS Code, both `gitfs:` in Theia) side
- * follows resolution order, which mirrors the host's own visual ordering.
- *
- * The scheme is read from each handle's stringified `uri` (round-trips
- * identically to `document.uri.scheme`), so this works on the abstract
- * {@link DiffPaneHandle} without reaching for the concrete panel.
- */
-function resolveScmSides(
-    first: DiffPaneHandle,
-    second: DiffPaneHandle,
-): { before: DiffPaneHandle; after: DiffPaneHandle } {
-    if (Uri.parse(second.uri).scheme === "file") {
-        return { before: first, after: second };
-    }
-    if (Uri.parse(first.uri).scheme === "file") {
-        return { before: second, after: first };
-    }
-    return { before: first, after: second };
 }

@@ -16,6 +16,10 @@ import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
+import { ElementXmlDiffService } from "./ElementXmlDiffService";
+
+/** A host's element XML diff: shows an element's XML from both sides and moves it with the selection. */
+export type ElementXmlChanges = Pick<ElementXmlDiffService, "show" | "follow">;
 
 /**
  * Drives the diff *content* for already-resolved BPMN diff panes: it answers
@@ -37,11 +41,14 @@ export class BpmnDiffService {
      *   the moment it opens, and re-renders on setting changes.
      * @param store Session registry consulted for partner lookups and the
      *   language re-broadcast fan-out.
+     * @param elementXmlChanges The host's element XML diff; without it the
+     *   panes do not offer an element's XML changes.
      */
     constructor(
         private readonly notifier: NotifierPort,
         vsSettings: SettingsPort,
         store: DiffPaneStore,
+        private readonly elementXmlChanges?: ElementXmlChanges,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
     }
@@ -106,6 +113,21 @@ export class BpmnDiffService {
         return this.relay.toPartner(handle, new SyncDiffPlaneQuery(planeId), "syncPlane");
     }
 
+    /** Whether the panes offer an element's XML changes, because the host shows them. */
+    get showsElementXmlChanges(): boolean {
+        return this.elementXmlChanges !== undefined;
+    }
+
+    /** Opens the element's XML diff, or moves the open one to the element. */
+    async showElementXmlChanges(handle: DiffPaneHandle, elementId: string): Promise<void> {
+        await this.elementXmlChanges?.show(handle, elementId);
+    }
+
+    /** Moves an open XML diff to the element the pane selected. */
+    async followSelectionWithElementXml(handle: DiffPaneHandle, elementId: string): Promise<void> {
+        await this.elementXmlChanges?.follow(handle, elementId);
+    }
+
     /** Selects the element the pane selected in its partner pane too. */
     forwardSelection(handle: DiffPaneHandle, elementId: string): Promise<void> {
         return this.relay.toPartner(
@@ -155,6 +177,7 @@ export class BpmnDiffService {
                 result.navigationOrder,
                 session.origin,
                 uriDisplayName(before.uri),
+                this.showsElementXmlChanges,
             ),
         );
         await this.postHighlights(
@@ -169,6 +192,7 @@ export class BpmnDiffService {
                 result.navigationOrder,
                 session.origin,
                 uriDisplayName(after.uri),
+                this.showsElementXmlChanges,
             ),
         );
     }

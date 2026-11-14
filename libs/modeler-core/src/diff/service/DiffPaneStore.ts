@@ -41,6 +41,8 @@ export class DiffPaneStore implements EditorSubscription {
      */
     private readonly ttlTimers = new Map<DiffSession, ReturnType<typeof setTimeout>>();
 
+    private readonly sessionClosedListeners = new Set<(session: DiffSession) => void>();
+
     /**
      * Pre-registers a `compare-files` session before `vscode.diff` runs.
      *
@@ -92,11 +94,27 @@ export class DiffPaneStore implements EditorSubscription {
     }
 
     /**
-     * Removes `session` and disarms its TTL timer.
+     * Detaches a pane its host disposed: drops it from the pending SCM panes,
+     * or from its session, and closes the session once no pane is left.
      */
-    remove(session: DiffSession): void {
-        this.sessions.delete(session);
-        this.cancelTtl(session);
+    detach(pane: DiffPaneHandle): void {
+        if (this.removePendingByHandle(pane)) {
+            return;
+        }
+        const session = this.sessionOf(pane);
+        if (!session) {
+            return;
+        }
+        session.detachPane(pane);
+        if (session.isEmpty()) {
+            this.close(session);
+        }
+    }
+
+    /** Calls `listener` with every session that closes, once its last pane was detached. */
+    onSessionClosed(listener: (session: DiffSession) => void): EditorSubscription {
+        this.sessionClosedListeners.add(listener);
+        return { dispose: () => this.sessionClosedListeners.delete(listener) };
     }
 
     /**
@@ -143,11 +161,8 @@ export class DiffPaneStore implements EditorSubscription {
         this.setPending(key, [...(this.pendingScm.get(key) ?? []), handle]);
     }
 
-    /**
-     * Drops a pending SCM pane by identity (used when a pane that never paired is
-     * disposed). Returns `true` when a pending entry was found and removed.
-     */
-    removePendingByHandle(handle: DiffPaneHandle): boolean {
+    /** Drops a pending SCM pane by identity; `true` when it was pending. */
+    private removePendingByHandle(handle: DiffPaneHandle): boolean {
         for (const [key, pending] of this.pendingScm) {
             if (pending.includes(handle)) {
                 this.setPending(
@@ -192,7 +207,13 @@ export class DiffPaneStore implements EditorSubscription {
     private sweepOrphan(session: DiffSession): void {
         this.ttlTimers.delete(session);
         if (session.isEmpty()) {
-            this.remove(session);
+            this.close(session);
         }
+    }
+
+    private close(session: DiffSession): void {
+        this.sessions.delete(session);
+        this.cancelTtl(session);
+        this.sessionClosedListeners.forEach((listener) => listener(session));
     }
 }

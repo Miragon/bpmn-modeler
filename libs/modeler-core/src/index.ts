@@ -166,11 +166,14 @@ export * from "./addOns/composition/AddOnsFeature";
 export * from "./diff/domain/compareTexts";
 export * from "./diff/domain/diffTabLabel";
 export * from "./diff/domain/diffFileExtension";
+export * from "./diff/domain/DiffRevision";
 export * from "./diff/port/DiffPaneHandle";
+export * from "./diff/port/ElementXmlDiffView";
 export * from "./diff/service/DiffSession";
 export * from "./diff/service/BpmnDiffService";
 export * from "./diff/service/DmnDiffService";
 export * from "./diff/service/DiffPaneStore";
+export * from "./diff/service/ElementXmlDiffService";
 export * from "./diff/service/diffPaneRouter";
 
 // ── navigation ───────────────────────────────────────────────────────────────
