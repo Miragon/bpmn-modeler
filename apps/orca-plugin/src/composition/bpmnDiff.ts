@@ -1,7 +1,7 @@
 import "../../../../packages/bpmn-modeler/src/styles/viewer.css";
 import "./orcaDiff.css";
 
-import { computeDiff, type DiffResult } from "@miragon/bpmn-modeler/diff";
+import { computeDiff, type DiffResult, type DiffSide } from "@miragon/bpmn-modeler/diff";
 import {
     DiffLegend,
     type DiffLegendContext,
@@ -69,7 +69,7 @@ class ShownDiff {
 
     private readonly coordinator: DiffPaneCoordinator;
 
-    private readonly labels: readonly DiffSideLabel[];
+    private readonly labels: Readonly<Record<DiffSide, DiffSideLabel>>;
 
     private legend: DiffLegend | undefined;
 
@@ -83,17 +83,21 @@ class ShownDiff {
         this.after = new DiffViewer(panes.after);
         // Created before the imports, so both panes take the same first fit.
         this.coordinator = new DiffPaneCoordinator(this.before, this.after);
-        this.labels = [
-            new DiffSideLabel(panes.before, "before"),
-            new DiffSideLabel(panes.after, "after"),
-        ];
+        this.labels = {
+            before: new DiffSideLabel(panes.before, "before"),
+            after: new DiffSideLabel(panes.after, "after"),
+        };
+        this.coordinator.onPlaneMissingChanged((side, missing) =>
+            this.labels[side].showPlaneMissing(missing),
+        );
         void this.compare(sides);
     }
 
     dispose(): void {
         this.disposed = true;
         this.legend?.destroy();
-        this.labels.forEach((label) => label.destroy());
+        this.labels.before.destroy();
+        this.labels.after.destroy();
         this.coordinator.destroy();
         this.before.destroy();
         this.after.destroy();
