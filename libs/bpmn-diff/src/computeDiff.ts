@@ -10,13 +10,19 @@
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
 import {
     BpmnModdleFactory,
-    ModdleElement,
     ModdleParseResult,
     loadBpmnModdle,
+    moddleDescriptor,
     skippedContentWarning,
 } from "./bpmnModdleFactory";
-import { containmentProperties, isModdleElement, walkContainment } from "./moddleContainment";
-import { NamespaceDeclaration, namespaceDeclarations } from "./namespaceDeclarations";
+import { containmentProperties, walkContainment } from "./moddleContainment";
+import { ModdleElement, isModdleElement } from "./moddleElement";
+import {
+    NamespaceDeclaration,
+    isNamespaceDeclaration,
+    namePrefix,
+    namespaceDeclarations,
+} from "./namespaceDeclarations";
 import { trackedElementOf } from "./trackedElements";
 import { categoryIds, runDiff } from "./upstreamInternals/differResult";
 import { collectDrawnEdgeIds, layoutOnlyEdgeIds } from "./drawnEdges";
@@ -164,7 +170,7 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
 }
 
 function executionPackage(module: unknown): ExecutionPackage {
-    const descriptor = (module as { default?: unknown }).default ?? module;
+    const descriptor = moddleDescriptor(module);
     const { prefix, uri } = descriptor as { prefix?: unknown; uri?: unknown };
     if (typeof prefix !== "string" || typeof uri !== "string") {
         throw new Error("A Camunda moddle descriptor names no `prefix` and `uri`.");
@@ -281,8 +287,8 @@ function belongsToNamespace(
 }
 
 function hasPrefix(name: string, prefixes: ReadonlySet<string>): boolean {
-    const separator = name.indexOf(":");
-    return separator > 0 && prefixes.has(name.slice(0, separator));
+    const prefix = namePrefix(name);
+    return prefix !== undefined && prefixes.has(prefix);
 }
 
 function collectNamespacedAttributes(
@@ -346,7 +352,7 @@ function customAttributes(
 }
 
 function isQualifiedAttribute(name: string): boolean {
-    return name.includes(":") && name !== "xmlns" && !name.startsWith("xmlns:");
+    return name.includes(":") && !isNamespaceDeclaration(name);
 }
 
 function mergeAttributeSnapshots(snapshots: readonly AttributeSnapshot[]): AttributeSnapshot {

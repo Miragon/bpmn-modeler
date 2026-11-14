@@ -3241,7 +3241,6 @@ __metadata:
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
-    bpmn-moddle: "npm:10.3.1"
     bpmnlint: "npm:12.0.0"
     camunda-bpmn-moddle: "npm:8.0.2"
     jsonc-parser: "npm:3.3.1"

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import { BrowserLinter } from "./browserLinter";
@@ -6,10 +7,6 @@ import { BrowserLinter } from "./browserLinter";
 // The engine-aware default the resolver would hand the linter in Implement mode;
 // BrowserLinter now takes the resolved config, not the engine.
 const C7_DEFAULT = getDefaultLintConfig({ engine: "c7", preset: "modeling" });
-
-type ModdleFactory = (ext?: Record<string, unknown>) => {
-    fromXML: (x: string) => Promise<{ rootElement: unknown }>;
-};
 
 /**
  * The browser-compat gate: `@miragon/bpmnlint-plugin-rules` and bpmnlint's
@@ -35,17 +32,8 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 async function parse(xml: string): Promise<unknown> {
-    // bpmn-moddle's default export is the factory (called, not `new`); its ESM
-    // interop exposes it under `default` or `BpmnModdle`, mirroring NodeBpmnLinter.
-    const mod = (await import("bpmn-moddle")) as unknown as {
-        default?: ModdleFactory;
-        BpmnModdle?: ModdleFactory;
-    };
-    const factory = mod.default ?? mod.BpmnModdle;
-    if (!factory) {
-        throw new Error("bpmn-moddle exposed no factory");
-    }
-    const { rootElement } = await factory().fromXML(xml);
+    const createBpmnModdle = await loadBpmnModdle();
+    const { rootElement } = await createBpmnModdle().fromXML(xml);
     return rootElement;
 }
 

@@ -1,5 +1,4 @@
-import { isType, type ModdleElement } from "./bpmnModdleFactory";
-import { isModdleElement } from "./moddleContainment";
+import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
 
 const TRACKED_TYPES = [
     "bpmn:Participant",

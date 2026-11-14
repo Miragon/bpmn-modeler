@@ -1,4 +1,4 @@
-import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
+import { loadBpmnModdle, moddleDescriptor } from "@miragon/bpmn-modeler-diff";
 import { resolveScriptWriteTarget, type ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -121,19 +121,12 @@ export class ScriptXmlService {
      * Constructs a moddle with the Camunda 7 descriptor set — the same
      * extension package the C7 webview registers — via dynamic import so the
      * ~200 KB of moddle/descriptors stay off the eager module graph.
-     * The descriptor JSON is accessed through a `default`-interop fallback so
-     * the code compiles under either the bundler's ESM→CJS shape or a native
-     * ESM namespace.
      */
     private async createModdle(): Promise<ModdleInstance> {
         const createBpmnModdle = await loadBpmnModdle();
-
-        const camundaMod =
-            (await import("camunda-bpmn-moddle/resources/camunda.json")) as unknown as {
-                default?: unknown;
-            };
-        const camunda = camundaMod.default ?? camundaMod;
-
+        const camunda = moddleDescriptor(
+            await import("camunda-bpmn-moddle/resources/camunda.json"),
+        );
         return createBpmnModdle({ camunda });
     }
 }

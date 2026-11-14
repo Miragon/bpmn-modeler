@@ -1,19 +1,14 @@
+import { loadBpmnModdle, skippedContentWarning } from "./bpmnModdleFactory";
+import { containmentProperties, walkContainment } from "./moddleContainment";
+import { ModdleElement, isModdleElement, isType } from "./moddleElement";
 import {
-    BpmnModdle,
-    ModdleElement,
-    isType,
-    loadBpmnModdle,
-    skippedContentWarning,
-} from "./bpmnModdleFactory";
-import { containmentProperties, isModdleElement, walkContainment } from "./moddleContainment";
-import { documentPrefixes, namespaceDeclarations } from "./namespaceDeclarations";
+    XMLNS_PREFIX,
+    documentPrefixes,
+    namePrefix,
+    namespaceDeclarations,
+} from "./namespaceDeclarations";
 import { isTrackedElement, trackedElementOf } from "./trackedElements";
-
-const XMLNS_PREFIX = "xmlns:";
-const PARSER_PREFIXES: ReadonlyArray<readonly [string, string]> = [
-    ["xsi", "http://www.w3.org/2001/XMLSchema-instance"],
-    ["xml", "http://www.w3.org/XML/1998/namespace"],
-];
+import { createPrefixedModdle, serializerPrefixes } from "./upstreamInternals/moddleNamespaces";
 
 /**
  * Returns the XML of one BPMN element without its diagram interchange and
@@ -41,15 +36,14 @@ export async function elementXml(
     prefixSources: readonly string[] = [xml],
 ): Promise<string | undefined> {
     const createBpmnModdle = await loadBpmnModdle();
-    const writerPrefixes = knownPrefixes(createBpmnModdle());
     const declarationSources = prefixSources.includes(xml)
         ? prefixSources
         : [...prefixSources, xml];
     const declarations = await Promise.all(
         declarationSources.map((source) => namespaceDeclarations(source)),
     );
-    const prefixByUri = documentPrefixes(declarations.flat(), writerPrefixes);
-    const moddle = createBpmnModdle({}, { nsMap: Object.fromEntries(prefixByUri) });
+    const prefixByUri = documentPrefixes(declarations.flat(), serializerPrefixes(createBpmnModdle));
+    const { moddle, declarationsFor } = createPrefixedModdle(createBpmnModdle, prefixByUri);
     const parsed = await moddle.fromXML(xml);
     const skipped = skippedContentWarning(parsed);
     if (skipped) throw new Error(`Failed to parse BPMN for the XML of ${elementId}: ${skipped}`);
@@ -62,33 +56,15 @@ export async function elementXml(
         snippetRoots.push(pooledProcess);
     }
 
-    const uriByPrefix = new Map([...prefixByUri].map(([uri, prefix]) => [prefix, uri]));
     const snippets: string[] = [];
     for (const snippetRoot of snippetRoots) {
         stripTrackedChildren(snippetRoot);
         sortAttributesWithoutDescriptor(snippetRoot);
-        const prefixes = usedPrefixes(snippetRoot);
-        const undeclaredPrefix = prefixes.find(
-            (prefix) => !uriByPrefix.has(prefix) && !writerPrefixes.has(prefix),
-        );
-        if (undeclaredPrefix) {
-            throw new Error(
-                `The XML of ${elementId} uses the namespace prefix ${undeclaredPrefix}, which it does not declare.`,
-            );
-        }
-        declareNamespaces(snippetRoot, prefixes, uriByPrefix);
+        declareNamespaces(snippetRoot, declarationsFor(usedPrefixes(snippetRoot), elementId));
         const { xml: snippet } = await moddle.toXML(snippetRoot, { format: true, preamble: false });
         snippets.push(snippet.trimEnd());
     }
     return snippets.join("\n\n");
-}
-
-/** The serializer declares these itself; pinning them keeps every other namespace's prefix from colliding. */
-function knownPrefixes(moddle: BpmnModdle): Map<string, string> {
-    return new Map([
-        ...PARSER_PREFIXES,
-        ...moddle.getPackages().map(({ prefix, uri }) => [prefix, uri] as const),
-    ]);
 }
 
 function isSemanticElement(element: ModdleElement): boolean {
@@ -145,23 +121,11 @@ function usedPrefixes(root: ModdleElement): string[] {
 }
 
 /** Without a descriptor the serializer drops prefixed names whose namespace the snippet does not declare. */
-function declareNamespaces(
-    root: ModdleElement,
-    prefixes: readonly string[],
-    uriByPrefix: ReadonlyMap<string, string>,
-): void {
+function declareNamespaces(root: ModdleElement, uriByPrefix: ReadonlyMap<string, string>): void {
     const attributes = (root.$attrs ??= {});
-    for (const prefix of prefixes) {
-        const uri = uriByPrefix.get(prefix);
-        if (uri) attributes[XMLNS_PREFIX + prefix] = uri;
-    }
+    for (const [prefix, uri] of uriByPrefix) attributes[XMLNS_PREFIX + prefix] = uri;
 }
 
 function attributesWithoutDescriptor(element: ModdleElement): Record<string, unknown> {
     return element.$descriptor.isGeneric ? element : (element.$attrs ?? {});
-}
-
-function namePrefix(qualifiedName: string): string | undefined {
-    const separator = qualifiedName.indexOf(":");
-    return separator > 0 ? qualifiedName.slice(0, separator) : undefined;
 }

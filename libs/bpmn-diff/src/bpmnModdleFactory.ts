@@ -3,34 +3,9 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./types/bpmn-moddle.d.ts" />
 
-export interface ModdlePropertyDescriptor {
-    name: string;
-    isAttr?: boolean;
-    isAttribute?: boolean;
-    isReference?: boolean;
-    isVirtual?: boolean;
-}
+import type { ModdleElement } from "./moddleElement";
 
-export interface ModdleElement {
-    $type: string;
-    $attrs?: Record<string, string>;
-    $children?: ModdleElement[];
-    $descriptor: {
-        isGeneric?: boolean;
-        ns?: { prefix?: string; uri?: string };
-        properties?: ModdlePropertyDescriptor[];
-    };
-    $instanceOf?: (type: string) => boolean;
-    id?: string;
-    [key: string]: unknown;
-}
-
-/** Whether `element` is of `type` or a subtype; a generic element only by its own type name. */
-export function isType(element: ModdleElement, type: string): boolean {
-    return element.$type === type || element.$instanceOf?.(type) === true;
-}
-
-export interface ModdleParseWarning {
+interface ModdleParseWarning {
     message?: string;
 }
 
@@ -47,12 +22,12 @@ export function skippedContentWarning(result: ModdleParseResult): string | undef
     )?.message;
 }
 
-export interface ModdleSerializeOptions {
+interface ModdleSerializeOptions {
     format?: boolean;
     preamble?: boolean;
 }
 
-export interface ModdlePackage {
+interface ModdlePackage {
     prefix: string;
     uri: string;
 }
@@ -63,7 +38,7 @@ export interface BpmnModdle {
     getPackages: () => ModdlePackage[];
 }
 
-export interface BpmnModdleOptions {
+interface BpmnModdleOptions {
     /** Namespace URI to the prefix the parser names it by. */
     nsMap?: Record<string, string>;
 }
@@ -86,4 +61,9 @@ export function resolveBpmnModdleFactory(module: unknown): BpmnModdleFactory {
         throw new Error("bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.");
     }
     return createBpmnModdle;
+}
+
+/** A dynamically imported moddle descriptor, which some module systems wrap in `default` and others do not. */
+export function moddleDescriptor(module: unknown): unknown {
+    return (module as { default?: unknown }).default ?? module;
 }

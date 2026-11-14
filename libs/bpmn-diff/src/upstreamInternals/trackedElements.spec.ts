@@ -3,8 +3,9 @@
 import { ChangeHandler } from "bpmn-js-differ";
 import { describe, expect, it } from "vitest";
 
-import { ModdleElement, loadBpmnModdle } from "../bpmnModdleFactory";
+import { loadBpmnModdle } from "../bpmnModdleFactory";
 import { walkContainment } from "../moddleContainment";
+import type { ModdleElement } from "../moddleElement";
 import { isTrackedElement, trackedElementOf } from "../trackedElements";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../__fixtures__/mock-diff";
 import { ALL_EXECUTION_PROPERTY_FIXTURES } from "../__fixtures__/execution-properties";

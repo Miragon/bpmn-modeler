@@ -116,18 +116,23 @@ resolving merge conflicts on the diagram (#2459).
   them. The prefixes go to the parser as moddle-xml's `nsMap`, set when the moddle
   instance is created and never changed. A guard still rejects a snippet that uses a
   prefix it cannot declare, and skipped content rejects as in `computeDiff`, since a
-  dropped attribute would show a wrong diff. `nsMap` is undocumented, so the guard and
-  the namespace specs are what turns an upgrade that drops it into a failing build. A
-  call builds two moddle instances and parses the whole document: about 50 ms at
-  0.8 MB, two calls per selection.
-- *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only place that
-  resolves bpmn-moddle's factory; `libs/bpmn-layout`, the Node linter and the script
-  task service use it, so `bpmn-layout` depends on `bpmn-diff`. The parser, saxen, the
-  engine descriptors and bpmn-js-differ load lazily, so a bundle that imports the
-  library for the loader loads none of them; a spec holds this. saxen is a direct
-  dependency of `bpmn-diff` at moddle-xml's version and so a runtime dependency of
-  `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads the Camunda 7 and
-  8 prefixes and URIs from the descriptors; `BpmnDocument`'s copy is #2464.
+  dropped attribute would show a wrong diff. `nsMap` and the prefixes the serializer
+  declares by itself are undocumented, so they sit behind the `moddleNamespaces`
+  adapter (see [dependencies](dependencies.md#private-upstream-apis)); its spec, the
+  guard and the namespace specs turn an upgrade that changes them into a failing
+  build. A call builds two moddle instances and parses the whole document: about
+  50 ms at 0.8 MB, two calls per selection.
+- *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only production
+  code outside bpmn-js that resolves bpmn-moddle's factory, and `moddleDescriptor`
+  beside it unwraps a dynamically imported engine descriptor. `libs/bpmn-layout`, the
+  Node linter and the script task service use the loader, so `bpmn-layout` depends on
+  `bpmn-diff`; specs that import `BpmnModdle` statically do not go through it. The
+  parser, saxen, the engine descriptors and bpmn-js-differ load lazily, so a bundle
+  that imports the library for the loader loads none of them; a spec holds this. saxen
+  is a direct dependency of `bpmn-diff` at moddle-xml's version and so a runtime
+  dependency of `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads
+  the Camunda 7 and 8 prefixes and URIs from the descriptors; `BpmnDocument`'s copy is
+  #2464.
 
 
 ### DMN diff

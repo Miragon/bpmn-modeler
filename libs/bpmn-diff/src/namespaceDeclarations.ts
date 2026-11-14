@@ -10,7 +10,16 @@ export interface NamespaceDeclaration {
 }
 
 const XMLNS = "xmlns";
-const XMLNS_PREFIX = `${XMLNS}:`;
+export const XMLNS_PREFIX = `${XMLNS}:`;
+
+export function isNamespaceDeclaration(attributeName: string): boolean {
+    return attributeName === XMLNS || attributeName.startsWith(XMLNS_PREFIX);
+}
+
+export function namePrefix(qualifiedName: string): string | undefined {
+    const separator = qualifiedName.indexOf(":");
+    return separator > 0 ? qualifiedName.slice(0, separator) : undefined;
+}
 
 /**
  * Every `xmlns` declaration on an element of `xml`, in document order, with
@@ -23,7 +32,7 @@ export async function namespaceDeclarations(xml: string): Promise<NamespaceDecla
     new Parser()
         .on("openTag", (_name, getAttrs) => {
             for (const [name, value] of Object.entries(getAttrs())) {
-                if (name !== XMLNS && !name.startsWith(XMLNS_PREFIX)) continue;
+                if (!isNamespaceDeclaration(name)) continue;
                 const prefix = name === XMLNS ? undefined : name.slice(XMLNS_PREFIX.length);
                 declarations.push({ prefix, uri: decode(value) });
             }

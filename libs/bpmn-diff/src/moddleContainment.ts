@@ -1,4 +1,4 @@
-import type { ModdleElement } from "./bpmnModdleFactory";
+import { type ModdleElement, isModdleElement } from "./moddleElement";
 
 /** Visits `root` and every element it contains, never following a reference. */
 export function walkContainment(
@@ -33,10 +33,4 @@ export function containmentProperties(element: ModdleElement): string[] {
                 !property.isAttribute,
         )
         .map((property) => property.name);
-}
-
-export function isModdleElement(value: unknown): value is ModdleElement {
-    return Boolean(
-        value && typeof value === "object" && "$type" in value && "$descriptor" in value,
-    );
 }

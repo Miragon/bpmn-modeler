@@ -15,7 +15,7 @@ describe("elementXml", () => {
 </bpmn:definitions>`;
 
         await expect(elementXml(xml, "Task_1")).rejects.toThrow(
-            "The XML of Task_1 uses the namespace prefix team, which it does not declare.",
+            "The XML of Task_1 uses the namespace prefix team, which it does not declare: moddle-xml",
         );
     });
 });
