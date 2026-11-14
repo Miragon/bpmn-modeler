@@ -4,6 +4,7 @@ import "./orcaDiff.css";
 import { computeDiff, type DiffResult } from "@miragon/bpmn-modeler/diff";
 import {
     DiffLegend,
+    type DiffLegendContext,
     DiffPaneCoordinator,
     DiffSideLabel,
     DiffViewer,
@@ -26,92 +27,116 @@ export function startBpmnDiff(root: HTMLElement): void {
     i18n.extend(extras);
     i18n.setLanguage(orcaLanguage() as SupportedLocale);
     followOrcaTheme((theme) => applyPageThemeScope("data-bpmn-theme", theme));
-    const panes = mountDiffPanes(root);
-    let latest = 0;
-    let disposeShown = (): void => undefined;
-    followOrcaDiff((sides) => {
-        const run = ++latest;
-        disposeShown();
-        const shown = showDiff(panes, sides, () => run === latest);
-        disposeShown = shown.dispose;
-    });
+    const view = new BpmnDiffView(root);
+    followOrcaDiff((sides) => view.show(sides));
 }
 
-function mountDiffPanes(root: HTMLElement): DiffPanes {
-    root.innerHTML = `
-        <div class="orca-diff">
-            <div class="orca-diff-bar"></div>
-            <div class="orca-diff-pane" data-side="before"></div>
-            <div class="orca-diff-pane" data-side="after"></div>
-        </div>`;
-    return {
-        bar: root.querySelector<HTMLElement>(".orca-diff-bar")!,
-        before: root.querySelector<HTMLElement>('[data-side="before"]')!,
-        after: root.querySelector<HTMLElement>('[data-side="after"]')!,
-    };
+/** The tab's bar and two panes, showing the latest pair of sides Orca sent. */
+class BpmnDiffView {
+    private readonly panes: DiffPanes;
+
+    private shown: ShownDiff | undefined;
+
+    constructor(root: HTMLElement) {
+        this.panes = BpmnDiffView.mount(root);
+    }
+
+    show(sides: DiffSides): void {
+        this.shown?.dispose();
+        this.shown = new ShownDiff(this.panes, sides);
+    }
+
+    private static mount(root: HTMLElement): DiffPanes {
+        root.innerHTML = `
+            <div class="orca-diff">
+                <div class="orca-diff-bar"></div>
+                <div class="orca-diff-pane" data-side="before"></div>
+                <div class="orca-diff-pane" data-side="after"></div>
+            </div>`;
+        return {
+            bar: root.querySelector<HTMLElement>(".orca-diff-bar")!,
+            before: root.querySelector<HTMLElement>('[data-side="before"]')!,
+            after: root.querySelector<HTMLElement>('[data-side="after"]')!,
+        };
+    }
 }
 
-function showDiff(
-    panes: DiffPanes,
-    sides: DiffSides,
-    isCurrent: () => boolean,
-): { dispose(): void } {
-    const before = new DiffViewer(panes.before);
-    const after = new DiffViewer(panes.after);
-    // Created before the imports, so both panes take the same first fit.
-    const coordinator = new DiffPaneCoordinator(before, after);
-    const labels = [
-        new DiffSideLabel(panes.before, "before"),
-        new DiffSideLabel(panes.after, "after"),
-    ];
-    let legend: DiffLegend | null = null;
-    void Promise.all([importSide(before, sides.before), importSide(after, sides.after)])
-        .then(() => (sides.before && sides.after ? computeDiff(sides.before, sides.after) : null))
-        .then((result) => {
-            if (result && isCurrent()) {
-                legend = markChanges(panes, coordinator, result);
-            }
+/** One pair of sides in the panes: both diagrams, their markers, labels and the bar. */
+class ShownDiff {
+    private readonly before: DiffViewer;
+
+    private readonly after: DiffViewer;
+
+    private readonly coordinator: DiffPaneCoordinator;
+
+    private readonly labels: readonly DiffSideLabel[];
+
+    private legend: DiffLegend | undefined;
+
+    private disposed = false;
+
+    constructor(
+        private readonly panes: DiffPanes,
+        sides: DiffSides,
+    ) {
+        this.before = new DiffViewer(panes.before);
+        this.after = new DiffViewer(panes.after);
+        // Created before the imports, so both panes take the same first fit.
+        this.coordinator = new DiffPaneCoordinator(this.before, this.after);
+        this.labels = [
+            new DiffSideLabel(panes.before, "before"),
+            new DiffSideLabel(panes.after, "after"),
+        ];
+        void this.compare(sides);
+    }
+
+    dispose(): void {
+        this.disposed = true;
+        this.legend?.destroy();
+        this.labels.forEach((label) => label.destroy());
+        this.coordinator.destroy();
+        this.before.destroy();
+        this.after.destroy();
+    }
+
+    private async compare(sides: DiffSides): Promise<void> {
+        await Promise.all([
+            ShownDiff.importSide(this.before, sides.before),
+            ShownDiff.importSide(this.after, sides.after),
+        ]);
+        if (!sides.before || !sides.after) return;
+        const result = await computeDiff(sides.before, sides.after);
+        // A newer pair of sides may have replaced this one meanwhile.
+        if (!this.disposed) this.markChanges(result);
+    }
+
+    private markChanges(result: DiffResult): void {
+        this.coordinator.apply(result);
+        const shown = { counts: result.counts, canStep: this.coordinator.canStep };
+        const legend = new DiffLegend(this.panes.bar, {
+            onPrevious: () => this.step(() => this.coordinator.previous(), shown),
+            onNext: () => this.step(() => this.coordinator.next(), shown),
+            onShowAll: () => {
+                this.coordinator.reset();
+                legend.update(shown);
+            },
         });
-    return {
-        dispose() {
-            legend?.destroy();
-            labels.forEach((label) => label.destroy());
-            coordinator.destroy();
-            before.destroy();
-            after.destroy();
-        },
-    };
-}
+        legend.update(shown);
+        this.legend = legend;
+    }
 
-function markChanges(
-    panes: DiffPanes,
-    coordinator: DiffPaneCoordinator,
-    result: DiffResult,
-): DiffLegend {
-    coordinator.apply(result);
-    const shown = { counts: result.counts, canStep: coordinator.canStep };
-    const step = (move: () => void) => () => {
+    private step(move: () => void, shown: DiffLegendContext): void {
         move();
-        legend.update({
+        this.legend?.update({
             ...shown,
-            position: { index: coordinator.cursor, total: coordinator.cycleLength },
+            position: { index: this.coordinator.cursor, total: this.coordinator.cycleLength },
         });
-    };
-    const legend = new DiffLegend(panes.bar, {
-        onPrevious: step(() => coordinator.previous()),
-        onNext: step(() => coordinator.next()),
-        onShowAll: () => {
-            coordinator.reset();
-            legend.update(shown);
-        },
-    });
-    legend.update(shown);
-    return legend;
-}
+    }
 
-/** An added or deleted file has one empty side, which stays a blank pane. */
-async function importSide(viewer: DiffViewer, xml: string): Promise<void> {
-    if (xml) {
-        await viewer.importXML(xml);
+    /** An added or deleted file has one empty side, which stays a blank pane. */
+    private static async importSide(viewer: DiffViewer, xml: string): Promise<void> {
+        if (xml) {
+            await viewer.importXML(xml);
+        }
     }
 }
