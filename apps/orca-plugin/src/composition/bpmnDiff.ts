@@ -2,7 +2,12 @@ import "../../../../packages/bpmn-modeler/src/styles/viewer.css";
 import "./orcaDiff.css";
 
 import { computeDiff, type DiffResult } from "@miragon/bpmn-modeler/diff";
-import { DiffLegend, DiffPaneCoordinator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
+import {
+    DiffLegend,
+    DiffPaneCoordinator,
+    DiffSideLabel,
+    DiffViewer,
+} from "@miragon/bpmn-modeler/viewer";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import { applyPageThemeScope } from "@miragon/bpmn-modeler-shared";
@@ -11,6 +16,7 @@ import { followOrcaDiff, followOrcaTheme, orcaLanguage } from "../adapter/out/or
 import type { DiffSides } from "../port/diffSides";
 
 interface DiffPanes {
+    readonly bar: HTMLElement;
     readonly before: HTMLElement;
     readonly after: HTMLElement;
 }
@@ -34,10 +40,12 @@ export function startBpmnDiff(root: HTMLElement): void {
 function mountDiffPanes(root: HTMLElement): DiffPanes {
     root.innerHTML = `
         <div class="orca-diff">
+            <div class="orca-diff-bar"></div>
             <div class="orca-diff-pane" data-side="before"></div>
             <div class="orca-diff-pane" data-side="after"></div>
         </div>`;
     return {
+        bar: root.querySelector<HTMLElement>(".orca-diff-bar")!,
         before: root.querySelector<HTMLElement>('[data-side="before"]')!,
         after: root.querySelector<HTMLElement>('[data-side="after"]')!,
     };
@@ -52,6 +60,10 @@ function showDiff(
     const after = new DiffViewer(panes.after);
     // Created before the imports, so both panes take the same first fit.
     const coordinator = new DiffPaneCoordinator(before, after);
+    const labels = [
+        new DiffSideLabel(panes.before, "before"),
+        new DiffSideLabel(panes.after, "after"),
+    ];
     let legend: DiffLegend | null = null;
     void Promise.all([importSide(before, sides.before), importSide(after, sides.after)])
         .then(() => (sides.before && sides.after ? computeDiff(sides.before, sides.after) : null))
@@ -63,6 +75,7 @@ function showDiff(
     return {
         dispose() {
             legend?.destroy();
+            labels.forEach((label) => label.destroy());
             coordinator.destroy();
             before.destroy();
             after.destroy();
@@ -76,11 +89,19 @@ function markChanges(
     result: DiffResult,
 ): DiffLegend {
     coordinator.apply(result);
-    const legend = new DiffLegend(panes.after, {
-        onPrevious: () => coordinator.previous(),
-        onNext: () => coordinator.next(),
+    const shown = { counts: result.counts, canStep: coordinator.canStep };
+    const step = (move: () => void) => () => {
+        move();
+        legend.update({
+            ...shown,
+            position: { index: coordinator.cursor, total: coordinator.cycleLength },
+        });
+    };
+    const legend = new DiffLegend(panes.bar, {
+        onPrevious: step(() => coordinator.previous()),
+        onNext: step(() => coordinator.next()),
     });
-    legend.update({ counts: result.counts, canStep: coordinator.canStep });
+    legend.update(shown);
     return legend;
 }
 
