@@ -6,10 +6,8 @@ import {
     type Command,
     type ElementIdProposalsCommand,
     ElementIdProposalsQuery,
-    ElementIdReviewCommand,
     type ElementIdsAppliedCommand,
     FocusElementQuery,
-    GenerateElementIdsQuery,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
@@ -21,7 +19,10 @@ import {
     hiddenEditorReviewView,
     unsupportedReviewView,
 } from "../domain/elementIdReviewView";
-import { elementIdReviewNotice, SWITCH_MODE_TO_GENERATE_IDS } from "../domain/elementIdTexts";
+import {
+    ELEMENT_ID_REVIEW_UNAVAILABLE,
+    SWITCH_MODE_TO_GENERATE_IDS,
+} from "../domain/elementIdTexts";
 import type { ElementIdReviewPort } from "../port/bpmnPorts";
 
 /** The review a host shows in its own panel; the core keeps which rows are unchecked. */
@@ -35,9 +36,8 @@ interface HostReview {
 
 /**
  * Generate IDs from Names for every host: the VS Code command and the IntelliJ
- * action each make one call. A host with its own {@link ElementIdReviewPort}
- * shows the review there and hands its actions back here; otherwise the review
- * opens in the canvas.
+ * action each make one call. The host shows the review in its own
+ * {@link ElementIdReviewPort} and hands its actions back here.
  */
 export class ElementIdsService {
     private review: HostReview | undefined;
@@ -48,7 +48,7 @@ export class ElementIdsService {
         private readonly reviewPanel?: ElementIdReviewPort,
     ) {}
 
-    /** The editor's own "Review all IDs…" then asks the host instead of opening the canvas panel. */
+    /** Only then does the editor offer "Review all IDs…" under the ID field. */
     get hasReviewPanel(): boolean {
         return this.reviewPanel !== undefined;
     }
@@ -59,8 +59,7 @@ export class ElementIdsService {
      */
     async generate(editorId: string): Promise<void> {
         if (!this.reviewPanel) {
-            // The webview answers with an ElementIdReviewCommand; see reportReview.
-            await this.editorStore.postMessage(editorId, new GenerateElementIdsQuery());
+            this.notifier.showInfo(ELEMENT_ID_REVIEW_UNAVAILABLE);
             return;
         }
         const previous = this.review;
@@ -76,11 +75,6 @@ export class ElementIdsService {
             }
         }
         await this.askForRows();
-    }
-
-    reportReview(message: ElementIdReviewCommand): void {
-        const notice = elementIdReviewNotice(message.status);
-        if (notice) this.notifier.showInfo(notice);
     }
 
     reportProposals(editorId: string, message: ElementIdProposalsCommand): void {

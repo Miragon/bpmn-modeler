@@ -7,7 +7,6 @@ import type {
     BpmnModelerSetting,
     CleanupOutcome,
     ElementIdProposals,
-    ElementIdReviewOutcome,
     ElementTemplateRef,
     Engine,
     LintResults,
@@ -45,11 +44,10 @@ export interface ElementIdOptions {
     readonly followName?: boolean;
     readonly convention?: ElementIdConvention;
     /**
-     * Open the host's own review panel in place of the one along the canvas,
-     * for {@link BpmnModelerHandle.openElementIdReview} and "Review all IDs…"
-     * under the ID field. The host lists the review with
-     * {@link BpmnModelerHandle.proposeElementIds} and applies it with
-     * {@link BpmnModelerHandle.renameElementIds}.
+     * Open the host's own review of the whole diagram, which "Review all IDs…"
+     * under the ID field asks for; without it, the link is not offered. The
+     * host lists the review with {@link BpmnModelerHandle.proposeElementIds}
+     * and applies it with {@link BpmnModelerHandle.renameElementIds}.
      */
     readonly openReview?: () => void;
 }
@@ -341,26 +339,19 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
     /**
-     * [A] Open the review of IDs generated from element names: a panel along the
-     * bottom of the canvas lists every ID a name would change, grouped by kind,
-     * and applying it renames the checked elements in one undo step. DI and
-     * label IDs that follow the old ID follow the new one. References from other
-     * files are not updated.
-     */
-    openElementIdReview(): ElementIdReviewOutcome;
-
-    /**
-     * [A] The rows of that review, for a host that shows it in its own panel:
-     * every named element with the ID its name yields and whether it changes,
-     * and the IDs left `unchecked`, which keep their ID. Without `unchecked`,
-     * the rows the review starts with: process IDs unchecked. Recomputed from
-     * the live diagram on each call.
+     * [A] The rows of a review of IDs generated from element names, for a host
+     * to show in its own panel: every named element with the ID its name yields
+     * and whether it changes, and the IDs left `unchecked`, which keep their ID.
+     * Without `unchecked`, the rows a review starts with: process IDs unchecked.
+     * Recomputed from the live diagram on each call.
      */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
 
     /**
      * [A] Rename every element {@link proposeElementIds} lists as changing,
      * except the `unchecked` IDs, in one undo step; returns how many changed.
+     * DI and label IDs that follow the old ID follow the new one. References
+     * from other files are not updated.
      */
     renameElementIds(unchecked: readonly string[]): number;
 

@@ -761,23 +761,6 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
             expect(frames.some((f) => f.method === "elementIdReview/show")).toBe(false);
         });
 
-        it("stays quiet when the review opened", async () => {
-            const { rpc, frames, editorId } = await setupWithOpenEditor();
-            const before = frames.length;
-
-            await rpc.handleLine(
-                hostNotification("webview/message", {
-                    editorId,
-                    message: { type: "ElementIdReviewCommand", status: "opened" },
-                }),
-            );
-            await settle();
-
-            expect(
-                frames.slice(before).filter((f) => /^notifier\/show/.test(f.method ?? "")),
-            ).toEqual([]);
-        });
-
         it("asks the user to focus a diagram when no editor is open", async () => {
             const { rpc, frames } = await setup();
 

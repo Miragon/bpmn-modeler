@@ -262,11 +262,13 @@ describe("VS Code's add-on catalog", () => {
         const reviewAddOns = registerCommand.mock.calls.find(
             ([command]) => command === REVIEW_ADD_ONS_CMD,
         )?.[1];
+        // Activation sets context keys of its own; only what Review Add-ons runs counts here.
+        const activation = vscodeWindow.executedCommands.length;
 
         await reviewAddOns?.();
         await addOns.whenSettled();
 
-        expect(vscodeWindow.executedCommands).toEqual([
+        expect(vscodeWindow.executedCommands.slice(activation)).toEqual([
             { command: `${ADD_ONS_VIEW_ID}.focus`, args: [] },
         ]);
         const reveals = posted.filter((message) => message instanceof RevealAddOnsQuery);

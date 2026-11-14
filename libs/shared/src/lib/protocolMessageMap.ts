@@ -51,7 +51,6 @@ import type {
     DiffReadyCommand,
     DmnFileQuery,
     DmnModelerSettingQuery,
-    ElementIdReviewCommand,
     ElementTemplateFileQuery,
     ElementTemplatesQuery,
     FocusElementQuery,
@@ -69,7 +68,6 @@ import type {
     ElementIdProposalsCommand,
     ElementIdsAppliedCommand,
     OpenElementIdReviewCommand,
-    GenerateElementIdsQuery,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
     GetBpmnlintConfigCommand,
@@ -161,7 +159,6 @@ export type ProtocolQuery =
     | OpenAllScriptTasksQuery
     | FormatDiagramQuery
     | CleanupDiagramQuery
-    | GenerateElementIdsQuery
     | ElementIdConventionQuery
     | ElementIdProposalsQuery
     | ApplyElementIdsQuery
@@ -226,7 +223,6 @@ export type ProtocolCommand =
     | OpenScriptEditorCommand
     | DiagramFormattedCommand
     | CleanupReportCommand
-    | ElementIdReviewCommand
     | ElementIdProposalsCommand
     | ElementIdsAppliedCommand
     | OpenElementIdReviewCommand

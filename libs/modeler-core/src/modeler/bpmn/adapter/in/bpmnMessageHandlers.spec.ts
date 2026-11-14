@@ -5,7 +5,6 @@ import {
     Command,
     ElementIdProposalsCommand,
     ElementIdProposalsQuery,
-    ElementIdReviewCommand,
     ElementIdsAppliedCommand,
     GetBpmnFileCommand,
     OpenElementIdReviewCommand,
@@ -20,7 +19,6 @@ import { ElementIdsService } from "../../service/ElementIdsService";
 import {
     answerWithoutPluginsHandler,
     elementIdProposalsHandler,
-    elementIdReviewHandler,
     elementIdsAppliedHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
@@ -37,7 +35,6 @@ import {
 } from "./bpmnMessageHandlers";
 
 const EDITOR = "file:///work/diagram.bpmn";
-const SWITCH_MODE = "Switch to Design or Implement mode to generate IDs from names.";
 // Commands the read-style handlers ignore; a typed placeholder keeps signatures honest.
 const ANY: Command = { type: "Ignored" } as Command;
 
@@ -194,23 +191,6 @@ describe("answerWithoutPluginsHandler", () => {
             answerWithoutPluginsHandler(host.store)(ANY, editor.id),
         ).resolves.toBeUndefined();
         expect(editor.posted).toEqual([]);
-    });
-});
-
-describe("elementIdReviewHandler", () => {
-    it.each([
-        { status: "unsupported" as const, infos: [SWITCH_MODE] },
-        { status: "opened" as const, infos: [] },
-    ])("reports a $status review to the user as the core words it", async ({ status, infos }) => {
-        const host = createTestHost();
-        const editor = host.openEditor("/work/diagram.bpmn");
-
-        await elementIdReviewHandler(new ElementIdsService(host.store, host.notifier))(
-            new ElementIdReviewCommand(status),
-            editor.id,
-        );
-
-        expect(host.notifier.infos).toEqual(infos);
     });
 });
 

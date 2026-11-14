@@ -5,7 +5,6 @@ import {
     CleanupReportCommand,
     DiagramFormattedCommand,
     type ElementIdConventionQuery,
-    ElementIdReviewCommand,
     type ElementTemplatesQuery,
     type GetDiagramAsSVGCommand,
     type HiddenElementTemplatesQuery,
@@ -36,7 +35,6 @@ interface SurfaceRequestHandlers {
     OpenAllScriptTasksQuery(): void;
     FormatDiagramQuery(): Promise<void>;
     CleanupDiagramQuery(query: CleanupDiagramQuery): void;
-    GenerateElementIdsQuery(): void;
     ElementIdConventionQuery(query: ElementIdConventionQuery): Promise<void>;
     UpdateScriptContentQuery(query: UpdateScriptContentQuery): void;
     UpdateScriptFormatQuery(query: UpdateScriptFormatQuery): void;
@@ -160,14 +158,6 @@ export function createSurfaceRequests(
                         new CleanupReportCommand({ status: "failed", items: [], message }, apply),
                     );
                 }
-            },
-            GenerateElementIdsQuery: () => {
-                const surface = getSurface();
-                // Always reply, so View mode reaches the user as a notice.
-                const { status } = isEditableSurface(surface)
-                    ? surface.openElementIdReview()
-                    : { status: "unsupported" as const };
-                host.postMessage(new ElementIdReviewCommand(status));
             },
             ElementIdConventionQuery: async (query) => {
                 hostModelerState.rememberElementIdConvention(query.options);

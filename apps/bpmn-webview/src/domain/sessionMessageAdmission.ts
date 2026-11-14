@@ -17,7 +17,6 @@ export type SessionMessageType =
     | "OpenAllScriptTasksQuery"
     | "FormatDiagramQuery"
     | "CleanupDiagramQuery"
-    | "GenerateElementIdsQuery"
     | "ElementIdConventionQuery"
     | "ElementIdProposalsQuery"
     | "ApplyElementIdsQuery"

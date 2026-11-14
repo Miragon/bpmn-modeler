@@ -1,5 +1,4 @@
 import type { DiagramElementLike } from "./candidates";
-import type { ElementIdReview } from "./ElementIdReview";
 import type { ElementIdsService } from "./ElementIdsService";
 import { IdFromNameEntry } from "./IdFromNameEntry";
 import { fallbackTranslate, type Translate } from "./translate";
@@ -32,14 +31,13 @@ interface InjectorLike {
  * because Implement mode renders the upstream panel, whose ID entry we do not own.
  */
 export class IdFromNamePropertiesProvider {
-    static $inject = ["injector", "elementIds", "elementIdReview"];
+    static $inject = ["injector", "elementIds"];
 
     private readonly translate: Translate;
 
     constructor(
         injector: InjectorLike,
         private readonly elementIds: ElementIdsService,
-        private readonly review: ElementIdReview,
     ) {
         this.translate = injector.get<Translate>("translate", false) ?? fallbackTranslate;
         injector
@@ -61,7 +59,7 @@ export class IdFromNamePropertiesProvider {
                         this.elementIds.proposalFor(target),
                     renameFromName: (target: DiagramElementLike) =>
                         this.elementIds.renameFromName(target),
-                    openReview: () => this.review.open(),
+                    openReview: this.elementIds.hostReview(),
                     translate: this.translate,
                 } as PropertiesEntry);
             }

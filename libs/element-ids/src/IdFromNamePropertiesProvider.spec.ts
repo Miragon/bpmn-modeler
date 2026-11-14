@@ -2,7 +2,6 @@ import { h, render } from "@bpmn-io/properties-panel/preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ElementIdReview } from "./ElementIdReview";
 import type { ElementIdProposal, ElementIdsService } from "./ElementIdsService";
 import { IdFromNameEntry, type IdFromNameEntryProps } from "./IdFromNameEntry";
 import { IdFromNamePropertiesProvider } from "./IdFromNamePropertiesProvider";
@@ -10,20 +9,27 @@ import { fallbackTranslate } from "./translate";
 
 const task = { id: "Activity_1", type: "bpmn:Task" };
 
-function provider(withPanel = true) {
+// `null`: the host has no review of its own.
+function provider(withPanel = true, hostReview: (() => void) | null = vi.fn()) {
     const registered: number[] = [];
     const services: Record<string, unknown> = withPanel
         ? { propertiesPanel: { registerProvider: (priority: number) => registered.push(priority) } }
         : {};
-    const elementIds = { proposalFor: vi.fn(), renameFromName: vi.fn() };
-    const review = { open: vi.fn() };
+    const elementIds = {
+        proposalFor: vi.fn(),
+        renameFromName: vi.fn(),
+        hostReview: vi.fn(() => hostReview ?? undefined),
+    };
     const instance = new IdFromNamePropertiesProvider(
         { get: <T>(name: string) => (services[name] ?? null) as T | null },
         elementIds as unknown as ElementIdsService,
-        review as unknown as ElementIdReview,
     );
-    return { instance, registered, elementIds, review };
+    return { instance, registered, elementIds, hostReview };
 }
+
+const entryOf = (instance: IdFromNamePropertiesProvider) =>
+    instance.getGroups(task)([{ id: "general", entries: [{ id: "id" }] }])[0]
+        ?.entries?.[1] as unknown as IdFromNameEntryProps;
 
 describe("IdFromNamePropertiesProvider", () => {
     it("registers below the engine and template providers and above the mode filter", () => {
@@ -63,18 +69,20 @@ describe("IdFromNamePropertiesProvider", () => {
         ]);
     });
 
-    it("wires the entry to the services", () => {
-        const { instance, elementIds, review } = provider();
-        const [general] = instance.getGroups(task)([{ id: "general", entries: [{ id: "id" }] }]);
-        const entry = general?.entries?.[1] as unknown as IdFromNameEntryProps;
+    it("wires the entry to the services and to the host's own review", () => {
+        const { instance, elementIds, hostReview } = provider();
+        const entry = entryOf(instance);
 
         entry.proposalFor(task);
         entry.renameFromName(task);
-        entry.openReview();
 
         expect(elementIds.proposalFor).toHaveBeenCalledWith(task);
         expect(elementIds.renameFromName).toHaveBeenCalledWith(task);
-        expect(review.open).toHaveBeenCalled();
+        expect(entry.openReview).toBe(hostReview);
+    });
+
+    it("offers no review of the whole diagram where the host has no panel for it", () => {
+        expect(entryOf(provider(true, null).instance).openReview).toBeUndefined();
     });
 });
 
@@ -88,7 +96,10 @@ describe("IdFromNameEntry", () => {
         }
     });
 
-    function mount(status: ElementIdProposal["status"] | undefined) {
+    function mount(
+        status: ElementIdProposal["status"] | undefined,
+        openReview: (() => void) | null = vi.fn(),
+    ) {
         container = document.createElement("div");
         document.body.appendChild(container);
         const props: IdFromNameEntryProps = {
@@ -101,12 +112,12 @@ describe("IdFromNameEntry", () => {
                           newId: status === "rename" ? "Task_Check" : undefined,
                       } as ElementIdProposal),
             renameFromName: vi.fn(),
-            openReview: vi.fn(),
+            openReview: openReview ?? undefined,
             translate: fallbackTranslate,
         };
         act(() => render(h(IdFromNameEntry, props), container!));
         const [generate, review] = [...container.querySelectorAll<HTMLButtonElement>(".eid-link")];
-        return { props, generate: generate!, review: review! };
+        return { props, generate: generate!, review };
     }
 
     it("offers the ID the name yields and renames to it", () => {
@@ -131,12 +142,19 @@ describe("IdFromNameEntry", () => {
         expect(generate.title).toBe(reason);
     });
 
-    it("opens the review for the whole diagram", () => {
+    it("opens the host's review of the whole diagram", () => {
         const { props, review } = mount("matches");
 
-        act(() => review.click());
+        act(() => review!.click());
 
-        expect(review.textContent).toBe("Review all IDs…");
+        expect(review!.textContent).toBe("Review all IDs…");
         expect(props.openReview).toHaveBeenCalled();
+    });
+
+    it("shows only Generate from name where the host has no review", () => {
+        const { review } = mount("rename", null);
+
+        expect(review).toBeUndefined();
+        expect(container!.querySelector(".eid-separator")).toBeNull();
     });
 });

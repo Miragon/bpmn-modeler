@@ -22,7 +22,6 @@ import {
     describeScriptSurface,
     DisposableStore,
     type ElementIdProposals,
-    type ElementIdReviewOutcome,
     type ElementTemplateRef,
     Engine,
     engineSupports,
@@ -59,7 +58,6 @@ import {
     elementIdSettingsOf,
     formatSurfaceDiagram,
     installClipboardSupport,
-    openSurfaceElementIdReview,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
     subscribeCommandStackChanged,
@@ -546,11 +544,6 @@ export class BpmnModeler {
             this.setSettings({ elementIdsFollowName: followName });
         }
         applyElementIdSettings(this.core, options);
-    }
-
-    /** @see BpmnModelerHandle.openElementIdReview */
-    openElementIdReview(): ElementIdReviewOutcome {
-        return openSurfaceElementIdReview(this.core);
     }
 
     /** @see BpmnModelerHandle.proposeElementIds */

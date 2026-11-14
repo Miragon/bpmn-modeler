@@ -5,10 +5,8 @@ import {
     CloseElementIdReviewQuery,
     ElementIdProposalsCommand,
     ElementIdProposalsQuery,
-    ElementIdReviewCommand,
     ElementIdsAppliedCommand,
     FocusElementQuery,
-    GenerateElementIdsQuery,
 } from "@miragon/bpmn-modeler-shared";
 import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
 
@@ -26,57 +24,17 @@ function createService() {
     return { service, host, editor, notifier: host.notifier };
 }
 
-describe("ElementIdsService.generate", () => {
-    it("asks the given editor to open the review of IDs generated from names", async () => {
-        const { service, editor } = createService();
+describe("ElementIdsService on a host without a review panel", () => {
+    it("says the editor cannot show the review, and asks no editor for its rows", async () => {
+        const { service, editor, notifier } = createService();
 
         await service.generate(editor.id);
 
-        expect(editor.posted).toHaveLength(1);
-        expect(editor.posted[0]).toBeInstanceOf(GenerateElementIdsQuery);
-    });
-
-    it("asks only the editor the command targets", async () => {
-        const { service, host, editor } = createService();
-        const other = host.openEditor("/work/other.bpmn");
-
-        await service.generate(other.id);
-
-        expect(other.postedOfType("GenerateElementIdsQuery")).toHaveLength(1);
+        expect(notifier.infos).toEqual([
+            "This editor cannot show the review of IDs generated from names. Use Generate from name under an element's ID.",
+        ]);
         expect(editor.posted).toEqual([]);
-    });
-
-    it("rejects for an editor that is not open, so the host can ask for a diagram", async () => {
-        const { service, editor, notifier } = createService();
-
-        await expect(service.generate("file:///work/closed.bpmn")).rejects.toThrow(
-            "No editor found for id: file:///work/closed.bpmn",
-        );
-
-        expect(editor.posted).toEqual([]);
-        expect(notifier.infos).toEqual([]);
-    });
-});
-
-describe("ElementIdsService.reportReview", () => {
-    it("tells the user to switch modes when the editor cannot change IDs", () => {
-        const { service, notifier } = createService();
-
-        service.reportReview(new ElementIdReviewCommand("unsupported"));
-
-        expect(notifier.infos).toEqual([SWITCH_MODE]);
-        expect(notifier.warnings).toEqual([]);
-        expect(notifier.errors).toEqual([]);
-    });
-
-    it("stays quiet when the review opened, as the review speaks for itself", () => {
-        const { service, notifier } = createService();
-
-        service.reportReview(new ElementIdReviewCommand("opened"));
-
-        expect(notifier.infos).toEqual([]);
-        expect(notifier.warnings).toEqual([]);
-        expect(notifier.errors).toEqual([]);
+        expect(service.hasReviewPanel).toBe(false);
     });
 });
 
@@ -139,14 +97,27 @@ async function openReview() {
 }
 
 describe("ElementIdsService with the host's own review panel", () => {
-    it("asks the editor for the review's rows instead of opening it in the canvas", async () => {
-        const { service, editor, panel } = createPanelService();
+    it("asks the editor the command targets for the review's rows", async () => {
+        const { service, host, editor, panel } = createPanelService();
+        const other = host.openEditor("/work/other.bpmn");
 
         await service.generate(editor.id);
 
         expect(service.hasReviewPanel).toBe(true);
         expect(editor.posted).toEqual([new ElementIdProposalsQuery(null)]);
+        expect(other.posted).toEqual([]);
         expect(panel.shown).toEqual([]);
+    });
+
+    it("rejects for an editor that is not open, so the host can ask for a diagram", async () => {
+        const { service, editor, notifier } = createPanelService();
+
+        await expect(service.generate("file:///work/closed.bpmn")).rejects.toThrow(
+            "No editor found for id: file:///work/closed.bpmn",
+        );
+
+        expect(editor.posted).toEqual([]);
+        expect(notifier.infos).toEqual([]);
     });
 
     it("shows the rows the editor lists, under the diagram's file name", async () => {
@@ -282,10 +253,13 @@ describe("ElementIdsService with the host's own review panel", () => {
         expect(panel.closed).toBe(1);
     });
 
-    it("leaves a host without a panel to the canvas review", async () => {
-        const { service } = createService();
+    it("has no review to act on for a host without a panel", async () => {
+        const { service, editor } = createService();
 
-        expect(service.hasReviewPanel).toBe(false);
-        await expect(service.apply()).resolves.toBeUndefined();
+        await service.apply();
+        await service.discard();
+        await service.reveal("Activity_1");
+
+        expect(editor.posted).toEqual([]);
     });
 });

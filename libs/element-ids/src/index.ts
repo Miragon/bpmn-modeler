@@ -1,14 +1,14 @@
 /**
- * bpmn-js DI module that generates element IDs from element names: a review
- * panel for the whole diagram (`elementIdReview.open()`), "Generate from name"
- * under the properties panel's ID field, and IDs that follow their names when
+ * bpmn-js DI module that generates element IDs from element names: the rows of
+ * a review for a host to show in its own panel (`elementIds.list()`) and their
+ * rename (`elementIds.rename()`), "Generate from name" under the properties
+ * panel's ID field, and IDs that follow their names when
  * `elementIds.configure({ followName: true })` is set. IDs follow the lint rule
  * `@miragon/rules/element-id-naming` through the convention the lint stack hands
  * in with `elementIds.configure({ convention })`.
  */
 import "./elementIds.css";
 
-import { ElementIdReview } from "./ElementIdReview";
 import { ElementIdsService } from "./ElementIdsService";
 import { FollowNameBehavior } from "./FollowNameBehavior";
 import { IdFromNamePropertiesProvider } from "./IdFromNamePropertiesProvider";
@@ -19,7 +19,6 @@ import {
     UpdateLabelIdHandler,
 } from "./RenameElementIdsHandler";
 
-export type { ElementIdReview } from "./ElementIdReview";
 export type { IdConvention } from "./convention";
 export type { ElementIdOptions, ElementIdProposal, ElementIdsService } from "./ElementIdsService";
 
@@ -52,7 +51,6 @@ export const ElementIdsModule = {
     __init__: ["elementIdCommands", "followNameBehavior", "idFromNamePropertiesProvider"],
     elementIdCommands: ["type", ElementIdCommands],
     elementIds: ["type", ElementIdsService],
-    elementIdReview: ["type", ElementIdReview],
     followNameBehavior: ["type", FollowNameBehavior],
     idFromNamePropertiesProvider: ["type", IdFromNamePropertiesProvider],
 };

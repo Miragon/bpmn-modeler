@@ -28,7 +28,7 @@ export interface ElementIdOptions {
     readonly followName?: boolean;
     /** The lint rule's convention, which the lint stack builds and hands in. */
     readonly convention?: IdConvention;
-    /** Opens the host's own review panel in place of the canvas panel. */
+    /** Opens the host's own review of the whole diagram, which "Review all IDs…" asks for. */
     readonly openReview?: () => void;
 }
 
@@ -45,7 +45,7 @@ const rowOf = ({ candidate, status, newId, clash }: ElementIdProposal): ElementI
 
 /**
  * Proposes IDs from names and applies them. Everything recomputes from the live
- * diagram on each call, so an edit made while the review is open is never
+ * diagram on each call, so an edit made while a host's review is open is never
  * overwritten with a stale proposal.
  */
 export class ElementIdsService {
@@ -67,10 +67,9 @@ export class ElementIdsService {
         this.openReview = options.openReview ?? this.openReview;
     }
 
-    /** Whether the host took the review into its own panel. */
-    openHostReview(): boolean {
-        this.openReview?.();
-        return this.openReview !== undefined;
+    /** The host's own review of the whole diagram; none where the host has no panel for it. */
+    hostReview(): (() => void) | undefined {
+        return this.openReview;
     }
 
     getSettings(): ElementIdSettings {

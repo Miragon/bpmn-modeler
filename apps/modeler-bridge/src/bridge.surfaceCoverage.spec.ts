@@ -47,7 +47,6 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         UpdateScriptVariablesCommand: HANDLED,
         DiagramFormattedCommand: HANDLED,
         CleanupReportCommand: HANDLED,
-        ElementIdReviewCommand: HANDLED,
         ElementIdProposalsCommand: HANDLED,
         ElementIdsAppliedCommand: HANDLED,
         OpenElementIdReviewCommand: HANDLED,

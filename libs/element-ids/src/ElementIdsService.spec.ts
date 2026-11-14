@@ -168,16 +168,15 @@ describe("ElementIdsService", () => {
     });
 
     describe("the host's own review", () => {
-        it("opens it when the host handed one in", () => {
+        it("keeps the review the host handed in", () => {
             const { service } = setUp([]);
-            let opened = 0;
+            const openReview = () => undefined;
 
-            expect(service.openHostReview()).toBe(false);
-            service.configure({ openReview: () => opened++ });
+            expect(service.hostReview()).toBeUndefined();
+            service.configure({ openReview });
             service.configure({ followName: true });
 
-            expect(service.openHostReview()).toBe(true);
-            expect(opened).toBe(1);
+            expect(service.hostReview()).toBe(openReview);
         });
     });
 

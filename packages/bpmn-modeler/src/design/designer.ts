@@ -35,7 +35,6 @@ import {
     createSurfaceLintHandle,
     formatSurfaceDiagram,
     installClipboardSupport,
-    openSurfaceElementIdReview,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
     subscribeCommandStackChanged,
@@ -47,7 +46,6 @@ import type {
     BpmnlintConfig,
     CleanupOutcome,
     ElementIdProposals,
-    ElementIdReviewOutcome,
     LintResults,
 } from "@miragon/bpmn-modeler-types";
 import type { ElementIdOptions, ThemeMode } from "../publicApi";
@@ -250,11 +248,6 @@ export class BpmnDesigner {
     /** @see BpmnDesignerHandle.setElementIdSettings */
     setElementIdSettings(options: ElementIdOptions): void {
         applyElementIdSettings(this.core, options);
-    }
-
-    /** @see BpmnDesignerHandle.openElementIdReview */
-    openElementIdReview(): ElementIdReviewOutcome {
-        return openSurfaceElementIdReview(this.core);
     }
 
     /** @see BpmnDesignerHandle.proposeElementIds */

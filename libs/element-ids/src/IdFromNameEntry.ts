@@ -9,7 +9,8 @@ export interface IdFromNameEntryProps {
     readonly element: DiagramElementLike;
     readonly proposalFor: (element: DiagramElementLike) => ElementIdProposal | undefined;
     readonly renameFromName: (element: DiagramElementLike) => void;
-    readonly openReview: () => void;
+    /** The host's own review of the whole diagram; without one, the entry offers only one element. */
+    readonly openReview: (() => void) | undefined;
     readonly translate: Translate;
 }
 
@@ -45,11 +46,12 @@ export function IdFromNameEntry({
             },
             translate("Generate from name"),
         ),
-        h("span", { "class": "eid-separator", "aria-hidden": "true" }, "·"),
-        h(
-            "button",
-            { type: "button", class: "eid-link", onClick: openReview },
-            translate("Review all IDs…"),
-        ),
+        openReview && h("span", { "class": "eid-separator", "aria-hidden": "true" }, "·"),
+        openReview &&
+            h(
+                "button",
+                { type: "button", class: "eid-link", onClick: openReview },
+                translate("Review all IDs…"),
+            ),
     );
 }

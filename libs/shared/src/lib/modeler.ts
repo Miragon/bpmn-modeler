@@ -24,7 +24,6 @@
  * - {@link ImplementationStatusQuery}     — push the per-activity implementation-resolution map for context-pad visibility
  * - {@link FormatDiagramQuery}            — rearrange the diagram (DI only), one undo step
  * - {@link CleanupDiagramQuery}           — report, or on confirmation remove, diagram garbage
- * - {@link GenerateElementIdsQuery}       — open the review of IDs generated from element names
  * - {@link ElementIdConventionQuery}      — deliver the lint rule's convention for IDs generated from names
  * - {@link ElementIdProposalsQuery}       — list the review's rows for the host's panel, and keep it posted
  * - {@link ApplyElementIdsQuery}          — rename the rows the host's panel left checked
@@ -43,7 +42,6 @@
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
  * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
- * - {@link ElementIdReviewCommand}            — whether the element ID review opened
  * - {@link ElementIdProposalsCommand}         — the review's rows for the host's panel
  * - {@link ElementIdsAppliedCommand}          — how many IDs the host's review renamed
  * - {@link OpenElementIdReviewCommand}        — the ID field's link asks for the host's review
@@ -79,7 +77,6 @@ import type {
     DiffSide,
     DmnModelerSetting,
     ElementIdConventionOptions,
-    ElementIdReviewStatus,
     ElementIdRow,
     ElementTemplateRef,
     Engine,
@@ -995,16 +992,6 @@ export class CleanupReportCommand extends Command<"CleanupReportCommand"> {
 }
 
 /**
- * Host → webview: open the review of IDs generated from element names. Carries
- * no payload; the webview answers with an {@link ElementIdReviewCommand}.
- */
-export class GenerateElementIdsQuery extends Query<"GenerateElementIdsQuery"> {
-    constructor() {
-        super("GenerateElementIdsQuery");
-    }
-}
-
-/**
  * Host → webview: the options the document's lint config gives the rule
  * `@miragon/rules/element-id-naming`, so IDs generated from names follow it.
  * Empty options mean the rule's Miragon defaults. Sent whenever the lint
@@ -1017,8 +1004,10 @@ export class ElementIdConventionQuery extends Query<"ElementIdConventionQuery"> 
 }
 
 /**
- * Host → webview: list the element ID review's rows for the host's own panel,
- * and post them again after every diagram change until the review closes.
+ * Host → webview: list the rows of the review of IDs generated from names for
+ * the host's own panel, and post them again after every diagram change until
+ * the review closes. A surface that cannot change IDs, such as View mode,
+ * answers `unsupported`.
  * `null` asks for the rows the review starts with, processes unchecked.
  * Answered with an {@link ElementIdProposalsCommand}.
  */
@@ -1067,16 +1056,6 @@ export class CloseElementIdReviewQuery extends Query<"CloseElementIdReviewQuery"
 export class OpenElementIdReviewCommand extends Command<"OpenElementIdReviewCommand"> {
     constructor() {
         super("OpenElementIdReviewCommand");
-    }
-}
-
-/**
- * Webview → host: whether the review opened. Always sent, so a surface that
- * cannot change IDs reaches the user as a notice instead of silence.
- */
-export class ElementIdReviewCommand extends Command<"ElementIdReviewCommand"> {
-    constructor(public readonly status: ElementIdReviewStatus) {
-        super("ElementIdReviewCommand");
     }
 }
 
