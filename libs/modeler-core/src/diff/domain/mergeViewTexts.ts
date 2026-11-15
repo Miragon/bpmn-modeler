@@ -7,6 +7,9 @@ import { ConflictReading } from "./conflictReading";
 export type MergeViewRefusal =
     Exclude<ConflictReading, { readonly kind: "resolvable" }> | { readonly kind: "noFile" };
 
+/** The command's title and the notice's action, which the host's manifest repeats. */
+export const RESOLVE_IN_MERGE_VIEW_LABEL = "Resolve in BPMN Merge View";
+
 const OTHER_SIDE: Record<MergeSide, MergeSide> = { current: "incoming", incoming: "current" };
 
 const REFUSAL_TEXT: {
@@ -45,7 +48,7 @@ export function conflictMarkerNotice(fileName: string): ActionNotice<"openMergeV
         id: "conflictMarkers",
         tone: "warning",
         message: `${fileName} holds Git conflict markers, so the modeler cannot show it. Resolve the conflict in the BPMN merge view.`,
-        actions: [{ label: "Resolve in BPMN Merge View", value: "openMergeView" }],
+        actions: [{ label: RESOLVE_IN_MERGE_VIEW_LABEL, value: "openMergeView" }],
     };
 }
 

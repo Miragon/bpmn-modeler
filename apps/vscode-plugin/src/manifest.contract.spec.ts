@@ -41,6 +41,7 @@ import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOns
 import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
 import { OPEN_BPMN_MERGE_VIEW } from "./diff/adapter/in/MergeController";
 import { MERGE_SIDE_SCHEME } from "./diff/domain/documentRevision";
+import { RESOLVE_IN_MERGE_VIEW_LABEL } from "@miragon/bpmn-modeler-core";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -220,7 +221,7 @@ describe("package.json ↔ code contract", () => {
         expect(
             manifest.contributes.commands.find(({ command }) => command === OPEN_BPMN_MERGE_VIEW),
         ).toMatchObject({
-            title: "Resolve in BPMN Merge View",
+            title: RESOLVE_IN_MERGE_VIEW_LABEL,
             category: "Miragon BPMN Modeler",
             icon: "$(git-merge)",
         });
