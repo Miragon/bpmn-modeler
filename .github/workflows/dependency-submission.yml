@@ -47,5 +47,9 @@ jobs:
         uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           build-root-directory: apps/intellij-plugin
+          # Only what ships in the plugin. The other configurations hold the
+          # Gradle plugins' own classpath and the IDE's test framework, whose
+          # advisories only a JetBrains release can move.
+          dependency-graph-include-configurations: runtimeClasspath
           dependency-graph: ${{ github.event_name == 'pull_request' && 'generate-and-upload' || 'generate-and-submit' }}
           artifact-retention-days: 1

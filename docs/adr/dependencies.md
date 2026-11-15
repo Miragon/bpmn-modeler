@@ -157,7 +157,12 @@ stays where the lockfile first resolved it until something re-resolves it.
   security update is merged.
 - The dependency graph holds no Gradle package of the IntelliJ plugin by itself,
   so a [workflow](../../.github/workflows/dependency-submission.yml) submits the
-  resolved graph on main; without it those dependencies raise no alert.
+  resolved graph on main; without it those dependencies raise no alert. It
+  submits the runtime classpath only, which is what the plugin ships. The full
+  graph added the Gradle plugins' own classpath and the IDE's test framework,
+  whose advisories (Jackson, jsoup) only a JetBrains release can move; the weekly
+  Gradle version update is their fix. Advisories in build-time Gradle tooling are
+  therefore not visible as alerts.
 - CodeQL scans TypeScript, the workflows and the plugin's Kotlin. Kotlin needs a
   traced compilation, which adds a Gradle build to every run. Secret scanning
   with push protection is a repository setting, not a file in this repo.
