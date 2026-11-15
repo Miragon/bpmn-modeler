@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { ConflictStageFacts } from "../domain/conflictFacts";
 
