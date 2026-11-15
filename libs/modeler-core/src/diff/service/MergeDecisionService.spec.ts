@@ -12,6 +12,7 @@ import type {
 import {
     type ApplyMergeStatesQuery,
     type MergeObstacleKind,
+    type MergeObstacleWithMissing,
     type MergePaneBadge,
     type MergePanePickable,
     type MergePanePickNotDrawn,
@@ -47,16 +48,23 @@ const CAPTIONS = {
     incoming: { side: "incoming", role: "upstream", ref: "feature" },
 } as const;
 
+/** The services of one host, which a merge view of the same file opened again shares. */
+function mergeHost(elementXml?: ElementXmlChanges) {
+    const { notifier, settings } = createTestHost();
+    const store = new DiffPaneStore();
+    const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
+    const decisions = new MergeDecisionService(sessions, notifier);
+    const diffService = new BpmnDiffService(notifier, settings, store, elementXml, decisions);
+    return { store, sessions, diffService };
+}
+
 /** A merge view of `stages` whose two panes are attached but not yet ready. */
 async function openMergeView(
     stages: ResolvableStages = ORDER_MERGE_STAGES,
     elementXml?: ElementXmlChanges,
+    host = mergeHost(elementXml),
 ) {
-    const { notifier, settings } = createTestHost();
-    const store = new DiffPaneStore();
-    const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
-    const decisions = new MergeDecisionService(sessions, store, notifier);
-    const diffService = new BpmnDiffService(notifier, settings, store, elementXml, decisions);
+    const { store, sessions, diffService } = host;
     const diffSession = store.registerMerge(URIS);
     sessions.add(
         await mergeSessionOf({
@@ -77,15 +85,14 @@ async function openMergeView(
         await diffService.markReady(current);
         await diffService.markReady(incoming);
     };
-    const elementXmlChanges = elementXml !== undefined;
     const pick = (pane: FakeDiffPaneHandle, elementId: string, scope: MergePickScope = "element") =>
-        decisions.pick(pane, elementId, scope, elementXmlChanges);
+        diffService.pickMergeSide(pane, elementId, scope);
     const unpick = (
         pane: FakeDiffPaneHandle,
         elementId: string,
         scope: MergePickScope = "element",
-    ) => decisions.unpick(pane, elementId, scope, elementXmlChanges);
-    return { diffService, current, incoming, bothReady, store, sessions, pick, unpick };
+    ) => diffService.unpickMerge(pane, elementId, scope);
+    return { host, diffService, current, incoming, bothReady, store, sessions, pick, unpick };
 }
 
 function statesOf(pane: FakeDiffPaneHandle): ApplyMergeStatesQuery[] {
@@ -265,6 +272,9 @@ describe("MergeDecisionService", () => {
         expectTypeOf<MergePanePickNotDrawn>().toEqualTypeOf<PickNotDrawn>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
+        expectTypeOf<MergeObstacleWithMissing>().toEqualTypeOf<
+            Extract<RequirementObstacle, { missing: unknown }>["kind"]
+        >();
     });
 
     describe("picks", () => {
@@ -335,7 +345,7 @@ describe("MergeDecisionService", () => {
             const { states } = lastStatesOf(current);
             expect(states.lastOutcome).toStrictEqual({
                 applied: false,
-                action: "pick",
+                action: "leaveOut",
                 elementId: "Task_Pack",
                 blockedBy: [
                     { elementId: "Flow_2", targetId: "Task_Pack", obstacle: "dependentPicked" },
@@ -464,18 +474,72 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(incoming).states.restoreOffer).toBeDefined();
         });
 
-        it("forgets the picks when the session closes", async () => {
-            const { current, incoming, bothReady, pick, store, sessions } = await openMergeView();
+        it("forgets the picks and what they did when the session closes", async () => {
+            const { host, current, incoming, bothReady, pick, store, sessions } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
             await pick(incoming, "Task_Pack");
+            expect(lastStatesOf(current).states.picksNotDrawn).not.toStrictEqual([]);
 
             store.detach(current);
             store.detach(incoming);
 
             expect(sessions.of("file:///repo/order.bpmn")).toBeUndefined();
-            const reopened = await openMergeView();
+            const reopened = await openMergeView(ORDER_REMOVAL_STAGES, undefined, host);
             await reopened.bothReady();
-            expect(lastStatesOf(reopened.incoming).states.badges).toStrictEqual([]);
+            for (const pane of [reopened.current, reopened.incoming]) {
+                const { states } = lastStatesOf(pane);
+                expect(states.badges).toStrictEqual([]);
+                expect(states.picksNotDrawn).toStrictEqual([]);
+                expect(states.lastOutcome).toBeUndefined();
+                expect(states.restoreOffer).toBeUndefined();
+            }
+        });
+
+        it("calls a pick from the side that removed an element leaving it out", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(current, "Task_Pack");
+
+            expect(lastStatesOf(incoming).states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "leaveOut",
+                elementId: "Task_Pack",
+            });
+        });
+
+        it("ignores an Undo of an element no longer picked, keeping what the last pick did", async () => {
+            const { diffService, current, incoming, bothReady, pick, unpick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+            await pick(incoming, "Task_Pack");
+            const before = lastStatesOf(incoming);
+            current.posted.length = 0;
+            incoming.posted.length = 0;
+
+            await unpick(current, "Task_Check");
+
+            expect(statesOf(current)).toStrictEqual([]);
+            expect(statesOf(incoming)).toStrictEqual([]);
+            await diffService.markReady(incoming);
+            expect(lastStatesOf(incoming)).toStrictEqual(before);
+        });
+
+        it("names the elements the legend names as the side the merge takes them from, the same on both panes", async () => {
+            const { current, incoming, bothReady, pick } = await openMergeView();
+            await bothReady();
+
+            await pick(current, "Process_1");
+            for (const pane of [current, incoming]) {
+                expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order A" });
+            }
+
+            await pick(incoming, "Process_1");
+            for (const pane of [current, incoming]) {
+                expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order B" });
+            }
         });
 
         it("ignores a pick from a pane of no merge view", async () => {

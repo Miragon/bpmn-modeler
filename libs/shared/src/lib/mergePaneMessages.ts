@@ -80,18 +80,31 @@ export type MergeObstacleKind =
     | "idHeldByAnother"
     | "processInAnotherCollaboration";
 
+/** The obstacles that tell whether the element misses the whole target or only a part inside it. */
+export type MergeObstacleWithMissing = "targetPickedWithout" | "sideLacksTarget";
+
 /** One reason a pick was refused: the element it would have to change, and the element that element needs. */
-export interface MergePaneBlock {
-    readonly elementId: string;
-    readonly targetId: string;
-    readonly obstacle: MergeObstacleKind;
-}
+export type MergePaneBlock =
+    | {
+          readonly elementId: string;
+          readonly targetId: string;
+          readonly obstacle: MergeObstacleWithMissing;
+          readonly missing: "target" | "part";
+      }
+    | {
+          readonly elementId: string;
+          readonly targetId: string;
+          readonly obstacle: Exclude<MergeObstacleKind, MergeObstacleWithMissing>;
+      };
+
+/** What the user did: kept an element, kept it out from a side that removed it, or took a pick back. */
+export type MergePaneAction = "pick" | "leaveOut" | "unpick";
 
 /** What the user's last pick or undo did, on both panes of the merge view. */
 export type MergePaneOutcome =
     | {
           readonly applied: true;
-          readonly action: "pick" | "unpick";
+          readonly action: MergePaneAction;
           readonly elementId: string;
           readonly pulledIn: readonly string[];
           readonly dropped: readonly string[];
@@ -100,7 +113,7 @@ export type MergePaneOutcome =
       }
     | {
           readonly applied: false;
-          readonly action: "pick" | "unpick";
+          readonly action: MergePaneAction;
           readonly elementId: string;
           readonly blockedBy: readonly MergePaneBlock[];
       };
@@ -134,6 +147,8 @@ export interface MergePaneStates {
     readonly pickable: readonly MergePanePickable[];
     readonly lastOutcome?: MergePaneOutcome;
     readonly restoreOffer?: MergePaneRestoreOffer;
+    /** The names of the elements the legend names, the same on both panes; an id without a name is absent. */
+    readonly names: Readonly<Record<string, string>>;
 }
 
 /**

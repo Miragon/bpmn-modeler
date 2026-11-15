@@ -89,7 +89,7 @@ describe("createDiffPaneRouter", () => {
                 LogErrorCommand: "handled",
                 ShowElementXmlChangesCommand: "handled",
                 DiffSelectionChangedCommand: "handled",
-                MergeStepListChangedCommand: "handled",
+                MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
             },
@@ -110,7 +110,7 @@ describe("createDiffPaneRouter", () => {
                 LogErrorCommand: "ignored",
                 ShowElementXmlChangesCommand: "ignored",
                 DiffSelectionChangedCommand: "handled",
-                MergeStepListChangedCommand: "handled",
+                MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
             },
@@ -130,20 +130,25 @@ describe("createDiffPaneRouter", () => {
         },
     );
 
-    it("routes merge picks only where a merge service is given", () => {
+    it("routes the merge panes' commands only where the diff service opens merge views", () => {
         const { notifier, settings } = createTestHost();
         const store = new DiffPaneStore();
         const merge = new MergeDecisionService(
             new MergeSessionStore(store, new RecordingMergeSidesView()),
-            store,
             notifier,
         );
-        const diffService = new BpmnDiffService(notifier, settings, store, undefined, merge);
 
-        const withMerge = createDiffPaneRouter(diffService, {}, merge);
-        const without = createDiffPaneRouter(diffService, {});
+        const withMerge = createDiffPaneRouter(
+            new BpmnDiffService(notifier, settings, store, undefined, merge),
+            {},
+        );
+        const without = createDiffPaneRouter(new BpmnDiffService(notifier, settings, store), {});
 
-        for (const type of ["PickMergeSideCommand", "UnpickMergeCommand"] as const) {
+        for (const type of [
+            "MergeStepListChangedCommand",
+            "PickMergeSideCommand",
+            "UnpickMergeCommand",
+        ] as const) {
             expect(withMerge.routeOf(type).kind).toBe("handled");
             expect(without.routeOf(type)).toStrictEqual({
                 kind: "ignored",

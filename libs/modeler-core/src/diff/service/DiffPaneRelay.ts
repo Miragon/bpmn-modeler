@@ -38,12 +38,8 @@ export class DiffPaneRelay {
     /** The pane's session with both of its panes, once both are attached and ready. */
     armedOf(handle: DiffPaneHandle): ArmedDiff | undefined {
         const session = this.store.sessionOf(handle);
-        if (!session || !session.isArmed()) {
-            return undefined;
-        }
-        const before = session.before();
-        const after = session.after();
-        return before && after ? { session, before, after } : undefined;
+        const panes = session?.armedPanes();
+        return session && panes ? { session, ...panes } : undefined;
     }
 
     /** Re-posts the current locale to every ready pane of every session. */

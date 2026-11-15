@@ -55,7 +55,7 @@ async function mergeView() {
         settings,
         store,
         undefined,
-        new MergeDecisionService(merges, store, notifier),
+        new MergeDecisionService(merges, notifier),
     );
     const uris = {
         current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D1",

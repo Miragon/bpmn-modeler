@@ -1,12 +1,13 @@
 import {
     type MergeDecisions,
+    mergeElementNames,
     mergePaneSteps,
     mergePaneView,
     type PickOutcome,
 } from "@miragon/bpmn-modeler-merge";
 import {
     ApplyMergeStatesQuery,
-    type MergePaneOutcome,
+    type MergePaneAction,
     type MergePaneStepList,
     type MergePaneStepping,
     type MergePickScope,
@@ -15,36 +16,12 @@ import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { LoggerPort } from "../../kernel/port/hostPorts";
 import { mergeSideOfPane } from "../domain/mergePaneSide";
-import {
-    type PickRestoreOffer,
-    reopenedConflicts,
-    restoreOfferOnPane,
-} from "../domain/pickFeedback";
+import { restoreOfferOnPane } from "../domain/pickFeedback";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { ArmedDiff } from "./DiffPaneRelay";
-import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
-
-type Decide = (decisions: MergeDecisions, elementId: string, side: MergeSide) => PickOutcome;
-
-const PICK: Record<MergePickScope, Decide> = {
-    element: (decisions, id, side) => decisions.pick(id, side),
-    withContents: (decisions, id, side) => decisions.pickWithContents(id, side),
-    withConnections: (decisions, id, side) => decisions.pickWithConnections(id, side),
-};
-
-const UNPICK: Record<MergePickScope, Decide> = {
-    element: (decisions, id) => decisions.unpick(id),
-    withContents: (decisions, id) => decisions.unpickWithContents(id),
-    withConnections: (decisions, id) => decisions.unpickWithConnections(id),
-};
-
-/** What the user's last pick or undo did, shown on both panes until the next one. */
-interface PickFeedback {
-    readonly outcome: MergePaneOutcome;
-    readonly offer?: PickRestoreOffer;
-}
+import { idsTheLegendNames, type MergePickFeedback, mergePickFeedback } from "./mergePickFeedback";
 
 /**
  * Shows each merge view's decisions on its two panes and takes the user's
@@ -58,11 +35,10 @@ export class MergeDecisionService {
     // Per tab, since each tab's two panes step together and apart from another tab's.
     private readonly stepping = new WeakMap<DiffSession, MergePaneStepping>();
 
-    private readonly feedback = new WeakMap<MergeSession, PickFeedback>();
+    private readonly feedback = new WeakMap<MergeSession, MergePickFeedback>();
 
     constructor(
         private readonly sessions: Pick<MergeSessionStore, "ofDiffSession" | "diffSessionsOf">,
-        private readonly panes: Pick<DiffPaneStore, "sessionOf">,
         private readonly logger: LoggerPort,
     ) {}
 
@@ -72,23 +48,38 @@ export class MergeDecisionService {
     }
 
     /** Keeps the element from the pane's side, as far as `scope` reaches, and sends every pane of the view its states. */
-    pick(
+    async pick(
+        armed: ArmedDiff,
         pane: DiffPaneHandle,
         elementId: string,
         scope: MergePickScope,
         elementXmlChanges: boolean,
     ): Promise<void> {
-        return this.decide(pane, elementId, "pick", PICK[scope], elementXmlChanges);
+        const session = this.sessions.ofDiffSession(armed.session);
+        const paneSide = armed.session.sideFor(pane.uri);
+        if (!session || !paneSide) return;
+        const side = mergeSideOfPane(paneSide);
+        await this.decide(session, elementId, elementXmlChanges, (decisions) => ({
+            action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
+            outcome: decisions.pickScoped(elementId, side, scope),
+            keptSide: side,
+        }));
     }
 
-    /** Takes the user's pick back, as far as `scope` reaches, and sends every pane of the view its states. */
-    unpick(
-        pane: DiffPaneHandle,
+    /** Takes the user's pick back, as far as `scope` reaches, and sends every pane of the view its states; a stale Undo of no pick changes nothing. */
+    async unpick(
+        armed: ArmedDiff,
         elementId: string,
         scope: MergePickScope,
         elementXmlChanges: boolean,
     ): Promise<void> {
-        return this.decide(pane, elementId, "unpick", UNPICK[scope], elementXmlChanges);
+        const session = this.sessions.ofDiffSession(armed.session);
+        if (!session) return;
+        await this.decide(session, elementId, elementXmlChanges, (decisions) =>
+            decisions.originOf(elementId) === "picked"
+                ? { action: "unpick", outcome: decisions.unpickScoped(elementId, scope) }
+                : undefined,
+        );
     }
 
     /** Sends both panes of a merge view's tab the full state of its decisions. */
@@ -129,35 +120,32 @@ export class MergeDecisionService {
     }
 
     private async decide(
-        pane: DiffPaneHandle,
+        session: MergeSession,
         elementId: string,
-        action: MergePaneOutcome["action"],
-        decide: Decide,
         elementXmlChanges: boolean,
+        decide: (decisions: MergeDecisions) => DecidedPick | undefined,
     ): Promise<void> {
-        const diffSession = this.panes.sessionOf(pane);
-        const session = diffSession && this.sessions.ofDiffSession(diffSession);
-        const paneSide = diffSession?.sideFor(pane.uri);
-        if (!session || !paneSide) return;
-        const side = mergeSideOfPane(paneSide);
         const openBefore = openIds(session.decisions);
-        let outcome: PickOutcome;
+        let decided: ReturnType<typeof decide>;
         try {
-            outcome = decide(session.decisions, elementId, side);
+            decided = decide(session.decisions);
         } catch (error) {
             this.logger.logError(error as Error);
             return;
         }
+        if (decided === undefined) return;
         this.feedback.set(
             session,
-            feedbackOf(action, elementId, side, outcome, openBefore, openIds(session.decisions)),
+            mergePickFeedback({
+                ...decided,
+                elementId,
+                openBefore,
+                openAfter: openIds(session.decisions),
+            }),
         );
         for (const tab of this.sessions.diffSessionsOf(session)) {
-            const before = tab.before();
-            const after = tab.after();
-            if (tab.isArmed() && before && after) {
-                await this.broadcast({ session: tab, before, after }, elementXmlChanges);
-            }
+            const panes = tab.armedPanes();
+            if (panes) await this.broadcast({ session: tab, ...panes }, elementXmlChanges);
         }
     }
 
@@ -177,55 +165,21 @@ export class MergeDecisionService {
 
 const FIRST_STEPPING: MergePaneStepping = { list: "openConflicts" };
 
-function openIds(decisions: MergeDecisions): string[] {
-    return decisions.openConflicts.map(({ id }) => id);
+interface DecidedPick {
+    readonly action: MergePaneAction;
+    readonly outcome: PickOutcome;
+    readonly keptSide?: MergeSide;
 }
 
-function feedbackOf(
-    action: MergePaneOutcome["action"],
-    elementId: string,
-    side: MergeSide,
-    outcome: PickOutcome,
-    openBefore: readonly string[],
-    openAfter: readonly string[],
-): PickFeedback {
-    if (!outcome.applied) {
-        return {
-            outcome: {
-                applied: false,
-                action,
-                elementId,
-                blockedBy: outcome.blockedBy.map(({ reason }) => ({
-                    elementId: reason.element.id,
-                    targetId: reason.requirement.target,
-                    obstacle: reason.obstacle.kind,
-                })),
-            },
-        };
-    }
-    const shown: PickFeedback = {
-        outcome: {
-            applied: true,
-            action,
-            elementId,
-            pulledIn: outcome.pulledIn,
-            dropped: outcome.dropped,
-            reopened: reopenedConflicts(openBefore, openAfter),
-        },
-    };
-    return outcome.connectionsLeftOut === undefined
-        ? shown
-        : {
-              ...shown,
-              offer: { elementId, connections: outcome.connectionsLeftOut, keptSide: side },
-          };
+function openIds(decisions: MergeDecisions): string[] {
+    return decisions.openConflicts.map(({ id }) => id);
 }
 
 function statesFor(
     session: MergeSession,
     paneSide: DiffSide,
     stepping: MergePaneStepping,
-    feedback: PickFeedback | undefined,
+    feedback: MergePickFeedback | undefined,
     elementXmlChanges: boolean,
 ): ApplyMergeStatesQuery {
     const side = mergeSideOfPane(paneSide);
@@ -249,6 +203,11 @@ function statesFor(
             pickable: view.pickable,
             ...(feedback === undefined ? {} : { lastOutcome: feedback.outcome }),
             ...(restoreOffer === undefined ? {} : { restoreOffer }),
+            names: mergeElementNames(
+                session.sources,
+                session.decisions,
+                idsTheLegendNames(view.picksNotDrawn, feedback?.outcome),
+            ),
         },
         elementXmlChanges,
     );

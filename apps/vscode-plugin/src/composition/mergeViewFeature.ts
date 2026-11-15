@@ -45,7 +45,7 @@ export function register(
     return {
         sessions,
         opener,
-        decisions: new MergeDecisionService(sessions, diffStore, deps.notifier),
+        decisions: new MergeDecisionService(sessions, deps.notifier),
         conflictMarkers: new ConflictMarkerParticipant(
             deps.vsDocument,
             deps.actionNotifier,

@@ -61,7 +61,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         LogErrorCommand: HANDLED,
         ShowElementXmlChangesCommand: ignored("the host shows no element XML diff"),
         DiffSelectionChangedCommand: HANDLED,
-        MergeStepListChangedCommand: HANDLED,
+        MergeStepListChangedCommand: ignored("the host opens no merge view"),
         PickMergeSideCommand: ignored("the host opens no merge view"),
         UnpickMergeCommand: ignored("the host opens no merge view"),
     },
