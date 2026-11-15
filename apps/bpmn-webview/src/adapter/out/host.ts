@@ -72,7 +72,7 @@ const DEV_MODES = [
 
 type DevMode = (typeof DEV_MODES)[number];
 
-const MOCK_MERGE_CAPTIONS: Record<"before" | "after", MergeSideCaption> = {
+const MOCK_MERGE_CAPTIONS: Record<DiffSide, MergeSideCaption> = {
     before: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
     after: { side: "incoming", role: "upstream", ref: "feature", shortHash: "9f8e7d6" },
 };

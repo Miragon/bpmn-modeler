@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { MergePaneUris, MergeSidesView } from "../diff/port/MergeSidesView";
 
-/** One {@link MergeSidesView} adapter; every `createView` stands for a fresh run of the host. */
-export interface MergeSidesViewContractFixture<V extends MergeSidesView = MergeSidesView> {
-    createView(): V;
-    /** The text the host serves `view`'s documents with under `uri`, or `undefined` for none. */
-    servedText(view: V, uri: string): string | undefined;
+/** One {@link MergeSidesView} adapter, as one run of the host builds it. */
+export interface MergeSidesViewContractFixture {
+    readonly view: MergeSidesView;
+    /** The text the host serves under `uri`, or `undefined` for none. */
+    servedText(uri: string): string | undefined;
 }
 
 const FILE = "file:///work/repo/process/order.bpmn";
@@ -27,23 +27,23 @@ const urisOf = (uris: MergePaneUris): string[] => [uris.current, uris.incoming];
  * beside the working file and ends in the side's basename; each URI serves
  * its side's text until it is released.
  */
-export function describeMergeSidesViewContract<V extends MergeSidesView>(
+export function describeMergeSidesViewContract(
     adapter: string,
-    fixture: MergeSidesViewContractFixture<V>,
+    createFixture: () => MergeSidesViewContractFixture,
 ): void {
     describe(`${adapter} keeps the MergeSidesView contract`, () => {
         it("serves each side under its own URI", () => {
-            const view = fixture.createView();
+            const { view, servedText } = createFixture();
 
             const uris = view.serve(FILE, SIDES);
 
             expect(uris.current).not.toBe(uris.incoming);
-            expect(fixture.servedText(view, uris.current)).toBe("<current/>");
-            expect(fixture.servedText(view, uris.incoming)).toBe("<incoming/>");
+            expect(servedText(uris.current)).toBe("<current/>");
+            expect(servedText(uris.incoming)).toBe("<incoming/>");
         });
 
         it("gives every opening its own URIs", () => {
-            const view = fixture.createView();
+            const { view } = createFixture();
 
             const uris = [...urisOf(view.serve(FILE, SIDES)), ...urisOf(view.serve(FILE, SIDES))];
 
@@ -51,30 +51,30 @@ export function describeMergeSidesViewContract<V extends MergeSidesView>(
         });
 
         it("never repeats a URI an earlier run of the host served", () => {
-            const earlier = fixture.createView().serve(FILE, SIDES);
+            const earlier = createFixture().view.serve(FILE, SIDES);
 
-            const later = fixture.createView().serve(FILE, SIDES);
+            const later = createFixture().view.serve(FILE, SIDES);
 
             expect(new Set([...urisOf(earlier), ...urisOf(later)]).size).toBe(4);
         });
 
         it("puts each side beside the working file under its basename", () => {
-            const uris = fixture.createView().serve(FILE, SIDES);
+            const uris = createFixture().view.serve(FILE, SIDES);
 
             expect(pathOf(uris.current)).toBe("/work/repo/process/order.current.bpmn");
             expect(pathOf(uris.incoming)).toBe("/work/repo/process/order.incoming.bpmn");
         });
 
         it("serves nothing under released URIs and keeps another opening served", () => {
-            const view = fixture.createView();
+            const { view, servedText } = createFixture();
             const released = view.serve(FILE, SIDES);
             const kept = view.serve(FILE, SIDES);
 
             view.release(released);
 
-            expect(fixture.servedText(view, released.current)).toBeUndefined();
-            expect(fixture.servedText(view, released.incoming)).toBeUndefined();
-            expect(fixture.servedText(view, kept.current)).toBe("<current/>");
+            expect(servedText(released.current)).toBeUndefined();
+            expect(servedText(released.incoming)).toBeUndefined();
+            expect(servedText(kept.current)).toBe("<current/>");
         });
     });
 }

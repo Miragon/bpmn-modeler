@@ -22,11 +22,11 @@ const registeredView = () => {
 
 beforeEach(() => resetVscodeGit());
 
-describeMergeSidesViewContract("VsCodeMergeSidesView", {
-    createView: registeredView,
+describeMergeSidesViewContract("VsCodeMergeSidesView", () => ({
+    view: registeredView(),
     // The provider of the view registered last serves the scheme, as after a restart.
-    servedText: (_view, uri) => providedContent(uri) || undefined,
-});
+    servedText: (uri) => providedContent(uri) || undefined,
+}));
 
 describe("VsCodeMergeSidesView", () => {
     const SIDES = {
