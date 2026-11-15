@@ -16,7 +16,7 @@ describe("mergeViewRefusal", () => {
         ],
         [
             { kind: "gitUnavailable" },
-            "The BPMN merge view cannot read the versions of notes.txt from Git. Check that the Git extension is enabled and the file is in a repository.",
+            "The BPMN merge view cannot read the versions of notes.txt from Git. Check that the Git extension is enabled.",
         ],
         [{ kind: "notConflicted" }, "notes.txt has no merge conflict to resolve."],
         [
@@ -26,6 +26,18 @@ describe("mergeViewRefusal", () => {
         [
             { kind: "oneSideDeleted", remainingSide: "incoming" },
             "notes.txt was deleted on the current side and changed on the incoming side. Keep or delete it in Source Control.",
+        ],
+        [
+            { kind: "bothDeleted" },
+            "notes.txt was deleted or renamed on both sides. Resolve it in Source Control.",
+        ],
+        [
+            { kind: "oneSideAdded", addedSide: "current" },
+            "notes.txt exists only on the current side. Keep or delete it in Source Control.",
+        ],
+        [
+            { kind: "oneSideAdded", addedSide: "incoming" },
+            "notes.txt exists only on the incoming side. Keep or delete it in Source Control.",
         ],
         [
             { kind: "noFile" },

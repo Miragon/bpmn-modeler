@@ -41,6 +41,24 @@ describe("conflictReadingOf", () => {
             { kind: "oneSideDeleted", remainingSide: "incoming" },
         ],
         [
+            "both sides deleted or renamed the file (DD)",
+            "order.bpmn",
+            facts({ stages: { base: "<base/>" } }),
+            { kind: "bothDeleted" },
+        ],
+        [
+            "only current added the file (AU)",
+            "order.bpmn",
+            facts({ stages: { current: "<a/>" } }),
+            { kind: "oneSideAdded", addedSide: "current" },
+        ],
+        [
+            "only incoming added the file (UA)",
+            "order.bpmn",
+            facts({ stages: { incoming: "<b/>" } }),
+            { kind: "oneSideAdded", addedSide: "incoming" },
+        ],
+        [
             "a file Merge Changes does not list",
             "order.bpmn",
             facts({ inMergeChanges: false, stages: {} }),
