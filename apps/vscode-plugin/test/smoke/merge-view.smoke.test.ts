@@ -120,8 +120,15 @@ describe("the BPMN merge view (spike)", () => {
             .first();
     }
 
+    /** A focused merge pane can swallow F1, so the palette is opened from the side bar. */
+    async function runFromSideBar(title: string): Promise<void> {
+        await vscode().page.keyboard.press("Escape");
+        await vscode().page.locator(".part.sidebar .composite.title").first().click();
+        await vscode().runCommand(title);
+    }
+
     async function openFromMergeRow(): Promise<void> {
-        await vscode().runCommand("Source Control: Focus on Changes View");
+        await runFromSideBar("Source Control: Focus on Changes View");
         await mergeRow().waitFor({ state: "visible", timeout: TIMEOUT_MS });
         await mergeRow().click({ button: "right" });
         const item = vscode().page.locator(".context-view").getByText(ROW_COMMAND, { exact: true });
@@ -325,7 +332,7 @@ describe("the BPMN merge view (spike)", () => {
 
     it("shows the ended page in both restored panes after a window reload (1.0.3)", async () => {
         const page = vscode().page;
-        await vscode().runCommand("Developer: Reload Window");
+        await runFromSideBar("Developer: Reload Window");
         await delay(3000);
         await page.waitForSelector(".monaco-workbench", { timeout: TIMEOUT_MS });
         let panes: Awaited<ReturnType<typeof visiblePanes>> = [];
@@ -366,7 +373,7 @@ describe("the BPMN merge view (spike)", () => {
 
     it("builds incoming over the working file, which parses, has no markers and stays UU (B2-B3)", async () => {
         const file = join(repository, MERGE_FILE);
-        await vscode().runCommand(TAKE_INCOMING_COMMAND);
+        await runFromSideBar(TAKE_INCOMING_COMMAND);
         await expect
             .poll(async () => (await readFile(file, "utf8")).includes("<<<<<<<"), {
                 timeout: TIMEOUT_MS,
@@ -404,6 +411,7 @@ describe("the BPMN merge view (spike)", () => {
     });
 
     it("lets git conclude the merge once the built file is staged", async () => {
+        expect(await readFile(join(repository, MERGE_FILE), "utf8")).not.toContain("<<<<<<<");
         await runGit(repository, "add", MERGE_FILE);
         facts.gitStatusAfterAdd = (await runGit(repository, "status", "--porcelain=v1")).stdout;
         const conclude = await runGit(repository, "-c", "core.editor=true", "merge", "--continue");
