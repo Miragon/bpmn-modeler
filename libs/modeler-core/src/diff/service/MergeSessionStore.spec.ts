@@ -29,10 +29,21 @@ function createStore() {
     return { diffStore, view, sessions };
 }
 
-function openTab(diffStore: DiffPaneStore) {
-    const diffSession = diffStore.registerMerge(URIS);
-    const current = new FakeDiffPaneHandle(URIS.current);
-    const incoming = new FakeDiffPaneHandle(URIS.incoming);
+const NEWER_URIS = {
+    current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D2",
+    incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D2",
+};
+
+const NEWER_SESSION: MergeSession = {
+    ...SESSION,
+    uris: NEWER_URIS,
+    stages: { current: "<current2/>", incoming: "<incoming2/>" },
+};
+
+function openTab(diffStore: DiffPaneStore, uris = URIS) {
+    const diffSession = diffStore.registerMerge(uris);
+    const current = new FakeDiffPaneHandle(uris.current);
+    const incoming = new FakeDiffPaneHandle(uris.incoming);
     diffSession.attachPane(current);
     diffSession.attachPane(incoming);
     return { diffSession, current, incoming };
@@ -73,14 +84,30 @@ describe("MergeSessionStore", () => {
         const first = openTab(diffStore);
         sessions.add(SESSION, first.diffSession);
         const second = openTab(diffStore);
-        sessions.join(FILE, second.diffSession);
+        sessions.join(SESSION, second.diffSession);
 
         diffStore.detach(first.current);
         diffStore.detach(first.incoming);
 
         expect(sessions.of(FILE)).toBe(SESSION);
-        expect(sessions.diffSessionsOf(FILE)).toStrictEqual([second.diffSession]);
+        expect(sessions.diffSessionsOf(SESSION)).toStrictEqual([second.diffSession]);
         expect(view.released).toStrictEqual([]);
+    });
+
+    it("finds the newer view of a file and keeps the older one served until its tab closes", () => {
+        const { diffStore, view, sessions } = createStore();
+        const older = openTab(diffStore);
+        sessions.add(SESSION, older.diffSession);
+        const newer = openTab(diffStore, NEWER_URIS);
+        sessions.add(NEWER_SESSION, newer.diffSession);
+
+        expect(sessions.of(FILE)).toBe(NEWER_SESSION);
+        expect(sessions.servedBy(URIS.current)).toBe(SESSION);
+        diffStore.detach(older.current);
+        diffStore.detach(older.incoming);
+
+        expect(view.released).toStrictEqual([URIS]);
+        expect(sessions.of(FILE)).toBe(NEWER_SESSION);
     });
 
     it("forgets a session whose panes never opened", () => {

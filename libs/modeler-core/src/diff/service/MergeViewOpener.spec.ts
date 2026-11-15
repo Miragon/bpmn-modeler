@@ -34,6 +34,11 @@ function createOpener(...conflicts: StagedConflict[]) {
     return { opener, source, view, diffStore, sessions, notifier };
 }
 
+function tabsOf(sessions: MergeSessionStore) {
+    const session = sessions.of(FILE);
+    return session ? sessions.diffSessionsOf(session) : [];
+}
+
 /** Plays VS Code resolving both sides of the diff `vscode.diff` opened. */
 function resolveBothPanes(opener: MergeViewOpener, uris: { current: string; incoming: string }) {
     const current = new FakeDiffPaneHandle(uris.current);
@@ -178,7 +183,37 @@ describe("MergeViewOpener", () => {
             view.opened[0].uris,
             view.opened[0].uris,
         ]);
-        expect(sessions.diffSessionsOf(FILE)).toHaveLength(1);
+        expect(tabsOf(sessions)).toHaveLength(1);
+    });
+
+    it("opens the new conflict when the file conflicted again while its old view is open", async () => {
+        const { opener, view, source, sessions } = createOpener(MERGE_CONFLICT);
+        await opener.open(FILE);
+        resolveBothPanes(opener, view.opened[0].uris);
+        source.resolve(ROOT, FILE);
+        source.conflict(ROOT, {
+            ...MERGE_CONFLICT,
+            stages: { base: "<base2/>", current: "<current2/>", incoming: "<incoming2/>" },
+        });
+
+        await opener.open(FILE);
+
+        expect(view.served).toHaveLength(2);
+        expect(view.opened[1].uris).not.toStrictEqual(view.opened[0].uris);
+        expect(view.textOf(view.opened[1].uris.incoming)).toBe("<incoming2/>");
+        expect(sessions.of(FILE)?.stages.incoming).toBe("<incoming2/>");
+    });
+
+    it("explains a file whose conflict was resolved while its old view is open", async () => {
+        const { opener, view, source, notifier } = createOpener(MERGE_CONFLICT);
+        await opener.open(FILE);
+        resolveBothPanes(opener, view.opened[0].uris);
+        source.resolve(ROOT, FILE);
+
+        await opener.open(FILE);
+
+        expect(notifier.infos).toStrictEqual(["order.bpmn has no merge conflict to resolve."]);
+        expect(view.opened).toHaveLength(1);
     });
 
     it("attaches both panes VS Code resolves to the session registered for them", async () => {
@@ -200,7 +235,7 @@ describe("MergeViewOpener", () => {
         const second = resolveBothPanes(opener, uris);
 
         expect(second.outcomes).toStrictEqual(["joined", "joined"]);
-        expect(sessions.diffSessionsOf(FILE)).toHaveLength(2);
+        expect(tabsOf(sessions)).toHaveLength(2);
         expect(diffStore.sessionOf(second.current)).not.toBe(diffStore.sessionOf(first.current));
         expect(diffStore.sessionOf(second.current)?.attachedPanes()).toStrictEqual([
             second.current,
@@ -215,7 +250,7 @@ describe("MergeViewOpener", () => {
         opener.attachPane(pane);
 
         expect(opener.attachPane(pane)).toBe("joined");
-        expect(sessions.diffSessionsOf(FILE)).toHaveLength(1);
+        expect(tabsOf(sessions)).toHaveLength(1);
     });
 
     it("ends a pane no session serves, also on its second resolve", () => {
@@ -251,6 +286,18 @@ describe("MergeViewOpener", () => {
         expect(notifier.errors).toStrictEqual([
             "Failed to open the BPMN merge view: no editor for the scheme",
         ]);
+    });
+
+    it("shows why Git could not be read", async () => {
+        const { opener, source, view, notifier } = createOpener(MERGE_CONFLICT);
+        source.readConflict = () => Promise.reject(new Error("git status failed"));
+
+        await opener.open(FILE);
+
+        expect(notifier.errors).toStrictEqual([
+            "Failed to open the BPMN merge view: git status failed",
+        ]);
+        expect(view.opened).toStrictEqual([]);
     });
 
     it("writes nothing: the working file and the index stay as Git left them", async () => {
