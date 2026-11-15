@@ -207,7 +207,7 @@ describe("blockText", () => {
         [
             "idHeldByAnother",
             { ...ends, obstacle: "idHeldByAnother" },
-            "Ready to pack and Pack hold the same id",
+            "Ready to pack and Pack hold the same ID",
         ],
         [
             "sideLacksTarget missing the target",

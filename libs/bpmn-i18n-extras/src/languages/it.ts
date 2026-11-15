@@ -291,7 +291,7 @@ const dictionary: Record<string, string> = {
     "Users cannot enter FEEL into a field they cannot edit.":
         "Gli utenti non possono inserire FEEL in un campo che non possono modificare.",
     "Current": "Corrente",
-    "Incoming": "In arrivo",
+    "Incoming": "In ingresso",
     "your branch": "il tuo branch",
     "other branch": "altro branch",
     "your commit": "il tuo commit",
@@ -314,21 +314,21 @@ const dictionary: Record<string, string> = {
     "Dropped:": "Esclusi:",
     "Open again:": "Di nuovo aperti:",
     "Keep current": "Mantieni Corrente",
-    "Keep incoming": "Mantieni In arrivo",
+    "Keep incoming": "Mantieni In ingresso",
     "C": "C",
     "I": "I",
     "Kept from current, your pick": "Mantenuto da Corrente, scelta tua",
-    "Kept from incoming, your pick": "Mantenuto da In arrivo, scelta tua",
+    "Kept from incoming, your pick": "Mantenuto da In ingresso, scelta tua",
     "Kept from current with everything inside, your pick":
         "Mantenuto da Corrente con tutto il contenuto, scelta tua",
     "Kept from incoming with everything inside, your pick":
-        "Mantenuto da In arrivo con tutto il contenuto, scelta tua",
+        "Mantenuto da In ingresso con tutto il contenuto, scelta tua",
     "Kept from current with its flows, your pick":
         "Mantenuto da Corrente con i suoi flussi, scelta tua",
     "Kept from incoming with its flows, your pick":
-        "Mantenuto da In arrivo con i suoi flussi, scelta tua",
+        "Mantenuto da In ingresso con i suoi flussi, scelta tua",
     "Kept from current: {element}": "Mantenuto da Corrente: {element}",
-    "Kept from incoming: {element}": "Mantenuto da In arrivo: {element}",
+    "Kept from incoming: {element}": "Mantenuto da In ingresso: {element}",
     "{element} needs {target}, which no version has":
         "{element} richiede {target}, che nessuna versione contiene",
     "{element} needs {target}, which you picked from a side without it":
@@ -346,7 +346,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "{element}, che hai scelto, richiede {target}",
     "This pick brings in {element}, which needs {target}":
         "Questa scelta aggiunge {element}, che richiede {target}",
-    "{element} and {target} hold the same id": "{element} e {target} hanno lo stesso ID",
+    "{element} and {target} hold the same ID": "{element} e {target} hanno lo stesso ID",
     "{element} and {target} each have a pool of the same process":
         "{element} e {target} hanno ciascuno un pool dello stesso processo",
     "{element} needs a part of {target}, which you picked from a side without it":
@@ -358,9 +358,9 @@ const dictionary: Record<string, string> = {
     "Also keep the {count} flows current removed with it":
         "Mantieni anche i {count} flussi rimossi con esso da Corrente",
     "Also keep the flow incoming removed with it":
-        "Mantieni anche il flusso rimosso con esso da In arrivo",
+        "Mantieni anche il flusso rimosso con esso da In ingresso",
     "Also keep the {count} flows incoming removed with it":
-        "Mantieni anche i {count} flussi rimossi con esso da In arrivo",
+        "Mantieni anche i {count} flussi rimossi con esso da In ingresso",
     "Kept {element}": "{element} mantenuto",
     "Cannot keep {element}": "Impossibile mantenere {element}",
     "Left out {element}": "{element} lasciato fuori",
@@ -370,9 +370,9 @@ const dictionary: Record<string, string> = {
     "Build": "Genera",
     "Notes of the build": "Note della generazione",
     "Compare with current": "Confronta con Corrente",
-    "Compare with incoming": "Confronta con In arrivo",
+    "Compare with incoming": "Confronta con In ingresso",
     "Result against current": "Risultato rispetto a Corrente",
-    "Result against incoming": "Risultato rispetto a In arrivo",
+    "Result against incoming": "Risultato rispetto a In ingresso",
     "Result": "Risultato",
     "Review notes ({count})": "Controlla le note ({count})",
     "{element} connects shapes drawn by different sides; check where it meets {ends}":

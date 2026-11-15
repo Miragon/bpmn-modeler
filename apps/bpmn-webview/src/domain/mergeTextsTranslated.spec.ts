@@ -170,4 +170,71 @@ describe("the merge view's translations", () => {
         }
         expect(letters[0]?.letter).not.toBe(letters[1]?.letter);
     });
+
+    // VS Code's own conflict actions ("Accept Incoming Change") in its language packs.
+    // VS Code ships no Dutch pack.
+    const VS_CODE_SIDE_WORDS: Partial<Record<keyof typeof extras, Record<MergeSide, string>>> = {
+        "de": { current: "Aktuell", incoming: "Eingehend" },
+        "es": { current: "Actual", incoming: "Entrante" },
+        "fr": { current: "Actuel", incoming: "Entrant" },
+        "it": { current: "Corrente", incoming: "In ingresso" },
+        "ja": { current: "現在", incoming: "入力側" },
+        "ko": { current: "현재", incoming: "수신" },
+        "pt-br": { current: "Atual", incoming: "Entrada" },
+        "ru": { current: "Текущее", incoming: "Входящее" },
+        "zh-Hans": { current: "当前", incoming: "传入" },
+        "zh-Hant": { current: "目前", incoming: "傳入" },
+    };
+
+    it.each(Object.entries(VS_CODE_SIDE_WORDS))(
+        "%s names the sides as VS Code's conflict actions do",
+        (locale, words) => {
+            const translate = translateIn(locale as keyof typeof extras);
+            const sideWords = Object.fromEntries(
+                MERGE_SIDES.map((side) => [
+                    side,
+                    mergeCaptionText({ side, role: "unknown" }, translate),
+                ]),
+            );
+
+            expect(sideWords).toEqual(words);
+        },
+    );
+
+    it.each(locales)("%s repeats the side's word in every text that names the side", (locale) => {
+        const translate = translateIn(locale);
+        for (const side of MERGE_SIDES) {
+            const word = mergeCaptionText({ side, role: "unknown" }, translate).toLowerCase();
+            const texts = [
+                keepSideText(side, translate),
+                pickNotDrawnText(side, "Task", translate),
+                compareWithText(side, translate),
+                comparisonText(side, translate),
+                comparisonPaneText("before", side, translate),
+                ...keysOf(PICK_SCOPES).map(
+                    (scope) => pickBadgeText({ keptSide: side, scope }, translate).label,
+                ),
+                ...[["f1"], ["f1", "f2"]].map((connections) =>
+                    restoreOfferText({ elementId: "a", connections, removedBy: side }, translate),
+                ),
+            ];
+            const missing = texts.filter((text) => !text.toLowerCase().includes(word));
+
+            expect({ side, missing }).toEqual({ side, missing: [] });
+        }
+        const keptFromCurrent = buildNoteText(NOTES.frameDiffers, (id) => id, translate);
+        expect(keptFromCurrent.toLowerCase()).toContain(
+            mergeCaptionText({ side: "current", role: "unknown" }, translate).toLowerCase(),
+        );
+    });
+
+    it.each(locales)("%s spells ID as the shared library does", (locale) => {
+        const sameId = blockText(
+            { elementId: "a", targetId: "b", obstacle: "idHeldByAnother" } as MergePaneBlock,
+            (id) => id,
+            translateIn(locale),
+        );
+
+        expect(sameId).toContain("ID");
+    });
 });

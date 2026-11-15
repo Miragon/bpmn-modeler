@@ -339,7 +339,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "選択した {element} には {target} が必要です",
     "This pick brings in {element}, which needs {target}":
         "この選択で追加される {element} には {target} が必要です",
-    "{element} and {target} hold the same id": "{element} と {target} の ID が同じです",
+    "{element} and {target} hold the same ID": "{element} と {target} の ID が同じです",
     "{element} and {target} each have a pool of the same process":
         "{element} と {target} はそれぞれ同じプロセスのプールを持っています",
     "{element} needs a part of {target}, which you picked from a side without it":

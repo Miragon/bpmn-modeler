@@ -346,7 +346,7 @@ const dictionary: Record<string, string> = {
         "{element}, das Sie gewählt haben, braucht {target}",
     "This pick brings in {element}, which needs {target}":
         "Diese Wahl nimmt {element} hinzu, das {target} braucht",
-    "{element} and {target} hold the same id": "{element} und {target} haben dieselbe ID",
+    "{element} and {target} hold the same ID": "{element} und {target} haben dieselbe ID",
     "{element} and {target} each have a pool of the same process":
         "{element} und {target} haben je einen Pool desselben Prozesses",
     "{element} needs a part of {target}, which you picked from a side without it":

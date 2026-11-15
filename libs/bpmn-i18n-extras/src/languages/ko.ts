@@ -331,7 +331,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "선택한 {element}에 {target}이(가) 필요합니다",
     "This pick brings in {element}, which needs {target}":
         "이 선택으로 추가되는 {element}에 {target}이(가) 필요합니다",
-    "{element} and {target} hold the same id": "{element}와(과) {target}의 ID가 같습니다",
+    "{element} and {target} hold the same ID": "{element}와(과) {target}의 ID가 같습니다",
     "{element} and {target} each have a pool of the same process":
         "{element}와(과) {target}에 각각 같은 프로세스의 풀이 있습니다",
     "{element} needs a part of {target}, which you picked from a side without it":

@@ -288,7 +288,7 @@ const dictionary: Record<string, string> = {
     "Users cannot enter FEEL into a field they cannot edit.":
         "Os usuários não podem inserir FEEL em um campo que não podem editar.",
     "Current": "Atual",
-    "Incoming": "Recebido",
+    "Incoming": "Entrada",
     "your branch": "seu branch",
     "other branch": "outro branch",
     "your commit": "seu commit",
@@ -311,20 +311,20 @@ const dictionary: Record<string, string> = {
     "Dropped:": "Descartado:",
     "Open again:": "Aberto novamente:",
     "Keep current": "Manter Atual",
-    "Keep incoming": "Manter Recebido",
+    "Keep incoming": "Manter Entrada",
     "C": "A",
-    "I": "R",
+    "I": "E",
     "Kept from current, your pick": "Mantido de Atual, sua escolha",
-    "Kept from incoming, your pick": "Mantido de Recebido, sua escolha",
+    "Kept from incoming, your pick": "Mantido de Entrada, sua escolha",
     "Kept from current with everything inside, your pick":
         "Mantido de Atual com todo o conteúdo, sua escolha",
     "Kept from incoming with everything inside, your pick":
-        "Mantido de Recebido com todo o conteúdo, sua escolha",
+        "Mantido de Entrada com todo o conteúdo, sua escolha",
     "Kept from current with its flows, your pick": "Mantido de Atual com seus fluxos, sua escolha",
     "Kept from incoming with its flows, your pick":
-        "Mantido de Recebido com seus fluxos, sua escolha",
+        "Mantido de Entrada com seus fluxos, sua escolha",
     "Kept from current: {element}": "Mantido de Atual: {element}",
-    "Kept from incoming: {element}": "Mantido de Recebido: {element}",
+    "Kept from incoming: {element}": "Mantido de Entrada: {element}",
     "{element} needs {target}, which no version has":
         "{element} precisa de {target}, que nenhuma versão tem",
     "{element} needs {target}, which you picked from a side without it":
@@ -343,7 +343,7 @@ const dictionary: Record<string, string> = {
         "{element}, que você escolheu, precisa de {target}",
     "This pick brings in {element}, which needs {target}":
         "Esta escolha inclui {element}, que precisa de {target}",
-    "{element} and {target} hold the same id": "{element} e {target} têm o mesmo ID",
+    "{element} and {target} hold the same ID": "{element} e {target} têm o mesmo ID",
     "{element} and {target} each have a pool of the same process":
         "{element} e {target} têm cada um um pool do mesmo processo",
     "{element} needs a part of {target}, which you picked from a side without it":
@@ -354,9 +354,9 @@ const dictionary: Record<string, string> = {
     "Also keep the {count} flows current removed with it":
         "Manter também os {count} fluxos que Atual removeu com ele",
     "Also keep the flow incoming removed with it":
-        "Manter também o fluxo que Recebido removeu com ele",
+        "Manter também o fluxo que Entrada removeu com ele",
     "Also keep the {count} flows incoming removed with it":
-        "Manter também os {count} fluxos que Recebido removeu com ele",
+        "Manter também os {count} fluxos que Entrada removeu com ele",
     "Kept {element}": "{element} mantido",
     "Cannot keep {element}": "Não é possível manter {element}",
     "Left out {element}": "{element} deixado de fora",
@@ -366,9 +366,9 @@ const dictionary: Record<string, string> = {
     "Build": "Gerar",
     "Notes of the build": "Notas da geração",
     "Compare with current": "Comparar com Atual",
-    "Compare with incoming": "Comparar com Recebido",
+    "Compare with incoming": "Comparar com Entrada",
     "Result against current": "Resultado em relação a Atual",
-    "Result against incoming": "Resultado em relação a Recebido",
+    "Result against incoming": "Resultado em relação a Entrada",
     "Result": "Resultado",
     "Review notes ({count})": "Revisar notas ({count})",
     "{element} connects shapes drawn by different sides; check where it meets {ends}":

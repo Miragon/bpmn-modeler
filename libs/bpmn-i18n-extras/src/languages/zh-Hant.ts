@@ -314,7 +314,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "您選擇的 {element} 需要 {target}",
     "This pick brings in {element}, which needs {target}":
         "此選擇會帶入 {element}，而它需要 {target}",
-    "{element} and {target} hold the same id": "{element} 和 {target} 的 ID 相同",
+    "{element} and {target} hold the same ID": "{element} 和 {target} 的 ID 相同",
     "{element} and {target} each have a pool of the same process":
         "{element} 和 {target} 各有一個同一流程的池",
     "{element} needs a part of {target}, which you picked from a side without it":

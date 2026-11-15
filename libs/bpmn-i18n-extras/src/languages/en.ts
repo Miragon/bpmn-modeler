@@ -332,7 +332,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "{element}, which you picked, needs {target}",
     "This pick brings in {element}, which needs {target}":
         "This pick brings in {element}, which needs {target}",
-    "{element} and {target} hold the same id": "{element} and {target} hold the same id",
+    "{element} and {target} hold the same ID": "{element} and {target} hold the same ID",
     "{element} and {target} each have a pool of the same process":
         "{element} and {target} each have a pool of the same process",
     "{element} needs a part of {target}, which you picked from a side without it":

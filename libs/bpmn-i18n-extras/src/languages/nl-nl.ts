@@ -346,7 +346,7 @@ const dictionary: Record<string, string> = {
     "{element}, which you picked, needs {target}": "{element}, dat je koos, heeft {target} nodig",
     "This pick brings in {element}, which needs {target}":
         "Deze keuze neemt {element} mee, dat {target} nodig heeft",
-    "{element} and {target} hold the same id": "{element} en {target} hebben dezelfde id",
+    "{element} and {target} hold the same ID": "{element} en {target} hebben dezelfde ID",
     "{element} and {target} each have a pool of the same process":
         "{element} en {target} hebben elk een pool van hetzelfde proces",
     "{element} needs a part of {target}, which you picked from a side without it":
