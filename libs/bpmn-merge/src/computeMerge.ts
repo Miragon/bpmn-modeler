@@ -5,6 +5,7 @@ import { isMergeElement } from "./mergeElements";
 import type { ElementVersion, MergeElement, MergeResult } from "./mergeResult";
 import {
     type MergeVersions,
+    VERSION_NAMES,
     type VersionName,
     prefixSourcesOf,
     requireMergeableVersions,
@@ -88,7 +89,7 @@ function mergeElementOf(
         incoming: classifiedVersionOf(snapshots.incoming),
     };
     const versions: Partial<Record<VersionName, ElementVersion>> = {};
-    for (const name of ["base", "current", "incoming"] as const) {
+    for (const name of VERSION_NAMES) {
         const snapshot = snapshots[name];
         if (snapshot) versions[name] = elementVersionOf(snapshot);
     }

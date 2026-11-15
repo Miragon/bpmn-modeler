@@ -23,6 +23,8 @@ export interface MergeVersions {
 
 export type VersionName = keyof MergeVersions;
 
+export const VERSION_NAMES: readonly VersionName[] = ["base", "current", "incoming"];
+
 type BpmnModdle = PrefixedModdle["moddle"];
 
 /** Current first, so current keeps its prefixes and the others get a fresh one on a clash. */
@@ -43,7 +45,7 @@ export async function requireMergeableVersions(versions: MergeVersions): Promise
     const engine = engineName === undefined ? undefined : await loadExecutionPackage(engineName);
     const { moddle } = await createDocumentModdle(prefixSourcesOf(versions), engine);
     await Promise.all(
-        (["base", "current", "incoming"] as const).map(async (name) => {
+        VERSION_NAMES.map(async (name) => {
             const xml = versions[name];
             if (xml !== undefined) await requireMergeableVersion(moddle, name, xml);
         }),
