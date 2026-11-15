@@ -2,13 +2,20 @@ import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { ConflictStageFacts } from "./conflictFacts";
 
+/** The sides of a conflict the merge view opens; the ancestor is absent when both sides added the file. */
+export interface ResolvableStages {
+    readonly base?: string;
+    readonly current: string;
+    readonly incoming: string;
+}
+
 /** Whether the merge view can open a conflicted file, and why not. */
 export type ConflictReading =
     | { readonly kind: "notBpmn" }
     | { readonly kind: "gitUnavailable" }
     | { readonly kind: "notConflicted" }
     | { readonly kind: "oneSideDeleted"; readonly remainingSide: MergeSide }
-    | { readonly kind: "resolvable"; readonly hasBase: boolean };
+    | { readonly kind: "resolvable"; readonly stages: ResolvableStages };
 
 /** Whether the merge view opens a file of this name at all, before Git is asked about it. */
 export function isMergeViewCandidate(fileName: string): boolean {
@@ -27,7 +34,10 @@ export function conflictReadingOf(fileName: string, facts: ConflictStageFacts): 
     if (!facts.inMergeChanges) return { kind: "notConflicted" };
     const { base, current, incoming } = facts.stages;
     if (current !== undefined && incoming !== undefined) {
-        return { kind: "resolvable", hasBase: base !== undefined };
+        return {
+            kind: "resolvable",
+            stages: base === undefined ? { current, incoming } : { base, current, incoming },
+        };
     }
     if (current !== undefined) return { kind: "oneSideDeleted", remainingSide: "current" };
     if (incoming !== undefined) return { kind: "oneSideDeleted", remainingSide: "incoming" };

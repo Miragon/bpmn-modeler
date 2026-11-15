@@ -164,17 +164,27 @@ export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/compareTexts";
+export * from "./diff/domain/conflictFacts";
+export * from "./diff/domain/conflictReading";
 export * from "./diff/domain/diffTabLabel";
 export * from "./diff/domain/diffFileExtension";
 export * from "./diff/domain/DiffRevision";
+export * from "./diff/domain/mergeViewTexts";
+export type { ConflictVersionsSource } from "./diff/port/ConflictVersionsSource";
 export * from "./diff/port/DiffPaneHandle";
 export * from "./diff/port/ElementXmlDiffView";
+export * from "./diff/port/MergeCommandAvailability";
+export * from "./diff/port/MergeSidesView";
 export * from "./diff/service/DiffSession";
 export * from "./diff/service/BpmnDiffService";
 export * from "./diff/service/DmnDiffService";
 export * from "./diff/service/DiffPaneStore";
 export * from "./diff/service/ElementXmlDiffService";
 export * from "./diff/service/diffPaneRouter";
+export * from "./diff/service/ConflictMarkerParticipant";
+export * from "./diff/service/MergeSessionStore";
+export * from "./diff/service/MergeViewOpener";
+export * from "./diff/service/ResolvableConflictsService";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";

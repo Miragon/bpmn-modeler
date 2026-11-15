@@ -17,13 +17,16 @@ describe("conflictReadingOf", () => {
             "both sides modified (UU)",
             "order.bpmn",
             facts({}),
-            { kind: "resolvable", hasBase: true },
+            {
+                kind: "resolvable",
+                stages: { base: "<base/>", current: "<current/>", incoming: "<incoming/>" },
+            },
         ],
         [
             "both sides added the file (AA)",
             "order.bpmn",
             facts({ stages: { current: "<a/>", incoming: "<b/>" } }),
-            { kind: "resolvable", hasBase: false },
+            { kind: "resolvable", stages: { current: "<a/>", incoming: "<b/>" } },
         ],
         [
             "incoming deleted the file (UD)",
@@ -62,7 +65,12 @@ describe("conflictReadingOf", () => {
             facts({ gitAvailable: false }),
             { kind: "notBpmn" },
         ],
-        ["an upper-case extension", "ORDER.BPMN", facts({}), { kind: "resolvable", hasBase: true }],
+        [
+            "an upper-case extension",
+            "ORDER.BPMN",
+            facts({ stages: { current: "<a/>", incoming: "<b/>" } }),
+            { kind: "resolvable", stages: { current: "<a/>", incoming: "<b/>" } },
+        ],
     ])("%s", (_case, fileName, given, expected) => {
         expect(conflictReadingOf(fileName, given)).toStrictEqual(expected);
     });

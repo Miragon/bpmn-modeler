@@ -239,4 +239,37 @@ describe("DiffPaneStore", () => {
         // The session is still indexed because the sweep never ran.
         expect(store.findByUri(LEFT)).toBe(session);
     });
+
+    // ─── merge sessions ─────────────────────────────────────────────────────
+
+    const CURRENT = "bpmn-merge:/repo/diagram.current.bpmn?side%3Dcurrent%26opening%3D1";
+    const INCOMING = "bpmn-merge:/repo/diagram.incoming.bpmn?side%3Dincoming%26opening%3D1";
+
+    it("attaches both merge panes to the session registered for them, not to a pending SCM pair", () => {
+        const store = new DiffPaneStore();
+        store.addPendingScm("/repo/diagram.current.bpmn", fakeHandle(LEFT));
+        const session = store.registerMerge({ current: CURRENT, incoming: INCOMING });
+
+        const current = fakeHandle(CURRENT);
+        const incoming = fakeHandle(INCOMING);
+        store.awaitingPaneFor(CURRENT)?.attachPane(current);
+        store.awaitingPaneFor(INCOMING)?.attachPane(incoming);
+
+        expect(session.origin).toBe("merge");
+        expect(session.sideFor(CURRENT)).toBe("before");
+        expect(session.sideFor(INCOMING)).toBe("after");
+        expect(session.attachedPanes()).toStrictEqual([current, incoming]);
+    });
+
+    it("sweeps a merge session no pane joined", () => {
+        const store = new DiffPaneStore();
+        const closed: string[] = [];
+        store.onSessionClosed((session) => closed.push(session.origin));
+        store.registerMerge({ current: CURRENT, incoming: INCOMING });
+
+        vi.advanceTimersByTime(30_000);
+
+        expect(store.findByUri(CURRENT)).toBeUndefined();
+        expect(closed).toStrictEqual(["merge"]);
+    });
 });

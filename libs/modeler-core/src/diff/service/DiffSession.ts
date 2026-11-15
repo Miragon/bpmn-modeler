@@ -1,6 +1,8 @@
 import type { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-types";
 
+import { mergeSideOfPane } from "../domain/mergePaneSide";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { MergePaneUris } from "../port/MergeSidesView";
 
 /**
  * A paired BPMN diff view — the domain object the diff service revolves
@@ -50,6 +52,18 @@ export class DiffSession {
      */
     static forCompareFiles(leftUri: string, rightUri: string): DiffSession {
         return new DiffSession("compare-files", leftUri, rightUri);
+    }
+
+    /**
+     * Builds a `merge` session of a conflicted file's two sides, each in its
+     * fixed pane: current before (left), incoming after (right).
+     */
+    static forMerge(uris: MergePaneUris): DiffSession {
+        return new DiffSession(
+            "merge",
+            uris[mergeSideOfPane("before")],
+            uris[mergeSideOfPane("after")],
+        );
     }
 
     /**
