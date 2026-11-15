@@ -1,10 +1,10 @@
 import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff";
 
 /**
- * The webview can either host the full editable modeler or a readonly viewer
- * used for side-by-side diff rendering.
+ * The webview can either host the full editable modeler, a readonly viewer
+ * used for side-by-side diff rendering, or a readonly merge pane.
  */
-export type BpmnViewerMode = "modeler" | "viewer";
+export type BpmnViewerMode = "modeler" | "viewer" | "merge";
 
 /**
  * Camunda engine identifier used by the BPMN modeler.

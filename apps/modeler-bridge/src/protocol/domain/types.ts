@@ -111,7 +111,8 @@ interface DiffPaneInput {
 /** `diff/open` — the host opens a two-pane diff with both sides known up front. */
 export interface DiffOpenParams {
     diffId: string;
-    origin: DiffOrigin;
+    /** IntelliJ opens no merge view, so its diffs are never merge panes. */
+    origin: Exclude<DiffOrigin, "merge" | "merge-result">;
     before: DiffPaneInput;
     after: DiffPaneInput;
 }

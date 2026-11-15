@@ -10,9 +10,10 @@ export type { DiffSide, DiffCounts, DiffCategory } from "@miragon/bpmn-modeler-d
  * Surfaces in the legend UI so that compare-files panes can show the origin-
  * specific affordances (filename label, swap button) that don't apply to an
  * SCM diff, where VS Code already owns the tab title and the two URIs may
- * share the same basename.
+ * share the same basename. `"merge"` panes show the two sides of a Git
+ * conflict, `"merge-result"` panes compare a built merge with one side.
  */
-export type DiffOrigin = "scm" | "compare-files";
+export type DiffOrigin = "scm" | "compare-files" | "merge" | "merge-result";
 
 /**
  * Canvas viewbox used for pan/zoom synchronisation between panes.
