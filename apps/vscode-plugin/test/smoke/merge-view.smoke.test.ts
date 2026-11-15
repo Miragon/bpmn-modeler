@@ -392,22 +392,14 @@ describe("the BPMN merge view (spike)", () => {
     });
 
     it("opens the merge view again from the row after the reload", async () => {
-        // The restored tab still holds the ended panes, and the opening counter restarted with
-        // the extension host, so the new opening may reuse their URIs. clean.bpmn is active, so
-        // the row shows the entry.
+        // The restored tab still holds the ended panes. The opening ids carry a per-host stamp,
+        // so the new opening gets its own tab instead of focusing the ended one. clean.bpmn is
+        // active, so the row shows the entry.
         await openFromMergeRow();
-        facts.reopenedOverRestoredTab = await liveMergePanes(10_000);
+        facts.reopenedOverRestoredTab = await liveMergePanes(TIMEOUT_MS);
         facts.panesAfterReopenOverRestoredTab = await visiblePanes();
         facts.tabsAfterReopenOverRestoredTab = await tabLabels();
-        await shot("merge-view-reopened-over-restored-tab");
-        if (!facts.reopenedOverRestoredTab) {
-            await vscode().closeEditorTab(/order\.bpmn ↔ order\.bpmn|Current ↔ Incoming/);
-            await runFromSideBar("View: Show Explorer");
-            await vscode().openFromExplorer("clean.bpmn");
-            await delay(800);
-            await openFromMergeRow();
-        }
-        expect(await liveMergePanes(TIMEOUT_MS)).toBe(true);
+        expect(facts.reopenedOverRestoredTab).toBe(true);
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
         await expect
             .poll(() => markerOf(after, INCOMING_ONLY_ID), { timeout: TIMEOUT_MS })

@@ -15,6 +15,9 @@ export interface MergePaneUris {
 export class VsCodeMergeSidesView {
     private readonly textsByUri = new Map<string, string>();
     private openings = 0;
+    // A restored tab keeps its URIs across a window reload while the counter restarts; without
+    // this stamp a new opening reuses them and VS Code focuses the ended tab instead.
+    private readonly hostStamp = Date.now().toString(36);
 
     register(context: ExtensionContext): void {
         context.subscriptions.push(
@@ -35,7 +38,7 @@ export class VsCodeMergeSidesView {
             Uri.from({
                 scheme: MERGE_SIDE_SCHEME,
                 path: fileUri.path,
-                query: `side=${side}&n=${opening}`,
+                query: `side=${side}&n=${this.hostStamp}.${opening}`,
             });
         const uris = { current: uriOf("current"), incoming: uriOf("incoming") };
         this.textsByUri.set(uris.current.toString(), sides.current);

@@ -135,12 +135,12 @@ suite("BPMN merge view spike", () => {
         assert.ok(ours);
         const api = await ours.activate();
         const fileUri = vscode.Uri.file(file);
-        await vscode.commands.executeCommand("bpmn-modeler.openBpmnMergeView", fileUri);
-        const current = vscode.Uri.from({
-            scheme: "bpmn-merge",
-            path: fileUri.path,
-            query: "side=current&n=1",
-        }).toString();
+        const opened = await vscode.commands.executeCommand<{ current: string } | undefined>(
+            "bpmn-modeler.openBpmnMergeView",
+            fileUri,
+        );
+        assert.ok(opened, "the merge view did not open");
+        const current = opened.current;
         await waitFor(
             () => api.diff.sessionFor(current)?.paneCount === 2,
             () =>

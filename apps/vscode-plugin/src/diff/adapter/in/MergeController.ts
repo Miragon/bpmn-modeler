@@ -37,7 +37,8 @@ export class MergeController {
         );
     }
 
-    async open(argument: MergeCommandArgument): Promise<void> {
+    /** SPIKE: resolves with the pane URIs, so the e2e probe can find the session. */
+    async open(argument: MergeCommandArgument): Promise<{ current: string; incoming: string } | undefined> {
         const fileUri = fileUriOf(argument);
         if (!fileUri) {
             this.notifier.showInfo("Select a conflicted BPMN file to open the merge view.");
@@ -70,9 +71,11 @@ export class MergeController {
             this.notifier.logInfo(`[merge-spike] registered incoming=${incoming}`);
             const title = `${lastWorkspacePathSegment(fileUri.path)} (Current ↔ Incoming)`;
             await this.view.open(uris, title);
+            return { current, incoming };
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             this.notifier.showError(`Failed to open the merge view: ${String(error)}`);
+            return undefined;
         }
     }
 
