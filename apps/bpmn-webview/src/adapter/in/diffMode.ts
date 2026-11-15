@@ -18,9 +18,12 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";
 
 import { diffPaneLabel } from "../../domain/diffPaneLabel";
+import { comparisonPaneText, type MergeTranslate } from "../../domain/mergeTexts";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
 import { ResultComparisonSwitch } from "./resultComparisonSwitch";
+
+const translate: MergeTranslate = (key, replacements) => i18n.translate(key, replacements);
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
@@ -79,7 +82,7 @@ export class DiffMode {
         this.comparison = new ResultComparisonSwitch(
             this.legend.extensionElement(),
             () => this.host.postMessage(new SwitchMergeComparisonCommand()),
-            (key, replacements) => i18n.translate(key, replacements),
+            translate,
         );
         i18n.onChange(() => this.comparison.render());
 
@@ -125,7 +128,12 @@ export class DiffMode {
         }
 
         this.navigator.setChanges(query.navigationOrder);
-        this.pane.label(query.side, () => diffPaneLabel(query));
+        const { comparison } = query;
+        this.pane.label(query.side, () =>
+            comparison
+                ? comparisonPaneText(query.side, comparison.against, translate)
+                : diffPaneLabel(query),
+        );
         this.updateLegend(query);
     }
 

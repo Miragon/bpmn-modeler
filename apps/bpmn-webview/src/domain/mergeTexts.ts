@@ -10,6 +10,7 @@ import type {
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import type {
+    DiffSide,
     MergeCaptionRole,
     MergeMarker,
     MergeSide,
@@ -271,6 +272,17 @@ export function compareWithText(side: MergeSide, translate: MergeTranslate): str
 /** What a result comparison's legend says it shows. */
 export function comparisonText(side: MergeSide, translate: MergeTranslate): string {
     return translate(COMPARISON_TEXTS[side]);
+}
+
+const RESULT_TEXT = "Result";
+
+/** A result comparison's pane label: the compared side on the left, the result on the right. */
+export function comparisonPaneText(
+    paneSide: DiffSide,
+    against: MergeSide,
+    translate: MergeTranslate,
+): string {
+    return translate(paneSide === "before" ? MERGE_SIDE_TEXTS[against] : RESULT_TEXT);
 }
 
 export function reviewNotesText(count: number, translate: MergeTranslate): string {

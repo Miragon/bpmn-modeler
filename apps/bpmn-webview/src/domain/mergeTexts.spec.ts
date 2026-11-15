@@ -13,6 +13,7 @@ import {
     buildBlockedText,
     buildNoteText,
     compareWithText,
+    comparisonPaneText,
     comparisonText,
     keepSideText,
     MERGE_BUILD_TEXTS,
@@ -327,6 +328,14 @@ describe("build words", () => {
     ])("names the comparison with %s", (side, action, comparison) => {
         expect(compareWithText(side, untranslated)).toBe(action);
         expect(comparisonText(side, untranslated)).toBe(comparison);
+    });
+
+    it.each<["before" | "after", MergeSide, string]>([
+        ["before", "incoming", "Incoming"],
+        ["before", "current", "Current"],
+        ["after", "incoming", "Result"],
+    ])("labels the %s pane of a result compared with %s", (side, against, label) => {
+        expect(comparisonPaneText(side, against, untranslated)).toBe(label);
     });
 
     it("counts the notes to review", () => {

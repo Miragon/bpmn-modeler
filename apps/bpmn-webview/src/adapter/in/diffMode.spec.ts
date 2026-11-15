@@ -635,6 +635,19 @@ describe("DiffMode", () => {
             expectTypeOf<SwitchMergeComparisonCommand>().toExtend<PostedByDiffMode>();
         });
 
+        it.each<["before" | "after", string]>([
+            ["before", "Incoming"],
+            ["after", "Result"],
+        ])("labels the %s pane with what it shows", async (side, label) => {
+            await startDiffPane();
+
+            dispatch(
+                highlights("merge-result", side, false, { against: "incoming", canSwitch: true }),
+            );
+
+            expect(sideLabel()?.showFilename).toHaveBeenLastCalledWith(label);
+        });
+
         it("names the side without a switch where the comparison cannot switch", async () => {
             await startDiffPane();
             dispatch(
