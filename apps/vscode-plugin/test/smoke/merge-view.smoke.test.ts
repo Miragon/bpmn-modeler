@@ -521,9 +521,17 @@ describe("the BPMN merge view", () => {
         });
 
         it("opens the working file as the editable modeler beside the restored ended tab", async () => {
+            // The comparison's tab is restored in the background, where VS Code does not resolve it.
+            expect(await tabLabels()).toContainEqual(
+                expect.stringContaining(`${CONFLICTED.merge} (Merge: Current ↔ Result)`),
+            );
+            expect(await activeTabLabel()).not.toContain("Result)");
+
             await openWithQuickOpen(CONFLICTED.merge);
 
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
+            await expect
+                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
+                .toStrictEqual([{ editable: true, diagram: true }]);
         });
 
         it("opens live panes again beside the restored ended tab", async () => {
@@ -789,6 +797,47 @@ describe("the BPMN merge view", () => {
             return showing;
         }
 
+        /**
+         * What the visible webviews inside the active editor group, or inside
+         * the others, show. VS Code lays webviews over their group outside its
+         * DOM, so a frame belongs to the group its centre lies in.
+         */
+        async function modelersIn(groups: "active" | "others") {
+            const active = await vscode()
+                .page.locator(".editor-group-container.active")
+                .boundingBox();
+            const frames = vscode().editorFrames().filter({ visible: true });
+            const shown = [];
+            for (let index = 0; index < (await frames.count()); index++) {
+                const box = await frames.nth(index).boundingBox();
+                if (!box || !active) continue;
+                const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+                const inActive =
+                    centre.x >= active.x &&
+                    centre.x <= active.x + active.width &&
+                    centre.y >= active.y &&
+                    centre.y <= active.y + active.height;
+                if (inActive !== (groups === "active")) continue;
+                const page = frames
+                    .nth(index)
+                    .contentFrame()
+                    .locator("iframe#active-frame")
+                    .contentFrame();
+                const count = (selector: string) =>
+                    page
+                        .locator(selector)
+                        .count()
+                        .catch(() => 0);
+                shown.push({
+                    editable:
+                        (await count(".djs-palette")) > 0 &&
+                        (await count("#js-properties-panel")) > 0,
+                    diagram: (await count(".djs-shape[data-element-id]")) >= 3,
+                });
+            }
+            return shown;
+        }
+
         async function workingFileText(operation: Operation): Promise<string> {
             return readFile(join(repositories[operation], CONFLICTED[operation]), "utf8");
         }
@@ -876,14 +925,23 @@ describe("the BPMN merge view", () => {
         it("opens the built file as the editable modeler beside the open merge tab, and the modeler open before shows it too", async () => {
             await expect.poll(activeTabLabel, { timeout: TIMEOUT_MS }).toContain(CONFLICTED.merge);
             expect(await activeTabLabel()).not.toContain("(Merge: ");
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
+            // A diff pane that never paired would show no palette and no properties panel.
+            await expect
+                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
+                .toStrictEqual([{ editable: true, diagram: true }]);
             expect(await tabLabels()).toContainEqual(
                 expect.stringContaining(`${CONFLICTED.merge} (Merge: main ↔ feature)`),
             );
-            // VS Code opens a custom text editor once per document: Build reveals the modeler that was open.
+            // Whether Build opened a second modeler or revealed the one open before, every modeler shows the result.
             await expect
-                .poll(modelersShowingDiagram, { timeout: TIMEOUT_MS })
-                .toBeGreaterThanOrEqual(1);
+                .poll(
+                    async () =>
+                        [...(await modelersIn("active")), ...(await modelersIn("others"))]
+                            .filter(({ editable }) => editable)
+                            .every(({ diagram }) => diagram),
+                    { timeout: TIMEOUT_MS },
+                )
+                .toBe(true);
             await notification("Built merged.bpmn from your decisions.");
         });
 
@@ -1007,9 +1065,17 @@ describe("the BPMN merge view", () => {
             await delay(3000);
             await vscode().page.waitForSelector(".monaco-workbench", { timeout: TIMEOUT_MS });
 
+            // The comparison's tab is restored in the background, where VS Code does not resolve it.
+            expect(await tabLabels()).toContainEqual(
+                expect.stringContaining(`${CONFLICTED.merge} (Merge: Current ↔ Result)`),
+            );
+            expect(await activeTabLabel()).not.toContain("Result)");
+
             await openWithQuickOpen(CONFLICTED.merge);
 
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
+            await expect
+                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
+                .toStrictEqual([{ editable: true, diagram: true }]);
         });
 
         it("lets Git continue the merge once the user staged the built files", async () => {

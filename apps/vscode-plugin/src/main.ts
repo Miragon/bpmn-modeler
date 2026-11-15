@@ -16,6 +16,10 @@ import * as addOnsFeature from "./composition/addOnsFeature";
 
 /** Narrow API surface returned by `activate()` for e2e tests only. */
 export interface TestApi {
+    modeler: {
+        /** Whether the editable modeler of `uri` has opened its editor session. */
+        hasEditor(uri: string): boolean;
+    };
     diff: {
         sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
         /** Diff panes that render `uri`, attached or waiting for a partner; 0 for the editable modeler. */
@@ -101,6 +105,9 @@ export function activate(context: ExtensionContext): TestApi {
     });
 
     return {
+        modeler: {
+            hasEditor: (uri: string) => deps.editorStore.hasEditor(uri),
+        },
         diff: {
             sessionFor(uri: string) {
                 const session = diffStore.findByUri(uri) ?? dmnDiffStore.findByUri(uri);

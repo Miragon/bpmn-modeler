@@ -29,6 +29,9 @@ interface Caption {
 }
 
 interface TestApi {
+    modeler: {
+        hasEditor(uri: string): boolean;
+    };
     diff: {
         paneCountFor(uri: string): number;
     };
@@ -263,8 +266,11 @@ suite("BPMN merge view", () => {
                 },
                 () => `the working file did not open in the custom editor`,
             );
-            // A viewType cannot tell the modeler from a diff pane: only a pane count can.
-            await new Promise((done) => setTimeout(done, 1_000));
+            // A viewType cannot tell the modeler from a diff pane: only its editor session can.
+            await waitFor(
+                () => api.modeler.hasEditor(fileUri.toString()),
+                () => "the built file opened no editable modeler",
+            );
             assert.strictEqual(api.diff.paneCountFor(fileUri.toString()), 0);
             assert.strictEqual(api.merge.sessionFor(fileUri.toString())?.paneCount, 2);
         });
@@ -345,8 +351,11 @@ suite("BPMN merge view", () => {
                 () => activeCustomTabOf(fileUri) !== undefined,
                 () => "the built file did not open in the custom editor",
             );
-            // A viewType cannot tell the modeler from a diff pane: only a pane count can.
-            await new Promise((done) => setTimeout(done, 1_000));
+            // A viewType cannot tell the modeler from a diff pane: only its editor session can.
+            await waitFor(
+                () => api.modeler.hasEditor(fileUri.toString()),
+                () => "the built file opened no editable modeler",
+            );
             assert.strictEqual(api.diff.paneCountFor(fileUri.toString()), 0);
             assert.strictEqual(api.merge.sessionFor(fileUri.toString())?.paneCount, 2);
         });
