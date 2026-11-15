@@ -1,6 +1,6 @@
-export const MERGE_SIDES = ["current", "incoming"] as const;
+import type { MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
-export type MergeSide = (typeof MERGE_SIDES)[number];
+export { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
 export type ResolvedState =
     | "unchanged"

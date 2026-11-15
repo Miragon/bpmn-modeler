@@ -43,6 +43,8 @@
         "knip.jsonc",
         "libs/bpmn-merge",
         "libs/modeler-core",
+        "libs/modeler-types/src/mergeVocabulary.spec.ts",
+        "libs/modeler-types/src/mergeVocabulary.ts",
         "libs/shared",
         "libs/standalone-extension",
         "package.json",

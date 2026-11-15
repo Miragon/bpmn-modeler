@@ -26,6 +26,7 @@ export * from "./diffSideLabelView";
 export * from "./dom";
 export * from "./diffStepper";
 export * from "./diffVocabulary";
+export * from "./mergeVocabulary";
 export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";
