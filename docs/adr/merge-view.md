@@ -226,33 +226,37 @@ staging on build, which takes the decision from the user.
 with unsaved edits and whether there are any; `replace` goes through VS Code's text document
 (`WorkspaceEdit` and `save`), so every editor of the file follows. Not `WorkspacePort.writeFile`,
 whose behaviour with a dirty open document nobody checked. The contract suite pins that a read
-sees unsaved edits as dirty and that a replace leaves nothing dirty, run by the fake and the VS
-Code adapter. The built file opens through `NotifierPort.openDocument` (`vscode.open`), which
+sees unsaved edits as dirty, that a replace leaves nothing dirty and keeps a CRLF file's line
+endings, run by the fake and the VS Code adapter; a failed save puts the old text back. The
+built file opens through `NotifierPort.openDocument` (`vscode.open`), which
 picks our editor on 1.76.0 and stable, also after a text tab of the file; it lands in the
 editable modeler only because a merge tab names no file (see "Opening from Git").
 
 **Ask before replacing what the user may want.** `overwriteDecision` writes without asking over
-Git's markers or over the last build, both recoverable; it asks first over unsaved changes (the
-save would lose them), over a file without markers that was never built (resolved another way,
-or VS Code's merge editor filled it with base text) and over a build the user edited. A build
-the library refuses writes nothing and shows its reason, which names the elements. Build is
-refused while a conflict is open; the button says how many are left. The core keeps the last
-built text and the build's notes in the merge session and sends them to the panes before it
-opens the file, which hides the merge tab, so the panes show the notes when the user comes
-back. Rejected: a command that picks one side for every open conflict, which decides for the
-user.
+Git's markers as the merge view read them when it opened, or over the last build as its save
+left the file (line endings and save participants may change the text); `git checkout -m` or
+the next build brings either back, and line endings never count as a change. It asks first
+over unsaved changes (the save would lose them), over markers changed since the merge view
+opened (a conflict resolved by hand there is not recoverable), over a file without markers
+that was never built (resolved another way, or another merge tool filled it) and over a build
+the user edited. A build the library refuses writes nothing and shows its reason, which names
+the elements; a second Build while one runs is ignored, and one with open conflicts is refused.
+The core keeps the last build and its notes in the
+merge session and sends them to the panes before it opens the file, which hides the merge tab,
+so the panes show the notes when the user comes back. Rejected: a command that picks one side
+for every open conflict, which decides for the user.
 
-**The comparison is a plain BPMN diff.** "Compare with current/incoming" serves the stage again
-under a fresh `bpmn-merge:` URI and registers a `merge-result` session of it against the working
-file's `file:` URI, so the right pane reads the open document, unsaved edits included, when the
-comparison opens. `computeDiff` then marks every element of the stage missing from the result as
+**The comparison is a plain BPMN diff of copies.** "Compare with current/incoming" reads the
+working file as it is open, unsaved edits included, and serves it as `order.result.bpmn` beside
+the stages under fresh `bpmn-merge:` URIs, then registers a `merge-result` session of the stage
+against that copy. `computeDiff` marks every element of the stage missing from the result as
 removed, one a pick dropped as a consequence too. The tab title holds `MERGE_TITLE_INFIX`, so it
-names no file; `MergeViewOpener.attachPane` joins the stage pane to the session registered for
-it. The panes learn the side from `ApplyDiffHighlightsQuery.comparison`, a capability beside the
-origin, and the switch closes the comparison and opens the other side's while the merge view is
-open. Cost: a restored comparison's label (`order.incoming.bpmn ↔ order.bpmn`) does name the
-working file, so its `file:` side waits as a pending half until closed; the user's own opening
-still gets the modeler, because that half counts as a pane.
+names no file; `MergeViewOpener.attachPane` joins both panes to the session registered for
+them, and a restored one shows that the merge view ended. The panes learn the side and the
+switch's target from `ApplyDiffHighlightsQuery.comparison`; the switch opens the other side's
+comparison, then closes this one, and goes once the merge view closed. Cost: it does not follow
+later edits. Rejected: the `file:` URI on the right, which a restored, unresolved comparison
+turned into a pending diff half, so the working file opened as a dead viewer.
 
 **The modeler retries a failed first import.** A modeler tab open on the conflicted file failed
 its first import on the markers and used to drop every later host file. It now waits for the
@@ -262,7 +266,8 @@ host's next file and opens that, so it shows the built diagram.
 
 VS Code keeps `^1.76.0`. On 1.76.0 the Git API under `--disable-extensions`, both
 `bpmn-merge:` panes in the custom editor and the working file opening into the modeler run in
-`test/e2e`; the menus were seen on stable only, because the smoke harness cannot launch 1.76.
+`test/e2e`; the menus and the comparison (the same `bpmn-merge:` diff) were seen on stable
+only, because the smoke harness cannot launch 1.76.
 Should a menu fail there, raising the minimum is the fallback. The standalone app ships
 `vscode.git` 1.95.3, so the view is not gated there, and it is untested: no headless harness
 runs the Theia app. IntelliJ opens no merge view: the bridge narrows `DiffOpenParams.origin`
@@ -288,8 +293,8 @@ to the two diff origins and lists no conflict-marker participant.
   smoke test's `pick` steps decide by keyboard only, the badge surviving a tab switch, the
   restore offer and a refused pick.
 - `MergeBuildService.spec.ts` builds, refuses with open conflicts, asks before overwriting,
-  writes nothing on a failed build, sends the notes before the file opens and compares and
-  switches on fake ports; `test/e2e` builds on 1.76.0 and stable and checks the index and that
+  writes nothing on a failed build or read, sends the notes before the file opens, compares a
+  copy and switches on fake ports; `test/e2e` builds on 1.76.0 and stable and checks the index and that
   no diff pane holds the built file; the smoke test's `build` steps build a merge and a rebase
   with a modeler open in a second group, compare, reload and let Git continue.
 - The bridge builds no `MergeDecisionService` or `MergeBuildService` and ignores the build

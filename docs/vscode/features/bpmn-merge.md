@@ -58,18 +58,18 @@ Once no conflict is open, **Build** in the right pane's legend writes the merged
 
 - The file is the trial run: edit it in the modeler as usual. **Format Diagram** and **Clean Up Diagram** help with a layout put together from both sides.
 - Nothing is staged. Git still lists the file as conflicted until you stage it.
-- Build asks before it replaces your work: when the file has unsaved changes, when you changed it since the last build, or when it holds no conflict markers and was never built (you resolved it another way, or VS Code's merge editor changed it). Building over Git's markers or over an untouched build does not ask.
+- Build asks before it replaces your work: when the file has unsaved changes, when you changed it since the last build, when you changed Git's conflict markers since the merge view opened (for example, resolved a conflict by hand), or when it holds no conflict markers and was never built (you resolved it another way, or another merge tool changed it). Building over Git's markers as Git wrote them or over an untouched build does not ask.
 - A failed build writes nothing. If the result fails a check, the file stays as it was and the message names the elements.
 
 <figure class="shot"><img src="./images/bm-notes.png" alt="The right pane's legend with Review notes (1) open, listing that Check feature order is kept without the flows the other side removed with it, with buttons for the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
 
-**Review notes (N)** lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, a file attribute both sides changed.
+**Review notes (N)** lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
 
 ## Compare the result
 
 <figure class="shot"><img src="./images/bm-compare.png" alt="A BPMN diff titled merged.bpmn (Merge: Incoming ↔ Result) with the pane labelled Incoming on the left and the pane labelled Result on the right, the task renamed in the result marked as changed, and the bar reading Result against incoming with a Compare with current button"><figcaption>An edit of the result shows as a change against incoming.</figcaption></figure>
 
-Once a result is built, **Compare with current** and **Compare with incoming** open the normal [BPMN diff](/vscode/features/bpmn-diff) of that side against the file as it is open, unsaved edits included. Against incoming, every element of incoming that is not in the result shows as removed, also one a pick dropped along with another; against current, you see what the merge brings in. The diff's bar switches to the other side. It shows the file as it was when the diff opened; open it again after an edit.
+Once a result is built, **Compare with current** and **Compare with incoming** open the normal [BPMN diff](/vscode/features/bpmn-diff) of that side against a copy of the file as it is open, unsaved edits included. Against incoming, every element of incoming that is not in the result shows as removed, also one a pick dropped along with another; against current, you see what the merge brings in. While the merge view is open, the diff's bar switches to the other side. It shows the file as it was when the diff opened; open it again after an edit.
 
 ## Finish
 
