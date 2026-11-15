@@ -5,8 +5,8 @@ import {
     loadExecutionPackage,
 } from "@miragon/bpmn-modeler-diff";
 
-import type { MergeVersions } from "./computeMerge";
 import { executionEngineOf } from "./executionEngine";
+import { type MergeVersions, prefixSourcesOf } from "./mergeVersions";
 
 export interface MergeModdle extends PrefixedModdle {
     /** Current first, so current keeps its prefixes and the others get a fresh one on a clash. */
@@ -16,9 +16,7 @@ export interface MergeModdle extends PrefixedModdle {
 
 /** Current's engine descriptor, as the modeler saves current with it, and one prefix per namespace of every version. */
 export async function createMergeModdle(versions: MergeVersions): Promise<MergeModdle> {
-    const prefixSources = [versions.current, versions.incoming, versions.base].filter(
-        (xml): xml is string => xml !== undefined,
-    );
+    const prefixSources = prefixSourcesOf(versions);
     const engineName = executionEngineOf(versions.current);
     const engine = engineName === undefined ? undefined : await loadExecutionPackage(engineName);
     return moddleFor(prefixSources, engine);

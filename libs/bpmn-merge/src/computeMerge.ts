@@ -15,7 +15,7 @@ import {
     prefixSourcesOf,
     requireMergeableVersions,
 } from "./mergeVersions";
-import { versionKeyOf } from "./versionKey";
+import { versionKeysOf } from "./versionKey";
 
 export type { MergeVersions } from "./mergeVersions";
 
@@ -44,12 +44,7 @@ export async function computeMerge(versions: MergeVersions): Promise<MergeResult
             hasBase,
         ),
     );
-    const versionKeys = {
-        current: versionKeyOf(versions.current),
-        incoming: versionKeyOf(versions.incoming),
-        ...(versions.base === undefined ? {} : { base: versionKeyOf(versions.base) }),
-    };
-    return { hasBase, versionKeys, elements };
+    return { hasBase, versionKeys: versionKeysOf(versions), elements };
 }
 
 async function snapshotsOf(

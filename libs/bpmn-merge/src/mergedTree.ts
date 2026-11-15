@@ -7,7 +7,7 @@ import {
 
 import { isMergeElement } from "./mergeElements";
 import { type ItemKey, itemKeyOf, orderMembers } from "./mergedTreeOrder";
-import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
+import type { MergeSide } from "./mergeResult";
 
 interface PathStep {
     readonly property: string;
@@ -83,29 +83,6 @@ export function versionTreeOf(definitions: ModdleElement): VersionTree {
     };
     visit(definitions, undefined, []);
     return { definitions, units, placements, orders };
-}
-
-/** Every element whose presence in a version differs from what the merge result says of that version. */
-export function requireDecidedElements(
-    result: MergeResult,
-    trees: Readonly<Record<MergeSide, VersionTree>>,
-): void {
-    const decidedIds = new Set(result.elements.map(({ id }) => id));
-    const mismatches = MERGE_SIDES.flatMap((side) => [
-        ...result.elements
-            .filter(
-                ({ id, versions }) => (versions[side] !== undefined) !== trees[side].units.has(id),
-            )
-            .map(({ id }) => `${id} (${side})`),
-        ...[...trees[side].units.keys()]
-            .filter((id) => !decidedIds.has(id))
-            .map((id) => `${id} (${side})`),
-    ]);
-    if (mismatches.length > 0) {
-        throw new Error(
-            `The merge decisions were made for other versions: ${[...new Set(mismatches)].join(", ")}`,
-        );
-    }
 }
 
 /**

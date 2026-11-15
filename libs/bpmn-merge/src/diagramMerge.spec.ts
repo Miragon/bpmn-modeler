@@ -188,7 +188,7 @@ describe("buildMerged with an expanded sub-process that has a plane of its own",
 });
 
 describe("buildMerged with diagram ids", () => {
-    it("refuses, rather than write two diagrams under one id, an incoming sub-process diagram named as current's root diagram", async () => {
+    it("gives an incoming sub-process diagram named as current's root diagram an id of its own", async () => {
         const clashing = collapsed()
             .replace(
                 '<bpmndi:BPMNDiagram id="BPMNDiagram_1">',
@@ -199,10 +199,17 @@ describe("buildMerged with diagram ids", () => {
                 '<bpmndi:BPMNDiagram id="BPMNDiagram_1">',
             );
         const versions = { base: expanded(), current: expanded(), incoming: clashing };
-
-        await expect(automaticMerge(versions)).rejects.toThrow(
-            "drawn elements have no shape or edge: Task_In",
+        const { xml } = await automaticMerge(versions);
+        const diagramIds = [...xml.matchAll(/<bpmndi:BPMNDiagram id="([^"]*)"/g)].map(
+            ([, id]) => id,
         );
+
+        expect(await planesOf(xml)).toEqual({
+            Process_1: ["Start_1", "Sub_1", "End_1", "Flow_1", "Flow_2"],
+            Sub_1: ["Task_In"],
+        });
+        expect(diagramIds[0]).toBe("BPMNDiagram_1");
+        expect(new Set(diagramIds).size).toBe(2);
     });
 });
 

@@ -39,7 +39,8 @@ choice that applies, is refused with its reasons.
 (`versionKeys`), so it is JSON-serialisable. `computeMerge` refuses, naming the version: sides for
 different engines, a version that parses with any warning, also under the merge's engine descriptor,
 and a root element or lane without an id. `prepareMergeSources` refuses the same versions, and
-`buildMerged` refuses a result that fails its checks instead of repairing it.
+`buildMerged` refuses sources of other versions than the result's, naming them, and a result
+that fails its checks instead of repairing it.
 
 ## Rules
 

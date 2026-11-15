@@ -4,6 +4,8 @@ import {
     type ModdleParseResult,
     elementSnapshots,
     idsOf,
+    isModdleElement,
+    isType,
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
@@ -44,6 +46,7 @@ export async function checkMergedXml(
     const diagramIndex = diagramIndexOf(parsed.rootElement);
     requireOneDrawingPerDrawnElement(diagramIndex, expectations.drawnByShape);
     requireDrawingsOnTheirContainersPlane(diagramIndex);
+    requireDrawingsReachableFromTheirRootPlane(diagramIndex);
     requireRebuiltDerivedReferences(parsed.rootElement, expectations.laneMembers);
     const resultSnapshots = await elementSnapshots(xml, { prefixSources, isUnit: isMergeElement });
     requireSourceContent(resultSnapshots, expectations.sourceSnapshots);
@@ -84,6 +87,53 @@ export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex
     if (misplaced.length > 0) {
         refuse("drawings lie on another plane than their sub-process implies", misplaced);
     }
+}
+
+/**
+ * bpmn-js draws from a root plane only what its owner reaches: a process's
+ * contents, or a collaboration's own elements, the processes its pools name
+ * and any process with lanes.
+ */
+export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: DiagramIndex): void {
+    const unreachable = diagramIndex.diagrams.flatMap((diagram) => {
+        const plane = diagram.plane as ModdleElement | undefined;
+        const owner = plane?.bpmnElement;
+        if (!isModdleElement(owner) || !isRootPlaneOwner(owner)) return [];
+        const reachableRoots = new Set<unknown>([owner]);
+        if (isType(owner, "bpmn:Collaboration")) {
+            for (const participant of moddleElements(owner.participants)) {
+                reachableRoots.add(participant.processRef);
+            }
+            for (const root of moddleElements((owner.$parent as ModdleElement).rootElements)) {
+                if (moddleElements(root.laneSets).length > 0) reachableRoots.add(root);
+            }
+        }
+        return moddleElements(plane?.planeElement)
+            .map((drawing) => drawing.bpmnElement)
+            .filter(
+                (drawn): drawn is ModdleElement =>
+                    isModdleElement(drawn) && !isInsideAnyOf(drawn, reachableRoots),
+            )
+            .map((drawn) => drawn.id);
+    });
+    if (unreachable.length > 0) {
+        refuse("drawings lie on a root plane that does not reach them", unreachable);
+    }
+}
+
+function isRootPlaneOwner(element: ModdleElement): boolean {
+    return isType(element, "bpmn:Process") || isType(element, "bpmn:Collaboration");
+}
+
+function isInsideAnyOf(element: ModdleElement, roots: ReadonlySet<unknown>): boolean {
+    for (
+        let container: ModdleElement | undefined = element;
+        container !== undefined;
+        container = container.$parent as ModdleElement | undefined
+    ) {
+        if (roots.has(container)) return true;
+    }
+    return false;
 }
 
 export function requireRebuiltDerivedReferences(

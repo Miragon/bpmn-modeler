@@ -7,7 +7,7 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import { contentsPlaneOf } from "./containerContents";
-import { type ItemKey, itemKeyOf } from "./mergedTreeOrder";
+import type { ItemKey } from "./mergedTreeOrder";
 
 export interface DiagramBounds {
     readonly x: number;
@@ -28,6 +28,7 @@ export interface DiagramIndex {
     readonly planeOwners: ReadonlySet<string>;
     /** Shapes and edges by the id of the element they draw ("" for none). */
     readonly drawingsByElement: ReadonlyMap<string, readonly Drawing[]>;
+    /** Each plane's drawings in document order, by `drawingKeyOf`. */
     readonly orderByPlaneOwner: ReadonlyMap<string, readonly ItemKey[]>;
     /** Plane owners that are sub-processes: each has a plane of its own in the result. */
     readonly subProcessPlaneOwners: ReadonlySet<string>;
@@ -58,7 +59,7 @@ export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
                 ...(drawingsByElement.get(elementId) ?? []),
                 { element: drawing, planeOwner },
             ]);
-            order.push(itemKeyOf(drawing));
+            order.push(drawingKeyOf(drawing));
         }
         orderByPlaneOwner.set(planeOwner, [...(orderByPlaneOwner.get(planeOwner) ?? []), ...order]);
     }
@@ -106,6 +107,11 @@ export function boundsIn(index: DiagramIndex, elementId: string): DiagramBounds 
               height: Number(bounds.height),
           }
         : undefined;
+}
+
+/** A drawing is known by the element it draws, not by its DI id, which the sides may give two different drawings. */
+export function drawingKeyOf(drawing: ModdleElement): ItemKey {
+    return idOf(drawing.bpmnElement) ?? drawing;
 }
 
 export function planeOwnerOf(diagram: ModdleElement): string {

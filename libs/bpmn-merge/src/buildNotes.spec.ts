@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
+import {
+    mergeElement,
+    mergeResult,
+    mergeResultWithoutBase,
+    refersTo,
+} from "./__fixtures__/mergeResultBuilder";
 import {
     addedAtSamePlaceNotes,
     drawnApartFromContainerNotes,
@@ -143,13 +148,10 @@ describe("addedAtSamePlaceNotes", () => {
     });
 
     it("counts elements only one side has without a base", () => {
-        const result = {
-            hasBase: false,
-            elements: [
-                mergeElement("Task_Current", "onlyInCurrent"),
-                mergeElement("Task_Overlapping", "onlyInIncoming"),
-            ],
-        };
+        const result = mergeResultWithoutBase(
+            mergeElement("Task_Current", "onlyInCurrent"),
+            mergeElement("Task_Overlapping", "onlyInIncoming"),
+        );
         const resolution: MergeResolution = {
             elements: { Task_Current: "current", Task_Overlapping: "incoming" },
             layout: {},

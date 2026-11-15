@@ -6,6 +6,7 @@ import {
     type BuildExpectations,
     checkMergedXml,
     requireDrawingsOnTheirContainersPlane,
+    requireDrawingsReachableFromTheirRootPlane,
     requireNoParserWarnings,
     requireOneDrawingPerDrawnElement,
     requireRebuiltDerivedReferences,
@@ -253,6 +254,48 @@ describe("requireSourceContent", () => {
         result.set("Task_Stray", source.get("Task_Check")!);
 
         expect(() => requireSourceContent(result, source)).toThrow(": Task_Reject, Task_Stray");
+    });
+});
+
+describe("requireDrawingsReachableFromTheirRootPlane", () => {
+    const withSecondPoolOnTheRootPlane = valid
+        .replace(
+            '<bpmn:collaboration id="Collaboration_1">',
+            `<bpmn:collaboration id="Collaboration_2">
+    <bpmn:participant id="Participant_Store" name="Store" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:collaboration id="Collaboration_1">`,
+        )
+        .replace(
+            '<bpmndi:BPMNShape id="Participant_Shop_di"',
+            `<bpmndi:BPMNShape id="Participant_Store_di" bpmnElement="Participant_Store" isHorizontal="true">
+        <dc:Bounds x="120" y="600" width="1100" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Shop_di"`,
+        );
+
+    it("refuses a pool drawn on the plane of another collaboration", async () => {
+        const parsed = await parse(withSecondPoolOnTheRootPlane);
+
+        expect(() =>
+            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+        ).toThrow("drawings lie on a root plane that does not reach them: Participant_Store");
+    });
+
+    it("accepts a process with lanes that no pool names on a collaboration's plane", async () => {
+        const parsed = await parse(valid.replace(' processRef="Process_1"', ""));
+
+        expect(() =>
+            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+        ).not.toThrow();
+    });
+
+    it("accepts a collaboration's plane that draws its pools, their processes and its message flows", async () => {
+        const parsed = await parse(valid);
+
+        expect(() =>
+            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+        ).not.toThrow();
     });
 });
 

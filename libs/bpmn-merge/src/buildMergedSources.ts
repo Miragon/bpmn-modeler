@@ -1,10 +1,11 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
-import type { MergeVersions } from "./computeMerge";
 import { type MergeModdle, createMergeModdle } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
 import { type DocumentFrame, frameOf } from "./mergedTreeFrame";
-import type { MergeSide } from "./mergeResult";
+import type { MergeResult, MergeSide, VersionKeys } from "./mergeResult";
+import { type MergeVersions, VERSION_NAMES, requireMergeableVersions } from "./mergeVersions";
+import { versionKeysOf } from "./versionKey";
 
 /**
  * What every build of one merge shares, parsed once: the caller keeps it for
@@ -13,6 +14,7 @@ import type { MergeSide } from "./mergeResult";
  */
 export interface MergeSources {
     readonly versions: MergeVersions;
+    readonly versionKeys: VersionKeys;
     readonly mergeModdle: MergeModdle;
     readonly snapshots: Readonly<Record<MergeSide, ReadonlyMap<string, ElementSnapshot>>>;
     readonly frames: {
@@ -22,8 +24,9 @@ export interface MergeSources {
     };
 }
 
-/** Rejects a version that parses with any warning, naming it. */
+/** Refuses, naming the version, what `computeMerge` refuses. */
 export async function prepareMergeSources(versions: MergeVersions): Promise<MergeSources> {
+    await requireMergeableVersions(versions);
     const mergeModdle = await createMergeModdle(versions);
     const [current, incoming] = await Promise.all([
         versionSnapshots(mergeModdle, "current", versions.current),
@@ -40,6 +43,7 @@ export async function prepareMergeSources(versions: MergeVersions): Promise<Merg
             incoming: versions.incoming,
             ...(versions.base === undefined ? {} : { base: versions.base }),
         },
+        versionKeys: versionKeysOf(versions),
         mergeModdle,
         snapshots: { current, incoming },
         frames: {
@@ -64,5 +68,17 @@ async function versionSnapshots(
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`${side} does not parse: ${message}`, { cause: error });
+    }
+}
+
+/** The ids alone cannot tell a version whose content changed, so the fingerprints decide. */
+export function requireSourcesOf(result: MergeResult, sources: MergeSources): void {
+    const differing = VERSION_NAMES.filter(
+        (name) => result.versionKeys[name] !== sources.versionKeys[name],
+    );
+    if (differing.length > 0) {
+        throw new Error(
+            `The merge decisions were made for other versions: ${differing.join(", ")}`,
+        );
     }
 }

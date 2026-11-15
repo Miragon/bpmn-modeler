@@ -1,7 +1,7 @@
 import type { ElementSnapshot, ModdleElement } from "@miragon/bpmn-modeler-diff";
 
 import { checkMergedXml } from "./buildChecks";
-import type { MergeSources } from "./buildMergedSources";
+import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
 import {
     type BuildNote,
     addedAtSamePlaceNotes,
@@ -11,11 +11,11 @@ import {
 } from "./buildNotes";
 import { isEnclosingContainer } from "./containerContents";
 import { boundsIn, diagramIndexOf } from "./diagramIndex";
-import { assembleDiagrams, drawnByShape } from "./diagramMerge";
+import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
 import type { MergeDecisions } from "./mergeDecisions";
 import type { MergeSide } from "./mergeResult";
-import { assembleSemanticTree, requireDecidedElements, versionTreeOf } from "./mergedTree";
+import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
@@ -38,8 +38,9 @@ export async function buildMerged(
     sources: MergeSources,
     decisions: MergeDecisions,
 ): Promise<MergedDocument> {
-    const resolution = decisions.resolution();
     const result = decisions.result;
+    requireSourcesOf(result, sources);
+    const resolution = decisions.resolution();
     const { mergeModdle, versions } = sources;
     const [current, incoming] = await Promise.all([
         parsedVersion(mergeModdle, versions.current),
@@ -48,20 +49,20 @@ export async function buildMerged(
     const diagramIndexes = { current: diagramIndexOf(current), incoming: diagramIndexOf(incoming) };
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };
-    requireDecidedElements(result, trees);
 
     applyFrame(current, frame.takenFromIncoming);
     const resultUnits = assembleSemanticTree(trees, resolution.elements);
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
-    assembleDiagrams(current, diagramIndexes, resolution, resultUnits);
+    const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
+    assembleDiagrams(current, diagramIndexes, resolution, drawingSides, resultUnits);
     const { xml } = await mergeModdle.moddle.toXML(current, { format: true });
 
     await checkMergedXml(
         xml,
         {
             sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements),
-            drawnByShape: drawnByShape(diagramIndexes, resolution.layout),
+            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides),
             laneMembers,
         },
         mergeModdle,

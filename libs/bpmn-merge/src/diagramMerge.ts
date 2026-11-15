@@ -1,18 +1,61 @@
-import { type ModdleElement, idOf, isModdleElement } from "@miragon/bpmn-modeler-diff";
+import {
+    type ModdleElement,
+    idOf,
+    isModdleElement,
+    moddleElements,
+    walkContainment,
+} from "@miragon/bpmn-modeler-diff";
 
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
-import { type DiagramIndex, type Drawing, planeOwnerOf } from "./diagramIndex";
+import { type DiagramIndex, type Drawing, drawingKeyOf, planeOwnerOf } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
-import { type ItemKey, itemKeyOf, orderMembers } from "./mergedTreeOrder";
-import { MERGE_SIDES, type MergeSide } from "./mergeResult";
+import { type ItemKey, orderMembers } from "./mergedTreeOrder";
+import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
 
-/** Elements whose layout side draws them with a shape or an edge, not only with a plane. */
+export interface DrawingSides {
+    /** Each drawn element and drawn part of the result with the side whose drawing it takes. */
+    readonly sides: Readonly<Record<string, MergeSide>>;
+    /** Every part either side holds: one without a side here is not drawn at all. */
+    readonly parts: ReadonlySet<string>;
+}
+
+/**
+ * The layout sides, and for each drawn part of the result (a process's data
+ * input, say) the layout side of the element holding it, else the side that
+ * element is taken from, whichever draws the part first.
+ */
+export function drawingSidesOf(
+    result: MergeResult,
+    resolution: MergeResolution,
+    indexes: Readonly<Record<MergeSide, DiagramIndex>>,
+): DrawingSides {
+    const sides: Record<string, MergeSide> = { ...resolution.layout };
+    const parts = new Set<string>();
+    for (const element of result.elements) {
+        for (const side of MERGE_SIDES) {
+            for (const part of element.versions[side]?.parts ?? []) parts.add(part);
+        }
+        const side = resolution.elements[element.id];
+        const version = side === undefined ? undefined : element.versions[side];
+        const candidates = [resolution.layout[element.id], side];
+        for (const part of version?.parts ?? []) {
+            const drawingSide = candidates.find(
+                (candidate) =>
+                    candidate !== undefined && indexes[candidate].drawingsByElement.has(part),
+            );
+            if (drawingSide !== undefined) sides[part] = drawingSide;
+        }
+    }
+    return { sides, parts };
+}
+
+/** Elements and parts whose drawing side draws them with a shape or an edge, not only with a plane. */
 export function drawnByShape(
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
-    layoutSides: Readonly<Record<string, MergeSide>>,
+    drawingSides: Readonly<Record<string, MergeSide>>,
 ): Set<string> {
     return new Set(
-        Object.entries(layoutSides)
+        Object.entries(drawingSides)
             .filter(([id, side]) => (indexes[side].drawingsByElement.get(id)?.length ?? 0) > 0)
             .map(([id]) => id),
     );
@@ -66,22 +109,23 @@ interface KeptDiagram {
 /**
  * Gives current's definitions the result's diagrams: one per plane slot, the
  * plane of a decided owner from that owner's layout side (the root slot
- * preferring a collaboration, under current's root diagram id), and each
- * element's shapes and edges from its layout side, translated only by taking
- * that side's DI. A drawing goes onto the plane its sub-process's DI in the
- * result implies (`contentsPlaneOf`). Drawings of no decided element stay
- * current's.
+ * preferring a collaboration that holds a pool, under current's root diagram
+ * id), and each element's or part's shapes and edges from its drawing side,
+ * translated only by taking that side's DI. A drawing goes onto the plane its sub-process's DI
+ * in the result implies (`contentsPlaneOf`). Drawings of no decided element
+ * and no part stay current's. Incoming's DI keeps its ids unless the result
+ * already uses one, and brings the label styles its drawings use.
  */
 export function assembleDiagrams(
     definitions: ModdleElement,
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
     resolution: MergeResolution,
+    { sides: drawingSides, parts }: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
 ): void {
-    const layoutSides = resolution.layout;
     const decidedIds = new Set(Object.keys(resolution.elements));
     const slots = new PlaneSlots(indexes);
-    const kept = keptDiagramsOf(indexes, slots, layoutSides, decidedIds);
+    const kept = keptDiagramsOf(indexes, slots, drawingSides, decidedIds, resultUnits);
     const slotOrder = (side: MergeSide) => [
         ...new Set(indexes[side].diagrams.map((diagram) => slots.slotOf(planeOwnerOf(diagram)))),
     ];
@@ -90,21 +134,16 @@ export function assembleDiagrams(
         slotOrder("incoming"),
         new Set(kept.keys()),
     );
-    // A later diagram whose id is taken is left out with its drawings, so the drawn-element check refuses the file.
-    const takenIds = new Set<string>();
-    definitions.diagrams = orderedSlots
-        .map((slot) => kept.get(slot)!.diagram)
-        .filter((diagram) => {
-            if (diagram.id === undefined) return true;
-            const taken = takenIds.has(diagram.id);
-            takenIds.add(diagram.id);
-            return !taken;
-        });
+    definitions.diagrams = orderedSlots.map((slot) => kept.get(slot)!.diagram);
 
     const contentsSlots = new Map<string, string | undefined>();
     const firstRootSlot = orderedSlots.find((slot) => slots.isRoot(slot));
     const slotOfElement = (elementId: string, drawing: Drawing): string | undefined => {
-        const subProcess = enclosingSubProcessOf(resultUnits.get(elementId));
+        const subProcess = enclosingSubProcessOf(
+            parts.has(elementId)
+                ? (drawing.element.bpmnElement as ModdleElement)
+                : resultUnits.get(elementId),
+        );
         if (subProcess !== undefined) return contentsSlotOf(subProcess);
         const own = slots.slotOf(drawing.planeOwner);
         return kept.has(own) && slots.isRoot(own) ? own : firstRootSlot;
@@ -112,7 +151,7 @@ export function assembleDiagrams(
     const contentsSlotOf = (subProcess: string): string | undefined => {
         if (!contentsSlots.has(subProcess)) {
             const ownSlot = slots.slotOf(subProcess);
-            const side = layoutSides[subProcess];
+            const side = drawingSides[subProcess];
             const shape =
                 side === undefined
                     ? undefined
@@ -131,18 +170,19 @@ export function assembleDiagrams(
     const place = (drawing: Drawing, slot: string | undefined) => {
         if (slot === undefined || !kept.has(slot)) return;
         const members = membersBySlot.get(slot) ?? new Map<ItemKey, ModdleElement>();
-        members.set(itemKeyOf(drawing.element), drawing.element);
+        members.set(drawingKeyOf(drawing.element), drawing.element);
         membersBySlot.set(slot, members);
     };
     for (const [elementId, drawings] of indexes.current.drawingsByElement) {
-        if (!decidedIds.has(elementId)) {
+        const side = drawingSides[elementId];
+        if (side === undefined && !decidedIds.has(elementId) && !parts.has(elementId)) {
             for (const drawing of drawings) place(drawing, slots.slotOf(drawing.planeOwner));
-        } else if (layoutSides[elementId] === "current") {
+        } else if (side === "current") {
             for (const drawing of drawings) place(drawing, slotOfElement(elementId, drawing));
         }
     }
     for (const [elementId, drawings] of indexes.incoming.drawingsByElement) {
-        if (decidedIds.has(elementId) && layoutSides[elementId] === "incoming") {
+        if (drawingSides[elementId] === "incoming") {
             for (const drawing of drawings) place(drawing, slotOfElement(elementId, drawing));
         }
     }
@@ -152,7 +192,7 @@ export function assembleDiagrams(
         );
     const placed: ModdleElement[] = [];
     for (const slot of orderedSlots) {
-        const { plane } = kept.get(slot)!;
+        const { diagram, plane } = kept.get(slot)!;
         const members = membersBySlot.get(slot) ?? new Map<ItemKey, ModdleElement>();
         plane.planeElement = orderMembers(
             slotPlaneOrder("current", slot),
@@ -162,10 +202,75 @@ export function assembleDiagrams(
             const drawing = members.get(key)!;
             drawing.$parent = plane;
             placed.push(drawing);
+            carryOverLabelStyle(drawing, diagram, [...kept.values()]);
             return drawing;
         });
     }
     repointEdgeEnds(placed);
+    giveIncomingDrawingsUnusedIds(definitions, indexes.incoming);
+}
+
+/**
+ * A label style lives in a diagram, which may be another side's than the
+ * drawing's: a style the result lacks joins the drawing's diagram, and one the
+ * result holds alike under its id is shared.
+ */
+function carryOverLabelStyle(
+    drawing: ModdleElement,
+    diagram: ModdleElement,
+    keptDiagrams: readonly KeptDiagram[],
+): void {
+    const label = drawing.label as ModdleElement | undefined;
+    const style = label?.labelStyle;
+    if (!isModdleElement(style)) return;
+    const keptStyles = keptDiagrams.flatMap((kept) => moddleElements(kept.diagram.labelStyle));
+    if (keptStyles.includes(style)) return;
+    const alike = keptStyles.find(
+        (candidate) => candidate.id === style.id && sameDiContent(candidate, style),
+    );
+    if (alike !== undefined) {
+        label!.labelStyle = alike;
+        return;
+    }
+    diagram.labelStyle = [...moddleElements(diagram.labelStyle), style];
+    style.$parent = diagram;
+}
+
+function sameDiContent(left: ModdleElement, right: ModdleElement): boolean {
+    const contentOf = (element: ModdleElement) =>
+        JSON.stringify(element, (key, value: unknown) =>
+            key === "id" || key.startsWith("$") ? undefined : value,
+        );
+    return left.$type === right.$type && contentOf(left) === contentOf(right);
+}
+
+/** DI ids are not compared between the sides, so two drawings may share one; current's keeps it. */
+function giveIncomingDrawingsUnusedIds(definitions: ModdleElement, incoming: DiagramIndex): void {
+    const incomingDi = new Set<ModdleElement>();
+    for (const diagram of incoming.diagrams) {
+        walkContainment(diagram, (element) => incomingDi.add(element));
+    }
+    const takenIds = new Set<string>();
+    const incomingInResult: ModdleElement[] = [];
+    walkContainment(definitions, (element) => {
+        if (incomingDi.has(element)) incomingInResult.push(element);
+        else if (element.id !== undefined) takenIds.add(element.id);
+    });
+    for (const element of incomingInResult) {
+        if (element.id === undefined) continue;
+        if (takenIds.has(element.id)) element.id = unusedIdFor(element, takenIds);
+        takenIds.add(element.id!);
+    }
+}
+
+function unusedIdFor(element: ModdleElement, takenIds: ReadonlySet<string>): string {
+    const drawnId = idOf(element.bpmnElement);
+    const conventional = drawnId === undefined ? undefined : `${drawnId}_di`;
+    if (conventional !== undefined && !takenIds.has(conventional)) return conventional;
+    for (let suffix = 2; ; suffix++) {
+        const candidate = `${element.id}_${suffix}`;
+        if (!takenIds.has(candidate)) return candidate;
+    }
 }
 
 function keptDiagramsOf(
@@ -173,6 +278,7 @@ function keptDiagramsOf(
     slots: PlaneSlots,
     layoutSides: Readonly<Record<string, MergeSide>>,
     decidedIds: ReadonlySet<string>,
+    resultUnits: ReadonlyMap<string, ModdleElement>,
 ): Map<string, KeptDiagram> {
     const candidates = new Map<string, { owner: string; side: MergeSide }[]>();
     for (const side of MERGE_SIDES) {
@@ -188,9 +294,12 @@ function keptDiagramsOf(
     }
     const kept = new Map<string, KeptDiagram>();
     for (const [slot, slotCandidates] of candidates) {
+        // bpmn-js draws from a collaboration's plane only what its pools reach.
         const { owner, side } =
-            slotCandidates.find(({ owner, side }) =>
-                indexes[side].collaborationPlaneOwners.has(owner),
+            slotCandidates.find(
+                ({ owner, side }) =>
+                    indexes[side].collaborationPlaneOwners.has(owner) &&
+                    moddleElements(resultUnits.get(owner)?.participants).length > 0,
             ) ?? slotCandidates[0]!;
         const diagram =
             diagramDrawing(indexes.current, owner) ?? diagramDrawing(indexes[side], owner)!;

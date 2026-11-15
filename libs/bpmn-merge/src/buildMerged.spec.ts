@@ -418,9 +418,53 @@ describe("buildMerged", () => {
             const other = scenarioNamed("root element only incoming adds");
 
             await expect(buildMerged(await prepareMergeSources(other), decisions)).rejects.toThrow(
-                "Message_Reminder",
+                /^The merge decisions were made for other versions: .*incoming$/,
             );
         });
+
+        it("refuses sources whose versions differ from the decisions' only in content, naming the side", async () => {
+            const versions = fixtureTriple({
+                incoming: (model) => {
+                    nodeById(model, "Task_Check").name = "Check order carefully";
+                },
+            });
+            const decisions = await decisionsFor(versions);
+            const staleSources = await prepareMergeSources({
+                ...versions,
+                incoming: versions.base,
+            });
+
+            await expect(buildMerged(staleSources, decisions)).rejects.toThrow(
+                "The merge decisions were made for other versions: incoming",
+            );
+        });
+
+        it.each([
+            {
+                unknown: "an engine attribute",
+                edit: (xml: string) =>
+                    xml.replace('id="Task_Check"', 'id="Task_Check" camunda:notAProperty="x"'),
+                named: /current does not parse: .*notAProperty/,
+            },
+            {
+                unknown: "an engine extension element",
+                edit: (xml: string) =>
+                    xml.replace(
+                        "<camunda:inputOutput>",
+                        "<camunda:notInDescriptor /><camunda:inputOutput>",
+                    ),
+                named: /current does not parse: .*notInDescriptor/,
+            },
+        ])(
+            "refuses a version whose engine descriptor does not know $unknown, naming the version",
+            async ({ edit, named }) => {
+                const versions = fixtureTriple({});
+
+                await expect(
+                    prepareMergeSources({ ...versions, current: edit(versions.current) }),
+                ).rejects.toThrow(named);
+            },
+        );
     });
 
     describe("derived boundary event references", () => {
@@ -568,6 +612,16 @@ describe("buildMerged", () => {
                 expect(xml).toBe(scenario.current);
             });
 
+            it("draws current's process plane when the collaboration is kept without its pool", async () => {
+                const decisions = await decisionsFor(scenario);
+                expect(decisions.pick("Collaboration_1", "incoming").applied).toBe(true);
+                expect(decisions.pick("Participant_Shop", "current").applied).toBe(true);
+                const { xml } = await buildMerged(await prepareMergeSources(scenario), decisions);
+
+                expect((await diagramsOf(xml)).map(({ owner }) => owner)).toEqual(["Process_1"]);
+                expect(xml).toContain('<bpmn:collaboration id="Collaboration_1" />');
+            });
+
             it("keeps the pool in when only the participant is taken from incoming", async () => {
                 const decisions = await decisionsFor(scenario);
                 for (const { id } of decisions.openConflicts) {
@@ -581,6 +635,167 @@ describe("buildMerged", () => {
                 expect([...rootDiagram!.drawn].sort()).toEqual(
                     [...nodeIds(scenario.incoming)].sort(),
                 );
+            });
+        });
+
+        describe("drawn parts of an element", () => {
+            const DATA_INPUT = `
+    <bpmn:ioSpecification id="IoSpecification_1">
+      <bpmn:dataInput id="DataInput_Request" name="Request" />
+      <bpmn:inputSet id="InputSet_1">
+        <bpmn:dataInputRefs>DataInput_Request</bpmn:dataInputRefs>
+      </bpmn:inputSet>
+      <bpmn:outputSet id="OutputSet_1" />
+    </bpmn:ioSpecification>`;
+            const DATA_INPUT_SHAPE = `      <bpmndi:BPMNShape id="DataInput_Request_di" bpmnElement="DataInput_Request">
+        <dc:Bounds x="160" y="480" width="36" height="50" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>`;
+            const withProcessDataInput = (xml: string) =>
+                xml
+                    .replace(/(<bpmn:process id="Process_1"[^>]*>)/, `$1${DATA_INPUT}`)
+                    .replace("    </bpmndi:BPMNPlane>", DATA_INPUT_SHAPE);
+            const plain = renderBpmn(baseModel("c7"));
+
+            it("keeps the shape of a process data input incoming adds", async () => {
+                const versions = {
+                    base: plain,
+                    current: plain,
+                    incoming: withProcessDataInput(plain),
+                };
+                const { xml } = await automaticMerge(versions);
+
+                expect(xml).toContain('<bpmn:dataInput id="DataInput_Request"');
+                expect(nodeIds(xml)).toContain("DataInput_Request");
+            });
+
+            it("drops the shape of a process data input incoming removes", async () => {
+                const withDataInput = withProcessDataInput(plain);
+                const versions = { base: withDataInput, current: withDataInput, incoming: plain };
+                const { xml } = await automaticMerge(versions);
+
+                expect(nodeIds(xml)).not.toContain("DataInput_Request");
+            });
+
+            it("takes the shape of a process data input with an incoming pick of its process", async () => {
+                const versions = {
+                    base: plain,
+                    current: plain.replace(
+                        'camunda:historyTimeToLive="180"',
+                        'camunda:historyTimeToLive="90"',
+                    ),
+                    incoming: withProcessDataInput(plain),
+                };
+                const decisions = await decisionsFor(versions);
+                expect(decisions.pick("Process_1", "incoming").applied).toBe(true);
+                const { xml } = await buildMerged(await prepareMergeSources(versions), decisions);
+
+                expect(nodeIds(xml)).toContain("DataInput_Request");
+            });
+        });
+
+        describe("diagram interchange ids", () => {
+            const base = renderBpmn(baseModel("c7"));
+            const withTaskDrawnAs = (taskId: string, x: number, shapeId: string) => {
+                const model = cloneModel(baseModel("c7"));
+                model.nodes.push({
+                    id: taskId,
+                    type: "task",
+                    name: taskId,
+                    x,
+                    y: 380,
+                    lane: "Lane_Manager",
+                });
+                return renderBpmn(model).replace(`id="${taskId}_di"`, `id="${shapeId}"`);
+            };
+
+            it("draws both tasks the sides add when their shapes share an id, under unique ids", async () => {
+                const versions = {
+                    base,
+                    current: withTaskDrawnAs("Task_A", 900, "BPMNShape_1"),
+                    incoming: withTaskDrawnAs("Task_B", 1050, "BPMNShape_1"),
+                };
+                const { xml } = await automaticMerge(versions);
+                const shapeIds = [...xml.matchAll(/<bpmndi:BPMNShape id="([^"]*)"/g)].map(
+                    ([, id]) => id,
+                );
+
+                expect(nodeIds(xml)).toEqual(expect.arrayContaining(["Task_A", "Task_B"]));
+                expect(new Set(shapeIds).size).toBe(shapeIds.length);
+                expect(xml).toMatch(/<bpmndi:BPMNShape id="BPMNShape_1" bpmnElement="Task_A">/);
+            });
+
+            const withLabelStyle = (xml: string, taskId: string, font: string) =>
+                xml
+                    .replace(
+                        new RegExp(
+                            `(<bpmndi:BPMNShape id="${taskId}_di" bpmnElement="${taskId}">\\s*<dc:Bounds [^>]*/>)`,
+                        ),
+                        '$1\n        <bpmndi:BPMNLabel labelStyle="LabelStyle_1" />',
+                    )
+                    .replace(
+                        "</bpmndi:BPMNPlane>",
+                        `</bpmndi:BPMNPlane>\n    <bpmndi:BPMNLabelStyle id="LabelStyle_1"><dc:Font name="${font}" size="11" /></bpmndi:BPMNLabelStyle>`,
+                    );
+
+            it("carries over the label style a shape taken from incoming uses", async () => {
+                const versions = {
+                    base,
+                    current: base,
+                    incoming: withLabelStyle(
+                        withTaskDrawnAs("Task_B", 1050, "Task_B_di"),
+                        "Task_B",
+                        "Arial",
+                    ),
+                };
+                const { xml } = await automaticMerge(versions);
+
+                expect(xml).toMatch(/<bpmndi:BPMNLabel labelStyle="LabelStyle_1" \/>/);
+                expect(xml).toContain('<bpmndi:BPMNLabelStyle id="LabelStyle_1">');
+            });
+
+            it("renames incoming's label style when current holds another under its id", async () => {
+                const versions = {
+                    base,
+                    current: withLabelStyle(
+                        withTaskDrawnAs("Task_A", 900, "Task_A_di"),
+                        "Task_A",
+                        "Arial",
+                    ),
+                    incoming: withLabelStyle(
+                        withTaskDrawnAs("Task_B", 1050, "Task_B_di"),
+                        "Task_B",
+                        "Courier",
+                    ),
+                };
+                const { xml } = await automaticMerge(versions);
+                const styleIds = [...xml.matchAll(/<bpmndi:BPMNLabelStyle id="([^"]*)"/g)].map(
+                    ([, id]) => id,
+                );
+
+                expect(styleIds).toHaveLength(2);
+                expect(new Set(styleIds).size).toBe(2);
+                expect(xml).toContain('name="Courier"');
+            });
+
+            it("shares one label style both sides define alike", async () => {
+                const versions = {
+                    base,
+                    current: withLabelStyle(
+                        withTaskDrawnAs("Task_A", 900, "Task_A_di"),
+                        "Task_A",
+                        "Arial",
+                    ),
+                    incoming: withLabelStyle(
+                        withTaskDrawnAs("Task_B", 1050, "Task_B_di"),
+                        "Task_B",
+                        "Arial",
+                    ),
+                };
+                const { xml } = await automaticMerge(versions);
+
+                expect([...xml.matchAll(/<bpmndi:BPMNLabelStyle /g)]).toHaveLength(1);
+                expect([...xml.matchAll(/labelStyle="LabelStyle_1"/g)]).toHaveLength(2);
             });
         });
 

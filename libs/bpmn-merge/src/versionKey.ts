@@ -1,3 +1,6 @@
+import type { VersionKeys } from "./mergeResult";
+import type { MergeVersions } from "./mergeVersions";
+
 const FNV_OFFSET_HIGH = 0xcbf29ce4;
 const FNV_OFFSET_LOW = 0x84222325;
 const FNV_PRIME_LOW = 0x1b3;
@@ -24,4 +27,12 @@ export function versionKeyOf(text: string): string {
         mix(codeUnit >>> 8);
     }
     return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
+}
+
+export function versionKeysOf(versions: MergeVersions): VersionKeys {
+    return {
+        current: versionKeyOf(versions.current),
+        incoming: versionKeyOf(versions.incoming),
+        ...(versions.base === undefined ? {} : { base: versionKeyOf(versions.base) }),
+    };
 }
