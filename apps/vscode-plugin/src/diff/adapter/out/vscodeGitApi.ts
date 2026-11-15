@@ -14,16 +14,16 @@ export interface Commit {
     readonly message: string;
 }
 
-export interface Branch {
+interface Branch {
     readonly name?: string;
     readonly commit?: string;
 }
 
-export interface Change {
+interface Change {
     readonly uri: Uri;
 }
 
-export interface RepositoryState {
+interface RepositoryState {
     readonly HEAD: Branch | undefined;
     readonly rebaseCommit: Commit | undefined;
     readonly mergeChanges: Change[];
@@ -38,7 +38,7 @@ export interface Repository {
     status(): Promise<void>;
 }
 
-export type APIState = "uninitialized" | "initialized";
+type APIState = "uninitialized" | "initialized";
 
 export interface API {
     readonly state: APIState;

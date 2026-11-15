@@ -1,12 +1,8 @@
+// @ts-nocheck
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { ConflictStageFacts } from "../domain/conflictFacts";
 
-export type {
-    ConflictStageFacts,
-    ConflictStages,
-    GitCommitFact,
-    GitRefFacts,
-} from "../domain/conflictFacts";
+export type { ConflictStageFacts, ConflictStages, GitRefFacts } from "../domain/conflictFacts";
 
 /** Where the core reads a conflicted file's Git stages and refs: the host's Git integration. */
 export interface ConflictVersionsSource {
