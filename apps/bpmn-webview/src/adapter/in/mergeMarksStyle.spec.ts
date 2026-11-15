@@ -47,4 +47,22 @@ describe("mergeMarks.css", () => {
         expect(declarationsFor(".merge-conflict-badge", false)).toMatch(/background:/);
         expect(declarationsFor(".merge-conflict-badge", true)).toMatch(/background:/);
     });
+
+    it("tells a pick kept here from one replaced here in both themes, by fill, not only colour", () => {
+        for (const dark of [false, true]) {
+            expect(declarationsFor(".merge-pick-badge--kept-here", dark)).toMatch(/background:/);
+            expect(declarationsFor(".merge-pick-badge--replaced-here", dark)).toMatch(
+                /background:/,
+            );
+        }
+        expect(declarationsFor(".merge-pick-badge--with-contents::after", false)).toMatch(
+            /border:/,
+        );
+    });
+
+    it("outlines a pick's consequence dotted, a cue no theme changes", () => {
+        expect(declarationsFor(".djs-shape.merge-consequence", false)).toMatch(
+            /stroke-dasharray:\s*2 3/,
+        );
+    });
 });

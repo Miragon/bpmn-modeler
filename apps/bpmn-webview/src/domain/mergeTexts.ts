@@ -1,5 +1,12 @@
 import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type {
+    MergeObstacleKind,
+    MergePaneBlock,
+    MergePaneOutcome,
+    MergePaneRestoreOffer,
+    MergePickScope,
+} from "@miragon/bpmn-modeler-shared";
+import type {
     MergeCaptionRole,
     MergeMarker,
     MergeSide,
@@ -70,4 +77,139 @@ export function shapelessEntryText(
     translate: MergeTranslate,
 ): string {
     return `${entry.id} (${elementTypeName(entry.type, translate)})`;
+}
+
+/** The pick actions on the context pad and in the legend. */
+export const MERGE_PICK_TEXTS = {
+    keepThis: "Keep this version",
+    keepInside: "Keep everything inside",
+    undo: "Undo pick",
+    yourPicks: "Your picks",
+    pulledIn: "Pulled in:",
+    dropped: "Dropped:",
+    reopened: "Open again:",
+} as const;
+
+const KEEP_SIDE_TEXTS: Record<MergeSide, string> = {
+    current: "Keep current",
+    incoming: "Keep incoming",
+};
+
+// One letter per side, shown on a pick's badge beside its check mark.
+const SIDE_LETTERS: Record<MergeSide, string> = {
+    current: "C",
+    incoming: "I",
+};
+
+const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
+    element: {
+        current: "Kept from current, your pick",
+        incoming: "Kept from incoming, your pick",
+    },
+    withContents: {
+        current: "Kept from current with everything inside, your pick",
+        incoming: "Kept from incoming with everything inside, your pick",
+    },
+    withConnections: {
+        current: "Kept from current with its flows, your pick",
+        incoming: "Kept from incoming with its flows, your pick",
+    },
+};
+
+const PICK_NOT_DRAWN_TEXTS: Record<MergeSide, string> = {
+    current: "Kept from current: {element}",
+    incoming: "Kept from incoming: {element}",
+};
+
+/** Why a pick was refused, in the merge's terms, with the two elements' names. */
+const MERGE_OBSTACLE_TEXTS: Record<MergeObstacleKind, string> = {
+    targetInNoVersion: "{element} needs {target}, which no version has",
+    targetPickedWithout: "{element} needs {target}, which you picked from a side without it",
+    targetDroppedByThisPick: "{element} needs {target}, which this pick drops",
+    targetTakenByThisPickWithoutPart:
+        "{element} needs a part of {target} that this pick leaves out",
+    sideLacksTarget: "{element} needs {target}, which this side does not have",
+    targetNotInResult: "{element} needs {target}, which the result leaves out",
+    targetTakenWithoutPart: "{element} needs a part of {target} that the kept version lacks",
+    dependentPicked: "{element}, which you picked, needs {target}",
+    dependentPulledInByThisPick: "This pick brings in {element}, which needs {target}",
+    idHeldByAnother: "{element} and {target} hold the same id",
+    processInAnotherCollaboration: "{element} and {target} each have a pool of the same process",
+};
+
+const RESTORE_OFFER_TEXTS: Record<MergeSide, { one: string; many: string }> = {
+    current: {
+        one: "Also keep the flow current removed with it",
+        many: "Also keep the {count} flows current removed with it",
+    },
+    incoming: {
+        one: "Also keep the flow incoming removed with it",
+        many: "Also keep the {count} flows incoming removed with it",
+    },
+};
+
+const OUTCOME_HEADLINES: Record<MergePaneOutcome["action"], { applied: string; refused: string }> =
+    {
+        pick: { applied: "Kept {element}", refused: "Cannot keep {element}" },
+        unpick: {
+            applied: "Took back the pick of {element}",
+            refused: "Cannot take back the pick of {element}",
+        },
+    };
+
+/** A pick's badge: the kept side's letter, and its full words for the title and screen readers. */
+export function pickBadgeText(
+    badge: { readonly keptSide: MergeSide; readonly scope: MergePickScope },
+    translate: MergeTranslate,
+): { letter: string; label: string } {
+    return {
+        letter: translate(SIDE_LETTERS[badge.keptSide]),
+        label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]),
+    };
+}
+
+/** A pick the pane cannot draw, as its legend lists it. */
+export function pickNotDrawnText(
+    keptSide: MergeSide,
+    name: string,
+    translate: MergeTranslate,
+): string {
+    return translate(PICK_NOT_DRAWN_TEXTS[keptSide], { element: name });
+}
+
+/** The legend's action that keeps the stepped element from the pane's side. */
+export function keepSideText(side: MergeSide, translate: MergeTranslate): string {
+    return translate(KEEP_SIDE_TEXTS[side]);
+}
+
+/** One reason a pick was refused, naming the elements as the canvas does. */
+export function blockText(
+    block: MergePaneBlock,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    return translate(MERGE_OBSTACLE_TEXTS[block.obstacle], {
+        element: nameOf(block.elementId),
+        target: nameOf(block.targetId),
+    });
+}
+
+/** The offer to keep the flows the other side removed with an element the user kept. */
+export function restoreOfferText(offer: MergePaneRestoreOffer, translate: MergeTranslate): string {
+    const texts = RESTORE_OFFER_TEXTS[offer.removedBy];
+    return offer.connections.length === 1
+        ? translate(texts.one)
+        : translate(texts.many, { count: String(offer.connections.length) });
+}
+
+/** What the user's last pick or undo did, in one line. */
+export function outcomeHeadline(
+    outcome: MergePaneOutcome,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const headlines = OUTCOME_HEADLINES[outcome.action];
+    return translate(outcome.applied ? headlines.applied : headlines.refused, {
+        element: nameOf(outcome.elementId),
+    });
 }

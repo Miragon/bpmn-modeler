@@ -114,6 +114,62 @@
     border-color: #1d1d1d;
 }
 
+/* ─── The user's picks and their consequences ──────────────────────────── */
+
+/* Neutral, so a pick never reads as one of the three markers' colours. */
+.merge-pick-badge {
+    box-sizing: border-box;
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+    height: 20px;
+    padding: 0 5px;
+    font: 700 12px/18px var(--diff-legend-font-family, sans-serif);
+    white-space: nowrap;
+    border: 2px solid #22242a;
+    border-radius: 10px;
+    pointer-events: none;
+}
+
+.merge-pick-badge--kept-here {
+    color: #fff;
+    background: #22242a;
+}
+
+.merge-pick-badge--replaced-here {
+    color: #22242a;
+    background: #fff;
+}
+
+/* A nested box: kept with everything inside. */
+.merge-pick-badge--with-contents::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    margin-left: 1px;
+    border: 2px solid currentColor;
+    border-radius: 1px;
+}
+
+[data-bpmn-theme="dark"] .merge-pick-badge {
+    border-color: #e8e8e8;
+}
+
+[data-bpmn-theme="dark"] .merge-pick-badge--kept-here {
+    color: #1d1d1d;
+    background: #e8e8e8;
+}
+
+[data-bpmn-theme="dark"] .merge-pick-badge--replaced-here {
+    color: #e8e8e8;
+    background: #1d1d1d;
+}
+
+.djs-shape.merge-consequence .djs-visual > :nth-child(1),
+.djs-connection.merge-consequence .djs-visual > path {
+    stroke-dasharray: 2 3 !important;
+}
+
 /* ─── Legend swatches ──────────────────────────────────────────────────── */
 
 .diff-legend__swatch--merge-taken-from-this-side {

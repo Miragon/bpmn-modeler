@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type {
+    MergeObstacleKind,
+    MergePaneBadge,
+    MergePaneOutcome,
+} from "@miragon/bpmn-modeler-shared";
+import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import {
+    blockText,
+    keepSideText,
     MERGE_LEGEND_TEXTS,
     MERGE_MARKER_LABELS,
     MergeTranslate,
     mergeCaptionText,
     openConflictsText,
+    outcomeHeadline,
+    pickBadgeText,
+    pickNotDrawnText,
+    restoreOfferText,
     shapelessEntryText,
 } from "./mergeTexts";
 
@@ -122,5 +133,126 @@ describe("merge legend words", () => {
     it("names every marker and every legend control", () => {
         expect(Object.values(MERGE_MARKER_LABELS).every((label) => label.length > 0)).toBe(true);
         expect(Object.values(MERGE_LEGEND_TEXTS).every((label) => label.length > 0)).toBe(true);
+    });
+});
+
+describe("pickBadgeText", () => {
+    it.each<[string, MergePaneBadge, { letter: string; label: string }]>([
+        [
+            "names the side an element was kept from on the pane that kept it",
+            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            { letter: "I", label: "Kept from incoming, your pick" },
+        ],
+        [
+            "names the kept side on the pane whose version was replaced",
+            { id: "Task_1", kind: "replacedHere", keptSide: "current", scope: "element" },
+            { letter: "C", label: "Kept from current, your pick" },
+        ],
+        [
+            "says a container was kept with everything inside",
+            { id: "Sub_1", kind: "keptHere", keptSide: "current", scope: "withContents" },
+            { letter: "C", label: "Kept from current with everything inside, your pick" },
+        ],
+        [
+            "says an element was kept with its flows",
+            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withConnections" },
+            { letter: "I", label: "Kept from incoming with its flows, your pick" },
+        ],
+    ])("%s", (_name, badge, expected) => {
+        expect(pickBadgeText(badge, untranslated)).toStrictEqual(expected);
+    });
+});
+
+describe("pickNotDrawnText", () => {
+    it("names the kept side and the element", () => {
+        expect(pickNotDrawnText("incoming", "Reject order", untranslated)).toBe(
+            "Kept from incoming: Reject order",
+        );
+    });
+});
+
+describe("keepSideText", () => {
+    it.each<[MergeSide, string]>([
+        ["current", "Keep current"],
+        ["incoming", "Keep incoming"],
+    ])("names the %s side's keep action", (side, text) => {
+        expect(keepSideText(side, untranslated)).toBe(text);
+    });
+});
+
+describe("blockText", () => {
+    const nameOf = (id: string) => ({ Flow_2: "Ready to pack", Task_Pack: "Pack" })[id] ?? id;
+
+    it.each<[MergeObstacleKind, string]>([
+        ["dependentPicked", "Ready to pack, which you picked, needs Pack"],
+        ["targetDroppedByThisPick", "Ready to pack needs Pack, which this pick drops"],
+        ["idHeldByAnother", "Ready to pack and Pack hold the same id"],
+    ])("words a %s reason with the elements' names", (obstacle, text) => {
+        expect(
+            blockText(
+                { elementId: "Flow_2", targetId: "Task_Pack", obstacle },
+                nameOf,
+                untranslated,
+            ),
+        ).toBe(text);
+    });
+});
+
+describe("restoreOfferText", () => {
+    it.each<[number, string]>([
+        [1, "Also keep the flow current removed with it"],
+        [2, "Also keep the 2 flows current removed with it"],
+    ])("offers %s flows", (count, text) => {
+        expect(
+            restoreOfferText(
+                {
+                    elementId: "Task_Pack",
+                    connections: Array.from({ length: count }, (_, index) => `Flow_${index}`),
+                    removedBy: "current",
+                },
+                untranslated,
+            ),
+        ).toBe(text);
+    });
+});
+
+describe("outcomeHeadline", () => {
+    it.each<[string, MergePaneOutcome, string]>([
+        [
+            "names the element a pick kept",
+            {
+                applied: true,
+                action: "pick",
+                elementId: "Task_Pack",
+                pulledIn: [],
+                dropped: [],
+                reopened: [],
+            },
+            "Kept Pack",
+        ],
+        [
+            "names the element whose pick was taken back",
+            {
+                applied: true,
+                action: "unpick",
+                elementId: "Task_Pack",
+                pulledIn: [],
+                dropped: [],
+                reopened: [],
+            },
+            "Took back the pick of Pack",
+        ],
+        [
+            "names the element a pick could not keep",
+            { applied: false, action: "pick", elementId: "Task_Pack", blockedBy: [] },
+            "Cannot keep Pack",
+        ],
+        [
+            "names the element whose pick could not be taken back",
+            { applied: false, action: "unpick", elementId: "Task_Pack", blockedBy: [] },
+            "Cannot take back the pick of Pack",
+        ],
+    ])("%s", (_name, outcome, text) => {
+        expect(outcomeHeadline(outcome, () => "Pack", untranslated)).toBe(text);
     });
 });

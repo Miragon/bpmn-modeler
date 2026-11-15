@@ -253,6 +253,12 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug("[DEBUG] MergeStepListChangedCommand (no partner in dev)", command.list);
                 break;
             }
+            case "PickMergeSideCommand":
+            case "UnpickMergeCommand": {
+                // No merge to decide in: the recorded states stay as they are.
+                console.debug(`[DEBUG] ${command.type}`, command.elementId, command.scope);
+                break;
+            }
             case "ShowElementXmlChangesCommand": {
                 // No editor group to open a text diff in.
                 console.debug("[DEBUG] ShowElementXmlChangesCommand", command.elementId);
