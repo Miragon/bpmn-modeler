@@ -15,6 +15,9 @@ describe("mergeSideOfPane", () => {
 
 describe("inPaneOrder", () => {
     it("puts the left pane's side first", () => {
-        expect(inPaneOrder({ current: "left", incoming: "right" })).toStrictEqual(["left", "right"]);
+        expect(inPaneOrder({ current: "left", incoming: "right" })).toStrictEqual([
+            "left",
+            "right",
+        ]);
     });
 });

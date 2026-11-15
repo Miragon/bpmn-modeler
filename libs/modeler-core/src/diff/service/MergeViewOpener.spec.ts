@@ -58,7 +58,11 @@ describe("MergeViewOpener", () => {
 
         const [{ uris }] = view.served;
         expect(view.opened).toStrictEqual([
-            { left: uris.current, right: uris.incoming, title: "order.bpmn (Merge: main ↔ feature)" },
+            {
+                left: uris.current,
+                right: uris.incoming,
+                title: "order.bpmn (Merge: main ↔ feature)",
+            },
         ]);
         expect(view.textOf(uris.current)).toBe("<current/>");
         expect(view.textOf(uris.incoming)).toBe("<incoming/>");

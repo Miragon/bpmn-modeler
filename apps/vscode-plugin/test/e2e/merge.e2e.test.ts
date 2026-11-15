@@ -114,9 +114,20 @@ function conflictedRepository(operation: "merge" | "rebase" | "merge-after-rebas
         git(repository, "-c", "core.editor=true", "rebase", "--continue");
         git(repository, "checkout", "-q", "main");
         writeFileSync(file, renamed("Check main order again"));
-        git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Rename the check on main again");
+        git(
+            repository,
+            "commit",
+            "-q",
+            "-a",
+            "--no-verify",
+            "-m",
+            "Rename the check on main again",
+        );
         git(repository, "merge", "feature", "--no-edit");
-        assert.ok(git(repository, "rev-parse", "-q", "--verify", "REBASE_HEAD"), "no REBASE_HEAD left");
+        assert.ok(
+            git(repository, "rev-parse", "-q", "--verify", "REBASE_HEAD"),
+            "no REBASE_HEAD left",
+        );
     }
     assert.ok(readFileSync(file, "utf8").includes("<<<<<<<"), `no ${operation} conflict`);
     return repository;

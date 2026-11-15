@@ -132,10 +132,14 @@ class FakeRepository {
     gitFiles(): Map<string, FileType> {
         const dotGit = `${this.rootUri.path}/.git`;
         const gitDir = this.linkedGitDir
-            ? Uri.joinPath(this.linkedGitDir.startsWith("/") ? Uri.file("/") : this.rootUri, this.linkedGitDir).path
+            ? Uri.joinPath(
+                  this.linkedGitDir.startsWith("/") ? Uri.file("/") : this.rootUri,
+                  this.linkedGitDir,
+              ).path
             : dotGit;
         const files = new Map([[dotGit, this.linkedGitDir ? FileType.File : FileType.Directory]]);
-        if (this.refs.rebaseInProgress) files.set(`${gitDir}/${this.rebaseFolder}`, FileType.Directory);
+        if (this.refs.rebaseInProgress)
+            files.set(`${gitDir}/${this.rebaseFolder}`, FileType.Directory);
         return files;
     }
 }

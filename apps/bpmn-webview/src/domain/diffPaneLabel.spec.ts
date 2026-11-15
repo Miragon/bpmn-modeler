@@ -20,7 +20,11 @@ describe("diffPaneLabel", () => {
             { origin: "compare-files", paneFilename: "b.bpmn" },
             "b.bpmn",
         ],
-        ["leaves an SCM pane to its tab title", { origin: "scm", paneFilename: "order.bpmn" }, undefined],
+        [
+            "leaves an SCM pane to its tab title",
+            { origin: "scm", paneFilename: "order.bpmn" },
+            undefined,
+        ],
     ])("%s", (_case, facts, expected) => {
         expect(diffPaneLabel(facts, untranslated)).toBe(expected);
     });

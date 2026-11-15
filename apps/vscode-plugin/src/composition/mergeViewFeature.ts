@@ -42,6 +42,10 @@ export function register(
     return {
         sessions,
         opener,
-        conflictMarkers: new ConflictMarkerParticipant(deps.vsDocument, deps.actionNotifier, opener),
+        conflictMarkers: new ConflictMarkerParticipant(
+            deps.vsDocument,
+            deps.actionNotifier,
+            opener,
+        ),
     };
 }

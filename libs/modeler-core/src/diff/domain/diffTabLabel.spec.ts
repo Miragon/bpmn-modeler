@@ -78,7 +78,10 @@ describe("mergeElementXmlDiffTitle", () => {
 
     it("names no diagram diff's file, so it never counts as a diff tab of it", () => {
         expect(
-            diffTabLabelNamesFile(mergeElementXmlDiffTitle("Task_Check", "order.bpmn"), "order.bpmn"),
+            diffTabLabelNamesFile(
+                mergeElementXmlDiffTitle("Task_Check", "order.bpmn"),
+                "order.bpmn",
+            ),
         ).toBe(false);
     });
 });
