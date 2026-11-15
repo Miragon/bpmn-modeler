@@ -67,7 +67,8 @@ async function versionSnapshots(
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`${side} does not parse: ${message}`);
+        // `ErrorOptions` is not in this lib target, so the cause is attached directly.
+        throw Object.assign(new Error(`${side} does not parse: ${message}`), { cause: error });
     }
 }
 
