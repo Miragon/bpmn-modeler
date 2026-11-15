@@ -22,6 +22,7 @@ import {
     createTestHost,
     FakeDiffPaneHandle,
     RecordingElementXmlDiffView,
+    RecordingMergeSidesView,
     RecordingNotifier,
 } from "../../testing";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
@@ -33,6 +34,8 @@ import {
 import { DmnDiffService } from "./DmnDiffService";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { MergeDecisionService } from "./MergeDecisionService";
+import { MergeSessionStore } from "./MergeSessionStore";
 
 const BEFORE = "git:/repo/order.bpmn?ref=HEAD";
 const AFTER = "file:///repo/order.bpmn";
@@ -87,6 +90,8 @@ describe("createDiffPaneRouter", () => {
                 ShowElementXmlChangesCommand: "handled",
                 DiffSelectionChangedCommand: "handled",
                 MergeStepListChangedCommand: "handled",
+                PickMergeSideCommand: "ignored",
+                UnpickMergeCommand: "ignored",
             },
         ],
         [
@@ -106,6 +111,8 @@ describe("createDiffPaneRouter", () => {
                 ShowElementXmlChangesCommand: "ignored",
                 DiffSelectionChangedCommand: "handled",
                 MergeStepListChangedCommand: "handled",
+                PickMergeSideCommand: "ignored",
+                UnpickMergeCommand: "ignored",
             },
         ],
     ])(
@@ -122,6 +129,28 @@ describe("createDiffPaneRouter", () => {
             expect(routes).toStrictEqual(expected);
         },
     );
+
+    it("routes merge picks only where a merge service is given", () => {
+        const { notifier, settings } = createTestHost();
+        const store = new DiffPaneStore();
+        const merge = new MergeDecisionService(
+            new MergeSessionStore(store, new RecordingMergeSidesView()),
+            store,
+            notifier,
+        );
+        const diffService = new BpmnDiffService(notifier, settings, store, undefined, merge);
+
+        const withMerge = createDiffPaneRouter(diffService, {}, merge);
+        const without = createDiffPaneRouter(diffService, {});
+
+        for (const type of ["PickMergeSideCommand", "UnpickMergeCommand"] as const) {
+            expect(withMerge.routeOf(type).kind).toBe("handled");
+            expect(without.routeOf(type)).toStrictEqual({
+                kind: "ignored",
+                reason: "the host opens no merge view",
+            });
+        }
+    });
 
     it("answers the file request a pane sends before it knows it is a diff pane", async () => {
         const { router, after } = diffPanes();

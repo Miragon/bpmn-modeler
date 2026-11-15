@@ -8,6 +8,7 @@ import {
     DiffPaneStore,
     DmnDiffService,
     ElementXmlDiffService,
+    MergeDecisionService,
     MergeSessionStore,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
@@ -52,6 +53,7 @@ export function register(
                 elementXmlDiffs(context, diffStore, deps, merge.sessions),
                 merge.decisions,
             ),
+            merge.decisions,
         ),
         merge.opener,
     );
@@ -92,10 +94,13 @@ function elementXmlDiffs(
     return service;
 }
 
-export function bpmnDiffFormat(service: BpmnDiffService): DiffPaneFormat {
+export function bpmnDiffFormat(
+    service: BpmnDiffService,
+    merge?: MergeDecisionService,
+): DiffPaneFormat {
     return {
         extension: ".bpmn",
-        createRouter: (extensions) => createDiffPaneRouter(service, extensions),
+        createRouter: (extensions) => createDiffPaneRouter(service, extensions, merge),
         rebroadcastLanguage: () => service.rebroadcastLanguage(),
     };
 }

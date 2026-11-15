@@ -1,10 +1,23 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { MergeStep, ShapelessMark } from "@miragon/bpmn-modeler-merge";
+import type {
+    MergeStep,
+    PickableElement,
+    PickBadge,
+    PickNotDrawn,
+    PickScope,
+    RequirementObstacle,
+    ShapelessMark,
+} from "@miragon/bpmn-modeler-merge";
 import {
     type ApplyMergeStatesQuery,
+    type MergeObstacleKind,
+    type MergePaneBadge,
+    type MergePanePickable,
+    type MergePanePickNotDrawn,
     type MergePaneShapelessMark,
     type MergePaneStep,
+    type MergePickScope,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -13,6 +26,9 @@ import {
     FakeDiffPaneHandle,
     mergeSessionOf,
     ORDER_MERGE_STAGES,
+    ORDER_REMOVAL_STAGES,
+    ORDER_REMOVED_FLOW_STAGES,
+    PACKING_MERGE_STAGES,
     RecordingMergeSidesView,
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
@@ -39,13 +55,8 @@ async function openMergeView(
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
     const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
-    const diffService = new BpmnDiffService(
-        notifier,
-        settings,
-        store,
-        elementXml,
-        new MergeDecisionService(sessions, notifier),
-    );
+    const decisions = new MergeDecisionService(sessions, store, notifier);
+    const diffService = new BpmnDiffService(notifier, settings, store, elementXml, decisions);
     const diffSession = store.registerMerge(URIS);
     sessions.add(
         await mergeSessionOf({
@@ -66,7 +77,15 @@ async function openMergeView(
         await diffService.markReady(current);
         await diffService.markReady(incoming);
     };
-    return { diffService, current, incoming, bothReady, store };
+    const elementXmlChanges = elementXml !== undefined;
+    const pick = (pane: FakeDiffPaneHandle, elementId: string, scope: MergePickScope = "element") =>
+        decisions.pick(pane, elementId, scope, elementXmlChanges);
+    const unpick = (
+        pane: FakeDiffPaneHandle,
+        elementId: string,
+        scope: MergePickScope = "element",
+    ) => decisions.unpick(pane, elementId, scope, elementXmlChanges);
+    return { diffService, current, incoming, bothReady, store, sessions, pick, unpick };
 }
 
 function statesOf(pane: FakeDiffPaneHandle): ApplyMergeStatesQuery[] {
@@ -238,5 +257,234 @@ describe("MergeDecisionService", () => {
     it("keeps the protocol's copies of the step and the shape-less mark equal to the merge's", () => {
         expectTypeOf<MergePaneStep>().toEqualTypeOf<MergeStep>();
         expectTypeOf<MergePaneShapelessMark>().toEqualTypeOf<ShapelessMark>();
+    });
+
+    it("keeps the protocol's copies of the picks and the obstacles equal to the merge's", () => {
+        expectTypeOf<MergePickScope>().toEqualTypeOf<PickScope>();
+        expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
+        expectTypeOf<MergePanePickNotDrawn>().toEqualTypeOf<PickNotDrawn>();
+        expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
+        expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
+    });
+
+    describe("picks", () => {
+        it("marks a picked element kept on its pane and replaced on the other, and lowers the open count", async () => {
+            const { current, incoming, bothReady, pick } = await openMergeView();
+            await bothReady();
+
+            await pick(incoming, "Task_Pack");
+
+            const incomingStates = lastStatesOf(incoming).states;
+            const currentStates = lastStatesOf(current).states;
+            expect(incomingStates.marks.takenFromThisSide).toContain("Task_Pack");
+            expect(currentStates.marks.takenFromOtherSide).toContain("Task_Pack");
+            expect(incomingStates.badges).toStrictEqual([
+                { id: "Task_Pack", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(currentStates.badges).toStrictEqual([
+                { id: "Task_Pack", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(incomingStates.openConflicts).toBe(1);
+            expect(currentStates.openConflicts).toBe(1);
+            expect(incomingStates.pickable).toContainEqual({
+                id: "Task_Pack",
+                container: false,
+                undo: "element",
+            });
+            expect(incomingStates.lastOutcome).toStrictEqual({
+                applied: true,
+                action: "pick",
+                elementId: "Task_Pack",
+                pulledIn: [],
+                dropped: [],
+                reopened: [],
+            });
+        });
+
+        it("decides every conflict inside a sub-process kept with its contents", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(PACKING_MERGE_STAGES);
+            await bothReady();
+            expect(lastStatesOf(current).states.openConflicts).toBe(2);
+
+            await pick(current, "Sub_Packing", "withContents");
+
+            const { states } = lastStatesOf(incoming);
+            expect(states.openConflicts).toBe(0);
+            expect(states.badges.map(({ id, scope }) => [id, scope])).toStrictEqual([
+                ["Sub_Packing", "withContents"],
+                ["Task_Wrap", "element"],
+                ["Task_Label", "element"],
+            ]);
+            expect(states.pickable).toContainEqual({
+                id: "Sub_Packing",
+                container: true,
+                undo: "withContents",
+            });
+        });
+
+        it("refuses a blocked pick and tells the pane which element blocks it, changing nothing", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVED_FLOW_STAGES);
+            await bothReady();
+            await pick(incoming, "Flow_2");
+            const marksBefore = lastStatesOf(current).states.marks;
+
+            await pick(current, "Task_Pack");
+
+            const { states } = lastStatesOf(current);
+            expect(states.lastOutcome).toStrictEqual({
+                applied: false,
+                action: "pick",
+                elementId: "Task_Pack",
+                blockedBy: [
+                    { elementId: "Flow_2", targetId: "Task_Pack", obstacle: "dependentPicked" },
+                ],
+            });
+            expect(states.marks).toStrictEqual(marksBefore);
+            expect(lastStatesOf(incoming).states.lastOutcome?.applied).toBe(false);
+        });
+
+        it("names what a pick pulled in, dropped and reopened", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVED_FLOW_STAGES);
+            await bothReady();
+
+            await pick(incoming, "Flow_2");
+
+            expect(lastStatesOf(current).states.lastOutcome).toStrictEqual({
+                applied: true,
+                action: "pick",
+                elementId: "Flow_2",
+                pulledIn: ["Task_Pack"],
+                dropped: [],
+                reopened: [],
+            });
+            expect(lastStatesOf(incoming).states.consequences).toStrictEqual(["Task_Pack"]);
+            expect(lastStatesOf(incoming).states.badges.map(({ id }) => id)).toStrictEqual([
+                "Flow_2",
+            ]);
+        });
+
+        it("reverts a pick", async () => {
+            const { current, incoming, bothReady, pick, unpick } = await openMergeView();
+            await bothReady();
+            const marksBefore = lastStatesOf(current).states.marks;
+            await pick(incoming, "Task_Pack");
+
+            await unpick(current, "Task_Pack");
+
+            const { states } = lastStatesOf(current);
+            expect(states.marks).toStrictEqual(marksBefore);
+            expect(states.badges).toStrictEqual([]);
+            expect(states.openConflicts).toBe(2);
+            expect(states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "unpick",
+                elementId: "Task_Pack",
+                reopened: ["Task_Pack"],
+            });
+            expect(lastStatesOf(incoming).states.badges).toStrictEqual([]);
+        });
+
+        it("overrides an automatic resolution", async () => {
+            const { current, incoming, bothReady, pick } = await openMergeView();
+            await bothReady();
+            expect(lastStatesOf(current).states.marks.takenFromThisSide).toContain("Task_Check");
+
+            await pick(incoming, "Task_Check");
+
+            expect(lastStatesOf(incoming).states.marks.takenFromThisSide).toContain("Task_Check");
+            expect(lastStatesOf(current).states.badges).toStrictEqual([
+                { id: "Task_Check", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+            ]);
+        });
+
+        it("offers the flows the other side removed with a kept element and keeps them on request", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(incoming, "Task_Pack");
+
+            expect(lastStatesOf(incoming).states.restoreOffer).toStrictEqual({
+                elementId: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+                removedBy: "current",
+            });
+            expect(lastStatesOf(current).states.restoreOffer).toBeUndefined();
+
+            await pick(incoming, "Task_Pack", "withConnections");
+
+            const { states } = lastStatesOf(incoming);
+            expect(states.restoreOffer).toBeUndefined();
+            expect(states.badges.map(({ id, scope }) => [id, scope])).toStrictEqual([
+                ["Task_Pack", "withConnections"],
+                ["Flow_2", "element"],
+                ["Flow_3", "element"],
+            ]);
+        });
+
+        it("takes back an element with the flows kept with it", async () => {
+            const { current, incoming, bothReady, pick, unpick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+            await pick(incoming, "Task_Pack", "withConnections");
+
+            await unpick(current, "Task_Pack", "withConnections");
+
+            expect(lastStatesOf(incoming).states.badges).toStrictEqual([]);
+            expect(lastStatesOf(incoming).states.consequences).toStrictEqual([]);
+        });
+
+        it("lists a pick the pane cannot draw", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(incoming, "Task_Pack");
+
+            expect(lastStatesOf(current).states.picksNotDrawn).toStrictEqual([
+                { id: "Task_Pack", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(lastStatesOf(current).states.badges).toStrictEqual([]);
+        });
+
+        it("sends the last outcome and the restore offer again when a pane reloads", async () => {
+            const { diffService, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+            await pick(incoming, "Task_Pack");
+            const before = lastStatesOf(incoming);
+            incoming.posted.length = 0;
+
+            await diffService.markReady(incoming);
+
+            expect(lastStatesOf(incoming)).toStrictEqual(before);
+            expect(lastStatesOf(incoming).states.restoreOffer).toBeDefined();
+        });
+
+        it("forgets the picks when the session closes", async () => {
+            const { current, incoming, bothReady, pick, store, sessions } = await openMergeView();
+            await bothReady();
+            await pick(incoming, "Task_Pack");
+
+            store.detach(current);
+            store.detach(incoming);
+
+            expect(sessions.of("file:///repo/order.bpmn")).toBeUndefined();
+            const reopened = await openMergeView();
+            await reopened.bothReady();
+            expect(lastStatesOf(reopened.incoming).states.badges).toStrictEqual([]);
+        });
+
+        it("ignores a pick from a pane of no merge view", async () => {
+            const { pick } = await openMergeView();
+            const stray = new FakeDiffPaneHandle("file:///repo/other.bpmn", "");
+
+            await pick(stray, "Task_Pack");
+
+            expect(stray.posted).toStrictEqual([]);
+        });
     });
 });

@@ -1,7 +1,8 @@
-import { ENGINE_LABEL, type Engine, type MergeSide } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types";
 
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ConflictReading, ResolvableStages } from "./conflictReading";
+import { otherMergeSide } from "./mergePaneSide";
 
 type StageName = keyof ResolvableStages;
 
@@ -27,8 +28,6 @@ export type MergeViewRefusal =
 /** The command's title and the notice's action, which the host's manifest repeats. */
 export const RESOLVE_IN_MERGE_VIEW_LABEL = "Resolve in BPMN Merge View";
 
-const OTHER_SIDE: Record<MergeSide, MergeSide> = { current: "incoming", incoming: "current" };
-
 const STAGE_TEXT: Record<StageName, string> = {
     base: "the common ancestor",
     current: "the current side",
@@ -47,7 +46,7 @@ const REFUSAL_TEXT: {
         `The BPMN merge view cannot read the versions of ${fileName} from Git. Check that the Git extension is enabled.`,
     notConflicted: (_refusal, fileName) => `${fileName} has no merge conflict to resolve.`,
     oneSideDeleted: ({ remainingSide }, fileName) =>
-        `${fileName} was deleted on the ${OTHER_SIDE[remainingSide]} side and changed on the ${remainingSide} side. Keep or delete it in Source Control.`,
+        `${fileName} was deleted on the ${otherMergeSide(remainingSide)} side and changed on the ${remainingSide} side. Keep or delete it in Source Control.`,
     oneSideAdded: ({ addedSide }, fileName) =>
         `${fileName} exists only on the ${addedSide} side. Keep or delete it in Source Control.`,
     bothDeleted: (_refusal, fileName) =>

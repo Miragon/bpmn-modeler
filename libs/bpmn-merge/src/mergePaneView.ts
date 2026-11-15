@@ -31,7 +31,7 @@ export interface PickNotDrawn {
     readonly scope: PickScope;
 }
 
-/** An element the pane's side holds, which a pick can keep from this side. */
+/** An element a pick on the pane keeps from its side, or keeps out where the side removed it. */
 export interface PickableElement {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
@@ -137,10 +137,12 @@ function paneDecisions(
             }
         }
         if (origin === "consequence" && drawnHere) consequences.push(element.id);
-        if (element.versions[side] !== undefined) {
-            const container = containers.has(element.id);
-            pickable.push(scope === undefined ? { id: element.id, container } : { id: element.id, container, undo: scope });
-        }
+        const container = containers.has(element.id);
+        pickable.push(
+            scope === undefined
+                ? { id: element.id, container }
+                : { id: element.id, container, undo: scope },
+        );
     }
     return { badges, picksNotDrawn, consequences, pickable };
 }

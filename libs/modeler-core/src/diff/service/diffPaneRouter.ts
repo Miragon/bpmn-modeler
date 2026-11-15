@@ -14,6 +14,7 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DmnDiffService } from "./DmnDiffService";
+import { MergeDecisionService } from "./MergeDecisionService";
 
 /**
  * What a host adds to the diff panes' routes. An absent entry makes the router
@@ -28,11 +29,13 @@ export interface DiffPaneHostExtensions {
 
 /**
  * Routes every command a BPMN diff pane posts, so each host serves its panes
- * from one table and a coverage spec can read the routes.
+ * from one table and a coverage spec can read the routes. A host that opens
+ * merge views passes their decisions, which take the panes' picks.
  */
 export function createDiffPaneRouter(
     diffService: BpmnDiffService,
     extensions: DiffPaneHostExtensions,
+    merge?: MergeDecisionService,
 ): WebviewMessageRouter<DiffPaneHandle> {
     return WebviewMessageRouter.fromTable<
         DiffPaneHandshakeCommandType | BpmnDiffPaneCommandType,
@@ -61,8 +64,39 @@ export function createDiffPaneRouter(
         ShowElementXmlChangesCommand: diffService.showsElementXmlChanges
             ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
             : { ignored: "the host shows no element XML diff" },
+        ...mergeRoutes(merge, diffService),
         ...hostRoutes(extensions),
     });
+}
+
+function mergeRoutes(
+    merge: MergeDecisionService | undefined,
+    diffService: BpmnDiffService,
+): CommandTable<"PickMergeSideCommand" | "UnpickMergeCommand", DiffPaneHandle> {
+    if (!merge) {
+        const ignored = { ignored: "the host opens no merge view" };
+        return { PickMergeSideCommand: ignored, UnpickMergeCommand: ignored };
+    }
+    return {
+        PickMergeSideCommand: [
+            (command, pane) =>
+                merge.pick(
+                    pane,
+                    command.elementId,
+                    command.scope,
+                    diffService.showsElementXmlChanges,
+                ),
+        ],
+        UnpickMergeCommand: [
+            (command, pane) =>
+                merge.unpick(
+                    pane,
+                    command.elementId,
+                    command.scope,
+                    diffService.showsElementXmlChanges,
+                ),
+        ],
+    };
 }
 
 /** Routes every command a DMN diff pane posts. */

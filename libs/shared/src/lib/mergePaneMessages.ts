@@ -1,4 +1,9 @@
-import type { DiffSide, MergeMarker, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type {
+    DiffSide,
+    MergeMarker,
+    MergeSide,
+    MergeSideCaption,
+} from "@miragon/bpmn-modeler-types";
 
 import { Command, Query } from "./messages";
 
@@ -30,6 +35,83 @@ export interface MergePaneStepping {
     readonly cursor?: string;
 }
 
+/**
+ * How far a pick reaches: the element, the element with everything inside
+ * it, or an element the other side removed with the flows removed with it.
+ * Undo takes back the same reach.
+ */
+export type MergePickScope = "element" | "withContents" | "withConnections";
+
+/** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
+export interface MergePaneBadge {
+    readonly id: string;
+    readonly kind: "keptHere" | "replacedHere";
+    readonly keptSide: MergeSide;
+    readonly scope: MergePickScope;
+}
+
+/** A user's pick the pane cannot draw, which its legend lists under the user's picks. */
+export interface MergePanePickNotDrawn {
+    readonly id: string;
+    readonly keptSide: MergeSide;
+    readonly scope: MergePickScope;
+}
+
+/** An element a pick on the pane keeps from its side, or keeps out where the side removed it. */
+export interface MergePanePickable {
+    readonly id: string;
+    /** Something lies inside it, which a pick can keep with it. */
+    readonly container: boolean;
+    /** Set while the user's pick decides it: what Undo takes back. */
+    readonly undo?: MergePickScope;
+}
+
+/** Why a pick was refused, as the merge names it. */
+export type MergeObstacleKind =
+    | "targetInNoVersion"
+    | "targetPickedWithout"
+    | "targetDroppedByThisPick"
+    | "targetTakenByThisPickWithoutPart"
+    | "sideLacksTarget"
+    | "targetNotInResult"
+    | "targetTakenWithoutPart"
+    | "dependentPicked"
+    | "dependentPulledInByThisPick"
+    | "idHeldByAnother"
+    | "processInAnotherCollaboration";
+
+/** One reason a pick was refused: the element it would have to change, and the element that element needs. */
+export interface MergePaneBlock {
+    readonly elementId: string;
+    readonly targetId: string;
+    readonly obstacle: MergeObstacleKind;
+}
+
+/** What the user's last pick or undo did, on both panes of the merge view. */
+export type MergePaneOutcome =
+    | {
+          readonly applied: true;
+          readonly action: "pick" | "unpick";
+          readonly elementId: string;
+          readonly pulledIn: readonly string[];
+          readonly dropped: readonly string[];
+          /** Decided before, open again after it. */
+          readonly reopened: readonly string[];
+      }
+    | {
+          readonly applied: false;
+          readonly action: "pick" | "unpick";
+          readonly elementId: string;
+          readonly blockedBy: readonly MergePaneBlock[];
+      };
+
+/** The flows the other side removed with an element the user kept, offered on the pane that kept it. */
+export interface MergePaneRestoreOffer {
+    readonly elementId: string;
+    readonly connections: readonly string[];
+    readonly removedBy: MergeSide;
+}
+
 /** Everything one merge pane shows of its merge view's decisions. */
 export interface MergePaneStates {
     readonly caption: MergeSideCaption;
@@ -44,6 +126,14 @@ export interface MergePaneStates {
     readonly allSteps: readonly MergePaneStep[];
     readonly openConflicts: number;
     readonly stepping: MergePaneStepping;
+    /** The user's picks the pane draws, in result order. */
+    readonly badges: readonly MergePaneBadge[];
+    readonly picksNotDrawn: readonly MergePanePickNotDrawn[];
+    /** The drawn elements a pick pulled in or dropped. */
+    readonly consequences: readonly string[];
+    readonly pickable: readonly MergePanePickable[];
+    readonly lastOutcome?: MergePaneOutcome;
+    readonly restoreOffer?: MergePaneRestoreOffer;
 }
 
 /**
@@ -79,5 +169,38 @@ export class MergeStepListChangedCommand extends Command<"MergeStepListChangedCo
     constructor(list: MergePaneStepList) {
         super("MergeStepListChangedCommand");
         this.list = list;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user keeps an element from the pane's
+ * side. The host decides it in the merge and sends both panes their states
+ * again.
+ */
+export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
+    public readonly elementId: string;
+
+    public readonly scope: MergePickScope;
+
+    constructor(elementId: string, scope: MergePickScope) {
+        super("PickMergeSideCommand");
+        this.elementId = elementId;
+        this.scope = scope;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user takes a pick back, with the reach the
+ * host named for it.
+ */
+export class UnpickMergeCommand extends Command<"UnpickMergeCommand"> {
+    public readonly elementId: string;
+
+    public readonly scope: MergePickScope;
+
+    constructor(elementId: string, scope: MergePickScope) {
+        super("UnpickMergeCommand");
+        this.elementId = elementId;
+        this.scope = scope;
     }
 }

@@ -308,7 +308,7 @@ describe("mergePaneView", () => {
             expect(mergePaneView(decisions, "current").consequences).toEqual([]);
         });
 
-        it("offers every element the side holds for a pick, a container with its contents, and how to take back a pick", () => {
+        it("offers every element for a pick, a removal included, a container with its contents, and how to take back a pick", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -322,15 +322,14 @@ describe("mergePaneView", () => {
             );
             decisions.pickWithContents("Sub", "current");
 
-            expect(mergePaneView(decisions, "current").pickable).toEqual([
+            const pickable = [
                 { id: "Process_1", container: true },
                 { id: "Sub", container: true, undo: "withContents" },
                 { id: "Inner", container: false, undo: "element" },
-            ]);
-            expect(mergePaneView(decisions, "incoming").pickable).toContainEqual({
-                id: "Task_Audit",
-                container: false,
-            });
+                { id: "Task_Audit", container: false },
+            ];
+            expect(mergePaneView(decisions, "current").pickable).toEqual(pickable);
+            expect(mergePaneView(decisions, "incoming").pickable).toEqual(pickable);
         });
     });
 });

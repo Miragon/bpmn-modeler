@@ -57,6 +57,8 @@ describe("protocol messages", () => {
                 "SyncDiffPlaneQuery",
                 "ApplyMergeStatesQuery",
                 "MergeStepListChangedCommand",
+                "PickMergeSideCommand",
+                "UnpickMergeCommand",
             ]),
         );
     });
