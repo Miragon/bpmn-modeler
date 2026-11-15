@@ -825,7 +825,7 @@ describe("the BPMN merge view", () => {
             await vscode().runCommand("View: Close All Editors");
             // Modelers already open on the conflicted file, in two groups; the merge tab opens in the second.
             await openWithQuickOpen(CONFLICTED.merge);
-            await vscode().runCommand("View: Split Editor Right");
+            await vscode().runCommand("View: Split Editor into Right Group");
             await expect
                 .poll(() => vscode().page.locator(".editor-group-container").count(), {
                     timeout: TIMEOUT_MS,
