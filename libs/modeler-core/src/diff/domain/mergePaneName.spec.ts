@@ -19,6 +19,13 @@ describe("mergePaneBasename", () => {
         expect(paneName.toLowerCase().endsWith(".bpmn")).toBe(true);
     });
 
+    it.each<[string, string]>([
+        ["order", "order.current"],
+        [".bpmn", ".current.bpmn"],
+    ])("names the current pane of %s %s", (fileName, expected) => {
+        expect(mergePaneBasename(fileName, "current")).toBe(expected);
+    });
+
     it.each<[string]>([["order.bpmn"], ["order.v2.bpmn"], ["order process.bpmn"]])(
         "reads %s back from either pane's name",
         (fileName) => {

@@ -10,7 +10,7 @@ const SIDE_INFIX = /\.(current|incoming)(\.[^.]+)$/;
  */
 export function mergePaneBasename(fileName: string, side: MergeSide): string {
     const extensionStart = fileName.lastIndexOf(".");
-    if (extensionStart <= 0) {
+    if (extensionStart < 0) {
         return `${fileName}.${side}`;
     }
     return `${fileName.slice(0, extensionStart)}.${side}${fileName.slice(extensionStart)}`;

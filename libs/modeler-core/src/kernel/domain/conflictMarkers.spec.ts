@@ -72,6 +72,26 @@ describe("readConflictMarkers", () => {
             { hasMarkers: false },
         ],
         [
+            "a separator and a closing marker without an opening one",
+            lines("=======", ">>>>>>> feature"),
+            { hasMarkers: false },
+        ],
+        [
+            "a separator only before the opening marker",
+            lines("=======", "<<<<<<< HEAD", "a", ">>>>>>> feature"),
+            { hasMarkers: false },
+        ],
+        [
+            "a closing marker only before the separator",
+            lines("<<<<<<< HEAD", ">>>>>>> feature", "=======", "b"),
+            { hasMarkers: false },
+        ],
+        [
+            "a longer run of the marker characters",
+            lines("<<<<<<<< HEAD", "a", "========", "b", ">>>>>>>> feature"),
+            { hasMarkers: false },
+        ],
+        [
             "plain BPMN",
             lines('<bpmn:definitions id="Definitions_1">', "</bpmn:definitions>"),
             { hasMarkers: false },
