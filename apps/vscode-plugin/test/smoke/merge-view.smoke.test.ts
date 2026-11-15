@@ -1004,7 +1004,9 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(activeTabLabel, { timeout: TIMEOUT_MS })
                 .toContain(`${CONFLICTED.merge} (Merge: Incoming ↔ Result)`);
-            const result = await vscode().editorWebview(".diff-legend__comparison-switch");
+            const result = await vscode().editorWebview(
+                'body[data-diff-side="after"] .diff-legend__comparison-switch',
+            );
             await expect
                 .poll(() => result.locator(".diff-legend__comparison").innerText(), {
                     timeout: TIMEOUT_MS,
