@@ -67,8 +67,16 @@ export interface MergeElement {
     };
 }
 
+/** `versionKeyOf` each version's XML: equal keys mean the result was computed from these texts. */
+export interface VersionKeys {
+    readonly base?: string;
+    readonly current: string;
+    readonly incoming: string;
+}
+
 export interface MergeResult {
     readonly hasBase: boolean;
+    readonly versionKeys: VersionKeys;
     /** Current's document order, then the elements only incoming has, then those only base has. */
     readonly elements: readonly MergeElement[];
 }

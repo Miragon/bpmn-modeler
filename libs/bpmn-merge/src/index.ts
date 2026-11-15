@@ -11,4 +11,5 @@ export type {
     MergeResult,
     MergeSide,
     ResolvedState,
+    VersionKeys,
 } from "./mergeResult";

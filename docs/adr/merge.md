@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-14
+- Last reviewed: 2026-11-15
 
 ## Context
 
@@ -36,9 +36,11 @@ all, although event definitions and operations name them. Event definitions,
 
 - *Elements are matched by id, and only an element with an id stands on its own.* An
   element deleted and drawn again has a new id and shows as removed and added. A child
-  without an id, such as a data association some exporters write, stays inside its
-  enclosing element, in `elementSnapshots` and in `elementXml` alike, so a change to it is a
-  change of that element and never lost.
+  without an id inside a merge element, such as a data association some exporters write,
+  stays inside it, in `elementSnapshots` and in `elementXml` alike, so a change to it is a
+  change of that element and never lost. A root element or a lane without an id has no
+  such element to stay in (definitions is none, and lane membership is keyed by lane id),
+  so a version holding one is refused, naming the side and the type.
 - *One parse per version.* `elementSnapshots(xml, { isUnit, prefixSources, rejectWarnings })`
   in `bpmn-diff` returns every element's text, parent, lanes, references, inner ids
   (`parts`), the non-element object holding it (`container`, such as a lane set), its plane
@@ -55,6 +57,11 @@ base, an element only one side has, or that the sides hold differently, is a con
 
 - *Only clean versions.* A version that parses with any warning is refused, naming it:
   moddle drops an unresolved reference with nothing but a warning, so a merge would lose it.
+  It is parsed a second time with the merge's engine descriptor (current's engine, else
+  incoming's), which warns on an engine attribute or extension element the descriptor does
+  not know: the file is built with that descriptor, so such a version could never be built.
+  `requireMergeableVersions` holds every up-front refusal, so building the file can run the
+  same checks.
 - *What a state compares.* The element's text without its child elements, `bpmndi` and
   the derived references `incoming`, `outgoing`, `flowNodeRef` and `boundaryEventRefs`,
   together with its parent and its lanes. Keeping derived references would make both ends
@@ -66,7 +73,9 @@ base, an element only one side has, or that the sides hold differently, is a con
   base, current's win. DI references are compared by what they draw, never by DI ids.
 - *Plain JSON.* `MergeResult` holds ids, states and each version's parent, container,
   lanes, references, parts, plane and whether it is drawn, but no text, so it crosses the
-  webview boundary; texts are fetched on demand.
+  webview boundary; texts are fetched on demand. `versionKeys` fingerprints each version's
+  XML (FNV-1a 64, not a secure hash), so a result can be checked against the texts it was
+  computed from without carrying them.
 - *Engines.* The modeler's one rule, `detectEngineWithNamespaceFallback`
   (`modeler:executionPlatform`, then the version, then the Camunda 7 or 8 namespace on the
   definitions root), names each side's engine. Detected engines must agree; a side without

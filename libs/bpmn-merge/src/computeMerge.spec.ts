@@ -14,11 +14,18 @@ import {
 const MODELER_NAMESPACE = "http://camunda.org/schema/modeler/1.0";
 const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";
 const ZEEBE_NAMESPACE = "http://camunda.org/schema/zeebe/1.0";
+const CAMUNDA_7_PLATFORM = `xmlns:camunda="${CAMUNDA_NAMESPACE}" xmlns:modeler="${MODELER_NAMESPACE}" modeler:executionPlatform="Camunda Platform"`;
 
-function engineDocument(definitionsAttributes: string, taskAttributes = ""): string {
+function engineDocument(
+    definitionsAttributes: string,
+    taskAttributes = "",
+    { rootElements = "", processContent = "" } = {},
+): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ${definitionsAttributes} id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  ${rootElements}
   <bpmn:process id="Process_1">
+    ${processContent}
     <bpmn:task id="Task_1" ${taskAttributes} />
   </bpmn:process>
 </bpmn:definitions>`;
@@ -517,6 +524,20 @@ describe("computeMerge orders and names", () => {
         expect(elementNamed(result, "Start_Order").type).toBe("bpmn:StartEvent");
     });
 
+    it("keys each version by its text, so equal texts share a key and different texts do not", async () => {
+        const { base, current, incoming } = scenarioNamed("table: taken from current");
+
+        const withBase = await computeMerge({ base, current, incoming });
+        const swapped = await computeMerge({ current: incoming, incoming: current });
+
+        expect(withBase.versionKeys.current).not.toBe(withBase.versionKeys.incoming);
+        expect(withBase.versionKeys.base).toBe(withBase.versionKeys.incoming);
+        expect(swapped.versionKeys).toStrictEqual({
+            current: withBase.versionKeys.incoming,
+            incoming: withBase.versionKeys.current,
+        });
+    });
+
     it.each(MERGE_SCENARIOS.map((scenario) => scenario.name))(
         "survives a JSON round trip: %s",
         async (name) => {
@@ -562,6 +583,87 @@ describe("computeMerge refuses", () => {
         );
     });
 
+    const clean = engineDocument(CAMUNDA_7_PLATFORM);
+
+    it.each([
+        {
+            side: "base",
+            what: "an attribute",
+            unknown: engineDocument(CAMUNDA_7_PLATFORM, 'camunda:notAProperty="x"'),
+            warning: /base does not parse: .*unknown attribute <camunda:notAProperty>/,
+        },
+        {
+            side: "current",
+            what: "an extension element",
+            unknown: engineDocument(CAMUNDA_7_PLATFORM, "", {
+                processContent:
+                    '<bpmn:task id="Task_2"><bpmn:extensionElements><camunda:notInDescriptor value="1" /></bpmn:extensionElements></bpmn:task>',
+            }),
+            warning: /current does not parse: .*camunda:notInDescriptor/,
+        },
+        {
+            side: "incoming",
+            what: "an attribute",
+            unknown: engineDocument(CAMUNDA_7_PLATFORM, 'camunda:notAProperty="x"'),
+            warning: /incoming does not parse: .*unknown attribute <camunda:notAProperty>/,
+        },
+    ] as const)(
+        "$side, holding $what its engine's descriptor does not know, naming it",
+        async ({ side, unknown, warning }) => {
+            const versions = { base: clean, current: clean, incoming: clean, [side]: unknown };
+            await expect(computeMerge(versions)).rejects.toThrow(warning);
+        },
+    );
+
+    it("an incoming its engine's descriptor does not parse cleanly when current declares no engine", async () => {
+        const unknownAttribute = engineDocument(CAMUNDA_7_PLATFORM, 'camunda:notAProperty="x"');
+
+        await expect(
+            computeMerge({ current: engineDocument(""), incoming: unknownAttribute }),
+        ).rejects.toThrow(/incoming does not parse: .*unknown attribute <camunda:notAProperty>/);
+    });
+
+    it("a version that is no BPMN document, naming it", async () => {
+        await expect(computeMerge({ current: clean, incoming: "<html />" })).rejects.toThrow(
+            "incoming does not parse: ",
+        );
+    });
+
+    it.each([
+        {
+            what: "a root element",
+            withoutId: engineDocument(CAMUNDA_7_PLATFORM, "", {
+                rootElements: '<bpmn:signal name="Signal without id" />',
+            }),
+            type: "bpmn:Signal",
+        },
+        {
+            what: "a lane",
+            withoutId: engineDocument(CAMUNDA_7_PLATFORM, "", {
+                processContent:
+                    '<bpmn:laneSet id="LaneSet_1"><bpmn:lane name="Lane without id"><bpmn:flowNodeRef>Task_1</bpmn:flowNodeRef></bpmn:lane></bpmn:laneSet>',
+            }),
+            type: "bpmn:Lane",
+        },
+        {
+            what: "a nested lane",
+            withoutId: engineDocument(CAMUNDA_7_PLATFORM, "", {
+                processContent:
+                    '<bpmn:laneSet id="LaneSet_1"><bpmn:lane id="Lane_Outer"><bpmn:childLaneSet id="LaneSet_2"><bpmn:lane name="Lane without id" /></bpmn:childLaneSet></bpmn:lane></bpmn:laneSet>',
+            }),
+            type: "bpmn:Lane",
+        },
+    ])(
+        "a version holding $what without an id, naming the side and the type",
+        async ({ withoutId, type }) => {
+            await expect(
+                computeMerge({ base: clean, current: clean, incoming: withoutId }),
+            ).rejects.toThrow(
+                `incoming holds a ${type} without an id: the merge matches root elements and lanes by id`,
+            );
+        },
+    );
+
     it("sides for different engines", async () => {
         const c8 = scenarioNamed("table: every row (c8)");
         await expect(computeMerge({ base, current, incoming: c8.incoming })).rejects.toThrow(
@@ -597,6 +699,17 @@ describe("computeMerge refuses", () => {
 });
 
 describe("computeMerge accepts", () => {
+    it("sides that declare no engine, keeping an extension attribute no descriptor types", async () => {
+        const withAttribute = engineDocument(
+            'xmlns:custom="http://example.com/custom"',
+            'custom:note="x"',
+        );
+
+        const result = await computeMerge({ current: withAttribute, incoming: withAttribute });
+
+        expect(elementNamed(result, "Task_1").state).toBe("unchanged");
+    });
+
     it("a Camunda 7 side that also declares the zeebe namespace with a plain Camunda 7 side", async () => {
         const camunda7Platform = `xmlns:camunda="${CAMUNDA_NAMESPACE}" xmlns:modeler="${MODELER_NAMESPACE}" modeler:executionPlatform="Camunda Platform"`;
         const withZeebeLeftover = engineDocument(

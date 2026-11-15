@@ -1,33 +1,29 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
-import {
-    ENGINE_LABEL,
-    detectEngineWithNamespaceFallback,
-} from "@miragon/bpmn-modeler-types/engine";
 
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
 import type { ElementVersion, MergeElement, MergeResult } from "./mergeResult";
+import {
+    type MergeVersions,
+    type VersionName,
+    prefixSourcesOf,
+    requireMergeableVersions,
+} from "./mergeVersions";
+import { versionKeyOf } from "./versionKey";
 
-export interface MergeVersions {
-    readonly base?: string;
-    readonly current: string;
-    readonly incoming: string;
-}
+export type { MergeVersions } from "./mergeVersions";
 
-type VersionName = keyof MergeVersions;
 type Snapshots = ReadonlyMap<string, ElementSnapshot>;
 type SnapshotsOfElement = Partial<Record<VersionName, ElementSnapshot>>;
 
 /**
  * Classifies every merge element of the three versions: its content, parent
  * and lanes against the base for the state, its drawing apart for the layout.
- * Rejects when a version does not parse or the sides are for different engines.
+ * Rejects what `requireMergeableVersions` refuses.
  */
 export async function computeMerge(versions: MergeVersions): Promise<MergeResult> {
-    requireOneEngine(versions);
-    const prefixSources = [versions.current, versions.incoming, versions.base].filter(
-        (xml): xml is string => xml !== undefined,
-    );
+    await requireMergeableVersions(versions);
+    const prefixSources = prefixSourcesOf(versions);
     const [current, incoming, base] = await Promise.all([
         snapshotsOf("current", versions.current, prefixSources),
         snapshotsOf("incoming", versions.incoming, prefixSources),
@@ -42,18 +38,12 @@ export async function computeMerge(versions: MergeVersions): Promise<MergeResult
             hasBase,
         ),
     );
-    return { hasBase, elements };
-}
-
-/** A side whose engine is not detected merges with either. */
-function requireOneEngine({ current, incoming }: MergeVersions): void {
-    const currentEngine = detectEngineWithNamespaceFallback(current);
-    const incomingEngine = detectEngineWithNamespaceFallback(incoming);
-    if (currentEngine && incomingEngine && currentEngine !== incomingEngine) {
-        throw new Error(
-            `current is for ${ENGINE_LABEL[currentEngine]} and incoming for ${ENGINE_LABEL[incomingEngine]}: a merge needs one engine`,
-        );
-    }
+    const versionKeys = {
+        current: versionKeyOf(versions.current),
+        incoming: versionKeyOf(versions.incoming),
+        ...(versions.base === undefined ? {} : { base: versionKeyOf(versions.base) }),
+    };
+    return { hasBase, versionKeys, elements };
 }
 
 async function snapshotsOf(

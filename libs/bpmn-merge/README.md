@@ -15,8 +15,10 @@ const result = await computeMerge({ base, current, incoming }); // base is optio
 const conflicts = result.elements.filter((element) => isConflictState(element.state));
 ```
 
-`MergeResult` holds only ids, states and per-version facts, so it is JSON-serialisable.
-`computeMerge` refuses a version that parses with any warning, naming it.
+`MergeResult` holds only ids, states, per-version facts and a fingerprint of each version's XML
+(`versionKeys`), so it is JSON-serialisable. `computeMerge` refuses, naming the version: sides for
+different engines, a version that parses with any warning, also under the merge's engine descriptor,
+and a root element or lane without an id.
 
 ## Rules
 
