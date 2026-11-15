@@ -3442,6 +3442,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-merge@workspace:libs/bpmn-merge":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-merge@workspace:libs/bpmn-merge"
+  dependencies:
+    "@miragon/bpmn-modeler-diff": "workspace:*"
+    "@miragon/bpmn-modeler-types": "workspace:*"
+    "@typescript/native": "npm:typescript@7.0.2"
+    "@vitest/coverage-v8": "npm:5.1.0"
+    typescript: "npm:@typescript/typescript6@6.0.2"
+    vite: "npm:8.3.6"
+    vitest: "npm:5.1.0"
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-orca@workspace:apps/orca-plugin":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-orca@workspace:apps/orca-plugin"

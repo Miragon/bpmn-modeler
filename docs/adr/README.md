@@ -18,6 +18,7 @@ preserves earlier decisions and their evolution.
 | [BPMN modeler features](bpmn-modeler-features.md) | Properties panel, themes and locale, linked form previews, transaction boundaries, formatting and cleanup |
 | [BPMN linting](bpmn-linting.md) | The lint injection contract and tiers, host linting, workspace rule packages: the gate, updates without a reload, asking only when needed |
 | [Diff](diff.md) | BPMN and DMN model diff: data libraries, navigation order, shared vocabulary and legend, diff panes |
+| [Merge](merge.md) | Three-way BPMN merge: the unpublished library, merge elements, classification |
 | [BPMN plugins](bpmn-plugins.md) | bpmn-js plugin format, the `/plugins` loader, discovery, serving from the content-addressed cache, what a plugin can reach |
 | [Workspace code allowance](code-allowance.md) | When workspace code may run: the allowance per repository and add-on, approval store, the question flow, host trust |
 | [Add-ons](add-ons.md) | The add-on catalog and its view: allow and revoke, page protocol and reveals, brand look, VS Code and IntelliJ placement |

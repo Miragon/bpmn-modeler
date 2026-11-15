@@ -273,6 +273,7 @@ module.exports = [
             "libs/bpmn-clipboard/**/*.tsx",
             "libs/bpmn-diff/**/*.ts",
             "libs/bpmn-diff/**/*.tsx",
+            "libs/bpmn-merge/**/*.ts",
             "libs/definition-search/**/*.ts",
             "libs/definition-search/**/*.tsx",
             "libs/element-template-builder/**/*.ts",

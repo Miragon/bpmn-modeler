@@ -41,6 +41,7 @@
         "eslint.config.cjs",
         "images",
         "knip.jsonc",
+        "libs/bpmn-merge",
         "libs/modeler-core",
         "libs/shared",
         "libs/standalone-extension",

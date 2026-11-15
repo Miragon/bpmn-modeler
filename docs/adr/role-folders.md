@@ -22,7 +22,7 @@ missing or unknown kind.
 | --- | --- |
 | `hexagonal` | `libs/modeler-core`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/`, `packages/bpmn-modeler`, `packages/dmn-modeler` (bpmn-js module layout) |
-| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+| `flat` | `modeler-types`, `shared`, `bpmn-diff`, `bpmn-merge`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
 A `diagram-js` or `flat` workspace holds no role folder, so no folder there
 reads as a role nothing checks.
