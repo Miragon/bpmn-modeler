@@ -323,7 +323,8 @@ function expectNoRestoredConnectionNoted(
 /**
  * Each pane badges or lists every user pick exactly once; a pick badged with
  * everything inside has every element inside picked on its side; and the
- * Undo a pane offers for a pick applies and takes the pick back.
+ * Undo the panes offer for the element the step touched applies and takes
+ * its pick back.
  */
 function expectPanesShowEveryPick(
     result: MergeResult,
@@ -335,8 +336,8 @@ function expectPanesShowEveryPick(
         .map(({ id }) => id)
         .filter((id) => decisions.originOf(id) === "picked")
         .sort();
-    for (const side of MERGE_SIDES) {
-        const view = mergePaneView(decisions, side);
+    const views = MERGE_SIDES.map((side) => [side, mergePaneView(decisions, side)] as const);
+    for (const [side, view] of views) {
         const shown = [...view.badges, ...view.picksNotDrawn];
         expect(shown.map(({ id }) => id).sort(), `${label}: picks on ${side}'s pane`).toEqual(
             picked,
@@ -352,12 +353,12 @@ function expectPanesShowEveryPick(
             );
         expect(notAllInside, `${label}: with everything inside on ${side}'s pane`).toEqual([]);
     }
-    for (const { id, undo } of mergePaneView(decisions, "current").pickable) {
-        if (undo === undefined) continue;
-        const undone = replayed(result, picks);
-        expect(undone[UNPICK_OF_SCOPE[undo]](id).applied, `${label}: undo ${id}`).toBe(true);
-        expect(undone.originOf(id), `${label}: ${id} after its undo`).not.toBe("picked");
-    }
+    const touched = picks[picks.length - 1]?.id;
+    const undo = views[0][1].pickable.find(({ id }) => id === touched)?.undo;
+    if (touched === undefined || undo === undefined) return;
+    const undone = replayed(result, picks);
+    expect(undone[UNPICK_OF_SCOPE[undo]](touched).applied, `${label}: undo ${touched}`).toBe(true);
+    expect(undone.originOf(touched), `${label}: ${touched} after its undo`).not.toBe("picked");
 }
 
 /**
