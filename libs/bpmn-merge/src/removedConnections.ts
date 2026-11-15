@@ -1,4 +1,4 @@
-import { MERGE_SIDES, type MergeElement, type MergeSide } from "./mergeResult";
+import { type MergeElement, type MergeSide, otherSide } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
 
 /** The ancestor and `side` have the element and the other side removed it. */
@@ -6,7 +6,7 @@ export function keptAgainstRemoval(element: MergeElement, side: MergeSide): bool
     return (
         element.versions.base !== undefined &&
         element.versions[side] !== undefined &&
-        MERGE_SIDES.some((other) => other !== side && element.versions[other] === undefined)
+        element.versions[otherSide(side)] === undefined
     );
 }
 

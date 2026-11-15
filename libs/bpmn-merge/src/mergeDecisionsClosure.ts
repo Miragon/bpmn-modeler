@@ -1,7 +1,7 @@
 import type { BlockedPick, PickOutcome } from "./pickOutcome";
 import { findClashes, rivalCollaborationsOf } from "./mergeDecisionsClashes";
 import type { DecidedSides } from "./mergeDecisionsSides";
-import { MERGE_SIDES, type MergeElement, type MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
 import {
     holdsRequiredPart,
     requirementsOf,
@@ -160,16 +160,14 @@ class PickClosure {
 
     private otherVersionServesDecidedDependents(targetId: string): boolean {
         const target = this.context.elementsById.get(targetId) as MergeElement;
-        const otherSide = MERGE_SIDES.find(
-            (side) => side !== this.sides.decidedSideOf(targetId),
-        ) as MergeSide;
+        const other = otherSide(this.sides.decidedSideOf(targetId) as MergeSide);
         return (
-            target.versions[otherSide] !== undefined &&
+            target.versions[other] !== undefined &&
             (this.context.dependentsByTarget.get(targetId) ?? []).every(
                 ({ element, side, requirement }) =>
                     this.sides.isAutomatic(element.id) ||
                     this.sides.decidedSideOf(element.id) !== side ||
-                    holdsRequiredPart(target, otherSide, requirement),
+                    holdsRequiredPart(target, other, requirement),
             )
         );
     }

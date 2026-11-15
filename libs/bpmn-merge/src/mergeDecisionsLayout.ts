@@ -6,6 +6,7 @@ import {
     type MergeSide,
     type SideInResult,
     chosenVersionOf,
+    otherSide,
     sameLanes,
 } from "./mergeResult";
 import { isEdgeEnd, isHostReference, isProcessReference } from "./referenceRules";
@@ -84,10 +85,6 @@ function layoutChoiceOf(
         drawsInPlace(element.versions[candidate], contentVersion),
     );
     return side === undefined ? undefined : { side, preferred };
-}
-
-function otherSide(side: MergeSide): MergeSide {
-    return side === "current" ? "incoming" : "current";
 }
 
 function settleContainersFirst(

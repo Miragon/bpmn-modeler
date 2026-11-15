@@ -331,5 +331,96 @@ describe("mergePaneView", () => {
             expect(mergePaneView(decisions, "current").pickable).toEqual(pickable);
             expect(mergePaneView(decisions, "incoming").pickable).toEqual(pickable);
         });
+
+        it("badges a container with everything inside only while every element inside is picked on its side", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Sub", "bothChanged", {
+                        type: "bpmn:SubProcess",
+                        parent: "Process_1",
+                    }),
+                    mergeElement("Inner", "bothChanged", { parent: "Sub" }),
+                    mergeElement("Inner2", "bothChanged", { parent: "Sub" }),
+                ),
+            );
+
+            decisions.pick("Inner", "incoming");
+            decisions.pick("Sub", "incoming");
+
+            const view = mergePaneView(decisions, "incoming");
+            expect(view.badges.find(({ id }) => id === "Sub")?.scope).toBe("element");
+            expect(view.pickable.find(({ id }) => id === "Sub")?.undo).toBe("element");
+
+            decisions.pick("Inner2", "incoming");
+
+            expect(
+                mergePaneView(decisions, "incoming").badges.find(({ id }) => id === "Sub")?.scope,
+            ).toBe("withContents");
+        });
+
+        it("badges an element with its flows only once no flow a pick could keep with it is left out", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Gateway", "unchanged", { parent: "Process_1" }),
+                    mergeElement("Task_End", "unchanged", { parent: "Process_1" }),
+                    mergeElement("Task_Reject", "removedByCurrent", { parent: "Process_1" }),
+                    flow("Flow_No", "Gateway", "Task_Reject", "removedByCurrent"),
+                    flow("Flow_Rejected", "Task_Reject", "Task_End", "removedByCurrent"),
+                ),
+            );
+
+            decisions.pick("Task_Reject", "incoming");
+            decisions.pick("Flow_No", "incoming");
+
+            const scopeOfTask = () =>
+                mergePaneView(decisions, "incoming").badges.find(({ id }) => id === "Task_Reject")
+                    ?.scope;
+            expect(scopeOfTask()).toBe("element");
+
+            decisions.pick("Flow_Rejected", "incoming");
+
+            expect(scopeOfTask()).toBe("withConnections");
+        });
+
+        it("offers no everything inside for a task that holds a data input association", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Task_Check", "bothChanged", {
+                        type: "bpmn:ServiceTask",
+                        parent: "Process_1",
+                    }),
+                    mergeElement("Association_Order", "bothChanged", {
+                        type: "bpmn:DataInputAssociation",
+                        parent: "Task_Check",
+                    }),
+                ),
+            );
+
+            expect(
+                mergePaneView(decisions, "current").pickable.find(({ id }) => id === "Task_Check"),
+            ).toEqual({ id: "Task_Check", container: false });
+        });
+
+        it.each(["bpmn:SubProcess", "bpmn:Transaction", "bpmn:AdHocSubProcess", "bpmn:Lane"])(
+            "offers everything inside for a %s with something inside",
+            (type) => {
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        process("unchanged"),
+                        mergeElement("Container", "bothChanged", { type, parent: "Process_1" }),
+                        mergeElement("Inner", "bothChanged", { parent: "Container" }),
+                    ),
+                );
+
+                expect(
+                    mergePaneView(decisions, "current").pickable.find(
+                        ({ id }) => id === "Container",
+                    )?.container,
+                ).toBe(true);
+            },
+        );
     });
 });

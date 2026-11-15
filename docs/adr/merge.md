@@ -170,8 +170,15 @@ parser and asserts that the module still loads.
   not a requirement, so it cannot come back as a consequence. `unpickWithConnections` takes
   the element back with every flow on its side the other side removed with it; `unpick` alone
   would keep the element as a consequence of its picked flows. The library keeps no groups:
-  picks stay its only state, and the group is rebuilt from the rule, which
-  `restoredWithoutConnectionsNotes` shares (`removedConnections.ts`). Not offered: a flow
+  picks stay its only state, and `mergePaneView` rebuilds a pick's reach from them alone. A
+  container counts as kept with everything inside only while every element inside is picked
+  on its side, and an element as kept with its flows only while one of them is picked and
+  none it could keep is left out, so any order of the same picks shows the same badges and
+  Undo takes back no pick the user made apart. Only a sub-process, pool, lane, process or
+  collaboration offers everything inside; a task holds its data associations but offers
+  only itself. The offer and the build note `restoredWithoutConnectionsNotes` share the
+  helpers of `removedConnections.ts`, not one rule: the note names every flow left out, the
+  offer only those it can bring back. Not offered: a flow
   whose other end the removing side deleted too, which would bring back an end the user did
   not ask for; a boundary event removed with its host; a restored flow's source `default`.
 - *Consequences follow the picks, not their order.* The only state is the user's picks:

@@ -13,7 +13,8 @@ import { type MergeSources, prepareMergeSources } from "./buildMergedSources";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
-import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
+import { mergePaneView } from "./mergePaneView";
 import { connectionsRemovedWith } from "./removedConnections";
 
 const FIRST_SEED = 1;
@@ -23,6 +24,8 @@ const WALKS_PER_SEED = 3;
 const STEPS_PER_WALK = 8;
 /** Beyond the range, seeds on which a pick once left its side or an open conflict had no choice. */
 const PINNED_SEEDS = [2050, 2557, 2766, 3049, 3357, 3368];
+/** Fewer would mean the walks no longer reach the flows a removal took along. */
+const MIN_CONNECTIONS_KEPT = 20;
 /** About 25 s on a developer machine; CI runners are slower. */
 const FUZZ_TIMEOUT_MS = 180_000;
 
@@ -39,7 +42,16 @@ type Pick =
           /** Captured before the step, since which flows qualify depends on the state. */
           readonly connections: readonly string[];
       }
-    | { readonly kind: "unpick" | "unpickWithContents"; readonly id: string };
+    | {
+          readonly kind: "unpick" | "unpickWithContents" | "unpickWithConnections";
+          readonly id: string;
+      };
+
+const UNPICK_OF_SCOPE = {
+    element: "unpick",
+    withContents: "unpickWithContents",
+    withConnections: "unpickWithConnections",
+} as const;
 
 function stateOf(decisions: MergeDecisions) {
     return {
@@ -57,6 +69,7 @@ function apply(decisions: MergeDecisions, pick: Pick) {
     switch (pick.kind) {
         case "unpick":
         case "unpickWithContents":
+        case "unpickWithConnections":
             return decisions[pick.kind](pick.id);
         default:
             return decisions[pick.kind](pick.id, pick.side);
@@ -86,6 +99,16 @@ function picksLeftBy(result: MergeResult, picks: readonly Pick[]): Map<string, M
                 if (side === undefined) break;
                 sides.delete(pick.id);
                 for (const id of descendantsOf(pick.id, result.elements)) {
+                    if (sides.get(id) === side) sides.delete(id);
+                }
+                break;
+            }
+            case "unpickWithConnections": {
+                const side = sides.get(pick.id);
+                if (side === undefined) break;
+                sides.delete(pick.id);
+                const element = result.elements.find(({ id }) => id === pick.id)!;
+                for (const { id } of connectionsRemovedWith(result.elements, element, side)) {
                     if (sides.get(id) === side) sides.delete(id);
                 }
                 break;
@@ -145,10 +168,6 @@ function expectContracts(
 ) {
     expectPicksOnTheirSide(decisions, picks, label);
     expectAChoiceForEveryConflict(result, picks, decisions, label);
-}
-
-function otherSide(side: MergeSide): MergeSide {
-    return side === "current" ? "incoming" : "current";
 }
 
 /** The build succeeds, parses cleanly and holds exactly the elements the resolution keeps. */
@@ -233,8 +252,14 @@ function randomPick(random: Random, decisions: MergeDecisions, picked: readonly 
         return { kind: "pick", id: open[randomIndex(random, open.length)]!.id, side };
     }
     if (roll < 0.78) return { kind: "pick", id: randomItem(random, ids)!, side };
+    const unpickRoll = random();
     return {
-        kind: random() < 0.25 ? "unpickWithContents" : "unpick",
+        kind:
+            unpickRoll < 0.2
+                ? "unpickWithContents"
+                : unpickRoll < 0.4
+                  ? "unpickWithConnections"
+                  : "unpick",
         id:
             (picked.length > 0 && random() < 0.8 ? randomItem(random, picked) : undefined) ??
             randomItem(random, ids)!,
@@ -258,7 +283,8 @@ function expectConnectionsKeptAsPicks(
     const plainApplied = [pick.id, ...pick.connections].every(
         (id) => oneByOne.pick(id, pick.side).applied,
     );
-    if (plainApplied) expect(stateOf(oneByOne), `${label} one by one`).toEqual(stateOf(decisions));
+    expect(plainApplied, `${label} one by one applied`).toBe(true);
+    expect(stateOf(oneByOne), `${label} one by one`).toEqual(stateOf(decisions));
     const picksBefore = picksLeftBy(result, prefix);
     const element = result.elements.find(({ id }) => id === pick.id)!;
     // It takes back every flow the other side removed with the element, a flow picked by hand too.
@@ -295,6 +321,46 @@ function expectNoRestoredConnectionNoted(
 }
 
 /**
+ * Each pane badges or lists every user pick exactly once; a pick badged with
+ * everything inside has every element inside picked on its side; and the
+ * Undo a pane offers for a pick applies and takes the pick back.
+ */
+function expectPanesShowEveryPick(
+    result: MergeResult,
+    picks: readonly Pick[],
+    decisions: MergeDecisions,
+    label: string,
+) {
+    const picked = decisions.result.elements
+        .map(({ id }) => id)
+        .filter((id) => decisions.originOf(id) === "picked")
+        .sort();
+    for (const side of MERGE_SIDES) {
+        const view = mergePaneView(decisions, side);
+        const shown = [...view.badges, ...view.picksNotDrawn];
+        expect(shown.map(({ id }) => id).sort(), `${label}: picks on ${side}'s pane`).toEqual(
+            picked,
+        );
+        const notAllInside = shown
+            .filter(({ scope }) => scope === "withContents")
+            .filter(({ id, keptSide }) =>
+                descendantsOf(id, result.elements).some(
+                    (inside) =>
+                        decisions.originOf(inside) !== "picked" ||
+                        decisions.sideOf(inside) !== keptSide,
+                ),
+            );
+        expect(notAllInside, `${label}: with everything inside on ${side}'s pane`).toEqual([]);
+    }
+    for (const { id, undo } of mergePaneView(decisions, "current").pickable) {
+        if (undo === undefined) continue;
+        const undone = replayed(result, picks);
+        expect(undone[UNPICK_OF_SCOPE[undo]](id).applied, `${label}: undo ${id}`).toBe(true);
+        expect(undone.originOf(id), `${label}: ${id} after its undo`).not.toBe("picked");
+    }
+}
+
+/**
  * Both contracts hold after every applied step; a refused pick changes
  * nothing; a pick taken back, by the other side and back again or by an
  * unpick, leaves the state as it was; the state after a walk is the state its
@@ -326,6 +392,7 @@ async function expectPathIndependentWalks(
             }
             picks.push(pick);
             expectContracts(result, picks, decisions, label);
+            expectPanesShowEveryPick(result, picks, decisions, label);
             if (pick.kind === "pickWithConnections") {
                 if (pick.connections.length > 0) connectionsKept += 1;
                 expectConnectionsKeptAsPicks(
@@ -409,7 +476,7 @@ describe("random versions of the order process", () => {
             expect(
                 connectionsKept,
                 "walks that kept an element with its connections",
-            ).toBeGreaterThan(0);
+            ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
         },
         FUZZ_TIMEOUT_MS,
     );

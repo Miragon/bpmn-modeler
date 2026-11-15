@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type ConflictState, type ResolvedState, isConflictState } from "./mergeResult";
+import { type ConflictState, type ResolvedState, isConflictState, otherSide } from "./mergeResult";
 
 const CONFLICTS: readonly ConflictState[] = [
     "bothChanged",
@@ -32,5 +32,14 @@ describe("isConflictState", () => {
 
     it.each(RESOLVED)("counts %s as resolved", (state) => {
         expect(isConflictState(state)).toBe(false);
+    });
+});
+
+describe("otherSide", () => {
+    it.each([
+        ["current", "incoming"],
+        ["incoming", "current"],
+    ] as const)("merges %s with %s", (side, other) => {
+        expect(otherSide(side)).toBe(other);
     });
 });

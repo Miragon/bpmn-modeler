@@ -105,18 +105,19 @@ function paneDecisions(
     const containers = containersOf(elements);
     const pickedOn = (id: string, pickSide: MergeSide) =>
         decisions.originOf(id) === "picked" && decisions.sideOf(id) === pickSide;
+    // Read from the picks, never from how they were made, so every order of the same picks badges alike.
     const scopeOf = (element: MergeElement, keptSide: MergeSide): PickScope => {
         if (
             containers.has(element.id) &&
-            descendantsOf(element.id, elements).some((id) => pickedOn(id, keptSide))
+            descendantsOf(element.id, elements).every((id) => pickedOn(id, keptSide))
         ) {
             return "withContents";
         }
-        return connectionsRemovedWith(elements, element, keptSide).some(({ id }) =>
-            pickedOn(id, keptSide),
-        )
-            ? "withConnections"
-            : "element";
+        const keptWithFlows =
+            connectionsRemovedWith(elements, element, keptSide).some(({ id }) =>
+                pickedOn(id, keptSide),
+            ) && decisions.connectionsLeftOut(element.id, keptSide).length === 0;
+        return keptWithFlows ? "withConnections" : "element";
     };
     const badges: PickBadge[] = [];
     const picksNotDrawn: PickNotDrawn[] = [];
