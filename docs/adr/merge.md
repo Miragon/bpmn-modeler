@@ -16,7 +16,7 @@ covers the data library; the merge view gets its own section when it is built.
 ### One unpublished library
 
 `libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, flat, DOM-free like `libs/bpmn-diff`)
-holds `computeMerge`; the decisions (#2451) and building the file (#2452) come next. It is not in `libs/bpmn-diff`,
+holds `computeMerge` and `MergeDecisions`; building the file (#2452) comes next. It is not in `libs/bpmn-diff`,
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `release-please-config.json` excludes the workspace from the npm component.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
@@ -81,11 +81,82 @@ base, an element only one side has, or that the sides hold differently, is a con
   definitions root), names each side's engine. Detected engines must agree; a side without
   one merges with either, since a save drops an engine namespace nothing uses.
 
+### Decisions and reference rules
+
+`MergeDecisions` holds the decisions of one merge: the automatic resolutions, the user's
+picks and what keeps the result whole. It imports only the result types; a spec mocks the
+parser and asserts that the module still loads.
+
+- *One rule.* Every element in the result needs, in the version its side gives, its
+  parent, the container it sits in, each of its lanes and every reference target the parse
+  lists (both flow ends, boundary host, `default`, the event definitions' message, error,
+  signal and escalation, data object and store, data association ends, compensation,
+  `processRef`, `categoryValueRef`, item definitions, operations). A reference or container
+  inside another element (a data association's target property, a lane's lane set) also
+  needs that element's chosen version to hold the part. A generic walk over the
+  descriptors' references covers every reference the parse resolves.
+- *Automatic resolutions are checked too.* One that breaks the rule becomes an open
+  conflict for the element and its target, computed again after each pick.
+- *Elements that cannot stand side by side.* Two elements of the result that hold the same
+  inner id, or an inner id that is another element's id, cannot both stay: each side's file
+  was valid, but bpmn-js refuses a duplicate id. Nor can two collaborations from different
+  sides with a pool of the same process, since a diagram draws one collaboration per plane
+  and the other's pools would stay in the file unseen. Keeping one collaboration drops the
+  other with its pools.
+- *A picked element keeps its side.* Of two elements that cannot stand side by side, and of
+  a dependent and the target it misses, only an automatic one opens; one the user picked,
+  or one a pick decided as its consequence, stays resolved. Without picks both open. A pick
+  that would keep two picked or consequential elements that clash is refused, naming the
+  one it would have to change. The UI can rely on a pick it applied: the element sits on
+  the picked side until the user picks or unpicks it.
+- *A pick names its consequences.* It pulls in a target only its side has, or holds the
+  part, and drops the dependents of an element it removes. A dependent both versions hold
+  cannot be dropped, so it reopens instead of refusing the pick: its version from the side
+  the target comes from cannot name the target, so that choice stays. The pick is blocked,
+  says why and changes nothing when it would change an element the user picked or when no
+  side satisfies it.
+- *No dead end.* Every open conflict keeps a choice that applies. A pick is refused, naming
+  the element, when it would leave an open element both versions hold with no version
+  whose missing targets can still be pulled in. A dangling automatic target that decided
+  elements need, with no other version that serves them, is kept on its side and has its
+  own needs pulled in, or the pick is refused: a pick of a flow to a task in a lane the
+  process no longer holds is refused rather than leaving task and lane without a way out.
+  `mergeDecisionsPathIndependence.spec.ts` checks over every scenario and the hand-built
+  results that each pick sits on its side and every open conflict has a choice.
+  A blocked pick and a dangling resolution give the reason as data (element, requirement,
+  obstacle), not as a sentence: the library ships one English `describeUnmetRequirement`,
+  and a view in another locale replaces it.
+  `pickWithContents` decides a container and everything in it at once; a later pick inside
+  overrides it. `unpick` takes a pick back; an element nothing else needs returns to its
+  automatic resolution or to open, which is the way out of two picks that name each other.
+- *Consequences follow the picks, not their order.* The only state is the user's picks:
+  each pick or unpick derives every consequence again from them over the automatic
+  resolutions. Picking an element back, or unpicking it, restores what its first pick
+  dropped, pulled in or settled, so no addition is lost and no closed conflict stays closed
+  on its own; a sequence of picks and its final picks made on a fresh merge agree
+  (`mergeDecisionsPathIndependence.spec.ts`). A dependent both versions hold that a pick
+  or an unpick leaves unmet reopens rather than refusing the call. The cost is one closure
+  over all picks per call, plus a pass over the result for clashes and dead ends, which is
+  linear in the result for the few picks a merge has; and a pick can reopen an element the
+  user did not touch, which then waits for its own choice.
+- *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
+  from its own side when the preferred side does not draw it, or draws it in another
+  parent, lane, host or between other ends, since bpmn-js reads lane membership and
+  attachment from geometry, and from the other side when neither draws it in place: a
+  process one side drew only through a pool the result drops takes the other side's
+  plane, unless a pool of the result draws it. Containers settle first: an element follows its host, parent,
+  pool or lane when that side moved the container, or when its own side draws it on
+  another plane (a collapsed sub-process), and a flow follows its ends when one of them had
+  to.
+
 ## Consequences
 
-- References held in plain strings are invisible to the classification: link events
+- References held in plain strings are invisible to the reference rules: link events
   pair by name, a Camunda 8 embedded form names its `zeebe:userTaskForm`, and the
   classification parses without engine descriptors, so engine extension references stay
   generic. `computeDiff` does not see a change to an element without an id.
+- The reference rules read a reference's property as `owner#property`, the text
+  `bpmn-diff` writes into its snapshot; `referenceRules.ts` is the one reader, and a
+  change to the format is a change to both libraries.
 - `content` and `layout` are opaque texts, only fit for equality; the view cannot say what
   changed inside an element without its text.
