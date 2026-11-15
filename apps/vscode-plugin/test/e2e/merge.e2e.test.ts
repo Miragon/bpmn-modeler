@@ -81,7 +81,8 @@ suite("BPMN merge view spike", () => {
     test("opens current and incoming of a conflicted file in two panes", async () => {
         const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         assert.ok(folder, "no workspace folder");
-        const repository = join(folder, "merge-repo");
+        // Both labels of .vscode-test.mjs share one workspace folder.
+        const repository = join(folder, `merge-repo-${vscode.version}`);
         mkdirSync(repository, { recursive: true });
         const base = readFileSync(SMOKE_BPMN, "utf8");
         const file = join(repository, "order.bpmn");
