@@ -12,8 +12,10 @@ export type { MergeSources } from "./buildMergedSources";
 export { isConflictState } from "./mergeResult";
 export { hasNoShape } from "./mergeElementShape";
 export { mergeNavigationOrder } from "./mergeNavigationOrder";
+export { mergePaneSteps } from "./mergePaneSteps";
+export type { MergePaneSteps, MergeStep } from "./mergePaneSteps";
 export { mergePaneView } from "./mergePaneView";
-export type { MergePaneView } from "./mergePaneView";
+export type { MergePaneView, ShapelessMark } from "./mergePaneView";
 export type {
     ConflictState,
     ElementReference,

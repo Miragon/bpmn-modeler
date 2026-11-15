@@ -12,6 +12,9 @@ import { mergePaneView } from "./mergePaneView";
 
 const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
 
+const process = (state: "unchanged" | "bothChanged") =>
+    mergeElement("Process_1", state, { type: "bpmn:Process", drawn: true });
+
 describe("mergePaneView", () => {
     it("marks an element only incoming changed as taken from incoming on its pane and from the other side on current's", () => {
         const decisions = MergeDecisions.from(
@@ -128,5 +131,32 @@ describe("mergePaneView", () => {
             ...NO_MARKS,
             takenFromOtherSide: ["Task_Pack"],
         });
+    });
+
+    it("lists a marked element no canvas draws instead of marking it", () => {
+        const decisions = MergeDecisions.from(
+            mergeResult(
+                process("bothChanged"),
+                mergeElement("Message_Order", "takenFromIncoming", {
+                    type: "bpmn:Message",
+                    drawn: false,
+                }),
+                mergeElement("Task_Pack", "bothChanged"),
+            ),
+        );
+
+        expect(mergePaneView(decisions, "current")).toEqual({
+            marks: { ...NO_MARKS, conflict: ["Task_Pack"] },
+            shapeless: [
+                { id: "Process_1", type: "bpmn:Process", marker: "conflict" },
+                { id: "Message_Order", type: "bpmn:Message", marker: "takenFromOtherSide" },
+            ],
+        });
+    });
+
+    it("lists no shape-less element the pane leaves unmarked", () => {
+        const decisions = MergeDecisions.from(mergeResult(process("unchanged")));
+
+        expect(mergePaneView(decisions, "incoming").shapeless).toEqual([]);
     });
 });
