@@ -7,6 +7,7 @@ import { conflictReadingOf, isMergeViewCandidate } from "../domain/conflictReadi
 import { mergeTabLabel } from "../domain/diffTabLabel";
 import { gitOperationOf } from "../domain/gitOperation";
 import { mergePaneBasename } from "../domain/mergePaneName";
+import { inPaneOrder } from "../domain/mergePaneSide";
 import { mergeSideCaptions } from "../domain/mergeSideCaptions";
 import { showsSameConflict } from "../domain/mergeViewContent";
 import { mergeViewFailedText, MergeViewRefusal, mergeViewRefusal } from "../domain/mergeViewTexts";
@@ -98,7 +99,7 @@ export class MergeViewOpener {
         const title = mergeTabLabel(fileName, captions);
         const live = this.sessions.of(fileUri);
         if (live && showsSameConflict(live, { stages: reading.stages, title })) {
-            await this.view.open(live.uris, live.title);
+            await this.show(live);
             return;
         }
         const sideDocument = (side: MergeSide): MergeSideDocument => ({
@@ -118,7 +119,11 @@ export class MergeViewOpener {
             stages: reading.stages,
         };
         this.sessions.add(session, this.diffStore.registerMerge(uris));
-        await this.view.open(session.uris, session.title);
+        await this.show(session);
+    }
+
+    private async show(session: MergeSession): Promise<void> {
+        await this.view.open(...inPaneOrder(session.uris), session.title);
     }
 
     private fail(error: unknown): void {

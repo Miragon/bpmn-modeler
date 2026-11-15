@@ -1,5 +1,7 @@
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
+import { inPaneOrder } from "./mergePaneSide";
+
 const COMPARE_SEPARATOR = " ↔ ";
 
 /** Joins the element to the files in an element XML diff's title, which names no diagram diff. */
@@ -18,7 +20,15 @@ export function mergeTabLabel(
 ): string {
     const sideName = (caption: MergeSideCaption) =>
         caption.ref ?? caption.shortHash ?? MERGE_SIDE_WORDS[caption.side];
-    return `${fileName}${MERGE_TITLE_INFIX}${sideName(captions.current)}${COMPARE_SEPARATOR}${sideName(captions.incoming)})`;
+    return `${fileName}${MERGE_TITLE_INFIX}${inPaneOrder(captions).map(sideName).join(COMPARE_SEPARATOR)})`;
+}
+
+/**
+ * The title of a merge view's element XML diff: the working file and the
+ * sides by position, since the panes' documents are its Git stages.
+ */
+export function mergeElementXmlDiffTitle(elementId: string, fileName: string): string {
+    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${fileName} (${inPaneOrder(MERGE_SIDE_WORDS).join(COMPARE_SEPARATOR)})`;
 }
 
 /** The title of a `compare-files` diff tab, the same one VS Code gives `vscode.diff(a, b)`. */

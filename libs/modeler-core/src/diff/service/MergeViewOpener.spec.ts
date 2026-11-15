@@ -56,8 +56,10 @@ describe("MergeViewOpener", () => {
 
         await opener.open(FILE);
 
-        const [{ uris, title }] = view.opened;
-        expect(title).toBe("order.bpmn (Merge: main ↔ feature)");
+        const [{ uris }] = view.served;
+        expect(view.opened).toStrictEqual([
+            { left: uris.current, right: uris.incoming, title: "order.bpmn (Merge: main ↔ feature)" },
+        ]);
         expect(view.textOf(uris.current)).toBe("<current/>");
         expect(view.textOf(uris.incoming)).toBe("<incoming/>");
         expect(diffStore.awaitingPaneFor(uris.current)?.origin).toBe("merge");
@@ -90,7 +92,7 @@ describe("MergeViewOpener", () => {
 
         expect(view.opened[0].title).toBe("order.bpmn (Merge: 1111111 ↔ 9f8e7d6)");
         expect(sessions.of(FILE)?.captions.incoming.role).toBe("yourCommit");
-        expect(view.textOf(view.opened[0].uris.current)).toBe("<current/>");
+        expect(view.opened[0].left).toBe(view.served[0].uris.current);
     });
 
     it("opens without an ancestor when both sides added the file", async () => {
@@ -113,7 +115,7 @@ describe("MergeViewOpener", () => {
 
         await opener.open(FILE);
 
-        expect(view.served).toStrictEqual([
+        expect(view.served).toMatchObject([
             {
                 fileUri: FILE,
                 basenames: { current: "order.current.bpmn", incoming: "order.incoming.bpmn" },
@@ -174,14 +176,14 @@ describe("MergeViewOpener", () => {
     it("focuses the open merge view by opening its own pane URIs again, not a second session", async () => {
         const { opener, view, sessions } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        resolveBothPanes(opener, view.opened[0].uris);
+        resolveBothPanes(opener, view.served[0].uris);
 
         await opener.open(FILE);
 
         expect(view.served).toHaveLength(1);
-        expect(view.opened.map((opening) => opening.uris)).toStrictEqual([
-            view.opened[0].uris,
-            view.opened[0].uris,
+        expect(view.opened.map(({ left, right }) => [left, right])).toStrictEqual([
+            [view.served[0].uris.current, view.served[0].uris.incoming],
+            [view.served[0].uris.current, view.served[0].uris.incoming],
         ]);
         expect(tabsOf(sessions)).toHaveLength(1);
     });
@@ -189,7 +191,7 @@ describe("MergeViewOpener", () => {
     it("opens the new conflict when the file conflicted again while its old view is open", async () => {
         const { opener, view, source, sessions } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        resolveBothPanes(opener, view.opened[0].uris);
+        resolveBothPanes(opener, view.served[0].uris);
         source.resolve(ROOT, FILE);
         source.conflict(ROOT, {
             ...MERGE_CONFLICT,
@@ -199,15 +201,15 @@ describe("MergeViewOpener", () => {
         await opener.open(FILE);
 
         expect(view.served).toHaveLength(2);
-        expect(view.opened[1].uris).not.toStrictEqual(view.opened[0].uris);
-        expect(view.textOf(view.opened[1].uris.incoming)).toBe("<incoming2/>");
+        expect(view.opened[1].right).toBe(view.served[1].uris.incoming);
+        expect(view.textOf(view.served[1].uris.incoming)).toBe("<incoming2/>");
         expect(sessions.of(FILE)?.stages.incoming).toBe("<incoming2/>");
     });
 
     it("explains a file whose conflict was resolved while its old view is open", async () => {
         const { opener, view, source, notifier } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        resolveBothPanes(opener, view.opened[0].uris);
+        resolveBothPanes(opener, view.served[0].uris);
         source.resolve(ROOT, FILE);
 
         await opener.open(FILE);
@@ -220,7 +222,7 @@ describe("MergeViewOpener", () => {
         const { opener, view, diffStore } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
 
-        const { current, incoming, outcomes } = resolveBothPanes(opener, view.opened[0].uris);
+        const { current, incoming, outcomes } = resolveBothPanes(opener, view.served[0].uris);
 
         expect(outcomes).toStrictEqual(["joined", "joined"]);
         expect(diffStore.sessionOf(current)?.attachedPanes()).toStrictEqual([current, incoming]);
@@ -229,7 +231,7 @@ describe("MergeViewOpener", () => {
     it("gives a second tab of a live merge view its own session", async () => {
         const { opener, view, diffStore, sessions } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        const { uris } = view.opened[0];
+        const { uris } = view.served[0];
         const first = resolveBothPanes(opener, uris);
 
         const second = resolveBothPanes(opener, uris);
@@ -246,7 +248,7 @@ describe("MergeViewOpener", () => {
     it("joins nothing new when the same pane resolves twice", async () => {
         const { opener, view, sessions } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        const pane = new FakeDiffPaneHandle(view.opened[0].uris.current);
+        const pane = new FakeDiffPaneHandle(view.served[0].uris.current);
         opener.attachPane(pane);
 
         expect(opener.attachPane(pane)).toBe("joined");
@@ -268,7 +270,7 @@ describe("MergeViewOpener", () => {
     it("ends the panes of a merge view whose tab was closed", async () => {
         const { opener, view, diffStore } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
-        const { uris } = view.opened[0];
+        const { uris } = view.served[0];
         const { current, incoming } = resolveBothPanes(opener, uris);
         diffStore.detach(current);
         diffStore.detach(incoming);

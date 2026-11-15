@@ -7,6 +7,8 @@ export interface MergeSidesViewContractFixture {
     readonly view: MergeSidesView;
     /** The text the host serves under `uri`, or `undefined` for none. */
     servedText(uri: string): string | undefined;
+    /** Every diff the host opened, in order. */
+    opened(): readonly { left: string; right: string; title: string }[];
 }
 
 const FILE = "file:///work/repo/process/order.bpmn";
@@ -25,7 +27,8 @@ const urisOf = (uris: MergePaneUris): string[] => [uris.current, uris.incoming];
  * opening has its own URI, also across runs of the host, so a restored tab of
  * an earlier opening is never mistaken for a live one; the URI's path sits
  * beside the working file and ends in the side's basename; each URI serves
- * its side's text until it is released.
+ * its side's text until it is released; a diff opens each URI on the side
+ * the core names, which alone decides the positions.
  */
 export function describeMergeSidesViewContract(
     adapter: string,
@@ -63,6 +66,21 @@ export function describeMergeSidesViewContract(
 
             expect(pathOf(uris.current)).toBe("/work/repo/process/order.current.bpmn");
             expect(pathOf(uris.incoming)).toBe("/work/repo/process/order.incoming.bpmn");
+        });
+
+        it("opens each URI on the side the core names", async () => {
+            const { view, opened } = createFixture();
+            const uris = view.serve(FILE, SIDES);
+
+            await view.open(uris.incoming, uris.current, "order.bpmn (Merge: feature ↔ main)");
+
+            expect(opened()).toStrictEqual([
+                {
+                    left: uris.incoming,
+                    right: uris.current,
+                    title: "order.bpmn (Merge: feature ↔ main)",
+                },
+            ]);
         });
 
         it("serves nothing under released URIs and keeps another opening served", () => {

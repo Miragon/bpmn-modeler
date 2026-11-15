@@ -16,8 +16,8 @@ export interface MergeSidesView {
      * or an earlier run of the host, used.
      */
     serve(fileUri: string, sides: Readonly<Record<MergeSide, MergeSideDocument>>): MergePaneUris;
-    /** Opens current left and incoming right; opening the same URIs again focuses their tab. */
-    open(uris: MergePaneUris, title: string): Promise<void>;
+    /** Opens one diff of `leftUri` and `rightUri`; opening the same URIs again focuses their tab. */
+    open(leftUri: string, rightUri: string, title: string): Promise<void>;
     /** Stops serving the sides, so a tab of them restored later finds no text. */
     release(uris: MergePaneUris): void;
 }

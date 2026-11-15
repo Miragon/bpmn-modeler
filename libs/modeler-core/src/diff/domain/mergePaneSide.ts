@@ -10,3 +10,8 @@ const MERGE_SIDE_OF_PANE: Record<DiffSide, MergeSide> = {
 export function mergeSideOfPane(diffSide: DiffSide): MergeSide {
     return MERGE_SIDE_OF_PANE[diffSide];
 }
+
+/** A value of each merge side, left pane's first. */
+export function inPaneOrder<T>(bySide: Readonly<Record<MergeSide, T>>): readonly [T, T] {
+    return [bySide[mergeSideOfPane("before")], bySide[mergeSideOfPane("after")]];
+}

@@ -140,7 +140,7 @@ async function openMergeView(ctx: ReturnType<typeof createController>) {
         workingText: "<<<<<<< HEAD\n=======\n>>>>>>> feature\n",
     });
     await ctx.merge.open(ORDER);
-    return ctx.mergeSides.opened[0].uris;
+    return ctx.mergeSides.served[0].uris;
 }
 
 const mergeDoc = (value: string) => ({ uri: parsedUri(value) }) as never;

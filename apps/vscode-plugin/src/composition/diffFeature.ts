@@ -9,16 +9,11 @@ import {
     DmnDiffService,
     ElementXmlDiffService,
     MergeSessionStore,
-    MergeViewOpener,
-    ResolvableConflictsService,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
-import { MergeController } from "../diff/adapter/in/MergeController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
-import { VsCodeGitConflictVersions } from "../diff/adapter/out/VsCodeGitConflictVersions";
-import { VsCodeMergeCommandAvailability } from "../diff/adapter/out/VsCodeMergeCommandAvailability";
-import { VsCodeMergeSidesView } from "../diff/adapter/out/VsCodeMergeSidesView";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
+import * as mergeViewFeature from "./mergeViewFeature";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -26,8 +21,8 @@ import { SharedDeps } from "./sharedDeps";
  * (BPMN, DMN) because nothing outside it touches the diff-pane lifecycle. The
  * controllers are returned because two other features (the editors'
  * delegate-resolve, `compare`) dispatch into them — the one diff collaborator
- * with cross-feature reach. The BPMN merge view lives here too: its panes are
- * BPMN diff panes, and the BPMN editor lists its conflict-marker participant.
+ * with cross-feature reach. The BPMN merge view registers on the BPMN pane
+ * store, since its panes are BPMN diff panes.
  */
 export function register(
     context: ExtensionContext,
@@ -43,7 +38,7 @@ export function register(
     const diffStore = new DiffPaneStore();
     const dmnDiffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore, dmnDiffStore);
-    const merge = mergeView(context, diffStore, deps);
+    const merge = mergeViewFeature.register(context, diffStore, deps);
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
@@ -54,7 +49,7 @@ export function register(
                 deps.notifier,
                 deps.vsSettings,
                 diffStore,
-                elementXmlDiffs(context, diffStore, deps),
+                elementXmlDiffs(context, diffStore, deps, merge.sessions),
                 merge.sessions,
             ),
         ),
@@ -76,33 +71,8 @@ export function register(
         dmnDiffController,
         dmnDiffStore,
         mergeSessions: merge.sessions,
-        conflictMarkers: new ConflictMarkerParticipant(
-            deps.vsDocument,
-            deps.actionNotifier,
-            merge.opener,
-        ),
+        conflictMarkers: merge.conflictMarkers,
     };
-}
-
-/** The merge view: Git through its extension's API, the panes under `bpmn-merge:`, the command. */
-function mergeView(
-    context: ExtensionContext,
-    diffStore: DiffPaneStore,
-    deps: SharedDeps,
-): { sessions: MergeSessionStore; opener: MergeViewOpener } {
-    const sides = new VsCodeMergeSidesView();
-    sides.register(context);
-    const git = new VsCodeGitConflictVersions();
-    const sessions = new MergeSessionStore(diffStore, sides);
-    const opener = new MergeViewOpener(git, sides, diffStore, sessions, deps.notifier);
-    const resolvable = new ResolvableConflictsService(
-        git,
-        new VsCodeMergeCommandAvailability(),
-        deps.notifier,
-    );
-    context.subscriptions.push(sessions, resolvable.start());
-    new MergeController(opener, deps.notifier).register(context);
-    return { sessions, opener };
 }
 
 /** The element XML diffs below the diagram diffs, or `undefined` where the host cannot show them. */
@@ -110,6 +80,7 @@ function elementXmlDiffs(
     context: ExtensionContext,
     diffStore: DiffPaneStore,
     deps: SharedDeps,
+    merges: MergeSessionStore,
 ): ElementXmlDiffService | undefined {
     if (!VsCodeElementXmlDiffView.isSupportedByHost()) {
         return undefined;
@@ -117,7 +88,7 @@ function elementXmlDiffs(
     let service: ElementXmlDiffService | undefined = undefined;
     const view = new VsCodeElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
     view.register(context);
-    service = new ElementXmlDiffService(diffStore, view, deps.notifier);
+    service = new ElementXmlDiffService(diffStore, view, deps.notifier, merges);
     return service;
 }
 

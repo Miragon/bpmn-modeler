@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
-import { mergePaneBasename, workingFileNameOfMergePane } from "./mergePaneName";
+import { mergePaneBasename } from "./mergePaneName";
 
 describe("mergePaneBasename", () => {
     it.each<[string, MergeSide, string]>([
@@ -24,21 +24,5 @@ describe("mergePaneBasename", () => {
         [".bpmn", ".current.bpmn"],
     ])("names the current pane of %s %s", (fileName, expected) => {
         expect(mergePaneBasename(fileName, "current")).toBe(expected);
-    });
-
-    it.each<[string]>([["order.bpmn"], ["order.v2.bpmn"], ["order process.bpmn"]])(
-        "reads %s back from either pane's name",
-        (fileName) => {
-            expect(workingFileNameOfMergePane(mergePaneBasename(fileName, "current"))).toBe(
-                fileName,
-            );
-            expect(workingFileNameOfMergePane(mergePaneBasename(fileName, "incoming"))).toBe(
-                fileName,
-            );
-        },
-    );
-
-    it("leaves a name that is no merge pane's as it is", () => {
-        expect(workingFileNameOfMergePane("order.bpmn")).toBe("order.bpmn");
     });
 });

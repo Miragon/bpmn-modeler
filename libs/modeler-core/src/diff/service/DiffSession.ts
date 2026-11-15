@@ -1,6 +1,6 @@
 import type { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-types";
 
-import { mergeSideOfPane } from "../domain/mergePaneSide";
+import { inPaneOrder } from "../domain/mergePaneSide";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { MergePaneUris } from "../port/MergeSidesView";
 
@@ -59,11 +59,7 @@ export class DiffSession {
      * fixed pane: current before (left), incoming after (right).
      */
     static forMerge(uris: MergePaneUris): DiffSession {
-        return new DiffSession(
-            "merge",
-            uris[mergeSideOfPane("before")],
-            uris[mergeSideOfPane("after")],
-        );
+        return new DiffSession("merge", ...inPaneOrder(uris));
     }
 
     /**

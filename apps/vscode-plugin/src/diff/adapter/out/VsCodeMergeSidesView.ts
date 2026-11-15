@@ -45,11 +45,11 @@ export class VsCodeMergeSidesView implements MergeSidesView {
         return { current: serveSide("current"), incoming: serveSide("incoming") };
     }
 
-    async open(uris: MergePaneUris, title: string): Promise<void> {
+    async open(leftUri: string, rightUri: string, title: string): Promise<void> {
         await commands.executeCommand(
             "vscode.diff",
-            this.uriOf(uris.current),
-            this.uriOf(uris.incoming),
+            this.uriOf(leftUri),
+            this.uriOf(rightUri),
             title,
             { preview: false },
         );

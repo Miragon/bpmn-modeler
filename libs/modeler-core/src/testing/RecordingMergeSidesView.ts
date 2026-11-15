@@ -7,10 +7,14 @@ let openings = 0;
 
 /** A host's merge panes in memory: records what was served, opened and released. */
 export class RecordingMergeSidesView implements MergeSidesView {
-    /** Every `serve` call: the working file and the basenames it named. */
-    readonly served: { fileUri: string; basenames: Record<MergeSide, string> }[] = [];
+    /** Every `serve` call: the working file, the basenames it named and the URIs it returned. */
+    readonly served: {
+        fileUri: string;
+        basenames: Record<MergeSide, string>;
+        uris: MergePaneUris;
+    }[] = [];
     /** Every `open` call, in order. */
-    readonly opened: { uris: MergePaneUris; title: string }[] = [];
+    readonly opened: { left: string; right: string; title: string }[] = [];
     readonly released: MergePaneUris[] = [];
 
     private readonly texts = new Map<string, string>();
@@ -26,12 +30,13 @@ export class RecordingMergeSidesView implements MergeSidesView {
         this.served.push({
             fileUri,
             basenames: { current: sides.current.basename, incoming: sides.incoming.basename },
+            uris,
         });
         return uris;
     }
 
-    async open(uris: MergePaneUris, title: string): Promise<void> {
-        this.opened.push({ uris, title });
+    async open(left: string, right: string, title: string): Promise<void> {
+        this.opened.push({ left, right, title });
     }
 
     release(uris: MergePaneUris): void {

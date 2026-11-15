@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
-import { compareTabLabel, diffTabLabelNamesFile, mergeTabLabel } from "./diffTabLabel";
+import {
+    compareTabLabel,
+    diffTabLabelNamesFile,
+    mergeElementXmlDiffTitle,
+    mergeTabLabel,
+} from "./diffTabLabel";
 import { mergePaneBasename } from "./mergePaneName";
 
 const CAPTIONS: Record<MergeSide, MergeSideCaption> = {
@@ -61,6 +66,20 @@ describe("mergeTabLabel", () => {
         ],
     ])("%s", (_case, captions, expected) => {
         expect(mergeTabLabel("order.bpmn", captions)).toBe(expected);
+    });
+});
+
+describe("mergeElementXmlDiffTitle", () => {
+    it("names the element, the working file and the sides by position", () => {
+        expect(mergeElementXmlDiffTitle("Task_Check", "my order.bpmn")).toBe(
+            "Task_Check (XML): my order.bpmn (Current ↔ Incoming)",
+        );
+    });
+
+    it("names no diagram diff's file, so it never counts as a diff tab of it", () => {
+        expect(
+            diffTabLabelNamesFile(mergeElementXmlDiffTitle("Task_Check", "order.bpmn"), "order.bpmn"),
+        ).toBe(false);
     });
 });
 

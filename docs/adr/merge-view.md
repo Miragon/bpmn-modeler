@@ -70,7 +70,9 @@ a real SCM diff opened beside the view. Cost: the restored case relies on VS Cod
 restored diff tab from its two basenames, observed on 1.146 only.
 
 **Fixed positions.** Current is the left pane and incoming the right one, during a rebase
-too; one home, `mergeSideOfPane`. Each pane's caption travels as data with a role that says
+too; one home, `mergeSideOfPane`, which `inPaneOrder` applies wherever sides are listed: the
+tab and XML diff titles, the merge diff session, and `MergeSidesView.open(leftUri, rightUri)`,
+so the adapter decides no position. Each pane's caption travels as data with a role that says
 which side is the user's (during a rebase incoming is the user's own commit), and the webview
 composes and translates the words; the tab title is host chrome, so the core builds it in
 English. VS Code's merge editor swaps the sides during a rebase instead; a fixed mapping is one

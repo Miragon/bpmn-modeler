@@ -26,6 +26,14 @@ describeMergeSidesViewContract("VsCodeMergeSidesView", () => ({
     view: registeredView(),
     // The provider of the view registered last serves the scheme, as after a restart.
     servedText: (uri) => providedContent(uri) || undefined,
+    opened: () =>
+        commandCalls
+            .filter(([command]) => command === "vscode.diff")
+            .map(([, left, right, title]) => ({
+                left: String(left),
+                right: String(right),
+                title: String(title),
+            })),
 }));
 
 describe("VsCodeMergeSidesView", () => {
@@ -43,11 +51,11 @@ describe("VsCodeMergeSidesView", () => {
         expect(Uri.parse(uris.incoming).query).toMatch(/^side=incoming&opening=/);
     });
 
-    it("opens current on the left and incoming on the right as one diff", async () => {
+    it("opens both sides as one diff that stays open", async () => {
         const view = registeredView();
         const uris = view.serve("file:///repo/order.bpmn", SIDES);
 
-        await view.open(uris, "order.bpmn (Merge: main ↔ feature)");
+        await view.open(uris.current, uris.incoming, "order.bpmn (Merge: main ↔ feature)");
 
         expect(commandCalls).toHaveLength(1);
         const [command, left, right, title, options] = commandCalls[0];

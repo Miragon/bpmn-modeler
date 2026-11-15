@@ -120,22 +120,6 @@ describe("elementXmlDiffTitle", () => {
             side("file:///repo/other.bpmn", WORKING_TREE),
             "Task_1 (XML): my order.bpmn ↔ other.bpmn",
         ],
-        [
-            "names the working file and both sides of a merge",
-            "Task_Check",
-            "merge",
-            side("bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D1", UNKNOWN),
-            side("bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1", UNKNOWN),
-            "Task_Check (XML): order.bpmn (Current ↔ Incoming)",
-        ],
-        [
-            "names an encoded working file of a merge",
-            "Task_Check",
-            "merge",
-            side("bpmn-merge:/repo/my%20order.current.bpmn?side%3Dcurrent", UNKNOWN),
-            side("bpmn-merge:/repo/my%20order.incoming.bpmn?side%3Dincoming", UNKNOWN),
-            "Task_Check (XML): my order.bpmn (Current ↔ Incoming)",
-        ],
     ])("%s", (_case, elementId, origin, before, after, expected) => {
         expect(elementXmlDiffTitle(elementId, origin, before, after)).toBe(expected);
     });
