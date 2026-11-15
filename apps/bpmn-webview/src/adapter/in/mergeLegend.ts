@@ -72,6 +72,7 @@ export class MergeLegend {
     private readonly shapelessLabel = createElement("span", "merge-legend__shapeless-label");
     private readonly shapelessList = createElement("ul", "merge-legend__shapeless-list");
     private state?: MergeLegendState;
+    private listedShapeless: string | undefined;
 
     constructor(
         parent: HTMLElement,
@@ -126,28 +127,66 @@ export class MergeLegend {
         this.view.reserveRoomOn(target);
     }
 
+    /**
+     * Rebuilds the entries only when the listed elements change, so a step
+     * leaves the focused entry in place; a rebuild moves the focus to the
+     * new entry of the same element.
+     */
     private renderShapeless(state: MergeLegendState): void {
         this.shapelessGroup.hidden = state.shapeless.length === 0;
-        this.shapelessList.replaceChildren(
-            ...state.shapeless.map((entry) => {
-                const item = createElement("li", "merge-legend__shapeless-item");
-                const entryButton = createButton("merge-legend__shapeless-entry", () =>
-                    this.actions.onShapeless(entry.id),
-                );
-                entryButton.dataset.elementId = entry.id;
-                entryButton.dataset.marker = entry.marker;
-                if (entry.id === state.current) entryButton.setAttribute("aria-current", "true");
-                entryButton.append(
-                    createElement(
-                        "span",
-                        `diff-legend__swatch diff-legend__swatch--${MERGE_MARKER_CLASSES[entry.marker]}`,
-                    ),
-                    createElement("span", "merge-legend__shapeless-text"),
-                );
-                item.append(entryButton);
-                return item;
-            }),
+        const listed = state.shapeless.map(({ id, marker }) => `${id} ${marker}`).join("\n");
+        if (listed !== this.listedShapeless) {
+            this.listedShapeless = listed;
+            const focused = this.focusedShapelessId();
+            this.shapelessList.replaceChildren(
+                ...state.shapeless.map((entry) => this.shapelessItem(entry)),
+            );
+            if (focused !== undefined) this.shapelessEntryOf(focused)?.focus();
+        }
+        for (const entryButton of this.shapelessEntries()) {
+            if (entryButton.dataset.elementId === state.current) {
+                entryButton.setAttribute("aria-current", "true");
+            } else {
+                entryButton.removeAttribute("aria-current");
+            }
+        }
+    }
+
+    private shapelessItem(entry: MergePaneShapelessMark): HTMLLIElement {
+        const item = createElement("li", "merge-legend__shapeless-item");
+        const entryButton = createButton("merge-legend__shapeless-entry", () =>
+            this.actions.onShapeless(entry.id),
         );
+        entryButton.dataset.elementId = entry.id;
+        entryButton.dataset.marker = entry.marker;
+        entryButton.append(
+            createElement(
+                "span",
+                `diff-legend__swatch diff-legend__swatch--${MERGE_MARKER_CLASSES[entry.marker]}`,
+            ),
+            createElement("span", "merge-legend__shapeless-text"),
+        );
+        item.append(entryButton);
+        return item;
+    }
+
+    private shapelessEntries(): HTMLButtonElement[] {
+        return [
+            ...this.shapelessList.querySelectorAll<HTMLButtonElement>(
+                ".merge-legend__shapeless-entry",
+            ),
+        ];
+    }
+
+    private shapelessEntryOf(id: string): HTMLButtonElement | undefined {
+        return this.shapelessEntries().find((entryButton) => entryButton.dataset.elementId === id);
+    }
+
+    private focusedShapelessId(): string | undefined {
+        const focused = this.shapelessList.ownerDocument.activeElement;
+        return focused instanceof HTMLElement && this.shapelessList.contains(focused)
+            ? focused.dataset.elementId
+            : undefined;
     }
 
     private renderWords(): void {
@@ -161,9 +200,7 @@ export class MergeLegend {
             if (listButton) listButton.textContent = translate(label);
         }
         this.shapelessLabel.textContent = translate(MERGE_LEGEND_TEXTS.shapeless);
-        for (const entryButton of this.shapelessList.querySelectorAll<HTMLButtonElement>(
-            ".merge-legend__shapeless-entry",
-        )) {
+        for (const entryButton of this.shapelessEntries()) {
             const entry = this.state?.shapeless.find(
                 ({ id }) => id === entryButton.dataset.elementId,
             );

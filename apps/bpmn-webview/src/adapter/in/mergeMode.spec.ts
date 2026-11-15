@@ -279,6 +279,39 @@ describe("MergeMode", () => {
             expect(legendText()).toContain("3/3");
         });
 
+        it("keeps the keyboard on a legend entry it steps to", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            const entry = () =>
+                legendParent.querySelector<HTMLButtonElement>('[data-element-id="Process_1"]');
+            entry()?.focus();
+
+            entry()?.click();
+
+            expect(document.activeElement).toBe(entry());
+            expect(entry()?.getAttribute("aria-current")).toBe("true");
+        });
+
+        it("keeps the keyboard on its legend entry when the listed elements change", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            legendParent.querySelector<HTMLButtonElement>('[data-element-id="Process_1"]')?.focus();
+
+            dispatch(
+                mergeStates({
+                    shapeless: [
+                        ...STATES.shapeless,
+                        { id: "Message_1", type: "bpmn:Message", marker: "takenFromThisSide" },
+                    ],
+                }),
+            );
+
+            expect(document.activeElement).toBe(
+                legendParent.querySelector('[data-element-id="Process_1"]'),
+            );
+            expect(legendParent.querySelectorAll("[data-element-id]")).toHaveLength(2);
+        });
+
         it("switches to every merged element", async () => {
             await startMergePane();
             dispatch(mergeStates());
