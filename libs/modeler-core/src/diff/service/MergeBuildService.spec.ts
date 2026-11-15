@@ -111,11 +111,11 @@ const lastHighlightsOf = (pane: FakeDiffPaneHandle) =>
     lastOfType<ApplyDiffHighlightsQuery>(pane, "ApplyDiffHighlightsQuery");
 
 /** The panes VS Code resolves for the comparison the build service opened last, both ready. */
-async function attachComparison(mergeView: MergeView, resultText: string) {
+async function attachComparison(mergeView: MergeView) {
     const { view, store, diffService } = mergeView;
     const { left, right } = view.opened[view.opened.length - 1];
     const stage = new FakeDiffPaneHandle(left, view.textOf(left));
-    const result = new FakeDiffPaneHandle(right, resultText);
+    const result = new FakeDiffPaneHandle(right, view.textOf(right));
     for (const pane of [stage, result]) {
         const session = store.awaitingPaneFor(pane.uri);
         expect(session?.origin).toBe("merge-result");
@@ -304,13 +304,10 @@ describe("MergeBuildService", () => {
         await mergeView.diffService.compareMergeResult(mergeView.current, "incoming");
 
         const opened = mergeView.view.opened[mergeView.view.opened.length - 1];
-        expect(opened.right).toBe(FILE);
         expect(opened.title).toBe(mergeResultTabLabel("order.bpmn", "incoming"));
         expect(mergeView.view.textOf(opened.left)).toBe(ORDER_REMOVED_FLOW_STAGES.incoming);
-        const { stage, result } = await attachComparison(
-            mergeView,
-            mergeView.workingFile.diskText(FILE) ?? "",
-        );
+        expect(mergeView.view.textOf(opened.right)).toBe(mergeView.workingFile.diskText(FILE));
+        const { stage, result } = await attachComparison(mergeView);
         const highlights = lastHighlightsOf(stage);
         expect(highlights.origin).toBe("merge-result");
         expect(highlights.removed).toEqual(
@@ -325,15 +322,32 @@ describe("MergeBuildService", () => {
     it("compares the result as the editor holds it, unsaved edits included", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
-        await mergeView.diffService.compareMergeResult(mergeView.incoming, "current");
         const unsaved = (mergeView.workingFile.diskText(FILE) ?? "").replace(
             '<bpmn:startEvent id="Start_1">',
             '<bpmn:startEvent id="Start_1" name="Order in">',
         );
+        mergeView.workingFile.editUnsaved(FILE, unsaved);
 
-        const { result } = await attachComparison(mergeView, unsaved);
+        await mergeView.diffService.compareMergeResult(mergeView.incoming, "current");
 
+        const { result } = await attachComparison(mergeView);
         expect(lastHighlightsOf(result).changed).toContain("Start_1");
+    });
+
+    it("compares a copy of the working file, so neither a later edit nor a restored tab reaches the file", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+        const built = mergeView.workingFile.diskText(FILE);
+
+        await mergeView.diffService.compareMergeResult(mergeView.incoming, "incoming");
+        mergeView.workingFile.editUnsaved(FILE, "<edited/>");
+
+        const opened = mergeView.view.opened[mergeView.view.opened.length - 1];
+        expect([opened.left, opened.right]).not.toContain(FILE);
+        expect(mergeView.view.served[mergeView.view.served.length - 1].basenames).toMatchObject({
+            result: "order.result.bpmn",
+        });
+        expect(mergeView.view.textOf(opened.right)).toBe(built);
     });
 
     it("compares nothing before a result was built", async () => {
@@ -348,10 +362,7 @@ describe("MergeBuildService", () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
         await mergeView.diffService.compareMergeResult(mergeView.incoming, "incoming");
-        const { stage, result } = await attachComparison(
-            mergeView,
-            mergeView.workingFile.diskText(FILE) ?? "",
-        );
+        const { stage, result } = await attachComparison(mergeView);
 
         await mergeView.diffService.switchMergeComparison(result);
 
@@ -359,28 +370,23 @@ describe("MergeBuildService", () => {
         const opened = mergeView.view.opened[mergeView.view.opened.length - 1];
         expect(opened.title).toBe(mergeResultTabLabel("order.bpmn", "current"));
         expect(mergeView.view.textOf(opened.left)).toBe(ORDER_REMOVAL_STAGES.current);
-        const switched = await attachComparison(
-            mergeView,
-            mergeView.workingFile.diskText(FILE) ?? "",
-        );
+        const switched = await attachComparison(mergeView);
         expect(lastHighlightsOf(switched.stage).comparison).toStrictEqual({
             against: "current",
             canSwitch: true,
         });
     });
 
-    it("stops serving a comparison's stage once its tab closed", async () => {
+    it("stops serving a comparison's documents once its tab closed", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
         await mergeView.diffService.compareMergeResult(mergeView.incoming, "incoming");
-        const { stage, result } = await attachComparison(
-            mergeView,
-            mergeView.workingFile.diskText(FILE) ?? "",
-        );
+        const { stage, result } = await attachComparison(mergeView);
 
         mergeView.store.detach(stage);
         mergeView.store.detach(result);
 
         expect(mergeView.view.textOf(stage.uri)).toBeUndefined();
+        expect(mergeView.view.textOf(result.uri)).toBeUndefined();
     });
 });

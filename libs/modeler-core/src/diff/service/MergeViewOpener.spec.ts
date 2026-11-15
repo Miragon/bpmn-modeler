@@ -330,16 +330,32 @@ describe("MergeViewOpener", () => {
         expect(diffStore.paneCountFor(restored.uri)).toBe(0);
     });
 
-    it("joins the stage pane of a merge result comparison to the comparison registered for it", () => {
+    it("joins both panes of a merge result comparison to the comparison registered for them", () => {
         const { opener, diffStore } = createOpener(MERGE_CONFLICT);
         const stageUri = "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3Dcompare";
-        const comparison = diffStore.registerResultComparison(stageUri, FILE);
+        const resultUri = "bpmn-merge:/repo/order.result.bpmn?side%3Dresult%26opening%3Dcompare";
+        const comparison = diffStore.registerResultComparison(stageUri, resultUri);
         const stage = new FakeDiffPaneHandle(stageUri);
+        const result = new FakeDiffPaneHandle(resultUri);
 
+        expect([opener.attachPane(stage), opener.attachPane(result)]).toStrictEqual([
+            "joined",
+            "joined",
+        ]);
         expect(opener.attachPane(stage)).toBe("joined");
-        expect(comparison.attachedPanes()).toStrictEqual([stage]);
-        expect(opener.attachPane(stage)).toBe("joined");
-        expect(comparison.attachedPanes()).toStrictEqual([stage]);
+        expect(comparison.attachedPanes()).toStrictEqual([stage, result]);
+    });
+
+    it("ends both panes of a result comparison restored after a reload", () => {
+        const { opener } = createOpener(MERGE_CONFLICT);
+
+        expect(
+            opener.attachPane(
+                new FakeDiffPaneHandle(
+                    "bpmn-merge:/repo/order.result.bpmn?side%3Dresult%26opening%3Dearlier-run",
+                ),
+            ),
+        ).toBe("ended");
     });
 
     it("ends the panes of a merge view whose tab was closed", async () => {

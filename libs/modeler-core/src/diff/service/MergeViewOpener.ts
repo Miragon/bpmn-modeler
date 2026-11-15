@@ -68,7 +68,7 @@ export class MergeViewOpener {
      * Attaches a resolved merge pane to its merge view. A pane already attached
      * joins nothing new, so a second resolve of it registers nothing; a pane
      * of a live view whose sessions all hold that side (a split or a second
-     * tab) gets a session of its own; the stage of a merge result comparison
+     * tab) gets a session of its own; a pane of a merge result comparison
      * joins the comparison registered for it; any other pane belongs to a
      * view that ended, as after a window reload, and is recorded nowhere.
      */
@@ -86,7 +86,7 @@ export class MergeViewOpener {
         return "joined";
     }
 
-    // A stage a merge result comparison serves belongs to no merge view, only to the comparison registered for it.
+    // A document a merge result comparison serves belongs to no merge view, only to the comparison registered for it.
     private attachToComparison(handle: DiffPaneHandle): MergePaneAttachment {
         const comparison = this.diffStore.awaitingPaneFor(handle.uri);
         if (!comparison) return "ended";

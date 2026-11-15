@@ -63,11 +63,11 @@ export class DiffSession {
     }
 
     /**
-     * Builds a `merge-result` session: a Git stage left, served read-only,
-     * and the working file the merge result was built into right.
+     * Builds a `merge-result` session: a Git stage left and a copy of the
+     * built working file right, both served read-only.
      */
-    static forResultComparison(stageUri: string, workingFileUri: string): DiffSession {
-        return new DiffSession("merge-result", stageUri, workingFileUri);
+    static forResultComparison(stageUri: string, resultUri: string): DiffSession {
+        return new DiffSession("merge-result", stageUri, resultUri);
     }
 
     /**

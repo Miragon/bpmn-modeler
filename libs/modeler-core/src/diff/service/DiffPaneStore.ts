@@ -71,8 +71,8 @@ export class DiffPaneStore implements EditorSubscription {
      * Git stages before the host opens it; swept like a `compare-files`
      * session when no pane arrives.
      */
-    registerResultComparison(stageUri: string, workingFileUri: string): DiffSession {
-        return this.preRegister(DiffSession.forResultComparison(stageUri, workingFileUri));
+    registerResultComparison(stageUri: string, resultUri: string): DiffSession {
+        return this.preRegister(DiffSession.forResultComparison(stageUri, resultUri));
     }
 
     /** Adds `session`; both the eager `compare-files` and the lazy `scm` path funnel through here. */

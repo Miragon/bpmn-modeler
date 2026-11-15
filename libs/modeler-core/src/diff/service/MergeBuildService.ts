@@ -15,18 +15,18 @@ import {
 import { mergePaneBasename } from "../domain/mergePaneName";
 import { otherMergeSide } from "../domain/mergePaneSide";
 import { overwriteDecision } from "../domain/overwriteDecision";
-import { MergePaneUris, MergeSidesView } from "../port/MergeSidesView";
+import { MergePaneName, MergeSidesView } from "../port/MergeSidesView";
 import { MergeWorkingFile } from "../port/MergeWorkingFile";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
 import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
 
-/** A built merge result compared with one stage: the merge view, the stage and where both stages are served. */
+/** A built merge result compared with one stage: the merge view, the stage and where its documents are served. */
 interface ResultComparison {
     readonly session: MergeSession;
     readonly against: MergeSide;
-    readonly uris: MergePaneUris;
+    readonly uris: Readonly<Record<MergePaneName, string>>;
 }
 
 /**
@@ -34,8 +34,10 @@ interface ResultComparison {
  * either side. The working file is the trial run: a build replaces and saves
  * it, never stages it, and asks first where it would replace what the user
  * may want to keep; a build that fails writes nothing. A comparison is a
- * plain BPMN diff of a Git stage against the working file as it is open,
- * taken when it opens; switching it closes it and opens the other side's.
+ * plain BPMN diff of a Git stage against a copy of the working file as it is
+ * open, unsaved edits included, taken when it opens: it never shows the file
+ * itself, so a tab of it restored later never claims the file. Switching it
+ * opens the other side's and closes it.
  */
 export class MergeBuildService implements EditorSubscription {
     private readonly comparisons = new Map<DiffSession, ResultComparison>();
@@ -146,21 +148,23 @@ export class MergeBuildService implements EditorSubscription {
         this.notifier.showError(text);
     }
 
-    // Both stages under fresh URIs, so a comparison opened again is a new tab and never focuses a stale one.
+    // Fresh URIs, so a comparison opened again is a new tab and never focuses a stale one.
     private async openComparison(session: MergeSession, against: MergeSide): Promise<void> {
-        const stage = (side: MergeSide) => ({
-            text: session.stages[side],
-            basename: mergePaneBasename(session.fileName, side),
+        const { text } = await this.workingFile.read(session.fileUri);
+        const document = (name: MergePaneName, documentText: string) => ({
+            text: documentText,
+            basename: mergePaneBasename(session.fileName, name),
         });
         const uris = this.view.serve(session.fileUri, {
-            current: stage("current"),
-            incoming: stage("incoming"),
+            current: document("current", session.stages.current),
+            incoming: document("incoming", session.stages.incoming),
+            result: document("result", text),
         });
-        const diffSession = this.diffStore.registerResultComparison(uris[against], session.fileUri);
+        const diffSession = this.diffStore.registerResultComparison(uris[against], uris.result);
         this.comparisons.set(diffSession, { session, against, uris });
         await this.view.open(
             uris[against],
-            session.fileUri,
+            uris.result,
             mergeResultTabLabel(session.fileName, against),
         );
     }

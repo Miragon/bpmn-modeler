@@ -255,11 +255,9 @@ describe("DiffController beside a merge view", () => {
         expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
     });
 
-    it("opens the working file as an editor beside a restored result comparison, whose file side waits as a pending half", () => {
-        const { controller, store } = createController();
-        // VS Code restores the comparison's label from the basenames, which names the working file.
-        tabs.push({ input: undefined, label: "order.incoming.bpmn ↔ order.bpmn" });
-        store.addPendingScm("/repo/order.bpmn", new FakeDiffPaneHandle(ORDER));
+    it("opens the working file as an editor beside a restored result comparison that has not resolved", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: "order.incoming.bpmn ↔ order.result.bpmn" });
 
         expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
     });
