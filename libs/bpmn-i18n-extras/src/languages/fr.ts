@@ -291,6 +291,104 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Utiliser la définition de tâche",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Les utilisateurs ne peuvent pas saisir de FEEL dans un champ qu'ils ne peuvent pas modifier.",
+    "Current": "Actuel",
+    "Incoming": "Entrant",
+    "your branch": "votre branche",
+    "other branch": "autre branche",
+    "your commit": "votre commit",
+    "your stash": "votre stash",
+    "Taken from this side": "Repris de ce côté",
+    "Taken from the other side": "Repris de l'autre côté",
+    "Conflict": "Conflit",
+    "Step through": "Parcourir",
+    "Open conflicts": "Conflits ouverts",
+    "All merged elements": "Tous les éléments fusionnés",
+    "Without a shape": "Sans forme",
+    "No open conflicts": "Aucun conflit ouvert",
+    "1 open conflict": "1 conflit ouvert",
+    "{count} open conflicts": "{count} conflits ouverts",
+    "Keep this version": "Conserver cette version",
+    "Keep everything inside": "Conserver tout son contenu",
+    "Undo pick": "Annuler le choix",
+    "Your picks": "Vos choix",
+    "Pulled in:": "Ajouté :",
+    "Dropped:": "Retiré :",
+    "Open again:": "Rouvert :",
+    "Keep current": "Conserver Actuel",
+    "Keep incoming": "Conserver Entrant",
+    "C": "A",
+    "I": "E",
+    "Kept from current, your pick": "Conservé depuis Actuel, votre choix",
+    "Kept from incoming, your pick": "Conservé depuis Entrant, votre choix",
+    "Kept from current with everything inside, your pick":
+        "Conservé depuis Actuel avec tout son contenu, votre choix",
+    "Kept from incoming with everything inside, your pick":
+        "Conservé depuis Entrant avec tout son contenu, votre choix",
+    "Kept from current with its flows, your pick":
+        "Conservé depuis Actuel avec ses flux, votre choix",
+    "Kept from incoming with its flows, your pick":
+        "Conservé depuis Entrant avec ses flux, votre choix",
+    "Kept from current: {element}": "Conservé depuis Actuel : {element}",
+    "Kept from incoming: {element}": "Conservé depuis Entrant : {element}",
+    "{element} needs {target}, which no version has":
+        "{element} a besoin de {target}, qu'aucune version ne contient",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} a besoin de {target}, absent du côté que vous avez choisi",
+    "{element} needs {target}, which this pick drops":
+        "{element} a besoin de {target}, que ce choix retire",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} a besoin d'une partie de {target} que ce choix laisse de côté",
+    "{element} needs {target}, which this side does not have":
+        "{element} a besoin de {target}, que ce côté ne contient pas",
+    "{element} needs {target}, which the result leaves out":
+        "{element} a besoin de {target}, que le résultat laisse de côté",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} a besoin d'une partie de {target} absente de la version conservée",
+    "{element}, which you picked, needs {target}":
+        "{element}, que vous avez choisi, a besoin de {target}",
+    "This pick brings in {element}, which needs {target}":
+        "Ce choix ajoute {element}, qui a besoin de {target}",
+    "{element} and {target} hold the same id": "{element} et {target} ont le même identifiant",
+    "{element} and {target} each have a pool of the same process":
+        "{element} et {target} ont chacun un pool du même processus",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} a besoin d'une partie de {target}, absente du côté que vous avez choisi",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} a besoin d'une partie de {target} que ce côté ne contient pas",
+    "Also keep the flow current removed with it":
+        "Conserver aussi le flux supprimé avec lui par Actuel",
+    "Also keep the {count} flows current removed with it":
+        "Conserver aussi les {count} flux supprimés avec lui par Actuel",
+    "Also keep the flow incoming removed with it":
+        "Conserver aussi le flux supprimé avec lui par Entrant",
+    "Also keep the {count} flows incoming removed with it":
+        "Conserver aussi les {count} flux supprimés avec lui par Entrant",
+    "Kept {element}": "{element} conservé",
+    "Cannot keep {element}": "Impossible de conserver {element}",
+    "Left out {element}": "{element} laissé de côté",
+    "Cannot leave out {element}": "Impossible de laisser {element} de côté",
+    "Took back the pick of {element}": "Choix de {element} annulé",
+    "Cannot take back the pick of {element}": "Impossible d'annuler le choix de {element}",
+    "Build": "Générer",
+    "Notes of the build": "Notes de la génération",
+    "Compare with current": "Comparer avec Actuel",
+    "Compare with incoming": "Comparer avec Entrant",
+    "Result against current": "Résultat par rapport à Actuel",
+    "Result against incoming": "Résultat par rapport à Entrant",
+    "Result": "Résultat",
+    "Review notes ({count})": "Vérifier les notes ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} relie des formes dessinées par des côtés différents ; vérifiez où il rejoint {ends}",
+    "{first} and {second} were added at the same place":
+        "{first} et {second} ont été ajoutés au même endroit",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} est dessiné par un autre côté que {containers} ; vérifiez qu'il est toujours à l'intérieur",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} est conservé sans les flux que l'autre côté a supprimés avec lui : {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "L'attribut {attribute} du fichier diffère entre les côtés ; la valeur d'Actuel est conservée",
+    "1 conflict left": "1 conflit restant",
+    "{count} conflicts left": "{count} conflits restants",
 };
 
 export default dictionary;

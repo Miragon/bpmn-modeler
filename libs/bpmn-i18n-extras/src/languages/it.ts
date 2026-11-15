@@ -290,6 +290,103 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Usa la definizione di attività",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Gli utenti non possono inserire FEEL in un campo che non possono modificare.",
+    "Current": "Corrente",
+    "Incoming": "In arrivo",
+    "your branch": "il tuo branch",
+    "other branch": "altro branch",
+    "your commit": "il tuo commit",
+    "your stash": "il tuo stash",
+    "Taken from this side": "Preso da questo lato",
+    "Taken from the other side": "Preso dall'altro lato",
+    "Conflict": "Conflitto",
+    "Step through": "Scorri",
+    "Open conflicts": "Conflitti aperti",
+    "All merged elements": "Tutti gli elementi uniti",
+    "Without a shape": "Senza forma",
+    "No open conflicts": "Nessun conflitto aperto",
+    "1 open conflict": "1 conflitto aperto",
+    "{count} open conflicts": "{count} conflitti aperti",
+    "Keep this version": "Mantieni questa versione",
+    "Keep everything inside": "Mantieni tutto il contenuto",
+    "Undo pick": "Annulla scelta",
+    "Your picks": "Le tue scelte",
+    "Pulled in:": "Aggiunti:",
+    "Dropped:": "Esclusi:",
+    "Open again:": "Di nuovo aperti:",
+    "Keep current": "Mantieni Corrente",
+    "Keep incoming": "Mantieni In arrivo",
+    "C": "C",
+    "I": "I",
+    "Kept from current, your pick": "Mantenuto da Corrente, scelta tua",
+    "Kept from incoming, your pick": "Mantenuto da In arrivo, scelta tua",
+    "Kept from current with everything inside, your pick":
+        "Mantenuto da Corrente con tutto il contenuto, scelta tua",
+    "Kept from incoming with everything inside, your pick":
+        "Mantenuto da In arrivo con tutto il contenuto, scelta tua",
+    "Kept from current with its flows, your pick":
+        "Mantenuto da Corrente con i suoi flussi, scelta tua",
+    "Kept from incoming with its flows, your pick":
+        "Mantenuto da In arrivo con i suoi flussi, scelta tua",
+    "Kept from current: {element}": "Mantenuto da Corrente: {element}",
+    "Kept from incoming: {element}": "Mantenuto da In arrivo: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} richiede {target}, che nessuna versione contiene",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} richiede {target}, che manca nel lato che hai scelto",
+    "{element} needs {target}, which this pick drops":
+        "{element} richiede {target}, che questa scelta esclude",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} richiede una parte di {target} che questa scelta lascia fuori",
+    "{element} needs {target}, which this side does not have":
+        "{element} richiede {target}, che questo lato non ha",
+    "{element} needs {target}, which the result leaves out":
+        "{element} richiede {target}, che il risultato lascia fuori",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} richiede una parte di {target} che manca nella versione mantenuta",
+    "{element}, which you picked, needs {target}": "{element}, che hai scelto, richiede {target}",
+    "This pick brings in {element}, which needs {target}":
+        "Questa scelta aggiunge {element}, che richiede {target}",
+    "{element} and {target} hold the same id": "{element} e {target} hanno lo stesso ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} e {target} hanno ciascuno un pool dello stesso processo",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} richiede una parte di {target}, che manca nel lato che hai scelto",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} richiede una parte di {target} che questo lato non ha",
+    "Also keep the flow current removed with it":
+        "Mantieni anche il flusso rimosso con esso da Corrente",
+    "Also keep the {count} flows current removed with it":
+        "Mantieni anche i {count} flussi rimossi con esso da Corrente",
+    "Also keep the flow incoming removed with it":
+        "Mantieni anche il flusso rimosso con esso da In arrivo",
+    "Also keep the {count} flows incoming removed with it":
+        "Mantieni anche i {count} flussi rimossi con esso da In arrivo",
+    "Kept {element}": "{element} mantenuto",
+    "Cannot keep {element}": "Impossibile mantenere {element}",
+    "Left out {element}": "{element} lasciato fuori",
+    "Cannot leave out {element}": "Impossibile lasciare fuori {element}",
+    "Took back the pick of {element}": "Scelta di {element} annullata",
+    "Cannot take back the pick of {element}": "Impossibile annullare la scelta di {element}",
+    "Build": "Genera",
+    "Notes of the build": "Note della generazione",
+    "Compare with current": "Confronta con Corrente",
+    "Compare with incoming": "Confronta con In arrivo",
+    "Result against current": "Risultato rispetto a Corrente",
+    "Result against incoming": "Risultato rispetto a In arrivo",
+    "Result": "Risultato",
+    "Review notes ({count})": "Controlla le note ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} collega forme disegnate da lati diversi; controlla dove incontra {ends}",
+    "{first} and {second} were added at the same place":
+        "{first} e {second} sono stati aggiunti nello stesso punto",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} è disegnato da un lato diverso da {containers}; controlla che sia ancora all'interno",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} è mantenuto senza i flussi che l'altro lato ha rimosso con esso: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "L'attributo {attribute} del file differisce tra i lati; viene mantenuto quello di Corrente",
+    "1 conflict left": "1 conflitto rimasto",
+    "{count} conflicts left": "{count} conflitti rimasti",
 };
 
 export default dictionary;
