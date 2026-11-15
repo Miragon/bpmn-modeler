@@ -519,5 +519,21 @@ describe("the BPMN merge view", () => {
             expect(await classesOf(current, "Start_Order")).not.toMatch(/merge-/);
             await expectUntouched("merge");
         });
+
+        it("walks the list one pane switched to on the other pane too", async () => {
+            const current = await vscode().editorWebview('body[data-diff-side="before"]');
+            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
+            const allSteps = (pane: FrameLocator) =>
+                pane.getByRole("button", { name: "All merged elements" });
+
+            await allSteps(current).click();
+
+            await expect
+                .poll(() => allSteps(incoming).getAttribute("aria-pressed"), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe("true");
+            await shot("marks-step-list-shared");
+        });
     });
 });
