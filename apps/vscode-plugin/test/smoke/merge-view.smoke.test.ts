@@ -1019,9 +1019,10 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(activeTabLabel, { timeout: TIMEOUT_MS })
                 .toContain(`${CONFLICTED.merge} (Merge: Current ↔ Result)`);
-            expect(await tabLabels()).not.toContainEqual(
-                expect.stringContaining("(Merge: Incoming ↔ Result)"),
-            );
+            // The switch opens the other comparison first, so the one it replaces closes after.
+            await expect
+                .poll(tabLabels, { timeout: TIMEOUT_MS })
+                .not.toContainEqual(expect.stringContaining("(Merge: Incoming ↔ Result)"));
         });
 
         it("lists the notes of a build that kept a task without the flows removed with it", async () => {
