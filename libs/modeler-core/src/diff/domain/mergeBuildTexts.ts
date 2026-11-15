@@ -1,7 +1,11 @@
 import type { ConfirmRequest } from "../../kernel/domain/prompts";
 
 /** Why a build asks before it writes over the working file. */
-export type OverwriteReason = "unsavedChanges" | "resolvedElsewhere" | "editedSinceBuild";
+export type OverwriteReason =
+    | "unsavedChanges"
+    | "resolvedElsewhere"
+    | "editedSinceOpened"
+    | "editedSinceBuild";
 
 const OVERWRITE_TEXTS: Record<OverwriteReason, { title: string; detail: string }> = {
     unsavedChanges: {
@@ -10,7 +14,11 @@ const OVERWRITE_TEXTS: Record<OverwriteReason, { title: string; detail: string }
     },
     resolvedElsewhere: {
         title: "{file} holds no conflict markers. Build over it?",
-        detail: "It was resolved another way, or VS Code's merge editor changed it. Building replaces it with the merge result.",
+        detail: "It was resolved another way, or another merge tool changed it. Building replaces it with the merge result.",
+    },
+    editedSinceOpened: {
+        title: "{file} changed since the merge view opened. Build over it?",
+        detail: "Building replaces those changes, also any conflict you resolved by hand, with the merge result.",
     },
     editedSinceBuild: {
         title: "{file} changed since the last build. Build over it?",

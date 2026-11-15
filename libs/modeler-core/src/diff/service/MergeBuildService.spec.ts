@@ -77,6 +77,7 @@ async function openMergeView(stages: ResolvableStages, options: MergeViewOptions
         captions: CAPTIONS,
         uris: URIS,
         stages,
+        openedWorkingText: markedText(stages),
     });
     sessions.add(
         options.sourcesOf
@@ -205,6 +206,22 @@ describe("MergeBuildService", () => {
         expect(mergeView.workingFile.replaced).toHaveLength(1);
         expect(mergeView.workingFile.diskText(FILE)).toBe(edited);
         expect(mergeView.notifier.openedDocuments).toHaveLength(1);
+    });
+
+    it("asks before building over markers around a conflict resolved by hand since the merge view opened", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        const handEdited = (mergeView.workingFile.diskText(FILE) ?? "").replace(
+            "=======\n",
+            "=======\n<!-- kept by hand -->\n",
+        );
+        mergeView.workingFile.onDisk(FILE, handEdited);
+
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+
+        expect(mergeView.picker.prompts).toStrictEqual([
+            { method: "confirm", args: [overwriteConfirm("editedSinceOpened", "order.bpmn")] },
+        ]);
+        expect(mergeView.workingFile.diskText(FILE)).toBe(handEdited);
     });
 
     it("asks when the working file has unsaved changes and builds over them on yes", async () => {

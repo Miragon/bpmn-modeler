@@ -91,6 +91,14 @@ describe("MergeViewOpener", () => {
         });
     });
 
+    it("keeps the working file as it read it, so a build can tell later hand edits apart", async () => {
+        const { opener, sessions } = createOpener(MERGE_CONFLICT);
+
+        await opener.open(FILE);
+
+        expect(sessions.of(FILE)?.openedWorkingText).toBe(MERGE_CONFLICT.workingText);
+    });
+
     it("tells the user's own commit apart during a rebase and keeps current on the left", async () => {
         const { opener, view, sessions } = createOpener({
             ...MERGE_CONFLICT,

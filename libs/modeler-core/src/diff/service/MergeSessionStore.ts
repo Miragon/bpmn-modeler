@@ -22,6 +22,8 @@ export interface MergeSession extends MergeViewContent {
     readonly sources: MergeSources;
     /** Every merge element in the order the panes' steppers walk them. */
     readonly navigationOrder: readonly string[];
+    /** The working file as the merge view read it when it opened, usually Git's conflict markers. */
+    readonly openedWorkingText?: string;
     /** The result last built into the working file; set by each build. */
     lastBuild?: MergeBuild;
 }

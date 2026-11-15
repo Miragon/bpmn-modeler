@@ -6,18 +6,25 @@ import { overwriteConfirm, type OverwriteReason } from "./mergeBuildTexts";
 export type OverwriteDecision =
     { readonly kind: "write" } | { readonly kind: "confirm"; readonly request: ConfirmRequest };
 
+/** The working file's texts a build knows: when the merge view opened, and as the last build saved it. */
+export interface WorkingFileHistory {
+    readonly opened?: string;
+    readonly lastBuilt?: string;
+}
+
 /**
- * A build writes over Git's conflict markers or its own last result without
- * asking: both come back with `git checkout -m` or the next build. It asks
- * before it replaces anything else, unsaved changes first, since the save
- * that follows the replace would lose them.
+ * A build writes over Git's conflict markers as they were when the merge view
+ * opened, or over its own last result, without asking: `git checkout -m` or
+ * the next build brings either back. It asks before it replaces anything
+ * else, unsaved changes first, since the save that follows the replace would
+ * lose them. Line endings are no change: an editor or Git may convert them.
  */
 export function overwriteDecision(
     workingFile: { readonly text: string; readonly isDirty: boolean },
-    lastBuiltXml: string | undefined,
+    history: WorkingFileHistory,
     fileName: string,
 ): OverwriteDecision {
-    const reason = overwriteReasonOf(workingFile, lastBuiltXml);
+    const reason = overwriteReasonOf(workingFile, history);
     return reason === undefined
         ? { kind: "write" }
         : { kind: "confirm", request: overwriteConfirm(reason, fileName) };
@@ -25,9 +32,20 @@ export function overwriteDecision(
 
 function overwriteReasonOf(
     { text, isDirty }: { readonly text: string; readonly isDirty: boolean },
-    lastBuiltXml: string | undefined,
+    { opened, lastBuilt }: WorkingFileHistory,
 ): OverwriteReason | undefined {
     if (isDirty) return "unsavedChanges";
-    if (readConflictMarkers(text).hasMarkers || text === lastBuiltXml) return undefined;
-    return lastBuiltXml === undefined ? "resolvedElsewhere" : "editedSinceBuild";
+    if (sameText(text, lastBuilt)) return undefined;
+    if (readConflictMarkers(text).hasMarkers) {
+        return sameText(text, opened) ? undefined : "editedSinceOpened";
+    }
+    return lastBuilt === undefined ? "resolvedElsewhere" : "editedSinceBuild";
+}
+
+function sameText(text: string, known: string | undefined): boolean {
+    return known !== undefined && withLineFeeds(text) === withLineFeeds(known);
+}
+
+function withLineFeeds(text: string): string {
+    return text.replace(/\r\n?/g, "\n");
 }

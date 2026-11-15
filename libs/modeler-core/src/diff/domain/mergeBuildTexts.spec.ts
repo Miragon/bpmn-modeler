@@ -22,7 +22,12 @@ describe("overwriteConfirm", () => {
         [
             "resolvedElsewhere",
             "order.bpmn holds no conflict markers. Build over it?",
-            "It was resolved another way, or VS Code's merge editor changed it. Building replaces it with the merge result.",
+            "It was resolved another way, or another merge tool changed it. Building replaces it with the merge result.",
+        ],
+        [
+            "editedSinceOpened",
+            "order.bpmn changed since the merge view opened. Build over it?",
+            "Building replaces those changes, also any conflict you resolved by hand, with the merge result.",
         ],
         [
             "editedSinceBuild",

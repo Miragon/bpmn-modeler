@@ -142,6 +142,7 @@ export class MergeViewOpener {
             decisions: merge.decisions,
             sources: merge.sources,
             navigationOrder: merge.navigationOrder,
+            openedWorkingText: facts.workingText,
         };
         this.sessions.add(session, this.diffStore.registerMerge(uris));
         await this.show(session);

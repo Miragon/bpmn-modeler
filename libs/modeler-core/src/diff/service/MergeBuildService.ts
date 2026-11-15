@@ -102,7 +102,7 @@ export class MergeBuildService implements EditorSubscription {
         }
         const decision = overwriteDecision(
             await this.workingFile.read(fileUri),
-            session.lastBuild?.xml,
+            { opened: session.openedWorkingText, lastBuilt: session.lastBuild?.xml },
             fileName,
         );
         if (decision.kind === "confirm" && !(await this.picker.confirm(decision.request))) {
