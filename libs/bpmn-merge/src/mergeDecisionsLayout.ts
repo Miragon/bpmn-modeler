@@ -1,9 +1,12 @@
-import type {
-    ElementReference,
-    ElementVersion,
-    LayoutState,
-    MergeElement,
-    MergeSide,
+import {
+    type ElementReference,
+    type ElementVersion,
+    type LayoutState,
+    type MergeElement,
+    type MergeSide,
+    type SideInResult,
+    chosenVersionOf,
+    sameLanes,
 } from "./mergeResult";
 import { isEdgeEnd, isHostReference, isProcessReference } from "./referenceRules";
 
@@ -19,8 +22,6 @@ const PREFERRED_LAYOUT_SIDE: Record<LayoutState, MergeSide> = {
 function isPlacingReference(reference: ElementReference): boolean {
     return isEdgeEnd(reference) || isHostReference(reference);
 }
-
-type SideInResult = (id: string) => MergeSide | undefined;
 
 /** A host holds its boundary event on its border; a parent (or the pool of a process) decides the plane; a lane neither. */
 type ContainerKind = "host" | "parent" | "lane";
@@ -106,7 +107,7 @@ function settleContainersFirst(
         }
         visiting.add(id);
         const element = elementsById.get(id) as MergeElement;
-        const contentVersion = element.versions[sideInResult(id) as MergeSide];
+        const contentVersion = chosenVersionOf(element, sideInResult);
         let side = choice.side;
         for (const { id: containerId, kind } of drawingContainersOf(
             contentVersion,
@@ -194,8 +195,7 @@ function poolsByProcess(
 ): ReadonlyMap<string, string> {
     const pools = new Map<string, string>();
     for (const element of elements) {
-        const side = sideInResult(element.id);
-        const version = side === undefined ? undefined : element.versions[side];
+        const version = chosenVersionOf(element, sideInResult);
         for (const process of targetsOf(version?.references ?? [], isProcessReference)) {
             pools.set(process, element.id);
         }
@@ -209,7 +209,7 @@ function edgeSideFromEnds(
     choices: ReadonlyMap<string, LayoutChoice>,
     settled: ReadonlyMap<string, MergeSide>,
 ): MergeSide | undefined {
-    const contentVersion = element.versions[sideInResult(element.id) as MergeSide];
+    const contentVersion = chosenVersionOf(element, sideInResult);
     const ends = targetsOf(contentVersion?.references ?? [], isEdgeEnd).map((end) => ({
         side: settled.get(end),
         leftPreferred: settled.get(end) !== choices.get(end)?.preferred,
@@ -235,7 +235,7 @@ function drawsInPlace(
     }
     return (
         layoutVersion.parent === contentVersion.parent &&
-        sameIds(layoutVersion.lanes, contentVersion.lanes) &&
+        sameLanes(layoutVersion.lanes, contentVersion.lanes) &&
         samePlacingReferences(layoutVersion.references, contentVersion.references)
     );
 }
@@ -248,10 +248,10 @@ function samePlacingReferences(
         references
             .filter(isPlacingReference)
             .map(({ property, target, targetPart }) => `${property} ${target} ${targetPart ?? ""}`);
-    return sameIds(placing(left), placing(right));
+    return sameInOrder(placing(left), placing(right));
 }
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
+function sameInOrder(left: readonly string[], right: readonly string[]): boolean {
     return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 

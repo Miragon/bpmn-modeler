@@ -57,6 +57,18 @@ export interface ElementVersion {
     readonly plane?: string;
 }
 
+/**
+ * Lanes are listed outermost first, so the same lanes in another order are
+ * another nesting: two versions are in the same lanes only in the same order.
+ */
+export function lanesKeyOf(lanes: readonly string[]): string {
+    return lanes.join(" ");
+}
+
+export function sameLanes(left: readonly string[], right: readonly string[]): boolean {
+    return lanesKeyOf(left) === lanesKeyOf(right);
+}
+
 export interface MergeElement {
     readonly id: string;
     readonly type: string;
@@ -74,6 +86,18 @@ export interface VersionKeys {
     readonly base?: string;
     readonly current: string;
     readonly incoming: string;
+}
+
+/** The side each element of the result is taken from; undefined while it is open. */
+export type SideInResult = (id: string) => MergeSide | undefined;
+
+/** The version of the element the result takes: the one on its side, none while it is open or absent there. */
+export function chosenVersionOf(
+    element: MergeElement,
+    sideInResult: SideInResult,
+): ElementVersion | undefined {
+    const side = sideInResult(element.id);
+    return side === undefined ? undefined : element.versions[side];
 }
 
 export interface MergeResult {

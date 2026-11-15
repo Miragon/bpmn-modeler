@@ -2,7 +2,12 @@ import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-di
 
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
-import type { ElementVersion, MergeElement, MergeResult } from "./mergeResult";
+import {
+    type ElementVersion,
+    type MergeElement,
+    type MergeResult,
+    lanesKeyOf,
+} from "./mergeResult";
 import {
     type MergeVersions,
     VERSION_NAMES,
@@ -10,7 +15,7 @@ import {
     prefixSourcesOf,
     requireMergeableVersions,
 } from "./mergeVersions";
-import { versionKeyOf } from "./versionKey";
+import { versionKeysOf } from "./versionKey";
 
 export type { MergeVersions } from "./mergeVersions";
 
@@ -39,12 +44,7 @@ export async function computeMerge(versions: MergeVersions): Promise<MergeResult
             hasBase,
         ),
     );
-    const versionKeys = {
-        current: versionKeyOf(versions.current),
-        incoming: versionKeyOf(versions.incoming),
-        ...(versions.base === undefined ? {} : { base: versionKeyOf(versions.base) }),
-    };
-    return { hasBase, versionKeys, elements };
+    return { hasBase, versionKeys: versionKeysOf(versions), elements };
 }
 
 async function snapshotsOf(
@@ -104,7 +104,11 @@ function mergeElementOf(
 
 function classifiedVersionOf(snapshot: ElementSnapshot | undefined): ClassifiedVersion | undefined {
     if (!snapshot) return undefined;
-    const key = JSON.stringify([snapshot.content, snapshot.parent ?? null, snapshot.lanes]);
+    const key = JSON.stringify([
+        snapshot.content,
+        snapshot.parent ?? null,
+        lanesKeyOf(snapshot.lanes),
+    ]);
     return snapshot.layout === undefined ? { key } : { key, layout: snapshot.layout };
 }
 

@@ -16,7 +16,7 @@ covers the data library; the merge view gets its own section when it is built.
 ### One unpublished library
 
 `libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, flat, DOM-free like `libs/bpmn-diff`)
-holds `computeMerge` and `MergeDecisions`; building the file (#2452) comes next. It is not in `libs/bpmn-diff`,
+holds `computeMerge`, `MergeDecisions` and `buildMerged`. It is not in `libs/bpmn-diff`,
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `release-please-config.json` excludes the workspace from the npm component.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
@@ -149,9 +149,90 @@ parser and asserts that the module still loads.
   another plane (a collapsed sub-process), and a flow follows its ends when one of them had
   to.
 
+### Building the file
+
+`buildMerged(sources, decisions)` refuses open conflicts and builds the file on a fresh
+parse of current, which keeps everything outside the merge elements (current's label
+styles, the `definitions` extensions and imports). Building a fresh tree would have to copy
+each of those.
+
+- *The caller owns what builds share.* `prepareMergeSources(versions)` runs
+  `requireMergeableVersions`, so it refuses what `computeMerge` refuses, then parses each
+  version once (its snapshots, its frame, the shared moddle, the version keys); the
+  merge view keeps that value for the session and passes it to every build, so a preview
+  per pick does not parse the versions again. `buildMerged` refuses sources whose version
+  keys differ from the result's, naming each such version, before it parses anything: the
+  ids alone miss a version whose content changed, which would build without that change. On the 800 KB `large-c8.bpmn` a build takes
+  about 290 ms with the sources reused and 630 ms when it prepares them itself. A cache
+  keyed by the versions object did the same out of sight: a caller that copied the object
+  lost it, and one that changed it relied on a string guard.
+
+- *Same parse as the modeler's save.* Current and incoming are parsed with current's
+  engine descriptor and one prefix map built from all versions, current first, and
+  written with `toXML({ format: true })`. Without the shared map, two sides using one
+  prefix for different namespaces swap silently, and an attribute whose namespace only
+  incoming declares is dropped; moddle-xml then declares every prefix it writes.
+- *Elements move whole.* Each element is taken from its side as written, unknown
+  extensions included, and placed in the collection its side used; incoming-only elements
+  go after the sibling they followed. References inside a moved element still point at
+  the other tree's objects and serialise by id.
+- *The frame is three-way.* Each `definitions` attribute takes incoming's value when only
+  incoming changed it and current's otherwise; without a base, current's. Which attributes
+  are typed comes from the loaded descriptors, so an engine's extension of
+  `bpmn:Definitions` (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
+- *Diagrams by what they draw.* One root diagram for the collaboration and the processes
+  its participants name, under current's ids, and one per collapsed sub-process. The root
+  diagram is a collaboration's only while the result keeps one of its pools, since bpmn-js
+  draws from a collaboration's plane only what its pools reach. Drawings take their layout
+  side's DI unchanged and go on the plane their sub-process implies, as bpmn-js reads it:
+  its own plane when it has one and its shape is not expanded, otherwise its shape's
+  plane. The build and the check share that one rule. An edge's `sourceElement` and
+  `targetElement` point at the result's drawings.
+- *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
+  its drawing from its element's layout side, else from the side the element is taken
+  from, and is not drawn when neither draws it or the chosen version does not hold it.
+- *DI ids are not merged.* Drawings are ordered by the element they draw. A diagram, plane,
+  drawing or label style of incoming whose id the result already uses gets an unused one
+  (`<element>_di`, else a numbered suffix), keeping its place. A label style an incoming
+  drawing uses joins that drawing's diagram, unless the result holds the same style under
+  its id.
+- *Derived references are rebuilt, never merged:* `incoming` and `outgoing` from the
+  flows, `flowNodeRef` from each element's chosen lanes; `boundaryEventRefs` is only
+  shortened to the boundary events still attached, since bpmn-js never writes it. Stale
+  ones parse without a warning, so nothing else would notice.
+- *Refused, not repaired.* Before it returns, a fresh parse of the result must give no
+  warning at all, every drawn element and part must have exactly one shape or edge on the
+  plane its container implies, every drawing on a root plane must be reachable from the
+  plane's owner as bpmn-js walks it (a process's contents; a collaboration's own elements,
+  the processes its pools name and any process with lanes), the derived references must list the rebuilt ids, each as often, in
+  any order, and every element's compared text, parent and lanes must equal its source
+  side's, which catches dropped attributes and namespace swaps. Lanes are listed outermost
+  first, so the classification, the layout side and the check all compare them in order.
+- *Notes for the reviewer:* a flow whose layout and its ends' layouts come from different
+  sides, an element drawn from another side than its container, elements both sides added
+  at the same place, an element kept against the other side's removal whose flows on its
+  own side stay out (each flow is decided on its own, so the flows removed with it stay
+  removed and it may be left unconnected), and every frame difference the result does not
+  carry (attributes both sides changed, incoming's extensions or imports).
+
 ## Consequences
 
-- References held in plain strings are invisible to the reference rules: link events
+- An all-current or all-incoming merge equals that side element by element and under
+  `computeDiff`, except where the layout rules draw an element from the other side and
+  where the shared prefix map renames an incoming prefix. `everyPick.spec.ts` builds every
+  end state reached by picking the open conflicts, and each of those with one automatic
+  resolution overridden, and requires a valid file. `mergeFuzz.spec.ts` does the same for
+  a few end states and random walks of 200 seeded random triples of the order process and
+  a few pinned seeds. After every applied step it checks that each pick sits on its side
+  and every open conflict has a choice that applies; it also checks that a refused pick
+  changes nothing and that the picks, not their order, decide. The fixtures are generated
+  from a plain model and equal a moddle round trip, so "what the save writes" is testable.
+- An element drawn from another side than its container keeps that side's coordinates; the
+  build notes it but does not move it.
+- bpmn-js rewrites the diagram's plane order on every save; the build keeps current's
+  order, so opening and saving a merged file can reorder `bpmndi` without changing the
+  model.
+- References held in plain strings are invisible to the rules and the checks: link events
   pair by name, a Camunda 8 embedded form names its `zeebe:userTaskForm`, and the
   classification parses without engine descriptors, so engine extension references stay
   generic. `computeDiff` does not see a change to an element without an id.
@@ -160,3 +241,6 @@ parser and asserts that the module still loads.
   change to the format is a change to both libraries.
 - `content` and `layout` are opaque texts, only fit for equality; the view cannot say what
   changed inside an element without its text.
+- The build relies on moddle-xml's undocumented `nsMap` (see
+  [dependencies](dependencies.md#private-upstream-apis)) and on bpmn-js's append order for
+  derived references; the content check turns a change in either into a refused build.
