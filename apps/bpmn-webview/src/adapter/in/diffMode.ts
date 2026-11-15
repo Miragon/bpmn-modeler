@@ -24,7 +24,7 @@ import {
 } from "@miragon/bpmn-modeler/viewer";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
-import { mergeCaptionText } from "../../domain/mergeTexts";
+import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { createElementXmlChangesModule } from "./elementXmlContextPad";
 
@@ -217,13 +217,7 @@ export class DiffMode {
     private label(query: ApplyDiffHighlightsQuery): void {
         this.labelledBy = query;
         this.sideLabel ??= new DiffSideLabel(this.canvas, query.side);
-        this.sideLabel.showFilename(
-            query.mergeCaption
-                ? mergeCaptionText(query.mergeCaption, (key) => i18n.translate(key))
-                : diffOriginSupports(query.origin, "namesFiles")
-                  ? query.paneFilename
-                  : undefined,
-        );
+        this.sideLabel.showFilename(diffPaneLabel(query, (key) => i18n.translate(key)));
     }
 
     /**

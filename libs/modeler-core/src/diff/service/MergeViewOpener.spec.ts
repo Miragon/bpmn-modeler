@@ -245,7 +245,7 @@ describe("MergeViewOpener", () => {
         ]);
     });
 
-    it("joins nothing new when the same pane resolves twice", async () => {
+    it("keeps a pane attached once when its handle resolves twice", async () => {
         const { opener, view, sessions } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);
         const pane = new FakeDiffPaneHandle(view.served[0].uris.current);
