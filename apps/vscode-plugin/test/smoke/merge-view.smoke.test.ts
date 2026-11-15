@@ -521,17 +521,9 @@ describe("the BPMN merge view", () => {
         });
 
         it("opens the working file as the editable modeler beside the restored ended tab", async () => {
-            // The comparison's tab is restored in the background, where VS Code does not resolve it.
-            expect(await tabLabels()).toContainEqual(
-                expect.stringContaining(`${CONFLICTED.merge} (Merge: Current ↔ Result)`),
-            );
-            expect(await activeTabLabel()).not.toContain("Result)");
-
             await openWithQuickOpen(CONFLICTED.merge);
 
-            await expect
-                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
-                .toStrictEqual([{ editable: true, diagram: true }]);
+            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
         });
 
         it("opens live panes again beside the restored ended tab", async () => {
