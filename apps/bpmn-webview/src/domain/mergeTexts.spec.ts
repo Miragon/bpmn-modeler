@@ -369,7 +369,11 @@ describe("buildNoteText", () => {
         ],
         [
             { kind: "frameDiffers", attribute: "exporterVersion" },
-            "Both sides changed the file's exporterVersion; current's is kept",
+            "The file's exporterVersion differs between the sides; current's is kept",
+        ],
+        [
+            { kind: "frameDiffers", attribute: "extensionElements" },
+            "The file's extensionElements differs between the sides; current's is kept",
         ],
     ])("words a %o note with the canvas's names", (note, text) => {
         expect(buildNoteText(note, nameOf, untranslated)).toBe(text);

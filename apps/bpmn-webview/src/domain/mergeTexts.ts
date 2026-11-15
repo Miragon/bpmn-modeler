@@ -254,7 +254,7 @@ const BUILD_NOTE_TEXTS: Record<MergePaneBuildNote["kind"], string> = {
         "{element} is drawn by another side than {containers}; check that it still sits inside",
     restoredWithoutConnections:
         "{element} is kept without the flows the other side removed with it: {connections}",
-    frameDiffers: "Both sides changed the file's {attribute}; current's is kept",
+    frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
 };
 
 /** Why Build is disabled. */

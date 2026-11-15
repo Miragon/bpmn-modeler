@@ -129,8 +129,9 @@ export interface MergePaneRestoreOffer {
  * Something the last build asks the user to look at, as the merge library's
  * `BuildNote` names it: a flow whose ends are drawn from different sides, two
  * elements the sides added at the same place, an element drawn apart from its
- * container, an element kept without the flows removed with it, or a file
- * attribute both sides changed.
+ * container, an element kept without the flows removed with it, or a part
+ * of the file's `definitions` that differs between the sides, of which the
+ * result keeps current's.
  */
 export type MergePaneBuildNote =
     | {
