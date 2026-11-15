@@ -8,13 +8,14 @@ export type GitOperation = "rebase" | "merge" | "cherryPick" | "stash" | "unknow
 const STASH_INCOMING_LABEL = "Stashed changes";
 
 /**
- * Which operation conflicted, from the refs in this order: REBASE_HEAD, the
- * Git extension's rebase commit, MERGE_HEAD, CHERRY_PICK_HEAD, then a stash by
- * its marker label. REBASE_HEAD comes first because the extension's rebase
- * state looks only under `<root>/.git/` and misses a linked worktree's rebase.
+ * Which operation conflicted, from the refs in this order: a running rebase,
+ * MERGE_HEAD, CHERRY_PICK_HEAD, then a stash by its marker label. A rebase
+ * runs when the Git extension says so or REBASE_HEAD resolves while a rebase
+ * folder exists: the extension looks only under `<root>/.git/` and misses a
+ * linked worktree's rebase, and REBASE_HEAD alone outlives a finished one.
  */
 export function gitOperationOf(refs: GitRefFacts, markers: ConflictMarkerReading): GitOperation {
-    if (refs.rebaseHead || refs.rebaseCommit) return "rebase";
+    if (refs.rebaseCommit || (refs.rebaseInProgress && refs.rebaseHead)) return "rebase";
     if (refs.mergeHead) return "merge";
     if (refs.cherryPickHead) return "cherryPick";
     if (markers.hasMarkers && markers.incomingLabel === STASH_INCOMING_LABEL) return "stash";

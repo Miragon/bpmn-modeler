@@ -27,8 +27,12 @@ file's repository to open; the watch behind the context keys waits as long as it
 **Raw facts, rules in the core.** `ConflictVersionsSource` hands over stages and refs as Git
 resolved them; the core's domain decides whether the view opens (`conflictReadingOf`), which
 operation conflicted (`gitOperationOf`) and what each pane is called (`mergeSideCaptions`).
-REBASE_HEAD comes before the extension's own rebase state, which on 1.76 looks only under
-`<root>/.git/` and so misses a rebase in a linked worktree (from the source, not observed).
+A rebase counts when the extension's own rebase state says so, or REBASE_HEAD resolves while
+the repository's Git folder (a linked worktree's `gitdir:` too) holds `rebase-merge` or
+`rebase-apply`: the extension looks only under `<root>/.git/` and so misses a rebase in a
+linked worktree (from the source, not observed), and REBASE_HEAD alone outlives a finished
+rebase, which only `--abort` deletes (observed with Git 2.54), so it would name a later merge a
+rebase.
 Nothing in this step writes: the core holds no write port, the working file and the index
 stay as Git left them.
 

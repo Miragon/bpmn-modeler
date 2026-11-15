@@ -1,4 +1,6 @@
-import { Disposable, Event, extensions, Uri, workspace } from "vscode";
+import { posix } from "node:path";
+
+import { Disposable, Event, extensions, FileType, Uri, workspace } from "vscode";
 
 import {
     ConflictStageFacts,
@@ -30,6 +32,9 @@ const NOT_CONFLICTED: ConflictStageFacts = {
     stages: {},
     refs: {},
 };
+
+// Git keeps one of these folders while a rebase runs; `git rebase --apply` and `git am` use the second.
+const REBASE_FOLDERS = ["rebase-merge", "rebase-apply"];
 
 const STAGE_REFS: Record<keyof ConflictStages, string> = {
     base: ":1",
@@ -170,16 +175,20 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
     }
 
     private async refsOf(repository: Repository): Promise<GitRefFacts> {
-        const [head, rebaseHead, mergeHead, cherryPickHead] = await Promise.all(
-            ["HEAD", "REBASE_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD"].map((ref) =>
-                repository.getCommit(ref).then(commitFact, () => undefined),
+        const [[head, rebaseHead, mergeHead, cherryPickHead], rebaseInProgress] = await Promise.all([
+            Promise.all(
+                ["HEAD", "REBASE_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD"].map((ref) =>
+                    repository.getCommit(ref).then(commitFact, () => undefined),
+                ),
             ),
-        );
+            rebaseRuns(repository.rootUri),
+        ]);
         const { HEAD, rebaseCommit } = repository.state;
-        const refs: Record<string, string | GitCommitFact | undefined> = {
+        const refs: Record<string, string | boolean | GitCommitFact | undefined> = {
             headName: HEAD?.name,
             head,
             rebaseHead,
+            rebaseInProgress: rebaseInProgress || undefined,
             rebaseCommit: rebaseCommit && commitFact(rebaseCommit),
             mergeHead,
             cherryPickHead,
@@ -224,6 +233,46 @@ async function stageText(repository: Repository, ref: string, uri: Uri): Promise
     } catch {
         return undefined;
     }
+}
+
+async function rebaseRuns(root: Uri): Promise<boolean> {
+    const gitFolder = await gitFolderOf(root);
+    if (!gitFolder) return false;
+    const found = await Promise.all(
+        REBASE_FOLDERS.map((folder) => fileTypeOf(Uri.joinPath(gitFolder, folder))),
+    );
+    return found.some((type) => isOfType(type, FileType.Directory));
+}
+
+/** `<root>/.git`, or in a linked worktree or submodule the folder its `.git` file's `gitdir:` line names. */
+async function gitFolderOf(root: Uri): Promise<Uri | undefined> {
+    const dotGit = Uri.joinPath(root, ".git");
+    const type = await fileTypeOf(dotGit);
+    if (isOfType(type, FileType.Directory)) return dotGit;
+    if (!isOfType(type, FileType.File)) return undefined;
+    try {
+        const text = new TextDecoder("utf-8").decode(await workspace.fs.readFile(dotGit));
+        const gitDir = /^gitdir:\s*(.+?)\s*$/m.exec(text)?.[1];
+        if (!gitDir) return undefined;
+        return posix.isAbsolute(gitDir) || /^[a-z]:[\\/]/i.test(gitDir)
+            ? Uri.file(gitDir)
+            : Uri.joinPath(root, gitDir);
+    } catch {
+        return undefined;
+    }
+}
+
+async function fileTypeOf(uri: Uri): Promise<FileType | undefined> {
+    try {
+        return (await workspace.fs.stat(uri)).type;
+    } catch {
+        return undefined;
+    }
+}
+
+// A symbolic link adds its own bit to the type of what it points to.
+function isOfType(type: FileType | undefined, expected: FileType): boolean {
+    return type !== undefined && (type & expected) !== 0;
 }
 
 function commitFact(commit: Commit): GitCommitFact {
