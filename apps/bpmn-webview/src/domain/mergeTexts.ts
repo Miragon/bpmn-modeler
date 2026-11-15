@@ -1,3 +1,4 @@
+import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type {
     MergeCaptionRole,
     MergeMarker,
@@ -63,12 +64,10 @@ export function openConflictsText(count: number, translate: MergeTranslate): str
     return translate("{count} open conflicts", { count: String(count) });
 }
 
-/** A shape-less element's entry in the legend: its id and its type in words (`Data Store`). */
+/** A shape-less element's entry in the legend: its id and its type in words (`Data store`). */
 export function shapelessEntryText(
     entry: { readonly id: string; readonly type: string },
     translate: MergeTranslate,
 ): string {
-    const localType = entry.type.slice(entry.type.indexOf(":") + 1);
-    const words = localType.replace(/([a-z])([A-Z])/g, "$1 $2");
-    return `${entry.id} (${translate(words)})`;
+    return `${entry.id} (${elementTypeName(entry.type, translate)})`;
 }

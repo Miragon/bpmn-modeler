@@ -79,12 +79,42 @@ describe("shapelessEntryText", () => {
             "Process_1 (Process)",
         ],
         [
-            "spells a type of two words apart",
+            "names a type of two words with the shared dictionary's spelling",
             { id: "DataStore_1", type: "bpmn:DataStore" },
-            "DataStore_1 (Data Store)",
+            "DataStore_1 (Data store)",
+        ],
+        [
+            "keeps the identifier of a type it has no name for",
+            { id: "Bogus_1", type: "bpmn:Bogus" },
+            "Bogus_1 (bpmn:Bogus)",
         ],
     ])("%s", (_case, entry, expected) => {
         expect(shapelessEntryText(entry, untranslated)).toBe(expected);
+    });
+
+    // Every root element type, and the data object, which no canvas draws.
+    it.each([
+        "bpmn:Process",
+        "bpmn:Collaboration",
+        "bpmn:Message",
+        "bpmn:Error",
+        "bpmn:Escalation",
+        "bpmn:Signal",
+        "bpmn:DataStore",
+        "bpmn:DataObject",
+        "bpmn:ItemDefinition",
+        "bpmn:Category",
+        "bpmn:Interface",
+        "bpmn:EndPoint",
+        "bpmn:PartnerEntity",
+        "bpmn:PartnerRole",
+        "bpmn:Resource",
+        "bpmn:CorrelationProperty",
+        "bpmn:GlobalTask",
+    ])("names %s in words a translation can look up", (type) => {
+        const text = shapelessEntryText({ id: "Element_1", type }, (key) => `de:${key}`);
+
+        expect(text).toMatch(/^Element_1 \(de:[A-Z][a-z]+( [a-z]+)*\)$/);
     });
 });
 
