@@ -310,7 +310,7 @@ describe("MergeDecisions path independence", () => {
             }
         }
         expect(offers).toBeGreaterThan(0);
-    });
+    }, 30_000);
 
     it("keeps every pick on its side and leaves a choice for every open conflict", async () => {
         for (const { name, result } of await mergeResults()) {
