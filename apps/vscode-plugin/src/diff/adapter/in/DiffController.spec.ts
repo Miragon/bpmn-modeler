@@ -28,6 +28,7 @@ import {
     DiffFileExtension,
     MergeSessionStore,
     MergeViewOpener,
+    mergeResultTabLabel,
     mergeTabLabel,
 } from "@miragon/bpmn-modeler-core";
 import {
@@ -243,6 +244,22 @@ describe("DiffController beside a merge view", () => {
     it("opens the working file as an editor beside a restored merge tab", () => {
         const { controller } = createController();
         tabs.push({ input: undefined, label: "order.current.bpmn ↔ order.incoming.bpmn" });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("opens the working file as an editor beside a live result comparison", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: mergeResultTabLabel("order.bpmn", "incoming") });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("opens the working file as an editor beside a restored result comparison, whose file side waits as a pending half", () => {
+        const { controller, store } = createController();
+        // VS Code restores the comparison's label from the basenames, which names the working file.
+        tabs.push({ input: undefined, label: "order.incoming.bpmn ↔ order.bpmn" });
+        store.addPendingScm("/repo/order.bpmn", new FakeDiffPaneHandle(ORDER));
 
         expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
     });

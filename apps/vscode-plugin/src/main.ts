@@ -26,6 +26,8 @@ export interface TestApi {
         sessionFor(
             fileUri: string,
         ): { origin: string; paneCount: number; tabCount: number; captions: unknown } | undefined;
+        /** Builds the merge view's result into the working file, as its Build button does. */
+        build(fileUri: string): Promise<void>;
     };
 }
 
@@ -60,6 +62,7 @@ export function activate(context: ExtensionContext): TestApi {
         dmnDiffStore,
         mergeSessions,
         conflictMarkers,
+        buildMerge,
     } = diffFeature.register(context, deps);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
@@ -124,6 +127,7 @@ export function activate(context: ExtensionContext): TestApi {
                     captions: session.captions,
                 };
             },
+            build: buildMerge,
         },
     };
 }
