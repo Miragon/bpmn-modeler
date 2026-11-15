@@ -13,24 +13,53 @@ const ROOT = { id: "Process_1", businessObject: { id: "Process_1" } };
 const TASK = { id: "Task_1", businessObject: { id: "Task_1" } };
 const SUB = { id: "Sub_1", businessObject: { id: "Sub_1" } };
 
-function build(pickable: readonly MergePanePickable[]) {
-    const contextPad = { registerProvider: vi.fn() };
+function build(pickable: readonly MergePanePickable[], { open = false, selected = [TASK] } = {}) {
+    const contextPad = {
+        registerProvider: vi.fn(),
+        isOpen: vi.fn(() => open),
+        open: vi.fn(),
+    };
     const canvas = { getRootElement: () => ROOT };
+    const selection = { get: () => selected };
     const translate = vi.fn((template: string) => `t(${template})`);
     const entryConfig = {
         pickableOf: vi.fn((id: string) => pickable.find((entry) => entry.id === id)),
         pick: vi.fn(),
         unpick: vi.fn(),
+        attach: vi.fn(),
     };
-    const provider = new MergePickContextPadProvider(contextPad, canvas, translate, entryConfig);
+    const provider = new MergePickContextPadProvider(
+        contextPad,
+        canvas,
+        selection,
+        translate,
+        entryConfig,
+    );
     return { provider, contextPad, entryConfig };
 }
 
 describe("MergePickContextPadProvider", () => {
-    it("registers itself with the context pad", () => {
-        const { provider, contextPad } = build([]);
+    it("registers itself with the context pad and hands itself to the merge pane", () => {
+        const { provider, contextPad, entryConfig } = build([]);
 
         expect(contextPad.registerProvider).toHaveBeenCalledWith(provider);
+        expect(entryConfig.attach).toHaveBeenCalledWith(provider);
+    });
+
+    it("reopens an open pad on the selected element, since the pad reads its entries only when it opens", () => {
+        const { provider, contextPad } = build([], { open: true });
+
+        provider.refresh();
+
+        expect(contextPad.open).toHaveBeenCalledExactlyOnceWith(TASK, true);
+    });
+
+    it("leaves a closed pad closed", () => {
+        const { provider, contextPad } = build([], { open: false });
+
+        provider.refresh();
+
+        expect(contextPad.open).not.toHaveBeenCalled();
     });
 
     it("offers to keep an element from this pane, as a translated button in its own group", () => {
@@ -83,7 +112,12 @@ describe("MergePickContextPadProvider", () => {
 
 describe("createMergePickModule", () => {
     it("hands the provider the merge pane's callbacks", () => {
-        const entryConfig = { pickableOf: () => undefined, pick: vi.fn(), unpick: vi.fn() };
+        const entryConfig = {
+            pickableOf: () => undefined,
+            pick: vi.fn(),
+            unpick: vi.fn(),
+            attach: vi.fn(),
+        };
 
         const module = createMergePickModule(entryConfig);
 

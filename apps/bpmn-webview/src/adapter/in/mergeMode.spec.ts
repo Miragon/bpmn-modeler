@@ -62,8 +62,10 @@ const fakes = vi.hoisted(() => {
                   pickableOf(id: string): unknown;
                   pick(id: string, scope: string): void;
                   unpick(id: string, scope: string): void;
+                  attach(provider: { refresh(): void }): void;
               }
             | undefined,
+        provider: { refresh: vi.fn() },
     };
     const names = { nameOf: (id: string) => ({ Task_Pack: "Pack parcel" })[id] ?? id };
     return { FakeDiffViewer, FakeDiffSideLabel, marks, elementXmlChanges, pickPad, names };
@@ -84,6 +86,7 @@ vi.mock("./elementXmlContextPad", () => ({
 vi.mock("./mergePickContextPad", () => ({
     createMergePickModule: (config: NonNullable<typeof fakes.pickPad.config>) => {
         fakes.pickPad.config = config;
+        config.attach(fakes.pickPad.provider);
         return { mergePickEntryConfig: ["value", config] };
     },
 }));
@@ -147,6 +150,7 @@ const STATES: MergePaneStates = {
         { id: "Task_Gone", container: false },
         { id: "Process_1", container: true },
     ],
+    names: {},
 };
 
 function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
@@ -706,6 +710,98 @@ describe("MergeMode", () => {
 
             expect(legendText()).toContain("Cannot keep Task_Check");
             expect(legendText()).toContain("Pack parcel, which you picked, needs Task_Check");
+        });
+
+        it("refreshes an open pick pad with every state, so its entries follow the host", async () => {
+            await startMergePane();
+            fakes.pickPad.provider.refresh.mockClear();
+
+            dispatch(mergeStates());
+
+            expect(fakes.pickPad.provider.refresh).toHaveBeenCalledOnce();
+        });
+
+        it("names an element as the host names it, the canvas only where the host does not", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    picksNotDrawn: [
+                        { id: "Task_Gone", keptSide: "incoming", scope: "element" },
+                        { id: "Task_Pack", keptSide: "incoming", scope: "element" },
+                        { id: "Task_Check", keptSide: "incoming", scope: "element" },
+                    ],
+                    names: { Task_Gone: "Reject order", Task_Pack: "Pack box" },
+                }),
+            );
+
+            expect(legendText()).toContain("Kept from incoming: Reject order");
+            expect(legendText()).toContain("Kept from incoming: Pack box");
+            expect(legendText()).toContain("Kept from incoming: Task_Check");
+        });
+
+        it("moves the focus to the Keep action when Undo of the stepped element hides itself", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({ pickable: [{ id: "Task_Pack", container: false, undo: "element" }] }),
+            );
+            next();
+            const undo = legendButton("Undo pick");
+            undo.focus();
+            undo.click();
+
+            dispatch(mergeStates({ pickable: [{ id: "Task_Pack", container: false }] }));
+
+            expect(document.activeElement).toBe(legendButton("Keep current"));
+        });
+
+        it("moves the focus to what the undo did when it removes the listed pick it was on", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    picksNotDrawn: [{ id: "Task_Gone", keptSide: "incoming", scope: "element" }],
+                }),
+            );
+            const undo = legendButton("Undo pick: Kept from incoming: Task_Gone");
+            undo.focus();
+            undo.click();
+
+            dispatch(
+                mergeStates({
+                    lastOutcome: {
+                        applied: true,
+                        action: "unpick",
+                        elementId: "Task_Gone",
+                        pulledIn: [],
+                        dropped: [],
+                        reopened: [],
+                    },
+                }),
+            );
+
+            expect(document.activeElement?.textContent).toBe("Took back the pick of Task_Gone");
+        });
+
+        it("keeps what the last pick did in place while the stepper moves, so it is announced once", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    lastOutcome: {
+                        applied: true,
+                        action: "pick",
+                        elementId: "Task_Pack",
+                        pulledIn: [],
+                        dropped: [],
+                        reopened: [],
+                    },
+                }),
+            );
+            const status = legendParent.querySelector('[role="status"]')!;
+            const shown = status.firstElementChild;
+
+            next();
+            next();
+
+            expect(status.firstElementChild).toBe(shown);
         });
 
         it("offers to keep the flows removed with a kept element in one step", async () => {

@@ -28,6 +28,7 @@ const NO_PICKS = {
     badges: [],
     picksNotDrawn: [],
     consequences: [],
+    names: {},
     pickable: [
         { id: "Process_1", container: true },
         ...["ServiceTask_1", "Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
@@ -37,7 +38,7 @@ const NO_PICKS = {
     ],
 } as const satisfies Pick<
     MergePaneStates,
-    "badges" | "picksNotDrawn" | "consequences" | "pickable"
+    "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
 >;
 
 const CURRENT: MergePaneStates = {

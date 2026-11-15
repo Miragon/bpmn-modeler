@@ -1,4 +1,5 @@
 import ContextPadModule from "diagram-js/lib/features/context-pad";
+import SelectionModule from "diagram-js/lib/features/selection";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import type { MergePanePickable, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -14,6 +15,8 @@ export interface MergePickEntryConfig {
     pickableOf(elementId: string): MergePanePickable | undefined;
     pick(elementId: string, scope: MergePickScope): void;
     unpick(elementId: string, scope: MergePickScope): void;
+    /** Receives the provider once diagram-js built it, to refresh an open pad after each state. */
+    attach(provider: MergePickContextPadProvider): void;
 }
 
 interface ContextPadEntry {
@@ -27,6 +30,12 @@ type ContextPadEntries = Record<string, ContextPadEntry>;
 
 interface ContextPad {
     registerProvider(provider: MergePickContextPadProvider): void;
+    isOpen(): boolean;
+    open(target: BpmnDiagramElement, force: boolean): void;
+}
+
+interface Selection {
+    get(): readonly BpmnDiagramElement[];
 }
 
 interface Canvas {
@@ -50,15 +59,24 @@ const UNDO_ICON = ICON(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 
  * user's pick. The host decides which apply; the pad only offers them.
  */
 export class MergePickContextPadProvider {
-    static $inject = ["contextPad", "canvas", "translate", "mergePickEntryConfig"];
+    static $inject = ["contextPad", "canvas", "selection", "translate", "mergePickEntryConfig"];
 
     constructor(
-        contextPad: ContextPad,
+        private readonly contextPad: ContextPad,
         private readonly canvas: Canvas,
+        private readonly selection: Selection,
         private readonly translate: Translate,
         private readonly entryConfig: MergePickEntryConfig,
     ) {
         contextPad.registerProvider(this);
+        entryConfig.attach(this);
+    }
+
+    /** Reopens an open pad, which diagram-js rebuilds only on a selection or element change, on the host's latest state. */
+    refresh(): void {
+        const [selected] = this.selection.get();
+        if (selected !== undefined && this.contextPad.isOpen())
+            this.contextPad.open(selected, true);
     }
 
     getContextPadEntries(element: BpmnDiagramElement): ContextPadEntries {
@@ -100,7 +118,7 @@ export class MergePickContextPadProvider {
 /** The merge pane's pick entries on diagram-js's context pad, with the shared translator. */
 export function createMergePickModule(entryConfig: MergePickEntryConfig) {
     return {
-        __depends__: [ContextPadModule, TranslateModule],
+        __depends__: [ContextPadModule, SelectionModule, TranslateModule],
         __init__: ["mergePickContextPadProvider"],
         mergePickContextPadProvider: ["type", MergePickContextPadProvider],
         mergePickEntryConfig: ["value", entryConfig],

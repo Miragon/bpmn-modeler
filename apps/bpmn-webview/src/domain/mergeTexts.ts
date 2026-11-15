@@ -1,6 +1,8 @@
 import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type {
     MergeObstacleKind,
+    MergeObstacleWithMissing,
+    MergePaneAction,
     MergePaneBlock,
     MergePaneOutcome,
     MergePaneRestoreOffer,
@@ -137,6 +139,13 @@ const MERGE_OBSTACLE_TEXTS: Record<MergeObstacleKind, string> = {
     processInAnotherCollaboration: "{element} and {target} each have a pool of the same process",
 };
 
+/** The same reasons where the element misses only a part inside the target. */
+const MISSING_PART_TEXTS: Record<MergeObstacleWithMissing, string> = {
+    targetPickedWithout:
+        "{element} needs a part of {target}, which you picked from a side without it",
+    sideLacksTarget: "{element} needs a part of {target} that this side does not have",
+};
+
 const RESTORE_OFFER_TEXTS: Record<MergeSide, { one: string; many: string }> = {
     current: {
         one: "Also keep the flow current removed with it",
@@ -148,14 +157,14 @@ const RESTORE_OFFER_TEXTS: Record<MergeSide, { one: string; many: string }> = {
     },
 };
 
-const OUTCOME_HEADLINES: Record<MergePaneOutcome["action"], { applied: string; refused: string }> =
-    {
-        pick: { applied: "Kept {element}", refused: "Cannot keep {element}" },
-        unpick: {
-            applied: "Took back the pick of {element}",
-            refused: "Cannot take back the pick of {element}",
-        },
-    };
+const OUTCOME_HEADLINES: Record<MergePaneAction, { applied: string; refused: string }> = {
+    pick: { applied: "Kept {element}", refused: "Cannot keep {element}" },
+    leaveOut: { applied: "Left out {element}", refused: "Cannot leave out {element}" },
+    unpick: {
+        applied: "Took back the pick of {element}",
+        refused: "Cannot take back the pick of {element}",
+    },
+};
 
 /** A pick's badge: the kept side's letter, and its full words for the title and screen readers. */
 export function pickBadgeText(
@@ -188,7 +197,11 @@ export function blockText(
     nameOf: (id: string) => string,
     translate: MergeTranslate,
 ): string {
-    return translate(MERGE_OBSTACLE_TEXTS[block.obstacle], {
+    const template =
+        "missing" in block && block.missing === "part"
+            ? MISSING_PART_TEXTS[block.obstacle]
+            : MERGE_OBSTACLE_TEXTS[block.obstacle];
+    return translate(template, {
         element: nameOf(block.elementId),
         target: nameOf(block.targetId),
     });

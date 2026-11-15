@@ -46,7 +46,10 @@ const OUTCOME_LISTS = [
  * actions for the element the stepper is on, the user's picks this pane
  * cannot draw with their undo, and what the last pick or undo did, with the
  * offer to keep the flows removed with a kept element. The action buttons
- * stay in place across updates, so the focus stays on the one just pressed.
+ * stay in place across updates, so the focus stays on the one just pressed;
+ * where an update hides or removes the focused control, the focus moves to
+ * the Keep action or to what the last pick did. What the last pick did is
+ * rebuilt only when it changes, so a screen reader announces it once.
  */
 export class MergePickPanel {
     readonly element = createElement("div", "merge-legend__picking");
@@ -59,6 +62,7 @@ export class MergePickPanel {
     private readonly picksList = createElement("ul", "merge-legend__picks-list");
     private readonly feedback = createElement("div", "merge-legend__feedback");
     private state?: MergePickState;
+    private shownFeedback?: string;
 
     constructor(
         private readonly actions: MergePickActions,
@@ -90,23 +94,26 @@ export class MergePickPanel {
 
     update(state: MergePickState): void {
         this.state = state;
-        this.render();
+        const feedback = JSON.stringify([state.lastOutcome, state.restoreOffer]);
+        const feedbackChanged = feedback !== this.shownFeedback;
+        this.shownFeedback = feedback;
+        this.render(feedbackChanged);
     }
 
     /** Writes every word again, after an update or a change of language. */
-    render(): void {
+    render(rebuildFeedback = true): void {
         const state = this.state;
-        this.actionsGroup.hidden = state?.stepped === undefined;
-        this.keepInsideButton.hidden = !state?.stepped?.container;
-        this.undoButton.hidden = state?.stepped?.undo === undefined;
-        if (state) this.keepButton.textContent = keepSideText(state.side, this.translate);
-        this.keepInsideButton.textContent = this.translate(MERGE_PICK_TEXTS.keepInside);
-        this.undoButton.textContent = this.translate(MERGE_PICK_TEXTS.undo);
-        this.actionsGroup.setAttribute("aria-label", this.translate(MERGE_PICK_TEXTS.keepThis));
-        this.picksLabel.textContent = this.translate(MERGE_PICK_TEXTS.yourPicks);
         this.keepingFocus(() => {
+            this.actionsGroup.hidden = state?.stepped === undefined;
+            this.keepInsideButton.hidden = !state?.stepped?.container;
+            this.undoButton.hidden = state?.stepped?.undo === undefined;
+            if (state) this.keepButton.textContent = keepSideText(state.side, this.translate);
+            this.keepInsideButton.textContent = this.translate(MERGE_PICK_TEXTS.keepInside);
+            this.undoButton.textContent = this.translate(MERGE_PICK_TEXTS.undo);
+            this.actionsGroup.setAttribute("aria-label", this.translate(MERGE_PICK_TEXTS.keepThis));
+            this.picksLabel.textContent = this.translate(MERGE_PICK_TEXTS.yourPicks);
             this.renderPicks(state);
-            this.renderFeedback(state);
+            if (rebuildFeedback) this.renderFeedback(state);
         });
     }
 
@@ -145,13 +152,13 @@ export class MergePickPanel {
         if (!state) return;
         const parts: HTMLElement[] = [];
         if (outcome) {
-            parts.push(
-                createElement(
-                    "span",
-                    "merge-legend__feedback-headline",
-                    outcomeHeadline(outcome, state.nameOf, this.translate),
-                ),
+            const headline = createElement(
+                "span",
+                "merge-legend__feedback-headline",
+                outcomeHeadline(outcome, state.nameOf, this.translate),
             );
+            headline.tabIndex = -1;
+            parts.push(headline);
             if (outcome.applied) {
                 for (const { key, label } of OUTCOME_LISTS) {
                     if (outcome[key].length > 0) {
@@ -205,15 +212,36 @@ export class MergePickPanel {
         return row;
     }
 
-    /** A rebuild moves the focus to the new button of the same entry. */
+    /**
+     * A rebuild moves the focus to the new button of the same entry. Where the
+     * focused control is hidden or gone, the focus goes to the Keep action or
+     * to what the last pick did, never to the page.
+     */
     private keepingFocus(rebuild: () => void): void {
         const focused = this.element.ownerDocument.activeElement;
-        const key =
-            focused instanceof HTMLElement && this.element.contains(focused)
-                ? focused.dataset.focusKey
-                : undefined;
+        if (!(focused instanceof HTMLElement) || !this.element.contains(focused)) {
+            rebuild();
+            return;
+        }
+        const key = focused.dataset.focusKey;
         rebuild();
-        if (key === undefined) return;
-        this.element.querySelector<HTMLElement>(`[data-focus-key="${CSS.escape(key)}"]`)?.focus();
+        if (this.isShown(focused)) return;
+        const sameEntry =
+            key === undefined
+                ? undefined
+                : this.element.querySelector<HTMLElement>(`[data-focus-key="${CSS.escape(key)}"]`);
+        const headline = this.feedback.querySelector<HTMLElement>(
+            ".merge-legend__feedback-headline",
+        );
+        [sameEntry, this.keepButton, headline]
+            .find(
+                (candidate): candidate is HTMLElement =>
+                    candidate != null && this.isShown(candidate),
+            )
+            ?.focus();
+    }
+
+    private isShown(element: HTMLElement): boolean {
+        return this.element.contains(element) && element.closest("[hidden]") === null;
     }
 }

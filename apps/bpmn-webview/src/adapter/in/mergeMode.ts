@@ -24,7 +24,7 @@ import { DiffPanePlumbing } from "./diffPanePlumbing";
 import { MergeLegend } from "./mergeLegend";
 import { createMergeElementNamesModule, type MergeElementNames } from "./mergeElementNames";
 import { createMergeMarksModule, type MergeMarks } from "./mergeMarks";
-import { createMergePickModule } from "./mergePickContextPad";
+import { createMergePickModule, type MergePickContextPadProvider } from "./mergePickContextPad";
 
 const STEPS_OF: Readonly<
     Record<MergeStepList, (states: MergePaneStates) => readonly MergePaneStep[]>
@@ -67,6 +67,8 @@ export class MergeMode {
 
     private names: MergeElementNames | undefined;
 
+    private pickPad: MergePickContextPadProvider | undefined;
+
     private states: ApplyMergeStatesQuery | undefined;
 
     private stepList: MergeStepList = "openConflicts";
@@ -85,6 +87,7 @@ export class MergeMode {
                 pickableOf: (id) => this.states?.states.pickable.find((entry) => entry.id === id),
                 pick: (id, scope) => this.pick(id, scope),
                 unpick: (id, scope) => this.unpick(id, scope),
+                attach: (pad) => (this.pickPad = pad),
             }),
         ]);
         this.legend = new MergeLegend(
@@ -132,6 +135,7 @@ export class MergeMode {
         this.pane.tagSide(query.side);
         this.pane.offerElementXmlChanges(query.elementXmlChanges);
         this.paintMarks();
+        this.pickPad?.refresh();
         this.pane.label(query.side, () => mergeCaptionText(query.states.caption, translate));
         const kept = query.states.stepping.cursor;
         // A pane that reloaded has no step of its own; the host kept the tab's.
@@ -171,8 +175,9 @@ export class MergeMode {
         }
     }
 
+    /** The host names an element the same on both panes; this canvas names the rest. */
     private nameOf(id: string): string {
-        return this.names?.nameOf(id) ?? id;
+        return this.states?.states.names[id] ?? this.names?.nameOf(id) ?? id;
     }
 
     private stepIds(): readonly string[] {

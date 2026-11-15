@@ -680,17 +680,19 @@ describe("the BPMN merge view", () => {
             await shot("pick-listed-where-not-drawn");
         });
 
-        it("names the flows that block keeping main's removal", async () => {
+        it("names the flows that block leaving out the task main removed", async () => {
             const { current } = await mergePanes();
-            await press(current, "Kept from incoming: Task_Check");
+            await press(current, "Kept from incoming: Check feature order");
 
             await press(current, "Keep current");
 
             const feedback = current.locator(".merge-legend__feedback");
             await expect
                 .poll(() => feedback.innerText(), { timeout: TIMEOUT_MS })
-                .toContain("Cannot keep Task_Check");
-            expect(await feedback.innerText()).toContain("which you picked, needs Task_Check");
+                .toContain("Cannot leave out Check feature order");
+            expect(await feedback.innerText()).toContain(
+                "which you picked, needs Check feature order",
+            );
             await shot("pick-blocked-reason");
         });
 

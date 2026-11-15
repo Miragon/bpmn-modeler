@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-    MergeObstacleKind,
     MergePaneBadge,
+    MergePaneBlock,
     MergePaneOutcome,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
@@ -183,18 +183,46 @@ describe("keepSideText", () => {
 describe("blockText", () => {
     const nameOf = (id: string) => ({ Flow_2: "Ready to pack", Task_Pack: "Pack" })[id] ?? id;
 
-    it.each<[MergeObstacleKind, string]>([
-        ["dependentPicked", "Ready to pack, which you picked, needs Pack"],
-        ["targetDroppedByThisPick", "Ready to pack needs Pack, which this pick drops"],
-        ["idHeldByAnother", "Ready to pack and Pack hold the same id"],
-    ])("words a %s reason with the elements' names", (obstacle, text) => {
-        expect(
-            blockText(
-                { elementId: "Flow_2", targetId: "Task_Pack", obstacle },
-                nameOf,
-                untranslated,
-            ),
-        ).toBe(text);
+    const ends = { elementId: "Flow_2", targetId: "Task_Pack" } as const;
+
+    it.each<[string, MergePaneBlock, string]>([
+        [
+            "dependentPicked",
+            { ...ends, obstacle: "dependentPicked" },
+            "Ready to pack, which you picked, needs Pack",
+        ],
+        [
+            "targetDroppedByThisPick",
+            { ...ends, obstacle: "targetDroppedByThisPick" },
+            "Ready to pack needs Pack, which this pick drops",
+        ],
+        [
+            "idHeldByAnother",
+            { ...ends, obstacle: "idHeldByAnother" },
+            "Ready to pack and Pack hold the same id",
+        ],
+        [
+            "sideLacksTarget missing the target",
+            { ...ends, obstacle: "sideLacksTarget", missing: "target" },
+            "Ready to pack needs Pack, which this side does not have",
+        ],
+        [
+            "sideLacksTarget missing a part",
+            { ...ends, obstacle: "sideLacksTarget", missing: "part" },
+            "Ready to pack needs a part of Pack that this side does not have",
+        ],
+        [
+            "targetPickedWithout missing the target",
+            { ...ends, obstacle: "targetPickedWithout", missing: "target" },
+            "Ready to pack needs Pack, which you picked from a side without it",
+        ],
+        [
+            "targetPickedWithout missing a part",
+            { ...ends, obstacle: "targetPickedWithout", missing: "part" },
+            "Ready to pack needs a part of Pack, which you picked from a side without it",
+        ],
+    ])("words a %s reason with the elements' names", (_case, block, text) => {
+        expect(blockText(block, nameOf, untranslated)).toBe(text);
     });
 });
 
@@ -241,6 +269,23 @@ describe("outcomeHeadline", () => {
                 reopened: [],
             },
             "Took back the pick of Pack",
+        ],
+        [
+            "names the element a pick left out",
+            {
+                applied: true,
+                action: "leaveOut",
+                elementId: "Task_Pack",
+                pulledIn: [],
+                dropped: [],
+                reopened: [],
+            },
+            "Left out Pack",
+        ],
+        [
+            "names the element a pick could not leave out",
+            { applied: false, action: "leaveOut", elementId: "Task_Pack", blockedBy: [] },
+            "Cannot leave out Pack",
         ],
         [
             "names the element a pick could not keep",
