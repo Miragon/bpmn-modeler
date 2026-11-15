@@ -219,10 +219,17 @@ describe("the BPMN merge view", () => {
         await vscode().page.keyboard.press(`${COMMAND_KEY}+p`);
         const input = vscode().page.locator(".quick-input-widget .quick-input-box input");
         await input.fill(fileName);
-        await vscode()
-            .page.locator(".quick-input-widget .monaco-list-row.focused")
-            .filter({ hasText: fileName })
-            .waitFor({ timeout: TIMEOUT_MS });
+        const focused = vscode().page.locator(".quick-input-widget .monaco-list-row.focused");
+        await focused.filter({ hasText: fileName }).waitFor({ timeout: TIMEOUT_MS });
+        // Recently opened merge tabs are listed too; the file is the row that is not one.
+        for (
+            let moves = 0;
+            moves < 10 && (await focused.innerText()).includes("(Merge: ");
+            moves++
+        ) {
+            await vscode().page.keyboard.press("ArrowDown");
+        }
+        expect(await focused.innerText()).toContain(fileName);
         await vscode().page.keyboard.press(toTheSide ? `${COMMAND_KEY}+Enter` : "Enter");
         await vscode().page.mouse.move(0, 0);
     }
@@ -878,7 +885,6 @@ describe("the BPMN merge view", () => {
                 .poll(modelersShowingDiagram, { timeout: TIMEOUT_MS })
                 .toBeGreaterThanOrEqual(1);
             await notification("Built merged.bpmn from your decisions.");
-            await shot("build-opened-modeler");
         });
 
         it("builds again without asking while the file is untouched", async () => {
@@ -896,6 +902,8 @@ describe("the BPMN merge view", () => {
             // One group, so the modeler gets the whole width.
             await runFromSideBar("View: Join All Editor Groups");
             await workingFileTab(CONFLICTED.merge).click();
+            await expect.poll(modelersShowingDiagram, { timeout: TIMEOUT_MS }).toBe(1);
+            await shot("build-opened-modeler");
             await renameTask("Check edited order");
             await expect
                 .poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS })
