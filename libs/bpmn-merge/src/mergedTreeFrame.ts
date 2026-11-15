@@ -57,8 +57,14 @@ export function mergeFrames(frames: {
     return { takenFromIncoming, notes };
 }
 
-export async function frameOf({ moddle }: MergeModdle, xml: string): Promise<DocumentFrame> {
-    const definitions = (await moddle.fromXML(xml)).rootElement;
+export async function frameOf(mergeModdle: MergeModdle, xml: string): Promise<DocumentFrame> {
+    return frameOfDefinitions(mergeModdle, (await mergeModdle.moddle.fromXML(xml)).rootElement);
+}
+
+export async function frameOfDefinitions(
+    { moddle }: MergeModdle,
+    definitions: ModdleElement,
+): Promise<DocumentFrame> {
     const attributes: Record<string, string> = {};
     for (const name of typedAttributesOf(definitions)) {
         // A descriptor default is read through the prototype; only a value the file sets is the file's.

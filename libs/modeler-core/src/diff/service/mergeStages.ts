@@ -20,6 +20,6 @@ export async function mergeStages(stages: ResolvableStages): Promise<MergeOfStag
     return {
         decisions: MergeDecisions.from(result),
         sources,
-        navigationOrder: await mergeNavigationOrder(result, sources),
+        navigationOrder: mergeNavigationOrder(result, sources),
     };
 }

@@ -36,7 +36,7 @@ const { xml, notes } = await buildMerged(sources, decisions); // throws while co
 
 // What a merge view shows on each pane: its markers, the marked elements no canvas draws, its steps.
 const { marks, shapeless } = mergePaneView(decisions, "current"); // takenFromThisSide, takenFromOtherSide, conflict
-const order = await mergeNavigationOrder(decisions.result, sources); // current's flow, then the rest
+const order = mergeNavigationOrder(decisions.result, sources); // current's flow, incoming's own steps in it, then the rest
 const { openConflicts, all } = mergePaneSteps(decisions, order, "current");
 decisions.result.elements.filter(hasNoShape); // what a pane lists instead of drawing
 ```
