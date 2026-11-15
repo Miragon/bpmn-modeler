@@ -21,7 +21,7 @@ import {
     TextClipboardQuery,
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
-import { matchesDefinitionQuery } from "@miragon/bpmn-modeler-types";
+import { matchesDefinitionQuery, type MergeSideCaption } from "@miragon/bpmn-modeler-types";
 import type { DiffResult, DiffSide } from "@miragon/bpmn-modeler/diff";
 
 import c7Samples from "../../__fixtures__/c7-samples.json";
@@ -58,21 +58,42 @@ export function getHostApi(): BpmnWebviewHost {
  *   so the webview opens it in Design and greys out Implement.
  * `diff-before` / `diff-after` — serves the left or right pane of a diff view
  *   with real `bpmn-js-differ` highlights computed from two fixture XMLs.
+ * `merge-current` / `merge-incoming` — the same panes as the two sides of a
+ *   merge view, with the captions a merge of `feature` into `main` sends.
  */
-type DevMode = "modeler" | "neutral" | "diff-before" | "diff-after";
+const DEV_MODES = [
+    "modeler",
+    "neutral",
+    "diff-before",
+    "diff-after",
+    "merge-current",
+    "merge-incoming",
+] as const;
+
+type DevMode = (typeof DEV_MODES)[number];
+
+const MOCK_MERGE_CAPTIONS: Record<"before" | "after", MergeSideCaption> = {
+    before: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
+    after: { side: "incoming", role: "upstream", ref: "feature", shortHash: "9f8e7d6" },
+};
 
 function readDevMode(): DevMode {
     const raw = new URLSearchParams(window.location.search).get("mode");
-    if (raw === "diff-before" || raw === "diff-after" || raw === "modeler" || raw === "neutral") {
-        return raw;
+    const mode = DEV_MODES.find((candidate) => candidate === raw);
+    if (mode) {
+        return mode;
     }
     if (raw !== null && raw !== "") {
         console.warn(
             `[dev] Unknown ?mode=${raw}; falling back to "modeler". ` +
-                `Known values: modeler, neutral, diff-before, diff-after.`,
+                `Known values: ${DEV_MODES.join(", ")}.`,
         );
     }
     return "modeler";
+}
+
+function isMergeMode(mode: DevMode): boolean {
+    return mode === "merge-current" || mode === "merge-incoming";
 }
 
 /**
@@ -95,7 +116,7 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
         console.info(
             "[dev] bpmn-webview mock ready.  Mode:",
             this.devMode,
-            "\nURL variants: /, /?mode=diff-before, /?mode=diff-after",
+            `\nURL variants: ${DEV_MODES.map((mode) => `/?mode=${mode}`).join(", ")}`,
         );
     }
 
@@ -331,9 +352,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
     private handleGetBpmnFile(): void {
         switch (this.devMode) {
             case "diff-before":
+            case "merge-current":
                 dispatch(new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "viewer"));
                 return;
             case "diff-after":
+            case "merge-incoming":
                 dispatch(new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "viewer"));
                 return;
             case "neutral":
@@ -348,9 +371,9 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
 
     private async handleDiffReady(): Promise<void> {
         const side: DiffSide | undefined =
-            this.devMode === "diff-before"
+            this.devMode === "diff-before" || this.devMode === "merge-current"
                 ? "before"
-                : this.devMode === "diff-after"
+                : this.devMode === "diff-after" || this.devMode === "merge-incoming"
                   ? "after"
                   : undefined;
         if (!side) {
@@ -368,6 +391,7 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
 
         const { sideView } = await import("@miragon/bpmn-modeler/diff");
         const view = sideView(result, side);
+        const merge = isMergeMode(this.devMode);
 
         dispatch(
             new ApplyDiffHighlightsQuery(
@@ -380,10 +404,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 result.navigationOrder,
                 // Dev preview mimics the "Compare Files" entry point so the legend
                 // renders its filename, the branch that exercises the most chrome.
-                "compare-files",
-                side === "before" ? "before.bpmn" : "after.bpmn",
+                merge ? "merge" : "compare-files",
+                merge ? "order.bpmn" : side === "before" ? "before.bpmn" : "after.bpmn",
                 // Shows the context pad's "Show XML changes" entry in the preview.
                 true,
+                merge ? MOCK_MERGE_CAPTIONS[side] : undefined,
             ),
         );
     }
