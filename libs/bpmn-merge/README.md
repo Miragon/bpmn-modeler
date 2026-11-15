@@ -44,7 +44,7 @@ that fails its checks instead of repairing it.
 
 ## Rules
 
-- Keep it free of the DOM: the tsconfig compiles with `lib: ["ESNext"]` and the tests run in the
+- Keep it free of the DOM: the tsconfig compiles with `lib: ["ES2021"]` and the tests run in the
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
   lazily. Import the engine rule from `@miragon/bpmn-modeler-types/engine`, never the barrel, whose

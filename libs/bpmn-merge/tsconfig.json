@@ -3,7 +3,7 @@
     "compilerOptions": {
         "noEmit": true,
         "skipLibCheck": true,
-        "lib": ["ESNext"]
+        "lib": ["ES2021"]
     },
     "include": ["src/**/*.ts"]
 }

@@ -60,7 +60,7 @@ async function snapshotsOf(
         });
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`${version} does not parse: ${reason}`, { cause: error });
+        throw new Error(`${version} does not parse: ${reason}`);
     }
 }
 

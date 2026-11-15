@@ -87,7 +87,7 @@ async function cleanlyParsed(
         parsed = await moddle.fromXML(xml);
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`${name} does not parse: ${reason}`, { cause: error });
+        throw new Error(`${name} does not parse: ${reason}`);
     }
     const warnings = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
     if (warnings.length > 0) throw new Error(`${name} does not parse: ${warnings.join("; ")}`);

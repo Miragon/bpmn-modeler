@@ -67,7 +67,7 @@ async function versionSnapshots(
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`${side} does not parse: ${message}`, { cause: error });
+        throw new Error(`${side} does not parse: ${message}`);
     }
 }
 
