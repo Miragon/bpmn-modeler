@@ -219,18 +219,20 @@ describe("the BPMN merge view", () => {
         await vscode().page.keyboard.press(`${COMMAND_KEY}+p`);
         const input = vscode().page.locator(".quick-input-widget .quick-input-box input");
         await input.fill(fileName);
-        const focused = vscode().page.locator(".quick-input-widget .monaco-list-row.focused");
-        await focused.filter({ hasText: fileName }).waitFor({ timeout: TIMEOUT_MS });
-        // Recently opened merge tabs are listed too; the file is the row that is not one.
-        for (
-            let moves = 0;
-            moves < 10 && (await focused.innerText()).includes("(Merge: ");
-            moves++
-        ) {
-            await vscode().page.keyboard.press("ArrowDown");
+        // Recently opened merge tabs are listed too, and the list may still change while it fills,
+        // so the file is picked by its row, not by moving the focus.
+        const row = vscode()
+            .page.locator(".quick-input-widget .quick-input-list .monaco-list-row")
+            .filter({ hasText: fileName })
+            .filter({ hasNotText: "(Merge: " })
+            .first();
+        await row.waitFor({ timeout: TIMEOUT_MS });
+        if (toTheSide) {
+            await row.hover();
+            await row.getByRole("button", { name: /to the Side/i }).click();
+        } else {
+            await row.click();
         }
-        expect(await focused.innerText()).toContain(fileName);
-        await vscode().page.keyboard.press(toTheSide ? `${COMMAND_KEY}+Enter` : "Enter");
         await vscode().page.mouse.move(0, 0);
     }
 
