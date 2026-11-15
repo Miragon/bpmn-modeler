@@ -825,7 +825,7 @@ describe("the BPMN merge view", () => {
         }
 
         it("builds the decided merge into the working file, which Git still lists unmerged", async () => {
-            await vscode().runCommand("View: Close All Editors");
+            await runFromSideBar("View: Close All Editors");
             await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
             await expect
                 .poll(activeTabLabel, { timeout: TIMEOUT_MS })
@@ -838,7 +838,7 @@ describe("the BPMN merge view", () => {
                 })
                 .toBe(2);
             await mergeTab(CONFLICTED.merge).click();
-            await vscode().runCommand("Notifications: Clear All Notifications");
+            await runFromSideBar("Notifications: Clear All Notifications");
             const { current, incoming } = await mergePanes();
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
@@ -879,7 +879,7 @@ describe("the BPMN merge view", () => {
         });
 
         it("builds again without asking while the file is untouched", async () => {
-            await vscode().runCommand("Notifications: Clear All Notifications");
+            await runFromSideBar("Notifications: Clear All Notifications");
             await mergeTab(CONFLICTED.merge).click();
             const { incoming } = await mergePanes();
 
@@ -924,7 +924,7 @@ describe("the BPMN merge view", () => {
             await cancelDialog("merged.bpmn has unsaved changes. Build over them?");
             expect(await taskName(await workingFileText("merge"))).toBe("Check edited order");
             await workingFileTab(CONFLICTED.merge).click();
-            await vscode().runCommand("File: Revert File");
+            await runFromSideBar("File: Revert File");
             await expect
                 .poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS })
                 .toBe(false);
@@ -1018,7 +1018,7 @@ describe("the BPMN merge view", () => {
         });
 
         it("builds a rebase conflict and lets Git continue the rebase once it is staged", async () => {
-            await vscode().runCommand("View: Close All Editors");
+            await runFromSideBar("View: Close All Editors");
             await rowMenu(CONFLICTED.rebase, COMMAND_TITLE);
             const { incoming } = await mergePanes();
             await expect
