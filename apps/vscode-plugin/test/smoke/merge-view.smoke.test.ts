@@ -573,8 +573,16 @@ describe("the BPMN merge view", () => {
         /** The keyboard's way: focus the legend's button and press Enter, no click. */
         async function press(pane: FrameLocator, name: string): Promise<void> {
             const target = pane.getByRole("button", { name, exact: true });
-            await target.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-            await target.focus();
+            for (let attempt = 1; ; attempt++) {
+                try {
+                    await target.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+                    await target.focus();
+                    break;
+                } catch (error) {
+                    // VS Code can replace a webview's frame while a newly opened tab settles.
+                    if (attempt === 3 || !String(error).includes("has been closed")) throw error;
+                }
+            }
             await vscode().page.keyboard.press("Enter");
         }
 
