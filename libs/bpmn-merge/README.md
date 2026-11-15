@@ -12,7 +12,10 @@ import {
     buildMerged,
     computeMerge,
     describeUnmetRequirement,
+    hasNoShape,
     MergeDecisions,
+    mergeNavigationOrder,
+    mergePaneView,
     prepareMergeSources,
 } from "@miragon/bpmn-modeler-merge";
 
@@ -29,6 +32,11 @@ decisions.unpick("Task_1"); // back to its automatic resolution or open, unless 
 
 const sources = await prepareMergeSources(versions); // once per merge; keep it for every build
 const { xml, notes } = await buildMerged(sources, decisions); // throws while conflicts are open
+
+// What a merge view shows: each pane's markers, the elements no canvas draws, the stepper's order.
+const { marks } = mergePaneView(decisions, "current"); // takenFromThisSide, takenFromOtherSide, conflict
+const listed = decisions.result.elements.filter(hasNoShape);
+const order = await mergeNavigationOrder(decisions.result, sources); // current's flow, then the rest
 ```
 
 An applied pick leaves the element on the picked side: an automatic element that clashes with it or

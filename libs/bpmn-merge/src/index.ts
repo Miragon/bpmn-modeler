@@ -10,6 +10,10 @@ export type { BuildNote, MergedDocument } from "./buildMerged";
 export { prepareMergeSources } from "./buildMergedSources";
 export type { MergeSources } from "./buildMergedSources";
 export { isConflictState } from "./mergeResult";
+export { hasNoShape } from "./mergeElementShape";
+export { mergeNavigationOrder } from "./mergeNavigationOrder";
+export { mergePaneView } from "./mergePaneView";
+export type { MergePaneView } from "./mergePaneView";
 export type {
     ConflictState,
     ElementReference,
