@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 
-function document(process: string, shapes: string): string {
+function document(process: string, shapes: string, namespaces = ""): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI"${namespaces} id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="false">
 ${process}
   </bpmn:process>
@@ -189,5 +189,107 @@ describe("MergeDecisions on parsed documents", () => {
         });
 
         expect(decisions.resolution().layout.F).toBe("incoming");
+    });
+
+    describe("a task and the flow that ends at it", () => {
+        const CAMUNDA =
+            ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn"';
+        const gatewayToTask = (
+            task: { name: string } | undefined,
+            flow: { condition?: string; listener?: string } = {},
+        ) =>
+            document(
+                task === undefined
+                    ? `    <bpmn:exclusiveGateway id="G" />`
+                    : `    <bpmn:exclusiveGateway id="G"><bpmn:outgoing>F</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="T" name="${task.name}"><bpmn:incoming>F</bpmn:incoming></bpmn:task>
+    <bpmn:sequenceFlow id="F" sourceRef="G" targetRef="T">${
+        flow.listener === undefined
+            ? ""
+            : `<bpmn:extensionElements><camunda:executionListener class="${flow.listener}" event="take" /></bpmn:extensionElements>`
+    }${
+        flow.condition === undefined
+            ? ""
+            : `<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${flow.condition}</bpmn:conditionExpression>`
+    }</bpmn:sequenceFlow>`,
+                [
+                    shape("G", 100, 100),
+                    task === undefined ? "" : shape("T", 250, 85),
+                    task === undefined
+                        ? ""
+                        : edge("F", [
+                              [200, 140],
+                              [250, 125],
+                          ]),
+                ].join("\n"),
+                CAMUNDA,
+            );
+
+        it("keeps a task's rename and its flow's new condition and listener, each from its own side", async () => {
+            const decisions = await decisionsOf({
+                base: gatewayToTask({ name: "Check" }),
+                current: gatewayToTask({ name: "Check order" }),
+                incoming: gatewayToTask(
+                    { name: "Check" },
+                    { condition: "${ok}", listener: "com.example.Audit" },
+                ),
+            });
+
+            expect(decisions.openConflicts).toEqual([]);
+            expect(decisions.resolution().elements).toMatchObject({ T: "current", F: "incoming" });
+        });
+
+        it("leaves the flow's own conflict open when the task is picked", async () => {
+            const decisions = await decisionsOf({
+                base: gatewayToTask({ name: "Check" }, { condition: "${a}" }),
+                current: gatewayToTask({ name: "Check order" }, { condition: "${b}" }),
+                incoming: gatewayToTask({ name: "Check" }, { condition: "${c}" }),
+            });
+
+            expect(decisions.pick("T", "incoming")).toEqual({
+                applied: true,
+                pulledIn: [],
+                dropped: [],
+            });
+            expect(decisions.openConflicts.map((conflict) => conflict.id)).toEqual(["F"]);
+            expect(decisions.pick("F", "current")).toEqual({
+                applied: true,
+                pulledIn: [],
+                dropped: [],
+            });
+            expect(decisions.resolution().elements).toMatchObject({ T: "incoming", F: "current" });
+        });
+
+        it("pulls the removed task back in when the flow incoming changed is kept", async () => {
+            const decisions = await decisionsOf({
+                base: gatewayToTask({ name: "Check" }, { condition: "${a}" }),
+                current: gatewayToTask(undefined),
+                incoming: gatewayToTask({ name: "Check" }, { condition: "${c}" }),
+            });
+
+            expect(decisions.openConflicts.map((conflict) => conflict.id)).toEqual(["F"]);
+            expect(decisions.pick("F", "incoming")).toEqual({
+                applied: true,
+                pulledIn: ["T"],
+                dropped: [],
+            });
+            expect(decisions.isInResult("T")).toBe(true);
+        });
+
+        it("drops the flow incoming changed, naming it, when the task is picked away", async () => {
+            const decisions = await decisionsOf({
+                base: gatewayToTask({ name: "Check" }, { condition: "${a}" }),
+                current: gatewayToTask(undefined),
+                incoming: gatewayToTask({ name: "Check" }, { condition: "${c}" }),
+            });
+
+            expect(decisions.pick("T", "current")).toEqual({
+                applied: true,
+                pulledIn: [],
+                dropped: ["F"],
+            });
+            expect(decisions.canBuild).toBe(true);
+            expect(decisions.isInResult("F")).toBe(false);
+        });
     });
 });
