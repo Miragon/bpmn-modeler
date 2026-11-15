@@ -18,10 +18,14 @@ const REFUSAL_TEXT: {
     notBpmn: (_refusal, fileName) =>
         `${fileName} is not a BPMN file. The BPMN merge view opens conflicted .bpmn files only.`,
     gitUnavailable: (_refusal, fileName) =>
-        `The BPMN merge view cannot read the versions of ${fileName} from Git. Check that the Git extension is enabled and the file is in a repository.`,
+        `The BPMN merge view cannot read the versions of ${fileName} from Git. Check that the Git extension is enabled.`,
     notConflicted: (_refusal, fileName) => `${fileName} has no merge conflict to resolve.`,
     oneSideDeleted: ({ remainingSide }, fileName) =>
         `${fileName} was deleted on the ${OTHER_SIDE[remainingSide]} side and changed on the ${remainingSide} side. Keep or delete it in Source Control.`,
+    oneSideAdded: ({ addedSide }, fileName) =>
+        `${fileName} exists only on the ${addedSide} side. Keep or delete it in Source Control.`,
+    bothDeleted: (_refusal, fileName) =>
+        `${fileName} was deleted or renamed on both sides. Resolve it in Source Control.`,
     noFile: () =>
         "Open a conflicted BPMN file, or select one in Source Control, to resolve it in the BPMN merge view.",
 };

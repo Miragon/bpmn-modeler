@@ -1,4 +1,4 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { ConflictStageFacts } from "./conflictFacts";
 
@@ -15,6 +15,8 @@ export type ConflictReading =
     | { readonly kind: "gitUnavailable" }
     | { readonly kind: "notConflicted" }
     | { readonly kind: "oneSideDeleted"; readonly remainingSide: MergeSide }
+    | { readonly kind: "oneSideAdded"; readonly addedSide: MergeSide }
+    | { readonly kind: "bothDeleted" }
     | { readonly kind: "resolvable"; readonly stages: ResolvableStages };
 
 /** Whether the merge view opens a file of this name at all, before Git is asked about it. */
@@ -39,7 +41,11 @@ export function conflictReadingOf(fileName: string, facts: ConflictStageFacts): 
             stages: base === undefined ? { current, incoming } : { base, current, incoming },
         };
     }
-    if (current !== undefined) return { kind: "oneSideDeleted", remainingSide: "current" };
-    if (incoming !== undefined) return { kind: "oneSideDeleted", remainingSide: "incoming" };
-    return { kind: "gitUnavailable" };
+    const onlySide = MERGE_SIDES.find((side) => facts.stages[side] !== undefined);
+    if (onlySide !== undefined) {
+        return base === undefined
+            ? { kind: "oneSideAdded", addedSide: onlySide }
+            : { kind: "oneSideDeleted", remainingSide: onlySide };
+    }
+    return base === undefined ? { kind: "gitUnavailable" } : { kind: "bothDeleted" };
 }
