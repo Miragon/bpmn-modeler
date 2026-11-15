@@ -322,6 +322,18 @@ describe("MergeViewOpener", () => {
         expect(diffStore.paneCountFor(restored.uri)).toBe(0);
     });
 
+    it("joins the stage pane of a merge result comparison to the comparison registered for it", () => {
+        const { opener, diffStore } = createOpener(MERGE_CONFLICT);
+        const stageUri = "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3Dcompare";
+        const comparison = diffStore.registerResultComparison(stageUri, FILE);
+        const stage = new FakeDiffPaneHandle(stageUri);
+
+        expect(opener.attachPane(stage)).toBe("joined");
+        expect(comparison.attachedPanes()).toStrictEqual([stage]);
+        expect(opener.attachPane(stage)).toBe("joined");
+        expect(comparison.attachedPanes()).toStrictEqual([stage]);
+    });
+
     it("ends the panes of a merge view whose tab was closed", async () => {
         const { opener, view, diffStore } = createOpener(MERGE_CONFLICT);
         await opener.open(FILE);

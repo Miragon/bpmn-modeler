@@ -10,7 +10,7 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
-import type { DiffSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
@@ -20,6 +20,7 @@ import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { MergeBuildService } from "./MergeBuildService";
 import { MergeDecisionService } from "./MergeDecisionService";
 
 /** A host's element XML diff: shows an element's XML from both sides and moves it with the selection. */
@@ -50,6 +51,8 @@ export class BpmnDiffService {
      * @param merge The merge views' decisions: a merge pane opens in merge
      *   viewer mode and gets its merge states instead of diff highlights;
      *   absent on a host that opens no merge view.
+     * @param build Builds a merge view's result into the working file and
+     *   compares it with either side; absent on a host that builds none.
      */
     constructor(
         private readonly notifier: NotifierPort,
@@ -57,6 +60,7 @@ export class BpmnDiffService {
         private readonly store: DiffPaneStore,
         private readonly elementXmlChanges?: ElementXmlChanges,
         private readonly merge?: MergeDecisionService,
+        private readonly build?: MergeBuildService,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
     }
@@ -163,6 +167,29 @@ export class BpmnDiffService {
         }
     }
 
+    /** Whether the host builds a merge view's result into its working file and compares it. */
+    get buildsMergeResults(): boolean {
+        return this.build !== undefined;
+    }
+
+    /** Builds the result of the merge view whose pane asked into its working file. */
+    async buildMergeResult(handle: DiffPaneHandle): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session) await this.build?.build(session, this.showsElementXmlChanges);
+    }
+
+    /** Opens a diff of the built result against `against`'s stage. */
+    async compareMergeResult(handle: DiffPaneHandle, against: MergeSide): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session) await this.build?.compare(session, against);
+    }
+
+    /** Replaces the result comparison the pane belongs to with the one against the other side. */
+    async switchMergeComparison(handle: DiffPaneHandle): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session) await this.build?.switchComparison(session);
+    }
+
     /** Posts the plane the user entered to the partner pane, so both show the same subprocess. */
     forwardPlane(handle: DiffPaneHandle, planeId: string): Promise<void> {
         return this.relay.toPartner(handle, new SyncDiffPlaneQuery(planeId), "syncPlane");
@@ -217,6 +244,7 @@ export class BpmnDiffService {
             return;
         }
 
+        const comparison = this.build?.comparisonOf(session);
         const highlightsFor = (side: DiffSide, pane: DiffPaneHandle) => {
             const view = sideView(result, side);
             return new ApplyDiffHighlightsQuery(
@@ -230,6 +258,7 @@ export class BpmnDiffService {
                 session.origin,
                 uriDisplayName(pane.uri),
                 this.showsElementXmlChanges,
+                comparison,
             );
         };
 

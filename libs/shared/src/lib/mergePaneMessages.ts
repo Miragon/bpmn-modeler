@@ -125,6 +125,43 @@ export interface MergePaneRestoreOffer {
     readonly removedBy: MergeSide;
 }
 
+/**
+ * Something the last build asks the user to look at, as the merge library's
+ * `BuildNote` names it: a flow whose ends are drawn from different sides, two
+ * elements the sides added at the same place, an element drawn apart from its
+ * container, an element kept without the flows removed with it, or a file
+ * attribute both sides changed.
+ */
+export type MergePaneBuildNote =
+    | {
+          readonly kind: "flowEndsFromDifferentSides";
+          readonly id: string;
+          readonly ends: readonly string[];
+      }
+    | { readonly kind: "addedAtSamePlace"; readonly ids: readonly string[] }
+    | {
+          readonly kind: "drawnApartFromContainer";
+          readonly id: string;
+          readonly containers: readonly string[];
+      }
+    | {
+          readonly kind: "restoredWithoutConnections";
+          readonly id: string;
+          readonly connections: readonly string[];
+      }
+    | { readonly kind: "frameDiffers"; readonly attribute: string };
+
+/** Whether the merge view can build its result into the working file, and what the last build noted. */
+export interface MergePaneBuild {
+    readonly canBuild: boolean;
+    /** The conflicts still open, which keep Build disabled. */
+    readonly openConflicts: number;
+    /** A result was built into the working file, so it can be compared with either side. */
+    readonly built: boolean;
+    /** The notes of the last build; empty before the first. */
+    readonly notes: readonly MergePaneBuildNote[];
+}
+
 /** Everything one merge pane shows of its merge view's decisions. */
 export interface MergePaneStates {
     readonly caption: MergeSideCaption;
@@ -149,6 +186,7 @@ export interface MergePaneStates {
     readonly restoreOffer?: MergePaneRestoreOffer;
     /** The names of the elements the legend names, the same on both panes; an id without a name is absent. */
     readonly names: Readonly<Record<string, string>>;
+    readonly build: MergePaneBuild;
 }
 
 /**
@@ -217,5 +255,39 @@ export class UnpickMergeCommand extends Command<"UnpickMergeCommand"> {
         super("UnpickMergeCommand");
         this.elementId = elementId;
         this.scope = scope;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user presses Build. The host builds the
+ * merge result into the working file, never staging it, and opens the file.
+ */
+export class BuildMergeResultCommand extends Command<"BuildMergeResultCommand"> {
+    constructor() {
+        super("BuildMergeResultCommand");
+    }
+}
+
+/**
+ * Sent from a merge pane when the user compares the built result with one
+ * side. The host opens a plain BPMN diff of that side against the working
+ * file as it is open, unsaved edits included.
+ */
+export class CompareMergeResultCommand extends Command<"CompareMergeResultCommand"> {
+    public readonly against: MergeSide;
+
+    constructor(against: MergeSide = "incoming") {
+        super("CompareMergeResultCommand");
+        this.against = against;
+    }
+}
+
+/**
+ * Sent from a pane of a merge result comparison when the user switches it to
+ * the other side. The host replaces the comparison with one against that side.
+ */
+export class SwitchMergeComparisonCommand extends Command<"SwitchMergeComparisonCommand"> {
+    constructor() {
+        super("SwitchMergeComparisonCommand");
     }
 }

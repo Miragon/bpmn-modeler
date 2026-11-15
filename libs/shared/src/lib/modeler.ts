@@ -68,6 +68,7 @@ import type {
     DiffCounts,
     DiffOrigin,
     DiffSide,
+    MergeSide,
     DmnModelerSetting,
     ElementTemplateRef,
     Engine,
@@ -1501,6 +1502,13 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
      */
     public readonly elementXmlChanges: boolean;
 
+    /**
+     * Set on a built merge result compared with one side: the side, and
+     * whether the pane offers {@link SwitchMergeComparisonCommand} to compare
+     * it with the other side instead.
+     */
+    public readonly comparison?: MergeResultComparison;
+
     constructor(
         side: DiffSide,
         added: readonly string[],
@@ -1512,6 +1520,7 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         origin: DiffOrigin,
         paneFilename: string,
         elementXmlChanges = false,
+        comparison?: MergeResultComparison,
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -1524,7 +1533,14 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         this.origin = origin;
         this.paneFilename = paneFilename;
         this.elementXmlChanges = elementXmlChanges;
+        if (comparison !== undefined) this.comparison = comparison;
     }
+}
+
+/** Which side a built merge result is compared with, and whether the comparison can switch sides. */
+export interface MergeResultComparison {
+    readonly against: MergeSide;
+    readonly canSwitch: boolean;
 }
 
 /**

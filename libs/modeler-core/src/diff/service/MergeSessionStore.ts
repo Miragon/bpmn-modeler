@@ -1,4 +1,4 @@
-import type { MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
+import type { BuildNote, MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
@@ -22,6 +22,14 @@ export interface MergeSession extends MergeViewContent {
     readonly sources: MergeSources;
     /** Every merge element in the order the panes' steppers walk them. */
     readonly navigationOrder: readonly string[];
+    /** The result last built into the working file; set by each build. */
+    lastBuild?: MergeBuild;
+}
+
+/** A merge result written to the working file, and what its build asks the user to review. */
+export interface MergeBuild {
+    readonly xml: string;
+    readonly notes: readonly BuildNote[];
 }
 
 interface Entry {

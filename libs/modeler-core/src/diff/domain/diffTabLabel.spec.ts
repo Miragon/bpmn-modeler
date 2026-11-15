@@ -6,6 +6,7 @@ import {
     compareTabLabel,
     diffTabLabelNamesFile,
     mergeElementXmlDiffTitle,
+    mergeResultTabLabel,
     mergeTabLabel,
 } from "./diffTabLabel";
 import { mergePaneBasename } from "./mergePaneName";
@@ -111,5 +112,20 @@ describe("diffTabLabelNamesFile beside a merge view", () => {
 
         expect(diffTabLabelNamesFile(label, "order.bpmn")).toBe(true);
         expect(diffTabLabelNamesFile(label, "order-v2.bpmn")).toBe(true);
+    });
+});
+
+describe("mergeResultTabLabel", () => {
+    it.each<[MergeSide, string]>([
+        ["current", "order.bpmn (Merge: Current ↔ Result)"],
+        ["incoming", "order.bpmn (Merge: Incoming ↔ Result)"],
+    ])("names the side the result is compared with, %s", (against, label) => {
+        expect(mergeResultTabLabel("order.bpmn", against)).toBe(label);
+    });
+
+    it("names no file, so the working file opens as an editor beside the comparison", () => {
+        expect(diffTabLabelNamesFile(mergeResultTabLabel("order.bpmn", "incoming"), "order.bpmn")).toBe(
+            false,
+        );
     });
 });

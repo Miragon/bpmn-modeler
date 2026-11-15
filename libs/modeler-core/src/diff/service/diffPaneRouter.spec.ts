@@ -21,9 +21,11 @@ import {
 import {
     createTestHost,
     FakeDiffPaneHandle,
+    FakeMergeWorkingFile,
     RecordingElementXmlDiffView,
     RecordingMergeSidesView,
     RecordingNotifier,
+    ScriptedPicker,
 } from "../../testing";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
 import {
@@ -34,6 +36,7 @@ import {
 import { DmnDiffService } from "./DmnDiffService";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { MergeBuildService } from "./MergeBuildService";
 import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSessionStore } from "./MergeSessionStore";
 
@@ -92,6 +95,9 @@ describe("createDiffPaneRouter", () => {
                 MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
+                BuildMergeResultCommand: "ignored",
+                CompareMergeResultCommand: "ignored",
+                SwitchMergeComparisonCommand: "ignored",
             },
         ],
         [
@@ -113,6 +119,9 @@ describe("createDiffPaneRouter", () => {
                 MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
+                BuildMergeResultCommand: "ignored",
+                CompareMergeResultCommand: "ignored",
+                SwitchMergeComparisonCommand: "ignored",
             },
         ],
     ])(
@@ -153,6 +162,44 @@ describe("createDiffPaneRouter", () => {
             expect(without.routeOf(type)).toStrictEqual({
                 kind: "ignored",
                 reason: "the host opens no merge view",
+            });
+        }
+    });
+
+    it("routes building and comparing a merge result only where the diff service builds them", () => {
+        const { notifier, settings } = createTestHost();
+        const store = new DiffPaneStore();
+        const view = new RecordingMergeSidesView();
+        const sessions = new MergeSessionStore(store, view);
+        const merge = new MergeDecisionService(sessions, notifier);
+        const build = new MergeBuildService(
+            sessions,
+            merge,
+            new FakeMergeWorkingFile(),
+            view,
+            store,
+            notifier,
+            new ScriptedPicker(),
+        );
+
+        const withBuild = createDiffPaneRouter(
+            new BpmnDiffService(notifier, settings, store, undefined, merge, build),
+            {},
+        );
+        const without = createDiffPaneRouter(
+            new BpmnDiffService(notifier, settings, store, undefined, merge),
+            {},
+        );
+
+        for (const type of [
+            "BuildMergeResultCommand",
+            "CompareMergeResultCommand",
+            "SwitchMergeComparisonCommand",
+        ] as const) {
+            expect(withBuild.routeOf(type).kind).toBe("handled");
+            expect(without.routeOf(type)).toStrictEqual({
+                kind: "ignored",
+                reason: "the host builds no merge result",
             });
         }
     });
