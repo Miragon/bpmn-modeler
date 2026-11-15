@@ -351,7 +351,11 @@ describe("buildNoteText", () => {
             "Pack box is drawn by another side than Lane_1; check that it still sits inside",
         ],
         [
-            { kind: "restoredWithoutConnections", id: "Task_Pack", connections: ["Flow_2", "Flow_3"] },
+            {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+            },
             "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
         ],
         [

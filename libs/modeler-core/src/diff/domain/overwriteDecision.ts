@@ -4,8 +4,7 @@ import { overwriteConfirm, type OverwriteReason } from "./mergeBuildTexts";
 
 /** Whether a build may write over the working file at once, or asks first. */
 export type OverwriteDecision =
-    | { readonly kind: "write" }
-    | { readonly kind: "confirm"; readonly request: ConfirmRequest };
+    { readonly kind: "write" } | { readonly kind: "confirm"; readonly request: ConfirmRequest };
 
 /**
  * A build writes over Git's conflict markers or its own last result without

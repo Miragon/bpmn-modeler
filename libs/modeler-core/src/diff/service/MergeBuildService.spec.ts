@@ -59,7 +59,15 @@ async function openMergeView(stages: ResolvableStages, options: MergeViewOptions
     const decisions = new MergeDecisionService(sessions, notifier);
     const workingFile = new FakeMergeWorkingFile();
     workingFile.onDisk(FILE, markedText(stages));
-    const build = new MergeBuildService(sessions, decisions, workingFile, view, store, notifier, picker);
+    const build = new MergeBuildService(
+        sessions,
+        decisions,
+        workingFile,
+        view,
+        store,
+        notifier,
+        picker,
+    );
     const diffService = new BpmnDiffService(notifier, settings, store, undefined, decisions, build);
     const diffSession = store.registerMerge(URIS);
     const session = await mergeSessionOf({
@@ -164,9 +172,7 @@ describe("MergeBuildService", () => {
 
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
 
-        expect(mergeView.workingFile.replaced.map(({ fileUri }) => fileUri)).toStrictEqual([
-            FILE,
-        ]);
+        expect(mergeView.workingFile.replaced.map(({ fileUri }) => fileUri)).toStrictEqual([FILE]);
         expectTypeOf<keyof ConflictVersionsSource>().toEqualTypeOf<
             "readConflict" | "watchMergeChanges"
         >();
@@ -249,9 +255,7 @@ describe("MergeBuildService", () => {
             id: "Task_Pack",
             connections: ["Flow_2", "Flow_3"],
         });
-        expect(lastStatesOf(mergeView.incoming).states.build.notes).toStrictEqual(
-            notesWhenOpened,
-        );
+        expect(lastStatesOf(mergeView.incoming).states.build.notes).toStrictEqual(notesWhenOpened);
         expect(mergeView.notifier.infos).toStrictEqual([
             buildDoneNotice("order.bpmn", notesWhenOpened?.length ?? 0),
         ]);
@@ -295,7 +299,7 @@ describe("MergeBuildService", () => {
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
         await mergeView.diffService.compareMergeResult(mergeView.incoming, "current");
         const unsaved = (mergeView.workingFile.diskText(FILE) ?? "").replace(
-            "<bpmn:startEvent id=\"Start_1\">",
+            '<bpmn:startEvent id="Start_1">',
             '<bpmn:startEvent id="Start_1" name="Order in">',
         );
 

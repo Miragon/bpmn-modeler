@@ -691,5 +691,4 @@ describe("DiffMode's host channel", () => {
     it("rejects a query, which only the host sends", () => {
         expectTypeOf<SyncViewportQuery>().not.toExtend<PostedByDiffMode>();
     });
-
 });

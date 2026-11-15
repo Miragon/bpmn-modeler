@@ -1,5 +1,10 @@
 import type { MergePaneBuild, MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
-import { createButton, createElement, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
+import {
+    createButton,
+    createElement,
+    MERGE_SIDES,
+    type MergeSide,
+} from "@miragon/bpmn-modeler-types";
 
 import {
     buildBlockedText,
@@ -130,7 +135,11 @@ export class MergeBuildPanel {
         item.append(
             createElement("span", "merge-legend__note-text", text),
             ...noteElementIds(note).map((id) =>
-                createButton("merge-legend__shapeless-entry", () => this.actions.onSelect(id), nameOf(id)),
+                createButton(
+                    "merge-legend__shapeless-entry",
+                    () => this.actions.onSelect(id),
+                    nameOf(id),
+                ),
             ),
         );
         return item;

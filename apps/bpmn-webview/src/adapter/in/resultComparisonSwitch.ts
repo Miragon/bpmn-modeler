@@ -20,9 +20,12 @@ export class ResultComparisonSwitch {
         onSwitch: () => void,
         private readonly translate: MergeTranslate,
     ) {
-        this.switchButton = createButton("diff-legend__nav-btn diff-legend__comparison-switch", () => {
-            if (this.comparison?.canSwitch) onSwitch();
-        });
+        this.switchButton = createButton(
+            "diff-legend__nav-btn diff-legend__comparison-switch",
+            () => {
+                if (this.comparison?.canSwitch) onSwitch();
+            },
+        );
         parent.append(this.label, this.switchButton);
         parent.hidden = true;
     }

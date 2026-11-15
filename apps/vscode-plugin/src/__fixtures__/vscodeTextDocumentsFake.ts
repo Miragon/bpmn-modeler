@@ -48,7 +48,8 @@ class FakeTextDocument {
     }
 
     edit(range: Range, text: string): void {
-        this.text = this.text.slice(0, range.start.offset) + text + this.text.slice(range.end.offset);
+        this.text =
+            this.text.slice(0, range.start.offset) + text + this.text.slice(range.end.offset);
         this.isDirty = true;
     }
 

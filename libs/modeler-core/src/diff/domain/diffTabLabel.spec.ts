@@ -124,8 +124,8 @@ describe("mergeResultTabLabel", () => {
     });
 
     it("names no file, so the working file opens as an editor beside the comparison", () => {
-        expect(diffTabLabelNamesFile(mergeResultTabLabel("order.bpmn", "incoming"), "order.bpmn")).toBe(
-            false,
-        );
+        expect(
+            diffTabLabelNamesFile(mergeResultTabLabel("order.bpmn", "incoming"), "order.bpmn"),
+        ).toBe(false);
     });
 });

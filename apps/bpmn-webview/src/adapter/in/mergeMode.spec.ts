@@ -833,13 +833,20 @@ describe("MergeMode", () => {
         const afterStates = (build: Partial<MergePaneStates["build"]>) =>
             new ApplyMergeStatesQuery(
                 "after",
-                { ...STATES, caption: { side: "incoming", role: "upstream" }, build: { ...STATES.build, ...build } },
+                {
+                    ...STATES,
+                    caption: { side: "incoming", role: "upstream" },
+                    build: { ...STATES.build, ...build },
+                },
                 false,
             );
         const typesPosted = () => posted().map((message) => message.type);
         const shownText = () =>
             [...legendParent.querySelectorAll<HTMLElement>(".merge-legend__build *")]
-                .filter((element) => element.closest("[hidden]") === null && element.children.length === 0)
+                .filter(
+                    (element) =>
+                        element.closest("[hidden]") === null && element.children.length === 0,
+                )
                 .map((element) => element.textContent)
                 .join(" ");
         const legendButtons = () =>
