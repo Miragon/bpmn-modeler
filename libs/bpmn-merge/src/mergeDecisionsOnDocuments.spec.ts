@@ -108,7 +108,7 @@ describe("MergeDecisions on parsed documents", () => {
             [withLanes ? shape("Lane_A", 0, 0) : "", shape("T", 200, 85)].join("\n"),
         );
 
-    it("never accepts a process without the lane set its lanes lie in", async () => {
+    it("never accepts a process without the lane set its lanes lie in: drops the lane and reopens the task in it", async () => {
         const decisions = await decisionsOf({
             base: lanes(false, ""),
             current: lanes(
@@ -118,10 +118,15 @@ describe("MergeDecisions on parsed documents", () => {
             incoming: lanes(true, ""),
         });
 
-        const outcome = decisions.pick("Process_1", "current");
+        expect(decisions.pick("Process_1", "current")).toEqual({
+            applied: true,
+            pulledIn: [],
+            dropped: ["Lane_A"],
+        });
 
-        expect(outcome.applied || outcome.blockedBy.map((blocked) => blocked.id)).toEqual(["T"]);
+        expect(openIds(decisions)).toEqual(["T"]);
         expect(decisions.pickWithContents("Process_1", "current").applied).toBe(true);
+        expect(decisions.canBuild).toBe(true);
         expect(decisions.isInResult("Lane_A")).toBe(false);
     });
 
@@ -370,7 +375,7 @@ describe("MergeDecisions on parsed documents", () => {
         expect(decisions.canBuild).toBe(true);
     });
 
-    it("opens a task picked with a placeholder property another task now holds", async () => {
+    it("keeps a task picked with a placeholder property another task now holds and opens only the other task", async () => {
         const dataInputInto = (target: string) => ({
             id: "DataInput_Pack",
             kind: "dataInput" as const,
@@ -394,9 +399,101 @@ describe("MergeDecisions on parsed documents", () => {
 
         expect(decisions.pick("Task_Pack", "current").applied).toBe(true);
 
-        expect(openIds(decisions)).toEqual(["Task_Pack", "Task_Reject"]);
-        expect(decisions.canBuild).toBe(false);
-        decisions.pick("Task_Pack", "incoming");
+        expect(decisions.sideOf("Task_Pack")).toBe("current");
+        expect(openIds(decisions)).toEqual(["Task_Reject"]);
+        expect(decisions.pick("Task_Reject", "incoming")).toMatchObject({
+            applied: false,
+            blockedBy: [{ id: "Task_Pack" }],
+        });
+        expect(decisions.pick("Task_Reject", "current").applied).toBe(true);
+        expect(openIds(decisions)).toEqual(["DataInput_Pack"]);
+        expect(decisions.pick("DataInput_Pack", "current").applied).toBe(true);
+        expect(decisions.canBuild).toBe(true);
+    });
+
+    it("refuses to pick away the last task that holds the placeholder a data input both sides added needs", async () => {
+        const dataInputInto = (target: string) => ({
+            id: "DataInput_New",
+            kind: "dataInput" as const,
+            source: "DataRef_Order",
+            target,
+            targetProperty: "Property_New",
+        });
+        const base = baseModel("c8");
+        const current = cloneModel(base);
+        current.flows.push(dataInputInto("Task_Pack"));
+        const incoming = cloneModel(base);
+        incoming.flows.push(dataInputInto("Task_Reject"));
+        const decisions = await decisionsOf({
+            base: renderBpmn(base),
+            current: renderBpmn(current),
+            incoming: renderBpmn(incoming),
+        });
+        expect(decisions.pick("Task_Pack", "incoming").applied).toBe(true);
+
+        expect(decisions.pick("Task_Reject", "current")).toMatchObject({
+            applied: false,
+            blockedBy: [{ id: "DataInput_New" }, { id: "DataInput_New" }],
+        });
+        expect(decisions.pick("DataInput_New", "incoming").applied).toBe(true);
+    });
+
+    it("leaves a choice for every open conflict once the process is picked from the side that removed its lanes", async () => {
+        const base = baseModel("c8");
+        const current = cloneModel(base);
+        current.nodes.push({
+            id: "Task_N",
+            type: "task",
+            name: "Review",
+            x: 385,
+            y: 200,
+            lane: "Lane_Clerk",
+        });
+        current.flows = current.flows.map((flow) =>
+            flow.id === "Flow_Checked" ? { ...flow, target: "Task_N" } : flow,
+        );
+        current.flows.push({ id: "Flow_N", source: "Task_N", target: "Gateway_Ok" });
+        const incoming = cloneModel(base);
+        incoming.lanes = [];
+        incoming.nodes.forEach((node) => delete node.lane);
+        const decisions = await decisionsOf({
+            base: renderBpmn(base),
+            current: renderBpmn(current),
+            incoming: renderBpmn(incoming),
+        });
+        decisions.pick("Process_1", "incoming");
+        expect(openIds(decisions)).toEqual(["Lane_Clerk", "Task_N"]);
+
+        expect(decisions.pick("Lane_Clerk", "incoming").applied).toBe(true);
+
+        expect(openIds(decisions)).toEqual(["Flow_Checked"]);
+        expect(decisions.pick("Flow_Checked", "incoming").applied).toBe(true);
+        expect(decisions.canBuild).toBe(true);
+    });
+
+    it("keeps a task picked away when taking back a flow's pick leaves the flow pointing at it", async () => {
+        const base = baseModel("c7");
+        const current = cloneModel(base);
+        nodeById(current, "Task_Pack").name = "Pack parcel";
+        const incoming = cloneModel(base);
+        incoming.nodes.push({ id: "Task_Wrap", type: "task", x: 610, y: 200, parent: "Sub_Ship" });
+        incoming.flows = incoming.flows.map((flow) =>
+            flow.id === "Flow_Ship_1" ? { ...flow, target: "Task_Wrap" } : flow,
+        );
+        incoming.flows.push({ id: "Flow_Wrap", source: "Task_Wrap", target: "Task_Pack" });
+        const decisions = await decisionsOf({
+            base: renderBpmn(base),
+            current: renderBpmn(current),
+            incoming: renderBpmn(incoming),
+        });
+        decisions.pick("Flow_Ship_1", "current");
+        decisions.pick("Task_Wrap", "current");
+
+        expect(decisions.unpick("Flow_Ship_1").applied).toBe(true);
+
+        expect(decisions.sideOf("Task_Wrap")).toBe("current");
+        expect(openIds(decisions)).toEqual(["Flow_Ship_1"]);
+        expect(decisions.pick("Flow_Ship_1", "current").applied).toBe(true);
         expect(decisions.canBuild).toBe(true);
     });
 

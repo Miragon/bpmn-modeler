@@ -20,7 +20,6 @@ export type RequirementObstacle =
     | { readonly kind: "targetTakenWithoutPart"; readonly side: MergeSide }
     | { readonly kind: "dependentPicked"; readonly side: MergeSide }
     | { readonly kind: "dependentPulledInByThisPick" }
-    | { readonly kind: "dependentInBothVersions" }
     | { readonly kind: "idHeldByAnother"; readonly heldAs: "part" | "element" }
     | { readonly kind: "processInAnotherCollaboration" };
 
@@ -84,8 +83,6 @@ function describeObstacle(requirement: Requirement, obstacle: RequirementObstacl
             return ` and is picked from ${obstacle.side}`;
         case "dependentPulledInByThisPick":
             return " and this pick pulls it in";
-        case "dependentInBothVersions":
-            return " and is in both versions";
         case "idHeldByAnother":
             return obstacle.heldAs === "part"
                 ? `, but ${target} holds ${part} too`

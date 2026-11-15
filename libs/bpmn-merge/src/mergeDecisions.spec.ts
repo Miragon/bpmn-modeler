@@ -503,10 +503,15 @@ describe("MergeDecisions", () => {
                 mergeResult(
                     process,
                     mergeElement("Host", "changedAndRemoved", { parent: "Process" }),
+                    mergeElement("Other", "unchanged", { parent: "Process" }),
                     mergeElement("Boundary", "bothChanged", {
                         type: "bpmn:BoundaryEvent",
                         parent: "Process",
                         references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Host")],
+                        incoming: {
+                            parent: "Process",
+                            references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Other")],
+                        },
                     }),
                 ),
             );
@@ -670,7 +675,16 @@ describe("MergeDecisions", () => {
                     process,
                     mergeElement("A", "removedAndChanged", { parent: "Process" }),
                     mergeElement("B", "unchanged", { parent: "Process" }),
-                    sequenceFlow("F", "B", "A", "bothChanged"),
+                    mergeElement("C", "unchanged", { parent: "Process" }),
+                    mergeElement("F", "bothChanged", {
+                        type: "bpmn:SequenceFlow",
+                        parent: "Process",
+                        references: [refersTo("bpmn:SequenceFlow#targetRef", "A")],
+                        current: {
+                            parent: "Process",
+                            references: [refersTo("bpmn:SequenceFlow#targetRef", "C")],
+                        },
+                    }),
                 ),
             );
 
@@ -748,44 +762,6 @@ describe("MergeDecisions", () => {
                 expect(sidesOfEveryElement(decisions)).toEqual(sidesBefore);
             });
 
-            it("refuses to drop a dependent that both versions have", () => {
-                const decisions = MergeDecisions.from(
-                    mergeResult(
-                        process,
-                        mergeElement("Flow_Default", "changedAndRemoved", {
-                            type: "bpmn:SequenceFlow",
-                            parent: "Process",
-                        }),
-                        mergeElement("Gateway", "takenFromCurrent", {
-                            parent: "Process",
-                            current: {
-                                parent: "Process",
-                                references: [
-                                    refersTo("bpmn:ExclusiveGateway#default", "Flow_Default"),
-                                ],
-                            },
-                        }),
-                    ),
-                );
-                const sidesBefore = sidesOfEveryElement(decisions);
-
-                expect(decisions.pick("Flow_Default", "incoming")).toEqual({
-                    applied: false,
-                    blockedBy: [
-                        {
-                            id: "Gateway",
-                            reason: unmet(
-                                "Gateway",
-                                "takenFromCurrent",
-                                names("bpmn:ExclusiveGateway#default", "Flow_Default"),
-                                { kind: "dependentInBothVersions" },
-                            ),
-                        },
-                    ],
-                });
-                expect(sidesOfEveryElement(decisions)).toEqual(sidesBefore);
-            });
-
             it("refuses to pull in a target no version has", () => {
                 const decisions = MergeDecisions.from(
                     mergeResult(
@@ -837,8 +813,56 @@ describe("MergeDecisions", () => {
                 });
                 expect(decisions.sideOf("F")).toBeUndefined();
             });
+        });
 
-            it("refuses a drop chain that reaches an element both versions have", () => {
+        describe("a dependent both versions have", () => {
+            it("reopens it instead of refusing to drop its target, and keeps the picked target", () => {
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        process,
+                        mergeElement("Flow_Default", "changedAndRemoved", {
+                            type: "bpmn:SequenceFlow",
+                            parent: "Process",
+                        }),
+                        mergeElement("Gateway", "takenFromCurrent", {
+                            parent: "Process",
+                            current: {
+                                parent: "Process",
+                                references: [
+                                    refersTo("bpmn:ExclusiveGateway#default", "Flow_Default"),
+                                ],
+                            },
+                        }),
+                    ),
+                );
+
+                expect(decisions.pick("Flow_Default", "incoming")).toEqual({
+                    applied: true,
+                    pulledIn: [],
+                    dropped: [],
+                });
+
+                expect(decisions.sideOf("Flow_Default")).toBe("incoming");
+                expect(decisions.openConflicts).toEqual([
+                    {
+                        id: "Gateway",
+                        state: "danglingReference",
+                        reasons: [
+                            unmet(
+                                "Gateway",
+                                "takenFromCurrent",
+                                names("bpmn:ExclusiveGateway#default", "Flow_Default"),
+                                { kind: "targetNotInResult", targetState: "changedAndRemoved" },
+                            ),
+                        ],
+                        related: ["Flow_Default", "Gateway"],
+                    },
+                ]);
+                expect(decisions.pick("Gateway", "incoming").applied).toBe(true);
+                expect(decisions.canBuild).toBe(true);
+            });
+
+            it("drops in a chain and reopens the element both versions have at its end", () => {
                 const decisions = MergeDecisions.from(
                     mergeResult(
                         process,
@@ -861,23 +885,103 @@ describe("MergeDecisions", () => {
                         }),
                     ),
                 );
-                const sidesBefore = sidesOfEveryElement(decisions);
 
                 expect(decisions.pick("A", "current")).toEqual({
+                    applied: true,
+                    pulledIn: [],
+                    dropped: ["Boundary"],
+                });
+
+                expect(openIds(decisions)).toEqual(["Event"]);
+                expect(decisions.pick("Event", "current").applied).toBe(true);
+                expect(decisions.canBuild).toBe(true);
+            });
+
+            it("refuses a pick that leaves an open dependent no version can stand in, naming it", () => {
+                const property = "bpmn:DataInputAssociation#targetRef";
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        process,
+                        mergeElement("T1", "bothChanged", { current: { parts: ["P1"] } }),
+                        mergeElement("T2", "bothChanged", { incoming: { parts: ["P2"] } }),
+                        mergeElement("D", "bothAdded", {
+                            current: { references: [refersTo(property, "T1", "P1")] },
+                            incoming: { references: [refersTo(property, "T2", "P2")] },
+                        }),
+                    ),
+                );
+                decisions.pick("T1", "incoming");
+                const openBefore = decisions.openConflicts;
+
+                expect(decisions.pick("T2", "current")).toEqual({
                     applied: false,
                     blockedBy: [
                         {
-                            id: "Event",
-                            reason: unmet(
-                                "Event",
-                                "takenFromIncoming",
-                                names("bpmn:CompensateEventDefinition#activityRef", "Boundary"),
-                                { kind: "dependentInBothVersions" },
-                            ),
+                            id: "D",
+                            reason: unmet("D", "bothAdded", names(property, "T1", "P1"), {
+                                kind: "targetPickedWithout",
+                                side: "incoming",
+                                missing: "part",
+                            }),
+                        },
+                        {
+                            id: "D",
+                            reason: unmet("D", "bothAdded", names(property, "T2", "P2"), {
+                                kind: "targetPickedWithout",
+                                side: "current",
+                                missing: "part",
+                            }),
                         },
                     ],
                 });
-                expect(sidesOfEveryElement(decisions)).toEqual(sidesBefore);
+                expect(decisions.openConflicts).toEqual(openBefore);
+                expect(decisions.pick("D", "incoming").applied).toBe(true);
+            });
+
+            it("leaves a choice for a lane one side removed once the process is picked from that side", () => {
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        mergeElement("Process", "bothChanged", {
+                            type: "bpmn:Process",
+                            current: { parts: ["LaneSet_1"] },
+                        }),
+                        mergeElement("Lane_C", "removedByIncoming", {
+                            type: "bpmn:Lane",
+                            parent: "Process",
+                            container: "LaneSet_1",
+                        }),
+                        mergeElement("Task_N", "addedByCurrent", {
+                            parent: "Process",
+                            lanes: ["Lane_C"],
+                        }),
+                        mergeElement("B", "unchanged", { parent: "Process" }),
+                        mergeElement("F", "takenFromCurrent", {
+                            type: "bpmn:SequenceFlow",
+                            parent: "Process",
+                            current: {
+                                parent: "Process",
+                                references: [refersTo("bpmn:SequenceFlow#targetRef", "Task_N")],
+                            },
+                            incoming: {
+                                parent: "Process",
+                                references: [refersTo("bpmn:SequenceFlow#targetRef", "B")],
+                            },
+                        }),
+                    ),
+                );
+                decisions.pick("Process", "incoming");
+                expect(openIds(decisions)).toEqual(["Lane_C", "Task_N"]);
+                expect(decisions.pick("Lane_C", "current").applied).toBe(false);
+
+                expect(decisions.pick("Lane_C", "incoming")).toEqual({
+                    applied: true,
+                    pulledIn: [],
+                    dropped: ["Task_N"],
+                });
+
+                expect(openIds(decisions)).toEqual(["F"]);
+                expect(decisions.pick("F", "incoming").applied).toBe(true);
+                expect(decisions.canBuild).toBe(true);
             });
         });
     });
@@ -988,7 +1092,10 @@ describe("MergeDecisions", () => {
                     mergeElement("Task_Kept", "removedAndChanged", { parent: "Process" }),
                     mergeElement("Flow", "bothChanged", {
                         parent: "SubProcess",
-                        references: [refersTo("bpmn:SequenceFlow#targetRef", "Task_Kept")],
+                        incoming: {
+                            parent: "SubProcess",
+                            references: [refersTo("bpmn:SequenceFlow#targetRef", "Task_Kept")],
+                        },
                     }),
                 ),
             );
@@ -1532,16 +1639,17 @@ describe("MergeDecisions", () => {
             expect(decisions.canBuild).toBe(true);
         });
 
-        it("refuses to pick a parent without the container when a dependent in both versions would have to switch", () => {
+        it("reopens a dependent in both versions instead of refusing a parent without the container", () => {
             const decisions = MergeDecisions.from(lanesAddedByIncoming("takenFromIncoming"));
 
-            const outcome = decisions.pick("Process", "current");
+            expect(decisions.pick("Process", "current")).toEqual({
+                applied: true,
+                pulledIn: [],
+                dropped: ["Lane_A"],
+            });
 
-            expect(outcome.applied).toBe(false);
-            expect(outcome.applied || outcome.blockedBy.map((blocked) => blocked.id)).toEqual([
-                "Task",
-            ]);
-            expect(decisions.sideOf("Process")).toBeUndefined();
+            expect(openIds(decisions)).toEqual(["Task"]);
+            expect(decisions.pick("Task", "current").applied).toBe(true);
         });
 
         it("opens an automatic element whose parent's side does not hold its container", () => {
@@ -1709,19 +1817,65 @@ describe("MergeDecisions", () => {
             },
         );
 
-        it("opens a picked element whose part another element of the result holds", () => {
-            const decisions = MergeDecisions.from(
+        describe("once one of them is picked", () => {
+            const partHeldOnBothSides = () =>
                 mergeResult(
                     process,
                     mergeElement("X", "bothChanged", { current: { parts: ["P"] } }),
                     mergeElement("Y", "takenFromIncoming", { incoming: { parts: ["P"] } }),
-                ),
-            );
+                    mergeElement("Z", "removedByCurrent", { incoming: { parts: ["P"] } }),
+                    mergeElement("K", "bothChanged", {
+                        incoming: {
+                            references: [refersTo("bpmn:MessageEventDefinition#messageRef", "Z")],
+                        },
+                    }),
+                );
+            const xHoldsP = (target: string) =>
+                clash("X", "bothChanged", { kind: "uniqueId", target, part: "P" }, "part");
 
-            expect(decisions.pick("X", "current").applied).toBe(true);
+            it("keeps the picked element on its side and opens only the other one", () => {
+                const decisions = MergeDecisions.from(partHeldOnBothSides());
 
-            expect(openIds(decisions)).toEqual(["X", "Y"]);
-            expect(decisions.canBuild).toBe(false);
+                expect(decisions.pick("X", "current").applied).toBe(true);
+
+                expect(decisions.sideOf("X")).toBe("current");
+                expect(decisions.openConflicts).toEqual([
+                    {
+                        id: "Y",
+                        state: "danglingReference",
+                        reasons: [xHoldsP("Y")],
+                        related: ["X", "Y"],
+                    },
+                    { id: "K", state: "bothChanged", related: [] },
+                ]);
+            });
+
+            it("refuses to keep the other one with the part, naming the picked one, and changes nothing", () => {
+                const decisions = MergeDecisions.from(partHeldOnBothSides());
+                decisions.pick("X", "current");
+                const openBefore = decisions.openConflicts;
+
+                expect(decisions.pick("Y", "incoming")).toEqual({
+                    applied: false,
+                    blockedBy: [{ id: "X", reason: xHoldsP("Y") }],
+                });
+
+                expect(decisions.openConflicts).toEqual(openBefore);
+                expect(decisions.pick("Y", "current").applied).toBe(true);
+                expect(openIds(decisions)).toEqual(["K"]);
+            });
+
+            it("refuses a pick that pulls in an element holding the picked one's part", () => {
+                const decisions = MergeDecisions.from(partHeldOnBothSides());
+                decisions.pick("X", "current");
+                decisions.pick("Y", "current");
+
+                expect(decisions.pick("K", "incoming")).toEqual({
+                    applied: false,
+                    blockedBy: [{ id: "X", reason: xHoldsP("Z") }],
+                });
+                expect(decisions.isInResult("Z")).toBe(false);
+            });
         });
 
         it("opens an element whose part has the id of another element of the result", () => {
@@ -2021,6 +2175,36 @@ describe("MergeDecisions", () => {
             expect(decisions.unpick("F")).toEqual({ applied: true, pulledIn: [], dropped: [] });
             expect(openIds(decisions)).toEqual(["G", "F"]);
             expect(decisions.openConflicts).toEqual(openBefore);
+        });
+
+        it("reopens only the automatic flow it leaves without a target, never the picked target", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process,
+                    mergeElement("B", "unchanged", { parent: "Process" }),
+                    mergeElement("T", "addedByIncoming", { parent: "Process" }),
+                    mergeElement("F", "takenFromIncoming", {
+                        type: "bpmn:SequenceFlow",
+                        parent: "Process",
+                        current: {
+                            parent: "Process",
+                            references: [refersTo("bpmn:SequenceFlow#targetRef", "B")],
+                        },
+                        incoming: {
+                            parent: "Process",
+                            references: [refersTo("bpmn:SequenceFlow#targetRef", "T")],
+                        },
+                    }),
+                ),
+            );
+            decisions.pick("F", "current");
+            decisions.pick("T", "current");
+
+            expect(decisions.unpick("F")).toEqual({ applied: true, pulledIn: [], dropped: [] });
+
+            expect(decisions.sideOf("T")).toBe("current");
+            expect(openIds(decisions)).toEqual(["F"]);
+            expect(decisions.pick("F", "current").applied).toBe(true);
         });
 
         it("changes nothing for an element the user did not pick", () => {

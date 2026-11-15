@@ -74,11 +74,6 @@ describe("describeUnmetRequirement", () => {
             text: "F (bothAdded) lies in Process and this pick pulls it in",
         },
         {
-            requirement: sourceOfFlow,
-            obstacle: { kind: "dependentInBothVersions" },
-            text: "F (bothAdded) names A in bpmn:SequenceFlow#sourceRef and is in both versions",
-        },
-        {
             requirement: { kind: "uniqueId", target: "T", part: "Property_1" },
             obstacle: { kind: "idHeldByAnother", heldAs: "part" },
             text: "F (bothAdded) holds Property_1, but T holds Property_1 too",

@@ -27,6 +27,10 @@ decisions.unpick("Task_1"); // back to its automatic resolution or open, unless 
 const resolution = decisions.resolution(); // throws while conflicts are open
 ```
 
+An applied pick leaves the element on the picked side: an automatic element that clashes with it or
+dangles on it reopens, and a pick that would change another pick, or leave an open conflict without a
+choice that applies, is refused with its reasons.
+
 `MergeResult` holds only ids, states, per-version facts and a fingerprint of each version's XML
 (`versionKeys`), so it is JSON-serialisable. `computeMerge` refuses, naming the version: sides for
 different engines, a version that parses with any warning, also under the merge's engine descriptor,

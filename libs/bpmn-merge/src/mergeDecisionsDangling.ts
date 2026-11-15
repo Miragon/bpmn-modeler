@@ -12,7 +12,8 @@ export interface DanglingConflict {
 /**
  * Checked against the decided sides, so an element opened here never makes another one dangle:
  * the fixpoint is reached in one pass, and an element that only names an opened one stays resolved.
- * A pick never leaves a picked element's references unmet, but it may leave it clashing with another element.
+ * Only automatic elements open: the picks never leave a picked or consequential element's references unmet, and
+ * they refuse to keep two such elements that clash, so of every pair that cannot stand an automatic one gives way.
  */
 export function findDanglingConflicts(
     elements: readonly MergeElement[],
@@ -25,6 +26,9 @@ export function findDanglingConflicts(
         { readonly reasons: UnmetRequirement[]; readonly related: Set<string> }
     >();
     const open = (id: string, reason: UnmetRequirement, involved: readonly string[]) => {
+        if (!sides.isAutomatic(id)) {
+            return;
+        }
         const conflict = found.get(id) ?? { reasons: [], related: new Set<string>() };
         conflict.reasons.push(reason);
         involved.forEach((involvedId) => conflict.related.add(involvedId));

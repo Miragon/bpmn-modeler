@@ -98,15 +98,31 @@ parser and asserts that the module still loads.
 - *Automatic resolutions are checked too.* One that breaks the rule becomes an open
   conflict for the element and its target, computed again after each pick.
 - *Elements that cannot stand side by side.* Two elements of the result that hold the same
-  inner id, or an inner id that is another element's id, open both: each side's file was
-  valid, but bpmn-js refuses a duplicate id. Two collaborations from different sides with a
-  pool of the same process open both too, since a diagram draws one collaboration per
-  plane and the other's pools would stay in the file unseen. Keeping one collaboration
-  drops the other with its pools.
+  inner id, or an inner id that is another element's id, cannot both stay: each side's file
+  was valid, but bpmn-js refuses a duplicate id. Nor can two collaborations from different
+  sides with a pool of the same process, since a diagram draws one collaboration per plane
+  and the other's pools would stay in the file unseen. Keeping one collaboration drops the
+  other with its pools.
+- *A picked element keeps its side.* Of two elements that cannot stand side by side, and of
+  a dependent and the target it misses, only an automatic one opens; one the user picked,
+  or one a pick decided as its consequence, stays resolved. Without picks both open. A pick
+  that would keep two picked or consequential elements that clash is refused, naming the
+  one it would have to change. The UI can rely on a pick it applied: the element sits on
+  the picked side until the user picks or unpicks it.
 - *A pick names its consequences.* It pulls in a target only its side has, or holds the
-  part, and drops the dependents of an element it removes. It is blocked, says why and
-  changes nothing when that would change an element the user picked, when no side
-  satisfies it, or when a dependent both versions hold would have to switch sides.
+  part, and drops the dependents of an element it removes. A dependent both versions hold
+  cannot be dropped, so it reopens instead of refusing the pick: its version from the side
+  the target comes from cannot name the target, so that choice stays. The pick is blocked,
+  says why and changes nothing when it would change an element the user picked or when no
+  side satisfies it.
+- *No dead end.* Every open conflict keeps a choice that applies. A pick is refused, naming
+  the element, when it would leave an open element both versions hold with no version
+  whose missing targets can still be pulled in. A dangling automatic target that decided
+  elements need, with no other version that serves them, is kept on its side and has its
+  own needs pulled in, or the pick is refused: a pick of a flow to a task in a lane the
+  process no longer holds is refused rather than leaving task and lane without a way out.
+  `mergeDecisionsPathIndependence.spec.ts` checks over every scenario and the hand-built
+  results that each pick sits on its side and every open conflict has a choice.
   A blocked pick and a dangling resolution give the reason as data (element, requirement,
   obstacle), not as a sentence: the library ships one English `describeUnmetRequirement`,
   and a view in another locale replaces it.
@@ -118,10 +134,11 @@ parser and asserts that the module still loads.
   resolutions. Picking an element back, or unpicking it, restores what its first pick
   dropped, pulled in or settled, so no addition is lost and no closed conflict stays closed
   on its own; a sequence of picks and its final picks made on a fresh merge agree
-  (`mergeDecisionsPathIndependence.spec.ts`). A dependent both versions hold that an
-  earlier pick leaves unmet dangles instead of refusing the call, so an unpick is never
-  blocked by an element nobody picked. The cost is one closure over all picks per call,
-  which is linear in the result for the few picks a merge has.
+  (`mergeDecisionsPathIndependence.spec.ts`). A dependent both versions hold that a pick
+  or an unpick leaves unmet reopens rather than refusing the call. The cost is one closure
+  over all picks per call, plus a pass over the result for clashes and dead ends, which is
+  linear in the result for the few picks a merge has; and a pick can reopen an element the
+  user did not touch, which then waits for its own choice.
 - *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
   from its own side when the preferred side does not draw it, or draws it in another
   parent, lane, host or between other ends, since bpmn-js reads lane membership and

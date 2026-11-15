@@ -60,6 +60,11 @@ export class DecidedSides {
         return this.picked.has(id);
     }
 
+    /** Neither picked nor decided as a pick's consequence. */
+    isAutomatic(id: string): boolean {
+        return !this.picked.has(id) && !this.consequences.has(id);
+    }
+
     isPresent(id: string): boolean {
         const side = this.decidedSideOf(id);
         return side !== undefined && this.elementsById.get(id)?.versions[side] !== undefined;
