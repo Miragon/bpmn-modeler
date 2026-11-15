@@ -41,15 +41,19 @@ export function layoutSidesOf(
     sideInResult: SideInResult,
 ): Record<string, MergeSide> {
     const elementsById = new Map(elements.map((element) => [element.id, element]));
+    const poolOfProcess = poolsByProcess(elements, sideInResult);
     const choices = new Map<string, LayoutChoice>();
     for (const element of elements) {
         const side = sideInResult(element.id);
-        const choice = side === undefined ? undefined : layoutChoiceOf(element, side);
+        const choice =
+            side === undefined
+                ? undefined
+                : layoutChoiceOf(element, side, poolOfProcess.has(element.id));
         if (choice !== undefined) {
             choices.set(element.id, choice);
         }
     }
-    const settled = settleContainersFirst(elements, elementsById, choices, sideInResult);
+    const settled = settleContainersFirst(elementsById, choices, sideInResult, poolOfProcess);
     const layout: Record<string, MergeSide> = {};
     for (const element of elements) {
         const side = settled.get(element.id);
@@ -60,24 +64,37 @@ export function layoutSidesOf(
     return layout;
 }
 
-/** The preferred side, or the element's own when the preferred one does not draw it in place. */
-function layoutChoiceOf(element: MergeElement, elementSide: MergeSide): LayoutChoice | undefined {
+/**
+ * The preferred side, else the element's own, else the other one: the first that draws it in place. The other one
+ * draws a process whose side drew it only through a pool the result drops; a process a pool of the result draws
+ * takes no plane of its own from it.
+ */
+function layoutChoiceOf(
+    element: MergeElement,
+    elementSide: MergeSide,
+    drawnByAPoolOfTheResult: boolean,
+): LayoutChoice | undefined {
     const preferred = PREFERRED_LAYOUT_SIDE[element.layout];
-    const keepsPreferred = drawsInPlace(element.versions[preferred], element.versions[elementSide]);
-    const side = keepsPreferred ? preferred : elementSide;
-    if (!element.versions[side]?.drawn) {
-        return undefined;
-    }
-    return { side, preferred };
+    const contentVersion = element.versions[elementSide];
+    const candidates = drawnByAPoolOfTheResult
+        ? [preferred, elementSide]
+        : [preferred, elementSide, otherSide(preferred)];
+    const side = candidates.find((candidate) =>
+        drawsInPlace(element.versions[candidate], contentVersion),
+    );
+    return side === undefined ? undefined : { side, preferred };
+}
+
+function otherSide(side: MergeSide): MergeSide {
+    return side === "current" ? "incoming" : "current";
 }
 
 function settleContainersFirst(
-    elements: readonly MergeElement[],
     elementsById: ReadonlyMap<string, MergeElement>,
     choices: ReadonlyMap<string, LayoutChoice>,
     sideInResult: SideInResult,
+    poolOfProcess: ReadonlyMap<string, string>,
 ): ReadonlyMap<string, MergeSide> {
-    const poolOfProcess = poolsByProcess(elements, sideInResult);
     const settled = new Map<string, MergeSide>();
     const visiting = new Set<string>();
 
@@ -114,8 +131,8 @@ function settleContainersFirst(
         return side;
     };
 
-    for (const element of elements) {
-        settle(element.id);
+    for (const id of elementsById.keys()) {
+        settle(id);
     }
     return settled;
 }

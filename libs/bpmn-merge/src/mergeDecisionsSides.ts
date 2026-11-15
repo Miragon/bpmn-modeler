@@ -23,8 +23,8 @@ const AUTOMATIC_SIDE: Record<ResolvedState, MergeSide> = {
 export class DecidedSides {
     private constructor(
         private readonly elementsById: ReadonlyMap<string, MergeElement>,
-        private readonly picked: Map<string, MergeSide>,
-        /** Pulled in or dropped by a pick; a later pick may change them. */
+        private readonly picked: ReadonlyMap<string, MergeSide>,
+        /** Pulled in or dropped for the picks; derived from them alone, never kept past a change of picks. */
         private readonly consequences: Map<string, MergeSide>,
     ) {}
 
@@ -32,12 +32,17 @@ export class DecidedSides {
         return new DecidedSides(elementsById, new Map(), new Map());
     }
 
-    copy(): DecidedSides {
-        return new DecidedSides(
-            this.elementsById,
-            new Map(this.picked),
-            new Map(this.consequences),
-        );
+    /** The picks over the automatic resolutions, without consequences yet. */
+    withPicks(picks: ReadonlyMap<string, MergeSide>): DecidedSides {
+        return new DecidedSides(this.elementsById, new Map(picks), new Map());
+    }
+
+    get picks(): ReadonlyMap<string, MergeSide> {
+        return this.picked;
+    }
+
+    consequenceSideOf(id: string): MergeSide | undefined {
+        return this.consequences.get(id);
     }
 
     decidedSideOf(id: string): MergeSide | undefined {
@@ -80,15 +85,6 @@ export class DecidedSides {
             target !== undefined &&
             !holdsRequiredPart(target, side, requirement)
         );
-    }
-
-    pick(id: string, side: MergeSide): void {
-        this.picked.set(id, side);
-        this.consequences.delete(id);
-    }
-
-    unpick(id: string): void {
-        this.picked.delete(id);
     }
 
     decideAsConsequence(id: string, side: MergeSide): void {

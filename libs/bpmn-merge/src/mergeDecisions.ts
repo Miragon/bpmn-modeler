@@ -1,9 +1,4 @@
-import {
-    closePicks,
-    closeUnpick,
-    type ClosedDecisions,
-    type PickContext,
-} from "./mergeDecisionsClosure";
+import { closePicks, closeUnpick, type ClosedDecisions } from "./mergeDecisionsClosure";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { findDanglingConflicts, type DanglingConflict } from "./mergeDecisionsDangling";
 import { layoutSidesOf } from "./mergeDecisionsLayout";
@@ -16,7 +11,7 @@ import {
     type MergeResult,
     type MergeSide,
 } from "./mergeResult";
-import { dependentsByTarget } from "./referenceRules";
+import { dependentsByTarget, type ReferenceIndex } from "./referenceRules";
 import type { UnmetRequirement } from "./unmetRequirement";
 
 export type { BlockedPick, PickOutcome } from "./pickOutcome";
@@ -26,7 +21,7 @@ export type OpenConflict =
     | {
           readonly id: string;
           readonly state: "danglingReference";
-          /** The requirements an automatic resolution left unmet, on this element or naming it. */
+          /** The requirements the decided sides leave unmet, on this element or naming it: a reference, or an id or pool another element shares. */
           readonly reasons: readonly UnmetRequirement[];
           readonly related: readonly string[];
       };
@@ -45,9 +40,9 @@ export class MergeDecisions {
 
     private constructor(
         private readonly mergeResult: MergeResult,
-        private readonly context: PickContext,
+        private readonly index: ReferenceIndex,
     ) {
-        this.sides = DecidedSides.automatic(context.elementsById);
+        this.sides = DecidedSides.automatic(index.elementsById);
         this.dangling = this.findDangling();
     }
 
@@ -87,23 +82,25 @@ export class MergeDecisions {
 
     pick(id: string, side: MergeSide): PickOutcome {
         this.requireElement(id);
-        return this.apply(new Map([[id, side]]));
+        return this.apply([id], side);
     }
 
     /** The container and every descendant in either version, as one pick. */
     pickWithContents(id: string, side: MergeSide): PickOutcome {
         this.requireElement(id);
-        const ids = [id, ...descendantsOf(id, this.mergeResult.elements)];
-        return this.apply(new Map(ids.map((picked) => [picked, side])));
+        return this.apply([id, ...descendantsOf(id, this.mergeResult.elements)], side);
     }
 
-    /** Takes the user's pick back: the element returns to its automatic resolution or to open. */
+    /**
+     * Takes the user's pick back: the element returns to its automatic resolution or to open, or stays where another
+     * pick needs it. An automatic element both versions hold that it leaves unmet reopens as dangling.
+     */
     unpick(id: string): PickOutcome {
         this.requireElement(id);
         if (!this.sides.isPicked(id)) {
             return { applied: true, pulledIn: [], dropped: [] };
         }
-        return this.take(closeUnpick(this.context, this.sides, id));
+        return this.take(closeUnpick(this.index, this.sides, id));
     }
 
     resolution(): MergeResolution {
@@ -123,8 +120,10 @@ export class MergeDecisions {
         return { elements, layout };
     }
 
-    private apply(picks: ReadonlyMap<string, MergeSide>): PickOutcome {
-        return this.take(closePicks(this.context, this.sides, picks));
+    private apply(ids: readonly string[], side: MergeSide): PickOutcome {
+        const picks = new Map(this.sides.picks);
+        ids.forEach((id) => picks.set(id, side));
+        return this.take(closePicks(this.index, this.sides, picks));
     }
 
     private take({ outcome, after }: ClosedDecisions): PickOutcome {
@@ -134,11 +133,7 @@ export class MergeDecisions {
     }
 
     private findDangling(): ReadonlyMap<string, DanglingConflict> {
-        return findDanglingConflicts(
-            this.mergeResult.elements,
-            this.context.elementsById,
-            this.sides,
-        );
+        return findDanglingConflicts(this.mergeResult.elements, this.index, this.sides);
     }
 
     private openConflictOf(element: MergeElement): OpenConflict | undefined {
@@ -158,7 +153,7 @@ export class MergeDecisions {
     }
 
     private requireElement(id: string): void {
-        if (!this.context.elementsById.has(id)) {
+        if (!this.index.elementsById.has(id)) {
             throw new Error(`The merge result has no element ${id}`);
         }
     }

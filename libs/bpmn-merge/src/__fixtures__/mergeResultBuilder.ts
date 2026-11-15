@@ -80,9 +80,13 @@ export function mergeElement(
 }
 
 export function mergeResult(...elements: MergeElement[]): MergeResult {
-    return { hasBase: true, elements };
+    return {
+        hasBase: true,
+        versionKeys: { base: "base", current: "current", incoming: "incoming" },
+        elements,
+    };
 }
 
 export function mergeResultWithoutBase(...elements: MergeElement[]): MergeResult {
-    return { hasBase: false, elements };
+    return { hasBase: false, versionKeys: { current: "current", incoming: "incoming" }, elements };
 }

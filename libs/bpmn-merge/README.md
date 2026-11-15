@@ -23,7 +23,7 @@ for (const conflict of decisions.openConflicts) {
         outcome.blockedBy.map(({ reason }) => describeUnmetRequirement(reason)); // or the view's own words
     }
 }
-decisions.unpick("Task_1"); // back to its automatic resolution, or open
+decisions.unpick("Task_1"); // back to its automatic resolution or open, unless another pick needs it
 const resolution = decisions.resolution(); // throws while conflicts are open
 ```
 

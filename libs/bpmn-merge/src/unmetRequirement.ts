@@ -20,7 +20,9 @@ export type RequirementObstacle =
     | { readonly kind: "targetTakenWithoutPart"; readonly side: MergeSide }
     | { readonly kind: "dependentPicked"; readonly side: MergeSide }
     | { readonly kind: "dependentPulledInByThisPick" }
-    | { readonly kind: "dependentInBothVersions" };
+    | { readonly kind: "dependentInBothVersions" }
+    | { readonly kind: "idHeldByAnother"; readonly heldAs: "part" | "element" }
+    | { readonly kind: "processInAnotherCollaboration" };
 
 export interface UnmetRequirement {
     readonly element: { readonly id: string; readonly state: ElementState };
@@ -49,6 +51,10 @@ function describeRequirement(requirement: Requirement): string {
             return requirement.part === undefined
                 ? `names ${requirement.target} in ${requirement.property}`
                 : `names ${requirement.part} inside ${requirement.target} in ${requirement.property}`;
+        case "uniqueId":
+            return `holds ${requirement.part}`;
+        case "soleCollaboration":
+            return `has a pool of ${requirement.process}`;
     }
 }
 
@@ -80,5 +86,11 @@ function describeObstacle(requirement: Requirement, obstacle: RequirementObstacl
             return " and this pick pulls it in";
         case "dependentInBothVersions":
             return " and is in both versions";
+        case "idHeldByAnother":
+            return obstacle.heldAs === "part"
+                ? `, but ${target} holds ${part} too`
+                : `, but the result has an element ${target}`;
+        case "processInAnotherCollaboration":
+            return `, but ${target} has one too and a diagram draws only one collaboration`;
     }
 }

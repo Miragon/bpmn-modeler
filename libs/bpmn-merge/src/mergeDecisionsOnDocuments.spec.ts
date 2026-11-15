@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { baseModel, cloneModel, nodeById, removeNode } from "./__fixtures__/baseModel";
+import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 
@@ -25,11 +27,15 @@ const edge = (id: string, waypoints: readonly (readonly [number, number])[]) =>
         .join("")}</bpmndi:BPMNEdge>`;
 
 async function decisionsOf(versions: {
-    base: string;
+    base?: string;
     current: string;
     incoming: string;
 }): Promise<MergeDecisions> {
     return MergeDecisions.from(await computeMerge(versions));
+}
+
+function openIds(decisions: MergeDecisions): string[] {
+    return decisions.openConflicts.map((conflict) => conflict.id);
 }
 
 describe("MergeDecisions on parsed documents", () => {
@@ -291,5 +297,136 @@ describe("MergeDecisions on parsed documents", () => {
             expect(decisions.canBuild).toBe(true);
             expect(decisions.isInResult("F")).toBe(false);
         });
+    });
+
+    describe("a pool only one side draws the process in", () => {
+        const withPool = renderBpmn(baseModel("c7"));
+        const withoutPool = (() => {
+            const model = baseModel("c7");
+            model.pools = [];
+            return renderBpmn(model);
+        })();
+
+        it.each([
+            { case: "without a base", base: undefined },
+            { case: "when current added it", base: withoutPool },
+        ])(
+            "draws the process and its contents from incoming once the pool is picked away, $case",
+            async ({ base }) => {
+                const decisions = await decisionsOf({
+                    base,
+                    current: withPool,
+                    incoming: withoutPool,
+                });
+
+                expect(decisions.pick("Collaboration_1", "incoming").applied).toBe(true);
+
+                expect(decisions.canBuild).toBe(true);
+                const { layout } = decisions.resolution();
+                expect([
+                    layout.Process_1,
+                    layout.Lane_Clerk,
+                    layout.Task_Check,
+                    layout.Flow_Start,
+                ]).toEqual(["incoming", "incoming", "incoming", "incoming"]);
+            },
+        );
+
+        it("keeps drawing the contents in the pool current added when the pool stays", async () => {
+            const decisions = await decisionsOf({
+                base: withoutPool,
+                current: withPool,
+                incoming: withoutPool,
+            });
+
+            const { layout } = decisions.resolution();
+
+            expect(layout.Process_1).toBeUndefined();
+            expect([layout.Participant_Shop, layout.Task_Check]).toEqual(["current", "current"]);
+        });
+    });
+
+    it("opens two collaborations each side added around the same process", async () => {
+        const withoutPool = (() => {
+            const model = baseModel("c7");
+            model.pools = [];
+            return renderBpmn(model);
+        })();
+        const withPool = renderBpmn(baseModel("c7"));
+        const decisions = await decisionsOf({
+            base: withoutPool,
+            current: withPool,
+            incoming: withPool
+                .replaceAll("Collaboration_1", "Collaboration_2")
+                .replaceAll("Participant_Shop", "Participant_Store"),
+        });
+
+        expect(openIds(decisions)).toEqual(["Collaboration_1", "Collaboration_2"]);
+        expect(decisions.pick("Collaboration_2", "incoming")).toEqual({
+            applied: true,
+            pulledIn: [],
+            dropped: ["Collaboration_1", "Participant_Shop"],
+        });
+        expect(decisions.canBuild).toBe(true);
+    });
+
+    it("opens a task picked with a placeholder property another task now holds", async () => {
+        const dataInputInto = (target: string) => ({
+            id: "DataInput_Pack",
+            kind: "dataInput" as const,
+            source: "DataRef_Order",
+            target,
+            targetProperty: "Property_Placeholder",
+        });
+        const base = baseModel("c7");
+        base.flows.push(dataInputInto("Task_Pack"));
+        const current = cloneModel(base);
+        nodeById(current, "Task_Pack").name = "Pack parcel";
+        const incoming = cloneModel(base);
+        incoming.flows = incoming.flows.map((flow) =>
+            flow.id === "DataInput_Pack" ? dataInputInto("Task_Reject") : flow,
+        );
+        const decisions = await decisionsOf({
+            base: renderBpmn(base),
+            current: renderBpmn(current),
+            incoming: renderBpmn(incoming),
+        });
+
+        expect(decisions.pick("Task_Pack", "current").applied).toBe(true);
+
+        expect(openIds(decisions)).toEqual(["Task_Pack", "Task_Reject"]);
+        expect(decisions.canBuild).toBe(false);
+        decisions.pick("Task_Pack", "incoming");
+        expect(decisions.canBuild).toBe(true);
+    });
+
+    it("keeps a boundary event incoming added once its host is picked back from incoming", async () => {
+        const base = baseModel("c7");
+        const current = removeNode(cloneModel(base), "Task_Reject");
+        const incoming = cloneModel(base);
+        nodeById(incoming, "Task_Reject").name = "Reject order";
+        incoming.nodes.push({
+            id: "Boundary_Escalate",
+            type: "boundaryEvent",
+            x: 592,
+            y: 382,
+            lane: "Lane_Manager",
+            attachedTo: "Task_Reject",
+        });
+        const decisions = await decisionsOf({
+            base: renderBpmn(base),
+            current: renderBpmn(current),
+            incoming: renderBpmn(incoming),
+        });
+        const fresh = MergeDecisions.from(decisions.result);
+        fresh.pick("Task_Reject", "incoming");
+
+        expect(decisions.pick("Task_Reject", "current")).toMatchObject({
+            dropped: expect.arrayContaining(["Boundary_Escalate"]),
+        });
+        decisions.pick("Task_Reject", "incoming");
+
+        expect(decisions.isInResult("Boundary_Escalate")).toBe(true);
+        expect(decisions.openConflicts).toEqual(fresh.openConflicts);
     });
 });

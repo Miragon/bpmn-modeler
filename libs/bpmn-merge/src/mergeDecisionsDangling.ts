@@ -1,6 +1,7 @@
+import { findClashes } from "./mergeDecisionsClashes";
 import type { DecidedSides } from "./mergeDecisionsSides";
 import type { MergeElement, MergeSide } from "./mergeResult";
-import { requirementsOf } from "./referenceRules";
+import { requirementsOf, type ReferenceIndex } from "./referenceRules";
 import type { RequirementObstacle, UnmetRequirement } from "./unmetRequirement";
 
 export interface DanglingConflict {
@@ -11,13 +12,14 @@ export interface DanglingConflict {
 /**
  * Checked against the decided sides, so an element opened here never makes another one dangle:
  * the fixpoint is reached in one pass, and an element that only names an opened one stays resolved.
- * A pick never leaves a picked element dangling, so in practice only automatic resolutions open here.
+ * A pick never leaves a picked element's references unmet, but it may leave it clashing with another element.
  */
 export function findDanglingConflicts(
     elements: readonly MergeElement[],
-    elementsById: ReadonlyMap<string, MergeElement>,
+    index: ReferenceIndex,
     sides: DecidedSides,
 ): ReadonlyMap<string, DanglingConflict> {
+    const { elementsById } = index;
     const found = new Map<
         string,
         { readonly reasons: UnmetRequirement[]; readonly related: Set<string> }
@@ -49,6 +51,10 @@ export function findDanglingConflicts(
                 open(requirement.target, reason, involved);
             }
         }
+    }
+
+    for (const { reason, involved } of findClashes(elements, index, sides)) {
+        involved.forEach((id) => open(id, reason, involved));
     }
 
     const resultOrder = new Map(elements.map((element, index) => [element.id, index]));

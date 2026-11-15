@@ -20,6 +20,12 @@ describe("MergeDecisions", () => {
 
         const { MergeDecisions } = await import("./mergeDecisions");
 
-        expect(MergeDecisions.from({ hasBase: true, elements: [] }).canBuild).toBe(true);
+        expect(
+            MergeDecisions.from({
+                hasBase: false,
+                versionKeys: { current: "current", incoming: "incoming" },
+                elements: [],
+            }).canBuild,
+        ).toBe(true);
     });
 });

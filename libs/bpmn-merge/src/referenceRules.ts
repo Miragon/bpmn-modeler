@@ -9,7 +9,8 @@ import {
 /**
  * What an element in the result needs in the result, read from the version its side gives. A `part` is an id inside
  * the target that the target's side in the result must hold: a lane set holding a lane, a data input an association
- * names.
+ * names. `uniqueId` and `soleCollaboration` are needs against another element of the result, `target`, that shares
+ * the id `part` or a pool of `process`; `requirementsOf` never lists them.
  */
 export type Requirement =
     | { readonly kind: "parent"; readonly target: string; readonly part?: string }
@@ -19,7 +20,9 @@ export type Requirement =
           readonly target: string;
           readonly property: string;
           readonly part?: string;
-      };
+      }
+    | { readonly kind: "uniqueId"; readonly target: string; readonly part: string }
+    | { readonly kind: "soleCollaboration"; readonly target: string; readonly process: string };
 
 export interface Dependent {
     readonly element: MergeElement;
@@ -58,7 +61,7 @@ function requirementsOfVersion(version: ElementVersion): Requirement[] {
 }
 
 export function requiredPartOf(requirement: Requirement): string | undefined {
-    return requirement.kind === "lane" ? undefined : requirement.part;
+    return "part" in requirement ? requirement.part : undefined;
 }
 
 /** Whether the target's version on `side` holds what the requirement names inside it. */
@@ -69,6 +72,12 @@ export function holdsRequiredPart(
 ): boolean {
     const part = requiredPartOf(requirement);
     return part === undefined || (target.versions[side]?.parts.includes(part) ?? false);
+}
+
+/** Built once per merge result: the elements by id and every element that needs each target. */
+export interface ReferenceIndex {
+    readonly elementsById: ReadonlyMap<string, MergeElement>;
+    readonly dependentsByTarget: ReadonlyMap<string, readonly Dependent[]>;
 }
 
 export function dependentsByTarget(

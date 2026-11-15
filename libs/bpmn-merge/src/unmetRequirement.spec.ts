@@ -78,6 +78,25 @@ describe("describeUnmetRequirement", () => {
             obstacle: { kind: "dependentInBothVersions" },
             text: "F (bothAdded) names A in bpmn:SequenceFlow#sourceRef and is in both versions",
         },
+        {
+            requirement: { kind: "uniqueId", target: "T", part: "Property_1" },
+            obstacle: { kind: "idHeldByAnother", heldAs: "part" },
+            text: "F (bothAdded) holds Property_1, but T holds Property_1 too",
+        },
+        {
+            requirement: { kind: "uniqueId", target: "T", part: "T" },
+            obstacle: { kind: "idHeldByAnother", heldAs: "element" },
+            text: "F (bothAdded) holds T, but the result has an element T",
+        },
+        {
+            requirement: {
+                kind: "soleCollaboration",
+                target: "Collaboration_2",
+                process: "Process_1",
+            },
+            obstacle: { kind: "processInAnotherCollaboration" },
+            text: "F (bothAdded) has a pool of Process_1, but Collaboration_2 has one too and a diagram draws only one collaboration",
+        },
     ])("says $obstacle.kind as “$text”", ({ requirement, obstacle, text }) => {
         expect(
             describeUnmetRequirement({

@@ -97,6 +97,12 @@ parser and asserts that the module still loads.
   descriptors' references covers every reference the parse resolves.
 - *Automatic resolutions are checked too.* One that breaks the rule becomes an open
   conflict for the element and its target, computed again after each pick.
+- *Elements that cannot stand side by side.* Two elements of the result that hold the same
+  inner id, or an inner id that is another element's id, open both: each side's file was
+  valid, but bpmn-js refuses a duplicate id. Two collaborations from different sides with a
+  pool of the same process open both too, since a diagram draws one collaboration per
+  plane and the other's pools would stay in the file unseen. Keeping one collaboration
+  drops the other with its pools.
 - *A pick names its consequences.* It pulls in a target only its side has, or holds the
   part, and drops the dependents of an element it removes. It is blocked, says why and
   changes nothing when that would change an element the user picked, when no side
@@ -105,12 +111,23 @@ parser and asserts that the module still loads.
   obstacle), not as a sentence: the library ships one English `describeUnmetRequirement`,
   and a view in another locale replaces it.
   `pickWithContents` decides a container and everything in it at once; a later pick inside
-  overrides it. `unpick` returns an element to its automatic resolution or to open, which
-  is the way out of two picks that name each other.
+  overrides it. `unpick` takes a pick back; an element nothing else needs returns to its
+  automatic resolution or to open, which is the way out of two picks that name each other.
+- *Consequences follow the picks, not their order.* The only state is the user's picks:
+  each pick or unpick derives every consequence again from them over the automatic
+  resolutions. Picking an element back, or unpicking it, restores what its first pick
+  dropped, pulled in or settled, so no addition is lost and no closed conflict stays closed
+  on its own; a sequence of picks and its final picks made on a fresh merge agree
+  (`mergeDecisionsPathIndependence.spec.ts`). A dependent both versions hold that an
+  earlier pick leaves unmet dangles instead of refusing the call, so an unpick is never
+  blocked by an element nobody picked. The cost is one closure over all picks per call,
+  which is linear in the result for the few picks a merge has.
 - *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
   from its own side when the preferred side does not draw it, or draws it in another
   parent, lane, host or between other ends, since bpmn-js reads lane membership and
-  attachment from geometry. Containers settle first: an element follows its host, parent,
+  attachment from geometry, and from the other side when neither draws it in place: a
+  process one side drew only through a pool the result drops takes the other side's
+  plane, unless a pool of the result draws it. Containers settle first: an element follows its host, parent,
   pool or lane when that side moved the container, or when its own side draws it on
   another plane (a collapsed sub-process), and a flow follows its ends when one of them had
   to.
