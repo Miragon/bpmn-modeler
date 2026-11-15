@@ -9,8 +9,8 @@ A Git conflict in a BPMN file leaves conflict markers in XML that the modeler ca
 The merge resolves it on the model: Git's three index stages (base, current, incoming) are
 classified element by element, the user decides what is left, and one valid file is built.
 Epic #2459 keeps the merge in VS Code first and out of the published packages. This record
-covers the data library and the editor of the line-wise XML merge; the merge view gets its
-own section when it is built.
+covers the data library and the editor of the line-wise XML merge; the view that shows a
+conflict as diagrams has [its own record](merge-view.md).
 
 ## Decision
 
