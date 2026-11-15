@@ -207,8 +207,9 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)`; the file name alone when a
   version is unknown. The core shows a ref as the host names it: VS Code's
   `documentRevision`, the one home of what the plugin knows about Git URIs, reads the
-  version from the Git extension's URIs and cuts commit hashes to the extension's
-  default seven characters, so the title depends on that format and ignores a changed
+  version from the Git extension's URIs and cuts commit hashes with the core's
+  `shortCommitHash` to the extension's default seven characters, which the merge view's
+  captions share, so the title depends on that format and ignores a changed
   `git.commitShortHashLength`. Theia's own Git integration (`gitfs:`) and the bridge report
   unknown; the standalone app ships VS Code's Git extension, so its panes are `git:` too.
   The core also orders the sides of an SCM diff by version (a commit, the index, the

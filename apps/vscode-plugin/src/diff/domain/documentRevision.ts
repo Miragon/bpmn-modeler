@@ -1,4 +1,4 @@
-import { DiffRevision } from "@miragon/bpmn-modeler-core";
+import { DiffRevision, isFullCommitHash, shortCommitHash } from "@miragon/bpmn-modeler-core";
 
 /**
  * Which version a diff pane's document shows, read from its URI as VS Code's
@@ -51,12 +51,9 @@ function gitRefOf(query: string): string | undefined {
     }
 }
 
-const FULL_COMMIT_HASH = /^([0-9a-f]{40})(\^?)$/i;
-// The Git extension's default `git.commitShortHashLength`.
-const SHORT_HASH_LENGTH = 7;
-
-/** A commit as the Git extension names it in its diff titles; symbolic refs stay. */
+/** A commit as the Git extension names it in its diff titles, its parent too; symbolic refs stay. */
 function shortRef(ref: string): string {
-    const commit = FULL_COMMIT_HASH.exec(ref);
-    return commit ? `${commit[1].slice(0, SHORT_HASH_LENGTH)}${commit[2]}` : ref;
+    const parent = ref.endsWith("^") ? "^" : "";
+    const commit = ref.slice(0, ref.length - parent.length);
+    return isFullCommitHash(commit) ? `${shortCommitHash(commit)}${parent}` : ref;
 }

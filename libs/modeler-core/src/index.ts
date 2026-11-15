@@ -163,6 +163,7 @@ export { ViewReview } from "./addOns/adapter/out/ViewReview";
 export * from "./addOns/composition/AddOnsFeature";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
+export * from "./diff/domain/commitHash";
 export * from "./diff/domain/compareTexts";
 export * from "./diff/domain/conflictFacts";
 export * from "./diff/domain/conflictReading";

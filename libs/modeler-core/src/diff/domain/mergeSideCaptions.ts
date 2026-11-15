@@ -1,11 +1,9 @@
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import { ConflictMarkerReading } from "../../kernel/domain/conflictMarkers";
+import { isFullCommitHash, shortCommitHash } from "./commitHash";
 import { GitCommitFact, GitRefFacts } from "./conflictFacts";
 import { GitOperation } from "./gitOperation";
-
-// The Git extension's default `git.commitShortHashLength`.
-const SHORT_HASH_LENGTH = 7;
 
 type Captions = Record<MergeSide, MergeSideCaption>;
 
@@ -40,12 +38,7 @@ const CAPTIONS_OF: Record<
         incoming: caption("incoming", "stash", undefined, undefined),
     }),
     unknown: (_refs, markers) => ({
-        current: caption(
-            "current",
-            "unknown",
-            markers.hasMarkers ? markers.currentLabel : undefined,
-            undefined,
-        ),
+        current: caption("current", "unknown", currentLabel(markers), undefined),
         incoming: caption("incoming", "unknown", incomingLabel(markers), undefined),
     }),
 };
@@ -59,6 +52,10 @@ export function mergeSideCaptions(
     return CAPTIONS_OF[operation](refs, markers);
 }
 
+function currentLabel(markers: ConflictMarkerReading): string | undefined {
+    return markers.hasMarkers ? markers.currentLabel : undefined;
+}
+
 function incomingLabel(markers: ConflictMarkerReading): string | undefined {
     return markers.hasMarkers ? markers.incomingLabel : undefined;
 }
@@ -69,12 +66,19 @@ function caption(
     ref: string | undefined,
     commit: GitCommitFact | undefined,
 ): MergeSideCaption {
+    const shownRef = refShown(ref, commit);
     return {
         side,
         role,
-        ...(ref === undefined ? {} : { ref }),
+        ...(shownRef === undefined ? {} : { ref: shownRef }),
         ...(commit === undefined
             ? {}
-            : { shortHash: commit.hash.slice(0, SHORT_HASH_LENGTH), subject: commit.subject }),
+            : { shortHash: shortCommitHash(commit.hash), subject: commit.subject }),
     };
+}
+
+// `git pull` labels its markers with the merged commit's full hash: name the commit once, cut.
+function refShown(ref: string | undefined, commit: GitCommitFact | undefined): string | undefined {
+    if (ref === undefined || !isFullCommitHash(ref)) return ref;
+    return commit === undefined ? shortCommitHash(ref) : undefined;
 }
