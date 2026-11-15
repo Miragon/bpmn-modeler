@@ -1,5 +1,7 @@
 import {
     type ApplyMergeStatesQuery,
+    BuildMergeResultCommand,
+    CompareMergeResultCommand,
     CursorChangedCommand,
     type MergePaneStates,
     type MergePaneStep,
@@ -54,6 +56,10 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     from the context pad and the legend's pick actions; the host decides
  *     them and sends both panes their states again, so the pane shows a
  *     pick only once the host made it.
+ *   - Outgoing {@link BuildMergeResultCommand} and
+ *     {@link CompareMergeResultCommand} from the right pane's legend; the
+ *     host builds, and its states say whether Build and the comparisons are
+ *     enabled and what the last build noted.
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
  * the open list, and the step after it goes on from its place.
@@ -101,6 +107,9 @@ export class MergeMode {
                 onPick: (id, scope) => this.pick(id, scope),
                 onUnpick: (id, scope) => this.unpick(id, scope),
                 onSelect: (id) => this.select(id),
+                onBuild: () => this.host.postMessage(new BuildMergeResultCommand()),
+                onCompare: (against) =>
+                    this.host.postMessage(new CompareMergeResultCommand(against)),
             },
             i18n,
         );
@@ -255,6 +264,11 @@ export class MergeMode {
                 restoreOffer: states.restoreOffer,
                 nameOf: (id) => this.nameOf(id),
             },
+            // The right pane's half carries the build, as a diff pane's carries the changes.
+            building:
+                this.states.side === "after"
+                    ? { build: states.build, nameOf: (id) => this.nameOf(id) }
+                    : undefined,
         });
     }
 }

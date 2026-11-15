@@ -4,22 +4,31 @@ import {
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
+    SwitchMergeComparisonCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { DIFF_CATEGORIES, DIFF_MARKERS, diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import {
+    DIFF_CATEGORIES,
+    DIFF_MARKERS,
+    type DiffLegendState,
+    DiffLegendView,
+    diffOriginSupports,
+} from "@miragon/bpmn-modeler-types";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
-import { DiffLegend, type DiffLegendContext, DiffNavigator } from "@miragon/bpmn-modeler/viewer";
+import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";
 
 import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
+import { ResultComparisonSwitch } from "./resultComparisonSwitch";
 
 /**
  * Entry point for a webview running as one side of a BPMN diff view.
  *
  * Thin host-protocol adapter over the package's diff primitives: on top of the
  * {@link DiffPanePlumbing} every two-pane view shares, it owns a
- * {@link DiffLegend} and a {@link DiffNavigator}, and translates between them
- * and the Query/Command protocol:
+ * {@link DiffLegendView} and a {@link DiffNavigator}, and translates between
+ * them and the Query/Command protocol:
  *   - Incoming {@link ApplyDiffHighlightsQuery} → paint markers, rebuild the
  *     navigator's cycle, show the legend (counts + navigationOrder are
  *     symmetric across sides).
@@ -27,6 +36,9 @@ import { DiffPanePlumbing } from "./diffPanePlumbing";
  *     re-emitting (would otherwise ping-pong the two panes forever).
  *   - Outgoing {@link CursorChangedCommand} on user-driven Next/Prev so the
  *     partner pane's stepper stays in lockstep.
+ *   - On a built merge result compared with one side, the bar names the side
+ *     and posts {@link SwitchMergeComparisonCommand} from its switch, which
+ *     it shows only where the query's `comparison` offers it.
  *
  * The stepper and anchor walk live in {@link DiffNavigator}; the host's
  * navigationOrder already leaves out connections whose only change is layout.
@@ -36,11 +48,13 @@ import { DiffPanePlumbing } from "./diffPanePlumbing";
 export class DiffMode {
     private readonly pane: DiffPanePlumbing;
 
-    private readonly legend: DiffLegend;
+    private readonly legend: DiffLegendView;
+
+    private readonly comparison: ResultComparisonSwitch;
 
     private readonly navigator: DiffNavigator;
 
-    private legendContext: DiffLegendContext | undefined;
+    private legendContext: DiffLegendState | undefined;
 
     constructor(
         canvas: HTMLElement,
@@ -49,15 +63,25 @@ export class DiffMode {
     ) {
         this.pane = new DiffPanePlumbing(canvas, host);
         this.navigator = new DiffNavigator(this.pane.viewer);
-        this.legend = new DiffLegend(legendParent, {
-            onPrevious: () => this.step(-1),
-            onNext: () => this.step(1),
-            // Always wired; the legend hides the button unless the update's
-            // `showSwap` is set (compare-files only).  The host still validates
-            // origin defensively before acting on the command.
-            onSwap: () => this.host.postMessage(new SwapCompareSidesCommand()),
-            onShowAll: () => this.showAll(),
-        });
+        this.legend = new DiffLegendView(
+            legendParent,
+            {
+                onPrevious: () => this.step(-1),
+                onNext: () => this.step(1),
+                // Always wired; the legend hides the button unless the update's
+                // `showSwap` is set (compare-files only).  The host still validates
+                // origin defensively before acting on the command.
+                onSwap: () => this.host.postMessage(new SwapCompareSidesCommand()),
+                onShowAll: () => this.showAll(),
+            },
+            i18n,
+        );
+        this.comparison = new ResultComparisonSwitch(
+            this.legend.extensionElement(),
+            () => this.host.postMessage(new SwitchMergeComparisonCommand()),
+            (key, replacements) => i18n.translate(key, replacements),
+        );
+        i18n.onChange(() => this.comparison.render());
 
         // diff.css starts the canvas below the bar.
         this.legend.reserveRoomOn(document.body);
@@ -118,6 +142,7 @@ export class DiffMode {
             showChanges: isAfter,
         };
         this.legend.update(this.legendContext);
+        this.comparison.update(isAfter ? query.comparison : undefined);
     }
 
     /** Show all: both panes go back to the whole diagram, the partner through the host. */

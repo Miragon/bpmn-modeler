@@ -151,6 +151,7 @@ const STATES: MergePaneStates = {
         { id: "Process_1", container: true },
     ],
     names: {},
+    build: { canBuild: false, openConflicts: 3, built: false, notes: [] },
 };
 
 function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
@@ -825,6 +826,100 @@ describe("MergeMode", () => {
                     scope: "withConnections",
                 }),
             ]);
+        });
+    });
+
+    describe("build", () => {
+        const afterStates = (build: Partial<MergePaneStates["build"]>) =>
+            new ApplyMergeStatesQuery(
+                "after",
+                { ...STATES, caption: { side: "incoming", role: "upstream" }, build: { ...STATES.build, ...build } },
+                false,
+            );
+        const typesPosted = () => posted().map((message) => message.type);
+        const shownText = () =>
+            [...legendParent.querySelectorAll<HTMLElement>(".merge-legend__build *")]
+                .filter((element) => element.closest("[hidden]") === null && element.children.length === 0)
+                .map((element) => element.textContent)
+                .join(" ");
+        const legendButtons = () =>
+            [...legendParent.querySelectorAll("button")].map((button) => button.textContent);
+
+        it("offers Build on the right pane only, disabled while conflicts are left", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            expect(legendButtons()).not.toContain("Build");
+
+            dispatch(afterStates({}));
+
+            expect(legendButton("Build").disabled).toBe(true);
+            expect(legendText()).toContain("3 conflicts left");
+            legendButton("Build").click();
+            expect(typesPosted()).not.toContain("BuildMergeResultCommand");
+        });
+
+        it("builds once no conflict is open", async () => {
+            await startMergePane();
+            dispatch(afterStates({ canBuild: true, openConflicts: 0 }));
+
+            legendButton("Build").click();
+
+            expect(shownText()).not.toContain("conflicts left");
+            expect(typesPosted()).toContain("BuildMergeResultCommand");
+        });
+
+        it("compares the result with either side once one is built", async () => {
+            await startMergePane();
+            dispatch(afterStates({ canBuild: true, openConflicts: 0 }));
+            expect(legendButton("Compare with current").disabled).toBe(true);
+            expect(legendButton("Compare with incoming").disabled).toBe(true);
+
+            dispatch(afterStates({ canBuild: true, openConflicts: 0, built: true }));
+            legendButton("Compare with current").click();
+            legendButton("Compare with incoming").click();
+
+            expect(
+                posted()
+                    .filter((message) => message.type === "CompareMergeResultCommand")
+                    .map((message) => (message as { against: string }).against),
+            ).toStrictEqual(["current", "incoming"]);
+        });
+
+        it("lists the notes of the build and selects the elements a note names", async () => {
+            await startMergePane();
+            dispatch(
+                afterStates({
+                    canBuild: true,
+                    openConflicts: 0,
+                    built: true,
+                    notes: [
+                        {
+                            kind: "restoredWithoutConnections",
+                            id: "Task_Pack",
+                            connections: ["Flow_1"],
+                        },
+                    ],
+                }),
+            );
+            const review = legendButton("Review notes (1)");
+            expect(review.getAttribute("aria-expanded")).toBe("false");
+
+            review.click();
+
+            expect(review.getAttribute("aria-expanded")).toBe("true");
+            expect(legendText()).toContain(
+                "Pack parcel is kept without the flows the other side removed with it: Flow_1",
+            );
+            legendButton("Pack parcel").click();
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+        });
+
+        it("offers no notes before a build or after one with none", async () => {
+            await startMergePane();
+            dispatch(afterStates({ canBuild: true, openConflicts: 0, built: true }));
+
+            expect(shownText()).not.toContain("Review notes");
+            expect(shownText()).toContain("Compare with incoming");
         });
     });
 });

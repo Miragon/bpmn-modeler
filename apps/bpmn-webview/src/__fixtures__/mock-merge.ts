@@ -62,6 +62,7 @@ const CURRENT: MergePaneStates = {
     openConflicts: 2,
     stepping: { list: "openConflicts" },
     ...NO_PICKS,
+    build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
 };
 
 const INCOMING: MergePaneStates = {
@@ -85,6 +86,7 @@ const INCOMING: MergePaneStates = {
     openConflicts: 2,
     stepping: { list: "openConflicts" },
     ...NO_PICKS,
+    build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
 };
 
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */

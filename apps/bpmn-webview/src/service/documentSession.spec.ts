@@ -231,19 +231,38 @@ describe("BpmnDocumentSession", () => {
             ]);
         });
 
-        it("gives up on an initial host file that cannot be opened and ignores later pushes", async () => {
+        it("imports a host update after a failed first import, as after a merge build over conflict markers", async () => {
             const context = setup();
-            context.surface.importDocument.mockRejectedValue(new Error("not BPMN"));
-            void context.session.receiveHostFile(hostFile("<broken />", 1));
+            context.surface.importDocument.mockImplementation(async (content) => {
+                if (content === "<<<<<<< HEAD") throw new Error("not BPMN");
+            });
+            void context.session.receiveHostFile(hostFile("<<<<<<< HEAD", 1));
 
-            const proceed = await context.session.openInitialDocument(
+            const opening = context.session.openInitialDocument(
                 await context.session.waitForInitialHostFile(),
             );
-            await pushHostFile(context.session, hostFile("<later />", 2));
-
-            expect(proceed).toBe(false);
+            await vi.advanceTimersByTimeAsync(0);
             expect(loggedErrors(context.posted)).toEqual(["Unable to open XML\nnot BPMN"]);
-            expect(context.surface.importDocument).toHaveBeenCalledOnce();
+            await pushHostFile(context.session, hostFile("<built />", 2));
+
+            await expect(opening).resolves.toBe(true);
+            expect(context.surface.importDocument).toHaveBeenLastCalledWith("<built />");
+            expect(context.surface.importDocument).toHaveBeenCalledTimes(2);
+        });
+
+        it("reloads when the update after a failed first import is for another engine", async () => {
+            const context = setup();
+            context.surface.importDocument.mockRejectedValueOnce(new Error("not BPMN"));
+            void context.session.receiveHostFile(hostFile("<broken />", 1, "c7"));
+
+            const opening = context.session.openInitialDocument(
+                await context.session.waitForInitialHostFile(),
+            );
+            await vi.advanceTimersByTimeAsync(0);
+            await pushHostFile(context.session, hostFile("<c8 />", 2, "c8"));
+
+            await expect(opening).resolves.toBe(false);
+            expect(context.page.reloadPage).toHaveBeenCalledOnce();
         });
 
         it.each([
