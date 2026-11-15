@@ -126,6 +126,7 @@ interface Manifest {
 /** All command IDs the code actually registers, sourced from the controllers. */
 const CODE_COMMAND_IDS = [
     "bpmn-modeler.openBpmnMergeView",
+    "bpmn-modeler.spikeTakeIncomingForEveryConflict",
     TOGGLE_CMD,
     LOGGING_CMD,
     COPY_SVG_CMD,

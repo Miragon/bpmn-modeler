@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2023", "dom"],
     "module": "commonjs",
     "outDir": "../../dist/libs/modeler-core",
     "declaration": true,

@@ -1,8 +1,14 @@
 import { commands, ExtensionContext, Uri, window } from "vscode";
 
-import { DiffPaneStore, lastWorkspacePathSegment, NotifierPort } from "@miragon/bpmn-modeler-core";
+import {
+    DiffPaneStore,
+    lastWorkspacePathSegment,
+    MergeSession,
+    NotifierPort,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeGitConflictVersions } from "../out/VsCodeGitConflictVersions";
 import { VsCodeMergeSidesView } from "../out/VsCodeMergeSidesView";
+import { MergeSessions } from "./MergeBuildController";
 
 export const OPEN_BPMN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
 
@@ -20,6 +26,7 @@ export class MergeController {
         private readonly git: VsCodeGitConflictVersions,
         private readonly view: VsCodeMergeSidesView,
         private readonly notifier: NotifierPort,
+        private readonly sessions: MergeSessions,
     ) {}
 
     register(context: ExtensionContext): void {
@@ -47,6 +54,11 @@ export class MergeController {
                 );
                 return;
             }
+            await this.startSession(fileUri, {
+                base: stages.base,
+                current: stages.current,
+                incoming: stages.incoming,
+            });
             const uris = this.view.serve(fileUri, {
                 current: stages.current,
                 incoming: stages.incoming,
@@ -61,6 +73,22 @@ export class MergeController {
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             this.notifier.showError(`Failed to open the merge view: ${String(error)}`);
+        }
+    }
+
+    /** SPIKE: a merge the library refuses still opens the two sides; only the build is refused. */
+    private async startSession(
+        fileUri: Uri,
+        versions: { base?: string; current: string; incoming: string },
+    ): Promise<void> {
+        try {
+            const session = await MergeSession.start(fileUri.toString(), versions);
+            this.sessions.add(session);
+            this.notifier.logInfo(
+                `[merge-spike] merge session ${fileUri.toString()}: open conflicts ${JSON.stringify(session.openConflictIds)}`,
+            );
+        } catch (error) {
+            this.notifier.logInfo(`[merge-spike] computeMerge refused: ${String(error)}`);
         }
     }
 }

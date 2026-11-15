@@ -9,10 +9,12 @@ import {
     ElementXmlDiffService,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
+import { MergeBuildController, MergeSessions } from "../diff/adapter/in/MergeBuildController";
 import { MergeController } from "../diff/adapter/in/MergeController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
 import { VsCodeGitConflictVersions } from "../diff/adapter/out/VsCodeGitConflictVersions";
 import { VsCodeMergeSidesView } from "../diff/adapter/out/VsCodeMergeSidesView";
+import { VsCodeMergeWorkingFile } from "../diff/adapter/out/VsCodeMergeWorkingFile";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import { SharedDeps } from "./sharedDeps";
 
@@ -74,7 +76,11 @@ function registerMergeView(
     const git = new VsCodeGitConflictVersions((line) =>
         deps.notifier.logInfo(`[merge-spike] ${line}`),
     );
-    new MergeController(diffStore, git, view, deps.notifier).register(context);
+    const sessions = new MergeSessions();
+    new MergeController(diffStore, git, view, deps.notifier, sessions).register(context);
+    new MergeBuildController(sessions, new VsCodeMergeWorkingFile(), deps.notifier).register(
+        context,
+    );
     context.subscriptions.push(
         diffStore.onSessionClosed((session) => {
             view.releaseUris([session.beforeUri, session.afterUri]);

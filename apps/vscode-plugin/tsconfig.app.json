@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2023", "dom"],
     "outDir": "../../dist/out-tsc",
     "types": ["node"],
     "noFallthroughCasesInSwitch": false,

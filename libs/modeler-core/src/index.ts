@@ -175,6 +175,7 @@ export * from "./diff/service/DmnDiffService";
 export * from "./diff/service/DiffPaneStore";
 export * from "./diff/service/ElementXmlDiffService";
 export * from "./diff/service/diffPaneRouter";
+export * from "./diff/service/MergeSession";
 
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
