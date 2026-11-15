@@ -65,6 +65,11 @@ without maintaining a security-sensitive archive extractor fork.
   at critical. These check exercised interfaces and the resolved graph, not every
   host package or upstream's trustworthiness, and do not imply lower-severity
   findings are remediated.
+- Monaco's DOMPurify is not overridden. `@theia/monaco-editor-core` runs a copy
+  vendored in its bundle and only declares the package, so a resolution would
+  close the alerts without changing the code that runs. They stay open until Theia
+  ships a Monaco with a fixed copy; patching the vendored file would mean
+  maintaining a sanitizer inside Monaco.
 - Review the overrides and the patch when Theia or node-gyp changes and remove them
   once callers declare compatible fixed dependencies. Updating Theia alone does not
   necessarily remove the abandoned extractor. Suppressing the advisory or
