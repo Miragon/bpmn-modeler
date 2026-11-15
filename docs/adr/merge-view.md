@@ -50,7 +50,10 @@ disposing the panel while it resolves, which is untested ground.
 restored tab keeps its URIs while the extension host starts afresh, so an id that restarts
 with the host (a counter, a time stamp) let a new opening hit the restored tab, which VS Code
 then focused instead of resolving new panes. Opening the same URIs again focuses their tab, so
-the command on an open view opens its own URIs again instead of a second session. Every
+the command on an open view opens its own URIs again instead of a second session, but only
+while Git still holds the sides and names it opened with (`showsSameConflict`): the command
+reads Git every time, and a file that conflicted again opens a new view while the old tab
+keeps its sides until it closes. Every
 restored pane resolved twice in every observed reload (cause unknown), so `attachPane` is
 idempotent: a pane already attached joins nothing new; a pane of a live view whose sessions
 all hold its side (a split, a second tab) gets a session of its own; any other pane is ended

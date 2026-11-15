@@ -8,6 +8,7 @@ import { mergeTabLabel } from "../domain/diffTabLabel";
 import { gitOperationOf } from "../domain/gitOperation";
 import { mergePaneBasename } from "../domain/mergePaneName";
 import { mergeSideCaptions } from "../domain/mergeSideCaptions";
+import { showsSameConflict } from "../domain/mergeViewContent";
 import { mergeViewFailedText, MergeViewRefusal, mergeViewRefusal } from "../domain/mergeViewTexts";
 import { ConflictVersionsSource } from "../port/ConflictVersionsSource";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
@@ -38,7 +39,8 @@ export class MergeViewOpener {
 
     /**
      * Opens the merge view of `fileUri`, or focuses the open one by opening
-     * its own pane URIs again; explains a file it cannot open.
+     * its own pane URIs again while it still shows the conflict Git holds;
+     * explains a file it cannot open and shows any failure, so it never rejects.
      */
     open(fileUri: string | undefined): Promise<void> {
         if (fileUri === undefined) {
@@ -47,7 +49,9 @@ export class MergeViewOpener {
         }
         const running = this.openings.get(fileUri);
         if (running) return running;
-        const opening = this.openFile(fileUri).finally(() => this.openings.delete(fileUri));
+        const opening = this.openFile(fileUri)
+            .catch((error: unknown) => this.fail(error))
+            .finally(() => this.openings.delete(fileUri));
         this.openings.set(fileUri, opening);
         return opening;
     }
@@ -64,21 +68,16 @@ export class MergeViewOpener {
         const session = this.sessions.servedBy(handle.uri);
         if (!session) return "ended";
         const awaiting = this.sessions
-            .diffSessionsOf(session.fileUri)
+            .diffSessionsOf(session)
             .find((diffSession) => diffSession === this.diffStore.awaitingPaneFor(handle.uri));
         const diffSession = awaiting ?? this.diffStore.registerMerge(session.uris);
-        if (!awaiting) this.sessions.join(session.fileUri, diffSession);
+        if (!awaiting) this.sessions.join(session, diffSession);
         diffSession.attachPane(handle);
         this.diffStore.cancelTtl(diffSession);
         return "joined";
     }
 
     private async openFile(fileUri: string): Promise<void> {
-        const live = this.sessions.of(fileUri);
-        if (live) {
-            await this.show(live);
-            return;
-        }
         const fileName = uriDisplayName(fileUri);
         if (!isMergeViewCandidate(fileName)) {
             this.refuse({ kind: "notBpmn" }, fileName);
@@ -96,6 +95,12 @@ export class MergeViewOpener {
             facts.refs,
             markers,
         );
+        const title = mergeTabLabel(fileName, captions);
+        const live = this.sessions.of(fileUri);
+        if (live && showsSameConflict(live, { stages: reading.stages, title })) {
+            await this.view.open(live.uris, live.title);
+            return;
+        }
         const sideDocument = (side: MergeSide): MergeSideDocument => ({
             text: reading.stages[side],
             basename: mergePaneBasename(fileName, side),
@@ -107,23 +112,19 @@ export class MergeViewOpener {
         const session: MergeSession = {
             fileUri,
             fileName,
-            title: mergeTabLabel(fileName, captions),
+            title,
             captions,
             uris,
             stages: reading.stages,
         };
         this.sessions.add(session, this.diffStore.registerMerge(uris));
-        await this.show(session);
+        await this.view.open(session.uris, session.title);
     }
 
-    private async show(session: MergeSession): Promise<void> {
-        try {
-            await this.view.open(session.uris, session.title);
-        } catch (error) {
-            const reason = error instanceof Error ? error : new Error(String(error));
-            this.notifier.logError(reason);
-            this.notifier.showError(mergeViewFailedText(reason));
-        }
+    private fail(error: unknown): void {
+        const reason = error instanceof Error ? error : new Error(String(error));
+        this.notifier.logError(reason);
+        this.notifier.showError(mergeViewFailedText(reason));
     }
 
     private refuse(refusal: MergeViewRefusal, fileName: string): void {

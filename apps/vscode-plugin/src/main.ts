@@ -116,9 +116,9 @@ export function activate(context: ExtensionContext): TestApi {
                 if (!session) {
                     return undefined;
                 }
-                const tabs = mergeSessions.diffSessionsOf(fileUri);
+                const tabs = mergeSessions.diffSessionsOf(session);
                 return {
-                    origin: tabs[0]?.origin ?? "merge",
+                    origin: tabs[0]?.origin,
                     paneCount: tabs.reduce((count, tab) => count + tab.attachedPanes().length, 0),
                     tabCount: tabs.length,
                     captions: session.captions,

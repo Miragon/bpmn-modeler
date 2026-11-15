@@ -34,7 +34,7 @@ interface TestApi {
     merge: {
         sessionFor(fileUri: string):
             | {
-                  origin: string;
+                  origin: string | undefined;
                   paneCount: number;
                   tabCount: number;
                   captions: { current: Caption; incoming: Caption };
