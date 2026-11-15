@@ -6,8 +6,6 @@ import {
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
-import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
-
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
@@ -172,11 +170,8 @@ export class MergeMode {
     private updateLegend(): void {
         if (!this.states) return;
         const { states } = this.states;
-        const counts = Object.fromEntries(
-            MERGE_MARKERS.map((marker) => [marker, states.marks[marker].length]),
-        ) as Record<MergeMarker, number>;
         this.legend.update({
-            counts,
+            counts: states.counts,
             canStep: this.stepIds().length > 0,
             position: mergeStepPosition(this.stepIds(), this.cursorId),
             openConflicts: states.openConflicts,

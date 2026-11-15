@@ -31,6 +31,7 @@ const CURRENT: MergePaneStates = {
         conflict: ["ServiceTask_1"],
     },
     shapeless: SHAPELESS,
+    counts: { takenFromThisSide: 0, takenFromOtherSide: 3, conflict: 2 },
     openConflictSteps: [step("ServiceTask_1", true), step("Process_1", true, true)],
     allSteps: [
         step("ServiceTask_1", true),
@@ -51,6 +52,7 @@ const INCOMING: MergePaneStates = {
         conflict: ["ServiceTask_1"],
     },
     shapeless: SHAPELESS,
+    counts: { takenFromThisSide: 3, takenFromOtherSide: 0, conflict: 2 },
     openConflictSteps: [step("ServiceTask_1", true), step("Process_1", true, true)],
     allSteps: [
         step("ServiceTask_1", true),

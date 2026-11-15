@@ -1,4 +1,4 @@
-import type { MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
+import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
 import type { MergeDecisions } from "./mergeDecisions";
 import { hasNoShape } from "./mergeElementShape";
@@ -16,6 +16,8 @@ export interface MergePaneView {
     /** The marker of every drawn element the pane's side holds. */
     readonly marks: Readonly<Record<MergeMarker, readonly string[]>>;
     readonly shapeless: readonly ShapelessMark[];
+    /** Per marker, the elements the pane marks and those it lists. */
+    readonly counts: Readonly<Record<MergeMarker, number>>;
 }
 
 // Both sides hold the same content, so whichever side is taken changes nothing.
@@ -47,7 +49,13 @@ export function mergePaneView(decisions: MergeDecisions, side: MergeSide): Merge
             marks[marker].push(element.id);
         }
     }
-    return { marks, shapeless };
+    const counts = Object.fromEntries(
+        MERGE_MARKERS.map((marker) => [
+            marker,
+            marks[marker].length + shapeless.filter((entry) => entry.marker === marker).length,
+        ]),
+    ) as Record<MergeMarker, number>;
+    return { marks, shapeless, counts };
 }
 
 /** The marker an element gets on a pane of a side, or none. */

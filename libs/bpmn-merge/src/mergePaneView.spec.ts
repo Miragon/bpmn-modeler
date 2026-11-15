@@ -145,12 +145,37 @@ describe("mergePaneView", () => {
             ),
         );
 
-        expect(mergePaneView(decisions, "current")).toEqual({
+        expect(mergePaneView(decisions, "current")).toMatchObject({
             marks: { ...NO_MARKS, conflict: ["Task_Pack"] },
             shapeless: [
                 { id: "Process_1", type: "bpmn:Process", marker: "conflict" },
                 { id: "Message_Order", type: "bpmn:Message", marker: "takenFromOtherSide" },
             ],
+        });
+    });
+
+    it("counts each marker over what the pane marks and lists, so a conflict without a shape counts too", () => {
+        const decisions = MergeDecisions.from(
+            mergeResult(
+                process("bothChanged"),
+                mergeElement("Message_Order", "takenFromIncoming", {
+                    type: "bpmn:Message",
+                    drawn: false,
+                }),
+                mergeElement("Task_Pack", "bothChanged"),
+                mergeElement("Task_Audit", "addedByIncoming"),
+            ),
+        );
+
+        expect(mergePaneView(decisions, "current").counts).toEqual({
+            takenFromThisSide: 0,
+            takenFromOtherSide: 1,
+            conflict: 2,
+        });
+        expect(mergePaneView(decisions, "incoming").counts).toEqual({
+            takenFromThisSide: 2,
+            takenFromOtherSide: 0,
+            conflict: 2,
         });
     });
 

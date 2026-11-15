@@ -24,6 +24,8 @@ export interface MergePaneStates {
     /** The marker of every element the pane draws, by id. */
     readonly marks: Readonly<Record<MergeMarker, readonly string[]>>;
     readonly shapeless: readonly MergePaneShapelessMark[];
+    /** Per marker, the elements the pane marks and those it lists. */
+    readonly counts: Readonly<Record<MergeMarker, number>>;
     /** The open conflicts in navigation order, the same on both panes. */
     readonly openConflictSteps: readonly MergePaneStep[];
     /** Every element either pane marks, in navigation order, the same on both panes. */

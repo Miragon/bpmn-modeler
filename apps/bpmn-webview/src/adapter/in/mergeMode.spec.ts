@@ -95,6 +95,7 @@ const STATES: MergePaneStates = {
         conflict: ["Task_Pack"],
     },
     shapeless: [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }],
+    counts: { takenFromThisSide: 1, takenFromOtherSide: 1, conflict: 2 },
     openConflictSteps: [
         step("Task_Pack"),
         step("Task_Gone", false, false),
@@ -211,14 +212,14 @@ describe("MergeMode", () => {
             );
         });
 
-        it("counts the open conflicts and the pane's markers in the legend", async () => {
+        it("shows the open conflicts and the pane's marker counts as the host counts them", async () => {
             await startMergePane();
 
             dispatch(mergeStates());
 
             expect(legendText()).toContain("3 open conflicts");
             expect(legendText()).toContain("Taken from this side 1");
-            expect(legendText()).toContain("Conflict 1");
+            expect(legendText()).toContain("Conflict 2");
         });
 
         it("offers Show XML changes only when the host does", async () => {

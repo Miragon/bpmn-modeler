@@ -50,7 +50,7 @@ function statesFor(
     elementXmlChanges: boolean,
 ): ApplyMergeStatesQuery {
     const side = mergeSideOfPane(paneSide);
-    const { marks, shapeless } = mergePaneView(session.decisions, side);
+    const { marks, shapeless, counts } = mergePaneView(session.decisions, side);
     const steps = mergePaneSteps(session.decisions, session.navigationOrder, side);
     return new ApplyMergeStatesQuery(
         paneSide,
@@ -58,6 +58,7 @@ function statesFor(
             caption: session.captions[side],
             marks,
             shapeless,
+            counts,
             openConflictSteps: steps.openConflicts,
             allSteps: steps.all,
             openConflicts: session.decisions.openConflicts.length,

@@ -145,6 +145,23 @@ describe("MergeDecisionService", () => {
         }
     });
 
+    it("counts each pane's markers, a conflict without a shape included", async () => {
+        const { current, incoming, bothReady } = await openMergeView();
+
+        await bothReady();
+
+        expect(lastStatesOf(current).states.counts).toStrictEqual({
+            takenFromThisSide: 1,
+            takenFromOtherSide: 0,
+            conflict: 2,
+        });
+        expect(lastStatesOf(incoming).states.counts).toStrictEqual({
+            takenFromThisSide: 0,
+            takenFromOtherSide: 1,
+            conflict: 2,
+        });
+    });
+
     it("lists a conflict on the process's own attributes as shape-less", async () => {
         const { current, bothReady } = await openMergeView();
 
