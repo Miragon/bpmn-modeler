@@ -139,6 +139,25 @@ describe("the BPMN merge view (spike)", () => {
         await vscode().page.mouse.move(0, 0);
     }
 
+    /** The labels of the Merge Changes row's context menu, closed again afterwards. */
+    async function rowMenuItems(): Promise<string[]> {
+        await runFromSideBar("Source Control: Focus on Changes View");
+        await mergeRow().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await mergeRow().click({ button: "right" });
+        await vscode()
+            .page.locator(".context-view .action-label")
+            .first()
+            .waitFor({ timeout: TIMEOUT_MS });
+        await delay(300);
+        const labels = await vscode().page.locator(".context-view .action-label").allTextContents();
+        await vscode().page.keyboard.press("Escape");
+        return labels.map((label) => label.trim()).filter(Boolean);
+    }
+
+    async function activeTabLabel(): Promise<string | null> {
+        return vscode().page.locator(".tabs-container .tab.active").first().getAttribute("aria-label");
+    }
+
     /** Both panes of a live merge view: a diagram on each side, not the ended page. */
     async function liveMergePanes(timeoutMs: number): Promise<boolean> {
         const deadline = Date.now() + timeoutMs;
@@ -212,6 +231,7 @@ describe("the BPMN merge view (spike)", () => {
         facts.workingFile = await readFile(file, "utf8");
         log(JSON.stringify({ status: facts.gitStatus, stages: facts.gitStages }));
         await cp(join(FIXTURES_DIRECTORY, "smoke.bpmn"), join(workspaceDirectory, "clean.bpmn"));
+        await writeFile(join(workspaceDirectory, "notes.txt"), "not a diagram\n");
 
         const manifest = JSON.parse(await readFile(join(DIST_DIRECTORY, "package.json"), "utf8"));
         const extensionPath = await packExtension(DIST_DIRECTORY, rootDirectory);
@@ -350,9 +370,31 @@ describe("the BPMN merge view (spike)", () => {
         expect(panes.some((pane) => pane.canvas)).toBe(false);
     });
 
+    it("shows the row entry only while a .bpmn editor is active (resourceExtname is global)", async () => {
+        const probes: Record<string, unknown>[] = [];
+        // After the reload the restored merge diff is the active editor.
+        probes.push({ active: await activeTabLabel(), menu: await rowMenuItems() });
+        await runFromSideBar("View: Show Explorer");
+        await vscode().openFromExplorer("notes.txt");
+        await delay(800);
+        probes.push({ active: await activeTabLabel(), menu: await rowMenuItems() });
+        await shot("row-menu-probe-after-txt");
+        await runFromSideBar("View: Show Explorer");
+        await vscode().openFromExplorer("clean.bpmn");
+        await vscode().showInCustomEditor("clean.bpmn", async (webview) => {
+            return (await webview.locator(".djs-container .djs-element.djs-shape").count()) >= 3;
+        });
+        probes.push({ active: await activeTabLabel(), menu: await rowMenuItems() });
+        facts.rowMenuByActiveEditor = probes;
+        log(JSON.stringify(probes));
+        const shown = probes.map((probe) => (probe.menu as string[]).includes(ROW_COMMAND));
+        expect(shown).toEqual([false, false, true]);
+    });
+
     it("opens the merge view again from the row after the reload", async () => {
         // The restored tab still holds the ended panes, and the opening counter restarted with
-        // the extension host, so the new opening may reuse their URIs.
+        // the extension host, so the new opening may reuse their URIs. clean.bpmn is active, so
+        // the row shows the entry.
         await openFromMergeRow();
         facts.reopenedOverRestoredTab = await liveMergePanes(10_000);
         facts.panesAfterReopenOverRestoredTab = await visiblePanes();
@@ -360,6 +402,9 @@ describe("the BPMN merge view (spike)", () => {
         await shot("merge-view-reopened-over-restored-tab");
         if (!facts.reopenedOverRestoredTab) {
             await vscode().closeEditorTab(/order\.bpmn ↔ order\.bpmn|Current ↔ Incoming/);
+            await runFromSideBar("View: Show Explorer");
+            await vscode().openFromExplorer("clean.bpmn");
+            await delay(800);
             await openFromMergeRow();
         }
         expect(await liveMergePanes(TIMEOUT_MS)).toBe(true);
