@@ -617,6 +617,100 @@ describe("buildMerged", () => {
         });
     });
 
+    describe("a task and the flow that ends at it", () => {
+        const gatewayToTask = (
+            task: { name: string } | undefined,
+            flow: { condition?: string; listener?: string } = {},
+        ) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="180">
+${
+    task === undefined
+        ? `    <bpmn:exclusiveGateway id="G" />`
+        : `    <bpmn:exclusiveGateway id="G"><bpmn:outgoing>F</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:task id="T" name="${task.name}"><bpmn:incoming>F</bpmn:incoming></bpmn:task>
+    <bpmn:sequenceFlow id="F" sourceRef="G" targetRef="T">${
+        flow.listener === undefined
+            ? ""
+            : `<bpmn:extensionElements><camunda:executionListener class="${flow.listener}" event="take" /></bpmn:extensionElements>`
+    }${
+        flow.condition === undefined
+            ? ""
+            : `<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${flow.condition}</bpmn:conditionExpression>`
+    }</bpmn:sequenceFlow>`
+}
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="G_di" bpmnElement="G"><dc:Bounds x="100" y="100" width="50" height="50" /></bpmndi:BPMNShape>${
+          task === undefined
+              ? ""
+              : `
+      <bpmndi:BPMNShape id="T_di" bpmnElement="T"><dc:Bounds x="250" y="85" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F_di" bpmnElement="F"><di:waypoint x="150" y="125" /><di:waypoint x="250" y="125" /></bpmndi:BPMNEdge>`
+      }
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+        it("holds current's task rename and incoming's condition and listener on its flow", async () => {
+            const { xml } = await automaticMerge({
+                base: gatewayToTask({ name: "Check" }),
+                current: gatewayToTask({ name: "Check order" }),
+                incoming: gatewayToTask(
+                    { name: "Check" },
+                    { condition: "${ok}", listener: "com.example.Audit" },
+                ),
+            });
+
+            await parseWithoutWarnings(xml);
+            expect(xml).toContain('name="Check order"');
+            expect(xml).toContain(
+                '<camunda:executionListener class="com.example.Audit" event="take" />',
+            );
+            expect(xml).toContain(
+                '<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ok}</bpmn:conditionExpression>',
+            );
+        });
+
+        it("keeps the flow incoming changed with the task current removed, and lists it on both ends", async () => {
+            const versions = {
+                base: gatewayToTask({ name: "Check" }, { condition: "${a}" }),
+                current: gatewayToTask(undefined),
+                incoming: gatewayToTask({ name: "Check" }, { condition: "${c}" }),
+            };
+            const decisions = await decisionsFor(versions);
+            decisions.pick("F", "incoming");
+
+            const { xml } = await buildMerged(await prepareMergeSources(versions), decisions);
+
+            await parseWithoutWarnings(xml);
+            expect(xml).toMatch(
+                /<bpmn:exclusiveGateway id="G">\s*<bpmn:outgoing>F<\/bpmn:outgoing>/,
+            );
+            expect(xml).toMatch(
+                /<bpmn:task id="T" name="Check">\s*<bpmn:incoming>F<\/bpmn:incoming>/,
+            );
+            expect(xml).toContain("${c}");
+        });
+
+        it("leaves out the flow, and the gateway lists nothing, when the task is picked away", async () => {
+            const versions = {
+                base: gatewayToTask({ name: "Check" }, { condition: "${a}" }),
+                current: gatewayToTask(undefined),
+                incoming: gatewayToTask({ name: "Check" }, { condition: "${c}" }),
+            };
+            const decisions = await decisionsFor(versions);
+            decisions.pick("T", "current");
+
+            const { xml } = await buildMerged(await prepareMergeSources(versions), decisions);
+
+            await parseWithoutWarnings(xml);
+            expect(xml).not.toContain('id="F"');
+            expect(xml).toMatch(/<bpmn:exclusiveGateway id="G" \/>/);
+        });
+    });
+
     describe("notes", () => {
         it("names a flow whose ends are drawn from different sides", async () => {
             const versions = fixtureTriple({
