@@ -27,6 +27,8 @@ import { SharedDeps } from "./sharedDeps";
 
 interface BpmnEditorHandles {
     diffController: DiffController;
+    /** Offers the merge view on a file with conflict markers; VS Code only. */
+    conflictMarkers: EditorSessionParticipant;
     templateSources: CachedTemplateProvider;
     deploymentStatusParticipant: EditorSessionParticipant;
     scriptEditor: BpmnEditorContributions["scriptEditor"];
@@ -117,7 +119,7 @@ export function register(
     new ModelerEditorController(deps.editorStore, deps.notifier, deps.createEditorHandle, {
         viewType: BPMN_VIEW_TYPE,
         messageRouter: editor.router,
-        participants: editor.participants,
+        participants: [...editor.participants, handles.conflictMarkers],
         delegateResolve: handles.diffController.resolveWhenDiffPane,
         initialPanelVisible: () => editor.initialPanelVisible(),
     }).register(context);

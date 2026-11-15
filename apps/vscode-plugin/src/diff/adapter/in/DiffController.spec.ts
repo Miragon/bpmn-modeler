@@ -26,8 +26,16 @@ import {
     createDiffPaneRouter,
     DiffPaneStore,
     DiffFileExtension,
+    MergeSessionStore,
+    MergeViewOpener,
+    mergeTabLabel,
 } from "@miragon/bpmn-modeler-core";
-import { FakeDiffPaneHandle, RecordingNotifier } from "@miragon/bpmn-modeler-core/testing";
+import {
+    FakeConflictVersionsSource,
+    FakeDiffPaneHandle,
+    RecordingMergeSidesView,
+    RecordingNotifier,
+} from "@miragon/bpmn-modeler-core/testing";
 import { vsCodeModelerPreferences } from "../../../shared/adapter/out/modelerConfiguration";
 import { revisionOfDocument } from "../../domain/documentRevision";
 import { BootstrappableDiffPane, DiffController } from "./DiffController";
@@ -63,6 +71,7 @@ function fakePanel() {
     const cbs: { message?: (m: unknown) => unknown; dispose?: () => void } = {};
     const panel = {
         webview: {
+            html: "",
             onDidReceiveMessage: vi.fn((cb: (m: unknown) => unknown) => {
                 cbs.message = cb;
             }),
@@ -88,13 +97,53 @@ function createController(extension: DiffFileExtension = ".bpmn") {
         rebroadcastLanguage: vi.fn(),
     };
     const notifier = new RecordingNotifier();
-    const controller = new DiffController(store, notifier, fakePane, vsCodeModelerPreferences, {
-        extension,
-        createRouter: (extensions) => createDiffPaneRouter(diffService as never, extensions),
-        rebroadcastLanguage: diffService.rebroadcastLanguage,
-    });
-    return { controller, store, diffService, notifier, closedDiagramDiffs };
+    const mergeSides = new RecordingMergeSidesView();
+    const gitConflicts = new FakeConflictVersionsSource();
+    const mergeSessions = new MergeSessionStore(store, mergeSides);
+    const merge = new MergeViewOpener(gitConflicts, mergeSides, store, mergeSessions, notifier);
+    const controller = new DiffController(
+        store,
+        notifier,
+        fakePane,
+        vsCodeModelerPreferences,
+        {
+            extension,
+            createRouter: (extensions) => createDiffPaneRouter(diffService as never, extensions),
+            rebroadcastLanguage: diffService.rebroadcastLanguage,
+        },
+        merge,
+    );
+    return {
+        controller,
+        store,
+        diffService,
+        notifier,
+        closedDiagramDiffs,
+        merge,
+        mergeSides,
+        gitConflicts,
+    };
 }
+
+const ORDER = "file:///repo/order.bpmn";
+const MERGE_CAPTIONS = {
+    current: { side: "current", role: "branch", ref: "main" },
+    incoming: { side: "incoming", role: "upstream", ref: "feature" },
+} as const;
+
+/** Opens the merge view of order.bpmn and returns the pane URIs it served. */
+async function openMergeView(ctx: ReturnType<typeof createController>) {
+    ctx.gitConflicts.conflict("file:///repo", {
+        fileUri: ORDER,
+        stages: { current: "<current/>", incoming: "<incoming/>" },
+        refs: { headName: "main" },
+        workingText: "<<<<<<< HEAD\n=======\n>>>>>>> feature\n",
+    });
+    await ctx.merge.open(ORDER);
+    return ctx.mergeSides.opened[0].uris;
+}
+
+const mergeDoc = (value: string) => ({ uri: parsedUri(value) }) as never;
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -179,6 +228,103 @@ describe("DiffController.shouldResolveAsDiff", () => {
         tabs.push({ input: {}, label: "diagram.bpmn (Working Tree)" });
 
         expect(controller.shouldResolveAsDiff(uri("file", value))).toBe(false);
+    });
+});
+
+describe("DiffController beside a merge view", () => {
+    it("opens the working file as an editor while its live merge tab is open", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: mergeTabLabel("order.bpmn", MERGE_CAPTIONS) });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("opens the working file as an editor beside a restored merge tab", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: "order.current.bpmn ↔ order.incoming.bpmn" });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("still resolves the working file as a diff pane beside a real SCM diff of it while the merge view is open", () => {
+        const { controller } = createController();
+        tabs.push(
+            { input: undefined, label: mergeTabLabel("order.bpmn", MERGE_CAPTIONS) },
+            { input: undefined, label: "order.bpmn (Working Tree)" },
+        );
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(true);
+    });
+
+    it("resolves a bpmn-merge document as a diff pane, live or ended", () => {
+        const { controller } = createController();
+
+        expect(
+            controller.shouldResolveAsDiff(
+                uri("bpmn-merge", "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent"),
+            ),
+        ).toBe(true);
+    });
+
+    it("attaches both panes of an opened merge view to its merge session", async () => {
+        const ctx = createController();
+        const uris = await openMergeView(ctx);
+
+        ctx.controller.resolveDiffPane(fakePanel().panel, mergeDoc(uris.current));
+        ctx.controller.resolveDiffPane(fakePanel().panel, mergeDoc(uris.incoming));
+
+        const session = ctx.store.findByUri(uris.current);
+        expect(session?.origin).toBe("merge");
+        expect(session?.attachedPanes()).toHaveLength(2);
+        expect(bootstrapSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("never pairs a bpmn-merge pane as an SCM diff", () => {
+        const { controller, store } = createController();
+        const { panel } = fakePanel();
+
+        controller.resolveDiffPane(
+            panel,
+            mergeDoc("bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3Dold"),
+        );
+        controller.resolveDiffPane(
+            fakePanel().panel,
+            fakeDoc("file", "/repo/order.current.bpmn", "file:///repo/order.current.bpmn"),
+        );
+
+        expect(
+            store.paneCountFor(
+                "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3Dold",
+            ),
+        ).toBe(0);
+        expect([...store.allSessions()]).toStrictEqual([]);
+    });
+
+    it("shows that the merge view ended on a pane no merge view serves, without a diagram", () => {
+        const { controller } = createController();
+        const { panel } = fakePanel();
+        const restored = "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3Dold";
+
+        controller.resolveDiffPane(panel, mergeDoc(restored));
+        controller.resolveDiffPane(panel, mergeDoc(restored));
+
+        const { html } = (panel as unknown as { webview: { html: string } }).webview;
+        expect(html).toContain("data-merge-view-ended");
+        expect(html).toContain("This merge view has ended. Open it again from Source Control.");
+        expect(html).toContain("default-src 'none'");
+        expect(bootstrapSpy).not.toHaveBeenCalled();
+    });
+
+    it("joins nothing new when the same panel resolves twice", async () => {
+        const ctx = createController();
+        const uris = await openMergeView(ctx);
+        const { panel } = fakePanel();
+
+        ctx.controller.resolveDiffPane(panel, mergeDoc(uris.current));
+        ctx.controller.resolveDiffPane(panel, mergeDoc(uris.current));
+
+        expect(ctx.store.paneCountFor(uris.current)).toBe(1);
+        expect(bootstrapSpy).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -95,6 +95,7 @@
         "onFileSystem:bpmn-form-input-values",
         "onFileSystem:bpmn-form-output-values",
         "onFileSystem:bpmn-element-xml",
+        "onFileSystem:bpmn-merge",
         "workspaceContains:**/element-templates/**/*.json"
     ],
     "contributes": {
@@ -296,6 +297,12 @@
             ]
         },
         "commands": [
+            {
+                "command": "bpmn-modeler.openBpmnMergeView",
+                "title": "Resolve in BPMN Merge View",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(git-merge)"
+            },
             {
                 "command": "bpmn-modeler.toggleTextEditor",
                 "title": "Toggle Standard Text Editor",
@@ -518,6 +525,10 @@
         "menus": {
             "commandPalette": [
                 {
+                    "command": "bpmn-modeler.openBpmnMergeView",
+                    "when": "resource in bpmn-modeler.resolvableBpmnConflicts"
+                },
+                {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -680,6 +691,11 @@
             ],
             "editor/title": [
                 {
+                    "command": "bpmn-modeler.openBpmnMergeView",
+                    "group": "navigation",
+                    "when": "resource in bpmn-modeler.resolvableBpmnConflicts"
+                },
+                {
                     "command": "bpmn-modeler.toggleFormInputValues",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
@@ -713,6 +729,13 @@
                     "command": "bpmn-modeler.formatDiagram",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                }
+            ],
+            "scm/resourceState/context": [
+                {
+                    "command": "bpmn-modeler.openBpmnMergeView",
+                    "group": "navigation",
+                    "when": "scmProvider == git && scmResourceGroup == merge && bpmn-modeler.hasResolvableBpmnConflicts && config.git.enabled && !git.missing"
                 }
             ],
             "file/newFile": [

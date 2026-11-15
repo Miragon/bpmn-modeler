@@ -155,7 +155,10 @@ function registerVsCodeSurfaces() {
     } as unknown as ExtensionContext;
     setContext(context);
     const deps = buildSharedDeps(context);
-    const { diffController, dmnDiffController } = diffFeature.register(context, deps);
+    const { diffController, dmnDiffController, conflictMarkers } = diffFeature.register(
+        context,
+        deps,
+    );
     const { marketplaceSvc, templateSources } = templateMarketplaceFeature.register(context, deps);
     const reviews = addOnsFeature.createViewReviews(deps);
     const { deploymentStatusParticipant, deploymentSidebarRoutes } = deploymentFeature.register(
@@ -173,6 +176,7 @@ function registerVsCodeSurfaces() {
     );
     const bpmnEditor = bpmnEditorFeature.register(context, deps, {
         diffController,
+        conflictMarkers,
         templateSources,
         deploymentStatusParticipant,
         reviews,

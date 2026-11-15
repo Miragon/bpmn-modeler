@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DiffRevision } from "@miragon/bpmn-modeler-core";
 
-import { isGitProvidedDocument, revisionOfDocument } from "./documentRevision";
+import { isGitProvidedDocument, isMergeSideDocument, revisionOfDocument } from "./documentRevision";
 
 const gitQuery = (ref: string) => JSON.stringify({ path: "/repo/order.bpmn", ref });
 
@@ -54,5 +54,15 @@ describe("isGitProvidedDocument", () => {
         ["untitled", false],
     ])("reads a %s document as Git-provided: %s", (scheme, expected) => {
         expect(isGitProvidedDocument({ scheme })).toBe(expected);
+    });
+});
+
+describe("isMergeSideDocument", () => {
+    it.each([
+        ["bpmn-merge", true],
+        ["git", false],
+        ["file", false],
+    ])("reads a %s document as a merge side: %s", (scheme, expected) => {
+        expect(isMergeSideDocument({ scheme })).toBe(expected);
     });
 });
