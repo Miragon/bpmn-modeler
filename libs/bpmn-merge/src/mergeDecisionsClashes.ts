@@ -1,7 +1,7 @@
 import type { DecidedSides } from "./mergeDecisionsSides";
 import { MERGE_SIDES, type ElementVersion, type MergeElement, type MergeSide } from "./mergeResult";
 import { isProcessReference, type ReferenceIndex } from "./referenceRules";
-import type { UnmetRequirement } from "./unmetRequirement";
+import type { IdHolding, UnmetRequirement } from "./unmetRequirement";
 
 interface Clash {
     readonly reason: UnmetRequirement;
@@ -68,12 +68,7 @@ function idClashes(present: readonly MergeElement[], sides: DecidedSides): Clash
         }
     }
     const clashes: Clash[] = [];
-    const clash = (
-        holder: MergeElement,
-        target: string,
-        part: string,
-        heldAs: "part" | "element",
-    ) =>
+    const clash = (holder: MergeElement, target: string, part: string, heldAs: IdHolding) =>
         clashes.push({
             reason: {
                 element: { id: holder.id, state: holder.state },

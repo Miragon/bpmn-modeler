@@ -1,6 +1,9 @@
 import type { ElementState, MergeSide } from "./mergeResult";
 import { requiredPartOf, type Requirement } from "./referenceRules";
 
+/** How the clashing id is held by the other element. */
+export type IdHolding = "part" | "element";
+
 /** `missing: "part"`: the target is there, without the part the requirement names inside it. */
 export type RequirementObstacle =
     | { readonly kind: "targetInNoVersion" }
@@ -20,7 +23,7 @@ export type RequirementObstacle =
     | { readonly kind: "targetTakenWithoutPart"; readonly side: MergeSide }
     | { readonly kind: "dependentPicked"; readonly side: MergeSide }
     | { readonly kind: "dependentPulledInByThisPick" }
-    | { readonly kind: "idHeldByAnother"; readonly heldAs: "part" | "element" }
+    | { readonly kind: "idHeldByAnother"; readonly heldAs: IdHolding }
     | { readonly kind: "processInAnotherCollaboration" };
 
 export interface UnmetRequirement {
