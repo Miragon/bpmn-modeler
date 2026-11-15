@@ -10,6 +10,8 @@ export type { BuildNote, MergedDocument } from "./buildMerged";
 export { prepareMergeSources } from "./buildMergedSources";
 export type { MergeSources } from "./buildMergedSources";
 export { isConflictState } from "./mergeResult";
+export { mergeRefusalOf } from "./mergeRefusal";
+export type { MergeRefusal } from "./mergeRefusal";
 export { hasNoShape } from "./mergeElementShape";
 export { mergeNavigationOrder } from "./mergeNavigationOrder";
 export { mergePaneSteps } from "./mergePaneSteps";

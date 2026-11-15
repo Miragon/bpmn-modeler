@@ -1,3 +1,4 @@
+import { mergeRefusalOf } from "@miragon/bpmn-modeler-merge";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { readConflictMarkers } from "../../kernel/domain/conflictMarkers";
@@ -10,7 +11,12 @@ import { mergePaneBasename } from "../domain/mergePaneName";
 import { inPaneOrder } from "../domain/mergePaneSide";
 import { mergeSideCaptions } from "../domain/mergeSideCaptions";
 import { showsSameConflict } from "../domain/mergeViewContent";
-import { mergeViewFailedText, MergeViewRefusal, mergeViewRefusal } from "../domain/mergeViewTexts";
+import {
+    mergeViewFailedText,
+    MergeViewRefusal,
+    mergeViewRefusal,
+    StageRefusal,
+} from "../domain/mergeViewTexts";
 import { ConflictVersionsSource } from "../port/ConflictVersionsSource";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { MergeSideDocument, MergeSidesView } from "../port/MergeSidesView";
@@ -104,8 +110,8 @@ export class MergeViewOpener {
             return;
         }
         const merge = await this.mergeOf(reading.stages);
-        if (merge.kind === "unreadable") {
-            this.refuse({ kind: "unreadableStage", reason: merge.reason }, fileName);
+        if (merge.kind === "refused") {
+            this.refuse(merge.refusal, fileName);
             return;
         }
         const sideDocument = (side: MergeSide): MergeSideDocument => ({
@@ -131,20 +137,22 @@ export class MergeViewOpener {
         await this.show(session);
     }
 
-    /** Merges the stages before any pane opens, so a side the merge cannot read opens nothing. */
+    /**
+     * Merges the stages before any pane opens, so stages the merge refuses
+     * open nothing. Any other failure is no refusal and rejects.
+     */
     private async mergeOf(
         stages: MergeSession["stages"],
     ): Promise<
-        | { readonly kind: "unreadable"; readonly reason: string }
+        | { readonly kind: "refused"; readonly refusal: StageRefusal }
         | ({ readonly kind: "merged" } & MergeOfStages)
     > {
         try {
             return { kind: "merged", ...(await mergeStages(stages)) };
         } catch (error) {
-            return {
-                kind: "unreadable",
-                reason: error instanceof Error ? error.message : String(error),
-            };
+            const refusal = mergeRefusalOf(error);
+            if (refusal === undefined) throw error;
+            return { kind: "refused", refusal };
         }
     }
 

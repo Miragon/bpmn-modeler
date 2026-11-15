@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import type { MergeRefusal } from "@miragon/bpmn-modeler-merge";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     createTestHost,
@@ -10,6 +11,7 @@ import {
     RecordingMergeSidesView,
     StagedConflict,
 } from "../../testing";
+import type { StageRefusal } from "../domain/mergeViewTexts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeSessionStore } from "./MergeSessionStore";
 import { MergeViewOpener } from "./MergeViewOpener";
@@ -155,12 +157,40 @@ describe("MergeViewOpener", () => {
 
         expect(notifier.infos).toHaveLength(1);
         expect(notifier.infos[0]).toMatch(
-            /^The BPMN merge view cannot read order\.bpmn: incoming does not parse/,
+            /^The BPMN merge view cannot read the incoming side of order\.bpmn: .*Git LFS/s,
         );
         expect(notifier.errors).toStrictEqual([]);
         expect(view.served).toStrictEqual([]);
         expect(view.opened).toStrictEqual([]);
         expect(sessions.of(FILE)).toBeUndefined();
+    });
+
+    it("refuses sides for different engines in its own words, not as an unreadable file", async () => {
+        const forEngine = (xml: string, platform: string) =>
+            xml.replace(
+                "targetNamespace=",
+                `xmlns:modeler="http://camunda.org/schema/modeler/1.0" modeler:executionPlatform="${platform}" targetNamespace=`,
+            );
+        const { opener, view, notifier } = createOpener({
+            ...MERGE_CONFLICT,
+            stages: {
+                base: forEngine(ORDER_MERGE_STAGES.base, "Camunda Platform"),
+                current: forEngine(ORDER_MERGE_STAGES.current, "Camunda Platform"),
+                incoming: forEngine(ORDER_MERGE_STAGES.incoming, "Camunda Cloud"),
+            },
+        });
+
+        await opener.open(FILE);
+
+        expect(notifier.infos).toStrictEqual([
+            "The BPMN merge view cannot merge order.bpmn: the current side is for Camunda 7 and the incoming side for Camunda 8, and a merge needs one engine. Resolve it in Source Control.",
+        ]);
+        expect(notifier.errors).toStrictEqual([]);
+        expect(view.opened).toStrictEqual([]);
+    });
+
+    it("maps every refusal of the merge library onto a refusal of its own", () => {
+        expectTypeOf<StageRefusal>().toEqualTypeOf<MergeRefusal>();
     });
 
     it("explains a Merge Changes row that is not a BPMN file, without asking Git", async () => {

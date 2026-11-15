@@ -7,6 +7,7 @@ import {
 
 import { type MergeModdle, createMergeModdle } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
+import { parseFailure } from "./mergeRefusal";
 import { type DocumentFrame, frameOf, frameOfDefinitions } from "./mergedTreeFrame";
 import type { MergeResult, MergeSide, VersionKeys } from "./mergeResult";
 import { type MergeVersions, VERSION_NAMES, requireMergeableVersions } from "./mergeVersions";
@@ -86,9 +87,7 @@ async function versionSnapshots(
             rejectWarnings: true,
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        // `ErrorOptions` is not in this lib target, so the cause is attached directly.
-        throw Object.assign(new Error(`${side} does not parse: ${message}`), { cause: error });
+        throw parseFailure(side, error);
     }
 }
 
