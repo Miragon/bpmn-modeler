@@ -3,6 +3,7 @@ import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";
 import { ELEMENT_XML_TITLE_INFIX, compareTabLabel } from "./diffTabLabel";
+import { workingFileNameOfMergePane } from "./mergePaneName";
 
 /**
  * The title of the text diff that shows one element's XML from both sides of
@@ -15,10 +16,28 @@ export function elementXmlDiffTitle(
     before: DiffSideVersion,
     after: DiffSideVersion,
 ): string {
-    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${sidesLabel(origin, before, after)}`;
+    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${SIDES_LABEL[origin](origin, before, after)}`;
 }
 
-function sidesLabel(origin: DiffOrigin, before: DiffSideVersion, after: DiffSideVersion): string {
+type SidesLabel = (origin: DiffOrigin, before: DiffSideVersion, after: DiffSideVersion) => string;
+
+const SIDES_LABEL: Record<DiffOrigin, SidesLabel> = {
+    "scm": versionsLabel,
+    "compare-files": versionsLabel,
+    "merge": mergeSidesLabel,
+    "merge-result": versionsLabel,
+};
+
+// The panes' documents are the file's Git stages, named after their side.
+function mergeSidesLabel(_origin: DiffOrigin, before: DiffSideVersion): string {
+    return `${workingFileNameOfMergePane(uriDisplayName(before.uri))} (Current ↔ Incoming)`;
+}
+
+function versionsLabel(
+    origin: DiffOrigin,
+    before: DiffSideVersion,
+    after: DiffSideVersion,
+): string {
     const beforeName = uriDisplayName(before.uri);
     const afterName = uriDisplayName(after.uri);
     if (diffOriginSupports(origin, "namesFiles") || beforeName !== afterName) {

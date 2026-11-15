@@ -24,6 +24,7 @@ import {
     XmlStartTag,
 } from "@miragon/bpmn-modeler-types";
 
+import { readConflictMarkers } from "./conflictMarkers";
 import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { NewModelEngine } from "./newModelEngine";
@@ -123,6 +124,11 @@ export class BpmnDocument {
      */
     isEmpty(): boolean {
         return isBlankDocument(this.xml);
+    }
+
+    /** Whether Git left its conflict markers in the document, so it is no BPMN to open. */
+    hasMergeConflictMarkers(): boolean {
+        return readConflictMarkers(this.xml).hasMarkers;
     }
 
     /**
