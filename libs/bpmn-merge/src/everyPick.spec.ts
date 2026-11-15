@@ -189,6 +189,7 @@ const EXPECTED_END_STATES: Readonly<Record<string, number>> = {
     "data association onto a task incoming renames": 2,
     "gateway removed with its default flow": 2,
     "no base: incoming wraps the process in a pool": 3,
+    "lanes only incoming adds": 2,
     ...Object.fromEntries(
         MERGE_SCENARIOS.filter(({ name }) => name.startsWith("rule: ")).map(({ name }) => [
             name,
@@ -241,11 +242,11 @@ const EXPECTED_DISTINCT_END_STATES: Readonly<Record<string, number>> = {
     "root element only incoming adds": 4,
     "data association onto a task incoming renames": 3,
     "gateway removed with its default flow": 4,
-    "lanes only incoming adds": 13,
+    "lanes only incoming adds": 16,
     "no base: incoming wraps the process in a pool": 3,
     "collapse: current adds a task inside a sub-process incoming collapses": 2,
     "boundary event its host lists, removed by incoming": 3,
-    "interface and operation reference only incoming adds": 2,
+    "interface and operation reference only incoming adds": 3,
     [PLATFORM_ONLY_SCENARIO]: 2,
     [ALL_CONFLICTS_SCENARIO]: 192,
 };

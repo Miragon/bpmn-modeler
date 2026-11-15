@@ -222,9 +222,11 @@ each of those.
   where the shared prefix map renames an incoming prefix. `everyPick.spec.ts` builds every
   end state reached by picking the open conflicts, and each of those with one automatic
   resolution overridden, and requires a valid file. `mergeFuzz.spec.ts` does the same for
-  a few end states and random walks of 200 seeded random triples of the order process, and
-  checks that a refused pick changes nothing and that the picks, not their order, decide. The fixtures are generated from a plain
-  model and equal a moddle round trip, so "what the save writes" is testable.
+  a few end states and random walks of 200 seeded random triples of the order process and
+  a few pinned seeds. After every applied step it checks that each pick sits on its side
+  and every open conflict has a choice that applies; it also checks that a refused pick
+  changes nothing and that the picks, not their order, decide. The fixtures are generated
+  from a plain model and equal a moddle round trip, so "what the save writes" is testable.
 - An element drawn from another side than its container keeps that side's coordinates; the
   build notes it but does not move it.
 - bpmn-js rewrites the diagram's plane order on every save; the build keeps current's
