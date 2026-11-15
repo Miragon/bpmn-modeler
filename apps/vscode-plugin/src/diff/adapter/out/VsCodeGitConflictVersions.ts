@@ -84,6 +84,7 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
 
     watchMergeChanges(listener: (fileUris: readonly string[]) => void): Disposable {
         const subscriptions: Disposable[] = [];
+        const repositoryWatches = new Map<Repository, Disposable>();
         const waits = new Set<() => void>();
         let disposed = false;
         let told: string | undefined;
@@ -97,15 +98,21 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
                 told = list;
                 listener(fileUris);
             };
-            const watchRepository = (repository: Repository) =>
-                subscriptions.push(repository.state.onDidChange(tell));
+            const watchRepository = (repository: Repository) => {
+                repositoryWatches.get(repository)?.dispose();
+                repositoryWatches.set(repository, repository.state.onDidChange(tell));
+            };
             api.repositories.forEach(watchRepository);
             subscriptions.push(
                 api.onDidOpenRepository((repository) => {
                     watchRepository(repository);
                     tell();
                 }),
-                api.onDidCloseRepository(tell),
+                api.onDidCloseRepository((repository) => {
+                    repositoryWatches.get(repository)?.dispose();
+                    repositoryWatches.delete(repository);
+                    tell();
+                }),
             );
             tell();
         };
@@ -119,6 +126,8 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
             dispose: () => {
                 disposed = true;
                 subscriptions.splice(0).forEach((subscription) => subscription.dispose());
+                repositoryWatches.forEach((subscription) => subscription.dispose());
+                repositoryWatches.clear();
                 waits.forEach((stop) => stop());
             },
         };
