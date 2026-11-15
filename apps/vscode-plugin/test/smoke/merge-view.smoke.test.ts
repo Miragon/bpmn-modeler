@@ -73,10 +73,24 @@ function runGit(repository: string, ...args: string[]): Promise<{ stdout: string
     );
 }
 
+/** In the merge, main deleted the task with both of its flows while feature renamed it. */
+const REMOVAL_FILE = "removed.bpmn";
+
+function withoutCheckTask(base: string): string {
+    return base
+        .replace(/\s*<bpmn:task id="Task_Check"[\s\S]*?<\/bpmn:task>/, "")
+        .replace(/\s*<bpmn:outgoing>Flow_To_Task<\/bpmn:outgoing>/, "")
+        .replace(/\s*<bpmn:incoming>Flow_To_End<\/bpmn:incoming>/, "")
+        .replace(/\s*<bpmn:sequenceFlow id="Flow_To_(Task|End)"[^>]*\/>/g, "")
+        .replace(/\s*<bpmndi:BPMNShape id="Task_Check_di"[\s\S]*?<\/bpmndi:BPMNShape>/, "")
+        .replace(/\s*<bpmndi:BPMNEdge id="Flow_To_(Task|End)_di"[\s\S]*?<\/bpmndi:BPMNEdge>/g, "");
+}
+
 /**
  * A repository whose one file conflicts after `operation`: both sides rename
  * the task. In the merge, feature alone also renames the end event, which the
- * merge takes from feature without asking.
+ * merge takes from feature without asking, and a second file conflicts on a
+ * task main deleted and feature renamed.
  */
 async function conflictedRepository(
     workspace: string,
@@ -91,8 +105,10 @@ async function conflictedRepository(
         runGit(repository, "commit", "-q", "-a", "--no-verify", "-m", message);
     await mkdir(repository, { recursive: true });
     await writeFile(file, base);
+    if (operation === "merge") await writeFile(join(repository, REMOVAL_FILE), base);
     await runGit(repository, "init", "-q");
     await runGit(repository, "add", fileName);
+    if (operation === "merge") await runGit(repository, "add", REMOVAL_FILE);
     await runGit(repository, "commit", "-q", "--no-verify", "-m", "Add the order process");
     if (operation === "stash") {
         await writeFile(file, renamed("Check stashed order"));
@@ -110,11 +126,16 @@ async function conflictedRepository(
             ? featureVersion.replace('name="Order checked"', 'name="Order verified"')
             : featureVersion,
     );
+    if (operation === "merge") {
+        await writeFile(join(repository, REMOVAL_FILE), renamed("Check feature order"));
+    }
     if (operation === "merge") await writeFile(join(repository, "notes.txt"), "feature\n");
     if (operation === "merge") await runGit(repository, "add", "notes.txt");
     await commitAll("Rename the check on feature");
     await runGit(repository, "checkout", "-q", "main");
     await writeFile(file, renamed("Check main order"));
+    if (operation === "merge")
+        await writeFile(join(repository, REMOVAL_FILE), withoutCheckTask(base));
     if (operation === "merge") await writeFile(join(repository, "notes.txt"), "main\n");
     if (operation === "merge") await runGit(repository, "add", "notes.txt");
     await commitAll("Rename the check on main");
@@ -159,10 +180,14 @@ describe("the BPMN merge view", () => {
             .filter({ hasText: fileName })
             .first();
         const deadline = Date.now() + TIMEOUT_MS;
+        // The list scrolls a bounded distance per wheel event, so it walks up, then down, looking.
         while (!(await row.isVisible()) && Date.now() < deadline) {
             await list.hover();
-            await vscode().page.mouse.wheel(0, -100_000);
             for (let scrolls = 0; scrolls < 20 && !(await row.isVisible()); scrolls++) {
+                await vscode().page.mouse.wheel(0, -300);
+                await delay(100);
+            }
+            for (let scrolls = 0; scrolls < 40 && !(await row.isVisible()); scrolls++) {
                 await vscode().page.mouse.wheel(0, 150);
                 await delay(100);
             }
@@ -534,6 +559,151 @@ describe("the BPMN merge view", () => {
                 })
                 .toBe("true");
             await shot("marks-step-list-shared");
+        });
+    });
+
+    describe("pick", () => {
+        /** The keyboard's way: focus the legend's button and press Enter, no click. */
+        async function press(pane: FrameLocator, name: string): Promise<void> {
+            const target = pane.getByRole("button", { name, exact: true });
+            await target.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            await target.focus();
+            await vscode().page.keyboard.press("Enter");
+        }
+
+        async function mergePanes(): Promise<{ current: FrameLocator; incoming: FrameLocator }> {
+            return {
+                current: await vscode().editorWebview('body[data-diff-side="before"]'),
+                incoming: await vscode().editorWebview('body[data-diff-side="after"]'),
+            };
+        }
+
+        function openCount(pane: FrameLocator): Promise<string> {
+            return pane.locator(".merge-legend__open").innerText();
+        }
+
+        function badgeLabels(pane: FrameLocator): Promise<string[]> {
+            return pane
+                .locator(".merge-pick-badge")
+                .evaluateAll((badges) =>
+                    badges.map((badge) => badge.getAttribute("aria-label") ?? ""),
+                );
+        }
+
+        it("keeps incoming's version of the conflict from the legend and badges it on both panes", async () => {
+            const { current, incoming } = await mergePanes();
+            await press(incoming, "Open conflicts");
+            await press(incoming, "Next change");
+
+            await press(incoming, "Keep incoming");
+
+            for (const pane of [current, incoming]) {
+                await expect
+                    .poll(() => openCount(pane), { timeout: TIMEOUT_MS })
+                    .toBe("No open conflicts");
+                expect(await badgeLabels(pane)).toEqual(["Kept from incoming, your pick"]);
+            }
+            await shot("pick-badges-both-panes");
+        });
+
+        it("undoes the pick from the list of all merged elements, then overrides an automatic resolution", async () => {
+            const { current, incoming } = await mergePanes();
+            await press(incoming, "All merged elements");
+
+            await press(incoming, "Undo pick");
+
+            await expect
+                .poll(() => openCount(current), { timeout: TIMEOUT_MS })
+                .toBe("1 open conflict");
+            expect(await badgeLabels(current)).toEqual([]);
+            expect(await badgeLabels(incoming)).toEqual([]);
+
+            await press(current, "Next change");
+            await press(current, "Keep current");
+
+            await expect
+                .poll(() => badgeLabels(incoming), { timeout: TIMEOUT_MS })
+                .toEqual(["Kept from current, your pick"]);
+            expect(
+                await current
+                    .locator('.djs-element[data-element-id="End_Order"]')
+                    .first()
+                    .getAttribute("class"),
+            ).toContain("merge-taken-from-this-side");
+            await expectUntouched("merge");
+        });
+
+        it("keeps the badge after a switch to another tab and back", async () => {
+            await openWithQuickOpen("clean.bpmn");
+            await vscode().editorWebview(".djs-palette");
+            await vscode()
+                .page.locator(".tabs-container .tab")
+                .filter({ hasText: "(Merge: " })
+                .filter({ hasText: CONFLICTED.merge })
+                .first()
+                .click();
+
+            const { current, incoming } = await mergePanes();
+            for (const pane of [current, incoming]) {
+                await expect
+                    .poll(() => badgeLabels(pane), { timeout: TIMEOUT_MS })
+                    .toEqual(["Kept from current, your pick"]);
+            }
+        });
+
+        it("offers the flows main removed with a task feature kept, and keeps them on request", async () => {
+            await rowMenu(REMOVAL_FILE, COMMAND_TITLE);
+            const { current, incoming } = await mergePanes();
+            await press(incoming, "Next change");
+
+            await press(incoming, "Keep incoming");
+
+            const offer = "Also keep the 2 flows current removed with it";
+            await incoming
+                .getByRole("button", { name: offer })
+                .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            expect(await current.getByRole("button", { name: offer }).count()).toBe(0);
+            await shot("pick-restore-offer");
+
+            await press(incoming, offer);
+
+            await expect
+                .poll(() => badgeLabels(incoming).then((labels) => labels.length), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(3);
+            await expect
+                .poll(() => current.locator(".merge-legend__picks-item").count(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(3);
+            await shot("pick-listed-where-not-drawn");
+        });
+
+        it("names the flows that block keeping main's removal", async () => {
+            const { current } = await mergePanes();
+            await press(current, "Kept from incoming: Task_Check");
+
+            await press(current, "Keep current");
+
+            const feedback = current.locator(".merge-legend__feedback");
+            await expect
+                .poll(() => feedback.innerText(), { timeout: TIMEOUT_MS })
+                .toContain("Cannot keep Task_Check");
+            expect(await feedback.innerText()).toContain("which you picked, needs Task_Check");
+            await shot("pick-blocked-reason");
+        });
+
+        it("shows the pick entries on the context pad", async () => {
+            const { incoming } = await mergePanes();
+            await incoming.locator('.djs-element[data-element-id="Task_Check"]').first().click();
+
+            await incoming
+                .locator(".djs-context-pad .merge-pick-action")
+                .first()
+                .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            expect(await incoming.locator(".djs-context-pad .merge-pick-action").count()).toBe(2);
+            await shot("pick-context-pad");
         });
     });
 });

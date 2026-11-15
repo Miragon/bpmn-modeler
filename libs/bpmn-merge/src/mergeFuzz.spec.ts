@@ -262,7 +262,9 @@ function expectConnectionsKeptAsPicks(
     const picksBefore = picksLeftBy(result, prefix);
     const element = result.elements.find(({ id }) => id === pick.id)!;
     // It takes back every flow the other side removed with the element, a flow picked by hand too.
-    const takenBack = connectionsRemovedWith(result.elements, element, pick.side).map(({ id }) => id);
+    const takenBack = connectionsRemovedWith(result.elements, element, pick.side).map(
+        ({ id }) => id,
+    );
     if ([pick.id, ...takenBack].every((id) => !picksBefore.has(id))) {
         const undone = replayed(result, [...prefix, pick]);
         if (undone.unpickWithConnections(pick.id).applied) {
@@ -404,9 +406,10 @@ describe("random versions of the order process", () => {
             for (let seed = FIRST_SEED; seed < FIRST_SEED + SEED_COUNT; seed++) {
                 connectionsKept += await expectMergesSoundly(seed);
             }
-            expect(connectionsKept, "walks that kept an element with its connections").toBeGreaterThan(
-                0,
-            );
+            expect(
+                connectionsKept,
+                "walks that kept an element with its connections",
+            ).toBeGreaterThan(0);
         },
         FUZZ_TIMEOUT_MS,
     );

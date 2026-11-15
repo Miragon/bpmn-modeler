@@ -42,9 +42,9 @@ describe("removedConnections", () => {
     });
 
     it("lists the flows the removing side removed with the element, not one the keeping side added", () => {
-        expect(connectionsRemovedWith(result.elements, task, "incoming").map(({ id }) => id)).toEqual(
-            ["Flow_In", "Flow_Out"],
-        );
+        expect(
+            connectionsRemovedWith(result.elements, task, "incoming").map(({ id }) => id),
+        ).toEqual(["Flow_In", "Flow_Out"]);
     });
 
     it("lists nothing on the removing side", () => {

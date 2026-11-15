@@ -121,7 +121,8 @@ export class MergeDecisions {
         if (!trial.outcome.applied) return [];
         const after = trial.after;
         const dangling = findDanglingConflicts(this.mergeResult.elements, this.index, after);
-        const inResult = (candidate: string) => !dangling.has(candidate) && after.isPresent(candidate);
+        const inResult = (candidate: string) =>
+            !dangling.has(candidate) && after.isPresent(candidate);
         return candidates
             .filter(
                 (connection) =>

@@ -970,7 +970,10 @@ ${
             const decisions = await decisionsFor(scenario);
             expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
 
-            const { xml, notes } = await buildMerged(await prepareMergeSources(scenario), decisions);
+            const { xml, notes } = await buildMerged(
+                await prepareMergeSources(scenario),
+                decisions,
+            );
 
             const { elementsById } = await parseWithoutWarnings(xml);
             for (const id of ["Task_Reject", "Flow_No", "Flow_Rejected", "Flow_Timeout"]) {
