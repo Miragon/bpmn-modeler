@@ -32,6 +32,11 @@ export class DiffPaneRelay {
         handle.setReady();
         await this.sendLanguage(handle);
 
+        return this.armedOf(handle);
+    }
+
+    /** The pane's session with both of its panes, once both are attached and ready. */
+    armedOf(handle: DiffPaneHandle): ArmedDiff | undefined {
         const session = this.store.sessionOf(handle);
         if (!session || !session.isArmed()) {
             return undefined;

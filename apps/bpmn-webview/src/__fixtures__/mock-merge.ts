@@ -42,6 +42,7 @@ const CURRENT: MergePaneStates = {
         step("Process_1", true, true),
     ],
     openConflicts: 2,
+    stepping: { list: "openConflicts" },
 };
 
 const INCOMING: MergePaneStates = {
@@ -63,6 +64,7 @@ const INCOMING: MergePaneStates = {
         step("Process_1", true, true),
     ],
     openConflicts: 2,
+    stepping: { list: "openConflicts" },
 };
 
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */

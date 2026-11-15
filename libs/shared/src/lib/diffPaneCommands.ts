@@ -20,12 +20,13 @@ export type DiffPaneCommandType = (typeof DIFF_PANE_COMMAND_TYPES)[number];
 
 export type DiffPaneCommand = MessageOfType<DiffPaneCommandType>;
 
-/** Every command a BPMN diff pane posts once its host named it a diff pane. */
+/** Every command a BPMN diff pane posts once its host named it a diff pane, a merge pane's included. */
 export const BPMN_DIFF_PANE_COMMAND_TYPES = [
     ...DIFF_PANE_COMMAND_TYPES,
     "DiffPlaneChangedCommand",
     "ShowElementXmlChangesCommand",
     "DiffSelectionChangedCommand",
+    "MergeStepListChangedCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type BpmnDiffPaneCommandType = (typeof BPMN_DIFF_PANE_COMMAND_TYPES)[number];

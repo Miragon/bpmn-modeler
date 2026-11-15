@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
     ApplyMergeStatesQuery,
     type MergePaneStates,
     type MergePaneStep,
+    type MergePaneStepList,
     SHOW_ALL_CURSOR,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
@@ -77,6 +78,7 @@ vi.mock("./mergeMarks", () => ({
     },
 }));
 
+import type { MergeStepList } from "../../domain/mergeStepper";
 import { MergeMode } from "./mergeMode";
 
 const viewer = () => fakes.FakeDiffViewer.last;
@@ -110,6 +112,7 @@ const STATES: MergePaneStates = {
         step("Process_1", true),
     ],
     openConflicts: 3,
+    stepping: { list: "openConflicts" },
 };
 
 function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
@@ -323,6 +326,41 @@ describe("MergeMode", () => {
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
             expect(cursorsPosted()).toEqual([0]);
             expect(legendButton("All merged elements").getAttribute("aria-pressed")).toBe("true");
+        });
+
+        it("tells the host which list it steps through, so the partner walks it too", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            legendButton("All merged elements").click();
+
+            expect(posted()).toContainEqual(
+                expect.objectContaining({ type: "MergeStepListChangedCommand", list: "all" }),
+            );
+        });
+
+        it("walks the list the host sends", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ stepping: { list: "all" } }));
+
+            next();
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
+            expect(legendButton("All merged elements").getAttribute("aria-pressed")).toBe("true");
+        });
+
+        it("goes back to the step the host kept, as after a tab switch, without echoing it", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Pack" } }));
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+            expect(cursorsPosted()).toEqual([]);
+            expect(legendText()).toContain("1/3");
+        });
+
+        it("keeps the step list's type equal to the protocol's", () => {
+            expectTypeOf<MergeStepList>().toEqualTypeOf<MergePaneStepList>();
         });
 
         it("stays on the stepped element after a repaint", async () => {

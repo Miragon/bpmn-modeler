@@ -1,5 +1,9 @@
 import { mergePaneSteps, mergePaneView } from "@miragon/bpmn-modeler-merge";
-import { ApplyMergeStatesQuery } from "@miragon/bpmn-modeler-shared";
+import {
+    ApplyMergeStatesQuery,
+    type MergePaneStepList,
+    type MergePaneStepping,
+} from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { LoggerPort } from "../../kernel/port/hostPorts";
@@ -16,6 +20,9 @@ import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
  * pane that reloaded rebuilds from it.
  */
 export class MergeDecisionService {
+    // Per tab, since each tab's two panes step together and apart from another tab's.
+    private readonly stepping = new WeakMap<DiffSession, MergePaneStepping>();
+
     constructor(
         private readonly sessions: Pick<MergeSessionStore, "ofDiffSession">,
         private readonly logger: LoggerPort,
@@ -30,8 +37,34 @@ export class MergeDecisionService {
     async broadcast(armed: ArmedDiff, elementXmlChanges: boolean): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
         if (!session) return;
-        await this.post(armed.before, statesFor(session, "before", elementXmlChanges));
-        await this.post(armed.after, statesFor(session, "after", elementXmlChanges));
+        const stepping = this.steppingOf(armed.session);
+        await this.post(armed.before, statesFor(session, "before", stepping, elementXmlChanges));
+        await this.post(armed.after, statesFor(session, "after", stepping, elementXmlChanges));
+    }
+
+    /** Keeps the list a pane of the tab chose and sends both panes their states again. */
+    async chooseStepList(
+        armed: ArmedDiff,
+        list: MergePaneStepList,
+        elementXmlChanges: boolean,
+    ): Promise<void> {
+        this.stepping.set(armed.session, { ...this.steppingOf(armed.session), list });
+        await this.broadcast(armed, elementXmlChanges);
+    }
+
+    /** Keeps the step a pane of the tab moved to, by its index in every step, or none after Show all. */
+    noteCursor(diffSession: DiffSession, index: number): void {
+        const session = this.sessions.ofDiffSession(diffSession);
+        if (!session) return;
+        const { list } = this.steppingOf(diffSession);
+        const cursor = mergePaneSteps(session.decisions, session.navigationOrder, "current").all[
+            index
+        ]?.id;
+        this.stepping.set(diffSession, cursor === undefined ? { list } : { list, cursor });
+    }
+
+    private steppingOf(diffSession: DiffSession): MergePaneStepping {
+        return this.stepping.get(diffSession) ?? FIRST_STEPPING;
     }
 
     // A pane that is hidden or gone drops the post; it gets everything again on its next ready.
@@ -44,9 +77,12 @@ export class MergeDecisionService {
     }
 }
 
+const FIRST_STEPPING: MergePaneStepping = { list: "openConflicts" };
+
 function statesFor(
     session: MergeSession,
     paneSide: DiffSide,
+    stepping: MergePaneStepping,
     elementXmlChanges: boolean,
 ): ApplyMergeStatesQuery {
     const side = mergeSideOfPane(paneSide);
@@ -62,6 +98,7 @@ function statesFor(
             openConflictSteps: steps.openConflicts,
             allSteps: steps.all,
             openConflicts: session.decisions.openConflicts.length,
+            stepping,
         },
         elementXmlChanges,
     );

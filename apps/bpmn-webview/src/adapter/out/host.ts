@@ -248,6 +248,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 );
                 break;
             }
+            case "MergeStepListChangedCommand": {
+                // Single-pane preview: the list is switched locally only.
+                console.debug("[DEBUG] MergeStepListChangedCommand (no partner in dev)", command.list);
+                break;
+            }
             case "ShowElementXmlChangesCommand": {
                 // No editor group to open a text diff in.
                 console.debug("[DEBUG] ShowElementXmlChangesCommand", command.elementId);

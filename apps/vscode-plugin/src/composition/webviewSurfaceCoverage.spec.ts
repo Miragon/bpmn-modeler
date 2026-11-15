@@ -78,6 +78,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         LogErrorCommand: HANDLED,
         ShowElementXmlChangesCommand: HANDLED,
         DiffSelectionChangedCommand: HANDLED,
+        MergeStepListChangedCommand: HANDLED,
     },
     dmnDiffPane: {
         GetDmnFileCommand: HANDLED,

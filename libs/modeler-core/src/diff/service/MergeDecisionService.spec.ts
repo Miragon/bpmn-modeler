@@ -1,10 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { MergeStep, ShapelessMark } from "@miragon/bpmn-modeler-merge";
-import type {
-    ApplyMergeStatesQuery,
-    MergePaneShapelessMark,
-    MergePaneStep,
+import {
+    type ApplyMergeStatesQuery,
+    type MergePaneShapelessMark,
+    type MergePaneStep,
+    SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
 
 import {
@@ -184,6 +185,43 @@ describe("MergeDecisionService", () => {
         expect(statesOf(incoming)).toHaveLength(1);
         expect(lastStatesOf(incoming)).toStrictEqual(first);
         expect(statesOf(current)).toHaveLength(1);
+    });
+
+    it("starts both panes on the open conflicts, on no step", async () => {
+        const { current, incoming, bothReady } = await openMergeView();
+
+        await bothReady();
+
+        for (const pane of [current, incoming]) {
+            expect(lastStatesOf(pane).states.stepping).toStrictEqual({ list: "openConflicts" });
+        }
+    });
+
+    it("sends both panes the list one of them chose to step through", async () => {
+        const { diffService, current, incoming, bothReady } = await openMergeView();
+        await bothReady();
+
+        await diffService.chooseMergeStepList(current, "all");
+
+        for (const pane of [current, incoming]) {
+            expect(lastStatesOf(pane).states.stepping).toStrictEqual({ list: "all" });
+        }
+    });
+
+    it("keeps the step the panes are on for a pane that reloads, until Show all", async () => {
+        const { diffService, current, incoming, bothReady } = await openMergeView();
+        await bothReady();
+
+        await diffService.forwardCursor(current, 1);
+        await diffService.markReady(incoming);
+        expect(lastStatesOf(incoming).states.stepping).toStrictEqual({
+            list: "openConflicts",
+            cursor: "Task_Pack",
+        });
+
+        await diffService.forwardCursor(incoming, SHOW_ALL_CURSOR);
+        await diffService.markReady(current);
+        expect(lastStatesOf(current).states.stepping).toStrictEqual({ list: "openConflicts" });
     });
 
     it("tells the panes whether the host shows an element's XML changes", async () => {

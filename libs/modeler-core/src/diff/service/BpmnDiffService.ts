@@ -1,6 +1,7 @@
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
+    type MergePaneStepList,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
     SyncDiffSelectionQuery,
@@ -119,7 +120,17 @@ export class BpmnDiffService {
      * partner lookup, same drop-silently-on-failure semantics.
      */
     forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session && this.merge?.shows(session)) this.merge.noteCursor(session, index);
         return this.relay.toPartner(handle, new SyncCursorQuery(index), "syncCursor");
+    }
+
+    /** Keeps the list a merge pane steps through and has its partner walk it too. */
+    async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
+        const armed = this.relay.armedOf(handle);
+        if (armed && this.merge?.shows(armed.session)) {
+            await this.merge.chooseStepList(armed, list, this.showsElementXmlChanges);
+        }
     }
 
     /** Posts the plane the user entered to the partner pane, so both show the same subprocess. */

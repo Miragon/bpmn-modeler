@@ -61,6 +61,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         LogErrorCommand: HANDLED,
         ShowElementXmlChangesCommand: ignored("the host shows no element XML diff"),
         DiffSelectionChangedCommand: HANDLED,
+        MergeStepListChangedCommand: HANDLED,
     },
     dmnEditor: absent("IntelliJ has no DMN editor"),
     dmnDiffPane: absent("IntelliJ has no DMN editor"),

@@ -1,6 +1,6 @@
 import type { DiffSide, MergeMarker, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
-import { Query } from "./messages";
+import { Command, Query } from "./messages";
 
 /** One element a merge pane's stepper walks to. */
 export interface MergePaneStep {
@@ -20,6 +20,16 @@ export interface MergePaneShapelessMark {
     readonly marker: MergeMarker;
 }
 
+/** Which list a merge pane's Next and Previous walk: the open conflicts, or every element either pane marks. */
+export type MergePaneStepList = "openConflicts" | "all";
+
+/** Where the steppers of a merge view's tab are, which the host keeps for its two panes. */
+export interface MergePaneStepping {
+    readonly list: MergePaneStepList;
+    /** The element both steppers are on; absent before the first step and after Show all. */
+    readonly cursor?: string;
+}
+
 /** Everything one merge pane shows of its merge view's decisions. */
 export interface MergePaneStates {
     readonly caption: MergeSideCaption;
@@ -33,6 +43,7 @@ export interface MergePaneStates {
     /** Every element either pane marks, in navigation order, the same on both panes. */
     readonly allSteps: readonly MergePaneStep[];
     readonly openConflicts: number;
+    readonly stepping: MergePaneStepping;
 }
 
 /**
@@ -54,5 +65,19 @@ export class ApplyMergeStatesQuery extends Query<"ApplyMergeStatesQuery"> {
         this.side = side;
         this.states = states;
         this.elementXmlChanges = elementXmlChanges;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user switches the list Next and Previous
+ * walk. The host keeps the list for the tab and sends both panes their
+ * states again, so the partner walks the same list.
+ */
+export class MergeStepListChangedCommand extends Command<"MergeStepListChangedCommand"> {
+    public readonly list: MergePaneStepList;
+
+    constructor(list: MergePaneStepList) {
+        super("MergeStepListChangedCommand");
+        this.list = list;
     }
 }

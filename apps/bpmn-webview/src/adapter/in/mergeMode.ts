@@ -3,6 +3,7 @@ import {
     CursorChangedCommand,
     type MergePaneStates,
     type MergePaneStep,
+    MergeStepListChangedCommand,
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
@@ -35,7 +36,10 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *   - Incoming {@link SyncCursorQuery} → move to the partner's step without
  *     re-emitting it.
  *   - Outgoing {@link CursorChangedCommand} on a user step, its index counted
- *     in `allSteps`, which both panes share whichever list each walks.
+ *     in `allSteps`, and {@link MergeStepListChangedCommand} when the user
+ *     switches the list; the host keeps both for the tab and sends them with
+ *     the states, so the partner walks the same list and a reloaded pane
+ *     goes back to the step.
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
  * the open list, and the step after it goes on from its place.
@@ -99,11 +103,18 @@ export class MergeMode {
 
     private paint(query: ApplyMergeStatesQuery): void {
         this.states = query;
+        this.stepList = query.states.stepping.list;
         this.pane.tagSide(query.side);
         this.pane.offerElementXmlChanges(query.elementXmlChanges);
         this.paintMarks();
         this.pane.label(query.side, () => mergeCaptionText(query.states.caption, translate));
-        this.updateLegend();
+        const kept = query.states.stepping.cursor;
+        // A pane that reloaded has no step of its own; the host kept the tab's.
+        if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
+            this.goTo(kept);
+        } else {
+            this.updateLegend();
+        }
     }
 
     private paintMarks(): void {
@@ -156,6 +167,7 @@ export class MergeMode {
     private switchStepList(list: MergeStepList): void {
         this.stepList = list;
         this.updateLegend();
+        this.host.postMessage(new MergeStepListChangedCommand(list));
     }
 
     private showAll(): void {

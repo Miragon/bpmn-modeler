@@ -53,6 +53,7 @@ import {
     type BpmnDiffPaneCommandType,
     type MessageOfType,
     type Query,
+    MergeStepListChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
@@ -130,6 +131,7 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     LogErrorCommand: new LogErrorCommand("error"),
     ShowElementXmlChangesCommand: new ShowElementXmlChangesCommand("Task_1"),
     DiffSelectionChangedCommand: new DiffSelectionChangedCommand("Task_1"),
+    MergeStepListChangedCommand: new MergeStepListChangedCommand("all"),
 };
 
 describe("getHostApi", () => {
