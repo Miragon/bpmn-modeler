@@ -27,7 +27,7 @@ preserves earlier decisions and their evolution.
 | [Deployment](deployment.md) | Targets, credentials, environment references, execution, freshness ledger, engine reconciliation |
 | [Release and publishing](release-and-publishing.md) | Release components, source markers, release PR, npm/Marketplace/Open VSX/Orca publishing |
 | [Standalone app](standalone-app.md) | Theia and Electron runtime, dependency security overrides, Flatpak Git, built-in languages, Windows packages |
-| [Dependencies](dependencies.md) | Private upstream APIs, identity-sensitive bpmn-io pins, TypeScript compilers |
+| [Dependencies](dependencies.md) | Private upstream APIs, identity-sensitive bpmn-io pins, TypeScript compilers, vulnerability handling |
 | [Testing](testing.md) | Test environments, fakes and contract suites, test-first for rules, coverage, mutation testing, CI test targets |
 | [Architecture enforcement](architecture-enforcement.md) | Architecture tests, guarded values, the fitness function report and its functions, architecture review |
 

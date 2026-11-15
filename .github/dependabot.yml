@@ -66,6 +66,12 @@ updates:
           - major
         patterns:
           - "*"
+      # Most advisories hit transitive packages, which version updates never
+      # move; one PR refreshes them all within their declared ranges.
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
   # Fetch and update latest `github-actions` packages
   - package-ecosystem: github-actions
     # The composite actions pin their own action SHAs.
@@ -116,5 +122,9 @@ updates:
         applies-to: version-updates
         update-types:
           - major
+        patterns:
+          - "*"
+      gradle-security:
+        applies-to: security-updates
         patterns:
           - "*"
