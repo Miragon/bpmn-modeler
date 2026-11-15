@@ -100,7 +100,8 @@ composition lists it; IntelliJ gets no new notification.
 **Known limits.** `Repository.buffer` runs `git show --textconv`, so a textconv driver for
 `*.bpmn` hands over converted text and Git LFS its pointer file (from the source, not
 observed); the opener merges the stages before it serves a pane, so such a file is refused
-with the merge's reason and opens nothing. A user whose
+and opens nothing. The core words each `MergeRefusal` itself and blames Git LFS or a textconv
+driver only for a text the parser rejects; any other failure shows as a failed opening. A user whose
 `workbench.editorAssociations` maps `*.bpmn` to the text editor gets a text diff of the two
 stages, and the pre-registered session waits out its 30-second TTL. The entries need the
 extension active, which opening any `.bpmn` does, in any editor.
@@ -122,16 +123,23 @@ a second legend, whose chrome and themes would drift from the diff's.
 
 **Projections in the library, typed by modeler-types.** What a pane shows is a pure function
 of the decisions in `libs/bpmn-merge`: `mergePaneView` (markers of the drawn elements, the
-shape-less ones listed), `mergePaneSteps` and `mergeNavigationOrder` (current's flow, an
-element current lacks next to its neighbour in incoming's), `hasNoShape` (no version drawn,
-or the process or collaboration that owns the root plane). The core's `domain/` cannot import
-the library, so `MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose step
-and shape-less copies a spec pins to the library's types. The webview paints what it gets:
-it skips an id its canvas lacks and decides no marker.
+shape-less ones listed, and the count of each marker over both), `mergePaneSteps` (each step
+naming the sub-process plane that draws it) and `mergeNavigationOrder` (current's flow, an
+element only incoming's flow places after its nearest predecessor there, both flow orders
+kept in `MergeSources`), `hasNoShape` (no version drawn, or the process or collaboration that
+owns the root plane). The core's `domain/` cannot import the library, so
+`MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose step and shape-less
+copies a spec pins to the library's types. The webview paints and counts what it gets: it
+skips an id its canvas lacks and decides no marker. A shape-less entry names its type through
+`elementTypeName`, the one table of type names with the shared dictionary's keys.
 
 **A `"merge"` viewer mode.** diagram-js fixes a pane's modules when it is built, so the host
 tells a merge pane what it is in its first `BpmnFileQuery`; the merge session is attached
-before the page boots. `MergeMode` and `DiffMode` share `DiffPanePlumbing` (viewport, plane
+before the page boots. Whether a pane is a merge pane is decided by the merge session store
+(`MergeDecisionService.shows`): it picks the viewer mode and sends merge states instead of
+diff highlights. `DiffSession.origin === "merge"` only picks the tab's titles and diff
+capabilities; `registerMerge` sets both together and a merge view ends with its last diff
+session, so they cannot disagree while a pane is open. `MergeMode` and `DiffMode` share `DiffPanePlumbing` (viewport, plane
 and selection sync, the element XML pad, the side label) instead of a copy of it.
 
 **The full projection on every ready.** A custom editor's webview is not retained, and a post
@@ -139,12 +147,18 @@ to a hidden pane is dropped, so a pane reloads after a tab switch with nothing. 
 `DiffReadyCommand` of a merge pane sends both panes the whole state again, never a change.
 Cost: one projection per ready, cheap beside the import.
 
-**Two step lists, cursor by id.** Next and Previous walk the open conflicts in flow order, or
-every element either pane marks, which a legend toggle switches; both lists are the same on
-both panes, and a cursor travels as its index in the second. Each pane keeps its cursor by
-element id, so a repaint leaves it in place and a decided conflict's successor is found from
-its place. A shape-less step selects its legend entry; a step only the partner draws leaves
-the pane where it is, since a neighbour here would point at something else.
+**Two step lists, cursor by id, kept by the core per tab.** Next and Previous walk the open
+conflicts in flow order, or every element either pane marks, which a legend toggle switches;
+both lists are the same on both panes, and a cursor travels as its index in the second. The
+core keeps the list (`MergeStepListChangedCommand`) and the step a pane moved to per tab and
+sends them with every `ApplyMergeStatesQuery`, so both panes walk one list and a pane that
+reloaded after a tab switch goes back to the step. Rejected: relaying the toggle pane to
+pane, which a reload loses; the webview's `setState`, which keeps one pane only. Each pane
+keeps its cursor by element id, so a repaint leaves it in place and a decided conflict's
+successor is found from its place. A shape-less step selects its legend entry; a step only
+the partner draws leaves the pane where it is, since a neighbour here would point at
+something else, but the pane enters the plane the partner stepped into, or notes that its
+version lacks it, which stops the viewport sync.
 
 ### Hosts
 
@@ -161,6 +175,10 @@ to the two diff origins and lists no conflict-marker participant.
 - The domain rules have table specs; `MergeViewOpener`, `ResolvableConflictsService` and the
   participant run against the test kit's fakes; `describeConflictVersionsContract` and
   `describeMergeSidesViewContract` hold every adapter, the fakes included.
+- `mergePaneProjections.spec.ts` checks what both panes show over every merge scenario and
+  150 random versions, before and after random picks: no open conflict off both panes, no
+  mark a side cannot hold, no step on neither pane, and every element a flow reaches before
+  the rest of the order.
 - `DiffController.spec.ts` keeps the working file an editable modeler beside a live and a
   restored merge tab, and a real SCM diff of it still a diff pane.
 - `test/e2e/merge.e2e.test.ts` opens a merge and a rebase conflict on 1.76.0 and stable; the

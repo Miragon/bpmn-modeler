@@ -88,7 +88,10 @@ base, an element only one side has, or that the sides hold differently, is a con
   incoming's), which warns on an engine attribute or extension element the descriptor does
   not know: the file is built with that descriptor, so such a version could never be built.
   `requireMergeableVersions` holds every up-front refusal, so building the file can run the
-  same checks.
+  same checks. A refusal is thrown as a typed `MergeRefusal` (a text the parser rejects, one
+  that parses with warnings, two engines, an element without an id), which `mergeRefusalOf`
+  reads, so a caller explains each in its own words; the error's English message is for a
+  developer. Any other error the library throws is a bug, not a refusal.
 - *What a state compares.* The element's text without its child elements, `bpmndi` and
   the derived references `incoming`, `outgoing`, `flowNodeRef` and `boundaryEventRefs`,
   together with its parent and its lanes. Keeping derived references would make both ends
