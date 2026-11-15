@@ -9,7 +9,8 @@ A conflicted `.bpmn` file holds Git's conflict markers, so the modeler cannot op
 BPMN diff cannot run on it. The merge view shows the file's two sides as diagrams in VS Code,
 side by side, and later lets the user pick per element and build the result
 ([merge](merge.md) owns the library that decides). This record covers how the view opens from
-Git; the sections for marking, picking and building join it with their changes (epic #2459).
+Git and how its panes mark the merge; the sections for picking and building join it with their
+changes (epic #2459).
 
 ## Decision
 
@@ -97,11 +98,53 @@ context: once per editor, and again only after the markers left and came back. N
 composition lists it; IntelliJ gets no new notification.
 
 **Known limits.** `Repository.buffer` runs `git show --textconv`, so a textconv driver for
-`*.bpmn` hands over converted text and Git LFS its pointer file; such a pane shows the
-webview's import error (from the source, not observed). A user whose
+`*.bpmn` hands over converted text and Git LFS its pointer file (from the source, not
+observed); the opener merges the stages before it serves a pane, so such a file is refused
+with the merge's reason and opens nothing. A user whose
 `workbench.editorAssociations` maps `*.bpmn` to the text editor gets a text diff of the two
 stages, and the pre-registered session waits out its 30-second TTL. The entries need the
 extension active, which opening any `.bpmn` does, in any editor.
+
+### Marking the merge
+
+**Own markers beside the published diff's.** A merge pane marks three things: taken from this
+side, taken from the other side (also when the other side removed the element) and conflict.
+They are `MergeMarker` in `mergeVocabulary.ts`, not new `DiffMarker` values, which are a
+semver contract of `@miragon/bpmn-modeler/diff`. A layout difference is never a conflict and
+gets no marker; the merge takes current's layout. Each marker has a cue that is no colour (a
+heavy contour, a hatch, a dashed contour with a "!" badge) and a stroke of its own in the dark
+theme, which tints no surface; `mergeMarksStyle.spec.ts` pins both.
+
+**One legend component.** The merge legend is the diff's `DiffLegendView` with the three
+markers as its count slots and the merge's controls in its extension element: the open
+conflicts, the list Next and Previous walk and the marked elements no canvas draws. Rejected:
+a second legend, whose chrome and themes would drift from the diff's.
+
+**Projections in the library, typed by modeler-types.** What a pane shows is a pure function
+of the decisions in `libs/bpmn-merge`: `mergePaneView` (markers of the drawn elements, the
+shape-less ones listed), `mergePaneSteps` and `mergeNavigationOrder` (current's flow, an
+element current lacks next to its neighbour in incoming's), `hasNoShape` (no version drawn,
+or the process or collaboration that owns the root plane). The core's `domain/` cannot import
+the library, so `MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose step
+and shape-less copies a spec pins to the library's types. The webview paints what it gets:
+it skips an id its canvas lacks and decides no marker.
+
+**A `"merge"` viewer mode.** diagram-js fixes a pane's modules when it is built, so the host
+tells a merge pane what it is in its first `BpmnFileQuery`; the merge session is attached
+before the page boots. `MergeMode` and `DiffMode` share `DiffPanePlumbing` (viewport, plane
+and selection sync, the element XML pad, the side label) instead of a copy of it.
+
+**The full projection on every ready.** A custom editor's webview is not retained, and a post
+to a hidden pane is dropped, so a pane reloads after a tab switch with nothing. Each
+`DiffReadyCommand` of a merge pane sends both panes the whole state again, never a change.
+Cost: one projection per ready, cheap beside the import.
+
+**Two step lists, cursor by id.** Next and Previous walk the open conflicts in flow order, or
+every element either pane marks, which a legend toggle switches; both lists are the same on
+both panes, and a cursor travels as its index in the second. Each pane keeps its cursor by
+element id, so a repaint leaves it in place and a decided conflict's successor is found from
+its place. A shape-less step selects its legend entry; a step only the partner draws leaves
+the pane where it is, since a neighbour here would point at something else.
 
 ### Hosts
 
@@ -122,4 +165,7 @@ to the two diff origins and lists no conflict-marker participant.
   restored merge tab, and a real SCM diff of it still a diff pane.
 - `test/e2e/merge.e2e.test.ts` opens a merge and a rebase conflict on 1.76.0 and stable; the
   smoke test's `open` steps cover merge, rebase, cherry-pick and stash pop, a non-BPMN row,
-  the notice, the reload and the reopening, through the DOM only.
+  the notice, the reload and the reopening, and its `marks` steps the open count and the
+  markers in both panes, through the DOM only.
+- The bridge builds no `MergeDecisionService`, yet the merge library reaches its binary
+  through the core's barrel.
