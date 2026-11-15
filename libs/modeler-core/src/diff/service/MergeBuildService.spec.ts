@@ -189,6 +189,17 @@ describe("MergeBuildService", () => {
         expect(mergeView.picker.prompts).toStrictEqual([]);
     });
 
+    it("builds again without asking when the save formatted the result", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        mergeView.workingFile.formatsOnSave((text) => text.replaceAll("  ", "\t"));
+
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+
+        expect(mergeView.workingFile.replaced).toHaveLength(2);
+        expect(mergeView.picker.prompts).toStrictEqual([]);
+    });
+
     it("asks before overwriting an edited result and writes nothing on no", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.buildMergeResult(mergeView.incoming);

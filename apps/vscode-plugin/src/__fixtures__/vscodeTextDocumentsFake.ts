@@ -2,7 +2,8 @@
  * The slice of the `vscode` module that edits and saves text documents, for
  * `vi.mock("vscode", () => import(".../vscodeTextDocumentsFake"))`: files on
  * an in-memory disk, the text documents open over them with their unsaved
- * edits, `workspace.applyEdit` with whole-range replaces and `save`. Call
+ * edits, `workspace.applyEdit` with whole-range replaces and `save`. Like
+ * VS Code, a document keeps the line endings it was opened with. Call
  * {@link resetTextDocuments} before each test.
  */
 import { Uri } from "./vscodeFileSystemFake";
@@ -34,10 +35,14 @@ export class WorkspaceEdit {
 class FakeTextDocument {
     isDirty = false;
 
+    private readonly eol: string;
+
     constructor(
         readonly uri: Uri,
         private text: string,
-    ) {}
+    ) {
+        this.eol = lineEndingOf(text);
+    }
 
     getText(): string {
         return this.text;
@@ -49,7 +54,9 @@ class FakeTextDocument {
 
     edit(range: Range, text: string): void {
         this.text =
-            this.text.slice(0, range.start.offset) + text + this.text.slice(range.end.offset);
+            this.text.slice(0, range.start.offset) +
+            text.replace(/\r\n|\r|\n/g, this.eol) +
+            this.text.slice(range.end.offset);
         this.isDirty = true;
     }
 
@@ -79,6 +86,13 @@ export const workspace = {
         },
     },
 };
+
+// VS Code takes CRLF when most of a text's line breaks are CRLF.
+function lineEndingOf(text: string): string {
+    const crlf = text.split("\r\n").length - 1;
+    const breaks = text.split("\n").length - 1;
+    return crlf > breaks / 2 ? "\r\n" : "\n";
+}
 
 function openDocument(uri: Uri): FakeTextDocument {
     const key = uri.toString();

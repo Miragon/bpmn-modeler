@@ -1,12 +1,17 @@
 import { MergeWorkingFile, MergeWorkingFileText } from "../diff/port/MergeWorkingFile";
 
-/** Working files in memory: the text on disk, and an editor's unsaved text over it. */
+/**
+ * Working files in memory: the text on disk, and an editor's unsaved text
+ * over it. A replace keeps the file's line endings, as an editor does, and
+ * runs the save's formatting, as an editor's save participants may.
+ */
 export class FakeMergeWorkingFile implements MergeWorkingFile {
     /** Every replace, in order. */
     readonly replaced: { readonly fileUri: string; readonly text: string }[] = [];
 
     private readonly disk = new Map<string, string>();
     private readonly unsaved = new Map<string, string>();
+    private formatOnSave: (text: string) => string = (text) => text;
 
     async read(fileUri: string): Promise<MergeWorkingFileText> {
         const unsaved = this.unsaved.get(fileUri);
@@ -18,8 +23,14 @@ export class FakeMergeWorkingFile implements MergeWorkingFile {
 
     async replace(fileUri: string, text: string): Promise<void> {
         this.replaced.push({ fileUri, text });
+        const eol = lineEndingOf(this.unsaved.get(fileUri) ?? this.disk.get(fileUri) ?? "");
         this.unsaved.delete(fileUri);
-        this.disk.set(fileUri, text);
+        this.disk.set(fileUri, this.formatOnSave(text.replace(/\r\n|\r|\n/g, eol)));
+    }
+
+    /** Every later save of a replace runs `format`, as a formatter on save does. */
+    formatsOnSave(format: (text: string) => string): void {
+        this.formatOnSave = format;
     }
 
     /** Puts `text` on disk, as Git leaves the file. */
@@ -43,4 +54,10 @@ export class FakeMergeWorkingFile implements MergeWorkingFile {
     diskText(fileUri: string): string | undefined {
         return this.disk.get(fileUri);
     }
+}
+
+function lineEndingOf(text: string): string {
+    const crlf = text.split("\r\n").length - 1;
+    const breaks = text.split("\n").length - 1;
+    return crlf > breaks / 2 ? "\r\n" : "\n";
 }

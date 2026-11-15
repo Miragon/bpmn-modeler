@@ -109,8 +109,9 @@ export class MergeBuildService implements EditorSubscription {
             return;
         }
         const merged = await this.merged(session);
-        if (!merged || !(await this.written(session, merged))) return;
-        session.lastBuild = { xml: merged.xml, notes: merged.notes };
+        const saved = merged && (await this.written(session, merged));
+        if (!merged || saved === undefined) return;
+        session.lastBuild = { xml: saved, notes: merged.notes };
         // Before the file opens and hides the merge tab, so its panes hold the notes when shown again.
         await this.decisions.broadcastSession(session, elementXmlChanges);
         await this.notifier.openDocument(filePathOfUri(fileUri));
@@ -126,13 +127,17 @@ export class MergeBuildService implements EditorSubscription {
         }
     }
 
-    private async written(session: MergeSession, merged: MergedDocument): Promise<boolean> {
+    // What the file holds once saved: its line endings and save participants may have changed the text.
+    private async written(
+        session: MergeSession,
+        merged: MergedDocument,
+    ): Promise<string | undefined> {
         try {
             await this.workingFile.replace(session.fileUri, merged.xml);
-            return true;
+            return (await this.workingFile.read(session.fileUri)).text;
         } catch (error) {
             this.failed(writeFailureText(session.fileName, asError(error)), error);
-            return false;
+            return undefined;
         }
     }
 

@@ -63,6 +63,20 @@ export function describeMergeWorkingFileContract(
             await expect(fixture.diskText(fileUri)).resolves.toBe(BUILT);
         });
 
+        it("replaces a file with CRLF line endings in its own line endings, as an editor keeps them", async () => {
+            const fixture = await createFixture();
+            const fileUri = await fixture.onDisk(MARKED.replaceAll("\n", "\r\n"));
+
+            await fixture.workingFile.replace(fileUri, "<definitions>\n<process/>\n</definitions>\n");
+
+            const crlfBuilt = "<definitions>\r\n<process/>\r\n</definitions>\r\n";
+            await expect(fixture.workingFile.read(fileUri)).resolves.toStrictEqual({
+                text: crlfBuilt,
+                isDirty: false,
+            });
+            await expect(fixture.diskText(fileUri)).resolves.toBe(crlfBuilt);
+        });
+
         it("replaces unsaved edits and saves, leaving nothing unsaved", async () => {
             const fixture = await createFixture();
             const fileUri = await fixture.onDisk(MARKED);
