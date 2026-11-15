@@ -52,9 +52,13 @@ export function uriDisplayName(uri: string): string {
     return lastWorkspacePathSegment(decodedUriBeforeQueryOrFragment(uri));
 }
 
-/** The absolute path a `file:` URI string names, decoded, its query and fragment ignored. */
+/**
+ * The absolute path a `file:` URI string names, decoded, its query and
+ * fragment ignored; a UNC server in the authority keeps its `//`.
+ */
 export function filePathOfUri(uri: string): string {
-    return withoutFileScheme(decodedUriBeforeQueryOrFragment(uri));
+    const path = withoutFileScheme(decodedUriBeforeQueryOrFragment(uri));
+    return path.startsWith("/") || WINDOWS_DRIVE.test(path) ? path : `//${path}`;
 }
 
 // IntelliJ's file URLs are not percent-encoded, so a `%` that starts no escape stays as written.

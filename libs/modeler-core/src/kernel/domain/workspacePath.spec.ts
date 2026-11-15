@@ -336,6 +336,8 @@ describe("filePathOfUri", () => {
         { uri: "file:///repo/my%20diagram.bpmn", path: "/repo/my diagram.bpmn" },
         { uri: "file:///c%3A/repo/diagram.bpmn", path: "/c:/repo/diagram.bpmn" },
         { uri: "file:///repo/a%23b.bpmn#fragment", path: "/repo/a#b.bpmn" },
+        { uri: "file://server/share/repo/diagram.bpmn", path: "//server/share/repo/diagram.bpmn" },
+        { uri: "file://C:/repo/diagram.bpmn", path: "C:/repo/diagram.bpmn" },
     ])("reads $path from $uri", ({ uri, path }) => {
         expect(filePathOfUri(uri)).toBe(path);
     });
