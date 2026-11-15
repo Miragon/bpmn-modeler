@@ -15,7 +15,7 @@ import {
     SyncViewportQuery,
     type ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
-import type { DiffOrigin, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
 
 // The real diff primitives need a live bpmn-js canvas, which jsdom cannot load.
 const fakes = vi.hoisted(() => {
@@ -281,37 +281,6 @@ describe("DiffMode", () => {
             expect(sideLabel()?.parent).toBe(canvas);
             expect(sideLabel()?.side).toBe("before");
             expect(sideLabel()?.showFilename.mock.calls).toEqual([["after.bpmn"], [undefined]]);
-        });
-
-        it("labels a merge pane with its side's caption instead of a file name", async () => {
-            await startDiffPane();
-            const mergeHighlights = (side: "before" | "after", mergeCaption: MergeSideCaption) =>
-                new ApplyDiffHighlightsQuery(
-                    side,
-                    [],
-                    [],
-                    ["Changed_1"],
-                    [],
-                    { added: 0, removed: 0, changed: 1, layoutChanged: 0 },
-                    ["Changed_1"],
-                    "merge",
-                    "order.bpmn",
-                    false,
-                    mergeCaption,
-                );
-
-            dispatch(
-                mergeHighlights("before", {
-                    side: "current",
-                    role: "branch",
-                    ref: "main",
-                    shortHash: "1111111",
-                }),
-            );
-
-            expect(sideLabel()?.showFilename.mock.calls).toEqual([
-                ["Current: your branch main · 1111111"],
-            ]);
         });
 
         it("leaves the changes to the after pane's bar, so both bars read as one", async () => {

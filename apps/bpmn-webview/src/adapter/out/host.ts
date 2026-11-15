@@ -21,7 +21,7 @@ import {
     TextClipboardQuery,
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
-import { matchesDefinitionQuery, type MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import { matchesDefinitionQuery } from "@miragon/bpmn-modeler-types";
 import type { DiffResult, DiffSide } from "@miragon/bpmn-modeler/diff";
 
 import c7Samples from "../../__fixtures__/c7-samples.json";
@@ -71,11 +71,6 @@ const DEV_MODES = [
 ] as const;
 
 type DevMode = (typeof DEV_MODES)[number];
-
-const MOCK_MERGE_CAPTIONS: Record<DiffSide, MergeSideCaption> = {
-    before: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
-    after: { side: "incoming", role: "upstream", ref: "feature", shortHash: "9f8e7d6" },
-};
 
 function readDevMode(): DevMode {
     const raw = new URLSearchParams(window.location.search).get("mode");
@@ -408,7 +403,6 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 merge ? "order.bpmn" : side === "before" ? "before.bpmn" : "after.bpmn",
                 // Shows the context pad's "Show XML changes" entry in the preview.
                 true,
-                merge ? MOCK_MERGE_CAPTIONS[side] : undefined,
             ),
         );
     }

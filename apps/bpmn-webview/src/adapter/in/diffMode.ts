@@ -8,7 +8,6 @@ import {
 import { DIFF_CATEGORIES, DIFF_MARKERS, diffOriginSupports } from "@miragon/bpmn-modeler-types";
 
 import { DiffLegend, type DiffLegendContext, DiffNavigator } from "@miragon/bpmn-modeler/viewer";
-import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import type { DiffPaneChannel } from "../../port/hostChannel";
@@ -102,8 +101,7 @@ export class DiffMode {
         }
 
         this.navigator.setChanges(query.navigationOrder);
-        // A merge pane by its caption, a compare-files pane by its file, which the tab title does not tell apart.
-        this.pane.label(query.side, () => diffPaneLabel(query, (key) => i18n.translate(key)));
+        this.pane.label(query.side, () => diffPaneLabel(query));
         this.updateLegend(query);
     }
 
