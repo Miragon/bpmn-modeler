@@ -1,9 +1,7 @@
 import type { MergeResultComparison } from "@miragon/bpmn-modeler-shared";
-import { createButton, createElement, type MergeSide } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
 import { compareWithText, comparisonText, type MergeTranslate } from "../../domain/mergeTexts";
-
-const OTHER_SIDE: Record<MergeSide, MergeSide> = { current: "incoming", incoming: "current" };
 
 /**
  * The part of a diff pane's bar that a built merge result compared with one
@@ -23,7 +21,7 @@ export class ResultComparisonSwitch {
         this.switchButton = createButton(
             "diff-legend__nav-btn diff-legend__comparison-switch",
             () => {
-                if (this.comparison?.canSwitch) onSwitch();
+                if (this.comparison?.switchTo) onSwitch();
             },
         );
         parent.append(this.label, this.switchButton);
@@ -40,11 +38,10 @@ export class ResultComparisonSwitch {
         this.parent.hidden = comparison === undefined;
         if (!comparison) return;
         this.label.textContent = comparisonText(comparison.against, this.translate);
-        this.switchButton.hidden = !comparison.canSwitch;
+        const { switchTo } = comparison;
+        this.switchButton.hidden = switchTo === undefined;
         // The switch is named after what it opens, as the merge legend's buttons are.
-        this.switchButton.textContent = compareWithText(
-            OTHER_SIDE[comparison.against],
-            this.translate,
-        );
+        this.switchButton.textContent =
+            switchTo === undefined ? "" : compareWithText(switchTo, this.translate);
     }
 }

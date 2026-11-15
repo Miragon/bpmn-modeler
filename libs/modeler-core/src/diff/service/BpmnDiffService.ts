@@ -63,6 +63,7 @@ export class BpmnDiffService {
         private readonly build?: MergeBuildService,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
+        build?.onComparisonChanged((session) => void this.rebroadcast(session));
     }
 
     /**
@@ -264,6 +265,11 @@ export class BpmnDiffService {
 
         await this.postHighlights(before, highlightsFor("before", before));
         await this.postHighlights(after, highlightsFor("after", after));
+    }
+
+    private async rebroadcast(session: DiffSession): Promise<void> {
+        const panes = session.armedPanes();
+        if (panes) await this.computeAndBroadcast(session, panes.before, panes.after);
     }
 
     private postHighlights(handle: DiffPaneHandle, query: ApplyDiffHighlightsQuery): Promise<void> {

@@ -10,6 +10,8 @@ import {
     buildDoneNotice,
     buildFailureText,
     buildRefusalText,
+    compareFailureText,
+    readFailureText,
     writeFailureText,
 } from "../domain/mergeBuildTexts";
 import { mergePaneBasename } from "../domain/mergePaneName";
@@ -42,10 +44,18 @@ interface ResultComparison {
 export class MergeBuildService implements EditorSubscription {
     private readonly comparisons = new Map<DiffSession, ResultComparison>();
 
-    private readonly closing: EditorSubscription;
+    // A second Build while one runs would read the file between the first one's write and its record.
+    private readonly building = new Set<MergeSession>();
+
+    private readonly subscriptions: readonly EditorSubscription[];
+
+    private readonly changedListeners = new Set<(diffSession: DiffSession) => void>();
 
     constructor(
-        private readonly sessions: Pick<MergeSessionStore, "ofDiffSession" | "of">,
+        private readonly sessions: Pick<
+            MergeSessionStore,
+            "ofDiffSession" | "of" | "onSessionEnded"
+        >,
         private readonly decisions: Pick<MergeDecisionService, "broadcastSession">,
         private readonly workingFile: MergeWorkingFile,
         private readonly view: MergeSidesView,
@@ -53,9 +63,16 @@ export class MergeBuildService implements EditorSubscription {
         private readonly notifier: NotifierPort,
         private readonly picker: Pick<PickerPort, "confirm">,
     ) {
-        this.closing = diffStore.onSessionClosed((diffSession) =>
-            this.comparisonClosed(diffSession),
-        );
+        this.subscriptions = [
+            diffStore.onSessionClosed((diffSession) => this.comparisonClosed(diffSession)),
+            sessions.onSessionEnded((session) => this.mergeViewEnded(session)),
+        ];
+    }
+
+    /** Calls `listener` with each comparison whose {@link comparisonOf} changed, so its panes are told again. */
+    onComparisonChanged(listener: (diffSession: DiffSession) => void): EditorSubscription {
+        this.changedListeners.add(listener);
+        return { dispose: () => this.changedListeners.delete(listener) };
     }
 
     /** Builds the result of the merge view a tab shows into its working file. */
@@ -76,34 +93,52 @@ export class MergeBuildService implements EditorSubscription {
         if (session?.lastBuild) await this.openComparison(session, against);
     }
 
-    /** Closes a result comparison and opens the one against the other side. */
+    /** Opens the comparison against the other side and closes this one, which stays when the other cannot open. */
     async switchComparison(diffSession: DiffSession): Promise<void> {
         const comparison = this.comparisons.get(diffSession);
         if (!comparison || !this.canSwitch(comparison)) return;
+        if (!(await this.openComparison(comparison.session, otherMergeSide(comparison.against)))) {
+            return;
+        }
         for (const pane of diffSession.attachedPanes()) pane.dispose();
-        await this.openComparison(comparison.session, otherMergeSide(comparison.against));
     }
 
     /** The side a result comparison shows, for its panes' legend; `undefined` for any other diff. */
     comparisonOf(diffSession: DiffSession): MergeResultComparison | undefined {
         const comparison = this.comparisons.get(diffSession);
-        return comparison === undefined
-            ? undefined
-            : { against: comparison.against, canSwitch: this.canSwitch(comparison) };
+        if (comparison === undefined) return undefined;
+        return this.canSwitch(comparison)
+            ? { against: comparison.against, switchTo: otherMergeSide(comparison.against) }
+            : { against: comparison.against };
     }
 
     dispose(): void {
-        this.closing.dispose();
+        for (const subscription of this.subscriptions) subscription.dispose();
     }
 
     private async buildSession(session: MergeSession, elementXmlChanges: boolean): Promise<void> {
+        if (this.building.has(session)) return;
+        this.building.add(session);
+        try {
+            await this.buildOnce(session, elementXmlChanges);
+        } finally {
+            this.building.delete(session);
+        }
+    }
+
+    private async buildOnce(session: MergeSession, elementXmlChanges: boolean): Promise<void> {
         const { decisions, fileName, fileUri } = session;
         if (!decisions.canBuild) {
             this.notifier.showInfo(buildRefusalText(fileName, decisions.openConflicts.length));
             return;
         }
+        const workingFile = await this.workingFile.read(fileUri).catch((error: unknown) => {
+            this.failed(readFailureText(fileName, asError(error)), error);
+            return undefined;
+        });
+        if (!workingFile) return;
         const decision = overwriteDecision(
-            await this.workingFile.read(fileUri),
+            workingFile,
             { opened: session.openedWorkingText, lastBuilt: session.lastBuild?.xml },
             fileName,
         );
@@ -116,8 +151,10 @@ export class MergeBuildService implements EditorSubscription {
         session.lastBuild = { xml: saved, notes: merged.notes };
         // Before the file opens and hides the merge tab, so its panes hold the notes when shown again.
         await this.decisions.broadcastSession(session, elementXmlChanges);
-        await this.notifier.openDocument(filePathOfUri(fileUri));
         this.notifier.showInfo(buildDoneNotice(fileName, merged.notes.length));
+        await this.notifier
+            .openDocument(filePathOfUri(fileUri))
+            .catch((error: unknown) => this.notifier.logError(asError(error)));
     }
 
     private async merged(session: MergeSession): Promise<MergedDocument | undefined> {
@@ -149,7 +186,17 @@ export class MergeBuildService implements EditorSubscription {
     }
 
     // Fresh URIs, so a comparison opened again is a new tab and never focuses a stale one.
-    private async openComparison(session: MergeSession, against: MergeSide): Promise<void> {
+    private async openComparison(session: MergeSession, against: MergeSide): Promise<boolean> {
+        try {
+            await this.openComparisonOf(session, against);
+            return true;
+        } catch (error) {
+            this.failed(compareFailureText(session.fileName, asError(error)), error);
+            return false;
+        }
+    }
+
+    private async openComparisonOf(session: MergeSession, against: MergeSide): Promise<void> {
         const { text } = await this.workingFile.read(session.fileUri);
         const document = (name: MergePaneName, documentText: string) => ({
             text: documentText,
@@ -172,6 +219,13 @@ export class MergeBuildService implements EditorSubscription {
     // The stages are the merge view's: once it closed, its comparisons stay as they are.
     private canSwitch(comparison: ResultComparison): boolean {
         return this.sessions.of(comparison.session.fileUri) === comparison.session;
+    }
+
+    private mergeViewEnded(session: MergeSession): void {
+        for (const [diffSession, comparison] of this.comparisons) {
+            if (comparison.session !== session) continue;
+            for (const listener of this.changedListeners) listener(diffSession);
+        }
     }
 
     private comparisonClosed(diffSession: DiffSession): void {

@@ -51,6 +51,8 @@ interface Entry {
 export class MergeSessionStore implements EditorSubscription {
     private readonly entries = new Set<Entry>();
 
+    private readonly endedListeners = new Set<(session: MergeSession) => void>();
+
     private readonly closing: EditorSubscription;
 
     constructor(
@@ -86,6 +88,12 @@ export class MergeSessionStore implements EditorSubscription {
         return this.entryOf(diffSession)?.session;
     }
 
+    /** Calls `listener` with each merge view whose last tab closed. */
+    onSessionEnded(listener: (session: MergeSession) => void): EditorSubscription {
+        this.endedListeners.add(listener);
+        return { dispose: () => this.endedListeners.delete(listener) };
+    }
+
     diffSessionsOf(session: MergeSession): readonly DiffSession[] {
         return [...(this.entryOfSession(session)?.diffSessions ?? [])];
     }
@@ -101,6 +109,7 @@ export class MergeSessionStore implements EditorSubscription {
         if (entry.diffSessions.size === 0) {
             this.entries.delete(entry);
             this.view.release(entry.session.uris);
+            for (const listener of this.endedListeners) listener(entry.session);
         }
     }
 

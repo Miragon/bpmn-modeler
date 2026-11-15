@@ -4,8 +4,10 @@ import {
     buildDoneNotice,
     buildFailureText,
     buildRefusalText,
+    compareFailureText,
     overwriteConfirm,
     type OverwriteReason,
+    readFailureText,
     writeFailureText,
 } from "./mergeBuildTexts";
 
@@ -70,6 +72,22 @@ describe("writeFailureText", () => {
     it("names the file the host did not write", () => {
         expect(writeFailureText("order.bpmn", new Error("VS Code did not save it"))).toBe(
             "Cannot write the merge result to order.bpmn: VS Code did not save it",
+        );
+    });
+});
+
+describe("readFailureText", () => {
+    it("says nothing was built when the working file cannot be read", () => {
+        expect(readFailureText("order.bpmn", new Error("EACCES"))).toBe(
+            "Cannot read order.bpmn, so nothing was built: EACCES",
+        );
+    });
+});
+
+describe("compareFailureText", () => {
+    it("names the file whose result cannot be compared", () => {
+        expect(compareFailureText("order.bpmn", new Error("no editor"))).toBe(
+            "Cannot compare the merge result of order.bpmn: no editor",
         );
     });
 });

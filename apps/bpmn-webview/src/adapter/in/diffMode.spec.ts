@@ -621,7 +621,7 @@ describe("DiffMode", () => {
             dispatch(
                 highlights("merge-result", "after", false, {
                     against: "incoming",
-                    canSwitch: true,
+                    switchTo: "current",
                 }),
             );
 
@@ -642,7 +642,7 @@ describe("DiffMode", () => {
             await startDiffPane();
 
             dispatch(
-                highlights("merge-result", side, false, { against: "incoming", canSwitch: true }),
+                highlights("merge-result", side, false, { against: "incoming", switchTo: "current" }),
             );
 
             expect(sideLabel()?.showFilename).toHaveBeenLastCalledWith(label);
@@ -653,7 +653,6 @@ describe("DiffMode", () => {
             dispatch(
                 highlights("merge-result", "after", false, {
                     against: "current",
-                    canSwitch: false,
                 }),
             );
 
@@ -676,7 +675,7 @@ describe("DiffMode", () => {
             dispatch(
                 highlights("merge-result", "before", false, {
                     against: "incoming",
-                    canSwitch: true,
+                    switchTo: "current",
                 }),
             );
 

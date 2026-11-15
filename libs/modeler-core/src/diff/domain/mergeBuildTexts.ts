@@ -52,6 +52,14 @@ export function buildFailureText(fileName: string, error: Error): string {
     return `Cannot build ${fileName}, so it stays as it was: ${error.message}`;
 }
 
+export function readFailureText(fileName: string, error: Error): string {
+    return `Cannot read ${fileName}, so nothing was built: ${error.message}`;
+}
+
+export function compareFailureText(fileName: string, error: Error): string {
+    return `Cannot compare the merge result of ${fileName}: ${error.message}`;
+}
+
 export function writeFailureText(fileName: string, error: Error): string {
     return `Cannot write the merge result to ${fileName}: ${error.message}`;
 }

@@ -1503,9 +1503,8 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
     public readonly elementXmlChanges: boolean;
 
     /**
-     * Set on a built merge result compared with one side: the side, and
-     * whether the pane offers {@link SwitchMergeComparisonCommand} to compare
-     * it with the other side instead.
+     * Set on a built merge result compared with one side: the side, and the
+     * side {@link SwitchMergeComparisonCommand} compares it with instead.
      */
     public readonly comparison?: MergeResultComparison;
 
@@ -1537,10 +1536,11 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
     }
 }
 
-/** Which side a built merge result is compared with, and whether the comparison can switch sides. */
+/** Which side a built merge result is compared with, and which side its switch opens. */
 export interface MergeResultComparison {
     readonly against: MergeSide;
-    readonly canSwitch: boolean;
+    /** Absent once the merge view closed: its stages are gone, so the comparison stays as it is. */
+    readonly switchTo?: MergeSide;
 }
 
 /**

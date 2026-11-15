@@ -20,7 +20,13 @@ import {
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
 import { mergeResultTabLabel } from "../domain/diffTabLabel";
-import { buildDoneNotice, buildRefusalText, overwriteConfirm } from "../domain/mergeBuildTexts";
+import {
+    buildDoneNotice,
+    buildRefusalText,
+    compareFailureText,
+    overwriteConfirm,
+    readFailureText,
+} from "../domain/mergeBuildTexts";
 import { ConflictVersionsSource } from "../port/ConflictVersionsSource";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DiffPaneStore } from "./DiffPaneStore";
@@ -200,6 +206,39 @@ describe("MergeBuildService", () => {
         expect(mergeView.picker.prompts).toStrictEqual([]);
     });
 
+    it("builds once when Build is pressed again while a build runs", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+
+        await Promise.all([
+            mergeView.diffService.buildMergeResult(mergeView.incoming),
+            mergeView.diffService.buildMergeResult(mergeView.current),
+        ]);
+
+        expect(mergeView.workingFile.replaced).toHaveLength(1);
+        expect(mergeView.picker.prompts).toStrictEqual([]);
+    });
+
+    it("shows why it cannot read the working file and writes nothing", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        vi.spyOn(mergeView.workingFile, "read").mockRejectedValueOnce(new Error("EACCES"));
+
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+
+        expect(mergeView.notifier.errors).toStrictEqual([
+            readFailureText("order.bpmn", new Error("EACCES")),
+        ]);
+        expect(mergeView.workingFile.replaced).toStrictEqual([]);
+    });
+
+    it("says the build is done even when the built file does not open", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        vi.spyOn(mergeView.notifier, "openDocument").mockRejectedValueOnce(new Error("closed"));
+
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+
+        expect(mergeView.notifier.infos).toStrictEqual([buildDoneNotice("order.bpmn", 0)]);
+    });
+
     it("asks before overwriting an edited result and writes nothing on no", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
@@ -315,7 +354,7 @@ describe("MergeBuildService", () => {
         );
         expect(lastHighlightsOf(result).comparison).toStrictEqual({
             against: "incoming",
-            canSwitch: true,
+            switchTo: "current",
         });
     });
 
@@ -373,8 +412,42 @@ describe("MergeBuildService", () => {
         const switched = await attachComparison(mergeView);
         expect(lastHighlightsOf(switched.stage).comparison).toStrictEqual({
             against: "current",
-            canSwitch: true,
+            switchTo: "incoming",
         });
+    });
+
+    it("keeps the open comparison and says why when the other side's cannot open", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+        await mergeView.diffService.compareMergeResult(mergeView.incoming, "incoming");
+        const { stage, result } = await attachComparison(mergeView);
+        vi.spyOn(mergeView.view, "open").mockRejectedValueOnce(new Error("no editor"));
+
+        await mergeView.diffService.switchMergeComparison(result);
+
+        expect([stage.disposed, result.disposed]).toStrictEqual([false, false]);
+        expect(mergeView.notifier.errors).toStrictEqual([
+            compareFailureText("order.bpmn", new Error("no editor")),
+        ]);
+    });
+
+    it("takes the switch away from an open comparison once its merge view closed", async () => {
+        const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
+        await mergeView.diffService.buildMergeResult(mergeView.incoming);
+        await mergeView.diffService.compareMergeResult(mergeView.incoming, "incoming");
+        const { stage, result } = await attachComparison(mergeView);
+
+        mergeView.store.detach(mergeView.current);
+        mergeView.store.detach(mergeView.incoming);
+
+        await vi.waitFor(() =>
+            expect(lastHighlightsOf(result).comparison).toStrictEqual({ against: "incoming" }),
+        );
+        expect(lastHighlightsOf(stage).comparison).toStrictEqual({ against: "incoming" });
+        const opened = mergeView.view.opened.length;
+        await mergeView.diffService.switchMergeComparison(result);
+        expect(mergeView.view.opened).toHaveLength(opened);
+        expect([stage.disposed, result.disposed]).toStrictEqual([false, false]);
     });
 
     it("stops serving a comparison's documents once its tab closed", async () => {
