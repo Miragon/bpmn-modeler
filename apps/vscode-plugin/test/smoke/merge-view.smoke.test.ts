@@ -667,9 +667,10 @@ describe("the BPMN merge view", () => {
         });
 
         it("offers the flows main removed with a task feature kept, and keeps them on request", async () => {
+            // Alone in the group, the new tab's panes are not swapped with an earlier tab's while they settle.
+            await vscode().runCommand("View: Close All Editors");
             await rowMenu(REMOVAL_FILE, COMMAND_TITLE);
             const { current, incoming } = await mergePanes();
-            // The earlier tab's panes match too until the new ones have their states.
             for (const pane of [current, incoming]) {
                 await expect
                     .poll(() => openCount(pane), { timeout: TIMEOUT_MS })
