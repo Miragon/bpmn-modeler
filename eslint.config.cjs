@@ -329,6 +329,13 @@ module.exports = [
                             message:
                                 "`SurfaceMode` compared outside its home. Add a capability to `libs/modeler-types/src/surfaceMode.ts` and ask it, or look the mode up in a `Record<SurfaceMode, …>`.",
                         },
+                        {
+                            name: "DiffOrigin",
+                            module: path.join(__dirname, "libs/modeler-types/src/diff.ts"),
+                            homes: [path.join(__dirname, "libs/modeler-types/src/diff.ts")],
+                            message:
+                                "`DiffOrigin` compared outside its home. Add a capability to `libs/modeler-types/src/diff.ts` and ask it, or look the origin up in a `Record<DiffOrigin, …>`.",
+                        },
                     ],
                 },
             ],

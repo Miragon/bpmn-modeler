@@ -14,6 +14,14 @@ import {
 } from "../../../protocol/domain/types";
 import { DiffPaneFactory } from "../../port/DiffPaneFactory";
 
+const SESSION_FOR_ORIGIN: Record<
+    DiffOpenParams["origin"],
+    (before: DiffPaneHandle, after: DiffPaneHandle) => DiffSession
+> = {
+    "scm": (before, after) => DiffSession.forScm(before, after),
+    "compare-files": (before, after) => DiffSession.forCompareFiles(before.uri, after.uri),
+};
+
 /** RPC (Host → Core): diff/open, diff/webviewMessage, diff/dispose. */
 export function diffHandlers({
     diffStore,
@@ -47,10 +55,7 @@ export function diffHandlers({
             const beforeHandle = createPane(params.before.uri, params.before.content);
             const afterHandle = createPane(params.after.uri, params.after.content);
 
-            const session =
-                params.origin === "scm"
-                    ? DiffSession.forScm(beforeHandle, afterHandle)
-                    : DiffSession.forCompareFiles(params.before.uri, params.after.uri);
+            const session = SESSION_FOR_ORIGIN[params.origin](beforeHandle, afterHandle);
             session.attachPane(beforeHandle);
             session.attachPane(afterHandle);
             diffStore.index(session);

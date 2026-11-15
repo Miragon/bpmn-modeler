@@ -37,3 +37,27 @@ export interface TableScroll {
     readonly offset: number;
     readonly left: number;
 }
+
+/**
+ * What a diff of each origin offers. Every origin rule lives here, so code
+ * asks {@link diffOriginSupports} instead of comparing a {@link DiffOrigin}.
+ */
+export interface DiffOriginCapabilities {
+    /** The panes name their files, which the tab title does not tell apart. */
+    readonly namesFiles: boolean;
+    /** The user may swap the two sides. */
+    readonly swapsSides: boolean;
+}
+
+export type DiffOriginCapability = keyof DiffOriginCapabilities;
+
+const DIFF_ORIGIN_CAPABILITIES: Record<DiffOrigin, DiffOriginCapabilities> = {
+    "scm": { namesFiles: false, swapsSides: false },
+    "compare-files": { namesFiles: true, swapsSides: true },
+    "merge": { namesFiles: false, swapsSides: false },
+    "merge-result": { namesFiles: false, swapsSides: false },
+};
+
+export function diffOriginSupports(origin: DiffOrigin, capability: DiffOriginCapability): boolean {
+    return DIFF_ORIGIN_CAPABILITIES[origin][capability];
+}

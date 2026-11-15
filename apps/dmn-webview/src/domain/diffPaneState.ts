@@ -4,6 +4,7 @@ import {
     type DiffLegendState as SharedDiffLegendState,
     type DiffOrigin,
     type DiffSide,
+    diffOriginSupports,
     stepCursor,
 } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffStatus } from "@miragon/dmn-modeler";
@@ -135,14 +136,13 @@ export function legendOf(
 ): DiffLegendState | undefined {
     const highlights = state.highlights;
     if (!state.imported || !highlights) return undefined;
-    const isCompareFiles = highlights.origin === "compare-files";
     // Both panes draw the bar; the after pane's half carries the changes, and the
     // before pane's missing view still shows its card.
     const isAfter = highlights.side === "after";
     return {
         counts: state.missing ? undefined : countsOf(highlights.view, state.openElement),
         status: missingCardOf(state) ?? (state.openElement === null ? undefined : openViewStatus),
-        showSwap: isCompareFiles && isAfter,
+        showSwap: diffOriginSupports(highlights.origin, "swapsSides") && isAfter,
         canStep: canStep(stepsInView(state)),
         showChanges: isAfter,
         position:

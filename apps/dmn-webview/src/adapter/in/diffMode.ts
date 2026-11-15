@@ -12,7 +12,7 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { DiffSideLabelView } from "@miragon/bpmn-modeler-types";
+import { DiffSideLabelView, diffOriginSupports } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
 import {
@@ -160,7 +160,9 @@ export class DiffMode {
     private label(highlights: PaneHighlights): void {
         this.sideLabel ??= new DiffSideLabelView(this.chromeParent, highlights.side, i18n);
         this.sideLabel.showFilename(
-            highlights.origin === "compare-files" ? highlights.paneFilename : undefined,
+            diffOriginSupports(highlights.origin, "namesFiles")
+                ? highlights.paneFilename
+                : undefined,
         );
     }
 
