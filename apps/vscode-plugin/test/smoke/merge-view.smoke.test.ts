@@ -85,7 +85,9 @@ function taskLabel(webview: FrameLocator): Promise<string> {
     return webview
         .locator(`.djs-shape[data-element-id="${TASK_ID}"] .djs-visual text`)
         .evaluate((text) =>
-            [...text.querySelectorAll("tspan")].map((line) => line.textContent).join(" "),
+            [...text.querySelectorAll("tspan")]
+                .map((line) => line.textContent?.trim())
+                .join(" "),
         );
 }
 
