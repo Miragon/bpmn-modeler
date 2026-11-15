@@ -1,0 +1,314 @@
+// SPIKE (epic #2459 step 3, phase A): the merge view on a real conflict. Answers 1.0.1-1.0.3.
+import { execFile } from "node:child_process";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { devNull, tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+
+import type { FrameLocator } from "playwright-core";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+
+import { VsCodeSession, downloadVsCode, packExtension } from "./vscodeSession";
+
+const runFile = promisify(execFile);
+const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+const DIST_DIRECTORY = join(REPOSITORY_ROOT, "dist/apps/vscode-plugin");
+const RESULTS_DIRECTORY = join(REPOSITORY_ROOT, "test-results/vscode-smoke/merge-view");
+const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url));
+const TIMEOUT_MS = 30_000;
+const MERGE_FILE = "order.bpmn";
+const MERGE_TAB_TITLE = "order.bpmn (Current ↔ Incoming)";
+const ROW_COMMAND = "Open in BPMN Merge View";
+const TASK_ID = "Task_Check";
+const INCOMING_ONLY_ID = "Task_Notify";
+
+const facts: Record<string, unknown> = {};
+const log = (line: string) => console.log(`[merge-view] ${line}`);
+const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
+
+function runGit(repository: string, ...args: string[]): Promise<{ stdout: string }> {
+    return runFile(
+        "git",
+        [
+            "-c",
+            "user.name=VS Code smoke",
+            "-c",
+            "user.email=vscode-smoke@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "init.defaultBranch=main",
+            ...args,
+        ],
+        {
+            cwd: repository,
+            env: {
+                ...Object.fromEntries(
+                    Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
+                ),
+                GIT_CONFIG_GLOBAL: devNull,
+                GIT_CONFIG_NOSYSTEM: "1",
+            },
+        },
+    ).catch((error: { stdout?: string; stderr?: string }) => {
+        // `git merge` exits 1 on a conflict.
+        return { stdout: `${error.stdout ?? ""}${error.stderr ?? ""}` };
+    });
+}
+
+/** Incoming renames the task and adds a task of its own, far from the rename. */
+function incomingVersion(base: string): string {
+    return base
+        .replace('name="Check order"', 'name="Check incoming order"')
+        .replace(
+            "  </bpmn:process>",
+            `    <bpmn:task id="${INCOMING_ONLY_ID}" name="Notify customer" />\n  </bpmn:process>`,
+        )
+        .replace(
+            "    </bpmndi:BPMNPlane>",
+            `      <bpmndi:BPMNShape id="${INCOMING_ONLY_ID}_di" bpmnElement="${INCOMING_ONLY_ID}">\n        <dc:Bounds x="240" y="220" width="100" height="80" />\n      </bpmndi:BPMNShape>\n    </bpmndi:BPMNPlane>`,
+        );
+}
+
+async function markerOf(webview: FrameLocator, elementId: string): Promise<string> {
+    return (
+        (await webview
+            .locator(`.djs-element[data-element-id="${elementId}"]`)
+            .getAttribute("class", { timeout: 2000 })
+            .catch(() => "")) ?? ""
+    );
+}
+
+/** bpmn-js wraps a label into one `<tspan>` per line. */
+function taskLabel(webview: FrameLocator): Promise<string> {
+    return webview
+        .locator(`.djs-shape[data-element-id="${TASK_ID}"] .djs-visual text`)
+        .evaluate((text) =>
+            [...text.querySelectorAll("tspan")].map((line) => line.textContent).join(" "),
+        );
+}
+
+describe("the BPMN merge view (spike)", () => {
+    let rootDirectory = "";
+    let workspaceDirectory = "";
+    let repository = "";
+    let session: VsCodeSession | undefined;
+    const vscode = (): VsCodeSession => {
+        if (!session) throw new Error("VS Code did not start");
+        return session;
+    };
+
+    async function shot(name: string): Promise<void> {
+        await delay(800);
+        await vscode().screenshot(join(RESULTS_DIRECTORY, `${name}.png`));
+    }
+
+    function mergeRow() {
+        return vscode()
+            .page.locator(".scm-view .monaco-list-row")
+            .filter({ has: vscode().page.locator(".resource") })
+            .filter({ hasText: MERGE_FILE })
+            .first();
+    }
+
+    async function spikeLog(): Promise<string[]> {
+        return (await vscode().extensionLog())
+            .split("\n")
+            .filter((line) => line.includes("[merge-spike]"));
+    }
+
+    async function tabLabels(): Promise<(string | null)[]> {
+        return vscode()
+            .page.locator(".tabs-container .tab")
+            .evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("aria-label")));
+    }
+
+    /** The texts and canvases of every visible editor webview of the extension. */
+    async function visiblePanes(): Promise<{ ended: boolean; canvas: boolean; text: string }[]> {
+        const frames = vscode().editorFrames().filter({ visible: true });
+        const count = await frames.count();
+        const panes = [];
+        for (let index = 0; index < count; index++) {
+            const page = frames
+                .nth(index)
+                .contentFrame()
+                .locator("iframe#active-frame")
+                .contentFrame();
+            panes.push({
+                ended: (await page.locator("[data-merge-view-ended]").count().catch(() => 0)) > 0,
+                canvas: (await page.locator(".djs-container").count().catch(() => 0)) > 0,
+                text: (
+                    await page
+                        .locator("body")
+                        .innerText({ timeout: 2000 })
+                        .catch(() => "")
+                ).slice(0, 200),
+            });
+        }
+        return panes;
+    }
+
+    beforeAll(async () => {
+        await rm(RESULTS_DIRECTORY, { recursive: true, force: true });
+        await mkdir(RESULTS_DIRECTORY, { recursive: true });
+        rootDirectory = await mkdtemp(join(tmpdir(), "bpmn-modeler-merge-view-"));
+        workspaceDirectory = join(rootDirectory, "workspace");
+        repository = join(workspaceDirectory, "merge-repo");
+        await mkdir(repository, { recursive: true });
+        const base = await readFile(join(FIXTURES_DIRECTORY, "smoke.bpmn"), "utf8");
+        const file = join(repository, MERGE_FILE);
+        await writeFile(file, base);
+        await runGit(repository, "init", "-q");
+        await runGit(repository, "add", MERGE_FILE);
+        await runGit(repository, "commit", "-q", "--no-verify", "-m", "base");
+        await runGit(repository, "checkout", "-q", "-b", "incoming");
+        await writeFile(file, incomingVersion(base));
+        await runGit(repository, "commit", "-q", "-a", "--no-verify", "-m", "incoming");
+        await runGit(repository, "checkout", "-q", "main");
+        await writeFile(file, base.replace('name="Check order"', 'name="Check current order"'));
+        await runGit(repository, "commit", "-q", "-a", "--no-verify", "-m", "current");
+        facts.merge = (await runGit(repository, "merge", "incoming", "--no-edit")).stdout;
+        facts.gitStatus = (await runGit(repository, "status", "--porcelain=v1")).stdout;
+        facts.gitStages = (await runGit(repository, "ls-files", "-u")).stdout;
+        facts.workingFile = await readFile(file, "utf8");
+        log(JSON.stringify({ status: facts.gitStatus, stages: facts.gitStages }));
+        await cp(join(FIXTURES_DIRECTORY, "smoke.bpmn"), join(workspaceDirectory, "clean.bpmn"));
+
+        const manifest = JSON.parse(await readFile(join(DIST_DIRECTORY, "package.json"), "utf8"));
+        const extensionPath = await packExtension(DIST_DIRECTORY, rootDirectory);
+        const executablePath = await downloadVsCode(
+            extensionPath,
+            process.env.VSCODE_SMOKE_VERSION || undefined,
+            (line) => {
+                facts.vscodeVersionLine = line;
+                log(line);
+            },
+        );
+        session = await VsCodeSession.launch({
+            executablePath,
+            extensionPath,
+            extensionId: `${manifest.publisher}.${manifest.name}`.toLowerCase(),
+            rootDirectory,
+            workspaceDirectory,
+            fileToOpen: join(workspaceDirectory, "clean.bpmn"),
+            customEditors: { "*.bpmn": "bpmn-modeler.bpmn" },
+            colorTheme: "Default Light Modern",
+            timeoutMs: TIMEOUT_MS,
+        });
+        facts.vscodeVersion = await session.app.evaluate(({ app }) => app.getVersion());
+    });
+
+    afterEach(async ({ task }) => {
+        if (task.result?.state !== "fail") return;
+        const name = task.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        await session
+            ?.screenshot(join(RESULTS_DIRECTORY, `failure-${name}.png`))
+            .catch(() => undefined);
+    });
+
+    afterAll(async () => {
+        try {
+            facts.spikeLog = session ? await spikeLog() : [];
+        } catch {
+            // The profile may be gone.
+        }
+        await writeFile(join(RESULTS_DIRECTORY, "facts.json"), JSON.stringify(facts, null, 2));
+        if (session) {
+            await cp(session.logsDirectory, join(RESULTS_DIRECTORY, "vscode-logs"), {
+                recursive: true,
+            }).catch(() => undefined);
+        }
+        await session?.close();
+        if (rootDirectory) await rm(rootDirectory, { recursive: true, force: true });
+    });
+
+    it("starts with a conflicted order.bpmn", async () => {
+        expect(facts.gitStatus).toContain(`UU ${MERGE_FILE}`);
+        expect(String(facts.gitStages).trim().split("\n")).toHaveLength(3);
+        await vscode().showInCustomEditor("clean.bpmn", async (webview) => {
+            return (await webview.locator(".djs-container .djs-element.djs-shape").count()) >= 3;
+        });
+    });
+
+    it("offers the merge view on the Merge Changes row", async () => {
+        await vscode().setGitEnabled(true);
+        await vscode().runCommand("Source Control: Focus on Changes View");
+        await mergeRow().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await mergeRow().hover();
+        await delay(500);
+        facts.inlineActions = await mergeRow()
+            .locator(".actions .action-label")
+            .evaluateAll((labels) =>
+                labels.map((label) => label.getAttribute("aria-label") ?? label.getAttribute("title")),
+            );
+        await shot("merge-row-inline");
+        await mergeRow().click({ button: "right" });
+        const item = vscode().page.locator(".context-view").getByText(ROW_COMMAND, { exact: true });
+        await item.waitFor({ timeout: TIMEOUT_MS });
+        facts.rowMenu = await vscode().page.locator(".context-view .action-label").allTextContents();
+        await shot("merge-row-menu");
+        expect(facts.inlineActions).toContain(ROW_COMMAND);
+        // A menu item listens for the mouse only 100 ms after it renders.
+        await delay(150);
+        await item.click();
+        await vscode().page.mouse.move(0, 0);
+    });
+
+    it("opens current and incoming in two panes with today's diff highlights", async () => {
+        const before = await vscode().editorWebview('body[data-diff-side="before"]');
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        await expect
+            .poll(() => markerOf(after, INCOMING_ONLY_ID), { timeout: TIMEOUT_MS })
+            .toContain("diff-added");
+        expect(await markerOf(before, TASK_ID)).toContain("diff-changed");
+        expect(await markerOf(after, TASK_ID)).toContain("diff-changed");
+        expect(await taskLabel(before)).toBe("Check current order");
+        expect(await taskLabel(after)).toBe("Check incoming order");
+        expect(await before.locator(`[data-element-id="${INCOMING_ONLY_ID}"]`).count()).toBe(0);
+        facts.tabsAfterOpen = await tabLabels();
+        expect((facts.tabsAfterOpen as string[]).some((label) => label?.includes(MERGE_TAB_TITLE))).toBe(true);
+        facts.legendAfter = await after.locator(".diff-legend").textContent();
+        await shot("merge-view-two-panes");
+        // The working file and the index stay as Git left them.
+        expect(await readFile(join(repository, MERGE_FILE), "utf8")).toBe(facts.workingFile);
+        expect((await runGit(repository, "ls-files", "-u")).stdout).toBe(facts.gitStages);
+    });
+
+    it("resolves both panes under the URIs it registered (1.0.1, 1.0.2)", async () => {
+        const lines = await spikeLog();
+        facts.spikeLogAfterOpen = lines;
+        const registered = lines
+            .map((line) => /registered (?:current|incoming)=(\S+)/.exec(line)?.[1])
+            .filter((uri): uri is string => uri !== undefined);
+        const resolved = lines
+            .map((line) => /resolve bpmn-merge pane uri=(\S+) registered=(\w+)/.exec(line))
+            .filter((match): match is RegExpExecArray => match !== null)
+            .map((match) => ({ uri: match[1], registered: match[2] }));
+        facts.registeredUris = registered;
+        facts.resolvedUris = resolved;
+        expect(registered).toHaveLength(2);
+        expect(resolved.map((pane) => pane.uri).sort()).toEqual([...registered].sort());
+        expect(resolved.every((pane) => pane.registered === "true")).toBe(true);
+    });
+
+    it("shows the ended page in both restored panes after a window reload (1.0.3)", async () => {
+        const page = vscode().page;
+        await vscode().runCommand("Developer: Reload Window");
+        await delay(3000);
+        await page.waitForSelector(".monaco-workbench", { timeout: TIMEOUT_MS });
+        let panes: Awaited<ReturnType<typeof visiblePanes>> = [];
+        const deadline = Date.now() + TIMEOUT_MS;
+        while (Date.now() < deadline) {
+            panes = await visiblePanes();
+            if (panes.length >= 2 && panes.every((pane) => pane.ended)) break;
+            await delay(500);
+        }
+        facts.tabsAfterReload = await tabLabels();
+        facts.panesAfterReload = panes;
+        facts.spikeLogAfterReload = await spikeLog();
+        await shot("merge-view-after-reload");
+        expect(panes.filter((pane) => pane.ended)).toHaveLength(2);
+        expect(panes.some((pane) => pane.canvas)).toBe(false);
+    });
+});

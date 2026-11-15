@@ -9,7 +9,10 @@ import {
     ElementXmlDiffService,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
+import { MergeController } from "../diff/adapter/in/MergeController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
+import { VsCodeGitConflictVersions } from "../diff/adapter/out/VsCodeGitConflictVersions";
+import { VsCodeMergeSidesView } from "../diff/adapter/out/VsCodeMergeSidesView";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import { SharedDeps } from "./sharedDeps";
 
@@ -55,8 +58,28 @@ export function register(
     );
     diffController.register(context);
     dmnDiffController.register(context);
+    registerMergeView(context, diffStore, deps);
 
     return { diffController, diffStore, dmnDiffController, dmnDiffStore };
+}
+
+/** SPIKE: the merge view's command, Git adapter and `bpmn-merge:` documents. */
+function registerMergeView(
+    context: ExtensionContext,
+    diffStore: DiffPaneStore,
+    deps: SharedDeps,
+): void {
+    const view = new VsCodeMergeSidesView();
+    view.register(context);
+    const git = new VsCodeGitConflictVersions((line) =>
+        deps.notifier.logInfo(`[merge-spike] ${line}`),
+    );
+    new MergeController(diffStore, git, view, deps.notifier).register(context);
+    context.subscriptions.push(
+        diffStore.onSessionClosed((session) => {
+            view.releaseUris([session.beforeUri, session.afterUri]);
+        }),
+    );
 }
 
 /** The element XML diffs below the diagram diffs, or `undefined` where the host cannot show them. */

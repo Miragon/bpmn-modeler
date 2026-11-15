@@ -15,9 +15,15 @@ import {
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
-import { isGitProvidedDocument } from "../../domain/documentRevision";
+import { isGitProvidedDocument, isMergeSideDocument } from "../../domain/documentRevision";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
+
+const MERGE_VIEW_ENDED_PAGE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<style>body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);background:var(--vscode-editor-background);display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style>
+</head><body><main data-merge-view-ended>This merge view has ended. Open it again from Source Control.</main></body></html>`;
 
 /** A diff pane whose webview loads its page on `bootstrap`, once its listeners are attached. */
 export interface BootstrappableDiffPane extends DiffPaneHandle {
@@ -146,7 +152,7 @@ export class DiffController {
         if (this.store.awaitingPaneFor(needle)) {
             return true;
         }
-        if (isGitProvidedDocument(uri)) {
+        if (isGitProvidedDocument(uri) || isMergeSideDocument(uri)) {
             return true;
         }
         return this.diffTabsNaming(uri) > this.store.paneCountFor(needle);
@@ -183,6 +189,17 @@ export class DiffController {
         // drops webview-originated messages that arrive before the extension
         // has subscribed, and bootstrapping triggers an immediate
         // `GetBpmnFileCommand` as soon as the webview's scripts run.
+        if (isMergeSideDocument(document.uri)) {
+            const awaiting = this.store.awaitingPaneFor(document.uri.toString()) !== undefined;
+            this.notifier.logInfo(
+                `[merge-spike] resolve bpmn-merge pane uri=${document.uri.toString()} registered=${awaiting}`,
+            );
+            if (!awaiting) {
+                // SPIKE D1 guard: a merge pane no session serves never falls into SCM pairing.
+                panel.webview.html = MERGE_VIEW_ENDED_PAGE;
+                return;
+            }
+        }
         const handle = this.createPane(panel, document);
 
         panel.webview.onDidReceiveMessage((message: Command) =>

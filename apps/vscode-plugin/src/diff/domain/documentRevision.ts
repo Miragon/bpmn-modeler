@@ -18,6 +18,11 @@ export function isGitProvidedDocument(uri: { readonly scheme: string }): boolean
     return GIT_PROVIDED_SCHEMES.has(uri.scheme);
 }
 
+/** A side of a merge view, served by the extension itself; never paired as an SCM diff. */
+export function isMergeSideDocument(uri: { readonly scheme: string }): boolean {
+    return uri.scheme === "bpmn-merge";
+}
+
 export function revisionOfDocument(uri: {
     readonly scheme: string;
     readonly query: string;
