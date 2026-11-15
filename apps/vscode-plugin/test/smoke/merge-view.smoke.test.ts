@@ -809,7 +809,10 @@ describe("the BPMN merge view", () => {
         /** Renames the task in the visible modeler through direct editing. */
         async function renameTask(name: string): Promise<void> {
             const modeler = await vscode().editorWebview(".djs-palette");
-            await modeler.locator('.djs-shape[data-element-id="Task_Check"] > .djs-hit').dblclick();
+            // The palette sits over the canvas's left edge, so the task is hit at its right end.
+            await modeler
+                .locator('.djs-shape[data-element-id="Task_Check"] > .djs-hit')
+                .dblclick({ position: { x: 90, y: 40 } });
             const textBox = modeler.locator(".djs-direct-editing-content");
             await textBox.waitFor({ state: "visible", timeout: TIMEOUT_MS });
             await textBox.fill(name);
@@ -890,6 +893,8 @@ describe("the BPMN merge view", () => {
         });
 
         it("asks before it builds over a saved edit and leaves the file on Cancel", async () => {
+            // One group, so the modeler gets the whole width.
+            await runFromSideBar("View: Join All Editor Groups");
             await workingFileTab(CONFLICTED.merge).click();
             await renameTask("Check edited order");
             await expect
