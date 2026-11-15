@@ -3,7 +3,7 @@ import { descendantsOf } from "./mergeDecisionsContainment";
 import { findDanglingConflicts, type DanglingConflict } from "./mergeDecisionsDangling";
 import { layoutSidesOf } from "./mergeDecisionsLayout";
 import { DecidedSides } from "./mergeDecisionsSides";
-import type { PickOutcome } from "./pickOutcome";
+import type { PickOutcome, PickScope } from "./pickOutcome";
 import {
     isConflictState,
     type ConflictState,
@@ -15,7 +15,7 @@ import { dependentsByTarget, type ReferenceIndex } from "./referenceRules";
 import { connectionsRemovedWith, otherEndsOf } from "./removedConnections";
 import type { UnmetRequirement } from "./unmetRequirement";
 
-export type { BlockedPick, PickOutcome } from "./pickOutcome";
+export type { BlockedPick, PickOutcome, PickScope } from "./pickOutcome";
 
 export type OpenConflict =
     | { readonly id: string; readonly state: ConflictState; readonly related: readonly string[] }
@@ -92,6 +92,35 @@ export class MergeDecisions {
         if (this.sideOf(id) === undefined) return undefined;
         if (this.sides.isPicked(id)) return "picked";
         return this.sides.isAutomatic(id) ? "automatic" : "consequence";
+    }
+
+    /** Whether `side`'s version holds the element, so a pick of `side` keeps it rather than leaving it out. */
+    holds(id: string, side: MergeSide): boolean {
+        return this.requireElement(id).versions[side] !== undefined;
+    }
+
+    /** A pick as far as `scope` reaches. */
+    pickScoped(id: string, side: MergeSide, scope: PickScope): PickOutcome {
+        switch (scope) {
+            case "element":
+                return this.pick(id, side);
+            case "withContents":
+                return this.pickWithContents(id, side);
+            case "withConnections":
+                return this.pickWithConnections(id, side);
+        }
+    }
+
+    /** Takes a pick back as far as `scope` reaches, the reach a view names for the pick. */
+    unpickScoped(id: string, scope: PickScope): PickOutcome {
+        switch (scope) {
+            case "element":
+                return this.unpick(id);
+            case "withContents":
+                return this.unpickWithContents(id);
+            case "withConnections":
+                return this.unpickWithConnections(id);
+        }
     }
 
     pick(id: string, side: MergeSide): PickOutcome {

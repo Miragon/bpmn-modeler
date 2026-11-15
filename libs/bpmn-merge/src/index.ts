@@ -1,6 +1,7 @@
 export { computeMerge } from "./computeMerge";
 export type { MergeVersions } from "./computeMerge";
 export { MergeDecisions } from "./mergeDecisions";
+export { mergeElementNames } from "./mergeElementNames";
 export type {
     BlockedPick,
     DecisionOrigin,

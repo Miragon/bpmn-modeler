@@ -38,6 +38,8 @@ decisions.pickWithConnections("Task_Reject", "incoming"); // the element and tho
 decisions.unpickWithConnections("Task_Reject"); // takes the flows back with it
 decisions.pickWithContents("SubProcess_1", "current");
 decisions.unpickWithContents("SubProcess_1"); // and everything inside picked on the same side
+decisions.pickScoped("SubProcess_1", "current", "withContents"); // a view's reach: element, withContents, withConnections
+decisions.holds("Task_Reject", "current"); // false: a pick of current leaves it out
 
 const sources = await prepareMergeSources(versions); // once per merge; keep it for every build
 const { xml, notes } = await buildMerged(sources, decisions); // throws while conflicts are open
@@ -45,6 +47,7 @@ const { xml, notes } = await buildMerged(sources, decisions); // throws while co
 // What a merge view shows on each pane: its markers, the marked elements no canvas draws, its steps.
 const { marks, shapeless } = mergePaneView(decisions, "current"); // takenFromThisSide, takenFromOtherSide, conflict
 const { badges, picksNotDrawn, consequences, pickable } = mergePaneView(decisions, "current"); // the user's picks
+mergeElementNames(sources, decisions, ["Task_Reject"]); // { Task_Reject: "Reject order" }, alike on both panes
 const order = mergeNavigationOrder(decisions.result, sources); // current's flow, incoming's own steps in it, then the rest
 const { openConflicts, all } = mergePaneSteps(decisions, order, "current");
 decisions.result.elements.filter(hasNoShape); // what a pane lists instead of drawing

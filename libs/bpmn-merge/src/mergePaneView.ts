@@ -4,6 +4,7 @@ import type { MergeDecisions } from "./mergeDecisions";
 import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
 import type { ElementState, MergeElement, MergeSide } from "./mergeResult";
+import type { PickScope } from "./pickOutcome";
 import { connectionsRemovedWith } from "./removedConnections";
 
 /** A marked element no canvas draws, which the pane lists instead. */
@@ -13,8 +14,7 @@ export interface ShapelessMark {
     readonly marker: MergeMarker;
 }
 
-/** How a user's pick was made, and so what Undo takes back with it. */
-export type PickScope = "element" | "withContents" | "withConnections";
+export type { PickScope } from "./pickOutcome";
 
 /** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
 export interface PickBadge {

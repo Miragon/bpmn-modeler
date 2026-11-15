@@ -1,5 +1,8 @@
 import type { UnmetRequirement } from "./unmetRequirement";
 
+/** How far a pick reaches, and so what Undo takes back with it. */
+export type PickScope = "element" | "withContents" | "withConnections";
+
 export interface BlockedPick {
     /** The element the rule would need this pick to change. */
     readonly id: string;

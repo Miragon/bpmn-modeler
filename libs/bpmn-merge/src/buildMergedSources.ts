@@ -3,6 +3,7 @@ import {
     buildFlowOrder,
     elementSnapshots,
     sortIdsByOrder,
+    walkContainment,
 } from "@miragon/bpmn-modeler-diff";
 
 import { type MergeModdle, createMergeModdle } from "./engineModdle";
@@ -30,6 +31,8 @@ export interface MergeSources {
     };
     /** Each side's flow elements from start to end, as a stepper walks them. */
     readonly flowOrders: Readonly<Record<MergeSide, readonly string[]>>;
+    /** Each side's element names by id, for a view that names an element its canvas does not draw. */
+    readonly names: Readonly<Record<MergeSide, ReadonlyMap<string, string>>>;
 }
 
 /** Refuses, naming the version, what `computeMerge` refuses. */
@@ -60,18 +63,30 @@ export async function prepareMergeSources(versions: MergeVersions): Promise<Merg
             ...(baseFrame === undefined ? {} : { base: baseFrame }),
         },
         flowOrders: { current: currentLayout.flowOrder, incoming: incomingLayout.flowOrder },
+        names: { current: currentLayout.names, incoming: incomingLayout.names },
     };
 }
 
 async function sideLayout(
     mergeModdle: MergeModdle,
     xml: string,
-): Promise<{ readonly frame: DocumentFrame; readonly flowOrder: readonly string[] }> {
+): Promise<{
+    readonly frame: DocumentFrame;
+    readonly flowOrder: readonly string[];
+    readonly names: ReadonlyMap<string, string>;
+}> {
     const definitions = (await mergeModdle.moddle.fromXML(xml)).rootElement;
     const positions = buildFlowOrder(definitions);
+    const names = new Map<string, string>();
+    walkContainment(definitions, ({ id, name }) => {
+        if (typeof id === "string" && typeof name === "string" && name.trim() !== "") {
+            names.set(id, name);
+        }
+    });
     return {
         frame: await frameOfDefinitions(mergeModdle, definitions),
         flowOrder: sortIdsByOrder([...positions.keys()], positions),
+        names,
     };
 }
 
