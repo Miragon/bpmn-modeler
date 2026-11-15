@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+
+import { mergeStepPosition, nextMergeStep } from "./mergeStepper";
+
+const ALL = ["Task_Check", "Task_Pack", "Gateway_Ok", "End_Done", "Process_1"];
+const OPEN = ["Task_Pack", "End_Done", "Process_1"];
+
+describe("nextMergeStep", () => {
+    it.each<[string, readonly string[], string | undefined, 1 | -1, string | undefined]>([
+        ["starts at the first step going forward", OPEN, undefined, 1, "Task_Pack"],
+        ["starts at the last step going back", OPEN, undefined, -1, "Process_1"],
+        ["moves to the next step", OPEN, "Task_Pack", 1, "End_Done"],
+        ["moves to the previous step", OPEN, "End_Done", -1, "Task_Pack"],
+        ["wraps after the last step", OPEN, "Process_1", 1, "Task_Pack"],
+        ["wraps before the first step", OPEN, "Task_Pack", -1, "Process_1"],
+        [
+            "goes on from an element that left the list, after its place",
+            OPEN,
+            "Gateway_Ok",
+            1,
+            "End_Done",
+        ],
+        [
+            "goes back from an element that left the list, before its place",
+            OPEN,
+            "Gateway_Ok",
+            -1,
+            "Task_Pack",
+        ],
+        ["wraps from an element after the last step", ["Task_Check"], "Process_1", 1, "Task_Check"],
+        ["starts over from an element no list knows", OPEN, "Task_Gone", 1, "Task_Pack"],
+        ["has nowhere to go in an empty list", [], "Task_Pack", 1, undefined],
+    ])("%s", (_case, list, cursor, direction, expected) => {
+        expect(nextMergeStep(list, ALL, cursor, direction)).toBe(expected);
+    });
+});
+
+describe("mergeStepPosition", () => {
+    it.each<[string, string | undefined, { index: number; total: number } | undefined]>([
+        ["counts the step the cursor is on", "End_Done", { index: 1, total: 3 }],
+        ["shows none before the first step", undefined, undefined],
+        ["shows none on an element the list does not hold", "Task_Check", undefined],
+    ])("%s", (_case, cursor, expected) => {
+        expect(mergeStepPosition(OPEN, cursor)).toEqual(expected);
+    });
+});

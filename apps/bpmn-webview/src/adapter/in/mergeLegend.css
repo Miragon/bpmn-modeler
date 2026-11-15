@@ -1,0 +1,71 @@
+/* The merge pane's own controls below the diff legend's counts; the legend's tokens theme them. */
+
+.diff-legend__extension {
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+}
+
+.merge-legend__open {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.merge-legend__steps,
+.merge-legend__shapeless {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+}
+
+.merge-legend__steps-label,
+.merge-legend__shapeless-label {
+    color: var(--diff-legend-muted);
+    white-space: nowrap;
+}
+
+.merge-legend__step-list[aria-pressed="true"] {
+    border-color: var(--diff-legend-primary-border);
+    box-shadow: inset 0 -2px 0 var(--diff-legend-primary-border);
+}
+
+.merge-legend__shapeless-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.merge-legend__shapeless-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 8px;
+    font: inherit;
+    color: var(--diff-legend-text);
+    background: var(--diff-legend-button-surface);
+    border: 1px solid var(--diff-legend-border);
+    border-radius: var(--diff-legend-button-radius);
+    cursor: pointer;
+}
+
+.merge-legend__shapeless-entry:hover {
+    background: var(--diff-legend-button-hover);
+}
+
+.merge-legend__shapeless-entry:focus-visible {
+    outline: 1px solid var(--diff-legend-focus);
+    outline-offset: 2px;
+}
+
+/* The stepper is on this entry: no canvas shows it, so the list does. */
+.merge-legend__shapeless-entry[aria-current="true"] {
+    border-color: var(--diff-legend-primary-border);
+    box-shadow: 0 0 0 2px var(--diff-legend-primary-border);
+}

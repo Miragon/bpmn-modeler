@@ -2,9 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import type { MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
-import { mergeCaptionText } from "./mergeTexts";
+import {
+    MERGE_LEGEND_TEXTS,
+    MERGE_MARKER_LABELS,
+    MergeTranslate,
+    mergeCaptionText,
+    openConflictsText,
+    shapelessEntryText,
+} from "./mergeTexts";
 
-const untranslated = (key: string) => key;
+const untranslated: MergeTranslate = (key, replacements = {}) =>
+    key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);
 
 describe("mergeCaptionText", () => {
     it.each<[string, MergeSideCaption, string]>([
@@ -50,5 +58,39 @@ describe("mergeCaptionText", () => {
         );
 
         expect(text).toBe("Aktuell: dein Branch main");
+    });
+});
+
+describe("openConflictsText", () => {
+    it.each<[number, string]>([
+        [0, "No open conflicts"],
+        [1, "1 open conflict"],
+        [3, "3 open conflicts"],
+    ])("counts %i", (count, expected) => {
+        expect(openConflictsText(count, untranslated)).toBe(expected);
+    });
+});
+
+describe("shapelessEntryText", () => {
+    it.each<[string, { id: string; type: string }, string]>([
+        [
+            "names the process by its id and type",
+            { id: "Process_1", type: "bpmn:Process" },
+            "Process_1 (Process)",
+        ],
+        [
+            "spells a type of two words apart",
+            { id: "DataStore_1", type: "bpmn:DataStore" },
+            "DataStore_1 (Data Store)",
+        ],
+    ])("%s", (_case, entry, expected) => {
+        expect(shapelessEntryText(entry, untranslated)).toBe(expected);
+    });
+});
+
+describe("merge legend words", () => {
+    it("names every marker and every legend control", () => {
+        expect(Object.values(MERGE_MARKER_LABELS).every((label) => label.length > 0)).toBe(true);
+        expect(Object.values(MERGE_LEGEND_TEXTS).every((label) => label.length > 0)).toBe(true);
     });
 });
