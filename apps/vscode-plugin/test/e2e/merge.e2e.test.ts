@@ -1,6 +1,6 @@
 import * as assert from "node:assert";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { devNull } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -29,9 +29,9 @@ interface GitExtensionLike {
     getAPI(version: 1): GitApiLike;
 }
 
-function git(repository: string, ...args: string[]): void {
+function git(repository: string, ...args: string[]): string {
     try {
-        execFileSync(
+        return execFileSync(
             "git",
             [
                 "-c",
@@ -48,11 +48,33 @@ function git(repository: string, ...args: string[]): void {
                 cwd: repository,
                 env: { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: "1" },
                 stdio: "pipe",
+                encoding: "utf8",
             },
         );
     } catch {
         // `git merge` exits 1 on a conflict.
+        return "";
     }
+}
+
+function activeTab(): string {
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    const input = tab?.input;
+    if (input instanceof vscode.TabInputCustom) return `custom:${input.viewType}`;
+    if (input instanceof vscode.TabInputText) return "text";
+    return `other:${tab?.label ?? "none"}`;
+}
+
+async function waitForActiveTab(uri: vscode.Uri): Promise<string> {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+        const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input as
+            | { uri?: vscode.Uri }
+            | undefined;
+        if (input?.uri?.toString() === uri.toString()) return activeTab();
+        await new Promise((done) => setTimeout(done, 200));
+    }
+    return `timeout (${activeTab()})`;
 }
 
 async function waitFor(predicate: () => boolean, describe: () => string): Promise<void> {
@@ -131,5 +153,48 @@ suite("BPMN merge view spike", () => {
             `[merge-spike-e2e] vscode ${vscode.version}: session ${JSON.stringify(api.diff.sessionFor(current))}`,
         );
         assert.ok(readFileSync(file, "utf8").includes("<<<<<<<"), "the working file changed");
+    });
+
+    test("builds incoming into the working file and leaves the index (phase B)", async () => {
+        const folder = vscode.workspace.workspaceFolders![0]!.uri.fsPath;
+        const repository = join(folder, `merge-repo-${vscode.version}`);
+        const file = join(repository, "order.bpmn");
+        const stagesBefore = git(repository, "ls-files", "-u");
+        await vscode.commands.executeCommand(
+            "bpmn-modeler.spikeTakeIncomingForEveryConflict",
+            vscode.Uri.file(file),
+        );
+        const built = readFileSync(file, "utf8");
+        console.log(
+            `[merge-spike-e2e] vscode ${vscode.version}: built markers=${built.includes("<<<<<<<")} incoming=${built.includes("Check incoming order")} stages=${git(repository, "ls-files", "-u").trim().split("\n").length} activeTab=${activeTab()}`,
+        );
+        assert.ok(!built.includes("<<<<<<<"), "the working file still holds conflict markers");
+        assert.ok(built.includes('name="Check incoming order"'), "incoming was not taken");
+        assert.strictEqual(git(repository, "ls-files", "-u"), stagesBefore, "the index changed");
+        assert.strictEqual(activeTab(), "custom:bpmn-modeler.bpmn");
+    });
+
+    test("opens a written .bpmn with vscode.open (1.0.5)", async () => {
+        const folder = vscode.workspace.workspaceFolders![0]!.uri.fsPath;
+        const fresh = vscode.Uri.file(join(folder, `fresh-${vscode.version}.bpmn`));
+        copyFileSync(SMOKE_BPMN, fresh.fsPath);
+        await vscode.commands.executeCommand("vscode.open", fresh, { preview: false });
+        const freshTab = await waitForActiveTab(fresh);
+
+        const shownAsText = vscode.Uri.file(join(folder, `as-text-${vscode.version}.bpmn`));
+        copyFileSync(SMOKE_BPMN, shownAsText.fsPath);
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(shownAsText), {
+            preview: false,
+        });
+        const textFirst = await waitForActiveTab(shownAsText);
+        await vscode.commands.executeCommand("vscode.open", shownAsText, { preview: false });
+        const openAfterText = await waitForActiveTab(shownAsText);
+        await vscode.commands.executeCommand("vscode.openWith", shownAsText, "bpmn-modeler.bpmn");
+        const openWithAfterText = await waitForActiveTab(shownAsText);
+        console.log(
+            `[merge-spike-e2e] vscode ${vscode.version}: 1.0.5 fresh=${freshTab} textFirst=${textFirst} openAfterText=${openAfterText} openWithAfterText=${openWithAfterText}`,
+        );
+        assert.strictEqual(freshTab, "custom:bpmn-modeler.bpmn");
     });
 });

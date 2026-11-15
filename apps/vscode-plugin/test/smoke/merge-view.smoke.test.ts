@@ -1,4 +1,5 @@
-// SPIKE (epic #2459 step 3, phase A): the merge view on a real conflict. Answers 1.0.1-1.0.3.
+// SPIKE (epic #2459 step 3, phases A and B): the merge view on a real conflict, from `git merge`
+// to `git merge --continue`. Answers 1.0.1-1.0.3 and, masked by the editor association, 1.0.5.
 import { execFile } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { devNull, tmpdir } from "node:os";
@@ -6,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { BpmnModdle } from "bpmn-moddle";
 import type { FrameLocator } from "playwright-core";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -20,6 +22,7 @@ const TIMEOUT_MS = 30_000;
 const MERGE_FILE = "order.bpmn";
 const MERGE_TAB_TITLE = "order.bpmn (Current ↔ Incoming)";
 const ROW_COMMAND = "Open in BPMN Merge View";
+const TAKE_INCOMING_COMMAND = "Take incoming for every open conflict";
 const TASK_ID = "Task_Check";
 const INCOMING_ONLY_ID = "Task_Notify";
 
@@ -27,7 +30,7 @@ const facts: Record<string, unknown> = {};
 const log = (line: string) => console.log(`[merge-view] ${line}`);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
-function runGit(repository: string, ...args: string[]): Promise<{ stdout: string }> {
+function runGit(repository: string, ...args: string[]): Promise<{ stdout: string; code: number }> {
     return runFile(
         "git",
         [
@@ -51,10 +54,13 @@ function runGit(repository: string, ...args: string[]): Promise<{ stdout: string
                 GIT_CONFIG_NOSYSTEM: "1",
             },
         },
-    ).catch((error: { stdout?: string; stderr?: string }) => {
-        // `git merge` exits 1 on a conflict.
-        return { stdout: `${error.stdout ?? ""}${error.stderr ?? ""}` };
-    });
+    ).then(
+        ({ stdout }) => ({ stdout, code: 0 }),
+        (error: { stdout?: string; stderr?: string; code?: number }) => {
+            // `git merge` exits 1 on a conflict.
+            return { stdout: `${error.stdout ?? ""}${error.stderr ?? ""}`, code: error.code ?? 1 };
+        },
+    );
 }
 
 /** Incoming renames the task and adds a task of its own, far from the rename. */
@@ -112,6 +118,29 @@ describe("the BPMN merge view (spike)", () => {
             .filter({ has: vscode().page.locator(".resource") })
             .filter({ hasText: MERGE_FILE })
             .first();
+    }
+
+    async function openFromMergeRow(): Promise<void> {
+        await vscode().runCommand("Source Control: Focus on Changes View");
+        await mergeRow().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await mergeRow().click({ button: "right" });
+        const item = vscode().page.locator(".context-view").getByText(ROW_COMMAND, { exact: true });
+        await item.waitFor({ timeout: TIMEOUT_MS });
+        // A menu item listens for the mouse only 100 ms after it renders.
+        await delay(150);
+        await item.click();
+        await vscode().page.mouse.move(0, 0);
+    }
+
+    /** Both panes of a live merge view: a diagram on each side, not the ended page. */
+    async function liveMergePanes(timeoutMs: number): Promise<boolean> {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const panes = await visiblePanes();
+            if (panes.length >= 2 && panes.every((pane) => pane.canvas && !pane.ended)) return true;
+            await delay(500);
+        }
+        return false;
     }
 
     async function spikeLog(): Promise<string[]> {
@@ -312,5 +341,79 @@ describe("the BPMN merge view (spike)", () => {
         await shot("merge-view-after-reload");
         expect(panes.filter((pane) => pane.ended)).toHaveLength(2);
         expect(panes.some((pane) => pane.canvas)).toBe(false);
+    });
+
+    it("opens the merge view again from the row after the reload", async () => {
+        // The restored tab still holds the ended panes, and the opening counter restarted with
+        // the extension host, so the new opening may reuse their URIs.
+        await openFromMergeRow();
+        facts.reopenedOverRestoredTab = await liveMergePanes(10_000);
+        facts.panesAfterReopenOverRestoredTab = await visiblePanes();
+        facts.tabsAfterReopenOverRestoredTab = await tabLabels();
+        await shot("merge-view-reopened-over-restored-tab");
+        if (!facts.reopenedOverRestoredTab) {
+            await vscode().closeEditorTab(/order\.bpmn ↔ order\.bpmn|Current ↔ Incoming/);
+            await openFromMergeRow();
+        }
+        expect(await liveMergePanes(TIMEOUT_MS)).toBe(true);
+        const after = await vscode().editorWebview('body[data-diff-side="after"]');
+        await expect
+            .poll(() => markerOf(after, INCOMING_ONLY_ID), { timeout: TIMEOUT_MS })
+            .toContain("diff-added");
+        facts.tabsAfterReopen = await tabLabels();
+        await shot("merge-view-two-panes-reopened");
+    });
+
+    it("builds incoming over the working file, which parses, has no markers and stays UU (B2-B3)", async () => {
+        const file = join(repository, MERGE_FILE);
+        await vscode().runCommand(TAKE_INCOMING_COMMAND);
+        await expect
+            .poll(async () => (await readFile(file, "utf8")).includes("<<<<<<<"), {
+                timeout: TIMEOUT_MS,
+            })
+            .toBe(false);
+        const built = await readFile(file, "utf8");
+        facts.builtFile = built;
+        const { elementsById } = await BpmnModdle().fromXML(built);
+        expect(elementsById[TASK_ID]?.name).toBe("Check incoming order");
+        expect(elementsById[INCOMING_ONLY_ID]?.name).toBe("Notify customer");
+        expect(elementsById[`${INCOMING_ONLY_ID}_di`]).toBeDefined();
+        expect(built).not.toMatch(/^(<<<<<<<|=======|>>>>>>>)/m);
+        facts.gitStatusAfterBuild = (await runGit(repository, "status", "--porcelain=v1")).stdout;
+        facts.gitStagesAfterBuild = (await runGit(repository, "ls-files", "-u")).stdout;
+        expect(facts.gitStatusAfterBuild).toContain(`UU ${MERGE_FILE}`);
+        expect(facts.gitStagesAfterBuild).toBe(facts.gitStages);
+    });
+
+    it("shows the built file in the modeler (1.0.5, with the *.bpmn editor association)", async () => {
+        const modeler = await vscode().editorWebview(
+            `body:not([data-diff-side]) .djs-element[data-element-id="${INCOMING_ONLY_ID}"]`,
+        );
+        expect(await taskLabel(modeler)).toBe("Check incoming order");
+        facts.tabsAfterBuild = await tabLabels();
+        facts.activeTabAfterBuild = await vscode()
+            .page.locator(".tabs-container .tab.active")
+            .first()
+            .getAttribute("aria-label");
+        const lines = await spikeLog();
+        facts.buildLog = lines.filter((line) => /take incoming|built |wrote |opened /.test(line));
+        expect(lines.some((line) => line.includes("active tab custom viewType=bpmn-modeler.bpmn"))).toBe(
+            true,
+        );
+        await shot("built-file-in-modeler");
+    });
+
+    it("lets git conclude the merge once the built file is staged", async () => {
+        await runGit(repository, "add", MERGE_FILE);
+        facts.gitStatusAfterAdd = (await runGit(repository, "status", "--porcelain=v1")).stdout;
+        const conclude = await runGit(repository, "-c", "core.editor=true", "merge", "--continue");
+        facts.mergeContinue = conclude;
+        expect(conclude.code).toBe(0);
+        const parents = (await runGit(repository, "log", "-1", "--format=%P")).stdout.trim().split(" ");
+        facts.mergeCommitParents = parents;
+        expect(parents).toHaveLength(2);
+        expect((await runGit(repository, "status", "--porcelain=v1")).stdout.trim()).toBe("");
+        await delay(1500);
+        await shot("after-merge-continue");
     });
 });
