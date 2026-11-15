@@ -3,6 +3,7 @@ import type { MergeResolution } from "./mergeDecisions";
 import {
     type LayoutState,
     MERGE_SIDES,
+    type MergeElement,
     type MergeResult,
     type MergeSide,
     chosenVersionOf,
@@ -20,6 +21,11 @@ export type BuildNote =
           readonly kind: "drawnApartFromContainer";
           readonly id: string;
           readonly containers: readonly string[];
+      }
+    | {
+          readonly kind: "restoredWithoutConnections";
+          readonly id: string;
+          readonly connections: readonly string[];
       }
     | { readonly kind: "frameDiffers"; readonly attribute: string };
 
@@ -101,6 +107,40 @@ export function drawnApartFromContainerNotes(
         return containers.length === 0
             ? []
             : [{ kind: "drawnApartFromContainer", id: element.id, containers }];
+    });
+}
+
+/**
+ * An element kept against the other side's removal, while flows that connect
+ * it on its own side stay out: each flow is decided on its own, so the flows
+ * removed with the element stay removed and it may be left unconnected.
+ */
+export function restoredWithoutConnectionsNotes(
+    result: MergeResult,
+    resolution: MergeResolution,
+): BuildNote[] {
+    const isInResult = (element: MergeElement) =>
+        chosenVersionOf(element, (id) => resolution.elements[id]) !== undefined;
+    return result.elements.flatMap((element): BuildNote[] => {
+        const side = resolution.elements[element.id];
+        const removedByTheOtherSide =
+            side !== undefined &&
+            element.versions.base !== undefined &&
+            element.versions[side] !== undefined &&
+            MERGE_SIDES.some((other) => other !== side && element.versions[other] === undefined);
+        if (!removedByTheOtherSide) return [];
+        const connections = result.elements
+            .filter(
+                (candidate) =>
+                    !isInResult(candidate) &&
+                    (candidate.versions[side]?.references ?? []).some(
+                        (reference) => isEdgeEnd(reference) && reference.target === element.id,
+                    ),
+            )
+            .map(({ id }) => id);
+        return connections.length === 0
+            ? []
+            : [{ kind: "restoredWithoutConnections", id: element.id, connections }];
     });
 }
 

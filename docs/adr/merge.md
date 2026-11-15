@@ -195,8 +195,10 @@ those.
   first, so the classification, the layout side and the check all compare them in order.
 - *Notes for the reviewer:* a flow whose layout and its ends' layouts come from different
   sides, an element drawn from another side than its container, elements both sides added
-  at the same place, and every frame difference the result does not carry (attributes both
-  sides changed, incoming's extensions or imports).
+  at the same place, an element kept against the other side's removal whose flows on its
+  own side stay out (each flow is decided on its own, so the flows removed with it stay
+  removed and it may be left unconnected), and every frame difference the result does not
+  carry (attributes both sides changed, incoming's extensions or imports).
 
 ## Consequences
 

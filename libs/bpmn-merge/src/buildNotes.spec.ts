@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
-import { addedAtSamePlaceNotes, drawnApartFromContainerNotes, flowEndsNotes } from "./buildNotes";
+import {
+    addedAtSamePlaceNotes,
+    drawnApartFromContainerNotes,
+    flowEndsNotes,
+    restoredWithoutConnectionsNotes,
+} from "./buildNotes";
 import type { DiagramBounds } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
 import type { LayoutState, MergeSide } from "./mergeResult";
@@ -278,5 +283,102 @@ describe("drawnApartFromContainerNotes", () => {
                 enclosing(),
             ),
         ).toEqual([]);
+    });
+});
+
+describe("restoredWithoutConnectionsNotes", () => {
+    const flowInto = (target: string) => [
+        refersTo("bpmn:SequenceFlow#sourceRef", "Gateway"),
+        refersTo("bpmn:SequenceFlow#targetRef", target),
+    ];
+    const gateway = mergeElement("Gateway", "unchanged", { type: "bpmn:ExclusiveGateway" });
+
+    it("names an element kept against the other side's removal whose flows on its side the result leaves out", () => {
+        const result = mergeResult(
+            gateway,
+            mergeElement("Task_Reject", "removedByCurrent"),
+            mergeElement("Flow_No", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                references: flowInto("Task_Reject"),
+            }),
+            mergeElement("Flow_Escalate", "addedByIncoming", {
+                type: "bpmn:SequenceFlow",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", "Task_Reject"),
+                    refersTo("bpmn:SequenceFlow#targetRef", "Gateway"),
+                ],
+            }),
+        );
+        const resolution: MergeResolution = {
+            elements: {
+                Gateway: "current",
+                Task_Reject: "incoming",
+                Flow_No: "current",
+                Flow_Escalate: "incoming",
+            },
+            layout: {},
+        };
+
+        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([
+            { kind: "restoredWithoutConnections", id: "Task_Reject", connections: ["Flow_No"] },
+        ]);
+    });
+
+    it("names an element changed on one side and kept against the other side's removal", () => {
+        const result = mergeResult(
+            gateway,
+            mergeElement("Task_Check", "changedAndRemoved"),
+            mergeElement("Flow_In", "removedByIncoming", {
+                type: "bpmn:SequenceFlow",
+                references: flowInto("Task_Check"),
+            }),
+        );
+        const resolution: MergeResolution = {
+            elements: { Gateway: "current", Task_Check: "current", Flow_In: "incoming" },
+            layout: {},
+        };
+
+        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([
+            { kind: "restoredWithoutConnections", id: "Task_Check", connections: ["Flow_In"] },
+        ]);
+    });
+
+    it.each([
+        {
+            rule: "ignores an element whose removal stands",
+            elements: { Gateway: "current", Task_Reject: "current", Flow_No: "current" },
+        },
+        {
+            rule: "ignores a kept element whose flows are kept too",
+            elements: { Gateway: "current", Task_Reject: "incoming", Flow_No: "incoming" },
+        },
+    ] as const)("$rule", ({ elements }) => {
+        const result = mergeResult(
+            gateway,
+            mergeElement("Task_Reject", "removedByCurrent"),
+            mergeElement("Flow_No", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                references: flowInto("Task_Reject"),
+            }),
+        );
+
+        expect(restoredWithoutConnectionsNotes(result, { elements, layout: {} })).toEqual([]);
+    });
+
+    it("ignores an element no side removed, even when the other side removed one of its flows", () => {
+        const result = mergeResult(
+            gateway,
+            mergeElement("Task_A", "takenFromIncoming"),
+            mergeElement("Flow_A", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                references: flowInto("Task_A"),
+            }),
+        );
+        const resolution: MergeResolution = {
+            elements: { Gateway: "current", Task_A: "incoming", Flow_A: "current" },
+            layout: {},
+        };
+
+        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([]);
     });
 });
