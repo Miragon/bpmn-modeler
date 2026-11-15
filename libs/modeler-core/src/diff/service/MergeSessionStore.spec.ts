@@ -1,6 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FakeDiffPaneHandle, RecordingMergeSidesView } from "../../testing";
+import {
+    FakeDiffPaneHandle,
+    mergeSessionOf,
+    ORDER_MERGE_STAGES,
+    ORDER_MERGE_STAGES_AGAIN,
+    RecordingMergeSidesView,
+} from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
 
@@ -10,7 +16,7 @@ const URIS = {
     incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1",
 };
 
-const SESSION: MergeSession = {
+const SESSION_FACTS = {
     fileUri: FILE,
     fileName: "order.bpmn",
     title: "order.bpmn (Merge: main ↔ feature)",
@@ -19,8 +25,8 @@ const SESSION: MergeSession = {
         incoming: { side: "incoming", role: "upstream", ref: "feature" },
     },
     uris: URIS,
-    stages: { current: "<current/>", incoming: "<incoming/>" },
-};
+    stages: ORDER_MERGE_STAGES,
+} as const;
 
 function createStore() {
     const diffStore = new DiffPaneStore();
@@ -34,11 +40,17 @@ const NEWER_URIS = {
     incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D2",
 };
 
-const NEWER_SESSION: MergeSession = {
-    ...SESSION,
-    uris: NEWER_URIS,
-    stages: { current: "<current2/>", incoming: "<incoming2/>" },
-};
+let SESSION: MergeSession;
+let NEWER_SESSION: MergeSession;
+
+beforeAll(async () => {
+    SESSION = await mergeSessionOf(SESSION_FACTS);
+    NEWER_SESSION = await mergeSessionOf({
+        ...SESSION_FACTS,
+        uris: NEWER_URIS,
+        stages: ORDER_MERGE_STAGES_AGAIN,
+    });
+});
 
 function openTab(diffStore: DiffPaneStore, uris = URIS) {
     const diffSession = diffStore.registerMerge(uris);

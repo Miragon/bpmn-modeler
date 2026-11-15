@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestHost, FakeDiffPaneHandle } from "../../testing";
-import { RecordingMergeSidesView } from "../../testing";
+import {
+    createTestHost,
+    FakeDiffPaneHandle,
+    mergeSessionOf,
+    ORDER_MERGE_STAGES,
+    RecordingMergeSidesView,
+} from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { DiffSession } from "./DiffSession";
+import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSessionStore } from "./MergeSessionStore";
 
 // ─── Sample BPMN ──────────────────────────────────────────────────────────────
@@ -36,6 +43,44 @@ function createService(elementXml?: ElementXmlChanges) {
     const store = new DiffPaneStore();
     const service = new BpmnDiffService(notifier, settings, store, elementXml);
     return { service, notifier, store };
+}
+
+/** A merge view's diff session with both panes attached, served by a service that knows it. */
+async function mergeView() {
+    const { notifier, settings } = createTestHost();
+    const store = new DiffPaneStore();
+    const merges = new MergeSessionStore(store, new RecordingMergeSidesView());
+    const service = new BpmnDiffService(
+        notifier,
+        settings,
+        store,
+        undefined,
+        new MergeDecisionService(merges, notifier),
+    );
+    const uris = {
+        current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D1",
+        incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1",
+    };
+    const session = store.registerMerge(uris);
+    merges.add(
+        await mergeSessionOf({
+            fileUri: "file:///repo/order.bpmn",
+            fileName: "order.bpmn",
+            title: "order.bpmn (Merge: main ↔ feature)",
+            captions: {
+                current: { side: "current", role: "branch", ref: "main" },
+                incoming: { side: "incoming", role: "upstream", ref: "feature" },
+            },
+            uris,
+            stages: ORDER_MERGE_STAGES,
+        }),
+        session,
+    );
+    const current = fakeHandle(uris.current, ORDER_MERGE_STAGES.current);
+    const incoming = fakeHandle(uris.incoming, ORDER_MERGE_STAGES.incoming);
+    session.attachPane(current);
+    session.attachPane(incoming);
+    return { service, current, incoming };
 }
 
 /** Registers a compare-files session with both panes attached. */
@@ -153,69 +198,45 @@ describe("BpmnDiffService", () => {
         expect(paneFilenameOf(after)).toBe("diagram.bpmn");
     });
 
-    it("names a merge pane after its side's caption and the working file", async () => {
-        const { notifier, settings } = createTestHost();
-        const store = new DiffPaneStore();
-        const merges = new MergeSessionStore(store, new RecordingMergeSidesView());
-        const service = new BpmnDiffService(notifier, settings, store, undefined, merges);
-        const uris = {
-            current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D1",
-            incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1",
-        };
-        const captions = {
-            current: { side: "current", role: "branch", ref: "main" },
-            incoming: { side: "incoming", role: "upstream", ref: "feature" },
-        } as const;
-        const session = store.registerMerge(uris);
-        merges.add(
-            {
-                fileUri: "file:///repo/order.bpmn",
-                fileName: "order.bpmn",
-                title: "order.bpmn (Merge: main ↔ feature)",
-                captions,
-                uris,
-                stages: { current: beforeBpmn, incoming: afterBpmn },
-            },
-            session,
-        );
-        const current = fakeHandle(uris.current, beforeBpmn);
-        const incoming = fakeHandle(uris.incoming, afterBpmn);
-        session.attachPane(current);
-        session.attachPane(incoming);
+    it("serves a merge pane in merge viewer mode", async () => {
+        const { service, current } = await mergeView();
+
+        await service.sendViewerFile(current);
+
+        expect(current.posted).toEqual([
+            expect.objectContaining({ type: "BpmnFileQuery", viewerMode: "merge" }),
+        ]);
+    });
+
+    it("sends a merge view's panes their merge states, not diff highlights", async () => {
+        const { service, current, incoming } = await mergeView();
 
         await service.markReady(current);
         await service.markReady(incoming);
 
-        const highlightsOf = (handle: FakeDiffPaneHandle) =>
-            handle.posted
-                .map((m) => m as { type: string; [key: string]: unknown })
-                .find((m) => m.type === "ApplyDiffHighlightsQuery");
-        expect(highlightsOf(current)).toMatchObject({
-            origin: "merge",
-            paneFilename: "order.bpmn",
-            mergeCaption: captions.current,
-        });
-        expect(highlightsOf(incoming)).toMatchObject({
-            origin: "merge",
-            paneFilename: "order.bpmn",
-            mergeCaption: captions.incoming,
-            added: ["Task_1"],
-        });
+        expect(messageTypes(current)).toEqual(["LanguageQuery", "ApplyMergeStatesQuery"]);
+        expect(messageTypes(incoming)).toEqual(["LanguageQuery", "ApplyMergeStatesQuery"]);
     });
 
-    it("sends no merge caption for a compare-files or SCM diff", async () => {
+    it("still runs the plain diff for scm and compare-files sessions", async () => {
         const { service, store } = createService();
-        const { before, after } = attachedPair(store, beforeBpmn, afterBpmn);
+        const scmBefore = fakeHandle("git:/repo/scm.bpmn?ref=HEAD", beforeBpmn);
+        const scmAfter = fakeHandle("file:///repo/scm.bpmn", afterBpmn);
+        const scm = DiffSession.forScm(scmBefore, scmAfter);
+        scm.attachPane(scmBefore);
+        scm.attachPane(scmAfter);
+        store.index(scm);
+        const compare = attachedPair(store, beforeBpmn, afterBpmn);
 
-        await service.markReady(before);
-        await service.markReady(after);
+        for (const { before, after } of [compare, { before: scmBefore, after: scmAfter }]) {
+            await service.sendViewerFile(before);
+            await service.markReady(before);
+            await service.markReady(after);
 
-        const captionOf = (handle: FakeDiffPaneHandle) =>
-            handle.posted
-                .map((m) => m as { type: string; mergeCaption?: unknown })
-                .find((m) => m.type === "ApplyDiffHighlightsQuery")?.mergeCaption;
-        expect(captionOf(before)).toBeUndefined();
-        expect(captionOf(after)).toBeUndefined();
+            expect(before.posted[0]).toMatchObject({ type: "BpmnFileQuery", viewerMode: "viewer" });
+            expect(messageTypes(after)).toContain("ApplyDiffHighlightsQuery");
+            expect(messageTypes(after)).not.toContain("ApplyMergeStatesQuery");
+        }
     });
 
     it.each<[string, ElementXmlChanges | undefined, boolean]>([

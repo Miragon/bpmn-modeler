@@ -13,6 +13,7 @@
   "dependencies": {
     "@miragon/bpmn-modeler-diff": "workspace:*",
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
+    "@miragon/bpmn-modeler-merge": "workspace:*",
     "@miragon/bpmn-modeler-shared": "workspace:*",
     "@miragon/bpmn-modeler-types": "workspace:*",
     "@miragon/bpmnlint-plugin-rules": "0.22.0",

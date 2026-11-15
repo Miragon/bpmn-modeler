@@ -28,6 +28,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "docs/vscode/features/language-support.md"
@@ -50,6 +51,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
             ],
@@ -249,6 +251,7 @@
                 "libs/shared/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",

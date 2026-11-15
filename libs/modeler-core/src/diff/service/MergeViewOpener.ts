@@ -16,6 +16,7 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { MergeSideDocument, MergeSidesView } from "../port/MergeSidesView";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
+import { MergeOfStages, mergeStages } from "./mergeStages";
 
 /** What became of a merge pane the host resolved: it shows a live merge view, or that its view ended. */
 export type MergePaneAttachment = "joined" | "ended";
@@ -102,6 +103,11 @@ export class MergeViewOpener {
             await this.show(live);
             return;
         }
+        const merge = await this.mergeOf(reading.stages);
+        if (merge.kind === "unreadable") {
+            this.refuse({ kind: "unreadableStage", reason: merge.reason }, fileName);
+            return;
+        }
         const sideDocument = (side: MergeSide): MergeSideDocument => ({
             text: reading.stages[side],
             basename: mergePaneBasename(fileName, side),
@@ -117,9 +123,29 @@ export class MergeViewOpener {
             captions,
             uris,
             stages: reading.stages,
+            decisions: merge.decisions,
+            sources: merge.sources,
+            navigationOrder: merge.navigationOrder,
         };
         this.sessions.add(session, this.diffStore.registerMerge(uris));
         await this.show(session);
+    }
+
+    /** Merges the stages before any pane opens, so a side the merge cannot read opens nothing. */
+    private async mergeOf(
+        stages: MergeSession["stages"],
+    ): Promise<
+        | { readonly kind: "unreadable"; readonly reason: string }
+        | ({ readonly kind: "merged" } & MergeOfStages)
+    > {
+        try {
+            return { kind: "merged", ...(await mergeStages(stages)) };
+        } catch (error) {
+            return {
+                kind: "unreadable",
+                reason: error instanceof Error ? error.message : String(error),
+            };
+        }
     }
 
     private async show(session: MergeSession): Promise<void> {

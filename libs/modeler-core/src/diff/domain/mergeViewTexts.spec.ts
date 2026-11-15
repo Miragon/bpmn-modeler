@@ -40,6 +40,10 @@ describe("mergeViewRefusal", () => {
             "notes.txt exists only on the incoming side. Keep or delete it in Source Control.",
         ],
         [
+            { kind: "unreadableStage", reason: "incoming does not parse: unparsable content" },
+            "The BPMN merge view cannot read notes.txt: incoming does not parse: unparsable content. A file under Git LFS or a textconv driver hands Git's sides over as text that is not BPMN; resolve it in Source Control.",
+        ],
+        [
             { kind: "noFile" },
             "Open a conflicted BPMN file, or select one in Source Control, to resolve it in the BPMN merge view.",
         ],

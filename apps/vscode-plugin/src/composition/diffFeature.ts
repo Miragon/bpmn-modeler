@@ -50,7 +50,7 @@ export function register(
                 deps.vsSettings,
                 diffStore,
                 elementXmlDiffs(context, diffStore, deps, merge.sessions),
-                merge.sessions,
+                merge.decisions,
             ),
         ),
         merge.opener,

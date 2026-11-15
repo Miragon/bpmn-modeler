@@ -3233,6 +3233,7 @@ __metadata:
     "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
+    "@miragon/bpmn-modeler-merge": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
@@ -3442,7 +3443,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-merge@workspace:libs/bpmn-merge":
+"@miragon/bpmn-modeler-merge@workspace:*, @miragon/bpmn-modeler-merge@workspace:libs/bpmn-merge":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-merge@workspace:libs/bpmn-merge"
   dependencies:

@@ -183,6 +183,7 @@ export * from "./diff/service/DiffPaneStore";
 export * from "./diff/service/ElementXmlDiffService";
 export * from "./diff/service/diffPaneRouter";
 export * from "./diff/service/ConflictMarkerParticipant";
+export * from "./diff/service/MergeDecisionService";
 export * from "./diff/service/MergeSessionStore";
 export * from "./diff/service/MergeViewOpener";
 export * from "./diff/service/ResolvableConflictsService";

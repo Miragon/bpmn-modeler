@@ -3,6 +3,7 @@ import { ExtensionContext } from "vscode";
 import {
     ConflictMarkerParticipant,
     DiffPaneStore,
+    MergeDecisionService,
     MergeSessionStore,
     MergeViewOpener,
     ResolvableConflictsService,
@@ -15,7 +16,8 @@ import { SharedDeps } from "./sharedDeps";
 
 /**
  * The BPMN merge view: Git through its extension's API, the panes under
- * `bpmn-merge:`, the command and the offer on conflict markers. Its panes are
+ * `bpmn-merge:`, the command, the offer on conflict markers and the decisions
+ * the panes show. Its panes are
  * BPMN diff panes, so the diff feature registers it on its BPMN pane store.
  */
 export function register(
@@ -25,6 +27,7 @@ export function register(
 ): {
     sessions: MergeSessionStore;
     opener: MergeViewOpener;
+    decisions: MergeDecisionService;
     conflictMarkers: ConflictMarkerParticipant;
 } {
     const sides = new VsCodeMergeSidesView();
@@ -42,6 +45,7 @@ export function register(
     return {
         sessions,
         opener,
+        decisions: new MergeDecisionService(sessions, deps.notifier),
         conflictMarkers: new ConflictMarkerParticipant(
             deps.vsDocument,
             deps.actionNotifier,

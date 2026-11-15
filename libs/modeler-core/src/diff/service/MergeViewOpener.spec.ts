@@ -4,6 +4,9 @@ import {
     createTestHost,
     FakeConflictVersionsSource,
     FakeDiffPaneHandle,
+    LFS_POINTER_TEXT,
+    ORDER_MERGE_STAGES,
+    ORDER_MERGE_STAGES_AGAIN,
     RecordingMergeSidesView,
     StagedConflict,
 } from "../../testing";
@@ -18,7 +21,7 @@ const OTHER = { hash: "9f8e7d6bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", subject: "Rena
 
 const MERGE_CONFLICT: StagedConflict = {
     fileUri: FILE,
-    stages: { base: "<base/>", current: "<current/>", incoming: "<incoming/>" },
+    stages: ORDER_MERGE_STAGES,
     refs: { headName: "main", head: HEAD, mergeHead: OTHER },
     workingText: "<<<<<<< HEAD\n<current/>\n=======\n<incoming/>\n>>>>>>> feature\n",
 };
@@ -64,8 +67,8 @@ describe("MergeViewOpener", () => {
                 title: "order.bpmn (Merge: main ↔ feature)",
             },
         ]);
-        expect(view.textOf(uris.current)).toBe("<current/>");
-        expect(view.textOf(uris.incoming)).toBe("<incoming/>");
+        expect(view.textOf(uris.current)).toBe(ORDER_MERGE_STAGES.current);
+        expect(view.textOf(uris.incoming)).toBe(ORDER_MERGE_STAGES.incoming);
         expect(diffStore.awaitingPaneFor(uris.current)?.origin).toBe("merge");
         expect(diffStore.awaitingPaneFor(uris.current)?.sideFor(uris.incoming)).toBe("after");
         expect(sessions.of(FILE)?.captions).toStrictEqual({
@@ -102,15 +105,15 @@ describe("MergeViewOpener", () => {
     it("opens without an ancestor when both sides added the file", async () => {
         const { opener, view, sessions } = createOpener({
             ...MERGE_CONFLICT,
-            stages: { current: "<current/>", incoming: "<incoming/>" },
+            stages: { current: ORDER_MERGE_STAGES.current, incoming: ORDER_MERGE_STAGES.incoming },
         });
 
         await opener.open(FILE);
 
         expect(view.opened).toHaveLength(1);
         expect(sessions.of(FILE)?.stages).toStrictEqual({
-            current: "<current/>",
-            incoming: "<incoming/>",
+            current: ORDER_MERGE_STAGES.current,
+            incoming: ORDER_MERGE_STAGES.incoming,
         });
     });
 
@@ -140,6 +143,24 @@ describe("MergeViewOpener", () => {
         ]);
         expect(view.served).toStrictEqual([]);
         expect(view.opened).toStrictEqual([]);
+    });
+
+    it("refuses a conflict whose stage is not BPMN and opens no pane", async () => {
+        const { opener, view, notifier, sessions } = createOpener({
+            ...MERGE_CONFLICT,
+            stages: { ...ORDER_MERGE_STAGES, incoming: LFS_POINTER_TEXT },
+        });
+
+        await opener.open(FILE);
+
+        expect(notifier.infos).toHaveLength(1);
+        expect(notifier.infos[0]).toMatch(
+            /^The BPMN merge view cannot read order\.bpmn: incoming does not parse/,
+        );
+        expect(notifier.errors).toStrictEqual([]);
+        expect(view.served).toStrictEqual([]);
+        expect(view.opened).toStrictEqual([]);
+        expect(sessions.of(FILE)).toBeUndefined();
     });
 
     it("explains a Merge Changes row that is not a BPMN file, without asking Git", async () => {
@@ -199,15 +220,15 @@ describe("MergeViewOpener", () => {
         source.resolve(ROOT, FILE);
         source.conflict(ROOT, {
             ...MERGE_CONFLICT,
-            stages: { base: "<base2/>", current: "<current2/>", incoming: "<incoming2/>" },
+            stages: ORDER_MERGE_STAGES_AGAIN,
         });
 
         await opener.open(FILE);
 
         expect(view.served).toHaveLength(2);
         expect(view.opened[1].right).toBe(view.served[1].uris.incoming);
-        expect(view.textOf(view.served[1].uris.incoming)).toBe("<incoming2/>");
-        expect(sessions.of(FILE)?.stages.incoming).toBe("<incoming2/>");
+        expect(view.textOf(view.served[1].uris.incoming)).toBe(ORDER_MERGE_STAGES_AGAIN.incoming);
+        expect(sessions.of(FILE)?.stages.incoming).toBe(ORDER_MERGE_STAGES_AGAIN.incoming);
     });
 
     it("explains a file whose conflict was resolved while its old view is open", async () => {

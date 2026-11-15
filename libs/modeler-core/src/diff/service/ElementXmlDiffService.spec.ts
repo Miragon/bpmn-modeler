@@ -7,12 +7,13 @@ import {
     createTestHost,
     FakeDiffPaneHandle,
     holdNext,
+    MergeSessionFacts,
+    mergeSessionOf,
     RecordingElementXmlDiffView,
 } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
-import { MergeSession } from "./MergeSessionStore";
 
 const BEFORE_URI = "file:///repo/a.bpmn";
 const AFTER_URI = "file:///repo/b.bpmn";
@@ -41,7 +42,7 @@ const AFTER_XML = bpmn(`
     <bpmn:task id="Review" name="Review order" />
     <bpmn:task id="Ship" name="Ship" />`);
 
-const MERGE_SESSION: MergeSession = {
+const MERGE_SESSION_FACTS: MergeSessionFacts = {
     fileUri: "file:///repo/my%20order.bpmn",
     fileName: "my order.bpmn",
     title: "my order.bpmn (Merge: main ↔ feature)",
@@ -384,9 +385,10 @@ describe("ElementXmlDiffService", () => {
         session.attachPane(current);
         session.attachPane(incoming);
         store.dispose();
+        const mergeSession = await mergeSessionOf(MERGE_SESSION_FACTS);
         const merges = {
             ofDiffSession: (diffSession: DiffSession) =>
-                diffSession === session ? MERGE_SESSION : undefined,
+                diffSession === session ? mergeSession : undefined,
         };
         const { service, view } = elementXmlDiffService(store, undefined, undefined, merges);
 

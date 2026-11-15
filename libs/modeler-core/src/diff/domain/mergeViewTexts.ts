@@ -5,7 +5,10 @@ import { ConflictReading } from "./conflictReading";
 
 /** Why the merge view does not open: a conflict reading other than resolvable, or no file at all. */
 export type MergeViewRefusal =
-    Exclude<ConflictReading, { readonly kind: "resolvable" }> | { readonly kind: "noFile" };
+    | Exclude<ConflictReading, { readonly kind: "resolvable" }>
+    | { readonly kind: "noFile" }
+    /** A side the merge cannot read, such as a Git LFS pointer; `reason` is the merge's own. */
+    | { readonly kind: "unreadableStage"; readonly reason: string };
 
 /** The command's title and the notice's action, which the host's manifest repeats. */
 export const RESOLVE_IN_MERGE_VIEW_LABEL = "Resolve in BPMN Merge View";
@@ -29,6 +32,8 @@ const REFUSAL_TEXT: {
         `${fileName} exists only on the ${addedSide} side. Keep or delete it in Source Control.`,
     bothDeleted: (_refusal, fileName) =>
         `${fileName} was deleted or renamed on both sides. Resolve it in Source Control.`,
+    unreadableStage: ({ reason }, fileName) =>
+        `The BPMN merge view cannot read ${fileName}: ${reason}. A file under Git LFS or a textconv driver hands Git's sides over as text that is not BPMN; resolve it in Source Control.`,
     noFile: () =>
         "Open a conflicted BPMN file, or select one in Source Control, to resolve it in the BPMN merge view.",
 };
