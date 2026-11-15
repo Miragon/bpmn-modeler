@@ -81,10 +81,11 @@ import { MergeMode } from "./mergeMode";
 
 const viewer = () => fakes.FakeDiffViewer.last;
 
-const step = (id: string, shapeless = false, onThisPane = true): MergePaneStep => ({
+const step = (id: string, shapeless = false, onThisPane = true, plane?: string): MergePaneStep => ({
     id,
     shapeless,
     onThisPane,
+    ...(plane === undefined ? {} : { plane }),
 });
 
 const STATES: MergePaneStates = {
@@ -369,6 +370,57 @@ describe("MergeMode", () => {
 
             expect(viewer().fitDiagram).toHaveBeenCalled();
             expect(cursorsPosted()).toEqual([]);
+        });
+    });
+
+    describe("planes", () => {
+        const SUB_STEPS = [
+            ...STATES.allSteps,
+            step("Task_Sub", false, false, "Sub_Ship"),
+            step("Task_Mine", false, true, "Sub_Ship"),
+        ];
+
+        it("enters the sub-process plane of a step only the partner draws", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: SUB_STEPS }));
+
+            dispatch(new SyncCursorQuery(5));
+
+            expect(viewer().showPlane).toHaveBeenLastCalledWith("Sub_Ship");
+            expect(fakes.FakeDiffSideLabel.last?.showPlaneMissing).toHaveBeenLastCalledWith(false);
+        });
+
+        it("stops the viewport sync on a step whose plane this version lacks", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: SUB_STEPS }));
+            viewer().showPlane.mockReturnValueOnce(false);
+
+            dispatch(new SyncCursorQuery(5));
+            viewer().viewportListener?.({ x: 0, y: 0, width: 10, height: 10 });
+
+            expect(fakes.FakeDiffSideLabel.last?.showPlaneMissing).toHaveBeenLastCalledWith(true);
+            expect(posted().map(({ type }) => type)).not.toContain("ViewportChangedCommand");
+        });
+
+        it("goes back to the opening plane for a step the partner draws there", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: SUB_STEPS }));
+            viewer().drawn.add("Task_Mine");
+            dispatch(new SyncCursorQuery(6));
+            viewer().showPlane.mockClear();
+
+            dispatch(new SyncCursorQuery(3));
+
+            expect(viewer().showPlane).toHaveBeenCalledWith("");
+        });
+
+        it("leaves the plane alone for a step the partner draws on the plane this pane shows", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            dispatch(new SyncCursorQuery(3));
+
+            expect(viewer().showPlane).not.toHaveBeenCalled();
         });
     });
 

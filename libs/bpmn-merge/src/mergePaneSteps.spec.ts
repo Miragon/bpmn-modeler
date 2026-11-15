@@ -58,4 +58,26 @@ describe("mergePaneSteps", () => {
         });
         expect(current.all.find(({ id }) => id === "Task_Audit")?.onThisPane).toBe(false);
     });
+
+    it("names the sub-process plane that draws a step, and none for the opening plane", () => {
+        const withPlanes = MergeDecisions.from(
+            mergeResult(
+                mergeElement("Collaboration_1", "unchanged", { type: "bpmn:Collaboration" }),
+                mergeElement("Process_1", "bothChanged", { type: "bpmn:Process", drawn: false }),
+                mergeElement("Sub_Ship", "takenFromIncoming", {
+                    type: "bpmn:SubProcess",
+                    plane: "Collaboration_1",
+                }),
+                mergeElement("Task_Pack", "addedByIncoming", { plane: "Sub_Ship" }),
+            ),
+        );
+
+        const steps = mergePaneSteps(withPlanes, ["Sub_Ship", "Task_Pack", "Process_1"], "current");
+
+        expect(steps.all).toStrictEqual([
+            { id: "Sub_Ship", shapeless: false, onThisPane: true },
+            { id: "Task_Pack", shapeless: false, onThisPane: false, plane: "Sub_Ship" },
+            { id: "Process_1", shapeless: true, onThisPane: true },
+        ]);
+    });
 });

@@ -18,6 +18,9 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { createElementXmlChangesModule } from "./elementXmlContextPad";
 
+// How the viewer names the plane a pane opens with, whatever its process is called.
+const OPENING_PLANE = "";
+
 /**
  * What every BPMN pane of a two-pane view does, whatever it marks: owns the
  * {@link DiffViewer} with the element XML context pad, imports the pane's
@@ -45,6 +48,9 @@ export class DiffPanePlumbing {
     // Whether this version lacks the plane the user entered on the partner pane.
     private planeMissing = false;
 
+    // The plane shown, as far as this pane saw it change; the viewer reports only the user's.
+    private shownPlane = OPENING_PLANE;
+
     private initialImportSettled = false;
 
     private paintAfterImport: (() => void) | undefined;
@@ -68,6 +74,7 @@ export class DiffPanePlumbing {
         });
 
         this.viewer.onPlaneChanged((planeId) => {
+            this.shownPlane = planeId;
             this.setPlaneMissing(false);
             this.host.postMessage(new DiffPlaneChangedCommand(planeId));
         });
@@ -136,6 +143,32 @@ export class DiffPanePlumbing {
         this.sideLabel?.showPlaneMissing(missing);
     }
 
+    /** Notes the plane the pane entered itself, a sub-process's or the opening one for none. */
+    notePlaneShown(subProcess: string | undefined): void {
+        this.shownPlane = subProcess ?? OPENING_PLANE;
+        this.setPlaneMissing(false);
+    }
+
+    /**
+     * Enters the plane the partner pane shows, a sub-process's or the opening
+     * one for none, unless this pane shows it already; notes when this
+     * version lacks it, so the viewport sync stops.
+     */
+    followPlane(subProcess: string | undefined): void {
+        const planeId = subProcess ?? OPENING_PLANE;
+        if (planeId === this.shownPlane) {
+            this.setPlaneMissing(false);
+            return;
+        }
+        this.enterPlane(planeId);
+    }
+
+    private enterPlane(planeId: string): void {
+        const shown = this.viewer.showPlane(planeId);
+        if (shown) this.shownPlane = planeId;
+        this.setPlaneMissing(!shown);
+    }
+
     private showLabel(): void {
         if (this.composeLabel) this.sideLabel?.showFilename(this.composeLabel());
     }
@@ -143,7 +176,7 @@ export class DiffPanePlumbing {
     private followPartner(query: ProtocolMessage): boolean {
         switch (query.type) {
             case "SyncDiffPlaneQuery":
-                this.setPlaneMissing(!this.viewer.showPlane(query.planeId));
+                this.enterPlane(query.planeId);
                 return true;
             case "SyncViewportQuery":
                 if (!this.planeMissing) this.viewer.setViewport(query.viewport);

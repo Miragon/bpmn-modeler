@@ -10,3 +10,20 @@ export function hasNoShape(element: MergeElement): boolean {
         Object.values(element.versions).every((version) => !version?.drawn)
     );
 }
+
+/**
+ * The sub-process whose plane draws the element, from the first side that
+ * draws it, or none on the plane a pane opens with (the process's or the
+ * collaboration's) and for an element no canvas draws.
+ */
+export function subProcessPlaneOf(
+    element: MergeElement,
+    typeOf: (id: string) => string | undefined,
+): string | undefined {
+    const plane = [element.versions.current, element.versions.incoming].find(
+        (version) => version?.drawn,
+    )?.plane;
+    if (plane === undefined) return undefined;
+    const ownerType = typeOf(plane);
+    return ownerType === undefined || PLANE_OWNER_TYPES.has(ownerType) ? undefined : plane;
+}

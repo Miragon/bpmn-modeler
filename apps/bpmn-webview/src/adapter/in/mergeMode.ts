@@ -136,16 +136,19 @@ export class MergeMode {
 
     /**
      * Shows the step on this pane: a drawn element in the centre, a shape-less
-     * one by its legend entry. An element only the partner pane holds leaves
-     * this pane where it is, since a neighbour here would point elsewhere.
+     * one by its legend entry. On a step only the partner pane draws, this
+     * pane keeps its place, since a neighbour here would point elsewhere, but
+     * shows the plane the partner stepped into, so their viewports still
+     * match, or notes that this version lacks it.
      */
     private goTo(id: string): void {
         this.cursorId = id;
-        this.pane.setPlaneMissing(false);
         const step = this.states?.states.allSteps.find((candidate) => candidate.id === id);
-        const drawnHere = step !== undefined && step.onThisPane && !step.shapeless;
-        if (!(drawnHere && this.pane.viewer.focusElement(id))) {
+        if (step?.onThisPane && !step.shapeless && this.pane.viewer.focusElement(id)) {
+            this.pane.notePlaneShown(step.plane);
+        } else {
             this.pane.viewer.clearSelectionMarker();
+            if (step !== undefined && !step.shapeless) this.pane.followPlane(step.plane);
         }
         this.updateLegend();
     }
@@ -163,7 +166,7 @@ export class MergeMode {
     private backToWholeDiagram(): void {
         this.cursorId = undefined;
         this.pane.viewer.fitDiagram();
-        this.pane.setPlaneMissing(false);
+        this.pane.notePlaneShown(undefined);
         this.updateLegend();
     }
 

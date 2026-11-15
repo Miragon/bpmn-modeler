@@ -1,5 +1,5 @@
 import type { MergeDecisions } from "./mergeDecisions";
-import { hasNoShape } from "./mergeElementShape";
+import { hasNoShape, subProcessPlaneOf } from "./mergeElementShape";
 import { paneMarking } from "./mergePaneView";
 import { MERGE_SIDES, type MergeElement, type MergeSide } from "./mergeResult";
 
@@ -10,6 +10,8 @@ export interface MergeStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
+    readonly plane?: string;
 }
 
 /** The stepper's two lists, both in navigation order: the open conflicts, and every element either pane marks. */
@@ -31,11 +33,16 @@ export function mergePaneSteps(
         const element = elementsById.get(id);
         return element === undefined ? [] : [element];
     });
-    const stepOf = (element: MergeElement): MergeStep => ({
-        id: element.id,
-        shapeless: hasNoShape(element),
-        onThisPane: element.versions[side] !== undefined,
-    });
+    const typeOf = (id: string) => elementsById.get(id)?.type;
+    const stepOf = (element: MergeElement): MergeStep => {
+        const plane = subProcessPlaneOf(element, typeOf);
+        return {
+            id: element.id,
+            shapeless: hasNoShape(element),
+            onThisPane: element.versions[side] !== undefined,
+            ...(plane === undefined ? {} : { plane }),
+        };
+    };
     return {
         openConflicts: ordered.filter(({ id }) => open.has(id)).map(stepOf),
         all: ordered

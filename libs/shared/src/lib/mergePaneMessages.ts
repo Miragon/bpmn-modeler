@@ -9,6 +9,8 @@ export interface MergePaneStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
+    readonly plane?: string;
 }
 
 /** A marked element no canvas draws, which the pane lists instead. */
