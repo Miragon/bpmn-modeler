@@ -47,5 +47,5 @@ function sameText(text: string, known: string | undefined): boolean {
 }
 
 function withLineFeeds(text: string): string {
-    return text.replace(/\r\n?/g, "\n");
+    return text.replaceAll("\r\n", "\n");
 }
