@@ -43,14 +43,14 @@ export function closePicks(
     };
 }
 
-/** The remaining picks, closed as `closePicks` does. */
+/** The picks without `ids`, closed as `closePicks` does. */
 export function closeUnpick(
     index: ReferenceIndex,
     before: DecidedSides,
-    id: string,
+    ids: readonly string[],
 ): ClosedDecisions {
     const picks = new Map(before.picks);
-    picks.delete(id);
+    ids.forEach((id) => picks.delete(id));
     return closePicks(index, before, picks);
 }
 

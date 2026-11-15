@@ -5,10 +5,12 @@ import {
     mergeElement,
     mergeResult,
     mergeResultWithoutBase,
+    refersTo,
 } from "./__fixtures__/mergeResultBuilder";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { mergePaneView } from "./mergePaneView";
+import type { ElementState } from "./mergeResult";
 
 const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
 
@@ -183,5 +185,152 @@ describe("mergePaneView", () => {
         const decisions = MergeDecisions.from(mergeResult(process("unchanged")));
 
         expect(mergePaneView(decisions, "incoming").shapeless).toEqual([]);
+    });
+
+    describe("picks", () => {
+        const flow = (id: string, source: string, target: string, state: ElementState) =>
+            mergeElement(id, state, {
+                type: "bpmn:SequenceFlow",
+                parent: "Process_1",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", source),
+                    refersTo("bpmn:SequenceFlow#targetRef", target),
+                ],
+            });
+
+        it("badges only user picks, kept here on the kept side and replaced here on the other", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Task_Pack", "bothChanged", { parent: "Process_1" }),
+                    mergeElement("Task_Check", "takenFromCurrent", { parent: "Process_1" }),
+                ),
+            );
+
+            decisions.pick("Task_Pack", "incoming");
+
+            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+                { id: "Task_Pack", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(mergePaneView(decisions, "current").badges).toEqual([
+                { id: "Task_Pack", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(mergePaneView(decisions, "current").picksNotDrawn).toEqual([]);
+        });
+
+        it("lists a pick the side has no version of as not drawn", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Task_Reject", "removedByCurrent", { parent: "Process_1" }),
+                ),
+            );
+
+            decisions.pick("Task_Reject", "incoming");
+
+            expect(mergePaneView(decisions, "current").badges).toEqual([]);
+            expect(mergePaneView(decisions, "current").picksNotDrawn).toEqual([
+                { id: "Task_Reject", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(mergePaneView(decisions, "incoming").badges).toHaveLength(1);
+        });
+
+        it("lists a picked element no canvas draws as not drawn on both panes", () => {
+            const decisions = MergeDecisions.from(mergeResult(process("bothChanged")));
+
+            decisions.pick("Process_1", "current");
+
+            for (const side of ["current", "incoming"] as const) {
+                expect(mergePaneView(decisions, side).picksNotDrawn).toEqual([
+                    { id: "Process_1", keptSide: "current", scope: "element" },
+                ]);
+            }
+        });
+
+        it("badges a container kept with its contents and each element inside", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Sub", "bothChanged", {
+                        type: "bpmn:SubProcess",
+                        parent: "Process_1",
+                    }),
+                    mergeElement("Inner", "bothChanged", { parent: "Sub" }),
+                ),
+            );
+
+            decisions.pickWithContents("Sub", "incoming");
+
+            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+                { id: "Sub", kind: "keptHere", keptSide: "incoming", scope: "withContents" },
+                { id: "Inner", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            ]);
+        });
+
+        it("names the flows kept with an element in its scope", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Gateway", "unchanged", { parent: "Process_1" }),
+                    mergeElement("Task_Reject", "removedByCurrent", { parent: "Process_1" }),
+                    flow("Flow_No", "Gateway", "Task_Reject", "removedByCurrent"),
+                ),
+            );
+
+            decisions.pickWithConnections("Task_Reject", "incoming");
+
+            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+                {
+                    id: "Task_Reject",
+                    kind: "keptHere",
+                    keptSide: "incoming",
+                    scope: "withConnections",
+                },
+                { id: "Flow_No", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            ]);
+        });
+
+        it("outlines what a pick pulled in as its consequence, with no badge", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("A", "unchanged", { parent: "Process_1" }),
+                    mergeElement("B", "removedByCurrent", { parent: "Process_1" }),
+                    flow("F", "A", "B", "bothChanged"),
+                ),
+            );
+
+            decisions.pick("F", "incoming");
+
+            const incoming = mergePaneView(decisions, "incoming");
+            expect(incoming.consequences).toEqual(["B"]);
+            expect(incoming.badges.map(({ id }) => id)).toEqual(["F"]);
+            expect(mergePaneView(decisions, "current").consequences).toEqual([]);
+        });
+
+        it("offers every element the side holds for a pick, a container with its contents, and how to take back a pick", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Sub", "bothChanged", {
+                        type: "bpmn:SubProcess",
+                        parent: "Process_1",
+                    }),
+                    mergeElement("Inner", "bothChanged", { parent: "Sub" }),
+                    mergeElement("Task_Audit", "addedByIncoming", { parent: "Process_1" }),
+                ),
+            );
+            decisions.pickWithContents("Sub", "current");
+
+            expect(mergePaneView(decisions, "current").pickable).toEqual([
+                { id: "Process_1", container: true },
+                { id: "Sub", container: true, undo: "withContents" },
+                { id: "Inner", container: false, undo: "element" },
+            ]);
+            expect(mergePaneView(decisions, "incoming").pickable).toContainEqual({
+                id: "Task_Audit",
+                container: false,
+            });
+        });
     });
 });

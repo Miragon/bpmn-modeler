@@ -20,6 +20,11 @@ export function descendantsOf(
     return elements.map((element) => element.id).filter((id) => found.has(id));
 }
 
+/** Every element something lies inside, in current or incoming. */
+export function containersOf(elements: readonly MergeElement[]): ReadonlySet<string> {
+    return new Set(contentsByContainer(elements).keys());
+}
+
 function contentsByContainer(
     elements: readonly MergeElement[],
 ): ReadonlyMap<string, ReadonlySet<string>> {
