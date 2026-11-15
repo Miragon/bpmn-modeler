@@ -6,6 +6,8 @@ import { describeConflictVersionsContract } from "@miragon/bpmn-modeler-core/tes
 
 import {
     conflictInGit,
+    disableGit,
+    enableGit,
     gitListenerCount,
     gitRefreshes,
     gitStarts,
@@ -64,6 +66,37 @@ describe("VsCodeGitConflictVersions", () => {
         gitStarts();
 
         await vi.waitFor(() => expect(heard).toStrictEqual([[ORDER]]));
+    });
+
+    it("starts watching once Git gets enabled, as after a settings change", async () => {
+        disableGit();
+        conflictInGit("file:///work/repo", {
+            fileUri: ORDER,
+            stages: { current: "<current/>", incoming: "<incoming/>" },
+        });
+        await gitRefreshes();
+        const heard: (readonly string[])[] = [];
+        const watch = new VsCodeGitConflictVersions(SHORT_WAITS).watchMergeChanges((uris) =>
+            heard.push(uris),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(heard).toStrictEqual([]);
+
+        enableGit();
+
+        await vi.waitFor(() => expect(heard).toStrictEqual([[ORDER]]));
+        watch.dispose();
+        expect(gitListenerCount()).toBe(0);
+    });
+
+    it("lets go of a disabled Git once the watch is disposed", async () => {
+        disableGit();
+        const watch = new VsCodeGitConflictVersions(SHORT_WAITS).watchMergeChanges(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        watch.dispose();
+
+        expect(gitListenerCount()).toBe(0);
     });
 
     it("tells a watcher nothing new while Merge Changes stay the same", async () => {

@@ -104,7 +104,7 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
             );
             tell();
         };
-        void this.gitApi().then(async (api) => {
+        void this.enabledGitApi(waits).then(async (api) => {
             // A slow workspace scan may keep Git starting for long; the watch waits as long as it is wanted.
             if (api && !disposed && (await this.started(api, undefined, waits)) && !disposed) {
                 watch(api);
@@ -120,14 +120,17 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
     }
 
     private async gitApi(): Promise<API | undefined> {
-        try {
-            const extension = extensions.getExtension<GitExtension>("vscode.git");
-            if (!extension) return undefined;
-            const exports = extension.isActive ? extension.exports : await extension.activate();
-            return exports.enabled ? exports.getAPI(1) : undefined;
-        } catch {
-            return undefined;
-        }
+        const git = await gitExtension();
+        return git?.enabled ? apiOf(git) : undefined;
+    }
+
+    /** The API once `git.enabled` is on, waiting until then or until a stop in `waits` runs. */
+    private async enabledGitApi(waits: Set<() => void>): Promise<API | undefined> {
+        const git = await gitExtension();
+        if (!git) return undefined;
+        if (git.enabled) return apiOf(git);
+        const enabled = await firstEvent(git.onDidChangeEnablement, (on) => on, undefined, waits);
+        return enabled ? apiOf(git) : undefined;
     }
 
     /** Whether Git finished starting, waiting at most `timeoutMs`, or until stopped when absent. */
@@ -192,6 +195,25 @@ export class VsCodeGitConflictVersions implements ConflictVersionsSource {
         } catch {
             return undefined;
         }
+    }
+}
+
+async function gitExtension(): Promise<GitExtension | undefined> {
+    try {
+        const extension = extensions.getExtension<GitExtension>("vscode.git");
+        if (!extension) return undefined;
+        return extension.isActive ? extension.exports : await extension.activate();
+    } catch {
+        return undefined;
+    }
+}
+
+// Git can be disabled again between the check and the call, and `getAPI` then throws.
+function apiOf(git: GitExtension): API | undefined {
+    try {
+        return git.getAPI(1);
+    } catch {
+        return undefined;
     }
 }
 

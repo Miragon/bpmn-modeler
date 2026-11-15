@@ -114,6 +114,8 @@ class FakeRepository {
 
 const git = {
     present: true,
+    enabled: true,
+    enablements: new Emitter<boolean>(),
     initialized: true,
     repositories: [] as FakeRepository[],
     opensLater: new Set<string>(),
@@ -184,6 +186,16 @@ export function removeGit(): void {
     git.present = false;
 }
 
+/** `git.enabled` is off, as the smoke test starts VS Code. */
+export function disableGit(): void {
+    git.enabled = false;
+}
+
+export function enableGit(): void {
+    git.enabled = true;
+    git.enablements.fire(true);
+}
+
 export function keepGitStarting(): void {
     git.initialized = false;
 }
@@ -196,6 +208,7 @@ export function gitStarts(): void {
 
 export function gitListenerCount(): number {
     return (
+        git.enablements.listenerCount +
         git.stateChanges.listenerCount +
         git.openings.listenerCount +
         git.closings.listenerCount +
@@ -215,6 +228,8 @@ export const commandCalls: unknown[][] = [];
 
 export function resetVscodeGit(): void {
     git.present = true;
+    git.enabled = true;
+    git.enablements = new Emitter();
     git.initialized = true;
     git.repositories = [];
     git.opensLater.clear();
@@ -228,7 +243,18 @@ export function resetVscodeGit(): void {
 export const extensions = {
     getExtension(id: string) {
         if (id !== "vscode.git" || !git.present) return undefined;
-        const exports = { enabled: true, getAPI: () => api };
+        const exports = {
+            get enabled() {
+                return git.enabled;
+            },
+            get onDidChangeEnablement() {
+                return git.enablements.event;
+            },
+            getAPI: () => {
+                if (!git.enabled) throw new Error("Git model not found");
+                return api;
+            },
+        };
         return { isActive: false, exports, activate: async () => exports };
     },
 };
