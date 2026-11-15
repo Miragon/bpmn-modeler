@@ -54,7 +54,7 @@ Keeping an element the other side removed offers **Also keep the N flows … rem
 
 Once no conflict is open, **Build** in the right pane's legend writes the merged diagram over the conflicted file, saves it and opens it in the modeler. The merge view stays open beside it, so you can change a pick and build again.
 
-<figure class="shot"><img src="./images/bm-built-modeler.png" alt="The built merged.bpmn open in the modeler with its palette and properties panel, the merge tab still open beside it, and a notice that the file was built"><figcaption>The built file is a normal file: edit, format and save it.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-built-modeler.png" alt="The built merged.bpmn open in the modeler with its palette and properties panel, the task named as incoming named it, and the merge tab still open beside it"><figcaption>The built file is a normal file: edit, format and save it.</figcaption></figure>
 
 - The file is the trial run: edit it in the modeler as usual. **Format Diagram** and **Clean Up Diagram** help with a layout put together from both sides.
 - Nothing is staged. Git still lists the file as conflicted until you stage it.
@@ -67,7 +67,7 @@ Once no conflict is open, **Build** in the right pane's legend writes the merged
 
 ## Compare the result
 
-<figure class="shot"><img src="./images/bm-compare.png" alt="A BPMN diff titled merged.bpmn (Merge: Incoming ↔ Result) with incoming on the left and the result on the right, and the bar reading Result against incoming with a Compare with current button"><figcaption>What of incoming is not in the result shows as removed.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-compare.png" alt="A BPMN diff titled merged.bpmn (Merge: Incoming ↔ Result) with the pane labelled Incoming on the left and the pane labelled Result on the right, the task renamed in the result marked as changed, and the bar reading Result against incoming with a Compare with current button"><figcaption>An edit of the result shows as a change against incoming.</figcaption></figure>
 
 Once a result is built, **Compare with current** and **Compare with incoming** open the normal [BPMN diff](/vscode/features/bpmn-diff) of that side against the file as it is open, unsaved edits included. Against incoming, every element of incoming that is not in the result shows as removed, also one a pick dropped along with another; against current, you see what the merge brings in. The diff's bar switches to the other side. It shows the file as it was when the diff opened; open it again after an edit.
 
