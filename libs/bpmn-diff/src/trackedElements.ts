@@ -1,4 +1,4 @@
-import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import { type ModdleElement, isModdleElement, isType, moddleElements } from "./moddleElement";
 
 const TRACKED_TYPES = [
     "bpmn:Participant",
@@ -31,17 +31,15 @@ export function isTrackedElement(element: ModdleElement): boolean {
  * participant that references it, and not at all when none does.
  */
 function poolOf(process: ModdleElement): ModdleElement | undefined {
-    const collaboration = moddleElements(process.$parent, "rootElements").find((rootElement) =>
+    const collaboration = listOf(process.$parent, "rootElements").find((rootElement) =>
         isType(rootElement, "bpmn:Collaboration"),
     );
     if (!collaboration) return process;
-    return moddleElements(collaboration, "participants").find(
+    return listOf(collaboration, "participants").find(
         (participant) => participant.processRef === process,
     );
 }
 
-function moddleElements(owner: unknown, property: string): ModdleElement[] {
-    if (!isModdleElement(owner)) return [];
-    const value = owner[property];
-    return Array.isArray(value) ? value.filter(isModdleElement) : [];
+function listOf(owner: unknown, property: string): ModdleElement[] {
+    return isModdleElement(owner) ? moddleElements(owner[property]) : [];
 }

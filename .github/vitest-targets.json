@@ -318,7 +318,9 @@
             "dir": "libs/modeler-types",
             "package": "@miragon/bpmn-modeler-types",
             "paths": [
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "libs/bpmn-diff/**",
+                "yarn.lock"
             ],
             "typecheck": "build"
         },

@@ -4,17 +4,15 @@
 // in explicitly via triple-slash references, which every program honours.
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./types/bpmn-js-differ.d.ts" />
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="./types/execution-moddle.d.ts" />
 
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
 import {
     BpmnModdleFactory,
     ModdleParseResult,
     loadBpmnModdle,
-    moddleDescriptor,
     skippedContentWarning,
 } from "./bpmnModdleFactory";
+import { ExecutionPackage, loadExecutionPackage } from "./executionPackages";
 import { containmentProperties, walkContainment } from "./moddleContainment";
 import { ModdleElement, isModdleElement } from "./moddleElement";
 import {
@@ -27,13 +25,6 @@ import { trackedElementOf } from "./trackedElements";
 import { categoryIds, runDiff } from "./upstreamInternals/differResult";
 import { collectDrawnEdgeIds, layoutOnlyEdgeIds } from "./drawnEdges";
 import { DiffCounts, DiffResult } from "./diffResult";
-
-/** A Camunda 7 or 8 moddle descriptor with the namespace it describes. */
-interface ExecutionPackage {
-    prefix: string;
-    uri: string;
-    descriptor: unknown;
-}
 
 interface EngineParse {
     before: ModdleElement;
@@ -63,17 +54,15 @@ interface AttributeSnapshot {
  * (e.g. the extension host) wrap this in their own try/catch.
  */
 export async function computeDiff(beforeXml: string, afterXml: string): Promise<DiffResult> {
-    const [createBpmnModdle, camundaMod, zeebeMod, beforeDeclarations, afterDeclarations] =
+    const [createBpmnModdle, camundaPackage, zeebePackage, beforeDeclarations, afterDeclarations] =
         await Promise.all([
             loadBpmnModdle(),
-            import("camunda-bpmn-moddle/resources/camunda.json"),
-            import("zeebe-bpmn-moddle/resources/zeebe.json"),
+            loadExecutionPackage("camunda"),
+            loadExecutionPackage("zeebe"),
             namespaceDeclarations(beforeXml),
             namespaceDeclarations(afterXml),
         ]);
 
-    const camundaPackage = executionPackage(camundaMod);
-    const zeebePackage = executionPackage(zeebeMod);
     const beforeCamundaPrefixes = namespacePrefixes(beforeDeclarations, camundaPackage);
     const afterCamundaPrefixes = namespacePrefixes(afterDeclarations, camundaPackage);
     const beforeZeebePrefixes = namespacePrefixes(beforeDeclarations, zeebePackage);
@@ -167,15 +156,6 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
         counts,
         navigationOrder,
     };
-}
-
-function executionPackage(module: unknown): ExecutionPackage {
-    const descriptor = moddleDescriptor(module);
-    const { prefix, uri } = descriptor as { prefix?: unknown; uri?: unknown };
-    if (typeof prefix !== "string" || typeof uri !== "string") {
-        throw new Error("A Camunda moddle descriptor names no `prefix` and `uri`.");
-    }
-    return { prefix, uri, descriptor };
 }
 
 async function parseForEngine(

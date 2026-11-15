@@ -1,9 +1,16 @@
+/// <reference types="vite/client" />
+
+import { loadExecutionPackage } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
+
+import engineSource from "./engine.ts?raw";
 
 import {
     detectEngine,
+    detectEngineWithNamespaceFallback,
     ENGINE_EXECUTION_PLATFORM,
     ENGINE_LABEL,
+    ENGINE_NAMESPACE,
     ENGINES,
     engineSupports,
     executionPlatformAttributeNames,
@@ -23,6 +30,23 @@ describe("ENGINES", () => {
     it("names the engines every per-engine table has an entry for", () => {
         expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_LABEL).sort());
         expect([...ENGINES].sort()).toEqual(Object.keys(ENGINE_EXECUTION_PLATFORM).sort());
+    });
+});
+
+describe("ENGINE_NAMESPACE", () => {
+    it.each(ENGINES)("names the prefix and URI of the %s moddle descriptor", async (engine) => {
+        const { prefix, uri } = ENGINE_NAMESPACE[engine];
+
+        await expect(loadExecutionPackage(prefix)).resolves.toMatchObject({ prefix, uri });
+    });
+});
+
+describe("engine.ts", () => {
+    // The `/engine` entry point exists so that DOM-free code can read the engine rule.
+    it("imports nothing at runtime, so its entry point loads no other module", () => {
+        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
+
+        expect(engineSource).not.toMatch(runtimeImport);
     });
 });
 
@@ -151,6 +175,56 @@ describe("detectEngine", () => {
         ).toBeUndefined();
         expect(detectEngine("<!-- unclosed comment")).toBeUndefined();
         expect(detectEngine("not xml at all")).toBeUndefined();
+    });
+});
+
+describe("detectEngineWithNamespaceFallback", () => {
+    const CAMUNDA_NS = 'xmlns:camunda="http://camunda.org/schema/1.0/bpmn"';
+    const ZEEBE_NS = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
+
+    it.each([
+        {
+            given: "the execution platform over a namespace of the other engine",
+            xml: definitions(`modeler:executionPlatform="Camunda Platform" ${ZEEBE_NS}`),
+            engine: "c7",
+        },
+        {
+            given: "the execution platform without an engine namespace",
+            xml: definitions('modeler:executionPlatform="Camunda Cloud"'),
+            engine: "c8",
+        },
+        {
+            given: "the platform version over a namespace of the other engine",
+            xml: definitions(`modeler:executionPlatformVersion="8.6.0" ${CAMUNDA_NS}`),
+            engine: "c8",
+        },
+        {
+            given: "the Camunda 7 namespace alone",
+            xml: definitions(CAMUNDA_NS),
+            engine: "c7",
+        },
+        {
+            given: "the zeebe namespace alone",
+            xml: definitions(ZEEBE_NS),
+            engine: "c8",
+        },
+        {
+            given: "both engine namespaces, Camunda 7 first",
+            xml: definitions(`${ZEEBE_NS} ${CAMUNDA_NS}`),
+            engine: "c7",
+        },
+        {
+            given: "an engine namespace bound only below the definitions root",
+            xml: `<bpmn:definitions><bpmn:process ${ZEEBE_NS} /></bpmn:definitions>`,
+            engine: undefined,
+        },
+        {
+            given: "no platform and no engine namespace",
+            xml: definitions(""),
+            engine: undefined,
+        },
+    ])("takes $engine from $given", ({ xml, engine }) => {
+        expect(detectEngineWithNamespaceFallback(xml)).toBe(engine);
     });
 });
 

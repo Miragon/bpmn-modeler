@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { loadBpmnModdle } from "../bpmnModdleFactory";
+import { loadExecutionPackage } from "../executionPackages";
 import { createPrefixedModdle, serializerPrefixes } from "./moddleNamespaces";
 
 const XSI = "http://www.w3.org/2001/XMLSchema-instance";
@@ -36,6 +37,26 @@ describe("moddle-xml namespaces (upstream pin)", () => {
         expect(flow).toContain('xsi:type="bpmn:tFormalExpression"');
         expect(task).toContain('xml:lang="de"');
         expect(task).not.toContain("xmlns:xml");
+    });
+
+    it("names a package's namespace by the package's prefix, whatever the document calls it", async () => {
+        const camunda = await loadExecutionPackage("camunda");
+        const packages = { [camunda.prefix]: camunda.descriptor };
+        const { moddle } = createPrefixedModdle(await loadBpmnModdle(), new Map(), packages);
+
+        const { elementsById } = await moddle.fromXML(
+            `<bpmn:definitions xmlns:bpmn="${BPMN}" xmlns:c="${camunda.uri}" id="Definitions_1">
+  <bpmn:process id="Process_1"><bpmn:task id="Task_1" c:asyncBefore="true" /></bpmn:process>
+</bpmn:definitions>`,
+        );
+        const { xml } = await moddle.toXML(elementsById.Task_1!, { preamble: false });
+
+        expect(serializerPrefixes(await loadBpmnModdle(), packages).get("camunda")).toBe(
+            camunda.uri,
+        );
+        expect(elementsById.Task_1!.asyncBefore).toBe(true);
+        expect(xml).toContain(`xmlns:camunda="${camunda.uri}"`);
+        expect(xml).toContain('camunda:asyncBefore="true"');
     });
 
     it("reports a renamed prefix under its nsMap prefix", async () => {

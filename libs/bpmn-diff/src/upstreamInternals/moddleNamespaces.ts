@@ -24,16 +24,23 @@ export interface PrefixedModdle {
 }
 
 /** Prefix to namespace; reserving them keeps every other namespace's prefix from colliding. */
-export function serializerPrefixes(createBpmnModdle: BpmnModdleFactory): Map<string, string> {
-    return ownPrefixes(createBpmnModdle());
+export function serializerPrefixes(
+    createBpmnModdle: BpmnModdleFactory,
+    packages: Record<string, unknown> = {},
+): Map<string, string> {
+    return ownPrefixes(createBpmnModdle(packages));
 }
 
-/** A moddle whose parser names each namespace of `prefixByUri` by its prefix. */
+/**
+ * A moddle whose parser names each namespace of `prefixByUri` by its prefix;
+ * the namespace of one of `packages` keeps the package's prefix.
+ */
 export function createPrefixedModdle(
     createBpmnModdle: BpmnModdleFactory,
     prefixByUri: ReadonlyMap<string, string>,
+    packages: Record<string, unknown> = {},
 ): PrefixedModdle {
-    const moddle = createBpmnModdle({}, { nsMap: Object.fromEntries(prefixByUri) });
+    const moddle = createBpmnModdle(packages, { nsMap: Object.fromEntries(prefixByUri) });
     const reserved = ownPrefixes(moddle);
     const uriByPrefix = new Map([...prefixByUri].map(([uri, prefix]) => [prefix, uri]));
     return {

@@ -209,6 +209,22 @@ describe("elementXml", () => {
         );
     });
 
+    it("keeps a data association without an id in its activity, since nothing else can report it", async () => {
+        const xml =
+            withProcess(`<bpmn:dataObjectReference id="DataRef_1" dataObjectRef="DataObject_1" />
+    <bpmn:dataObject id="DataObject_1" />
+    <bpmn:task id="Task_1">
+      <bpmn:dataInputAssociation><bpmn:sourceRef>DataRef_1</bpmn:sourceRef></bpmn:dataInputAssociation>
+    </bpmn:task>`);
+
+        await expect(elementXml(xml, "Task_1")).resolves
+            .toBe(`<bpmn:task xmlns:bpmn="${BPMN}" id="Task_1">
+  <bpmn:dataInputAssociation>
+    <bpmn:sourceRef>DataRef_1</bpmn:sourceRef>
+  </bpmn:dataInputAssociation>
+</bpmn:task>`);
+    });
+
     it("keeps a boundary event's event definitions, which have ids of their own", async () => {
         const xml = withProcess(`<bpmn:task id="Task_1" />
     <bpmn:boundaryEvent id="Boundary_1" attachedToRef="Task_1">

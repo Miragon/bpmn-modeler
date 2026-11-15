@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { loadBpmnModdle } from "./bpmnModdleFactory";
-import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import {
+    type ModdleElement,
+    idOf,
+    idsOf,
+    isModdleElement,
+    isType,
+    moddleElements,
+} from "./moddleElement";
 
 describe("isType", () => {
     const XML = `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:custom="urn:miragon:custom" id="Definitions_1">
@@ -51,5 +58,33 @@ describe("isModdleElement", () => {
         ["nothing", undefined, false],
     ])("tells whether %s is a moddle element", (_label, value, expected) => {
         expect(isModdleElement(value)).toBe(expected);
+    });
+});
+
+describe("moddle lists and ids", () => {
+    const task = { $type: "bpmn:Task", $descriptor: {}, id: "Task_1" };
+    const unnamed = { $type: "bpmn:Task", $descriptor: {} };
+
+    it.each([
+        ["a list", [task, "Task_2", unnamed], [task, unnamed]],
+        ["an unset list", undefined, []],
+        ["a single element", task, []],
+    ])("takes the elements of %s", (_label, value, expected) => {
+        expect(moddleElements(value)).toEqual(expected);
+    });
+
+    it.each([
+        ["an element", task, "Task_1"],
+        ["an element without an id", unnamed, undefined],
+        ["a reference id", "Task_1", undefined],
+    ])("reads the id of %s", (_label, value, expected) => {
+        expect(idOf(value)).toBe(expected);
+    });
+
+    it.each([
+        ["a list", [task, unnamed, "Task_2", task], ["Task_1", "Task_1"]],
+        ["an unset list", undefined, []],
+    ])("reads the ids of %s, repeats kept", (_label, value, expected) => {
+        expect(idsOf(value)).toEqual(expected);
     });
 });

@@ -4,6 +4,8 @@ interface ModdlePropertyDescriptor {
     isAttribute?: boolean;
     isReference?: boolean;
     isVirtual?: boolean;
+    /** The qualified name, for example `bpmn:incoming`. */
+    ns?: { name?: string };
 }
 
 export interface ModdleElement {
@@ -29,4 +31,19 @@ export function isModdleElement(value: unknown): value is ModdleElement {
     return Boolean(
         value && typeof value === "object" && "$type" in value && "$descriptor" in value,
     );
+}
+
+/** The elements of a moddle list, nothing for an unset one. */
+export function moddleElements(value: unknown): ModdleElement[] {
+    return Array.isArray(value) ? value.filter(isModdleElement) : [];
+}
+
+export function idOf(value: unknown): string | undefined {
+    return isModdleElement(value) ? value.id : undefined;
+}
+
+export function idsOf(value: unknown): string[] {
+    return Array.isArray(value)
+        ? value.map(idOf).filter((id): id is string => id !== undefined)
+        : [];
 }

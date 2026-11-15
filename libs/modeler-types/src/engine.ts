@@ -1,3 +1,5 @@
+import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff";
+
 /**
  * The webview can either host the full editable modeler or a readonly viewer
  * used for side-by-side diff rendering.
@@ -129,6 +131,31 @@ export function detectEngine(xml: string): DetectedEngine {
     }
 
     return undefined;
+}
+
+/** The extension namespace of each engine, under the prefix the Camunda Modeler binds it to. */
+export const ENGINE_NAMESPACE: Record<
+    Engine,
+    { readonly prefix: ExecutionEngine; readonly uri: string }
+> = {
+    c7: { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
+    c8: { prefix: "zeebe", uri: "http://camunda.org/schema/zeebe/1.0" },
+};
+
+/**
+ * {@link detectEngine}, else the engine whose namespace the `definitions` root
+ * binds, Camunda 7 first ({@link ENGINES} order). A binding below the root does
+ * not count.
+ */
+export function detectEngineWithNamespaceFallback(xml: string): DetectedEngine {
+    const detected = detectEngine(xml);
+    if (detected !== undefined) {
+        return detected;
+    }
+    const namespaceUris = (readDefinitionsStartTag(xml)?.attributes ?? [])
+        .filter(({ name }) => name.startsWith("xmlns:"))
+        .map(({ value }) => value);
+    return ENGINES.find((engine) => namespaceUris.includes(ENGINE_NAMESPACE[engine].uri));
 }
 
 export interface ExecutionPlatformAttributeNames {
