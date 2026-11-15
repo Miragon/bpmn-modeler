@@ -130,6 +130,37 @@ describe("mergeSideCaptions", () => {
             },
         ],
         [
+            "names the incoming side of a git pull by its short hash, not the marker's full hash",
+            "merge",
+            { headName: "main", head: HEAD, mergeHead: OTHER },
+            markers("HEAD", OTHER.hash),
+            {
+                current: {
+                    side: "current",
+                    role: "branch",
+                    ref: "main",
+                    shortHash: "1111111",
+                    subject: "Check the order",
+                },
+                incoming: {
+                    side: "incoming",
+                    role: "upstream",
+                    shortHash: "9f8e7d6",
+                    subject: "Rename the check",
+                },
+            },
+        ],
+        [
+            "shortens a marker's full hash when the operation is unknown",
+            "unknown",
+            {},
+            markers(HEAD.hash, OTHER.hash),
+            {
+                current: { side: "current", role: "unknown", ref: "1111111" },
+                incoming: { side: "incoming", role: "unknown", ref: "9f8e7d6" },
+            },
+        ],
+        [
             "says nothing it does not know",
             "unknown",
             {},
