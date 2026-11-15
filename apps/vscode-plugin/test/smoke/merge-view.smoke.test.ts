@@ -823,12 +823,19 @@ describe("the BPMN merge view", () => {
 
         it("builds the decided merge into the working file, which Git still lists unmerged", async () => {
             await vscode().runCommand("View: Close All Editors");
-            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
-            // A modeler already open on the conflicted file, in a second group.
+            // Modelers already open on the conflicted file, in two groups; the merge tab opens in the second.
             await openWithQuickOpen(CONFLICTED.merge);
-            await vscode().runCommand("View: Move Editor into Right Group");
+            await vscode().runCommand("View: Split Editor Right");
+            await expect
+                .poll(() => vscode().page.locator(".editor-group-container").count(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(2);
+            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
+            await expect
+                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
+                .toContain(`${CONFLICTED.merge} (Merge: main ↔ feature)`);
             await vscode().runCommand("Notifications: Clear All Notifications");
-            await mergeTab(CONFLICTED.merge).click();
             const { current, incoming } = await mergePanes();
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })

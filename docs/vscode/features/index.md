@@ -40,6 +40,8 @@ The desktop app runs the same extension, and the IntelliJ plugin shares the BPMN
 
 - [BPMN diff](/vscode/features/bpmn-diff): compare two versions of a diagram side by side, with changes
   highlighted.
+- [BPMN merge](/vscode/features/bpmn-merge): resolve a Git conflict in a `.bpmn` file per element, then
+  build the result into the file and compare it with both sides.
 - [DMN diff](/vscode/features/dmn-diff): compare two versions of a decision model side by side, down to the
   cells of its decision tables.
 - [Deployment](/vscode/features/deployment): deploy BPMN and DMN files to Camunda 7 or Camunda 8 and start process
