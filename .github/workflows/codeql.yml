@@ -25,14 +25,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ javascript-typescript, actions ]
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+          # Kotlin has no buildless extraction: CodeQL has to observe the compiler.
+          - language: java-kotlin
+            build-mode: manual
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup JDK 21
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # A compilation restored from the build cache never runs the compiler, so
+      # CodeQL would extract nothing.
+      - name: Compile the IntelliJ plugin
+        if: matrix.language == 'java-kotlin'
+        working-directory: apps/intellij-plugin
+        run: ./gradlew compileKotlin --no-daemon --no-build-cache
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

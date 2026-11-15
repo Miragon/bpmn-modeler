@@ -1,14 +1,15 @@
 # Dependencies
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-15
 
 ## Context
 
 The modeler builds on upstream bpmn-io packages whose identity matters (a second
 copy of bpmn-js, diagram-js or preact breaks plugins and the properties panel),
 reaches into undocumented upstream members, and straddles two TypeScript
-compilers. This topic records how those dependencies are kept coherent. Release
+compilers. This topic records how those dependencies are kept coherent and how
+their advisories are handled. Release
 mechanics are in [Release and publishing](release-and-publishing.md); the
 standalone app's own dependency constraints are in [Standalone app](standalone-app.md).
 
@@ -17,6 +18,7 @@ standalone app's own dependency constraints are in [Standalone app](standalone-a
 - [Private upstream APIs](#private-upstream-apis)
 - [Identity-sensitive packages](#identity-sensitive-packages)
 - [TypeScript compilers](#typescript-compilers)
+- [Vulnerability handling](#vulnerability-handling)
 
 ## Decision
 
@@ -129,3 +131,33 @@ instead of rewriting those tools.
   exercise both compiler paths. Remove the compatibility alias only when all API
   consumers support the native compiler. Until then two TypeScript implementations
   stay and both CLI compilation and API-based tooling need checking on upgrade.
+
+### Vulnerability handling
+
+Nearly every advisory hits a transitive package, and most of those enter through
+Theia and build tooling, not through the extensions or the published packages.
+Dependabot version updates move direct dependencies only, so a transitive version
+stays where the lockfile first resolved it until something re-resolves it.
+
+- Dependabot security updates are on and
+  [grouped per ecosystem](../../.github/dependabot.yml), so the open advisories
+  arrive as one PR that re-resolves the affected packages within their declared
+  ranges. Ungrouped they open one PR per package, up to ten at a time, each
+  needing the dedupe commit.
+- An advisory whose fix lies outside the range its parent declares is closed by
+  bumping the parent, or by a root resolution when it reaches a shipped runtime
+  (see [Dependency security overrides](standalone-app.md#dependency-security-overrides)).
+  It is dismissed only with a stated reason, and only where the package runs in
+  build or test tooling on our own input. An alert without a fix path stays open:
+  a dismissed alert gets no security update once a fix ships.
+- The CI audit gate (high for direct dependencies, critical for transitive ones)
+  stays below the alert threshold on purpose: a new transitive advisory in Theia
+  must not block every unrelated PR. The alerts and the grouped update carry the
+  rest. The cost is that a high transitive advisory can sit on main until its
+  security update is merged.
+- The dependency graph holds no Gradle package of the IntelliJ plugin by itself,
+  so a [workflow](../../.github/workflows/dependency-submission.yml) submits the
+  resolved graph on main; without it those dependencies raise no alert.
+- CodeQL scans TypeScript, the workflows and the plugin's Kotlin. Kotlin needs a
+  traced compilation, which adds a Gradle build to every run. Secret scanning
+  with push protection is a repository setting, not a file in this repo.
