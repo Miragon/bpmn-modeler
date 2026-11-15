@@ -78,7 +78,7 @@ describe("MergeViewOpener", () => {
     it("tells the user's own commit apart during a rebase and keeps current on the left", async () => {
         const { opener, view, sessions } = createOpener({
             ...MERGE_CONFLICT,
-            refs: { head: HEAD, rebaseHead: OTHER },
+            refs: { head: HEAD, rebaseHead: OTHER, rebaseInProgress: true },
         });
 
         await opener.open(FILE);

@@ -12,7 +12,10 @@ export interface GitRefFacts {
     /** The checked-out branch; absent on a detached HEAD, as during a rebase. */
     readonly headName?: string;
     readonly head?: GitCommitFact;
+    /** Outlives a finished rebase: only `git rebase --abort` deletes it. */
     readonly rebaseHead?: GitCommitFact;
+    /** A rebase runs: Git's folder holds `rebase-merge` or `rebase-apply`. */
+    readonly rebaseInProgress?: boolean;
     /** The Git extension's own rebase state, which misses a linked worktree's rebase. */
     readonly rebaseCommit?: GitCommitFact;
     readonly mergeHead?: GitCommitFact;

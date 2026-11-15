@@ -12,6 +12,7 @@ import {
     gitRefreshes,
     gitStarts,
     keepGitStarting,
+    linkWorktree,
     openRepositoryLater,
     removeGit,
     resetVscodeGit,
@@ -97,6 +98,23 @@ describe("VsCodeGitConflictVersions", () => {
         watch.dispose();
 
         expect(gitListenerCount()).toBe(0);
+    });
+
+    it.each([
+        ["an absolute gitdir and rebase-merge", "/work/main/.git/worktrees/repo", "rebase-merge"],
+        ["a relative gitdir and rebase-apply", "../main/.git/worktrees/repo", "rebase-apply"],
+    ] as const)("finds a running rebase in a linked worktree with %s", async (_case, gitDir, folder) => {
+        const refs = { head: { hash: "1111111", subject: "s" }, rebaseHead: { hash: "2222222", subject: "s" } };
+        conflictInGit("file:///work/repo", {
+            fileUri: ORDER,
+            stages: { current: "<current/>", incoming: "<incoming/>" },
+            refs: { ...refs, rebaseInProgress: true },
+        });
+        linkWorktree("file:///work/repo", gitDir, folder);
+
+        const facts = await new VsCodeGitConflictVersions(SHORT_WAITS).readConflict(ORDER);
+
+        expect(facts.refs).toStrictEqual({ ...refs, rebaseInProgress: true });
     });
 
     it("tells a watcher nothing new while Merge Changes stay the same", async () => {

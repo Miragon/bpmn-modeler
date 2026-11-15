@@ -38,6 +38,7 @@ const ORDER = `${ROOT}/order.bpmn`;
 const OTHER_ROOT = "file:///work/other";
 const HEAD = { hash: "1111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", subject: "Check the order" };
 const OTHER = { hash: "9f8e7d6bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", subject: "Rename the check" };
+const STALE = { hash: "5a5a5a5ccccccccccccccccccccccccccccccccc", subject: "An earlier rebase" };
 
 const conflictOf = (fileUri: string, overrides: Partial<StagedConflict> = {}): StagedConflict => ({
     fileUri,
@@ -125,13 +126,20 @@ export function describeConflictVersionsContract(
             });
         });
 
-        it("hands over REBASE_HEAD when Git's own rebase state misses the rebase", async () => {
+        it("hands over REBASE_HEAD and a running rebase when Git's own rebase state misses it", async () => {
             const fixture = createFixture();
-            fixture.conflict(ROOT, conflictOf(ORDER, { refs: { head: HEAD, rebaseHead: OTHER } }));
+            const refs = { head: HEAD, rebaseHead: OTHER, rebaseInProgress: true };
+            fixture.conflict(ROOT, conflictOf(ORDER, { refs }));
 
-            const { refs } = await fixture.source.readConflict(ORDER);
+            expect((await fixture.source.readConflict(ORDER)).refs).toStrictEqual(refs);
+        });
 
-            expect(refs).toStrictEqual({ head: HEAD, rebaseHead: OTHER });
+        it("hands over a REBASE_HEAD an earlier rebase left behind, with no rebase running", async () => {
+            const fixture = createFixture();
+            const refs = { headName: "main", head: HEAD, rebaseHead: STALE, mergeHead: OTHER };
+            fixture.conflict(ROOT, conflictOf(ORDER, { refs }));
+
+            expect((await fixture.source.readConflict(ORDER)).refs).toStrictEqual(refs);
         });
 
         it("finds a repository that opens after the request", async () => {

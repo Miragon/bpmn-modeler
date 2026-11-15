@@ -84,7 +84,7 @@ const renamed = (name: string) => BASE.replace('name="Check order"', `name="${na
  * Each VS Code version gets its own folder, since both labels of the e2e
  * config share one workspace folder.
  */
-function conflictedRepository(operation: "merge" | "rebase"): string {
+function conflictedRepository(operation: "merge" | "rebase" | "merge-after-rebase"): string {
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     assert.ok(folder, "no workspace folder");
     const repository = join(folder, `${operation}-${vscode.version}`);
@@ -102,9 +102,21 @@ function conflictedRepository(operation: "merge" | "rebase"): string {
     git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Rename the check on main");
     if (operation === "merge") {
         git(repository, "merge", "feature", "--no-edit");
-    } else {
+    } else if (operation === "rebase") {
         git(repository, "checkout", "-q", "feature");
         git(repository, "rebase", "main");
+    } else {
+        // A finished rebase leaves REBASE_HEAD behind; only `--abort` deletes it.
+        git(repository, "checkout", "-q", "feature");
+        git(repository, "rebase", "main");
+        writeFileSync(file, renamed("Check feature order"));
+        git(repository, "add", FILE);
+        git(repository, "-c", "core.editor=true", "rebase", "--continue");
+        git(repository, "checkout", "-q", "main");
+        writeFileSync(file, renamed("Check main order again"));
+        git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Rename the check on main again");
+        git(repository, "merge", "feature", "--no-edit");
+        assert.ok(git(repository, "rev-parse", "-q", "--verify", "REBASE_HEAD"), "no REBASE_HEAD left");
     }
     assert.ok(readFileSync(file, "utf8").includes("<<<<<<<"), `no ${operation} conflict`);
     return repository;
@@ -217,8 +229,29 @@ suite("BPMN merge view", () => {
         });
     });
 
+    suite("on a merge after an earlier rebase", () => {
+        test("names the sides of the merge, not of the finished rebase", async () => {
+            const repository = conflictedRepository("merge-after-rebase");
+            const fileUri = vscode.Uri.file(join(repository, FILE));
+            await openInGit(repository);
+
+            await vscode.commands.executeCommand(COMMAND, fileUri);
+
+            await waitFor(
+                () => api.merge.sessionFor(fileUri.toString())?.paneCount === 2,
+                () =>
+                    `merge panes never attached: ${JSON.stringify(api.merge.sessionFor(fileUri.toString()))}`,
+            );
+            const captions = api.merge.sessionFor(fileUri.toString())?.captions;
+            assert.deepStrictEqual(
+                [captions?.current.role, captions?.current.ref, captions?.incoming.role],
+                ["branch", "main", "upstream"],
+            );
+        });
+    });
+
     suite("on a rebase conflict", () => {
-        test("tells the user's own commit apart and keeps current on the left", async () => {
+        test("tells the user's own commit apart", async () => {
             const repository = conflictedRepository("rebase");
             const fileUri = vscode.Uri.file(join(repository, FILE));
             await openInGit(repository);

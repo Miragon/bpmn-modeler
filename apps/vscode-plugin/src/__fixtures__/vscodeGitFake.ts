@@ -31,6 +31,15 @@ export class Uri {
         return new Uri("file", "", path, "");
     }
 
+    static joinPath(base: Uri, ...segments: string[]): Uri {
+        const parts: string[] = [];
+        for (const part of [base.path, ...segments].join("/").split("/")) {
+            if (part === "..") parts.pop();
+            else if (part !== "" && part !== ".") parts.push(part);
+        }
+        return new Uri(base.scheme, base.authority, `/${parts.join("/")}`, "");
+    }
+
     get fsPath(): string {
         return this.path;
     }
@@ -61,11 +70,19 @@ class Emitter<T> {
 
 const STAGE_OF_REF = { ":1": "base", ":2": "current", ":3": "incoming" } as const;
 
+export enum FileType {
+    File = 1,
+    Directory = 2,
+}
+
 class FakeRepository {
     readonly conflicts = new Map<string, StagedConflict>();
     readonly changes = new Emitter<void>();
     refs: NonNullable<StagedConflict["refs"]> = {};
     opened = true;
+    /** The `gitdir:` line of a linked worktree's `.git` file; absent for a `.git` folder. */
+    linkedGitDir?: string;
+    rebaseFolder: "rebase-merge" | "rebase-apply" = "rebase-merge";
     private published: StagedConflict[] = [];
 
     constructor(readonly rootUri: Uri) {}
@@ -110,7 +127,26 @@ class FakeRepository {
     holds(uri: Uri): boolean {
         return uri.scheme === "file" && uri.path.startsWith(`${this.rootUri.path}/`);
     }
+
+    /** What Git keeps on disk for this repository, by path: the `.git` entry and a running rebase's folder. */
+    gitFiles(): Map<string, FileType> {
+        const dotGit = `${this.rootUri.path}/.git`;
+        const gitDir = this.linkedGitDir
+            ? Uri.joinPath(this.linkedGitDir.startsWith("/") ? Uri.file("/") : this.rootUri, this.linkedGitDir).path
+            : dotGit;
+        const files = new Map([[dotGit, this.linkedGitDir ? FileType.File : FileType.Directory]]);
+        if (this.refs.rebaseInProgress) files.set(`${gitDir}/${this.rebaseFolder}`, FileType.Directory);
+        return files;
+    }
 }
+
+const gitFileAt = (uri: Uri): { repository: FakeRepository; type: FileType } | undefined => {
+    for (const repository of git.repositories) {
+        const type = repository.gitFiles().get(uri.path);
+        if (type !== undefined) return { repository, type };
+    }
+    return undefined;
+};
 
 const git = {
     present: true,
@@ -167,6 +203,17 @@ export function conflictInGit(root: string, conflict: StagedConflict): void {
     const repository = repositoryAt(root);
     repository.conflicts.set(conflict.fileUri, conflict);
     repository.refs = conflict.refs ?? {};
+}
+
+/** The repository at `root` is a linked worktree: its `.git` is a file whose `gitdir:` line names `gitDir`. */
+export function linkWorktree(
+    root: string,
+    gitDir: string,
+    rebaseFolder: "rebase-merge" | "rebase-apply" = "rebase-merge",
+): void {
+    const repository = repositoryAt(root);
+    repository.linkedGitDir = gitDir;
+    repository.rebaseFolder = rebaseFolder;
 }
 
 export function resolveInGit(root: string, fileUri: string): void {
@@ -261,7 +308,16 @@ export const extensions = {
 
 export const workspace = {
     fs: {
+        async stat(uri: Uri): Promise<{ type: FileType }> {
+            const gitFile = gitFileAt(uri);
+            if (!gitFile) throw new Error("FileNotFound");
+            return { type: gitFile.type };
+        },
         async readFile(uri: Uri): Promise<Uint8Array> {
+            const gitFile = gitFileAt(uri);
+            if (gitFile?.type === FileType.File) {
+                return new TextEncoder().encode(`gitdir: ${gitFile.repository.linkedGitDir}\n`);
+            }
             const conflict = git.repositories
                 .flatMap((repository) => [...repository.conflicts.values()])
                 .find(({ fileUri }) => fileUri === uri.toString());

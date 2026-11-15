@@ -16,7 +16,7 @@ describe("gitOperationOf", () => {
     it.each<[string, GitRefFacts, ConflictMarkerReading, GitOperation]>([
         [
             "a rebase seen only through REBASE_HEAD",
-            { rebaseHead: commit("r1") },
+            { rebaseHead: commit("r1"), rebaseInProgress: true },
             NO_MARKERS,
             "rebase",
         ],
@@ -38,7 +38,7 @@ describe("gitOperationOf", () => {
         ["no refs and no markers", {}, NO_MARKERS, "unknown"],
         [
             "a rebase that stopped on a merge commit it replays",
-            { rebaseHead: commit("r1"), mergeHead: commit("m1") },
+            { rebaseHead: commit("r1"), rebaseInProgress: true, mergeHead: commit("m1") },
             NO_MARKERS,
             "rebase",
         ],
@@ -47,6 +47,24 @@ describe("gitOperationOf", () => {
             { mergeHead: commit("m1"), cherryPickHead: commit("c1") },
             NO_MARKERS,
             "merge",
+        ],
+        [
+            "a merge after an earlier rebase left REBASE_HEAD behind",
+            { headName: "main", rebaseHead: commit("r0"), mergeHead: commit("m1") },
+            NO_MARKERS,
+            "merge",
+        ],
+        [
+            "a cherry-pick after an earlier rebase left REBASE_HEAD behind",
+            { headName: "main", rebaseHead: commit("r0"), cherryPickHead: commit("c1") },
+            NO_MARKERS,
+            "cherryPick",
+        ],
+        [
+            "a stash pop after an earlier rebase left REBASE_HEAD behind",
+            { headName: "main", rebaseHead: commit("r0") },
+            markers("Stashed changes"),
+            "stash",
         ],
         [
             "a cherry-pick whose markers read like a stash",
