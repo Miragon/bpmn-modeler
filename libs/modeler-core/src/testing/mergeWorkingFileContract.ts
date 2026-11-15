@@ -67,7 +67,10 @@ export function describeMergeWorkingFileContract(
             const fixture = await createFixture();
             const fileUri = await fixture.onDisk(MARKED.replaceAll("\n", "\r\n"));
 
-            await fixture.workingFile.replace(fileUri, "<definitions>\n<process/>\n</definitions>\n");
+            await fixture.workingFile.replace(
+                fileUri,
+                "<definitions>\n<process/>\n</definitions>\n",
+            );
 
             const crlfBuilt = "<definitions>\r\n<process/>\r\n</definitions>\r\n";
             await expect(fixture.workingFile.read(fileUri)).resolves.toStrictEqual({

@@ -1,4 +1,4 @@
-import { Range, Uri, workspace, WorkspaceEdit } from "vscode";
+import { Range, type TextDocument, Uri, workspace, WorkspaceEdit } from "vscode";
 
 import { MergeWorkingFile, MergeWorkingFileText } from "@miragon/bpmn-modeler-core";
 
@@ -17,19 +17,26 @@ export class VsCodeMergeWorkingFile implements MergeWorkingFile {
         return { text: new TextDecoder().decode(await workspace.fs.readFile(uri)), isDirty: false };
     }
 
+    // A save that fails puts the previous text back, so the editor does not hold an unsaved merge result.
     async replace(fileUri: string, text: string): Promise<void> {
         const document = await workspace.openTextDocument(Uri.parse(fileUri));
-        const edit = new WorkspaceEdit();
-        edit.replace(
-            document.uri,
-            new Range(document.positionAt(0), document.positionAt(document.getText().length)),
-            text,
-        );
-        if (!(await workspace.applyEdit(edit))) {
+        const previous = document.getText();
+        if (!(await workspace.applyEdit(wholeTextEdit(document, text)))) {
             throw new Error(`VS Code refused the edit of ${fileUri}`);
         }
         if (!(await document.save())) {
+            await workspace.applyEdit(wholeTextEdit(document, previous));
             throw new Error(`VS Code did not save ${fileUri}`);
         }
     }
+}
+
+function wholeTextEdit(document: TextDocument, text: string): WorkspaceEdit {
+    const edit = new WorkspaceEdit();
+    edit.replace(
+        document.uri,
+        new Range(document.positionAt(0), document.positionAt(document.getText().length)),
+        text,
+    );
+    return edit;
 }

@@ -2,10 +2,7 @@ import type { ConfirmRequest } from "../../kernel/domain/prompts";
 
 /** Why a build asks before it writes over the working file. */
 export type OverwriteReason =
-    | "unsavedChanges"
-    | "resolvedElsewhere"
-    | "editedSinceOpened"
-    | "editedSinceBuild";
+    "unsavedChanges" | "resolvedElsewhere" | "editedSinceOpened" | "editedSinceBuild";
 
 const OVERWRITE_TEXTS: Record<OverwriteReason, { title: string; detail: string }> = {
     unsavedChanges: {

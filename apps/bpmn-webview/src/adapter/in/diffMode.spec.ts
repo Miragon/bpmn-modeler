@@ -642,7 +642,10 @@ describe("DiffMode", () => {
             await startDiffPane();
 
             dispatch(
-                highlights("merge-result", side, false, { against: "incoming", switchTo: "current" }),
+                highlights("merge-result", side, false, {
+                    against: "incoming",
+                    switchTo: "current",
+                }),
             );
 
             expect(sideLabel()?.showFilename).toHaveBeenLastCalledWith(label);

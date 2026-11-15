@@ -12,6 +12,7 @@ export { Uri } from "./vscodeFileSystemFake";
 
 const disk = new Map<string, string>();
 const documents = new Map<string, FakeTextDocument>();
+const failingSaves = new Set<string>();
 
 export class Position {
     constructor(readonly offset: number) {}
@@ -61,6 +62,7 @@ class FakeTextDocument {
     }
 
     async save(): Promise<boolean> {
+        if (failingSaves.delete(this.uri.toString())) return false;
         disk.set(this.uri.toString(), this.text);
         this.isDirty = false;
         return true;
@@ -108,6 +110,17 @@ function openDocument(uri: Uri): FakeTextDocument {
 export function resetTextDocuments(): void {
     disk.clear();
     documents.clear();
+    failingSaves.clear();
+}
+
+/** The next save of the file reports that it did not save, as on a save conflict. */
+export function failNextSave(uri: string): void {
+    failingSaves.add(Uri.parse(uri).toString());
+}
+
+/** The text an open document of the file holds, unsaved edits included. */
+export function documentText(uri: string): string | undefined {
+    return documents.get(Uri.parse(uri).toString())?.getText();
 }
 
 export function writeOnDisk(uri: string, text: string): void {
