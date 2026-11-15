@@ -1,4 +1,4 @@
-import type { DiffCategory, DiffCounts } from "./diff";
+import type { DiffCategory } from "./diff";
 import { DIFF_CATEGORIES, DIFF_CATEGORY_LABELS, DIFF_LEGEND_TEXTS } from "./diffVocabulary";
 import { createButton, createElement } from "./dom";
 
@@ -18,11 +18,18 @@ export interface DiffLegendActions {
     readonly onShowAll?: () => void;
 }
 
+/** One count slot: what it counts, the i18n key of its label and its swatch's class modifier. */
+export interface DiffLegendSlot<Key extends string = DiffCategory> {
+    readonly key: Key;
+    readonly label: string;
+    readonly modifier: string;
+}
+
 /** What one diff legend shows. */
-export interface DiffLegendState {
-    /** One slot per category; omitted when `status` names the open view's single change. */
-    readonly counts?: DiffCounts;
-    readonly status?: DiffCategory;
+export interface DiffLegendState<Key extends string = DiffCategory> {
+    /** One count per slot; omitted when `status` names the open view's single change. */
+    readonly counts?: Readonly<Record<Key, number>>;
+    readonly status?: Key;
     /** Shown above the counts on compare-files panes, where the tab names both files. */
     readonly filename?: string;
     readonly showSwap: boolean;
@@ -41,8 +48,20 @@ const SLOT_MODIFIERS: Readonly<Record<DiffCategory, string>> = {
     layoutChanged: "layout",
 };
 
-interface CountSlot {
-    readonly category: DiffCategory;
+// The diff's own slots are the default, so the published legend and the DMN legend need no list.
+const DIFF_SLOTS: readonly DiffLegendSlot[] = DIFF_CATEGORIES.map((category) => ({
+    key: category,
+    label: DIFF_CATEGORY_LABELS[category],
+    modifier: SLOT_MODIFIERS[category],
+}));
+
+/** A legend with its own slots must name them; only the diff's categories have a default. */
+type SlotsArgument<Key extends string> = [Key] extends [DiffCategory]
+    ? [slots?: readonly DiffLegendSlot<Key>[]]
+    : [slots: readonly DiffLegendSlot<Key>[]];
+
+interface CountSlot<Key extends string> {
+    readonly definition: DiffLegendSlot<Key>;
     readonly slot: HTMLElement;
     readonly label: Text;
     readonly count: HTMLElement;
@@ -60,8 +79,11 @@ interface StatusSlot {
  * single change, Previous and Next with the position, and on compare-files
  * panes the file name and a swap button. Hidden until the first
  * {@link update}; re-renders its words when the language changes.
+ *
+ * A caller may count its own slots instead of the diff categories and add its
+ * own controls below the counts through {@link extensionElement}.
  */
-export class DiffLegendView {
+export class DiffLegendView<Key extends string = DiffCategory> {
     private static readonly CHEVRON_LEFT = "m15 18-6-6 6-6";
     private static readonly CHEVRON_RIGHT = "m9 18 6-6-6-6";
 
@@ -71,9 +93,10 @@ export class DiffLegendView {
     private readonly countsRow = createElement("div", "diff-legend__counts");
     // Created on the first status, so a legend that only ever counts keeps its published DOM.
     private status?: StatusSlot;
-    private readonly countSlots = DIFF_CATEGORIES.map((category) =>
-        DiffLegendView.countSlot(category),
-    );
+    private readonly slots: readonly DiffLegendSlot<Key>[];
+    private readonly countSlots: readonly CountSlot<Key>[];
+    // Created on first use, like the status chip, for the same reason.
+    private extension?: HTMLElement;
     private readonly none = createElement("span", "diff-legend__none");
     private readonly previousButton: HTMLButtonElement;
     private readonly nextButton: HTMLButtonElement;
@@ -83,14 +106,18 @@ export class DiffLegendView {
     // Shares the nav buttons' class so both groups align and theme alike.
     private readonly swapButton: HTMLButtonElement;
     private readonly stopTranslating: () => void;
-    private state?: DiffLegendState;
+    private state?: DiffLegendState<Key>;
     private sizeObserver?: ResizeObserver;
 
     constructor(
         parent: HTMLElement,
         private readonly actions: DiffLegendActions,
         private readonly translator: DiffLegendTranslator,
+        ...[slots]: SlotsArgument<Key>
     ) {
+        this.slots =
+            slots ?? (DIFF_SLOTS as readonly DiffLegendSlot<string>[] as typeof this.slots);
+        this.countSlots = this.slots.map((definition) => DiffLegendView.countSlot(definition));
         this.previousButton = DiffLegendView.iconButton(
             "diff-legend__prev-btn",
             DiffLegendView.CHEVRON_LEFT,
@@ -115,7 +142,16 @@ export class DiffLegendView {
         this.stopTranslating = translator.onChange(() => this.renderWords());
     }
 
-    update(state: DiffLegendState): void {
+    /** The element below the counts a caller fills with its own controls. */
+    extensionElement(): HTMLElement {
+        if (!this.extension) {
+            this.extension = createElement("div", "diff-legend__extension");
+            this.element.append(this.extension);
+        }
+        return this.extension;
+    }
+
+    update(state: DiffLegendState<Key>): void {
         this.state = state;
         this.element.hidden = false;
         this.countsRow.hidden = state.showChanges === false;
@@ -174,23 +210,27 @@ export class DiffLegendView {
         }
     }
 
-    private showStatus(status: DiffCategory | undefined): void {
+    private showStatus(status: Key | undefined): void {
         if (status) {
             this.status ??= this.prependStatusSlot();
-            this.status.swatch.className = DiffLegendView.swatchClass(status);
+            this.status.swatch.className = DiffLegendView.swatchClass(this.slotOf(status).modifier);
         }
         if (this.status) {
             this.status.slot.hidden = !status;
         }
     }
 
-    private showCounts(counts: DiffCounts | undefined): void {
-        for (const { category, slot, count } of this.countSlots) {
-            const changes = counts?.[category] ?? 0;
+    private showCounts(counts: Readonly<Record<Key, number>> | undefined): void {
+        for (const { definition, slot, count } of this.countSlots) {
+            const changes = counts?.[definition.key] ?? 0;
             slot.hidden = changes === 0;
             count.textContent = String(changes);
         }
-        this.none.hidden = !counts || DiffLegendView.hasChanges(counts);
+        this.none.hidden = !counts || this.slots.some(({ key }) => counts[key] > 0);
+    }
+
+    private slotOf(key: Key): DiffLegendSlot<Key> {
+        return this.slots.find((slot) => slot.key === key) as DiffLegendSlot<Key>;
     }
 
     private showPosition(position: DiffLegendState["position"]): void {
@@ -207,22 +247,18 @@ export class DiffLegendView {
     private renderWords(): void {
         const translate = (key: string) => this.translator.translate(key);
         this.element.setAttribute("aria-label", translate(DIFF_LEGEND_TEXTS.changes));
-        for (const { category, label } of this.countSlots) {
-            label.data = `${translate(DIFF_CATEGORY_LABELS[category])} `;
+        for (const { definition, label } of this.countSlots) {
+            label.data = `${translate(definition.label)} `;
         }
         const status = this.state?.status;
         if (this.status) {
-            this.status.label.data = status ? translate(DIFF_CATEGORY_LABELS[status]) : "";
+            this.status.label.data = status ? translate(this.slotOf(status).label) : "";
         }
         this.none.textContent = translate(DIFF_LEGEND_TEXTS.none);
         this.showAllButton.textContent = translate(DIFF_LEGEND_TEXTS.showAll);
         DiffLegendView.nameIconButton(this.previousButton, translate(DIFF_LEGEND_TEXTS.previous));
         DiffLegendView.nameIconButton(this.nextButton, translate(DIFF_LEGEND_TEXTS.next));
         DiffLegendView.nameIconButton(this.swapButton, translate(DIFF_LEGEND_TEXTS.swap));
-    }
-
-    private static hasChanges(counts: DiffCounts): boolean {
-        return DIFF_CATEGORIES.some((category) => counts[category] > 0);
     }
 
     /** An icon-only button's name, for its tooltip and for screen readers. */
@@ -253,17 +289,17 @@ export class DiffLegendView {
         return icon;
     }
 
-    private static countSlot(category: DiffCategory): CountSlot {
+    private static countSlot<Key extends string>(definition: DiffLegendSlot<Key>): CountSlot<Key> {
         const slot = createElement(
             "div",
-            `diff-legend__slot diff-legend__slot--${SLOT_MODIFIERS[category]}`,
+            `diff-legend__slot diff-legend__slot--${definition.modifier}`,
         );
         const text = createElement("span", "diff-legend__label");
         const label = document.createTextNode("");
         const count = createElement("b", "diff-legend__count");
         text.append(label, count);
-        slot.append(createElement("span", DiffLegendView.swatchClass(category)), text);
-        return { category, slot, label, count };
+        slot.append(createElement("span", DiffLegendView.swatchClass(definition.modifier)), text);
+        return { definition, slot, label, count };
     }
 
     private static statusSlot(): StatusSlot {
@@ -276,7 +312,7 @@ export class DiffLegendView {
         return { slot, swatch, label };
     }
 
-    private static swatchClass(category: DiffCategory): string {
-        return `diff-legend__swatch diff-legend__swatch--${SLOT_MODIFIERS[category]}`;
+    private static swatchClass(modifier: string): string {
+        return `diff-legend__swatch diff-legend__swatch--${modifier}`;
     }
 }
