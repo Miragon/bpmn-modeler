@@ -5,6 +5,7 @@ vi.mock("vscode", () => import("../../../__fixtures__/vscodeGitFake"));
 import { describeConflictVersionsContract } from "@miragon/bpmn-modeler-core/testing";
 
 import {
+    closeRepository,
     conflictInGit,
     disableGit,
     enableGit,
@@ -15,6 +16,8 @@ import {
     linkWorktree,
     openRepositoryLater,
     removeGit,
+    reopenRepository,
+    repositoryListenerCount,
     resetVscodeGit,
     resolveInGit,
 } from "../../../__fixtures__/vscodeGitFake";
@@ -115,6 +118,25 @@ describe("VsCodeGitConflictVersions", () => {
         const facts = await new VsCodeGitConflictVersions(SHORT_WAITS).readConflict(ORDER);
 
         expect(facts.refs).toStrictEqual({ ...refs, rebaseInProgress: true });
+    });
+
+    it("lets go of a closed repository and listens once to a reopened one", async () => {
+        conflictInGit("file:///work/repo", {
+            fileUri: ORDER,
+            stages: { current: "<current/>", incoming: "<incoming/>" },
+        });
+        await gitRefreshes();
+        const heard: (readonly string[])[] = [];
+        new VsCodeGitConflictVersions(SHORT_WAITS).watchMergeChanges((uris) => heard.push(uris));
+        await vi.waitFor(() => expect(heard).toHaveLength(1));
+
+        closeRepository("file:///work/repo");
+        expect(repositoryListenerCount("file:///work/repo")).toBe(0);
+        reopenRepository("file:///work/repo");
+        closeRepository("file:///work/repo");
+        reopenRepository("file:///work/repo");
+
+        expect(repositoryListenerCount("file:///work/repo")).toBe(1);
     });
 
     it("tells a watcher nothing new while Merge Changes stay the same", async () => {

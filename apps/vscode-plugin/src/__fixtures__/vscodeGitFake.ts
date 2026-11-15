@@ -216,6 +216,24 @@ export function linkWorktree(
     repository.rebaseFolder = rebaseFolder;
 }
 
+/** The user closes the repository at `root`, or opens it again. */
+export function closeRepository(root: string): void {
+    const repository = repositoryAt(root);
+    repository.opened = false;
+    git.closings.fire(repository);
+}
+
+export function reopenRepository(root: string): void {
+    const repository = repositoryAt(root);
+    repository.opened = true;
+    git.openings.fire(repository);
+}
+
+/** How many listeners the repository at `root` holds on its state. */
+export function repositoryListenerCount(root: string): number {
+    return repositoryAt(root).changes.listenerCount;
+}
+
 export function resolveInGit(root: string, fileUri: string): void {
     repositoryAt(root).conflicts.delete(fileUri);
 }
