@@ -527,8 +527,15 @@ describe("the BPMN merge view", () => {
                         timeout: TIMEOUT_MS,
                     })
                     .toBe("1 open conflict");
-                expect(await classesOf(pane, "Task_Check")).toContain("merge-conflict");
-                expect(await pane.locator(".merge-conflict-badge").count()).toBe(1);
+                // Until the new tab shows, the pane locator can still reach the earlier tab's pane.
+                await expect
+                    .poll(() => classesOf(pane, "Task_Check"), { timeout: TIMEOUT_MS })
+                    .toContain("merge-conflict");
+                await expect
+                    .poll(() => pane.locator(".merge-conflict-badge").count(), {
+                        timeout: TIMEOUT_MS,
+                    })
+                    .toBe(1);
             }
             await shot("marks-both-panes");
         });
