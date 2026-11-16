@@ -23,6 +23,7 @@ const INVOICE_DIFF = "element-xml-2";
 
 const elementDiff = (elementId: string, diffKey = ORDER_DIFF): ElementXmlDiff => ({
     diffKey,
+    paneUri: "file:///repo/order.bpmn",
     elementId,
     title: `${elementId} (XML): order.bpmn (HEAD ↔ Working Tree)`,
     before: `<bpmn:task id="${elementId}" name="old" />`,

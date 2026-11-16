@@ -16,6 +16,7 @@ internal enum class HostToCoreMethod(val wireName: String) {
     DIFF_OPEN("diff/open"),
     DIFF_WEBVIEW_MESSAGE("diff/webviewMessage"),
     DIFF_DISPOSE("diff/dispose"),
+    ELEMENT_XML_DIFF_CLOSED("elementXmlDiff/closed"),
     DEPLOYMENT_STATE_SEED("deploymentState/seed"),
     DEPLOYMENT_WEBVIEW_MESSAGE("deployment/webviewMessage"),
     DEPLOYMENT_OPEN("deployment/open"),

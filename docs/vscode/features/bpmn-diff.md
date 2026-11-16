@@ -38,7 +38,7 @@ The tab names the element and the versions, as VS Code names its own diffs: for 
 
 While the text diff is open, clicking another element in either pane moves it to that element; the pane you clicked in keeps the element in view, and the other pane follows. Once you close the text diff, selecting elements no longer opens it; click **Show XML changes** again. The text diff closes with the diagram diff.
 
-The XML text diff is available in VS Code only; IntelliJ does not show it yet, and hosts without text diff tabs (some Theia versions) hide the entry.
+In IntelliJ, the text diff opens below the two diagrams inside the same diff tab, with the side titles of the diagram diff; close it with the **×** in its header. Hosts without text diff tabs (some Theia versions) hide the entry.
 
 The comparison uses [bpmn-js-differ](https://github.com/bpmn-io/bpmn-js-differ). The colours are Miragon's, as in [Diagit](https://github.com/Miragon/diagit).
 

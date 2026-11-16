@@ -110,6 +110,7 @@ export class ElementXmlDiffService {
         ]);
         return {
             diffKey: key,
+            paneUri: before.uri,
             elementId,
             title: elementXmlDiffTitle(elementId, session.origin, before, after),
             before: beforeXml ?? "",
