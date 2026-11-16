@@ -38,47 +38,54 @@ afterEach(() => {
 });
 
 describe("numeric validation module with the real form-js editor", () => {
-    it("keeps original numeric undo snapshots and redoes normalized validation without mutating edit values", async () => {
-        const editor = new FormEditor({
-            container: document.getElementById("app")!,
-            additionalModules: [numericValidationModule],
-        });
-        try {
-            await editor.importSchema(
-                formWithField({
-                    type: "number",
-                    defaultValue: 1.5,
-                    decimalDigits: 2,
-                    validate: { min: 0, max: 10, required: true },
-                }),
-            );
-            const field = editor
-                .get<{ get(id: string): SavedField }>("formFieldRegistry")
-                .get("Field_1");
-            const original = field.validate;
-            const edited = Object.freeze({ ...original, max: 20 });
-            const modeling = editor.get<{
-                editFormField(field: SavedField, properties: Record<string, unknown>): void;
-            }>("modeling");
-            const commandStack = editor.get<{ undo(): void; redo(): void }>("commandStack");
+    it.each([
+        { min: 0, max: 20 },
+        { min: -10, max: -2 },
+        { min: -2.5, max: 2.5 },
+    ])(
+        "keeps numeric edits %j through undo and redo without mutating snapshots",
+        async (bounds) => {
+            const editor = new FormEditor({
+                container: document.getElementById("app")!,
+                additionalModules: [numericValidationModule],
+            });
+            try {
+                await editor.importSchema(
+                    formWithField({
+                        type: "number",
+                        defaultValue: 1.5,
+                        decimalDigits: 2,
+                        validate: { min: 0, max: 10, required: true },
+                    }),
+                );
+                const field = editor
+                    .get<{ get(id: string): SavedField }>("formFieldRegistry")
+                    .get("Field_1");
+                const original = field.validate;
+                const edited = Object.freeze({ ...original, ...bounds });
+                const modeling = editor.get<{
+                    editFormField(field: SavedField, properties: Record<string, unknown>): void;
+                }>("modeling");
+                const commandStack = editor.get<{ undo(): void; redo(): void }>("commandStack");
 
-            modeling.editFormField(field, { validate: edited });
+                modeling.editFormField(field, { validate: edited });
 
-            expect(field.validate).toEqual({ min: "0", max: "20", required: true });
-            expect(field.validate).not.toBe(edited);
-            expect(edited).toEqual({ min: 0, max: 20, required: true });
-            commandStack.undo();
-            expect(field.validate).toBe(original);
-            expect(field.validate).toEqual({ min: 0, max: 10, required: true });
-            commandStack.redo();
-            expect(field.validate).toEqual({ min: "0", max: "20", required: true });
-            expect(original).toEqual({ min: 0, max: 10, required: true });
-            expect(field.defaultValue).toBe(1.5);
-            expect(field.decimalDigits).toBe(2);
-        } finally {
-            editor.destroy();
-        }
-    });
+                expect(field.validate).toEqual({ ...bounds, required: true });
+                expect(field.validate).not.toBe(edited);
+                expect(edited).toEqual({ ...bounds, required: true });
+                commandStack.undo();
+                expect(field.validate).toBe(original);
+                expect(field.validate).toEqual({ min: 0, max: 10, required: true });
+                commandStack.redo();
+                expect(field.validate).toEqual({ ...bounds, required: true });
+                expect(original).toEqual({ min: 0, max: 10, required: true });
+                expect(field.defaultValue).toBe(1.5);
+                expect(field.decimalDigits).toBe(2);
+            } finally {
+                editor.destroy();
+            }
+        },
+    );
 
     it("leaves validation untouched for unrelated edits and supports removing the validation object", async () => {
         const editor = new FormEditor({
@@ -134,7 +141,7 @@ describe("numeric validation module with the real form-js editor", () => {
     );
 });
 
-// The adapter relies on form-js accepting string bounds without stringifying submission data.
+// Legacy string bounds remain compatible with form-js without stringifying submission data.
 describe("form-js 2.1.1 string-bound characterization", () => {
     it.each([
         [-1, true],
