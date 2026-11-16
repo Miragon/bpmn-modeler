@@ -7,6 +7,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.ElementXmlDiffSlot
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.TemplatePreferenceSnapshot
 import io.miragon.intellij.bpmn.TemplateSwitch
@@ -151,10 +152,21 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.SETTINGS_DID_CHANGE to { settings.push() },
                 HostToCoreMethod.SESSION_DISPOSE to { editor.disposeSession(session) },
                 HostToCoreMethod.DIFF_OPEN to {
-                    diff.openDiff("diff-1", "vcs", BEFORE_URI, "<before/>", {}, AFTER_URI, "<after/>", {})
+                    diff.openDiff(
+                        "diff-1",
+                        "vcs",
+                        BEFORE_URI,
+                        "<before/>",
+                        {},
+                        AFTER_URI,
+                        "<after/>",
+                        {},
+                        ElementXmlDiffSlot(NoElementXmlDiffPanel) {},
+                    )
                 },
                 HostToCoreMethod.DIFF_WEBVIEW_MESSAGE to { diff.forwardDiffMessage(BEFORE_URI, """{"type":"GetDiffCommand"}""") },
                 HostToCoreMethod.DIFF_DISPOSE to { diff.disposeDiff("diff-1") },
+                HostToCoreMethod.ELEMENT_XML_DIFF_CLOSED to { diff.elementXmlDiffClosed("element-xml-1") },
                 HostToCoreMethod.DEPLOYMENT_STATE_SEED to { deployment.push() },
                 HostToCoreMethod.DEPLOYMENT_WEBVIEW_MESSAGE to { deployment.forwardDeploymentMessage("""{"type":"DeployCommand"}""") },
                 HostToCoreMethod.DEPLOYMENT_OPEN to { deployment.setDeploymentOpen(true) },

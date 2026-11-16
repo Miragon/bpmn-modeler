@@ -250,7 +250,7 @@ class CoreProcess(private val project: Project) : Disposable {
 
     // ── diff ─────────────────────────────────────────────────────────────────────
 
-    fun openDiff(
+    internal fun openDiff(
         diffId: String,
         origin: String,
         beforeUri: String,
@@ -259,7 +259,20 @@ class CoreProcess(private val project: Project) : Disposable {
         afterUri: String,
         afterContent: String,
         postToAfter: (String) -> Unit,
-    ) = routers.diff.openDiff(diffId, origin, beforeUri, beforeContent, postToBefore, afterUri, afterContent, postToAfter)
+        elementXmlDiff: ElementXmlDiffSlot,
+    ) = routers.diff.openDiff(
+        diffId,
+        origin,
+        beforeUri,
+        beforeContent,
+        postToBefore,
+        afterUri,
+        afterContent,
+        postToAfter,
+        elementXmlDiff,
+    )
+
+    fun elementXmlDiffClosed(diffKey: String) = routers.diff.elementXmlDiffClosed(diffKey)
 
     fun forwardDiffMessage(paneUri: String, rawMessage: String) = routers.diff.forwardDiffMessage(paneUri, rawMessage)
 

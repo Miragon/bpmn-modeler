@@ -79,6 +79,7 @@ jobs:
               - 'apps/modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijProgress.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijWritableScopes.json'
+              - 'apps/modeler-bridge/src/__fixtures__/intellijElementXmlDiff.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'

@@ -127,6 +127,11 @@ export interface DiffDisposeParams {
     diffId: string;
 }
 
+/** `elementXmlDiff/closed` — the user closed the element XML diff `diffKey`. */
+export interface ElementXmlDiffClosedParams {
+    diffKey: string;
+}
+
 /**
  * `deploymentState/seed` — the host seeds the deployment-state mirror with what
  * it stored; the core fills in the defaults.
@@ -496,6 +501,23 @@ export interface StatusBarUpdateParams {
 export interface DiffPostMessageParams {
     paneUri: string;
     message: unknown;
+}
+
+/**
+ * `elementXmlDiff/show` opens or replaces the element XML diff `diffKey` inside
+ * the diagram diff of pane `paneUri`; `elementXmlDiff/refresh` only replaces it.
+ */
+export interface ElementXmlDiffShowParams {
+    diffKey: string;
+    paneUri: string;
+    title: string;
+    before: string;
+    after: string;
+}
+
+/** `elementXmlDiff/close` — the diagram diff of the element XML diff `diffKey` closed. */
+export interface ElementXmlDiffCloseParams {
+    diffKey: string;
 }
 
 /**

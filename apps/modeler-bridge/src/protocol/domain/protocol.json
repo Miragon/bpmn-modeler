@@ -69,6 +69,12 @@
         "paramKeys": ["diffId"]
     },
     {
+        "method": "elementXmlDiff/closed",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["diffKey"]
+    },
+    {
         "method": "deploymentState/seed",
         "direction": "hostToCore",
         "kind": "notification",
@@ -524,6 +530,24 @@
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["message", "paneUri"]
+    },
+    {
+        "method": "elementXmlDiff/show",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["after", "before", "diffKey", "paneUri", "title"]
+    },
+    {
+        "method": "elementXmlDiff/refresh",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["after", "before", "diffKey", "paneUri", "title"]
+    },
+    {
+        "method": "elementXmlDiff/close",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["diffKey"]
     },
     {
         "method": "deployment/postMessage",
