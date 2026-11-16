@@ -20,7 +20,7 @@ const view = (
 const labels = (conflict: string): MergeMarksLabels => ({
     conflict,
     badge: ({ keptSide, scope }) => ({
-        letter: keptSide[0].toUpperCase(),
+        side: keptSide[0].toUpperCase() + keptSide.slice(1),
         label: `${keptSide} ${scope}`,
     }),
 });
@@ -135,7 +135,7 @@ describe("MergeMarks", () => {
         const badges = overlays.filter(({ type }) => type === "merge-pick");
         expect(badges.map(({ element }) => element)).toEqual(["Task_Pack", "Flow_1"]);
         expect(badges[0].html).toContain('aria-label="incoming element"');
-        expect(badges[0].html).toContain(">I<");
+        expect(badges[0].html).toContain(">Incoming<");
         expect(badges[0].html).toContain("merge-pick-badge--kept-here");
         expect(badges[1].html).toContain("merge-pick-badge--replaced-here");
         expect(badges[1].html).toContain("merge-pick-badge--with-contents");

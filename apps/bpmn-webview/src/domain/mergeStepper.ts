@@ -35,3 +35,11 @@ export function mergeStepPosition(
     const index = cursorId === undefined ? -1 : list.indexOf(cursorId);
     return index < 0 ? undefined : { index, total: list.length };
 }
+
+/** The stepper's place as the bar shows it, `2/5`, or `–/5` before the first step. */
+export function mergeStepPositionText(
+    position: { readonly index: number } | undefined,
+    total: number,
+): string {
+    return `${position === undefined ? "–" : position.index + 1}/${total}`;
+}

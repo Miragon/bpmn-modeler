@@ -145,26 +145,26 @@ describe("merge legend words", () => {
 });
 
 describe("pickBadgeText", () => {
-    it.each<[string, MergePaneBadge, { letter: string; label: string }]>([
+    it.each<[string, MergePaneBadge, { side: string; label: string }]>([
         [
             "names the side an element was kept from on the pane that kept it",
             { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "element" },
-            { letter: "I", label: "Kept from incoming, your pick" },
+            { side: "Incoming", label: "Kept from incoming, your pick" },
         ],
         [
             "names the kept side on the pane whose version was replaced",
             { id: "Task_1", kind: "replacedHere", keptSide: "current", scope: "element" },
-            { letter: "C", label: "Kept from current, your pick" },
+            { side: "Current", label: "Kept from current, your pick" },
         ],
         [
             "says a container was kept with everything inside",
             { id: "Sub_1", kind: "keptHere", keptSide: "current", scope: "withContents" },
-            { letter: "C", label: "Kept from current with everything inside, your pick" },
+            { side: "Current", label: "Kept from current with everything inside, your pick" },
         ],
         [
             "says an element was kept with its flows",
             { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withConnections" },
-            { letter: "I", label: "Kept from incoming with its flows, your pick" },
+            { side: "Incoming", label: "Kept from incoming with its flows, your pick" },
         ],
     ])("%s", (_name, badge, expected) => {
         expect(pickBadgeText(badge, untranslated)).toStrictEqual(expected);

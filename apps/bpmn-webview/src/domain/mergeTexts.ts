@@ -17,6 +17,9 @@ import type {
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
 
+import type { MergeActedDecision } from "./mergeOutcomeCard";
+import type { MergePadDecision } from "./mergePadDecisions";
+
 /** `i18n.translate`, with the replacements its templates name. */
 export type MergeTranslate = (key: string, replacements?: Record<string, string>) => string;
 
@@ -43,13 +46,22 @@ export function mergeCaptionText(
     caption: MergeSideCaption,
     translate: (key: string) => string,
 ): string {
+    const { side, detail } = mergeCaptionParts(caption, translate);
+    return detail === undefined ? side : `${side}: ${detail}`;
+}
+
+/** The caption's side word and the rest, so a narrow pane can show the side word alone. */
+export function mergeCaptionParts(
+    caption: MergeSideCaption,
+    translate: (key: string) => string,
+): { readonly side: string; readonly detail?: string } {
     const role = MERGE_ROLE_TEXTS[caption.role];
     const name = [role === undefined ? undefined : translate(role), caption.ref]
         .filter((part) => part !== undefined)
         .join(" ");
     const detail = [name, caption.shortHash].filter((part) => part).join(" · ");
     const side = translate(MERGE_SIDE_TEXTS[caption.side]);
-    return detail === "" ? side : `${side}: ${detail}`;
+    return detail === "" ? { side } : { side, detail };
 }
 
 /** What each marker means on the pane that shows it. */
@@ -75,12 +87,41 @@ export function openConflictsText(count: number, translate: MergeTranslate): str
     return translate("{count} open conflicts", { count: String(count) });
 }
 
-/** A shape-less element's entry in the legend: its id and its type in words (`Data store`). */
+/**
+ * A shape-less element's entry in the legend: its name, or its id where it has
+ * none, and its type in words (`Data store`).
+ */
 export function shapelessEntryText(
-    entry: { readonly id: string; readonly type: string },
+    entry: { readonly id: string; readonly type: string; readonly name?: string },
     translate: MergeTranslate,
 ): string {
-    return `${entry.id} (${elementTypeName(entry.type, translate)})`;
+    return `${entry.name ?? entry.id} (${elementTypeName(entry.type, translate)})`;
+}
+
+/**
+ * The merge bar's "…" menu and its tooltips. English only for now: the
+ * catalogs fall back to the key until they translate them.
+ */
+export const MERGE_MENU_TEXTS = {
+    more: "More merge actions",
+    shapelessInfo: "What is this list?",
+    shapelessInfoTip:
+        "Changes you can't click in the diagram: errors, messages, signals and other definitions have no shape. Decide them in this list.",
+    close: "Close",
+} as const;
+
+/** The heading of the menu's list of the marked elements no canvas draws. */
+export function shapelessHeadingText(count: number, translate: MergeTranslate): string {
+    return translate("Not visible in the diagram ({count})", { count: String(count) });
+}
+
+/** What the count badge on the "…" button stands for. */
+export function openShapelessConflictsText(count: number, translate: MergeTranslate): string {
+    return count === 1
+        ? translate("1 open conflict not visible in the diagram")
+        : translate("{count} open conflicts not visible in the diagram", {
+              count: String(count),
+          });
 }
 
 /** The pick actions on the context pad and in the legend. */
@@ -97,12 +138,6 @@ export const MERGE_PICK_TEXTS = {
 const KEEP_SIDE_TEXTS: Record<MergeSide, string> = {
     current: "Keep current",
     incoming: "Keep incoming",
-};
-
-// One letter per side, shown on a pick's badge beside its check mark.
-const SIDE_LETTERS: Record<MergeSide, string> = {
-    current: "C",
-    incoming: "I",
 };
 
 const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
@@ -168,13 +203,13 @@ const OUTCOME_HEADLINES: Record<MergePaneAction, { applied: string; refused: str
     },
 };
 
-/** A pick's badge: the kept side's letter, and its full words for the title and screen readers. */
+/** A pick's badge: the kept side's word, as the pane captions name it, and its full words for the title and screen readers. */
 export function pickBadgeText(
     badge: { readonly keptSide: MergeSide; readonly scope: MergePickScope },
     translate: MergeTranslate,
-): { letter: string; label: string } {
+): { side: string; label: string } {
     return {
-        letter: translate(SIDE_LETTERS[badge.keptSide]),
+        side: translate(MERGE_SIDE_TEXTS[badge.keptSide]),
         label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]),
     };
 }
@@ -316,4 +351,131 @@ function noteReplacements(
         case "frameDiffers":
             return { attribute: note.attribute };
     }
+}
+
+// ─── Pad and outcome card (spike: English only, the catalogs fall back to the key) ───
+
+/** What a decision on the context pad says: its label in the worded pad, and its tooltip. */
+export interface MergePadDecisionText {
+    readonly label: string;
+    readonly tip: string;
+}
+
+const KEEP_INSIDE_TEXTS: Record<MergeSide, string> = {
+    current: "Keep current with everything inside",
+    incoming: "Keep incoming with everything inside",
+};
+
+const KEEP_TIPS: Record<MergeSide, string> = {
+    current: "Keep it as current has it",
+    incoming: "Keep it as incoming has it",
+};
+
+const KEEP_INSIDE_TIPS: Record<MergeSide, string> = {
+    current: "Keep it and everything inside as current has them",
+    incoming: "Keep it and everything inside as incoming has them",
+};
+
+const LEAVE_OUT_TIPS: Record<MergeSide, string> = {
+    current: "Leave it out, as current removed it",
+    incoming: "Leave it out, as incoming removed it",
+};
+
+/** The context pad's words; the side-naming ones are records above. */
+export const MERGE_PAD_TEXTS = {
+    leaveOut: "Leave out",
+    keepRemovedFlows: "Also keep its removed flows",
+    undoTip: "Take back your pick",
+    close: "Close",
+} as const;
+
+/** A decision on the context pad, in the words of the side it keeps. */
+export function padDecisionText(
+    decision: MergePadDecision,
+    translate: MergeTranslate,
+): MergePadDecisionText {
+    switch (decision.kind) {
+        case "keep":
+            return decision.scope === "withContents"
+                ? {
+                      label: translate(KEEP_INSIDE_TEXTS[decision.side]),
+                      tip: translate(KEEP_INSIDE_TIPS[decision.side]),
+                  }
+                : {
+                      label: keepSideText(decision.side, translate),
+                      tip: translate(KEEP_TIPS[decision.side]),
+                  };
+        case "leaveOut":
+            return {
+                label: translate(MERGE_PAD_TEXTS.leaveOut),
+                tip: translate(LEAVE_OUT_TIPS[decision.removedBy]),
+            };
+        case "keepRemovedFlows":
+            return {
+                label: translate(MERGE_PAD_TEXTS.keepRemovedFlows),
+                tip: restoreOfferText(decision.offer, translate),
+            };
+        case "undo":
+            return {
+                label: translate(MERGE_PICK_TEXTS.undo),
+                tip: translate(MERGE_PAD_TEXTS.undoTip),
+            };
+    }
+}
+
+const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
+    element: {
+        current: "Kept from current: {element}",
+        incoming: "Kept from incoming: {element}",
+    },
+    withContents: {
+        current: "Kept from current with everything inside: {element}",
+        incoming: "Kept from incoming with everything inside: {element}",
+    },
+    withConnections: {
+        current: "Kept from current with its flows: {element}",
+        incoming: "Kept from incoming with its flows: {element}",
+    },
+};
+
+const LEFT_OUT_HEADLINES: Record<MergeSide, string> = {
+    current: "Left out: {element}, as current removed it",
+    incoming: "Left out: {element}, as incoming removed it",
+};
+
+const REOPENED_HEADLINE = "Took back the pick. {element} is an open conflict again.";
+
+/**
+ * What the user's last pick or undo did, naming the side the pane sent:
+ * the kept side, or for a leave-out the side that removed the element. A
+ * refused decision keeps the side-less headline.
+ */
+export function outcomeCardHeadline(
+    outcome: MergePaneOutcome,
+    acted: MergeActedDecision,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const element = { element: nameOf(outcome.elementId) };
+    if (!outcome.applied) return outcomeHeadline(outcome, nameOf, translate);
+    switch (outcome.action) {
+        case "pick":
+            return translate(KEPT_HEADLINES[acted.scope][acted.side], element);
+        case "leaveOut":
+            return translate(LEFT_OUT_HEADLINES[acted.side], element);
+        case "unpick":
+            return outcome.reopened.includes(outcome.elementId)
+                ? translate(REOPENED_HEADLINE, element)
+                : outcomeHeadline(outcome, nameOf, translate);
+    }
+}
+
+/** The card's count of the reasons it does not list. */
+export function moreReasonsText(count: number, translate: MergeTranslate): string {
+    return translate("and {count} more", { count: String(count) });
+}
+
+/** An unnamed flow, named by the names of its ends. */
+export function flowNameText(source: string, target: string, translate: MergeTranslate): string {
+    return translate("Flow from {source} to {target}", { source, target });
 }

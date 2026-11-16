@@ -28,7 +28,12 @@ import c7Samples from "../../__fixtures__/c7-samples.json";
 import c8Samples from "../../__fixtures__/c8-samples.json";
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
-import { MOCK_MERGE_STATES } from "../../__fixtures__/mock-merge";
+import {
+    MOCK_MERGE_OUTCOMES,
+    mockMergeStatesAnswering,
+    mockMergeStatesFor,
+    type MockMergeOutcome,
+} from "../../__fixtures__/mock-merge";
 import { MOCK_WORKSPACE_DEFINITIONS } from "../../__fixtures__/mock-workspace-definitions";
 import { mockPluginAssets } from "../../__fixtures__/mock-plugins";
 import type { BpmnWebviewCommand, BpmnWebviewHost } from "../../port/hostChannel";
@@ -86,6 +91,12 @@ function readDevMode(): DevMode {
         );
     }
     return "modeler";
+}
+
+// Spike only: `?outcome=kept|refused|restore` makes the merge preview answer a pick.
+function readMergeOutcome(): MockMergeOutcome | undefined {
+    const raw = new URLSearchParams(window.location.search).get("outcome");
+    return MOCK_MERGE_OUTCOMES.find((outcome) => outcome === raw);
 }
 
 function isMergeMode(mode: DevMode): boolean {
@@ -255,8 +266,13 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
             }
             case "PickMergeSideCommand":
             case "UnpickMergeCommand": {
-                // No merge to decide in: the recorded states stay as they are.
+                // No merge to decide in: the recorded states stay as they are, unless a scenario answers.
                 console.debug(`[DEBUG] ${command.type}`, command.elementId, command.scope);
+                const outcome = readMergeOutcome();
+                const side = this.mergePaneSide();
+                if (outcome !== undefined && side !== undefined) {
+                    dispatch(mockMergeStatesAnswering(side, outcome, command));
+                }
                 break;
             }
             case "BuildMergeResultCommand":
@@ -390,6 +406,12 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
         }
     }
 
+    private mergePaneSide(): DiffSide | undefined {
+        if (this.devMode === "merge-current") return "before";
+        if (this.devMode === "merge-incoming") return "after";
+        return undefined;
+    }
+
     private async handleDiffReady(): Promise<void> {
         const side: DiffSide | undefined =
             this.devMode === "diff-before" || this.devMode === "merge-current"
@@ -402,7 +424,7 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
             return;
         }
         if (isMergeMode(this.devMode)) {
-            dispatch(MOCK_MERGE_STATES[side]);
+            dispatch(mockMergeStatesFor(side, readMergeOutcome()));
             return;
         }
 

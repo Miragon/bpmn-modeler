@@ -1,0 +1,209 @@
+/* The outcome card at an element, and the canvas mark of what blocks a refused decision. */
+
+.merge-outcome-card {
+    position: relative;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 200px;
+    max-width: 280px;
+    padding: 8px 10px 10px;
+    font-family:
+        "Geist Variable", "Geist", var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
+    font-size: 12px;
+    line-height: 1.4;
+    color: #3b3b3b;
+    white-space: normal;
+    background: #fff;
+    border: 1px solid #c4c4c4;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+/* The arrow to the element, from whichever side of it the card went; --merge-card-arrow is its place along that edge. */
+.merge-outcome-card::before {
+    position: absolute;
+    top: -7px;
+    left: calc(var(--merge-card-arrow, 24px) - 6px);
+    width: 12px;
+    height: 12px;
+    content: "";
+    background: inherit;
+    border-top: 1px solid #c4c4c4;
+    border-left: 1px solid #c4c4c4;
+    transform: rotate(45deg);
+}
+
+.merge-outcome-card[data-side="above"]::before {
+    top: auto;
+    bottom: -7px;
+    transform: rotate(225deg);
+}
+
+.merge-outcome-card[data-side="left"]::before,
+.merge-outcome-card[data-side="right"]::before {
+    top: calc(var(--merge-card-arrow, 24px) - 6px);
+}
+
+.merge-outcome-card[data-side="left"]::before {
+    left: auto;
+    right: -7px;
+    transform: rotate(135deg);
+}
+
+.merge-outcome-card[data-side="right"]::before {
+    left: -7px;
+    transform: rotate(-45deg);
+}
+
+.merge-outcome-card--refused {
+    border-color: #e7a3b0;
+    border-left: 3px solid #cd1839;
+}
+
+.merge-outcome-card--refused::before {
+    border-color: #e7a3b0;
+}
+
+.merge-outcome-card__head {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.merge-outcome-card__title {
+    display: inline-flex;
+    flex: 1;
+    gap: 5px;
+    align-items: baseline;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d1d1d;
+}
+
+.merge-outcome-card--applied .merge-outcome-card__title svg {
+    flex: none;
+    align-self: center;
+    color: #0e7c3a;
+}
+
+.merge-outcome-card--refused .merge-outcome-card__title {
+    color: #a3152f;
+}
+
+.merge-outcome-card__close {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+    color: #6b6b6b;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+}
+
+.merge-outcome-card__close:hover {
+    background: #f0f0f0;
+}
+
+.merge-outcome-card__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    align-items: baseline;
+    margin-top: 4px;
+}
+
+.merge-outcome-card__label {
+    color: #6b6b6b;
+}
+
+.merge-outcome-card__link {
+    padding: 0;
+    font: inherit;
+    color: #335de5;
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+}
+
+.merge-outcome-card__link:hover {
+    text-decoration: underline;
+}
+
+.merge-outcome-card__reasons {
+    margin: 4px 0 0;
+    padding-left: 16px;
+}
+
+.merge-outcome-card__more {
+    margin-top: 2px;
+    color: #6b6b6b;
+}
+
+.merge-outcome-card__actions {
+    margin-top: 8px;
+}
+
+.merge-outcome-card__offer {
+    padding: 4px 9px;
+    font: inherit;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    background: #335de5;
+    border: 1px solid #335de5;
+    border-radius: 6px;
+}
+
+.merge-outcome-card__offer:hover {
+    background: #2448c4;
+}
+
+.merge-outcome-card button:focus-visible {
+    outline: 2px solid #335de5;
+    outline-offset: 1px;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card {
+    color: #d4d4d4;
+    background: #252526;
+    border-color: #5a5a5a;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card::before {
+    border-color: #5a5a5a;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card__title {
+    color: #f0f0f0;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card--applied .merge-outcome-card__title svg {
+    color: #00e676;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card--refused .merge-outcome-card__title {
+    color: #fb6d73;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card__link {
+    color: #7a9bf5;
+}
+
+/* What blocks a refused decision: a red glow over whatever marker it has. */
+.djs-shape.merge-blocker .djs-visual > :nth-child(1),
+.djs-connection.merge-blocker .djs-visual > path {
+    stroke: #cd1839 !important;
+    stroke-width: 3px !important;
+    stroke-dasharray: none !important;
+    filter: drop-shadow(0 0 3px rgba(205, 24, 57, 0.6));
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-blocker .djs-visual > :nth-child(1),
+[data-bpmn-theme="dark"] .djs-connection.merge-blocker .djs-visual > path {
+    stroke: #fb6d73 !important;
+}

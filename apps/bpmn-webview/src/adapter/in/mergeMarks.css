@@ -116,6 +116,12 @@
 
 /* ─── The user's picks and their consequences ──────────────────────────── */
 
+/* diagram-js's overlay box takes the pointer even where its badge does not; zoomed out, a flow's badge sat over the task. */
+.djs-overlay-merge-pick,
+.djs-overlay-merge-conflict-badge {
+    pointer-events: none;
+}
+
 /* Neutral, so a pick never reads as one of the three markers' colours. */
 .merge-pick-badge {
     box-sizing: border-box;
@@ -139,6 +145,16 @@
 .merge-pick-badge--replaced-here {
     color: #22242a;
     background: #fff;
+}
+
+/* A flow's badge is a check alone, centred on the middle of its longest segment. */
+.merge-pick-badge--on-flow {
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* A nested box: kept with everything inside. */
@@ -172,30 +188,30 @@
 
 /* ─── Legend swatches ──────────────────────────────────────────────────── */
 
-.diff-legend__swatch--merge-taken-from-this-side {
+.diff-legend .diff-legend__swatch--merge-taken-from-this-side {
     background: #dafbeb;
     border-width: 2px;
 }
 
-.diff-legend__swatch--merge-taken-from-other-side {
+.diff-legend .diff-legend__swatch--merge-taken-from-other-side {
     background: repeating-linear-gradient(45deg, #335de5 0 2px, #eef1fd 2px 5px);
 }
 
-.diff-legend__swatch--merge-conflict {
+.diff-legend .diff-legend__swatch--merge-conflict {
     background: #fbeef0;
     border: 2px dashed #cd1839;
 }
 
-[data-bpmn-theme="dark"] .diff-legend__swatch--merge-taken-from-this-side {
+[data-bpmn-theme="dark"] .diff-legend .diff-legend__swatch--merge-taken-from-this-side {
     background: transparent;
     border-color: #00e676;
 }
 
-[data-bpmn-theme="dark"] .diff-legend__swatch--merge-taken-from-other-side {
+[data-bpmn-theme="dark"] .diff-legend .diff-legend__swatch--merge-taken-from-other-side {
     background: repeating-linear-gradient(45deg, #6b8aff 0 2px, transparent 2px 5px);
 }
 
-[data-bpmn-theme="dark"] .diff-legend__swatch--merge-conflict {
+[data-bpmn-theme="dark"] .diff-legend .diff-legend__swatch--merge-conflict {
     background: transparent;
     border-color: #fb6d73;
 }

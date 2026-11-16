@@ -10,15 +10,23 @@
  */
 import {
     ApplyMergeStatesQuery,
+    type MergePaneOutcome,
     type MergePaneStates,
     type MergePaneStep,
+    type MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import type { DiffSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
-const step = (id: string, onThisPane: boolean, shapeless = false): MergePaneStep => ({
+const step = (
+    id: string,
+    onThisPane: boolean,
+    shapeless = false,
+    onOtherPane = true,
+): MergePaneStep => ({
     id,
     shapeless,
     onThisPane,
+    onOtherPane,
 });
 
 const SHAPELESS = [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }] as const;
@@ -54,7 +62,7 @@ const CURRENT: MergePaneStates = {
     allSteps: [
         step("ServiceTask_1", true),
         step("Flow_2", true),
-        step("UserTask_ToRemove", true),
+        step("UserTask_ToRemove", true, false, false),
         step("Gateway_1", false),
         step("Flow_3", true),
         step("Process_1", true, true),
@@ -79,7 +87,7 @@ const INCOMING: MergePaneStates = {
         step("ServiceTask_1", true),
         step("Flow_2", true),
         step("UserTask_ToRemove", false),
-        step("Gateway_1", true),
+        step("Gateway_1", true, false, false),
         step("Flow_3", true),
         step("Process_1", true, true),
     ],
@@ -94,3 +102,104 @@ export const MOCK_MERGE_STATES: Readonly<Record<DiffSide, ApplyMergeStatesQuery>
     before: new ApplyMergeStatesQuery("before", CURRENT, true),
     after: new ApplyMergeStatesQuery("after", INCOMING, true),
 };
+
+/**
+ * Spike only: how the preview answers a pick, chosen by `?outcome=` beside
+ * `?mode=merge-…`, so the outcome card can be seen without a merge library.
+ * `kept` applies every pick, `refused` refuses it with four blockers,
+ * `restore` applies it with the offer to keep two removed flows. With any
+ * of them, the incoming pane offers "Leave out" on `ServiceTask_1`, as if
+ * current had removed it.
+ */
+export type MockMergeOutcome = "kept" | "refused" | "restore";
+
+export const MOCK_MERGE_OUTCOMES: readonly MockMergeOutcome[] = ["kept", "refused", "restore"];
+
+/** The pick or undo a merge pane sent, as the preview reads it. */
+export interface MockMergeDecision {
+    readonly type: "PickMergeSideCommand" | "UnpickMergeCommand";
+    readonly elementId: string;
+    readonly scope: MergePickScope;
+    readonly side?: MergeSide;
+}
+
+const OTHER: Record<MergeSide, MergeSide> = { current: "incoming", incoming: "current" };
+
+/** The first states of a preview pane in an outcome scenario. */
+export function mockMergeStatesFor(paneSide: DiffSide, outcome: MockMergeOutcome | undefined) {
+    const query = MOCK_MERGE_STATES[paneSide];
+    if (outcome === undefined || paneSide === "before") return query;
+    return new ApplyMergeStatesQuery(
+        paneSide,
+        {
+            ...query.states,
+            pickable: query.states.pickable.map((entry) =>
+                entry.id === "ServiceTask_1" ? { ...entry, removedByOtherSide: true } : entry,
+            ),
+        },
+        query.elementXmlChanges,
+    );
+}
+
+/** The states the preview answers `decision` with in the `outcome` scenario. */
+export function mockMergeStatesAnswering(
+    paneSide: DiffSide,
+    outcome: MockMergeOutcome,
+    decision: MockMergeDecision,
+): ApplyMergeStatesQuery {
+    const first = mockMergeStatesFor(paneSide, outcome);
+    const paneMergeSide = first.states.caption.side;
+    const { elementId } = decision;
+    const keptSide = decision.side ?? paneMergeSide;
+    const undo = decision.type === "UnpickMergeCommand";
+    const action = undo ? "unpick" : keptSide === paneMergeSide ? "pick" : "leaveOut";
+    const lastOutcome: MergePaneOutcome =
+        outcome === "refused"
+            ? {
+                  applied: false,
+                  action,
+                  elementId,
+                  blockedBy: ["Flow_2", "Flow_3", "Gateway_1", "UserTask_ToRemove"].map(
+                      (blocker) => ({
+                          elementId: blocker,
+                          targetId: elementId,
+                          obstacle: "dependentPicked",
+                      }),
+                  ),
+              }
+            : {
+                  applied: true,
+                  action,
+                  elementId,
+                  pulledIn: action === "pick" ? ["Flow_2"] : [],
+                  dropped: action === "leaveOut" ? ["Flow_2", "Flow_3"] : [],
+                  reopened: undo ? [elementId] : [],
+              };
+    const picked = !undo && lastOutcome.applied;
+    const restoreOffer =
+        outcome === "restore" && picked && action === "pick"
+            ? { elementId, connections: ["Flow_2", "Flow_3"], removedBy: OTHER[paneMergeSide] }
+            : undefined;
+    return new ApplyMergeStatesQuery(
+        paneSide,
+        {
+            ...first.states,
+            badges: picked
+                ? [
+                      {
+                          id: elementId,
+                          kind: keptSide === paneMergeSide ? "keptHere" : "replacedHere",
+                          keptSide,
+                          scope: decision.scope,
+                      },
+                  ]
+                : [],
+            pickable: first.states.pickable.map((entry) =>
+                entry.id === elementId && picked ? { ...entry, undo: decision.scope } : entry,
+            ),
+            lastOutcome,
+            ...(restoreOffer === undefined ? {} : { restoreOffer }),
+        },
+        first.elementXmlChanges,
+    );
+}

@@ -57,6 +57,8 @@ export class DiffPanePlumbing {
 
     private hostShowsElementXmlChanges = false;
 
+    private planeMissingListener: ((missing: boolean) => void) | undefined;
+
     constructor(
         private readonly canvas: HTMLElement,
         private readonly host: DiffPaneChannel,
@@ -141,6 +143,12 @@ export class DiffPanePlumbing {
     setPlaneMissing(missing: boolean): void {
         this.planeMissing = missing;
         this.sideLabel?.showPlaneMissing(missing);
+        this.planeMissingListener?.(missing);
+    }
+
+    /** For a pane that names its side in its own bar instead of the canvas label. */
+    onPlaneMissingChanged(listener: (missing: boolean) => void): void {
+        this.planeMissingListener = listener;
     }
 
     /** Notes the plane the pane entered itself, a sub-process's or the opening one for none. */

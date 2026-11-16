@@ -4,3 +4,57 @@
     color: inherit;
     font: inherit;
 }
+
+/* The worded pad: one labelled button per decision, stacked under Show XML changes. */
+.djs-context-pad:has(.merge-pick-action--words) {
+    width: max-content;
+}
+
+.djs-context-pad .group[data-group="merge-pick"]:has(.merge-pick-action--words) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    margin-top: 2px;
+}
+
+.djs-context-pad .entry.merge-pick-action--words {
+    box-sizing: border-box;
+    width: auto;
+    height: 22px;
+    margin: 0;
+    padding: 0 8px;
+    font-family:
+        "Geist Variable", "Geist", var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 20px;
+    text-align: left;
+    white-space: nowrap;
+    color: #22242a;
+    background: #fff;
+    border: 1px solid #c4c4c4;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.djs-context-pad .entry.merge-pick-action--words:hover {
+    background: #e4ecfb;
+    border-color: #335de5;
+}
+
+.djs-context-pad .entry.merge-pick-action:focus-visible {
+    outline: 2px solid #335de5;
+    outline-offset: 1px;
+}
+
+[data-bpmn-theme="dark"] .djs-context-pad .entry.merge-pick-action--words {
+    color: #e8e8e8;
+    background: #2b2b2b;
+    border-color: #5a5a5a;
+}
+
+[data-bpmn-theme="dark"] .djs-context-pad .entry.merge-pick-action--words:hover {
+    background: #26365e;
+    border-color: #7a9bf5;
+}
