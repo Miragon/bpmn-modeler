@@ -6,13 +6,20 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FetchHttpClient } from "../../../../kernel/adapter/out/FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda7RestClient } from "./Camunda7RestClient";
-import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../../domain/deployment";
+import {
+    BasicAuth,
+    DeploymentConfig,
+    DeploymentResult,
+    NoAuth,
+    OAuth2Auth,
+} from "../../../domain/deployment";
 import { conventionalRoutes } from "../../../domain/engineRoutes";
 import { InspectionRequest } from "../../../domain/inspectionRequest";
 import { StartInstanceConfig } from "../../../domain/startInstance";
 import {
     DeploymentFailedError,
     EngineInspectionFailedError,
+    NothingDeployedError,
     StartInstanceFailedError,
 } from "../../../domain/errors";
 
@@ -113,6 +120,72 @@ describe("Camunda7RestClient (integration)", () => {
         await expect(client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]))).rejects.toThrow(
             DeploymentFailedError,
         );
+    });
+
+    describe("when the engine accepts the deployment", () => {
+        const noDefinitions = {
+            deployedProcessDefinitions: null,
+            deployedCaseDefinitions: null,
+            deployedDecisionDefinitions: null,
+            deployedDecisionRequirementsDefinitions: null,
+        };
+        const nonExecutableProcessResponse = { id: "deploy-empty", ...noDefinitions };
+        const executableProcessResponse = {
+            id: "deploy-42",
+            ...noDefinitions,
+            deployedProcessDefinitions: { "repro:1:abc": { id: "repro:1:abc", key: "repro" } },
+        };
+        const decisionResponse = {
+            id: "deploy-dmn",
+            ...noDefinitions,
+            deployedDecisionDefinitions: { "decide:1:abc": { id: "decide:1:abc" } },
+        };
+
+        function answer(responseBody: unknown): void {
+            handler = (_req, _body, res) => {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify(responseBody));
+            };
+        }
+
+        function deploy(): Promise<DeploymentResult> {
+            const config = new DeploymentConfig(
+                "my-deploy",
+                "",
+                baseUrl,
+                "c7",
+                "/tmp/proc.bpmn",
+                [],
+                new NoAuth(),
+            );
+            return createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
+        }
+
+        it("fails when it created no definition, naming the empty deployment", async () => {
+            answer(nonExecutableProcessResponse);
+
+            const error = await deploy().catch((caught: unknown) => caught);
+
+            expect(error).toBeInstanceOf(NothingDeployedError);
+            expect((error as Error).message).toBe(
+                "Deployment 'my-deploy' created no process or decision definition, so nothing can run. " +
+                    'Mark the process as executable (isExecutable="true") and deploy again. ' +
+                    "The engine keeps the empty deployment deploy-empty.",
+            );
+        });
+
+        it.each([
+            ["a process definition", executableProcessResponse, "deploy-42"],
+            ["a decision definition", decisionResponse, "deploy-dmn"],
+            ["an answer without definition fields, as from a gateway", { id: "gw-1" }, "gw-1"],
+        ])("succeeds when it reports %s", async (_case, responseBody, deploymentId) => {
+            answer(responseBody);
+
+            const result = await deploy();
+
+            expect(result.success).toBe(true);
+            expect(result.deploymentId).toBe(deploymentId);
+        });
     });
 
     // ── Start instance ──────────────────────────────────────────────────

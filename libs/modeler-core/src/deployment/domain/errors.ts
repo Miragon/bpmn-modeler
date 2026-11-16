@@ -170,3 +170,5 @@ export class StartInstanceFailedError extends Error {
 function detailSuffix(detail: string | undefined): string {
     return detail === undefined ? "." : `: ${detail}`;
 }
+
+export class NothingDeployedError extends Error {}
