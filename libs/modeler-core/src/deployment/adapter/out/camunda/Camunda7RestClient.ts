@@ -2,6 +2,7 @@ import { DeploymentConfig, DeploymentResult } from "../../../domain/deployment";
 import {
     DeploymentFailedError,
     EngineInspectionFailedError,
+    NothingDeployedError,
     StartInstanceFailedError,
 } from "../../../domain/errors";
 import { CamundaEnginePort, EngineInspectionPort } from "../../../port/deploymentPorts";
@@ -88,11 +89,16 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         }
 
         let deploymentId: string | undefined;
+        let definitionCount: number | undefined;
         try {
             const json = JSON.parse(responseBody);
             deploymentId = json.id !== undefined ? String(json.id) : undefined;
+            definitionCount = countDeployedDefinitions(json);
         } catch {
             // Response was not valid JSON — deploymentId remains undefined.
+        }
+        if (definitionCount === 0) {
+            throw new NothingDeployedError(config.deploymentName, deploymentId);
         }
 
         return new DeploymentResult(
@@ -247,4 +253,18 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             throw new EngineInspectionFailedError(status, "Response was not valid JSON");
         }
     }
+}
+
+const DEPLOYED_DEFINITION_FIELDS = [
+    "deployedProcessDefinitions",
+    "deployedDecisionDefinitions",
+    "deployedDecisionRequirementsDefinitions",
+    "deployedCaseDefinitions",
+];
+
+/** `undefined` when the answer has none of the fields, as from a gateway in front of the engine. */
+function countDeployedDefinitions(json: Record<string, unknown>): number | undefined {
+    const fields = DEPLOYED_DEFINITION_FIELDS.filter((field) => field in json);
+    if (fields.length === 0) return undefined;
+    return fields.reduce((count, field) => count + Object.keys(json[field] ?? {}).length, 0);
 }
