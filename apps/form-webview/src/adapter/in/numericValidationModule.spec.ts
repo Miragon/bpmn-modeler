@@ -87,6 +87,51 @@ describe("numeric validation module with the real form-js editor", () => {
         },
     );
 
+    it("preserves a precise legacy minimum and its viewer validation when toggling required", async () => {
+        const editor = new FormEditor({
+            container: document.getElementById("app")!,
+            additionalModules: [numericValidationModule],
+        });
+        const viewer = new Form({
+            container: document.body.appendChild(document.createElement("div")),
+        });
+        try {
+            await editor.importSchema(
+                formWithField({
+                    type: "number",
+                    validate: { min: "9007199254740993", required: false },
+                }),
+            );
+            const field = editor
+                .get<{ get(id: string): SavedField }>("formFieldRegistry")
+                .get("Field_1");
+            const original = field.validate;
+            const edited = Object.freeze({ ...original, required: true });
+            const modeling = editor.get<{
+                editFormField(field: SavedField, properties: Record<string, unknown>): void;
+            }>("modeling");
+
+            modeling.editFormField(field, { validate: edited });
+
+            expect(original).toEqual({ min: "9007199254740993", required: false });
+            expect(edited).toEqual({ min: "9007199254740993", required: true });
+            const exported = editor.saveSchema() as { components: SavedField[] };
+            expect.soft(exported.components[0].validate).toEqual({
+                min: "9007199254740993",
+                required: true,
+            });
+
+            await viewer.importSchema(exported, { value: 9007199254740992 });
+            const result = viewer.submit();
+
+            expect(result.data).toEqual({ value: 9007199254740992 });
+            expect(result.errors).toHaveProperty("Field_1");
+        } finally {
+            viewer.destroy();
+            editor.destroy();
+        }
+    });
+
     it("leaves validation untouched for unrelated edits and supports removing the validation object", async () => {
         const editor = new FormEditor({
             container: document.getElementById("app")!,

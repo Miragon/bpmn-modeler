@@ -46,6 +46,18 @@ describe("numeric validation bounds", () => {
         ["-2", -2],
         ["-2.5", -2.5],
         ["2.5", 2.5],
+        ["0.1", 0.1],
+        [".50", 0.5],
+        ["0002.5000", 2.5],
+        ["10.50", 10.5],
+        ["1e-1", 0.1],
+        ["2500e-3", 2.5],
+        ["5.", 5],
+        ["-25E-1", -2.5],
+        ["-0.000e+999", -0],
+        ["1e21", 1e21],
+        ["1e-7", 1e-7],
+        ["9007199254740992", 9007199254740992],
     ] as const)("stores numeric bound input %s as a number", (input, expected) => {
         expect(normalizeValidationBounds({ min: input, max: input })).toEqual({
             min: expected,
@@ -54,18 +66,53 @@ describe("numeric validation bounds", () => {
     });
 
     it.each([
+        "9007199254740993",
+        "0.1234567890123456789",
+        "9.007199254740993e15",
+        "1e-400",
+        "-0.1234567890123456789",
+    ])(
+        "preserves both bound strings %s when numeric conversion would change their value",
+        (value) => {
+            const validation = Object.freeze({ min: value, max: value, required: true });
+
+            expect(normalizeValidationBounds(validation)).toEqual({
+                min: value,
+                max: value,
+                required: true,
+            });
+            expect(validation).toEqual({ min: value, max: value, required: true });
+        },
+    );
+
+    it.each([
         "",
         "   ",
         "not a number",
         "Infinity",
         "-Infinity",
         "NaN",
+        "1e400",
+        "0x10",
+        "+5",
+        "5px",
+        " 5 ",
+        "5 ",
         "= lowerLimit + 1",
         true,
         false,
         null,
         undefined,
     ])("preserves non-literal bound %j without numeric coercion", (value) => {
+        expect(normalizeValidationBounds({ min: value, max: value })).toEqual({
+            min: value,
+            max: value,
+        });
+    });
+
+    it("preserves a numeric-looking array bound without coercion", () => {
+        const value = [5];
+
         expect(normalizeValidationBounds({ min: value, max: value })).toEqual({
             min: value,
             max: value,
