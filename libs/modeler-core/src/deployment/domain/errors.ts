@@ -179,7 +179,7 @@ export class NothingDeployedError extends Error {
     constructor(deploymentName: string, deploymentId: string | undefined) {
         super(
             `Deployment '${deploymentName}' created no process or decision definition, so nothing can run. ` +
-                'Mark the process as executable (isExecutable="true") and deploy again.' +
+                'A BPMN process must be marked executable (isExecutable="true").' +
                 (deploymentId === undefined
                     ? ""
                     : ` The engine keeps the empty deployment ${deploymentId}.`),

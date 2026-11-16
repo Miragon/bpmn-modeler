@@ -161,15 +161,25 @@ describe("Camunda7RestClient (integration)", () => {
             return createClient().deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
         }
 
-        it("fails when it created no definition, naming the empty deployment", async () => {
-            answer(nonExecutableProcessResponse);
+        it.each([
+            ["null definition fields", nonExecutableProcessResponse],
+            [
+                "empty definition fields",
+                {
+                    id: "deploy-empty",
+                    deployedProcessDefinitions: {},
+                    deployedDecisionDefinitions: {},
+                },
+            ],
+        ])("fails when it reports %s, naming the empty deployment", async (_case, responseBody) => {
+            answer(responseBody);
 
             const error = await deploy().catch((caught: unknown) => caught);
 
             expect(error).toBeInstanceOf(NothingDeployedError);
             expect((error as Error).message).toBe(
                 "Deployment 'my-deploy' created no process or decision definition, so nothing can run. " +
-                    'Mark the process as executable (isExecutable="true") and deploy again. ' +
+                    'A BPMN process must be marked executable (isExecutable="true"). ' +
                     "The engine keeps the empty deployment deploy-empty.",
             );
         });
@@ -177,6 +187,15 @@ describe("Camunda7RestClient (integration)", () => {
         it.each([
             ["a process definition", executableProcessResponse, "deploy-42"],
             ["a decision definition", decisionResponse, "deploy-dmn"],
+            [
+                "only a decision requirements definition",
+                {
+                    id: "deploy-drd",
+                    ...noDefinitions,
+                    deployedDecisionRequirementsDefinitions: { "drd:1:abc": { id: "drd:1:abc" } },
+                },
+                "deploy-drd",
+            ],
             ["an answer without definition fields, as from a gateway", { id: "gw-1" }, "gw-1"],
         ])("succeeds when it reports %s", async (_case, responseBody, deploymentId) => {
             answer(responseBody);

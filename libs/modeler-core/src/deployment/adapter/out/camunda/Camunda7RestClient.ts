@@ -47,6 +47,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
      * @param fileContents Map of filename (basename) → UTF-8 file content.
      * @returns A {@link DeploymentResult} with the server-assigned deployment ID.
      * @throws {DeploymentFailedError} If the server returns a non-2xx status.
+     * @throws {NothingDeployedError} If the engine accepted it but created no definition.
      */
     async deploy(
         config: DeploymentConfig,
