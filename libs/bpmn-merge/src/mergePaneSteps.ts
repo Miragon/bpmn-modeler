@@ -10,6 +10,8 @@ export interface MergeStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The partner pane's side holds it; a step only one pane draws takes that pane's viewport to both. */
+    readonly onOtherPane: boolean;
     /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
     readonly plane?: string;
 }
@@ -20,7 +22,7 @@ export interface MergePaneSteps {
     readonly all: readonly MergeStep[];
 }
 
-/** Both panes get the same steps in the same order; only `onThisPane` differs. */
+/** Both panes get the same steps in the same order; only `onThisPane` and `onOtherPane` differ. */
 export function mergePaneSteps(
     decisions: MergeDecisions,
     navigationOrder: readonly string[],
@@ -34,12 +36,14 @@ export function mergePaneSteps(
         return element === undefined ? [] : [element];
     });
     const typeOf = (id: string) => elementsById.get(id)?.type;
+    const otherSide: MergeSide = side === "current" ? "incoming" : "current";
     const stepOf = (element: MergeElement): MergeStep => {
         const plane = subProcessPlaneOf(element, typeOf);
         return {
             id: element.id,
             shapeless: hasNoShape(element),
             onThisPane: element.versions[side] !== undefined,
+            onOtherPane: element.versions[otherSide] !== undefined,
             ...(plane === undefined ? {} : { plane }),
         };
     };

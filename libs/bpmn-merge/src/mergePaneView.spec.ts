@@ -332,6 +332,23 @@ describe("mergePaneView", () => {
             expect(mergePaneView(decisions, "incoming").pickable).toEqual(pickable);
         });
 
+        it("says which side's removal a pick of the other side would keep, on the pane that still holds the element", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Task_Remind", "removedAndChanged", { parent: "Process_1" }),
+                    mergeElement("Task_Audit", "onlyInIncoming", { parent: "Process_1" }),
+                ),
+            );
+            const removedOn = (side: "current" | "incoming") =>
+                mergePaneView(decisions, side)
+                    .pickable.filter((entry) => entry.removedByOtherSide)
+                    .map(({ id }) => id);
+
+            expect(removedOn("incoming")).toStrictEqual(["Task_Remind"]);
+            expect(removedOn("current")).toStrictEqual([]);
+        });
+
         it("badges a container with everything inside only while every element inside is picked on its side", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(

@@ -19,8 +19,10 @@ import {
     type MergePaneShapelessMark,
     type MergePaneStep,
     type MergePickScope,
+    PickMergeSideCommand,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
+import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import {
     createTestHost,
@@ -34,6 +36,7 @@ import {
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSessionStore } from "./MergeSessionStore";
@@ -85,8 +88,12 @@ async function openMergeView(
         await diffService.markReady(current);
         await diffService.markReady(incoming);
     };
-    const pick = (pane: FakeDiffPaneHandle, elementId: string, scope: MergePickScope = "element") =>
-        diffService.pickMergeSide(pane, elementId, scope);
+    const pick = (
+        pane: FakeDiffPaneHandle,
+        elementId: string,
+        scope: MergePickScope = "element",
+        side?: MergeSide,
+    ) => diffService.pickMergeSide(pane, elementId, scope, side);
     const unpick = (
         pane: FakeDiffPaneHandle,
         elementId: string,
@@ -197,6 +204,16 @@ describe("MergeDecisionService", () => {
         expect(lastStatesOf(current).states.shapeless).toStrictEqual([
             { id: "Process_1", type: "bpmn:Process", marker: "conflict" },
         ]);
+    });
+
+    it("names a shape-less conflict before any pick, so the menu lists it by name", async () => {
+        const { current, incoming, bothReady } = await openMergeView();
+
+        await bothReady();
+
+        for (const pane of [current, incoming]) {
+            expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order A" });
+        }
     });
 
     it("sends the full state again when a pane reloads", async () => {
@@ -540,6 +557,39 @@ describe("MergeDecisionService", () => {
             for (const pane of [current, incoming]) {
                 expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order B" });
             }
+        });
+
+        it("keeps an element from the side the pick names, whichever pane sends it", async () => {
+            const { diffService, current, incoming, bothReady } = await openMergeView();
+            await bothReady();
+            const router = createDiffPaneRouter(diffService, {});
+
+            await router.dispatch(
+                new PickMergeSideCommand("Task_Pack", "element", "incoming"),
+                current,
+            );
+
+            expect(lastStatesOf(incoming).states.badges).toStrictEqual([
+                { id: "Task_Pack", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            ]);
+            expect(lastStatesOf(current).states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "pick",
+                elementId: "Task_Pack",
+            });
+        });
+
+        it("leaves an element out when the pick names the side that removed it, sent from the pane that draws it", async () => {
+            const { incoming, bothReady, pick } = await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(incoming, "Task_Pack", "element", "current");
+
+            expect(lastStatesOf(incoming).states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "leaveOut",
+                elementId: "Task_Pack",
+            });
         });
 
         it("ignores a pick from a pane of no merge view", async () => {

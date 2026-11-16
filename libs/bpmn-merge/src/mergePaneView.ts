@@ -3,7 +3,7 @@ import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mer
 import type { MergeDecisions } from "./mergeDecisions";
 import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
-import type { ElementState, MergeElement, MergeSide } from "./mergeResult";
+import { type ElementState, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
 import { connectionsRemovedWith } from "./removedConnections";
 
@@ -38,6 +38,8 @@ export interface PickableElement {
     readonly container: boolean;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: PickScope;
+    /** Set where the other side removed what this side still holds, so a pick of the other side leaves it out. */
+    readonly removedByOtherSide?: true;
 }
 
 /** What one merge pane shows of the decisions, in result order. */
@@ -138,14 +140,23 @@ function paneDecisions(
             }
         }
         if (origin === "consequence" && drawnHere) consequences.push(element.id);
-        const container = containers.has(element.id);
-        pickable.push(
-            scope === undefined
-                ? { id: element.id, container }
-                : { id: element.id, container, undo: scope },
-        );
+        pickable.push({
+            id: element.id,
+            container: containers.has(element.id),
+            ...(scope === undefined ? {} : { undo: scope }),
+            ...(removedByOtherSide(element, side) ? { removedByOtherSide: true } : {}),
+        });
     }
     return { badges, picksNotDrawn, consequences, pickable };
+}
+
+function removedByOtherSide(element: MergeElement, side: MergeSide): boolean {
+    const { versions } = element;
+    return (
+        versions.base !== undefined &&
+        versions[side] !== undefined &&
+        versions[otherSide(side)] === undefined
+    );
 }
 
 /** The marker an element gets on a pane of a side, or none. */

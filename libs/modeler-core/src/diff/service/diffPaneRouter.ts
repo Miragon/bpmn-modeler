@@ -83,7 +83,8 @@ function mergeRoutes(
             (command, pane) => diffService.chooseMergeStepList(pane, command.list),
         ],
         PickMergeSideCommand: [
-            (command, pane) => diffService.pickMergeSide(pane, command.elementId, command.scope),
+            (command, pane) =>
+                diffService.pickMergeSide(pane, command.elementId, command.scope, command.side),
         ],
         UnpickMergeCommand: [
             (command, pane) => diffService.unpickMerge(pane, command.elementId, command.scope),

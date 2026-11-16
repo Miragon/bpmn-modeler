@@ -14,6 +14,8 @@ export interface MergePaneStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The partner pane's side holds it; a step only one pane draws takes that pane's viewport to both. */
+    readonly onOtherPane: boolean;
     /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
     readonly plane?: string;
 }
@@ -64,6 +66,8 @@ export interface MergePanePickable {
     readonly container: boolean;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: MergePickScope;
+    /** Set where the other side removed what this pane's side still holds: a pick of the other side leaves it out. */
+    readonly removedByOtherSide?: true;
 }
 
 /** Why a pick was refused, as the merge names it. */
@@ -227,19 +231,28 @@ export class MergeStepListChangedCommand extends Command<"MergeStepListChangedCo
 }
 
 /**
- * Sent from a merge pane when the user keeps an element from the pane's
- * side. The host decides it in the merge and sends both panes their states
- * again.
+ * Sent from a merge pane when the user keeps an element from a side: the
+ * pane's own unless the command names one. The host decides it in the merge
+ * and sends both panes their states again.
  */
 export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
     public readonly elementId: string;
 
     public readonly scope: MergePickScope;
 
-    constructor(elementId: string, scope: MergePickScope) {
+    /**
+     * The side to keep the element from; absent means the sending pane's.
+     * Naming the side lets a pane leave out an element the other side
+     * removed, and lets the pane that lists a shape-less element keep it from
+     * either side.
+     */
+    public readonly side?: MergeSide;
+
+    constructor(elementId: string, scope: MergePickScope, side?: MergeSide) {
         super("PickMergeSideCommand");
         this.elementId = elementId;
         this.scope = scope;
+        if (side !== undefined) this.side = side;
     }
 }
 
