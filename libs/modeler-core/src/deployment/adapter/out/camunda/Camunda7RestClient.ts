@@ -25,6 +25,13 @@ import { MultipartBuilder } from "./MultipartBuilder";
  * {@link EngineInspectionPort} deployment lookup.
  */
 export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPort {
+    private static readonly DEPLOYED_DEFINITION_FIELDS = [
+        "deployedProcessDefinitions",
+        "deployedDecisionDefinitions",
+        "deployedDecisionRequirementsDefinitions",
+        "deployedCaseDefinitions",
+    ];
+
     /**
      * @param httpClient Transport abstraction for HTTP POST requests.
      * @param authResolver Resolves auth configs into concrete HTTP headers.
@@ -94,7 +101,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         try {
             const json = JSON.parse(responseBody);
             deploymentId = json.id !== undefined ? String(json.id) : undefined;
-            definitionCount = countDeployedDefinitions(json);
+            definitionCount = this.countDeployedDefinitions(json);
         } catch {
             // Response was not valid JSON — deploymentId remains undefined.
         }
@@ -107,6 +114,15 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             `Deployment '${config.deploymentName}' succeeded.`,
             deploymentId,
         );
+    }
+
+    /** `undefined` when the answer has none of the fields, as from a gateway in front of the engine. */
+    private countDeployedDefinitions(json: Record<string, unknown>): number | undefined {
+        const fields = Camunda7RestClient.DEPLOYED_DEFINITION_FIELDS.filter(
+            (field) => field in json,
+        );
+        if (fields.length === 0) return undefined;
+        return fields.reduce((count, field) => count + Object.keys(json[field] ?? {}).length, 0);
     }
 
     /**
@@ -254,18 +270,4 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             throw new EngineInspectionFailedError(status, "Response was not valid JSON");
         }
     }
-}
-
-const DEPLOYED_DEFINITION_FIELDS = [
-    "deployedProcessDefinitions",
-    "deployedDecisionDefinitions",
-    "deployedDecisionRequirementsDefinitions",
-    "deployedCaseDefinitions",
-];
-
-/** `undefined` when the answer has none of the fields, as from a gateway in front of the engine. */
-function countDeployedDefinitions(json: Record<string, unknown>): number | undefined {
-    const fields = DEPLOYED_DEFINITION_FIELDS.filter((field) => field in json);
-    if (fields.length === 0) return undefined;
-    return fields.reduce((count, field) => count + Object.keys(json[field] ?? {}).length, 0);
 }
