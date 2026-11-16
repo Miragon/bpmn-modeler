@@ -4,10 +4,10 @@ import type { MergePaneBlock, MergePaneOutcome } from "@miragon/bpmn-modeler-sha
 
 import {
     answersActedDecision,
-    type MergeActedDecision,
     mergeOutcomeCardContent,
     mergeOutcomeLine,
 } from "./mergeOutcomeCard";
+import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeTranslate } from "./mergeTexts";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>

@@ -17,10 +17,10 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
+import type { MergeActedDecision } from "../../domain/mergeActedDecision";
 import { mergeElementLabel } from "../../domain/mergeElementLabel";
 import {
     answersActedDecision,
-    type MergeActedDecision,
     mergeOutcomeCardContent,
     mergeOutcomeLine,
 } from "../../domain/mergeOutcomeCard";

@@ -17,7 +17,7 @@ import type {
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
 
-import type { MergeActedDecision } from "./mergeOutcomeCard";
+import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
