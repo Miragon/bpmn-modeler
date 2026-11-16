@@ -112,6 +112,8 @@ val intellijProgressCases =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijProgress.cases.json")
 val intellijWritableScopes =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijWritableScopes.json")
+val intellijElementXmlDiffCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijElementXmlDiff.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -130,8 +132,9 @@ tasks.test {
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
     // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs,
     // DocumentFlushedReplyParseTest the rows the shared flush reply table runs, and
-    // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
-    // MarketplaceRouterTest the rows and values the bridge's IntelliJ loopbacks answer with. As
+    // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest,
+    // MarketplaceRouterTest and DiffRouterElementXmlDiffTest the rows and values the bridge's
+    // IntelliJ loopbacks answer with. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -160,6 +163,7 @@ tasks.test {
         "intellijScriptTabsCases" to intellijScriptTabsCases,
         "intellijProgressCases" to intellijProgressCases,
         "intellijWritableScopes" to intellijWritableScopes,
+        "intellijElementXmlDiffCases" to intellijElementXmlDiffCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

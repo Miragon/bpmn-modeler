@@ -21,9 +21,18 @@ export interface ElementXmlDiffViewContractFixture {
 const ORDER_DIFF = "element-xml-1";
 const INVOICE_DIFF = "element-xml-2";
 
+/**
+ * The before pane of each diagram diff the scenarios use, by its XML diff's
+ * key, for a host that finds the diagram diff by its pane.
+ */
+export const ELEMENT_XML_DIFF_CONTRACT_PANES: Readonly<Record<string, string>> = {
+    [ORDER_DIFF]: "file:///repo/order.bpmn",
+    [INVOICE_DIFF]: "file:///repo/invoice.bpmn",
+};
+
 const elementDiff = (elementId: string, diffKey = ORDER_DIFF): ElementXmlDiff => ({
     diffKey,
-    paneUri: "file:///repo/order.bpmn",
+    paneUri: ELEMENT_XML_DIFF_CONTRACT_PANES[diffKey],
     elementId,
     title: `${elementId} (XML): order.bpmn (HEAD ↔ Working Tree)`,
     before: `<bpmn:task id="${elementId}" name="old" />`,

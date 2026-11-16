@@ -213,8 +213,10 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   the user's close runs too, so a refresh in flight cannot reopen what the user closed.
   A swap reopens the diagram diff under a new key, so the old key's late frames are
   ignored. The cost: that refresh rule exists twice, in the VS Code view and in Kotlin's
-  `ElementXmlDiffSlot`, held to the same scenarios by `describeElementXmlDiffViewContract`
-  and `ElementXmlDiffSlotTest`.
+  `ElementXmlDiffSlot`, plus a loopback copy in the bridge's contract spec. The loopback
+  runs `describeElementXmlDiffViewContract` and the rows of
+  `intellijElementXmlDiff.cases.json`, which `DiffRouterElementXmlDiffTest` runs against
+  `DiffRouter` and the slot, so a change to the Kotlin rule fails until the rows change.
 - *An editor group, not the panel.* The panel cannot hold a text diff editor, and a
   native diff gives search and inline or side-by-side view for free.
   `workbench.action.newGroupBelow` plus `focusAboveGroup` places it without rewriting
