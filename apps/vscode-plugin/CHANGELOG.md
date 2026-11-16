@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.24.0...vscode-v1.24.1) (2026-11-16)
+
+
+### 🐞 Bug Fixes
+
+* **form-webview:** use numbers for min and max in validation ([#2491](https://github.com/Miragon/bpmn-modeler/issues/2491)) [sync 9a56ef2] ([49c90e5](https://github.com/Miragon/bpmn-modeler/commit/49c90e54d28bd6c97d2083b7884a25e89201c7a2))
+
 ## [1.24.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.23.0...vscode-v1.24.0) (2026-11-14)
 
 
