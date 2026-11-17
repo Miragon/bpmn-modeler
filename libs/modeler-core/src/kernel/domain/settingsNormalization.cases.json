@@ -53,6 +53,11 @@
             "normalized": { "formPreviewAutomatic": true }
         },
         {
+            "name": "keeps IDs following names turned on",
+            "raw": { "elementIdsFollowName": true },
+            "normalized": { "elementIdsFollowName": true }
+        },
+        {
             "name": "reads an empty config folder as the default",
             "raw": { "configFolder": "" },
             "normalized": { "configFolder": ".camunda" }

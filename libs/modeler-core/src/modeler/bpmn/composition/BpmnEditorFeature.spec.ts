@@ -59,6 +59,7 @@ import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
+import { ElementIdReviewParticipant } from "../service/ElementIdReviewParticipant";
 
 const DIAGRAM = "/work/order.bpmn";
 const C7_XML =
@@ -107,6 +108,9 @@ const FULL_HOST_ROUTES: Record<BpmnEditorCommandType, MessageRoute> = {
     UpdateScriptVariablesCommand: HANDLED,
     DiagramFormattedCommand: HANDLED,
     CleanupReportCommand: HANDLED,
+    ElementIdProposalsCommand: HANDLED,
+    ElementIdsAppliedCommand: HANDLED,
+    OpenElementIdReviewCommand: HANDLED,
 };
 
 const OWN_PLUMBING = ignored("the host's own plumbing owns the document");
@@ -292,6 +296,7 @@ describe("BpmnEditorFeature", () => {
             if (participant instanceof BpmnlintParticipant) return "bpmnlint";
             if (participant instanceof BpmnSettingsParticipant) return "settings";
             if (participant instanceof EngineVersionStatusBarParticipant) return "engineVersion";
+            if (participant instanceof ElementIdReviewParticipant) return "elementIdReview";
             return "modelerSession";
         };
 
@@ -306,6 +311,7 @@ describe("BpmnEditorFeature", () => {
             "deploymentStatus",
             "scriptEditor",
             "codeLink",
+            "elementIdReview",
         ]);
     });
 

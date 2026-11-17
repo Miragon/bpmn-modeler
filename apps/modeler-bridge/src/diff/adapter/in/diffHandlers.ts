@@ -2,6 +2,7 @@ import {
     DiffPaneHandle,
     DiffPaneStore,
     DiffSession,
+    ElementXmlDiffService,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 
@@ -11,6 +12,7 @@ import {
     DiffDisposeParams,
     DiffOpenParams,
     DiffWebviewMessageParams,
+    ElementXmlDiffClosedParams,
 } from "../../../protocol/domain/types";
 import { DiffPaneFactory } from "../../port/DiffPaneFactory";
 
@@ -22,15 +24,17 @@ const SESSION_FOR_ORIGIN: Record<
     "compare-files": (before, after) => DiffSession.forCompareFiles(before.uri, after.uri),
 };
 
-/** RPC (Host → Core): diff/open, diff/webviewMessage, diff/dispose. */
+/** RPC (Host → Core): diff/open, diff/webviewMessage, diff/dispose, elementXmlDiff/closed. */
 export function diffHandlers({
     diffStore,
     paneRouter,
+    elementXmlDiffs,
     createPane,
     log,
 }: {
     diffStore: DiffPaneStore;
     paneRouter: WebviewMessageRouter<DiffPaneHandle>;
+    elementXmlDiffs: Pick<ElementXmlDiffService, "closedByUser">;
     createPane: DiffPaneFactory;
     log: (message: string) => void;
 }): RpcHandlerTable {
@@ -84,6 +88,9 @@ export function diffHandlers({
             }
             diffSessions.delete(params.diffId);
             log(`diff disposed: ${params.diffId}`);
+        },
+        [METHODS.elementXmlDiffClosed]: (params: ElementXmlDiffClosedParams) => {
+            elementXmlDiffs.closedByUser(params.diffKey);
         },
     };
 }

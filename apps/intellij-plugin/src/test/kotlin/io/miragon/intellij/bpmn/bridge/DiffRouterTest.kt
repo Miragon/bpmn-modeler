@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.testFramework.junit5.TestApplication
+import io.miragon.intellij.bpmn.ElementXmlDiffSlot
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -41,6 +42,7 @@ class DiffRouterTest {
             afterUri = AFTER_URI,
             afterContent = "<after/>",
             postToAfter = { afterPaneMessages += it },
+            elementXmlDiff = ElementXmlDiffSlot(NoElementXmlDiffPanel) {},
         )
         return wired to router
     }
