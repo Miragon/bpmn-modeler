@@ -11,9 +11,11 @@ export interface IdBeforeChange {
     readonly convention: IdConvention;
 }
 
-// bpmn-js pads a random 32-bit number to seven base-36 digits; requiring one digit
-// keeps hand-written IDs like `Gateway_approve` out, at the price of the rare random ID without one.
-const RANDOM_TOKEN = "(?=[0-9a-z]*\\d)[0-9a-z]{7}";
+// The token window and mix of the bundled `no-generated-ids` rule (`naming.isGeneratedId`),
+// which followName.spec holds this to: bpmn-js writes seven base-36 digits, other tools six to
+// eight. A letter and a digit keep `Gateway_approve` out, at the price of the rare random ID
+// without a digit; a token of digits only is a counter.
+const RANDOM_TOKEN = "(?=[0-9a-z]*[a-z])(?=[0-9a-z]*\\d)[0-9a-z]{6,8}";
 // Diagram templates number their elements: `StartEvent_1`, `Process_1`.
 const COUNTER = "\\d+";
 

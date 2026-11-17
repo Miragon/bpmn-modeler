@@ -14,25 +14,49 @@ const follows = (
     convention: IdConvention = miragon,
 ) => followsChange({ id, oldName, oldElement: moddle.create(oldType), convention });
 
+const RANDOM_IDS: [string, string][] = [
+    ["Activity_0x1y2z3", "bpmn:UserTask"],
+    ["Flow_1m2n3b4", "bpmn:SequenceFlow"],
+    ["SequenceFlow_0h21x7r", "bpmn:SequenceFlow"],
+    ["Gateway_1q2w3e4", "bpmn:ExclusiveGateway"],
+    ["Task_1hcentk", "bpmn:UserTask"],
+    ["Participant_0p1q2r3", "bpmn:Participant"],
+    // The bundled no-generated-ids rule measured a 6 to 8 character window.
+    ["Activity_0a1b2c", "bpmn:Task"],
+    ["Activity_0a1b2c3d", "bpmn:Task"],
+];
+
+const NUMBERED_IDS: [string, string][] = [
+    ["StartEvent_1", "bpmn:StartEvent"],
+    ["Task_12", "bpmn:ServiceTask"],
+    ["Process_1", "bpmn:Process"],
+    ["DataObjectReference_2", "bpmn:DataObjectReference"],
+    ["Activity_1234567", "bpmn:Task"],
+];
+
 describe("followsChange", () => {
-    it.each<[string, string]>([
-        ["Activity_0x1y2z3", "bpmn:UserTask"],
-        ["Flow_1m2n3b4", "bpmn:SequenceFlow"],
-        ["SequenceFlow_0h21x7r", "bpmn:SequenceFlow"],
-        ["Gateway_1q2w3e4", "bpmn:ExclusiveGateway"],
-        ["Task_1hcentk", "bpmn:UserTask"],
-        ["Participant_0p1q2r3", "bpmn:Participant"],
-    ])("follows the random ID %s bpmn-js generated for a %s", (id, oldType) => {
+    it.each(RANDOM_IDS)("follows the random ID %s bpmn-js generated for a %s", (id, oldType) => {
         expect(follows(id, undefined, oldType)).toBe(true);
     });
 
-    it.each<[string, string]>([
-        ["StartEvent_1", "bpmn:StartEvent"],
-        ["Task_12", "bpmn:ServiceTask"],
-        ["Process_1", "bpmn:Process"],
-        ["DataObjectReference_2", "bpmn:DataObjectReference"],
-    ])("follows the numbered placeholder %s on a %s", (id, oldType) => {
+    it.each(NUMBERED_IDS)("follows the numbered placeholder %s on a %s", (id, oldType) => {
         expect(follows(id, "Anything", oldType)).toBe(true);
+    });
+
+    it.each([...RANDOM_IDS, ...NUMBERED_IDS])(
+        "follows %s only because no-generated-ids calls it generated too",
+        (id) => {
+            expect(naming.isGeneratedId(id)).toBe(true);
+        },
+    );
+
+    it.each<[string, string]>([
+        ["Activity_abcdefg", "bpmn:Task"],
+        ["Activity_0a1b2", "bpmn:Task"],
+        ["Activity_0a1b2c3d4", "bpmn:Task"],
+    ])("leaves %s on a %s, a token outside no-generated-ids' window", (id, oldType) => {
+        expect(follows(id, undefined, oldType)).toBe(false);
+        expect(naming.isGeneratedId(id)).toBe(false);
     });
 
     it.each<[string, string]>([
@@ -42,6 +66,8 @@ describe("followsChange", () => {
         ["Flow_12", "bpmn:Task"],
         ["Activity_1", "bpmn:StartEvent"],
     ])("leaves %s on a %s, a number after a prefix bpmn-js never gives it", (id, oldType) => {
+        // no-generated-ids accepts any prefix; renaming needs one bpmn-js gives this type.
+        expect(naming.isGeneratedId(id)).toBe(true);
         expect(follows(id, undefined, oldType)).toBe(false);
     });
 

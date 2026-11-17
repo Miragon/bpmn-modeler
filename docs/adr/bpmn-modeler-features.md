@@ -192,7 +192,10 @@ the designer: names and IDs are engine-neutral.
   `DesignerOptions.elementIdSettings` for a designer a mode switch builds): in the name change's
   `postExecute` and in `shape.replace`'s `postExecuted` below bpmn-js' priority 1500, one undo for
   both. Only an ID that bpmn-js or a template gave the element's kind, or one generated from the old
-  name and type, follows; `Invoice_1` was typed by someone. A process ID is the deployment key, which
+  name and type, follows; `Invoice_1` was typed by someone. The random token is the bundled
+  `no-generated-ids` rule's (six to eight characters, a letter and a digit), so nothing follows that the
+  rule calls deliberate; the rule accepts any prefix and flags `Invoice_1`, which only the user renames,
+  since its prefix is no kind's. A process ID is the deployment key, which
   the rule leaves out for the same reason: it never follows and starts unchecked in a review.
 
 IDs in other files do not follow (call activities, a Camunda 8 process ID, tests, workers), and an open
