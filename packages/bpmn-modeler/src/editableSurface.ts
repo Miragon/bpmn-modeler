@@ -7,7 +7,6 @@ import {
     type Layouter,
 } from "@miragon/bpmn-modeler-layout";
 import {
-    type BpmnModelerSetting,
     type CleanupOutcome,
     type Disposer,
     type ElementIdProposals,
@@ -134,13 +133,6 @@ export function renameSurfaceElementIds(
 
 export function applyElementIdSettings(surface: SurfaceServices, options: ElementIdOptions): void {
     surface.optionalService<ElementIdsService>("elementIds")?.configure(options);
-}
-
-/** The element ID option among the modeler settings, as the element ID module takes it. */
-export function elementIdSettingsOf(settings: Partial<BpmnModelerSetting>): ElementIdOptions {
-    return settings.elementIdsFollowName === undefined
-        ? {}
-        : { followName: settings.elementIdsFollowName };
 }
 
 export function createSurfaceLintHandle(

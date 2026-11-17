@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    elementIdSettingsOf,
     EVENT_DEFINITION_QUALIFIER_MODES,
     type EventDefinitionQualifierMode,
     isChangingStatus,
@@ -26,5 +27,16 @@ describe("isChangingStatus", () => {
         expect(
             (["rename", "unchecked", "matches", "skipped"] as const).map(isChangingStatus),
         ).toEqual([true, true, false, false]);
+    });
+});
+
+describe("elementIdSettingsOf", () => {
+    it.each([
+        { name: "on", settings: { elementIdsFollowName: true }, expected: { followName: true } },
+        { name: "off", settings: { elementIdsFollowName: false }, expected: { followName: false } },
+        { name: "absent", settings: { colorTheme: "light" as const }, expected: {} },
+        { name: "no settings", settings: undefined, expected: {} },
+    ])("takes follow-name when it is $name", ({ settings, expected }) => {
+        expect(elementIdSettingsOf(settings)).toStrictEqual(expected);
     });
 });

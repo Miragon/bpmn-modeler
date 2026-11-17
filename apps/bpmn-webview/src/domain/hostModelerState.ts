@@ -1,8 +1,9 @@
-import type {
-    BpmnModelerSetting,
-    ElementIdConventionOptions,
-    ElementIdSettings,
-    OpenScriptEditorRef,
+import {
+    type BpmnModelerSetting,
+    type ElementIdConventionOptions,
+    type ElementIdSettings,
+    elementIdSettingsOf,
+    type OpenScriptEditorRef,
 } from "@miragon/bpmn-modeler-types";
 
 interface SettingsTarget {
@@ -16,12 +17,6 @@ interface DesignerSettingsTarget {
 
 interface OpenScriptEditorsTarget {
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void;
-}
-
-export function elementIdSettingsOf(
-    settings: BpmnModelerSetting | undefined,
-): Partial<ElementIdSettings> {
-    return { followName: settings?.elementIdsFollowName };
 }
 
 /** Of the host settings, the designer honours the favourites and the element ID settings. */

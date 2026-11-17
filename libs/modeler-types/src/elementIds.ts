@@ -1,3 +1,5 @@
+import type { BpmnModelerSetting } from "./settings";
+
 /** Whether an event's ID names its event definition, such as `messageStartEvent_orderReceived`. */
 export type EventDefinitionQualifierMode = "off" | "optional" | "required";
 
@@ -28,6 +30,15 @@ export const DEFAULT_ELEMENT_IDS_FOLLOW_NAME = false;
 export interface ElementIdSettings {
     /** Rename an ID that is still random or generated whenever its element's name or type changes. */
     readonly followName: boolean;
+}
+
+/** The element ID option among the modeler settings, as a surface takes it; a setting left out keeps its value. */
+export function elementIdSettingsOf(
+    settings: Partial<BpmnModelerSetting> | undefined,
+): Partial<ElementIdSettings> {
+    return settings?.elementIdsFollowName === undefined
+        ? {}
+        : { followName: settings.elementIdsFollowName };
 }
 
 /** The kinds the review groups IDs by. */

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { elementIdSettingsOf, HostModelerState } from "./hostModelerState";
+import { HostModelerState } from "./hostModelerState";
 
 const settings = (alignToOrigin: boolean) => ({
     alignToOrigin,
@@ -93,19 +93,7 @@ describe("HostModelerState", () => {
         state.applyDesignerSettingsPushedSince(builtWith, designer);
 
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
-        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
-            followName: undefined,
-        });
-    });
-
-    it("reads a designer's element ID settings from the host settings", () => {
-        expect(
-            elementIdSettingsOf({
-                ...settings(true),
-                elementIdsFollowName: false,
-            }),
-        ).toEqual({ followName: false });
-        expect(elementIdSettingsOf(undefined)).toEqual({ followName: undefined });
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({});
     });
 
     it("keeps the lint rule options the host sent last for surfaces built later", () => {

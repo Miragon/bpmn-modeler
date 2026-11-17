@@ -6,10 +6,10 @@ import type {
 } from "@miragon/bpmn-modeler";
 import type { SurfaceFactories } from "@miragon/bpmn-modeler/mode";
 import { LogWarningCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
-import type { ElementIdConventionOptions } from "@miragon/bpmn-modeler-types";
+import { type ElementIdConventionOptions, elementIdSettingsOf } from "@miragon/bpmn-modeler-types";
 
 import { elementTemplateRejectionReport } from "../../domain/elementTemplateRejectionReport";
-import { elementIdSettingsOf, type HostModelerState } from "../../domain/hostModelerState";
+import type { HostModelerState } from "../../domain/hostModelerState";
 import { loadElementIdConvention } from "./elementIdConvention";
 import { loadDesignerModule, loadModelerModule, loadViewerModule } from "./surfaceModules";
 import type { HostChannel } from "../../port/hostChannel";
