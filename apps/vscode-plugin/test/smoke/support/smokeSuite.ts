@@ -139,6 +139,8 @@ export function smokeSuite(options: SmokeSuiteOptions): SmokeSuite {
             colorTheme: options.colorTheme ?? DEFAULT_COLOR_THEME,
             timeoutMs: TIMEOUT_MS,
         });
+        // VS Code reopens the editors the folder's last window held, unsaved changes included.
+        await session.resetWorkbench();
         needsNewWindow = false;
         isFreshWindow = true;
     }
