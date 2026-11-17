@@ -94,6 +94,24 @@ describe("createHostElementIdReview", () => {
         expect(posted).toHaveLength(2);
     });
 
+    it("keeps listing when the rename fails, so the review stays current", () => {
+        const { posted, editable, review } = setUp();
+        review.handlers.ElementIdProposalsQuery(new ElementIdProposalsQuery(null));
+        editable.renameElementIds.mockImplementationOnce(() => {
+            throw new Error("Element with id Activity_2 already exists");
+        });
+
+        expect(() =>
+            review.handlers.ApplyElementIdsQuery(new ApplyElementIdsQuery(["Process_1"])),
+        ).toThrow("already exists");
+        review.refresh();
+
+        expect(posted).toEqual([
+            new ElementIdProposalsCommand("listed", [row], ["Process_1"]),
+            new ElementIdProposalsCommand("listed", [row], ["Process_1"]),
+        ]);
+    });
+
     it("stops listing once the host closes the review", () => {
         const { posted, review } = setUp();
         review.handlers.ElementIdProposalsQuery(new ElementIdProposalsQuery(null));
