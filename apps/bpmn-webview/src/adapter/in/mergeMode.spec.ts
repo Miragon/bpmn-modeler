@@ -75,7 +75,46 @@ const fakes = vi.hoisted(() => {
         provider: { refresh: vi.fn() },
     };
     const names = { nameOf: (id: string) => ({ Task_Pack: "Pack parcel" })[id] ?? id };
-    return { FakeDiffViewer, FakeDiffSideLabel, marks, elementXmlChanges, pickPad, names };
+
+    interface CardContent {
+        elementId: string;
+        headline: string;
+        reasons: readonly string[];
+        blockers: readonly string[];
+        offer?: { elementId: string; text: string };
+    }
+    interface CardActions {
+        onSelect(id: string): void;
+        onKeepRemovedFlows(id: string): void;
+        closeLabel: string;
+    }
+    /** The card shows only at an element the pane's canvas draws, as the real one. */
+    class FakeOutcomeCard {
+        shownAt: string | undefined;
+        lastActions: CardActions | undefined;
+        show = vi.fn(
+            (content: CardContent, actions: CardActions, _options: { announce: boolean }) => {
+                this.lastActions = actions;
+                const drawn = FakeDiffViewer.last.drawn.has(content.elementId);
+                this.shownAt = drawn ? content.elementId : undefined;
+                return drawn;
+            },
+        );
+        close = vi.fn(() => {
+            this.shownAt = undefined;
+        });
+        remark = vi.fn();
+    }
+    const outcomeCard = { current: new FakeOutcomeCard(), FakeOutcomeCard };
+    return {
+        FakeDiffViewer,
+        FakeDiffSideLabel,
+        marks,
+        elementXmlChanges,
+        pickPad,
+        names,
+        outcomeCard,
+    };
 });
 
 vi.mock("@miragon/bpmn-modeler/viewer", () => ({
@@ -105,6 +144,14 @@ vi.mock("./mergeElementNames", () => ({
     },
 }));
 
+vi.mock("./mergeOutcomeCard", () => ({
+    createMergeOutcomeCardModule: (config: { attach(card: unknown): void }) => {
+        fakes.outcomeCard.current = new fakes.outcomeCard.FakeOutcomeCard();
+        config.attach(fakes.outcomeCard.current);
+        return { mergeOutcomeCard: ["value", fakes.outcomeCard.current] };
+    },
+}));
+
 vi.mock("./mergeMarks", () => ({
     createMergeMarksModule: (config: { attach(marks: typeof fakes.marks): void }) => {
         config.attach(fakes.marks);
@@ -116,6 +163,7 @@ import type { MergeStepList } from "../../domain/mergeStepper";
 import { MergeMode } from "./mergeMode";
 
 const viewer = () => fakes.FakeDiffViewer.last;
+const card = () => fakes.outcomeCard.current;
 
 const step = (
     id: string,
@@ -855,52 +903,6 @@ describe("MergeMode", () => {
             ]);
         });
 
-        it("shows what the last pick did and selects an element it names", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    lastOutcome: {
-                        applied: true,
-                        action: "pick",
-                        elementId: "Flow_1",
-                        pulledIn: ["Task_Pack"],
-                        dropped: [],
-                        reopened: ["Task_Check"],
-                    },
-                }),
-            );
-
-            expect(legendText()).toContain("Kept Flow_1");
-            expect(legendText()).toContain("Pulled in:");
-            expect(legendText()).toContain("Open again:");
-            legendButton("Pack parcel").click();
-
-            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
-        });
-
-        it("names the element that blocks a pick and why", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    lastOutcome: {
-                        applied: false,
-                        action: "pick",
-                        elementId: "Task_Check",
-                        blockedBy: [
-                            {
-                                elementId: "Task_Pack",
-                                targetId: "Task_Check",
-                                obstacle: "dependentPicked",
-                            },
-                        ],
-                    },
-                }),
-            );
-
-            expect(legendText()).toContain("Cannot keep Task_Check");
-            expect(legendText()).toContain("Pack parcel, which you picked, needs Task_Check");
-        });
-
         it("refreshes an open pick pad with every state, so its entries follow the host", async () => {
             await startMergePane();
             fakes.pickPad.provider.refresh.mockClear();
@@ -970,14 +972,14 @@ describe("MergeMode", () => {
             expect(document.activeElement?.textContent).toBe("Took back the pick of Task_Gone");
         });
 
-        it("keeps what the last pick did in place while the stepper moves, so it is announced once", async () => {
+        it("keeps what the last pick of a shape-less element did in place while the stepper moves, so it is announced once", async () => {
             await startMergePane();
             dispatch(
                 mergeStates({
                     lastOutcome: {
                         applied: true,
                         action: "pick",
-                        elementId: "Task_Pack",
+                        elementId: "Process_1",
                         pulledIn: [],
                         dropped: [],
                         reopened: [],
@@ -990,15 +992,16 @@ describe("MergeMode", () => {
             next();
             next();
 
+            expect(legendText()).toContain("Kept Process_1");
             expect(status.firstElementChild).toBe(shown);
         });
 
-        it("offers to keep the flows removed with a kept element in one step", async () => {
+        it("offers in the legend to keep the flows removed with a shape-less element", async () => {
             await startMergePane();
             dispatch(
                 mergeStates({
                     restoreOffer: {
-                        elementId: "Task_Pack",
+                        elementId: "Process_1",
                         connections: ["Flow_2", "Flow_3"],
                         removedBy: "incoming",
                     },
@@ -1010,10 +1013,208 @@ describe("MergeMode", () => {
             expect(picksPosted()).toEqual([
                 expect.objectContaining({
                     type: "PickMergeSideCommand",
-                    elementId: "Task_Pack",
+                    elementId: "Process_1",
                     scope: "withConnections",
                 }),
             ]);
+        });
+    });
+
+    describe("the outcome card", () => {
+        const keepPack = {
+            applied: true,
+            action: "pick",
+            elementId: "Task_Pack",
+            pulledIn: ["Flow_1"],
+            dropped: [],
+            reopened: [],
+        } as const;
+        const pad = () => fakes.pickPad.config!;
+        const shown = () =>
+            card().show.mock.calls.map(([content, , options]) => ({
+                elementId: content.elementId,
+                headline: content.headline,
+                announce: options.announce,
+            }));
+
+        /** Keeps Task_Pack from this pane's side on its pad, and lets the host answer with `outcome`. */
+        async function keepPackOnPad(outcome: MergePaneStates["lastOutcome"] = keepPack) {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+            pad().decide("Task_Pack", { kind: "keep", scope: "element", side: "current" });
+            dispatch(mergeStates({ lastOutcome: outcome }));
+        }
+
+        it("shows what a pad decision did below its element, naming the side it kept, announced once", async () => {
+            await keepPackOnPad();
+
+            expect(shown()).toEqual([
+                {
+                    elementId: "Task_Pack",
+                    headline: "Kept from current: Pack parcel",
+                    announce: true,
+                },
+            ]);
+        });
+
+        it("shows no card on the pane that did not send the decision, and no outcome in its legend", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            const legendBefore = legendText();
+
+            dispatch(mergeStates({ lastOutcome: keepPack }));
+
+            expect(card().show).not.toHaveBeenCalled();
+            expect(legendText()).toBe(legendBefore);
+        });
+
+        it("says in the card, not the legend, why a decision was refused", async () => {
+            await keepPackOnPad({
+                applied: false,
+                action: "pick",
+                elementId: "Task_Pack",
+                blockedBy: [
+                    { elementId: "Task_Check", targetId: "Task_Pack", obstacle: "dependentPicked" },
+                ],
+            });
+
+            const [content] = card().show.mock.lastCall!;
+            expect(content.headline).toBe("Can't keep Pack parcel");
+            expect(content.reasons).toEqual(["Your pick of Task_Check needs it"]);
+            expect(content.blockers).toEqual(["Task_Check"]);
+            expect(legendText()).not.toContain("Pack parcel");
+        });
+
+        it("marks the blockers again after every repaint while it shows", async () => {
+            await keepPackOnPad();
+            card().remark.mockClear();
+            card().close.mockClear();
+
+            dispatch(mergeStates({ lastOutcome: keepPack }));
+
+            expect(card().remark).toHaveBeenCalledOnce();
+            expect(card().close).not.toHaveBeenCalled();
+        });
+
+        it("closes on the next step and shows again, unannounced, when its element is stepped to again", async () => {
+            await keepPackOnPad();
+
+            next();
+            expect(card().close).toHaveBeenCalled();
+            expect(card().shownAt).toBeUndefined();
+
+            previous();
+            expect(shown().at(-1)).toEqual({
+                elementId: "Task_Pack",
+                headline: "Kept from current: Pack parcel",
+                announce: false,
+            });
+        });
+
+        it("closes on the selection of another element or none, and shows again when its element is clicked again", async () => {
+            await keepPackOnPad();
+
+            viewer().userSelects(undefined);
+            expect(card().shownAt).toBeUndefined();
+
+            viewer().userSelects("Task_Pack");
+            expect(card().shownAt).toBe("Task_Pack");
+            expect(shown().at(-1)?.announce).toBe(false);
+
+            viewer().userSelects("Task_Check");
+            expect(card().shownAt).toBeUndefined();
+        });
+
+        it("closes on the partner's newer outcome and does not show this pane's again", async () => {
+            await keepPackOnPad();
+
+            dispatch(mergeStates({ lastOutcome: { ...keepPack, elementId: "Task_Check" } }));
+            viewer().userSelects("Task_Check");
+            viewer().userSelects("Task_Pack");
+
+            expect(card().close).toHaveBeenCalled();
+            expect(card().show).toHaveBeenCalledOnce();
+        });
+
+        it("stays open when a link on it steps to another element", async () => {
+            await keepPackOnPad();
+            card().close.mockClear();
+
+            card().lastActions!.onSelect("Task_Check");
+
+            expect(cursorsPosted().at(-1)).toBe(0);
+            expect(card().close).not.toHaveBeenCalled();
+        });
+
+        it("offers the flows the other side removed while the host offers them, and keeps them with the element", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+            pad().decide("Task_Pack", { kind: "keep", scope: "element", side: "current" });
+            dispatch(
+                mergeStates({
+                    lastOutcome: keepPack,
+                    restoreOffer: {
+                        elementId: "Task_Pack",
+                        connections: ["Flow_2", "Flow_3"],
+                        removedBy: "incoming",
+                    },
+                }),
+            );
+
+            const [content, actions] = card().show.mock.lastCall!;
+            expect(content.offer?.text).toBe("Also keep the 2 flows incoming removed with it");
+            expect(legendText()).not.toContain("Also keep");
+            host.postMessage.mockClear();
+            actions.onKeepRemovedFlows("Task_Pack");
+
+            expect(posted()).toEqual([
+                expect.objectContaining({
+                    type: "PickMergeSideCommand",
+                    elementId: "Task_Pack",
+                    scope: "withConnections",
+                    side: "current",
+                }),
+            ]);
+        });
+
+        it("shows no card for a legend decision on a shape-less step whose root the canvas holds, and closes the one it showed", async () => {
+            await keepPackOnPad();
+            // bpmn-js registers a plane's root under its process's id.
+            viewer().drawn.add("Process_1");
+            previous();
+            legendButton("Keep current").click();
+            card().close.mockClear();
+
+            dispatch(
+                mergeStates({
+                    lastOutcome: { ...keepPack, elementId: "Process_1", pulledIn: [] },
+                }),
+            );
+
+            expect(card().show).toHaveBeenCalledOnce();
+            expect(card().close).toHaveBeenCalled();
+            expect(legendText()).toContain("Kept Process_1");
+        });
+
+        it("names the side that lacks what a leave-out left out", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+            pad().decide("Task_Pack", {
+                kind: "leaveOut",
+                side: "incoming",
+                otherSideLacks: "missing",
+            });
+
+            dispatch(
+                mergeStates({ lastOutcome: { ...keepPack, action: "leaveOut", pulledIn: [] } }),
+            );
+
+            expect(shown().at(-1)?.headline).toBe(
+                "Left out: Pack parcel, as incoming doesn't have it",
+            );
         });
     });
 

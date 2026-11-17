@@ -17,6 +17,7 @@ import type {
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
 
+import type { MergeActedDecision, MergeOtherSideLacks } from "./mergeActedDecision";
 import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
@@ -298,6 +299,155 @@ export function outcomeHeadline(
     return translate(outcome.applied ? headlines.applied : headlines.refused, {
         element: nameOf(outcome.elementId),
     });
+}
+
+// The outcome card's words, English only until the translations follow; the catalogs fall back to the key.
+const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
+    element: {
+        current: "Kept from current: {element}",
+        incoming: "Kept from incoming: {element}",
+    },
+    withContents: {
+        current: "Kept from current with everything inside: {element}",
+        incoming: "Kept from incoming with everything inside: {element}",
+    },
+    withConnections: {
+        current: "Kept from current with its flows: {element}",
+        incoming: "Kept from incoming with its flows: {element}",
+    },
+};
+
+const LEFT_OUT_HEADLINES: Record<MergeSide, Record<MergeOtherSideLacks, string>> = {
+    current: {
+        removed: "Left out: {element}, as current removed it",
+        missing: "Left out: {element}, as current doesn't have it",
+    },
+    incoming: {
+        removed: "Left out: {element}, as incoming removed it",
+        missing: "Left out: {element}, as incoming doesn't have it",
+    },
+};
+
+const REOPENED_HEADLINE = "Took back the pick. {element} is an open conflict again.";
+
+const REFUSED_CARD_HEADLINES: Record<MergePaneAction, string> = {
+    pick: "Can't keep {element}",
+    leaveOut: "Can't leave out {element}",
+    unpick: "Can't take back the pick of {element}",
+};
+
+const UNBLOCKED_TEXTS: Record<MergePaneAction, string> = {
+    pick: "Nothing blocks keeping {element} now",
+    leaveOut: "Nothing blocks leaving out {element} now",
+    unpick: "Nothing blocks taking back the pick of {element} now",
+};
+
+/** A refusal's reason on the card, about an element other than the one the card is at. */
+const CARD_OBSTACLE_TEXTS: Record<MergeObstacleKind, string> = {
+    targetInNoVersion: "{element} needs {target}; no version has it",
+    targetPickedWithout: "{element} needs {target}; your pick takes a side without it",
+    targetDroppedByThisPick: "{element} needs {target}; this pick drops it",
+    targetTakenByThisPickWithoutPart: "{element} needs a part of {target} this pick leaves out",
+    sideLacksTarget: "{element} needs {target}; this side lacks it",
+    targetNotInResult: "{element} needs {target}; the result leaves it out",
+    targetTakenWithoutPart: "{element} needs a part of {target} the kept version lacks",
+    dependentPicked: "Your pick of {element} needs {target}",
+    dependentPulledInByThisPick: "This pick brings in {element}, which needs {target}",
+    idHeldByAnother: "{element} and {target} hold the same ID",
+    processInAnotherCollaboration: "{element} and {target} have a pool of the same process",
+};
+
+const CARD_MISSING_PART_TEXTS: Record<MergeObstacleWithMissing, string> = {
+    targetPickedWithout: "{element} needs a part of {target}; your pick takes a side without it",
+    sideLacksTarget: "{element} needs a part of {target}; this side lacks it",
+};
+
+/** The same reasons where the target is the element the card is at, which its headline names. */
+const CARD_OBSTACLE_ON_IT_TEXTS: Record<MergeObstacleKind, string> = {
+    targetInNoVersion: "{element} needs it; no version has it",
+    targetPickedWithout: "{element} needs it; your pick takes a side without it",
+    targetDroppedByThisPick: "{element} needs it",
+    targetTakenByThisPickWithoutPart: "{element} needs a part of it this pick leaves out",
+    sideLacksTarget: "{element} needs it; this side lacks it",
+    targetNotInResult: "{element} needs it",
+    targetTakenWithoutPart: "{element} needs a part of it the kept version lacks",
+    dependentPicked: "Your pick of {element} needs it",
+    dependentPulledInByThisPick: "This pick brings in {element}, which needs it",
+    idHeldByAnother: "{element} holds the same ID",
+    processInAnotherCollaboration: "{element} has a pool of the same process",
+};
+
+const CARD_MISSING_PART_ON_IT_TEXTS: Record<MergeObstacleWithMissing, string> = {
+    targetPickedWithout: "{element} needs a part of it; your pick takes a side without it",
+    sideLacksTarget: "{element} needs a part of it; this side lacks it",
+};
+
+/** The outcome card's own controls. */
+export const MERGE_CARD_TEXTS = {
+    close: "Close",
+} as const;
+
+/**
+ * What a decision the pane sent did, as the card's headline: the side a
+ * pick kept and how far, the side that lacks what a leave-out left out and
+ * why, whether an undo opened the conflict again, or, refused, what could
+ * not be done.
+ */
+export function outcomeCardHeadline(
+    outcome: MergePaneOutcome,
+    acted: MergeActedDecision,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const element = { element: nameOf(outcome.elementId) };
+    if (!outcome.applied) return translate(REFUSED_CARD_HEADLINES[outcome.action], element);
+    switch (acted.kind) {
+        case "keep":
+            return translate(KEPT_HEADLINES[acted.scope][acted.side], element);
+        case "leaveOut":
+            return translate(LEFT_OUT_HEADLINES[acted.side][acted.otherSideLacks], element);
+        case "undo":
+            return outcome.reopened.includes(outcome.elementId)
+                ? translate(REOPENED_HEADLINE, element)
+                : outcomeHeadline(outcome, nameOf, translate);
+    }
+}
+
+/** One reason on the card, which says "it" for the element its headline names. */
+export function cardBlockText(
+    block: MergePaneBlock,
+    cardElementId: string,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const onIt = block.targetId === cardElementId;
+    const missingPart = "missing" in block && block.missing === "part";
+    const template = missingPart
+        ? (onIt ? CARD_MISSING_PART_ON_IT_TEXTS : CARD_MISSING_PART_TEXTS)[block.obstacle]
+        : (onIt ? CARD_OBSTACLE_ON_IT_TEXTS : CARD_OBSTACLE_TEXTS)[block.obstacle];
+    return translate(template, {
+        element: nameOf(block.elementId),
+        target: nameOf(block.targetId),
+    });
+}
+
+/** The card's count of the reasons it does not list. */
+export function moreReasonsText(count: number, translate: MergeTranslate): string {
+    return translate("and {count} more", { count: String(count) });
+}
+
+/** What an undo lifted: the refused decision of `elementId` is free to go now. */
+export function unblockedText(
+    action: MergePaneAction,
+    name: string,
+    translate: MergeTranslate,
+): string {
+    return translate(UNBLOCKED_TEXTS[action], { element: name });
+}
+
+/** An unnamed flow, named by its ends. */
+export function flowNameText(source: string, target: string, translate: MergeTranslate): string {
+    return translate("Flow from {source} to {target}", { source, target });
 }
 
 /** The build part of the merge legend, and the notes list's name. */

@@ -211,17 +211,25 @@ pane badges only ids its registry holds, and a pick it cannot draw (removed on i
 shape-less) is listed under "Your picks" with its undo. Consequences get a dotted outline and
 no badge; automatic resolutions keep only their marker.
 
-**The last outcome travels with the state.** The core keeps what the last pick or undo did per
-merge view: what it pulled in, dropped and opened again (the open conflicts before and after,
-since the merge names only what it newly decided), or why it was refused, as the merge's
-obstacle kind with the two elements and whether the whole target or a part of it is missing.
-The core sends the names of the elements the legend names (the picks it lists and the last
-outcome's), as the side the merge takes each from names it, so both panes name an element alike
-and a pane names one it does not draw; the webview falls back to its canvas, then to the id.
-The status line is rebuilt only when the outcome changes, so a step does not announce it
-again. Keeping an element the other side removed offers its flows on the pane of the kept side;
-accepting is one `pickWithConnections`, so a reload shows the offer again and declining leaves
-the build's `restoredWithoutConnections` note. Undo of such a pick takes the flows back with it.
+**The last outcome travels with the state; the acting pane shows it on a card.** The core keeps
+what the last pick or undo did per merge view: what it pulled in, dropped and opened again (the
+open conflicts before and after, since the merge names only what it newly decided), or why it
+was refused, as the merge's obstacle kind with the two elements and whether the whole target or
+a part is missing. It names the elements the legend lists and the outcome names as the side the
+merge takes each from names them; the webview falls back to its canvas, where an unnamed flow
+reads "Flow from A to B" (`mergeElementLabel`), then to the id. The pane that sent a decision
+remembers its side, which the outcome lacks (`mergeOutcomeMemory`), and shows the answer as a
+card below the element, its label, its boundary events and the pad; a flow's goes below its
+label or middle, away from the pad (`mergeOutcomeCardPlace`). It closes on the next step,
+another selection, × or the partner's newer decision, told by the outcome with the picks, as the
+outcome names no side; it shows again on reselection and announces each outcome once, through
+live regions that exist before their text. The partner shows none; a shape-less element's
+outcome stays in the legend. Rejected: the outcome in the header, far from the element and
+uneven in height; the acting pane in `lastOutcome`; a scored placement, which jumped from pick
+to pick. Cost: a reload or a tab switch loses the card; the badge and the pad's restore offer
+stay, as the core projects them. Keeping an element the other side removed offers its flows on
+the kept side's pane, on the card and the pad; accepting is one `pickWithConnections`, declining
+leaves the build's `restoredWithoutConnections` note, and Undo takes the flows back too.
 
 ### Building
 
@@ -300,7 +308,7 @@ conflict-marker participant.
   the reload, the reopening and both panes' markers, through the DOM only.
 - `MergeDecisionService.spec.ts` covers picks, the side a pick names, Undo, a refused pick and
   the restore offer on fake panes; the smoke test's `pick` steps decide on the pad a step or a
-  click opens.
+  click opens and read the outcome card on the acting pane only.
 - `MergeBuildService.spec.ts` covers building, overwriting and comparing on fake ports;
   `test/e2e` builds on 1.76.0 and stable and checks the index and that no diff pane holds the
   built file; the smoke test's `build` steps build, compare, reload and let Git continue.
