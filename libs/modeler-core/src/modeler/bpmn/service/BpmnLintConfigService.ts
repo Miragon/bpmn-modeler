@@ -13,10 +13,12 @@ import { NotifierPort, SettingsPort, StatusBarPort } from "../../../kernel/port/
 import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
+import { ElementIdConventionService } from "./ElementIdConventionService";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
 import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import {
     LintAction,
+    LintConfigVersion,
     LintDropReason,
     LintFindings,
     LintSession,
@@ -66,11 +68,15 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  * allowed asks about it afterwards, so the results never wait on the user. A
  * change of the approvals, whoever made it, lints again the editors
  * `editorsToRelint` in the domain names.
+ *
+ * The same config run hands its one read of the config to
+ * {@link ElementIdConventionService}, which names generated IDs after it.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
     private readonly rulePackageFollowUp: RulePackageFollowUp;
+    private readonly elementIdConvention: ElementIdConventionService;
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -92,6 +98,11 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             () => this.hostLintedEditors(),
             rulePackages,
         );
+        this.elementIdConvention = new ElementIdConventionService(
+            editorStore,
+            lintRunner,
+            notifier,
+        );
     }
 
     /** Resolves once every rule package question raised so far is answered and its relints ran. */
@@ -105,8 +116,21 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     /** Re-evaluates the lint tier for the document and drives it. */
-    setBpmnlintConfig(editorId: string): Promise<boolean> {
-        return this.lintAndPush(editorId);
+    async setBpmnlintConfig(editorId: string): Promise<boolean> {
+        // Discovery reads the document path, which fails for a closed editor.
+        if (!this.editorStore.hasEditor(editorId)) return false;
+        const nearestConfig = this.readNearestConfig(editorId);
+        const [pushed] = await Promise.all([
+            this.lintAndPush(editorId, nearestConfig),
+            this.elementIdConvention.push(editorId, nearestConfig),
+        ]);
+        return pushed;
+    }
+
+    /** A webview asks on every load, so a reloaded one gets the convention again even when it is unchanged. */
+    answerLintConfigRequest(editorId: string): Promise<boolean> {
+        this.elementIdConvention.forgetSent(editorId);
+        return this.setBpmnlintConfig(editorId);
     }
 
     lintsInPage(editorId: string): boolean {
@@ -118,6 +142,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
+        this.elementIdConvention.release(editorId);
         this.rulePackageFollowUp.release(editorId);
     }
 
@@ -143,9 +168,15 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             .map(([editorId]) => editorId);
     }
 
-    private async lintAndPush(editorId: string): Promise<boolean> {
-        // Discovery reads the document path, which fails for a closed editor.
-        if (!this.editorStore.hasEditor(editorId)) return false;
+    /** Async, so a closed editor's path read rejects instead of throwing. */
+    private async readNearestConfig(editorId: string): Promise<LintConfigVersion | undefined> {
+        return this.locator.readNearestConfig(posix.dirname(this.documents.getFilePath(editorId)));
+    }
+
+    private async lintAndPush(
+        editorId: string,
+        nearestConfig: Promise<LintConfigVersion | undefined>,
+    ): Promise<boolean> {
         // Registered first, so turning linting off also supersedes a run in flight.
         const run = Symbol(editorId);
         this.latestRuns.set(editorId, run);
@@ -154,19 +185,14 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         }
 
         try {
-            const dir = posix.dirname(this.documents.getFilePath(editorId));
-            const configPath = await this.locator.findNearestConfig(dir);
+            const version = await nearestConfig;
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            if (!configPath) {
+            if (!version) {
                 return this.dispatch(editorId, { type: "noConfigFound" });
             }
-
-            const rawConfig = await this.locator.readConfig(configPath);
-            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            const config = JSON.parse(rawConfig) as BpmnlintConfig;
             return this.dispatch(editorId, {
                 type: "configRead",
-                version: { configPath, rawConfig, config },
+                version,
                 freshToken: this.mintToken(),
             });
         } catch (error) {

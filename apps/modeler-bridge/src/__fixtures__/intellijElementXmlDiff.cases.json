@@ -1,0 +1,436 @@
+{
+    "$comment": "Element XML diff frames the core sends, the user's closes, and what each IntelliJ diagram diff then shows. RpcElementXmlDiffView.contract.spec.ts runs these rows against its loopback host, DiffRouterElementXmlDiffTest against DiffRouter and ElementXmlDiffSlot.",
+    "diagramDiffs": {
+        "d1": ["file:///ws/order.bpmn#d1-before", "file:///ws/order.bpmn#d1-after"],
+        "d2": ["file:///ws/invoice.bpmn#d2-before", "file:///ws/invoice.bpmn#d2-after"]
+    },
+    "cases": [
+        {
+            "name": "a show opens the XML diff in the diagram diff whose pane it names",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-2",
+                            "paneUri": "file:///ws/invoice.bpmn#d2-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": {
+                    "title": "Task_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                }
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a show or a refresh replaces what the open XML diff shows",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Event_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Event_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Event_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": {
+                    "title": "Event_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Event_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Event_1\" name=\"new\" />"
+                },
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "of two refreshes the later one stays",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Event_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Event_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Event_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": {
+                    "title": "Event_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Event_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Event_1\" name=\"new\" />"
+                },
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a refresh opens nothing while no XML diff is open",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a refresh opens nothing after the user closed the XML diff",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "userCloses": "d1"
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": null
+            },
+            "closedByUser": ["element-xml-1"]
+        },
+        {
+            "name": "a show opens the XML diff again after the user closed it",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "userCloses": "d1"
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": {
+                    "title": "Gateway_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                },
+                "d2": null
+            },
+            "closedByUser": ["element-xml-1"]
+        },
+        {
+            "name": "a refresh and a close of a key the diagram diff no longer shows are ignored",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-2",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/close",
+                        "params": {
+                            "diffKey": "element-xml-1"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": {
+                    "title": "Task_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                },
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a close closes its XML diff and leaves another diagram diff's open",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-2",
+                            "paneUri": "file:///ws/invoice.bpmn#d2-before",
+                            "title": "Invoice_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Invoice_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Invoice_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/close",
+                        "params": {
+                            "diffKey": "element-xml-1"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": {
+                    "title": "Invoice_1 (XML): order.bpmn",
+                    "before": "<bpmn:task id=\"Invoice_1\" name=\"old\" />",
+                    "after": "<bpmn:task id=\"Invoice_1\" name=\"new\" />"
+                }
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a close of a key no diagram diff shows closes nothing",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/close",
+                        "params": {
+                            "diffKey": "element-xml-1"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "the core's own replacements and close report no close by the user",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/refresh",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Gateway_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Gateway_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Gateway_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/order.bpmn#d1-before",
+                            "title": "Event_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Event_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Event_1\" name=\"new\" />"
+                        }
+                    }
+                },
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/close",
+                        "params": {
+                            "diffKey": "element-xml-1"
+                        }
+                    }
+                },
+                {
+                    "userCloses": "d1"
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": null
+            },
+            "closedByUser": []
+        },
+        {
+            "name": "a frame naming a pane of no diagram diff shows nothing",
+            "steps": [
+                {
+                    "frame": {
+                        "method": "elementXmlDiff/show",
+                        "params": {
+                            "diffKey": "element-xml-1",
+                            "paneUri": "file:///ws/gone.bpmn#d9-before",
+                            "title": "Task_1 (XML): order.bpmn",
+                            "before": "<bpmn:task id=\"Task_1\" name=\"old\" />",
+                            "after": "<bpmn:task id=\"Task_1\" name=\"new\" />"
+                        }
+                    }
+                }
+            ],
+            "shown": {
+                "d1": null,
+                "d2": null
+            },
+            "closedByUser": []
+        }
+    ]
+}

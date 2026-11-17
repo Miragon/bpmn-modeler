@@ -25,6 +25,7 @@ const DIFF_KEY = "file:///repo/a.bpmn|file:///repo/b.bpmn";
 
 const elementDiff = (elementId: string, diffKey = DIFF_KEY): ElementXmlDiff => ({
     diffKey,
+    paneUri: "file:///repo/a.bpmn",
     elementId,
     title: `${elementId} (XML): a.bpmn ↔ b.bpmn`,
     before: `<task id="${elementId}" name="old" />`,
