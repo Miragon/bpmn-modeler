@@ -17,7 +17,6 @@ const ROWS: readonly MergePaneShapelessRow[] = [
         id: "Message_1",
         type: "bpmn:Message",
         marker: "conflict",
-        container: false,
         current: { name: "Order received" },
         incoming: { name: "Order placed" },
         ...MESSAGE_VALUES,
@@ -26,7 +25,6 @@ const ROWS: readonly MergePaneShapelessRow[] = [
         id: "Error_1",
         type: "bpmn:Error",
         marker: "takenFromThisSide",
-        container: false,
         takenSide: "incoming",
         pick: { keptSide: "incoming", scope: "element" },
         lackingSide: { side: "current", lack: "missing" },
@@ -151,7 +149,7 @@ describe("openShapelessConflicts", () => {
     it("counts the rows that are open conflicts", () => {
         expect(
             openShapelessConflicts([
-                { ...ROWS[0], id: "Process_1", type: "bpmn:Process", container: true },
+                { ...ROWS[0], id: "Process_1", type: "bpmn:Process", container: "contents" },
                 { ...ROWS[0], marker: "takenFromThisSide" },
                 { ...ROWS[1], marker: "conflict" },
             ]),

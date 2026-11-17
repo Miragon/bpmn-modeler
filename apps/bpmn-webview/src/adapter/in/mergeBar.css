@@ -352,7 +352,7 @@
     color: var(--diff-legend-text);
 }
 
-.merge-menu__xml {
+.merge-menu__icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -360,7 +360,7 @@
     padding: 0;
 }
 
-.merge-menu__xml svg {
+.merge-menu__icon svg {
     width: 14px;
     height: 14px;
 }
@@ -391,6 +391,13 @@
 .merge-menu__mini:focus-visible {
     outline: 1px solid var(--diff-legend-focus);
     outline-offset: 1px;
+}
+
+/* The user's pick keeps this side with everything inside already. */
+.merge-menu__mini[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--diff-legend-primary-border) 14%, transparent);
+    border-color: var(--diff-legend-primary-border);
+    cursor: default;
 }
 
 .merge-menu__outcome {

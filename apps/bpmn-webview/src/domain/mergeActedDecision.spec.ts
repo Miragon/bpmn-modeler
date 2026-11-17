@@ -31,7 +31,7 @@ describe("actedOnPad", () => {
             },
         ],
         [
-            { kind: "keep", scope: "withContents", side: "current" },
+            { kind: "keep", scope: "withContents", side: "current", reach: "contents" },
             {
                 kind: "keep",
                 elementId: "Task_1",

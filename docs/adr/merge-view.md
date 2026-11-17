@@ -137,8 +137,7 @@ drawn, or the process or collaboration that owns the root plane). The core's `do
 import the library, so `MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose
 step and shape-less copies a spec pins to the library's types. The webview paints and counts
 what it gets: it skips an id its canvas lacks and decides no marker. The menu's own list gives a
-row to a conflict only current holds, which incoming's counts, computed in the library, leave
-out.
+row to a conflict only current holds, which incoming's counts, from the library, leave out.
 
 **A shape-less row shows what each side holds:** each side's presence and name, the attributes
 its snapshot's start tag writes whose values differ, as text (a reference as its target's id),
@@ -196,24 +195,25 @@ picks end with the session, so a window reload loses them. Rejected: picks in th
 the same way in as the step list: the router asks `BpmnDiffService.opensMergeViews` and ignores
 all three merge commands without it, so IntelliJ routes them as ignored with one reason.
 
-**The step selects; the pad decides a drawn element, a menu row a shape-less one.** A step onto
-an element the pane draws enters its plane (`focusElement`), then selects it (`mirrorSelection`
-selects only on the plane shown and reports nothing), so diagram-js opens the pad where ‹ ›
-land, on each pane that draws it; any other step clears the selection. A click on a pickable
-step makes it the step on both panes; `mirrorSelection` leaves an element selected already as it
-is, since selecting it again would rebuild its pad. The pad's icons sit at diagram-js's place:
-"Show XML changes", keep this pane's side, keep everything inside, "Leave out"
-(`otherSideLacks`), "Also keep its removed flows" and "Undo pick", each left out where the
-result has its outcome (`mergePadDecisions`, the rule's one home). Each names its side in
-`aria-label` and in the merge chrome's styled tooltip, with no native `title`. A menu row offers
-the same rule's decisions for both sides (`mergeRowDecisions` beside `mergePadDecisions`): keep
-where a side holds the element, a container (the process) also with everything inside, leave out
-where it lacks it, Undo while the user's pick holds. A pick names the side it keeps (the sending
-pane's when it names none); naming a side that lacks the element leaves it out, which the core
-reports as "Left out". diagram-js rebuilds an open pad only on a selection or element change, so
-the pane reopens it after every state. Rejected: a separate leave-out command, a copy of that
-rule; worded pad buttons, which covered flows; a scored pad placement, which moved on almost
-every step; the old header's actions beside the pad, two ways to do one thing. Cost:
+**The step selects; the pad decides a drawn element, a menu row a shape-less one.** A step onto an
+element the pane draws enters its plane (`focusElement`), then selects it (`mirrorSelection` selects
+only on the plane shown and reports nothing), so diagram-js opens the pad where ‹ › land, on each
+pane that draws it; any other step clears the selection. A click on a pickable step makes it the
+step on both panes; `mirrorSelection` leaves an element selected already as it is, since selecting
+it again would rebuild its pad. The pad's icons sit at diagram-js's place: "Show XML changes", keep
+this pane's side, keep everything inside, "Leave out" (`otherSideLacks`), "Also keep its removed
+flows" and "Undo pick", each left out where the result has its outcome (`mergePadDecisions`, the
+rule's one home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, with
+no native `title`. A menu row offers the same rule's decisions for both sides (`mergeRowDecisions`):
+keep where a side holds the element, leave out where it lacks it, Undo while the user's pick holds;
+a shape-less container adds the pad's keep-inside icon beside each Keep, pressed and inert, so only
+Undo takes it back, while the pick keeps that side with everything inside; the library's `container`
+reach words its tooltip (a collaboration's: every pool with its process). A pick names the side it
+keeps (the sending pane's when it names none); naming a side that lacks the element leaves it out
+("Left out"). diagram-js rebuilds an open pad only on a selection or element change, so the pane
+reopens it after every state. Rejected: a separate leave-out command, a copy of that rule; worded
+buttons, which covered flows on the pad and wrapped in the menu; a scored pad placement, which moved
+on almost every step; the old header's actions beside the pad, two ways to do one thing. Cost:
 diagram-js's pad has no keyboard handling, so a drawn element is decided by mouse only.
 
 **A badge names the user's picks.** Every shape the user picked carries a badge above its top

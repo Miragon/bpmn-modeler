@@ -31,13 +31,29 @@ const PICK_CONTAINER_TYPES: ReadonlySet<string> = new Set([
     "bpmn:Collaboration",
 ]);
 
-/** Every sub-process, pool, lane, process or collaboration something lies inside, in current or incoming. */
-export function containersOf(elements: readonly MergeElement[]): ReadonlySet<string> {
+/**
+ * How far keeping a container with everything inside reaches: its contents,
+ * or every pool with its process, as a collaboration's pools draw processes.
+ */
+export type ContainerReach = "contents" | "poolProcesses";
+
+/** Every sub-process, pool, lane, process or collaboration something lies inside, in current or incoming, with its reach. */
+export function containersOf(
+    elements: readonly MergeElement[],
+): ReadonlyMap<string, ContainerReach> {
     const contents = contentsByContainer(elements);
-    return new Set(
+    const typeOf = new Map(elements.map(({ id, type }) => [id, type]));
+    const contentsOf = (id: string) => [...(contents.get(id) ?? [])];
+    const isPoolWithProcess = (id: string) =>
+        typeOf.get(id) === "bpmn:Participant" &&
+        contentsOf(id).some((content) => typeOf.get(content) === "bpmn:Process");
+    return new Map(
         elements
             .filter(({ id, type }) => PICK_CONTAINER_TYPES.has(type) && contents.has(id))
-            .map(({ id }) => id),
+            .map(({ id }): [string, ContainerReach] => [
+                id,
+                contentsOf(id).some(isPoolWithProcess) ? "poolProcesses" : "contents",
+            ]),
     );
 }
 

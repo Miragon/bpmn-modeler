@@ -18,7 +18,7 @@ const OFFER = { elementId: "Task_1", connections: ["Flow_1", "Flow_2"], removedB
 
 const EVERY_DECISION: readonly MergePadDecision[] = [
     { kind: "keep", scope: "element", side: "incoming" },
-    { kind: "keep", scope: "withContents", side: "incoming" },
+    { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
     { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
     { kind: "keepRemovedFlows", side: "incoming", offer: OFFER } as MergePadDecision,
     { kind: "undo", scope: "withContents" },
@@ -118,6 +118,9 @@ describe("MergePickContextPadProvider", () => {
         expect(buttons[0].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
             "Keep incoming: Keep it as incoming has it",
         );
+        expect(buttons[1].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
+            "Keep incoming with everything inside: Keep it and everything inside as incoming has them",
+        );
         expect(buttons[3].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
             "Also keep its removed flows: Also keep the 2 flows current removed with it",
         );
@@ -129,6 +132,18 @@ describe("MergePickContextPadProvider", () => {
             expect(button.hasAttribute("title")).toBe(false);
         }
         expect(Object.values(entries).some((entry) => "title" in entry)).toBe(false);
+    });
+
+    it("words keeping everything inside by the reach the library tells", () => {
+        const [button] = buttonsOf(
+            build([
+                { kind: "keep", scope: "withContents", side: "current", reach: "poolProcesses" },
+            ]).provider.getContextPadEntries(TASK),
+        );
+
+        expect(button?.getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
+            "Keep current with everything inside: Keep it and every pool with its process as current has them",
+        );
     });
 
     it("gives each decision a glyph of its own, the same on both panes", () => {

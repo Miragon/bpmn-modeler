@@ -1,9 +1,9 @@
 import type { MergePaneShapelessRow, MergePaneStates } from "@miragon/bpmn-modeler-shared";
 import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
-import type { MergeShapelessValues } from "./mergeBarTexts";
+import type { MergeShapelessValues } from "./mergeRowTexts";
 import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
-import { type MergePadDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
+import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTexts";
 
 /** What the menu's rows read of the host's states. */
@@ -17,7 +17,7 @@ export interface MergeMenuRowContent {
     /** Current's name, else incoming's, so a pick keeps the title; the row names the element by its id without one. */
     readonly name?: string;
     readonly values: MergeShapelessValues;
-    readonly decisions: readonly MergePadDecision[];
+    readonly decisions: readonly MergeRowDecision[];
     /** What the row's last decision did, line by line, on the pane that sent it. */
     readonly outcome?: readonly string[];
     /** The row opens the element's XML changes, as the pad does; the host shows a side that lacks it as empty. */

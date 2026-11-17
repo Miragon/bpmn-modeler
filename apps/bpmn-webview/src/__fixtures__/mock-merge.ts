@@ -32,7 +32,7 @@ const SHAPELESS_ROWS = [
         id: "Process_1",
         type: "bpmn:Process",
         marker: "conflict",
-        container: true,
+        container: "contents",
         current: { name: "Order process" },
         incoming: { name: "Customer order process" },
         differences: [
@@ -48,11 +48,10 @@ const NO_PICKS = {
     consequences: [],
     names: {},
     pickable: [
-        { id: "Process_1", container: true },
-        { id: "ServiceTask_1", container: false },
+        { id: "Process_1", container: "contents" },
+        { id: "ServiceTask_1" },
         ...["Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
             id,
-            container: false,
             takenSide: "incoming" as const,
         })),
     ],

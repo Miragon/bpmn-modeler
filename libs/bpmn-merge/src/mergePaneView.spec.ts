@@ -11,7 +11,7 @@ import {
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { mergePaneView } from "./mergePaneView";
-import type { ElementState } from "./mergeResult";
+import type { ElementState, MergeElement } from "./mergeResult";
 
 const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
 
@@ -215,14 +215,12 @@ describe("mergePaneView", () => {
                     id: "Process_1",
                     type: "bpmn:Process",
                     marker: "conflict",
-                    container: false,
                     ...heldByBoth,
                 },
                 {
                     id: "Message_Mine",
                     type: "bpmn:Message",
                     marker: "takenFromOtherSide",
-                    container: false,
                     takenSide: "current",
                     lackingSide: { side: "incoming", lack: "missing" },
                     ...addedByCurrent,
@@ -231,7 +229,6 @@ describe("mergePaneView", () => {
                     id: "Error_Theirs",
                     type: "bpmn:Error",
                     marker: "takenFromThisSide",
-                    container: false,
                     takenSide: "incoming",
                     lackingSide: { side: "current", lack: "missing" },
                     incoming: {},
@@ -255,7 +252,6 @@ describe("mergePaneView", () => {
                     id: "Message_Old",
                     type: "bpmn:Message",
                     marker: "conflict",
-                    container: false,
                     lackingSide: { side: "current", lack: "removed" },
                     incoming: {},
                     differences: [],
@@ -276,7 +272,6 @@ describe("mergePaneView", () => {
                     id: "Process_1",
                     type: "bpmn:Process",
                     marker: "takenFromThisSide",
-                    container: false,
                     takenSide: "incoming",
                     pick: { keptSide: "incoming", scope: "element" },
                     ...heldByBoth,
@@ -285,7 +280,6 @@ describe("mergePaneView", () => {
                     id: "Message_Mine",
                     type: "bpmn:Message",
                     marker: "takenFromThisSide",
-                    container: false,
                     takenSide: "incoming",
                     lackingSide: { side: "incoming", lack: "missing" },
                     pick: { keptSide: "incoming", scope: "element" },
@@ -307,10 +301,90 @@ describe("mergePaneView", () => {
                     id: "Process_1",
                     type: "bpmn:Process",
                     marker: "conflict",
-                    container: true,
+                    container: "contents",
                     ...heldByBoth,
                 },
             ]);
+        });
+
+        it.each<[string, MergeElement[], string, "contents" | "poolProcesses"]>([
+            [
+                "a collaboration whose pool holds a process reaches every pool's process",
+                [
+                    mergeElement("Collaboration_1", "bothChanged", {
+                        type: "bpmn:Collaboration",
+                        drawn: false,
+                    }),
+                    mergeElement("Pool", "unchanged", {
+                        type: "bpmn:Participant",
+                        parent: "Collaboration_1",
+                        references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                    }),
+                    process("unchanged"),
+                    mergeElement("Task_A", "unchanged", { parent: "Process_1" }),
+                ],
+                "Collaboration_1",
+                "poolProcesses",
+            ],
+            [
+                "a collaboration of empty pools reaches only its contents",
+                [
+                    mergeElement("Collaboration_1", "bothChanged", {
+                        type: "bpmn:Collaboration",
+                        drawn: false,
+                    }),
+                    mergeElement("Pool", "unchanged", {
+                        type: "bpmn:Participant",
+                        parent: "Collaboration_1",
+                    }),
+                ],
+                "Collaboration_1",
+                "contents",
+            ],
+            [
+                "a pool reaches its own process as its contents",
+                [
+                    mergeElement("Pool", "bothChanged", {
+                        type: "bpmn:Participant",
+                        references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                    }),
+                    process("unchanged"),
+                    mergeElement("Task_A", "unchanged", { parent: "Process_1" }),
+                ],
+                "Pool",
+                "contents",
+            ],
+        ])("tells how far everything inside reaches: %s", (_case, elements, id, reach) => {
+            const view = mergePaneView(
+                MergeDecisions.from(mergeResult(...elements)),
+                "current",
+                NO_SOURCES,
+            );
+
+            expect(view.pickable.find((element) => element.id === id)?.container).toBe(reach);
+        });
+
+        it("tells a collaboration's row that everything inside reaches every pool's process", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    mergeElement("Collaboration_1", "bothChanged", {
+                        type: "bpmn:Collaboration",
+                        drawn: false,
+                    }),
+                    mergeElement("Pool", "unchanged", {
+                        type: "bpmn:Participant",
+                        parent: "Collaboration_1",
+                        references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                    }),
+                    process("unchanged"),
+                ),
+            );
+
+            expect(
+                mergePaneView(decisions, "current", NO_SOURCES).shapelessRows.find(
+                    ({ id }) => id === "Collaboration_1",
+                )?.container,
+            ).toBe("poolProcesses");
         });
     });
 
@@ -450,19 +524,18 @@ describe("mergePaneView", () => {
             decisions.pickWithContents("Sub", "current");
 
             const pickable = [
-                { id: "Process_1", container: true },
-                { id: "Sub", container: true, takenSide: "current", undo: "withContents" },
-                { id: "Inner", container: false, takenSide: "current", undo: "element" },
+                { id: "Process_1", container: "contents" },
+                { id: "Sub", container: "contents", takenSide: "current", undo: "withContents" },
+                { id: "Inner", takenSide: "current", undo: "element" },
             ];
             expect(mergePaneView(decisions, "current", NO_SOURCES).pickable).toStrictEqual([
                 ...pickable,
-                { id: "Task_Audit", container: false, takenSide: "incoming" },
+                { id: "Task_Audit", takenSide: "incoming" },
             ]);
             expect(mergePaneView(decisions, "incoming", NO_SOURCES).pickable).toStrictEqual([
                 ...pickable,
                 {
                     id: "Task_Audit",
-                    container: false,
                     takenSide: "incoming",
                     otherSideLacks: "missing",
                 },
@@ -580,7 +653,7 @@ describe("mergePaneView", () => {
                 mergePaneView(decisions, "current", NO_SOURCES).pickable.find(
                     ({ id }) => id === "Task_Check",
                 ),
-            ).toEqual({ id: "Task_Check", container: false });
+            ).toEqual({ id: "Task_Check" });
         });
 
         it.each(["bpmn:SubProcess", "bpmn:Transaction", "bpmn:AdHocSubProcess", "bpmn:Lane"])(
@@ -598,7 +671,7 @@ describe("mergePaneView", () => {
                     mergePaneView(decisions, "current", NO_SOURCES).pickable.find(
                         ({ id }) => id === "Container",
                     )?.container,
-                ).toBe(true);
+                ).toBe("contents");
             },
         );
 

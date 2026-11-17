@@ -8,16 +8,17 @@ import type {
 
 import {
     decidesInMenu,
-    type MergePadDecision,
+    keepsEverythingInside,
     mergePadDecisions,
     type MergePadStates,
+    type MergeRowDecision,
     mergeRowDecisions,
     type MergeRowStates,
 } from "./mergePadDecisions";
 
 const states = (overrides: Partial<MergePadStates> = {}): MergePadStates => ({
     caption: { side: "incoming", role: "upstream" },
-    pickable: [{ id: "Task_1", container: false }],
+    pickable: [{ id: "Task_1" }],
     badges: [],
     ...overrides,
 });
@@ -45,13 +46,13 @@ describe("mergePadDecisions", () => {
         ["an undecided element: keep it from the pane's side", {}, ["keep element"]],
         [
             "a container: keep it, or keep it with everything inside",
-            { pickable: [{ id: "Task_1", container: true }] },
+            { pickable: [{ id: "Task_1", container: "contents" }] },
             ["keep element", "keep withContents"],
         ],
         [
             "the user kept it from this side: no keep, and undo",
             {
-                pickable: [{ id: "Task_1", container: false, undo: "element" }],
+                pickable: [{ id: "Task_1", undo: "element" }],
                 badges: [keptHere("element")],
             },
             ["undo"],
@@ -59,7 +60,7 @@ describe("mergePadDecisions", () => {
         [
             "a container the user kept alone: keep everything inside, and undo",
             {
-                pickable: [{ id: "Task_1", container: true, undo: "element" }],
+                pickable: [{ id: "Task_1", container: "contents", undo: "element" }],
                 badges: [keptHere("element")],
             },
             ["keep withContents", "undo"],
@@ -67,7 +68,7 @@ describe("mergePadDecisions", () => {
         [
             "a container the user kept with everything inside: undo only",
             {
-                pickable: [{ id: "Task_1", container: true, undo: "withContents" }],
+                pickable: [{ id: "Task_1", container: "contents", undo: "withContents" }],
                 badges: [keptHere("withContents")],
             },
             ["undo"],
@@ -75,7 +76,7 @@ describe("mergePadDecisions", () => {
         [
             "the user kept it with its flows from this side: undo only",
             {
-                pickable: [{ id: "Task_1", container: false, undo: "withConnections" }],
+                pickable: [{ id: "Task_1", undo: "withConnections" }],
                 badges: [keptHere("withConnections")],
             },
             ["undo"],
@@ -83,19 +84,19 @@ describe("mergePadDecisions", () => {
         [
             "the user kept the other side's version: keep this side's, and undo",
             {
-                pickable: [{ id: "Task_1", container: false, undo: "element" }],
+                pickable: [{ id: "Task_1", undo: "element" }],
                 badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
             },
             ["keep element", "undo"],
         ],
         [
             "the other side removed it: keep it, or leave it out",
-            { pickable: [{ id: "Task_1", container: false, otherSideLacks: "removed" }] },
+            { pickable: [{ id: "Task_1", otherSideLacks: "removed" }] },
             ["keep element", "leaveOut"],
         ],
         [
             "the other side never had it: keep it, or leave it out",
-            { pickable: [{ id: "Task_1", container: false, otherSideLacks: "missing" }] },
+            { pickable: [{ id: "Task_1", otherSideLacks: "missing" }] },
             ["keep element", "leaveOut"],
         ],
         [
@@ -104,7 +105,6 @@ describe("mergePadDecisions", () => {
                 pickable: [
                     {
                         id: "Task_1",
-                        container: false,
                         takenSide: "current",
                         otherSideLacks: "removed",
                     },
@@ -115,7 +115,7 @@ describe("mergePadDecisions", () => {
         [
             "the host offers its removed flows: keep them too",
             {
-                pickable: [{ id: "Task_1", container: false, undo: "element" }],
+                pickable: [{ id: "Task_1", undo: "element" }],
                 badges: [keptHere("element")],
                 restoreOffer: OFFER,
             },
@@ -130,7 +130,12 @@ describe("mergePadDecisions", () => {
             "a container the other side removed, kept with its flows offered: every entry in order",
             {
                 pickable: [
-                    { id: "Task_1", container: true, undo: "element", otherSideLacks: "removed" },
+                    {
+                        id: "Task_1",
+                        container: "contents",
+                        undo: "element",
+                        otherSideLacks: "removed",
+                    },
                 ],
                 badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
                 restoreOffer: OFFER,
@@ -152,17 +157,29 @@ describe("mergePadDecisions", () => {
         const decisions = mergePadDecisions(
             states({
                 caption: { side: paneSide, role: "unknown" },
-                pickable: [{ id: "Task_1", container: true, otherSideLacks: "missing" }],
+                pickable: [{ id: "Task_1", container: "contents", otherSideLacks: "missing" }],
             }),
             "Task_1",
         );
 
         expect(decisions).toStrictEqual([
             { kind: "keep", scope: "element", side: paneSide },
-            { kind: "keep", scope: "withContents", side: paneSide },
+            { kind: "keep", scope: "withContents", side: paneSide, reach: "contents" },
             { kind: "leaveOut", side: otherSide, otherSideLacks: "missing" },
         ]);
     });
+
+    it.each(["contents", "poolProcesses"] as const)(
+        "carries the container's reach, %s, on its keep with everything inside",
+        (reach) => {
+            const decisions = mergePadDecisions(
+                states({ pickable: [{ id: "Task_1", container: reach }] }),
+                "Task_1",
+            );
+
+            expect(decisions.find(keepsEverythingInside)?.reach).toBe(reach);
+        },
+    );
 
     it.each(["current", "incoming"] as const)(
         "keeps the removed flows from the side that kept the element, as the row does, on the %s pane",
@@ -186,14 +203,15 @@ describe("mergeRowDecisions", () => {
         id: "Message_1",
         type: "bpmn:Message",
         marker: "conflict",
-        container: false,
         differences: [],
         ...overrides,
     });
-    const named = (decision: MergePadDecision) => {
+    const named = (decision: MergeRowDecision) => {
         switch (decision.kind) {
             case "keep":
-                return `${decision.scope === "withContents" ? "keepInside" : "keep"} ${decision.side}`;
+                return keepsEverythingInside(decision)
+                    ? `keepInside ${decision.side}${decision.pressed ? " pressed" : ""}`
+                    : `keep ${decision.side}`;
             case "leaveOut":
             case "keepRemovedFlows":
                 return `${decision.kind} ${decision.side}`;
@@ -217,14 +235,14 @@ describe("mergeRowDecisions", () => {
         ],
         [
             "an open conflict on a container, such as the process: keep either side, alone or with everything inside",
-            { type: "bpmn:Process", container: true },
+            { type: "bpmn:Process", container: "contents" },
             {},
             ["keep current", "keepInside current", "keep incoming", "keepInside incoming"],
         ],
         [
             "a container the user kept alone from incoming: everything inside from incoming too, and undo",
             {
-                container: true,
+                container: "contents",
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "element" },
             },
@@ -232,19 +250,24 @@ describe("mergeRowDecisions", () => {
             ["keep current", "keepInside current", "keepInside incoming", "undo element"],
         ],
         [
-            "a container the user kept from incoming with everything inside: current's, and undo as far",
+            "a container the user kept from incoming with everything inside: current's, incoming's pressed, and undo as far",
             {
-                container: true,
+                container: "contents",
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "withContents" },
             },
             {},
-            ["keep current", "keepInside current", "undo withContents"],
+            [
+                "keep current",
+                "keepInside current",
+                "keepInside incoming pressed",
+                "undo withContents",
+            ],
         ],
         [
             "a container only current has: everything inside only from current",
             {
-                container: true,
+                container: "contents",
                 takenSide: "current",
                 lackingSide: { side: "incoming", lack: "missing" },
             },
@@ -291,6 +314,41 @@ describe("mergeRowDecisions", () => {
         ],
     ])("%s", (_case, rowOverrides, rowStates, expected) => {
         expect(mergeRowDecisions(rowStates, row(rowOverrides)).map(named)).toStrictEqual(expected);
+    });
+
+    it("carries a collaboration's reach, every pool with its process, on both sides' keep with everything inside", () => {
+        const decisions = mergeRowDecisions(
+            {},
+            row({ type: "bpmn:Collaboration", container: "poolProcesses" }),
+        );
+
+        expect(decisions.filter(keepsEverythingInside)).toStrictEqual([
+            { kind: "keep", scope: "withContents", side: "current", reach: "poolProcesses" },
+            { kind: "keep", scope: "withContents", side: "incoming", reach: "poolProcesses" },
+        ]);
+    });
+
+    it("lets only a keep with everything inside be pressed", () => {
+        const pressedKeepInside: MergeRowDecision = {
+            kind: "keep",
+            scope: "withContents",
+            side: "current",
+            reach: "contents",
+            pressed: true,
+        };
+        const pressedKeep: MergeRowDecision = {
+            kind: "keep",
+            scope: "element",
+            side: "current",
+            // @ts-expect-error a keep of the element alone is never pressed
+            pressed: true,
+        };
+        // @ts-expect-error an undo is never pressed
+        const pressedUndo: MergeRowDecision = { kind: "undo", scope: "element", pressed: true };
+
+        expect(
+            [pressedKeepInside, pressedKeep, pressedUndo].map(keepsEverythingInside),
+        ).toStrictEqual([true, false, false]);
     });
 
     it("words a leave-out with why the side lacks the element, as the pad does", () => {
