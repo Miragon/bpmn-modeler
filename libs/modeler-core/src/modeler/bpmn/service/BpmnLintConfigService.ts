@@ -4,7 +4,6 @@ import {
     BpmnLintDisabledQuery,
     BpmnlintInPageQuery,
     BpmnlintResultsQuery,
-    ElementIdConventionQuery,
 } from "@miragon/bpmn-modeler-shared";
 import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
@@ -14,10 +13,12 @@ import { NotifierPort, SettingsPort, StatusBarPort } from "../../../kernel/port/
 import { EditorSessionDocuments } from "../../../editorSession/service/EditorSessionDocuments";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import { BpmnLintConfigLocator, BpmnlintChangeTarget } from "./BpmnLintConfigLocator";
+import { ElementIdConventionService } from "./ElementIdConventionService";
 import { BpmnlintIndicator, indicatorForFindings } from "../domain/bpmnlintIndicator";
 import { bpmnlintStatusView } from "../domain/bpmnlintStatusView";
 import {
     LintAction,
+    LintConfigVersion,
     LintDropReason,
     LintFindings,
     LintSession,
@@ -67,14 +68,15 @@ const DROP_LOG_LINES: Partial<Record<LintDropReason, string>> = {
  * allowed asks about it afterwards, so the results never wait on the user. A
  * change of the approvals, whoever made it, lints again the editors
  * `editorsToRelint` in the domain names.
+ *
+ * The same config run hands its one read of the config to
+ * {@link ElementIdConventionService}, which names generated IDs after it.
  */
 export class BpmnLintConfigService implements BpmnlintChangeTarget {
     private readonly sessions = new Map<string, LintSession>();
     private readonly latestRuns = new Map<string, symbol>();
-    /** The convention options each webview last received, so unchanged ones are not sent again. */
-    private readonly sentConventions = new Map<string, string>();
-    private readonly latestConventionRuns = new Map<string, symbol>();
     private readonly rulePackageFollowUp: RulePackageFollowUp;
+    private readonly elementIdConvention: ElementIdConventionService;
 
     /** Monotonic source for opaque config-version tokens; never reset. */
     private tokenCounter = 0;
@@ -96,6 +98,11 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             () => this.hostLintedEditors(),
             rulePackages,
         );
+        this.elementIdConvention = new ElementIdConventionService(
+            editorStore,
+            lintRunner,
+            notifier,
+        );
     }
 
     /** Resolves once every rule package question raised so far is answered and its relints ran. */
@@ -110,16 +117,19 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /** Re-evaluates the lint tier for the document and drives it. */
     async setBpmnlintConfig(editorId: string): Promise<boolean> {
+        // Discovery reads the document path, which fails for a closed editor.
+        if (!this.editorStore.hasEditor(editorId)) return false;
+        const nearestConfig = this.readNearestConfig(editorId);
         const [pushed] = await Promise.all([
-            this.lintAndPush(editorId),
-            this.pushElementIdConvention(editorId),
+            this.lintAndPush(editorId, nearestConfig),
+            this.elementIdConvention.push(editorId, nearestConfig),
         ]);
         return pushed;
     }
 
     /** A webview asks on every load, so a reloaded one gets the convention again even when it is unchanged. */
     answerLintConfigRequest(editorId: string): Promise<boolean> {
-        this.sentConventions.delete(editorId);
+        this.elementIdConvention.forgetSent(editorId);
         return this.setBpmnlintConfig(editorId);
     }
 
@@ -132,8 +142,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         this.diagnostics.clear(editorId);
         this.sessions.delete(editorId);
         this.latestRuns.delete(editorId);
-        this.sentConventions.delete(editorId);
-        this.latestConventionRuns.delete(editorId);
+        this.elementIdConvention.release(editorId);
         this.rulePackageFollowUp.release(editorId);
     }
 
@@ -159,9 +168,15 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             .map(([editorId]) => editorId);
     }
 
-    private async lintAndPush(editorId: string): Promise<boolean> {
-        // Discovery reads the document path, which fails for a closed editor.
-        if (!this.editorStore.hasEditor(editorId)) return false;
+    /** Async, so a closed editor's path read rejects instead of throwing. */
+    private async readNearestConfig(editorId: string): Promise<LintConfigVersion | undefined> {
+        return this.locator.readNearestConfig(posix.dirname(this.documents.getFilePath(editorId)));
+    }
+
+    private async lintAndPush(
+        editorId: string,
+        nearestConfig: Promise<LintConfigVersion | undefined>,
+    ): Promise<boolean> {
         // Registered first, so turning linting off also supersedes a run in flight.
         const run = Symbol(editorId);
         this.latestRuns.set(editorId, run);
@@ -170,19 +185,14 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         }
 
         try {
-            const dir = posix.dirname(this.documents.getFilePath(editorId));
-            const configPath = await this.locator.findNearestConfig(dir);
+            const version = await nearestConfig;
             if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            if (!configPath) {
+            if (!version) {
                 return this.dispatch(editorId, { type: "noConfigFound" });
             }
-
-            const rawConfig = await this.locator.readConfig(configPath);
-            if (this.isSuperseded(editorId, run)) return this.dropSupersededRun();
-            const config = JSON.parse(rawConfig) as BpmnlintConfig;
             return this.dispatch(editorId, {
                 type: "configRead",
-                version: { configPath, rawConfig, config },
+                version,
                 freshToken: this.mintToken(),
             });
         } catch (error) {
@@ -191,47 +201,6 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             // A malformed .bpmnlintrc or a linter blow-up must not crash the editor.
             this.logLintFailure(error);
             return this.dispatch(editorId, { type: "configFailed" });
-        }
-    }
-
-    /**
-     * Sends the webview the options the lint config gives
-     * `element-id-naming`, whether or not linting runs, so IDs generated from
-     * names never break the rule. A malformed config reaches the user through
-     * the lint run instead.
-     */
-    private async pushElementIdConvention(editorId: string): Promise<void> {
-        if (!this.editorStore.hasEditor(editorId)) return;
-        const run = Symbol(editorId);
-        this.latestConventionRuns.set(editorId, run);
-        try {
-            const dir = posix.dirname(this.documents.getFilePath(editorId));
-            const configPath = await this.locator.findNearestConfig(dir);
-            const options = configPath
-                ? await this.lintRunner.elementIdConventionOptions(
-                      configPath,
-                      JSON.parse(await this.locator.readConfig(configPath)) as Record<
-                          string,
-                          unknown
-                      >,
-                  )
-                : {};
-            const sent = JSON.stringify(options);
-            if (
-                this.latestConventionRuns.get(editorId) !== run ||
-                this.sentConventions.get(editorId) === sent
-            ) {
-                return;
-            }
-            if (
-                await this.editorStore.postMessage(editorId, new ElementIdConventionQuery(options))
-            ) {
-                this.sentConventions.set(editorId, sent);
-            }
-        } catch (error) {
-            this.notifier.logDebug(
-                `[bpmnlint] element ID convention not sent: ${(error as Error).message}`,
-            );
         }
     }
 

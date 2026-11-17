@@ -124,7 +124,7 @@ function createService({ content = XML, config }: { content?: string; config?: s
         host.settings,
     );
 
-    return { service, host, editor, lintRunner };
+    return { service, host, editor, lintRunner, locator };
 }
 
 // bpmnlintStatusView.spec pins each indicator's view; these rows pin which one the slot shows.
@@ -538,6 +538,15 @@ describe("BpmnLintConfigService — the convention for IDs generated from names"
         await service.setBpmnlintConfig(editor.id);
 
         expect(sentOptions(editor)).toEqual([{}, { case: "PascalCase" }]);
+    });
+
+    it("reads the config once for the lint run and the convention", async () => {
+        const { service, editor, locator } = createService({ config: COVERED_RAW });
+        const reads = vi.spyOn(locator, "readConfig");
+
+        await service.setBpmnlintConfig(editor.id);
+
+        expect(reads).toHaveBeenCalledOnce();
     });
 
     it("sends nothing for a config it cannot read, which the lint run reports", async () => {
