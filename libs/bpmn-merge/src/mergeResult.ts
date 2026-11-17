@@ -91,6 +91,16 @@ export interface MergeElement {
     };
 }
 
+/** Only `side` holds the element and no base version exists, so nobody knows whether the other side removed it or never had it. */
+export function addedOnlyBy(element: MergeElement, side: MergeSide): boolean {
+    const { versions } = element;
+    return (
+        versions.base === undefined &&
+        versions[side] !== undefined &&
+        versions[otherSide(side)] === undefined
+    );
+}
+
 /** `versionKeyOf` each version's XML: equal keys mean the result was computed from these texts. */
 export interface VersionKeys {
     readonly base?: string;

@@ -57,13 +57,19 @@ export interface MergePanePickNotDrawn {
     readonly scope: MergePickScope;
 }
 
-/** An element a pick on the pane keeps from its side, or keeps out where the side removed it. */
+/** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface MergePanePickable {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
     readonly container: boolean;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: MergePickScope;
+    /**
+     * Set where this pane's side holds the element and the other does not: it
+     * removed it from the base, or there is no base version. A pick of the
+     * other side leaves it out.
+     */
+    readonly otherSideLacks?: "removed" | "missing";
 }
 
 /** Why a pick was refused, as the merge names it. */
@@ -118,7 +124,7 @@ export type MergePaneOutcome =
           readonly blockedBy: readonly MergePaneBlock[];
       };
 
-/** The flows the other side removed with an element the user kept, offered on the pane that kept it. */
+/** The flows the other side removed with an element the user kept, offered on the pane of the kept side. */
 export interface MergePaneRestoreOffer {
     readonly elementId: string;
     readonly connections: readonly string[];
@@ -227,19 +233,25 @@ export class MergeStepListChangedCommand extends Command<"MergeStepListChangedCo
 }
 
 /**
- * Sent from a merge pane when the user keeps an element from the pane's
- * side. The host decides it in the merge and sends both panes their states
- * again.
+ * Sent from a merge pane when the user keeps an element from a side. The
+ * host decides it in the merge and sends both panes their states again.
  */
 export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
     public readonly elementId: string;
 
     public readonly scope: MergePickScope;
 
-    constructor(elementId: string, scope: MergePickScope) {
+    /**
+     * Absent means the sending pane's side. Naming a side whose version lacks
+     * the element leaves it out, so one pane can offer both outcomes.
+     */
+    public readonly side?: MergeSide;
+
+    constructor(elementId: string, scope: MergePickScope, side?: MergeSide) {
         super("PickMergeSideCommand");
         this.elementId = elementId;
         this.scope = scope;
+        if (side !== undefined) this.side = side;
     }
 }
 

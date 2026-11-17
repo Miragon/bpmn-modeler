@@ -144,15 +144,21 @@ export class BpmnDiffService {
         }
     }
 
-    /** Keeps the element from the merge pane's side, as far as `scope` reaches. */
+    /** Keeps the element from `side`, or the merge pane's side when absent, as far as `scope` reaches. */
     async pickMergeSide(
         handle: DiffPaneHandle,
         elementId: string,
         scope: MergePickScope,
+        side?: MergeSide,
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.pick(armed, handle, elementId, scope, this.showsElementXmlChanges);
+            await this.merge.pick(
+                armed,
+                handle,
+                { elementId, scope, side },
+                this.showsElementXmlChanges,
+            );
         }
     }
 

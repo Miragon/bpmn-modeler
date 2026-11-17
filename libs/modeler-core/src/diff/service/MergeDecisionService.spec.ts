@@ -19,8 +19,10 @@ import {
     type MergePaneShapelessMark,
     type MergePaneStep,
     type MergePickScope,
+    PickMergeSideCommand,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
+import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import {
     createTestHost,
@@ -29,11 +31,13 @@ import {
     ORDER_MERGE_STAGES,
     ORDER_REMOVAL_STAGES,
     ORDER_REMOVED_FLOW_STAGES,
+    orderProcessXml,
     PACKING_MERGE_STAGES,
     RecordingMergeSidesView,
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSessionStore } from "./MergeSessionStore";
@@ -85,8 +89,12 @@ async function openMergeView(
         await diffService.markReady(current);
         await diffService.markReady(incoming);
     };
-    const pick = (pane: FakeDiffPaneHandle, elementId: string, scope: MergePickScope = "element") =>
-        diffService.pickMergeSide(pane, elementId, scope);
+    const pick = (
+        pane: FakeDiffPaneHandle,
+        elementId: string,
+        scope: MergePickScope = "element",
+        side?: MergeSide,
+    ) => diffService.pickMergeSide(pane, elementId, scope, side);
     const unpick = (
         pane: FakeDiffPaneHandle,
         elementId: string,
@@ -507,6 +515,94 @@ describe("MergeDecisionService", () => {
                 applied: true,
                 action: "leaveOut",
                 elementId: "Task_Pack",
+            });
+        });
+
+        it.each([
+            ["current", "incoming"],
+            ["incoming", "current"],
+        ] as const)(
+            "keeps an element from the side the pick names, sent from the %s pane",
+            async (sender, namedSide) => {
+                const mergeView = await openMergeView();
+                await mergeView.bothReady();
+                const router = createDiffPaneRouter(mergeView.diffService, {});
+
+                await router.dispatch(
+                    new PickMergeSideCommand("Task_Pack", "element", namedSide),
+                    mergeView[sender],
+                );
+
+                expect(lastStatesOf(mergeView[namedSide]).states.badges).toStrictEqual([
+                    { id: "Task_Pack", kind: "keptHere", keptSide: namedSide, scope: "element" },
+                ]);
+                for (const pane of [mergeView.current, mergeView.incoming]) {
+                    expect(lastStatesOf(pane).states.lastOutcome).toMatchObject({
+                        applied: true,
+                        action: "pick",
+                        elementId: "Task_Pack",
+                    });
+                }
+            },
+        );
+
+        it("leaves an element out when the pick names the side that removed it, sent from the pane that draws it", async () => {
+            const { incoming, bothReady, pick } = await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(incoming, "Task_Pack", "element", "current");
+
+            expect(lastStatesOf(incoming).states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "leaveOut",
+                elementId: "Task_Pack",
+            });
+        });
+
+        it("leaves an element out when the pick names the side that never had it, without an ancestor", async () => {
+            const { current, bothReady, pick } = await openMergeView({
+                current: orderProcessXml(),
+                incoming: orderProcessXml({ withoutPack: true }),
+            });
+            await bothReady();
+
+            await pick(current, "Task_Pack", "element", "incoming");
+
+            expect(lastStatesOf(current).states.lastOutcome).toMatchObject({
+                applied: true,
+                action: "leaveOut",
+                elementId: "Task_Pack",
+            });
+        });
+
+        it("offers the removed flows on the pane of the side the pick names, not the sender's", async () => {
+            const { current, incoming, bothReady, pick } =
+                await openMergeView(ORDER_REMOVAL_STAGES);
+            await bothReady();
+
+            await pick(current, "Task_Pack", "element", "incoming");
+
+            expect(lastStatesOf(incoming).states.restoreOffer).toStrictEqual({
+                elementId: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+                removedBy: "current",
+            });
+            expect(lastStatesOf(current).states.restoreOffer).toBeUndefined();
+        });
+
+        it("tells the pane that draws an element what the other side lacks", async () => {
+            const { current, incoming, bothReady } = await openMergeView(ORDER_REMOVAL_STAGES);
+
+            await bothReady();
+
+            expect(lastStatesOf(incoming).states.pickable).toContainEqual({
+                id: "Task_Pack",
+                container: false,
+                otherSideLacks: "removed",
+            });
+            expect(lastStatesOf(current).states.pickable).toContainEqual({
+                id: "Task_Pack",
+                container: false,
             });
         });
 
