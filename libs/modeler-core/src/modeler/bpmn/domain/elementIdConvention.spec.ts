@@ -1,8 +1,31 @@
-import { describe, expect, it } from "vitest";
+import { naming } from "@miragon/bpmnlint-plugin-rules";
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import {
+    EVENT_DEFINITION_QUALIFIER_MODES,
+    type EventDefinitionQualifierMode,
+} from "@miragon/bpmn-modeler-types";
 
 import { elementIdConventionOptionsOf } from "./elementIdConvention";
 
+// `naming` exports QualifierMode only as a value; the constructor's options carry the type.
+type RuleQualifierMode = NonNullable<
+    NonNullable<
+        ConstructorParameters<typeof naming.ElementIdConvention>[0]
+    >["eventDefinitionQualifier"]
+>;
+
 describe("elementIdConventionOptionsOf", () => {
+    it("knows every qualifier mode the rule takes, and no other", () => {
+        expectTypeOf<EventDefinitionQualifierMode>().toEqualTypeOf<RuleQualifierMode>();
+    });
+
+    it.each(EVENT_DEFINITION_QUALIFIER_MODES)("keeps the qualifier mode %s", (mode) => {
+        expect(elementIdConventionOptionsOf(["error", { eventDefinitionQualifier: mode }])).toEqual(
+            { eventDefinitionQualifier: mode },
+        );
+    });
+
     it.each<[string, unknown]>([
         ["no setting", undefined],
         ["a flag", "warn"],

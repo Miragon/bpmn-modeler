@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { FALLBACK_CONVENTION } from "./convention";
 import { bpmn as moddle } from "./__fixtures__/moddle";
-import { technicalIdFor } from "./technicalId";
+import { SPELLED_CASES, technicalIdFor } from "./technicalId";
 
 const element = (type: string, attrs: Record<string, unknown> = {}) => moddle.create(type, attrs);
 const miragon = new naming.ElementIdConvention();
@@ -110,7 +110,12 @@ describe("technicalIdFor", () => {
         expect(technicalIdFor(name, element("bpmn:Task"), miragon)).toBeUndefined();
     });
 
-    it.each<string>(["camelCase", "PascalCase", "snake_case", "kebab-case", "any"])(
+    // An unknown name resolves to PascalCase, so a case the rule renamed or dropped fails here.
+    it.each(SPELLED_CASES)("spells %s, a case the rule knows by that name", (label) => {
+        expect(naming.resolveCase(label).label).toBe(label);
+    });
+
+    it.each(SPELLED_CASES)(
         "builds only IDs the properties panel and the rule accept in %s",
         (namingCase) => {
             const convention = new naming.ElementIdConvention({ case: namingCase });

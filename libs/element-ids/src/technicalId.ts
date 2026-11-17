@@ -44,14 +44,20 @@ const humps = (word: string) =>
 
 const capitalize = (part: string) => part.charAt(0).toUpperCase() + part.slice(1);
 
-// `any` accepts every shape, so it is spelled as the rule's default, camelCase.
+const camelCase = (parts: readonly string[]) =>
+    parts.map((part, index) => (index === 0 ? part : capitalize(part))).join("");
+
+// Keyed by the rule's case labels. `any` accepts every shape, so it is spelled as the rule's default.
 const CASE_SPELLINGS: Readonly<Record<string, (parts: readonly string[]) => string>> = {
-    "camelCase": (parts) =>
-        parts.map((part, index) => (index === 0 ? part : capitalize(part))).join(""),
+    "camelCase": camelCase,
     "PascalCase": (parts) => parts.map(capitalize).join(""),
     "snake_case": (parts) => parts.join("_"),
     "kebab-case": (parts) => parts.join("-"),
+    "any": camelCase,
 };
+
+/** The rule's cases this spells; technicalId.spec holds each to a case the rule knows. */
+export const SPELLED_CASES: readonly string[] = Object.keys(CASE_SPELLINGS);
 
 const COUNTER_SEPARATORS: Readonly<Record<string, string>> = {
     "snake_case": "_",
@@ -74,7 +80,7 @@ function nameInCase(name: string, convention: IdConvention): string | undefined 
     if (parts.length === 0) {
         return undefined;
     }
-    const spelled = (CASE_SPELLINGS[convention.case.label] ?? CASE_SPELLINGS.camelCase)(parts);
+    const spelled = (CASE_SPELLINGS[convention.case.label] ?? camelCase)(parts);
     return convention.case.pattern.test(spelled) ? spelled : `${digitMask(convention)}${spelled}`;
 }
 
