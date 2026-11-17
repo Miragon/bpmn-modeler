@@ -74,12 +74,7 @@ class CoreProcess(private val project: Project) : Disposable {
             // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { routers.seedAfterSpawn() },
             onRespawned = { routers.recoverAfterRespawn() },
-            // Clear any in-flight spinner on a crash so it can't hang waiting on a
-            // progressEnd the dead core will never send.
-            onProcessDown = {
-                routers.hostUi.clearProgress()
-                routers.hostUi.expireActionNotices()
-            },
+            onProcessDown = { routers.clearAfterProcessDown() },
         )
     private val deps =
         BridgeDeps(

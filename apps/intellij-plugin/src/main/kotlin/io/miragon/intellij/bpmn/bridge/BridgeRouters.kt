@@ -1,11 +1,17 @@
 package io.miragon.intellij.bpmn.bridge
 
+import io.miragon.intellij.bpmn.ElementIdReviewWindow
+import io.miragon.intellij.bpmn.ToolWindowElementIdReview
+
 /**
  * The feature routers of one bridge. [register] is the only place that decides
  * which core→host methods the host handles, and [replicatedStates] the only
  * place that decides which host state the bridge mirrors.
  */
-internal class BridgeRouters(deps: BridgeDeps) {
+internal class BridgeRouters(
+    deps: BridgeDeps,
+    elementIdReviewWindow: ElementIdReviewWindow = ToolWindowElementIdReview(deps.project),
+) {
     val editor = EditorSessionRouter(deps, replicatedStateSeed = ::replicatedStateSeed)
     val deployment = DeploymentRouter(deps)
     val diff = DiffRouter(deps)
@@ -17,7 +23,7 @@ internal class BridgeRouters(deps: BridgeDeps) {
     val templatePreferences = TemplatePreferenceRouter(deps)
     val workspaceTrust = WorkspaceTrustRouter(deps)
     val addOns = AddOnsRouter(deps)
-    val elementIdReview = ElementIdReviewRouter(deps)
+    val elementIdReview = ElementIdReviewRouter(deps, elementIdReviewWindow)
 
     // Outbound only: it sends host→core notifications and handles no method.
     val modelerCommands = ModelerCommandsRouter(deps)
@@ -60,6 +66,12 @@ internal class BridgeRouters(deps: BridgeDeps) {
     fun recoverAfterRespawn() {
         editor.reregisterLiveSessions()
         elementIdReview.coreRespawned()
+    }
+
+    /** Runs the moment the core process dies, before any respawn: it sends no `progressEnd` any more. */
+    fun clearAfterProcessDown() {
+        hostUi.clearProgress()
+        hostUi.expireActionNotices()
     }
 
     fun pushReplicatedState(kind: ReplicatedStateKind) = replicatedStates.single { it.kind == kind }.push()
