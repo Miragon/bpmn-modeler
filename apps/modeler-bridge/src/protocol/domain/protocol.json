@@ -69,6 +69,12 @@
         "paramKeys": ["diffId"]
     },
     {
+        "method": "elementXmlDiff/closed",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["diffKey"]
+    },
+    {
         "method": "deploymentState/seed",
         "direction": "hostToCore",
         "kind": "notification",
@@ -163,6 +169,36 @@
         "direction": "hostToCore",
         "kind": "notification",
         "paramKeys": []
+    },
+    {
+        "method": "elementIds/generate",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/setChecked",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["checked", "ids"]
+    },
+    {
+        "method": "elementIdReview/apply",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/discard",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/reveal",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": ["elementId"]
     },
     {
         "method": "deployment/switchTarget",
@@ -520,10 +556,46 @@
         "paramKeys": ["slot", "view"]
     },
     {
+        "method": "elementIdReview/show",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["view"]
+    },
+    {
+        "method": "elementIdReview/focus",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "elementIdReview/close",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "diff/postMessage",
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": ["message", "paneUri"]
+    },
+    {
+        "method": "elementXmlDiff/show",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["after", "before", "diffKey", "paneUri", "title"]
+    },
+    {
+        "method": "elementXmlDiff/refresh",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["after", "before", "diffKey", "paneUri", "title"]
+    },
+    {
+        "method": "elementXmlDiff/close",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": ["diffKey"]
     },
     {
         "method": "deployment/postMessage",

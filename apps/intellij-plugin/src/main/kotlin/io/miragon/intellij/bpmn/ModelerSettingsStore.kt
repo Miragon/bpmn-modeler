@@ -41,6 +41,7 @@ class ModelerSettingsStore {
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
             lintingEnabled = props.getBoolean(LINTING_ENABLED, DEFAULT_LINTING_ENABLED),
             formPreviewAutomatic = props.getBoolean(FORM_PREVIEW_AUTOMATIC, DEFAULT_FORM_PREVIEW_AUTOMATIC),
+            elementIdsFollowName = props.getBoolean(ELEMENT_IDS_FOLLOW_NAME, DEFAULT_ELEMENT_IDS_FOLLOW_NAME),
             marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         ).normalized()
 
@@ -64,6 +65,7 @@ class ModelerSettingsStore {
             props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
             props.setValue(LINTING_ENABLED, normalized.lintingEnabled, DEFAULT_LINTING_ENABLED)
             props.setValue(FORM_PREVIEW_AUTOMATIC, normalized.formPreviewAutomatic, DEFAULT_FORM_PREVIEW_AUTOMATIC)
+            props.setValue(ELEMENT_IDS_FOLLOW_NAME, normalized.elementIdsFollowName, DEFAULT_ELEMENT_IDS_FOLLOW_NAME)
             props.setList(MARKETPLACES, normalized.marketplaces)
         }
     }
@@ -97,6 +99,7 @@ class ModelerSettingsStore {
             "scriptingSpin" to current.scriptingSpin,
             "lintingEnabled" to current.lintingEnabled,
             "formPreviewAutomatic" to current.formPreviewAutomatic,
+            "elementIdsFollowName" to current.elementIdsFollowName,
             "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
         )
     }
@@ -183,6 +186,7 @@ class ModelerSettingsStore {
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
         private const val LINTING_ENABLED = "miragon.bpmnModeler.linting.enabled"
         private const val FORM_PREVIEW_AUTOMATIC = "miragon.bpmnModeler.formPreview.automatic"
+        private const val ELEMENT_IDS_FOLLOW_NAME = "miragon.bpmnModeler.elementIds.followName"
         private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
         // Defaults track apps/vscode-plugin/package.json; ModelerSettingsStoreTest compares them.
@@ -197,6 +201,7 @@ class ModelerSettingsStore {
         private const val DEFAULT_SCRIPTING_SPIN = true
         private const val DEFAULT_LINTING_ENABLED = true
         internal const val DEFAULT_FORM_PREVIEW_AUTOMATIC = true
+        internal const val DEFAULT_ELEMENT_IDS_FOLLOW_NAME = false
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
     }

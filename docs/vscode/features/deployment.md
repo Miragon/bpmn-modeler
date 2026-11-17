@@ -36,6 +36,8 @@ A named target's credentials, and the `.env` values its requests carry, go only 
 
 A failed request shows the server's own explanation (Camunda 7 `message`, Camunda 8 `detail`/`title`, OAuth2 `error_description`, or a plain-text body) on one line of at most 1000 characters. An HTML error page, or JSON that is not an error message (such as a proxy echoing the request), is dropped, leaving only the HTTP status. Values the request carried that may be secret are masked as `***`: credentials, the `Authorization` header, URL query values and user info, and substituted `MIRAGON_` values.
 
+Camunda 7 accepts a deployment that creates no process or decision definition, most often because the process is not marked executable. The modeler reports it as failed and names the empty deployment the engine keeps.
+
 ## Deployment targets
 
 A target is a saved, named connection you can reuse and share with your team. Targets live in `<configFolder>/deployment-targets.json` (`.camunda/deployment-targets.json` by default); the nearest file from the diagram up to the workspace root wins. The file has a JSON schema, so the editor completes and validates it.
