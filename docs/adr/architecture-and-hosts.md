@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-14
 
 ## Context
 
@@ -171,6 +171,22 @@ failing session hooks); the price is indirection.
   a diagram's scripts live (below its workspace root's config folder, or the OS temp
   folder for a diagram that is not a file); a failed workspace lookup rejects instead of
   moving scripts somewhere the user did not configure.
+- The element ID review ([IDs from names](bpmn-modeler-features.md#ids-from-names)) is drawn
+  natively by each host from a view the core builds: VS Code's Panel area holds an Element IDs
+  tab, a checkbox tree beside Problems and Output, and IntelliJ an Element IDs tool window. The
+  core keeps the review's state (`reduceElementIdReview`, carried out by `ElementIdReviewService`
+  behind `ElementIdReviewPort`), including which rows are unchecked: it takes the rows that start
+  unchecked (`ElementIdRow.startsUnchecked`) from the first listing, and later adds only rows new to
+  the review that start unchecked, such as a process from a pool added meanwhile, so a listing that
+  crosses a checkbox click cannot undo it. The review lives in the core process only: IntelliJ
+  closes its tool window when the bridge process dies, and the core tells a page that still lists
+  for a review it does not hold to stop, at the cost of a review lost on a crash. The webview
+  lists the rows (`ElementIdProposalsQuery` → `ElementIdProposalsCommand`) after every change,
+  host import and mode switch and applies them (`ApplyElementIdsQuery` →
+  `ElementIdsAppliedCommand`), and IntelliJ reaches the port over `elementIdReview/*`. VS Code
+  wires the port only from 1.80, by `vscode.version`: 1.76 to 1.79 export the checkbox API only
+  as a proposal, which fails the activation, so an older VS Code hides the command behind
+  `bpmn-modeler.elementIdReviewAvailable` and keeps Generate from name.
 
 **The core builds every user-visible text; a host renders it.** Hosts that word their own
 text drift (engine-version label, add-marketplace dialog title, "Saved in …" hints), so

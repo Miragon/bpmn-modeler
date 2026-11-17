@@ -81,6 +81,7 @@ export function activate(context: ExtensionContext): TestApi {
         bpmnService: bpmnEditor.bpmnService,
         formService,
         layoutSvc: bpmnEditor.layout,
+        elementIdReview: bpmnEditor.elementIdReview,
         coreWriteRenderer: bpmnEditor,
     });
 

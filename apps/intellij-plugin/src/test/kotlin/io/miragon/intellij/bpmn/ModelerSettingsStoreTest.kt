@@ -67,6 +67,15 @@ class ModelerSettingsStoreTest {
     }
 
     @Test
+    fun `the follow-name choice survives a new store under the shared persisted key`() {
+        store.update { it.copy(elementIdsFollowName = true) }
+
+        assertEquals("true", appProperties.getValue("${NAMESPACE}elementIds.followName"))
+        assertEquals(true, ModelerSettingsStore().current().elementIdsFollowName)
+        assertEquals(true, store.snapshotMap(projectFixture.get())["elementIdsFollowName"])
+    }
+
+    @Test
     fun `addMarketplace appends once`() {
         store.addMarketplace("https://a")
         store.addMarketplace("https://b")
@@ -153,6 +162,7 @@ class ModelerSettingsStoreTest {
                 "scriptingSpin",
                 "lintingEnabled",
                 "formPreviewAutomatic",
+                "elementIdsFollowName",
                 "marketplaces",
             ),
             snapshot.keys.toList(),
@@ -194,6 +204,7 @@ class ModelerSettingsStoreTest {
                 "scripting.spin",
                 "linting.enabled",
                 "formPreview.automatic",
+                "elementIds.followName",
             ).map { NAMESPACE + it }
 
         private val GSON = Gson()
@@ -245,10 +256,15 @@ class ModelerSettingsStoreTest {
                     .getAsJsonObject("contributes")
                     .getAsJsonObject("configuration")
                     .getAsJsonObject("properties")
+            val snapshotNames = coreSnapshotNames()
             return JsonObject().apply {
                 properties.entrySet()
                     .filter { (key, _) -> key.startsWith(NAMESPACE) }
-                    .map { (key, property) -> snapshotName(key.removePrefix(NAMESPACE)) to property.asJsonObject.get("default") }
+                    .map { (key, property) ->
+                        val section = key.removePrefix(NAMESPACE)
+                        val name = requireNotNull(snapshotNames[section]) { "the core names no snapshot key for $section" }
+                        name to property.asJsonObject.get("default")
+                    }
                     .forEach { (name, default) -> add(name, default) }
             }
         }
@@ -261,10 +277,14 @@ class ModelerSettingsStoreTest {
         private fun coreColorThemes(): List<String> =
             readTypeScriptStringArray("miragon.colorThemes", "COLOR_THEMES")
 
-        /** `scripting.spin` → `scriptingSpin`. */
-        private fun snapshotName(section: String): String {
-            val segments = section.split(".")
-            return segments.first() + segments.drop(1).joinToString("") { segment -> segment.replaceFirstChar { it.uppercaseChar() } }
+        /** `SETTING_KEY_OF_SNAPSHOT_KEY` in the core's `modelerSettings.ts`, read backwards: `scripting.spin` → `scriptingSpin`. */
+        private fun coreSnapshotNames(): Map<String, String> {
+            val source = readTypeScriptFile("miragon.modelerSettings")
+            val entries =
+                requireNotNull(Regex("""const SETTING_KEY_OF_SNAPSHOT_KEY\b[^=]*=\s*\{([^}]*)}""").find(source)) {
+                    "modelerSettings.ts declares no SETTING_KEY_OF_SNAPSHOT_KEY object literal"
+                }.groupValues[1]
+            return Regex("""(\w+):\s*"([^"]+)"""").findAll(entries).associate { it.groupValues[2] to it.groupValues[1] }
         }
 
         private fun ModelerSettings.overriddenBy(values: JsonObject): ModelerSettings {

@@ -47,6 +47,9 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         UpdateScriptVariablesCommand: HANDLED,
         DiagramFormattedCommand: HANDLED,
         CleanupReportCommand: HANDLED,
+        ElementIdProposalsCommand: HANDLED,
+        ElementIdsAppliedCommand: HANDLED,
+        OpenElementIdReviewCommand: HANDLED,
     },
     bpmnDiffPane: {
         GetBpmnFileCommand: HANDLED,
