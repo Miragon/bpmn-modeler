@@ -963,6 +963,25 @@ ${
             );
         });
 
+        it("keeps a task with the flows current removed with it and notes none of them", async () => {
+            const scenario = scenarioNamed(
+                "dangling: current removes a task, incoming adds a flow from it",
+            );
+            const decisions = await decisionsFor(scenario);
+            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+
+            const { xml, notes } = await buildMerged(
+                await prepareMergeSources(scenario),
+                decisions,
+            );
+
+            const { elementsById } = await parseWithoutWarnings(xml);
+            for (const id of ["Task_Reject", "Flow_No", "Flow_Rejected", "Flow_Timeout"]) {
+                expect(elementsById, id).toHaveProperty(id);
+            }
+            expect(notes.filter((note) => note.kind === "restoredWithoutConnections")).toEqual([]);
+        });
+
         it("names elements both sides added at the same place", async () => {
             const addTask = (id: string, x: number) => (model: BpmnFixtureModel) => {
                 model.nodes.push({ id, type: "task", name: id, x, y: 320, lane: "Lane_Manager" });

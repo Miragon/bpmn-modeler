@@ -3,18 +3,28 @@ import {
     CursorChangedCommand,
     type MergePaneStates,
     type MergePaneStep,
+    type MergePickScope,
     MergeStepListChangedCommand,
+    PickMergeSideCommand,
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
+    UnpickMergeCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
-import { MERGE_LEGEND_TEXTS, type MergeTranslate, mergeCaptionText } from "../../domain/mergeTexts";
+import {
+    MERGE_LEGEND_TEXTS,
+    type MergeTranslate,
+    mergeCaptionText,
+    pickBadgeText,
+} from "../../domain/mergeTexts";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
 import { MergeLegend } from "./mergeLegend";
+import { createMergeElementNamesModule, type MergeElementNames } from "./mergeElementNames";
 import { createMergeMarksModule, type MergeMarks } from "./mergeMarks";
+import { createMergePickModule, type MergePickContextPadProvider } from "./mergePickContextPad";
 
 const STEPS_OF: Readonly<
     Record<MergeStepList, (states: MergePaneStates) => readonly MergePaneStep[]>
@@ -40,6 +50,10 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     switches the list; the host keeps both for the tab and sends them with
  *     the states, so the partner walks the same list and a reloaded pane
  *     goes back to the step.
+ *   - Outgoing {@link PickMergeSideCommand} and {@link UnpickMergeCommand}
+ *     from the context pad and the legend's pick actions; the host decides
+ *     them and sends both panes their states again, so the pane shows a
+ *     pick only once the host made it.
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
  * the open list, and the step after it goes on from its place.
@@ -50,6 +64,10 @@ export class MergeMode {
     private readonly legend: MergeLegend;
 
     private marks: MergeMarks | undefined;
+
+    private names: MergeElementNames | undefined;
+
+    private pickPad: MergePickContextPadProvider | undefined;
 
     private states: ApplyMergeStatesQuery | undefined;
 
@@ -64,6 +82,13 @@ export class MergeMode {
     ) {
         this.pane = new DiffPanePlumbing(canvas, host, [
             createMergeMarksModule({ attach: (marks) => (this.marks = marks) }),
+            createMergeElementNamesModule({ attach: (names) => (this.names = names) }),
+            createMergePickModule({
+                pickableOf: (id) => this.states?.states.pickable.find((entry) => entry.id === id),
+                pick: (id, scope) => this.pick(id, scope),
+                unpick: (id, scope) => this.unpick(id, scope),
+                attach: (pad) => (this.pickPad = pad),
+            }),
         ]);
         this.legend = new MergeLegend(
             legendParent,
@@ -73,6 +98,9 @@ export class MergeMode {
                 onShowAll: () => this.showAll(),
                 onStepList: (list) => this.switchStepList(list),
                 onShapeless: (id) => this.stepTo(id),
+                onPick: (id, scope) => this.pick(id, scope),
+                onUnpick: (id, scope) => this.unpick(id, scope),
+                onSelect: (id) => this.select(id),
             },
             i18n,
         );
@@ -107,6 +135,7 @@ export class MergeMode {
         this.pane.tagSide(query.side);
         this.pane.offerElementXmlChanges(query.elementXmlChanges);
         this.paintMarks();
+        this.pickPad?.refresh();
         this.pane.label(query.side, () => mergeCaptionText(query.states.caption, translate));
         const kept = query.states.stepping.cursor;
         // A pane that reloaded has no step of its own; the host kept the tab's.
@@ -118,12 +147,37 @@ export class MergeMode {
     }
 
     private paintMarks(): void {
-        if (this.states) {
-            this.marks?.paint(
-                this.states.states.marks,
-                translate(MERGE_LEGEND_TEXTS.conflictBadge),
-            );
+        if (!this.states) return;
+        const { marks, badges, consequences } = this.states.states;
+        this.marks?.paint(
+            { marks, badges, consequences },
+            {
+                conflict: translate(MERGE_LEGEND_TEXTS.conflictBadge),
+                badge: (badge) => pickBadgeText(badge, translate),
+            },
+        );
+    }
+
+    private pick(id: string, scope: MergePickScope): void {
+        this.host.postMessage(new PickMergeSideCommand(id, scope));
+    }
+
+    private unpick(id: string, scope: MergePickScope): void {
+        this.host.postMessage(new UnpickMergeCommand(id, scope));
+    }
+
+    /** An element the legend names: a step goes there with the partner, anything else only shows here. */
+    private select(id: string): void {
+        if (this.allStepIds().includes(id)) {
+            this.stepTo(id);
+        } else {
+            this.pane.viewer.focusElement(id);
         }
+    }
+
+    /** The host names an element the same on both panes; this canvas names the rest. */
+    private nameOf(id: string): string {
+        return this.states?.states.names[id] ?? this.names?.nameOf(id) ?? id;
     }
 
     private stepIds(): readonly string[] {
@@ -193,6 +247,14 @@ export class MergeMode {
             stepList: this.stepList,
             shapeless: states.shapeless,
             current: this.cursorId,
+            picking: {
+                side: states.caption.side,
+                stepped: states.pickable.find(({ id }) => id === this.cursorId),
+                picksNotDrawn: states.picksNotDrawn,
+                lastOutcome: states.lastOutcome,
+                restoreOffer: states.restoreOffer,
+                nameOf: (id) => this.nameOf(id),
+            },
         });
     }
 }

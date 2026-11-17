@@ -20,6 +20,27 @@ export function descendantsOf(
     return elements.map((element) => element.id).filter((id) => found.has(id));
 }
 
+// An activity holds its data associations and a pool its process too, but only these keep everything inside with one pick.
+const PICK_CONTAINER_TYPES: ReadonlySet<string> = new Set([
+    "bpmn:SubProcess",
+    "bpmn:Transaction",
+    "bpmn:AdHocSubProcess",
+    "bpmn:Participant",
+    "bpmn:Lane",
+    "bpmn:Process",
+    "bpmn:Collaboration",
+]);
+
+/** Every sub-process, pool, lane, process or collaboration something lies inside, in current or incoming. */
+export function containersOf(elements: readonly MergeElement[]): ReadonlySet<string> {
+    const contents = contentsByContainer(elements);
+    return new Set(
+        elements
+            .filter(({ id, type }) => PICK_CONTAINER_TYPES.has(type) && contents.has(id))
+            .map(({ id }) => id),
+    );
+}
+
 function contentsByContainer(
     elements: readonly MergeElement[],
 ): ReadonlyMap<string, ReadonlySet<string>> {

@@ -9,6 +9,7 @@ import {
     chosenVersionOf,
 } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
+import { connectionsOn, keptAgainstRemoval } from "./removedConnections";
 
 export type BuildNote =
     | {
@@ -113,7 +114,8 @@ export function drawnApartFromContainerNotes(
 /**
  * An element kept against the other side's removal, while flows that connect
  * it on its own side stay out: each flow is decided on its own, so the flows
- * removed with the element stay removed and it may be left unconnected.
+ * removed with the element stay removed, unless kept with it
+ * (`pickWithConnections`), and it may be left unconnected.
  */
 export function restoredWithoutConnectionsNotes(
     result: MergeResult,
@@ -123,20 +125,9 @@ export function restoredWithoutConnectionsNotes(
         chosenVersionOf(element, (id) => resolution.elements[id]) !== undefined;
     return result.elements.flatMap((element): BuildNote[] => {
         const side = resolution.elements[element.id];
-        const removedByTheOtherSide =
-            side !== undefined &&
-            element.versions.base !== undefined &&
-            element.versions[side] !== undefined &&
-            MERGE_SIDES.some((other) => other !== side && element.versions[other] === undefined);
-        if (!removedByTheOtherSide) return [];
-        const connections = result.elements
-            .filter(
-                (candidate) =>
-                    !isInResult(candidate) &&
-                    (candidate.versions[side]?.references ?? []).some(
-                        (reference) => isEdgeEnd(reference) && reference.target === element.id,
-                    ),
-            )
+        if (side === undefined || !keptAgainstRemoval(element, side)) return [];
+        const connections = connectionsOn(result.elements, element.id, side)
+            .filter((candidate) => !isInResult(candidate))
             .map(({ id }) => id);
         return connections.length === 0
             ? []

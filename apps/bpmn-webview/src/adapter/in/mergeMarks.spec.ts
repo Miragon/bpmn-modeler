@@ -1,10 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { MERGE_MARKER_CLASSES } from "@miragon/bpmn-modeler-types";
+import type { MergePaneBadge } from "@miragon/bpmn-modeler-shared";
+import { MERGE_MARKER_CLASSES, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
-import { createMergeMarksModule, MergeMarks } from "./mergeMarks";
+import {
+    createMergeMarksModule,
+    MergeMarks,
+    type MergeMarksLabels,
+    type MergeMarksView,
+} from "./mergeMarks";
 
 const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
+
+const view = (
+    marks: Readonly<Record<MergeMarker, readonly string[]>>,
+    picks: Pick<MergeMarksView, "badges" | "consequences"> = { badges: [], consequences: [] },
+): MergeMarksView => ({ marks, ...picks });
+
+const labels = (conflict: string): MergeMarksLabels => ({
+    conflict,
+    badge: ({ keptSide, scope }) => ({
+        letter: keptSide[0].toUpperCase(),
+        label: `${keptSide} ${scope}`,
+    }),
+});
+
+const PICKED: MergePaneBadge = {
+    id: "Task_Pack",
+    kind: "keptHere",
+    keptSide: "incoming",
+    scope: "element",
+};
 
 /** A canvas holding `ids`, recording markers and overlays as diagram-js keeps them. */
 function fakeCanvas(ids: readonly string[]) {
@@ -43,12 +69,12 @@ describe("MergeMarks", () => {
         const { marks, markersOf } = fakeCanvas(["Task_Check", "Task_Pack", "Flow_1"]);
 
         marks().paint(
-            {
+            view({
                 takenFromThisSide: ["Task_Check"],
                 takenFromOtherSide: ["Flow_1"],
                 conflict: ["Task_Pack"],
-            },
-            "Conflict",
+            }),
+            labels("Conflict"),
         );
 
         expect(markersOf("Task_Check")).toEqual([MERGE_MARKER_CLASSES.takenFromThisSide]);
@@ -59,7 +85,7 @@ describe("MergeMarks", () => {
     it("gives every conflict a badge besides its colour, named for screen readers", () => {
         const { marks, overlays } = fakeCanvas(["Task_Pack"]);
 
-        marks().paint({ ...NO_MARKS, conflict: ["Task_Pack"] }, "Konflikt");
+        marks().paint(view({ ...NO_MARKS, conflict: ["Task_Pack"] }), labels("Konflikt"));
 
         expect(overlays).toHaveLength(1);
         expect(overlays[0].element).toBe("Task_Pack");
@@ -69,9 +95,9 @@ describe("MergeMarks", () => {
 
     it("removes the old marks and badges on a repaint", () => {
         const { marks, markersOf, overlays } = fakeCanvas(["Task_Check", "Task_Pack"]);
-        marks().paint({ ...NO_MARKS, conflict: ["Task_Pack"] }, "Conflict");
+        marks().paint(view({ ...NO_MARKS, conflict: ["Task_Pack"] }), labels("Conflict"));
 
-        marks().paint({ ...NO_MARKS, takenFromThisSide: ["Task_Pack"] }, "Conflict");
+        marks().paint(view({ ...NO_MARKS, takenFromThisSide: ["Task_Pack"] }), labels("Conflict"));
 
         expect(markersOf("Task_Pack")).toEqual([MERGE_MARKER_CLASSES.takenFromThisSide]);
         expect(overlays).toEqual([]);
@@ -81,7 +107,55 @@ describe("MergeMarks", () => {
         const { marks, overlays } = fakeCanvas(["Task_Check"]);
 
         expect(() =>
-            marks().paint({ ...NO_MARKS, conflict: ["Task_OnlyIncoming"] }, "Conflict"),
+            marks().paint(
+                view({ ...NO_MARKS, conflict: ["Task_OnlyIncoming"] }),
+                labels("Conflict"),
+            ),
+        ).not.toThrow();
+        expect(overlays).toEqual([]);
+    });
+
+    it("draws a badge on every picked element this canvas holds, none on consequences, and removes it after undo", () => {
+        const { marks, markersOf, overlays } = fakeCanvas(["Task_Pack", "Task_Check", "Flow_1"]);
+
+        marks().paint(
+            view(
+                { ...NO_MARKS, takenFromThisSide: ["Task_Pack", "Task_Check"] },
+                {
+                    badges: [
+                        PICKED,
+                        { ...PICKED, id: "Flow_1", kind: "replacedHere", scope: "withContents" },
+                    ],
+                    consequences: ["Task_Check"],
+                },
+            ),
+            labels("Conflict"),
+        );
+
+        const badges = overlays.filter(({ type }) => type === "merge-pick");
+        expect(badges.map(({ element }) => element)).toEqual(["Task_Pack", "Flow_1"]);
+        expect(badges[0].html).toContain('aria-label="incoming element"');
+        expect(badges[0].html).toContain(">I<");
+        expect(badges[0].html).toContain("merge-pick-badge--kept-here");
+        expect(badges[1].html).toContain("merge-pick-badge--replaced-here");
+        expect(badges[1].html).toContain("merge-pick-badge--with-contents");
+        expect(markersOf("Task_Check")).toContain("merge-consequence");
+        expect(markersOf("Task_Pack")).not.toContain("merge-consequence");
+
+        marks().paint(view({ ...NO_MARKS, conflict: ["Task_Pack"] }), labels("Conflict"));
+
+        expect(overlays.filter(({ type }) => type === "merge-pick")).toEqual([]);
+        expect(markersOf("Task_Check")).not.toContain("merge-consequence");
+    });
+
+    it("skips a picked id missing on this canvas", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Check"]);
+
+        expect(() =>
+            marks().paint(
+                view(NO_MARKS, { badges: [PICKED], consequences: ["Task_Pack"] }),
+                labels("Conflict"),
+            ),
         ).not.toThrow();
         expect(overlays).toEqual([]);
     });

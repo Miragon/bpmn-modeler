@@ -288,6 +288,30 @@ describe("MergeDecisions path independence", () => {
         }
     }, 30_000);
 
+    it("keeps an element with its connections as the plain pick followed by a pick of each flow", async () => {
+        let offers = 0;
+        for (const { name, result } of await mergeResults()) {
+            for (const { id } of result.elements) {
+                for (const side of MERGE_SIDES) {
+                    const together = MergeDecisions.from(result);
+                    const connections = together.connectionsLeftOut(id, side);
+                    if (connections.length === 0) continue;
+                    offers += 1;
+                    const label = `${name}: ${id} ${side}`;
+                    const oneByOne = MergeDecisions.from(result);
+                    const applied = [
+                        oneByOne.pick(id, side),
+                        ...connections.map((connection) => oneByOne.pick(connection, side)),
+                    ].every((outcome) => outcome.applied);
+
+                    expect(together.pickWithConnections(id, side).applied, label).toBe(applied);
+                    if (applied) expect(stateOf(together), label).toEqual(stateOf(oneByOne));
+                }
+            }
+        }
+        expect(offers).toBeGreaterThan(0);
+    }, 30_000);
+
     it("keeps every pick on its side and leaves a choice for every open conflict", async () => {
         for (const { name, result } of await mergeResults()) {
             expectPicksKeptAndAChoiceForEveryConflict(result, [], name);

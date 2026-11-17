@@ -69,3 +69,62 @@
     border-color: var(--diff-legend-primary-border);
     box-shadow: 0 0 0 2px var(--diff-legend-primary-border);
 }
+
+/* ─── Picking ──────────────────────────────────────────────────────────── */
+
+.merge-legend__picking {
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+}
+
+.merge-legend__pick-actions,
+.merge-legend__picks,
+.merge-legend__picks-list,
+.merge-legend__picks-item,
+.merge-legend__feedback,
+.merge-legend__feedback-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+}
+
+.merge-legend__pick-actions[hidden],
+.merge-legend__picks[hidden],
+.merge-legend__feedback[hidden],
+.merge-legend__pick[hidden] {
+    display: none;
+}
+
+.merge-legend__picks-label,
+.merge-legend__feedback-label {
+    color: var(--diff-legend-muted);
+    white-space: nowrap;
+}
+
+.merge-legend__picks-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.merge-legend__feedback {
+    padding: 2px 8px;
+    border-left: 3px solid var(--diff-legend-primary-border);
+}
+
+.merge-legend__feedback-headline {
+    font-weight: 600;
+}
+
+.merge-legend__feedback-reasons {
+    margin: 0;
+    padding-left: 16px;
+}
+
+.merge-legend__restore {
+    border-color: var(--diff-legend-primary-border);
+}

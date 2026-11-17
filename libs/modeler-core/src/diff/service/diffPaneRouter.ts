@@ -55,14 +55,39 @@ export function createDiffPaneRouter(
             (command, pane) => diffService.forwardSelection(pane, command.elementId),
             (command, pane) => diffService.followSelectionWithElementXml(pane, command.elementId),
         ],
-        MergeStepListChangedCommand: [
-            (command, pane) => diffService.chooseMergeStepList(pane, command.list),
-        ],
         ShowElementXmlChangesCommand: diffService.showsElementXmlChanges
             ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
             : { ignored: "the host shows no element XML diff" },
+        ...mergeRoutes(diffService),
         ...hostRoutes(extensions),
     });
+}
+
+function mergeRoutes(
+    diffService: BpmnDiffService,
+): CommandTable<
+    "MergeStepListChangedCommand" | "PickMergeSideCommand" | "UnpickMergeCommand",
+    DiffPaneHandle
+> {
+    if (!diffService.opensMergeViews) {
+        const ignored = { ignored: "the host opens no merge view" };
+        return {
+            MergeStepListChangedCommand: ignored,
+            PickMergeSideCommand: ignored,
+            UnpickMergeCommand: ignored,
+        };
+    }
+    return {
+        MergeStepListChangedCommand: [
+            (command, pane) => diffService.chooseMergeStepList(pane, command.list),
+        ],
+        PickMergeSideCommand: [
+            (command, pane) => diffService.pickMergeSide(pane, command.elementId, command.scope),
+        ],
+        UnpickMergeCommand: [
+            (command, pane) => diffService.unpickMerge(pane, command.elementId, command.scope),
+        ],
+    };
 }
 
 /** Routes every command a DMN diff pane posts. */

@@ -23,6 +23,24 @@ const step = (id: string, onThisPane: boolean, shapeless = false): MergePaneStep
 
 const SHAPELESS = [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }] as const;
 
+/** Nothing picked yet: every element of the merge can be kept from either side. */
+const NO_PICKS = {
+    badges: [],
+    picksNotDrawn: [],
+    consequences: [],
+    names: {},
+    pickable: [
+        { id: "Process_1", container: true },
+        ...["ServiceTask_1", "Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
+            id,
+            container: false,
+        })),
+    ],
+} as const satisfies Pick<
+    MergePaneStates,
+    "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
+>;
+
 const CURRENT: MergePaneStates = {
     caption: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
     marks: {
@@ -43,6 +61,7 @@ const CURRENT: MergePaneStates = {
     ],
     openConflicts: 2,
     stepping: { list: "openConflicts" },
+    ...NO_PICKS,
 };
 
 const INCOMING: MergePaneStates = {
@@ -65,6 +84,7 @@ const INCOMING: MergePaneStates = {
     ],
     openConflicts: 2,
     stepping: { list: "openConflicts" },
+    ...NO_PICKS,
 };
 
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */

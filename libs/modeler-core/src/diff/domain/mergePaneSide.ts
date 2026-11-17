@@ -15,3 +15,10 @@ export function mergeSideOfPane(diffSide: DiffSide): MergeSide {
 export function inPaneOrder<T>(bySide: Readonly<Record<MergeSide, T>>): readonly [T, T] {
     return [bySide[mergeSideOfPane("before")], bySide[mergeSideOfPane("after")]];
 }
+
+const OTHER_SIDE: Record<MergeSide, MergeSide> = { current: "incoming", incoming: "current" };
+
+/** The side a merge side is merged with. */
+export function otherMergeSide(side: MergeSide): MergeSide {
+    return OTHER_SIDE[side];
+}

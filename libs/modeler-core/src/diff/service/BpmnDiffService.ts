@@ -2,6 +2,7 @@ import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
     type MergePaneStepList,
+    type MergePickScope,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
     SyncDiffSelectionQuery,
@@ -125,11 +126,40 @@ export class BpmnDiffService {
         return this.relay.toPartner(handle, new SyncCursorQuery(index), "syncCursor");
     }
 
+    /** Whether the host opens merge views, whose panes step, pick and undo through the core. */
+    get opensMergeViews(): boolean {
+        return this.merge !== undefined;
+    }
+
     /** Keeps the list a merge pane steps through and has its partner walk it too. */
     async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
             await this.merge.chooseStepList(armed, list, this.showsElementXmlChanges);
+        }
+    }
+
+    /** Keeps the element from the merge pane's side, as far as `scope` reaches. */
+    async pickMergeSide(
+        handle: DiffPaneHandle,
+        elementId: string,
+        scope: MergePickScope,
+    ): Promise<void> {
+        const armed = this.relay.armedOf(handle);
+        if (armed && this.merge?.shows(armed.session)) {
+            await this.merge.pick(armed, handle, elementId, scope, this.showsElementXmlChanges);
+        }
+    }
+
+    /** Takes the user's pick back, as far as the merge pane named for it. */
+    async unpickMerge(
+        handle: DiffPaneHandle,
+        elementId: string,
+        scope: MergePickScope,
+    ): Promise<void> {
+        const armed = this.relay.armedOf(handle);
+        if (armed && this.merge?.shows(armed.session)) {
+            await this.merge.unpick(armed, elementId, scope, this.showsElementXmlChanges);
         }
     }
 

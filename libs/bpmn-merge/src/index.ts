@@ -1,7 +1,14 @@
 export { computeMerge } from "./computeMerge";
 export type { MergeVersions } from "./computeMerge";
 export { MergeDecisions } from "./mergeDecisions";
-export type { BlockedPick, OpenConflict, PickOutcome, MergeResolution } from "./mergeDecisions";
+export { mergeElementNames } from "./mergeElementNames";
+export type {
+    BlockedPick,
+    DecisionOrigin,
+    OpenConflict,
+    PickOutcome,
+    MergeResolution,
+} from "./mergeDecisions";
 export type { Requirement } from "./referenceRules";
 export { describeUnmetRequirement } from "./unmetRequirement";
 export type { RequirementObstacle, UnmetRequirement } from "./unmetRequirement";
@@ -17,7 +24,14 @@ export { mergeNavigationOrder } from "./mergeNavigationOrder";
 export { mergePaneSteps } from "./mergePaneSteps";
 export type { MergePaneSteps, MergeStep } from "./mergePaneSteps";
 export { mergePaneView } from "./mergePaneView";
-export type { MergePaneView, ShapelessMark } from "./mergePaneView";
+export type {
+    MergePaneView,
+    PickableElement,
+    PickBadge,
+    PickNotDrawn,
+    PickScope,
+    ShapelessMark,
+} from "./mergePaneView";
 export type {
     ConflictState,
     ElementReference,

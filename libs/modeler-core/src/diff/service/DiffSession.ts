@@ -177,6 +177,13 @@ export class DiffSession {
         return this.beforePane === undefined && this.afterPane === undefined;
     }
 
+    /** Both panes, once both have attached and reported ready. */
+    armedPanes(): { readonly before: DiffPaneHandle; readonly after: DiffPaneHandle } | undefined {
+        const before = this.beforePane;
+        const after = this.afterPane;
+        return before?.isReady() && after?.isReady() ? { before, after } : undefined;
+    }
+
     /**
      * Returns `true` when both panes have attached and reported ready.
      */

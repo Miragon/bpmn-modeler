@@ -27,6 +27,8 @@ export const BPMN_DIFF_PANE_COMMAND_TYPES = [
     "ShowElementXmlChangesCommand",
     "DiffSelectionChangedCommand",
     "MergeStepListChangedCommand",
+    "PickMergeSideCommand",
+    "UnpickMergeCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type BpmnDiffPaneCommandType = (typeof BPMN_DIFF_PANE_COMMAND_TYPES)[number];

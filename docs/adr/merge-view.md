@@ -9,8 +9,8 @@ A conflicted `.bpmn` file holds Git's conflict markers, so the modeler cannot op
 BPMN diff cannot run on it. The merge view shows the file's two sides as diagrams in VS Code,
 side by side, and later lets the user pick per element and build the result
 ([merge](merge.md) owns the library that decides). This record covers how the view opens from
-Git and how its panes mark the merge; the sections for picking and building join it with their
-changes (epic #2459).
+Git, how its panes mark the merge and how the user picks; the section for building joins it
+with its change (epic #2459).
 
 ## Decision
 
@@ -160,6 +160,58 @@ the partner draws leaves the pane where it is, since a neighbour here would poin
 something else, but the pane enters the plane the partner stepped into, or notes that its
 version lacks it, which stops the viewport sync.
 
+### Picking
+
+**The picks live in the core, for the merge view's life.** A pane posts `PickMergeSideCommand`
+or `UnpickMergeCommand` with the element and a reach (the element, everything inside it, or the
+flows the other side removed with it); `BpmnDiffService` hands it, with the pane's tab, to
+`MergeDecisionService`, which decides it on the session's `MergeDecisions` from the pane's side
+(`pickScoped`, `unpickScoped`) and sends every pane of every tab the full state again. An Undo
+of an element no longer picked, from a pad or legend not yet repainted, changes nothing.
+The webview shows a pick only once the core made it and holds no rule: what an element allows
+(`pickable`, with the reach Undo takes back), the badges, the picks a pane cannot draw and the
+consequences all come from `mergePaneView`. The picks end with the session, so a window reload
+loses them. Rejected: picks in the webview's `setState`, which keeps one pane only and would
+need the merge's rules to repaint. Picks take the same way in as the step list: the router asks
+`BpmnDiffService.opensMergeViews` and ignores all three merge commands without it, so IntelliJ
+routes them as ignored with one reason.
+
+**Two ways in: the context pad for the mouse, the legend for the keyboard.** diagram-js's
+context pad has no keyboard handling, so the pad's group beside "Show XML changes" ("Keep this
+version", "Keep everything inside" on a container, "Undo pick") is mirrored by the legend's
+actions for the element the stepper is on: "Keep current" on the left pane, "Keep incoming" on
+the right one. A shape-less element is reached by its legend entry, a decided one or an
+automatic resolution through the "All merged elements" list, so Undo and override work by
+keyboard too. Each pane picks from its own side, also for an element its side removed, where a
+pick keeps the removal and the core reports it as "Left out". The legend's action buttons stay
+in place across repaints, so the focus stays on the one pressed; where a repaint hides or
+removes the focused control (Undo of the stepped element, an undone entry of "Your picks"),
+the focus moves to the Keep action or to the last outcome's headline. diagram-js rebuilds an
+open pad only on a selection or element change, so the pane reopens it after every state.
+
+**A badge names the user's picks.** Every element the user picked carries a badge over its
+top-left corner, a check mark and the kept side's letter, its full words as `aria-label`, filled
+on the side that kept it and outlined on the side whose version it replaced; a container kept
+with everything inside adds a nested box. Top left, because a collapsed sub-process's
+drilldown button sits bottom right. diagram-js's overlays throw on an id the canvas lacks, so a
+pane badges only ids its registry holds, and a pick it cannot draw (removed on its side, or
+shape-less) is listed under "Your picks" with its undo. Consequences get a dotted outline and
+no badge; automatic resolutions keep only their marker. The letters and labels are English
+source text until the translations land.
+
+**The last outcome travels with the state.** The core keeps what the last pick or undo did per
+merge view: what it pulled in, dropped and opened again (the open conflicts before and after,
+since the merge names only what it newly decided), or why it was refused, as the merge's
+obstacle kind with the two elements and whether the whole target or a part of it is missing.
+The core sends the names of the elements the legend names (the picks it lists and the last
+outcome's), as the side the merge takes each from names it, so both panes name an element alike
+and a pane names one it does not draw; the webview falls back to its canvas, then to the id.
+The status line is rebuilt only when the outcome changes, so a step does not announce it
+again. Keeping an
+element the other side removed offers its flows on the pane that kept it; accepting is one
+`pickWithConnections`, so a reload shows the offer again and declining leaves the build's
+`restoredWithoutConnections` note. Undo of such a pick takes the flows back with it.
+
 ### Hosts
 
 VS Code keeps `^1.76.0`. On 1.76.0 the Git API under `--disable-extensions`, both
@@ -185,5 +237,9 @@ to the two diff origins and lists no conflict-marker participant.
   smoke test's `open` steps cover merge, rebase, cherry-pick and stash pop, a non-BPMN row,
   the notice, the reload and the reopening, and its `marks` steps the open count and the
   markers in both panes, through the DOM only.
+- `MergeDecisionService.spec.ts` picks, reverts, overrides, keeps a sub-process with its
+  contents, refuses a blocked pick and keeps a removed task with its flows on fake panes; the
+  smoke test's `pick` steps decide by keyboard only, the badge surviving a tab switch, the
+  restore offer and a refused pick.
 - The bridge builds no `MergeDecisionService`, yet the merge library reaches its binary
   through the core's barrel.
