@@ -63,8 +63,14 @@ export function createHostElementIdReview(
                     host.postMessage(UNSUPPORTED);
                     return;
                 }
+                // Closed first: the rename's own change must not list the rows again.
                 open = false;
-                surface.renameElementIds(query.unchecked);
+                try {
+                    surface.renameElementIds(query.unchecked);
+                } catch (error) {
+                    open = true;
+                    throw error;
+                }
                 host.postMessage(new ElementIdsAppliedCommand());
             },
             CloseElementIdReviewQuery: () => {
