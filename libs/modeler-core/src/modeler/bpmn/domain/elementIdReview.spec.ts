@@ -26,6 +26,7 @@ const ROWS: ElementIdRow[] = [
         newId: "orderFulfilment",
         clash: false,
         shownId: "Process_1",
+        startsUnchecked: true,
     },
     {
         id: "Activity_1",
@@ -36,8 +37,24 @@ const ROWS: ElementIdRow[] = [
         newId: "serviceTask_checkStock",
         clash: false,
         shownId: "Activity_1",
+        startsUnchecked: false,
     },
 ];
+
+// A pool added while the review is open: the page lists its process with the
+// unchecked rows it holds, which do not name it yet.
+const ADDED_PROCESS: ElementIdRow = {
+    id: "Process_2",
+    name: "Shipping",
+    type: "bpmn:Process",
+    kind: "process",
+    status: "rename",
+    newId: "shipping",
+    clash: false,
+    shownId: "Participant_2",
+    startsUnchecked: true,
+};
+const ROWS_WITH_ADDED_PROCESS = [...ROWS, ADDED_PROCESS];
 
 const OPENING: ElementIdReview = { stage: "opening", editorId: "order", title: "order.bpmn" };
 const LISTED: ElementIdReview = {
@@ -122,6 +139,40 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         event: listing("order", ["Process_1"]),
         next: BOTH_UNCHECKED,
         actions: [show(["Process_1", "Activity_1"])],
+    },
+    {
+        name: "keeps a process that appears after the first listing unchecked and lists again",
+        review: LISTED,
+        event: {
+            type: "reported",
+            editorId: "order",
+            status: "listed",
+            rows: ROWS_WITH_ADDED_PROCESS,
+            unchecked: ["Process_1"],
+        },
+        next: {
+            ...LISTED,
+            rows: ROWS_WITH_ADDED_PROCESS,
+            unchecked: new Set(["Process_1", "Process_2"]),
+        },
+        actions: [
+            {
+                kind: "show",
+                view: elementIdReviewView(
+                    "order.bpmn",
+                    ROWS_WITH_ADDED_PROCESS,
+                    new Set(["Process_1", "Process_2"]),
+                ),
+            },
+            { kind: "askForRows", editorId: "order", unchecked: ["Process_1", "Process_2"] },
+        ],
+    },
+    {
+        name: "leaves a process the user checked checked",
+        review: { ...LISTED, unchecked: new Set() },
+        event: listing("order", []),
+        next: { ...LISTED, unchecked: new Set() },
+        actions: [show([])],
     },
     {
         name: "ignores rows from an editor whose review it is not",

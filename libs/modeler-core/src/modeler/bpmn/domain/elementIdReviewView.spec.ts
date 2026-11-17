@@ -19,6 +19,7 @@ const row = (overrides: Partial<ElementIdRow> & Pick<ElementIdRow, "id">): Eleme
     newId: "serviceTask_checkStock",
     clash: false,
     shownId: overrides.id,
+    startsUnchecked: false,
     ...overrides,
 });
 
@@ -32,6 +33,7 @@ const ROWS: ElementIdRow[] = [
         status: "unchecked",
         newId: "orderFulfilment",
         shownId: "Participant_1",
+        startsUnchecked: true,
     }),
     row({
         id: "Event_1",

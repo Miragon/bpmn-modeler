@@ -86,6 +86,8 @@ export interface ElementIdRow {
     readonly clash: boolean;
     /** The diagram element to reveal for the row: a pool for its process. */
     readonly shownId: string;
+    /** The review leaves the row unchecked until the user checks it, also when it appears later. */
+    readonly startsUnchecked: boolean;
 }
 
 /** `unsupported` from a surface that cannot change IDs, such as View mode. */

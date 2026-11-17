@@ -124,6 +124,7 @@ describe("ElementIdsService", () => {
                         newId: "participant_orderHandling",
                         clash: false,
                         shownId: "Participant_1",
+                        startsUnchecked: false,
                     },
                     {
                         id: "Process_1",
@@ -134,6 +135,7 @@ describe("ElementIdsService", () => {
                         newId: "orderHandling",
                         clash: false,
                         shownId: "Participant_1",
+                        startsUnchecked: true,
                     },
                     {
                         id: "Activity_1",
@@ -144,6 +146,7 @@ describe("ElementIdsService", () => {
                         newId: "serviceTask_checkStock",
                         clash: false,
                         shownId: "Activity_1",
+                        startsUnchecked: false,
                     },
                 ],
                 unchecked: ["Process_1"],

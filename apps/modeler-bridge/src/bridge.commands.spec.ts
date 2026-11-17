@@ -658,6 +658,7 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                     newId: "serviceTask_checkStock",
                     clash: false,
                     shownId: "Activity_1",
+                    startsUnchecked: false,
                 },
             ],
             unchecked: ["Process_1"],

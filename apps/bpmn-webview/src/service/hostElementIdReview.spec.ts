@@ -22,6 +22,7 @@ const row: ElementIdRow = {
     newId: "serviceTask_checkStock",
     clash: false,
     shownId: "Activity_1",
+    startsUnchecked: false,
 };
 
 function setUp() {

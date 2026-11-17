@@ -41,6 +41,7 @@ const rowOf = ({ candidate, status, newId, clash }: ElementIdProposal): ElementI
     ...(newId === undefined ? {} : { newId }),
     clash,
     shownId: candidate.shown.id,
+    startsUnchecked: keepsIdUnlessAsked(candidate.type),
 });
 
 /**

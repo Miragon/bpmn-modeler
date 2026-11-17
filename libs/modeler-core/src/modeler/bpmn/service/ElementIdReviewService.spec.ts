@@ -63,6 +63,7 @@ const ROWS: ElementIdRow[] = [
         newId: "orderFulfilment",
         clash: false,
         shownId: "Process_1",
+        startsUnchecked: true,
     },
     {
         id: "Activity_1",
@@ -73,6 +74,7 @@ const ROWS: ElementIdRow[] = [
         newId: "serviceTask_checkStock",
         clash: false,
         shownId: "Activity_1",
+        startsUnchecked: false,
     },
 ];
 

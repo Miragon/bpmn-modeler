@@ -9,7 +9,8 @@
             "status": "unchecked",
             "newId": "orderFulfilment",
             "clash": false,
-            "shownId": "Participant_1"
+            "shownId": "Participant_1",
+            "startsUnchecked": true
         },
         {
             "id": "Activity_1",
@@ -19,7 +20,8 @@
             "status": "rename",
             "newId": "serviceTask_checkStock",
             "clash": true,
-            "shownId": "Activity_1"
+            "shownId": "Activity_1",
+            "startsUnchecked": false
         },
         {
             "id": "flow_inStock",
@@ -29,7 +31,8 @@
             "status": "matches",
             "newId": "flow_inStock",
             "clash": false,
-            "shownId": "flow_inStock"
+            "shownId": "flow_inStock",
+            "startsUnchecked": false
         },
         {
             "id": "Flow_2",
@@ -38,7 +41,8 @@
             "kind": "flow",
             "status": "skipped",
             "clash": false,
-            "shownId": "Flow_2"
+            "shownId": "Flow_2",
+            "startsUnchecked": false
         }
     ],
     "unchecked": ["Process_1"],
