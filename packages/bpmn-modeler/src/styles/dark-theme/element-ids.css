@@ -1,0 +1,14 @@
+/**
+ * Dark theme for the ID-from-name links under the properties panel's ID field.
+ *
+ * Redefines the --eid-* tokens (libs/element-ids/src/elementIds.css) from
+ * VS Code's own tokens; the --dt-* palette stands in where a host injects no
+ * --vscode-* variables.
+ */
+@import "colors.css";
+
+[data-bpmn-theme="dark"] .eid-id-actions {
+    --eid-fg-muted: var(--vscode-descriptionForeground, var(--dt-surface-a50));
+    --eid-focus: var(--vscode-focusBorder, var(--dt-primary-a0));
+    --eid-link: var(--vscode-textLink-foreground, var(--dt-color-blue-a50));
+}

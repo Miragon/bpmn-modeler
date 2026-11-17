@@ -31,8 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * @param onRespawned Runs after a *crash* respawn — re-registers live sessions.
  * @param onProcessDown Runs the moment the tracked process dies, before the
  *   respawn/give-up decision — clears any in-flight host-UI spinner so it can't
- *   hang on a `progressEnd` the dead core will never send. Defaulted so callers
- *   and tests that don't care stay untouched.
+ *   hang on a `progressEnd` the dead core will never send, and closes its
+ *   review. Defaulted so callers and tests that don't care stay untouched.
  * @param scheduler Runs the async pre-warm spawn and the backoff respawn.
  *   Injectable so tests step time deterministically instead of waiting on the
  *   shared platform pool.
