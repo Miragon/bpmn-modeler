@@ -1,0 +1,15 @@
+{
+    "name": "bpmn-modeler-smoke-driver",
+    "displayName": "BPMN Modeler smoke driver",
+    "description": "Test-only: runs the VS Code API calls the smoke test sends over a loopback port.",
+    "publisher": "miragon-smoke",
+    "version": "0.0.0",
+    "private": true,
+    "engines": {
+        "vscode": "^1.78.0"
+    },
+    "main": "./extension.cjs",
+    "activationEvents": [
+        "*"
+    ]
+}

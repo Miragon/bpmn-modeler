@@ -274,63 +274,91 @@ the job summary of the run.
 config is `vitest.smoke.config.ts`, which neither the root multi-project run
 nor the workspace's coverage-gated `test` picks up.
 
-1. It packs `dist/apps/vscode-plugin` with `vsce package --yarn --no-dependencies`
-   as the publish workflow does, and unpacks the VSIX into a temporary folder
-   outside the repository. No `node_modules` sits next to the bundle there, so
-   a module webpack did not bundle fails the activation as it would for a user.
-   Run `yarn build` first.
-2. It downloads VS Code with `@vscode/test-electron`: the newest stable release
-   that satisfies `engines.vscode`, or `VSCODE_SMOKE_VERSION`. Playwright's
-   Electron driver starts it on a throwaway profile, with the unpacked
-   extension as `--extensionDevelopmentPath`. The oldest version it can drive
-   is 1.78: VS Code 1.76 and 1.77 ship a Chromium without
-   `Element.checkVisibility`, which Playwright's injected script needs. The
-   `engines.vscode` floor itself stays covered by the Extension-Host test.
-3. It opens `smoke.bpmn` in the BPMN custom editor and checks that the diagram
-   renders. It renames the task through direct editing, checks the dirty tab,
-   saves with Ctrl/Cmd+S and parses the file with `bpmn-moddle`. Undo has to
-   restore the canvas and, saved again, the file. It then switches to Default
-   Light+, Dark+ and High Contrast and checks the webview's body class and
-   `data-bpmn-theme`. Finally it opens `smoke.dmn` and `smoke.form`. For
-   BPMN plugins it opens `bpmn-plugin/plugin-smoke.bpmn`, allows the folder's
-   fixture plugin through the notification and its list, and checks that the
-   reloaded editor runs its script and stylesheet from the copy in global
-   storage. It logs the time from opening a diagram to its first surface, with
-   and without the plugin.
+**One suite per feature.** Each `<suite>.smoke.test.ts` file is a suite with
+its own VS Code window, profile and workspace:
 
-The results go to `test-results/vscode-smoke/` (git-ignored, emptied on every
-run): `bpmn-light.png`, `bpmn-dark.png`, `bpmn-high-contrast.png`, `dmn.png`,
-`form.png` and `bpmn-plugin.png`, among others. A failed step adds `failure-<step>.png` and VS Code's logs in
-`vscode-logs/`.
+| Suite | Covers |
+| --- | --- |
+| `bpmn-editor` | Open, direct editing, save and undo through the `TextDocument`, fit, modes, the FEEL editor, Copy Diagram as SVG, template icons under the CSP |
+| `themes` | The BPMN editor, the element template editor and the Add-ons view in Default Light+, Dark+ and High Contrast |
+| `element-ids` | Generate IDs from Names with its review panel, and its undo |
+| `bpmn-diff` | Compare Selected (BPMN), the element XML diff, a Source Control diff |
+| `dmn` | The DMN editor and Compare Selected (DMN) down to a decision table |
+| `form` | The form editor and its engine platform and version |
+| `element-templates` | New Element Template, the builder, the template chooser, schema trust, the editor offered on a template's JSON |
+| `linked-form-preview` | The preview of a user task's linked form in the BPMN editor |
+| `add-ons` | A workspace bpmn-js plugin from its notice to Allow and Revoke, Review Add-ons, the view's fonts |
+| `allowance-playground` | The checklist of `resources/allowance-playground/README.md`, one window per row on one profile |
+| `merge-view` | The BPMN merge view from Source Control |
 
-A second file, `allowance-playground.smoke.test.ts`, runs the checklist of
-`resources/allowance-playground/README.md` in the same VS Code build: it builds
-a fresh playground with `create-playground.mjs`, opens one window per row on
-one shared profile, each its own VS Code process after the previous one quit,
-and checks the notices, the badge, the `acme` lint warnings, the Add-ons view
-and the pnpm and in-place updates. Its file header names the rows it covers;
-row 4 runs only where git 2.48 or later can add a worktree with relative
-paths, and row 12, the 1.21.0 migration, remote windows and Windows are not
-covered. It adds about two minutes. Its results go to
-`test-results/vscode-smoke-allowance/` (emptied on every run, kept apart because
-the first file empties `test-results/vscode-smoke/`): a screenshot and the
-window's **bpmn.modeler** output channel lines per row, `playground.txt`, and
-VS Code's logs in `vscode-logs/`. A failed row adds `failure-<row>.png` and the
-notification center's texts in `failure-<row>.notices.txt`.
+**How a run works.**
 
-`VSCODE_SMOKE_FILTER` narrows a container run to the test files whose path
-contains it, for example `VSCODE_SMOKE_FILTER=allowance` for the playground
-rows only. Without it both files run.
+1. Once per run, `support/globalSetup.ts` packs `dist/apps/vscode-plugin` with
+   `vsce package --yarn --no-dependencies` as the publish workflow does, and
+   unpacks the VSIX into a temporary folder outside the repository. No
+   `node_modules` sits next to the bundle there, so a module webpack did not
+   bundle fails the activation as it would for a user. Run `yarn build` first.
+   It downloads VS Code with `@vscode/test-electron`: the newest stable release
+   that satisfies `engines.vscode`, or `VSCODE_SMOKE_VERSION`. The oldest
+   version Playwright can drive is 1.78: VS Code 1.76 and 1.77 ship a Chromium
+   without `Element.checkVisibility`. The `engines.vscode` floor itself stays
+   covered by the Extension-Host test.
+2. `smokeSuite()` (`support/smokeSuite.ts`) starts the suite's window with
+   Playwright's Electron driver on a throwaway profile, with the unpacked
+   extension as `--extensionDevelopmentPath`. Before every test it brings the
+   window back to its start (no editor, picker, panel or notice, the start
+   theme) and restores the workspace's files, so a test opens what it needs and
+   depends on no test before it. `freshProfile` starts every test on an empty
+   profile, for a suite that changes what the extension stores for the user.
+3. A second development extension, the driver in `support/driver/`, runs the
+   functions a test sends it against the VS Code API (`session.evaluate`,
+   `executeCommand`, `openFile`, `setSetting`). Test plumbing goes through it:
+   opening a file, closing editors, changing a setting, focusing a view. It
+   needs neither the keyboard nor the focus. What is under test still runs as a
+   user runs it: a command of the extension from the palette (`runCommand`, so
+   its title and `when` clause count), a menu entry from its menu, a shortcut
+   by its keys.
+4. A failed test leaves `failure-<test>.png` and `failure-<test>.focus.json`
+   (whether the window and which document held the keyboard), and the next test
+   gets a new window. A stuck window fails one test, not the rest of the file.
+   The suite fails any test during which a webview reported a Content Security
+   Policy violation.
+
+**Conventions for a test.**
+
+- `expect.poll` waits up to 30 s, as Playwright does for an element; give no
+  timeout unless a step needs another one.
+- Wait for what the user sees before acting on it. The status bar follows the
+  host's document, the webview imports a change a moment later.
+- A click on a webview page or a tree that has just rendered can be lost.
+  Repeat it until its effect shows, as `clickUntilReported` in the add-ons
+  suite does.
+- Select a field's text with `selectText()`, not Ctrl/Cmd+A. In a webview that
+  shortcut is a VS Code command, which selects a moment later and takes the
+  first typed characters with it.
+- A new suite file is listed in `.github/vscode-smoke-suites.json` with the
+  paths that select it; a repo check fails otherwise.
+
+The results go to `test-results/vscode-smoke/<suite>/` (git-ignored, emptied
+by the suite on every run): its screenshots, and for a failed test the files
+above and VS Code's logs in `vscode-logs/`. The playground suite adds a
+screenshot and the window's **bpmn.modeler** output channel lines per row and
+`playground.txt`; its file header names the rows it covers.
 
 Run it in a container locally, where no VS Code window opens and nothing takes
 the focus:
 
 ```bash
 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+VSCODE_SMOKE_FILTER=merge-view corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
+VSCODE_SMOKE_FILTER="bpmn-diff dmn" corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 VSCODE_SMOKE_VERSION=1.78.2 corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
-VSCODE_SMOKE_FILTER=allowance corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 CONTAINER_ENGINE=docker corepack yarn workspace vs-code-bpmn-modeler test:vscode:docker
 ```
+
+`VSCODE_SMOKE_FILTER` narrows a container run to the suites whose file path
+contains one of its words (`form` also matches `linked-form-preview`; name the
+file, `form.smoke`, for the one). Without it every suite runs.
 
 The script uses `CONTAINER_ENGINE`, else Podman when it is on `PATH`, else
 Docker. A shell alias such as `docker=podman` does not reach the script. On
@@ -342,37 +370,54 @@ run mounts the repository read-only and copies the files Git sees into the
 container, uncommitted changes included, without ignored files such as
 `node_modules`, `dist` and `.git`. There it runs `yarn install --immutable`,
 `yarn build` and the test under `xvfb-run`, then copies `test-results/vscode-smoke/`
-back, with the playground's results in its `allowance-playground/` folder. The
-host's `node_modules` and `dist` stay as they are. VS Code's download and Yarn's
-cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
+back. The host's `node_modules` and `dist` stay as they are. VS Code's download
+and Yarn's cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
 `bpmn-modeler-vscode-smoke-yarn`. The image is built for the host's
 architecture, arm64 on Apple silicon, x64 elsewhere. With the image and both
-volumes warm, a run takes about four minutes on an Apple silicon Mac: about
-45 s install, 30 s build, 70 s for `vscode-smoke.test.ts` and 110 s for the
-playground file. The first run also builds the image and downloads VS Code, a
-few minutes more.
+volumes warm, a run of every suite takes about five minutes on an Apple silicon
+Mac: about 45 s install, 30 s build, 110 s for the playground suite, 40 s for
+the merge view and 80 s for the other nine. The first run also builds the image
+and downloads VS Code, a few minutes more.
 
-On the host, the same test opens a VS Code window for some seconds, which takes
-the focus on macOS. On Linux, run it under an X server:
+On the host, the same test opens VS Code windows, which take the focus on
+macOS. On Linux, run it under an X server:
 
 ```bash
 corepack yarn build
 corepack yarn workspace vs-code-bpmn-modeler test:vscode
-xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode   # Linux
+corepack yarn workspace vs-code-bpmn-modeler test:vscode bpmn-editor       # one suite
+xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode       # Linux
 ```
 
 VS Code is cached in `~/.cache/bpmn-modeler-vscode-smoke` (`~/Library/Caches/…`
 on macOS). Let the first download finish before starting a second run.
 
 In CI, `.github/workflows/vscode-smoke.yml` runs it on `ubuntu-latest` under
-`xvfb-run -a`. It runs weekly, on demand (Actions → VS
-Code smoke → Run workflow, optionally with a VS Code version) and on pull
-requests that change the extension, a webview, a library or package it bundles,
-the lockfile or the workflow. It is not a required check. The downloaded VS Code
-is cached per version; the screenshots of both files are uploaded as
-`vscode-smoke-screenshots` and, when a step failed, VS Code's logs and the
-whole `test-results/vscode-smoke-allowance/` folder as `vscode-smoke-logs`
-(7 days each).
+`xvfb-run -a`. It is not a required check.
+
+- **A pull request** runs the suites its changed files select.
+  `.github/vscode-smoke-suites.json` holds the rules: a file selects the suites
+  of the first rule it matches, plus the `baseline` suite, which proves that
+  the packaged extension still activates. A file no rule knows selects every
+  suite, so a new folder is covered until a rule narrows it. `ignore` lists
+  what never reaches the packaged extension (Markdown, specs, spec fixtures).
+  A changed suite file selects itself.
+- **Main** runs every suite on a push that touches the workflow's paths, so a
+  test that landed meets the smoke there.
+- **The weekly run** and a manual run (Actions → VS Code smoke → Run workflow,
+  optionally with a VS Code version and a list of suites) run every suite
+  against the newest stable VS Code.
+
+`.github/scripts/vscode-smoke-plan.mjs` spreads the chosen suites over at most
+three jobs by their `seconds` in the registry, because every job pays its own
+install and build: a few short suites share one job. Each job uploads
+`test-results/vscode-smoke/` as `vscode-smoke-results-<job>` (7 days). The
+`vscode-smoke` job is the run's one result.
+
+In CI a failed test runs once more, in a new window. A test that passes only on
+its retry is not silent: the run's log, a warning on the pull request and the
+job summary name it as flaky. The playground suite does not retry, because a
+row's second attempt would start from the allowances its first one stored.
 
 ## Performance harness
 
