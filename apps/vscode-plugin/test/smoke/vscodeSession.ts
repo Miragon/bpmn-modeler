@@ -283,6 +283,8 @@ export class VsCodeSession {
             if (Date.now() > deadline) {
                 throw new Error("the workbench did not come back to its start state");
             }
+            // A notice can arrive after the first clearing, such as the extension's update notice.
+            await this.executeCommand("notifications.clearAll");
             await delay(50);
         }
     }
