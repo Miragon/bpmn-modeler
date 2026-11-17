@@ -14,6 +14,10 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { BpmnDiffService } from "./BpmnDiffService";
 import { DmnDiffService } from "./DmnDiffService";
+import type { MergePaneCommandService } from "./MergePaneCommandService";
+
+/** A host's keyboard commands of the merge panes: takes what each pane says they can do. */
+export type MergePaneCommands = Pick<MergePaneCommandService, "report">;
 
 /**
  * What a host adds to the diff panes' routes. An absent entry makes the router
@@ -24,6 +28,8 @@ export interface DiffPaneHostExtensions {
     readonly swapSides?: (pane: DiffPaneHandle) => Promise<void>;
     /** Receives the errors a pane reports, tagged with the pane's file name. */
     readonly paneLog?: LoggerPort;
+    /** Takes what a merge pane says its keyboard commands can do; BPMN panes only. */
+    readonly mergePaneCommands?: MergePaneCommands;
 }
 
 /**
@@ -60,6 +66,7 @@ export function createDiffPaneRouter(
             : { ignored: "the host shows no element XML diff" },
         ...mergeRoutes(diffService),
         ...mergeResultRoutes(diffService),
+        ...mergePaneCommandRoutes(extensions),
         ...hostRoutes(extensions),
     });
 }
@@ -89,6 +96,16 @@ function mergeRoutes(
         UnpickMergeCommand: [
             (command, pane) => diffService.unpickMerge(pane, command.elementId, command.scope),
         ],
+    };
+}
+
+function mergePaneCommandRoutes({
+    mergePaneCommands,
+}: DiffPaneHostExtensions): CommandTable<"MergePaneCommandsChangedCommand", DiffPaneHandle> {
+    return {
+        MergePaneCommandsChangedCommand: mergePaneCommands
+            ? [(command, pane) => mergePaneCommands.report(pane, command.available)]
+            : { ignored: "the host offers no keyboard commands for merge panes" },
     };
 }
 

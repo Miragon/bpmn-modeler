@@ -175,6 +175,10 @@ export type { ConflictVersionsSource } from "./diff/port/ConflictVersionsSource"
 export * from "./diff/port/DiffPaneHandle";
 export * from "./diff/port/ElementXmlDiffView";
 export * from "./diff/port/MergeCommandAvailability";
+export type {
+    MergePaneCommandKeys,
+    MergePaneCommandKeysState,
+} from "./diff/port/MergePaneCommandKeys";
 export * from "./diff/port/MergeSidesView";
 export type { MergeWorkingFile, MergeWorkingFileText } from "./diff/port/MergeWorkingFile";
 export * from "./diff/service/DiffSession";
@@ -186,6 +190,7 @@ export * from "./diff/service/diffPaneRouter";
 export * from "./diff/service/ConflictMarkerParticipant";
 export * from "./diff/service/MergeBuildService";
 export * from "./diff/service/MergeDecisionService";
+export * from "./diff/service/MergePaneCommandService";
 export * from "./diff/service/MergeSessionStore";
 export * from "./diff/service/MergeViewOpener";
 export * from "./diff/service/ResolvableConflictsService";

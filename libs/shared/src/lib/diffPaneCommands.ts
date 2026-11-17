@@ -32,6 +32,7 @@ export const BPMN_DIFF_PANE_COMMAND_TYPES = [
     "BuildMergeResultCommand",
     "CompareMergeResultCommand",
     "SwitchMergeComparisonCommand",
+    "MergePaneCommandsChangedCommand",
 ] as const satisfies readonly ProtocolCommandType[];
 
 export type BpmnDiffPaneCommandType = (typeof BPMN_DIFF_PANE_COMMAND_TYPES)[number];

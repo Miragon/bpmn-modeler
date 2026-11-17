@@ -304,6 +304,46 @@
                 "icon": "$(git-merge)"
             },
             {
+                "command": "bpmn-modeler.mergeKeepThisSide",
+                "title": "Merge View: Keep This Side",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeKeepWithEverythingInside",
+                "title": "Merge View: Keep with Everything Inside",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeLeaveOut",
+                "title": "Merge View: Leave Out",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeKeepRemovedFlows",
+                "title": "Merge View: Also Keep Its Removed Flows",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeUndoPick",
+                "title": "Merge View: Undo Pick",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeNextConflict",
+                "title": "Merge View: Next Conflict",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergePreviousConflict",
+                "title": "Merge View: Previous Conflict",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.mergeBuild",
+                "title": "Merge View: Build Result",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.toggleTextEditor",
                 "title": "Toggle Standard Text Editor",
                 "category": "Miragon BPMN Modeler",
@@ -520,6 +560,52 @@
                 "command": "bpmn-modeler.formatDiagram",
                 "key": "shift+alt+f",
                 "when": "bpmn-modeler.openCustomEditors > 0"
+            },
+            {
+                "command": "bpmn-modeler.mergeKeepThisSide",
+                "key": "ctrl+k k",
+                "mac": "cmd+k k",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canKeep"
+            },
+            {
+                "command": "bpmn-modeler.mergeKeepWithEverythingInside",
+                "key": "ctrl+k shift+k",
+                "mac": "cmd+k shift+k",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canKeepInside"
+            },
+            {
+                "command": "bpmn-modeler.mergeLeaveOut",
+                "key": "ctrl+k l",
+                "mac": "cmd+k l",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canLeaveOut"
+            },
+            {
+                "command": "bpmn-modeler.mergeKeepRemovedFlows",
+                "key": "ctrl+k shift+f",
+                "mac": "cmd+k shift+f",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canKeepRemovedFlows"
+            },
+            {
+                "command": "bpmn-modeler.mergeUndoPick",
+                "key": "ctrl+k backspace",
+                "mac": "cmd+k backspace",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canUndo"
+            },
+            {
+                "command": "bpmn-modeler.mergeNextConflict",
+                "key": "alt+f5",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canStep"
+            },
+            {
+                "command": "bpmn-modeler.mergePreviousConflict",
+                "key": "shift+alt+f5",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canStep"
+            },
+            {
+                "command": "bpmn-modeler.mergeBuild",
+                "key": "ctrl+k b",
+                "mac": "cmd+k b",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.offersBuild"
             }
         ],
         "menus": {
@@ -527,6 +613,38 @@
                 {
                     "command": "bpmn-modeler.openBpmnMergeView",
                     "when": "resource in bpmn-modeler.resolvableBpmnConflicts"
+                },
+                {
+                    "command": "bpmn-modeler.mergeKeepThisSide",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canKeep"
+                },
+                {
+                    "command": "bpmn-modeler.mergeKeepWithEverythingInside",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canKeepInside"
+                },
+                {
+                    "command": "bpmn-modeler.mergeLeaveOut",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canLeaveOut"
+                },
+                {
+                    "command": "bpmn-modeler.mergeKeepRemovedFlows",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canKeepRemovedFlows"
+                },
+                {
+                    "command": "bpmn-modeler.mergeUndoPick",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canUndo"
+                },
+                {
+                    "command": "bpmn-modeler.mergeNextConflict",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canStep"
+                },
+                {
+                    "command": "bpmn-modeler.mergePreviousConflict",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canStep"
+                },
+                {
+                    "command": "bpmn-modeler.mergeBuild",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.offersBuild"
                 },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",

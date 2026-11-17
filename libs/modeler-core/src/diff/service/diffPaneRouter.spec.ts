@@ -13,6 +13,7 @@ import {
     GetBpmnFileCommand,
     GetDmnFileCommand,
     LogErrorCommand,
+    MergePaneCommandsChangedCommand,
     ShowElementXmlChangesCommand,
     SwapCompareSidesCommand,
     ViewportChangedCommand,
@@ -98,6 +99,7 @@ describe("createDiffPaneRouter", () => {
                 BuildMergeResultCommand: "ignored",
                 CompareMergeResultCommand: "ignored",
                 SwitchMergeComparisonCommand: "ignored",
+                MergePaneCommandsChangedCommand: "ignored",
             },
         ],
         [
@@ -122,6 +124,7 @@ describe("createDiffPaneRouter", () => {
                 BuildMergeResultCommand: "ignored",
                 CompareMergeResultCommand: "ignored",
                 SwitchMergeComparisonCommand: "ignored",
+                MergePaneCommandsChangedCommand: "ignored",
             },
         ],
     ])(
@@ -300,6 +303,31 @@ describe("createDiffPaneRouter", () => {
         await router.dispatch(new SwapCompareSidesCommand(), before);
 
         expect(swapped).toStrictEqual([BEFORE]);
+    });
+
+    it("routes what a merge pane's keyboard commands can do only where the host offers them", () => {
+        expect(
+            diffPanes({ mergePaneCommands: { report: () => undefined } }).router.routeOf(
+                "MergePaneCommandsChangedCommand",
+            ).kind,
+        ).toBe("handled");
+        expect(diffPanes().router.routeOf("MergePaneCommandsChangedCommand")).toStrictEqual({
+            kind: "ignored",
+            reason: "the host offers no keyboard commands for merge panes",
+        });
+    });
+
+    it("hands what a merge pane's keyboard commands can do to the merge pane commands", async () => {
+        const reported: [string, readonly string[]][] = [];
+        const { router, after } = diffPanes({
+            mergePaneCommands: {
+                report: (pane, available) => reported.push([pane.uri, available]),
+            },
+        });
+
+        await router.dispatch(new MergePaneCommandsChangedCommand(["keep", "build"]), after);
+
+        expect(reported).toStrictEqual([[AFTER, ["keep", "build"]]]);
     });
 
     it("logs a pane's error under the pane's file name", async () => {

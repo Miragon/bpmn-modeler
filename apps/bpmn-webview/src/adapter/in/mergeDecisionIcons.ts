@@ -1,9 +1,8 @@
-import { keepsEverythingInside, type MergePadDecision } from "../../domain/mergePadDecisions";
+import type { MergePadEntry } from "@miragon/bpmn-modeler-shared";
+
 import { padIconSvg } from "./padIcon";
 
-export type MergeDecisionGlyph = "keep" | "keepInside" | "leaveOut" | "keepRemovedFlows" | "undo";
-
-export const MERGE_DECISION_ICONS: Readonly<Record<MergeDecisionGlyph, string>> = {
+export const MERGE_DECISION_ICONS: Readonly<Record<MergePadEntry, string>> = {
     keep: padIconSvg(`<path d="M20 6 9 17l-5-5"/>`),
     keepInside: padIconSvg(
         `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m16 9-5.5 6L8 12.5"/>`,
@@ -15,7 +14,3 @@ export const MERGE_DECISION_ICONS: Readonly<Record<MergeDecisionGlyph, string>> 
     ),
     undo: padIconSvg(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`),
 };
-
-export function mergeDecisionGlyph(decision: MergePadDecision): MergeDecisionGlyph {
-    return keepsEverythingInside(decision) ? "keepInside" : decision.kind;
-}

@@ -38,19 +38,26 @@ function build(
     };
     const canvas = { getRootElement: () => ROOT };
     const selection = { get: () => selected };
+    const listeners = new Map<string, () => void>();
+    const eventBus = {
+        on: vi.fn((event: string, listener: () => void) => listeners.set(event, listener)),
+    };
     const entryConfig = {
         decisionsOf: vi.fn((id: string) => (id === "Task_1" ? decisions : [])),
         decide: vi.fn(),
         attach: vi.fn(),
+        selectionChanged: vi.fn(),
     };
     const provider = new MergePickContextPadProvider(
         contextPad,
         canvas,
         selection,
+        eventBus,
         untranslated,
         entryConfig,
     );
-    return { provider, contextPad, entryConfig };
+    const fire = (event: string) => listeners.get(event)?.();
+    return { provider, contextPad, entryConfig, fire };
 }
 
 /** Each entry's button as diagram-js renders it from the entry's html. */
@@ -77,6 +84,26 @@ describe("MergePickContextPadProvider", () => {
         provider.refresh();
 
         expect(contextPad.open).toHaveBeenCalledExactlyOnceWith(TASK, true);
+    });
+
+    it.each([
+        ["an element", [TASK], "Task_1"],
+        ["a label, as the element it labels", [TASK_LABEL], "Task_1"],
+        ["nothing", [], undefined],
+        ["several elements", [TASK, TASK_LABEL], undefined],
+        ["the root", [ROOT], undefined],
+    ])("names the element whose pad a keyboard command runs: %s", (_case, selected, id) => {
+        const { provider } = build([], { selected });
+
+        expect(provider.selectedElementId()).toBe(id);
+    });
+
+    it("tells the merge pane of every selection change, a step's and the partner's included", () => {
+        const { entryConfig, fire } = build([]);
+
+        fire("selection.changed");
+
+        expect(entryConfig.selectionChanged).toHaveBeenCalledOnce();
     });
 
     it("leaves a closed pad closed", () => {
@@ -186,7 +213,12 @@ describe("MergePickContextPadProvider", () => {
 
 describe("createMergePickModule", () => {
     it("hands the provider the merge pane's callbacks", () => {
-        const entryConfig = { decisionsOf: () => [], decide: vi.fn(), attach: vi.fn() };
+        const entryConfig = {
+            decisionsOf: () => [],
+            decide: vi.fn(),
+            attach: vi.fn(),
+            selectionChanged: vi.fn(),
+        };
 
         const module = createMergePickModule(entryConfig);
 

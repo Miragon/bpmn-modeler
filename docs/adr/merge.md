@@ -11,6 +11,7 @@ classified element by element, the user decides what is left, and one valid file
 Epic #2459 keeps the merge in VS Code first and out of the published packages. This record
 covers the data library; the view that shows a conflict as diagrams and the line-wise XML
 merge in VS Code's merge editor have records of their own ([merge view](merge-view.md),
+[merge view picking and building](merge-view-picking-and-building.md),
 [merge XML editor](merge-xml-editor.md)).
 
 ## Decision
