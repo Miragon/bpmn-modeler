@@ -56,6 +56,12 @@ internal class BridgeRouters(deps: BridgeDeps) {
         addOns.followNewProcess()
     }
 
+    /** Runs after a crash respawn: the new core knows neither the live sessions nor the review. */
+    fun recoverAfterRespawn() {
+        editor.reregisterLiveSessions()
+        elementIdReview.coreRespawned()
+    }
+
     fun pushReplicatedState(kind: ReplicatedStateKind) = replicatedStates.single { it.kind == kind }.push()
 
     /** The trust goes first: adding a Trusted Location announces no change of the project's trust. */

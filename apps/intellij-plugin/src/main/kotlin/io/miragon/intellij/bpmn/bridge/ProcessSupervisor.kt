@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *   production adapter defers `HostNotifications` construction so the happy path
  *   never builds the UI surface; tests pass a recording fake.
  * @param onSpawned Runs after every (re)spawn — seeds the host's mirrors in the bridge.
- * @param onRespawned Runs after a *crash* respawn — re-registers live sessions.
+ * @param onRespawned Runs after a *crash* respawn — re-registers live sessions and closes the old core's review.
  * @param onProcessDown Runs the moment the tracked process dies, before the
  *   respawn/give-up decision — clears any in-flight host-UI spinner so it can't
  *   hang on a `progressEnd` the dead core will never send. Defaulted so callers
