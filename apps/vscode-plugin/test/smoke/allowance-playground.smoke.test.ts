@@ -1,14 +1,13 @@
 import { execFile } from "node:child_process";
 import { cp, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import type { FrameLocator, Locator } from "playwright-core";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { COMMAND_KEY, VsCodeSession, downloadVsCode, packExtension } from "./vscodeSession";
+import { COMMAND_KEY, VsCodeSession } from "./vscodeSession";
 
 /**
  * Rows of the checklist in resources/allowance-playground/README.md in a real
@@ -26,9 +25,7 @@ import { COMMAND_KEY, VsCodeSession, downloadVsCode, packExtension } from "./vsc
 
 const runFile = promisify(execFile);
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
-const DIST_DIRECTORY = join(REPOSITORY_ROOT, "dist/apps/vscode-plugin");
-// Not below test-results/vscode-smoke, which the other smoke file empties in its beforeAll.
-const RESULTS_DIRECTORY = join(REPOSITORY_ROOT, "test-results/vscode-smoke-allowance");
+const RESULTS_DIRECTORY = join(REPOSITORY_ROOT, "test-results/vscode-smoke/allowance-playground");
 const PLAYGROUND_SCRIPT = join(
     REPOSITORY_ROOT,
     "resources/allowance-playground/create-playground.mjs",
@@ -164,7 +161,10 @@ async function installedVersion(packageFolder: string): Promise<string> {
     return JSON.parse(await readFile(join(packageFolder, "package.json"), "utf8")).version;
 }
 
-describe("the allowance playground in a real VS Code, one profile for every window", () => {
+const SUITE_TITLE = "the allowance playground in a real VS Code, one profile for every window";
+
+// No retry: a row's second attempt would start from the allowances its first one stored.
+describe(SUITE_TITLE, { retry: 0 }, () => {
     let rootDirectory = "";
     let playground = "";
     let extensionPath = "";
@@ -281,7 +281,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
 
     /** Every notice the window holds, the toasts and those the center keeps after a toast hid. */
     async function noticesInCenter(): Promise<string[]> {
-        await vscode().runCommand("Notifications: Show Notifications");
+        await vscode().executeCommand("notifications.showList");
         const center = page().locator(".notifications-center");
         await center.waitFor({ state: "visible", timeout: TIMEOUT_MS });
         await delay(300);
@@ -289,7 +289,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             .locator(".notification-list-item-message")
             .allTextContents()
             .catch((): string[] => []);
-        await vscode().runCommand("Notifications: Hide Notifications");
+        await vscode().executeCommand("notifications.hideList");
         return texts;
     }
 
@@ -476,7 +476,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
 
     /** The view's rows, sorted by title, and what an allowed detail offers. */
     async function addOnsViewRows(): Promise<{ title: string; state: string }[]> {
-        await vscode().runCommand("Focus on Add-ons View");
+        await vscode().executeCommand("bpmn-modeler.addOnsView.focus");
         const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
         await addOnRow(addOns, PLUGIN_NAME).first().waitFor({ timeout: TIMEOUT_MS });
         await addOnRow(addOns, RULE_PACKAGE).first().waitFor({ timeout: TIMEOUT_MS });
@@ -499,7 +499,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             ).toBe(1);
             await closeDetailTab();
         }
-        await vscode().runCommand("View: Show Explorer");
+        await vscode().executeCommand("workbench.view.explorer");
         return rows.sort((left, right) => (left.title < right.title ? -1 : 1));
     }
 
@@ -627,7 +627,9 @@ describe("the allowance playground in a real VS Code, one profile for every wind
     beforeAll(async () => {
         await rm(RESULTS_DIRECTORY, { recursive: true, force: true });
         await mkdir(RESULTS_DIRECTORY, { recursive: true });
-        rootDirectory = await mkdtemp(join(tmpdir(), "bpmn-allowance-smoke-"));
+        const run = inject("smokeRun");
+        ({ extensionId, extensionPath, executablePath } = run);
+        rootDirectory = await mkdtemp(join(run.runRoot, "s-"));
         // "Allowed in" names realpaths; macOS' tmpdir lies behind the /var link.
         playground = join(await realpath(rootDirectory), "playground");
         const { stdout } = await runFile(process.execPath, [
@@ -637,15 +639,6 @@ describe("the allowance playground in a real VS Code, one profile for every wind
         ]);
         await writeFile(join(RESULTS_DIRECTORY, "playground.txt"), stdout);
         log(`playground in ${playground}`);
-
-        const manifest = JSON.parse(await readFile(join(DIST_DIRECTORY, "package.json"), "utf8"));
-        extensionId = `${manifest.publisher}.${manifest.name}`.toLowerCase();
-        extensionPath = await packExtension(DIST_DIRECTORY, rootDirectory);
-        executablePath = await downloadVsCode(
-            extensionPath,
-            process.env.VSCODE_SMOKE_VERSION || undefined,
-            log,
-        );
     });
 
     afterEach(async ({ task }) => {
@@ -710,7 +703,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
                 "acme: the acme 1.0.0 warnings never showed after Allow",
             );
 
-            await vscode().runCommand("Focus on Problems View");
+            await vscode().executeCommand("workbench.panel.markers.view.focus");
             const problems = page().locator(".markers-panel");
             for (const message of acmeMessages("1.0.0", Object.values(TASKS))) {
                 await expect
@@ -933,7 +926,7 @@ describe("the allowance playground in a real VS Code, one profile for every wind
             await openWindow("acme-worktrees/feature");
             await vscode().showInCustomEditor(DIAGRAM, diagramRendered);
             await expectBadge("Hello badge v1", "feature: the badge never showed before Revoke");
-            await vscode().runCommand("Focus on Add-ons View");
+            await vscode().executeCommand("bpmn-modeler.addOnsView.focus");
             const addOns = await vscode().viewWebview(ADD_ONS_VIEW);
             expect(await revokeInView(addOns, PLUGIN_NAME)).toBe(
                 `Revoked ${PLUGIN_NAME} in every worktree of its repository. Open editors reload without it.`,

@@ -34,6 +34,10 @@ included, is in `docs/vscode/contributing/development.md` (Coding agents).
 - A new Vitest workspace is listed in `.github/vitest-targets.json`;
   `.github/scripts/check-vitest-targets.mjs` fails the lint job and pre-push
   otherwise.
+- A new VS Code smoke suite (`apps/vscode-plugin/test/smoke/<suite>.smoke.test.ts`)
+  is listed in `.github/vscode-smoke-suites.json` with the paths that select it;
+  a repo check fails otherwise. Its conventions are in
+  `docs/vscode/contributing/development.md` (VS Code smoke test).
 - VS Code settings use the `miragon.bpmnModeler` namespace (for example
   `miragon.bpmnModeler.language`), never the legacy `miragon.camundaModeler`
   prefix.

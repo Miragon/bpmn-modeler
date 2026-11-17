@@ -307,7 +307,10 @@
                 "apps/intellij-plugin/build.gradle.kts",
                 "eslint.config.cjs",
                 "**/eslint.config.cjs",
-                ".github/scripts/vitest-target-reads.{mjs,d.mts}"
+                ".github/scripts/vitest-target-reads.{mjs,d.mts}",
+                ".github/scripts/vscode-smoke-plan.{mjs,d.mts}",
+                ".github/vscode-smoke-suites.json",
+                "apps/vscode-plugin/test/smoke/*.smoke.test.ts"
             ],
             "typecheck": "typecheck"
         },
