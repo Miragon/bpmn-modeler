@@ -282,10 +282,8 @@ nor the workspace's coverage-gated `test` picks up.
 2. It downloads VS Code with `@vscode/test-electron`: the newest stable release
    that satisfies `engines.vscode`, or `VSCODE_SMOKE_VERSION`. Playwright's
    Electron driver starts it on a throwaway profile, with the unpacked
-   extension as `--extensionDevelopmentPath`. The oldest version it can drive
-   is 1.78: VS Code 1.76 and 1.77 ship a Chromium without
-   `Element.checkVisibility`, which Playwright's injected script needs. The
-   `engines.vscode` floor itself stays covered by the Extension-Host test.
+   extension as `--extensionDevelopmentPath`. The `engines.vscode` floor
+   itself stays covered by the Extension-Host test.
 3. It opens `smoke.bpmn` in the BPMN custom editor and checks that the diagram
    renders. It renames the task through direct editing, checks the dirty tab,
    saves with Ctrl/Cmd+S and parses the file with `bpmn-moddle`. Undo has to

@@ -347,7 +347,7 @@ jobs:
             echo "VS Code provisioning attempt ${attempt}/3"
             if corepack yarn node --input-type=module -e '
               import { downloadAndUnzipVSCode } from "@vscode/test-electron";
-              for (const version of ["1.76.0", "stable"]) {
+              for (const version of ["1.96.0", "stable"]) {
                 await downloadAndUnzipVSCode({ version, timeout: 60_000 });
               }
             '; then

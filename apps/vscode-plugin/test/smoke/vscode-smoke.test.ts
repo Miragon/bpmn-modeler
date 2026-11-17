@@ -84,7 +84,7 @@ const REVIEW_FACTS = ["Folder", "Allowed in"];
 const PLUGIN_BADGE_COLOR = "rgb(255, 0, 255)";
 const OPEN_TIMING_ROUNDS = 3;
 
-/** `Default Light+`/`Dark+` exist in every VS Code down to the engines floor; the `Modern` themes do not. */
+/** `Default Light+`/`Dark+` exist in every VS Code down to the engines floor. */
 const COLOR_THEMES = [
     {
         id: "light",

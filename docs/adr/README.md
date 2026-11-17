@@ -26,7 +26,7 @@ preserves earlier decisions and their evolution.
 | [DMN modeler](dmn-modeler.md) | Separate embeddable package, public API, themes, locale |
 | [Form editor](form-editor.md) | Forms inside the VS Code extension, engine version selection, metadata-only edits |
 | [Deployment](deployment.md) | Targets, credentials, environment references, execution, freshness ledger, engine reconciliation |
-| [Release and publishing](release-and-publishing.md) | Release components, source markers, release PR, npm/Marketplace/Open VSX/Orca publishing |
+| [Release and publishing](release-and-publishing.md) | Release components, source markers, release PR, npm/Marketplace/Open VSX/Orca publishing, the supported VS Code versions |
 | [Standalone app](standalone-app.md) | Theia and Electron runtime, dependency security overrides, Flatpak Git, built-in languages, Windows packages |
 | [Dependencies](dependencies.md) | Private upstream APIs, identity-sensitive bpmn-io pins, TypeScript compilers, vulnerability handling |
 | [Testing](testing.md) | Test environments, fakes and contract suites, test-first for rules, coverage, mutation testing, CI test targets |

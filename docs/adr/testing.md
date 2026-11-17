@@ -1,7 +1,7 @@
 # Testing
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-17
 
 ## Context
 
@@ -91,8 +91,7 @@ none ([enforcement](architecture-enforcement.md#fitness-functions)).
   covers what neither it nor the browser tests reach: the packaged VSIX, webview
   bundles under the host's CSP, the host/webview protocol and the `TextDocument`
   behind the custom editor. It packs with `vsce`, unpacks outside the repository
-  and drives desktop VS Code through `playwright-core`'s Electron driver (not
-  possible before VS Code 1.78, so the floor stays with the Extension-Host test).
+  and drives desktop VS Code through `playwright-core`'s Electron driver.
   It keeps Vitest as runner with its own config so `yarn test` and the coverage
   gates exclude it. The driver is ported, not imported from
   `@miragon/modeler-shell`, because that driver expects the shell's chrome and
