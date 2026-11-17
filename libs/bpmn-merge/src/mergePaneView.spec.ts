@@ -326,11 +326,52 @@ describe("mergePaneView", () => {
                 { id: "Process_1", container: true },
                 { id: "Sub", container: true, undo: "withContents" },
                 { id: "Inner", container: false, undo: "element" },
-                { id: "Task_Audit", container: false },
             ];
-            expect(mergePaneView(decisions, "current").pickable).toEqual(pickable);
-            expect(mergePaneView(decisions, "incoming").pickable).toEqual(pickable);
+            expect(mergePaneView(decisions, "current").pickable).toStrictEqual([
+                ...pickable,
+                { id: "Task_Audit", container: false },
+            ]);
+            expect(mergePaneView(decisions, "incoming").pickable).toStrictEqual([
+                ...pickable,
+                { id: "Task_Audit", container: false, otherSideLacks: "missing" },
+            ]);
         });
+
+        it.each<[ElementState, "withBase" | "withoutBase", string | undefined, string | undefined]>(
+            [
+                ["removedByCurrent", "withBase", undefined, "removed"],
+                ["removedAndChanged", "withBase", undefined, "removed"],
+                ["removedByIncoming", "withBase", "removed", undefined],
+                ["changedAndRemoved", "withBase", "removed", undefined],
+                ["addedByCurrent", "withBase", "missing", undefined],
+                ["addedByIncoming", "withBase", undefined, "missing"],
+                ["onlyInCurrent", "withoutBase", "missing", undefined],
+                ["onlyInIncoming", "withoutBase", undefined, "missing"],
+                ["unchanged", "withBase", undefined, undefined],
+                ["bothChanged", "withBase", undefined, undefined],
+                ["sameAddition", "withBase", undefined, undefined],
+                ["bothAdded", "withBase", undefined, undefined],
+                ["removedByBoth", "withBase", undefined, undefined],
+                ["differs", "withoutBase", undefined, undefined],
+            ],
+        )(
+            "tells the pane of the side that holds a %s element what the other side lacks",
+            (state, base, onCurrent, onIncoming) => {
+                const build = base === "withBase" ? mergeResult : mergeResultWithoutBase;
+                const decisions = MergeDecisions.from(
+                    build(
+                        process("unchanged"),
+                        mergeElement("Task_A", state, { parent: "Process_1" }),
+                    ),
+                );
+                const lacksOn = (side: "current" | "incoming") =>
+                    mergePaneView(decisions, side).pickable.find(({ id }) => id === "Task_A")
+                        ?.otherSideLacks;
+
+                expect(lacksOn("current")).toBe(onCurrent);
+                expect(lacksOn("incoming")).toBe(onIncoming);
+            },
+        );
 
         it("badges a container with everything inside only while every element inside is picked on its side", () => {
             const decisions = MergeDecisions.from(

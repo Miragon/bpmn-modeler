@@ -53,3 +53,11 @@ export function diffTabLabelNamesFile(label: string, basename: string): boolean 
     const sides = label.split(COMPARE_SEPARATOR);
     return sides.length === 2 && sides.includes(basename);
 }
+
+/**
+ * The title of a built merge result compared with one side: the working file
+ * and the side, so, like a merge tab, it names no file to the label heuristic.
+ */
+export function mergeResultTabLabel(fileName: string, against: MergeSide): string {
+    return `${fileName}${MERGE_TITLE_INFIX}${MERGE_SIDE_WORDS[against]}${COMPARE_SEPARATOR}Result)`;
+}

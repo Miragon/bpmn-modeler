@@ -47,18 +47,17 @@ export class MergeDecisionService {
         return this.sessions.ofDiffSession(diffSession) !== undefined;
     }
 
-    /** Keeps the element from the pane's side, as far as `scope` reaches, and sends every pane of the view its states. */
+    /** Keeps the element from the pick's side, or the pane's when it names none, as far as `scope` reaches, and sends every pane of the view its states. */
     async pick(
         armed: ArmedDiff,
         pane: DiffPaneHandle,
-        elementId: string,
-        scope: MergePickScope,
+        { elementId, scope, side: namedSide }: MergePickRequest,
         elementXmlChanges: boolean,
     ): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
         const paneSide = armed.session.sideFor(pane.uri);
         if (!session || !paneSide) return;
-        const side = mergeSideOfPane(paneSide);
+        const side = namedSide ?? mergeSideOfPane(paneSide);
         await this.decide(session, elementId, elementXmlChanges, (decisions) => ({
             action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
             outcome: decisions.pickScoped(elementId, side, scope),
@@ -143,6 +142,11 @@ export class MergeDecisionService {
                 openAfter: openIds(session.decisions),
             }),
         );
+        await this.broadcastSession(session, elementXmlChanges);
+    }
+
+    /** Sends the panes of every tab of the merge view the full state of its decisions. */
+    async broadcastSession(session: MergeSession, elementXmlChanges: boolean): Promise<void> {
         for (const tab of this.sessions.diffSessionsOf(session)) {
             const panes = tab.armedPanes();
             if (panes) await this.broadcast({ session: tab, ...panes }, elementXmlChanges);
@@ -164,6 +168,13 @@ export class MergeDecisionService {
 }
 
 const FIRST_STEPPING: MergePaneStepping = { list: "openConflicts" };
+
+/** A pane's pick: the element, how far it reaches, and the side to keep it from; absent means the pane's. */
+export interface MergePickRequest {
+    readonly elementId: string;
+    readonly scope: MergePickScope;
+    readonly side?: MergeSide;
+}
 
 interface DecidedPick {
     readonly action: MergePaneAction;
@@ -208,6 +219,12 @@ function statesFor(
                 session.decisions,
                 idsTheLegendNames(view.picksNotDrawn, feedback?.outcome),
             ),
+            build: {
+                canBuild: session.decisions.canBuild,
+                openConflicts: session.decisions.openConflicts.length,
+                built: session.lastBuild !== undefined,
+                notes: session.lastBuild?.notes ?? [],
+            },
         },
         elementXmlChanges,
     );

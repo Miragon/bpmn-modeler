@@ -1,5 +1,9 @@
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
+import type { MergePaneName } from "../domain/mergePaneName";
+
+export type { MergePaneName } from "../domain/mergePaneName";
+
 /** The URI each side of one merge view is served under. */
 export type MergePaneUris = Readonly<Record<MergeSide, string>>;
 
@@ -9,15 +13,18 @@ export interface MergeSideDocument {
     readonly basename: string;
 }
 
-/** Where a host shows a conflicted file's two sides side by side, read-only. */
+/** Where a host shows a conflicted file's two sides, or a side and the built result, side by side, read-only. */
 export interface MergeSidesView {
     /**
-     * Serves each side beside `fileUri` under a URI no earlier opening, in this
-     * or an earlier run of the host, used.
+     * Serves each document beside `fileUri` under a URI no earlier opening, in
+     * this or an earlier run of the host, used.
      */
-    serve(fileUri: string, sides: Readonly<Record<MergeSide, MergeSideDocument>>): MergePaneUris;
+    serve<Name extends MergePaneName>(
+        fileUri: string,
+        documents: Readonly<Record<Name, MergeSideDocument>>,
+    ): Readonly<Record<Name, string>>;
     /** Opens one diff of `leftUri` and `rightUri`; opening the same URIs again focuses their tab. */
     open(leftUri: string, rightUri: string, title: string): Promise<void>;
-    /** Stops serving the sides, so a tab of them restored later finds no text. */
-    release(uris: MergePaneUris): void;
+    /** Stops serving the documents, so a tab of them restored later finds no text. */
+    release(uris: Readonly<Partial<Record<MergePaneName, string>>>): void;
 }

@@ -3,6 +3,8 @@ import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import type { MergePaneBadge, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import { MERGE_MARKER_CLASSES, MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
+import { flowBadgePlace, type FlowWaypoint } from "../../domain/mergeFlowBadgePlace";
+
 import "./mergeMarks.css";
 
 /** How a merge pane reaches the marks its canvas paints, once diagram-js built them. */
@@ -17,7 +19,7 @@ interface Canvas {
 }
 
 interface ElementRegistry {
-    get(id: string): unknown;
+    get(id: string): { readonly waypoints?: readonly FlowWaypoint[] } | undefined;
     forEach(visit: (element: { id: string }) => void): void;
 }
 
@@ -25,7 +27,12 @@ interface Overlays {
     add(
         id: string,
         type: string,
-        overlay: { position: object; html: string; scale?: object },
+        overlay: {
+            position: object;
+            html: string;
+            scale?: object;
+            show?: { minZoom?: number; maxZoom?: number };
+        },
     ): string;
     remove(filter: { type: string }): void;
 }
@@ -40,7 +47,7 @@ export interface MergeMarksView {
 /** The words the canvas shows, in the pane's language. */
 export interface MergeMarksLabels {
     readonly conflict: string;
-    badge(badge: MergePaneBadge): { readonly letter: string; readonly label: string };
+    badge(badge: MergePaneBadge): { readonly side: string; readonly label: string };
 }
 
 const CONFLICT_BADGE = "merge-conflict-badge";
@@ -60,6 +67,14 @@ const BADGE_SCOPE_CLASSES: Record<MergePickScope, string> = {
     withConnections: " merge-pick-badge--with-connections",
 };
 
+// Below this zoom a worded badge is wider than the shape it names, so it shows its check alone.
+const WORDED_BADGE_MIN_ZOOM = 0.7;
+
+// diagram-js shows an overlay from `minZoom` to `maxZoom` inclusive; ending one double lower leaves no zoom with two badges or none.
+const CHECK_ONLY_BADGE_MAX_ZOOM = largestDoubleBelow(WORDED_BADGE_MIN_ZOOM);
+
+const SHAPE_BADGE_GAP = 3;
+
 const CHECK_MARK = `<svg class="merge-pick-badge__check" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`;
 
 // The hatch of "taken from the other side", its non-colour cue; mergeMarks.css fills shapes with it.
@@ -69,10 +84,12 @@ const HATCH_PATTERN = `<defs><pattern id="merge-hatch" class="merge-hatch" patte
  * Paints a merge pane's markers: one class per marker on the elements this
  * canvas holds, plus a cue that is no colour (a "!" badge on a conflict, a
  * hatch on an element taken from the other side, a heavy contour on one
- * taken from this side); a badge over the top-left corner of each element
- * the user picked, naming the kept side; and a dotted outline on what a pick
- * pulled in or dropped. Each paint replaces the last one; it decides
- * nothing, the host sent which element gets what.
+ * taken from this side); a badge on each element the user picked, naming
+ * the kept side ("✓ Incoming") above a shape's top edge, clear of its type
+ * icon, as a check alone at small zoom and on a flow, where a word would hide
+ * the shapes it joins; and a dotted outline on what a pick pulled in or
+ * dropped. Each paint replaces the last one; it decides nothing, the host
+ * sent which element gets what.
  */
 export class MergeMarks {
     static $inject = ["canvas", "elementRegistry", "overlays", "mergeMarksConfig"];
@@ -116,15 +133,39 @@ export class MergeMarks {
 
     private addPickBadge(
         badge: MergePaneBadge,
-        text: { readonly letter: string; readonly label: string },
+        text: { readonly side: string; readonly label: string },
     ): void {
         const label = escapeHTML(text.label);
         const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.scope]}`;
-        // Top left: the drilldown button of a collapsed sub-process sits bottom right.
+        const badgeHtml = (modifier: string, content: string) =>
+            `<div class="${classes} ${modifier}" role="img" aria-label="${label}">${CHECK_MARK}${content}</div>`;
+        const waypoints = this.registry.get(badge.id)?.waypoints;
+        if (waypoints !== undefined) {
+            const place = flowBadgePlace(waypoints);
+            if (place === undefined) return;
+            // Scales down with the zoom, so it keeps clear of the arrowhead its place allows for.
+            this.overlays.add(badge.id, PICK_BADGE, {
+                position: place,
+                scale: { max: 1.5 },
+                html: badgeHtml("merge-pick-badge--on-flow", ""),
+            });
+            return;
+        }
+        const position = { top: -SHAPE_BADGE_GAP, left: 0 };
         this.overlays.add(badge.id, PICK_BADGE, {
-            position: { top: -11, left: -11 },
+            position,
             scale: { min: 0.6, max: 1.5 },
-            html: `<div class="${classes}" role="img" aria-label="${label}" title="${label}">${CHECK_MARK}<span class="merge-pick-badge__side">${escapeHTML(text.letter)}</span></div>`,
+            show: { minZoom: WORDED_BADGE_MIN_ZOOM },
+            html: badgeHtml(
+                "merge-pick-badge--on-shape",
+                `<span class="merge-pick-badge__side">${escapeHTML(text.side)}</span>`,
+            ),
+        });
+        this.overlays.add(badge.id, PICK_BADGE, {
+            position,
+            scale: { min: 0.6, max: 1.5 },
+            show: { maxZoom: CHECK_ONLY_BADGE_MAX_ZOOM },
+            html: badgeHtml("merge-pick-badge--on-shape", ""),
         });
     }
 
@@ -142,6 +183,13 @@ export class MergeMarks {
             svg.insertAdjacentHTML("afterbegin", HATCH_PATTERN);
         }
     }
+}
+
+function largestDoubleBelow(positive: number): number {
+    const view = new DataView(new ArrayBuffer(8));
+    view.setFloat64(0, positive);
+    view.setBigUint64(0, view.getBigUint64(0) - 1n);
+    return view.getFloat64(0);
 }
 
 /** The merge pane's marks, which hand themselves to `config` once the pane's canvas exists. */

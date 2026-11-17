@@ -1,6 +1,6 @@
 import * as assert from "node:assert";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { devNull } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -10,8 +10,9 @@ import * as vscode from "vscode";
  * Opens the BPMN merge view on a real conflicted repository in a real VS
  * Code host, on the engines floor and on stable: the built-in Git extension
  * stays under `--disable-extensions`, our custom editor resolves both
- * `bpmn-merge:` sides, and the working file still opens as the editable
- * modeler while the merge tab is open.
+ * `bpmn-merge:` sides, the working file still opens as the editable modeler
+ * while the merge tab is open, and a build writes the working file, opens it
+ * in the modeler and leaves the index as Git left it.
  */
 
 const EXTENSION_ID = "miragon-gmbh.vs-code-bpmn-modeler";
@@ -28,6 +29,9 @@ interface Caption {
 }
 
 interface TestApi {
+    modeler: {
+        hasEditor(uri: string): boolean;
+    };
     diff: {
         paneCountFor(uri: string): number;
     };
@@ -40,6 +44,7 @@ interface TestApi {
                   captions: { current: Caption; incoming: Caption };
               }
             | undefined;
+        build(fileUri: string): Promise<void>;
     };
 }
 
@@ -79,12 +84,20 @@ function git(repository: string, ...args: string[]): string {
 
 const renamed = (name: string) => BASE.replace('name="Check order"', `name="${name}"`);
 
+const flowNamed = (flow: "Flow_To_Task" | "Flow_To_End", name: string, xml = BASE) =>
+    xml.replace(
+        `<bpmn:sequenceFlow id="${flow}"`,
+        `<bpmn:sequenceFlow id="${flow}" name="${name}"`,
+    );
+
 /**
  * A repository whose order.bpmn conflicts: both branches rename the task.
  * Each VS Code version gets its own folder, since both labels of the e2e
  * config share one workspace folder.
  */
-function conflictedRepository(operation: "merge" | "rebase" | "merge-after-rebase"): string {
+function conflictedRepository(
+    operation: "merge" | "rebase" | "merge-after-rebase" | "adjacent",
+): string {
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     assert.ok(folder, "no workspace folder");
     const repository = join(folder, `${operation}-${vscode.version}`);
@@ -94,6 +107,18 @@ function conflictedRepository(operation: "merge" | "rebase" | "merge-after-rebas
     git(repository, "init", "-q");
     git(repository, "add", FILE);
     git(repository, "commit", "-q", "--no-verify", "-m", "Add the order process");
+    if (operation === "adjacent") {
+        // Two flows on neighbouring lines: Git conflicts, the merge decides both by itself.
+        git(repository, "checkout", "-q", "-b", "feature");
+        writeFileSync(file, flowNamed("Flow_To_End", "checked"));
+        git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Name the flow to the end");
+        git(repository, "checkout", "-q", "main");
+        writeFileSync(file, flowNamed("Flow_To_Task", "received"));
+        git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Name the flow to the task");
+        git(repository, "merge", "feature", "--no-edit");
+        assert.ok(readFileSync(file, "utf8").includes("<<<<<<<"), "no adjacent conflict");
+        return repository;
+    }
     git(repository, "checkout", "-q", "-b", "feature");
     writeFileSync(file, renamed("Check feature order"));
     git(repository, "commit", "-q", "-a", "--no-verify", "-m", "Rename the check on feature");
@@ -140,6 +165,14 @@ async function waitFor(predicate: () => boolean, describe: () => string): Promis
         await new Promise((done) => setTimeout(done, 250));
     }
     assert.fail(describe());
+}
+
+/** The active tab's custom editor input, if it shows `uri`. */
+function activeCustomTabOf(uri: vscode.Uri): vscode.TabInputCustom | undefined {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    return input instanceof vscode.TabInputCustom && input.uri.toString() === uri.toString()
+        ? input
+        : undefined;
 }
 
 /** `vscode.git` stays under `--disable-extensions`, but may still be starting. */
@@ -233,8 +266,11 @@ suite("BPMN merge view", () => {
                 },
                 () => `the working file did not open in the custom editor`,
             );
-            // A viewType cannot tell the modeler from a diff pane: only a pane count can.
-            await new Promise((done) => setTimeout(done, 1_000));
+            // A viewType cannot tell the modeler from a diff pane: only its editor session can.
+            await waitFor(
+                () => api.modeler.hasEditor(fileUri.toString()),
+                () => "the built file opened no editable modeler",
+            );
             assert.strictEqual(api.diff.paneCountFor(fileUri.toString()), 0);
             assert.strictEqual(api.merge.sessionFor(fileUri.toString())?.paneCount, 2);
         });
@@ -280,6 +316,66 @@ suite("BPMN merge view", () => {
                 ["upstream", "yourCommit"],
             );
             assert.strictEqual(captions?.incoming.subject, "Rename the check on feature");
+        });
+    });
+
+    suite("building the merge result", () => {
+        let repository = "";
+        let fileUri: vscode.Uri;
+        let stages = "";
+
+        suiteSetup(async () => {
+            await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+            repository = conflictedRepository("adjacent");
+            fileUri = vscode.Uri.file(join(repository, FILE));
+            stages = git(repository, "ls-files", "-u");
+            await openInGit(repository);
+            await vscode.commands.executeCommand(COMMAND, fileUri);
+            await waitFor(
+                () => api.merge.sessionFor(fileUri.toString())?.paneCount === 2,
+                () =>
+                    `merge panes never attached: ${JSON.stringify(api.merge.sessionFor(fileUri.toString()))}`,
+            );
+        });
+
+        test("build writes the working file and leaves the index", async () => {
+            await api.merge.build(fileUri.toString());
+
+            const built = readFileSync(fileUri.fsPath, "utf8");
+            assert.ok(!built.includes("<<<<<<<"), "the working file still holds conflict markers");
+            assert.ok(built.includes('name="received"'), "current's flow name is missing");
+            assert.ok(built.includes('name="checked"'), "incoming's flow name is missing");
+            assert.ok(built.includes("<bpmndi:BPMNDiagram"), "the diagram is missing");
+            assert.strictEqual(git(repository, "ls-files", "-u"), stages, "the index changed");
+            await waitFor(
+                () => activeCustomTabOf(fileUri) !== undefined,
+                () => "the built file did not open in the custom editor",
+            );
+            // A viewType cannot tell the modeler from a diff pane: only its editor session can.
+            await waitFor(
+                () => api.modeler.hasEditor(fileUri.toString()),
+                () => "the built file opened no editable modeler",
+            );
+            assert.strictEqual(api.diff.paneCountFor(fileUri.toString()), 0);
+            assert.strictEqual(api.merge.sessionFor(fileUri.toString())?.paneCount, 2);
+        });
+
+        test("opens a written .bpmn with vscode.open after a text tab of it", async () => {
+            const shownAsText = vscode.Uri.file(join(repository, "as-text.bpmn"));
+            copyFileSync(fileUri.fsPath, shownAsText.fsPath);
+            await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+            await vscode.window.showTextDocument(
+                await vscode.workspace.openTextDocument(shownAsText),
+                { preview: false },
+            );
+
+            await vscode.commands.executeCommand("vscode.open", shownAsText, { preview: false });
+
+            await waitFor(
+                () => activeCustomTabOf(shownAsText)?.viewType === "bpmn-modeler.bpmn",
+                () =>
+                    `vscode.open did not show ${shownAsText.toString()} in the modeler: ${String(vscode.window.tabGroups.activeTabGroup.activeTab?.label)}`,
+            );
         });
     });
 });

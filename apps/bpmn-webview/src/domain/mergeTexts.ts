@@ -1,5 +1,6 @@
 import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type {
+    MergePaneBuildNote,
     MergeObstacleKind,
     MergeObstacleWithMissing,
     MergePaneAction,
@@ -9,11 +10,14 @@ import type {
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import type {
+    DiffSide,
     MergeCaptionRole,
     MergeMarker,
     MergeSide,
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
+
+import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
 export type MergeTranslate = (key: string, replacements?: Record<string, string>) => string;
@@ -97,12 +101,6 @@ const KEEP_SIDE_TEXTS: Record<MergeSide, string> = {
     incoming: "Keep incoming",
 };
 
-// One letter per side, shown on a pick's badge beside its check mark.
-const SIDE_LETTERS: Record<MergeSide, string> = {
-    current: "C",
-    incoming: "I",
-};
-
 const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
     element: {
         current: "Kept from current, your pick",
@@ -135,7 +133,7 @@ const MERGE_OBSTACLE_TEXTS: Record<MergeObstacleKind, string> = {
     targetTakenWithoutPart: "{element} needs a part of {target} that the kept version lacks",
     dependentPicked: "{element}, which you picked, needs {target}",
     dependentPulledInByThisPick: "This pick brings in {element}, which needs {target}",
-    idHeldByAnother: "{element} and {target} hold the same id",
+    idHeldByAnother: "{element} and {target} hold the same ID",
     processInAnotherCollaboration: "{element} and {target} each have a pool of the same process",
 };
 
@@ -166,13 +164,13 @@ const OUTCOME_HEADLINES: Record<MergePaneAction, { applied: string; refused: str
     },
 };
 
-/** A pick's badge: the kept side's letter, and its full words for the title and screen readers. */
+/** A pick's badge: the kept side's word as the pane captions name it, and its full words for screen readers. */
 export function pickBadgeText(
     badge: { readonly keptSide: MergeSide; readonly scope: MergePickScope },
     translate: MergeTranslate,
-): { letter: string; label: string } {
+): { side: string; label: string } {
     return {
-        letter: translate(SIDE_LETTERS[badge.keptSide]),
+        side: translate(MERGE_SIDE_TEXTS[badge.keptSide]),
         label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]),
     };
 }
@@ -189,6 +187,81 @@ export function pickNotDrawnText(
 /** The legend's action that keeps the stepped element from the pane's side. */
 export function keepSideText(side: MergeSide, translate: MergeTranslate): string {
     return translate(KEEP_SIDE_TEXTS[side]);
+}
+
+// The pad's words, English only until the translations follow; the catalogs fall back to the key.
+const KEEP_INSIDE_TEXTS: Record<MergeSide, string> = {
+    current: "Keep current with everything inside",
+    incoming: "Keep incoming with everything inside",
+};
+
+const KEEP_TIPS: Record<MergeSide, string> = {
+    current: "Keep it as current has it",
+    incoming: "Keep it as incoming has it",
+};
+
+const KEEP_INSIDE_TIPS: Record<MergeSide, string> = {
+    current: "Keep it and everything inside as current has them",
+    incoming: "Keep it and everything inside as incoming has them",
+};
+
+const LEAVE_OUT_TIPS: Record<
+    MergeSide,
+    Record<Extract<MergePadDecision, { kind: "leaveOut" }>["otherSideLacks"], string>
+> = {
+    current: {
+        removed: "Leave it out, as current removed it",
+        missing: "Leave it out, as current doesn't have it",
+    },
+    incoming: {
+        removed: "Leave it out, as incoming removed it",
+        missing: "Leave it out, as incoming doesn't have it",
+    },
+};
+
+/** The context pad's words that name no side. */
+const MERGE_PAD_TEXTS = {
+    leaveOut: "Leave out",
+    keepRemovedFlows: "Also keep its removed flows",
+    undoTip: "Go back to what the merge decided by itself",
+} as const;
+
+/**
+ * A pad entry's words: its label for screen readers, which names the side
+ * where the entry picks one, and its tooltip, the label and what it does.
+ */
+export function padDecisionText(
+    decision: MergePadDecision,
+    translate: MergeTranslate,
+): { label: string; tooltip: string } {
+    const withTip = (label: string, tip: string) => ({ label, tooltip: `${label}: ${tip}` });
+    switch (decision.kind) {
+        case "keep":
+            return decision.scope === "withContents"
+                ? withTip(
+                      translate(KEEP_INSIDE_TEXTS[decision.side]),
+                      translate(KEEP_INSIDE_TIPS[decision.side]),
+                  )
+                : withTip(
+                      keepSideText(decision.side, translate),
+                      translate(KEEP_TIPS[decision.side]),
+                  );
+        case "leaveOut": {
+            // "Leave out" names no side, so the label carries the tip too.
+            const { tooltip } = withTip(
+                translate(MERGE_PAD_TEXTS.leaveOut),
+                translate(LEAVE_OUT_TIPS[decision.side][decision.otherSideLacks]),
+            );
+            return { label: tooltip, tooltip };
+        }
+        case "keepRemovedFlows":
+            return withTip(
+                translate(MERGE_PAD_TEXTS.keepRemovedFlows),
+                restoreOfferText(decision.offer, translate),
+            );
+        case "undo":
+            return withTip(translate(MERGE_PICK_TEXTS.undo), translate(MERGE_PAD_TEXTS.undoTip));
+    }
 }
 
 /** One reason a pick was refused, naming the elements as the canvas does. */
@@ -225,4 +298,107 @@ export function outcomeHeadline(
     return translate(outcome.applied ? headlines.applied : headlines.refused, {
         element: nameOf(outcome.elementId),
     });
+}
+
+/** The build part of the merge legend, and the notes list's name. */
+export const MERGE_BUILD_TEXTS = {
+    build: "Build",
+    notes: "Notes of the build",
+} as const;
+
+const COMPARE_WITH_TEXTS: Record<MergeSide, string> = {
+    current: "Compare with current",
+    incoming: "Compare with incoming",
+};
+
+const COMPARISON_TEXTS: Record<MergeSide, string> = {
+    current: "Result against current",
+    incoming: "Result against incoming",
+};
+
+/** What each build note asks the user to check, with the canvas's names of its elements. */
+const BUILD_NOTE_TEXTS: Record<
+    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth">,
+    string
+> = {
+    flowEndsFromDifferentSides:
+        "{element} connects shapes drawn by different sides; check where it meets {ends}",
+    addedAtSamePlace: "{first} and {second} were added at the same place",
+    drawnApartFromContainer:
+        "{element} is drawn by another side than {containers}; check that it still sits inside",
+    restoredWithoutConnections:
+        "{element} is kept without the flows the other side removed with it: {connections}",
+    frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+};
+
+const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
+    current: "Both sides changed the layout of {elements}; current's is kept",
+    incoming: "Both sides changed the layout of {elements}; incoming's is kept",
+};
+
+/** Why Build is disabled. */
+export function buildBlockedText(count: number, translate: MergeTranslate): string {
+    return count === 1
+        ? translate("1 conflict left")
+        : translate("{count} conflicts left", { count: String(count) });
+}
+
+/** The legend's action that compares the built result with `side`. */
+export function compareWithText(side: MergeSide, translate: MergeTranslate): string {
+    return translate(COMPARE_WITH_TEXTS[side]);
+}
+
+/** What a result comparison's legend says it shows. */
+export function comparisonText(side: MergeSide, translate: MergeTranslate): string {
+    return translate(COMPARISON_TEXTS[side]);
+}
+
+const RESULT_TEXT = "Result";
+
+/** A result comparison's pane label: the compared side on the left, the result on the right. */
+export function comparisonPaneText(
+    paneSide: DiffSide,
+    against: MergeSide,
+    translate: MergeTranslate,
+): string {
+    return translate(paneSide === "before" ? MERGE_SIDE_TEXTS[against] : RESULT_TEXT);
+}
+
+export function reviewNotesText(count: number, translate: MergeTranslate): string {
+    return translate("Review notes ({count})", { count: String(count) });
+}
+
+/** One note of the last build, in one line. */
+export function buildNoteText(
+    note: MergePaneBuildNote,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
+    const template =
+        note.kind === "layoutChangedByBoth"
+            ? LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide]
+            : BUILD_NOTE_TEXTS[note.kind];
+    return translate(template, noteReplacements(note, nameOf, names));
+}
+
+function noteReplacements(
+    note: MergePaneBuildNote,
+    nameOf: (id: string) => string,
+    names: (ids: readonly string[]) => string,
+): Record<string, string> {
+    switch (note.kind) {
+        case "flowEndsFromDifferentSides":
+            return { element: nameOf(note.id), ends: names(note.ends) };
+        case "addedAtSamePlace":
+            return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
+        case "drawnApartFromContainer":
+            return { element: nameOf(note.id), containers: names(note.containers) };
+        case "restoredWithoutConnections":
+            return { element: nameOf(note.id), connections: names(note.connections) };
+        case "layoutChangedByBoth":
+            return { elements: names(note.ids) };
+        case "frameDiffers":
+            return { attribute: note.attribute };
+    }
 }

@@ -14,6 +14,8 @@ export interface MergePaneStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The other side holds the element, so the partner pane draws or lists it. */
+    readonly onOtherPane: boolean;
     /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
     readonly plane?: string;
 }
@@ -57,13 +59,19 @@ export interface MergePanePickNotDrawn {
     readonly scope: MergePickScope;
 }
 
-/** An element a pick on the pane keeps from its side, or keeps out where the side removed it. */
+/** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface MergePanePickable {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
     readonly container: boolean;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: MergePickScope;
+    /**
+     * Set where this pane's side holds the element and the other does not: it
+     * removed it from the base, or there is no base version. A pick of the
+     * other side leaves it out.
+     */
+    readonly otherSideLacks?: "removed" | "missing";
 }
 
 /** Why a pick was refused, as the merge names it. */
@@ -118,11 +126,55 @@ export type MergePaneOutcome =
           readonly blockedBy: readonly MergePaneBlock[];
       };
 
-/** The flows the other side removed with an element the user kept, offered on the pane that kept it. */
+/** The flows the other side removed with an element the user kept, offered on the pane of the kept side. */
 export interface MergePaneRestoreOffer {
     readonly elementId: string;
     readonly connections: readonly string[];
     readonly removedBy: MergeSide;
+}
+
+/**
+ * Something the last build asks the user to look at, as the merge library's
+ * `BuildNote` names it: a flow whose ends are drawn from different sides, two
+ * elements the sides added at the same place, an element drawn apart from its
+ * container, an element kept without the flows removed with it, elements
+ * whose layout both sides changed differently with the side the result keeps,
+ * or a part of the file's `definitions` that differs between the sides, of
+ * which the result keeps current's.
+ */
+export type MergePaneBuildNote =
+    | {
+          readonly kind: "flowEndsFromDifferentSides";
+          readonly id: string;
+          readonly ends: readonly string[];
+      }
+    | { readonly kind: "addedAtSamePlace"; readonly ids: readonly string[] }
+    | {
+          readonly kind: "drawnApartFromContainer";
+          readonly id: string;
+          readonly containers: readonly string[];
+      }
+    | {
+          readonly kind: "restoredWithoutConnections";
+          readonly id: string;
+          readonly connections: readonly string[];
+      }
+    | {
+          readonly kind: "layoutChangedByBoth";
+          readonly ids: readonly string[];
+          readonly keptSide: MergeSide;
+      }
+    | { readonly kind: "frameDiffers"; readonly attribute: string };
+
+/** Whether the merge view can build its result into the working file, and what the last build noted. */
+export interface MergePaneBuild {
+    readonly canBuild: boolean;
+    /** The conflicts still open, which keep Build disabled. */
+    readonly openConflicts: number;
+    /** A result was built into the working file, so it can be compared with either side. */
+    readonly built: boolean;
+    /** The notes of the last build; empty before the first. */
+    readonly notes: readonly MergePaneBuildNote[];
 }
 
 /** Everything one merge pane shows of its merge view's decisions. */
@@ -149,6 +201,7 @@ export interface MergePaneStates {
     readonly restoreOffer?: MergePaneRestoreOffer;
     /** The names of the elements the legend names, the same on both panes; an id without a name is absent. */
     readonly names: Readonly<Record<string, string>>;
+    readonly build: MergePaneBuild;
 }
 
 /**
@@ -188,19 +241,25 @@ export class MergeStepListChangedCommand extends Command<"MergeStepListChangedCo
 }
 
 /**
- * Sent from a merge pane when the user keeps an element from the pane's
- * side. The host decides it in the merge and sends both panes their states
- * again.
+ * Sent from a merge pane when the user keeps an element from a side. The
+ * host decides it in the merge and sends both panes their states again.
  */
 export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
     public readonly elementId: string;
 
     public readonly scope: MergePickScope;
 
-    constructor(elementId: string, scope: MergePickScope) {
+    /**
+     * Absent means the sending pane's side. Naming a side whose version lacks
+     * the element leaves it out, so one pane can offer both outcomes.
+     */
+    public readonly side?: MergeSide;
+
+    constructor(elementId: string, scope: MergePickScope, side?: MergeSide) {
         super("PickMergeSideCommand");
         this.elementId = elementId;
         this.scope = scope;
+        if (side !== undefined) this.side = side;
     }
 }
 
@@ -217,5 +276,39 @@ export class UnpickMergeCommand extends Command<"UnpickMergeCommand"> {
         super("UnpickMergeCommand");
         this.elementId = elementId;
         this.scope = scope;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user presses Build. The host builds the
+ * merge result into the working file, never staging it, and opens the file.
+ */
+export class BuildMergeResultCommand extends Command<"BuildMergeResultCommand"> {
+    constructor() {
+        super("BuildMergeResultCommand");
+    }
+}
+
+/**
+ * Sent from a merge pane when the user compares the built result with one
+ * side. The host opens a plain BPMN diff of that side against the working
+ * file as it is open, unsaved edits included.
+ */
+export class CompareMergeResultCommand extends Command<"CompareMergeResultCommand"> {
+    public readonly against: MergeSide;
+
+    constructor(against: MergeSide = "incoming") {
+        super("CompareMergeResultCommand");
+        this.against = against;
+    }
+}
+
+/**
+ * Sent from a pane of a merge result comparison when the user switches it to
+ * the other side. The host replaces the comparison with one against that side.
+ */
+export class SwitchMergeComparisonCommand extends Command<"SwitchMergeComparisonCommand"> {
+    constructor() {
+        super("SwitchMergeComparisonCommand");
     }
 }

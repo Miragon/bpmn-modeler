@@ -1,19 +1,36 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { MergePanePickable } from "@miragon/bpmn-modeler-shared";
+import type { MergePadDecision } from "../../domain/mergePadDecisions";
 
 // The viewer barrel pulls in bpmn-js's whole viewer, which jsdom cannot load.
 vi.mock("@miragon/bpmn-modeler/viewer", () => ({
-    bpmnElementIdOf: (element: { id: string }) => element.id,
+    bpmnElementIdOf: (element: { businessObject: { id: string } }) => element.businessObject.id,
 }));
 
 import { createMergePickModule, MergePickContextPadProvider } from "./mergePickContextPad";
+import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 const ROOT = { id: "Process_1", businessObject: { id: "Process_1" } };
 const TASK = { id: "Task_1", businessObject: { id: "Task_1" } };
-const SUB = { id: "Sub_1", businessObject: { id: "Sub_1" } };
+const TASK_LABEL = { id: "Task_1_label", businessObject: { id: "Task_1" } };
 
-function build(pickable: readonly MergePanePickable[], { open = false, selected = [TASK] } = {}) {
+const OFFER = { elementId: "Task_1", connections: ["Flow_1", "Flow_2"], removedBy: "current" };
+
+const EVERY_DECISION: readonly MergePadDecision[] = [
+    { kind: "keep", scope: "element", side: "incoming" },
+    { kind: "keep", scope: "withContents", side: "incoming" },
+    { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+    { kind: "keepRemovedFlows", side: "incoming", offer: OFFER } as MergePadDecision,
+    { kind: "undo", scope: "withContents" },
+];
+
+const untranslated = (key: string, replacements: Record<string, string> = {}) =>
+    key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);
+
+function build(
+    decisions: readonly MergePadDecision[],
+    { open = false, selected = [TASK] as readonly (typeof TASK)[] } = {},
+) {
     const contextPad = {
         registerProvider: vi.fn(),
         isOpen: vi.fn(() => open),
@@ -21,29 +38,37 @@ function build(pickable: readonly MergePanePickable[], { open = false, selected 
     };
     const canvas = { getRootElement: () => ROOT };
     const selection = { get: () => selected };
-    const translate = vi.fn((template: string) => `t(${template})`);
     const entryConfig = {
-        pickableOf: vi.fn((id: string) => pickable.find((entry) => entry.id === id)),
-        pick: vi.fn(),
-        unpick: vi.fn(),
+        decisionsOf: vi.fn((id: string) => (id === "Task_1" ? decisions : [])),
+        decide: vi.fn(),
         attach: vi.fn(),
     };
     const provider = new MergePickContextPadProvider(
         contextPad,
         canvas,
         selection,
-        translate,
+        untranslated,
         entryConfig,
     );
     return { provider, contextPad, entryConfig };
 }
 
+/** Each entry's button as diagram-js renders it from the entry's html. */
+function buttonsOf(entries: Record<string, { html: string }>): HTMLButtonElement[] {
+    return Object.values(entries).map(({ html }) => {
+        const host = document.createElement("div");
+        host.innerHTML = html;
+        return host.firstElementChild as HTMLButtonElement;
+    });
+}
+
 describe("MergePickContextPadProvider", () => {
-    it("registers itself with the context pad and hands itself to the merge pane", () => {
+    it("registers itself with the context pad, hands itself to the merge pane and sets up the tooltips", () => {
         const { provider, contextPad, entryConfig } = build([]);
 
         expect(contextPad.registerProvider).toHaveBeenCalledWith(provider);
         expect(entryConfig.attach).toHaveBeenCalledWith(provider);
+        expect(document.querySelector(".merge-tooltip")).not.toBeNull();
     });
 
     it("reopens an open pad on the selected element, since the pad reads its entries only when it opens", () => {
@@ -62,62 +87,91 @@ describe("MergePickContextPadProvider", () => {
         expect(contextPad.open).not.toHaveBeenCalled();
     });
 
-    it("offers to keep an element from this pane, as a translated button in its own group", () => {
-        const { provider } = build([{ id: "Task_1", container: false }]);
+    it("offers every decision the pane names, in its order, in its own group", () => {
+        const { provider } = build(EVERY_DECISION);
 
         const entries = provider.getContextPadEntries(TASK);
 
-        expect(Object.keys(entries)).toStrictEqual(["merge-keep"]);
-        expect(entries["merge-keep"].group).toBe("merge-pick");
-        expect(entries["merge-keep"].title).toBe("t(Keep this version)");
-        expect(entries["merge-keep"].html).toMatch(/^<button type="button" class="entry[ "]/);
-        expect(entries["merge-keep"].html).toContain('aria-label="t(Keep this version)"');
-    });
-
-    it("offers to keep everything inside a container and to undo a pick, as the host says", () => {
-        const { provider } = build([{ id: "Sub_1", container: true, undo: "withContents" }]);
-
-        expect(Object.keys(provider.getContextPadEntries(SUB))).toStrictEqual([
+        expect(Object.keys(entries)).toStrictEqual([
             "merge-keep",
             "merge-keep-inside",
+            "merge-leave-out",
+            "merge-keep-removed-flows",
             "merge-undo",
         ]);
+        expect(Object.values(entries).every(({ group }) => group === "merge-pick")).toBe(true);
     });
 
-    it("offers nothing on the diagram's root or on an element the host does not list", () => {
-        const { provider } = build([{ id: "Process_1", container: true }]);
+    it("shows each decision as an icon button with the side in its label and its styled tooltip, and no native title", () => {
+        const { provider } = build(EVERY_DECISION);
+
+        const entries = provider.getContextPadEntries(TASK);
+        const buttons = buttonsOf(entries);
+
+        expect(buttons.map((button) => button.getAttribute("aria-label"))).toStrictEqual([
+            "Keep incoming",
+            "Keep incoming with everything inside",
+            "Leave out: Leave it out, as current removed it",
+            "Also keep its removed flows",
+            "Undo pick",
+        ]);
+        expect(buttons[0].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
+            "Keep incoming: Keep it as incoming has it",
+        );
+        expect(buttons[3].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
+            "Also keep its removed flows: Also keep the 2 flows current removed with it",
+        );
+        for (const button of buttons) {
+            expect(button.tagName).toBe("BUTTON");
+            expect(button.classList.contains("entry")).toBe(true);
+            expect(button.querySelector("svg")).not.toBeNull();
+            expect(button.textContent).toBe("");
+            expect(button.hasAttribute("title")).toBe(false);
+        }
+        expect(Object.values(entries).some((entry) => "title" in entry)).toBe(false);
+    });
+
+    it("gives each decision a glyph of its own, the same on both panes", () => {
+        const incoming = buttonsOf(build(EVERY_DECISION).provider.getContextPadEntries(TASK));
+        const current = buttonsOf(
+            build([
+                { kind: "keep", scope: "element", side: "current" },
+                { kind: "leaveOut", side: "incoming", otherSideLacks: "missing" },
+            ]).provider.getContextPadEntries(TASK),
+        );
+        const glyph = (button: HTMLButtonElement) => button.querySelector("svg")?.innerHTML;
+
+        expect(new Set(incoming.map(glyph)).size).toBe(EVERY_DECISION.length);
+        expect(glyph(current[0])).toBe(glyph(incoming[0]));
+        expect(glyph(current[1])).toBe(glyph(incoming[2]));
+    });
+
+    it("hands the clicked decision to the merge pane with the element's BPMN id", () => {
+        const { provider, entryConfig } = build(EVERY_DECISION);
+        const entries = provider.getContextPadEntries(TASK);
+
+        entries["merge-leave-out"].action.click(new Event("click"), TASK_LABEL);
+        entries["merge-undo"].action.click(new Event("click"), TASK);
+
+        expect(entryConfig.decide.mock.calls).toStrictEqual([
+            ["Task_1", EVERY_DECISION[2]],
+            ["Task_1", EVERY_DECISION[4]],
+        ]);
+    });
+
+    it("offers nothing on the diagram's root or on an element the pane offers nothing for", () => {
+        const { provider } = build(EVERY_DECISION);
 
         expect(provider.getContextPadEntries(ROOT)).toStrictEqual({});
-        expect(provider.getContextPadEntries(TASK)).toStrictEqual({});
-    });
-
-    it("posts the pick and the undo with the reach the host named", () => {
-        const { provider, entryConfig } = build([
-            { id: "Sub_1", container: true, undo: "withContents" },
-        ]);
-        const entries = provider.getContextPadEntries(SUB);
-        const click = (name: string) => entries[name].action.click(new Event("click"), SUB);
-
-        click("merge-keep");
-        click("merge-keep-inside");
-        click("merge-undo");
-
-        expect(entryConfig.pick.mock.calls).toStrictEqual([
-            ["Sub_1", "element"],
-            ["Sub_1", "withContents"],
-        ]);
-        expect(entryConfig.unpick).toHaveBeenCalledExactlyOnceWith("Sub_1", "withContents");
+        expect(
+            provider.getContextPadEntries({ id: "Other", businessObject: { id: "Other" } }),
+        ).toStrictEqual({});
     });
 });
 
 describe("createMergePickModule", () => {
     it("hands the provider the merge pane's callbacks", () => {
-        const entryConfig = {
-            pickableOf: () => undefined,
-            pick: vi.fn(),
-            unpick: vi.fn(),
-            attach: vi.fn(),
-        };
+        const entryConfig = { decisionsOf: () => [], decide: vi.fn(), attach: vi.fn() };
 
         const module = createMergePickModule(entryConfig);
 

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { type ConflictState, type ResolvedState, isConflictState, otherSide } from "./mergeResult";
+import { mergeElement } from "./__fixtures__/mergeResultBuilder";
+import {
+    type ConflictState,
+    type ElementState,
+    type MergeSide,
+    type ResolvedState,
+    addedOnlyBy,
+    isConflictState,
+} from "./mergeResult";
 
 const CONFLICTS: readonly ConflictState[] = [
     "bothChanged",
@@ -35,11 +43,17 @@ describe("isConflictState", () => {
     });
 });
 
-describe("otherSide", () => {
-    it.each([
-        ["current", "incoming"],
-        ["incoming", "current"],
-    ] as const)("merges %s with %s", (side, other) => {
-        expect(otherSide(side)).toBe(other);
+describe("addedOnlyBy", () => {
+    it.each<[ElementState, MergeSide, boolean]>([
+        ["onlyInIncoming", "incoming", true],
+        ["onlyInIncoming", "current", false],
+        ["addedByCurrent", "current", true],
+        ["addedByCurrent", "incoming", false],
+        ["bothAdded", "incoming", false],
+        ["removedByCurrent", "incoming", false],
+        ["changedAndRemoved", "current", false],
+        ["unchanged", "current", false],
+    ])("counts a %s element as added only by %s: %s", (state, side, added) => {
+        expect(addedOnlyBy(mergeElement("Task", state), side)).toBe(added);
     });
 });

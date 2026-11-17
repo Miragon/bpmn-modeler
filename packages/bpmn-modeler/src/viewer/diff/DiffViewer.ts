@@ -369,19 +369,21 @@ export class DiffViewer {
      * `undefined`, without telling {@link onSelectedElementChanged} listeners.
      * Returns `false`, clearing the selection instead, when the element is not
      * on the plane shown. A mirrored selection stays put when the pane resizes.
+     * The element alone selected already, or its label, stays selected as it
+     * is, since selecting it again would rebuild its context pad.
      */
     mirrorSelection(elementId: string | undefined): boolean {
+        const selection = this.getViewer().get<Selection>("selection");
+        if (elementId !== undefined && singleSelectedElementId(selection.get()) === elementId) {
+            return true;
+        }
         const element =
             elementId === undefined
                 ? undefined
                 : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
         const canvas = this.getCanvas();
         const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
-        this.changes.selectProgrammatically(() =>
-            this.getViewer()
-                .get<Selection>("selection")
-                .select(shown ? element : null),
-        );
+        this.changes.selectProgrammatically(() => selection.select(shown ? element : null));
         return shown || elementId === undefined;
     }
 

@@ -292,6 +292,100 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "Renomear o ID para {id}",
     "The ID already follows the name.": "O ID já segue o nome.",
     "Add a name to generate the ID from it.": "Adicione um nome para gerar o ID a partir dele.",
+    "Current": "Atual",
+    "Incoming": "Entrada",
+    "your branch": "seu branch",
+    "other branch": "outro branch",
+    "your commit": "seu commit",
+    "your stash": "seu stash",
+    "Taken from this side": "Tomado deste lado",
+    "Taken from the other side": "Tomado do outro lado",
+    "Conflict": "Conflito",
+    "Step through": "Percorrer",
+    "Open conflicts": "Conflitos abertos",
+    "All merged elements": "Todos os elementos mesclados",
+    "Without a shape": "Sem forma",
+    "No open conflicts": "Nenhum conflito aberto",
+    "1 open conflict": "1 conflito aberto",
+    "{count} open conflicts": "{count} conflitos abertos",
+    "Keep this version": "Manter esta versão",
+    "Keep everything inside": "Manter todo o conteúdo",
+    "Undo pick": "Desfazer escolha",
+    "Your picks": "Suas escolhas",
+    "Pulled in:": "Incluído:",
+    "Dropped:": "Descartado:",
+    "Open again:": "Aberto novamente:",
+    "Keep current": "Manter Atual",
+    "Keep incoming": "Manter Entrada",
+    "Kept from current, your pick": "Mantido de Atual, sua escolha",
+    "Kept from incoming, your pick": "Mantido de Entrada, sua escolha",
+    "Kept from current with everything inside, your pick":
+        "Mantido de Atual com todo o conteúdo, sua escolha",
+    "Kept from incoming with everything inside, your pick":
+        "Mantido de Entrada com todo o conteúdo, sua escolha",
+    "Kept from current with its flows, your pick": "Mantido de Atual com seus fluxos, sua escolha",
+    "Kept from incoming with its flows, your pick":
+        "Mantido de Entrada com seus fluxos, sua escolha",
+    "Kept from current: {element}": "Mantido de Atual: {element}",
+    "Kept from incoming: {element}": "Mantido de Entrada: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} precisa de {target}, que nenhuma versão tem",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} precisa de {target}, que falta no lado que você escolheu",
+    "{element} needs {target}, which this pick drops":
+        "{element} precisa de {target}, que esta escolha descarta",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} precisa de uma parte de {target} que esta escolha deixa de fora",
+    "{element} needs {target}, which this side does not have":
+        "{element} precisa de {target}, que este lado não tem",
+    "{element} needs {target}, which the result leaves out":
+        "{element} precisa de {target}, que o resultado deixa de fora",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} precisa de uma parte de {target} que falta na versão mantida",
+    "{element}, which you picked, needs {target}":
+        "{element}, que você escolheu, precisa de {target}",
+    "This pick brings in {element}, which needs {target}":
+        "Esta escolha inclui {element}, que precisa de {target}",
+    "{element} and {target} hold the same ID": "{element} e {target} têm o mesmo ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} e {target} têm cada um um pool do mesmo processo",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} precisa de uma parte de {target}, que falta no lado que você escolheu",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} precisa de uma parte de {target} que este lado não tem",
+    "Also keep the flow current removed with it": "Manter também o fluxo que Atual removeu com ele",
+    "Also keep the {count} flows current removed with it":
+        "Manter também os {count} fluxos que Atual removeu com ele",
+    "Also keep the flow incoming removed with it":
+        "Manter também o fluxo que Entrada removeu com ele",
+    "Also keep the {count} flows incoming removed with it":
+        "Manter também os {count} fluxos que Entrada removeu com ele",
+    "Kept {element}": "{element} mantido",
+    "Cannot keep {element}": "Não é possível manter {element}",
+    "Left out {element}": "{element} deixado de fora",
+    "Cannot leave out {element}": "Não é possível deixar {element} de fora",
+    "Took back the pick of {element}": "Escolha de {element} desfeita",
+    "Cannot take back the pick of {element}": "Não é possível desfazer a escolha de {element}",
+    "Build": "Gerar",
+    "Notes of the build": "Notas da geração",
+    "Compare with current": "Comparar com Atual",
+    "Compare with incoming": "Comparar com Entrada",
+    "Result against current": "Resultado em relação a Atual",
+    "Result against incoming": "Resultado em relação a Entrada",
+    "Result": "Resultado",
+    "Review notes ({count})": "Revisar notas ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} conecta formas desenhadas por lados diferentes; verifique onde ele encontra {ends}",
+    "{first} and {second} were added at the same place":
+        "{first} e {second} foram adicionados no mesmo lugar",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} é desenhado por outro lado que não {containers}; verifique se ainda está dentro",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} é mantido sem os fluxos que o outro lado removeu com ele: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "O atributo {attribute} do arquivo difere entre os lados; o de Atual é mantido",
+    "1 conflict left": "1 conflito restante",
+    "{count} conflicts left": "{count} conflitos restantes",
 };
 
 export default dictionary;

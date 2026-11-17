@@ -1,16 +1,10 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
-export { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
-
-const OTHER_SIDE: Readonly<Record<MergeSide, MergeSide>> = {
-    current: "incoming",
-    incoming: "current",
-};
-
-/** The side a merge side is merged with. */
-export function otherSide(side: MergeSide): MergeSide {
-    return OTHER_SIDE[side];
-}
+export {
+    MERGE_SIDES,
+    otherSide,
+    type MergeSide,
+} from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
 export type ResolvedState =
     | "unchanged"
@@ -89,6 +83,16 @@ export interface MergeElement {
         readonly current?: ElementVersion;
         readonly incoming?: ElementVersion;
     };
+}
+
+/** Only `side` holds the element and no base version exists, so nobody knows whether the other side removed it or never had it. */
+export function addedOnlyBy(element: MergeElement, side: MergeSide): boolean {
+    const { versions } = element;
+    return (
+        versions.base === undefined &&
+        versions[side] !== undefined &&
+        versions[otherSide(side)] === undefined
+    );
 }
 
 /** `versionKeyOf` each version's XML: equal keys mean the result was computed from these texts. */

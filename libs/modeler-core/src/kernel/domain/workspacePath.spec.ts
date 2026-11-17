@@ -2,6 +2,7 @@ import { win32 } from "path";
 import { describe, expect, it } from "vitest";
 
 import {
+    filePathOfUri,
     fileSystemPathOf,
     joinWorkspacePath,
     lastWorkspacePathSegment,
@@ -326,6 +327,19 @@ describe("uriDisplayName", () => {
         { uri: "file:///repo/orders/", name: "orders" },
     ])("names $uri by $name", ({ uri, name }) => {
         expect(uriDisplayName(uri)).toBe(name);
+    });
+});
+
+describe("filePathOfUri", () => {
+    it.each([
+        { uri: "file:///repo/sub/diagram.bpmn", path: "/repo/sub/diagram.bpmn" },
+        { uri: "file:///repo/my%20diagram.bpmn", path: "/repo/my diagram.bpmn" },
+        { uri: "file:///c%3A/repo/diagram.bpmn", path: "/c:/repo/diagram.bpmn" },
+        { uri: "file:///repo/a%23b.bpmn#fragment", path: "/repo/a#b.bpmn" },
+        { uri: "file://server/share/repo/diagram.bpmn", path: "//server/share/repo/diagram.bpmn" },
+        { uri: "file://C:/repo/diagram.bpmn", path: "C:/repo/diagram.bpmn" },
+    ])("reads $path from $uri", ({ uri, path }) => {
+        expect(filePathOfUri(uri)).toBe(path);
     });
 });
 

@@ -297,6 +297,101 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "Renombrar el ID a {id}",
     "The ID already follows the name.": "El ID ya sigue al nombre.",
     "Add a name to generate the ID from it.": "Añada un nombre para generar el ID a partir de él.",
+    "Current": "Actual",
+    "Incoming": "Entrante",
+    "your branch": "su rama",
+    "other branch": "otra rama",
+    "your commit": "su commit",
+    "your stash": "su stash",
+    "Taken from this side": "Tomado de este lado",
+    "Taken from the other side": "Tomado del otro lado",
+    "Conflict": "Conflicto",
+    "Step through": "Recorrer",
+    "Open conflicts": "Conflictos abiertos",
+    "All merged elements": "Todos los elementos fusionados",
+    "Without a shape": "Sin forma",
+    "No open conflicts": "No hay conflictos abiertos",
+    "1 open conflict": "1 conflicto abierto",
+    "{count} open conflicts": "{count} conflictos abiertos",
+    "Keep this version": "Conservar esta versión",
+    "Keep everything inside": "Conservar todo su contenido",
+    "Undo pick": "Retirar la elección",
+    "Your picks": "Sus elecciones",
+    "Pulled in:": "Incorporado:",
+    "Dropped:": "Descartado:",
+    "Open again:": "Abierto de nuevo:",
+    "Keep current": "Conservar Actual",
+    "Keep incoming": "Conservar Entrante",
+    "Kept from current, your pick": "Conservado de Actual, su elección",
+    "Kept from incoming, your pick": "Conservado de Entrante, su elección",
+    "Kept from current with everything inside, your pick":
+        "Conservado de Actual con todo su contenido, su elección",
+    "Kept from incoming with everything inside, your pick":
+        "Conservado de Entrante con todo su contenido, su elección",
+    "Kept from current with its flows, your pick":
+        "Conservado de Actual con sus flujos, su elección",
+    "Kept from incoming with its flows, your pick":
+        "Conservado de Entrante con sus flujos, su elección",
+    "Kept from current: {element}": "Conservado de Actual: {element}",
+    "Kept from incoming: {element}": "Conservado de Entrante: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} necesita {target}, que no tiene ninguna versión",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} necesita {target}, que falta en el lado que eligió",
+    "{element} needs {target}, which this pick drops":
+        "{element} necesita {target}, que esta elección descarta",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} necesita una parte de {target} que esta elección deja fuera",
+    "{element} needs {target}, which this side does not have":
+        "{element} necesita {target}, que este lado no tiene",
+    "{element} needs {target}, which the result leaves out":
+        "{element} necesita {target}, que el resultado deja fuera",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} necesita una parte de {target} que falta en la versión conservada",
+    "{element}, which you picked, needs {target}": "{element}, que usted eligió, necesita {target}",
+    "This pick brings in {element}, which needs {target}":
+        "Esta elección incorpora {element}, que necesita {target}",
+    "{element} and {target} hold the same ID": "{element} y {target} tienen el mismo ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} y {target} tienen cada uno un pool del mismo proceso",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} necesita una parte de {target}, que falta en el lado que eligió",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} necesita una parte de {target} que este lado no tiene",
+    "Also keep the flow current removed with it":
+        "Conservar también el flujo que Actual eliminó con él",
+    "Also keep the {count} flows current removed with it":
+        "Conservar también los {count} flujos que Actual eliminó con él",
+    "Also keep the flow incoming removed with it":
+        "Conservar también el flujo que Entrante eliminó con él",
+    "Also keep the {count} flows incoming removed with it":
+        "Conservar también los {count} flujos que Entrante eliminó con él",
+    "Kept {element}": "Se conservó {element}",
+    "Cannot keep {element}": "No se puede conservar {element}",
+    "Left out {element}": "Se dejó fuera {element}",
+    "Cannot leave out {element}": "No se puede dejar fuera {element}",
+    "Took back the pick of {element}": "Se retiró la elección de {element}",
+    "Cannot take back the pick of {element}": "No se puede retirar la elección de {element}",
+    "Build": "Generar",
+    "Notes of the build": "Notas de la generación",
+    "Compare with current": "Comparar con Actual",
+    "Compare with incoming": "Comparar con Entrante",
+    "Result against current": "Resultado frente a Actual",
+    "Result against incoming": "Resultado frente a Entrante",
+    "Result": "Resultado",
+    "Review notes ({count})": "Revisar notas ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} conecta formas dibujadas por lados distintos; compruebe dónde se une a {ends}",
+    "{first} and {second} were added at the same place":
+        "{first} y {second} se añadieron en el mismo lugar",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} está dibujado por otro lado que {containers}; compruebe que sigue dentro",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} se conserva sin los flujos que el otro lado eliminó con él: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "El atributo {attribute} del archivo difiere entre los lados; se conserva el de Actual",
+    "1 conflict left": "1 conflicto pendiente",
+    "{count} conflicts left": "{count} conflictos pendientes",
 };
 
 export default dictionary;

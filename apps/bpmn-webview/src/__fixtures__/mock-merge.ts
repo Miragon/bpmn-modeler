@@ -15,10 +15,16 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
-const step = (id: string, onThisPane: boolean, shapeless = false): MergePaneStep => ({
+const step = (
+    id: string,
+    onThisPane: boolean,
+    shapeless = false,
+    onOtherPane = true,
+): MergePaneStep => ({
     id,
     shapeless,
     onThisPane,
+    onOtherPane,
 });
 
 const SHAPELESS = [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }] as const;
@@ -54,7 +60,7 @@ const CURRENT: MergePaneStates = {
     allSteps: [
         step("ServiceTask_1", true),
         step("Flow_2", true),
-        step("UserTask_ToRemove", true),
+        step("UserTask_ToRemove", true, false, false),
         step("Gateway_1", false),
         step("Flow_3", true),
         step("Process_1", true, true),
@@ -62,6 +68,7 @@ const CURRENT: MergePaneStates = {
     openConflicts: 2,
     stepping: { list: "openConflicts" },
     ...NO_PICKS,
+    build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
 };
 
 const INCOMING: MergePaneStates = {
@@ -78,13 +85,14 @@ const INCOMING: MergePaneStates = {
         step("ServiceTask_1", true),
         step("Flow_2", true),
         step("UserTask_ToRemove", false),
-        step("Gateway_1", true),
+        step("Gateway_1", true, false, false),
         step("Flow_3", true),
         step("Process_1", true, true),
     ],
     openConflicts: 2,
     stepping: { list: "openConflicts" },
     ...NO_PICKS,
+    build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
 };
 
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */

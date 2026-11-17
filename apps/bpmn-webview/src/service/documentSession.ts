@@ -51,6 +51,8 @@ export class BpmnDocumentSession {
     private refreshDiagramWhenReady = false;
     private pendingFocusId: string | undefined;
     private pendingActionDrain: Promise<void> | undefined;
+    // Set while the boot waits, after a failed first import, for the host's next file.
+    private nextHostFile: ReturnType<typeof createResolver<BpmnFileQuery>> | undefined;
 
     // Never released: the page stays locked until the reload replaces it.
     private readonly engineReloadLock: InertLock;
@@ -105,6 +107,11 @@ export class BpmnDocumentSession {
             return;
         }
 
+        if (this.nextHostFile) {
+            this.nextHostFile.done(query);
+            this.nextHostFile = undefined;
+            return;
+        }
         if (!this.canImportHostUpdates) return;
         if (query.engine !== this.documentEngine) {
             await this.reloadForEngineChange();
@@ -121,7 +128,8 @@ export class BpmnDocumentSession {
 
     /**
      * Imports the newest host file into a surface built for `firstFile`'s
-     * engine; `false` when the boot must stop.
+     * engine; `false` when the boot must stop. A file that cannot be opened
+     * keeps the boot waiting for the host's next file, which it opens instead.
      */
     async openInitialDocument(firstFile: BpmnFileQuery | undefined): Promise<boolean> {
         this.documentEngine = firstFile?.engine;
@@ -142,7 +150,9 @@ export class BpmnDocumentSession {
                 }
                 const message = error instanceof Error ? error.message : String(error);
                 this.host.postMessage(new LogErrorCommand(`Unable to open XML\n${message}`));
-                return false;
+                // A file the modeler cannot open, such as one with conflict markers, may be
+                // replaced later, as a merge build does: the boot goes on with that file.
+                importedFile = await this.waitForNextHostFile();
             }
         }
 
@@ -164,6 +174,11 @@ export class BpmnDocumentSession {
         }
         await this.flushPendingHostUpdates();
         return !this.engineReloadPending;
+    }
+
+    private waitForNextHostFile(): Promise<BpmnFileQuery | undefined> {
+        this.nextHostFile = createResolver<BpmnFileQuery>();
+        return this.nextHostFile.wait();
     }
 
     markInitialized(): void {

@@ -69,6 +69,18 @@
     stroke: #6b8aff;
 }
 
+/* A halo of the hatch's ground keeps the hatch behind the label. */
+.djs-shape.merge-taken-from-other-side .djs-visual text {
+    paint-order: stroke;
+    stroke: #eef1fd;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-taken-from-other-side .djs-visual text {
+    stroke: var(--canvas-fill-color, #1d1d1d);
+}
+
 /* ─── Conflict ─────────────────────────────────────────────────────────── */
 
 .djs-shape.merge-conflict .djs-visual > :nth-child(1) {
@@ -116,6 +128,12 @@
 
 /* ─── The user's picks and their consequences ──────────────────────────── */
 
+/* diagram-js's overlay box takes the pointer even where its badge does not. */
+.djs-overlay-merge-pick,
+.djs-overlay-merge-conflict-badge {
+    pointer-events: none;
+}
+
 /* Neutral, so a pick never reads as one of the three markers' colours. */
 .merge-pick-badge {
     box-sizing: border-box;
@@ -139,6 +157,21 @@
 .merge-pick-badge--replaced-here {
     color: #22242a;
     background: #fff;
+}
+
+/* Its bottom on the overlay's anchor above the shape, at every scale diagram-js gives it. */
+.merge-pick-badge--on-shape {
+    transform: translateY(-100%);
+}
+
+/* A flow's badge is a check alone, centred on its anchor. */
+.merge-pick-badge--on-flow {
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* A nested box: kept with everything inside. */

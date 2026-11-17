@@ -3,9 +3,9 @@ import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mer
 import type { MergeDecisions } from "./mergeDecisions";
 import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
-import type { ElementState, MergeElement, MergeSide } from "./mergeResult";
+import { type ElementState, type MergeElement, type MergeSide, addedOnlyBy } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
-import { connectionsRemovedWith } from "./removedConnections";
+import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
 
 /** A marked element no canvas draws, which the pane lists instead. */
 export interface ShapelessMark {
@@ -31,13 +31,18 @@ export interface PickNotDrawn {
     readonly scope: PickScope;
 }
 
-/** An element a pick on the pane keeps from its side, or keeps out where the side removed it. */
+/** Why the other side lacks an element this side holds: it removed it from the base, or there is no base version. */
+type OtherSideLack = "removed" | "missing";
+
+/** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface PickableElement {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
     readonly container: boolean;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: PickScope;
+    /** Set where this side holds the element and the other does not, so a pick of the other side leaves it out. */
+    readonly otherSideLacks?: OtherSideLack;
 }
 
 /** What one merge pane shows of the decisions, in result order. */
@@ -138,14 +143,20 @@ function paneDecisions(
             }
         }
         if (origin === "consequence" && drawnHere) consequences.push(element.id);
-        const container = containers.has(element.id);
-        pickable.push(
-            scope === undefined
-                ? { id: element.id, container }
-                : { id: element.id, container, undo: scope },
-        );
+        const lack = otherSideLacks(element, side);
+        pickable.push({
+            id: element.id,
+            container: containers.has(element.id),
+            ...(scope === undefined ? {} : { undo: scope }),
+            ...(lack === undefined ? {} : { otherSideLacks: lack }),
+        });
     }
     return { badges, picksNotDrawn, consequences, pickable };
+}
+
+function otherSideLacks(element: MergeElement, side: MergeSide): OtherSideLack | undefined {
+    if (keptAgainstRemoval(element, side)) return "removed";
+    return addedOnlyBy(element, side) ? "missing" : undefined;
 }
 
 /** The marker an element gets on a pane of a side, or none. */

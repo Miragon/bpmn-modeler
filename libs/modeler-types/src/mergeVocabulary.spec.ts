@@ -7,6 +7,7 @@ import {
     MERGE_MARKER_CLASSES,
     MERGE_MARKERS,
     MERGE_SIDES,
+    otherSide,
     type MergeCaptionRole,
     type MergeMarker,
     type MergeSide,
@@ -40,6 +41,15 @@ describe("MERGE_SIDES", () => {
         namesEveryValueOnce(MERGE_SIDES, EVERY_SIDE);
         expect(MERGE_SIDES[0]).toBe("current");
         expectTypeOf<(typeof MERGE_SIDES)[number]>().toEqualTypeOf<MergeSide>();
+    });
+});
+
+describe("otherSide", () => {
+    it.each<[MergeSide, MergeSide]>([
+        ["current", "incoming"],
+        ["incoming", "current"],
+    ])("merges %s with %s", (side, other) => {
+        expect(otherSide(side)).toBe(other);
     });
 });
 

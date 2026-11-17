@@ -292,6 +292,95 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "ID を {id} に変更",
     "The ID already follows the name.": "ID は既に名前と一致しています。",
     "Add a name to generate the ID from it.": "名前を追加すると、そこから ID を生成できます。",
+    "Current": "現在",
+    "Incoming": "入力側",
+    "your branch": "自分のブランチ",
+    "other branch": "相手のブランチ",
+    "your commit": "自分のコミット",
+    "your stash": "自分のスタッシュ",
+    "Taken from this side": "この側から採用",
+    "Taken from the other side": "反対側から採用",
+    "Conflict": "競合",
+    "Step through": "移動対象",
+    "Open conflicts": "未解決の競合",
+    "All merged elements": "マージされたすべての要素",
+    "Without a shape": "形状なし",
+    "No open conflicts": "未解決の競合はありません",
+    "1 open conflict": "未解決の競合 1 件",
+    "{count} open conflicts": "未解決の競合 {count} 件",
+    "Keep this version": "このバージョンを保持",
+    "Keep everything inside": "内部をすべて保持",
+    "Undo pick": "選択を取り消す",
+    "Your picks": "自分の選択",
+    "Pulled in:": "追加:",
+    "Dropped:": "除外:",
+    "Open again:": "再び未解決:",
+    "Keep current": "現在を保持",
+    "Keep incoming": "入力側を保持",
+    "Kept from current, your pick": "現在から保持 (自分の選択)",
+    "Kept from incoming, your pick": "入力側から保持 (自分の選択)",
+    "Kept from current with everything inside, your pick": "現在から内部ごと保持 (自分の選択)",
+    "Kept from incoming with everything inside, your pick": "入力側から内部ごと保持 (自分の選択)",
+    "Kept from current with its flows, your pick": "現在からフローごと保持 (自分の選択)",
+    "Kept from incoming with its flows, your pick": "入力側からフローごと保持 (自分の選択)",
+    "Kept from current: {element}": "現在から保持: {element}",
+    "Kept from incoming: {element}": "入力側から保持: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} には {target} が必要ですが、どのバージョンにもありません",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} には {target} が必要ですが、選択した側にはありません",
+    "{element} needs {target}, which this pick drops":
+        "{element} には {target} が必要ですが、この選択で除外されます",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} には {target} の一部が必要ですが、この選択では含まれません",
+    "{element} needs {target}, which this side does not have":
+        "{element} には {target} が必要ですが、この側にはありません",
+    "{element} needs {target}, which the result leaves out":
+        "{element} には {target} が必要ですが、結果には含まれません",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} には {target} の一部が必要ですが、保持したバージョンにはありません",
+    "{element}, which you picked, needs {target}": "選択した {element} には {target} が必要です",
+    "This pick brings in {element}, which needs {target}":
+        "この選択で追加される {element} には {target} が必要です",
+    "{element} and {target} hold the same ID": "{element} と {target} の ID が同じです",
+    "{element} and {target} each have a pool of the same process":
+        "{element} と {target} はそれぞれ同じプロセスのプールを持っています",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} には {target} の一部が必要ですが、選択した側にはありません",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} には {target} の一部が必要ですが、この側にはありません",
+    "Also keep the flow current removed with it": "現在が一緒に削除したフローも保持",
+    "Also keep the {count} flows current removed with it":
+        "現在が一緒に削除した {count} 個のフローも保持",
+    "Also keep the flow incoming removed with it": "入力側が一緒に削除したフローも保持",
+    "Also keep the {count} flows incoming removed with it":
+        "入力側が一緒に削除した {count} 個のフローも保持",
+    "Kept {element}": "{element} を保持しました",
+    "Cannot keep {element}": "{element} を保持できません",
+    "Left out {element}": "{element} を除外しました",
+    "Cannot leave out {element}": "{element} を除外できません",
+    "Took back the pick of {element}": "{element} の選択を取り消しました",
+    "Cannot take back the pick of {element}": "{element} の選択を取り消せません",
+    "Build": "生成",
+    "Notes of the build": "生成の注意事項",
+    "Compare with current": "現在と比較",
+    "Compare with incoming": "入力側と比較",
+    "Result against current": "結果と現在の比較",
+    "Result against incoming": "結果と入力側の比較",
+    "Result": "結果",
+    "Review notes ({count})": "注意事項を確認 ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} は異なる側が描いた形状をつないでいます。{ends} との接続箇所を確認してください",
+    "{first} and {second} were added at the same place":
+        "{first} と {second} が同じ位置に追加されました",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} は {containers} とは別の側が描いています。まだ内側にあるか確認してください",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} は、反対側が一緒に削除したフローなしで保持されています: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "ファイルの {attribute} が側によって異なります。現在の値を保持します",
+    "1 conflict left": "残りの競合 1 件",
+    "{count} conflicts left": "残りの競合 {count} 件",
 };
 
 export default dictionary;

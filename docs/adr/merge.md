@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-15
+- Last reviewed: 2026-11-17
 
 ## Context
 
@@ -9,8 +9,9 @@ A Git conflict in a BPMN file leaves conflict markers in XML that the modeler ca
 The merge resolves it on the model: Git's three index stages (base, current, incoming) are
 classified element by element, the user decides what is left, and one valid file is built.
 Epic #2459 keeps the merge in VS Code first and out of the published packages. This record
-covers the data library and the editor of the line-wise XML merge; the view that shows a
-conflict as diagrams has [its own record](merge-view.md).
+covers the data library; the view that shows a conflict as diagrams and the line-wise XML
+merge in VS Code's merge editor have records of their own ([merge view](merge-view.md),
+[merge XML editor](merge-xml-editor.md)).
 
 ## Decision
 
@@ -99,8 +100,10 @@ base, an element only one side has, or that the sides hold differently, is a con
   another sub-process or lane is changed; a lane itself does not change when its members
   do.
 - *Layout apart from content.* Bounds, waypoints, labels and DI attributes are classified
-  on their own and are never a conflict: when both sides changed them, or there is no
-  base, current's win. DI references are compared by what they draw, never by DI ids.
+  on their own and are never a conflict; whose drawing the result takes is the *Layout
+  side* below. Both sides changing a layout, even alike, and sides that draw an element
+  differently without a base, are one state, `bothChanged`. DI references are compared by
+  what they draw, never by DI ids.
 - *Plain JSON.* `MergeResult` holds ids, states and each version's parent, container,
   lanes, references, parts, plane and whether it is drawn, but no text, so it crosses the
   webview boundary; texts are fetched on demand. `versionKeys` fingerprints each version's
@@ -264,49 +267,16 @@ each of those.
   sides, an element drawn from another side than its container, elements both sides added
   at the same place, an element kept against the other side's removal whose flows on its
   own side stay out (each flow is decided on its own, so the flows removed with it stay
-  removed unless `pickWithConnections` kept them, and it may be left unconnected), and every frame difference the result does not
-  carry (attributes both sides changed, incoming's extensions or imports).
-
-### Line-wise XML merge in VS Code's merge editor
-
-The three-way text merge of one element's XML (#2457) opens VS Code's own merge editor
-through the internal command `_open.mergeEditor` with `{ base, input1, input2, output }`,
-the call the Git extension makes. Spike #2449 checked it on VS Code 1.76.2 and 1.146.0. An
-own view would rebuild the three panes, the conflict ranges and the accept flow; dropping
-the feature leaves an element whose sides changed different parts to a whole pick.
-
-- *The output lives on the extension's writable `FileSystemProvider`.* The editor keeps
-  the result as a text file model, which a `TextDocumentContentProvider` document lacks:
-  the tab opens with an error. Base and both inputs may stay read-only virtual documents.
-- *The result starts as Git's conflict text, not as the pick.* The editor keeps the output
-  as given unless a line starts with `<<<<<<<`, and counts a range as handled when the
-  result holds either side. Prefilled with the pick, every true conflict counts as
-  resolved toward the pick, and accepting drops the other side's edit without a warning.
-  From the marker text the editor merges the one-sided changes itself and leaves exactly
-  the true conflicts open, as for any Git conflict.
-- *Only for an element the base holds.* Without a base, 1.76 does not open, and from 1.99
-  the whole element is one conflict block, which is no more than the whole pick. An
-  element both sides added is picked whole.
-- *Finishing is the tab closing.* The editor's result menus are proposed API and the Git
-  extension's Complete Merge button is gated to its own files, so the extension adds its
-  own editor title button that runs `mergeEditor.acceptMerge`. That command reports
-  success even when the user cancels its second dialog and the tab stays open, so the
-  extension takes the last text the editor wrote to the provider when the merge tab
-  closes; a close without a write discards. The text then passes #2457's checks.
-- *Placement.* The command takes no view column and opens in the active group, so the
-  group below the diagrams is focused first, as for the [XML diff](diff.md#element-xml-diff).
-- *Offered only where the command is.* A leading underscore marks a command VS Code may
-  change without notice; this shape held from 1.69 to 1.146. The entry shows only when
-  `commands.getCommands(false)` lists it (the filtered list hides it); otherwise the
-  element is picked whole. The call cannot report a failed open: the command returns
-  before the editor loads. Theia registers the command with the same arguments, but it
-  has not run there and Theia's tab API reports the inputs swapped, so the standalone app
-  does not offer the entry yet.
-
-Rejected besides an own view: conflict markers in a virtual document get no CodeLens (the
-merge-conflict extension serves `file`, `vscode-vfs`, `untitled` and `vscode-userdata`
-only), and a two-way diff with an editable result has no base, so it cannot tell one
-side's change from a conflict.
+  removed unless `pickWithConnections` kept them, and it may be left unconnected), elements
+  the base and both sides draw, each side differently (`layoutChangedByBoth`), and every
+  frame difference the result does not carry (attributes both sides changed, incoming's
+  extensions or imports).
+- *A layout both sides changed differently is a note, not a conflict, one per moved block
+  and kept side.* Rejected: one note per element, which floods the notes for one moved
+  block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
+  another side than one of its ends gets only the flow-ends note, so two people moving its
+  two ends do not note it twice. Without a base there is none, as every element the sides
+  draw differently would get one.
 
 ## Consequences
 
@@ -337,14 +307,3 @@ side's change from a conflict.
 - The build relies on moddle-xml's undocumented `nsMap` (see
   [dependencies](dependencies.md#private-upstream-apis)) and on bpmn-js's append order for
   derived references; the content check turns a change in either into a refused build.
-- The line-wise XML merge rests on an internal VS Code command; a change to its arguments
-  or its prefill rule hides the entry or breaks the merge without a compile error. The
-  marker text makes the result dirty from the start, so closing asks to save and accepting
-  always writes. "Complete with Conflicts" keeps the base's text for every open conflict,
-  which parses and passes the checks; only the editor's dialog warns. The second dialog
-  can be switched off per profile, so the number of dialogs is not fixed. Ctrl+Enter and
-  the palette's Complete Merge exist only from 1.100, and the title button shows only in
-  the focused group unless `workbench.editor.alwaysShowEditorActions` is set. The hidden
-  setting `mergeEditor.useWorkingCopy` switches the editor to a temp model that computes
-  its own result; with the marker text it starts the same, but whether it writes back to
-  the provider is read in the source only, not run.

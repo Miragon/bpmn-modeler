@@ -19,8 +19,11 @@ import type {
 } from "./dmnDiffMessages";
 import type {
     ApplyMergeStatesQuery,
+    BuildMergeResultCommand,
+    CompareMergeResultCommand,
     MergeStepListChangedCommand,
     PickMergeSideCommand,
+    SwitchMergeComparisonCommand,
     UnpickMergeCommand,
 } from "./mergePaneMessages";
 import type {
@@ -263,6 +266,9 @@ export type ProtocolCommand =
     | MergeStepListChangedCommand
     | PickMergeSideCommand
     | UnpickMergeCommand
+    | BuildMergeResultCommand
+    | CompareMergeResultCommand
+    | SwitchMergeComparisonCommand
     | SwapCompareSidesCommand
     | DmnDiffViewChangedCommand
     | DmnDiffScrollChangedCommand

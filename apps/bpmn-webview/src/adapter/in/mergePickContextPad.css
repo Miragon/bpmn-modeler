@@ -4,3 +4,8 @@
     color: inherit;
     font: inherit;
 }
+
+.djs-context-pad .entry.merge-pick-action:focus-visible {
+    outline: 2px solid #335de5;
+    outline-offset: 1px;
+}

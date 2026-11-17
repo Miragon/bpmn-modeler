@@ -68,6 +68,20 @@ export function describeMergeSidesViewContract(
             expect(pathOf(uris.incoming)).toBe("/work/repo/process/order.incoming.bpmn");
         });
 
+        it("serves a built result beside the sides, under its basename, until released", () => {
+            const { view, servedText } = createFixture();
+
+            const uris = view.serve(FILE, {
+                ...SIDES,
+                result: { text: "<result/>", basename: "order.result.bpmn" },
+            });
+
+            expect(pathOf(uris.result)).toBe("/work/repo/process/order.result.bpmn");
+            expect(servedText(uris.result)).toBe("<result/>");
+            view.release(uris);
+            expect(servedText(uris.result)).toBeUndefined();
+        });
+
         it("opens each URI on the side the core names", async () => {
             const { view, opened } = createFixture();
             const uris = view.serve(FILE, SIDES);

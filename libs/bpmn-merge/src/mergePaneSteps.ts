@@ -1,7 +1,7 @@
 import type { MergeDecisions } from "./mergeDecisions";
 import { hasNoShape, subProcessPlaneOf } from "./mergeElementShape";
 import { paneMarking } from "./mergePaneView";
-import { MERGE_SIDES, type MergeElement, type MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
 
 /** One element a merge pane's stepper walks to. */
 export interface MergeStep {
@@ -10,6 +10,8 @@ export interface MergeStep {
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
+    /** The other side holds the element, so the partner pane draws or lists it. */
+    readonly onOtherPane: boolean;
     /** The sub-process whose plane draws it; absent on the plane a pane opens with. */
     readonly plane?: string;
 }
@@ -20,7 +22,7 @@ export interface MergePaneSteps {
     readonly all: readonly MergeStep[];
 }
 
-/** Both panes get the same steps in the same order; only `onThisPane` differs. */
+/** Both panes get the same steps in the same order; only `onThisPane` and `onOtherPane` differ. */
 export function mergePaneSteps(
     decisions: MergeDecisions,
     navigationOrder: readonly string[],
@@ -40,6 +42,7 @@ export function mergePaneSteps(
             id: element.id,
             shapeless: hasNoShape(element),
             onThisPane: element.versions[side] !== undefined,
+            onOtherPane: element.versions[otherSide(side)] !== undefined,
             ...(plane === undefined ? {} : { plane }),
         };
     };

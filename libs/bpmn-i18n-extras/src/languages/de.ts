@@ -295,6 +295,102 @@ const dictionary: Record<string, string> = {
     "The ID already follows the name.": "Die ID folgt bereits dem Namen.",
     "Add a name to generate the ID from it.":
         "Geben Sie einen Namen ein, um die ID daraus zu erzeugen.",
+    "Current": "Aktuell",
+    "Incoming": "Eingehend",
+    "your branch": "Ihr Branch",
+    "other branch": "anderer Branch",
+    "your commit": "Ihr Commit",
+    "your stash": "Ihr Stash",
+    "Taken from this side": "Von dieser Seite übernommen",
+    "Taken from the other side": "Von der anderen Seite übernommen",
+    "Conflict": "Konflikt",
+    "Step through": "Durchgehen",
+    "Open conflicts": "Offene Konflikte",
+    "All merged elements": "Alle zusammengeführten Elemente",
+    "Without a shape": "Ohne Form",
+    "No open conflicts": "Keine offenen Konflikte",
+    "1 open conflict": "1 offener Konflikt",
+    "{count} open conflicts": "{count} offene Konflikte",
+    "Keep this version": "Diese Version behalten",
+    "Keep everything inside": "Alles darin behalten",
+    "Undo pick": "Wahl zurücknehmen",
+    "Your picks": "Ihre Wahl",
+    "Pulled in:": "Hinzugenommen:",
+    "Dropped:": "Entfallen:",
+    "Open again:": "Wieder offen:",
+    "Keep current": "Aktuell behalten",
+    "Keep incoming": "Eingehend behalten",
+    "Kept from current, your pick": "Von Aktuell behalten, Ihre Wahl",
+    "Kept from incoming, your pick": "Von Eingehend behalten, Ihre Wahl",
+    "Kept from current with everything inside, your pick":
+        "Von Aktuell mit allem darin behalten, Ihre Wahl",
+    "Kept from incoming with everything inside, your pick":
+        "Von Eingehend mit allem darin behalten, Ihre Wahl",
+    "Kept from current with its flows, your pick":
+        "Von Aktuell mit seinen Flüssen behalten, Ihre Wahl",
+    "Kept from incoming with its flows, your pick":
+        "Von Eingehend mit seinen Flüssen behalten, Ihre Wahl",
+    "Kept from current: {element}": "Von Aktuell behalten: {element}",
+    "Kept from incoming: {element}": "Von Eingehend behalten: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} braucht {target}, das keine Version hat",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} braucht {target}, das auf der von Ihnen gewählten Seite fehlt",
+    "{element} needs {target}, which this pick drops":
+        "{element} braucht {target}, das diese Wahl entfernt",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} braucht einen Teil von {target}, den diese Wahl weglässt",
+    "{element} needs {target}, which this side does not have":
+        "{element} braucht {target}, das diese Seite nicht hat",
+    "{element} needs {target}, which the result leaves out":
+        "{element} braucht {target}, das im Ergebnis fehlt",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} braucht einen Teil von {target}, der in der behaltenen Version fehlt",
+    "{element}, which you picked, needs {target}":
+        "{element}, das Sie gewählt haben, braucht {target}",
+    "This pick brings in {element}, which needs {target}":
+        "Diese Wahl nimmt {element} hinzu, das {target} braucht",
+    "{element} and {target} hold the same ID": "{element} und {target} haben dieselbe ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} und {target} haben je einen Pool desselben Prozesses",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} braucht einen Teil von {target}, der auf der von Ihnen gewählten Seite fehlt",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} braucht einen Teil von {target}, den diese Seite nicht hat",
+    "Also keep the flow current removed with it":
+        "Auch den Fluss behalten, den Aktuell damit entfernt hat",
+    "Also keep the {count} flows current removed with it":
+        "Auch die {count} Flüsse behalten, die Aktuell damit entfernt hat",
+    "Also keep the flow incoming removed with it":
+        "Auch den Fluss behalten, den Eingehend damit entfernt hat",
+    "Also keep the {count} flows incoming removed with it":
+        "Auch die {count} Flüsse behalten, die Eingehend damit entfernt hat",
+    "Kept {element}": "{element} wurde behalten",
+    "Cannot keep {element}": "{element} kann nicht behalten werden",
+    "Left out {element}": "{element} wurde weggelassen",
+    "Cannot leave out {element}": "{element} kann nicht weggelassen werden",
+    "Took back the pick of {element}": "Wahl für {element} wurde zurückgenommen",
+    "Cannot take back the pick of {element}": "Wahl für {element} kann nicht zurückgenommen werden",
+    "Build": "Erstellen",
+    "Notes of the build": "Hinweise zur Erstellung",
+    "Compare with current": "Mit Aktuell vergleichen",
+    "Compare with incoming": "Mit Eingehend vergleichen",
+    "Result against current": "Ergebnis gegen Aktuell",
+    "Result against incoming": "Ergebnis gegen Eingehend",
+    "Result": "Ergebnis",
+    "Review notes ({count})": "Hinweise prüfen ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} verbindet Formen, die verschiedene Seiten gezeichnet haben; prüfen Sie, wo es auf {ends} trifft",
+    "{first} and {second} were added at the same place":
+        "{first} und {second} wurden an derselben Stelle hinzugefügt",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} wurde von einer anderen Seite gezeichnet als {containers}; prüfen Sie, ob es noch darin liegt",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} wird ohne die Flüsse behalten, die die andere Seite damit entfernt hat: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "Das Attribut {attribute} der Datei unterscheidet sich zwischen den Seiten; der Wert von Aktuell bleibt",
+    "1 conflict left": "1 Konflikt übrig",
+    "{count} conflicts left": "{count} Konflikte übrig",
 };
 
 export default dictionary;

@@ -681,6 +681,8 @@ async function writeUserSettings(
         "window.restoreWindows": "none",
         // Context menus in the DOM, where a test can click them; macOS draws native ones.
         "window.menuStyle": "custom",
+        // Modal dialogs in the DOM too, where a test can read and answer them.
+        "window.dialogStyle": "custom",
         "workbench.startupEditor": "none",
         "workbench.tips.enabled": false,
         "workbench.enableExperiments": false,

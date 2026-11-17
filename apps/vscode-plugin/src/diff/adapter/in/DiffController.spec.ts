@@ -28,6 +28,7 @@ import {
     DiffFileExtension,
     MergeSessionStore,
     MergeViewOpener,
+    mergeResultTabLabel,
     mergeTabLabel,
 } from "@miragon/bpmn-modeler-core";
 import {
@@ -243,6 +244,20 @@ describe("DiffController beside a merge view", () => {
     it("opens the working file as an editor beside a restored merge tab", () => {
         const { controller } = createController();
         tabs.push({ input: undefined, label: "order.current.bpmn ↔ order.incoming.bpmn" });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("opens the working file as an editor beside a live result comparison", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: mergeResultTabLabel("order.bpmn", "incoming") });
+
+        expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
+    });
+
+    it("opens the working file as an editor beside a restored result comparison that has not resolved", () => {
+        const { controller } = createController();
+        tabs.push({ input: undefined, label: "order.incoming.bpmn ↔ order.result.bpmn" });
 
         expect(controller.shouldResolveAsDiff(uri("file", ORDER))).toBe(false);
     });
