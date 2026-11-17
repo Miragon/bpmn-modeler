@@ -1,21 +1,20 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.intellij.testFramework.junit5.TestApplication
-import io.miragon.intellij.bpmn.ElementIdReviewGroup
-import io.miragon.intellij.bpmn.ElementIdReviewRow
 import io.miragon.intellij.bpmn.ElementIdReviewView
 import io.miragon.intellij.bpmn.ElementIdReviewWindow
 import io.miragon.intellij.bpmn.projectFixtureWithoutServicePreload
+import io.miragon.intellij.bpmn.readTypeScriptJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
- * Covers how [ElementIdReviewRouter] reads the core's review into the tool
+ * Covers how [ElementIdReviewRouter] hands the core's review to the tool
  * window and sends the window's actions back. `elementIdReview/show` is pinned
- * by key only in `protocol.json`, so the view's fields are checked here.
+ * by key only in `protocol.json`; ElementIdReviewViewTest reads the view's
+ * fields from the core's case file.
  */
 @TestApplication
 class ElementIdReviewRouterTest {
@@ -53,65 +52,16 @@ class ElementIdReviewRouterTest {
         return Routed(wired, router, window)
     }
 
-    private fun json(text: String): JsonObject = JsonParser.parseString(text).asJsonObject
-
     private fun descriptorFrame(method: String) = SentFrame(method, descriptor.paramKeys(method))
 
     @Test
     fun `shows the core's view in the tool window`() {
         val routed = routed()
+        val view = readTypeScriptJson("miragon.elementIdReviewViewCases").asJsonObject.getAsJsonObject("view")
 
-        routed.wired.handlers.dispatch(
-            "elementIdReview/show",
-            json(
-                """{"view": {"title": "order.bpmn", "message": "1 of 2 IDs will change.", "renameCount": 1,
-                    "groups": [{"id": "activity", "label": "Activities", "checked": false, "collapsed": false,
-                      "rows": [{"id": "Activity_1", "label": "Check stock", "description": "Activity_1 → serviceTask_checkStock",
-                        "tooltip": "Check stock: Activity_1 becomes serviceTask_checkStock", "checked": true,
-                        "revealId": "Activity_1"}]},
-                      {"id": "matches", "label": "Already match", "collapsed": true,
-                      "rows": [{"id": "flow_yes", "label": "yes", "description": "flow_yes",
-                        "tooltip": "The ID already follows the name.", "revealId": "flow_yes"}]}]}}""",
-            ),
-            null,
-        )
+        routed.wired.handlers.dispatch("elementIdReview/show", JsonObject().apply { add("view", view) }, null)
 
-        assertEquals(
-            listOf(
-                ElementIdReviewView(
-                    title = "order.bpmn",
-                    message = "1 of 2 IDs will change.",
-                    renameCount = 1,
-                    groups =
-                        listOf(
-                            ElementIdReviewGroup(
-                                "activity",
-                                "Activities",
-                                false,
-                                false,
-                                listOf(
-                                    ElementIdReviewRow(
-                                        "Activity_1",
-                                        "Check stock",
-                                        "Activity_1 → serviceTask_checkStock",
-                                        "Check stock: Activity_1 becomes serviceTask_checkStock",
-                                        true,
-                                        "Activity_1",
-                                    ),
-                                ),
-                            ),
-                            ElementIdReviewGroup(
-                                "matches",
-                                "Already match",
-                                null,
-                                true,
-                                listOf(ElementIdReviewRow("flow_yes", "yes", "flow_yes", "The ID already follows the name.", null, "flow_yes")),
-                            ),
-                        ),
-                ),
-            ),
-            routed.window.calls,
-        )
+        assertEquals(listOf<Any>(ElementIdReviewView.from(view)), routed.window.calls)
     }
 
     @Test

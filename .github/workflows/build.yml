@@ -80,6 +80,8 @@ jobs:
               - 'apps/modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijProgress.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijWritableScopes.json'
+              # ElementIdReviewViewTest reads every field of the core's element ID review view.
+              - 'libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'

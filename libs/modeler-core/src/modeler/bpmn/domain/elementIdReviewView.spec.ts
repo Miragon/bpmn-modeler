@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
@@ -48,7 +51,20 @@ const ROWS: ElementIdRow[] = [
     row({ id: "Flow_2", name: "", type: "bpmn:SequenceFlow", kind: "flow", status: "skipped" }),
 ];
 
+// Shared with the IntelliJ host, whose ElementIdReviewViewTest reads every field of `view`.
+const IN_KOTLIN = JSON.parse(
+    readFileSync(resolve(__dirname, "elementIdReviewView.cases.json"), "utf8"),
+) as { title: string; rows: ElementIdRow[]; unchecked: string[]; view: unknown };
+
 describe("elementIdReviewView", () => {
+    it("builds the view the IntelliJ host reads, field by field", () => {
+        const { title, rows, unchecked, view } = IN_KOTLIN;
+
+        expect(
+            JSON.parse(JSON.stringify(elementIdReviewView(title, rows, new Set(unchecked)))),
+        ).toEqual(view);
+    });
+
     it("groups the changing rows by kind, then what already matches and what is skipped", () => {
         const view = elementIdReviewView("order.bpmn", ROWS, new Set(["Process_1"]));
 

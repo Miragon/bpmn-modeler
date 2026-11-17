@@ -113,6 +113,8 @@ val intellijProgressCases =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijProgress.cases.json")
 val intellijWritableScopes =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijWritableScopes.json")
+val elementIdReviewViewCases =
+    layout.projectDirectory.file("../../libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json")
 
 tasks.test {
     useJUnitPlatform()
@@ -130,7 +132,8 @@ tasks.test {
     // PluginApprovalStoreTest the rows the core merges approval changes
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
     // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs,
-    // DocumentFlushedReplyParseTest the rows the shared flush reply table runs, and
+    // DocumentFlushedReplyParseTest the rows the shared flush reply table runs,
+    // ElementIdReviewViewTest the view of the core's element ID review, and
     // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
     // MarketplaceRouterTest the rows and values the bridge's IntelliJ loopbacks answer with. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
@@ -162,6 +165,7 @@ tasks.test {
         "intellijScriptTabsCases" to intellijScriptTabsCases,
         "intellijProgressCases" to intellijProgressCases,
         "intellijWritableScopes" to intellijWritableScopes,
+        "elementIdReviewViewCases" to elementIdReviewViewCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)
