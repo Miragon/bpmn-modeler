@@ -55,6 +55,9 @@ export function createDiffPaneRouter(
             (command, pane) => diffService.forwardSelection(pane, command.elementId),
             (command, pane) => diffService.followSelectionWithElementXml(pane, command.elementId),
         ],
+        MergeStepListChangedCommand: [
+            (command, pane) => diffService.chooseMergeStepList(pane, command.list),
+        ],
         ShowElementXmlChangesCommand: diffService.showsElementXmlChanges
             ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
             : { ignored: "the host shows no element XML diff" },

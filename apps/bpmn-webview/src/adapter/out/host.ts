@@ -21,13 +21,14 @@ import {
     TextClipboardQuery,
     WorkspaceDefinitionsQuery,
 } from "@miragon/bpmn-modeler-shared";
-import { matchesDefinitionQuery, type MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import { matchesDefinitionQuery } from "@miragon/bpmn-modeler-types";
 import type { DiffResult, DiffSide } from "@miragon/bpmn-modeler/diff";
 
 import c7Samples from "../../__fixtures__/c7-samples.json";
 import c8Samples from "../../__fixtures__/c8-samples.json";
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
+import { MOCK_MERGE_STATES } from "../../__fixtures__/mock-merge";
 import { MOCK_WORKSPACE_DEFINITIONS } from "../../__fixtures__/mock-workspace-definitions";
 import { mockPluginAssets } from "../../__fixtures__/mock-plugins";
 import type { BpmnWebviewCommand, BpmnWebviewHost } from "../../port/hostChannel";
@@ -58,8 +59,8 @@ export function getHostApi(): BpmnWebviewHost {
  *   so the webview opens it in Design and greys out Implement.
  * `diff-before` / `diff-after` — serves the left or right pane of a diff view
  *   with real `bpmn-js-differ` highlights computed from two fixture XMLs.
- * `merge-current` / `merge-incoming` — the same panes as the two sides of a
- *   merge view, with the captions a merge of `feature` into `main` sends.
+ * `merge-current` / `merge-incoming` — the same diagrams as the two panes of a
+ *   merge view, with the recorded merge states of a merge of `feature` into `main`.
  */
 const DEV_MODES = [
     "modeler",
@@ -71,11 +72,6 @@ const DEV_MODES = [
 ] as const;
 
 type DevMode = (typeof DEV_MODES)[number];
-
-const MOCK_MERGE_CAPTIONS: Record<DiffSide, MergeSideCaption> = {
-    before: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
-    after: { side: "incoming", role: "upstream", ref: "feature", shortHash: "9f8e7d6" },
-};
 
 function readDevMode(): DevMode {
     const raw = new URLSearchParams(window.location.search).get("mode");
@@ -239,7 +235,10 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 break;
             }
             case "DiffPlaneChangedCommand": {
-                console.debug("[DEBUG] DiffPlaneChangedCommand (no partner in dev)", command.planeId);
+                console.debug(
+                    "[DEBUG] DiffPlaneChangedCommand (no partner in dev)",
+                    command.planeId,
+                );
                 break;
             }
             case "DiffSelectionChangedCommand": {
@@ -247,6 +246,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                     "[DEBUG] DiffSelectionChangedCommand (no partner in dev)",
                     command.elementId,
                 );
+                break;
+            }
+            case "MergeStepListChangedCommand": {
+                // Single-pane preview: the list is switched locally only.
+                console.debug("[DEBUG] MergeStepListChangedCommand (no partner in dev)", command.list);
                 break;
             }
             case "ShowElementXmlChangesCommand": {
@@ -358,12 +362,16 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
     private handleGetBpmnFile(): void {
         switch (this.devMode) {
             case "diff-before":
-            case "merge-current":
                 dispatch(new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "viewer"));
                 return;
             case "diff-after":
-            case "merge-incoming":
                 dispatch(new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "viewer"));
+                return;
+            case "merge-current":
+                dispatch(new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "merge"));
+                return;
+            case "merge-incoming":
+                dispatch(new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "merge"));
                 return;
             case "neutral":
                 // Untagged model: no engine, so the webview opens it in Design.
@@ -386,6 +394,10 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
             // DiffReadyCommand arrived in modeler mode — ignore.
             return;
         }
+        if (isMergeMode(this.devMode)) {
+            dispatch(MOCK_MERGE_STATES[side]);
+            return;
+        }
 
         let result: DiffResult;
         try {
@@ -397,7 +409,6 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
 
         const { sideView } = await import("@miragon/bpmn-modeler/diff");
         const view = sideView(result, side);
-        const merge = isMergeMode(this.devMode);
 
         dispatch(
             new ApplyDiffHighlightsQuery(
@@ -410,11 +421,10 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 result.navigationOrder,
                 // Dev preview mimics the "Compare Files" entry point so the legend
                 // renders its filename, the branch that exercises the most chrome.
-                merge ? "merge" : "compare-files",
-                merge ? "order.bpmn" : side === "before" ? "before.bpmn" : "after.bpmn",
+                "compare-files",
+                side === "before" ? "before.bpmn" : "after.bpmn",
                 // Shows the context pad's "Show XML changes" entry in the preview.
                 true,
-                merge ? MOCK_MERGE_CAPTIONS[side] : undefined,
             ),
         );
     }

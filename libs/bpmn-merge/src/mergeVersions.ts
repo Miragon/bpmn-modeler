@@ -8,22 +8,14 @@ import {
     moddleElements,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
-import {
-    ENGINE_LABEL,
-    detectEngineWithNamespaceFallback,
-} from "@miragon/bpmn-modeler-types/engine";
+import { detectEngineWithNamespaceFallback } from "@miragon/bpmn-modeler-types/engine";
 
 import { executionEngineOf } from "./executionEngine";
+import { mergeRefusal, parseFailure } from "./mergeRefusal";
+import { type MergeVersions, VERSION_NAMES, type VersionName } from "./versionNames";
 
-export interface MergeVersions {
-    readonly base?: string;
-    readonly current: string;
-    readonly incoming: string;
-}
-
-export type VersionName = keyof MergeVersions;
-
-export const VERSION_NAMES: readonly VersionName[] = ["base", "current", "incoming"];
+export { VERSION_NAMES } from "./versionNames";
+export type { MergeVersions, VersionName } from "./versionNames";
 
 type BpmnModdle = PrefixedModdle["moddle"];
 
@@ -57,9 +49,11 @@ function requireOneEngine({ current, incoming }: MergeVersions): void {
     const currentEngine = detectEngineWithNamespaceFallback(current);
     const incomingEngine = detectEngineWithNamespaceFallback(incoming);
     if (currentEngine && incomingEngine && currentEngine !== incomingEngine) {
-        throw new Error(
-            `current is for ${ENGINE_LABEL[currentEngine]} and incoming for ${ENGINE_LABEL[incomingEngine]}: a merge needs one engine`,
-        );
+        throw mergeRefusal({
+            kind: "mixedEngines",
+            current: currentEngine,
+            incoming: incomingEngine,
+        });
     }
 }
 
@@ -71,9 +65,11 @@ async function requireMergeableVersion(
     const definitions = await cleanlyParsed(moddle, name, xml);
     const withoutId = elementWithoutId(definitions);
     if (withoutId) {
-        throw new Error(
-            `${name} holds a ${withoutId.$type} without an id: the merge matches root elements and lanes by id`,
-        );
+        throw mergeRefusal({
+            kind: "elementWithoutId",
+            version: name,
+            elementType: withoutId.$type,
+        });
     }
 }
 
@@ -86,11 +82,16 @@ async function cleanlyParsed(
     try {
         parsed = await moddle.fromXML(xml);
     } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`${name} does not parse: ${reason}`, { cause: error });
+        throw parseFailure(name, error);
     }
     const warnings = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
-    if (warnings.length > 0) throw new Error(`${name} does not parse: ${warnings.join("; ")}`);
+    if (warnings.length > 0) {
+        throw mergeRefusal({
+            kind: "parsesWithWarnings",
+            version: name,
+            detail: warnings.join("; "),
+        });
+    }
     return parsed.rootElement;
 }
 

@@ -86,6 +86,7 @@ describe("createDiffPaneRouter", () => {
                 LogErrorCommand: "handled",
                 ShowElementXmlChangesCommand: "handled",
                 DiffSelectionChangedCommand: "handled",
+                MergeStepListChangedCommand: "handled",
             },
         ],
         [
@@ -104,6 +105,7 @@ describe("createDiffPaneRouter", () => {
                 LogErrorCommand: "ignored",
                 ShowElementXmlChangesCommand: "ignored",
                 DiffSelectionChangedCommand: "handled",
+                MergeStepListChangedCommand: "handled",
             },
         ],
     ])(

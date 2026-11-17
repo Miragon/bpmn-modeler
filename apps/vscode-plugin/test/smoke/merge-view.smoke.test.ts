@@ -15,7 +15,8 @@ import { COMMAND_KEY, VsCodeSession, downloadVsCode, packExtension } from "./vsc
  * opened from a Merge Changes row for a merge, a rebase, a cherry-pick and a
  * stash pop, explained on a row it cannot open, offered by an editor that
  * opens a file with conflict markers, ended after a window reload, and
- * opened again live beside the ended tab. No editor association for
+ * opened again live beside the ended tab, and its panes marking what is
+ * open and what was taken automatically. No editor association for
  * `*.bpmn`: the custom editor's own priority decides, as for a user.
  */
 
@@ -72,7 +73,11 @@ function runGit(repository: string, ...args: string[]): Promise<{ stdout: string
     );
 }
 
-/** A repository whose one file conflicts after `operation`: both sides rename the task. */
+/**
+ * A repository whose one file conflicts after `operation`: both sides rename
+ * the task. In the merge, feature alone also renames the end event, which the
+ * merge takes from feature without asking.
+ */
 async function conflictedRepository(
     workspace: string,
     operation: Operation,
@@ -98,7 +103,13 @@ async function conflictedRepository(
         return repository;
     }
     await runGit(repository, "checkout", "-q", "-b", "feature");
-    await writeFile(file, renamed("Check feature order"));
+    const featureVersion = renamed("Check feature order");
+    await writeFile(
+        file,
+        operation === "merge"
+            ? featureVersion.replace('name="Order checked"', 'name="Order verified"')
+            : featureVersion,
+    );
     if (operation === "merge") await writeFile(join(repository, "notes.txt"), "feature\n");
     if (operation === "merge") await runGit(repository, "add", "notes.txt");
     await commitAll("Rename the check on feature");
@@ -467,6 +478,69 @@ describe("the BPMN merge view", () => {
             const { current } = await captions();
             expect(current).toMatch(/^Current: your branch main/);
             await shot("merge-view-reopened");
+        });
+    });
+
+    describe("marks", () => {
+        /** The class list of an element of a pane's canvas, once the pane painted its marks. */
+        function classesOf(pane: FrameLocator, elementId: string): Promise<string> {
+            return pane
+                .locator(`.djs-element[data-element-id="${elementId}"]`)
+                .first()
+                .getAttribute("class", { timeout: TIMEOUT_MS })
+                .then((classes) => classes ?? "");
+        }
+
+        it("counts the open conflict and marks the task both sides renamed on both panes", async () => {
+            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
+            const current = await vscode().editorWebview('body[data-diff-side="before"]');
+            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
+
+            for (const pane of [current, incoming]) {
+                await expect
+                    .poll(() => pane.locator(".merge-legend__open").innerText(), {
+                        timeout: TIMEOUT_MS,
+                    })
+                    .toBe("1 open conflict");
+                // Until the new tab shows, the pane locator can still reach the earlier tab's pane.
+                await expect
+                    .poll(() => classesOf(pane, "Task_Check"), { timeout: TIMEOUT_MS })
+                    .toContain("merge-conflict");
+                await expect
+                    .poll(() => pane.locator(".merge-conflict-badge").count(), {
+                        timeout: TIMEOUT_MS,
+                    })
+                    .toBe(1);
+            }
+            await shot("marks-both-panes");
+        });
+
+        it("marks the end event only feature renamed as taken from the incoming side", async () => {
+            const current = await vscode().editorWebview('body[data-diff-side="before"]');
+            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
+
+            await expect
+                .poll(() => classesOf(incoming, "End_Order"), { timeout: TIMEOUT_MS })
+                .toContain("merge-taken-from-this-side");
+            expect(await classesOf(current, "End_Order")).toContain("merge-taken-from-other-side");
+            expect(await classesOf(current, "Start_Order")).not.toMatch(/merge-/);
+            await expectUntouched("merge");
+        });
+
+        it("walks the list one pane switched to on the other pane too", async () => {
+            const current = await vscode().editorWebview('body[data-diff-side="before"]');
+            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
+            const allSteps = (pane: FrameLocator) =>
+                pane.getByRole("button", { name: "All merged elements" });
+
+            await allSteps(current).click();
+
+            await expect
+                .poll(() => allSteps(incoming).getAttribute("aria-pressed"), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe("true");
+            await shot("marks-step-list-shared");
         });
     });
 });

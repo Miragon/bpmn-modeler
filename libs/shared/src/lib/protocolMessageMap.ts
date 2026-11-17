@@ -17,6 +17,7 @@ import type {
     SyncDmnDiffScrollQuery,
     SyncDmnDiffViewQuery,
 } from "./dmnDiffMessages";
+import type { ApplyMergeStatesQuery, MergeStepListChangedCommand } from "./mergePaneMessages";
 import type {
     DocumentFlushedCommand,
     FlushDocumentQuery,
@@ -182,6 +183,7 @@ export type ProtocolQuery =
     | SyncCursorQuery
     | SyncDiffPlaneQuery
     | SyncDiffSelectionQuery
+    | ApplyMergeStatesQuery
     | ApplyDmnDiffHighlightsQuery
     | SyncDmnDiffViewQuery
     | SyncDmnDiffScrollQuery
@@ -253,6 +255,7 @@ export type ProtocolCommand =
     | DiffSelectionChangedCommand
     | ShowElementXmlChangesCommand
     | DiffReadyCommand
+    | MergeStepListChangedCommand
     | SwapCompareSidesCommand
     | DmnDiffViewChangedCommand
     | DmnDiffScrollChangedCommand

@@ -12,7 +12,11 @@ import {
     buildMerged,
     computeMerge,
     describeUnmetRequirement,
+    hasNoShape,
     MergeDecisions,
+    mergeNavigationOrder,
+    mergePaneSteps,
+    mergePaneView,
     prepareMergeSources,
 } from "@miragon/bpmn-modeler-merge";
 
@@ -29,6 +33,12 @@ decisions.unpick("Task_1"); // back to its automatic resolution or open, unless 
 
 const sources = await prepareMergeSources(versions); // once per merge; keep it for every build
 const { xml, notes } = await buildMerged(sources, decisions); // throws while conflicts are open
+
+// What a merge view shows on each pane: its markers, the marked elements no canvas draws, its steps.
+const { marks, shapeless } = mergePaneView(decisions, "current"); // takenFromThisSide, takenFromOtherSide, conflict
+const order = mergeNavigationOrder(decisions.result, sources); // current's flow, incoming's own steps in it, then the rest
+const { openConflicts, all } = mergePaneSteps(decisions, order, "current");
+decisions.result.elements.filter(hasNoShape); // what a pane lists instead of drawing
 ```
 
 An applied pick leaves the element on the picked side: an automatic element that clashes with it or
@@ -44,7 +54,7 @@ that fails its checks instead of repairing it.
 
 ## Rules
 
-- Keep it free of the DOM: the tsconfig compiles with `lib: ["ESNext"]` and the tests run in the
+- Keep it free of the DOM: the tsconfig compiles with `lib: ["ES2021"]` and the tests run in the
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
   lazily. Import the engine rule from `@miragon/bpmn-modeler-types/engine`, never the barrel, whose

@@ -1,6 +1,7 @@
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
+    type MergePaneStepList,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
     SyncDiffSelectionQuery,
@@ -11,7 +12,6 @@ import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
-import { mergeSideOfPane } from "../domain/mergePaneSide";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffSession } from "./DiffSession";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
@@ -19,7 +19,7 @@ import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
-import { MergeSessionStore } from "./MergeSessionStore";
+import { MergeDecisionService } from "./MergeDecisionService";
 
 /** A host's element XML diff: shows an element's XML from both sides and moves it with the selection. */
 export type ElementXmlChanges = Pick<ElementXmlDiffService, "show" | "follow">;
@@ -46,42 +46,51 @@ export class BpmnDiffService {
      *   language re-broadcast fan-out.
      * @param elementXmlChanges The host's element XML diff; without it the
      *   panes do not offer an element's XML changes.
-     * @param merges The open merge views, whose panes get their side's caption;
-     *   absent on a host that opens none.
+     * @param merge The merge views' decisions: a merge pane opens in merge
+     *   viewer mode and gets its merge states instead of diff highlights;
+     *   absent on a host that opens no merge view.
      */
     constructor(
         private readonly notifier: NotifierPort,
         vsSettings: SettingsPort,
-        store: DiffPaneStore,
+        private readonly store: DiffPaneStore,
         private readonly elementXmlChanges?: ElementXmlChanges,
-        private readonly merges?: Pick<MergeSessionStore, "ofDiffSession">,
+        private readonly merge?: MergeDecisionService,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
     }
 
     /**
      * Replies to the webview's initial `GetBpmnFileCommand` with the pane's
-     * XML in viewer mode.  Engine detection is best-effort — an untagged
-     * diagram reports `undefined`, since viewer mode does not render
-     * engine-specific extensions anyway.
+     * XML in viewer mode, or merge mode for a pane of a merge view, whose
+     * session the host attaches before the page boots.  Engine detection is
+     * best-effort — an untagged diagram reports `undefined`, since viewer mode
+     * does not render engine-specific extensions anyway.
      */
     async sendViewerFile(handle: DiffPaneHandle): Promise<void> {
         try {
             const content = handle.getText();
             const engine = new BpmnDocument(content).detectEngine();
-            await handle.postMessage(new BpmnFileQuery(content, engine, "viewer"));
+            const session = this.store.sessionOf(handle);
+            const viewerMode = session && this.merge?.shows(session) ? "merge" : "viewer";
+            await handle.postMessage(new BpmnFileQuery(content, engine, viewerMode));
         } catch (error) {
             this.notifier.logError(error as Error);
         }
     }
 
     /**
-     * Marks the pane ready, sends it the current locale, and runs the differ
-     * once both panes of the session report ready.
+     * Marks the pane ready, sends it the current locale, and once both panes
+     * of the session report ready runs the differ, or sends a merge view's
+     * panes the full state of its decisions: on every ready, since a pane
+     * that reloaded after a tab switch has lost what it showed.
      */
     async markReady(handle: DiffPaneHandle): Promise<void> {
         const armed = await this.relay.markReady(handle);
-        if (armed) {
+        if (!armed) return;
+        if (this.merge?.shows(armed.session)) {
+            await this.merge.broadcast(armed, this.showsElementXmlChanges);
+        } else {
             await this.computeAndBroadcast(armed.session, armed.before, armed.after);
         }
     }
@@ -111,7 +120,17 @@ export class BpmnDiffService {
      * partner lookup, same drop-silently-on-failure semantics.
      */
     forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session && this.merge?.shows(session)) this.merge.noteCursor(session, index);
         return this.relay.toPartner(handle, new SyncCursorQuery(index), "syncCursor");
+    }
+
+    /** Keeps the list a merge pane steps through and has its partner walk it too. */
+    async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
+        const armed = this.relay.armedOf(handle);
+        if (armed && this.merge?.shows(armed.session)) {
+            await this.merge.chooseStepList(armed, list, this.showsElementXmlChanges);
+        }
     }
 
     /** Posts the plane the user entered to the partner pane, so both show the same subprocess. */
@@ -168,7 +187,6 @@ export class BpmnDiffService {
             return;
         }
 
-        const merge = this.merges?.ofDiffSession(session);
         const highlightsFor = (side: DiffSide, pane: DiffPaneHandle) => {
             const view = sideView(result, side);
             return new ApplyDiffHighlightsQuery(
@@ -180,10 +198,8 @@ export class BpmnDiffService {
                 result.counts,
                 result.navigationOrder,
                 session.origin,
-                // A merge pane's document is a Git stage named after its side; the pane shows the file.
-                merge?.fileName ?? uriDisplayName(pane.uri),
+                uriDisplayName(pane.uri),
                 this.showsElementXmlChanges,
-                merge?.captions[mergeSideOfPane(side)],
             );
         };
 

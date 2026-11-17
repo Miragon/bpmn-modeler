@@ -65,7 +65,6 @@
 import { Command, Query } from "./messages";
 import { DEFAULT_FORM_PREVIEW_AUTOMATIC } from "@miragon/bpmn-modeler-types";
 import type {
-    MergeSideCaption,
     BpmnlintConfig,
     BpmnModelerSetting,
     BpmnViewerMode,
@@ -1584,12 +1583,6 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
      */
     public readonly elementXmlChanges: boolean;
 
-    /**
-     * On a merge pane, what its side is to the user and which branch or commit
-     * it shows; the pane composes the words. Absent on every other diff.
-     */
-    public readonly mergeCaption?: MergeSideCaption;
-
     constructor(
         side: DiffSide,
         added: readonly string[],
@@ -1601,7 +1594,6 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         origin: DiffOrigin,
         paneFilename: string,
         elementXmlChanges = false,
-        mergeCaption?: MergeSideCaption,
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -1614,7 +1606,6 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         this.origin = origin;
         this.paneFilename = paneFilename;
         this.elementXmlChanges = elementXmlChanges;
-        if (mergeCaption) this.mergeCaption = mergeCaption;
     }
 }
 

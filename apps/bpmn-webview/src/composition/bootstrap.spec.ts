@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
     stateManagerCreated: vi.fn(),
     prefetchSurfaceModules: vi.fn(),
     loadPlugins: vi.fn(),
+    panesStarted: [] as [string, string][],
 }));
 
 vi.mock("@miragon/bpmn-modeler/plugins", () => ({
@@ -79,7 +80,12 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
 
 vi.mock("../adapter/in/diffMode", () => ({
     DiffMode: class {
-        startWith = vi.fn(async () => undefined);
+        startWith = vi.fn(async (content: string) => mocks.panesStarted.push(["diff", content]));
+    },
+}));
+vi.mock("../adapter/in/mergeMode", () => ({
+    MergeMode: class {
+        startWith = vi.fn(async (content: string) => mocks.panesStarted.push(["merge", content]));
     },
 }));
 vi.mock("../adapter/in/hostEditorActions", () => ({ installHostEditorActions: vi.fn() }));
@@ -322,6 +328,8 @@ describe("bootstrap", () => {
         document.body.inert = false;
         mocks.locale = "en";
         mocks.savedMode = undefined;
+        mocks.panesStarted.length = 0;
+        document.body.classList.remove("viewer-mode");
         vi.clearAllMocks();
     });
 
@@ -1194,6 +1202,20 @@ describe("bootstrap", () => {
 
             expect(consoleError).toHaveBeenCalledWith("Diff mode: missing #app");
             expect(sentOfType(host, "LogErrorCommand")).toEqual([]);
+        });
+
+        it.each([
+            ["viewer", "diff"],
+            ["merge", "merge"],
+        ] as const)("boots a %s pane as a %s pane", async (viewerMode, pane) => {
+            const host = makeHost({ file: new BpmnFileQuery("<side />", "c7", viewerMode, 1) });
+            boot(host);
+            await settle();
+
+            expect(mocks.panesStarted).toEqual([[pane, "<side />"]]);
+            expect(document.body.classList.contains("viewer-mode")).toBe(true);
+            expect(mocks.createModeler).not.toHaveBeenCalled();
+            expect(sentTypes(host)).not.toContain("GetBpmnPluginsCommand");
         });
 
         it("drops held replies and follows later language changes without a surface", async () => {

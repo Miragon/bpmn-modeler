@@ -57,12 +57,20 @@ export function mergeFrames(frames: {
     return { takenFromIncoming, notes };
 }
 
-export async function frameOf({ moddle }: MergeModdle, xml: string): Promise<DocumentFrame> {
-    const definitions = (await moddle.fromXML(xml)).rootElement;
+export async function frameOf(mergeModdle: MergeModdle, xml: string): Promise<DocumentFrame> {
+    return frameOfDefinitions(mergeModdle, (await mergeModdle.moddle.fromXML(xml)).rootElement);
+}
+
+export async function frameOfDefinitions(
+    { moddle }: MergeModdle,
+    definitions: ModdleElement,
+): Promise<DocumentFrame> {
     const attributes: Record<string, string> = {};
     for (const name of typedAttributesOf(definitions)) {
         // A descriptor default is read through the prototype; only a value the file sets is the file's.
-        if (Object.hasOwn(definitions, name)) attributes[name] = String(definitions[name]);
+        if (Object.prototype.hasOwnProperty.call(definitions, name)) {
+            attributes[name] = String(definitions[name]);
+        }
     }
     for (const [name, value] of Object.entries(definitions.$attrs ?? {})) {
         if (name !== "xmlns" && !name.startsWith("xmlns:")) attributes[name] = value;

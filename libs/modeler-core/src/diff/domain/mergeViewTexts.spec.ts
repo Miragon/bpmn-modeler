@@ -40,6 +40,30 @@ describe("mergeViewRefusal", () => {
             "notes.txt exists only on the incoming side. Keep or delete it in Source Control.",
         ],
         [
+            { kind: "unparsable", version: "incoming", detail: "unparsable content" },
+            "The BPMN merge view cannot read the incoming side of notes.txt: unparsable content. A file under Git LFS or a textconv driver hands Git's sides over as text that is not BPMN; resolve it in Source Control.",
+        ],
+        [
+            { kind: "unparsable", version: "base", detail: "unparsable content" },
+            "The BPMN merge view cannot read the common ancestor of notes.txt: unparsable content. A file under Git LFS or a textconv driver hands Git's sides over as text that is not BPMN; resolve it in Source Control.",
+        ],
+        [
+            {
+                kind: "parsesWithWarnings",
+                version: "current",
+                detail: "unresolved reference <Flow_Gone>",
+            },
+            "The BPMN merge view cannot merge notes.txt: the current side does not parse cleanly (unresolved reference <Flow_Gone>). Resolve it in Source Control.",
+        ],
+        [
+            { kind: "mixedEngines", current: "c7", incoming: "c8" },
+            "The BPMN merge view cannot merge notes.txt: the current side is for Camunda 7 and the incoming side for Camunda 8, and a merge needs one engine. Resolve it in Source Control.",
+        ],
+        [
+            { kind: "elementWithoutId", version: "incoming", elementType: "bpmn:Signal" },
+            "The BPMN merge view cannot merge notes.txt: the incoming side holds a bpmn:Signal without an id, and the merge matches root elements and lanes by id. Resolve it in Source Control.",
+        ],
+        [
             { kind: "noFile" },
             "Open a conflicted BPMN file, or select one in Source Control, to resolve it in the BPMN merge view.",
         ],

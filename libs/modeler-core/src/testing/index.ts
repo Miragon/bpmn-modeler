@@ -56,3 +56,5 @@ export * from "./RecordingAddOnViewReveal";
 export * from "./RecordingElementXmlDiffView";
 export * from "./RecordingMergeCommandAvailability";
 export * from "./RecordingMergeSidesView";
+export * from "./orderMergeVersions";
+export * from "./mergeSessions";

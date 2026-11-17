@@ -22,9 +22,26 @@ const NAMES: Readonly<Record<string, string>> = {
     "bpmn:SubProcess": "Sub-process",
     "bpmn:Process": "Process",
     "bpmn:SequenceFlow": "Sequence flow",
+    // What a merge pane lists for want of a shape: the root element types and the data object.
+    "bpmn:Collaboration": "Collaboration",
+    "bpmn:Message": "Message",
+    "bpmn:Error": "Error",
+    "bpmn:Escalation": "Escalation",
+    "bpmn:Signal": "Signal",
+    "bpmn:DataStore": "Data store",
+    "bpmn:DataObject": "Data object",
+    "bpmn:ItemDefinition": "Item definition",
+    "bpmn:Category": "Category",
+    "bpmn:Interface": "Interface",
+    "bpmn:EndPoint": "End point",
+    "bpmn:PartnerEntity": "Partner entity",
+    "bpmn:PartnerRole": "Partner role",
+    "bpmn:Resource": "Resource",
+    "bpmn:CorrelationProperty": "Correlation property",
+    "bpmn:GlobalTask": "Global task",
 };
 
-/** What people call an element type, or its identifier for one the builder does not know. */
+/** What people call an element type, or its identifier for one the modeler does not name. */
 export function elementTypeName(type: string, translate: Translate): string {
     const name = NAMES[type];
     return name ? translate(name) : type;

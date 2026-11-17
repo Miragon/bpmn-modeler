@@ -25,6 +25,14 @@ share one notion of an element's XML, and on `@miragon/bpmn-modeler-types/engine
 modeler's engine rule. It imports that subpath, not the barrel, which would pull DOM-typed
 modules into a DOM-free library.
 
+The core imports it, so its consumers' TypeScript `lib` (`ES2021`, `tsconfig.base.json`)
+binds it too: it calls no ES2022 or later library API (`findLast`, `Object.hasOwn`, an
+`Error`'s `cause` option), and its own tsconfig compiles with `lib: ["ES2021"]` so the next
+one fails its build. Rejected: raising `lib` in the core, the bridge and the plugin, three
+consumers for five call sites. The library also holds what a merge view shows of the
+decisions, as pure projections (`mergePaneView`, `mergePaneSteps`, `mergeNavigationOrder`,
+`hasNoShape`); the [merge view record](merge-view.md) says why.
+
 The core, the protocol and the merge view's webview share one vocabulary: the two sides, the
 markers a pane paints and their classes, the roles a pane caption gives a side and the caption
 itself. Its home is `libs/modeler-types/src/mergeVocabulary.ts`, which imports nothing at
@@ -80,7 +88,10 @@ base, an element only one side has, or that the sides hold differently, is a con
   incoming's), which warns on an engine attribute or extension element the descriptor does
   not know: the file is built with that descriptor, so such a version could never be built.
   `requireMergeableVersions` holds every up-front refusal, so building the file can run the
-  same checks.
+  same checks. A refusal is thrown as a typed `MergeRefusal` (a text the parser rejects, one
+  that parses with warnings, two engines, an element without an id), which `mergeRefusalOf`
+  reads, so a caller explains each in its own words; the error's English message is for a
+  developer. Any other error the library throws is a bug, not a refusal.
 - *What a state compares.* The element's text without its child elements, `bpmndi` and
   the derived references `incoming`, `outgoing`, `flowNodeRef` and `boundaryEventRefs`,
   together with its parent and its lanes. Keeping derived references would make both ends

@@ -1,0 +1,145 @@
+/*
+ * Merge pane markers, beside the diff's (diffView.css) and in the same CI
+ * status colours. Each marker has a cue that is no colour: a heavy solid
+ * contour for "taken from this side", a hatch for "taken from the other side"
+ * (also when the other side removed it), a dashed contour and a "!" badge for
+ * a conflict. Dark mode tints no surface: the colour goes on the stroke.
+ */
+
+/* ─── Taken from this side ─────────────────────────────────────────────── */
+
+.djs-shape.merge-taken-from-this-side .djs-visual > :nth-child(1) {
+    stroke: #1d1d1d !important;
+    stroke-width: 3px !important;
+}
+
+.djs-shape.merge-taken-from-this-side:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #dafbeb !important;
+}
+
+.djs-connection.merge-taken-from-this-side .djs-visual path {
+    stroke: #1d1d1d !important;
+}
+
+.djs-connection.merge-taken-from-this-side .djs-visual > path {
+    stroke-width: 3px !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-taken-from-this-side .djs-visual > :nth-child(1),
+[data-bpmn-theme="dark"] .djs-connection.merge-taken-from-this-side .djs-visual path {
+    stroke: #00e676 !important;
+}
+
+/* ─── Taken from the other side ────────────────────────────────────────── */
+
+.djs-shape.merge-taken-from-other-side .djs-visual > :nth-child(1) {
+    stroke: #335de5 !important;
+    stroke-width: 2px !important;
+    fill: url(#merge-hatch) !important;
+}
+
+.merge-hatch__ground {
+    fill: #eef1fd;
+}
+
+.merge-hatch__line {
+    stroke: #335de5;
+    stroke-width: 2;
+}
+
+.djs-connection.merge-taken-from-other-side .djs-visual path {
+    stroke: #335de5 !important;
+}
+
+.djs-connection.merge-taken-from-other-side .djs-visual > path {
+    stroke-width: 2px !important;
+    stroke-dasharray: 2 4 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-taken-from-other-side .djs-visual > :nth-child(1),
+[data-bpmn-theme="dark"] .djs-connection.merge-taken-from-other-side .djs-visual path {
+    stroke: #6b8aff !important;
+}
+
+[data-bpmn-theme="dark"] .merge-hatch__ground {
+    fill: transparent;
+}
+
+[data-bpmn-theme="dark"] .merge-hatch__line {
+    stroke: #6b8aff;
+}
+
+/* ─── Conflict ─────────────────────────────────────────────────────────── */
+
+.djs-shape.merge-conflict .djs-visual > :nth-child(1) {
+    stroke: #cd1839 !important;
+    stroke-width: 3px !important;
+    stroke-dasharray: 8 4 !important;
+}
+
+.djs-shape.merge-conflict:not([data-bpmn-theme="dark"] *) .djs-visual > :nth-child(1) {
+    fill: #fbeef0 !important;
+}
+
+.djs-connection.merge-conflict .djs-visual path {
+    stroke: #cd1839 !important;
+}
+
+.djs-connection.merge-conflict .djs-visual > path {
+    stroke-width: 3px !important;
+    stroke-dasharray: 8 4 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-conflict .djs-visual > :nth-child(1),
+[data-bpmn-theme="dark"] .djs-connection.merge-conflict .djs-visual path {
+    stroke: #fb6d73 !important;
+}
+
+.merge-conflict-badge {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    font: 700 13px/18px var(--diff-legend-font-family, sans-serif);
+    color: #fff;
+    text-align: center;
+    background: #cd1839;
+    border: 1px solid #fff;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+[data-bpmn-theme="dark"] .merge-conflict-badge {
+    color: #1d1d1d;
+    background: #fb6d73;
+    border-color: #1d1d1d;
+}
+
+/* ─── Legend swatches ──────────────────────────────────────────────────── */
+
+.diff-legend__swatch--merge-taken-from-this-side {
+    background: #dafbeb;
+    border-width: 2px;
+}
+
+.diff-legend__swatch--merge-taken-from-other-side {
+    background: repeating-linear-gradient(45deg, #335de5 0 2px, #eef1fd 2px 5px);
+}
+
+.diff-legend__swatch--merge-conflict {
+    background: #fbeef0;
+    border: 2px dashed #cd1839;
+}
+
+[data-bpmn-theme="dark"] .diff-legend__swatch--merge-taken-from-this-side {
+    background: transparent;
+    border-color: #00e676;
+}
+
+[data-bpmn-theme="dark"] .diff-legend__swatch--merge-taken-from-other-side {
+    background: repeating-linear-gradient(45deg, #6b8aff 0 2px, transparent 2px 5px);
+}
+
+[data-bpmn-theme="dark"] .diff-legend__swatch--merge-conflict {
+    background: transparent;
+    border-color: #fb6d73;
+}

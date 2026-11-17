@@ -33,6 +33,7 @@ import {
 import {
     FakeConflictVersionsSource,
     FakeDiffPaneHandle,
+    ORDER_MERGE_STAGES,
     RecordingMergeSidesView,
     RecordingNotifier,
 } from "@miragon/bpmn-modeler-core/testing";
@@ -135,7 +136,7 @@ const MERGE_CAPTIONS = {
 async function openMergeView(ctx: ReturnType<typeof createController>) {
     ctx.gitConflicts.conflict("file:///repo", {
         fileUri: ORDER,
-        stages: { current: "<current/>", incoming: "<incoming/>" },
+        stages: ORDER_MERGE_STAGES,
         refs: { headName: "main" },
         workingText: "<<<<<<< HEAD\n=======\n>>>>>>> feature\n",
     });

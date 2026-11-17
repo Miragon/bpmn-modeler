@@ -24,7 +24,7 @@ import {
     resolveHostThemeKind,
     takeFocus,
 } from "@miragon/bpmn-modeler-shared";
-import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
+import type { BpmnViewerMode, LintRunEvent } from "@miragon/bpmn-modeler-types";
 import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
 import { installHostEditorActions } from "../adapter/in/hostEditorActions";
 import { HostModelerState } from "../domain/hostModelerState";
@@ -32,7 +32,7 @@ import { BpmnDocumentSession } from "../service/documentSession";
 import { createHostElementIdReview } from "../service/hostElementIdReview";
 import { mountEditorChrome } from "../adapter/in/editorChrome";
 import type { Translator } from "../port/documentSessionPorts";
-import type { BpmnWebviewHost, HostChannel } from "../port/hostChannel";
+import type { BpmnWebviewHost, DiffPaneChannel, HostChannel } from "../port/hostChannel";
 import { createLintBridge } from "../adapter/out/lintBridge";
 import {
     createHostMessageRouter,
@@ -56,6 +56,27 @@ import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 // The diff legend is set in Geist; the browser fetches it only where a legend shows.
 import "@fontsource-variable/geist/wght.css";
+
+interface TwoPaneMode {
+    startWith(initialContent: string): Promise<void>;
+}
+
+/** The pane each readonly viewer mode boots, loaded only when the host asks for it. */
+const TWO_PANE_MODES: Readonly<
+    Record<
+        Exclude<BpmnViewerMode, "modeler">,
+        () => Promise<
+            new (
+                canvas: HTMLElement,
+                legendParent: HTMLElement,
+                host: DiffPaneChannel,
+            ) => TwoPaneMode
+        >
+    >
+> = {
+    viewer: async () => (await import("../adapter/in/diffMode")).DiffMode,
+    merge: async () => (await import("../adapter/in/mergeMode")).MergeMode,
+};
 
 interface BootstrapOptions {
     /** Host-specific extra bpmn-js DI modules. */
@@ -229,10 +250,14 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
         }
 
         /**
-         * Diff view: host told us this pane is one half of a diff, so bootstrap
-         * the readonly DiffMode and skip the editable modeler entirely.
+         * Diff or merge view: host told us this pane is one half of one, so
+         * bootstrap its readonly pane and skip the editable modeler entirely.
          */
-        if (bpmnFileQuery?.viewerMode === "viewer") {
+        const loadPane =
+            bpmnFileQuery && bpmnFileQuery.viewerMode !== "modeler"
+                ? TWO_PANE_MODES[bpmnFileQuery.viewerMode]
+                : undefined;
+        if (bpmnFileQuery && loadPane) {
             // A diff pane has no surface for the held replies or any later session
             // message; it only follows language changes.
             sessionMessages.discardImportBound();
@@ -247,9 +272,8 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
             }
             // One side of a diff has no properties panel.
             const { canvas, dropZone } = mountEditorCanvas(root);
-            const { DiffMode } = await import("../adapter/in/diffMode");
-            const diffMode = new DiffMode(canvas, dropZone, host);
-            await diffMode.startWith(bpmnFileQuery.content);
+            const Pane = await loadPane();
+            await new Pane(canvas, dropZone, host).startWith(bpmnFileQuery.content);
             return;
         }
 

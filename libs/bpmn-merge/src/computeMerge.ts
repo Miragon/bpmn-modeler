@@ -2,6 +2,7 @@ import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-di
 
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
+import { parseFailure } from "./mergeRefusal";
 import {
     type ElementVersion,
     type MergeElement,
@@ -59,8 +60,7 @@ async function snapshotsOf(
             rejectWarnings: true,
         });
     } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`${version} does not parse: ${reason}`, { cause: error });
+        throw parseFailure(version, error);
     }
 }
 

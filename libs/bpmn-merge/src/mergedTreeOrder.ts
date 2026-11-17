@@ -23,7 +23,8 @@ export function orderMembers<Key>(
         if (!members.has(key) || placed.has(key)) return;
         const predecessor = incomingOrder
             .slice(0, index)
-            .findLast((candidate) => placed.has(candidate));
+            .reverse()
+            .find((candidate) => placed.has(candidate));
         ordered.splice(predecessor === undefined ? 0 : ordered.indexOf(predecessor) + 1, 0, key);
         placed.add(key);
     });

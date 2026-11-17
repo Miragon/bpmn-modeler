@@ -1,3 +1,4 @@
+import type { MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
@@ -6,12 +7,21 @@ import { MergePaneUris, MergeSidesView } from "../port/MergeSidesView";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
 
-/** One open merge view of a conflicted file: what Git said when it opened, and where its sides are served. */
+/**
+ * One open merge view of a conflicted file: what Git said when it opened,
+ * where its sides are served, and the merge of them, whose decisions live as
+ * long as the view.
+ */
 export interface MergeSession extends MergeViewContent {
     readonly fileUri: string;
     readonly fileName: string;
     readonly captions: Readonly<Record<MergeSide, MergeSideCaption>>;
     readonly uris: MergePaneUris;
+    readonly decisions: MergeDecisions;
+    /** Parsed once for every build of this merge. */
+    readonly sources: MergeSources;
+    /** Every merge element in the order the panes' steppers walk them. */
+    readonly navigationOrder: readonly string[];
 }
 
 interface Entry {

@@ -56,6 +56,7 @@ import {
     type BpmnDiffPaneCommandType,
     type MessageOfType,
     type Query,
+    MergeStepListChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
@@ -136,6 +137,7 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     LogErrorCommand: new LogErrorCommand("error"),
     ShowElementXmlChangesCommand: new ShowElementXmlChangesCommand("Task_1"),
     DiffSelectionChangedCommand: new DiffSelectionChangedCommand("Task_1"),
+    MergeStepListChangedCommand: new MergeStepListChangedCommand("all"),
 };
 
 describe("getHostApi", () => {
@@ -202,6 +204,8 @@ describe("development preview host", () => {
             ["?mode=neutral", MOCK_NEUTRAL_BPMN_XML, undefined, "modeler"],
             ["?mode=diff-before", MOCK_DIFF_BEFORE_XML, "c7", "viewer"],
             ["?mode=diff-after", MOCK_DIFF_AFTER_XML, "c7", "viewer"],
+            ["?mode=merge-current", MOCK_DIFF_BEFORE_XML, "c7", "merge"],
+            ["?mode=merge-incoming", MOCK_DIFF_AFTER_XML, "c7", "merge"],
         ])("serves %j as a %s document", (search, content, engine, viewerMode) => {
             previewHost(search).postMessage(new GetBpmnFileCommand());
 
@@ -260,6 +264,29 @@ describe("development preview host", () => {
         ];
         expect(answer.requestId).toBe(7);
         expect(answer.definitions.map((definition) => definition.name)).toEqual(["OrderPlaced"]);
+    });
+
+    describe("merge preview", () => {
+        it.each([
+            ["?mode=merge-current", "before", "current"],
+            ["?mode=merge-incoming", "after", "incoming"],
+        ])(
+            "sends the %s pane its recorded merge states once it is ready",
+            (search, side, captionSide) => {
+                previewHost(search).postMessage(new DiffReadyCommand());
+
+                expect(repliesOfType("ApplyDiffHighlightsQuery")).toEqual([]);
+                expect(repliesOfType("ApplyMergeStatesQuery")).toEqual([
+                    expect.objectContaining({
+                        side,
+                        states: expect.objectContaining({
+                            caption: expect.objectContaining({ side: captionSide }),
+                            openConflicts: 2,
+                        }),
+                    }),
+                ]);
+            },
+        );
     });
 
     describe("diff preview", () => {

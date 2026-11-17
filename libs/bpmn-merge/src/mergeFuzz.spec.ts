@@ -115,13 +115,13 @@ function otherSide(side: MergeSide): MergeSide {
 async function expectBuilds(sources: MergeSources, decisions: MergeDecisions, label: string) {
     const resolution = decisions.resolution();
     const { xml } = await buildMerged(sources, decisions).catch((error: unknown) => {
-        throw new Error(`${label}: ${String(error)}`, { cause: error });
+        throw new Error(`${label}: ${String(error)}`);
     });
     const { elementsById } = await parseWithoutWarnings(xml);
     const misplaced = decisions.result.elements
         .filter(({ id, versions }) => {
             const kept = versions[resolution.elements[id]!] !== undefined;
-            return kept !== Object.hasOwn(elementsById, id);
+            return kept !== Object.prototype.hasOwnProperty.call(elementsById, id);
         })
         .map(({ id }) => id);
     expect(misplaced, label).toEqual([]);

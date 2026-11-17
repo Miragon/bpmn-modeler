@@ -1,8 +1,14 @@
-import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
+import {
+    type ElementSnapshot,
+    buildFlowOrder,
+    elementSnapshots,
+    sortIdsByOrder,
+} from "@miragon/bpmn-modeler-diff";
 
 import { type MergeModdle, createMergeModdle } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
-import { type DocumentFrame, frameOf } from "./mergedTreeFrame";
+import { parseFailure } from "./mergeRefusal";
+import { type DocumentFrame, frameOf, frameOfDefinitions } from "./mergedTreeFrame";
 import type { MergeResult, MergeSide, VersionKeys } from "./mergeResult";
 import { type MergeVersions, VERSION_NAMES, requireMergeableVersions } from "./mergeVersions";
 import { versionKeysOf } from "./versionKey";
@@ -22,6 +28,8 @@ export interface MergeSources {
         readonly current: DocumentFrame;
         readonly incoming: DocumentFrame;
     };
+    /** Each side's flow elements from start to end, as a stepper walks them. */
+    readonly flowOrders: Readonly<Record<MergeSide, readonly string[]>>;
 }
 
 /** Refuses, naming the version, what `computeMerge` refuses. */
@@ -32,9 +40,9 @@ export async function prepareMergeSources(versions: MergeVersions): Promise<Merg
         versionSnapshots(mergeModdle, "current", versions.current),
         versionSnapshots(mergeModdle, "incoming", versions.incoming),
     ]);
-    const [currentFrame, incomingFrame, baseFrame] = await Promise.all([
-        frameOf(mergeModdle, versions.current),
-        frameOf(mergeModdle, versions.incoming),
+    const [currentLayout, incomingLayout, baseFrame] = await Promise.all([
+        sideLayout(mergeModdle, versions.current),
+        sideLayout(mergeModdle, versions.incoming),
         versions.base === undefined ? undefined : frameOf(mergeModdle, versions.base),
     ]);
     return {
@@ -47,10 +55,23 @@ export async function prepareMergeSources(versions: MergeVersions): Promise<Merg
         mergeModdle,
         snapshots: { current, incoming },
         frames: {
-            current: currentFrame,
-            incoming: incomingFrame,
+            current: currentLayout.frame,
+            incoming: incomingLayout.frame,
             ...(baseFrame === undefined ? {} : { base: baseFrame }),
         },
+        flowOrders: { current: currentLayout.flowOrder, incoming: incomingLayout.flowOrder },
+    };
+}
+
+async function sideLayout(
+    mergeModdle: MergeModdle,
+    xml: string,
+): Promise<{ readonly frame: DocumentFrame; readonly flowOrder: readonly string[] }> {
+    const definitions = (await mergeModdle.moddle.fromXML(xml)).rootElement;
+    const positions = buildFlowOrder(definitions);
+    return {
+        frame: await frameOfDefinitions(mergeModdle, definitions),
+        flowOrder: sortIdsByOrder([...positions.keys()], positions),
     };
 }
 
@@ -66,8 +87,7 @@ async function versionSnapshots(
             rejectWarnings: true,
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`${side} does not parse: ${message}`, { cause: error });
+        throw parseFailure(side, error);
     }
 }
 

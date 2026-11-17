@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import * as addOnsViewMessages from "./addOnsView";
 import * as dmnDiffMessages from "./dmnDiffMessages";
+import * as mergePaneMessages from "./mergePaneMessages";
 import * as baseMessages from "./messages";
 import { Command } from "./messages";
 import * as modelerMessages from "./modeler";
@@ -14,6 +15,7 @@ const protocolCommandTypes = Object.values<unknown>({
     ...modelerMessages,
     ...addOnsViewMessages,
     ...dmnDiffMessages,
+    ...mergePaneMessages,
 })
     .filter(
         (value): value is CommandClass =>
