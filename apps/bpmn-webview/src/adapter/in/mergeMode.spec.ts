@@ -185,6 +185,10 @@ describe("MergeMode", () => {
     const next = () => legendButton("Next change").click();
     const previous = () => legendButton("Prev change").click();
     const legendText = () => legendParent.textContent ?? "";
+    const counter = () => {
+        const position = legendParent.querySelector<HTMLElement>(".diff-legend__position");
+        return position && !position.hidden ? position.textContent : undefined;
+    };
 
     async function startMergePane(): Promise<MergeMode> {
         const mergeMode = new MergeMode(document.createElement("div"), legendParent, host);
@@ -416,9 +420,11 @@ describe("MergeMode", () => {
                     openConflicts: 2,
                 }),
             );
+            expect(counter()).toBe("1/3");
             next();
 
             expect(cursorsPosted()).toEqual([2, 3]);
+            expect(counter()).toBe("1/2");
         });
 
         it("follows the partner's cursor without echoing it", async () => {
@@ -622,8 +628,10 @@ describe("MergeMode", () => {
 
             expect(document.activeElement).toBe(keep);
             expect(legendButton("Undo pick").hidden).toBe(false);
+            expect(counter()).toBe("1/3");
             next();
             expect(cursorsPosted().at(-1)).toBe(3);
+            expect(counter()).toBe("1/2");
         });
 
         it("paints the user's picks and their consequences, with the badges' words", async () => {

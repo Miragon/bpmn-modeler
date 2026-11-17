@@ -251,7 +251,7 @@ export class MergeMode {
         this.legend.update({
             counts: states.counts,
             canStep: this.stepIds().length > 0,
-            position: mergeStepPosition(this.stepIds(), this.cursorId),
+            position: mergeStepPosition(this.stepIds(), this.allStepIds(), this.cursorId),
             openConflicts: states.openConflicts,
             stepList: this.stepList,
             shapeless: states.shapeless,

@@ -155,10 +155,12 @@ sends them with every `ApplyMergeStatesQuery`, so both panes walk one list and a
 reloaded after a tab switch goes back to the step. Rejected: relaying the toggle pane to
 pane, which a reload loses; the webview's `setState`, which keeps one pane only. Each pane
 keeps its cursor by element id, so a repaint leaves it in place and a decided conflict's
-successor is found from its place. A shape-less step selects its legend entry; a step only
-the partner draws leaves the pane where it is, since a neighbour here would point at
-something else, but the pane enters the plane the partner stepped into, or notes that its
-version lacks it, which stops the viewport sync.
+successor is found from its place. On an element the walked list lacks, the counter counts
+it at that place, one more than the list holds, so a pick keeps the user's place. A
+shape-less step selects its legend entry; a step only the partner draws leaves the pane
+where it is, since a neighbour here would point at something else, but the pane enters the
+plane the partner stepped into, or notes that its version lacks it, which stops the viewport
+sync.
 
 ### Picking
 
