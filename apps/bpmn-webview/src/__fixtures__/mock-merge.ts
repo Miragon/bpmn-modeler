@@ -27,7 +27,9 @@ const step = (
     onOtherPane,
 });
 
-const SHAPELESS = [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }] as const;
+const SHAPELESS_ROWS = [
+    { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+] as const;
 
 /** Nothing picked yet: every element of the merge can be kept from either side. */
 const NO_PICKS = {
@@ -37,9 +39,11 @@ const NO_PICKS = {
     names: {},
     pickable: [
         { id: "Process_1", container: true },
-        ...["ServiceTask_1", "Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
+        { id: "ServiceTask_1", container: false },
+        ...["Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
             id,
             container: false,
+            takenSide: "incoming" as const,
         })),
     ],
 } as const satisfies Pick<
@@ -54,7 +58,7 @@ const CURRENT: MergePaneStates = {
         takenFromOtherSide: ["Flow_2", "UserTask_ToRemove", "Flow_3"],
         conflict: ["ServiceTask_1"],
     },
-    shapeless: SHAPELESS,
+    shapelessRows: SHAPELESS_ROWS,
     counts: { takenFromThisSide: 0, takenFromOtherSide: 3, conflict: 2 },
     openConflictSteps: [step("ServiceTask_1", true), step("Process_1", true, true)],
     allSteps: [
@@ -78,7 +82,7 @@ const INCOMING: MergePaneStates = {
         takenFromOtherSide: [],
         conflict: ["ServiceTask_1"],
     },
-    shapeless: SHAPELESS,
+    shapelessRows: SHAPELESS_ROWS,
     counts: { takenFromThisSide: 3, takenFromOtherSide: 0, conflict: 2 },
     openConflictSteps: [step("ServiceTask_1", true), step("Process_1", true, true)],
     allSteps: [

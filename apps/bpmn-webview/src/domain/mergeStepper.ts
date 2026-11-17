@@ -46,3 +46,11 @@ export function mergeStepPosition(
     const stepsBefore = all.slice(0, place).filter((id) => list.includes(id)).length;
     return { index: stepsBefore, total: list.length + 1 };
 }
+
+/** The stepper's place as the bar shows it, `2/5`, or `–/5` before the first step. */
+export function mergeStepPositionText(
+    position: { readonly index: number; readonly total: number } | undefined,
+    total: number,
+): string {
+    return position === undefined ? `–/${total}` : `${position.index + 1}/${position.total}`;
+}

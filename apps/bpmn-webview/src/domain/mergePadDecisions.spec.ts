@@ -1,16 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBadge, MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
+import type {
+    MergePaneBadge,
+    MergePaneRestoreOffer,
+    MergePaneShapelessRow,
+} from "@miragon/bpmn-modeler-shared";
 
-import { decidesInLegend, mergePadDecisions, type MergePadStates } from "./mergePadDecisions";
-
-const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
+import {
+    decidesInMenu,
+    type MergePadDecision,
+    mergePadDecisions,
+    type MergePadStates,
+    mergeRowDecisions,
+    type MergeRowStates,
+} from "./mergePadDecisions";
 
 const states = (overrides: Partial<MergePadStates> = {}): MergePadStates => ({
     caption: { side: "incoming", role: "upstream" },
     pickable: [{ id: "Task_1", container: false }],
     badges: [],
-    marks: NO_MARKS,
     ...overrides,
 });
 
@@ -93,8 +101,14 @@ describe("mergePadDecisions", () => {
         [
             "the result already leaves it out: no leave-out",
             {
-                pickable: [{ id: "Task_1", container: false, otherSideLacks: "removed" }],
-                marks: { ...NO_MARKS, takenFromOtherSide: ["Task_1"] },
+                pickable: [
+                    {
+                        id: "Task_1",
+                        container: false,
+                        takenSide: "current",
+                        otherSideLacks: "removed",
+                    },
+                ],
             },
             ["keep element"],
         ],
@@ -139,7 +153,6 @@ describe("mergePadDecisions", () => {
             states({
                 caption: { side: paneSide, role: "unknown" },
                 pickable: [{ id: "Task_1", container: true, otherSideLacks: "missing" }],
-                restoreOffer: OFFER,
             }),
             "Task_1",
         );
@@ -148,16 +161,152 @@ describe("mergePadDecisions", () => {
             { kind: "keep", scope: "element", side: paneSide },
             { kind: "keep", scope: "withContents", side: paneSide },
             { kind: "leaveOut", side: otherSide, otherSideLacks: "missing" },
-            { kind: "keepRemovedFlows", side: paneSide, offer: OFFER },
+        ]);
+    });
+
+    it.each(["current", "incoming"] as const)(
+        "keeps the removed flows from the side that kept the element, as the row does, on the %s pane",
+        (paneSide) => {
+            const decisions = mergePadDecisions(
+                states({ caption: { side: paneSide, role: "unknown" }, restoreOffer: OFFER }),
+                "Task_1",
+            );
+
+            expect(decisions.at(-1)).toStrictEqual({
+                kind: "keepRemovedFlows",
+                side: "incoming",
+                offer: OFFER,
+            });
+        },
+    );
+});
+
+describe("mergeRowDecisions", () => {
+    const row = (overrides: Partial<MergePaneShapelessRow> = {}): MergePaneShapelessRow => ({
+        id: "Message_1",
+        type: "bpmn:Message",
+        marker: "conflict",
+        container: false,
+        ...overrides,
+    });
+    const named = (decision: MergePadDecision) => {
+        switch (decision.kind) {
+            case "keep":
+                return `${decision.scope === "withContents" ? "keepInside" : "keep"} ${decision.side}`;
+            case "leaveOut":
+            case "keepRemovedFlows":
+                return `${decision.kind} ${decision.side}`;
+            case "undo":
+                return `undo ${decision.scope}`;
+        }
+    };
+
+    it.each<[string, Partial<MergePaneShapelessRow>, MergeRowStates, string[]]>([
+        [
+            "an open conflict both sides hold: keep either side",
+            {},
+            {},
+            ["keep current", "keep incoming"],
+        ],
+        [
+            "the user kept current's: keep incoming, and undo",
+            { takenSide: "current", pick: { keptSide: "current", scope: "element" } },
+            {},
+            ["keep incoming", "undo element"],
+        ],
+        [
+            "an open conflict on a container, such as the process: keep either side, alone or with everything inside",
+            { type: "bpmn:Process", container: true },
+            {},
+            ["keep current", "keepInside current", "keep incoming", "keepInside incoming"],
+        ],
+        [
+            "a container the user kept alone from incoming: everything inside from incoming too, and undo",
+            {
+                container: true,
+                takenSide: "incoming",
+                pick: { keptSide: "incoming", scope: "element" },
+            },
+            {},
+            ["keep current", "keepInside current", "keepInside incoming", "undo element"],
+        ],
+        [
+            "a container the user kept from incoming with everything inside: current's, and undo as far",
+            {
+                container: true,
+                takenSide: "incoming",
+                pick: { keptSide: "incoming", scope: "withContents" },
+            },
+            {},
+            ["keep current", "keepInside current", "undo withContents"],
+        ],
+        [
+            "a container only current has: everything inside only from current",
+            {
+                container: true,
+                takenSide: "current",
+                lackingSide: { side: "incoming", lack: "missing" },
+            },
+            {},
+            ["keep current", "keepInside current", "leaveOut incoming"],
+        ],
+        [
+            "only current has it, as incoming never had it: keep current, or leave it out",
+            { takenSide: "current", lackingSide: { side: "incoming", lack: "missing" } },
+            {},
+            ["keep current", "leaveOut incoming"],
+        ],
+        [
+            "current removed it and the result leaves it out: keep incoming only",
+            { takenSide: "current", lackingSide: { side: "current", lack: "removed" } },
+            {},
+            ["keep incoming"],
+        ],
+        [
+            "the user kept it against current's removal: leave it out, and undo",
+            {
+                takenSide: "incoming",
+                lackingSide: { side: "current", lack: "removed" },
+                pick: { keptSide: "incoming", scope: "element" },
+            },
+            {},
+            ["leaveOut current", "undo element"],
+        ],
+        [
+            "the host offers the flows current removed with it: keep them from incoming",
+            {
+                takenSide: "incoming",
+                lackingSide: { side: "current", lack: "removed" },
+                pick: { keptSide: "incoming", scope: "element" },
+            },
+            { restoreOffer: { elementId: "Message_1", connections: ["F"], removedBy: "current" } },
+            ["leaveOut current", "keepRemovedFlows incoming", "undo element"],
+        ],
+        [
+            "the host offers another element's flows: no offer here",
+            {},
+            { restoreOffer: { elementId: "Task_1", connections: ["F"], removedBy: "current" } },
+            ["keep current", "keep incoming"],
+        ],
+    ])("%s", (_case, rowOverrides, rowStates, expected) => {
+        expect(mergeRowDecisions(rowStates, row(rowOverrides)).map(named)).toStrictEqual(expected);
+    });
+
+    it("words a leave-out with why the side lacks the element, as the pad does", () => {
+        expect(
+            mergeRowDecisions({}, row({ lackingSide: { side: "current", lack: "removed" } })),
+        ).toStrictEqual([
+            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+            { kind: "keep", scope: "element", side: "incoming" },
         ]);
     });
 });
 
-describe("decidesInLegend", () => {
+describe("decidesInMenu", () => {
     it.each([
         [true, true],
         [false, false],
-    ])("a step without a shape %s → decided in the legend %s", (shapeless, expected) => {
-        expect(decidesInLegend({ shapeless })).toBe(expected);
+    ])("a step without a shape %s → decided in the menu %s", (shapeless, expected) => {
+        expect(decidesInMenu({ shapeless })).toBe(expected);
     });
 });

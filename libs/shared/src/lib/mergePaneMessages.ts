@@ -10,7 +10,7 @@ import { Command, Query } from "./messages";
 /** One element a merge pane's stepper walks to. */
 export interface MergePaneStep {
     readonly id: string;
-    /** No canvas draws it: the pane's legend lists it. */
+    /** No canvas draws it: the menu lists it. */
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;
@@ -20,11 +20,27 @@ export interface MergePaneStep {
     readonly plane?: string;
 }
 
-/** A marked element no canvas draws, which the pane lists instead. */
-export interface MergePaneShapelessMark {
+/** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
+export type MergePaneOtherSideLack = "removed" | "missing";
+
+/**
+ * A shape-less element either side holds and either pane marks, as the
+ * pane's menu lists it with the user's pick; it covers an element the pane's
+ * side lacks, which `counts` leaves out.
+ */
+export interface MergePaneShapelessRow {
     readonly id: string;
     readonly type: string;
+    /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
+    /** Something lies inside it, such as a process's elements, which a pick can keep with it. */
+    readonly container: boolean;
+    /** As {@link MergePanePickable.takenSide}. */
+    readonly takenSide?: MergeSide;
+    /** Set where one side lacks the element: that side, and why. */
+    readonly lackingSide?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
+    /** Set while the user's pick decides it. */
+    readonly pick?: { readonly keptSide: MergeSide; readonly scope: MergePickScope };
 }
 
 /** Which list a merge pane's Next and Previous walk: the open conflicts, or every element either pane marks. */
@@ -52,7 +68,7 @@ export interface MergePaneBadge {
     readonly scope: MergePickScope;
 }
 
-/** A user's pick the pane cannot draw, which its legend lists under the user's picks. */
+/** A user's pick the pane cannot draw. */
 export interface MergePanePickNotDrawn {
     readonly id: string;
     readonly keptSide: MergeSide;
@@ -64,6 +80,11 @@ export interface MergePanePickable {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
     readonly container: boolean;
+    /**
+     * The side the result takes it from where the sides differ, the same on
+     * both panes; a side that lacks it leaves it out. Absent while it is open.
+     */
+    readonly takenSide?: MergeSide;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: MergePickScope;
     /**
@@ -71,7 +92,7 @@ export interface MergePanePickable {
      * removed it from the base, or there is no base version. A pick of the
      * other side leaves it out.
      */
-    readonly otherSideLacks?: "removed" | "missing";
+    readonly otherSideLacks?: MergePaneOtherSideLack;
 }
 
 /** Why a pick was refused, as the merge names it. */
@@ -182,7 +203,8 @@ export interface MergePaneStates {
     readonly caption: MergeSideCaption;
     /** The marker of every element the pane draws, by id. */
     readonly marks: Readonly<Record<MergeMarker, readonly string[]>>;
-    readonly shapeless: readonly MergePaneShapelessMark[];
+    /** What the pane's menu lists; `counts` leaves out what the side lacks. */
+    readonly shapelessRows: readonly MergePaneShapelessRow[];
     /** Per marker, the elements the pane marks and those it lists. */
     readonly counts: Readonly<Record<MergeMarker, number>>;
     /** The open conflicts in navigation order, the same on both panes. */
@@ -199,7 +221,7 @@ export interface MergePaneStates {
     readonly pickable: readonly MergePanePickable[];
     readonly lastOutcome?: MergePaneOutcome;
     readonly restoreOffer?: MergePaneRestoreOffer;
-    /** The names of the elements the legend names, the same on both panes; an id without a name is absent. */
+    /** The names of the elements the pane names in words, the same on both panes; an id without a name is absent. */
     readonly names: Readonly<Record<string, string>>;
     readonly build: MergePaneBuild;
 }

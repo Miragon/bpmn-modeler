@@ -66,12 +66,12 @@ function blockOf({ reason: { element, requirement, obstacle } }: BlockedPick): M
         : { ...ends, obstacle: obstacle.kind };
 }
 
-/** Every element a pane's legend names by id: the picks it lists and what the last outcome names. */
-export function idsTheLegendNames(
-    picksNotDrawn: readonly { readonly id: string }[],
+/** Every element a pane names in words: the shape-less elements its menu lists and what the last outcome names. */
+export function idsNamedInWords(
+    listed: readonly { readonly id: string }[],
     outcome: MergePaneOutcome | undefined,
 ): ReadonlySet<string> {
-    const named = new Set(picksNotDrawn.map(({ id }) => id));
+    const named = new Set(listed.map(({ id }) => id));
     if (outcome === undefined) return named;
     named.add(outcome.elementId);
     const outcomeIds = outcome.applied

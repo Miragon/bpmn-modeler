@@ -8,11 +8,11 @@ import {
     cardOnAnswer,
     cardOnSelection,
     EMPTY_OUTCOME_MEMORY,
-    headerOutcome,
     type MergeOutcomeMemory,
     type MergeOutcomeStates,
     outcomeToShowAt,
     rememberSent,
+    rowOutcome,
 } from "./mergeOutcomeMemory";
 
 const applied = (
@@ -56,7 +56,7 @@ const leaveOutTask: MergeActedDecision = {
     otherSideLacks: "removed",
     origin: "canvas",
 };
-const undo = (elementId: string, origin: "canvas" | "legend" = "canvas"): MergeActedDecision => ({
+const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeActedDecision => ({
     kind: "undo",
     elementId,
     scope: "element",
@@ -242,10 +242,10 @@ describe("outcomeToShowAt", () => {
         ["no selection", shown.memory, undefined],
         ["a pane without an outcome", EMPTY_OUTCOME_MEMORY, "Task_Remind"],
         [
-            "a decision made in the legend",
+            "a decision made in the menu",
             sendAndAnswer(
                 EMPTY_OUTCOME_MEMORY,
-                undo("Task_Remind", "legend"),
+                undo("Task_Remind", "menu"),
                 applied("unpick", "Task_Remind"),
             ).memory,
             "Task_Remind",
@@ -266,10 +266,10 @@ describe("cardOnAnswer", () => {
         expect(cardOnAnswer(memory, answer)).toStrictEqual({ close: true, show: memory.latest });
     });
 
-    it("closes the card, showing none, for a decision made in the legend, which says it there", () => {
+    it("closes the card, showing none, for a decision made in the menu, which says it in the row", () => {
         const { memory, answer } = sendAndAnswer(
             EMPTY_OUTCOME_MEMORY,
-            undo("Message_1", "legend"),
+            undo("Message_1", "menu"),
             applied("unpick", "Message_1"),
         );
 
@@ -306,41 +306,35 @@ describe("cardOnSelection", () => {
     });
 });
 
-describe("headerOutcome", () => {
-    const offer = { connections: ["Flow_1"], removedBy: "current" } as const;
-
-    it("shows the last outcome and offer of a shape-less element on either pane", () => {
-        const lastOutcome = applied("pick", "Message_1");
-
-        expect(
-            headerOutcome(
-                EMPTY_OUTCOME_MEMORY,
-                states({ lastOutcome, restoreOffer: { elementId: "Message_1", ...offer } }),
-            ),
-        ).toStrictEqual({ lastOutcome, restoreOffer: { elementId: "Message_1", ...offer } });
-    });
-
-    it("shows no outcome or offer of an element a canvas draws, where the card says it", () => {
-        const lastOutcome = applied("pick", "Task_Remind");
-        const { memory } = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, lastOutcome);
-
-        expect(
-            headerOutcome(
-                memory,
-                states({ lastOutcome, restoreOffer: { elementId: "Task_Remind", ...offer } }),
-            ),
-        ).toStrictEqual({});
-    });
-
-    it("shows what an undo from the legend's list of picks did, on the pane that sent it", () => {
-        const lastOutcome = applied("unpick", "Task_Remind");
+describe("rowOutcome", () => {
+    it("says what a decision from a menu row did, on the pane that sent it", () => {
         const { memory } = sendAndAnswer(
             EMPTY_OUTCOME_MEMORY,
-            undo("Task_Remind", "legend"),
-            lastOutcome,
+            undo("Message_1", "menu"),
+            applied("unpick", "Message_1"),
         );
 
-        expect(headerOutcome(memory, states({ lastOutcome }))).toStrictEqual({ lastOutcome });
-        expect(headerOutcome(EMPTY_OUTCOME_MEMORY, states({ lastOutcome }))).toStrictEqual({});
+        expect(rowOutcome(memory)).toBe(memory.latest);
+    });
+
+    it.each<[string, MergeOutcomeMemory]>([
+        ["a pane that sent nothing", EMPTY_OUTCOME_MEMORY],
+        [
+            "a decision made on the canvas",
+            sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, applied("pick", "Task_Remind")).memory,
+        ],
+        [
+            "a row decision the partner's newer one replaced",
+            answerStates(
+                sendAndAnswer(
+                    EMPTY_OUTCOME_MEMORY,
+                    undo("Message_1", "menu"),
+                    applied("unpick", "Message_1"),
+                ).memory,
+                states({ lastOutcome: applied("pick", "Task_Remind") }),
+            ).memory,
+        ],
+    ])("says nothing for %s", (_case, memory) => {
+        expect(rowOutcome(memory)).toBeUndefined();
     });
 });

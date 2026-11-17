@@ -6,54 +6,24 @@ import {
     type MergePaneStates,
     type MergePaneStep,
     MergeStepListChangedCommand,
-    PickMergeSideCommand,
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
-    UnpickMergeCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
-import {
-    actedOnPad,
-    keepRemovedFlowsDecision,
-    type MergeActedDecision,
-    mergeDecisionCommandOf,
-} from "../../domain/mergeActedDecision";
-import {
-    mergeOutcomeCardContent,
-    type MergeRememberedOutcome,
-} from "../../domain/mergeOutcomeCard";
-import {
-    answerStates,
-    cardOnAnswer,
-    cardOnSelection,
-    EMPTY_OUTCOME_MEMORY,
-    headerOutcome,
-    type MergeOutcomeMemory,
-    outcomeToShowAt,
-    rememberSent,
-} from "../../domain/mergeOutcomeMemory";
-import {
-    decidesInLegend,
-    type MergePadDecision,
-    mergePadDecisions,
-} from "../../domain/mergePadDecisions";
+import { actedInMenu, actedOnPad } from "../../domain/mergeActedDecision";
+import { openShapelessConflicts } from "../../domain/mergeMenuRows";
+import { decidesInMenu, mergePadDecisions } from "../../domain/mergePadDecisions";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
-import {
-    MERGE_CARD_TEXTS,
-    MERGE_LEGEND_TEXTS,
-    type MergeTranslate,
-    mergeCaptionText,
-    pickBadgeText,
-} from "../../domain/mergeTexts";
+import { MERGE_MARK_TEXTS, type MergeTranslate, pickBadgeText } from "../../domain/mergeTexts";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
-import { MergeLegend } from "./mergeLegend";
+import { MergeBar, type MergeBarControls } from "./mergeBar";
 import { createMergeElementNamesModule, type MergeElementNames } from "./mergeElementNames";
 import { createMergeMarksModule, type MergeMarks } from "./mergeMarks";
-import { createMergeOutcomeCardModule, type MergeOutcomeCard } from "./mergeOutcomeCard";
+import { createMergeOutcomeCardModule } from "./mergeOutcomeCard";
+import { MergeOutcomes } from "./mergeOutcomes";
 import { createMergePickModule, type MergePickContextPadProvider } from "./mergePickContextPad";
 
 const STEPS_OF: Readonly<
@@ -69,8 +39,9 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  * Entry point for a webview running as one side of a BPMN merge view.
  *
  * On top of the {@link DiffPanePlumbing} it shares with a diff pane, it paints
- * the markers the host sends ({@link MergeMarks}), shows them in a
- * {@link MergeLegend} and steps through the host's step lists:
+ * the markers the host sends ({@link MergeMarks}), counts them in a one-line
+ * {@link MergeBar} with the pane's caption and, on the right pane, steps
+ * through the host's step lists:
  *   - Incoming {@link ApplyMergeStatesQuery} → repaint everything from it, the
  *     full state of the merge view, and keep the stepper on its element.
  *   - Incoming {@link SyncCursorQuery} → move to the partner's step without
@@ -81,29 +52,28 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     the states, so the partner walks the same list and a reloaded pane
  *     goes back to the step.
  *   - Outgoing {@link PickMergeSideCommand} and {@link UnpickMergeCommand}
- *     from the context pad's decisions, and from the legend's pick actions
- *     for a step no canvas draws; the host decides them and sends both
+ *     from the context pad's decisions, and from the right pane's menu rows
+ *     for the elements no canvas draws; the host decides them and sends both
  *     panes their states again, so the pane shows a pick only once the host
- *     made it. The pane that sent it shows what it did as a
- *     {@link MergeOutcomeCard} below the element, and again whenever the
- *     element is selected again, until it reloads; the partner shows none.
- *     The legend still says what a decision on a shape-less element did.
+ *     made it. The pane that sent it shows what it did
+ *     ({@link MergeOutcomes}); the partner shows none.
  *   - Outgoing {@link ViewportChangedCommand} after a step only this pane
  *     draws, so the partner shows the same part of the diagram.
  *   - Outgoing {@link BuildMergeResultCommand} and
- *     {@link CompareMergeResultCommand} from the right pane's legend; the
+ *     {@link CompareMergeResultCommand} from the right pane's bar; the
  *     host builds, and its states say whether Build and the comparisons are
  *     enabled and what the last build noted.
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
  * the open list, and the step after it goes on from its place. A step
  * selects its element, so diagram-js opens the context pad where it lands,
- * and a click on an element of the merge makes it the step.
+ * and a click on an element of the merge makes it the step. A step onto an
+ * element no canvas draws opens the right pane's menu at its row.
  */
 export class MergeMode {
     private readonly pane: DiffPanePlumbing;
 
-    private readonly legend: MergeLegend;
+    private readonly bar: MergeBar;
 
     private marks: MergeMarks | undefined;
 
@@ -111,9 +81,7 @@ export class MergeMode {
 
     private pickPad: MergePickContextPadProvider | undefined;
 
-    private card: MergeOutcomeCard | undefined;
-
-    private outcomes: MergeOutcomeMemory = EMPTY_OUTCOME_MEMORY;
+    private readonly outcomes: MergeOutcomes;
 
     private states: ApplyMergeStatesQuery | undefined;
 
@@ -126,17 +94,23 @@ export class MergeMode {
         legendParent: HTMLElement,
         private readonly host: DiffPaneChannel,
     ) {
+        this.outcomes = new MergeOutcomes({
+            post: (command) => host.postMessage(command),
+            nameOf: (id) => this.nameOf(id),
+            select: (id) => this.select(id, { keepCard: true }),
+            translate,
+        });
         this.pane = new DiffPanePlumbing(canvas, host, [
             createMergeMarksModule({ attach: (marks) => (this.marks = marks) }),
             createMergeElementNamesModule({ attach: (names) => (this.names = names) }),
             createMergePickModule({
                 decisionsOf: (id) => (this.states ? mergePadDecisions(this.states.states, id) : []),
-                decide: (id, decision) => this.decide(id, decision),
+                decide: (id, decision) => this.outcomes.send(actedOnPad(id, decision)),
                 attach: (pad) => (this.pickPad = pad),
             }),
-            createMergeOutcomeCardModule({ attach: (card) => (this.card = card) }),
+            createMergeOutcomeCardModule({ attach: (card) => this.outcomes.attachCard(card) }),
         ]);
-        this.legend = new MergeLegend(
+        this.bar = new MergeBar(
             legendParent,
             {
                 onPrevious: () => this.step(-1),
@@ -144,16 +118,7 @@ export class MergeMode {
                 onShowAll: () => this.showAll(),
                 onStepList: (list) => this.switchStepList(list),
                 onShapeless: (id) => this.stepTo(id),
-                onPick: (id, scope) =>
-                    this.send({
-                        kind: "keep",
-                        elementId: id,
-                        scope,
-                        side: this.paneSide(),
-                        origin: "legend",
-                    }),
-                onUnpick: (id, scope) =>
-                    this.send({ kind: "undo", elementId: id, scope, origin: "legend" }),
+                onDecide: (id, decision) => this.outcomes.send(actedInMenu(id, decision)),
                 onSelect: (id) => this.select(id),
                 onBuild: () => this.host.postMessage(new BuildMergeResultCommand()),
                 onCompare: (against) =>
@@ -161,11 +126,13 @@ export class MergeMode {
             },
             i18n,
         );
-        this.legend.reserveRoomOn(document.body);
+        this.bar.reserveRoomOn(document.body);
+        this.pane.onPlaneMissingChanged((missing) => this.bar.showPlaneMissing(missing));
         this.pane.viewer.onSelectedElementChanged((id) => this.onUserSelected(id));
         i18n.onChange(() => {
             this.paintMarks();
-            this.showCardAgain();
+            this.outcomes.rewrite();
+            this.updateBar();
         });
     }
 
@@ -184,7 +151,7 @@ export class MergeMode {
                     this.backToWholeDiagram();
                 } else {
                     const id = this.states?.states.allSteps[query.index]?.id;
-                    if (id !== undefined) this.goTo(id, { shareViewport: true });
+                    if (id !== undefined) this.goTo(id, { shareViewport: true, openMenu: true });
                 }
                 break;
         }
@@ -197,24 +164,16 @@ export class MergeMode {
         this.pane.offerElementXmlChanges(query.elementXmlChanges);
         this.paintMarks();
         this.pickPad?.refresh();
-        this.pane.label(query.side, () => mergeCaptionText(query.states.caption, translate));
-        const { memory, answer } = answerStates(this.outcomes, query.states);
-        this.outcomes = memory;
+        const answer = this.outcomes.receive(query.states);
         const kept = query.states.stepping.cursor;
-        // A pane that reloaded has no step of its own; the host kept the tab's.
+        // A pane that reloaded has no step of its own; the host kept the tab's, without opening the menu.
         if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
-            this.goTo(kept, { shareViewport: false });
+            this.goTo(kept, { shareViewport: false, openMenu: false });
         } else {
-            this.updateLegend();
+            this.updateBar();
         }
-        const change = cardOnAnswer(memory, answer);
-        if (change.show !== undefined) {
-            this.showCard(change.show, { announce: true });
-        } else if (change.close) {
-            this.card?.close();
-        } else {
-            this.card?.remark();
-        }
+        const rowSaid = this.outcomes.settle(answer);
+        if (rowSaid !== undefined) this.bar.announceRowOutcome(rowSaid);
     }
 
     private paintMarks(): void {
@@ -223,70 +182,15 @@ export class MergeMode {
         this.marks?.paint(
             { marks, badges, consequences },
             {
-                conflict: translate(MERGE_LEGEND_TEXTS.conflictBadge),
+                conflict: translate(MERGE_MARK_TEXTS.conflictBadge),
                 badge: (badge) => pickBadgeText(badge, translate),
             },
         );
     }
 
-    /** The side this pane shows, as the host's states name it. */
-    private paneSide(): MergeSide {
-        return this.states?.states.caption.side ?? "current";
-    }
-
-    /** Sends a decision and remembers it, so the card can name what the outcome does not. */
-    private send(acted: MergeActedDecision): void {
-        this.outcomes = rememberSent(this.outcomes, acted);
-        const command = mergeDecisionCommandOf(acted);
-        this.host.postMessage(
-            command.kind === "pick"
-                ? new PickMergeSideCommand(command.elementId, command.scope, command.side)
-                : new UnpickMergeCommand(command.elementId, command.scope),
-        );
-    }
-
-    private decide(id: string, decision: MergePadDecision): void {
-        this.send(actedOnPad(id, decision));
-    }
-
-    private showCard(
-        remembered: MergeRememberedOutcome,
-        { announce }: { readonly announce: boolean },
-    ): void {
-        if (!this.states) return;
-        const content = mergeOutcomeCardContent(remembered, {
-            restoreOffer: this.states.states.restoreOffer,
-            nameOf: (id) => this.nameOf(id),
-            translate,
-        });
-        this.card?.show(
-            content,
-            {
-                onSelect: (id) => this.select(id, { keepCard: true }),
-                onKeepRemovedFlows: (id) =>
-                    this.send(keepRemovedFlowsDecision(id, this.paneSide())),
-                closeLabel: translate(MERGE_CARD_TEXTS.close),
-            },
-            { announce },
-        );
-    }
-
-    /** Rewrites a shown card, as after a change of language, without announcing it again. */
-    private showCardAgain(): void {
-        const remembered = outcomeToShowAt(this.outcomes, this.card?.shownAt);
-        if (remembered !== undefined) this.showCard(remembered, { announce: false });
-    }
-
-    /** The card follows the selection ({@link cardOnSelection}); shown again, it announces nothing. */
-    private cardFollows(id: string | undefined): void {
-        const change = cardOnSelection(this.outcomes, this.card?.shownAt, id);
-        if (change.close) this.card?.close();
-        if (change.show !== undefined) this.showCard(change.show, { announce: false });
-    }
-
     /** A user's click on an element of the merge the user can pick makes it the step. */
     private onUserSelected(id: string | undefined): void {
-        this.cardFollows(id);
+        this.outcomes.follow(id);
         const pickable = this.states?.states.pickable.some((entry) => entry.id === id);
         if (
             id !== undefined &&
@@ -299,7 +203,7 @@ export class MergeMode {
     }
 
     /**
-     * An element the legend or the card names: a step goes there with the
+     * An element a note or the card names: a step goes there with the
      * partner, anything else only shows here. A card's link leaves the card
      * open.
      */
@@ -331,7 +235,7 @@ export class MergeMode {
 
     /** A user's step: moves there and takes the partner pane along. */
     private stepTo(id: string, { keepCard = false }: { readonly keepCard?: boolean } = {}): void {
-        this.goTo(id, { shareViewport: false, keepCard });
+        this.goTo(id, { shareViewport: false, openMenu: true, keepCard });
         this.host.postMessage(new CursorChangedCommand(this.allStepIds().indexOf(id)));
         this.shareViewportOnStepOnlyHere(id);
     }
@@ -339,19 +243,25 @@ export class MergeMode {
     /**
      * Shows the step on this pane: a drawn element in the centre at the
      * current zoom, selected, so its context pad opens; a shape-less one by
-     * its legend entry. The element's plane is entered first, since a
-     * selection holds only on the plane shown. On a step only the partner
-     * pane draws, or one without a shape, the pane clears its selection; it
-     * keeps its place, since a neighbour here would point elsewhere, but
-     * shows the plane the partner stepped into, so their viewports still
-     * match, or notes that this version lacks it.
+     * its row in the right pane's menu, which a step opens there and a step
+     * onto a drawn element closes again. The element's plane is entered
+     * first, since a selection holds only on the plane shown. On a step only
+     * the partner pane draws, or one without a shape, the pane clears its
+     * selection; it keeps its place, since a neighbour here would point
+     * elsewhere, but shows the plane the partner stepped into, so their
+     * viewports still match, or notes that this version lacks it.
      */
     private goTo(
         id: string,
         {
             shareViewport,
+            openMenu,
             keepCard = false,
-        }: { readonly shareViewport: boolean; readonly keepCard?: boolean },
+        }: {
+            readonly shareViewport: boolean;
+            readonly openMenu: boolean;
+            readonly keepCard?: boolean;
+        },
     ): void {
         this.cursorId = id;
         const step = this.stepOf(id);
@@ -365,8 +275,13 @@ export class MergeMode {
             this.pane.viewer.mirrorSelection(undefined);
             if (step !== undefined && !step.shapeless) this.pane.followPlane(step.plane);
         }
-        if (!keepCard) this.cardFollows(selected);
-        this.updateLegend();
+        if (!keepCard) this.outcomes.follow(selected);
+        this.updateBar();
+        if (step !== undefined && decidesInMenu(step)) {
+            if (openMenu) this.bar.openMenuAt(id);
+        } else {
+            this.bar.closeMenuOpenedByStep();
+        }
         if (shareViewport) this.shareViewportOnStepOnlyHere(id);
     }
 
@@ -384,7 +299,7 @@ export class MergeMode {
 
     private switchStepList(list: MergeStepList): void {
         this.stepList = list;
-        this.updateLegend();
+        this.updateBar();
         this.host.postMessage(new MergeStepListChangedCommand(list));
     }
 
@@ -397,38 +312,38 @@ export class MergeMode {
         this.cursorId = undefined;
         this.pane.viewer.fitDiagram();
         this.pane.notePlaneShown(undefined);
-        this.updateLegend();
+        this.updateBar();
     }
 
-    private steppedInLegend() {
-        const step = this.cursorId === undefined ? undefined : this.stepOf(this.cursorId);
-        if (step === undefined || !decidesInLegend(step)) return undefined;
-        return this.states?.states.pickable.find(({ id }) => id === step.id);
-    }
-
-    private updateLegend(): void {
+    private updateBar(): void {
         if (!this.states) return;
-        const { states } = this.states;
-        this.legend.update({
-            counts: states.counts,
+        const { side, states } = this.states;
+        const { caption, counts } = states;
+        // The right pane's bar carries the stepping and the build, as a diff pane's carries the changes.
+        if (side !== "after") {
+            this.bar.update({ caption, counts });
+            return;
+        }
+        this.bar.update({
+            caption,
+            counts,
+            controls: this.controls(states, this.outcomes.menuRows()),
+        });
+    }
+
+    private controls(states: MergePaneStates, rows: MergeBarControls["rows"]): MergeBarControls {
+        const position = mergeStepPosition(this.stepIds(), this.allStepIds(), this.cursorId);
+        return {
             canStep: this.stepIds().length > 0,
-            position: mergeStepPosition(this.stepIds(), this.allStepIds(), this.cursorId),
+            ...(position === undefined ? {} : { position }),
+            total: this.stepIds().length,
             openConflicts: states.openConflicts,
             stepList: this.stepList,
-            shapeless: states.shapeless,
-            current: this.cursorId,
-            picking: {
-                side: states.caption.side,
-                stepped: this.steppedInLegend(),
-                picksNotDrawn: states.picksNotDrawn,
-                ...headerOutcome(this.outcomes, states),
-                nameOf: (id) => this.nameOf(id),
-            },
-            // The right pane's half carries the build, as a diff pane's carries the changes.
-            building:
-                this.states.side === "after"
-                    ? { build: states.build, nameOf: (id) => this.nameOf(id) }
-                    : undefined,
-        });
+            rows,
+            shapelessConflicts: openShapelessConflicts(states.shapelessRows),
+            ...(this.cursorId === undefined ? {} : { current: this.cursorId }),
+            build: states.build,
+            nameOf: (id) => this.nameOf(id),
+        };
     }
 }

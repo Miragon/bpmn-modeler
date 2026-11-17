@@ -6,7 +6,7 @@ import { MERGE_SIDES, type MergeElement, type MergeSide, otherSide } from "./mer
 /** One element a merge pane's stepper walks to. */
 export interface MergeStep {
     readonly id: string;
-    /** No canvas draws it: the pane's legend lists it. */
+    /** No canvas draws it: the menu lists it. */
     readonly shapeless: boolean;
     /** The pane's side holds the element, so the pane draws or lists it. */
     readonly onThisPane: boolean;

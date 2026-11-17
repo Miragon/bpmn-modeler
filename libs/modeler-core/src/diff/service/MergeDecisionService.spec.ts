@@ -7,7 +7,7 @@ import type {
     PickNotDrawn,
     PickScope,
     RequirementObstacle,
-    ShapelessMark,
+    ShapelessRow,
 } from "@miragon/bpmn-modeler-merge";
 import {
     type ApplyMergeStatesQuery,
@@ -16,7 +16,7 @@ import {
     type MergePaneBadge,
     type MergePanePickable,
     type MergePanePickNotDrawn,
-    type MergePaneShapelessMark,
+    type MergePaneShapelessRow,
     type MergePaneStep,
     type MergePickScope,
     PickMergeSideCommand,
@@ -197,14 +197,17 @@ describe("MergeDecisionService", () => {
         });
     });
 
-    it("lists a conflict on the process's own attributes as shape-less", async () => {
-        const { current, bothReady } = await openMergeView();
+    it("lists a shape-less conflict in the menu and names it before any pick", async () => {
+        const { current, incoming, bothReady } = await openMergeView();
 
         await bothReady();
 
-        expect(lastStatesOf(current).states.shapeless).toStrictEqual([
-            { id: "Process_1", type: "bpmn:Process", marker: "conflict" },
-        ]);
+        for (const pane of [current, incoming]) {
+            expect(lastStatesOf(pane).states.shapelessRows).toStrictEqual([
+                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+            ]);
+            expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order A" });
+        }
     });
 
     it("sends the full state again when a pane reloads", async () => {
@@ -269,9 +272,9 @@ describe("MergeDecisionService", () => {
         expect(lastStatesOf(current).elementXmlChanges).toBe(true);
     });
 
-    it("keeps the protocol's copies of the step and the shape-less mark equal to the merge's", () => {
+    it("keeps the protocol's copies of the step and the shape-less row equal to the merge's", () => {
         expectTypeOf<MergePaneStep>().toEqualTypeOf<MergeStep>();
-        expectTypeOf<MergePaneShapelessMark>().toEqualTypeOf<ShapelessMark>();
+        expectTypeOf<MergePaneShapelessRow>().toEqualTypeOf<ShapelessRow>();
     });
 
     it("keeps the protocol's copies of the picks and the obstacles equal to the merge's", () => {
@@ -307,6 +310,7 @@ describe("MergeDecisionService", () => {
             expect(incomingStates.pickable).toContainEqual({
                 id: "Task_Pack",
                 container: false,
+                takenSide: "incoming",
                 undo: "element",
             });
             expect(incomingStates.lastOutcome).toStrictEqual({
@@ -590,6 +594,30 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(current).states.restoreOffer).toBeUndefined();
         });
 
+        it("offers the removed flows of an element no canvas draws on both panes, so the pane with the menu can keep them", async () => {
+            const withoutPackShape = (xml: string) =>
+                xml.replace(
+                    / *<bpmndi:BPMNShape id="Task_Pack_di"[\s\S]*?<\/bpmndi:BPMNShape>\n/,
+                    "",
+                );
+            const { current, incoming, bothReady, pick } = await openMergeView({
+                base: withoutPackShape(orderProcessXml()),
+                current: withoutPackShape(orderProcessXml({ check: "Check order" })),
+                incoming: orderProcessXml({ withoutPack: true }),
+            });
+            await bothReady();
+
+            await pick(incoming, "Task_Pack", "element", "current");
+
+            for (const pane of [current, incoming]) {
+                expect(lastStatesOf(pane).states.restoreOffer).toStrictEqual({
+                    elementId: "Task_Pack",
+                    connections: ["Flow_2", "Flow_3"],
+                    removedBy: "incoming",
+                });
+            }
+        });
+
         it("tells the pane that draws an element what the other side lacks", async () => {
             const { current, incoming, bothReady } = await openMergeView(ORDER_REMOVAL_STAGES);
 
@@ -598,11 +626,13 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(incoming).states.pickable).toContainEqual({
                 id: "Task_Pack",
                 container: false,
+                takenSide: "current",
                 otherSideLacks: "removed",
             });
             expect(lastStatesOf(current).states.pickable).toContainEqual({
                 id: "Task_Pack",
                 container: false,
+                takenSide: "current",
             });
         });
 

@@ -70,7 +70,7 @@ export function answerStates(
 
 /**
  * What new states do to the card: this pane's new outcome shows at its
- * element, unless it was decided in the legend, which says it there; any
+ * element, unless it was decided in a menu row, which says it there; any
  * other new outcome closes the card.
  */
 export function cardOnAnswer(
@@ -108,25 +108,9 @@ export function outcomeToShowAt(
         : undefined;
 }
 
-/**
- * What the legend still says, where no card can: the last outcome and the
- * offer of a shape-less element, on both panes, and what a decision sent
- * from the legend's list of picks did, on the pane that sent it.
- */
-export function headerOutcome(
-    memory: MergeOutcomeMemory,
-    states: MergeOutcomeStates,
-): Pick<MergeOutcomeStates, "lastOutcome" | "restoreOffer"> {
-    const shapeless = (id: string) =>
-        states.allSteps.some((step) => step.id === id && step.shapeless);
-    const { lastOutcome, restoreOffer } = states;
-    const fromLegend = memory.latest?.acted.origin === "legend" ? memory.latest.outcome : undefined;
-    const outcome =
-        lastOutcome !== undefined && shapeless(lastOutcome.elementId) ? lastOutcome : fromLegend;
-    return {
-        ...(outcome ? { lastOutcome: outcome } : {}),
-        ...(restoreOffer && shapeless(restoreOffer.elementId) ? { restoreOffer } : {}),
-    };
+/** What a decision from a menu row did, which that row says, on the pane that sent it. */
+export function rowOutcome(memory: MergeOutcomeMemory): MergeRememberedOutcome | undefined {
+    return memory.latest?.acted.origin === "menu" ? memory.latest : undefined;
 }
 
 /**

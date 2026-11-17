@@ -180,13 +180,15 @@ const step = (
 });
 
 const STATES: MergePaneStates = {
-    caption: { side: "current", role: "branch", ref: "main", shortHash: "1111111" },
+    caption: { side: "incoming", role: "upstream", ref: "feature", shortHash: "2222222" },
     marks: {
         takenFromThisSide: ["Task_Check"],
         takenFromOtherSide: ["Flow_1"],
         conflict: ["Task_Pack"],
     },
-    shapeless: [{ id: "Process_1", type: "bpmn:Process", marker: "conflict" }],
+    shapelessRows: [
+        { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: false },
+    ],
     counts: { takenFromThisSide: 1, takenFromOtherSide: 1, conflict: 2 },
     openConflictSteps: [
         step("Task_Pack"),
@@ -216,8 +218,22 @@ const STATES: MergePaneStates = {
     build: { canBuild: false, openConflicts: 3, built: false, notes: [] },
 };
 
+/** The right pane's states, which carry the stepper, the menu and Build. */
 function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
-    return new ApplyMergeStatesQuery("before", { ...STATES, ...states }, elementXmlChanges);
+    return new ApplyMergeStatesQuery("after", { ...STATES, ...states }, elementXmlChanges);
+}
+
+/** The left pane's states: the caption and the counts only. */
+function leftStates(states: Partial<MergePaneStates> = {}) {
+    return new ApplyMergeStatesQuery(
+        "before",
+        {
+            ...STATES,
+            caption: { side: "current", role: "branch", ref: "main", shortHash: "1111111" },
+            ...states,
+        },
+        false,
+    );
 }
 
 function dispatch(data: unknown): void {
@@ -247,10 +263,26 @@ describe("MergeMode", () => {
     const next = () => legendButton("Next change").click();
     const previous = () => legendButton("Prev change").click();
     const legendText = () => legendParent.textContent ?? "";
-    const counter = () => {
-        const position = legendParent.querySelector<HTMLElement>(".diff-legend__position");
-        return position && !position.hidden ? position.textContent : undefined;
+    const counter = () => legendParent.querySelector(".merge-bar__position")?.textContent;
+    const menu = () => legendParent.querySelector<HTMLElement>(".merge-menu")!;
+    const rowOf = (id: string) =>
+        legendParent.querySelector<HTMLElement>(`.merge-menu [data-row-for="${id}"]`);
+    const rowStep = (id: string) =>
+        rowOf(id)?.querySelector<HTMLButtonElement>(".merge-menu__row-step") ?? null;
+    const rowButton = (id: string, text: string) => {
+        const found = [
+            ...(rowOf(id)?.querySelectorAll<HTMLButtonElement>(".merge-menu__mini") ?? []),
+        ].find((candidate) => candidate.textContent === text);
+        if (!found) throw new Error(`no ${text} in the row of ${id}`);
+        return found;
     };
+    const rowButtons = (id: string) =>
+        [...(rowOf(id)?.querySelectorAll(".merge-menu__mini") ?? [])].map(
+            (candidate) => candidate.textContent,
+        );
+    const caption = () => legendParent.querySelector(".merge-bar__caption")?.textContent;
+    const openMenu = () =>
+        legendParent.querySelector<HTMLButtonElement>(".merge-bar__more")?.click();
 
     async function startMergePane(): Promise<MergeMode> {
         const mergeMode = new MergeMode(document.createElement("div"), legendParent, host);
@@ -259,6 +291,8 @@ describe("MergeMode", () => {
     }
 
     beforeEach(() => {
+        // jsdom lays nothing out, so it has no scrollIntoView.
+        Element.prototype.scrollIntoView = vi.fn();
         windowAddEventListener = vi.spyOn(window, "addEventListener");
         legendParent = document.createElement("div");
         document.body.append(legendParent);
@@ -285,7 +319,7 @@ describe("MergeMode", () => {
                 { marks: STATES.marks, badges: [], consequences: [] },
                 expect.objectContaining({ conflict: "Conflict" }),
             );
-            expect(document.body.dataset.diffSide).toBe("before");
+            expect(document.body.dataset.diffSide).toBe("after");
         });
 
         it("reports the pane ready once its XML is imported", async () => {
@@ -314,24 +348,46 @@ describe("MergeMode", () => {
             expect(fakes.marks.paint).toHaveBeenCalledTimes(1);
         });
 
-        it("labels the pane with its side's caption", async () => {
+        it("names the pane's side in its bar, not on the canvas", async () => {
+            fakes.FakeDiffSideLabel.last = undefined;
             await startMergePane();
 
             dispatch(mergeStates());
 
-            expect(fakes.FakeDiffSideLabel.last?.showFilename).toHaveBeenLastCalledWith(
-                "Current: your branch main · 1111111",
-            );
+            expect(caption()).toBe("Incoming: other branch feature · 2222222");
+            expect(fakes.FakeDiffSideLabel.last).toBeUndefined();
         });
 
-        it("shows the open conflicts and the pane's marker counts as the host counts them", async () => {
+        it("counts the pane's markers as the host counts them, and the open conflicts in the walked list", async () => {
             await startMergePane();
 
             dispatch(mergeStates());
 
-            expect(legendText()).toContain("3 open conflicts");
-            expect(legendText()).toContain("Taken from this side 1");
-            expect(legendText()).toContain("Conflict 2");
+            expect(
+                legendParent.querySelector(".diff-legend__slot--merge-taken-from-this-side")
+                    ?.textContent,
+            ).toBe("Taken from this side 1");
+            expect(
+                legendParent.querySelector(".diff-legend__slot--merge-conflict")?.textContent,
+            ).toBe("Conflict 2");
+            expect(counter()).toBe("–/3");
+            expect(
+                legendParent
+                    .querySelector(".merge-bar__position")
+                    ?.getAttribute("data-merge-tooltip"),
+            ).toBe("3 open conflicts");
+        });
+
+        it("gives the left pane the caption and the counts only", async () => {
+            await startMergePane();
+
+            dispatch(leftStates());
+
+            expect(caption()).toBe("Current: your branch main · 1111111");
+            expect(legendParent.querySelector<HTMLElement>(".merge-bar__nav")?.hidden).toBe(true);
+            expect(legendParent.querySelector<HTMLElement>(".merge-bar__actions")?.hidden).toBe(
+                true,
+            );
         });
 
         it("offers Show XML changes only when the host does", async () => {
@@ -353,7 +409,7 @@ describe("MergeMode", () => {
 
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             expect(cursorsPosted()).toEqual([2]);
-            expect(legendText()).toContain("1/3");
+            expect(counter()).toBe("1/3");
         });
 
         it("leaves this pane in place on a step only the partner pane draws", async () => {
@@ -369,62 +425,97 @@ describe("MergeMode", () => {
             expect(cursorsPosted()).toEqual([2, 3]);
         });
 
-        it("selects a shape-less entry in the legend instead of moving the canvas", async () => {
+        it("opens the menu at a shape-less step's row instead of moving the canvas, leaving the keyboard on ‹", async () => {
             await startMergePane();
             dispatch(mergeStates());
+            legendButton("Prev change").focus();
 
             previous();
 
             expect(viewer().focusElement).not.toHaveBeenCalled();
-            const entry = legendParent.querySelector('[data-element-id="Process_1"]');
-            expect(entry?.getAttribute("aria-current")).toBe("true");
+            expect(menu().hidden).toBe(false);
+            expect(rowStep("Process_1")?.getAttribute("aria-current")).toBe("true");
+            expect(document.activeElement).toBe(legendButton("Prev change"));
             expect(cursorsPosted()).toEqual([4]);
         });
 
-        it("steps to a shape-less element from its legend entry", async () => {
+        it("closes the menu a step opened once the next step lands on a drawn element", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            previous();
+
+            next();
+
+            expect(menu().hidden).toBe(true);
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+        });
+
+        it("goes back to a shape-less step the host kept without opening the menu", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Process_1" } }));
+
+            expect(menu().hidden).toBe(true);
+            expect(counter()).toBe("3/3");
+        });
+
+        it("opens no menu on the left pane for the partner's shape-less step", async () => {
+            await startMergePane();
+            dispatch(leftStates());
+
+            dispatch(new SyncCursorQuery(4));
+
+            expect(menu().hidden).toBe(true);
+            expect(viewer().mirrorSelection).toHaveBeenLastCalledWith(undefined);
+        });
+
+        it("steps to a shape-less element from its menu row", async () => {
             await startMergePane();
             dispatch(mergeStates());
 
-            legendParent.querySelector<HTMLButtonElement>('[data-element-id="Process_1"]')?.click();
+            rowStep("Process_1")?.click();
 
             expect(cursorsPosted()).toEqual([4]);
-            expect(legendText()).toContain("3/3");
+            expect(counter()).toBe("3/3");
         });
 
-        it("keeps the keyboard on a legend entry it steps to", async () => {
+        it("keeps the keyboard on a row it steps to", async () => {
             await startMergePane();
             dispatch(mergeStates());
-            const entry = () =>
-                legendParent.querySelector<HTMLButtonElement>('[data-element-id="Process_1"]');
-            entry()?.focus();
+            openMenu();
+            rowStep("Process_1")?.focus();
 
-            entry()?.click();
+            rowStep("Process_1")?.click();
 
-            expect(document.activeElement).toBe(entry());
-            expect(entry()?.getAttribute("aria-current")).toBe("true");
+            expect(document.activeElement).toBe(rowStep("Process_1"));
+            expect(rowStep("Process_1")?.getAttribute("aria-current")).toBe("true");
         });
 
-        it("keeps the keyboard on its legend entry when the listed elements change", async () => {
+        it("keeps the keyboard on its row when the listed elements change", async () => {
             await startMergePane();
             dispatch(mergeStates());
-            legendParent.querySelector<HTMLButtonElement>('[data-element-id="Process_1"]')?.focus();
+            openMenu();
+            rowStep("Process_1")?.focus();
 
             dispatch(
                 mergeStates({
-                    shapeless: [
-                        ...STATES.shapeless,
-                        { id: "Message_1", type: "bpmn:Message", marker: "takenFromThisSide" },
+                    shapelessRows: [
+                        ...STATES.shapelessRows,
+                        {
+                            id: "Message_1",
+                            type: "bpmn:Message",
+                            marker: "takenFromThisSide",
+                            container: false,
+                        },
                     ],
                 }),
             );
 
-            expect(document.activeElement).toBe(
-                legendParent.querySelector('[data-element-id="Process_1"]'),
-            );
-            expect(legendParent.querySelectorAll("[data-element-id]")).toHaveLength(2);
+            expect(document.activeElement).toBe(rowStep("Process_1"));
+            expect(legendParent.querySelectorAll(".merge-menu__row")).toHaveLength(2);
         });
 
-        it("switches to every merged element", async () => {
+        it("switches to every merged element in the menu", async () => {
             await startMergePane();
             dispatch(mergeStates());
 
@@ -433,7 +524,7 @@ describe("MergeMode", () => {
 
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
             expect(cursorsPosted()).toEqual([0]);
-            expect(legendButton("All merged elements").getAttribute("aria-pressed")).toBe("true");
+            expect(legendButton("All merged elements").getAttribute("aria-checked")).toBe("true");
         });
 
         it("tells the host which list it steps through, so the partner walks it too", async () => {
@@ -454,7 +545,7 @@ describe("MergeMode", () => {
             next();
 
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
-            expect(legendButton("All merged elements").getAttribute("aria-pressed")).toBe("true");
+            expect(legendButton("All merged elements").getAttribute("aria-checked")).toBe("true");
         });
 
         it("goes back to the step the host kept, as after a tab switch, without echoing it", async () => {
@@ -464,7 +555,7 @@ describe("MergeMode", () => {
 
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             expect(cursorsPosted()).toEqual([]);
-            expect(legendText()).toContain("1/3");
+            expect(counter()).toBe("1/3");
         });
 
         it("keeps the step list's type equal to the protocol's", () => {
@@ -681,7 +772,7 @@ describe("MergeMode", () => {
             dispatch(new SyncCursorQuery(5));
 
             expect(viewer().showPlane).toHaveBeenLastCalledWith("Sub_Ship");
-            expect(fakes.FakeDiffSideLabel.last?.showPlaneMissing).toHaveBeenLastCalledWith(false);
+            expect(caption()).not.toContain("Not in this version");
         });
 
         it("stops the viewport sync on a step whose plane this version lacks", async () => {
@@ -692,7 +783,9 @@ describe("MergeMode", () => {
             dispatch(new SyncCursorQuery(5));
             viewer().viewportListener?.({ x: 0, y: 0, width: 10, height: 10 });
 
-            expect(fakes.FakeDiffSideLabel.last?.showPlaneMissing).toHaveBeenLastCalledWith(true);
+            expect(caption()).toBe(
+                "Incoming: other branch feature · 2222222 · Not in this version",
+            );
             expect(posted().map(({ type }) => type)).not.toContain("ViewportChangedCommand");
         });
 
@@ -739,106 +832,290 @@ describe("MergeMode", () => {
                     message.type === "UnpickMergeCommand",
             );
 
-        it("keeps a stepped element without a shape from this pane's side through the legend", async () => {
+        const picksOf = () =>
+            picksPosted().map((message) => ({
+                type: message.type,
+                elementId: (message as { elementId: string }).elementId,
+                scope: (message as { scope: string }).scope,
+                side: (message as { side?: string }).side,
+            }));
+
+        it("keeps a shape-less element from either side through its menu row, naming the side", async () => {
             await startMergePane();
             dispatch(mergeStates());
-            previous();
 
-            legendButton("Keep current").click();
+            rowButton("Process_1", "Keep current").click();
+            rowButton("Process_1", "Keep incoming").click();
 
-            expect(picksPosted()).toEqual([
-                expect.objectContaining({
+            expect(picksOf()).toEqual([
+                {
                     type: "PickMergeSideCommand",
                     elementId: "Process_1",
                     scope: "element",
-                }),
-            ]);
-        });
-
-        it("offers the legend's pick actions only on a step without a shape: the pad decides the rest", async () => {
-            const keepHidden = () =>
-                legendButton("Keep current").closest<HTMLElement>("[hidden]") !== null;
-            await startMergePane();
-            dispatch(mergeStates());
-            expect(keepHidden()).toBe(true);
-
-            next();
-            expect(keepHidden()).toBe(true);
-
-            previous();
-            expect(keepHidden()).toBe(false);
-        });
-
-        it("keeps a shape-less entry with everything inside, and undoes its pick, through the legend", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    pickable: [{ id: "Process_1", container: true, undo: "withContents" }],
-                }),
-            );
-            legendButton("Process_1 (Process)").click();
-
-            legendButton("Keep everything inside").click();
-            legendButton("Undo pick").click();
-
-            expect(picksPosted()).toEqual([
-                expect.objectContaining({
+                    side: "current",
+                },
+                {
                     type: "PickMergeSideCommand",
                     elementId: "Process_1",
-                    scope: "withContents",
-                }),
-                expect.objectContaining({
-                    type: "UnpickMergeCommand",
-                    elementId: "Process_1",
-                    scope: "withContents",
-                }),
+                    scope: "element",
+                    side: "incoming",
+                },
             ]);
         });
 
-        it("undoes a pick this pane cannot draw from its list of the user's picks", async () => {
+        it("keeps a shape-less container, such as the process, with everything inside from either side through its row", async () => {
             await startMergePane();
             dispatch(
                 mergeStates({
-                    picksNotDrawn: [
-                        { id: "Task_Pack", keptSide: "incoming", scope: "withConnections" },
+                    shapelessRows: [
+                        {
+                            id: "Process_1",
+                            type: "bpmn:Process",
+                            marker: "conflict",
+                            container: true,
+                        },
                     ],
                 }),
             );
 
-            expect(legendText()).toContain("Your picks");
-            expect(legendText()).toContain("Kept from incoming: Pack parcel");
-            legendButton("Undo pick: Kept from incoming: Pack parcel").click();
+            expect(rowButtons("Process_1")).toEqual([
+                "Keep current",
+                "Keep current with everything inside",
+                "Keep incoming",
+                "Keep incoming with everything inside",
+            ]);
+            rowButton("Process_1", "Keep incoming with everything inside").click();
 
-            expect(picksPosted()).toEqual([
-                expect.objectContaining({
-                    type: "UnpickMergeCommand",
-                    elementId: "Task_Pack",
-                    scope: "withConnections",
-                }),
+            expect(picksOf()).toEqual([
+                {
+                    type: "PickMergeSideCommand",
+                    elementId: "Process_1",
+                    scope: "withContents",
+                    side: "incoming",
+                },
             ]);
         });
 
-        it("stays on a stepped element without a shape and keeps the focus on its action after a pick", async () => {
+        it("offers a row's decisions by the pad's rule: no Keep of the side the user's pick holds, and Undo while it does", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    shapelessRows: [
+                        {
+                            id: "Process_1",
+                            type: "bpmn:Process",
+                            marker: "takenFromThisSide",
+                            container: true,
+                            takenSide: "incoming",
+                            pick: { keptSide: "incoming", scope: "withContents" },
+                        },
+                    ],
+                }),
+            );
+
+            expect(rowButtons("Process_1")).toEqual([
+                "Keep current",
+                "Keep current with everything inside",
+                "Undo pick",
+            ]);
+            rowButton("Process_1", "Undo pick").click();
+            expect(picksOf()).toEqual([
+                {
+                    type: "UnpickMergeCommand",
+                    elementId: "Process_1",
+                    scope: "withContents",
+                    side: undefined,
+                },
+            ]);
+        });
+
+        it("decides in the menu a conflict on a shape-less element only current holds", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    shapelessRows: [
+                        ...STATES.shapelessRows,
+                        {
+                            id: "Message_1",
+                            type: "bpmn:Message",
+                            marker: "conflict",
+                            container: false,
+                            lackingSide: { side: "incoming", lack: "removed" },
+                        },
+                    ],
+                    names: { Message_1: "Order received" },
+                }),
+            );
+
+            expect(rowStep("Message_1")?.textContent).toBe("Order received (Message)");
+            expect(rowButtons("Message_1")).toEqual(["Keep current", "Leave out"]);
+            rowButton("Message_1", "Leave out").click();
+
+            expect(picksOf()).toEqual([
+                {
+                    type: "PickMergeSideCommand",
+                    elementId: "Message_1",
+                    scope: "element",
+                    side: "incoming",
+                },
+            ]);
+        });
+
+        it("counts the open shape-less conflicts on the menu's button", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            expect(legendParent.querySelector(".merge-bar__badge")?.textContent).toBe("1");
+        });
+
+        it("says in the row what its decision did, announced once, and shows no card", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            rowButton("Process_1", "Keep incoming").click();
+
+            dispatch(
+                mergeStates({
+                    shapelessRows: [
+                        {
+                            id: "Process_1",
+                            type: "bpmn:Process",
+                            marker: "takenFromThisSide",
+                            container: false,
+                            takenSide: "incoming",
+                            pick: { keptSide: "incoming", scope: "element" },
+                        },
+                    ],
+                    lastOutcome: {
+                        applied: true,
+                        action: "pick",
+                        elementId: "Process_1",
+                        pulledIn: [],
+                        dropped: [],
+                        reopened: [],
+                    },
+                }),
+            );
+
+            expect(rowOf("Process_1")?.querySelector(".merge-menu__outcome")?.textContent).toBe(
+                "Kept from incoming: Process_1",
+            );
+            expect(menu().querySelector('[role="status"]')?.textContent).toBe(
+                "Kept from incoming: Process_1",
+            );
+            expect(card().show).not.toHaveBeenCalled();
+        });
+
+        it("says nothing in the row for the partner's decision", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            dispatch(
+                mergeStates({
+                    lastOutcome: {
+                        applied: true,
+                        action: "pick",
+                        elementId: "Process_1",
+                        pulledIn: [],
+                        dropped: [],
+                        reopened: [],
+                    },
+                }),
+            );
+
+            expect(
+                rowOf("Process_1")?.querySelector<HTMLElement>(".merge-menu__outcome")?.hidden,
+            ).toBe(true);
+        });
+
+        it("stays on a stepped shape-less element and moves the focus to its row's next decision when a pick hides the pressed one", async () => {
             await startMergePane();
             dispatch(mergeStates());
             previous();
-            const keep = legendButton("Keep current");
+            const keep = rowButton("Process_1", "Keep incoming");
             keep.focus();
             keep.click();
 
             dispatch(
                 mergeStates({
                     openConflictSteps: [step("Task_Pack"), step("Task_Gone", false, false)],
-                    pickable: [{ id: "Process_1", container: true, undo: "element" }],
+                    shapelessRows: [
+                        {
+                            id: "Process_1",
+                            type: "bpmn:Process",
+                            marker: "takenFromThisSide",
+                            container: false,
+                            takenSide: "incoming",
+                            pick: { keptSide: "incoming", scope: "element" },
+                        },
+                    ],
                 }),
             );
 
-            expect(document.activeElement).toBe(keep);
-            expect(legendButton("Undo pick").hidden).toBe(false);
+            expect(document.activeElement?.textContent).toBe("Keep current");
+            expect(rowOf("Process_1")?.contains(document.activeElement)).toBe(true);
             expect(counter()).toBe("3/3");
             previous();
             expect(cursorsPosted().at(-1)).toBe(3);
             expect(counter()).toBe("2/2");
+        });
+
+        it("offers in the row to keep the flows removed with a shape-less element", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    restoreOffer: {
+                        elementId: "Process_1",
+                        connections: ["Flow_2", "Flow_3"],
+                        removedBy: "current",
+                    },
+                }),
+            );
+
+            rowButton("Process_1", "Also keep its removed flows").click();
+
+            expect(picksOf()).toEqual([
+                {
+                    type: "PickMergeSideCommand",
+                    elementId: "Process_1",
+                    scope: "withConnections",
+                    side: "incoming",
+                },
+            ]);
+        });
+
+        it("offers in the right pane's row to keep the flows incoming removed with a shape-less element kept from current", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    shapelessRows: [
+                        {
+                            id: "Message_1",
+                            type: "bpmn:Message",
+                            marker: "takenFromOtherSide",
+                            container: false,
+                            takenSide: "current",
+                            lackingSide: { side: "incoming", lack: "removed" },
+                            pick: { keptSide: "current", scope: "element" },
+                        },
+                    ],
+                    restoreOffer: {
+                        elementId: "Message_1",
+                        connections: ["Flow_9"],
+                        removedBy: "incoming",
+                    },
+                }),
+            );
+
+            rowButton("Message_1", "Also keep its removed flows").click();
+
+            expect(picksOf()).toEqual([
+                {
+                    type: "PickMergeSideCommand",
+                    elementId: "Message_1",
+                    scope: "withConnections",
+                    side: "current",
+                },
+            ]);
         });
 
         it("paints the user's picks and their consequences, with the badges' words", async () => {
@@ -879,7 +1156,7 @@ describe("MergeMode", () => {
                     restoreOffer: {
                         elementId: "Task_Pack",
                         connections: ["Flow_1"],
-                        removedBy: "incoming",
+                        removedBy: "current",
                     },
                 }),
             );
@@ -896,9 +1173,9 @@ describe("MergeMode", () => {
                     side: (message as { side?: string }).side,
                 })),
             ).toEqual([
-                { type: "PickMergeSideCommand", scope: "element", side: "current" },
                 { type: "PickMergeSideCommand", scope: "element", side: "incoming" },
-                { type: "PickMergeSideCommand", scope: "withConnections", side: "current" },
+                { type: "PickMergeSideCommand", scope: "element", side: "current" },
+                { type: "PickMergeSideCommand", scope: "withConnections", side: "incoming" },
                 { type: "UnpickMergeCommand", scope: "element", side: undefined },
             ]);
         });
@@ -910,113 +1187,6 @@ describe("MergeMode", () => {
             dispatch(mergeStates());
 
             expect(fakes.pickPad.provider.refresh).toHaveBeenCalledOnce();
-        });
-
-        it("names an element as the host names it, the canvas only where the host does not", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    picksNotDrawn: [
-                        { id: "Task_Gone", keptSide: "incoming", scope: "element" },
-                        { id: "Task_Pack", keptSide: "incoming", scope: "element" },
-                        { id: "Task_Check", keptSide: "incoming", scope: "element" },
-                    ],
-                    names: { Task_Gone: "Reject order", Task_Pack: "Pack box" },
-                }),
-            );
-
-            expect(legendText()).toContain("Kept from incoming: Reject order");
-            expect(legendText()).toContain("Kept from incoming: Pack box");
-            expect(legendText()).toContain("Kept from incoming: Task_Check");
-        });
-
-        it("moves the focus to the Keep action when Undo of a stepped element without a shape hides itself", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({ pickable: [{ id: "Process_1", container: true, undo: "element" }] }),
-            );
-            previous();
-            const undo = legendButton("Undo pick");
-            undo.focus();
-            undo.click();
-
-            dispatch(mergeStates({ pickable: [{ id: "Process_1", container: true }] }));
-
-            expect(document.activeElement).toBe(legendButton("Keep current"));
-        });
-
-        it("moves the focus to what the undo did when it removes the listed pick it was on", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    picksNotDrawn: [{ id: "Task_Gone", keptSide: "incoming", scope: "element" }],
-                }),
-            );
-            const undo = legendButton("Undo pick: Kept from incoming: Task_Gone");
-            undo.focus();
-            undo.click();
-
-            dispatch(
-                mergeStates({
-                    lastOutcome: {
-                        applied: true,
-                        action: "unpick",
-                        elementId: "Task_Gone",
-                        pulledIn: [],
-                        dropped: [],
-                        reopened: [],
-                    },
-                }),
-            );
-
-            expect(document.activeElement?.textContent).toBe("Took back the pick of Task_Gone");
-        });
-
-        it("keeps what the last pick of a shape-less element did in place while the stepper moves, so it is announced once", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    lastOutcome: {
-                        applied: true,
-                        action: "pick",
-                        elementId: "Process_1",
-                        pulledIn: [],
-                        dropped: [],
-                        reopened: [],
-                    },
-                }),
-            );
-            const status = legendParent.querySelector('[role="status"]')!;
-            const shown = status.firstElementChild;
-
-            next();
-            next();
-
-            expect(legendText()).toContain("Kept Process_1");
-            expect(status.firstElementChild).toBe(shown);
-        });
-
-        it("offers in the legend to keep the flows removed with a shape-less element", async () => {
-            await startMergePane();
-            dispatch(
-                mergeStates({
-                    restoreOffer: {
-                        elementId: "Process_1",
-                        connections: ["Flow_2", "Flow_3"],
-                        removedBy: "incoming",
-                    },
-                }),
-            );
-
-            legendButton("Also keep the 2 flows incoming removed with it").click();
-
-            expect(picksPosted()).toEqual([
-                expect.objectContaining({
-                    type: "PickMergeSideCommand",
-                    elementId: "Process_1",
-                    scope: "withConnections",
-                }),
-            ]);
         });
     });
 
@@ -1058,7 +1228,7 @@ describe("MergeMode", () => {
             ]);
         });
 
-        it("shows no card on the pane that did not send the decision, and no outcome in its legend", async () => {
+        it("shows no card on the pane that did not send the decision, and no outcome in its bar", async () => {
             await startMergePane();
             dispatch(mergeStates());
             const legendBefore = legendText();
@@ -1069,7 +1239,7 @@ describe("MergeMode", () => {
             expect(legendText()).toBe(legendBefore);
         });
 
-        it("says in the card, not the legend, why a decision was refused", async () => {
+        it("says in the card, not the bar, why a decision was refused", async () => {
             await keepPackOnPad({
                 applied: false,
                 action: "pick",
@@ -1158,13 +1328,13 @@ describe("MergeMode", () => {
                     restoreOffer: {
                         elementId: "Task_Pack",
                         connections: ["Flow_2", "Flow_3"],
-                        removedBy: "incoming",
+                        removedBy: "current",
                     },
                 }),
             );
 
             const [content, actions] = card().show.mock.lastCall!;
-            expect(content.offer?.text).toBe("Also keep the 2 flows incoming removed with it");
+            expect(content.offer?.text).toBe("Also keep the 2 flows current removed with it");
             expect(legendText()).not.toContain("Also keep");
             host.postMessage.mockClear();
             actions.onKeepRemovedFlows("Task_Pack");
@@ -1174,17 +1344,17 @@ describe("MergeMode", () => {
                     type: "PickMergeSideCommand",
                     elementId: "Task_Pack",
                     scope: "withConnections",
-                    side: "current",
+                    side: "incoming",
                 }),
             ]);
         });
 
-        it("shows no card for a legend decision on a shape-less step whose root the canvas holds, and closes the one it showed", async () => {
+        it("shows no card for a row decision on a shape-less step whose root the canvas holds, and closes the one it showed", async () => {
             await keepPackOnPad();
             // bpmn-js registers a plane's root under its process's id.
             viewer().drawn.add("Process_1");
             previous();
-            legendButton("Keep current").click();
+            rowButton("Process_1", "Keep current").click();
             card().close.mockClear();
 
             dispatch(
@@ -1195,7 +1365,7 @@ describe("MergeMode", () => {
 
             expect(card().show).toHaveBeenCalledOnce();
             expect(card().close).toHaveBeenCalled();
-            expect(legendText()).toContain("Kept Process_1");
+            expect(rowOf("Process_1")?.textContent).toContain("Kept from current: Process_1");
         });
 
         it("names the side that lacks what a leave-out left out", async () => {
@@ -1220,37 +1390,26 @@ describe("MergeMode", () => {
 
     describe("build", () => {
         const afterStates = (build: Partial<MergePaneStates["build"]>) =>
-            new ApplyMergeStatesQuery(
-                "after",
-                {
-                    ...STATES,
-                    caption: { side: "incoming", role: "upstream" },
-                    build: { ...STATES.build, ...build },
-                },
-                false,
-            );
+            mergeStates({ build: { ...STATES.build, ...build } });
         const typesPosted = () => posted().map((message) => message.type);
-        const shownText = () =>
-            [...legendParent.querySelectorAll<HTMLElement>(".merge-legend__build *")]
-                .filter(
-                    (element) =>
-                        element.closest("[hidden]") === null && element.children.length === 0,
-                )
-                .map((element) => element.textContent)
-                .join(" ");
-        const legendButtons = () =>
-            [...legendParent.querySelectorAll("button")].map((button) => button.textContent);
+        const shown = (element: Element | null) =>
+            element !== null && element.closest("[hidden]") === null;
+        const notes = () => legendParent.querySelector<HTMLElement>(".merge-notes")!;
 
-        it("offers Build on the right pane only, disabled while conflicts are left", async () => {
+        it("offers Build on the right pane only, disabled while conflicts are left, and says why", async () => {
             await startMergePane();
-            dispatch(mergeStates());
-            expect(legendButtons()).not.toContain("Build");
+            dispatch(leftStates());
+            expect(shown(legendButton("Build"))).toBe(false);
 
             dispatch(afterStates({}));
 
-            expect(legendButton("Build").disabled).toBe(true);
-            expect(legendText()).toContain("3 conflicts left");
-            legendButton("Build").click();
+            const build = legendButton("Build");
+            expect(shown(build)).toBe(true);
+            expect(build.disabled).toBe(true);
+            expect(
+                document.getElementById(build.getAttribute("aria-describedby")!)?.textContent,
+            ).toBe("3 conflicts left");
+            build.click();
             expect(typesPosted()).not.toContain("BuildMergeResultCommand");
         });
 
@@ -1260,11 +1419,11 @@ describe("MergeMode", () => {
 
             legendButton("Build").click();
 
-            expect(shownText()).not.toContain("conflicts left");
+            expect(legendButton("Build").hasAttribute("aria-describedby")).toBe(false);
             expect(typesPosted()).toContain("BuildMergeResultCommand");
         });
 
-        it("compares the result with either side once one is built", async () => {
+        it("compares the result with either side from the menu once one is built", async () => {
             await startMergePane();
             dispatch(afterStates({ canBuild: true, openConflicts: 0 }));
             expect(legendButton("Compare with current").disabled).toBe(true);
@@ -1281,20 +1440,23 @@ describe("MergeMode", () => {
             ).toStrictEqual(["current", "incoming"]);
         });
 
-        it("lists the notes of the build and selects the elements a note names", async () => {
+        it("lists the notes of the build in their popover, named as the host or the canvas names them, and selects what a note names", async () => {
             await startMergePane();
             dispatch(
-                afterStates({
-                    canBuild: true,
-                    openConflicts: 0,
-                    built: true,
-                    notes: [
-                        {
-                            kind: "restoredWithoutConnections",
-                            id: "Task_Pack",
-                            connections: ["Flow_1"],
-                        },
-                    ],
+                mergeStates({
+                    names: { Task_Gone: "Reject order" },
+                    build: {
+                        canBuild: true,
+                        openConflicts: 0,
+                        built: true,
+                        notes: [
+                            {
+                                kind: "restoredWithoutConnections",
+                                id: "Task_Pack",
+                                connections: ["Task_Gone", "Flow_1"],
+                            },
+                        ],
+                    },
                 }),
             );
             const review = legendButton("Review notes (1)");
@@ -1302,9 +1464,9 @@ describe("MergeMode", () => {
 
             review.click();
 
-            expect(review.getAttribute("aria-expanded")).toBe("true");
-            expect(legendText()).toContain(
-                "Pack parcel is kept without the flows the other side removed with it: Flow_1",
+            expect(shown(notes())).toBe(true);
+            expect(notes().textContent).toContain(
+                "Pack parcel is kept without the flows the other side removed with it: Reject order, Flow_1",
             );
             legendButton("Pack parcel").click();
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
@@ -1329,21 +1491,21 @@ describe("MergeMode", () => {
 
             legendButton("Review notes (1)").click();
 
-            expect(legendText()).toContain(
+            expect(notes().textContent).toContain(
                 "Both sides changed the layout of Pack parcel, Task_Check; incoming's is kept",
             );
             legendButton("Pack parcel").click();
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             legendButton("Task_Check").click();
-            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
+            expect(cursorsPosted().at(-1)).toBe(0);
         });
 
         it("offers no notes before a build or after one with none", async () => {
             await startMergePane();
             dispatch(afterStates({ canBuild: true, openConflicts: 0, built: true }));
 
-            expect(shownText()).not.toContain("Review notes");
-            expect(shownText()).toContain("Compare with incoming");
+            expect(legendButton("Review notes (0)").disabled).toBe(true);
+            expect(legendButton("Compare with incoming").disabled).toBe(false);
         });
     });
 });

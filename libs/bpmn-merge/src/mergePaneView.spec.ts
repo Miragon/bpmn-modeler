@@ -187,6 +187,108 @@ describe("mergePaneView", () => {
         expect(mergePaneView(decisions, "incoming").shapeless).toEqual([]);
     });
 
+    describe("shape-less rows", () => {
+        const shapeless = (id: string, state: ElementState, type = "bpmn:Message") =>
+            mergeElement(id, state, { type, drawn: false });
+
+        it("lists the shape-less elements either pane marks, also one the pane's side lacks, with the marker as this side sees it", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("bothChanged"),
+                    shapeless("Message_Mine", "addedByCurrent"),
+                    shapeless("Error_Theirs", "addedByIncoming", "bpmn:Error"),
+                    shapeless("Message_Same", "unchanged"),
+                    mergeElement("Task_A", "bothChanged"),
+                ),
+            );
+
+            const incoming = mergePaneView(decisions, "incoming");
+
+            expect(incoming.shapelessRows).toStrictEqual([
+                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: false },
+                {
+                    id: "Message_Mine",
+                    type: "bpmn:Message",
+                    marker: "takenFromOtherSide",
+                    container: false,
+                    takenSide: "current",
+                    lackingSide: { side: "incoming", lack: "missing" },
+                },
+                {
+                    id: "Error_Theirs",
+                    type: "bpmn:Error",
+                    marker: "takenFromThisSide",
+                    container: false,
+                    takenSide: "incoming",
+                    lackingSide: { side: "current", lack: "missing" },
+                },
+            ]);
+            expect(incoming.shapeless.map(({ id }) => id)).toStrictEqual([
+                "Process_1",
+                "Error_Theirs",
+            ]);
+            expect(incoming.counts.takenFromOtherSide).toBe(0);
+        });
+
+        it("names the side that removed a shape-less element", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(process("unchanged"), shapeless("Message_Old", "removedAndChanged")),
+            );
+
+            expect(mergePaneView(decisions, "current").shapelessRows).toStrictEqual([
+                {
+                    id: "Message_Old",
+                    type: "bpmn:Message",
+                    marker: "conflict",
+                    container: false,
+                    lackingSide: { side: "current", lack: "removed" },
+                },
+            ]);
+        });
+
+        it("carries the user's pick of a shape-less element and how far Undo reaches", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(process("bothChanged"), shapeless("Message_Mine", "addedByCurrent")),
+            );
+
+            decisions.pick("Process_1", "incoming");
+            decisions.pick("Message_Mine", "incoming");
+
+            expect(mergePaneView(decisions, "incoming").shapelessRows).toStrictEqual([
+                {
+                    id: "Process_1",
+                    type: "bpmn:Process",
+                    marker: "takenFromThisSide",
+                    container: false,
+                    takenSide: "incoming",
+                    pick: { keptSide: "incoming", scope: "element" },
+                },
+                {
+                    id: "Message_Mine",
+                    type: "bpmn:Message",
+                    marker: "takenFromThisSide",
+                    container: false,
+                    takenSide: "incoming",
+                    lackingSide: { side: "incoming", lack: "missing" },
+                    pick: { keptSide: "incoming", scope: "element" },
+                },
+            ]);
+        });
+
+        it("tells a shape-less container, such as a process, which a pick can keep with everything inside", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("bothChanged"),
+                    mergeElement("Task_A", "bothChanged", { parent: "Process_1" }),
+                ),
+            );
+
+            expect(mergePaneView(decisions, "current").shapelessRows).toStrictEqual([
+                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+            ]);
+        });
+    });
+
     describe("picks", () => {
         const flow = (id: string, source: string, target: string, state: ElementState) =>
             mergeElement(id, state, {
@@ -324,16 +426,21 @@ describe("mergePaneView", () => {
 
             const pickable = [
                 { id: "Process_1", container: true },
-                { id: "Sub", container: true, undo: "withContents" },
-                { id: "Inner", container: false, undo: "element" },
+                { id: "Sub", container: true, takenSide: "current", undo: "withContents" },
+                { id: "Inner", container: false, takenSide: "current", undo: "element" },
             ];
             expect(mergePaneView(decisions, "current").pickable).toStrictEqual([
                 ...pickable,
-                { id: "Task_Audit", container: false },
+                { id: "Task_Audit", container: false, takenSide: "incoming" },
             ]);
             expect(mergePaneView(decisions, "incoming").pickable).toStrictEqual([
                 ...pickable,
-                { id: "Task_Audit", container: false, otherSideLacks: "missing" },
+                {
+                    id: "Task_Audit",
+                    container: false,
+                    takenSide: "incoming",
+                    otherSideLacks: "missing",
+                },
             ]);
         });
 
@@ -463,5 +570,32 @@ describe("mergePaneView", () => {
                 ).toBe(true);
             },
         );
+
+        it("tells the side the result takes where the sides differ, the side that lacks an element it leaves out, on both panes alike", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Task_Open", "bothChanged", { parent: "Process_1" }),
+                    mergeElement("Task_Removed", "removedByCurrent", { parent: "Process_1" }),
+                    mergeElement("Task_Changed", "takenFromIncoming", { parent: "Process_1" }),
+                ),
+            );
+            const takenSides = (side: "current" | "incoming") =>
+                Object.fromEntries(
+                    mergePaneView(decisions, side).pickable.map(({ id, takenSide }) => [
+                        id,
+                        takenSide,
+                    ]),
+                );
+
+            const expected = {
+                Process_1: undefined,
+                Task_Open: undefined,
+                Task_Removed: "current",
+                Task_Changed: "incoming",
+            };
+            expect(takenSides("current")).toStrictEqual(expected);
+            expect(takenSides("incoming")).toStrictEqual(expected);
+        });
     });
 });

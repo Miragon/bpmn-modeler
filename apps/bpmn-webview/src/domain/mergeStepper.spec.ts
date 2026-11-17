@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeStepPosition, nextMergeStep } from "./mergeStepper";
+import { mergeStepPosition, mergeStepPositionText, nextMergeStep } from "./mergeStepper";
 
 const ALL = ["Task_Check", "Task_Pack", "Gateway_Ok", "End_Done", "Process_1"];
 const OPEN = ["Task_Pack", "End_Done", "Process_1"];
@@ -73,5 +73,15 @@ describe("mergeStepPosition", () => {
         ["shows none on an element no list knows", OPEN, "Task_Gone", undefined],
     ])("%s", (_case, list, cursor, expected) => {
         expect(mergeStepPosition(list, ALL, cursor)).toEqual(expected);
+    });
+});
+
+describe("mergeStepPositionText", () => {
+    it.each<[{ index: number; total: number } | undefined, number, string]>([
+        [{ index: 1, total: 5 }, 5, "2/5"],
+        [{ index: 2, total: 4 }, 3, "3/4"],
+        [undefined, 5, "–/5"],
+    ])("shows %o of %i as %s", (position, total, expected) => {
+        expect(mergeStepPositionText(position, total)).toBe(expected);
     });
 });

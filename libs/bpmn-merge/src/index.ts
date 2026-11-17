@@ -30,7 +30,7 @@ export type {
     PickBadge,
     PickNotDrawn,
     PickScope,
-    ShapelessMark,
+    ShapelessRow,
 } from "./mergePaneView";
 export type {
     ConflictState,
