@@ -47,6 +47,9 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         UpdateScriptVariablesCommand: HANDLED,
         DiagramFormattedCommand: HANDLED,
         CleanupReportCommand: HANDLED,
+        ElementIdProposalsCommand: HANDLED,
+        ElementIdsAppliedCommand: HANDLED,
+        OpenElementIdReviewCommand: HANDLED,
     },
     bpmnDiffPane: {
         GetBpmnFileCommand: HANDLED,
@@ -59,7 +62,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         // IntelliJ's diff viewer swaps the sides itself and never forwards the command.
         SwapCompareSidesCommand: ignored("the host does not swap diff sides through the core"),
         LogErrorCommand: HANDLED,
-        ShowElementXmlChangesCommand: ignored("the host shows no element XML diff"),
+        ShowElementXmlChangesCommand: HANDLED,
         DiffSelectionChangedCommand: HANDLED,
     },
     dmnEditor: absent("IntelliJ has no DMN editor"),

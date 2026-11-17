@@ -35,6 +35,7 @@ import {
 import { DocumentRenderParticipant } from "../../../editorSession/service/DocumentRenderParticipant";
 import {
     DiagnosticsPort,
+    ElementIdReviewPort,
     LintingPreferencePort,
     PropertiesPanelStatePort,
 } from "../port/bpmnPorts";
@@ -43,12 +44,16 @@ import {
     answerWithoutPluginsHandler,
     cleanupReportHandler,
     diagramFormattedHandler,
+    elementIdProposalsHandler,
+    elementIdsAppliedHandler,
     getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
     getElementTemplatesHandler,
     getPropertiesPanelStateHandler,
     getTextClipboardHandler,
+    openElementIdReviewHandler,
+    resumeElementIdReviewHandler,
     setClipboardHandler,
     setLintingEnabledHandler,
     setPropertiesPanelStateHandler,
@@ -68,6 +73,8 @@ import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelServic
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
+import { ElementIdReviewParticipant } from "../service/ElementIdReviewParticipant";
+import { ElementIdReviewService } from "../service/ElementIdReviewService";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { LoadedTemplateDirs } from "../service/LoadedTemplateDirs";
@@ -104,6 +111,8 @@ export interface BpmnEditorHostPorts {
     readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
     readonly rulePackages?: BpmnRulePackagePorts;
+    /** Absent: Generate IDs from Names only says this host cannot show the review. */
+    readonly elementIdReview?: ElementIdReviewPort;
 }
 
 /** The core's document services behind {@link DOCUMENT_SYNC_COMMAND_TYPES}. */
@@ -165,6 +174,7 @@ export class BpmnEditorFeature {
     /** What the add-on catalog lists of the element templates. */
     readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
+    readonly elementIdReview: ElementIdReviewService;
     readonly lintConfig: BpmnLintConfigService;
     /** What the add-on catalog lists of the rule packages; absent without {@link BpmnRulePackagePorts}. */
     readonly rulePackageInventory?: RulePackageInventory;
@@ -189,6 +199,7 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.settings,
+            { hostElementIdReview: ports.elementIdReview !== undefined },
         );
         const loadedTemplateDirs = new LoadedTemplateDirs();
         this.templates = new BpmnElementTemplatesService(
@@ -209,6 +220,11 @@ export class BpmnEditorFeature {
         });
         this.templateInventory = new TemplateInventory(loadedTemplateDirs, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
+        this.elementIdReview = new ElementIdReviewService(
+            ports.store,
+            ports.notifier,
+            ports.elementIdReview,
+        );
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
             ports.settings,
@@ -282,6 +298,9 @@ export class BpmnEditorFeature {
             SetTextClipboardCommand: [setTextClipboardHandler(clipboard)],
             DiagramFormattedCommand: [diagramFormattedHandler(this.layout)],
             CleanupReportCommand: [cleanupReportHandler(this.layout)],
+            ElementIdProposalsCommand: [elementIdProposalsHandler(this.elementIdReview)],
+            ElementIdsAppliedCommand: [elementIdsAppliedHandler(this.elementIdReview)],
+            OpenElementIdReviewCommand: [openElementIdReviewHandler(this.elementIdReview)],
             NavigateToReferencedModelCommand: [
                 navigation.commandHandlers.NavigateToReferencedModelCommand,
             ],
@@ -316,6 +335,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
+            new ElementIdReviewParticipant(this.elementIdReview),
             ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
@@ -364,6 +384,7 @@ export class BpmnEditorFeature {
                     this.ports.notifier,
                     "Bpmn modeler is ready",
                 ),
+                resumeElementIdReviewHandler(this.elementIdReview),
             ],
             SyncDocumentCommand: [syncDocumentHandler(this.bpmnService)],
             DocumentFlushedCommand: [documentFlushedHandler(documentSync.flushes)],

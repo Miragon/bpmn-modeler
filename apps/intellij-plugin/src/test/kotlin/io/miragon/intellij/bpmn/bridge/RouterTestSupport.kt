@@ -11,6 +11,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import io.miragon.intellij.bpmn.ElementXmlDiffContent
+import io.miragon.intellij.bpmn.ElementXmlDiffPanel
 import io.miragon.intellij.bpmn.HostNotifications
 import java.nio.file.Files
 import java.nio.file.Path
@@ -145,4 +147,11 @@ internal fun createBpmnFile(
         FileDocumentManager.getInstance().getDocument(file)
             ?: error("No Document for $name — is the .bpmn file type registered in the test application?")
     return BpmnTestFile(file, document, nioPath)
+}
+
+/** An element XML diff panel for a test that never looks at it. */
+internal object NoElementXmlDiffPanel : ElementXmlDiffPanel {
+    override fun show(content: ElementXmlDiffContent) = Unit
+
+    override fun hide() = Unit
 }

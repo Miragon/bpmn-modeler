@@ -111,6 +111,20 @@ describe("ElementXmlDiffService", () => {
         expect(shown?.after).toContain('name="Review order"');
     });
 
+    it.each([
+        ["the before pane", "before"],
+        ["the after pane", "after"],
+    ] as const)(
+        "names the before pane of its diagram diff when %s asks, so a host can show it there",
+        async (_case, asking) => {
+            const panes = diagramDiff();
+
+            await panes.service.show(panes[asking], "Review");
+
+            expect(panes.view.shown(DIFF_KEY)?.paneUri).toBe(BEFORE_URI);
+        },
+    );
+
     it("leaves out the diagram interchange", async () => {
         const { service, view, before } = diagramDiff();
 
