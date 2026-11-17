@@ -191,15 +191,20 @@ describe("ElementIdReviewService with the host's own review panel", () => {
         expect(editor.posted).toEqual([new FocusElementQuery("Activity_1")]);
     });
 
-    it("tells the user to switch modes when the review cannot open, and shows no panel", async () => {
+    it("tells the user to switch modes when the review cannot open, shows no panel and stops the editor listing", async () => {
         const { service, editor, panel, notifier } = createPanelService();
         await service.generate(editor.id);
+        editor.posted.length = 0;
 
-        service.reportProposals(editor.id, new ElementIdProposalsCommand("unsupported", [], []));
-        service.reportProposals(editor.id, LISTED);
+        await service.reportProposals(
+            editor.id,
+            new ElementIdProposalsCommand("unsupported", [], []),
+        );
+        await service.reportProposals(editor.id, LISTED);
 
         expect(notifier.infos).toEqual([SWITCH_MODE]);
         expect(panel.shown).toEqual([]);
+        expect(editor.posted).toEqual([new CloseElementIdReviewQuery()]);
     });
 
     it("says so in the panel when the editor switches to View mode during the review", async () => {

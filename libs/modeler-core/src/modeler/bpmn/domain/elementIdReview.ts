@@ -120,7 +120,10 @@ function report(
         return review.stage === "opening"
             ? {
                   next: CLOSED_ELEMENT_ID_REVIEW,
-                  actions: [{ kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS }],
+                  actions: [
+                      { kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS },
+                      { kind: "stopListing", editorId: review.editorId },
+                  ],
               }
             : {
                   next: review,
