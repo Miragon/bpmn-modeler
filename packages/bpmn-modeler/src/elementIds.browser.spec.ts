@@ -333,6 +333,19 @@ describe("generating element IDs from names", () => {
         expect(services.elementRegistry.get("task_ship_order")).toBeDefined();
     });
 
+    it("spells IDs as the injected lint module's rule does when no convention is handed in", async () => {
+        const { container, panel } = mountWithPanel(1200, 800);
+        const handle = (await createModeler(container, {
+            engine: "c7",
+            propertiesPanel: { parent: panel },
+            linting: { module: await import("./bpmnlint"), results: "external" },
+        })) as BpmnModeler;
+        handles.push(handle);
+        await handle.loadDiagram(ORDER_PROCESS);
+
+        expect(proposedIds(handle)).toContain("flow_inStock");
+    });
+
     it("spells IDs after the element's own type until a convention is handed in", async () => {
         const { handle } = await openModeler(ORDER_PROCESS, { convention: null });
 
@@ -464,6 +477,18 @@ describe("generating element IDs from names", () => {
             expect(
                 servicesOf(designer).elementRegistry.get("serviceTask_checkStock"),
             ).toBeDefined();
+        });
+
+        it("spells IDs as the injected lint module's rule does when no convention is handed in", async () => {
+            const { container, panel } = mountWithPanel(1200, 800);
+            const designer = (await createDesigner(container, {
+                propertiesPanel: { parent: panel },
+                linting: { module: await import("./bpmnlint"), results: "external" },
+            })) as BpmnDesigner;
+            handles.push(designer);
+            await designer.loadDiagram(ORDER_PROCESS);
+
+            expect(proposedIds(designer)).toContain("flow_inStock");
         });
 
         it("takes the element ID settings it is created with", async () => {

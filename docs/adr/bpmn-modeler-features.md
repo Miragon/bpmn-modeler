@@ -164,8 +164,9 @@ the designer: names and IDs are engine-neutral.
   `serviceTask_checkStock`; a process keeps its name only), so a generated ID never breaks the rule; a
   style setting would let IDs and lint drift apart. The library takes the rule's
   `ElementIdConvention` through a narrow `IdConvention` port, because the package keeps lint code out
-  of its root and design entries; `createElementIdConvention` on the `/lint` subpath builds it. The
-  core resolves the rule's options from the document's `.bpmnlintrc`, with what it extends, through
+  of its root and design entries; `createElementIdConvention` on the `/lint` subpath builds it, and a
+  surface created with that module takes its Miragon defaults, so a host without a `.bpmnlintrc`
+  reader (Orca) spells IDs as the others do. The core resolves the rule's options from the document's `.bpmnlintrc`, with what it extends, through
   the resolver `NodeBpmnLinter` lints with ([BPMN linting](bpmn-linting.md#linting)), and sends them
   as `ElementIdConventionQuery` whether or not linting runs.
 - `proposeIds` keeps every proposal unique against all IDs the candidates do not give up (other model

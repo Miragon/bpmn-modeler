@@ -6,6 +6,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     CleanupOutcome,
+    ElementIdConventionOptions,
     ElementIdProposals,
     ElementTemplateRef,
     Engine,
@@ -29,7 +30,9 @@ export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigRe
  * bpmnlint rule `@miragon/rules/element-id-naming`'s `ElementIdConvention`.
  * `createElementIdConvention` from `@miragon/bpmn-modeler/lint` builds it, with
  * the rule's options from a `.bpmnlintrc` or its Miragon defaults. Until one is
- * handed in, an ID is the element's type in camelCase, then a camelCase name.
+ * handed in, a surface built with `linting.module` follows the rule's Miragon
+ * defaults; one without lint module starts an ID with the element's type in
+ * camelCase, then a camelCase name.
  */
 export interface ElementIdConvention {
     /** Every prefix an ID of this business object may start with, the one to write first. */
@@ -93,6 +96,12 @@ export type { ThemeMode } from "./themeMode";
  */
 export interface LintModule {
     createLintModule(tier: LintTierInit, callbacks: LintCallbacks): unknown;
+    /**
+     * The convention of the rule `@miragon/rules/element-id-naming`. A surface
+     * built with this module names generated IDs after it until
+     * {@link ElementIdOptions.convention} hands in another.
+     */
+    createElementIdConvention?(options?: ElementIdConventionOptions): ElementIdConvention;
 }
 
 /**

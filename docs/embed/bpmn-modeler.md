@@ -975,8 +975,10 @@ await createModeler( container, {
 `createLintModule` matches the public `LintModule` interface.
 `createElementIdConvention(options?)` builds the convention of the rule
 `@miragon/rules/element-id-naming` for `setElementIdSettings({ convention })`:
-its Miragon defaults, or the options a `.bpmnlintrc` gives the rule. Without
-one, an ID generated from a name starts with the element's type in camelCase. The lint chrome's CSS is not code-split — it always lands in
+its Miragon defaults, or the options a `.bpmnlintrc` gives the rule. Until
+one is handed in, a modeler or designer created with the `/lint` module follows
+the rule's Miragon defaults; without the module, an ID generated from a name
+starts with the element's type in camelCase. The lint chrome's CSS is not code-split — it always lands in
 `@miragon/bpmn-modeler/styles.css` (and, for a design-only page, in
 `@miragon/bpmn-modeler/design.css`), which every consumer already loads — so importing the subpath
 brings no extra stylesheet wiring.

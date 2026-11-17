@@ -23,7 +23,7 @@ import type { ViewportManager } from "../viewport";
 import type { SelectionManager } from "../selection";
 import type { RootElementManager } from "../rootElement";
 import type { ViewState } from "../viewState";
-import { buildLintModules } from "../lintModules";
+import { buildLintModules, lintElementIdConvention } from "../lintModules";
 import { createPopupMenuAnnotationsModule } from "../popupMenuAnnotations";
 import type { LintHandleMethods } from "../lintHandle";
 import { wireContentSaved } from "../contentSaved";
@@ -140,9 +140,11 @@ export class BpmnDesigner {
         if (this.options.favouriteBpmnElements) {
             this.setFavouriteBpmnElements(this.options.favouriteBpmnElements);
         }
-        if (this.options.elementIdSettings) {
-            this.setElementIdSettings(this.options.elementIdSettings);
-        }
+        const { elementIdSettings, linting } = this.options;
+        this.setElementIdSettings({
+            ...elementIdSettings,
+            convention: elementIdSettings?.convention ?? lintElementIdConvention(linting),
+        });
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {

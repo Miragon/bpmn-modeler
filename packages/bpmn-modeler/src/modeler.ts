@@ -40,7 +40,7 @@ import {
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
 import type { ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
-import { buildLintModules } from "./lintModules";
+import { buildLintModules, lintElementIdConvention } from "./lintModules";
 import {
     BPMN_TAB,
     createPopupMenuAnnotationsModule,
@@ -297,7 +297,10 @@ export class BpmnModeler {
         );
 
         this.applyHiddenElementTemplates();
-        applyElementIdSettings(this.core, elementIdSettingsOf(this.settings));
+        applyElementIdSettings(this.core, {
+            ...elementIdSettingsOf(this.settings),
+            convention: lintElementIdConvention(this.options.linting),
+        });
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
