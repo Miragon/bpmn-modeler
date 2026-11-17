@@ -13,7 +13,7 @@ import {
     SwapCompareSidesCommand,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { DIFF_CATEGORIES, DIFF_MARKERS } from "@miragon/bpmn-modeler-types";
+import { DIFF_CATEGORIES, DIFF_MARKERS, diffOriginSupports } from "@miragon/bpmn-modeler-types";
 
 import {
     DiffLegend,
@@ -205,7 +205,7 @@ export class DiffMode {
     private label(query: ApplyDiffHighlightsQuery): void {
         this.sideLabel ??= new DiffSideLabel(this.canvas, query.side);
         this.sideLabel.showFilename(
-            query.origin === "compare-files" ? query.paneFilename : undefined,
+            diffOriginSupports(query.origin, "namesFiles") ? query.paneFilename : undefined,
         );
     }
 
@@ -217,7 +217,7 @@ export class DiffMode {
         const isAfter = query.side === "after";
         this.legendContext = {
             counts: query.counts,
-            showSwap: isAfter && query.origin === "compare-files",
+            showSwap: isAfter && diffOriginSupports(query.origin, "swapsSides"),
             canStep: this.navigator.canStep,
             showChanges: isAfter,
         };

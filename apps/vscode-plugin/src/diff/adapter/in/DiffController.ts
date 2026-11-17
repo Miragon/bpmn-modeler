@@ -1,6 +1,7 @@
 import { commands, ExtensionContext, TextDocument, Uri, WebviewPanel, window } from "vscode";
 
 import { Command } from "@miragon/bpmn-modeler-shared";
+import { diffOriginSupports } from "@miragon/bpmn-modeler-types";
 
 import {
     DiffPaneHandle,
@@ -279,7 +280,7 @@ export class DiffController {
      */
     private async swapCompareFilesSides(handle: DiffPaneHandle): Promise<void> {
         const session = this.store.sessionOf(handle);
-        if (!session || session.origin !== "compare-files") {
+        if (!session || !diffOriginSupports(session.origin, "swapsSides")) {
             return;
         }
         const { beforeUri, afterUri } = session;

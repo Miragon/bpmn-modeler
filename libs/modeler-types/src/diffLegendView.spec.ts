@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DiffCounts } from "./diff";
-import { type DiffLegendState, DiffLegendView, type DiffLegendTranslator } from "./diffLegendView";
+import {
+    type DiffLegendSlot,
+    type DiffLegendState,
+    DiffLegendView,
+    type DiffLegendTranslator,
+} from "./diffLegendView";
 
 const COUNTS: DiffCounts = { added: 3, removed: 1, changed: 2, layoutChanged: 4 };
 const SHOWN: DiffLegendState = { counts: COUNTS, showSwap: false, canStep: true };
@@ -17,6 +22,7 @@ const GERMAN: Readonly<Record<string, string>> = {
     "Swap sides": "Seiten tauschen",
     "No changes": "Keine Änderungen",
     "Show all": "Alle anzeigen",
+    "Conflicts": "Konflikte",
 };
 
 class SwitchableTranslator implements DiffLegendTranslator {
@@ -331,6 +337,63 @@ describe("DiffLegendView", () => {
         expect(whileHidden).toBe("");
         expect(room()).toBe("64px");
         expect(observer.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the diff slots by default and adds no extension", () => {
+        const { view } = mount();
+
+        view.update(SHOWN);
+
+        expect(
+            [...parent.querySelectorAll(".diff-legend__counts > .diff-legend__slot")].map(
+                (slot) => slot.className,
+            ),
+        ).toEqual([
+            "diff-legend__slot diff-legend__slot--added",
+            "diff-legend__slot diff-legend__slot--removed",
+            "diff-legend__slot diff-legend__slot--changed",
+            "diff-legend__slot diff-legend__slot--layout",
+        ]);
+        expect([...view.element.children].map((child) => child.className)).toEqual([
+            "diff-legend__filename",
+            "diff-legend__counts",
+        ]);
+    });
+
+    it("renders a caller's slots and extension", () => {
+        type Mark = "kept" | "conflict";
+        const slots: readonly DiffLegendSlot<Mark>[] = [
+            { key: "kept", label: "Kept", modifier: "kept" },
+            { key: "conflict", label: "Conflicts", modifier: "conflict" },
+        ];
+        const view = new DiffLegendView<Mark>(
+            parent,
+            { onPrevious: vi.fn(), onNext: vi.fn() },
+            translator,
+            slots,
+        );
+
+        view.update({ counts: { kept: 2, conflict: 0 }, showSwap: false, canStep: true });
+        const countTexts = visibleSlotTexts();
+        const swatches = visibleSlots().map(
+            (slot) => slot.querySelector(".diff-legend__swatch")?.className,
+        );
+        view.update({ counts: { kept: 0, conflict: 0 }, showSwap: false, canStep: false });
+        const noneShown = visible(".diff-legend__none");
+        view.update({ status: "conflict", showSwap: false, canStep: false });
+        const extension = view.extensionElement();
+        extension.append("1 open conflict");
+        translator.speakGerman();
+
+        expect(countTexts).toEqual(["Kept 2"]);
+        expect(swatches).toEqual(["diff-legend__swatch diff-legend__swatch--kept"]);
+        expect(noneShown).toBe(true);
+        expect(find(".diff-legend__slot--status").textContent).toBe("Konflikte");
+        expect(find(".diff-legend__slot--status .diff-legend__swatch--conflict")).not.toBeNull();
+        expect(view.extensionElement()).toBe(extension);
+        expect(view.element.lastElementChild).toBe(extension);
+        expect(extension.className).toBe("diff-legend__extension");
+        expect(extension.textContent).toBe("1 open conflict");
     });
 
     it("goes away and stops listening for language changes when destroyed", () => {

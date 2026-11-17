@@ -44,3 +44,10 @@ engine vocabulary and its detection. It exists because the barrel also exports D
 `canvasResize.ts`, …), which a workspace compiled without the DOM lib, such as the merge (#2450), cannot
 type-check. `engine.spec.ts` therefore fails on any runtime import in `engine.ts`; `import type` is
 erased and stays allowed.
+
+### The `/mergeVocabulary` entry point
+
+`@miragon/bpmn-modeler-types/mergeVocabulary` is `src/mergeVocabulary.ts` alone, for the same reason:
+the merge view's sides, markers, marker classes and caption roles, which `libs/bpmn-merge` reads without
+the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. The file is excluded from the
+npm component in `release-please-config.json` (`docs/adr/merge.md`).

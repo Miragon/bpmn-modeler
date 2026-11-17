@@ -82,8 +82,9 @@ home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
 `===`, `!==`, `==`, `!=` and `case` comparisons of such a value with a string
 literal outside its home. Each registry entry in `eslint.config.cjs` names the type,
 its module, its homes and an error message naming the fix. Registered: `Engine`
-(`engineSupports`), `SurfaceMode` (`surfaceModeSupports`) and `ReferenceKind`
-(`referenceKindSupports`), each a capability table in `libs/modeler-types`, or a
+(`engineSupports`), `SurfaceMode` (`surfaceModeSupports`), `ReferenceKind`
+(`referenceKindSupports`) and `DiffOrigin` (`diffOriginSupports`), each a capability
+table in `libs/modeler-types`, or a
 `Record<Type, …>` lookup where the knowledge lives; a lookup keyed by the union
 makes the compiler name a missing member, so a new member is decided in every table
 before it builds.

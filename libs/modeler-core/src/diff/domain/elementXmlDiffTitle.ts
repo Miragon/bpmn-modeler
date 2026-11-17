@@ -1,4 +1,4 @@
-import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
+import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";
@@ -21,7 +21,7 @@ export function elementXmlDiffTitle(
 function sidesLabel(origin: DiffOrigin, before: DiffSideVersion, after: DiffSideVersion): string {
     const beforeName = uriDisplayName(before.uri);
     const afterName = uriDisplayName(after.uri);
-    if (origin === "compare-files" || beforeName !== afterName) {
+    if (diffOriginSupports(origin, "namesFiles") || beforeName !== afterName) {
         return compareTabLabel(beforeName, afterName);
     }
     const beforeVersion = revisionLabel(before.revision);

@@ -25,6 +25,24 @@ share one notion of an element's XML, and on `@miragon/bpmn-modeler-types/engine
 modeler's engine rule. It imports that subpath, not the barrel, which would pull DOM-typed
 modules into a DOM-free library.
 
+The core, the protocol and the merge view's webview share one vocabulary: the two sides, the
+markers a pane paints and their classes, the roles a pane caption gives a side and the caption
+itself. Its home is `libs/modeler-types/src/mergeVocabulary.ts`, which imports nothing at
+runtime; the library reaches it through the `@miragon/bpmn-modeler-types/mergeVocabulary`
+subpath, everything else through the barrel, whose exact specifier is the only one the core's
+`domain/` may import. `MergeSide` moved there, and `mergeResult.ts` re-exports it.
+
+`libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so a change
+to either counts toward the npm component. The vocabulary file is excluded from that
+component like this library. The other edits the merge view needs in those libraries land in
+two `chore` changes around the feature changes: one before them (the `"merge"` and
+`"merge-result"` diff origins, the `"merge"` viewer mode, and a diff legend that takes its own
+count slots and an extension element), one after them with the webview's translations. The
+feature changes touch only excluded paths, so the merge view adds no entry to the npm
+changelog and no version bump. Cost: the exclusion is by path, so a published file that later
+imports the vocabulary is not excluded; and the published barrel carries the vocabulary,
+although no package entry re-exports it.
+
 ### Merge elements
 
 The merge decides on its own set of elements, `isMergeElement`: what the diff tracks as
