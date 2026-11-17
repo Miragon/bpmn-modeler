@@ -59,6 +59,19 @@ describe("BpmnDocument.isEmpty", () => {
     });
 });
 
+describe("BpmnDocument.hasMergeConflictMarkers", () => {
+    it.each([
+        [
+            "Git's conflict markers",
+            `<<<<<<< HEAD\n${c7Xml}\n=======\n${c8Xml}\n>>>>>>> feature`,
+            true,
+        ],
+        ["a well-formed model", c7Xml, false],
+    ])("%s → %s", (_case, xml, expected) => {
+        expect(new BpmnDocument(xml).hasMergeConflictMarkers()).toBe(expected);
+    });
+});
+
 describe("BpmnDocument.empty", () => {
     it("should return a C7 diagram containing the given version", () => {
         const doc = BpmnDocument.empty("c7", "7.24.0");

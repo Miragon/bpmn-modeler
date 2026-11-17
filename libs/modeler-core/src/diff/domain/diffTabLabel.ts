@@ -1,7 +1,35 @@
+import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+
+import { inPaneOrder } from "./mergePaneSide";
+
 const COMPARE_SEPARATOR = " ↔ ";
 
 /** Joins the element to the files in an element XML diff's title, which names no diagram diff. */
 export const ELEMENT_XML_TITLE_INFIX = " (XML): ";
+
+/** Joins the working file to the sides in a merge tab's title, which names no file to the label heuristic. */
+export const MERGE_TITLE_INFIX = " (Merge: ";
+
+// The host renders the tab title, so it is the core's English; the panes translate their captions.
+const MERGE_SIDE_WORDS: Record<MergeSide, string> = { current: "Current", incoming: "Incoming" };
+
+/** A merge tab's title: the working file and each side's branch, commit or position. */
+export function mergeTabLabel(
+    fileName: string,
+    captions: Record<MergeSide, MergeSideCaption>,
+): string {
+    const sideName = (caption: MergeSideCaption) =>
+        caption.ref ?? caption.shortHash ?? MERGE_SIDE_WORDS[caption.side];
+    return `${fileName}${MERGE_TITLE_INFIX}${inPaneOrder(captions).map(sideName).join(COMPARE_SEPARATOR)})`;
+}
+
+/**
+ * The title of a merge view's element XML diff: the working file and the
+ * sides by position, since the panes' documents are its Git stages.
+ */
+export function mergeElementXmlDiffTitle(elementId: string, fileName: string): string {
+    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${fileName} (${inPaneOrder(MERGE_SIDE_WORDS).join(COMPARE_SEPARATOR)})`;
+}
 
 /** The title of a `compare-files` diff tab, the same one VS Code gives `vscode.diff(a, b)`. */
 export function compareTabLabel(leftBasename: string, rightBasename: string): string {
@@ -12,10 +40,11 @@ export function compareTabLabel(leftBasename: string, rightBasename: string): st
  * Whether a diff tab's label names the file `basename`: an SCM label
  * (`"x.bpmn (Working Tree)"`, `"x.bpmn (HEAD~1 ↔ HEAD)"`) or either side of a
  * compare label (`"a.bpmn ↔ b.bpmn"`). A compare label naming other files
- * does not claim this one.
+ * does not claim this one, and neither does an element XML diff or a merge
+ * tab: a merge view shows the file's Git stages, never the file itself.
  */
 export function diffTabLabelNamesFile(label: string, basename: string): boolean {
-    if (label.includes(ELEMENT_XML_TITLE_INFIX)) {
+    if (label.includes(ELEMENT_XML_TITLE_INFIX) || label.includes(MERGE_TITLE_INFIX)) {
         return false;
     }
     if (label.startsWith(`${basename} (`)) {

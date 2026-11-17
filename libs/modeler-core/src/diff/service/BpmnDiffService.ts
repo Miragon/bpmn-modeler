@@ -8,8 +8,10 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
+import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { mergeSideOfPane } from "../domain/mergePaneSide";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffSession } from "./DiffSession";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
@@ -17,6 +19,7 @@ import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { MergeSessionStore } from "./MergeSessionStore";
 
 /** A host's element XML diff: shows an element's XML from both sides and moves it with the selection. */
 export type ElementXmlChanges = Pick<ElementXmlDiffService, "show" | "follow">;
@@ -43,12 +46,15 @@ export class BpmnDiffService {
      *   language re-broadcast fan-out.
      * @param elementXmlChanges The host's element XML diff; without it the
      *   panes do not offer an element's XML changes.
+     * @param merges The open merge views, whose panes get their side's caption;
+     *   absent on a host that opens none.
      */
     constructor(
         private readonly notifier: NotifierPort,
         vsSettings: SettingsPort,
         store: DiffPaneStore,
         private readonly elementXmlChanges?: ElementXmlChanges,
+        private readonly merges?: Pick<MergeSessionStore, "ofDiffSession">,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
     }
@@ -162,39 +168,27 @@ export class BpmnDiffService {
             return;
         }
 
-        const beforeView = sideView(result, "before");
-        const afterView = sideView(result, "after");
+        const merge = this.merges?.ofDiffSession(session);
+        const highlightsFor = (side: DiffSide, pane: DiffPaneHandle) => {
+            const view = sideView(result, side);
+            return new ApplyDiffHighlightsQuery(
+                side,
+                view.added,
+                view.removed,
+                view.changed,
+                view.layoutChanged,
+                result.counts,
+                result.navigationOrder,
+                session.origin,
+                // A merge pane's document is a Git stage named after its side; the pane shows the file.
+                merge?.fileName ?? uriDisplayName(pane.uri),
+                this.showsElementXmlChanges,
+                merge?.captions[mergeSideOfPane(side)],
+            );
+        };
 
-        await this.postHighlights(
-            before,
-            new ApplyDiffHighlightsQuery(
-                "before",
-                beforeView.added,
-                beforeView.removed,
-                beforeView.changed,
-                beforeView.layoutChanged,
-                result.counts,
-                result.navigationOrder,
-                session.origin,
-                uriDisplayName(before.uri),
-                this.showsElementXmlChanges,
-            ),
-        );
-        await this.postHighlights(
-            after,
-            new ApplyDiffHighlightsQuery(
-                "after",
-                afterView.added,
-                afterView.removed,
-                afterView.changed,
-                afterView.layoutChanged,
-                result.counts,
-                result.navigationOrder,
-                session.origin,
-                uriDisplayName(after.uri),
-                this.showsElementXmlChanges,
-            ),
-        );
+        await this.postHighlights(before, highlightsFor("before", before));
+        await this.postHighlights(after, highlightsFor("after", after));
     }
 
     private postHighlights(handle: DiffPaneHandle, query: ApplyDiffHighlightsQuery): Promise<void> {

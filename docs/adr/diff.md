@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-14
+- Last reviewed: 2026-11-15
 
 ## Context
 
@@ -87,6 +87,16 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   version without that plane keeps its own and says so on its side label; until a
   step, Show all or another plane brings the panes together, no viewport is synced,
   since one plane's coordinates mean nothing on another.
+
+- VS Code resolves both sides of a diff through the custom editor, so `DiffController`
+  decides per resolving document whether it is a diff pane: a session registered before
+  `vscode.diff` awaits it (compare-files, merge); it is a merge side (`bpmn-merge:`), which
+  joins its live merge view or shows that the view ended and never reaches pairing; it comes
+  from Git (`git:`, `gitfs:`); or more diff tabs name the file than panes render it. The
+  last rule reads tab labels, because a diff whose sides open in a custom editor is a tab
+  without input; a merge tab names no file, live or restored
+  ([merge view](merge-view.md#opening-from-git)), so the working file opens as an editor
+  beside it. A file no rule claims opens as an editor.
 
 The [Node import check](../../packages/bpmn-modeler/scripts/check-diff-node.mjs) and the
 [data-library tests](../../libs/bpmn-diff/src) guard the data/browser split.
@@ -196,9 +206,11 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)`; the file name alone when a
   version is unknown. The core shows a ref as the host names it: VS Code's
   `documentRevision`, the one home of what the plugin knows about Git URIs, reads the
-  version from the Git extension's URIs and cuts commit hashes to the extension's
-  default seven characters, so the title depends on that format and ignores a changed
-  `git.commitShortHashLength`. Theia's `gitfs:` panes and the bridge report unknown.
+  version from the Git extension's URIs and cuts commit hashes with the core's
+  `shortCommitHash` to the extension's default seven characters, which the merge view's
+  captions share, so the title depends on that format and ignores a changed
+  `git.commitShortHashLength`. Theia's own Git integration (`gitfs:`) and the bridge report
+  unknown; the standalone app ships VS Code's Git extension, so its panes are `git:` too.
   The core also orders the sides of an SCM diff by version (a commit, the index, the
   working tree); two commits keep the order their panes resolved in.
 - *IntelliJ shows it inside the diagram diff.* The bridge's `RpcElementXmlDiffView`

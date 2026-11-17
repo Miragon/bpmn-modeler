@@ -40,6 +40,9 @@ import {
 } from "./deployment/adapter/in/DeploymentController";
 import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
 import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
+import { OPEN_BPMN_MERGE_VIEW } from "./diff/adapter/in/MergeController";
+import { MERGE_SIDE_SCHEME } from "./diff/domain/documentRevision";
+import { RESOLVE_IN_MERGE_VIEW_LABEL } from "@miragon/bpmn-modeler-core";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -176,6 +179,7 @@ const CODE_COMMAND_IDS = [
     NEW_ELEMENT_TEMPLATE_CMD,
     REFRESH_ADD_ONS_CMD,
     REVIEW_ADD_ONS_CMD,
+    OPEN_BPMN_MERGE_VIEW,
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -299,6 +303,49 @@ describe("package.json ↔ code contract", () => {
                 `onFileSystem:${FORM_OUTPUT_VALUES_SCHEME}`,
             ]),
         );
+    });
+
+    it("activates to end restored merge panes", () => {
+        expect(manifest.activationEvents).toContain(`onFileSystem:${MERGE_SIDE_SCHEME}`);
+    });
+
+    it("offers Resolve in BPMN Merge View on Merge Changes rows while a BPMN conflict can be resolved", () => {
+        expect(
+            manifest.contributes.commands.find(({ command }) => command === OPEN_BPMN_MERGE_VIEW),
+        ).toMatchObject({
+            title: RESOLVE_IN_MERGE_VIEW_LABEL,
+            category: "Miragon BPMN Modeler",
+            icon: "$(git-merge)",
+        });
+        // A row's `resourceExtname` is the active editor's, so no row can be told apart.
+        expect(manifest.contributes.menus["scm/resourceState/context"]).toEqual([
+            {
+                command: OPEN_BPMN_MERGE_VIEW,
+                group: "navigation",
+                when: "scmProvider == git && scmResourceGroup == merge && bpmn-modeler.hasResolvableBpmnConflicts && config.git.enabled && !git.missing",
+            },
+        ]);
+    });
+
+    it("offers Resolve in BPMN Merge View in the editor title and the palette for a resolvable file only", () => {
+        const when = "resource in bpmn-modeler.resolvableBpmnConflicts";
+
+        expect(manifest.contributes.menus["editor/title"]).toContainEqual({
+            command: OPEN_BPMN_MERGE_VIEW,
+            group: "navigation",
+            when,
+        });
+        expect(manifest.contributes.menus.commandPalette).toContainEqual({
+            command: OPEN_BPMN_MERGE_VIEW,
+            when,
+        });
+    });
+
+    it("never filters a Source Control row by its extension nor puts an icon on every row", () => {
+        const rows = manifest.contributes.menus["scm/resourceState/context"] ?? [];
+
+        expect(rows.filter((entry) => entry.when?.includes("resourceExtname"))).toEqual([]);
+        expect(rows.filter((entry) => entry.group === "inline")).toEqual([]);
     });
 
     it("activates to close restored element XML diffs", () => {
@@ -717,6 +764,8 @@ describe("package.json ↔ code contract", () => {
             "bpmn-modeler.dmnCompareSelectionActive",
             "bpmn-modeler.isElementTemplate",
             "bpmn-modeler.templateEditorShowsFile",
+            "bpmn-modeler.resolvableBpmnConflicts",
+            "bpmn-modeler.hasResolvableBpmnConflicts",
             "bpmn-modeler.elementIdReviewAvailable",
             "bpmn-modeler.elementIdReviewOpen",
             "bpmn-modeler.elementIdReviewCanApply",

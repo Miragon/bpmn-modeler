@@ -22,6 +22,9 @@ import {
     DiffSideLabel,
     DiffViewer,
 } from "@miragon/bpmn-modeler/viewer";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
+
+import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { createElementXmlChangesModule } from "./elementXmlContextPad";
 
@@ -71,6 +74,8 @@ export class DiffMode {
 
     private hostShowsElementXmlChanges = false;
 
+    private labelledBy: ApplyDiffHighlightsQuery | undefined;
+
     constructor(
         private readonly canvas: HTMLElement,
         legendParent: HTMLElement,
@@ -112,6 +117,10 @@ export class DiffMode {
         });
         this.viewer.onSelectedElementChanged((elementId) => {
             this.host.postMessage(new DiffSelectionChangedCommand(elementId ?? NO_DIFF_SELECTION));
+        });
+        // A merge caption is composed here, so the side label cannot re-translate it itself.
+        i18n.onChange(() => {
+            if (this.labelledBy?.mergeCaption) this.label(this.labelledBy);
         });
     }
 
@@ -201,12 +210,14 @@ export class DiffMode {
         this.updateLegend(query);
     }
 
-    /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
+    /**
+     * Names the pane's side; a merge pane by its caption, a compare-files pane
+     * by its file, which the tab title does not tell apart.
+     */
     private label(query: ApplyDiffHighlightsQuery): void {
+        this.labelledBy = query;
         this.sideLabel ??= new DiffSideLabel(this.canvas, query.side);
-        this.sideLabel.showFilename(
-            diffOriginSupports(query.origin, "namesFiles") ? query.paneFilename : undefined,
-        );
+        this.sideLabel.showFilename(diffPaneLabel(query, (key) => i18n.translate(key)));
     }
 
     /**

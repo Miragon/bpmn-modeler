@@ -11,12 +11,15 @@ import {
     DiffFileExtension,
     diffTabLabelNamesFile,
     lastWorkspacePathSegment,
+    MergeViewOpener,
+    mergeViewEndedText,
     scmSides,
     SettingChange,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
-import { isGitProvidedDocument } from "../../domain/documentRevision";
+import { isGitProvidedDocument, isMergeSideDocument } from "../../domain/documentRevision";
+import { mergeViewEndedPage } from "./mergeViewEndedPage";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
@@ -58,11 +61,16 @@ export interface DiffPaneFormat {
 export class DiffController {
     private readonly paneRouter: WebviewMessageRouter<DiffPaneHandle>;
 
+    // A merge pane VS Code resolves again in the same panel keeps the pane it has.
+    private readonly mergePanes = new WeakMap<WebviewPanel, BootstrappableDiffPane>();
+
     /**
      * @param store Session registry (lookups, pending SCM panes, TTL timers).
      * @param notifier Surfaces `vscode.diff` failures to the user.
      * @param format The file format the panes compare and the core service
      *   that drives their content.
+     * @param merge Decides what a merge pane shows; absent for a format the
+     *   merge view does not open.
      */
     constructor(
         private readonly store: DiffPaneStore,
@@ -70,6 +78,7 @@ export class DiffController {
         private readonly createPane: DiffPaneFactory,
         private readonly preferences: ModelerPreferences,
         private readonly format: DiffPaneFormat,
+        private readonly merge?: Pick<MergeViewOpener, "attachPane">,
     ) {
         this.paneRouter = format.createRouter({
             swapSides: (pane) => this.swapCompareFilesSides(pane),
@@ -132,19 +141,26 @@ export class DiffController {
      * Returns `true` when this URI should resolve as a (new) diff pane.
      *
      * Decision tree:
-     *   1. A pre-registered `compare-files` session waits for a pane on this
-     *      URI → true.
-     *   2. The document comes from a Git provider ({@link isGitProvidedDocument})
+     *   1. A pre-registered `compare-files` or `merge` session waits for a
+     *      pane on this URI → true.
+     *   2. The document is one side of a merge view ({@link isMergeSideDocument})
+     *      → true, always: {@link MergeViewOpener.attachPane} decides whether
+     *      its view is live or ended.
+     *   3. The document comes from a Git provider ({@link isGitProvidedDocument})
      *      → true: such a document is read-only and always belongs to a diff.
-     *   3. More diff tabs name the file, per the label heuristic, than diff
+     *   4. More diff tabs name the file, per the label heuristic, than diff
      *      panes already render it → true. A file opened in a normal editor
      *      tab beside its diff stays an editable modeler, while a second diff
      *      tab of the same file (a restored tab opened again) gets a pane of
-     *      its own.
+     *      its own. A merge tab names no file, live or restored, so the
+     *      working file opens as an editor beside its merge view.
      */
     shouldResolveAsDiff(uri: Uri): boolean {
         const needle = uri.toString();
         if (this.store.awaitingPaneFor(needle)) {
+            return true;
+        }
+        if (this.merge && isMergeSideDocument(uri)) {
             return true;
         }
         if (isGitProvidedDocument(uri)) {
@@ -170,6 +186,9 @@ export class DiffController {
      * Bootstraps a freshly-resolved diff pane.
      *
      * Resolution paths:
+     *   - A merge side: {@link MergeViewOpener.attachPane} joins it to its live
+     *     merge view, or the panel shows that the view ended; it never reaches
+     *     SCM pairing.
      *   - Pre-registered `compare-files` session: looked up via the store,
      *     pane attaches immediately, TTL cancels.
      *   - First `scm` pane: stashed as pending, waits for partner.
@@ -180,20 +199,12 @@ export class DiffController {
      * alongside the diff) from colliding.
      */
     resolveDiffPane(panel: WebviewPanel, document: TextDocument): void {
-        // Register listeners *before* we hand HTML to the webview: VS Code
-        // drops webview-originated messages that arrive before the extension
-        // has subscribed, and bootstrapping triggers an immediate
-        // `GetBpmnFileCommand` as soon as the webview's scripts run.
+        if (this.merge && isMergeSideDocument(document.uri)) {
+            this.resolveMergePane(this.merge, panel, document);
+            return;
+        }
         const handle = this.createPane(panel, document);
-
-        panel.webview.onDidReceiveMessage((message: Command) =>
-            this.paneRouter.dispatch(message, handle).catch((error) => {
-                // VS Code's emitter doesn't await this listener, so a rejected
-                // handler would surface as an unhandled rejection — log instead.
-                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            }),
-        );
-        panel.onDidDispose(() => this.store.detach(handle));
+        this.listenTo(panel, handle);
 
         const session = this.store.awaitingPaneFor(handle.uri);
         if (session) {
@@ -204,6 +215,40 @@ export class DiffController {
         }
 
         handle.bootstrap();
+    }
+
+    private resolveMergePane(
+        merge: Pick<MergeViewOpener, "attachPane">,
+        panel: WebviewPanel,
+        document: TextDocument,
+    ): void {
+        const known = this.mergePanes.get(panel);
+        const handle = known ?? this.createPane(panel, document);
+        if (merge.attachPane(handle) === "ended") {
+            panel.webview.html = mergeViewEndedPage(mergeViewEndedText());
+            return;
+        }
+        if (known) {
+            return;
+        }
+        this.mergePanes.set(panel, handle);
+        this.listenTo(panel, handle);
+        handle.bootstrap();
+    }
+
+    // Register listeners *before* we hand HTML to the webview: VS Code
+    // drops webview-originated messages that arrive before the extension
+    // has subscribed, and bootstrapping triggers an immediate
+    // `GetBpmnFileCommand` as soon as the webview's scripts run.
+    private listenTo(panel: WebviewPanel, handle: BootstrappableDiffPane): void {
+        panel.webview.onDidReceiveMessage((message: Command) =>
+            this.paneRouter.dispatch(message, handle).catch((error) => {
+                // VS Code's emitter doesn't await this listener, so a rejected
+                // handler would surface as an unhandled rejection — log instead.
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }),
+        );
+        panel.onDidDispose(() => this.store.detach(handle));
     }
 
     /**

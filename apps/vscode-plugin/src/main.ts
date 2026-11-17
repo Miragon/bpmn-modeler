@@ -18,6 +18,14 @@ import * as addOnsFeature from "./composition/addOnsFeature";
 export interface TestApi {
     diff: {
         sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
+        /** Diff panes that render `uri`, attached or waiting for a partner; 0 for the editable modeler. */
+        paneCountFor(uri: string): number;
+    };
+    merge: {
+        /** The merge view of a working file: its diff origin, open panes, tabs and captions. */
+        sessionFor(
+            fileUri: string,
+        ): { origin: string; paneCount: number; tabCount: number; captions: unknown } | undefined;
     };
 }
 
@@ -45,10 +53,14 @@ export function activate(context: ExtensionContext): TestApi {
         context.globalState,
         deps.notifier,
     );
-    const { diffController, diffStore, dmnDiffController, dmnDiffStore } = diffFeature.register(
-        context,
-        deps,
-    );
+    const {
+        diffController,
+        diffStore,
+        dmnDiffController,
+        dmnDiffStore,
+        mergeSessions,
+        conflictMarkers,
+    } = diffFeature.register(context, deps);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
@@ -59,6 +71,7 @@ export function activate(context: ExtensionContext): TestApi {
     const reviews = addOnsFeature.createViewReviews(deps);
     const { editor: bpmnEditor, plugins } = bpmnEditorFeature.register(context, deps, {
         diffController,
+        conflictMarkers,
         templateSources,
         deploymentStatusParticipant,
         scriptEditor: script.editorContribution,
@@ -93,6 +106,24 @@ export function activate(context: ExtensionContext): TestApi {
                     return undefined;
                 }
                 return { origin: session.origin, paneCount: session.attachedPanes().length };
+            },
+            paneCountFor(uri: string) {
+                return diffStore.paneCountFor(uri) + dmnDiffStore.paneCountFor(uri);
+            },
+        },
+        merge: {
+            sessionFor(fileUri: string) {
+                const session = mergeSessions.of(fileUri);
+                if (!session) {
+                    return undefined;
+                }
+                const tabs = mergeSessions.diffSessionsOf(session);
+                return {
+                    origin: tabs[0]?.origin,
+                    paneCount: tabs.reduce((count, tab) => count + tab.attachedPanes().length, 0),
+                    tabCount: tabs.length,
+                    captions: session.captions,
+                };
             },
         },
     };

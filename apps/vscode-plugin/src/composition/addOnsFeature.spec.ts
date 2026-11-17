@@ -107,6 +107,7 @@ function createVsCodeAddOns(context = createExtensionContext()) {
             bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
         ),
         templateSources,
+        conflictMarkers: { onResolve: () => undefined },
         deploymentStatusParticipant: deploymentStatus,
         reviews,
         scriptEditor: new ScriptEditorFeature({

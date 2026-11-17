@@ -12,6 +12,7 @@ import {
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { MergeSession } from "./MergeSessionStore";
 
 const BEFORE_URI = "file:///repo/a.bpmn";
 const AFTER_URI = "file:///repo/b.bpmn";
@@ -39,6 +40,18 @@ const AFTER_XML = bpmn(`
     <bpmn:startEvent id="Start" />
     <bpmn:task id="Review" name="Review order" />
     <bpmn:task id="Ship" name="Ship" />`);
+
+const MERGE_SESSION: MergeSession = {
+    fileUri: "file:///repo/my%20order.bpmn",
+    fileName: "my order.bpmn",
+    title: "my order.bpmn (Merge: main ↔ feature)",
+    captions: {
+        current: { side: "current", role: "branch", ref: "main" },
+        incoming: { side: "incoming", role: "upstream", ref: "feature" },
+    },
+    uris: { current: "bpmn-merge:/repo/a", incoming: "bpmn-merge:/repo/b" },
+    stages: { current: BEFORE_XML, incoming: AFTER_XML },
+};
 
 /** A diagram diff of two armed panes and the service that shows its element XML. */
 function diagramDiff(beforeXml = BEFORE_XML, afterXml = AFTER_XML) {
@@ -73,11 +86,12 @@ function diagramDiff(beforeXml = BEFORE_XML, afterXml = AFTER_XML) {
 function elementXmlDiffService(
     store: DiffPaneStore,
     notifier = createTestHost().notifier,
-    extractElementXml?: ConstructorParameters<typeof ElementXmlDiffService>[3],
+    extractElementXml?: ConstructorParameters<typeof ElementXmlDiffService>[4],
+    merges?: ConstructorParameters<typeof ElementXmlDiffService>[3],
 ) {
     let service: ElementXmlDiffService | undefined = undefined;
     const view = new RecordingElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
-    service = new ElementXmlDiffService(store, view, notifier, extractElementXml);
+    service = new ElementXmlDiffService(store, view, notifier, merges, extractElementXml);
     return { service, view };
 }
 
@@ -369,6 +383,31 @@ describe("ElementXmlDiffService", () => {
 
         expect(view.shown(DIFF_KEY)?.title).toBe(
             "Review (XML): order.bpmn (HEAD~1) ↔ order.bpmn (Working Tree)",
+        );
+    });
+
+    it("names the working file and the sides by position for a merge view", async () => {
+        const store = new DiffPaneStore();
+        const uris = {
+            current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent",
+            incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming",
+        };
+        const session = store.registerMerge(uris);
+        const current = new FakeDiffPaneHandle(uris.current, BEFORE_XML);
+        const incoming = new FakeDiffPaneHandle(uris.incoming, AFTER_XML);
+        session.attachPane(current);
+        session.attachPane(incoming);
+        store.dispose();
+        const merges = {
+            ofDiffSession: (diffSession: DiffSession) =>
+                diffSession === session ? MERGE_SESSION : undefined,
+        };
+        const { service, view } = elementXmlDiffService(store, undefined, undefined, merges);
+
+        await service.show(incoming, "Review");
+
+        expect(view.shown(DIFF_KEY)?.title).toBe(
+            "Review (XML): my order.bpmn (Current ↔ Incoming)",
         );
     });
 

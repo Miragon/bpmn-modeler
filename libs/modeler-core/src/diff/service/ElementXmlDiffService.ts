@@ -3,11 +3,13 @@ import { NO_DIFF_SELECTION } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../../kernel/port/hostPorts";
 import { ElementXmlRequests } from "../domain/ElementXmlRequests";
+import { mergeElementXmlDiffTitle } from "../domain/diffTabLabel";
 import { elementXmlDiffTitle } from "../domain/elementXmlDiffTitle";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { ElementXmlDiff, ElementXmlDiffView } from "../port/ElementXmlDiffView";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffSession } from "./DiffSession";
+import { MergeSessionStore } from "./MergeSessionStore";
 
 /**
  * The XML of one element without its diagram interchange, or `undefined` when
@@ -37,6 +39,7 @@ export class ElementXmlDiffService {
         private readonly store: DiffPaneStore,
         private readonly view: ElementXmlDiffView,
         private readonly notifier: NotifierPort,
+        private readonly merges?: Pick<MergeSessionStore, "ofDiffSession">,
         private readonly extractElementXml: ElementXmlExtractor = elementXml,
     ) {
         store.onSessionClosed((session) => void this.diagramDiffClosed(session));
@@ -108,11 +111,14 @@ export class ElementXmlDiffService {
             this.extractElementXml(beforeText, elementId, prefixSources),
             this.extractElementXml(afterText, elementId, prefixSources),
         ]);
+        const merge = this.merges?.ofDiffSession(session);
         return {
             diffKey: key,
             paneUri: before.uri,
             elementId,
-            title: elementXmlDiffTitle(elementId, session.origin, before, after),
+            title: merge
+                ? mergeElementXmlDiffTitle(elementId, merge.fileName)
+                : elementXmlDiffTitle(elementId, session.origin, before, after),
             before: beforeXml ?? "",
             after: afterXml ?? "",
         };

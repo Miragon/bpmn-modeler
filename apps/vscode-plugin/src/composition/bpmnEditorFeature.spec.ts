@@ -117,6 +117,7 @@ function createVsCodeBpmnEditor(context = createExtensionContext()) {
             bpmnDiffFormat(new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore)),
         ),
         templateSources: { getCachedTemplateSources: () => Promise.resolve([]) },
+        conflictMarkers: { onResolve: () => undefined },
         deploymentStatusParticipant: deploymentStatus,
         reviews,
         scriptEditor: new ScriptEditorFeature({

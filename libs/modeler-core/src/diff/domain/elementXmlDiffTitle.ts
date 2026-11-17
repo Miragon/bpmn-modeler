@@ -15,10 +15,14 @@ export function elementXmlDiffTitle(
     before: DiffSideVersion,
     after: DiffSideVersion,
 ): string {
-    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${sidesLabel(origin, before, after)}`;
+    return `${elementId}${ELEMENT_XML_TITLE_INFIX}${versionsLabel(origin, before, after)}`;
 }
 
-function sidesLabel(origin: DiffOrigin, before: DiffSideVersion, after: DiffSideVersion): string {
+function versionsLabel(
+    origin: DiffOrigin,
+    before: DiffSideVersion,
+    after: DiffSideVersion,
+): string {
     const beforeName = uriDisplayName(before.uri);
     const afterName = uriDisplayName(after.uri);
     if (diffOriginSupports(origin, "namesFiles") || beforeName !== afterName) {

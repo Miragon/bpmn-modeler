@@ -2,15 +2,18 @@ import { ExtensionContext } from "vscode";
 
 import {
     BpmnDiffService,
+    ConflictMarkerParticipant,
     createDiffPaneRouter,
     createDmnDiffPaneRouter,
     DiffPaneStore,
     DmnDiffService,
     ElementXmlDiffService,
+    MergeSessionStore,
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
+import * as mergeViewFeature from "./mergeViewFeature";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -18,7 +21,8 @@ import { SharedDeps } from "./sharedDeps";
  * (BPMN, DMN) because nothing outside it touches the diff-pane lifecycle. The
  * controllers are returned because two other features (the editors'
  * delegate-resolve, `compare`) dispatch into them — the one diff collaborator
- * with cross-feature reach.
+ * with cross-feature reach. The BPMN merge view registers on the BPMN pane
+ * store, since its panes are BPMN diff panes.
  */
 export function register(
     context: ExtensionContext,
@@ -28,10 +32,13 @@ export function register(
     diffStore: DiffPaneStore;
     dmnDiffController: DiffController;
     dmnDiffStore: DiffPaneStore;
+    mergeSessions: MergeSessionStore;
+    conflictMarkers: ConflictMarkerParticipant;
 } {
     const diffStore = new DiffPaneStore();
     const dmnDiffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore, dmnDiffStore);
+    const merge = mergeViewFeature.register(context, diffStore, deps);
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
@@ -42,9 +49,11 @@ export function register(
                 deps.notifier,
                 deps.vsSettings,
                 diffStore,
-                elementXmlDiffs(context, diffStore, deps),
+                elementXmlDiffs(context, diffStore, deps, merge.sessions),
+                merge.sessions,
             ),
         ),
+        merge.opener,
     );
     const dmnDiffController = new DiffController(
         dmnDiffStore,
@@ -56,7 +65,14 @@ export function register(
     diffController.register(context);
     dmnDiffController.register(context);
 
-    return { diffController, diffStore, dmnDiffController, dmnDiffStore };
+    return {
+        diffController,
+        diffStore,
+        dmnDiffController,
+        dmnDiffStore,
+        mergeSessions: merge.sessions,
+        conflictMarkers: merge.conflictMarkers,
+    };
 }
 
 /** The element XML diffs below the diagram diffs, or `undefined` where the host cannot show them. */
@@ -64,6 +80,7 @@ function elementXmlDiffs(
     context: ExtensionContext,
     diffStore: DiffPaneStore,
     deps: SharedDeps,
+    merges: MergeSessionStore,
 ): ElementXmlDiffService | undefined {
     if (!VsCodeElementXmlDiffView.isSupportedByHost()) {
         return undefined;
@@ -71,7 +88,7 @@ function elementXmlDiffs(
     let service: ElementXmlDiffService | undefined = undefined;
     const view = new VsCodeElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
     view.register(context);
-    service = new ElementXmlDiffService(diffStore, view, deps.notifier);
+    service = new ElementXmlDiffService(diffStore, view, deps.notifier, merges);
     return service;
 }
 

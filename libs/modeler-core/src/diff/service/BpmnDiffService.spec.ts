@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { createTestHost, FakeDiffPaneHandle } from "../../testing";
+import { RecordingMergeSidesView } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { MergeSessionStore } from "./MergeSessionStore";
 
 // ─── Sample BPMN ──────────────────────────────────────────────────────────────
 
@@ -149,6 +151,71 @@ describe("BpmnDiffService", () => {
                 .find((m) => m.type === "ApplyDiffHighlightsQuery")?.paneFilename;
         expect(paneFilenameOf(before)).toBe("diagram.bpmn");
         expect(paneFilenameOf(after)).toBe("diagram.bpmn");
+    });
+
+    it("names a merge pane after its side's caption and the working file", async () => {
+        const { notifier, settings } = createTestHost();
+        const store = new DiffPaneStore();
+        const merges = new MergeSessionStore(store, new RecordingMergeSidesView());
+        const service = new BpmnDiffService(notifier, settings, store, undefined, merges);
+        const uris = {
+            current: "bpmn-merge:/repo/order.current.bpmn?side%3Dcurrent%26opening%3D1",
+            incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1",
+        };
+        const captions = {
+            current: { side: "current", role: "branch", ref: "main" },
+            incoming: { side: "incoming", role: "upstream", ref: "feature" },
+        } as const;
+        const session = store.registerMerge(uris);
+        merges.add(
+            {
+                fileUri: "file:///repo/order.bpmn",
+                fileName: "order.bpmn",
+                title: "order.bpmn (Merge: main ↔ feature)",
+                captions,
+                uris,
+                stages: { current: beforeBpmn, incoming: afterBpmn },
+            },
+            session,
+        );
+        const current = fakeHandle(uris.current, beforeBpmn);
+        const incoming = fakeHandle(uris.incoming, afterBpmn);
+        session.attachPane(current);
+        session.attachPane(incoming);
+
+        await service.markReady(current);
+        await service.markReady(incoming);
+
+        const highlightsOf = (handle: FakeDiffPaneHandle) =>
+            handle.posted
+                .map((m) => m as { type: string; [key: string]: unknown })
+                .find((m) => m.type === "ApplyDiffHighlightsQuery");
+        expect(highlightsOf(current)).toMatchObject({
+            origin: "merge",
+            paneFilename: "order.bpmn",
+            mergeCaption: captions.current,
+        });
+        expect(highlightsOf(incoming)).toMatchObject({
+            origin: "merge",
+            paneFilename: "order.bpmn",
+            mergeCaption: captions.incoming,
+            added: ["Task_1"],
+        });
+    });
+
+    it("sends no merge caption for a compare-files or SCM diff", async () => {
+        const { service, store } = createService();
+        const { before, after } = attachedPair(store, beforeBpmn, afterBpmn);
+
+        await service.markReady(before);
+        await service.markReady(after);
+
+        const captionOf = (handle: FakeDiffPaneHandle) =>
+            handle.posted
+                .map((m) => m as { type: string; mergeCaption?: unknown })
+                .find((m) => m.type === "ApplyDiffHighlightsQuery")?.mergeCaption;
+        expect(captionOf(before)).toBeUndefined();
+        expect(captionOf(after)).toBeUndefined();
     });
 
     it.each<[string, ElementXmlChanges | undefined, boolean]>([

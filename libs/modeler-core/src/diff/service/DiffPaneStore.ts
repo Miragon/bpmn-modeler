@@ -1,15 +1,16 @@
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
+import { MergePaneUris } from "../port/MergeSidesView";
 import { DiffSession } from "./DiffSession";
 
 /**
- * Milliseconds a pre-registered `compare-files` session stays alive with no
- * panes attached before it is swept.  Covers the "user triggered the command
+ * Milliseconds a pre-registered `compare-files` or `merge` session stays alive
+ * with no panes attached before it is swept.  Covers the "user triggered the command
  * but the diff tab never opened" edge case.  Longer than any realistic
  * `vscode.diff` → `resolveCustomTextEditor` latency; short enough that
  * registering the same pair again after a cancel works without collisions.
  */
-const COMPARE_FILES_TTL_MS = 30_000;
+const PRE_REGISTERED_TTL_MS = 30_000;
 
 /**
  * Registry for every live BPMN diff session and the panes attached to them.
@@ -49,17 +50,20 @@ export class DiffPaneStore implements EditorSubscription {
      * Side assignment is fixed: `beforeUri` is the left pane, `afterUri` the
      * right — matching the visual order VS Code renders `vscode.diff(a, b)`
      * in. A TTL sweeper drops the session if no pane attaches within
-     * {@link COMPARE_FILES_TTL_MS}; {@link cancelTtl} disarms it as soon as
+     * {@link PRE_REGISTERED_TTL_MS}; {@link cancelTtl} disarms it as soon as
      * the first pane arrives.
      */
     registerCompareFiles(beforeUri: string, afterUri: string): DiffSession {
-        const session = DiffSession.forCompareFiles(beforeUri, afterUri);
-        this.index(session);
-        this.ttlTimers.set(
-            session,
-            setTimeout(() => this.sweepOrphan(session), COMPARE_FILES_TTL_MS),
-        );
-        return session;
+        return this.preRegister(DiffSession.forCompareFiles(beforeUri, afterUri));
+    }
+
+    /**
+     * Pre-registers a `merge` session before the host opens its panes, so they
+     * attach to it and never to SCM pairing; swept like a `compare-files`
+     * session when no pane arrives.
+     */
+    registerMerge(uris: MergePaneUris): DiffSession {
+        return this.preRegister(DiffSession.forMerge(uris));
     }
 
     /** Adds `session`; both the eager `compare-files` and the lazy `scm` path funnel through here. */
@@ -188,6 +192,15 @@ export class DiffPaneStore implements EditorSubscription {
             clearTimeout(timer);
         }
         this.ttlTimers.clear();
+    }
+
+    private preRegister(session: DiffSession): DiffSession {
+        this.index(session);
+        this.ttlTimers.set(
+            session,
+            setTimeout(() => this.sweepOrphan(session), PRE_REGISTERED_TTL_MS),
+        );
+        return session;
     }
 
     private setPending(key: string, handles: DiffPaneHandle[]): void {
