@@ -17,6 +17,8 @@ import type {
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
 
+import type { MergePadDecision } from "./mergePadDecisions";
+
 /** `i18n.translate`, with the replacements its templates name. */
 export type MergeTranslate = (key: string, replacements?: Record<string, string>) => string;
 
@@ -99,12 +101,6 @@ const KEEP_SIDE_TEXTS: Record<MergeSide, string> = {
     incoming: "Keep incoming",
 };
 
-// One letter per side, shown on a pick's badge beside its check mark.
-const SIDE_LETTERS: Record<MergeSide, string> = {
-    current: "C",
-    incoming: "I",
-};
-
 const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
     element: {
         current: "Kept from current, your pick",
@@ -168,13 +164,13 @@ const OUTCOME_HEADLINES: Record<MergePaneAction, { applied: string; refused: str
     },
 };
 
-/** A pick's badge: the kept side's letter, and its full words for the title and screen readers. */
+/** A pick's badge: the kept side's word as the pane captions name it, and its full words for screen readers. */
 export function pickBadgeText(
     badge: { readonly keptSide: MergeSide; readonly scope: MergePickScope },
     translate: MergeTranslate,
-): { letter: string; label: string } {
+): { side: string; label: string } {
     return {
-        letter: translate(SIDE_LETTERS[badge.keptSide]),
+        side: translate(MERGE_SIDE_TEXTS[badge.keptSide]),
         label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]),
     };
 }
@@ -191,6 +187,81 @@ export function pickNotDrawnText(
 /** The legend's action that keeps the stepped element from the pane's side. */
 export function keepSideText(side: MergeSide, translate: MergeTranslate): string {
     return translate(KEEP_SIDE_TEXTS[side]);
+}
+
+// The pad's words, English only until the translations follow; the catalogs fall back to the key.
+const KEEP_INSIDE_TEXTS: Record<MergeSide, string> = {
+    current: "Keep current with everything inside",
+    incoming: "Keep incoming with everything inside",
+};
+
+const KEEP_TIPS: Record<MergeSide, string> = {
+    current: "Keep it as current has it",
+    incoming: "Keep it as incoming has it",
+};
+
+const KEEP_INSIDE_TIPS: Record<MergeSide, string> = {
+    current: "Keep it and everything inside as current has them",
+    incoming: "Keep it and everything inside as incoming has them",
+};
+
+const LEAVE_OUT_TIPS: Record<
+    MergeSide,
+    Record<Extract<MergePadDecision, { kind: "leaveOut" }>["otherSideLacks"], string>
+> = {
+    current: {
+        removed: "Leave it out, as current removed it",
+        missing: "Leave it out, as current doesn't have it",
+    },
+    incoming: {
+        removed: "Leave it out, as incoming removed it",
+        missing: "Leave it out, as incoming doesn't have it",
+    },
+};
+
+/** The context pad's words that name no side. */
+const MERGE_PAD_TEXTS = {
+    leaveOut: "Leave out",
+    keepRemovedFlows: "Also keep its removed flows",
+    undoTip: "Go back to what the merge decided by itself",
+} as const;
+
+/**
+ * A pad entry's words: its label for screen readers, which names the side
+ * where the entry picks one, and its tooltip, the label and what it does.
+ */
+export function padDecisionText(
+    decision: MergePadDecision,
+    translate: MergeTranslate,
+): { label: string; tooltip: string } {
+    const withTip = (label: string, tip: string) => ({ label, tooltip: `${label}: ${tip}` });
+    switch (decision.kind) {
+        case "keep":
+            return decision.scope === "withContents"
+                ? withTip(
+                      translate(KEEP_INSIDE_TEXTS[decision.side]),
+                      translate(KEEP_INSIDE_TIPS[decision.side]),
+                  )
+                : withTip(
+                      keepSideText(decision.side, translate),
+                      translate(KEEP_TIPS[decision.side]),
+                  );
+        case "leaveOut": {
+            // "Leave out" names no side, so the label carries the tip too.
+            const { tooltip } = withTip(
+                translate(MERGE_PAD_TEXTS.leaveOut),
+                translate(LEAVE_OUT_TIPS[decision.side][decision.otherSideLacks]),
+            );
+            return { label: tooltip, tooltip };
+        }
+        case "keepRemovedFlows":
+            return withTip(
+                translate(MERGE_PAD_TEXTS.keepRemovedFlows),
+                restoreOfferText(decision.offer, translate),
+            );
+        case "undo":
+            return withTip(translate(MERGE_PICK_TEXTS.undo), translate(MERGE_PAD_TEXTS.undoTip));
+    }
 }
 
 /** One reason a pick was refused, naming the elements as the canvas does. */

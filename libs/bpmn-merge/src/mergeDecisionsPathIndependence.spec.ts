@@ -5,7 +5,7 @@ import { MERGE_SCENARIOS } from "./__fixtures__/mergeScenarios";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
-import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 
 function stateOf(decisions: MergeDecisions) {
     return {
@@ -17,10 +17,6 @@ function stateOf(decisions: MergeDecisions) {
         openConflicts: decisions.openConflicts,
         canBuild: decisions.canBuild,
     };
-}
-
-function otherSide(side: MergeSide): MergeSide {
-    return side === "current" ? "incoming" : "current";
 }
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });

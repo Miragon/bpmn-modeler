@@ -47,16 +47,20 @@ describe("mergePaneSteps", () => {
 
         expect(current.all.map(({ id }) => id)).toEqual(incoming.all.map(({ id }) => id));
         expect(current.openConflicts).toEqual([
-            { id: "End_Rejected", shapeless: false, onThisPane: false },
-            { id: "Task_Pack", shapeless: false, onThisPane: true },
-            { id: "Process_1", shapeless: true, onThisPane: true },
+            { id: "End_Rejected", shapeless: false, onThisPane: false, onOtherPane: true },
+            { id: "Task_Pack", shapeless: false, onThisPane: true, onOtherPane: true },
+            { id: "Process_1", shapeless: true, onThisPane: true, onOtherPane: true },
         ]);
         expect(incoming.all.find(({ id }) => id === "Task_Audit")).toEqual({
             id: "Task_Audit",
             shapeless: false,
             onThisPane: true,
+            onOtherPane: false,
         });
-        expect(current.all.find(({ id }) => id === "Task_Audit")?.onThisPane).toBe(false);
+        expect(current.all.find(({ id }) => id === "Task_Audit")).toMatchObject({
+            onThisPane: false,
+            onOtherPane: true,
+        });
     });
 
     it("names the sub-process plane that draws a step, and none for the opening plane", () => {
@@ -75,9 +79,15 @@ describe("mergePaneSteps", () => {
         const steps = mergePaneSteps(withPlanes, ["Sub_Ship", "Task_Pack", "Process_1"], "current");
 
         expect(steps.all).toStrictEqual([
-            { id: "Sub_Ship", shapeless: false, onThisPane: true },
-            { id: "Task_Pack", shapeless: false, onThisPane: false, plane: "Sub_Ship" },
-            { id: "Process_1", shapeless: true, onThisPane: true },
+            { id: "Sub_Ship", shapeless: false, onThisPane: true, onOtherPane: true },
+            {
+                id: "Task_Pack",
+                shapeless: false,
+                onThisPane: false,
+                onOtherPane: true,
+                plane: "Sub_Ship",
+            },
+            { id: "Process_1", shapeless: true, onThisPane: true, onOtherPane: true },
         ]);
     });
 });

@@ -144,15 +144,6 @@ function translateIn(locale: keyof typeof extras) {
     return (key: string) => extras[locale]?.[key] ?? "";
 }
 
-function sideInitial(locale: keyof typeof extras, side: MergeSide): string {
-    const word = mergeCaptionText({ side, role: "unknown" }, translateIn(locale));
-    return ([...word][0] ?? "").toUpperCase();
-}
-
-function sideLetter(locale: keyof typeof extras, side: MergeSide): string {
-    return pickBadgeText({ keptSide: side, scope: "element" }, translateIn(locale)).letter;
-}
-
 describe("the merge view's translations", () => {
     it.each(locales)("%s translates every merge text", (locale) => {
         const dictionary = extras[locale] ?? {};
@@ -161,21 +152,13 @@ describe("the merge view's translations", () => {
         expect(untranslated).toEqual([]);
     });
 
-    it.each(locales)("%s marks a badge with the first letter of its side's word", (locale) => {
-        const letters = MERGE_SIDES.map((side) => ({
-            side,
-            letter: sideLetter(locale, side),
-            initial: sideInitial(locale, side),
-        }));
-
-        for (const { side, letter, initial } of letters) {
-            expect({ side, length: [...letter].length, letter }).toEqual({
-                side,
-                length: 1,
-                letter: initial,
-            });
+    it.each(locales)("%s names a badge's side with the word the pane's caption uses", (locale) => {
+        const translate = translateIn(locale);
+        for (const side of MERGE_SIDES) {
+            expect(pickBadgeText({ keptSide: side, scope: "element" }, translate).side).toBe(
+                mergeCaptionText({ side, role: "unknown" }, translate),
+            );
         }
-        expect(letters[0]?.letter).not.toBe(letters[1]?.letter);
     });
 
     // VS Code's own conflict actions ("Accept Incoming Change") in its language packs.

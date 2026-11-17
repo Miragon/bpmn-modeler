@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
-import { inPaneOrder, mergeSideOfPane, otherMergeSide } from "./mergePaneSide";
+import { inPaneOrder, mergeSideOfPane } from "./mergePaneSide";
 
 describe("mergeSideOfPane", () => {
     it.each<[DiffSide, MergeSide]>([
@@ -19,14 +19,5 @@ describe("inPaneOrder", () => {
             "left",
             "right",
         ]);
-    });
-});
-
-describe("otherMergeSide", () => {
-    it.each<[MergeSide, MergeSide]>([
-        ["current", "incoming"],
-        ["incoming", "current"],
-    ])("merges %s with %s", (side, other) => {
-        expect(otherMergeSide(side)).toBe(other);
     });
 });

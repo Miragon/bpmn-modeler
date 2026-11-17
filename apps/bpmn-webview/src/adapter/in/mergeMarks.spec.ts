@@ -20,7 +20,7 @@ const view = (
 const labels = (conflict: string): MergeMarksLabels => ({
     conflict,
     badge: ({ keptSide, scope }) => ({
-        letter: keptSide[0].toUpperCase(),
+        side: keptSide[0].toUpperCase() + keptSide.slice(1),
         label: `${keptSide} ${scope}`,
     }),
 });
@@ -32,11 +32,52 @@ const PICKED: MergePaneBadge = {
     scope: "element",
 };
 
+interface RecordedOverlay {
+    element: string;
+    type: string;
+    html: string;
+    position: { top?: number; left?: number };
+    show?: { minZoom?: number; maxZoom?: number };
+    scale?: unknown;
+}
+
+// A long straight flow, and one too short to hold a check off its arrowhead.
+const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
+    Flow_1: [
+        { x: 100, y: 200 },
+        { x: 300, y: 200 },
+    ],
+    Flow_Short: [
+        { x: 100, y: 200 },
+        { x: 120, y: 200 },
+    ],
+};
+
+// diagram-js's Overlays._updateOverlayVisibilty: hidden below `minZoom` and above `maxZoom`.
+function shownAt(overlay: RecordedOverlay, scale: number): boolean {
+    const { minZoom, maxZoom } = overlay.show ?? {};
+    return (
+        !(minZoom !== undefined && minZoom > scale) && !(maxZoom !== undefined && maxZoom < scale)
+    );
+}
+
+function neighbourDoubles(value: number): [below: number, above: number] {
+    const view = new DataView(new ArrayBuffer(8));
+    view.setFloat64(0, value);
+    const bits = view.getBigUint64(0);
+    view.setBigUint64(0, bits - 1n);
+    const below = view.getFloat64(0);
+    view.setBigUint64(0, bits + 1n);
+    return [below, view.getFloat64(0)];
+}
+
 /** A canvas holding `ids`, recording markers and overlays as diagram-js keeps them. */
 function fakeCanvas(ids: readonly string[]) {
     const markers = new Map<string, Set<string>>(ids.map((id) => [id, new Set<string>()]));
-    const elements = ids.map((id) => ({ id }));
-    const overlays: { element: string; type: string; html: string }[] = [];
+    const elements = ids.map((id) =>
+        id in WAYPOINTS ? { id, waypoints: WAYPOINTS[id] } : { id, width: 100, height: 80 },
+    );
+    const overlays: RecordedOverlay[] = [];
     const canvas = {
         addMarker: (id: string, marker: string) => markers.get(id)?.add(marker),
         removeMarker: (id: string, marker: string) => markers.get(id)?.delete(marker),
@@ -47,9 +88,13 @@ function fakeCanvas(ids: readonly string[]) {
         forEach: (visit: (element: { id: string }) => void) => elements.forEach(visit),
     };
     const overlayService = {
-        add: (element: string, type: string, overlay: { html: string }) => {
+        add: (
+            element: string,
+            type: string,
+            overlay: Omit<RecordedOverlay, "element" | "type">,
+        ) => {
             if (!markers.has(element)) throw new Error("invalid element specified");
-            overlays.push({ element, type, html: overlay.html });
+            overlays.push({ element, type, ...overlay });
             return String(overlays.length);
         },
         remove: ({ type }: { type: string }) => {
@@ -133,12 +178,13 @@ describe("MergeMarks", () => {
         );
 
         const badges = overlays.filter(({ type }) => type === "merge-pick");
-        expect(badges.map(({ element }) => element)).toEqual(["Task_Pack", "Flow_1"]);
+        expect([...new Set(badges.map(({ element }) => element))]).toEqual(["Task_Pack", "Flow_1"]);
+        expect(badges.every(({ html }) => html.includes("merge-pick-badge__check"))).toBe(true);
         expect(badges[0].html).toContain('aria-label="incoming element"');
-        expect(badges[0].html).toContain(">I<");
         expect(badges[0].html).toContain("merge-pick-badge--kept-here");
-        expect(badges[1].html).toContain("merge-pick-badge--replaced-here");
-        expect(badges[1].html).toContain("merge-pick-badge--with-contents");
+        const flowBadge = badges.find(({ element }) => element === "Flow_1");
+        expect(flowBadge?.html).toContain("merge-pick-badge--replaced-here");
+        expect(flowBadge?.html).toContain("merge-pick-badge--with-contents");
         expect(markersOf("Task_Check")).toContain("merge-consequence");
         expect(markersOf("Task_Pack")).not.toContain("merge-consequence");
 
@@ -146,6 +192,71 @@ describe("MergeMarks", () => {
 
         expect(overlays.filter(({ type }) => type === "merge-pick")).toEqual([]);
         expect(markersOf("Task_Check")).not.toContain("merge-consequence");
+    });
+
+    it("names the kept side in words above a shape's top edge, and shrinks to the check at small zoom", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+
+        marks().paint(view(NO_MARKS, { badges: [PICKED], consequences: [] }), labels("Conflict"));
+
+        const [worded, checkOnly] = overlays;
+        expect(overlays).toHaveLength(2);
+        expect(worded.html).toContain(">Incoming<");
+        expect(worded.position.top).toBeLessThan(0);
+        expect(worded.position.left).toBe(0);
+        expect(checkOnly.html).not.toContain("Incoming");
+        expect(checkOnly.html).toContain('aria-label="incoming element"');
+        expect(checkOnly.position).toStrictEqual(worded.position);
+        for (const overlay of overlays) {
+            expect(overlay.html).toContain("merge-pick-badge--on-shape");
+        }
+        const smallZoom = worded.show?.minZoom ?? 0;
+        expect(smallZoom).toBeGreaterThan(0);
+        expect(shownAt(worded, 1)).toBe(true);
+        expect(shownAt(checkOnly, 1)).toBe(false);
+        expect(shownAt(worded, smallZoom / 2)).toBe(false);
+        expect(shownAt(checkOnly, smallZoom / 2)).toBe(true);
+    });
+
+    it("shows exactly one badge on a picked shape at every zoom, also next to the threshold", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+        marks().paint(view(NO_MARKS, { badges: [PICKED], consequences: [] }), labels("Conflict"));
+        const threshold = overlays[0].show?.minZoom ?? 0;
+        const [justBelow, justAbove] = neighbourDoubles(threshold);
+
+        for (const scale of [0.2, threshold - 0.005, justBelow, threshold, justAbove, 4]) {
+            expect(
+                overlays.filter((overlay) => shownAt(overlay, scale)),
+                `at ${scale}`,
+            ).toHaveLength(1);
+        }
+    });
+
+    it("puts a flow's check alone in the middle of its longest segment, scaling with the zoom", () => {
+        const { marks, overlays } = fakeCanvas(["Flow_1"]);
+
+        marks().paint(
+            view(NO_MARKS, { badges: [{ ...PICKED, id: "Flow_1" }], consequences: [] }),
+            labels("Conflict"),
+        );
+
+        expect(overlays).toHaveLength(1);
+        expect(overlays[0].position).toStrictEqual({ left: 100, top: 0 });
+        expect(overlays[0].html).not.toContain("Incoming");
+        expect(overlays[0].html).toContain("merge-pick-badge--on-flow");
+        expect(overlays[0].show).toBeUndefined();
+        expect(overlays[0].scale).toStrictEqual({ max: 1.5 });
+    });
+
+    it("leaves the check out on a flow too short to hold it off its arrowhead", () => {
+        const { marks, overlays } = fakeCanvas(["Flow_Short"]);
+
+        marks().paint(
+            view(NO_MARKS, { badges: [{ ...PICKED, id: "Flow_Short" }], consequences: [] }),
+            labels("Conflict"),
+        );
+
+        expect(overlays).toEqual([]);
     });
 
     it("skips a picked id missing on this canvas", () => {

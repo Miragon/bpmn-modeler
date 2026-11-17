@@ -1,6 +1,4 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
-
-import { otherMergeSide } from "./mergePaneSide";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
 /** The flows a pick of an element left out, which keeping them with it would bring back. */
 export interface PickRestoreOffer {
@@ -32,6 +30,6 @@ export function restoreOfferOnPane(
     return {
         elementId: offer.elementId,
         connections: offer.connections,
-        removedBy: otherMergeSide(offer.keptSide),
+        removedBy: otherSide(offer.keptSide),
     };
 }

@@ -1,6 +1,6 @@
 import { buildMerged, type MergedDocument } from "@miragon/bpmn-modeler-merge";
 import type { MergeResultComparison } from "@miragon/bpmn-modeler-shared";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { filePathOfUri } from "../../kernel/domain/workspacePath";
@@ -15,7 +15,6 @@ import {
     writeFailureText,
 } from "../domain/mergeBuildTexts";
 import { mergePaneBasename } from "../domain/mergePaneName";
-import { otherMergeSide } from "../domain/mergePaneSide";
 import { overwriteDecision } from "../domain/overwriteDecision";
 import { MergePaneName, MergeSidesView } from "../port/MergeSidesView";
 import { MergeWorkingFile } from "../port/MergeWorkingFile";
@@ -97,7 +96,7 @@ export class MergeBuildService implements EditorSubscription {
     async switchComparison(diffSession: DiffSession): Promise<void> {
         const comparison = this.comparisons.get(diffSession);
         if (!comparison || !this.canSwitch(comparison)) return;
-        if (!(await this.openComparison(comparison.session, otherMergeSide(comparison.against)))) {
+        if (!(await this.openComparison(comparison.session, otherSide(comparison.against)))) {
             return;
         }
         for (const pane of diffSession.attachedPanes()) pane.dispose();
@@ -108,7 +107,7 @@ export class MergeBuildService implements EditorSubscription {
         const comparison = this.comparisons.get(diffSession);
         if (comparison === undefined) return undefined;
         return this.canSwitch(comparison)
-            ? { against: comparison.against, switchTo: otherMergeSide(comparison.against) }
+            ? { against: comparison.against, switchTo: otherSide(comparison.against) }
             : { against: comparison.against };
     }
 

@@ -27,7 +27,7 @@ export interface MergePickActions {
 /** What the pick part of a merge pane's legend shows; the host decided all of it. */
 export interface MergePickState {
     readonly side: MergeSide;
-    /** What a pick can do with the element the stepper is on; absent before the first step. */
+    /** What a pick can do with the stepped element no canvas draws; absent on any other step. */
     readonly stepped?: MergePanePickable;
     readonly picksNotDrawn: readonly MergePanePickNotDrawn[];
     readonly lastOutcome?: MergePaneOutcome;
@@ -42,8 +42,8 @@ const OUTCOME_LISTS = [
 ] as const;
 
 /**
- * The pick part of a merge pane's legend, the keyboard's way to decide: the
- * actions for the element the stepper is on, the user's picks this pane
+ * The pick part of a merge pane's legend: the actions for a stepped element
+ * no canvas draws, which the context pad cannot reach, the user's picks this pane
  * cannot draw with their undo, and what the last pick or undo did, with the
  * offer to keep the flows removed with a kept element. The action buttons
  * stay in place across updates, so the focus stays on the one just pressed;

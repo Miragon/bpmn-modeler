@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { MERGE_MARKER_CLASSES, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
+import { FLOW_BADGE_RADIUS } from "../../domain/mergeFlowBadgePlace";
+
 // Not `new URL("./…", import.meta.url)`: Vite turns that into a served asset URL.
 const sheet = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "mergeMarks.css"), "utf8");
 
@@ -58,6 +60,35 @@ describe("mergeMarks.css", () => {
         expect(declarationsFor(".merge-pick-badge--with-contents::after", false)).toMatch(
             /border:/,
         );
+    });
+
+    it("keeps the hatch behind the label with a halo of its ground, in both themes", () => {
+        const label = ".djs-shape.merge-taken-from-other-side .djs-visual text";
+        const ground = declarationsFor(".merge-hatch__ground", false).match(/fill:\s*(#\w+)/)?.[1];
+
+        expect(declarationsFor(label, false)).toMatch(/paint-order:\s*stroke/);
+        expect(declarationsFor(label, false)).toContain(`stroke: ${ground}`);
+        expect(declarationsFor(label, true)).toMatch(/stroke:\s*var\(--canvas-fill-color/);
+    });
+
+    it("lets the pointer through the badges' overlay boxes to the shapes below", () => {
+        for (const overlay of [".djs-overlay-merge-pick", ".djs-overlay-merge-conflict-badge"]) {
+            expect(declarationsFor(overlay, false)).toMatch(/pointer-events:\s*none/);
+        }
+    });
+
+    it("lifts a shape's badge above its anchor, off the shape's type icon", () => {
+        expect(declarationsFor(".merge-pick-badge--on-shape", false)).toMatch(
+            /transform:\s*translateY\(-100%\)/,
+        );
+    });
+
+    it("centres a flow's check on its anchor, as round as the clearance flowBadgePlace keeps", () => {
+        const onFlow = declarationsFor(".merge-pick-badge--on-flow", false);
+
+        expect(onFlow).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+        expect(onFlow).toMatch(new RegExp(`(^|[^-])width:\\s*${FLOW_BADGE_RADIUS * 2}px`));
+        expect(onFlow).toMatch(new RegExp(`(^|[^-])height:\\s*${FLOW_BADGE_RADIUS * 2}px`));
     });
 
     it("outlines a pick's consequence dotted, a cue no theme changes", () => {

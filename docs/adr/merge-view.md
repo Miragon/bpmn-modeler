@@ -116,7 +116,8 @@ gets no marker; the build takes current's drawing unless only incoming changed i
 element follows its container's side ([layout side](merge.md#decisions-and-reference-rules)),
 and notes a layout both sides changed differently. Each marker has a cue that is no colour (a
 heavy contour, a hatch, a dashed contour with a "!" badge) and a stroke of its own in the dark
-theme, which tints no surface; `mergeMarksStyle.spec.ts` pins both.
+theme, which tints no surface; a halo of the hatch's ground keeps the hatch behind the label.
+`mergeMarksStyle.spec.ts` pins all three.
 
 **One legend component.** The merge legend is the diff's `DiffLegendView` with the three
 markers as its count slots and the merge's controls in its extension element: the open
@@ -126,7 +127,7 @@ a second legend, whose chrome and themes would drift from the diff's.
 **Projections in the library, typed by modeler-types.** What a pane shows is a pure function
 of the decisions in `libs/bpmn-merge`: `mergePaneView` (markers of the drawn elements, the
 shape-less ones listed, and the count of each marker over both), `mergePaneSteps` (each step
-naming the sub-process plane that draws it) and `mergeNavigationOrder` (current's flow, an
+naming the sub-process plane that draws it and which panes hold it) and `mergeNavigationOrder` (current's flow, an
 element only incoming's flow places after its nearest predecessor there, both flow orders
 kept in `MergeSources`), `hasNoShape` (no version drawn, or the process or collaboration that
 owns the root plane). The core's `domain/` cannot import the library, so
@@ -158,11 +159,12 @@ reloaded after a tab switch goes back to the step. Rejected: relaying the toggle
 pane, which a reload loses; the webview's `setState`, which keeps one pane only. Each pane
 keeps its cursor by element id, so a repaint leaves it in place and a decided conflict's
 successor is found from its place. On an element the walked list lacks, the counter counts
-it at that place, one more than the list holds, so a pick keeps the user's place. A
-shape-less step selects its legend entry; a step only the partner draws leaves the pane
-where it is, since a neighbour here would point at something else, but the pane enters the
-plane the partner stepped into, or notes that its version lacks it, which stops the viewport
-sync.
+it at that place, one more than the list holds, so a pick keeps the user's place. A step
+centres its element at the current zoom. A shape-less step marks its legend entry; a step only
+the partner draws leaves the pane where it is, since a neighbour here would point at something
+else, but the pane enters the plane the partner stepped into, or notes that its version lacks
+it, which stops the viewport sync. The pane that draws such a step (`onOtherPane` false) posts
+its viewport after the step, so the partner shows the same part of the diagram.
 
 ### Picking
 
@@ -180,26 +182,31 @@ picks end with the session, so a window reload loses them. Rejected: picks in th
 the same way in as the step list: the router asks `BpmnDiffService.opensMergeViews` and ignores
 all three merge commands without it, so IntelliJ routes them as ignored with one reason.
 
-**Two ways in: the context pad for the mouse, the legend for the keyboard.** diagram-js's
-context pad has no keyboard handling, so the pad's group beside "Show XML changes" ("Keep this
-version", "Keep everything inside" on a container, "Undo pick") is mirrored by the legend's
-actions for the element the stepper is on: "Keep current" on the left pane, "Keep incoming" on
-the right one. A shape-less element is reached by its legend entry, a decided one or an
-automatic resolution through the "All merged elements" list, so Undo and override work by
-keyboard too. A pick names the side it keeps, the sending pane's side when it names none, and
-naming a side whose version lacks the element leaves it out, which the core reports as "Left
-out", so one pane can offer both outcomes. Rejected: a separate leave-out command, which would
-copy that rule. The legend's action buttons stay in place across repaints, so the focus stays
-on the one pressed; where a repaint hides or removes the focused control (Undo of the stepped
-element, an undone entry of "Your picks"), the focus moves to the Keep action or to the last
-outcome's headline. diagram-js rebuilds an open pad only on a selection or element change, so
-the pane reopens it after every state.
+**The step selects; the pad decides a drawn element, the legend a shape-less one.** A step
+onto an element the pane draws enters its plane (`focusElement`), then selects it
+(`mirrorSelection` selects only on the plane shown and reports nothing), so diagram-js opens the
+pad where ‹ › land, on each pane that draws it; any other step clears the selection. A click on a
+pickable step makes it the step on both panes; `mirrorSelection` leaves an element selected
+already as it is, since selecting it again would rebuild its pad. The pad's icons sit at diagram-js's place: "Show XML changes", keep this pane's side, keep
+everything inside, "Leave out" (`otherSideLacks`), "Also keep its removed flows" and "Undo
+pick", each left out where the result has its outcome (`mergePadDecisions`, the rule's one
+home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, shown on
+the user's hover and keyboard focus only, with no native `title`. The legend keeps its actions
+for a shape-less step. A pick names the side it keeps (the sending pane's when it names none);
+naming a side that lacks the element leaves it out, which the core reports as "Left out".
+diagram-js rebuilds an open pad only on a selection or element change, so the pane reopens it
+after every state. Rejected: a separate leave-out command, a copy of that rule; worded pad
+buttons, which covered flows; a scored pad placement, which moved on almost every step; the
+legend's actions beside the pad, two ways to do one thing. Cost: diagram-js's pad has no
+keyboard handling, so a drawn element is decided by mouse only.
 
-**A badge names the user's picks.** Every element the user picked carries a badge over its
-top-left corner, a check mark and the kept side's letter, its full words as `aria-label`, filled
-on the side that kept it and outlined on the side whose version it replaced; a container kept
-with everything inside adds a nested box. Top left, because a collapsed sub-process's
-drilldown button sits bottom right. diagram-js's overlays throw on an id the canvas lacks, so a
+**A badge names the user's picks.** Every shape the user picked carries a badge above its top
+edge, clear of the type icon and of a collapsed sub-process's drilldown button: a check mark and
+the kept side's word as the caption has it ("✓ Incoming"), its full words as `aria-label`,
+filled on the side that kept it and outlined on the side whose version it replaced; a container
+kept with everything inside adds a nested box. Below 70 % zoom it shrinks to the check. A flow
+gets the check alone in the middle of its longest segment, scaled with the zoom, and none where
+no segment keeps it off the arrowhead (`flowBadgePlace`). diagram-js's overlays throw on an id the canvas lacks, so a
 pane badges only ids its registry holds, and a pick it cannot draw (removed on its side, or
 shape-less) is listed under "Your picks" with its undo. Consequences get a dotted outline and
 no badge; automatic resolutions keep only their marker.
@@ -292,7 +299,8 @@ conflict-marker participant.
   smoke test's `open` and `marks` steps cover each Git operation, a non-BPMN row, the notice,
   the reload, the reopening and both panes' markers, through the DOM only.
 - `MergeDecisionService.spec.ts` covers picks, the side a pick names, Undo, a refused pick and
-  the restore offer on fake panes; the smoke test's `pick` steps decide by keyboard only.
+  the restore offer on fake panes; the smoke test's `pick` steps decide on the pad a step or a
+  click opens.
 - `MergeBuildService.spec.ts` covers building, overwriting and comparing on fake ports;
   `test/e2e` builds on 1.76.0 and stable and checks the index and that no diff pane holds the
   built file; the smoke test's `build` steps build, compare, reload and let Git continue.

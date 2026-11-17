@@ -115,8 +115,6 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "Open again:",
     "Keep current",
     "Keep incoming",
-    "C",
-    "I",
     "Kept from current, your pick",
     "Kept from incoming, your pick",
     "Kept from current with everything inside, your pick",

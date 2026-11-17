@@ -6,6 +6,16 @@ export type MergeSide = "current" | "incoming";
 
 export const MERGE_SIDES: readonly MergeSide[] = ["current", "incoming"];
 
+const OTHER_SIDE: Readonly<Record<MergeSide, MergeSide>> = {
+    current: "incoming",
+    incoming: "current",
+};
+
+/** The side a merge side is merged with. */
+export function otherSide(side: MergeSide): MergeSide {
+    return OTHER_SIDE[side];
+}
+
 /** What a merge pane marks on an element of its canvas. */
 export type MergeMarker = "takenFromThisSide" | "takenFromOtherSide" | "conflict";
 

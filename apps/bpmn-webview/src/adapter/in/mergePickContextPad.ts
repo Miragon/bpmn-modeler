@@ -1,20 +1,20 @@
 import ContextPadModule from "diagram-js/lib/features/context-pad";
 import SelectionModule from "diagram-js/lib/features/selection";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
-import type { MergePanePickable, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
 
-import { MERGE_PICK_TEXTS } from "../../domain/mergeTexts";
+import type { MergePadDecision } from "../../domain/mergePadDecisions";
+import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 import "./mergePickContextPad.css";
 
-/** What the pick entries ask of the merge pane that adds them. */
+/** What the decision entries ask of the merge pane that adds them. */
 export interface MergePickEntryConfig {
     /** Read on every pad opening: the host sends what each element allows with every state. */
-    pickableOf(elementId: string): MergePanePickable | undefined;
-    pick(elementId: string, scope: MergePickScope): void;
-    unpick(elementId: string, scope: MergePickScope): void;
+    decisionsOf(elementId: string): readonly MergePadDecision[];
+    decide(elementId: string, decision: MergePadDecision): void;
     /** Receives the provider once diagram-js built it, to refresh an open pad after each state. */
     attach(provider: MergePickContextPadProvider): void;
 }
@@ -22,7 +22,6 @@ export interface MergePickEntryConfig {
 interface ContextPadEntry {
     group: string;
     html: string;
-    title: string;
     action: { click: (event: Event, element: BpmnDiagramElement) => void };
 }
 
@@ -42,21 +41,49 @@ interface Canvas {
     getRootElement(): unknown;
 }
 
-type Translate = (template: string) => string;
+type DecisionGlyph = "keep" | "keepInside" | "leaveOut" | "keepRemovedFlows" | "undo";
 
 const ICON = (paths: string) =>
     `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
 
-const KEEP_ICON = ICON(`<path d="M20 6 9 17l-5-5"/>`);
-const KEEP_INSIDE_ICON = ICON(
-    `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m16 9-5.5 6L8 12.5"/>`,
-);
-const UNDO_ICON = ICON(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`);
+const GLYPHS: Record<DecisionGlyph, { readonly entryId: string; readonly icon: string }> = {
+    keep: { entryId: "merge-keep", icon: ICON(`<path d="M20 6 9 17l-5-5"/>`) },
+    keepInside: {
+        entryId: "merge-keep-inside",
+        icon: ICON(
+            `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m16 9-5.5 6L8 12.5"/>`,
+        ),
+    },
+    leaveOut: {
+        entryId: "merge-leave-out",
+        icon: ICON(`<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>`),
+    },
+    // A sequence flow's arrow and a plus: the flows come back.
+    keepRemovedFlows: {
+        entryId: "merge-keep-removed-flows",
+        icon: ICON(
+            `<path d="M3 12h10"/><path d="m10 8 4 4-4 4"/><path d="M19 9v6"/><path d="M16 12h6"/>`,
+        ),
+    },
+    undo: {
+        entryId: "merge-undo",
+        icon: ICON(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`),
+    },
+};
+
+function glyphOf(decision: MergePadDecision): DecisionGlyph {
+    return decision.kind === "keep" && decision.scope === "withContents"
+        ? "keepInside"
+        : decision.kind;
+}
 
 /**
- * The merge pane's pick entries beside "Show XML changes": keep the element
- * from this pane's side, keep everything inside a container, and undo the
- * user's pick. The host decides which apply; the pad only offers them.
+ * The merge pane's decisions beside "Show XML changes", as icons at
+ * diagram-js's place for the pad: keep the element from this pane's side,
+ * with everything inside, leave it out, keep the flows removed with it and
+ * undo the pick. The pane decides which apply. Each icon names its side in
+ * its label and shows the merge chrome's styled tooltip, never a native
+ * `title`, which would show a second one.
  */
 export class MergePickContextPadProvider {
     static $inject = ["contextPad", "canvas", "selection", "translate", "mergePickEntryConfig"];
@@ -65,10 +92,11 @@ export class MergePickContextPadProvider {
         private readonly contextPad: ContextPad,
         private readonly canvas: Canvas,
         private readonly selection: Selection,
-        private readonly translate: Translate,
+        private readonly translate: MergeTranslate,
         private readonly entryConfig: MergePickEntryConfig,
     ) {
         contextPad.registerProvider(this);
+        installMergeTooltips(document);
         entryConfig.attach(this);
     }
 
@@ -81,41 +109,27 @@ export class MergePickContextPadProvider {
 
     getContextPadEntries(element: BpmnDiagramElement): ContextPadEntries {
         if (element === this.canvas.getRootElement()) return {};
-        const pickable = this.entryConfig.pickableOf(bpmnElementIdOf(element));
-        if (pickable === undefined) return {};
-        const entries: ContextPadEntries = {
-            "merge-keep": this.entry(MERGE_PICK_TEXTS.keepThis, KEEP_ICON, (id) =>
-                this.entryConfig.pick(id, "element"),
-            ),
-        };
-        if (pickable.container) {
-            entries["merge-keep-inside"] = this.entry(
-                MERGE_PICK_TEXTS.keepInside,
-                KEEP_INSIDE_ICON,
-                (id) => this.entryConfig.pick(id, "withContents"),
-            );
-        }
-        const { undo } = pickable;
-        if (undo !== undefined) {
-            entries["merge-undo"] = this.entry(MERGE_PICK_TEXTS.undo, UNDO_ICON, (id) =>
-                this.entryConfig.unpick(id, undo),
-            );
-        }
-        return entries;
+        return Object.fromEntries(
+            this.entryConfig
+                .decisionsOf(bpmnElementIdOf(element))
+                .map((decision) => [GLYPHS[glyphOf(decision)].entryId, this.entry(decision)]),
+        );
     }
 
-    private entry(text: string, icon: string, run: (elementId: string) => void): ContextPadEntry {
-        const title = this.translate(text);
+    private entry(decision: MergePadDecision): ContextPadEntry {
+        const { label, tooltip } = padDecisionText(decision, this.translate);
         return {
             group: "merge-pick",
-            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(title)}">${icon}</button>`,
-            title,
-            action: { click: (_event, clicked) => run(bpmnElementIdOf(clicked)) },
+            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${GLYPHS[glyphOf(decision)].icon}</button>`,
+            action: {
+                click: (_event, clicked) =>
+                    this.entryConfig.decide(bpmnElementIdOf(clicked), decision),
+            },
         };
     }
 }
 
-/** The merge pane's pick entries on diagram-js's context pad, with the shared translator. */
+/** The merge pane's decision entries on diagram-js's context pad, with the shared translator. */
 export function createMergePickModule(entryConfig: MergePickEntryConfig) {
     return {
         __depends__: [ContextPadModule, SelectionModule, TranslateModule],

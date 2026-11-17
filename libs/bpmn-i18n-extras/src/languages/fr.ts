@@ -321,8 +321,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "Rouvert :",
     "Keep current": "Conserver Actuel",
     "Keep incoming": "Conserver Entrant",
-    "C": "A",
-    "I": "E",
     "Kept from current, your pick": "Conservé depuis Actuel, votre choix",
     "Kept from incoming, your pick": "Conservé depuis Entrant, votre choix",
     "Kept from current with everything inside, your pick":

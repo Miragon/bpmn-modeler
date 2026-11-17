@@ -58,6 +58,10 @@ function expectSoundProjections(
         (step, index) => !step.onThisPane && !incomingSteps.all[index].onThisPane,
     );
     expect(nowhere, `${label}: every step is on a pane`).toEqual([]);
+    const partnerMismatch = currentSteps.all.filter(
+        (step, index) => step.onOtherPane !== incomingSteps.all[index].onThisPane,
+    );
+    expect(partnerMismatch, `${label}: each pane knows what its partner holds`).toEqual([]);
     for (const paneSteps of steps) {
         expect(paneSteps.openConflicts, `${label}: one step per open conflict`).toHaveLength(
             decisions.openConflicts.length,
