@@ -121,14 +121,12 @@ function report(
     event: Extract<ElementIdReviewEvent, { type: "reported" }>,
 ): ElementIdReviewTransition {
     if (event.status === "unsupported") {
+        // The panel may still show the diagram the review moved away from.
         return review.stage === "opening"
-            ? {
-                  next: CLOSED_ELEMENT_ID_REVIEW,
-                  actions: [
-                      { kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS },
-                      { kind: "stopListing", editorId: review.editorId },
-                  ],
-              }
+            ? close(
+                  { kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS },
+                  { kind: "stopListing", editorId: review.editorId },
+              )
             : {
                   next: review,
                   actions: [{ kind: "show", view: unsupportedReviewView(review.title) }],
