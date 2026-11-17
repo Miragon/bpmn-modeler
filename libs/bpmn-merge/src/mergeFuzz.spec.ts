@@ -328,6 +328,7 @@ function expectNoRestoredConnectionNoted(
  */
 function expectPanesShowEveryPick(
     result: MergeResult,
+    sources: MergeSources,
     picks: readonly Pick[],
     decisions: MergeDecisions,
     label: string,
@@ -336,7 +337,9 @@ function expectPanesShowEveryPick(
         .map(({ id }) => id)
         .filter((id) => decisions.originOf(id) === "picked")
         .sort();
-    const views = MERGE_SIDES.map((side) => [side, mergePaneView(decisions, side)] as const);
+    const views = MERGE_SIDES.map(
+        (side) => [side, mergePaneView(decisions, side, sources)] as const,
+    );
     for (const [side, view] of views) {
         const shown = [...view.badges, ...view.picksNotDrawn];
         expect(shown.map(({ id }) => id).sort(), `${label}: picks on ${side}'s pane`).toEqual(
@@ -393,7 +396,7 @@ async function expectPathIndependentWalks(
             }
             picks.push(pick);
             expectContracts(result, picks, decisions, label);
-            expectPanesShowEveryPick(result, picks, decisions, label);
+            expectPanesShowEveryPick(result, sources, picks, decisions, label);
             if (pick.kind === "pickWithConnections") {
                 if (pick.connections.length > 0) connectionsKept += 1;
                 expectConnectionsKeptAsPicks(

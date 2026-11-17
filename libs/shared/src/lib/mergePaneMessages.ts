@@ -41,6 +41,21 @@ export interface MergePaneShapelessRow {
     readonly lackingSide?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
     /** Set while the user's pick decides it. */
     readonly pick?: { readonly keptSide: MergeSide; readonly scope: MergePickScope };
+    /** Set where current holds the element, with current's name. */
+    readonly current?: { readonly name?: string };
+    /** Set where incoming holds the element, with incoming's name. */
+    readonly incoming?: { readonly name?: string };
+    /** The own attributes whose values differ where both sides hold the element; a pick changes none. */
+    readonly differences: readonly MergePaneValueDifference[];
+    /** More than those attributes differs, such as a child, the parent or the lanes. */
+    readonly moreDiffers?: true;
+}
+
+/** One own attribute of a shape-less element whose value differs between the sides, as text; a side without it has none. */
+export interface MergePaneValueDifference {
+    readonly attribute: string;
+    readonly current?: string;
+    readonly incoming?: string;
 }
 
 /** Which list a merge pane's Next and Previous walk: the open conflicts, or every element either pane marks. */

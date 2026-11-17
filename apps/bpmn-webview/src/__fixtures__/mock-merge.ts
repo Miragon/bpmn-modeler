@@ -28,7 +28,17 @@ const step = (
 });
 
 const SHAPELESS_ROWS = [
-    { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+    {
+        id: "Process_1",
+        type: "bpmn:Process",
+        marker: "conflict",
+        container: true,
+        current: { name: "Order process" },
+        incoming: { name: "Customer order process" },
+        differences: [
+            { attribute: "name", current: "Order process", incoming: "Customer order process" },
+        ],
+    },
 ] as const;
 
 /** Nothing picked yet: every element of the merge can be kept from either side. */

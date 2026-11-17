@@ -11,20 +11,27 @@ const CONFLICT_ROW: MergeMenuRowContent = {
     type: "bpmn:Message",
     marker: "conflict",
     name: "Order received",
+    values: {
+        differences: [{ attribute: "custom:key", current: "a", incoming: "b" }],
+        moreDiffers: true,
+    },
     decisions: [
         { kind: "keep", scope: "element", side: "current" },
         { kind: "keep", scope: "element", side: "incoming" },
     ],
+    xmlChanges: false,
 };
 
 const PICKED_ROW: MergeMenuRowContent = {
     id: "Error_1",
     type: "bpmn:Error",
     marker: "takenFromThisSide",
+    values: { lackingSide: { side: "current", lack: "missing" }, differences: [] },
     decisions: [
         { kind: "keep", scope: "element", side: "current" },
         { kind: "undo", scope: "element" },
     ],
+    xmlChanges: false,
 };
 
 const STATE: MergeMenuState = {
@@ -73,6 +80,7 @@ describe("MergeMenu", () => {
             onShapeless: vi.fn(),
             onDecide: vi.fn(),
             onCompare: vi.fn(),
+            onXmlChanges: vi.fn(),
             onReviewNotes: vi.fn(),
             onBuild: vi.fn(),
         };
@@ -190,6 +198,38 @@ describe("MergeMenu", () => {
             expect(rowOf("Error_1")?.querySelector(".merge-menu__row-step")?.textContent).toBe(
                 "Error_1 (Error)",
             );
+        });
+
+        it("shows below each title what the sides hold, values set apart from the words", () => {
+            menu.open(true);
+
+            const lines = (id: string) =>
+                [...(rowOf(id)?.querySelectorAll(".merge-menu__row-value") ?? [])].map(
+                    (line) => line.textContent,
+                );
+            expect(lines("Message_1")).toStrictEqual([
+                "custom:key: Current a · Incoming b",
+                "and other content",
+            ]);
+            expect(
+                [...(rowOf("Message_1")?.querySelectorAll("code") ?? [])].map(
+                    (value) => value.textContent,
+                ),
+            ).toStrictEqual(["a", "b"]);
+            expect(lines("Error_1")).toStrictEqual(["Not in current"]);
+        });
+
+        it("opens an element's XML changes from its row only where the row offers them, with the pad's words", () => {
+            menu.update({ ...STATE, rows: [{ ...CONFLICT_ROW, xmlChanges: true }, PICKED_ROW] });
+            menu.open(true);
+            const xml = rowOf("Message_1")?.querySelector<HTMLButtonElement>(".merge-menu__xml");
+
+            expect(xml?.getAttribute("aria-label")).toBe("Show XML changes");
+            expect(xml?.getAttribute("data-merge-tooltip")).toBe("Show XML changes");
+            expect(xml?.querySelector("svg")).not.toBeNull();
+            expect(rowOf("Error_1")?.querySelector(".merge-menu__xml")).toBeNull();
+            xml?.click();
+            expect(actions.onXmlChanges).toHaveBeenCalledWith("Message_1");
         });
 
         it("steps to an element from its name and sends a row's decision with its element", () => {

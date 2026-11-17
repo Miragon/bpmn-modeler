@@ -1,4 +1,9 @@
-import { type ModdleElement, isModdleElement } from "./moddleElement";
+import {
+    type ModdleElement,
+    type ModdlePropertyDescriptor,
+    isModdleElement,
+} from "./moddleElement";
+import { isNamespaceDeclaration } from "./namespaceDeclarations";
 
 /** Visits `root` and every element it contains, never following a reference. */
 export function walkContainment(
@@ -33,4 +38,44 @@ export function containmentProperties(element: ModdleElement): string[] {
                 !property.isAttribute,
         )
         .map((property) => property.name);
+}
+
+/** One attribute in the element's start tag, as the serializer writes it. */
+export interface OwnAttributeEntry {
+    /** The descriptor's property; none for an attribute no descriptor types. */
+    readonly property?: ModdlePropertyDescriptor;
+    /** Local in the element's own namespace (`errorCode`), else qualified (`camunda:versionTag`). */
+    readonly name: string;
+    /** A reference as its target's id. */
+    readonly value: string;
+}
+
+/**
+ * The attributes the serializer writes into the element's start tag: a typed
+ * one the element holds itself and that differs from the descriptor's
+ * default, then its foreign attributes. A reference without `isAttr` is a
+ * child element, and namespace declarations are no attributes of the element.
+ */
+export function* ownAttributeEntries(element: ModdleElement): Generator<OwnAttributeEntry> {
+    const ownPrefix = element.$descriptor.ns?.prefix;
+    for (const property of element.$descriptor.properties ?? []) {
+        if (property.isMany || property.isVirtual || !property.isAttr) continue;
+        if (!Object.prototype.hasOwnProperty.call(element, property.name)) continue;
+        const raw = element[property.name];
+        if (raw === property.default) continue;
+        const value = isModdleElement(raw) ? raw.id : attributeText(raw);
+        if (value === undefined) continue;
+        const qualified =
+            property.ns?.prefix === ownPrefix ? property.ns?.localName : property.ns?.name;
+        yield { property, name: qualified ?? property.name, value };
+    }
+    for (const [name, value] of Object.entries(element.$attrs ?? {})) {
+        if (!isNamespaceDeclaration(name)) yield { name, value };
+    }
+}
+
+function attributeText(value: unknown): string | undefined {
+    return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+        ? String(value)
+        : undefined;
 }

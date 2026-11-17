@@ -13,6 +13,11 @@ import {
 } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
 import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
+import {
+    type ShapelessValues,
+    type ShapelessValueSources,
+    shapelessValuesOf,
+} from "./shapelessValues";
 
 /** A marked element no canvas draws, which the pane lists instead. */
 interface ShapelessMark {
@@ -56,10 +61,11 @@ export interface PickableElement {
 
 /**
  * A shape-less element either side holds and either pane marks, as a pane's
- * menu lists it. Unlike {@link ShapelessMark} it covers an element the
- * pane's side lacks, so the menu can decide every shape-less step.
+ * menu lists it with what each side holds. Unlike {@link ShapelessMark} it
+ * covers an element the pane's side lacks, so the menu can decide every
+ * shape-less step.
  */
-export interface ShapelessRow {
+export interface ShapelessRow extends ShapelessValues {
     readonly id: string;
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
@@ -102,7 +108,11 @@ const EQUAL_ON_BOTH_SIDES: ReadonlySet<ElementState> = new Set([
  * whose version there is absent was removed by it; the pane marks it taken
  * from the other side too.
  */
-export function mergePaneView(decisions: MergeDecisions, side: MergeSide): MergePaneView {
+export function mergePaneView(
+    decisions: MergeDecisions,
+    side: MergeSide,
+    sources: ShapelessValueSources,
+): MergePaneView {
     const marks: Record<MergeMarker, string[]> = {
         takenFromThisSide: [],
         takenFromOtherSide: [],
@@ -125,7 +135,13 @@ export function mergePaneView(decisions: MergeDecisions, side: MergeSide): Merge
             marks[marker].length + shapeless.filter((entry) => entry.marker === marker).length,
         ]),
     ) as Record<MergeMarker, number>;
-    return { marks, shapeless, counts, ...paneDecisions(decisions, side) };
+    return {
+        marks,
+        shapeless,
+        counts,
+        ...paneDecisions(decisions, side),
+        shapelessRows: shapelessRowsOf(decisions, side, sources),
+    };
 }
 
 /**
@@ -136,38 +152,18 @@ export function mergePaneView(decisions: MergeDecisions, side: MergeSide): Merge
 function paneDecisions(
     decisions: MergeDecisions,
     side: MergeSide,
-): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable" | "shapelessRows"> {
+): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable"> {
     const { elements } = decisions.result;
     const containers = containersOf(elements);
-    const pickedOn = (id: string, pickSide: MergeSide) =>
-        decisions.originOf(id) === "picked" && decisions.sideOf(id) === pickSide;
-    // Read from the picks, never from how they were made, so every order of the same picks badges alike.
-    const scopeOf = (element: MergeElement, keptSide: MergeSide): PickScope => {
-        if (
-            containers.has(element.id) &&
-            descendantsOf(element.id, elements).every((id) => pickedOn(id, keptSide))
-        ) {
-            return "withContents";
-        }
-        const keptWithFlows =
-            connectionsRemovedWith(elements, element, keptSide).some(({ id }) =>
-                pickedOn(id, keptSide),
-            ) && decisions.connectionsLeftOut(element.id, keptSide).length === 0;
-        return keptWithFlows ? "withConnections" : "element";
-    };
     const badges: PickBadge[] = [];
     const picksNotDrawn: PickNotDrawn[] = [];
     const consequences: string[] = [];
     const pickable: PickableElement[] = [];
-    const shapelessRows: ShapelessRow[] = [];
-    const marking = decisionMarking(decisions);
     for (const element of elements) {
-        const origin = decisions.originOf(element.id);
         const drawnHere = !hasNoShape(element) && element.versions[side]?.drawn === true;
-        const keptSide = decisions.sideOf(element.id);
-        const scope =
-            origin === "picked" && keptSide !== undefined ? scopeOf(element, keptSide) : undefined;
-        if (scope !== undefined && keptSide !== undefined) {
+        const pick = pickOf(decisions, containers, element);
+        if (pick !== undefined) {
+            const { keptSide, scope } = pick;
             if (drawnHere) {
                 const kind = keptSide === side ? "keptHere" : "replacedHere";
                 badges.push({ id: element.id, kind, keptSide, scope });
@@ -175,35 +171,81 @@ function paneDecisions(
                 picksNotDrawn.push({ id: element.id, keptSide, scope });
             }
         }
-        if (origin === "consequence" && drawnHere) consequences.push(element.id);
+        if (decisions.originOf(element.id) === "consequence" && drawnHere) {
+            consequences.push(element.id);
+        }
         const lack = otherSideLacks(element, side);
-        const container = containers.has(element.id);
         const takenSide = takenSideOf(decisions, element);
-        const taken = takenSide === undefined ? {} : { takenSide };
         pickable.push({
             id: element.id,
-            container,
-            ...taken,
-            ...(scope === undefined ? {} : { undo: scope }),
+            container: containers.has(element.id),
+            ...(takenSide === undefined ? {} : { takenSide }),
+            ...(pick === undefined ? {} : { undo: pick.scope }),
             ...(lack === undefined ? {} : { otherSideLacks: lack }),
         });
+    }
+    return { badges, picksNotDrawn, consequences, pickable };
+}
+
+/** Every shape-less element the decisions mark as a side sees it, with what each side holds. */
+function shapelessRowsOf(
+    decisions: MergeDecisions,
+    side: MergeSide,
+    sources: ShapelessValueSources,
+): ShapelessRow[] {
+    const { elements } = decisions.result;
+    const containers = containersOf(elements);
+    const marking = decisionMarking(decisions);
+    return elements.flatMap((element): ShapelessRow[] => {
         const marker = marking(element, side);
-        if (hasNoShape(element) && marker !== undefined) {
-            const lacking = lackingSideOf(element);
-            shapelessRows.push({
+        if (!hasNoShape(element) || marker === undefined) return [];
+        const takenSide = takenSideOf(decisions, element);
+        const lacking = lackingSideOf(element);
+        const pick = pickOf(decisions, containers, element);
+        return [
+            {
                 id: element.id,
                 type: element.type,
                 marker,
-                container,
-                ...taken,
+                container: containers.has(element.id),
+                ...(takenSide === undefined ? {} : { takenSide }),
                 ...(lacking === undefined ? {} : { lackingSide: lacking }),
-                ...(scope === undefined || keptSide === undefined
-                    ? {}
-                    : { pick: { keptSide, scope } }),
-            });
-        }
+                ...(pick === undefined ? {} : { pick }),
+                ...shapelessValuesOf(sources, element),
+            },
+        ];
+    });
+}
+
+/** The side and scope of the user's pick on an element, or none while no pick decides it. */
+function pickOf(
+    decisions: MergeDecisions,
+    containers: ReadonlySet<string>,
+    element: MergeElement,
+): { readonly keptSide: MergeSide; readonly scope: PickScope } | undefined {
+    const keptSide = decisions.sideOf(element.id);
+    return decisions.originOf(element.id) === "picked" && keptSide !== undefined
+        ? { keptSide, scope: scopeOf(decisions, containers, element, keptSide) }
+        : undefined;
+}
+
+// Read from the picks, never from how they were made, so every order of the same picks badges alike.
+function scopeOf(
+    decisions: MergeDecisions,
+    containers: ReadonlySet<string>,
+    element: MergeElement,
+    keptSide: MergeSide,
+): PickScope {
+    const { elements } = decisions.result;
+    const pickedOn = (id: string) =>
+        decisions.originOf(id) === "picked" && decisions.sideOf(id) === keptSide;
+    if (containers.has(element.id) && descendantsOf(element.id, elements).every(pickedOn)) {
+        return "withContents";
     }
-    return { badges, picksNotDrawn, consequences, pickable, shapelessRows };
+    const keptWithFlows =
+        connectionsRemovedWith(elements, element, keptSide).some(({ id }) => pickedOn(id)) &&
+        decisions.connectionsLeftOut(element.id, keptSide).length === 0;
+    return keptWithFlows ? "withConnections" : "element";
 }
 
 function lackingSideOf(element: MergeElement): ShapelessRow["lackingSide"] {

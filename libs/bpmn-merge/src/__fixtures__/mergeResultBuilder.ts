@@ -6,6 +6,7 @@ import type {
     MergeElement,
     MergeResult,
 } from "../mergeResult";
+import type { ShapelessValueSources } from "../shapelessValues";
 
 type VersionName = "base" | "current" | "incoming";
 
@@ -90,3 +91,9 @@ export function mergeResult(...elements: MergeElement[]): MergeResult {
 export function mergeResultWithoutBase(...elements: MergeElement[]): MergeResult {
     return { hasBase: false, versionKeys: { current: "current", incoming: "incoming" }, elements };
 }
+
+/** Sources for a result built by hand: no side names or writes a value. */
+export const NO_SOURCES: ShapelessValueSources = {
+    names: { current: new Map(), incoming: new Map() },
+    snapshots: { current: new Map(), incoming: new Map() },
+};

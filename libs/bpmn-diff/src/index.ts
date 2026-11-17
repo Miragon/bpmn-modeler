@@ -6,7 +6,7 @@
  * returns a serializable {@link DiffResult}; `sideView` projects that result
  * onto one pane's canvas; `elementXml` cuts one element's XML for a text diff;
  * `elementSnapshots` parses a document once and returns every unit's XML,
- * parent, container, lanes, references, parts, layout and plane, under the
+ * attributes, parent, container, lanes, references, parts, layout and plane, under the
  * diff's unit rule or the caller's (the merge's); `createDocumentModdle`
  * gives versions one shared prefix per namespace and, optionally, an engine
  * descriptor;
@@ -34,10 +34,11 @@ export type {
 export { idOf, idsOf, isModdleElement, isType, moddleElements } from "./moddleElement";
 export type { ModdleElement } from "./moddleElement";
 export { trackedElementOf } from "./trackedElements";
-export { containmentProperties, walkContainment } from "./moddleContainment";
+export { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
+export type { OwnAttributeEntry } from "./moddleContainment";
 export { createDocumentModdle } from "./documentModdle";
 export type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 export { loadExecutionPackage } from "./executionPackages";
 export type { ExecutionEngine, ExecutionPackage } from "./executionPackages";
-export { namespaceDeclarations } from "./namespaceDeclarations";
+export { isNamespaceDeclaration, namespaceDeclarations } from "./namespaceDeclarations";
 export type { ModdleParseResult } from "./bpmnModdleFactory";

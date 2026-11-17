@@ -11,7 +11,7 @@ import {
     stripUnits,
     unitRuleRequiringId,
 } from "./elementSnippets";
-import { containmentProperties, walkContainment } from "./moddleContainment";
+import { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
 import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
 
 export interface ElementSnapshotOptions {
@@ -49,6 +49,8 @@ export interface ElementSnapshot {
     readonly xml: string;
     /** `xml` without the references the modeler derives: incoming, outgoing, flowNodeRef, boundaryEventRefs. */
     readonly content: string;
+    /** The attributes the unit's start tag in `xml` writes, by name, a reference as its target's id. */
+    readonly attributes: Readonly<Record<string, string>>;
     /** Every reference of the unit's own subtree to another unit, derived ones left out. */
     readonly references: readonly SnapshotReference[];
     /** Ids of the elements inside the unit that are no units themselves, such as data inputs and event definitions. */
@@ -150,6 +152,7 @@ export async function elementSnapshots(
             lanes,
             xml: unitXml,
             content,
+            attributes: attributesOf(unit),
             references,
             parts,
             ...(layout === undefined ? {} : { layout: layout.text }),
@@ -157,6 +160,12 @@ export async function elementSnapshots(
         });
     }
     return snapshots;
+}
+
+function attributesOf(unit: ModdleElement): Record<string, string> {
+    const attributes: Record<string, string> = {};
+    for (const { name, value } of ownAttributeEntries(unit)) attributes[name] = value;
+    return attributes;
 }
 
 function nearest(

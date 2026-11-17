@@ -1,11 +1,13 @@
-interface ModdlePropertyDescriptor {
+export interface ModdlePropertyDescriptor {
     name: string;
     isAttr?: boolean;
     isAttribute?: boolean;
+    isMany?: boolean;
     isReference?: boolean;
     isVirtual?: boolean;
-    /** The qualified name, for example `bpmn:incoming`. */
-    ns?: { name?: string };
+    default?: unknown;
+    /** `name` is the qualified one, for example `bpmn:incoming`. */
+    ns?: { name?: string; prefix?: string; localName?: string };
 }
 
 export interface ModdleElement {

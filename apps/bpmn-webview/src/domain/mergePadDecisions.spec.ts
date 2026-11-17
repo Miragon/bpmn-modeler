@@ -187,6 +187,7 @@ describe("mergeRowDecisions", () => {
         type: "bpmn:Message",
         marker: "conflict",
         container: false,
+        differences: [],
         ...overrides,
     });
     const named = (decision: MergePadDecision) => {

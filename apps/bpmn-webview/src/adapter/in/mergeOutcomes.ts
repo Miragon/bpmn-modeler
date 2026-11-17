@@ -98,10 +98,14 @@ export class MergeOutcomes {
     }
 
     /** The menu's rows, the row a decision was sent from saying what it did. */
-    menuRows(): readonly MergeMenuRowContent[] {
+    menuRows(elementXmlChanges: boolean): readonly MergeMenuRowContent[] {
         if (!this.states) return [];
         const { nameOf, translate } = this.context;
-        return mergeMenuRows(this.states, rowOutcome(this.memory), { nameOf, translate });
+        return mergeMenuRows(this.states, rowOutcome(this.memory), {
+            nameOf,
+            translate,
+            elementXmlChanges,
+        });
     }
 
     /** The card follows the selection ({@link cardOnSelection}); shown again, it announces nothing. */

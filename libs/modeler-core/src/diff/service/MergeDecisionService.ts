@@ -194,7 +194,7 @@ function statesFor(
     elementXmlChanges: boolean,
 ): ApplyMergeStatesQuery {
     const side = mergeSideOfPane(paneSide);
-    const view = mergePaneView(session.decisions, side);
+    const view = mergePaneView(session.decisions, side, session.sources);
     const steps = mergePaneSteps(session.decisions, session.navigationOrder, side);
     const restoreOffer = restoreOfferOnPane(feedback?.offer, side, view.shapelessRows);
     return new ApplyMergeStatesQuery(
