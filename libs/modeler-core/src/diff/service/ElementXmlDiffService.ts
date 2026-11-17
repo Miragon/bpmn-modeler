@@ -114,6 +114,7 @@ export class ElementXmlDiffService {
         const merge = this.merges?.ofDiffSession(session);
         return {
             diffKey: key,
+            paneUri: before.uri,
             elementId,
             title: merge
                 ? mergeElementXmlDiffTitle(elementId, merge.fileName)
