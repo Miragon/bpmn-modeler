@@ -24,6 +24,9 @@ internal class ElementIdReviewRouter(
             .on("elementIdReview/close") { RpcAction { window.close() } }
     }
 
+    /** A respawned core starts without the review the window still shows. */
+    fun coreRespawned() {}
+
     override fun setChecked(ids: List<String>, checked: Boolean) =
         send(HostToCoreMethod.ELEMENT_ID_REVIEW_SET_CHECKED, linkedMapOf("ids" to ids, "checked" to checked))
 

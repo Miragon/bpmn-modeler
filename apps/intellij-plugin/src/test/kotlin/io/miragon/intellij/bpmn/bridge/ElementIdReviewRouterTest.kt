@@ -87,6 +87,15 @@ class ElementIdReviewRouterTest {
     }
 
     @Test
+    fun `closes the tool window when the core respawns without the review`() {
+        val routed = routed()
+
+        routed.router.coreRespawned()
+
+        assertEquals(listOf<Any>("close"), routed.window.calls)
+    }
+
+    @Test
     fun `sends the window's checkboxes, selected rows, Apply and Discard with the descriptor's keys`() {
         val routed = routed()
 
