@@ -111,7 +111,7 @@ export interface BpmnEditorHostPorts {
     readonly templatePreferences?: TemplatePreferenceStorePort;
     /** Absent: bpmnlint runs no workspace rule package, only the bundled rules. */
     readonly rulePackages?: BpmnRulePackagePorts;
-    /** Absent: the element ID review opens in the canvas. */
+    /** Absent: Generate IDs from Names only says this host cannot show the review. */
     readonly elementIdReview?: ElementIdReviewPort;
 }
 

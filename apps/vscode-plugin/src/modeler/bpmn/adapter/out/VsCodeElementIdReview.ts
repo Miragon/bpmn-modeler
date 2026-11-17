@@ -58,7 +58,7 @@ function checkboxOf(checked: boolean | undefined): TreeItemCheckboxState | undef
 /**
  * The element ID review in the Panel area beside Problems and Output: a
  * checkbox tree of the view the core builds. Checkbox trees came with VS Code
- * 1.80, so an older VS Code keeps the review in the canvas.
+ * 1.80, so an older VS Code does not offer Generate IDs from Names.
  */
 export class VsCodeElementIdReview
     implements ElementIdReviewPort, TreeDataProvider<ElementIdReviewNode>, Disposable
