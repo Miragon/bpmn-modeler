@@ -36,11 +36,42 @@ describe("nextMergeStep", () => {
 });
 
 describe("mergeStepPosition", () => {
-    it.each<[string, string | undefined, { index: number; total: number } | undefined]>([
-        ["counts the step the cursor is on", "End_Done", { index: 1, total: 3 }],
-        ["shows none before the first step", undefined, undefined],
-        ["shows none on an element the list does not hold", "Task_Check", undefined],
-    ])("%s", (_case, cursor, expected) => {
-        expect(mergeStepPosition(OPEN, cursor)).toEqual(expected);
+    it.each<
+        [
+            string,
+            readonly string[],
+            string | undefined,
+            { index: number; total: number } | undefined,
+        ]
+    >([
+        ["counts the step the cursor is on", OPEN, "End_Done", { index: 1, total: 3 }],
+        ["shows none before the first step", OPEN, undefined, undefined],
+        [
+            "counts an element that left the list at its place among the steps",
+            OPEN,
+            "Gateway_Ok",
+            { index: 1, total: 4 },
+        ],
+        [
+            "counts an element before the first step as the first",
+            OPEN,
+            "Task_Check",
+            { index: 0, total: 4 },
+        ],
+        [
+            "counts an element after the last step as the last",
+            ["Task_Check", "Task_Pack"],
+            "Process_1",
+            { index: 2, total: 3 },
+        ],
+        [
+            "counts the only element left once the list is empty",
+            [],
+            "Task_Pack",
+            { index: 0, total: 1 },
+        ],
+        ["shows none on an element no list knows", OPEN, "Task_Gone", undefined],
+    ])("%s", (_case, list, cursor, expected) => {
+        expect(mergeStepPosition(list, ALL, cursor)).toEqual(expected);
     });
 });

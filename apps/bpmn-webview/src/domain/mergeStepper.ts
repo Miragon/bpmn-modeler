@@ -27,11 +27,22 @@ export function nextMergeStep(
     return candidates.find(ahead) ?? first;
 }
 
-/** Where the cursor stands in `list`, counted from 0, or none while it is on no step of it. */
+/**
+ * Where the cursor stands in `list`, counted from 0, or none while it is on
+ * no step at all. On an element `list` lacks, such as a decided conflict, it
+ * counts that element at its place in `all` among the steps, the place the
+ * next step goes on from, so a pick does not lose the user's place.
+ */
 export function mergeStepPosition(
     list: readonly string[],
+    all: readonly string[],
     cursorId: string | undefined,
 ): { readonly index: number; readonly total: number } | undefined {
-    const index = cursorId === undefined ? -1 : list.indexOf(cursorId);
-    return index < 0 ? undefined : { index, total: list.length };
+    if (cursorId === undefined) return undefined;
+    const index = list.indexOf(cursorId);
+    if (index >= 0) return { index, total: list.length };
+    const place = all.indexOf(cursorId);
+    if (place < 0) return undefined;
+    const stepsBefore = all.slice(0, place).filter((id) => list.includes(id)).length;
+    return { index: stepsBefore, total: list.length + 1 };
 }
