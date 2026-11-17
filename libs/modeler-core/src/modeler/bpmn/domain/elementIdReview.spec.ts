@@ -197,11 +197,13 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         actions: [],
     },
     {
-        name: "closes, tells the user to switch modes and stops the editor listing when the review cannot open",
+        // The panel may still show the diagram the review moved away from.
+        name: "closes the panel, tells the user to switch modes and stops the editor listing when the review cannot open",
         review: OPENING,
         event: unsupported,
         next: CLOSED_ELEMENT_ID_REVIEW,
         actions: [
+            { kind: "closePanel" },
             { kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS },
             { kind: "stopListing", editorId: "order" },
         ],

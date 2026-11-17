@@ -222,6 +222,20 @@ describe("ElementIdReviewService with the host's own review panel", () => {
         expect(editor.posted).toEqual([new CloseElementIdReviewQuery()]);
     });
 
+    it("closes the first diagram's panel when the review moves to a diagram that cannot change IDs", async () => {
+        const { service, host, panel, notifier } = await openReview();
+        const viewer = host.openEditor("/work/viewer.bpmn");
+
+        await service.generate(viewer.id);
+        await service.reportProposals(
+            viewer.id,
+            new ElementIdProposalsCommand("unsupported", [], []),
+        );
+
+        expect(panel.closed).toBe(1);
+        expect(notifier.infos).toEqual([SWITCH_MODE]);
+    });
+
     it("says so in the panel when the editor switches to View mode during the review", async () => {
         const { service, editor, panel, notifier } = await openReview();
 
