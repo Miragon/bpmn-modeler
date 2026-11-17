@@ -28,9 +28,9 @@ Opening the view writes nothing: the file and Git's index stay as Git left them.
 | **Taken from this side** (heavy contour) | The merge takes this pane's version without asking. |
 | **Taken from the other side** (hatched) | The merge takes the other pane's version, also when the other side removed the element. |
 
-Only content counts: a difference in layout is never a conflict. The merge keeps current's layout of an element unless only incoming changed it; an element inside a container can also take the side its container is drawn from, so it stays inside. When both sides moved an element to different places, the build notes it. Elements without a shape, such as the process's own attributes or a message, are listed in the legend under **Without a shape**.
+Only content counts: a difference in layout is never a conflict. The merge keeps current's layout of an element unless only incoming changed it; an element inside a container can also take the side its container is drawn from, so it stays inside. When both sides moved an element to different places, the build notes it. Elements without a shape, such as the process's own attributes or a message, are listed in the right pane's **…** menu under **Not visible in the diagram**; the badge on **…** counts the open conflicts among them.
 
-The legend counts the open conflicts. **‹** and **›** step through them in flow order on both panes; **Step through: All merged elements** steps through every marked element instead, so you can also change what the merge decided by itself.
+Each pane has one bar: its side, branch and commit, and how many elements it marks with each marker. A pane counts only the elements its side has, so the two panes can count differently after the same picks; hover a count to read what it counts. On a narrow pane the bar drops the branch and commit first, then the counts' labels; narrower still, **Build** moves to the top of the **…** menu, so the bar stays one line down to VS Code's narrowest editor. The right bar also has **‹ n/N ›**, where N counts the open conflicts, those without a shape included. **‹** and **›** step through them in flow order on both panes; **All merged elements** in the **…** menu steps through every marked element instead, so you can also change what the merge decided by itself.
 
 ## Pick a side
 
@@ -44,17 +44,17 @@ Step to an element with **‹** and **›**, or click it: the step selects it on
 - **Also keep its removed flows**: after keeping an element the other side removed, keep the flows removed with it too.
 - **Undo pick**: back to what the merge decided by itself.
 
-An element without a shape is decided in the legend: step to it, then use **Keep current** or **Keep incoming**, **Keep everything inside** and **Undo pick** there. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape the legend says what the last pick did. A pick the pane cannot draw is listed under **Your picks**, with its undo.
+An element without a shape is decided in its row of the **…** menu, which a step onto it opens: **Keep current**, **Keep incoming**, **Keep current with everything inside** or **Keep incoming with everything inside** for a container such as the process, **Leave out** where one side lacks it, and **Undo pick** while your pick decides it. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape its row says what the pick did. A pick a pane cannot draw is undone in the pad of the other pane, or in its row.
 
 <figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed, offering Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 
-Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad. Without it, the element is kept without those flows and the build notes it.
+Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad, or in its row for an element without a shape, whichever side you kept. Without it, the element is kept without those flows and the build notes it.
 
 ## Build the result
 
 <figure class="shot"><img src="./images/bm-build-disabled.png" alt="The right pane's legend with a disabled Build button, 1 conflict left, and disabled Compare with current and Compare with incoming buttons"><figcaption>Build waits until every conflict is decided.</figcaption></figure>
 
-Once no conflict is open, **Build** in the right pane's legend writes the merged diagram over the conflicted file, saves it and opens it in the modeler. The merge view stays open beside it, so you can change a pick and build again.
+Once no conflict is open, **Build** in the right pane's bar (or in its **…** menu on a narrow pane) writes the merged diagram over the conflicted file, saves it and opens it in the modeler. The merge view stays open beside it, so you can change a pick and build again.
 
 <figure class="shot"><img src="./images/bm-built-modeler.png" alt="The built merged.bpmn open in the modeler with its palette and properties panel, the task named as incoming named it, and the merge tab still open beside it"><figcaption>The built file is a normal file: edit, format and save it.</figcaption></figure>
 
@@ -65,7 +65,7 @@ Once no conflict is open, **Build** in the right pane's legend writes the merged
 
 <figure class="shot"><img src="./images/bm-notes.png" alt="The right pane's legend with Review notes (1) open, listing that Check feature order is kept without the flows the other side removed with it, with buttons for the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
 
-**Review notes (N)** lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
+**Review notes (N)** in the **…** menu lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
 
 ## Compare the result
 

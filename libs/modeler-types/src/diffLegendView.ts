@@ -2,6 +2,57 @@ import type { DiffCategory } from "./diff";
 import { DIFF_CATEGORIES, DIFF_CATEGORY_LABELS, DIFF_LEGEND_TEXTS } from "./diffVocabulary";
 import { createButton, createElement } from "./dom";
 
+/** The chevrons of the legend's Previous and Next buttons, on its icons' 24 × 24 grid. */
+export const DIFF_LEGEND_CHEVRONS = {
+    previous: "m15 18-6-6 6-6",
+    next: "m9 18 6-6-6-6",
+} as const;
+
+/** One SVG shape of a legend icon: its tag and its attributes on the 24 × 24 grid. */
+export type DiffLegendIconShape = readonly [
+    tag: "path" | "circle",
+    attributes: Readonly<Record<string, string>>,
+];
+
+/** An icon-only button in the legend's look; the caller names it. */
+export function diffLegendIconButton(
+    modifier: string,
+    shapes: readonly DiffLegendIconShape[],
+    onClick: () => void,
+): HTMLButtonElement {
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const icon = document.createElementNS(svgNamespace, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.classList.add("diff-legend__icon");
+    for (const [tag, attributes] of shapes) {
+        const shape = document.createElementNS(svgNamespace, tag);
+        for (const [name, value] of Object.entries(attributes)) shape.setAttribute(name, value);
+        icon.append(shape);
+    }
+    const button = createButton(`diff-legend__nav-btn ${modifier}`, onClick);
+    button.append(icon);
+    return button;
+}
+
+/**
+ * Keeps `--diff-legend-height` on `target` at `legend`'s height once it
+ * shows, so the views below start under it even when its counts wrap.
+ * Returns the observer to disconnect, or none where the browser lacks one.
+ */
+export function reserveLegendHeight(
+    legend: HTMLElement,
+    target: HTMLElement,
+): ResizeObserver | undefined {
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => {
+        const height = legend.offsetHeight;
+        if (height > 0) target.style.setProperty("--diff-legend-height", `${height}px`);
+    });
+    observer.observe(legend);
+    return observer;
+}
+
 /** The translator the legend renders its words with, such as `@miragon/bpmn-modeler-i18n`'s `i18n`. */
 export interface DiffLegendTranslator {
     translate(key: string): string;
@@ -84,9 +135,6 @@ interface StatusSlot {
  * own controls below the counts through {@link extensionElement}.
  */
 export class DiffLegendView<Key extends string = DiffCategory> {
-    private static readonly CHEVRON_LEFT = "m15 18-6-6 6-6";
-    private static readonly CHEVRON_RIGHT = "m9 18 6-6-6-6";
-
     readonly element = createElement("div", "diff-legend");
 
     private readonly filename = createElement("div", "diff-legend__filename");
@@ -118,14 +166,14 @@ export class DiffLegendView<Key extends string = DiffCategory> {
         this.slots =
             slots ?? (DIFF_SLOTS as readonly DiffLegendSlot<string>[] as typeof this.slots);
         this.countSlots = this.slots.map((definition) => DiffLegendView.countSlot(definition));
-        this.previousButton = DiffLegendView.iconButton(
+        this.previousButton = diffLegendIconButton(
             "diff-legend__prev-btn",
-            DiffLegendView.CHEVRON_LEFT,
+            [["path", { d: DIFF_LEGEND_CHEVRONS.previous }]],
             actions.onPrevious,
         );
-        this.nextButton = DiffLegendView.iconButton(
+        this.nextButton = diffLegendIconButton(
             "diff-legend__next-btn",
-            DiffLegendView.CHEVRON_RIGHT,
+            [["path", { d: DIFF_LEGEND_CHEVRONS.next }]],
             actions.onNext,
         );
         this.showAllButton = createButton("diff-legend__nav-btn diff-legend__show-all-btn", () =>
@@ -165,18 +213,10 @@ export class DiffLegendView<Key extends string = DiffCategory> {
         this.renderWords();
     }
 
-    /**
-     * Keeps `--diff-legend-height` on `target` at the bar's height once it
-     * shows, so the views below start under it even when its counts wrap.
-     */
+    /** Keeps `--diff-legend-height` on `target` at the bar's height ({@link reserveLegendHeight}). */
     reserveRoomOn(target: HTMLElement): void {
-        if (typeof ResizeObserver === "undefined") return;
         this.sizeObserver?.disconnect();
-        this.sizeObserver = new ResizeObserver(() => {
-            const height = this.element.offsetHeight;
-            if (height > 0) target.style.setProperty("--diff-legend-height", `${height}px`);
-        });
-        this.sizeObserver.observe(this.element);
+        this.sizeObserver = reserveLegendHeight(this.element, target);
     }
 
     destroy(): void {
@@ -265,28 +305,6 @@ export class DiffLegendView<Key extends string = DiffCategory> {
     private static nameIconButton(button: HTMLButtonElement, label: string): void {
         button.title = label;
         button.setAttribute("aria-label", label);
-    }
-
-    private static iconButton(
-        modifier: string,
-        chevronPath: string,
-        onClick: () => void,
-    ): HTMLButtonElement {
-        const button = createButton(`diff-legend__nav-btn ${modifier}`, onClick);
-        button.append(DiffLegendView.chevron(chevronPath));
-        return button;
-    }
-
-    private static chevron(path: string): SVGSVGElement {
-        const svgNamespace = "http://www.w3.org/2000/svg";
-        const icon = document.createElementNS(svgNamespace, "svg");
-        icon.setAttribute("viewBox", "0 0 24 24");
-        icon.setAttribute("aria-hidden", "true");
-        icon.classList.add("diff-legend__icon");
-        const line = document.createElementNS(svgNamespace, "path");
-        line.setAttribute("d", path);
-        icon.append(line);
-        return icon;
     }
 
     private static countSlot<Key extends string>(definition: DiffLegendSlot<Key>): CountSlot<Key> {

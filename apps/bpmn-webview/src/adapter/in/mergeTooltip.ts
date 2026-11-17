@@ -85,7 +85,11 @@ class TooltipLayer {
         }
         if (this.shownFor !== anchor) this.hide();
         this.shownFor = anchor;
-        if (anchor.getAttribute("aria-label") !== text) {
+        // An anchor that names its own description keeps it; the layer's text says the same.
+        if (
+            anchor.getAttribute("aria-label") !== text &&
+            !anchor.hasAttribute("aria-describedby")
+        ) {
             anchor.setAttribute("aria-describedby", LAYER_ID);
         }
         this.layer.textContent = text;

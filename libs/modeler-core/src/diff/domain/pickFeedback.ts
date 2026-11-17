@@ -19,14 +19,19 @@ export function reopenedConflicts(
     return openAfter.filter((id) => !before.has(id));
 }
 
-/** The offer goes to the pane whose side kept the element, naming the side that removed it. */
+/**
+ * The offer goes to the pane whose side kept the element, naming the side
+ * that removed it. An element no canvas draws has no kept side's canvas to
+ * offer it at, so both panes get it, wherever its row is listed.
+ */
 export function restoreOfferOnPane(
     offer: PickRestoreOffer | undefined,
     paneSide: MergeSide,
+    shapeless: readonly { readonly id: string }[],
 ): { elementId: string; connections: readonly string[]; removedBy: MergeSide } | undefined {
-    if (offer === undefined || offer.connections.length === 0 || offer.keptSide !== paneSide) {
-        return undefined;
-    }
+    if (offer === undefined || offer.connections.length === 0) return undefined;
+    const onBothPanes = shapeless.some(({ id }) => id === offer.elementId);
+    if (!onBothPanes && offer.keptSide !== paneSide) return undefined;
     return {
         elementId: offer.elementId,
         connections: offer.connections,

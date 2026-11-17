@@ -3,12 +3,19 @@ import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mer
 import type { MergeDecisions } from "./mergeDecisions";
 import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
-import { type ElementState, type MergeElement, type MergeSide, addedOnlyBy } from "./mergeResult";
+import {
+    type ElementState,
+    type MergeElement,
+    type MergeSide,
+    addedOnlyBy,
+    MERGE_SIDES,
+    otherSide,
+} from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
 import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
 
 /** A marked element no canvas draws, which the pane lists instead. */
-export interface ShapelessMark {
+interface ShapelessMark {
     readonly id: string;
     readonly type: string;
     readonly marker: MergeMarker;
@@ -39,10 +46,32 @@ export interface PickableElement {
     readonly id: string;
     /** Something lies inside it, which a pick can keep with it. */
     readonly container: boolean;
+    /** The side the result takes it from where the sides differ; a side that lacks it leaves it out. Absent while it is open. */
+    readonly takenSide?: MergeSide;
     /** Set while the user's pick decides it: what Undo takes back. */
     readonly undo?: PickScope;
     /** Set where this side holds the element and the other does not, so a pick of the other side leaves it out. */
     readonly otherSideLacks?: OtherSideLack;
+}
+
+/**
+ * A shape-less element either side holds and either pane marks, as a pane's
+ * menu lists it. Unlike {@link ShapelessMark} it covers an element the
+ * pane's side lacks, so the menu can decide every shape-less step.
+ */
+export interface ShapelessRow {
+    readonly id: string;
+    readonly type: string;
+    /** The marker as the pane's side names it, also where that side lacks the element. */
+    readonly marker: MergeMarker;
+    /** Something lies inside it, such as a process's elements, which a pick can keep with it. */
+    readonly container: boolean;
+    /** As {@link PickableElement.takenSide}. */
+    readonly takenSide?: MergeSide;
+    /** Set where one side lacks the element: that side, and why. */
+    readonly lackingSide?: { readonly side: MergeSide; readonly lack: OtherSideLack };
+    /** Set while the user's pick decides it. */
+    readonly pick?: { readonly keptSide: MergeSide; readonly scope: PickScope };
 }
 
 /** What one merge pane shows of the decisions, in result order. */
@@ -57,6 +86,8 @@ export interface MergePaneView {
     /** The drawn elements a pick pulled in or dropped. */
     readonly consequences: readonly string[];
     readonly pickable: readonly PickableElement[];
+    /** What the pane's menu lists; `shapeless` and `counts` leave out what the side lacks. */
+    readonly shapelessRows: readonly ShapelessRow[];
 }
 
 // Both sides hold the same content, so whichever side is taken changes nothing.
@@ -105,7 +136,7 @@ export function mergePaneView(decisions: MergeDecisions, side: MergeSide): Merge
 function paneDecisions(
     decisions: MergeDecisions,
     side: MergeSide,
-): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable"> {
+): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable" | "shapelessRows"> {
     const { elements } = decisions.result;
     const containers = containersOf(elements);
     const pickedOn = (id: string, pickSide: MergeSide) =>
@@ -128,6 +159,8 @@ function paneDecisions(
     const picksNotDrawn: PickNotDrawn[] = [];
     const consequences: string[] = [];
     const pickable: PickableElement[] = [];
+    const shapelessRows: ShapelessRow[] = [];
+    const marking = decisionMarking(decisions);
     for (const element of elements) {
         const origin = decisions.originOf(element.id);
         const drawnHere = !hasNoShape(element) && element.versions[side]?.drawn === true;
@@ -144,14 +177,41 @@ function paneDecisions(
         }
         if (origin === "consequence" && drawnHere) consequences.push(element.id);
         const lack = otherSideLacks(element, side);
+        const container = containers.has(element.id);
+        const takenSide = takenSideOf(decisions, element);
+        const taken = takenSide === undefined ? {} : { takenSide };
         pickable.push({
             id: element.id,
-            container: containers.has(element.id),
+            container,
+            ...taken,
             ...(scope === undefined ? {} : { undo: scope }),
             ...(lack === undefined ? {} : { otherSideLacks: lack }),
         });
+        const marker = marking(element, side);
+        if (hasNoShape(element) && marker !== undefined) {
+            const lacking = lackingSideOf(element);
+            shapelessRows.push({
+                id: element.id,
+                type: element.type,
+                marker,
+                container,
+                ...taken,
+                ...(lacking === undefined ? {} : { lackingSide: lacking }),
+                ...(scope === undefined || keptSide === undefined
+                    ? {}
+                    : { pick: { keptSide, scope } }),
+            });
+        }
     }
-    return { badges, picksNotDrawn, consequences, pickable };
+    return { badges, picksNotDrawn, consequences, pickable, shapelessRows };
+}
+
+function lackingSideOf(element: MergeElement): ShapelessRow["lackingSide"] {
+    for (const side of MERGE_SIDES) {
+        const lack = otherSideLacks(element, otherSide(side));
+        if (lack !== undefined) return { side, lack };
+    }
+    return undefined;
 }
 
 function otherSideLacks(element: MergeElement, side: MergeSide): OtherSideLack | undefined {
@@ -159,16 +219,29 @@ function otherSideLacks(element: MergeElement, side: MergeSide): OtherSideLack |
     return addedOnlyBy(element, side) ? "missing" : undefined;
 }
 
-/** The marker an element gets on a pane of a side, or none. */
+/** The marker an element gets on a pane of a side, or none; a pane marks only what its side holds. */
 export function paneMarking(
+    decisions: MergeDecisions,
+): (element: MergeElement, side: MergeSide) => MergeMarker | undefined {
+    const marking = decisionMarking(decisions);
+    return (element, side) =>
+        element.versions[side] === undefined ? undefined : marking(element, side);
+}
+
+/** The marker the decisions give an element as a side sees it, whether or not the side holds it. */
+function decisionMarking(
     decisions: MergeDecisions,
 ): (element: MergeElement, side: MergeSide) => MergeMarker | undefined {
     const open = new Set(decisions.openConflicts.map(({ id }) => id));
     return (element, side) => {
-        if (element.versions[side] === undefined) return undefined;
         if (open.has(element.id)) return "conflict";
-        const decidedSide = decisions.sideOf(element.id);
-        if (decidedSide === undefined || EQUAL_ON_BOTH_SIDES.has(element.state)) return undefined;
-        return decidedSide === side ? "takenFromThisSide" : "takenFromOtherSide";
+        const takenSide = takenSideOf(decisions, element);
+        if (takenSide === undefined) return undefined;
+        return takenSide === side ? "takenFromThisSide" : "takenFromOtherSide";
     };
+}
+
+/** The side the decisions take an element from, where taking the other would differ. */
+function takenSideOf(decisions: MergeDecisions, element: MergeElement): MergeSide | undefined {
+    return EQUAL_ON_BOTH_SIDES.has(element.state) ? undefined : decisions.sideOf(element.id);
 }

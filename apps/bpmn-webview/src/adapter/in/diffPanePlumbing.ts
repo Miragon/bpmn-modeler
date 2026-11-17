@@ -25,8 +25,9 @@ const OPENING_PLANE = "";
  * What every BPMN pane of a two-pane view does, whatever it marks: owns the
  * {@link DiffViewer} with the element XML context pad, imports the pane's
  * XML and reports it ready, keeps viewport, plane and selection in step with
- * the partner pane, and names the pane's side. A diff pane and a merge pane
- * add their own markers, legend and stepper on top.
+ * the partner pane, and names the pane's side, on the canvas or through
+ * {@link onPlaneMissingChanged} in the pane's own bar. A diff pane and a
+ * merge pane add their own markers, bar and stepper on top.
  *
  *   - Incoming {@link SyncViewportQuery} → apply partner's viewport.
  *   - Incoming {@link SyncDiffPlaneQuery} → enter the partner's plane, or note
@@ -56,6 +57,8 @@ export class DiffPanePlumbing {
     private paintAfterImport: (() => void) | undefined;
 
     private hostShowsElementXmlChanges = false;
+
+    private planeMissingListener: ((missing: boolean) => void) | undefined;
 
     constructor(
         private readonly canvas: HTMLElement,
@@ -141,6 +144,12 @@ export class DiffPanePlumbing {
     setPlaneMissing(missing: boolean): void {
         this.planeMissing = missing;
         this.sideLabel?.showPlaneMissing(missing);
+        this.planeMissingListener?.(missing);
+    }
+
+    /** For a pane that names its side in its own bar instead of the canvas label. */
+    onPlaneMissingChanged(listener: (missing: boolean) => void): void {
+        this.planeMissingListener = listener;
     }
 
     /** Notes the plane the pane entered itself, a sub-process's or the opening one for none. */

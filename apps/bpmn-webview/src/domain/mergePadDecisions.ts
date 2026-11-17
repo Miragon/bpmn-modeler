@@ -1,12 +1,13 @@
 import type {
-    MergePanePickable,
+    MergePaneOtherSideLack,
     MergePaneRestoreOffer,
+    MergePaneShapelessRow,
     MergePaneStates,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
+import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
-/** One decision the context pad offers on an element the pane draws. */
+/** One decision the context pad offers on an element the pane draws, or a menu row on a shape-less one. */
 export type MergePadDecision =
     | {
           readonly kind: "keep";
@@ -17,7 +18,7 @@ export type MergePadDecision =
     | {
           readonly kind: "leaveOut";
           readonly side: MergeSide;
-          readonly otherSideLacks: NonNullable<MergePanePickable["otherSideLacks"]>;
+          readonly otherSideLacks: MergePaneOtherSideLack;
       }
     /** Picks the element again with the flows `offer` names. */
     | {
@@ -30,7 +31,7 @@ export type MergePadDecision =
 /** What the pad reads of the host's states. */
 export type MergePadStates = Pick<
     MergePaneStates,
-    "caption" | "pickable" | "badges" | "marks" | "restoreOffer"
+    "caption" | "pickable" | "badges" | "restoreOffer"
 >;
 
 /**
@@ -48,24 +49,94 @@ export function mergePadDecisions(
     if (pickable === undefined) return [];
     const paneSide = states.caption.side;
     const badge = states.badges.find(({ id }) => id === elementId);
-    const keptHere = badge?.kind === "keptHere" ? badge.scope : undefined;
-    const decisions: MergePadDecision[] = [];
-    if (keptHere === undefined) decisions.push({ kind: "keep", scope: "element", side: paneSide });
-    if (pickable.container && keptHere !== "withContents") {
-        decisions.push({ kind: "keep", scope: "withContents", side: paneSide });
-    }
-    const { otherSideLacks } = pickable;
-    if (otherSideLacks !== undefined && !states.marks.takenFromOtherSide.includes(elementId)) {
-        decisions.push({ kind: "leaveOut", side: otherSide(paneSide), otherSideLacks });
-    }
-    if (states.restoreOffer?.elementId === elementId) {
-        decisions.push({ kind: "keepRemovedFlows", side: paneSide, offer: states.restoreOffer });
-    }
-    if (pickable.undo !== undefined) decisions.push({ kind: "undo", scope: pickable.undo });
-    return decisions;
+    const facts: SidePickFacts = {
+        pickedSide: badge?.keptSide,
+        takenSide: pickable.takenSide,
+        lacking:
+            pickable.otherSideLacks === undefined
+                ? undefined
+                : { side: otherSide(paneSide), lack: pickable.otherSideLacks },
+    };
+    const keptHere = badge?.keptSide === paneSide ? badge.scope : undefined;
+    const decisions: (MergePadDecision | undefined)[] = [
+        sidePick(facts, paneSide),
+        pickable.container && keptHere !== "withContents"
+            ? { kind: "keep", scope: "withContents", side: paneSide }
+            : undefined,
+        facts.lacking === undefined ? undefined : sidePick(facts, facts.lacking.side),
+        keepRemovedFlows(states, elementId),
+        pickable.undo === undefined ? undefined : { kind: "undo", scope: pickable.undo },
+    ];
+    return decisions.filter((decision) => decision !== undefined);
 }
 
-/** The legend decides only a step the pad cannot reach, one no canvas draws. */
-export function decidesInLegend(step: { readonly shapeless: boolean }): boolean {
+/** What a menu row reads of the host's states. */
+export type MergeRowStates = Pick<MergePaneStates, "restoreOffer">;
+
+/**
+ * The decisions a menu row offers on a shape-less element, by the pad's
+ * rule: no other pane decides it, so it offers a pick of either side, keep
+ * where the side holds it, a container also with everything inside, and
+ * leave out where the side lacks it, then the flows the host offers and the
+ * undo of the user's pick.
+ */
+export function mergeRowDecisions(
+    states: MergeRowStates,
+    row: MergePaneShapelessRow,
+): readonly MergePadDecision[] {
+    const facts: SidePickFacts = {
+        pickedSide: row.pick?.keptSide,
+        takenSide: row.takenSide,
+        lacking: row.lackingSide,
+    };
+    const keptWithContentsFrom = row.pick?.scope === "withContents" ? row.pick.keptSide : undefined;
+    const withContents = (side: MergeSide): MergePadDecision | undefined =>
+        row.container && row.lackingSide?.side !== side && keptWithContentsFrom !== side
+            ? { kind: "keep", scope: "withContents", side }
+            : undefined;
+    const decisions: (MergePadDecision | undefined)[] = [
+        ...MERGE_SIDES.flatMap((side) => [sidePick(facts, side), withContents(side)]),
+        keepRemovedFlows(states, row.id),
+        row.pick === undefined ? undefined : { kind: "undo", scope: row.pick.scope },
+    ];
+    return decisions.filter((decision) => decision !== undefined);
+}
+
+/** The menu decides only a step the pad cannot reach, one no canvas draws. */
+export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
     return step.shapeless;
+}
+
+/** The host's offer of the flows removed with `elementId`, kept from the side that kept the element. */
+export function keepRemovedFlows(
+    states: MergeRowStates,
+    elementId: string,
+): MergePadDecision | undefined {
+    const offer = states.restoreOffer;
+    return offer?.elementId === elementId
+        ? { kind: "keepRemovedFlows", side: otherSide(offer.removedBy), offer }
+        : undefined;
+}
+
+/** What tells whether a pick of a side changes anything. */
+interface SidePickFacts {
+    /** The side the user's pick keeps the element from. */
+    readonly pickedSide?: MergeSide;
+    /** The side the result takes the element from, picked or not. */
+    readonly takenSide?: MergeSide;
+    readonly lacking?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
+}
+
+/**
+ * A pick of `side`: keep the element where the side holds it, unless the
+ * user's pick keeps it from there already; leave it out where the side lacks
+ * it, unless the result leaves it out already.
+ */
+function sidePick(facts: SidePickFacts, side: MergeSide): MergePadDecision | undefined {
+    if (facts.lacking?.side === side) {
+        return facts.takenSide === side
+            ? undefined
+            : { kind: "leaveOut", side, otherSideLacks: facts.lacking.lack };
+    }
+    return facts.pickedSide === side ? undefined : { kind: "keep", scope: "element", side };
 }

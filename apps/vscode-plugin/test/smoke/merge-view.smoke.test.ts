@@ -29,6 +29,8 @@ const DIST_DIRECTORY = join(REPOSITORY_ROOT, "dist/apps/vscode-plugin");
 const RESULTS_DIRECTORY = join(REPOSITORY_ROOT, "test-results/vscode-smoke/merge-view");
 const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url));
 const TIMEOUT_MS = 30_000;
+// VS Code's minimum editor width, which the merge bar fits on one line.
+const NARROWEST_EDITOR_WIDTH = 220;
 const COMMAND_TITLE = "Resolve in BPMN Merge View";
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
@@ -274,11 +276,15 @@ describe("the BPMN merge view", () => {
         );
     }
 
-    function sideLabel(webview: FrameLocator): Promise<string> {
-        return webview.locator(".diff-side-label").innerText({ timeout: TIMEOUT_MS });
+    /** A pane's caption in its bar, in full: a narrow bar hides the branch and commit, not the text. */
+    async function sideLabel(webview: FrameLocator): Promise<string> {
+        return (
+            (await webview.locator(".merge-bar__caption").textContent({ timeout: TIMEOUT_MS })) ??
+            ""
+        );
     }
 
-    /** The side labels of both panes of the visible merge view, once both painted their caption. */
+    /** The captions of both panes of the visible merge view, once both painted theirs. */
     async function captions(): Promise<{ current: string; incoming: string }> {
         const current = await vscode().editorWebview('body[data-diff-side="before"]');
         const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
@@ -363,8 +369,154 @@ describe("the BPMN merge view", () => {
         };
     }
 
-    function openCount(pane: FrameLocator): Promise<string> {
-        return pane.locator(".merge-legend__open").innerText();
+    /** The open conflicts, as the incoming pane's ‹ n/N › names them in its tooltip. */
+    async function openCount(incoming: FrameLocator): Promise<string> {
+        return (
+            (await incoming
+                .locator(".merge-bar__position")
+                .getAttribute("data-merge-tooltip", { timeout: TIMEOUT_MS })) ?? ""
+        );
+    }
+
+    /** Opens the incoming pane's "…" menu the keyboard's way, unless it is open. */
+    async function openMenu(incoming: FrameLocator): Promise<void> {
+        const shown = incoming.locator(".merge-menu:not([hidden])");
+        if ((await shown.count()) > 0) return;
+        const more = incoming.locator(".merge-bar__more");
+        await more.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await more.focus();
+        await vscode().page.keyboard.press("Enter");
+        await shown.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+    }
+
+    /** Switches the step list in the menu and closes it with Escape, which gives the focus back to "…". */
+    async function chooseStepList(incoming: FrameLocator, name: string): Promise<void> {
+        await openMenu(incoming);
+        await incoming.getByRole("radio", { name, exact: true }).focus();
+        await vscode().page.keyboard.press("Enter");
+        await expect
+            .poll(
+                () =>
+                    incoming.getByRole("radio", { name, exact: true }).getAttribute("aria-checked"),
+                {
+                    timeout: TIMEOUT_MS,
+                },
+            )
+            .toBe("true");
+        await vscode().page.keyboard.press("Escape");
+        await incoming.locator(".merge-menu").waitFor({ state: "hidden", timeout: TIMEOUT_MS });
+    }
+
+    /** The menu's way: opens "…" and presses one of its entries. */
+    async function pressInMenu(incoming: FrameLocator, name: string): Promise<void> {
+        await openMenu(incoming);
+        await press(incoming, name);
+    }
+
+    /**
+     * Build where the bar has room for it, else the first item of the "…"
+     * menu. A pane that reloaded after a tab switch refits its bar once its
+     * states arrive, so Build gets a moment to show on the bar first.
+     */
+    async function pressBuild(incoming: FrameLocator): Promise<void> {
+        const onBar = await incoming
+            .locator(".merge-bar__build")
+            .waitFor({ state: "visible", timeout: 5_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (onBar) {
+            await press(incoming, "Build");
+            return;
+        }
+        await openMenu(incoming);
+        const inMenu = incoming.locator(".merge-menu").getByRole("button", {
+            name: "Build",
+            exact: true,
+        });
+        await inMenu.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await inMenu.focus();
+        await vscode().page.keyboard.press("Enter");
+    }
+
+    /**
+     * One line each, level with each other, and nothing cut off: the bars'
+     * layout across a pane's width. A part cut off or an ellipsized caption
+     * overflows its box.
+     */
+    async function barLayout(pane: FrameLocator) {
+        return pane.locator(".merge-bar").evaluate((bar) => {
+            const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
+                (selector) => bar.querySelector<HTMLElement>(selector),
+            );
+            return {
+                height: (bar as HTMLElement).offsetHeight,
+                clipped: parts.some((part) => part === null || part.scrollWidth > part.clientWidth),
+            };
+        });
+    }
+
+    /** Both bars have one height and cut nothing off, so the two diagrams stay level. */
+    async function expectBarsLevel(current: FrameLocator, incoming: FrameLocator): Promise<void> {
+        await expect
+            .poll(
+                async () => {
+                    const [left, right] = [await barLayout(current), await barLayout(incoming)];
+                    return {
+                        level: left.height > 0 && left.height === right.height,
+                        clipped: [left.clipped, right.clipped],
+                    };
+                },
+                { timeout: TIMEOUT_MS },
+            )
+            .toEqual({ level: true, clipped: [false, false] });
+    }
+
+    /**
+     * Widens a pane's bar until it says everything, then narrows it step by
+     * step down to VS Code's narrowest editor, as a narrowing pane would, and
+     * gives back its layout at each width and the menu's first item at the
+     * narrowest; the bar gets its width back afterwards.
+     */
+    async function narrowBar(pane: FrameLocator) {
+        return pane.locator(".merge-bar").evaluate(async (element, narrowest) => {
+            const bar = element as HTMLElement;
+            const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
+                (selector) => bar.querySelector<HTMLElement>(selector),
+            );
+            // The bar refits in its ResizeObserver, which runs before the next frame paints.
+            const nextFrame = () =>
+                new Promise((resolve) =>
+                    requestAnimationFrame(() => requestAnimationFrame(resolve)),
+                );
+            const widths: { width: number; fit?: string; height: number; clipped: boolean }[] = [];
+            for (let width = 1600; width >= narrowest; width -= 10) {
+                bar.style.width = `${width}px`;
+                await nextFrame();
+                widths.push({
+                    width,
+                    fit: bar.dataset.fit,
+                    height: bar.offsetHeight,
+                    clipped: parts.some(
+                        (part) => part === null || part.scrollWidth > part.clientWidth,
+                    ),
+                });
+            }
+            const more = bar.querySelector<HTMLButtonElement>(".merge-bar__more");
+            more?.click();
+            const first = bar.querySelector<HTMLButtonElement>(".merge-menu button");
+            const menuFirst = first && {
+                text: first.textContent,
+                disabled: first.disabled,
+                reason: first.ownerDocument.getElementById(
+                    first.getAttribute("aria-describedby") ?? "",
+                )?.textContent,
+                tooltip: first.parentElement?.getAttribute("data-merge-tooltip"),
+            };
+            more?.click();
+            bar.style.removeProperty("width");
+            await nextFrame();
+            return { widths, menuFirst };
+        }, NARROWEST_EDITOR_WIDTH);
     }
 
     async function expectUntouched(operation: Operation): Promise<void> {
@@ -576,12 +728,20 @@ describe("the BPMN merge view", () => {
             const current = await vscode().editorWebview('body[data-diff-side="before"]');
             const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
 
+            await expect
+                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
+                .toBe("1 open conflict");
             for (const pane of [current, incoming]) {
                 await expect
-                    .poll(() => pane.locator(".merge-legend__open").innerText(), {
-                        timeout: TIMEOUT_MS,
-                    })
-                    .toBe("1 open conflict");
+                    .poll(
+                        () =>
+                            pane
+                                .locator(".diff-legend__slot--merge-conflict")
+                                .textContent()
+                                .then((text) => text?.replace(/\s+/g, " ").trim()),
+                        { timeout: TIMEOUT_MS },
+                    )
+                    .toBe("Conflict 1");
                 // Until the new tab shows, the pane locator can still reach the earlier tab's pane.
                 await expect
                     .poll(() => classesOf(pane, "Task_Check"), { timeout: TIMEOUT_MS })
@@ -592,7 +752,36 @@ describe("the BPMN merge view", () => {
                     })
                     .toBe(1);
             }
+            await expectBarsLevel(current, incoming);
             await shot("marks-both-panes");
+        });
+
+        it("keeps the bar on one line of one height down to the narrowest editor with the conflict open, dropping the caption's branch and commit, then the counts' labels, then moving Build into the menu", async () => {
+            const { current, incoming } = await mergePanes();
+            const { height } = await barLayout(incoming);
+
+            const { widths, menuFirst } = await narrowBar(incoming);
+
+            const fits = widths
+                .map(({ fit }) => fit)
+                .filter((fit, index, all) => fit !== all[index - 1]);
+            expect(fits).toEqual([
+                "full",
+                "withoutDetail",
+                "withoutLabels",
+                "withoutBuild",
+                "compact",
+            ]);
+            expect(widths.at(-1)?.width).toBe(NARROWEST_EDITOR_WIDTH);
+            expect(widths.filter(({ clipped }) => clipped)).toEqual([]);
+            expect(widths.filter((width) => width.height !== height)).toEqual([]);
+            expect(menuFirst).toEqual({
+                text: "Build",
+                disabled: true,
+                reason: "1 conflict left",
+                tooltip: "1 conflict left",
+            });
+            await expectBarsLevel(current, incoming);
         });
 
         it("marks the end event only feature renamed as taken from the incoming side", async () => {
@@ -607,20 +796,27 @@ describe("the BPMN merge view", () => {
             await expectUntouched("merge");
         });
 
-        it("walks the list one pane switched to on the other pane too", async () => {
-            const current = await vscode().editorWebview('body[data-diff-side="before"]');
-            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
-            const allSteps = (pane: FrameLocator) =>
-                pane.getByRole("button", { name: "All merged elements" });
+        it("switches the step list in the incoming pane's menu, which the host keeps for the tab", async () => {
+            const { current, incoming } = await mergePanes();
+            const position = () => incoming.locator(".merge-bar__position").innerText();
+            await expect.poll(position, { timeout: TIMEOUT_MS }).toBe("–/1");
+            expect(await current.locator(".merge-bar__more:visible").count()).toBe(0);
+            await openMenu(incoming);
+            const allSteps = incoming.getByRole("radio", {
+                name: "All merged elements",
+                exact: true,
+            });
 
-            await allSteps(current).click();
+            await allSteps.focus();
+            await vscode().page.keyboard.press("Enter");
 
             await expect
-                .poll(() => allSteps(incoming).getAttribute("aria-pressed"), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => allSteps.getAttribute("aria-checked"), { timeout: TIMEOUT_MS })
                 .toBe("true");
+            await expect.poll(position, { timeout: TIMEOUT_MS }).not.toBe("–/1");
             await shot("marks-step-list-shared");
+            await vscode().page.keyboard.press("Escape");
+            await incoming.locator(".merge-menu").waitFor({ state: "hidden", timeout: TIMEOUT_MS });
         });
     });
 
@@ -653,7 +849,7 @@ describe("the BPMN merge view", () => {
 
         it("keeps incoming's version of the conflict from the pad a step opens and badges it on both panes", async () => {
             const { current, incoming } = await mergePanes();
-            await press(incoming, "Open conflicts");
+            await chooseStepList(incoming, "Open conflicts");
             await press(incoming, "Next change");
 
             // The step selects the conflict on both panes, so each opens its pad, and shows no tooltip.
@@ -666,12 +862,15 @@ describe("the BPMN merge view", () => {
             }
             await decideInPad(incoming, "Keep incoming");
 
+            await expect
+                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
+                .toBe("No open conflicts");
             for (const pane of [current, incoming]) {
                 await expect
-                    .poll(() => openCount(pane), { timeout: TIMEOUT_MS })
-                    .toBe("No open conflicts");
-                expect(await badgeLabels(pane)).toEqual(["Kept from incoming, your pick"]);
+                    .poll(() => badgeLabels(pane), { timeout: TIMEOUT_MS })
+                    .toEqual(["Kept from incoming, your pick"]);
             }
+            await expectBarsLevel(current, incoming);
             expect(await badgeTexts(incoming)).toEqual(["Incoming"]);
             await expect
                 .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
@@ -682,17 +881,18 @@ describe("the BPMN merge view", () => {
 
         it("undoes the pick on the pad, then overrides an automatic resolution of all merged elements", async () => {
             const { current, incoming } = await mergePanes();
-            await press(incoming, "All merged elements");
+            await chooseStepList(incoming, "All merged elements");
+            await expectBarsLevel(current, incoming);
 
             await decideInPad(incoming, "Undo pick");
 
             await expect
-                .poll(() => openCount(current), { timeout: TIMEOUT_MS })
+                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("1 open conflict");
             expect(await badgeLabels(current)).toEqual([]);
             expect(await badgeLabels(incoming)).toEqual([]);
 
-            await press(current, "Next change");
+            await press(incoming, "Next change");
             await decideInPad(current, "Keep current");
 
             await expect
@@ -730,11 +930,9 @@ describe("the BPMN merge view", () => {
             await vscode().runCommand("View: Close All Editors");
             await rowMenu(REMOVAL_FILE, COMMAND_TITLE);
             const { current, incoming } = await mergePanes();
-            for (const pane of [current, incoming]) {
-                await expect
-                    .poll(() => openCount(pane), { timeout: TIMEOUT_MS })
-                    .toBe("1 open conflict");
-            }
+            await expect
+                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
+                .toBe("1 open conflict");
             await press(incoming, "Next change");
 
             await decideInPad(incoming, "Keep incoming");
@@ -763,18 +961,18 @@ describe("the BPMN merge view", () => {
                     timeout: TIMEOUT_MS,
                 })
                 .toBe(3);
-            await expect
-                .poll(() => current.locator(".merge-legend__picks-item").count(), {
-                    timeout: TIMEOUT_MS,
-                })
-                .toBe(3);
-            await shot("pick-listed-where-not-drawn");
+            // The current pane lacks what incoming kept, so it draws no badge for it and lists none.
+            expect(await badgeLabels(current)).toEqual([]);
+            await shot("pick-kept-with-flows");
         });
 
         it("names the flows that block leaving out the task main removed", async () => {
             const { current, incoming } = await mergePanes();
-            // The current pane lists the pick it cannot draw; its step selects the task on the incoming pane.
-            await press(current, "Kept from incoming: Check feature order");
+            // diagram-js deselects on a click on the element already selected alone, so it starts from none.
+            const canvas = incoming.locator(".djs-container");
+            const height = (await canvas.boundingBox())?.height ?? 0;
+            await canvas.click({ position: { x: 30, y: height - 30 } });
+            await incoming.locator('.djs-element[data-element-id="Task_Check"]').first().click();
 
             await decideInPad(incoming, /^Leave out: Leave it out, as current removed it$/);
 
@@ -785,7 +983,8 @@ describe("the BPMN merge view", () => {
             expect(await card.innerText()).toMatch(/Your pick .+ needs it/);
             expect(await incoming.locator(".djs-element.merge-blocker").count()).toBeGreaterThan(0);
             expect(await outcomeCard(current).count()).toBe(0);
-            expect(await current.locator(".merge-legend__feedback:not([hidden])").count()).toBe(0);
+            // The left pane has no menu whose rows could say it.
+            expect(await current.locator(".merge-menu:not([hidden])").count()).toBe(0);
             await shot("pick-blocked-reason");
         });
 
@@ -982,22 +1181,37 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("1 open conflict");
+            // Two groups leave each pane too narrow for Build on the bar, so it is the menu's first item.
+            await expectBarsLevel(current, incoming);
+            expect(await incoming.locator(".merge-bar__build").isVisible()).toBe(false);
+            await openMenu(incoming);
             const build = incoming.getByRole("button", { name: "Build", exact: true });
             expect(await build.isDisabled()).toBe(true);
-            expect(await incoming.locator(".merge-legend__build-blocked").innerText()).toBe(
-                "1 conflict left",
-            );
+            expect(
+                await incoming
+                    .locator(".merge-menu__build-wrap")
+                    .getAttribute("data-merge-tooltip"),
+            ).toBe("1 conflict left");
+            expect(
+                await build.evaluate(
+                    (button) =>
+                        button.ownerDocument.getElementById(
+                            button.getAttribute("aria-describedby") ?? "",
+                        )?.textContent,
+                ),
+            ).toBe("1 conflict left");
             expect(await current.getByRole("button", { name: "Build", exact: true }).count()).toBe(
                 0,
             );
             await shot("build-disabled");
+            await vscode().page.keyboard.press("Escape");
 
             await press(incoming, "Next change");
             await decideInPad(incoming, "Keep incoming");
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");
-            await press(incoming, "Build");
+            await pressBuild(incoming);
 
             await expectBuiltButUnmerged("merge", "Check feature order");
         });
@@ -1030,7 +1244,7 @@ describe("the BPMN merge view", () => {
             await mergeTab(CONFLICTED.merge).click();
             const { incoming } = await mergePanes();
 
-            await press(incoming, "Build");
+            await pressBuild(incoming);
 
             await notification("Built merged.bpmn from your decisions.");
             expect(await dialog().count()).toBe(0);
@@ -1055,7 +1269,7 @@ describe("the BPMN merge view", () => {
             await mergeTab(CONFLICTED.merge).click();
             const { incoming } = await mergePanes();
 
-            await press(incoming, "Build");
+            await pressBuild(incoming);
 
             await cancelDialog("merged.bpmn changed since the last build. Build over it?");
             expect(await taskName(await workingFileText("merge"))).toBe("Check edited order");
@@ -1070,7 +1284,7 @@ describe("the BPMN merge view", () => {
             await mergeTab(CONFLICTED.merge).click();
             const { incoming } = await mergePanes();
 
-            await press(incoming, "Build");
+            await pressBuild(incoming);
 
             await cancelDialog("merged.bpmn has unsaved changes. Build over them?");
             expect(await taskName(await workingFileText("merge"))).toBe("Check edited order");
@@ -1085,7 +1299,7 @@ describe("the BPMN merge view", () => {
             await mergeTab(CONFLICTED.merge).click();
             const { incoming } = await mergePanes();
 
-            await press(incoming, "Compare with incoming");
+            await pressInMenu(incoming, "Compare with incoming");
 
             await expect
                 .poll(activeTabLabel, { timeout: TIMEOUT_MS })
@@ -1122,7 +1336,7 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");
-            await press(incoming, "Build");
+            await pressBuild(incoming);
             await expect
                 .poll(() => readFile(join(repositories.merge, REMOVAL_FILE), "utf8"), {
                     timeout: TIMEOUT_MS,
@@ -1130,11 +1344,12 @@ describe("the BPMN merge view", () => {
                 .not.toContain("<<<<<<<");
             await mergeTab(REMOVAL_FILE).click();
             const panes = await mergePanes();
+            await expectBarsLevel(panes.current, panes.incoming);
 
-            await press(panes.incoming, "Review notes (1)");
+            await pressInMenu(panes.incoming, "Review notes (1)");
 
             await expect
-                .poll(() => panes.incoming.locator(".merge-legend__notes").innerText(), {
+                .poll(() => panes.incoming.locator(".merge-notes__list").innerText(), {
                     timeout: TIMEOUT_MS,
                 })
                 .toContain(
@@ -1192,7 +1407,7 @@ describe("the BPMN merge view", () => {
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");
 
-            await press(incoming, "Build");
+            await pressBuild(incoming);
 
             await expectBuiltButUnmerged("rebase", "Check feature order");
             await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);

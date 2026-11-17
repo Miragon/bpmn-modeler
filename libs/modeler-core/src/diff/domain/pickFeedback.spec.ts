@@ -25,12 +25,34 @@ describe("restoreOfferOnPane", () => {
     it.each<[MergeSide, ReturnType<typeof restoreOfferOnPane>]>([
         ["incoming", { elementId: "Task_Reject", connections: ["Flow_No"], removedBy: "current" }],
         ["current", undefined],
-    ])("offers the flows on the pane that kept the element only: %s", (paneSide, expected) => {
-        expect(restoreOfferOnPane(offer, paneSide)).toStrictEqual(expected);
-    });
+    ])(
+        "offers the flows of a drawn element on the pane that kept it only: %s",
+        (paneSide, expected) => {
+            expect(restoreOfferOnPane(offer, paneSide, [{ id: "Message_1" }])).toStrictEqual(
+                expected,
+            );
+        },
+    );
+
+    it.each<MergeSide>(["current", "incoming"])(
+        "offers the flows of an element no canvas draws on both panes: %s",
+        (paneSide) => {
+            expect(
+                restoreOfferOnPane(
+                    { ...offer, elementId: "Message_1", keptSide: "current" },
+                    paneSide,
+                    [{ id: "Message_1" }],
+                ),
+            ).toStrictEqual({
+                elementId: "Message_1",
+                connections: ["Flow_No"],
+                removedBy: "incoming",
+            });
+        },
+    );
 
     it("offers nothing without flows left out", () => {
-        expect(restoreOfferOnPane({ ...offer, connections: [] }, "incoming")).toBeUndefined();
-        expect(restoreOfferOnPane(undefined, "incoming")).toBeUndefined();
+        expect(restoreOfferOnPane({ ...offer, connections: [] }, "incoming", [])).toBeUndefined();
+        expect(restoreOfferOnPane(undefined, "incoming", [])).toBeUndefined();
     });
 });

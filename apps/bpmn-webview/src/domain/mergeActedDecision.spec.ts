@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 
 import {
+    actedInMenu,
     actedOnPad,
     keepRemovedFlowsDecision,
     type MergeActedDecision,
@@ -68,6 +69,20 @@ describe("actedOnPad", () => {
     });
 });
 
+describe("actedInMenu", () => {
+    it.each<MergePadDecision>([
+        { kind: "keep", scope: "element", side: "current" },
+        { kind: "leaveOut", side: "incoming", otherSideLacks: "removed" },
+        { kind: "keepRemovedFlows", side: "incoming", offer: OFFER },
+        { kind: "undo", scope: "element" },
+    ])("remembers a row's %o as the pad's, decided in the menu", (decision) => {
+        expect(actedInMenu("Message_1", decision)).toStrictEqual({
+            ...actedOnPad("Message_1", decision),
+            origin: "menu",
+        });
+    });
+});
+
 describe("keepRemovedFlowsDecision", () => {
     it("keeps the element from the side it names with the flows the other side removed, as the pad's entry does", () => {
         expect(keepRemovedFlowsDecision("Task_1", "incoming")).toStrictEqual(
@@ -115,7 +130,7 @@ describe("mergeDecisionCommandOf", () => {
             { kind: "pick", elementId: "Task_1", scope: "element", side: "current" },
         ],
         [
-            { kind: "undo", elementId: "Process_1", scope: "withContents", origin: "legend" },
+            { kind: "undo", elementId: "Process_1", scope: "withContents", origin: "menu" },
             { kind: "unpick", elementId: "Process_1", scope: "withContents" },
         ],
     ])("sends %o as %o", (acted, command) => {

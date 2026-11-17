@@ -1,13 +1,10 @@
-import type { MergePanePickable, MergePickScope } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneOtherSideLack, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergePadDecision } from "./mergePadDecisions";
 
-/** Why the other side lacks an element a leave-out leaves out. */
-export type MergeOtherSideLacks = NonNullable<MergePanePickable["otherSideLacks"]>;
-
-/** Where the user decided: on the canvas (the pad or the outcome card), or in the legend. */
-type MergeDecisionOrigin = "canvas" | "legend";
+/** Where the user decided: on the canvas (the pad or the outcome card), or in a menu row. */
+export type MergeDecisionOrigin = "canvas" | "menu";
 
 /**
  * A pick or undo this pane sent, remembered with what the protocol's
@@ -27,7 +24,7 @@ export type MergeActedDecision =
           readonly elementId: string;
           /** The side that lacks the element, which the pick names. */
           readonly side: MergeSide;
-          readonly otherSideLacks: MergeOtherSideLacks;
+          readonly otherSideLacks: MergePaneOtherSideLack;
           readonly origin: MergeDecisionOrigin;
       }
     | {
@@ -39,33 +36,44 @@ export type MergeActedDecision =
 
 /** The decision a pad entry sends for `elementId`. */
 export function actedOnPad(elementId: string, decision: MergePadDecision): MergeActedDecision {
+    return acted(elementId, decision, "canvas");
+}
+
+/** The decision a menu row sends for its shape-less element, which the row says it did. */
+export function actedInMenu(elementId: string, decision: MergePadDecision): MergeActedDecision {
+    return acted(elementId, decision, "menu");
+}
+
+/** Keeping the flows the other side removed keeps the element from `side` with them, from the pad or the card. */
+export function keepRemovedFlowsDecision(
+    elementId: string,
+    side: MergeSide,
+    origin: MergeDecisionOrigin = "canvas",
+): MergeActedDecision {
+    return { kind: "keep", elementId, scope: "withConnections", side, origin };
+}
+
+function acted(
+    elementId: string,
+    decision: MergePadDecision,
+    origin: MergeDecisionOrigin,
+): MergeActedDecision {
     switch (decision.kind) {
         case "keep":
-            return {
-                kind: "keep",
-                elementId,
-                scope: decision.scope,
-                side: decision.side,
-                origin: "canvas",
-            };
+            return { kind: "keep", elementId, scope: decision.scope, side: decision.side, origin };
         case "leaveOut":
             return {
                 kind: "leaveOut",
                 elementId,
                 side: decision.side,
                 otherSideLacks: decision.otherSideLacks,
-                origin: "canvas",
+                origin,
             };
         case "keepRemovedFlows":
-            return keepRemovedFlowsDecision(elementId, decision.side);
+            return keepRemovedFlowsDecision(elementId, decision.side, origin);
         case "undo":
-            return { kind: "undo", elementId, scope: decision.scope, origin: "canvas" };
+            return { kind: "undo", elementId, scope: decision.scope, origin };
     }
-}
-
-/** Keeping the flows the other side removed keeps the element from `side` with them, from the pad or the card. */
-export function keepRemovedFlowsDecision(elementId: string, side: MergeSide): MergeActedDecision {
-    return { kind: "keep", elementId, scope: "withConnections", side, origin: "canvas" };
 }
 
 /** What a remembered decision sends to the host. */

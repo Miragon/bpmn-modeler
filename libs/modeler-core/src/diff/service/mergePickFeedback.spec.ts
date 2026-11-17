@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BlockedPick, PickOutcome, RequirementObstacle } from "@miragon/bpmn-modeler-merge";
 import type { MergePaneBlock } from "@miragon/bpmn-modeler-shared";
 
-import { idsTheLegendNames, mergePickFeedback } from "./mergePickFeedback";
+import { idsNamedInWords, mergePickFeedback } from "./mergePickFeedback";
 
 const blocked = (obstacle: RequirementObstacle): BlockedPick => ({
     id: "Task_Pack",
@@ -94,7 +94,7 @@ describe("mergePickFeedback", () => {
         });
     });
 
-    it("names every element the legend names: the picks it lists and the last outcome's", () => {
+    it("names every element a pane names in words: the rows its menu lists and the last outcome's", () => {
         const { outcome } = mergePickFeedback({
             action: "leaveOut",
             elementId: "Task_Reject",
@@ -107,9 +107,9 @@ describe("mergePickFeedback", () => {
             openAfter: [],
         });
 
-        expect(idsTheLegendNames([{ id: "Task_Check" }], outcome)).toStrictEqual(
+        expect(idsNamedInWords([{ id: "Task_Check" }], outcome)).toStrictEqual(
             new Set(["Task_Check", "Task_Reject", "Flow_2", "Task_Pack"]),
         );
-        expect(idsTheLegendNames([], undefined)).toStrictEqual(new Set());
+        expect(idsNamedInWords([], undefined)).toStrictEqual(new Set());
     });
 });

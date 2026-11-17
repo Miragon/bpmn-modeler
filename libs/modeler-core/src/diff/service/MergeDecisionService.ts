@@ -21,7 +21,7 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { ArmedDiff } from "./DiffPaneRelay";
 import { DiffSession } from "./DiffSession";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
-import { idsTheLegendNames, type MergePickFeedback, mergePickFeedback } from "./mergePickFeedback";
+import { idsNamedInWords, type MergePickFeedback, mergePickFeedback } from "./mergePickFeedback";
 
 /**
  * Shows each merge view's decisions on its two panes and takes the user's
@@ -196,13 +196,13 @@ function statesFor(
     const side = mergeSideOfPane(paneSide);
     const view = mergePaneView(session.decisions, side);
     const steps = mergePaneSteps(session.decisions, session.navigationOrder, side);
-    const restoreOffer = restoreOfferOnPane(feedback?.offer, side);
+    const restoreOffer = restoreOfferOnPane(feedback?.offer, side, view.shapelessRows);
     return new ApplyMergeStatesQuery(
         paneSide,
         {
             caption: session.captions[side],
             marks: view.marks,
-            shapeless: view.shapeless,
+            shapelessRows: view.shapelessRows,
             counts: view.counts,
             openConflictSteps: steps.openConflicts,
             allSteps: steps.all,
@@ -217,7 +217,7 @@ function statesFor(
             names: mergeElementNames(
                 session.sources,
                 session.decisions,
-                idsTheLegendNames(view.picksNotDrawn, feedback?.outcome),
+                idsNamedInWords(view.shapelessRows, feedback?.outcome),
             ),
             build: {
                 canBuild: session.decisions.canBuild,

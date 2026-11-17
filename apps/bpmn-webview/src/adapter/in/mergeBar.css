@@ -1,0 +1,452 @@
+/*
+ * The merge pane's one-line bar and its popups, on top of the diff legend's
+ * look (`diffLegend.css`), whose tokens theme them. One fixed height on both
+ * panes keeps the two diagrams level. Rules that override a `diff-legend`
+ * rule are scoped one class deeper: the bundle's order of the two sheets is
+ * not fixed.
+ */
+
+.diff-legend.merge-bar {
+    display: block;
+    height: 40px;
+    min-height: 0;
+    padding: 0;
+}
+
+/* Outranks the display above, which `.diff-legend[hidden]` alone does not. */
+.diff-legend.merge-bar[hidden] {
+    display: none;
+}
+
+/* The bar measures whether its parts overflow, so the row clips instead of wrapping. */
+.merge-bar__row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
+    box-sizing: border-box;
+    height: 100%;
+    overflow: hidden;
+    padding: 0 8px 0 12px;
+    white-space: nowrap;
+}
+
+/* ─── Caption and counts ───────────────────────────────────────────────── */
+
+.merge-bar__caption {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--diff-legend-muted);
+    text-overflow: ellipsis;
+    background: var(--diff-legend-button-hover);
+    border-radius: 6px;
+}
+
+.merge-bar__caption-side {
+    font-weight: 600;
+    color: var(--diff-legend-text);
+}
+
+.merge-bar__counts {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.merge-bar .merge-bar__slot {
+    flex: none;
+}
+
+.merge-bar .merge-bar__nav {
+    flex: none;
+    gap: 0;
+    margin-left: 0;
+}
+
+.merge-bar__actions {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--diff-legend-border);
+}
+
+.merge-bar__more {
+    position: relative;
+}
+
+.merge-bar__more[aria-expanded="true"] {
+    background: var(--diff-legend-button-hover);
+}
+
+.merge-bar__badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    box-sizing: border-box;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    color: #fff;
+    text-align: center;
+    background: var(--diff-legend-removed);
+    border-radius: 8px;
+}
+
+/* A disabled button gets no pointer events, so the wrapper carries the tooltip with the reason. */
+.merge-bar__build-wrap {
+    display: inline-flex;
+}
+
+.merge-bar .merge-bar__build {
+    padding: 0 12px;
+    border-color: var(--diff-legend-border);
+}
+
+.merge-bar__build:disabled {
+    pointer-events: none;
+}
+
+.merge-bar__build:not(:disabled) {
+    color: var(--diff-legend-primary-text);
+    background: var(--diff-legend-primary-surface);
+    border-color: var(--diff-legend-primary-border);
+}
+
+.merge-bar__build:not(:disabled):hover {
+    background: var(--diff-legend-primary-hover);
+}
+
+.merge-bar__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/*
+ * A line that does not fit stays one line; the tooltips keep the words. The
+ * bar measures which fit applies (mergeBarFit), so the pane's width and the
+ * number of markers both count, and sets one attribute per effect of it.
+ */
+.merge-bar[data-detail-hidden] .merge-bar__caption-detail {
+    display: none;
+}
+
+.merge-bar[data-labels-hidden] :is(.merge-bar__row, .merge-bar__counts) {
+    gap: 10px;
+}
+
+.merge-bar[data-labels-hidden] .merge-bar__slot {
+    gap: 4px;
+}
+
+.merge-bar[data-labels-hidden] .merge-bar__slot-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.merge-bar[data-build-in-menu] .merge-bar__build-wrap {
+    display: none;
+}
+
+/* The right padding keeps room for the "…" badge, which overhangs its button. */
+.merge-bar[data-compact] .merge-bar__row {
+    gap: 4px;
+    padding: 0 4px 0 2px;
+}
+
+.merge-bar[data-compact] .merge-bar__counts {
+    gap: 6px;
+}
+
+.merge-bar[data-compact] .merge-bar__slot {
+    gap: 3px;
+}
+
+.merge-bar[data-compact] .merge-bar__caption {
+    padding: 2px 4px;
+}
+
+.merge-bar[data-compact] .merge-bar__nav .diff-legend__nav-btn,
+.merge-bar[data-compact] .merge-bar__more {
+    min-width: 20px;
+    padding: 0;
+}
+
+.merge-bar[data-compact] .merge-bar__position {
+    padding: 0;
+}
+
+.merge-bar[data-compact] .merge-bar__actions {
+    padding-left: 0;
+    border-left: 0;
+}
+
+/* ─── Popups below "…" ─────────────────────────────────────────────────── */
+
+.merge-menu,
+.merge-notes {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 8px;
+    z-index: 200;
+    box-sizing: border-box;
+    width: min(360px, calc(100% - 16px));
+    max-height: calc(100vh - var(--diff-legend-height, 40px) - 16px);
+    overflow-y: auto;
+    padding: 6px 0;
+    font-weight: 400;
+    color: var(--diff-legend-text);
+    white-space: normal;
+    background: var(--diff-legend-surface);
+    border: 1px solid var(--diff-legend-border);
+    border-radius: var(--diff-legend-button-radius);
+    box-shadow: var(--diff-legend-shadow);
+    user-select: text;
+}
+
+.merge-menu[hidden],
+.merge-notes[hidden],
+.merge-menu [hidden] {
+    display: none;
+}
+
+.merge-menu__heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--diff-legend-muted);
+    text-transform: uppercase;
+}
+
+.merge-menu__separator {
+    height: 1px;
+    margin: 6px 0;
+    background: var(--diff-legend-border);
+}
+
+.merge-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 5px 14px 5px 36px;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+/* As on the bar: a disabled Build gets no pointer events, so its wrapper carries the reason. */
+.merge-menu__build:disabled {
+    pointer-events: none;
+}
+
+.merge-menu__item[role="radio"] {
+    padding-left: 14px;
+}
+
+.merge-menu__item[role="radio"]::before {
+    content: "";
+    width: 14px;
+    font-weight: 700;
+    color: var(--diff-legend-primary-border);
+}
+
+/* The check is decoration: the empty alternative text keeps it out of the radio's name. */
+.merge-menu__item[aria-checked="true"]::before {
+    content: "✓" / "";
+}
+
+.merge-menu__item:hover:not(:disabled),
+.merge-menu__row-step:hover {
+    background: var(--diff-legend-button-hover);
+}
+
+.merge-menu__item:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+:is(.merge-menu, .merge-notes) button:focus-visible {
+    outline: 1px solid var(--diff-legend-focus);
+    outline-offset: -1px;
+}
+
+.merge-menu__rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.merge-menu__row {
+    padding: 2px 0 6px;
+}
+
+.merge-menu__row-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 5px 14px 3px 36px;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+/* The stepper is on this element: no canvas shows it, so the list does. */
+.merge-menu__row-step[aria-current="true"] {
+    background: color-mix(in srgb, var(--diff-legend-primary-border) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--diff-legend-primary-border);
+}
+
+.merge-menu__row-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.merge-menu__row-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 2px 14px 0 36px;
+}
+
+.merge-menu__mini {
+    height: 24px;
+    padding: 0 8px;
+    font: inherit;
+    font-size: 12px;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--diff-legend-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.merge-menu__mini:hover {
+    background: var(--diff-legend-button-hover);
+}
+
+.merge-menu__mini:focus-visible {
+    outline: 1px solid var(--diff-legend-focus);
+    outline-offset: 1px;
+}
+
+.merge-menu__outcome {
+    display: flex;
+    flex-direction: column;
+    margin: 4px 14px 0 36px;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-left: 3px solid var(--diff-legend-primary-border);
+}
+
+/* Why a step opened the menu: no canvas draws the step, so its row stands in for it. */
+.merge-menu__stepped {
+    margin: 2px 14px 4px;
+    font-size: 12px;
+    color: var(--diff-legend-muted);
+}
+
+/* ─── Build notes ──────────────────────────────────────────────────────── */
+
+.merge-notes {
+    width: min(380px, calc(100% - 16px));
+    padding: 4px 0 8px;
+}
+
+.merge-notes__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px 4px 14px;
+}
+
+.merge-notes__title {
+    flex: 1;
+    font-weight: 600;
+}
+
+.merge-notes__close {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--diff-legend-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.merge-notes__close:hover {
+    background: var(--diff-legend-button-hover);
+}
+
+.merge-notes__list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0 14px;
+    list-style: none;
+}
+
+.merge-notes__note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding-left: 8px;
+    font-size: 12px;
+    border-left: 3px solid var(--diff-legend-moved);
+}
+
+.merge-notes__text {
+    flex: 1 0 100%;
+}
+
+.merge-notes__element {
+    padding: 0;
+    font: inherit;
+    color: var(--diff-legend-primary-border);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.merge-notes__element:hover {
+    text-decoration: underline;
+}

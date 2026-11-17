@@ -1,35 +1,39 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-    MergeObstacleKind,
-    MergeObstacleWithMissing,
-    MergePaneAction,
-    MergePaneBlock,
-    MergePaneBuildNote,
-    MergePickScope,
-} from "@miragon/bpmn-modeler-shared";
+import type { MergePaneBuildNote, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
-import { MERGE_CAPTION_ROLES, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
+import {
+    MERGE_CAPTION_ROLES,
+    MERGE_MARKERS,
+    MERGE_SIDES,
+    type MergeSide,
+} from "@miragon/bpmn-modeler-types";
 
 import {
-    blockText,
     buildBlockedText,
+    decisionButtonText,
+    MERGE_MARKER_LABELS,
+    MERGE_MENU_TEXTS,
+    MERGE_STEP_TEXTS,
+    markerCountTip,
+    mergeCaptionText,
+    openConflictsText,
+    openShapelessConflictsText,
+    reviewNotesText,
+    shapelessHeadingText,
+} from "./mergeBarTexts";
+import {
     buildNoteText,
     compareWithText,
     comparisonPaneText,
     comparisonText,
     keepSideText,
     MERGE_BUILD_TEXTS,
-    MERGE_LEGEND_TEXTS,
-    MERGE_MARKER_LABELS,
+    MERGE_MARK_TEXTS,
     MERGE_PICK_TEXTS,
-    mergeCaptionText,
-    openConflictsText,
-    outcomeHeadline,
+    outcomeCardHeadline,
     pickBadgeText,
-    pickNotDrawnText,
     restoreOfferText,
-    reviewNotesText,
 } from "./mergeTexts";
 
 // Records, so the compiler names a kind the merge adds and this spec misses.
@@ -38,24 +42,6 @@ const PICK_SCOPES: Record<MergePickScope, true> = {
     withContents: true,
     withConnections: true,
 };
-const OBSTACLES: Record<MergeObstacleKind, true> = {
-    targetInNoVersion: true,
-    targetPickedWithout: true,
-    targetDroppedByThisPick: true,
-    targetTakenByThisPickWithoutPart: true,
-    sideLacksTarget: true,
-    targetNotInResult: true,
-    targetTakenWithoutPart: true,
-    dependentPicked: true,
-    dependentPulledInByThisPick: true,
-    idHeldByAnother: true,
-    processInAnotherCollaboration: true,
-};
-const WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
-    targetPickedWithout: true,
-    sideLacksTarget: true,
-};
-const ACTIONS: Record<MergePaneAction, true> = { pick: true, leaveOut: true, unpick: true };
 const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndsFromDifferentSides: { kind: "flowEndsFromDifferentSides", id: "a", ends: ["b"] },
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
@@ -64,9 +50,27 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };
-// English only for now: not yet in the locale files.
-const AWAITING_TRANSLATION: ReadonlySet<MergePaneBuildNote["kind"]> = new Set([
-    "layoutChangedByBoth",
+// English only for now: not yet in the locale files. A key leaves once every locale has it.
+const AWAITING_TRANSLATION: ReadonlySet<string> = new Set([
+    // The bar's count tooltips.
+    "Elements of this version the result keeps as they are here.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.",
+    "Open conflicts on elements this version has.",
+    "Elements only the other version has are counted on the other pane only.",
+    // The "…" menu.
+    "More actions",
+    "This step has no shape, so it is listed here.",
+    "Not visible in the diagram ({count})",
+    "1 open conflict not visible in the diagram",
+    "{count} open conflicts not visible in the diagram",
+    // A menu row's decisions.
+    "Keep current with everything inside",
+    "Keep incoming with everything inside",
+    "Leave out",
+    "Also keep its removed flows",
+    // The build note on a layout both sides changed.
+    "Both sides changed the layout of {elements}; current's is kept",
+    "Both sides changed the layout of {elements}; incoming's is kept",
 ]);
 
 const keysOf = <Kind extends string>(record: Record<Kind, unknown>) =>
@@ -76,9 +80,11 @@ const keysOf = <Kind extends string>(record: Record<Kind, unknown>) =>
 function mergeTextKeys(): Set<string> {
     const keys = new Set<string>([
         ...Object.values(MERGE_MARKER_LABELS),
-        ...Object.values(MERGE_LEGEND_TEXTS),
+        ...Object.values(MERGE_STEP_TEXTS),
+        ...Object.values(MERGE_MARK_TEXTS),
         ...Object.values(MERGE_PICK_TEXTS),
         ...Object.values(MERGE_BUILD_TEXTS),
+        ...Object.values(MERGE_MENU_TEXTS),
     ]);
     const translate = (key: string) => {
         keys.add(key);
@@ -91,49 +97,48 @@ function mergeTextKeys(): Set<string> {
         }
         for (const scope of keysOf(PICK_SCOPES))
             pickBadgeText({ keptSide: side, scope }, translate);
-        pickNotDrawnText(side, "Task", translate);
         keepSideText(side, translate);
         compareWithText(side, translate);
         comparisonText(side, translate);
         comparisonPaneText("before", side, translate);
         comparisonPaneText("after", side, translate);
         for (const connections of [["f1"], ["f1", "f2"]]) {
-            restoreOfferText({ elementId: "a", connections, removedBy: side }, translate);
+            const offer = { elementId: "a", connections, removedBy: side };
+            restoreOfferText(offer, translate);
+            decisionButtonText({ kind: "keepRemovedFlows", side, offer }, translate);
         }
+        for (const scope of ["element", "withContents"] as const) {
+            decisionButtonText({ kind: "keep", scope, side }, translate);
+        }
+        decisionButtonText({ kind: "leaveOut", side, otherSideLacks: "removed" }, translate);
     }
+    decisionButtonText({ kind: "undo", scope: "element" }, translate);
     for (const count of [0, 1, 2]) {
         openConflictsText(count, translate);
         buildBlockedText(count, translate);
         reviewNotesText(count, translate);
+        shapelessHeadingText(count, translate);
+        openShapelessConflictsText(count, translate);
+        for (const marker of MERGE_MARKERS) markerCountTip(marker, count, translate);
     }
-    const blocks: MergePaneBlock[] = [
-        ...keysOf(OBSTACLES)
-            .filter((obstacle) => !(obstacle in WITH_MISSING))
-            .map((obstacle) => ({ elementId: "a", targetId: "b", obstacle }) as MergePaneBlock),
-        ...keysOf(WITH_MISSING).flatMap((obstacle) =>
-            (["target", "part"] as const).map((missing) => ({
-                elementId: "a",
-                targetId: "b",
-                obstacle,
-                missing,
-            })),
-        ),
-    ];
-    for (const block of blocks) blockText(block, nameOf, translate);
-    for (const action of keysOf(ACTIONS)) {
-        outcomeHeadline(
-            { applied: true, action, elementId: "a", pulledIn: [], dropped: [], reopened: [] },
-            nameOf,
-            translate,
-        );
-        outcomeHeadline(
-            { applied: false, action, elementId: "a", blockedBy: [] },
-            nameOf,
-            translate,
-        );
-    }
+    outcomeCardHeadline(
+        {
+            applied: true,
+            action: "unpick",
+            elementId: "a",
+            pulledIn: [],
+            dropped: [],
+            reopened: [],
+        },
+        { kind: "undo", elementId: "a", scope: "element", origin: "canvas" },
+        nameOf,
+        translate,
+    );
     for (const note of Object.values(NOTES)) {
-        if (!AWAITING_TRANSLATION.has(note.kind)) buildNoteText(note, nameOf, translate);
+        buildNoteText(note, nameOf, translate);
+        if (note.kind === "layoutChangedByBoth") {
+            buildNoteText({ ...note, keptSide: "incoming" }, nameOf, translate);
+        }
     }
     return keys;
 }
@@ -145,11 +150,22 @@ function translateIn(locale: keyof typeof extras) {
 }
 
 describe("the merge view's translations", () => {
-    it.each(locales)("%s translates every merge text", (locale) => {
+    it.each(locales)("%s translates every merge text but those awaiting translation", (locale) => {
         const dictionary = extras[locale] ?? {};
-        const untranslated = [...mergeTextKeys()].filter((key) => !dictionary[key]);
+        const untranslated = [...mergeTextKeys()].filter(
+            (key) => !dictionary[key] && !AWAITING_TRANSLATION.has(key),
+        );
 
         expect(untranslated).toEqual([]);
+    });
+
+    it("lists only merge texts as awaiting translation, and only while a locale lacks them", () => {
+        const keys = mergeTextKeys();
+        const stale = [...AWAITING_TRANSLATION].filter(
+            (key) => !keys.has(key) || locales.every((locale) => extras[locale]?.[key]),
+        );
+
+        expect(stale).toEqual([]);
     });
 
     it.each(locales)("%s names a badge's side with the word the pane's caption uses", (locale) => {
@@ -197,7 +213,6 @@ describe("the merge view's translations", () => {
             const word = mergeCaptionText({ side, role: "unknown" }, translate).toLowerCase();
             const texts = [
                 keepSideText(side, translate),
-                pickNotDrawnText(side, "Task", translate),
                 compareWithText(side, translate),
                 comparisonText(side, translate),
                 comparisonPaneText("before", side, translate),
@@ -216,15 +231,5 @@ describe("the merge view's translations", () => {
         expect(keptFromCurrent.toLowerCase()).toContain(
             mergeCaptionText({ side: "current", role: "unknown" }, translate).toLowerCase(),
         );
-    });
-
-    it.each(locales)("%s spells ID as the shared library does", (locale) => {
-        const sameId = blockText(
-            { elementId: "a", targetId: "b", obstacle: "idHeldByAnother" } as MergePaneBlock,
-            (id) => id,
-            translateIn(locale),
-        );
-
-        expect(sameId).toContain("ID");
     });
 });

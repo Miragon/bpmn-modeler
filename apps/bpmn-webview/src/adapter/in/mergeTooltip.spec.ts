@@ -101,6 +101,17 @@ describe("the merge chrome's tooltip", () => {
         expect(anchor.hasAttribute("aria-describedby")).toBe(false);
     });
 
+    it("keeps a description the anchor names itself, while it shows and after", () => {
+        anchor.setAttribute("aria-describedby", "own-description");
+
+        pointerMove(anchor, 9);
+        expect(shown()).toBe("Keep incoming: Keep it as incoming has it");
+        expect(anchor.getAttribute("aria-describedby")).toBe("own-description");
+        pointerMove(other, 60);
+
+        expect(anchor.getAttribute("aria-describedby")).toBe("own-description");
+    });
+
     it("keeps one tooltip layer per page however often it is installed", () => {
         installMergeTooltips(document);
 
