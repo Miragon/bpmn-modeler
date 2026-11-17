@@ -2,6 +2,7 @@ import { DeploymentConfig, DeploymentResult } from "../../../domain/deployment";
 import {
     DeploymentFailedError,
     EngineInspectionFailedError,
+    NothingDeployedError,
     StartInstanceFailedError,
 } from "../../../domain/errors";
 import { CamundaEnginePort, EngineInspectionPort } from "../../../port/deploymentPorts";
@@ -24,6 +25,13 @@ import { MultipartBuilder } from "./MultipartBuilder";
  * {@link EngineInspectionPort} deployment lookup.
  */
 export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPort {
+    private static readonly DEPLOYED_DEFINITION_FIELDS = [
+        "deployedProcessDefinitions",
+        "deployedDecisionDefinitions",
+        "deployedDecisionRequirementsDefinitions",
+        "deployedCaseDefinitions",
+    ];
+
     /**
      * @param httpClient Transport abstraction for HTTP POST requests.
      * @param authResolver Resolves auth configs into concrete HTTP headers.
@@ -46,6 +54,7 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
      * @param fileContents Map of filename (basename) → UTF-8 file content.
      * @returns A {@link DeploymentResult} with the server-assigned deployment ID.
      * @throws {DeploymentFailedError} If the server returns a non-2xx status.
+     * @throws {NothingDeployedError} If the engine accepted it but created no definition.
      */
     async deploy(
         config: DeploymentConfig,
@@ -88,11 +97,16 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
         }
 
         let deploymentId: string | undefined;
+        let definitionCount: number | undefined;
         try {
             const json = JSON.parse(responseBody);
             deploymentId = json.id !== undefined ? String(json.id) : undefined;
+            definitionCount = this.countDeployedDefinitions(json);
         } catch {
             // Response was not valid JSON — deploymentId remains undefined.
+        }
+        if (definitionCount === 0) {
+            throw new NothingDeployedError(config.deploymentName, deploymentId);
         }
 
         return new DeploymentResult(
@@ -100,6 +114,15 @@ export class Camunda7RestClient implements CamundaEnginePort, EngineInspectionPo
             `Deployment '${config.deploymentName}' succeeded.`,
             deploymentId,
         );
+    }
+
+    /** `undefined` when the answer has none of the fields, as from a gateway in front of the engine. */
+    private countDeployedDefinitions(json: Record<string, unknown>): number | undefined {
+        const fields = Camunda7RestClient.DEPLOYED_DEFINITION_FIELDS.filter(
+            (field) => field in json,
+        );
+        if (fields.length === 0) return undefined;
+        return fields.reduce((count, field) => count + Object.keys(json[field] ?? {}).length, 0);
     }
 
     /**

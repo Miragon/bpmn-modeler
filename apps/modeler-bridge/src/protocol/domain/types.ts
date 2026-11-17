@@ -26,6 +26,7 @@ import {
     RawModelerSettings,
     StatusSlot,
     StatusView,
+    type ElementIdReviewView,
     TemplateSwitch,
 } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
@@ -126,6 +127,11 @@ export interface DiffWebviewMessageParams {
 /** `diff/dispose` — tear down both panes of a diff. */
 export interface DiffDisposeParams {
     diffId: string;
+}
+
+/** `elementXmlDiff/closed` — the user closed the element XML diff `diffKey`. */
+export interface ElementXmlDiffClosedParams {
+    diffKey: string;
 }
 
 /**
@@ -493,10 +499,43 @@ export interface StatusBarUpdateParams {
     view: StatusView | null;
 }
 
+/** `elementIdReview/show` — what the host's element ID review panel shows. */
+export interface ElementIdReviewShowParams {
+    view: ElementIdReviewView;
+}
+
+/** `elementIdReview/setChecked` — the user ticked or cleared these rows in the host's panel. */
+export interface ElementIdReviewSetCheckedParams {
+    ids: string[];
+    checked: boolean;
+}
+
+/** `elementIdReview/reveal` — the user clicked a row; the core centres its element. */
+export interface ElementIdReviewRevealParams {
+    elementId: string;
+}
+
 /** `diff/postMessage` — the core drives one diff pane's host browser. */
 export interface DiffPostMessageParams {
     paneUri: string;
     message: unknown;
+}
+
+/**
+ * `elementXmlDiff/show` opens or replaces the element XML diff `diffKey` inside
+ * the diagram diff of pane `paneUri`; `elementXmlDiff/refresh` only replaces it.
+ */
+export interface ElementXmlDiffShowParams {
+    diffKey: string;
+    paneUri: string;
+    title: string;
+    before: string;
+    after: string;
+}
+
+/** `elementXmlDiff/close` — the diagram diff of the element XML diff `diffKey` closed. */
+export interface ElementXmlDiffCloseParams {
+    diffKey: string;
 }
 
 /**

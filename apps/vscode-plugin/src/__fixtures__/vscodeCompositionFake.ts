@@ -28,6 +28,9 @@ export class TabInputTextDiff {}
 
 export const env = { remoteName: undefined as string | undefined };
 
+/** A VS Code with checkbox trees, so the element ID review builds its panel. */
+export const version = "1.104.0";
+
 export const workspace = {
     fs: {},
     workspaceFolders: [],
@@ -78,6 +81,10 @@ export const window = {
         viewProviders.set(viewId, { provider, options });
         return { dispose: () => viewProviders.delete(viewId) };
     },
+    createTreeView: () => ({
+        onDidChangeCheckboxState: () => disposable,
+        dispose: () => undefined,
+    }),
 };
 
 export const commands = { ...windowFake.commands, registerCommand: () => disposable };

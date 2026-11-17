@@ -14,12 +14,14 @@ const mocks = vi.hoisted(() => ({
     createViewer: vi.fn(),
     createDesigner: vi.fn(),
     createModeler: vi.fn(),
+    createElementIdConvention: vi.fn((options?: object) => ({ convention: options })),
 }));
 
 vi.mock("./surfaceModules", () => ({
     loadViewerModule: async () => ({ createViewer: mocks.createViewer }),
     loadDesignerModule: async () => ({ createDesigner: mocks.createDesigner }),
     loadModelerModule: async () => ({ createModeler: mocks.createModeler }),
+    loadLintModule: async () => ({ createElementIdConvention: mocks.createElementIdConvention }),
 }));
 
 const settings = (favouriteBpmnElements: string[]): BpmnModelerSetting => ({
@@ -46,6 +48,7 @@ const clipboard = { bridge: {} } as unknown as ClipboardOptions;
 function factoriesWith(
     hostModelerState = new HostModelerState(),
     plugins: Promise<SurfacePlugins> | undefined = undefined,
+    openElementIdReview: (() => void) | undefined = undefined,
 ) {
     const posted: (Command | Query)[] = [];
     const propertiesPanelParent = document.createElement("div");
@@ -61,6 +64,7 @@ function factoriesWith(
             clipboard,
             lintBridge: { surfaceOptions: async () => lintOptions },
             hostModelerState,
+            openElementIdReview,
             onModelerModeChanged,
         },
     );
@@ -105,11 +109,14 @@ describe("createSurfaceFactories", () => {
         });
     });
 
-    it("builds the designer with the host favourites, the clipboard and the lint options", async () => {
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+    it("builds the designer with the host favourites, ID settings, clipboard and lint options", async () => {
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
         mocks.createDesigner.mockResolvedValue(designer);
         const hostModelerState = new HostModelerState();
-        hostModelerState.rememberSettings(settings(["bpmn:UserTask"]));
+        hostModelerState.rememberSettings({
+            ...settings(["bpmn:UserTask"]),
+            elementIdsFollowName: true,
+        });
         const { surfaces, propertiesPanelParent, extraModules } = factoriesWith(hostModelerState);
 
         await surfaces.design!({ container, engine: undefined, theme: "light" });
@@ -117,6 +124,7 @@ describe("createSurfaceFactories", () => {
         expect(mocks.createDesigner).toHaveBeenCalledExactlyOnceWith(container, {
             theme: "light",
             favouriteBpmnElements: ["bpmn:UserTask"],
+            elementIdSettings: { followName: true, convention: { convention: undefined } },
             propertiesPanel: { parent: propertiesPanelParent },
             clipboard,
             capabilities: {
@@ -128,23 +136,61 @@ describe("createSurfaceFactories", () => {
             ...lintOptions,
         });
         expect(designer.setFavouriteBpmnElements).not.toHaveBeenCalled();
+        expect(designer.setElementIdSettings).not.toHaveBeenCalled();
     });
 
-    it("hands the designer favourites the host pushed while it initialised", async () => {
-        const designer = { setFavouriteBpmnElements: vi.fn() };
+    it("hands the designer settings the host pushed while it initialised", async () => {
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
         const creation = deferred<typeof designer>();
         mocks.createDesigner.mockReturnValue(creation.promise);
         const { surfaces, hostModelerState } = factoriesWith();
 
         const built = surfaces.design!({ container, engine: undefined, theme: "light" });
         await vi.waitFor(() => expect(mocks.createDesigner).toHaveBeenCalled());
-        hostModelerState.rememberSettings(settings(["bpmn:ServiceTask"]));
+        hostModelerState.rememberSettings({
+            ...settings(["bpmn:ServiceTask"]),
+            elementIdsFollowName: true,
+        });
         creation.resolve(designer);
         await built;
 
         expect(designer.setFavouriteBpmnElements).toHaveBeenCalledExactlyOnceWith([
             "bpmn:ServiceTask",
         ]);
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({ followName: true });
+    });
+
+    it("builds the designer's convention from the lint rule options the host sent", async () => {
+        mocks.createDesigner.mockResolvedValue({
+            setFavouriteBpmnElements: vi.fn(),
+            setElementIdSettings: vi.fn(),
+        });
+        const hostModelerState = new HostModelerState();
+        hostModelerState.rememberElementIdConvention({ case: "snake_case" });
+        const { surfaces } = factoriesWith(hostModelerState);
+
+        await surfaces.design!({ container, engine: undefined, theme: "light" });
+
+        expect(mocks.createDesigner.mock.calls[0]![1].elementIdSettings.convention).toEqual({
+            convention: { case: "snake_case" },
+        });
+    });
+
+    it("hands a surface the lint rule options the host sent while it initialised", async () => {
+        const designer = { setFavouriteBpmnElements: vi.fn(), setElementIdSettings: vi.fn() };
+        const creation = deferred<typeof designer>();
+        mocks.createDesigner.mockReturnValue(creation.promise);
+        const { surfaces, hostModelerState } = factoriesWith();
+
+        const built = surfaces.design!({ container, engine: undefined, theme: "light" });
+        await vi.waitFor(() => expect(mocks.createDesigner).toHaveBeenCalled());
+        hostModelerState.rememberElementIdConvention({ case: "PascalCase" });
+        creation.resolve(designer);
+        await built;
+
+        expect(designer.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
+            convention: { convention: { case: "PascalCase" } },
+        });
     });
 
     it("refuses to build the modeler for an untagged model", async () => {
@@ -162,7 +208,7 @@ describe("createSurfaceFactories", () => {
     });
 
     it("builds the modeler with the host settings and every capability", async () => {
-        const modeler = { setSettings: vi.fn() };
+        const modeler = { setSettings: vi.fn(), setElementIdSettings: vi.fn() };
         mocks.createModeler.mockResolvedValue(modeler);
         const hostModelerState = new HostModelerState();
         hostModelerState.rememberSettings(settings([]));
@@ -186,10 +232,34 @@ describe("createSurfaceFactories", () => {
             }),
         );
         expect(modeler.setSettings).not.toHaveBeenCalled();
+        expect(modeler.setElementIdSettings).toHaveBeenCalledExactlyOnceWith({
+            convention: { convention: undefined },
+        });
+    });
+
+    it("hands the designer and the modeler the host's own element ID review", async () => {
+        const openElementIdReview = vi.fn();
+        const modeler = { setSettings: vi.fn(), setElementIdSettings: vi.fn() };
+        mocks.createModeler.mockResolvedValue(modeler);
+        mocks.createDesigner.mockResolvedValue({
+            setFavouriteBpmnElements: vi.fn(),
+            setElementIdSettings: vi.fn(),
+        });
+        const { surfaces } = factoriesWith(undefined, undefined, openElementIdReview);
+
+        await surfaces.design!({ container, engine: undefined, theme: "light" });
+        await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
+
+        expect(mocks.createDesigner.mock.calls[0]![1].elementIdSettings.openReview).toBe(
+            openElementIdReview,
+        );
+        expect(modeler.setElementIdSettings).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ openReview: openElementIdReview }),
+        );
     });
 
     it("routes the modeler's warnings and mode toggles", async () => {
-        mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+        mocks.createModeler.mockResolvedValue({ setSettings: vi.fn(), setElementIdSettings: vi.fn() });
         const { posted, surfaces, onModelerModeChanged } = factoriesWith();
 
         await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
@@ -204,7 +274,7 @@ describe("createSurfaceFactories", () => {
     });
 
     it("posts the modeler's template rejections as log lines before one notice", async () => {
-        mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+        mocks.createModeler.mockResolvedValue({ setSettings: vi.fn(), setElementIdSettings: vi.fn() });
         const { posted, surfaces } = factoriesWith();
 
         await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
@@ -230,7 +300,7 @@ describe("createSurfaceFactories", () => {
     });
 
     it("applies settings the host pushed while the modeler initialised", async () => {
-        const modeler = { setSettings: vi.fn() };
+        const modeler = { setSettings: vi.fn(), setElementIdSettings: vi.fn() };
         const creation = deferred<typeof modeler>();
         mocks.createModeler.mockReturnValue(creation.promise);
         const { surfaces, hostModelerState } = factoriesWith();
@@ -293,7 +363,7 @@ describe("createSurfaceFactories", () => {
         });
 
         it("gives a tagged model's modeler its engine's plugins too", async () => {
-            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn(), setElementIdSettings: vi.fn() });
             const { surfaces, extraModules } = factoriesWith(undefined, Promise.resolve(plugins));
 
             await surfaces.implement!({ container, engine: "c7", theme: "light", mode: "implement" });
@@ -306,7 +376,7 @@ describe("createSurfaceFactories", () => {
         });
 
         it("builds an editable surface only once the plugins have loaded", async () => {
-            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn() });
+            mocks.createModeler.mockResolvedValue({ setSettings: vi.fn(), setElementIdSettings: vi.fn() });
             const pluginsLoaded = deferred<SurfacePlugins>();
             const { surfaces } = factoriesWith(undefined, pluginsLoaded.promise);
 

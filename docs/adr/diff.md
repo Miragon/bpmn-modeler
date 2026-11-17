@@ -187,9 +187,8 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`, which
   shows the entry, and decides whether the router handles `ShowElementXmlChangesCommand`
   and the follow, so an entry whose clicks are dropped cannot occur. VS Code passes it
-  where the API has `TabInputTextDiff` (not every Theia does); the bridge passes none, so
-  IntelliJ mirrors the selection but shows no entry. IntelliJ's diff API could show the
-  XML diff; it is not built.
+  where the API has `TabInputTextDiff` (not every Theia does); the bridge always passes
+  it.
 - *The core decides.* The core computes both texts and the title behind the render-only
   port `ElementXmlDiffView`. The rules for requests live in the domain object
   `ElementXmlRequests`: only the latest renders, the same element twice renders once, a
@@ -214,6 +213,22 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   unknown; the standalone app ships VS Code's Git extension, so its panes are `git:` too.
   The core also orders the sides of an SCM diff by version (a commit, the index, the
   working tree); two commits keep the order their panes resolved in.
+- *IntelliJ shows it inside the diagram diff.* The bridge's `RpcElementXmlDiffView`
+  forwards `show`, `refresh` and `close` as `elementXmlDiff/*` notifications, and the
+  host reports the user's close as `elementXmlDiff/closed`. The XML diff carries the
+  diagram diff's before pane (`ElementXmlDiff.paneUri`), because the core's key is its
+  own and the host finds its viewer by pane, as it routes `diff/postMessage`. The viewer
+  splits off a `DiffRequestPanel` below the two browsers, so the XML diff closes with
+  the diagram diff without a message; its sides take the diagram diff's side titles,
+  since the bridge reports no revision. The host owns the refresh rule: a refresh
+  replaces only what the slot of that key shows, and the slot runs on the EDT, where
+  the user's close runs too, so a refresh in flight cannot reopen what the user closed.
+  A swap reopens the diagram diff under a new key, so the old key's late frames are
+  ignored. The cost: that refresh rule exists twice, in the VS Code view and in Kotlin's
+  `ElementXmlDiffSlot`, plus a loopback copy in the bridge's contract spec. The loopback
+  runs `describeElementXmlDiffViewContract` and the rows of
+  `intellijElementXmlDiff.cases.json`, which `DiffRouterElementXmlDiffTest` runs against
+  `DiffRouter` and the slot, so a change to the Kotlin rule fails until the rows change.
 - *An editor group, not the panel.* The panel cannot hold a text diff editor, and a
   native diff gives search and inline or side-by-side view for free.
   `workbench.action.newGroupBelow` plus `focusAboveGroup` places it without rewriting
