@@ -31,7 +31,7 @@ What each editor opens and how far it is:
 
 | Editor                                                             | Opens                                                               | Status       |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------ |
-| VS Code 1.93+, and VSCodium, Cursor, Windsurf via Open VSX         | `.bpmn`, `.dmn`, `.form`, with deployment, diff and jumps into code | stable       |
+| VS Code 1.96+, and VSCodium, Cursor, Windsurf via Open VSX         | `.bpmn`, `.dmn`, `.form`, with deployment, diff and jumps into code | stable       |
 | IntelliJ IDEA 2024.2+ (Community or Ultimate)                      | `.bpmn`, with deployment                                            | preview      |
 | Desktop app: macOS (Apple silicon), Windows x64, Linux x86_64      | `.bpmn`, `.dmn`, `.form`, with Git, diff and deployment             | preview      |
 | [Orca](https://www.onorca.dev) 1.4.248+, next to your coding agent | `.bpmn`, `.dmn` to view, simulate and lightly model                 | experimental |

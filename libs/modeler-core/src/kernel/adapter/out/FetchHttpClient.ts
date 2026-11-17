@@ -4,8 +4,8 @@ import { HttpResponse, HttpTransportError, loggableHost } from "../../domain/htt
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.
  *
- * Available in Node 18+ (VS Code 1.93+ ships Node 20), so no
- * external dependencies are required.
+ * VS Code routes the extension host's `fetch` through the user's proxy settings
+ * and the OS certificates from 1.96, so the extension needs no HTTP dependency.
  */
 export class FetchHttpClient implements HttpClient {
     async getText(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {

@@ -134,19 +134,28 @@ publisher.
 
 ### Supported VS Code versions
 
-`engines.vscode` is `^1.93.0`, and `@types/vscode` stays on the same minor: the
+`engines.vscode` is `^1.96.0`, and `@types/vscode` stays on the same minor: the
 compiler then rejects an API the oldest supported VS Code lacks, which types above
 the engine would let through to users. VS Code installs and updates an extension
 only to a release whose `engines.vscode` it satisfies, so a VS Code below the floor
-keeps the last compatible release instead of breaking. The floor moved from 1.76
-(early 2023) to 1.93 because 1.76 was nearly four years old while the APIs and
-runtime since (checkbox trees, Node 20 in the extension host, Chromium 124 in
-webviews) improve features. Raise it again when a feature needs a newer API that
-VSCodium, Cursor and Windsurf already ship, rather than gating the feature on
+keeps the last compatible release instead of breaking.
+
+The floor is the oldest release that gives a shipped feature an API or a runtime
+behaviour it needs, not a release picked for its age or because the types are on it.
+It moved from 1.76 to 1.96 because from 1.96 the extension host's global `fetch`
+follows the user's proxy settings and the operating system's certificates
+(`http.fetchAdditionalSupport`). Deployment and the template marketplace send every
+request through it, so on an older VS Code they bypass a corporate proxy and reject
+an engine behind an internal CA. No API decided the floor: the extension called
+nothing newer than 1.76, and the only newer API a feature needs is the checkbox tree
+of 1.80. The runtime at 1.96 is Node 20 and Chromium 128.
+
+Raise the floor again when a release gives a feature such an API or behaviour and
+VSCodium, Cursor and Windsurf already ship it, rather than gating the feature on
 `vscode.version`. The [Extension-Host test](../../apps/vscode-plugin/test/e2e/.vscode-test.mjs)
 runs the floor and the newest stable release; its version and the download list in
 [build.yml](../../.github/workflows/build.yml) move with the engine. Accepted cost:
-VS Code 1.76 to 1.92, and forks on an older VS Code base, get no further releases.
+VS Code 1.76 to 1.95, and forks on an older VS Code base, get no further releases.
 
 ### Orca plugin
 

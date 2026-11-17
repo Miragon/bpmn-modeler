@@ -36,7 +36,7 @@ Element templates under `.camunda/element-templates/` show up without any projec
 
 ## Install
 
-Needs VS Code 1.93 or later.
+Needs VS Code 1.96 or later.
 
 - **VS Code Marketplace:** [BPMN Modeler](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler), or `code --install-extension miragon-gmbh.vs-code-bpmn-modeler`.
 - **Open VSX**, for VSCodium, Cursor, Windsurf and other editors that use it: [BPMN Modeler](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler).

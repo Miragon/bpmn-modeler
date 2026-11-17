@@ -56,7 +56,7 @@ export default defineConfig([
     {
         ...testConfiguration,
         label: "vscode-plugin-minimum",
-        version: "1.93.0",
+        version: "1.96.0",
     },
     {
         ...testConfiguration,
