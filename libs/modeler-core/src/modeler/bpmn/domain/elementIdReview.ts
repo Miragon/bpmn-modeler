@@ -22,6 +22,8 @@ export type ElementIdReview =
           readonly title: string;
           readonly rows: readonly ElementIdRow[];
           readonly unchecked: ReadonlySet<string>;
+          // A row that leaves a listing and comes back, such as a pool deleted and restored, is not new.
+          readonly everListed: ReadonlySet<string>;
       };
 
 type OpenReview = Exclude<ElementIdReview, { stage: "closed" }>;
@@ -138,6 +140,7 @@ function report(
             stage: "listed",
             rows: event.rows,
             unchecked: new Set(event.unchecked),
+            everListed: new Set(idsOf(event.rows)),
         };
         return {
             next,
@@ -145,23 +148,25 @@ function report(
         };
     }
     // A listing the page sent before a checkbox click must not undo it, so only rows new to the review add to it.
-    const added = rowsStartingUnchecked(event.rows, review.rows);
+    const added = rowsStartingUnchecked(event.rows, review.everListed);
     const next: ListedReview = {
         ...review,
         rows: event.rows,
         unchecked: new Set([...review.unchecked, ...added]),
+        everListed: new Set([...review.everListed, ...idsOf(event.rows)]),
     };
     const show: ElementIdReviewAction = { kind: "show", view: listedView(next) };
     // The page drew the new rows as checked, so it lists them again with the review's choice.
     return { next, actions: added.length === 0 ? [show] : [show, askForRows(next)] };
 }
 
+const idsOf = (rows: readonly ElementIdRow[]): string[] => rows.map((row) => row.id);
+
 function rowsStartingUnchecked(
     rows: readonly ElementIdRow[],
-    knownRows: readonly ElementIdRow[],
+    known: ReadonlySet<string>,
 ): string[] {
-    const known = new Set(knownRows.map((row) => row.id));
-    return rows.filter((row) => row.startsUnchecked && !known.has(row.id)).map((row) => row.id);
+    return idsOf(rows.filter((row) => row.startsUnchecked && !known.has(row.id)));
 }
 
 function check(

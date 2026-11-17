@@ -63,6 +63,7 @@ const LISTED: ElementIdReview = {
     title: "order.bpmn",
     rows: ROWS,
     unchecked: new Set(["Process_1"]),
+    everListed: new Set(["Process_1", "Activity_1"]),
 };
 const BOTH_UNCHECKED: ElementIdReview = {
     ...LISTED,
@@ -162,6 +163,7 @@ const ROWS_OF_TRANSITIONS: Row[] = [
             ...LISTED,
             rows: ROWS_WITH_ADDED_PROCESS,
             unchecked: new Set(["Process_1", "Process_2"]),
+            everListed: new Set(["Process_1", "Activity_1", "Process_2"]),
         },
         actions: [
             {
