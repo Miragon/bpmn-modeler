@@ -23,8 +23,7 @@ import { ELEMENT_ID_REVIEW_UNAVAILABLE } from "../domain/elementIdTexts";
 import type { ElementIdReviewPort } from "../port/bpmnPorts";
 
 /**
- * Generate IDs from Names for every host: the VS Code command and the IntelliJ
- * action each make one call. The host shows the review in its own
+ * Generate IDs from Names. The host shows the review in its own
  * {@link ElementIdReviewPort} and hands its actions back here; the review's
  * rules live in {@link reduceElementIdReview}.
  */
