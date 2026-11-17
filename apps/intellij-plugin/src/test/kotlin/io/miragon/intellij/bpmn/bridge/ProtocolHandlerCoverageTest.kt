@@ -7,6 +7,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.ElementXmlDiffSlot
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.TemplatePreferenceSnapshot
 import io.miragon.intellij.bpmn.TemplateSwitch
@@ -151,10 +152,21 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.SETTINGS_DID_CHANGE to { settings.push() },
                 HostToCoreMethod.SESSION_DISPOSE to { editor.disposeSession(session) },
                 HostToCoreMethod.DIFF_OPEN to {
-                    diff.openDiff("diff-1", "vcs", BEFORE_URI, "<before/>", {}, AFTER_URI, "<after/>", {})
+                    diff.openDiff(
+                        "diff-1",
+                        "vcs",
+                        BEFORE_URI,
+                        "<before/>",
+                        {},
+                        AFTER_URI,
+                        "<after/>",
+                        {},
+                        ElementXmlDiffSlot(NoElementXmlDiffPanel) {},
+                    )
                 },
                 HostToCoreMethod.DIFF_WEBVIEW_MESSAGE to { diff.forwardDiffMessage(BEFORE_URI, """{"type":"GetDiffCommand"}""") },
                 HostToCoreMethod.DIFF_DISPOSE to { diff.disposeDiff("diff-1") },
+                HostToCoreMethod.ELEMENT_XML_DIFF_CLOSED to { diff.elementXmlDiffClosed("element-xml-1") },
                 HostToCoreMethod.DEPLOYMENT_STATE_SEED to { deployment.push() },
                 HostToCoreMethod.DEPLOYMENT_WEBVIEW_MESSAGE to { deployment.forwardDeploymentMessage("""{"type":"DeployCommand"}""") },
                 HostToCoreMethod.DEPLOYMENT_OPEN to { deployment.setDeploymentOpen(true) },
@@ -171,6 +183,11 @@ class ProtocolHandlerCoverageTest {
                 HostToCoreMethod.MIGRATION_MIGRATE_ALL to { modelerCommands.migrateAllDiagrams() },
                 HostToCoreMethod.LAYOUT_FORMAT to { modelerCommands.formatDiagram() },
                 HostToCoreMethod.LAYOUT_CLEANUP to { modelerCommands.cleanupDiagram() },
+                HostToCoreMethod.ELEMENT_IDS_GENERATE to { modelerCommands.generateElementIds() },
+                HostToCoreMethod.ELEMENT_ID_REVIEW_SET_CHECKED to { elementIdReview.setChecked(listOf("Activity_1"), false) },
+                HostToCoreMethod.ELEMENT_ID_REVIEW_APPLY to { elementIdReview.apply() },
+                HostToCoreMethod.ELEMENT_ID_REVIEW_DISCARD to { elementIdReview.discard() },
+                HostToCoreMethod.ELEMENT_ID_REVIEW_REVEAL to { elementIdReview.reveal("Participant_1") },
                 HostToCoreMethod.DEPLOYMENT_SWITCH_TARGET to { modelerCommands.switchDeploymentTarget() },
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_FILES to { modelerCommands.deployFiles() },
                 HostToCoreMethod.DEPLOYMENT_DEPLOY_ACTIVE to { modelerCommands.deployDiagram() },

@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.9.0...bpmn-modeler-v1.10.0) (2026-11-16)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** build a valid BPMN file from the merge decisions ([#2472](https://github.com/Miragon/bpmn-modeler/issues/2472)) ([97a37d2](https://github.com/Miragon/bpmn-modeler/commit/97a37d28ea5f1fcfa59e239698b70642308791a9))
+* **bpmn-merge:** classify each element of a three-way BPMN merge ([#2470](https://github.com/Miragon/bpmn-modeler/issues/2470)) ([2f21eda](https://github.com/Miragon/bpmn-modeler/commit/2f21eda36d80533c9e45f79d7cfbe13cc7f316e6))
+* **bpmn-merge:** keep the chosen elements free of dangling references ([#2471](https://github.com/Miragon/bpmn-modeler/issues/2471)) ([0fd8330](https://github.com/Miragon/bpmn-modeler/commit/0fd8330c91c00a111e9681d71d89d3ff8bdaf0a5))
+
+
+### 🔨 Refactoring
+
+* **bpmn-diff:** snapshot every element of a version from one parse ([#2469](https://github.com/Miragon/bpmn-modeler/issues/2469)) ([d891319](https://github.com/Miragon/bpmn-modeler/commit/d891319b554aeeab6dbf16ace85878dba7097f1f))
+
+
+### 🛠️ Misc
+
+* **ci:** scan kotlin, submit the gradle graph, group security updates ([#2474](https://github.com/Miragon/bpmn-modeler/issues/2474)) ([c0ff73f](https://github.com/Miragon/bpmn-modeler/commit/c0ff73f4aac9a1593b8c76087c2b45abb157215e))
+* **deps:** refresh transitive dependencies with open advisories ([#2475](https://github.com/Miragon/bpmn-modeler/issues/2475)) ([a316227](https://github.com/Miragon/bpmn-modeler/commit/a316227351d44e96d6dba119ac96977fcb14c007))
+
 ## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.8.1...bpmn-modeler-v1.9.0) (2026-11-14)
 
 

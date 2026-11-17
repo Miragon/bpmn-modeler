@@ -1,3 +1,5 @@
+import type { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
+
 import { ancestorsUpTo } from "../../../kernel/domain/ancestorsUpTo";
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { changesConfigLookup } from "../../../kernel/domain/configLookup";
@@ -8,6 +10,7 @@ import { EVERY_PATH_GLOB } from "../../../kernel/domain/watchedFiles";
 import { joinWorkspacePath } from "../../../kernel/domain/workspacePath";
 import { ArtifactService, WatcherResult } from "../../../kernel/service/ArtifactService";
 import { LINT_CONFIG_FILE } from "../domain/lintConfigFile";
+import type { LintConfigVersion } from "../domain/LintSession";
 
 export interface BpmnlintChangeTarget {
     setBpmnlintConfig(editorId: string): Promise<boolean>;
@@ -57,6 +60,14 @@ export class BpmnLintConfigLocator {
     /** Reads the raw config file; the caller owns parsing + error handling. */
     readConfig(path: string): Promise<string> {
         return this.vsWorkspace.readFile(path);
+    }
+
+    /** The nearest config, read and parsed; `undefined` without one. A malformed one rejects. */
+    async readNearestConfig(documentDir: string): Promise<LintConfigVersion | undefined> {
+        const configPath = await this.findNearestConfig(documentDir);
+        if (!configPath) return undefined;
+        const rawConfig = await this.readConfig(configPath);
+        return { configPath, rawConfig, config: JSON.parse(rawConfig) as BpmnlintConfig };
     }
 
     /** Re-pushes the config on every change that can alter what {@link findNearestConfig} finds. */

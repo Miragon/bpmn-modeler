@@ -1,4 +1,4 @@
-import { withStringBounds } from "../../domain/numericValidation";
+import { normalizeValidationBounds } from "../../domain/numericValidation";
 
 interface EditEvent {
     context: { properties: Record<string, unknown> };
@@ -21,7 +21,7 @@ class NumericValidationEditing {
             if (Object.hasOwn(context.properties, "validate") && isRecord(validation)) {
                 context.properties = {
                     ...context.properties,
-                    validate: withStringBounds(validation),
+                    validate: normalizeValidationBounds(validation),
                 };
             }
         });
