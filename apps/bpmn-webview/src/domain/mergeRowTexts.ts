@@ -59,7 +59,7 @@ export interface MergeValueSegment {
     readonly value?: true;
 }
 
-/** The words of a shape-less row's value lines, English only until the translations follow. */
+/** The words of a shape-less row's value lines. */
 const MERGE_VALUE_TEXTS = {
     none: "none",
     moreDiffers: "and other content",

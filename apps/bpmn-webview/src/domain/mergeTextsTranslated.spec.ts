@@ -1,14 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBuildNote, MergePickScope } from "@miragon/bpmn-modeler-shared";
+import type {
+    MergeObstacleKind,
+    MergeObstacleWithMissing,
+    MergePaneAction,
+    MergePaneBlock,
+    MergePaneBuildNote,
+    MergePaneContainerReach,
+    MergePaneOtherSideLack,
+    MergePaneOutcome,
+    MergePickScope,
+} from "@miragon/bpmn-modeler-shared";
+import { dictionaries } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKERS,
     MERGE_SIDES,
     type MergeSide,
+    otherSide,
 } from "@miragon/bpmn-modeler-types";
 
+import type { MergeActedDecision } from "./mergeActedDecision";
 import {
     buildBlockedText,
     MERGE_MARKER_LABELS,
@@ -20,20 +33,32 @@ import {
     openShapelessConflictsText,
     reviewNotesText,
 } from "./mergeBarTexts";
-import { decisionButtonText, shapelessHeadingText, shapelessValueLines } from "./mergeRowTexts";
+import type { MergePadDecision } from "./mergePadDecisions";
+import {
+    decisionButtonText,
+    shapelessEntryText,
+    shapelessHeadingText,
+    shapelessValueLines,
+} from "./mergeRowTexts";
 import {
     buildNoteText,
+    cardBlockText,
     compareWithText,
     comparisonPaneText,
     comparisonText,
+    flowNameText,
     keepSideText,
     MERGE_BUILD_TEXTS,
+    MERGE_CARD_TEXTS,
     MERGE_MARK_TEXTS,
+    MERGE_PAD_TEXTS,
     MERGE_PICK_TEXTS,
+    moreReasonsText,
     outcomeCardHeadline,
     padDecisionText,
     pickBadgeText,
     restoreOfferText,
+    unblockedText,
 } from "./mergeTexts";
 
 // Records, so the compiler names a kind the merge adds and this spec misses.
@@ -41,6 +66,26 @@ const PICK_SCOPES: Record<MergePickScope, true> = {
     element: true,
     withContents: true,
     withConnections: true,
+};
+const REACHES: Record<MergePaneContainerReach, true> = { contents: true, poolProcesses: true };
+const LACKS: Record<MergePaneOtherSideLack, true> = { removed: true, missing: true };
+const ACTIONS: Record<MergePaneAction, true> = { pick: true, leaveOut: true, unpick: true };
+const OBSTACLES: Record<MergeObstacleKind, true> = {
+    targetInNoVersion: true,
+    targetPickedWithout: true,
+    targetDroppedByThisPick: true,
+    targetTakenByThisPickWithoutPart: true,
+    sideLacksTarget: true,
+    targetNotInResult: true,
+    targetTakenWithoutPart: true,
+    dependentPicked: true,
+    dependentPulledInByThisPick: true,
+    idHeldByAnother: true,
+    processInAnotherCollaboration: true,
+};
+const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
+    targetPickedWithout: true,
+    sideLacksTarget: true,
 };
 const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndsFromDifferentSides: { kind: "flowEndsFromDifferentSides", id: "a", ends: ["b"] },
@@ -50,42 +95,95 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };
-// English only for now: not yet in the locale files. A key leaves once every locale has it.
-const AWAITING_TRANSLATION: ReadonlySet<string> = new Set([
-    // The bar's count tooltips.
-    "Elements of this version the result keeps as they are here.",
-    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.",
-    "Open conflicts on elements this version has.",
-    "Elements only the other version has are counted on the other pane only.",
-    // The "…" menu.
-    "More actions",
-    "This step has no shape, so it is listed here.",
-    "Not visible in the diagram ({count})",
-    "1 open conflict not visible in the diagram",
-    "{count} open conflicts not visible in the diagram",
-    // A menu row's decisions.
-    "Keep current with everything inside",
-    "Keep incoming with everything inside",
-    "Leave out",
-    "Also keep its removed flows",
-    "Keep it and everything inside as current has them",
-    "Keep it and everything inside as incoming has them",
-    "Keep it and every pool with its process as current has them",
-    "Keep it and every pool with its process as incoming has them",
-    // A shape-less row's value lines.
-    "none",
-    "and other content",
-    "Removed in current",
-    "Removed in incoming",
-    "Not in current",
-    "Not in incoming",
-    // The build note on a layout both sides changed.
-    "Both sides changed the layout of {elements}; current's is kept",
-    "Both sides changed the layout of {elements}; incoming's is kept",
-]);
+
+// Every root element type, and the data object, which no canvas draws.
+const SHAPELESS_TYPES = [
+    "bpmn:Process",
+    "bpmn:Collaboration",
+    "bpmn:Message",
+    "bpmn:Error",
+    "bpmn:Escalation",
+    "bpmn:Signal",
+    "bpmn:DataStore",
+    "bpmn:DataObject",
+    "bpmn:ItemDefinition",
+    "bpmn:Category",
+    "bpmn:Interface",
+    "bpmn:EndPoint",
+    "bpmn:PartnerEntity",
+    "bpmn:PartnerRole",
+    "bpmn:Resource",
+    "bpmn:CorrelationProperty",
+    "bpmn:GlobalTask",
+];
 
 const keysOf = <Kind extends string>(record: Record<Kind, unknown>) =>
     Object.keys(record) as Kind[];
+
+const CONNECTION_COUNTS = [["f1"], ["f1", "f2"]];
+
+/** Every pad decision of each kind for `side`, over every reach, lack, connection count and scope. */
+const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => MergePadDecision[]> = {
+    keep: (side) => [
+        { kind: "keep", scope: "element", side },
+        ...keysOf(REACHES).map((reach): MergePadDecision => ({
+            kind: "keep",
+            scope: "withContents",
+            side,
+            reach,
+        })),
+    ],
+    leaveOut: (side) =>
+        keysOf(LACKS).map((otherSideLacks) => ({ kind: "leaveOut", side, otherSideLacks })),
+    keepRemovedFlows: (side) =>
+        CONNECTION_COUNTS.map((connections) => ({
+            kind: "keepRemovedFlows",
+            side: otherSide(side),
+            offer: { elementId: "a", connections, removedBy: side },
+        })),
+    undo: () => keysOf(PICK_SCOPES).map((scope) => ({ kind: "undo", scope })),
+};
+
+/** Every decision the outcome card can head, for `side`. */
+const ACTED_DECISIONS: Record<
+    MergeActedDecision["kind"],
+    (side: MergeSide) => MergeActedDecision[]
+> = {
+    keep: (side) =>
+        keysOf(PICK_SCOPES).map((scope) => ({
+            kind: "keep",
+            elementId: "a",
+            scope,
+            side,
+            origin: "canvas",
+        })),
+    leaveOut: (side) =>
+        keysOf(LACKS).map((otherSideLacks) => ({
+            kind: "leaveOut",
+            elementId: "a",
+            side,
+            otherSideLacks,
+            origin: "canvas",
+        })),
+    undo: () =>
+        keysOf(PICK_SCOPES).map((scope) => ({
+            kind: "undo",
+            elementId: "a",
+            scope,
+            origin: "canvas",
+        })),
+};
+
+const hasMissing = (obstacle: MergeObstacleKind): obstacle is MergeObstacleWithMissing =>
+    obstacle in OBSTACLES_WITH_MISSING;
+
+/** Every block of `obstacle`, missing the whole target or a part where the obstacle tells. */
+function blocksOf(obstacle: MergeObstacleKind): MergePaneBlock[] {
+    const ids = { elementId: "a", targetId: "b" };
+    return hasMissing(obstacle)
+        ? (["target", "part"] as const).map((missing) => ({ ...ids, obstacle, missing }))
+        : [{ ...ids, obstacle }];
+}
 
 /** Every key the merge texts pass to translate, gathered by asking for each text once. */
 function mergeTextKeys(): Set<string> {
@@ -94,6 +192,8 @@ function mergeTextKeys(): Set<string> {
         ...Object.values(MERGE_STEP_TEXTS),
         ...Object.values(MERGE_MARK_TEXTS),
         ...Object.values(MERGE_PICK_TEXTS),
+        ...Object.values(MERGE_PAD_TEXTS),
+        ...Object.values(MERGE_CARD_TEXTS),
         ...Object.values(MERGE_BUILD_TEXTS),
         ...Object.values(MERGE_MENU_TEXTS),
     ]);
@@ -113,26 +213,59 @@ function mergeTextKeys(): Set<string> {
         comparisonText(side, translate);
         comparisonPaneText("before", side, translate);
         comparisonPaneText("after", side, translate);
-        for (const connections of [["f1"], ["f1", "f2"]]) {
-            const offer = { elementId: "a", connections, removedBy: side };
-            restoreOfferText(offer, translate);
-            decisionButtonText({ kind: "keepRemovedFlows", side, offer }, translate);
+        for (const connections of CONNECTION_COUNTS) {
+            restoreOfferText({ elementId: "a", connections, removedBy: side }, translate);
         }
-        decisionButtonText({ kind: "keep", scope: "element", side }, translate);
-        for (const reach of ["contents", "poolProcesses"] as const) {
-            padDecisionText({ kind: "keep", scope: "withContents", side, reach }, translate);
+        for (const decisions of Object.values(PAD_DECISIONS)) {
+            for (const decision of decisions(side)) {
+                padDecisionText(decision, translate);
+                if (decision.kind !== "keep" || decision.scope !== "withContents") {
+                    decisionButtonText(decision, translate);
+                }
+            }
         }
-        decisionButtonText({ kind: "leaveOut", side, otherSideLacks: "removed" }, translate);
-    }
-    decisionButtonText({ kind: "undo", scope: "element" }, translate);
-    const attributeOnOneSide = { attribute: "errorCode", current: "E1" };
-    shapelessValueLines({ differences: [attributeOnOneSide] }, translate);
-    shapelessValueLines({ differences: [], moreDiffers: true }, translate);
-    for (const side of MERGE_SIDES) {
-        for (const lack of ["removed", "missing"] as const) {
+        for (const decisions of Object.values(ACTED_DECISIONS)) {
+            for (const acted of decisions(side)) {
+                for (const reopened of [[], ["a"]]) {
+                    const outcome: MergePaneOutcome = {
+                        applied: true,
+                        action: "pick",
+                        elementId: "a",
+                        pulledIn: [],
+                        dropped: [],
+                        reopened,
+                    };
+                    outcomeCardHeadline(outcome, acted, nameOf, translate);
+                }
+            }
+        }
+        for (const lack of keysOf(LACKS)) {
             shapelessValueLines({ lackingSide: { side, lack }, differences: [] }, translate);
         }
     }
+    for (const action of keysOf(ACTIONS)) {
+        const refusal: MergePaneOutcome = {
+            applied: false,
+            action,
+            elementId: "a",
+            blockedBy: [],
+        };
+        outcomeCardHeadline(refusal, ACTED_DECISIONS.undo("current")[0]!, nameOf, translate);
+        unblockedText(action, "a", translate);
+    }
+    for (const obstacle of keysOf(OBSTACLES)) {
+        for (const block of blocksOf(obstacle)) {
+            for (const cardElementId of [block.elementId, block.targetId]) {
+                cardBlockText(block, cardElementId, nameOf, translate);
+            }
+        }
+    }
+    for (const type of SHAPELESS_TYPES) shapelessEntryText({ id: "a", type }, translate);
+    moreReasonsText(2, translate);
+    flowNameText("a", "b", translate);
+    const attributeOnOneSide = { attribute: "errorCode", current: "E1" };
+    shapelessValueLines({ differences: [attributeOnOneSide] }, translate);
+    shapelessValueLines({ differences: [], moreDiffers: true }, translate);
     for (const count of [0, 1, 2]) {
         openConflictsText(count, translate);
         buildBlockedText(count, translate);
@@ -141,19 +274,6 @@ function mergeTextKeys(): Set<string> {
         openShapelessConflictsText(count, translate);
         for (const marker of MERGE_MARKERS) markerCountTip(marker, count, translate);
     }
-    outcomeCardHeadline(
-        {
-            applied: true,
-            action: "unpick",
-            elementId: "a",
-            pulledIn: [],
-            dropped: [],
-            reopened: [],
-        },
-        { kind: "undo", elementId: "a", scope: "element", origin: "canvas" },
-        nameOf,
-        translate,
-    );
     for (const note of Object.values(NOTES)) {
         buildNoteText(note, nameOf, translate);
         if (note.kind === "layoutChangedByBoth") {
@@ -170,22 +290,12 @@ function translateIn(locale: keyof typeof extras) {
 }
 
 describe("the merge view's translations", () => {
-    it.each(locales)("%s translates every merge text but those awaiting translation", (locale) => {
-        const dictionary = extras[locale] ?? {};
-        const untranslated = [...mergeTextKeys()].filter(
-            (key) => !dictionary[key] && !AWAITING_TRANSLATION.has(key),
-        );
+    // The modeler looks a key up in the shared library and the overlay together.
+    it.each(locales)("%s translates every merge text", (locale) => {
+        const dictionary = { ...dictionaries[locale], ...extras[locale] };
+        const untranslated = [...mergeTextKeys()].filter((key) => !dictionary[key]);
 
         expect(untranslated).toEqual([]);
-    });
-
-    it("lists only merge texts as awaiting translation, and only while a locale lacks them", () => {
-        const keys = mergeTextKeys();
-        const stale = [...AWAITING_TRANSLATION].filter(
-            (key) => !keys.has(key) || locales.every((locale) => extras[locale]?.[key]),
-        );
-
-        expect(stale).toEqual([]);
     });
 
     it.each(locales)("%s names a badge's side with the word the pane's caption uses", (locale) => {
@@ -239,8 +349,36 @@ describe("the merge view's translations", () => {
                 ...keysOf(PICK_SCOPES).map(
                     (scope) => pickBadgeText({ keptSide: side, scope }, translate).label,
                 ),
-                ...[["f1"], ["f1", "f2"]].map((connections) =>
+                ...CONNECTION_COUNTS.map((connections) =>
                     restoreOfferText({ elementId: "a", connections, removedBy: side }, translate),
+                ),
+                ...[...PAD_DECISIONS.keep(side), ...PAD_DECISIONS.leaveOut(side)].map(
+                    (decision) => padDecisionText(decision, translate).label,
+                ),
+                ...[...ACTED_DECISIONS.keep(side), ...ACTED_DECISIONS.leaveOut(side)].map((acted) =>
+                    outcomeCardHeadline(
+                        {
+                            applied: true,
+                            action: "pick",
+                            elementId: "a",
+                            pulledIn: [],
+                            dropped: [],
+                            reopened: [],
+                        },
+                        acted,
+                        (id) => id,
+                        translate,
+                    ),
+                ),
+                ...keysOf(LACKS).flatMap((lack) =>
+                    shapelessValueLines({ lackingSide: { side, lack }, differences: [] }, translate)
+                        .flat()
+                        .map(({ text }) => text),
+                ),
+                buildNoteText(
+                    { kind: "layoutChangedByBoth", ids: ["a"], keptSide: side },
+                    (id) => id,
+                    translate,
                 ),
             ];
             const missing = texts.filter((text) => !text.toLowerCase().includes(word));
@@ -251,5 +389,20 @@ describe("the merge view's translations", () => {
         expect(keptFromCurrent.toLowerCase()).toContain(
             mergeCaptionText({ side: "current", role: "unknown" }, translate).toLowerCase(),
         );
+    });
+
+    it.each(locales)("%s spells ID as the shared library does", (locale) => {
+        const translate = translateIn(locale);
+        const block: MergePaneBlock = {
+            elementId: "a",
+            targetId: "b",
+            obstacle: "idHeldByAnother",
+        };
+        const texts = [
+            cardBlockText(block, "c", (id) => id, translate),
+            cardBlockText(block, "b", (id) => id, translate),
+        ];
+
+        expect(texts.filter((text) => !text.includes("ID"))).toEqual([]);
     });
 });

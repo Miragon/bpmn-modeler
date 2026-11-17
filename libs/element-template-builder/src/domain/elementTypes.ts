@@ -1,6 +1,6 @@
 import type { Translate } from "./translate";
 
-// The shared translations' own spellings: `translate()` looks keys up exactly.
+// The translations' own spellings, shared or overlay: `translate()` looks keys up exactly.
 const NAMES: Readonly<Record<string, string>> = {
     "bpmn:ServiceTask": "Service task",
     "bpmn:SendTask": "Send task",
@@ -29,7 +29,8 @@ const NAMES: Readonly<Record<string, string>> = {
     "bpmn:Escalation": "Escalation",
     "bpmn:Signal": "Signal",
     "bpmn:DataStore": "Data store",
-    "bpmn:DataObject": "Data object",
+    // The overlay may not add a casing variant of the shared key.
+    "bpmn:DataObject": "Data Object",
     "bpmn:ItemDefinition": "Item definition",
     "bpmn:Category": "Category",
     "bpmn:Interface": "Interface",

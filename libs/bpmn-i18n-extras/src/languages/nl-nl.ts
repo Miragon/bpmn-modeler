@@ -303,14 +303,11 @@ const dictionary: Record<string, string> = {
     "Step through": "Doorlopen",
     "Open conflicts": "Open conflicten",
     "All merged elements": "Alle samengevoegde elementen",
-    "Without a shape": "Zonder vorm",
     "No open conflicts": "Geen open conflicten",
     "1 open conflict": "1 open conflict",
     "{count} open conflicts": "{count} open conflicten",
-    "Keep this version": "Deze versie behouden",
     "Keep everything inside": "Alles erin behouden",
     "Undo pick": "Keuze terugnemen",
-    "Your picks": "Jouw keuzes",
     "Pulled in:": "Meegenomen:",
     "Dropped:": "Weggevallen:",
     "Open again:": "Weer open:",
@@ -327,30 +324,9 @@ const dictionary: Record<string, string> = {
         "Behouden van Inkomend met zijn flows, jouw keuze",
     "Kept from current: {element}": "Behouden van Huidig: {element}",
     "Kept from incoming: {element}": "Behouden van Inkomend: {element}",
-    "{element} needs {target}, which no version has":
-        "{element} heeft {target} nodig, dat geen enkele versie heeft",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element} heeft {target} nodig, dat ontbreekt aan de kant die je koos",
-    "{element} needs {target}, which this pick drops":
-        "{element} heeft {target} nodig, dat door deze keuze wegvalt",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element} heeft een deel van {target} nodig dat deze keuze weglaat",
-    "{element} needs {target}, which this side does not have":
-        "{element} heeft {target} nodig, dat deze kant niet heeft",
-    "{element} needs {target}, which the result leaves out":
-        "{element} heeft {target} nodig, dat het resultaat weglaat",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element} heeft een deel van {target} nodig dat in de behouden versie ontbreekt",
-    "{element}, which you picked, needs {target}": "{element}, dat je koos, heeft {target} nodig",
     "This pick brings in {element}, which needs {target}":
         "Deze keuze neemt {element} mee, dat {target} nodig heeft",
-    "{element} and {target} hold the same ID": "{element} en {target} hebben dezelfde ID",
-    "{element} and {target} each have a pool of the same process":
-        "{element} en {target} hebben elk een pool van hetzelfde proces",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element} heeft een deel van {target} nodig, dat ontbreekt aan de kant die je koos",
-    "{element} needs a part of {target} that this side does not have":
-        "{element} heeft een deel van {target} nodig dat deze kant niet heeft",
+    "{element} and {target} hold the same ID": "{element} en {target} hebben hetzelfde ID",
     "Also keep the flow current removed with it":
         "Ook de flow behouden die Huidig ermee verwijderde",
     "Also keep the {count} flows current removed with it":
@@ -359,12 +335,7 @@ const dictionary: Record<string, string> = {
         "Ook de flow behouden die Inkomend ermee verwijderde",
     "Also keep the {count} flows incoming removed with it":
         "Ook de {count} flows behouden die Inkomend ermee verwijderde",
-    "Kept {element}": "{element} is behouden",
-    "Cannot keep {element}": "{element} kan niet worden behouden",
-    "Left out {element}": "{element} is weggelaten",
-    "Cannot leave out {element}": "{element} kan niet worden weggelaten",
     "Took back the pick of {element}": "Keuze voor {element} is teruggenomen",
-    "Cannot take back the pick of {element}": "Keuze voor {element} kan niet worden teruggenomen",
     "Build": "Samenstellen",
     "Notes of the build": "Opmerkingen bij het samenstellen",
     "Compare with current": "Vergelijken met Huidig",
@@ -385,6 +356,127 @@ const dictionary: Record<string, string> = {
         "Het attribuut {attribute} van het bestand verschilt tussen de kanten; dat van Huidig blijft behouden",
     "1 conflict left": "Nog 1 conflict",
     "{count} conflicts left": "Nog {count} conflicten",
+    "Elements of this version the result keeps as they are here.":
+        "Elementen van deze versie die het resultaat behoudt zoals ze hier zijn.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "Elementen van deze versie die het resultaat van de andere versie overneemt, of weglaat omdat de andere versie ze verwijderde.",
+    "Open conflicts on elements this version has.":
+        "Open conflicten op elementen die deze versie heeft.",
+    "Elements only the other version has are counted on the other pane only.":
+        "Elementen die alleen de andere versie heeft, worden alleen in het andere paneel geteld.",
+    "More actions": "Meer acties",
+    "This step has no shape, so it is listed here.":
+        "Deze stap heeft geen vorm en staat daarom hier.",
+    "Not visible in the diagram ({count})": "Niet zichtbaar in het diagram ({count})",
+    "1 open conflict not visible in the diagram": "1 open conflict niet zichtbaar in het diagram",
+    "{count} open conflicts not visible in the diagram":
+        "{count} open conflicten niet zichtbaar in het diagram",
+    "Keep current with everything inside": "Huidig met alles erin behouden",
+    "Keep incoming with everything inside": "Inkomend met alles erin behouden",
+    "Leave out": "Weglaten",
+    "Also keep its removed flows": "Ook de verwijderde flows behouden",
+    "Keep it as current has it": "Behouden zoals Huidig het heeft",
+    "Keep it as incoming has it": "Behouden zoals Inkomend het heeft",
+    "Keep it and everything inside as current has them":
+        "Het en alles erin behouden zoals Huidig ze heeft",
+    "Keep it and everything inside as incoming has them":
+        "Het en alles erin behouden zoals Inkomend ze heeft",
+    "Keep it and every pool with its process as current has them":
+        "Het en elke pool met zijn proces behouden zoals Huidig ze heeft",
+    "Keep it and every pool with its process as incoming has them":
+        "Het en elke pool met zijn proces behouden zoals Inkomend ze heeft",
+    "Leave it out, as current removed it": "Weglaten, omdat Huidig het verwijderde",
+    "Leave it out, as current doesn't have it": "Weglaten, omdat Huidig het niet heeft",
+    "Leave it out, as incoming removed it": "Weglaten, omdat Inkomend het verwijderde",
+    "Leave it out, as incoming doesn't have it": "Weglaten, omdat Inkomend het niet heeft",
+    "Go back to what the merge decided by itself":
+        "Teruggaan naar wat de samenvoeging zelf besliste",
+    "none": "geen waarde",
+    "and other content": "en andere inhoud",
+    "Removed in current": "Verwijderd in Huidig",
+    "Not in current": "Niet in Huidig",
+    "Removed in incoming": "Verwijderd in Inkomend",
+    "Not in incoming": "Niet in Inkomend",
+    "Kept from current with everything inside: {element}":
+        "Behouden van Huidig met alles erin: {element}",
+    "Kept from incoming with everything inside: {element}":
+        "Behouden van Inkomend met alles erin: {element}",
+    "Kept from current with its flows: {element}": "Behouden van Huidig met zijn flows: {element}",
+    "Kept from incoming with its flows: {element}":
+        "Behouden van Inkomend met zijn flows: {element}",
+    "Left out: {element}, as current removed it":
+        "Weggelaten: {element}, omdat Huidig het verwijderde",
+    "Left out: {element}, as current doesn't have it":
+        "Weggelaten: {element}, omdat Huidig het niet heeft",
+    "Left out: {element}, as incoming removed it":
+        "Weggelaten: {element}, omdat Inkomend het verwijderde",
+    "Left out: {element}, as incoming doesn't have it":
+        "Weggelaten: {element}, omdat Inkomend het niet heeft",
+    "Took back the pick. {element} is an open conflict again.":
+        "Keuze teruggenomen. {element} is weer een open conflict.",
+    "Can't keep {element}": "{element} kan niet worden behouden",
+    "Can't leave out {element}": "{element} kan niet worden weggelaten",
+    "Can't take back the pick of {element}": "Keuze voor {element} kan niet worden teruggenomen",
+    "Nothing blocks keeping {element} now": "Niets verhindert nu nog het behouden van {element}",
+    "Nothing blocks leaving out {element} now":
+        "Niets verhindert nu nog het weglaten van {element}",
+    "Nothing blocks taking back the pick of {element} now":
+        "Niets verhindert nu nog het terugnemen van de keuze voor {element}",
+    "{element} needs {target}; no version has it":
+        "{element} heeft {target} nodig; geen enkele versie heeft het",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element} heeft {target} nodig; jouw keuze neemt een kant waar het ontbreekt",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element} heeft een deel van {target} nodig; jouw keuze neemt een kant waar het ontbreekt",
+    "{element} needs {target}; this pick drops it":
+        "{element} heeft {target} nodig; deze keuze laat het wegvallen",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element} heeft een deel van {target} nodig dat deze keuze weglaat",
+    "{element} needs {target}; this side lacks it":
+        "{element} heeft {target} nodig; deze kant heeft het niet",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element} heeft een deel van {target} nodig; deze kant heeft het niet",
+    "{element} needs {target}; the result leaves it out":
+        "{element} heeft {target} nodig; het resultaat laat het weg",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element} heeft een deel van {target} nodig dat in de behouden versie ontbreekt",
+    "Your pick of {element} needs {target}": "Jouw keuze voor {element} heeft {target} nodig",
+    "{element} and {target} have a pool of the same process":
+        "{element} en {target} hebben een pool van hetzelfde proces",
+    "{element} needs it; no version has it":
+        "{element} heeft het nodig; geen enkele versie heeft het",
+    "{element} needs it; your pick takes a side without it":
+        "{element} heeft het nodig; jouw keuze neemt een kant waar het ontbreekt",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element} heeft een deel ervan nodig; jouw keuze neemt een kant waar het ontbreekt",
+    "{element} needs it": "{element} heeft het nodig",
+    "{element} needs a part of it this pick leaves out":
+        "{element} heeft een deel ervan nodig dat deze keuze weglaat",
+    "{element} needs it; this side lacks it": "{element} heeft het nodig; deze kant heeft het niet",
+    "{element} needs a part of it; this side lacks it":
+        "{element} heeft een deel ervan nodig; deze kant heeft het niet",
+    "{element} needs a part of it the kept version lacks":
+        "{element} heeft een deel ervan nodig dat in de behouden versie ontbreekt",
+    "Your pick of {element} needs it": "Jouw keuze voor {element} heeft het nodig",
+    "This pick brings in {element}, which needs it":
+        "Deze keuze neemt {element} mee, dat ervan afhankelijk is",
+    "{element} holds the same ID": "{element} heeft hetzelfde ID",
+    "{element} has a pool of the same process": "{element} heeft een pool van hetzelfde proces",
+    "and {count} more": "en nog {count}",
+    "Data store": "Datastore",
+    "Item definition": "Itemdefinitie",
+    "Category": "Categorie",
+    "Interface": "Interface",
+    "End point": "Endpoint",
+    "Partner entity": "Partnerentiteit",
+    "Partner role": "Partnerrol",
+    "Correlation property": "Correlatie-eigenschap",
+    "Global task": "Globale task",
+    "Flow from {source} to {target}": "Flow van {source} naar {target}",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "Beide kanten wijzigden de lay-out van {elements}; die van Huidig blijft behouden",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "Beide kanten wijzigden de lay-out van {elements}; die van Inkomend blijft behouden",
 };
 
 export default dictionary;

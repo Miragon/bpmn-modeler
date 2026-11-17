@@ -45,7 +45,6 @@ export const MERGE_MARKER_LABELS: Readonly<Record<MergeMarker, string>> = {
     conflict: "Conflict",
 };
 
-// The tooltips' words, English only until the translations follow; the catalogs fall back to the key.
 const MARKER_COUNT_TIPS: Readonly<Record<MergeMarker, string>> = {
     takenFromThisSide: "Elements of this version the result keeps as they are here.",
     takenFromOtherSide:
@@ -75,7 +74,7 @@ export const MERGE_STEP_TEXTS = {
     allSteps: "All merged elements",
 } as const;
 
-/** The "…" menu's own words, English only until the translations follow. */
+/** The "…" menu's own words. */
 export const MERGE_MENU_TEXTS = {
     more: "More actions",
     steppedHere: "This step has no shape, so it is listed here.",

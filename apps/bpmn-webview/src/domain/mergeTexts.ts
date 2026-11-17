@@ -90,7 +90,6 @@ export function keepSideText(side: MergeSide, translate: MergeTranslate): string
     return translate(KEEP_SIDE_TEXTS[side]);
 }
 
-// The pad's words, English only until the translations follow; the catalogs fall back to the key.
 const KEEP_INSIDE_TEXTS: Record<MergeSide, string> = {
     current: "Keep current with everything inside",
     incoming: "Keep incoming with everything inside",
@@ -183,7 +182,6 @@ export function restoreOfferText(offer: MergePaneRestoreOffer, translate: MergeT
         : translate(texts.many, { count: String(offer.connections.length) });
 }
 
-// The outcome card's words, English only until the translations follow; the catalogs fall back to the key.
 const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
     element: {
         current: "Kept from current: {element}",
