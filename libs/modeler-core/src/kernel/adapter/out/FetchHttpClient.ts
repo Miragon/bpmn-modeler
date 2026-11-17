@@ -4,7 +4,7 @@ import { HttpResponse, HttpTransportError, loggableHost } from "../../domain/htt
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.
  *
- * Available in Node 18+ (which VS Code 1.76+ ships with), so no
+ * Available in Node 18+ (VS Code 1.93+ ships Node 20), so no
  * external dependencies are required.
  */
 export class FetchHttpClient implements HttpClient {

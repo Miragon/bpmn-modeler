@@ -15,13 +15,4 @@ describe("createWebviewNonce", () => {
         expect(createWebviewNonce()).toMatch(/^[A-Za-z0-9]{32}$/);
         expect(nodeCrypto.randomFillSync).toHaveBeenCalled();
     });
-
-    it("works without a global Web Crypto", () => {
-        vi.stubGlobal("crypto", undefined);
-        try {
-            expect(createWebviewNonce()).toMatch(/^[A-Za-z0-9]{32}$/);
-        } finally {
-            vi.unstubAllGlobals();
-        }
-    });
 });

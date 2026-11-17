@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-17
 
 ## Context
 
@@ -21,6 +21,7 @@ Open VSX offers the same OIDC exchange). Operational steps are in the
 - [Release components and markers](#release-components-and-markers)
 - [Release pull request](#release-pull-request)
 - [Packing and publishing](#packing-and-publishing)
+- [Supported VS Code versions](#supported-vs-code-versions)
 - [Orca plugin](#orca-plugin)
 - [Consequences](#consequences)
 
@@ -130,6 +131,22 @@ publisher.
   the Node-safe BPMN diff entry. DMN's smoke bundles its consumer with esbuild
   because its upstream extensionless browser imports do not resolve under bare Node
   ESM; one parameterized workflow keeps the shared logic consistent.
+
+### Supported VS Code versions
+
+`engines.vscode` is `^1.93.0`, and `@types/vscode` stays on the same minor: the
+compiler then rejects an API the oldest supported VS Code lacks, which types above
+the engine would let through to users. VS Code installs and updates an extension
+only to a release whose `engines.vscode` it satisfies, so a VS Code below the floor
+keeps the last compatible release instead of breaking. The floor moved from 1.76
+(early 2023) to 1.93 because 1.76 was nearly four years old while the APIs and
+runtime since (checkbox trees, Node 20 in the extension host, Chromium 124 in
+webviews) improve features. Raise it again when a feature needs a newer API that
+VSCodium, Cursor and Windsurf already ship, rather than gating the feature on
+`vscode.version`. The [Extension-Host test](../../apps/vscode-plugin/test/e2e/.vscode-test.mjs)
+runs the floor and the newest stable release; its version and the download list in
+[build.yml](../../.github/workflows/build.yml) move with the engine. Accepted cost:
+VS Code 1.76 to 1.92, and forks on an older VS Code base, get no further releases.
 
 ### Orca plugin
 
