@@ -312,8 +312,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "再び未解決:",
     "Keep current": "現在を保持",
     "Keep incoming": "入力側を保持",
-    "C": "現",
-    "I": "入",
     "Kept from current, your pick": "現在から保持 (自分の選択)",
     "Kept from incoming, your pick": "入力側から保持 (自分の選択)",
     "Kept from current with everything inside, your pick": "現在から内部ごと保持 (自分の選択)",

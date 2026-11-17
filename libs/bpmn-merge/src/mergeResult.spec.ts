@@ -8,7 +8,6 @@ import {
     type ResolvedState,
     addedOnlyBy,
     isConflictState,
-    otherSide,
 } from "./mergeResult";
 
 const CONFLICTS: readonly ConflictState[] = [
@@ -56,14 +55,5 @@ describe("addedOnlyBy", () => {
         ["unchanged", "current", false],
     ])("counts a %s element as added only by %s: %s", (state, side, added) => {
         expect(addedOnlyBy(mergeElement("Task", state), side)).toBe(added);
-    });
-});
-
-describe("otherSide", () => {
-    it.each([
-        ["current", "incoming"],
-        ["incoming", "current"],
-    ] as const)("merges %s with %s", (side, other) => {
-        expect(otherSide(side)).toBe(other);
     });
 });

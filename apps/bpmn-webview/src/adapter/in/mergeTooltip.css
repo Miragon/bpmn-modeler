@@ -1,0 +1,32 @@
+/* The merge chrome's styled tooltip: a dark chip in every theme, in the legend's font. */
+
+.merge-tooltip {
+    position: fixed;
+    z-index: 1000;
+    box-sizing: border-box;
+    max-width: min(280px, calc(100vw - 16px));
+    padding: 4px 8px;
+    font: 400 12px/1.35 var(--diff-legend-font-family, sans-serif);
+    color: #fff;
+    white-space: normal;
+    background: #1d1d1d;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+[data-bpmn-theme="dark"] .merge-tooltip {
+    background: #3c3c3c;
+    border-color: #5a5a5a;
+}
+
+body.vscode-high-contrast .merge-tooltip {
+    color: var(--vscode-editorHoverWidget-foreground, #fff);
+    background: var(--vscode-editorHoverWidget-background, #000);
+    border-color: var(--vscode-contrastBorder, #6fc3df);
+}
+
+.merge-tooltip[hidden] {
+    display: none;
+}

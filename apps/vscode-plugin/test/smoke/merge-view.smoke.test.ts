@@ -343,6 +343,19 @@ describe("the BPMN merge view", () => {
         await vscode().page.keyboard.press("Enter");
     }
 
+    /** The mouse's way: an entry of the context pad a step or a click opened, by its label. */
+    function padEntry(pane: FrameLocator, name: string | RegExp) {
+        return pane
+            .locator(".djs-context-pad")
+            .getByRole("button", { name, exact: typeof name === "string" });
+    }
+
+    async function decideInPad(pane: FrameLocator, name: string | RegExp): Promise<void> {
+        const entry = padEntry(pane, name);
+        await entry.waitFor({ state: "visible", timeout: TIMEOUT_MS });
+        await entry.click();
+    }
+
     async function mergePanes(): Promise<{ current: FrameLocator; incoming: FrameLocator }> {
         return {
             current: await vscode().editorWebview('body[data-diff-side="before"]'),
@@ -612,20 +625,41 @@ describe("the BPMN merge view", () => {
     });
 
     describe("pick", () => {
+        // A shape carries a worded badge and a check for small zoom; one of them shows.
         function badgeLabels(pane: FrameLocator): Promise<string[]> {
             return pane
                 .locator(".merge-pick-badge")
                 .evaluateAll((badges) =>
-                    badges.map((badge) => badge.getAttribute("aria-label") ?? ""),
+                    badges
+                        .filter((badge) => badge.checkVisibility())
+                        .map((badge) => badge.getAttribute("aria-label") ?? ""),
                 );
         }
 
-        it("keeps incoming's version of the conflict from the legend and badges it on both panes", async () => {
+        function badgeTexts(pane: FrameLocator): Promise<string[]> {
+            return pane
+                .locator(".merge-pick-badge")
+                .evaluateAll((badges) =>
+                    badges
+                        .filter((badge) => badge.checkVisibility())
+                        .map((badge) => (badge as HTMLElement).innerText.trim()),
+                );
+        }
+
+        it("keeps incoming's version of the conflict from the pad a step opens and badges it on both panes", async () => {
             const { current, incoming } = await mergePanes();
             await press(incoming, "Open conflicts");
             await press(incoming, "Next change");
 
-            await press(incoming, "Keep incoming");
+            // The step selects the conflict on both panes, so each opens its pad, and shows no tooltip.
+            for (const pane of [current, incoming]) {
+                await pane
+                    .locator(".djs-context-pad .merge-pick-action")
+                    .first()
+                    .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+                expect(await pane.locator(".merge-tooltip:not([hidden])").count()).toBe(0);
+            }
+            await decideInPad(incoming, "Keep incoming");
 
             for (const pane of [current, incoming]) {
                 await expect
@@ -633,14 +667,15 @@ describe("the BPMN merge view", () => {
                     .toBe("No open conflicts");
                 expect(await badgeLabels(pane)).toEqual(["Kept from incoming, your pick"]);
             }
+            expect(await badgeTexts(incoming)).toEqual(["Incoming"]);
             await shot("pick-badges-both-panes");
         });
 
-        it("undoes the pick from the list of all merged elements, then overrides an automatic resolution", async () => {
+        it("undoes the pick on the pad, then overrides an automatic resolution of all merged elements", async () => {
             const { current, incoming } = await mergePanes();
             await press(incoming, "All merged elements");
 
-            await press(incoming, "Undo pick");
+            await decideInPad(incoming, "Undo pick");
 
             await expect
                 .poll(() => openCount(current), { timeout: TIMEOUT_MS })
@@ -649,7 +684,7 @@ describe("the BPMN merge view", () => {
             expect(await badgeLabels(incoming)).toEqual([]);
 
             await press(current, "Next change");
-            await press(current, "Keep current");
+            await decideInPad(current, "Keep current");
 
             await expect
                 .poll(() => badgeLabels(incoming), { timeout: TIMEOUT_MS })
@@ -693,16 +728,22 @@ describe("the BPMN merge view", () => {
             }
             await press(incoming, "Next change");
 
-            await press(incoming, "Keep incoming");
+            await decideInPad(incoming, "Keep incoming");
 
             const offer = "Also keep the 2 flows current removed with it";
             await incoming
                 .getByRole("button", { name: offer })
                 .waitFor({ state: "visible", timeout: TIMEOUT_MS });
             expect(await current.getByRole("button", { name: offer }).count()).toBe(0);
+            await padEntry(incoming, "Also keep its removed flows").hover();
+            await expect
+                .poll(() => incoming.locator(".merge-tooltip:not([hidden])").innerText(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(`Also keep its removed flows: ${offer}`);
             await shot("pick-restore-offer");
 
-            await press(incoming, offer);
+            await decideInPad(incoming, "Also keep its removed flows");
 
             await expect
                 .poll(() => badgeLabels(incoming).then((labels) => labels.length), {
@@ -718,10 +759,11 @@ describe("the BPMN merge view", () => {
         });
 
         it("names the flows that block leaving out the task main removed", async () => {
-            const { current } = await mergePanes();
+            const { current, incoming } = await mergePanes();
+            // The current pane lists the pick it cannot draw; its step selects the task on the incoming pane.
             await press(current, "Kept from incoming: Check feature order");
 
-            await press(current, "Keep current");
+            await decideInPad(incoming, /^Leave out: Leave it out, as current removed it$/);
 
             const feedback = current.locator(".merge-legend__feedback");
             await expect
@@ -733,15 +775,39 @@ describe("the BPMN merge view", () => {
             await shot("pick-blocked-reason");
         });
 
-        it("shows the pick entries on the context pad", async () => {
+        it("shows the decisions on the context pad as icons with a tooltip and no native title", async () => {
             const { incoming } = await mergePanes();
-            await incoming.locator('.djs-element[data-element-id="Task_Check"]').first().click();
+            const task = incoming.locator('.djs-element[data-element-id="Task_Check"]').first();
+            // diagram-js deselects on a click on the element already selected alone, so it starts from none.
+            const canvas = incoming.locator(".djs-container");
+            const height = (await canvas.boundingBox())?.height ?? 0;
+            await canvas.click({ position: { x: 30, y: height - 30 } });
+            await expect
+                .poll(() => incoming.locator(".djs-context-pad .merge-pick-action").count(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe(0);
+            await task.click();
 
-            await incoming
-                .locator(".djs-context-pad .merge-pick-action")
-                .first()
-                .waitFor({ state: "visible", timeout: TIMEOUT_MS });
-            expect(await incoming.locator(".djs-context-pad .merge-pick-action").count()).toBe(2);
+            const entries = incoming.locator(".djs-context-pad .merge-pick-action");
+            await entries.first().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            expect(
+                await entries.evaluateAll((buttons) =>
+                    buttons.map((button) => ({
+                        label: button.getAttribute("aria-label"),
+                        title: button.getAttribute("title"),
+                    })),
+                ),
+            ).toEqual([
+                { label: "Leave out: Leave it out, as current removed it", title: null },
+                { label: "Undo pick", title: null },
+            ]);
+            await padEntry(incoming, "Undo pick").hover();
+            await expect
+                .poll(() => incoming.locator(".merge-tooltip:not([hidden])").innerText(), {
+                    timeout: TIMEOUT_MS,
+                })
+                .toBe("Undo pick: Go back to what the merge decided by itself");
             await shot("pick-context-pad");
         });
     });
@@ -907,7 +973,7 @@ describe("the BPMN merge view", () => {
             await shot("build-disabled");
 
             await press(incoming, "Next change");
-            await press(incoming, "Keep incoming");
+            await decideInPad(incoming, "Keep incoming");
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");
@@ -1032,7 +1098,7 @@ describe("the BPMN merge view", () => {
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("1 open conflict");
             await press(incoming, "Next change");
-            await press(incoming, "Keep incoming");
+            await decideInPad(incoming, "Keep incoming");
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");
@@ -1101,7 +1167,7 @@ describe("the BPMN merge view", () => {
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("1 open conflict");
             await press(incoming, "Next change");
-            await press(incoming, "Keep incoming");
+            await decideInPad(incoming, "Keep incoming");
             await expect
                 .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
                 .toBe("No open conflicts");

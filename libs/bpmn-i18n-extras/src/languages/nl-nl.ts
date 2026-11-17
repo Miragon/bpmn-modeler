@@ -316,8 +316,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "Weer open:",
     "Keep current": "Huidig behouden",
     "Keep incoming": "Inkomend behouden",
-    "C": "H",
-    "I": "I",
     "Kept from current, your pick": "Behouden van Huidig, jouw keuze",
     "Kept from incoming, your pick": "Behouden van Inkomend, jouw keuze",
     "Kept from current with everything inside, your pick":

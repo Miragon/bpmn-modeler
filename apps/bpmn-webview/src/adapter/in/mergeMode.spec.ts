@@ -25,13 +25,21 @@ const fakes = vi.hoisted(() => {
         fitDiagram = vi.fn();
         setViewport = vi.fn();
         showPlane = vi.fn((_planeId: string) => true);
-        mirrorSelection = vi.fn();
+        mirrorSelection = vi.fn((_id: string | undefined) => true);
+        getViewport = vi.fn(() => ({ x: 10, y: 20, width: 400, height: 300 }));
         onPlaneChanged = vi.fn();
         viewportListener: ((viewport: Viewport) => void) | undefined;
         onViewportChanged = vi.fn((listener: (viewport: Viewport) => void) => {
             this.viewportListener = listener;
         });
-        onSelectedElementChanged = vi.fn();
+        selectionListeners: ((elementId: string | undefined) => void)[] = [];
+        onSelectedElementChanged = vi.fn((listener: (elementId: string | undefined) => void) => {
+            this.selectionListeners.push(listener);
+        });
+        /** The user selects on the canvas, as diagram-js reports it. */
+        userSelects(elementId: string | undefined): void {
+            for (const listener of this.selectionListeners) listener(elementId);
+        }
         constructor(
             readonly container: HTMLElement,
             readonly options: { additionalModules?: unknown[] } = {},
@@ -59,9 +67,8 @@ const fakes = vi.hoisted(() => {
     const pickPad = {
         config: undefined as
             | {
-                  pickableOf(id: string): unknown;
-                  pick(id: string, scope: string): void;
-                  unpick(id: string, scope: string): void;
+                  decisionsOf(id: string): readonly unknown[];
+                  decide(id: string, decision: unknown): void;
                   attach(provider: { refresh(): void }): void;
               }
             | undefined,
@@ -110,10 +117,17 @@ import { MergeMode } from "./mergeMode";
 
 const viewer = () => fakes.FakeDiffViewer.last;
 
-const step = (id: string, shapeless = false, onThisPane = true, plane?: string): MergePaneStep => ({
+const step = (
+    id: string,
+    shapeless = false,
+    onThisPane = true,
+    plane?: string,
+    onOtherPane = true,
+): MergePaneStep => ({
     id,
     shapeless,
     onThisPane,
+    onOtherPane,
     ...(plane === undefined ? {} : { plane }),
 });
 
@@ -459,6 +473,152 @@ describe("MergeMode", () => {
         });
     });
 
+    describe("the step's selection", () => {
+        const selected = () => viewer().mirrorSelection.mock.calls.map(([id]) => id);
+
+        it("selects the element a step lands on, after entering its plane, so its pad opens there", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            next();
+
+            expect(selected()).toEqual(["Task_Pack"]);
+            expect(viewer().focusElement.mock.invocationCallOrder[0]).toBeLessThan(
+                viewer().mirrorSelection.mock.invocationCallOrder[0],
+            );
+        });
+
+        it("centres the stepped element at the current zoom", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            next();
+
+            expect(viewer().setViewport).not.toHaveBeenCalled();
+            expect(viewer().fitDiagram).not.toHaveBeenCalled();
+        });
+
+        it("selects the partner's step on this pane too, without posting it", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            dispatch(new SyncCursorQuery(2));
+
+            expect(selected()).toEqual(["Task_Pack"]);
+            expect(posted().map(({ type }) => type)).not.toContain("DiffSelectionChangedCommand");
+        });
+
+        it("selects the step the host kept after a reload", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Pack" } }));
+
+            expect(selected()).toEqual(["Task_Pack"]);
+        });
+
+        it("clears the selection and its pad on a step this pane does not draw", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+
+            next();
+
+            expect(selected()).toEqual(["Task_Pack", undefined]);
+            expect(viewer().clearSelectionMarker).toHaveBeenCalled();
+        });
+
+        it("clears the selection and its pad on a step without a shape", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            previous();
+
+            expect(selected()).toEqual([undefined]);
+        });
+
+        it("makes a clicked element of the merge the step on both panes", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            viewer().userSelects("Task_Check");
+
+            expect(cursorsPosted()).toEqual([0]);
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
+            expect(selected()).toEqual(["Task_Check"]);
+            expect(counter()).toBe("1/4");
+        });
+
+        it.each([
+            ["an element that is no step", "Task_Other", {}],
+            ["nothing", undefined, {}],
+            ["a step the user cannot pick", "Task_Check", { pickable: [] }],
+        ])("leaves the step where it is on a click on %s", async (_case, clicked, states) => {
+            await startMergePane();
+            dispatch(mergeStates(states));
+
+            viewer().userSelects(clicked);
+
+            expect(cursorsPosted()).toEqual([]);
+            expect(viewer().focusElement).not.toHaveBeenCalled();
+        });
+
+        it("posts no step again on a click on the element it is on", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+
+            viewer().userSelects("Task_Pack");
+
+            expect(cursorsPosted()).toEqual([2]);
+        });
+    });
+
+    describe("a step only one pane draws", () => {
+        const ONLY_HERE: MergePaneStates["allSteps"] = [
+            step("Task_Check", false, true, undefined, false),
+            step("Flow_1"),
+            step("Task_Pack"),
+            step("Task_Gone", false, false),
+            step("Process_1", true),
+        ];
+        const viewportsPosted = () =>
+            posted().filter((message) => message.type === "ViewportChangedCommand");
+
+        it("hands this pane's viewport to the partner after this pane's step", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: ONLY_HERE, stepping: { list: "all" } }));
+
+            next();
+
+            expect(
+                posted()
+                    .map(({ type }) => type)
+                    .slice(-2),
+            ).toEqual(["CursorChangedCommand", "ViewportChangedCommand"]);
+            expect(viewportsPosted()).toEqual([
+                expect.objectContaining({ viewport: { x: 10, y: 20, width: 400, height: 300 } }),
+            ]);
+        });
+
+        it("hands this pane's viewport to the partner after the partner's step", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: ONLY_HERE }));
+
+            dispatch(new SyncCursorQuery(0));
+
+            expect(viewportsPosted()).toHaveLength(1);
+        });
+
+        it("hands over no viewport on a step both panes draw, one only the partner draws, or one without a shape", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: ONLY_HERE }));
+
+            for (const index of [1, 2, 3, 4]) dispatch(new SyncCursorQuery(index));
+
+            expect(viewportsPosted()).toEqual([]);
+        });
+    });
+
     describe("planes", () => {
         const SUB_STEPS = [
             ...STATES.allSteps,
@@ -531,27 +691,34 @@ describe("MergeMode", () => {
                     message.type === "UnpickMergeCommand",
             );
 
-        it("keeps the stepped element from this pane's side through the legend", async () => {
+        it("keeps a stepped element without a shape from this pane's side through the legend", async () => {
             await startMergePane();
             dispatch(mergeStates());
-            next();
+            previous();
 
             legendButton("Keep current").click();
 
             expect(picksPosted()).toEqual([
                 expect.objectContaining({
                     type: "PickMergeSideCommand",
-                    elementId: "Task_Pack",
+                    elementId: "Process_1",
                     scope: "element",
                 }),
             ]);
         });
 
-        it("offers no pick action before the first step", async () => {
+        it("offers the legend's pick actions only on a step without a shape: the pad decides the rest", async () => {
+            const keepHidden = () =>
+                legendButton("Keep current").closest<HTMLElement>("[hidden]") !== null;
             await startMergePane();
             dispatch(mergeStates());
+            expect(keepHidden()).toBe(true);
 
-            expect(legendButton("Keep current").closest<HTMLElement>("[hidden]")).not.toBeNull();
+            next();
+            expect(keepHidden()).toBe(true);
+
+            previous();
+            expect(keepHidden()).toBe(false);
         });
 
         it("keeps a shape-less entry with everything inside, and undoes its pick, through the legend", async () => {
@@ -603,35 +770,27 @@ describe("MergeMode", () => {
             ]);
         });
 
-        it("stays on the stepped element and keeps the focus on its action after a pick", async () => {
+        it("stays on a stepped element without a shape and keeps the focus on its action after a pick", async () => {
             await startMergePane();
             dispatch(mergeStates());
-            next();
+            previous();
             const keep = legendButton("Keep current");
             keep.focus();
             keep.click();
 
             dispatch(
                 mergeStates({
-                    openConflictSteps: [step("Task_Gone", false, false), step("Process_1", true)],
-                    pickable: [{ id: "Task_Pack", container: false, undo: "element" }],
-                    badges: [
-                        {
-                            id: "Task_Pack",
-                            kind: "keptHere",
-                            keptSide: "current",
-                            scope: "element",
-                        },
-                    ],
+                    openConflictSteps: [step("Task_Pack"), step("Task_Gone", false, false)],
+                    pickable: [{ id: "Process_1", container: true, undo: "element" }],
                 }),
             );
 
             expect(document.activeElement).toBe(keep);
             expect(legendButton("Undo pick").hidden).toBe(false);
-            expect(counter()).toBe("1/3");
-            next();
+            expect(counter()).toBe("3/3");
+            previous();
             expect(cursorsPosted().at(-1)).toBe(3);
-            expect(counter()).toBe("1/2");
+            expect(counter()).toBe("2/2");
         });
 
         it("paints the user's picks and their consequences, with the badges' words", async () => {
@@ -652,26 +811,47 @@ describe("MergeMode", () => {
                 consequences: ["Flow_1"],
             });
             expect(labels.badge(badge)).toEqual({
-                letter: "C",
+                side: "Current",
                 label: "Kept from current, your pick",
             });
         });
 
-        it("offers the pad's entries from the latest states and posts them", async () => {
+        it("offers the pad's decisions from the latest states and posts each with its side", async () => {
             await startMergePane();
-            dispatch(mergeStates({ pickable: [{ id: "Task_Pack", container: false }] }));
+            dispatch(
+                mergeStates({
+                    pickable: [
+                        {
+                            id: "Task_Pack",
+                            container: false,
+                            undo: "element",
+                            otherSideLacks: "removed",
+                        },
+                    ],
+                    restoreOffer: {
+                        elementId: "Task_Pack",
+                        connections: ["Flow_1"],
+                        removedBy: "incoming",
+                    },
+                }),
+            );
+            const pad = fakes.pickPad.config!;
 
-            expect(fakes.pickPad.config?.pickableOf("Task_Pack")).toEqual({
-                id: "Task_Pack",
-                container: false,
-            });
-            expect(fakes.pickPad.config?.pickableOf("Task_Check")).toBeUndefined();
-            fakes.pickPad.config?.pick("Task_Pack", "element");
-            fakes.pickPad.config?.unpick("Task_Pack", "element");
+            const decisions = pad.decisionsOf("Task_Pack");
+            for (const decision of decisions) pad.decide("Task_Pack", decision);
 
-            expect(picksPosted().map(({ type }) => type)).toEqual([
-                "PickMergeSideCommand",
-                "UnpickMergeCommand",
+            expect(pad.decisionsOf("Task_Check")).toEqual([]);
+            expect(
+                picksPosted().map((message) => ({
+                    type: message.type,
+                    scope: (message as { scope: string }).scope,
+                    side: (message as { side?: string }).side,
+                })),
+            ).toEqual([
+                { type: "PickMergeSideCommand", scope: "element", side: "current" },
+                { type: "PickMergeSideCommand", scope: "element", side: "incoming" },
+                { type: "PickMergeSideCommand", scope: "withConnections", side: "current" },
+                { type: "UnpickMergeCommand", scope: "element", side: undefined },
             ]);
         });
 
@@ -748,17 +928,17 @@ describe("MergeMode", () => {
             expect(legendText()).toContain("Kept from incoming: Task_Check");
         });
 
-        it("moves the focus to the Keep action when Undo of the stepped element hides itself", async () => {
+        it("moves the focus to the Keep action when Undo of a stepped element without a shape hides itself", async () => {
             await startMergePane();
             dispatch(
-                mergeStates({ pickable: [{ id: "Task_Pack", container: false, undo: "element" }] }),
+                mergeStates({ pickable: [{ id: "Process_1", container: true, undo: "element" }] }),
             );
-            next();
+            previous();
             const undo = legendButton("Undo pick");
             undo.focus();
             undo.click();
 
-            dispatch(mergeStates({ pickable: [{ id: "Task_Pack", container: false }] }));
+            dispatch(mergeStates({ pickable: [{ id: "Process_1", container: true }] }));
 
             expect(document.activeElement).toBe(legendButton("Keep current"));
         });

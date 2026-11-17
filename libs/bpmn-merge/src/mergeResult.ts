@@ -1,16 +1,10 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
-export { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
-
-const OTHER_SIDE: Readonly<Record<MergeSide, MergeSide>> = {
-    current: "incoming",
-    incoming: "current",
-};
-
-/** The side a merge side is merged with. */
-export function otherSide(side: MergeSide): MergeSide {
-    return OTHER_SIDE[side];
-}
+export {
+    MERGE_SIDES,
+    otherSide,
+    type MergeSide,
+} from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
 export type ResolvedState =
     | "unchanged"

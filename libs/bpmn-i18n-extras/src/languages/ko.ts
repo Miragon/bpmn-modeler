@@ -302,8 +302,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "다시 미해결:",
     "Keep current": "현재 유지",
     "Keep incoming": "수신 유지",
-    "C": "현",
-    "I": "수",
     "Kept from current, your pick": "현재에서 유지, 내 선택",
     "Kept from incoming, your pick": "수신에서 유지, 내 선택",
     "Kept from current with everything inside, your pick":

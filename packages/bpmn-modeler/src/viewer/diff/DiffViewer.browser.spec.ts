@@ -528,6 +528,41 @@ describe("DiffViewer selection", () => {
     });
 
     it.each([
+        ["the element", "Top_Task", "Top_Task"],
+        ["its label", "Inner_Flow_label", "Inner_Flow"],
+    ])(
+        "leaves %s selected already as it is, so diagram-js rebuilds no context pad",
+        async (_case, selectedId, elementId) => {
+            const { viewer, selection, registry } = await openSelectablePane();
+            const { canvas } = getServices(viewer);
+            canvas.setRootElement(canvas.findRoot(registry.get(selectedId))!);
+            selection.select(registry.get(selectedId));
+            const selectionChanged = vi.fn();
+            getDiService<{ on(event: string, listener: () => void): void }>(viewer, "eventBus").on(
+                "selection.changed",
+                selectionChanged,
+            );
+
+            expect(viewer.mirrorSelection(elementId)).toBe(true);
+
+            expect(selectedIds(selection)).toEqual([selectedId]);
+            expect(selectionChanged).not.toHaveBeenCalled();
+        },
+    );
+
+    it("selects an element on the sub-process plane its focus entered, without reporting it", async () => {
+        const { viewer, selection } = await openSelectablePane();
+        const onSelectedElementChanged = vi.fn();
+        viewer.onSelectedElementChanged(onSelectedElementChanged);
+
+        expect(viewer.focusElement("Inner_Task")).toBe(true);
+        expect(viewer.mirrorSelection("Inner_Task")).toBe(true);
+
+        expect(selectedIds(selection)).toEqual(["Inner_Task"]);
+        expect(onSelectedElementChanged).not.toHaveBeenCalled();
+    });
+
+    it.each([
         ["the partner selected nothing", undefined, true],
         ["the partner's element is not in this version", "After_Only_Inner", false],
         ["the partner's element is on a plane this pane does not show", "Inner_Task", false],

@@ -8,6 +8,8 @@ import type {
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
+import type { MergePadDecision } from "./mergePadDecisions";
+
 import {
     blockText,
     buildBlockedText,
@@ -23,6 +25,7 @@ import {
     mergeCaptionText,
     openConflictsText,
     outcomeHeadline,
+    padDecisionText,
     pickBadgeText,
     pickNotDrawnText,
     restoreOfferText,
@@ -145,29 +148,109 @@ describe("merge legend words", () => {
 });
 
 describe("pickBadgeText", () => {
-    it.each<[string, MergePaneBadge, { letter: string; label: string }]>([
+    it.each<[string, MergePaneBadge, { side: string; label: string }]>([
         [
             "names the side an element was kept from on the pane that kept it",
             { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "element" },
-            { letter: "I", label: "Kept from incoming, your pick" },
+            { side: "Incoming", label: "Kept from incoming, your pick" },
         ],
         [
             "names the kept side on the pane whose version was replaced",
             { id: "Task_1", kind: "replacedHere", keptSide: "current", scope: "element" },
-            { letter: "C", label: "Kept from current, your pick" },
+            { side: "Current", label: "Kept from current, your pick" },
         ],
         [
             "says a container was kept with everything inside",
             { id: "Sub_1", kind: "keptHere", keptSide: "current", scope: "withContents" },
-            { letter: "C", label: "Kept from current with everything inside, your pick" },
+            { side: "Current", label: "Kept from current with everything inside, your pick" },
         ],
         [
             "says an element was kept with its flows",
             { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withConnections" },
-            { letter: "I", label: "Kept from incoming with its flows, your pick" },
+            { side: "Incoming", label: "Kept from incoming with its flows, your pick" },
         ],
     ])("%s", (_name, badge, expected) => {
         expect(pickBadgeText(badge, untranslated)).toStrictEqual(expected);
+    });
+
+    it("names the side with the word the pane's caption uses", () => {
+        for (const side of ["current", "incoming"] as const) {
+            expect(pickBadgeText({ keptSide: side, scope: "element" }, untranslated).side).toBe(
+                mergeCaptionText({ side, role: "unknown" }, untranslated),
+            );
+        }
+    });
+});
+
+describe("padDecisionText", () => {
+    const offer = (connections: readonly string[]) =>
+        ({ elementId: "Task_1", connections, removedBy: "current" }) as const;
+
+    it.each<[MergePadDecision, { label: string; tooltip: string }]>([
+        [
+            { kind: "keep", scope: "element", side: "incoming" },
+            { label: "Keep incoming", tooltip: "Keep incoming: Keep it as incoming has it" },
+        ],
+        [
+            { kind: "keep", scope: "element", side: "current" },
+            { label: "Keep current", tooltip: "Keep current: Keep it as current has it" },
+        ],
+        [
+            { kind: "keep", scope: "withContents", side: "incoming" },
+            {
+                label: "Keep incoming with everything inside",
+                tooltip:
+                    "Keep incoming with everything inside: Keep it and everything inside as incoming has them",
+            },
+        ],
+        [
+            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+            {
+                label: "Leave out: Leave it out, as current removed it",
+                tooltip: "Leave out: Leave it out, as current removed it",
+            },
+        ],
+        [
+            { kind: "leaveOut", side: "incoming", otherSideLacks: "missing" },
+            {
+                label: "Leave out: Leave it out, as incoming doesn't have it",
+                tooltip: "Leave out: Leave it out, as incoming doesn't have it",
+            },
+        ],
+        [
+            { kind: "keepRemovedFlows", side: "incoming", offer: offer(["Flow_1", "Flow_2"]) },
+            {
+                label: "Also keep its removed flows",
+                tooltip:
+                    "Also keep its removed flows: Also keep the 2 flows current removed with it",
+            },
+        ],
+        [
+            { kind: "keepRemovedFlows", side: "incoming", offer: offer(["Flow_1"]) },
+            {
+                label: "Also keep its removed flows",
+                tooltip: "Also keep its removed flows: Also keep the flow current removed with it",
+            },
+        ],
+        [
+            { kind: "undo", scope: "element" },
+            {
+                label: "Undo pick",
+                tooltip: "Undo pick: Go back to what the merge decided by itself",
+            },
+        ],
+    ])("words %o", (decision, expected) => {
+        expect(padDecisionText(decision, untranslated)).toStrictEqual(expected);
+    });
+
+    it.each<Extract<MergePadDecision, { side: MergeSide }>>([
+        { kind: "keep", scope: "element", side: "current" },
+        { kind: "keep", scope: "withContents", side: "incoming" },
+        { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+    ])("names the side in the screen readers' label of %o", (decision) => {
+        expect(padDecisionText(decision, untranslated).label.toLowerCase()).toContain(
+            decision.side,
+        );
     });
 });
 

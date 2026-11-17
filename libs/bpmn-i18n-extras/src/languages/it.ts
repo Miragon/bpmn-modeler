@@ -315,8 +315,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "Di nuovo aperti:",
     "Keep current": "Mantieni Corrente",
     "Keep incoming": "Mantieni In ingresso",
-    "C": "C",
-    "I": "I",
     "Kept from current, your pick": "Mantenuto da Corrente, scelta tua",
     "Kept from incoming, your pick": "Mantenuto da In ingresso, scelta tua",
     "Kept from current with everything inside, your pick":

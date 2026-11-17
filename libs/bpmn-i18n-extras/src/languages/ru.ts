@@ -306,8 +306,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "Снова открыто:",
     "Keep current": "Оставить «Текущее»",
     "Keep incoming": "Оставить «Входящее»",
-    "C": "Т",
-    "I": "В",
     "Kept from current, your pick": "Оставлено со стороны «Текущее», ваш выбор",
     "Kept from incoming, your pick": "Оставлено со стороны «Входящее», ваш выбор",
     "Kept from current with everything inside, your pick":

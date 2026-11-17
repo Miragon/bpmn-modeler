@@ -34,15 +34,17 @@ The legend counts the open conflicts. **‹** and **›** step through them in f
 
 ## Pick a side
 
-<figure class="shot"><img src="./images/bm-pick.png" alt="Both panes with a badge holding a check mark and the letter I on the renamed task, and the legend reading No open conflicts"><figcaption>A pick carries a badge naming the kept side on each pane that draws the element.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-pick.png" alt="Both panes with a badge reading ✓ Incoming above the renamed task, and the legend reading No open conflicts"><figcaption>A pick carries a badge naming the kept side above the element, on each pane that draws it.</figcaption></figure>
 
-Select an element and use its context pad, or step to it and use the legend:
+Step to an element with **‹** and **›**, or click it: the step selects it on each pane that draws it and opens its context pad there. Hover an icon on the pad to see what it does:
 
-- **Keep current** (left pane) or **Keep incoming** (right pane), **Keep this version** on the pad: keep that side's version. On an element that side removed, this keeps the removal.
-- **Keep everything inside**: a sub-process, pool or lane with every element in it.
+- **Keep current** (left pane) or **Keep incoming** (right pane): keep that side's version.
+- **Keep everything inside**: a sub-process, pool or lane with every element in it, from that side.
+- **Leave out**: on an element only this side has, leave it out, as the other side removed it or never had it.
+- **Also keep its removed flows**: after keeping an element the other side removed, keep the flows removed with it too.
 - **Undo pick**: back to what the merge decided by itself.
 
-Everything in the legend is a button, so the keyboard reaches all of it. A pick can pull in or drop other elements (a flow needs both of its ends); the legend says what the last pick did, and why a pick was refused, naming the element in the way. A pick the pane cannot draw is listed under **Your picks**, with its undo.
+An element without a shape is decided in the legend: step to it, then use **Keep current** or **Keep incoming**, **Keep everything inside** and **Undo pick** there. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends); the legend says what the last pick did, and why a pick was refused, naming the element in the way. A pick the pane cannot draw is listed under **Your picks**, with its undo.
 
 <figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed, offering Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 

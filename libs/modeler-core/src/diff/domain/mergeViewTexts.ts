@@ -1,8 +1,7 @@
-import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL, type Engine, otherSide } from "@miragon/bpmn-modeler-types";
 
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ConflictReading, ResolvableStages } from "./conflictReading";
-import { otherMergeSide } from "./mergePaneSide";
 
 type StageName = keyof ResolvableStages;
 
@@ -46,7 +45,7 @@ const REFUSAL_TEXT: {
         `The BPMN merge view cannot read the versions of ${fileName} from Git. Check that the Git extension is enabled.`,
     notConflicted: (_refusal, fileName) => `${fileName} has no merge conflict to resolve.`,
     oneSideDeleted: ({ remainingSide }, fileName) =>
-        `${fileName} was deleted on the ${otherMergeSide(remainingSide)} side and changed on the ${remainingSide} side. Keep or delete it in Source Control.`,
+        `${fileName} was deleted on the ${otherSide(remainingSide)} side and changed on the ${remainingSide} side. Keep or delete it in Source Control.`,
     oneSideAdded: ({ addedSide }, fileName) =>
         `${fileName} exists only on the ${addedSide} side. Keep or delete it in Source Control.`,
     bothDeleted: (_refusal, fileName) =>

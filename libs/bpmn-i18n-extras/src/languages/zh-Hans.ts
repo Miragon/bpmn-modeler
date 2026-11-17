@@ -285,8 +285,6 @@ const dictionary: Record<string, string> = {
     "Open again:": "再次未解决：",
     "Keep current": "保留当前",
     "Keep incoming": "保留传入",
-    "C": "当",
-    "I": "传",
     "Kept from current, your pick": "从当前保留，您的选择",
     "Kept from incoming, your pick": "从传入保留，您的选择",
     "Kept from current with everything inside, your pick": "从当前连同其中全部内容保留，您的选择",

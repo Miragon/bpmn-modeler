@@ -11,9 +11,17 @@ import {
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
     UnpickMergeCommand,
+    ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
+import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
+import {
+    decidesInLegend,
+    type MergePadDecision,
+    mergePadCommandOf,
+    mergePadDecisions,
+} from "../../domain/mergePadDecisions";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
 import {
     MERGE_LEGEND_TEXTS,
@@ -53,16 +61,21 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     the states, so the partner walks the same list and a reloaded pane
  *     goes back to the step.
  *   - Outgoing {@link PickMergeSideCommand} and {@link UnpickMergeCommand}
- *     from the context pad and the legend's pick actions; the host decides
- *     them and sends both panes their states again, so the pane shows a
- *     pick only once the host made it.
+ *     from the context pad's decisions, and from the legend's pick actions
+ *     for a step no canvas draws; the host decides them and sends both
+ *     panes their states again, so the pane shows a pick only once the host
+ *     made it.
+ *   - Outgoing {@link ViewportChangedCommand} after a step only this pane
+ *     draws, so the partner shows the same part of the diagram.
  *   - Outgoing {@link BuildMergeResultCommand} and
  *     {@link CompareMergeResultCommand} from the right pane's legend; the
  *     host builds, and its states say whether Build and the comparisons are
  *     enabled and what the last build noted.
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
- * the open list, and the step after it goes on from its place.
+ * the open list, and the step after it goes on from its place. A step
+ * selects its element, so diagram-js opens the context pad where it lands,
+ * and a click on an element of the merge makes it the step.
  */
 export class MergeMode {
     private readonly pane: DiffPanePlumbing;
@@ -90,9 +103,8 @@ export class MergeMode {
             createMergeMarksModule({ attach: (marks) => (this.marks = marks) }),
             createMergeElementNamesModule({ attach: (names) => (this.names = names) }),
             createMergePickModule({
-                pickableOf: (id) => this.states?.states.pickable.find((entry) => entry.id === id),
-                pick: (id, scope) => this.pick(id, scope),
-                unpick: (id, scope) => this.unpick(id, scope),
+                decisionsOf: (id) => (this.states ? mergePadDecisions(this.states.states, id) : []),
+                decide: (id, decision) => this.decide(id, decision),
                 attach: (pad) => (this.pickPad = pad),
             }),
         ]);
@@ -114,6 +126,7 @@ export class MergeMode {
             i18n,
         );
         this.legend.reserveRoomOn(document.body);
+        this.pane.viewer.onSelectedElementChanged((id) => this.onUserSelected(id));
         i18n.onChange(() => this.paintMarks());
     }
 
@@ -132,7 +145,7 @@ export class MergeMode {
                     this.backToWholeDiagram();
                 } else {
                     const id = this.states?.states.allSteps[query.index]?.id;
-                    if (id !== undefined) this.goTo(id);
+                    if (id !== undefined) this.goTo(id, { shareViewport: true });
                 }
                 break;
         }
@@ -149,7 +162,7 @@ export class MergeMode {
         const kept = query.states.stepping.cursor;
         // A pane that reloaded has no step of its own; the host kept the tab's.
         if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
-            this.goTo(kept);
+            this.goTo(kept, { shareViewport: false });
         } else {
             this.updateLegend();
         }
@@ -167,8 +180,27 @@ export class MergeMode {
         );
     }
 
-    private pick(id: string, scope: MergePickScope): void {
-        this.host.postMessage(new PickMergeSideCommand(id, scope));
+    private pick(id: string, scope: MergePickScope, side?: MergeSide): void {
+        this.host.postMessage(new PickMergeSideCommand(id, scope, side));
+    }
+
+    private decide(id: string, decision: MergePadDecision): void {
+        const command = mergePadCommandOf(decision);
+        if (command.kind === "pick") this.pick(id, command.scope, command.side);
+        else this.unpick(id, command.scope);
+    }
+
+    /** A user's click on an element of the merge the user can pick makes it the step. */
+    private onUserSelected(id: string | undefined): void {
+        const pickable = this.states?.states.pickable.some((entry) => entry.id === id);
+        if (
+            id !== undefined &&
+            id !== this.cursorId &&
+            pickable &&
+            this.allStepIds().includes(id)
+        ) {
+            this.stepTo(id);
+        }
     }
 
     private unpick(id: string, scope: MergePickScope): void {
@@ -204,27 +236,46 @@ export class MergeMode {
 
     /** A user's step: moves there and takes the partner pane along. */
     private stepTo(id: string): void {
-        this.goTo(id);
+        this.goTo(id, { shareViewport: false });
         this.host.postMessage(new CursorChangedCommand(this.allStepIds().indexOf(id)));
+        this.shareViewportOnStepOnlyHere(id);
     }
 
     /**
-     * Shows the step on this pane: a drawn element in the centre, a shape-less
-     * one by its legend entry. On a step only the partner pane draws, this
-     * pane keeps its place, since a neighbour here would point elsewhere, but
+     * Shows the step on this pane: a drawn element in the centre at the
+     * current zoom, selected, so its context pad opens; a shape-less one by
+     * its legend entry. The element's plane is entered first, since a
+     * selection holds only on the plane shown. On a step only the partner
+     * pane draws, or one without a shape, the pane clears its selection; it
+     * keeps its place, since a neighbour here would point elsewhere, but
      * shows the plane the partner stepped into, so their viewports still
      * match, or notes that this version lacks it.
      */
-    private goTo(id: string): void {
+    private goTo(id: string, { shareViewport }: { readonly shareViewport: boolean }): void {
         this.cursorId = id;
-        const step = this.states?.states.allSteps.find((candidate) => candidate.id === id);
+        const step = this.stepOf(id);
         if (step?.onThisPane && !step.shapeless && this.pane.viewer.focusElement(id)) {
             this.pane.notePlaneShown(step.plane);
+            this.pane.viewer.mirrorSelection(id);
         } else {
             this.pane.viewer.clearSelectionMarker();
+            this.pane.viewer.mirrorSelection(undefined);
             if (step !== undefined && !step.shapeless) this.pane.followPlane(step.plane);
         }
         this.updateLegend();
+        if (shareViewport) this.shareViewportOnStepOnlyHere(id);
+    }
+
+    /** The partner draws nothing for a step only this pane draws, so it takes this pane's viewport. */
+    private shareViewportOnStepOnlyHere(id: string): void {
+        const step = this.stepOf(id);
+        if (step?.onThisPane && !step.onOtherPane && !step.shapeless) {
+            this.host.postMessage(new ViewportChangedCommand(this.pane.viewer.getViewport()));
+        }
+    }
+
+    private stepOf(id: string): MergePaneStep | undefined {
+        return this.states?.states.allSteps.find((candidate) => candidate.id === id);
     }
 
     private switchStepList(list: MergeStepList): void {
@@ -245,6 +296,12 @@ export class MergeMode {
         this.updateLegend();
     }
 
+    private steppedInLegend() {
+        const step = this.cursorId === undefined ? undefined : this.stepOf(this.cursorId);
+        if (step === undefined || !decidesInLegend(step)) return undefined;
+        return this.states?.states.pickable.find(({ id }) => id === step.id);
+    }
+
     private updateLegend(): void {
         if (!this.states) return;
         const { states } = this.states;
@@ -258,7 +315,7 @@ export class MergeMode {
             current: this.cursorId,
             picking: {
                 side: states.caption.side,
-                stepped: states.pickable.find(({ id }) => id === this.cursorId),
+                stepped: this.steppedInLegend(),
                 picksNotDrawn: states.picksNotDrawn,
                 lastOutcome: states.lastOutcome,
                 restoreOffer: states.restoreOffer,
