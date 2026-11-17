@@ -226,3 +226,121 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
         expect(postsTo(frames, "file:///x.bpmn#dA-before")).toHaveLength(0);
     });
 });
+
+describe("bridge element XML diff (shown inside IntelliJ's diagram diff)", () => {
+    const BEFORE = "file:///proc.bpmn#d1-before";
+    const AFTER = "file:///proc.bpmn#d1-after";
+
+    async function openAndReady(rpc: Rpc, frames: any[]): Promise<void> {
+        await rpc.handleLine(
+            hostNotification("diff/open", {
+                diffId: "d1",
+                origin: "compare-files",
+                before: { uri: BEFORE, content: ONE_TASK },
+                after: { uri: AFTER, content: TWO_TASKS },
+            }),
+        );
+        for (const message of [{ type: "GetBpmnFileCommand" }, { type: "DiffReadyCommand" }]) {
+            for (const paneUri of [BEFORE, AFTER]) {
+                await rpc.handleLine(hostNotification("diff/webviewMessage", { paneUri, message }));
+            }
+        }
+        await vi.waitFor(
+            () =>
+                expect(
+                    postsTo(frames, AFTER).some((m) => m.type === "ApplyDiffHighlightsQuery"),
+                ).toBe(true),
+            { timeout: 5000 },
+        );
+    }
+
+    async function fromPane(rpc: Rpc, paneUri: string, message: unknown): Promise<void> {
+        await rpc.handleLine(hostNotification("diff/webviewMessage", { paneUri, message }));
+    }
+
+    const elementXmlFrames = (frames: any[]) =>
+        frames.filter((f) => String(f.method).startsWith("elementXmlDiff/"));
+
+    async function waitForElementXmlFrame(frames: any[], method: string): Promise<any> {
+        await vi.waitFor(
+            () => expect(elementXmlFrames(frames).some((f) => f.method === method)).toBe(true),
+            { timeout: 2000 },
+        );
+        return elementXmlFrames(frames)
+            .filter((f) => f.method === method)
+            .pop().params;
+    }
+
+    it("offers Show XML changes on both panes' context pads", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+
+        for (const paneUri of [BEFORE, AFTER]) {
+            const highlights = postsTo(frames, paneUri).find(
+                (m) => m.type === "ApplyDiffHighlightsQuery",
+            );
+            expect(highlights.elementXmlChanges).toBe(true);
+        }
+    });
+
+    it("shows the element's XML from both sides to the diagram diff that asked", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+
+        await fromPane(rpc, AFTER, { type: "ShowElementXmlChangesCommand", elementId: "Task_2" });
+
+        const shown = await waitForElementXmlFrame(frames, "elementXmlDiff/show");
+        expect(shown).toStrictEqual({
+            diffKey: expect.any(String),
+            paneUri: BEFORE,
+            title: "Task_2 (XML): proc.bpmn ↔ proc.bpmn",
+            before: "",
+            after: expect.stringContaining('id="Task_2"'),
+        });
+    });
+
+    it("moves the open XML diff to the element a pane selects", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+        await fromPane(rpc, AFTER, { type: "ShowElementXmlChangesCommand", elementId: "Task_2" });
+        const shown = await waitForElementXmlFrame(frames, "elementXmlDiff/show");
+
+        await fromPane(rpc, BEFORE, { type: "DiffSelectionChangedCommand", elementId: "Task_1" });
+
+        const refreshed = await waitForElementXmlFrame(frames, "elementXmlDiff/refresh");
+        expect(refreshed).toMatchObject({
+            diffKey: shown.diffKey,
+            paneUri: BEFORE,
+            title: "Task_1 (XML): proc.bpmn ↔ proc.bpmn",
+            before: expect.stringContaining('id="Task_1"'),
+            after: expect.stringContaining('id="Task_1"'),
+        });
+    });
+
+    it("follows no selection after the user closed the XML diff", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+        await fromPane(rpc, AFTER, { type: "ShowElementXmlChangesCommand", elementId: "Task_2" });
+        const shown = await waitForElementXmlFrame(frames, "elementXmlDiff/show");
+
+        await rpc.handleLine(hostNotification("elementXmlDiff/closed", { diffKey: shown.diffKey }));
+        await fromPane(rpc, BEFORE, { type: "DiffSelectionChangedCommand", elementId: "Task_1" });
+        await settle();
+
+        expect(elementXmlFrames(frames).map((f) => f.method)).toStrictEqual([
+            "elementXmlDiff/show",
+        ]);
+    });
+
+    it("closes the XML diff when its diagram diff closes", async () => {
+        const { rpc, frames } = setup();
+        await openAndReady(rpc, frames);
+        await fromPane(rpc, AFTER, { type: "ShowElementXmlChangesCommand", elementId: "Task_2" });
+        const shown = await waitForElementXmlFrame(frames, "elementXmlDiff/show");
+
+        await rpc.handleLine(hostNotification("diff/dispose", { diffId: "d1" }));
+
+        const closed = await waitForElementXmlFrame(frames, "elementXmlDiff/close");
+        expect(closed).toStrictEqual({ diffKey: shown.diffKey });
+    });
+});

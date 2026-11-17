@@ -1,14 +1,17 @@
+import type { ElementIdConvention } from "@miragon/bpmn-modeler";
 import {
     type BpmnModelerSettingQuery,
     type CleanupDiagramQuery,
     CleanupReportCommand,
     DiagramFormattedCommand,
+    type ElementIdConventionQuery,
     type ElementTemplatesQuery,
     type GetDiagramAsSVGCommand,
     type HiddenElementTemplatesQuery,
     type HostThemeAdapter,
     type ImplementationStatusQuery,
     LogErrorCommand,
+    LogWarningCommand,
     OpenScriptEditorsCommand,
     type UpdateOpenScriptEditorsQuery,
     type UpdateScriptContentQuery,
@@ -17,11 +20,12 @@ import {
 import {
     type CleanupOutcome,
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
+    type ElementIdConventionOptions,
     extractProcessVariables,
 } from "@miragon/bpmn-modeler-types";
 import { isEditableSurface, isModelerSurface } from "@miragon/bpmn-modeler/mode";
 
-import type { HostModelerState } from "../../domain/hostModelerState";
+import { applyDesignerSettings, type HostModelerState } from "../../domain/hostModelerState";
 import type { SurfaceHandle } from "../../domain/surface";
 import { receiveErrorPrefix } from "../../domain/receiveErrorPrefix";
 import type { HostChannel } from "../../port/hostChannel";
@@ -31,6 +35,7 @@ interface SurfaceRequestHandlers {
     OpenAllScriptTasksQuery(): void;
     FormatDiagramQuery(): Promise<void>;
     CleanupDiagramQuery(query: CleanupDiagramQuery): void;
+    ElementIdConventionQuery(query: ElementIdConventionQuery): Promise<void>;
     UpdateScriptContentQuery(query: UpdateScriptContentQuery): void;
     UpdateScriptFormatQuery(query: UpdateScriptFormatQuery): void;
     UpdateOpenScriptEditorsQuery(query: UpdateOpenScriptEditorsQuery): void;
@@ -66,11 +71,19 @@ export function createSurfaceRequests(
         theme,
         replies,
         setFormPreviewAutomatic,
+        loadElementIdConvention,
     }: {
-        hostModelerState: Pick<HostModelerState, "rememberSettings" | "rememberOpenScripts">;
+        hostModelerState: Pick<
+            HostModelerState,
+            "rememberSettings" | "rememberOpenScripts" | "rememberElementIdConvention"
+        >;
         theme: Pick<HostThemeAdapter, "setMode">;
         replies: SurfaceRequestReplies;
         setFormPreviewAutomatic: (enabled: boolean) => void;
+        /** Builds the lint rule's convention, which lives behind the lazily loaded `/lint`. */
+        loadElementIdConvention: (
+            options: ElementIdConventionOptions,
+        ) => Promise<ElementIdConvention>;
     },
 ): SurfaceRequests {
     return {
@@ -146,6 +159,22 @@ export function createSurfaceRequests(
                     );
                 }
             },
+            ElementIdConventionQuery: async (query) => {
+                hostModelerState.rememberElementIdConvention(query.options);
+                try {
+                    const convention = await loadElementIdConvention(query.options);
+                    const surface = getSurface();
+                    if (isEditableSurface(surface)) {
+                        surface.setElementIdSettings({ convention });
+                    }
+                } catch (error) {
+                    host.postMessage(
+                        new LogWarningCommand(
+                            `Element IDs: the lint rule's convention did not load: ${String(error)}`,
+                        ),
+                    );
+                }
+            },
             UpdateScriptContentQuery: (query) => {
                 const surface = getSurface();
                 if (isModelerSurface(surface)) {
@@ -211,14 +240,12 @@ export function createSurfaceRequests(
                     // Theme is host policy: the package's setSettings does not
                     // apply `colorTheme`, so the host adapter drives it.
                     theme.setMode(query.setting.colorTheme);
-                    // Of the rest, the designer honours only the favourites and
-                    // the viewer nothing.
+                    // The viewer honours none of the rest.
                     const surface = getSurface();
-                    const favourites = query.setting.favouriteBpmnElements;
                     if (isModelerSurface(surface)) {
                         surface.setSettings(query.setting);
-                    } else if (isEditableSurface(surface) && favourites) {
-                        surface.setFavouriteBpmnElements(favourites);
+                    } else if (isEditableSurface(surface)) {
+                        applyDesignerSettings(query.setting, surface);
                     }
                 } finally {
                     // Resolve even on a facade throw — otherwise the boot
