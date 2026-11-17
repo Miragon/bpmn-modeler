@@ -5,7 +5,7 @@ updates:
     directory: "/"
     target-branch: "main"
     labels:
-      - "Technical Dept"
+      - "dependencies"
     schedule:
       interval: weekly
       time: "05:00"
@@ -83,7 +83,7 @@ updates:
       time: "05:00"
     target-branch: "main"
     labels:
-      - "Technical Dept"
+      - "dependencies"
     commit-message:
       prefix: chore
       prefix-development: chore
@@ -97,7 +97,7 @@ updates:
     directory: "/apps/intellij-plugin"
     target-branch: "main"
     labels:
-      - "Technical Dept"
+      - "dependencies"
     schedule:
       interval: weekly
       time: "05:00"

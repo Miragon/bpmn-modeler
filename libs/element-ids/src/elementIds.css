@@ -1,0 +1,44 @@
+/* ─── ID-from-name links in the properties panel ───────────────────────── */
+/* Classes are prefixed with `eid-`. These are the light tokens; the dark   */
+/* theme redefines them from the modeler package (dark-theme/element-ids). */
+
+.eid-id-actions {
+    --eid-fg-muted: #61646b;
+    --eid-focus: #0069cc;
+    --eid-link: #0069cc;
+}
+
+.eid-id-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: -6px;
+    font-size: 12px;
+}
+
+.eid-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--eid-link);
+    font: inherit;
+    cursor: pointer;
+}
+
+.eid-link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.eid-link:disabled {
+    color: var(--eid-fg-muted);
+    cursor: default;
+}
+
+.eid-link:focus-visible {
+    outline: 1px solid var(--eid-focus);
+    outline-offset: 1px;
+}
+
+.eid-separator {
+    color: var(--eid-fg-muted);
+}

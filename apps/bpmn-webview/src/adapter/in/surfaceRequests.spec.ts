@@ -4,6 +4,7 @@ import {
     BpmnModelerSettingQuery,
     CleanupDiagramQuery,
     type Command,
+    ElementIdConventionQuery,
     ElementTemplatesQuery,
     GetDiagramAsSVGCommand,
     HiddenElementTemplatesQuery,
@@ -16,6 +17,10 @@ import {
 
 import type { SurfaceHandle } from "../../domain/surface";
 import { createSurfaceRequests } from "./surfaceRequests";
+
+const conventions = vi.hoisted(() => ({
+    load: vi.fn(async (options?: object) => ({ convention: options })),
+}));
 
 const scriptTaskDefinitions = {
     rootElements: [
@@ -64,6 +69,7 @@ function designerSurface() {
         formatDiagram: vi.fn(async () => undefined),
         cleanupDiagram: vi.fn(() => ({ status: "clean", items: [] })),
         setFavouriteBpmnElements: vi.fn(),
+        setElementIdSettings: vi.fn(),
     };
 }
 
@@ -73,7 +79,11 @@ function viewerSurface() {
 
 function surfaceRequestsOn<Surface extends object>(surface: Surface) {
     const host = createHost();
-    const hostModelerState = { rememberSettings: vi.fn(), rememberOpenScripts: vi.fn() };
+    const hostModelerState = {
+        rememberSettings: vi.fn(),
+        rememberOpenScripts: vi.fn(),
+        rememberElementIdConvention: vi.fn(),
+    };
     const theme = { setMode: vi.fn() };
     const replies = { elementTemplates: { done: vi.fn() }, settings: { done: vi.fn() } };
     const setFormPreviewAutomatic = vi.fn();
@@ -82,6 +92,7 @@ function surfaceRequestsOn<Surface extends object>(surface: Surface) {
         theme,
         replies,
         setFormPreviewAutomatic,
+        loadElementIdConvention: conventions.load as never,
     });
     return {
         host,
@@ -209,6 +220,46 @@ describe("createSurfaceRequests", () => {
                     status: "failed",
                     code: "ENGINE_FAILED",
                     message: "layout engine crashed",
+                }),
+            ]);
+        });
+    });
+
+    describe("element IDs", () => {
+        it("keeps the lint rule options and hands the editable surface their convention", async () => {
+            const { surface, handlers, hostModelerState } = surfaceRequestsOn(designerSurface());
+
+            await handlers.ElementIdConventionQuery(
+                new ElementIdConventionQuery({ case: "snake_case" }),
+            );
+
+            expect(hostModelerState.rememberElementIdConvention).toHaveBeenCalledWith({
+                case: "snake_case",
+            });
+            expect(surface.setElementIdSettings).toHaveBeenCalledWith({
+                convention: { convention: { case: "snake_case" } },
+            });
+        });
+
+        it("keeps the options for later surfaces when the viewer is showing", async () => {
+            const { handlers, hostModelerState } = surfaceRequestsOn(viewerSurface());
+
+            await handlers.ElementIdConventionQuery(new ElementIdConventionQuery({}));
+
+            expect(hostModelerState.rememberElementIdConvention).toHaveBeenCalledWith({});
+        });
+
+        it("logs a convention that did not load instead of failing", async () => {
+            conventions.load.mockRejectedValueOnce(new Error("chunk failed"));
+            const { host, surface, handlers } = surfaceRequestsOn(designerSurface());
+
+            await handlers.ElementIdConventionQuery(new ElementIdConventionQuery({}));
+
+            expect(surface.setElementIdSettings).not.toHaveBeenCalled();
+            expect(host.sent).toEqual([
+                expect.objectContaining({
+                    type: "LogWarningCommand",
+                    message: expect.stringContaining("chunk failed"),
                 }),
             ]);
         });
@@ -456,12 +507,15 @@ describe("createSurfaceRequests", () => {
             expect(surface.setFavouriteBpmnElements).not.toHaveBeenCalled();
         });
 
-        it("hands the designer only the favourites", () => {
+        it("hands the designer the favourites and the element ID settings", () => {
             const { surface, handlers } = surfaceRequestsOn(designerSurface());
 
-            handlers.BpmnModelerSettingQuery(new BpmnModelerSettingQuery(hostSettings));
+            handlers.BpmnModelerSettingQuery(
+                new BpmnModelerSettingQuery({ ...hostSettings, elementIdsFollowName: true }),
+            );
 
             expect(surface.setFavouriteBpmnElements).toHaveBeenCalledWith(["bpmn:UserTask"]);
+            expect(surface.setElementIdSettings).toHaveBeenCalledWith({ followName: true });
         });
 
         it("leaves the designer's favourites alone when the settings carry none", () => {
