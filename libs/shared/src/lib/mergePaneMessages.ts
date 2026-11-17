@@ -135,9 +135,10 @@ export interface MergePaneRestoreOffer {
  * Something the last build asks the user to look at, as the merge library's
  * `BuildNote` names it: a flow whose ends are drawn from different sides, two
  * elements the sides added at the same place, an element drawn apart from its
- * container, an element kept without the flows removed with it, or a part
- * of the file's `definitions` that differs between the sides, of which the
- * result keeps current's.
+ * container, an element kept without the flows removed with it, elements
+ * whose layout both sides changed differently with the side the result keeps,
+ * or a part of the file's `definitions` that differs between the sides, of
+ * which the result keeps current's.
  */
 export type MergePaneBuildNote =
     | {
@@ -155,6 +156,11 @@ export type MergePaneBuildNote =
           readonly kind: "restoredWithoutConnections";
           readonly id: string;
           readonly connections: readonly string[];
+      }
+    | {
+          readonly kind: "layoutChangedByBoth";
+          readonly ids: readonly string[];
+          readonly keptSide: MergeSide;
       }
     | { readonly kind: "frameDiffers"; readonly attribute: string };
 

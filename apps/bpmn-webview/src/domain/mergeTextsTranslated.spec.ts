@@ -61,8 +61,13 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
     drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
     restoredWithoutConnections: { kind: "restoredWithoutConnections", id: "a", connections: ["b"] },
+    layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };
+// English only for now: not yet in the locale files.
+const AWAITING_TRANSLATION: ReadonlySet<MergePaneBuildNote["kind"]> = new Set([
+    "layoutChangedByBoth",
+]);
 
 const keysOf = <Kind extends string>(record: Record<Kind, unknown>) =>
     Object.keys(record) as Kind[];
@@ -127,7 +132,9 @@ function mergeTextKeys(): Set<string> {
             translate,
         );
     }
-    for (const note of Object.values(NOTES)) buildNoteText(note, nameOf, translate);
+    for (const note of Object.values(NOTES)) {
+        if (!AWAITING_TRANSLATION.has(note.kind)) buildNoteText(note, nameOf, translate);
+    }
     return keys;
 }
 

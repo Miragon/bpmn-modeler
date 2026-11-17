@@ -7,6 +7,7 @@ import {
     addedAtSamePlaceNotes,
     drawnApartFromContainerNotes,
     flowEndsNotes,
+    layoutChangedByBothNotes,
     restoredWithoutConnectionsNotes,
 } from "./buildNotes";
 import { isEnclosingContainer } from "./containerContents";
@@ -78,6 +79,11 @@ export async function buildMerged(
                 isEnclosingContainer(resultUnits.get(id)),
             ),
             ...restoredWithoutConnectionsNotes(result, resolution),
+            ...layoutChangedByBothNotes(
+                result,
+                resolution,
+                (id, side) => sources.snapshots[side].get(id)?.layout,
+            ),
             ...frame.notes,
         ],
     };

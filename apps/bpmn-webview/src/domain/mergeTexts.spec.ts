@@ -368,6 +368,14 @@ describe("buildNoteText", () => {
             "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
         ],
         [
+            { kind: "layoutChangedByBoth", ids: ["Task_Pack", "Flow_2"], keptSide: "current" },
+            "Both sides changed the layout of Pack box, to packing; current's is kept",
+        ],
+        [
+            { kind: "layoutChangedByBoth", ids: ["Task_Pack"], keptSide: "incoming" },
+            "Both sides changed the layout of Pack box; incoming's is kept",
+        ],
+        [
             { kind: "frameDiffers", attribute: "exporterVersion" },
             "The file's exporterVersion differs between the sides; current's is kept",
         ],

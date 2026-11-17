@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type ElementSpec,
     mergeElement,
     mergeResult,
     mergeResultWithoutBase,
@@ -10,11 +11,12 @@ import {
     addedAtSamePlaceNotes,
     drawnApartFromContainerNotes,
     flowEndsNotes,
+    layoutChangedByBothNotes,
     restoredWithoutConnectionsNotes,
 } from "./buildNotes";
 import type { DiagramBounds } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
-import type { LayoutState, MergeSide } from "./mergeResult";
+import { type LayoutState, MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
 
 const FLOW_ENDS = [
     refersTo("bpmn:SequenceFlow#sourceRef", "Task_A"),
@@ -382,5 +384,231 @@ describe("restoredWithoutConnectionsNotes", () => {
         };
 
         expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([]);
+    });
+});
+
+describe("layoutChangedByBothNotes", () => {
+    const drawnApartBySide = (id: string, side: MergeSide) => `${id} as ${side} drew it`;
+    const moved = (id: string, spec: ElementSpec = {}) =>
+        mergeElement(id, "unchanged", { layout: "bothChanged", ...spec });
+    const notesOf = (
+        result: MergeResult,
+        sides: Record<string, MergeSide>,
+        layoutOf: (id: string, side: MergeSide) => string | undefined = drawnApartBySide,
+    ) => layoutChangedByBothNotes(result, resolutionWithLayout(sides), layoutOf);
+
+    it.each(MERGE_SIDES)(
+        "names an element both sides moved differently and %s's layout, which the result keeps",
+        (side) => {
+            expect(notesOf(mergeResult(moved("Task_A")), { Task_A: side })).toEqual([
+                { kind: "layoutChangedByBoth", ids: ["Task_A"], keptSide: side },
+            ]);
+        },
+    );
+
+    it("ignores an element both sides moved alike", () => {
+        expect(
+            notesOf(mergeResult(moved("Task_A")), { Task_A: "current" }, (id) => `${id} moved`),
+        ).toEqual([]);
+    });
+
+    it.each([
+        {
+            rule: "only current moved",
+            element: mergeElement("Task_A", "unchanged", { layout: "takenFromCurrent" }),
+        },
+        {
+            rule: "only incoming moved",
+            element: mergeElement("Task_A", "unchanged", { layout: "takenFromIncoming" }),
+        },
+        {
+            rule: "current stopped drawing",
+            element: moved("Task_A", { current: { drawn: false } }),
+        },
+        {
+            rule: "incoming stopped drawing",
+            element: moved("Task_A", { incoming: { drawn: false } }),
+        },
+        { rule: "the base did not draw", element: moved("Task_A", { base: { drawn: false } }) },
+    ])("ignores an element $rule", ({ element }) => {
+        expect(notesOf(mergeResult(element), { Task_A: "current" })).toEqual([]);
+    });
+
+    it("notes nothing without a base, where every layout the sides draw differently changed on both", () => {
+        const result = mergeResultWithoutBase(
+            mergeElement("Task_A", "differs", { layout: "bothChanged" }),
+        );
+
+        expect(notesOf(result, { Task_A: "current" })).toEqual([]);
+    });
+
+    it("ignores an element the result does not draw", () => {
+        expect(
+            layoutChangedByBothNotes(
+                mergeResult(moved("Task_A")),
+                { elements: { Task_A: "current" }, layout: {} },
+                drawnApartBySide,
+            ),
+        ).toEqual([]);
+    });
+
+    it("lists a sub-process both sides moved with its contents, not each child", () => {
+        const result = mergeResult(
+            moved("Sub_1", { type: "bpmn:SubProcess" }),
+            moved("Task_In", { parent: "Sub_1" }),
+            moved("Boundary_In", {
+                type: "bpmn:BoundaryEvent",
+                parent: "Sub_1",
+                references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Task_In")],
+            }),
+            moved("Task_Next", { parent: "Sub_1" }),
+            moved("Flow_In", {
+                type: "bpmn:SequenceFlow",
+                parent: "Sub_1",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", "Task_In"),
+                    refersTo("bpmn:SequenceFlow#targetRef", "Task_Next"),
+                ],
+            }),
+        );
+        const sides = Object.fromEntries(
+            result.elements.map(({ id }): [string, MergeSide] => [id, "current"]),
+        );
+
+        expect(notesOf(result, sides)).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Sub_1"], keptSide: "current" },
+        ]);
+    });
+
+    it("lists a boundary event's host for both", () => {
+        const result = mergeResult(
+            moved("Task_A"),
+            moved("Boundary_A", {
+                type: "bpmn:BoundaryEvent",
+                references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Task_A")],
+            }),
+        );
+
+        expect(notesOf(result, { Task_A: "incoming", Boundary_A: "incoming" })).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Task_A"], keptSide: "incoming" },
+        ]);
+    });
+
+    it("lists the pool for the elements of the process it draws", () => {
+        const result = mergeResult(
+            moved("Participant_1", {
+                type: "bpmn:Participant",
+                references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+            }),
+            mergeElement("Process_1", "unchanged", { type: "bpmn:Process", drawn: false }),
+            moved("Task_A", { parent: "Process_1" }),
+        );
+
+        expect(notesOf(result, { Participant_1: "current", Task_A: "current" })).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Participant_1"], keptSide: "current" },
+        ]);
+    });
+
+    it("gives one note to elements a flow both sides moved links, without the flow", () => {
+        const result = mergeResult(
+            moved("Task_A"),
+            moved("Task_B"),
+            moved("Flow_AB", { references: FLOW_ENDS }),
+        );
+
+        expect(
+            notesOf(result, { Task_A: "current", Task_B: "current", Flow_AB: "current" }),
+        ).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Task_A", "Task_B"], keptSide: "current" },
+        ]);
+    });
+
+    it("gives two notes to two elements no flow both sides moved links", () => {
+        const result = mergeResult(
+            moved("Task_A"),
+            moved("Task_B"),
+            mergeElement("Flow_AB", "unchanged", {
+                layout: "takenFromCurrent",
+                references: FLOW_ENDS,
+            }),
+        );
+
+        expect(
+            notesOf(result, { Task_A: "current", Task_B: "current", Flow_AB: "current" }),
+        ).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Task_A"], keptSide: "current" },
+            { kind: "layoutChangedByBoth", ids: ["Task_B"], keptSide: "current" },
+        ]);
+    });
+
+    it("lists no flow that changed with an end both sides moved", () => {
+        const result = mergeResult(
+            moved("Task_A"),
+            mergeElement("Task_B", "unchanged"),
+            moved("Flow_AB", { references: FLOW_ENDS }),
+        );
+
+        expect(
+            notesOf(result, { Task_A: "current", Task_B: "current", Flow_AB: "current" }),
+        ).toEqual([{ kind: "layoutChangedByBoth", ids: ["Task_A"], keptSide: "current" }]);
+    });
+
+    it("leaves a flow whose ends each side moved one of to the note on its ends", () => {
+        const result = mergeResult(
+            mergeElement("Task_A", "unchanged", { layout: "takenFromCurrent" }),
+            mergeElement("Task_B", "unchanged", { layout: "takenFromIncoming" }),
+            moved("Flow_AB", { references: FLOW_ENDS }),
+        );
+        const sides = { Task_A: "current", Task_B: "incoming", Flow_AB: "current" } as const;
+
+        expect(notesOf(result, sides)).toEqual([]);
+        expect(flowEndsNotes(result, resolutionWithLayout(sides))).toEqual([
+            { kind: "flowEndsFromDifferentSides", id: "Flow_AB", ends: ["Task_A", "Task_B"] },
+        ]);
+    });
+
+    it("names a flow both sides re-routed between ends neither moved", () => {
+        const result = mergeResult(
+            mergeElement("Task_A", "unchanged"),
+            mergeElement("Task_B", "unchanged"),
+            moved("Flow_AB", { references: FLOW_ENDS }),
+        );
+
+        expect(
+            notesOf(result, { Task_A: "current", Task_B: "current", Flow_AB: "incoming" }),
+        ).toEqual([{ kind: "layoutChangedByBoth", ids: ["Flow_AB"], keptSide: "incoming" }]);
+    });
+
+    it("does not join elements by the lane that holds them", () => {
+        const result = mergeResult(
+            moved("Lane_A", { type: "bpmn:Lane" }),
+            moved("Task_A", { lanes: ["Lane_A"] }),
+            moved("Task_B", { lanes: ["Lane_A"] }),
+        );
+
+        expect(
+            notesOf(result, { Lane_A: "current", Task_A: "current", Task_B: "current" }),
+        ).toEqual(
+            ["Lane_A", "Task_A", "Task_B"].map((id) => ({
+                kind: "layoutChangedByBoth",
+                ids: [id],
+                keptSide: "current",
+            })),
+        );
+    });
+
+    it("splits a group by the side each element is drawn from", () => {
+        const result = mergeResult(
+            moved("Sub_1", { type: "bpmn:SubProcess" }),
+            moved("Task_In", { parent: "Sub_1" }),
+            moved("Task_Next", { parent: "Sub_1" }),
+        );
+
+        expect(
+            notesOf(result, { Sub_1: "current", Task_In: "incoming", Task_Next: "incoming" }),
+        ).toEqual([
+            { kind: "layoutChangedByBoth", ids: ["Sub_1"], keptSide: "current" },
+            { kind: "layoutChangedByBoth", ids: ["Task_In", "Task_Next"], keptSide: "incoming" },
+        ]);
     });
 });
