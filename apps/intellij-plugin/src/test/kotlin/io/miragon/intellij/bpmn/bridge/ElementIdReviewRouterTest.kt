@@ -87,10 +87,10 @@ class ElementIdReviewRouterTest {
     }
 
     @Test
-    fun `closes the tool window when the core respawns without the review`() {
+    fun `closes the tool window when the core stops`() {
         val routed = routed()
 
-        routed.router.coreRespawned()
+        routed.router.coreStopped()
 
         assertEquals(listOf<Any>("close"), routed.window.calls)
     }

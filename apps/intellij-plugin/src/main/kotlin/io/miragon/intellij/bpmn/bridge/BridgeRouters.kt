@@ -62,16 +62,14 @@ internal class BridgeRouters(
         addOns.followNewProcess()
     }
 
-    /** Runs after a crash respawn: the new core knows neither the live sessions nor the review. */
-    fun recoverAfterRespawn() {
-        editor.reregisterLiveSessions()
-        elementIdReview.coreRespawned()
-    }
-
-    /** Runs the moment the core process dies, before any respawn: it sends no `progressEnd` any more. */
+    /**
+     * Runs the moment the core process dies, before any respawn or give-up: it
+     * sends no `progressEnd` any more, and its review died with it.
+     */
     fun clearAfterProcessDown() {
         hostUi.clearProgress()
         hostUi.expireActionNotices()
+        elementIdReview.coreStopped()
     }
 
     fun pushReplicatedState(kind: ReplicatedStateKind) = replicatedStates.single { it.kind == kind }.push()

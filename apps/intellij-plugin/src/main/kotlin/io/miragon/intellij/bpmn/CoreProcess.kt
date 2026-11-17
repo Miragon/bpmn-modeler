@@ -73,7 +73,7 @@ class CoreProcess(private val project: Project) : Disposable {
             // Declared after the supervisor; safe because these lambdas only fire
             // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { routers.seedAfterSpawn() },
-            onRespawned = { routers.recoverAfterRespawn() },
+            onRespawned = { routers.editor.reregisterLiveSessions() },
             onProcessDown = { routers.clearAfterProcessDown() },
         )
     private val deps =
