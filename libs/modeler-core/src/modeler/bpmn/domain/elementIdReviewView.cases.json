@@ -1,0 +1,116 @@
+{
+    "title": "order.bpmn",
+    "rows": [
+        {
+            "id": "Process_1",
+            "name": "Order fulfilment",
+            "type": "bpmn:Process",
+            "kind": "process",
+            "status": "unchecked",
+            "newId": "orderFulfilment",
+            "clash": false,
+            "shownId": "Participant_1",
+            "startsUnchecked": true
+        },
+        {
+            "id": "Activity_1",
+            "name": "Check stock",
+            "type": "bpmn:ServiceTask",
+            "kind": "activity",
+            "status": "rename",
+            "newId": "serviceTask_checkStock",
+            "clash": true,
+            "shownId": "Activity_1",
+            "startsUnchecked": false
+        },
+        {
+            "id": "flow_inStock",
+            "name": "in stock",
+            "type": "bpmn:SequenceFlow",
+            "kind": "flow",
+            "status": "matches",
+            "newId": "flow_inStock",
+            "clash": false,
+            "shownId": "flow_inStock",
+            "startsUnchecked": false
+        },
+        {
+            "id": "Flow_2",
+            "name": "",
+            "type": "bpmn:SequenceFlow",
+            "kind": "flow",
+            "status": "skipped",
+            "clash": false,
+            "shownId": "Flow_2",
+            "startsUnchecked": false
+        }
+    ],
+    "unchecked": ["Process_1"],
+    "view": {
+        "title": "order.bpmn",
+        "message": "1 of 2 IDs will change. IDs used in other files (call activities, tests, workers) are not updated.",
+        "groups": [
+            {
+                "id": "process",
+                "label": "Processes",
+                "checked": false,
+                "collapsed": false,
+                "rows": [
+                    {
+                        "id": "Process_1",
+                        "label": "Order fulfilment",
+                        "description": "Process_1 → orderFulfilment",
+                        "tooltip": "Order fulfilment: Process_1 becomes orderFulfilment",
+                        "checked": false,
+                        "revealId": "Participant_1"
+                    }
+                ]
+            },
+            {
+                "id": "activity",
+                "label": "Activities",
+                "checked": true,
+                "collapsed": false,
+                "rows": [
+                    {
+                        "id": "Activity_1",
+                        "label": "Check stock",
+                        "description": "Activity_1 → serviceTask_checkStock",
+                        "tooltip": "Check stock: Activity_1 becomes serviceTask_checkStock. Another element has the same name, so the ID gets a counter.",
+                        "checked": true,
+                        "revealId": "Activity_1"
+                    }
+                ]
+            },
+            {
+                "id": "matches",
+                "label": "Already match",
+                "collapsed": true,
+                "rows": [
+                    {
+                        "id": "flow_inStock",
+                        "label": "in stock",
+                        "description": "flow_inStock",
+                        "tooltip": "The ID already follows the name.",
+                        "revealId": "flow_inStock"
+                    }
+                ]
+            },
+            {
+                "id": "skipped",
+                "label": "No name, skipped",
+                "collapsed": true,
+                "rows": [
+                    {
+                        "id": "Flow_2",
+                        "label": "No name",
+                        "description": "Flow_2",
+                        "tooltip": "Add a name to generate the ID from it.",
+                        "revealId": "Flow_2"
+                    }
+                ]
+            }
+        ],
+        "renameCount": 1
+    }
+}

@@ -6,6 +6,8 @@ import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.junit5.TestApplication
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.ElementIdReviewView
+import io.miragon.intellij.bpmn.ElementIdReviewWindow
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import io.miragon.intellij.bpmn.PluginApproval
 import io.miragon.intellij.bpmn.PluginApprovalStore
@@ -246,6 +248,30 @@ class BridgeRoutersTest {
         routers.seedAfterSpawn()
 
         assertEquals(listOf(0, 1), listOf(afterFirstSpawn, reloads))
+    }
+
+    @Test
+    fun `closes the element ID review window the moment the core process dies`() {
+        val wired = wireChannel().also { this.wired = it }
+        val window = RecordingReviewWindow()
+        val routers = BridgeRouters(bridgeDeps(projectFixture.get(), wired.channel, wired.handlers), window)
+        routers.register()
+
+        routers.clearAfterProcessDown()
+
+        assertEquals(1, window.closes)
+    }
+
+    private class RecordingReviewWindow : ElementIdReviewWindow {
+        var closes = 0
+
+        override fun show(view: ElementIdReviewView) = Unit
+
+        override fun focus() = Unit
+
+        override fun close() {
+            closes++
+        }
     }
 
     private companion object {

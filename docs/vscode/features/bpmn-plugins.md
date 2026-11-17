@@ -125,7 +125,7 @@ These unmodified plugins were run in November 2026, in VS Code and IntelliJ with
 | Plugin | Extends | Result |
 |---|---|---|
 | [resize-tasks](https://github.com/philippfromme/camunda-modeler-plugin-resize-tasks) | Rules | Works. |
-| [rename-technical-ids](https://github.com/camunda-community-hub/camunda-modeler-plugin-rename-technical-ids) | Commands, a panel | Works. Its menu shortcut does not exist here; use the buttons in its panel. |
+| [rename-technical-ids](https://github.com/camunda-community-hub/camunda-modeler-plugin-rename-technical-ids) | Commands, a panel | Works. Its menu shortcut does not exist here; use the buttons in its panel. The editor has this built in as [IDs from names](/vscode/features/element-ids), with a review and one undo step. |
 | [tooltip plugin](https://github.com/viadee/camunda-modeler-tooltip-plugin) (viadee) | Overlays | Works. Its menu toggle does not exist here. |
 | [moddle extension example](https://github.com/camunda/camunda-modeler-plugins) | Moddle extension | Works. |
 | [task-listener](https://github.com/Hafflgav/camunda-modeler-task-listener-plugin) | Modeling | Works on Camunda 8 diagrams. On Camunda 7 diagrams, creating a user task breaks the diagram; the plugin does not check the engine. |

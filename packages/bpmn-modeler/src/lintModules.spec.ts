@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
 import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
-import type { LintModule } from "./publicApi";
-import { buildLintModules } from "./lintModules";
+import type { ElementIdConvention, LintModule } from "./publicApi";
+import { buildLintModules, lintElementIdConvention } from "./lintModules";
 
 // A stub `/lint` module that records the args createLintModule was called with
 // and returns a sentinel so we can assert it lands in the returned array.
@@ -121,5 +121,34 @@ describe("buildLintModules", () => {
             mode: "implement",
             config: undefined,
         });
+    });
+});
+
+describe("lintElementIdConvention", () => {
+    const convention: ElementIdConvention = {
+        prefixesFor: () => ["gateway"],
+        case: { label: "camelCase", pattern: /^[a-z][a-zA-Z0-9]*$/ },
+    };
+    const module: LintModule = {
+        createLintModule: () => ({}),
+        createElementIdConvention: () => convention,
+    };
+
+    it.each([
+        { name: "an in-page module", linting: { module }, expected: convention },
+        {
+            name: "an external module",
+            linting: { module, results: "external" as const },
+            expected: convention,
+        },
+        { name: "no linting", linting: false as const, expected: undefined },
+        { name: "an omitted linting option", linting: undefined, expected: undefined },
+        {
+            name: "a module without the rule's convention",
+            linting: { module: { createLintModule: () => ({}) } },
+            expected: undefined,
+        },
+    ])("takes the lint rule's convention from $name", ({ linting, expected }) => {
+        expect(lintElementIdConvention(linting)).toBe(expected);
     });
 });

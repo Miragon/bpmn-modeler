@@ -82,8 +82,11 @@ val elementTemplateFileCases =
     layout.projectDirectory.file("../../libs/modeler-types/src/elementTemplateFile.cases.json")
 val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
+val elementIdReviewViewCases =
+    layout.projectDirectory.file("../../libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json")
 val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surfaceMode.ts")
 val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/settings.ts")
+val modelerSettings = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/modelerSettings.ts")
 val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/emptyDmn.ts")
 val scriptCompletionCases =
@@ -112,15 +115,18 @@ val intellijProgressCases =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijProgress.cases.json")
 val intellijWritableScopes =
     layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijWritableScopes.json")
+val intellijElementXmlDiffCases =
+    layout.projectDirectory.file("../modeler-bridge/src/__fixtures__/intellijElementXmlDiff.cases.json")
 
 tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows, the VS Code
-    // manifest's defaults, the surface modes and the colour themes, ModelerLocalesTest the
-    // manifest's languages, ModelerSettingsConfigurableTest the manifest's default modes and the
-    // mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
+    // manifest's defaults under the core's snapshot names, the surface modes and the colour
+    // themes, ModelerLocalesTest the manifest's languages, ModelerSettingsConfigurableTest the
+    // manifest's default modes and the mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
     // ElementTemplateFilesTest the rows the TypeScript template rule runs,
+    // ElementIdReviewViewTest the view of the core's element ID review,
     // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
     // shared DMN scaffold, NewModelFileDialogTest the core's new-file dialog texts,
     // ScriptCompletionMatchersTest the rows the core's script-completion matchers run,
@@ -130,8 +136,9 @@ tasks.test {
     // by, TemplatePreferenceStoreTest the rows it merges template switch changes by, ProjectScopeTest
     // the core's project scopes, BrandModeTest the rows the shared brand mode rule runs,
     // DocumentFlushedReplyParseTest the rows the shared flush reply table runs, and
-    // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest and
-    // MarketplaceRouterTest the rows and values the bridge's IntelliJ loopbacks answer with. As
+    // SecretStoreRouterTest, EditorSessionRouterTest, ScriptRouterTest, HostUiRouterTest,
+    // MarketplaceRouterTest and DiffRouterElementXmlDiffTest the rows and values the bridge's
+    // IntelliJ loopbacks answer with. As
     // declared inputs, a change on the TypeScript side alone reruns the tests instead of restoring
     // them from the build cache.
     mapOf(
@@ -141,8 +148,10 @@ tasks.test {
         "statusViewTypes" to statusViewTypes,
         "elementTemplateFileCases" to elementTemplateFileCases,
         "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
+        "elementIdReviewViewCases" to elementIdReviewViewCases,
         "surfaceModes" to surfaceModes,
         "colorThemes" to colorThemes,
+        "modelerSettings" to modelerSettings,
         "modeLabels" to modeLabels,
         "emptyDmn" to emptyDmn,
         "newModelFilePrompt" to newModelFilePrompt,
@@ -160,6 +169,7 @@ tasks.test {
         "intellijScriptTabsCases" to intellijScriptTabsCases,
         "intellijProgressCases" to intellijProgressCases,
         "intellijWritableScopes" to intellijWritableScopes,
+        "intellijElementXmlDiffCases" to intellijElementXmlDiffCases,
     ).forEach { (name, file) ->
         inputs.file(file).withPropertyName(name).withPathSensitivity(PathSensitivity.RELATIVE)
         systemProperty("miragon.$name", file.asFile.absolutePath)

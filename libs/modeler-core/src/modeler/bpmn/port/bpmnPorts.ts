@@ -1,7 +1,8 @@
-import { LintResults } from "@miragon/bpmn-modeler-types";
+import { ElementIdConventionOptions, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { BlockedRulePackage } from "../domain/rulePackageApproval";
 import { RefusedRuleModule } from "../domain/rulePackageRefusal";
+import type { ElementIdReviewView } from "../domain/elementIdReviewView";
 
 export interface LintRun {
     /** Findings keyed by rule name. */
@@ -36,6 +37,15 @@ export interface LintRunnerPort {
      * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
      */
     lint(xml: string, configPath: string, config: Record<string, unknown>): Promise<LintRun>;
+    /**
+     * The options the config, with every config it extends, gives the rule
+     * `@miragon/rules/element-id-naming`; empty when it gives none or a config
+     * cannot be resolved, so the rule's defaults apply.
+     */
+    elementIdConventionOptions(
+        configPath: string,
+        config: Record<string, unknown>,
+    ): Promise<ElementIdConventionOptions>;
 }
 
 /**
@@ -70,4 +80,18 @@ export interface LintingPreferencePort {
 export interface PropertiesPanelStatePort {
     getVisibility(): boolean;
     setVisibility(visible: boolean): Promise<void>;
+}
+
+/**
+ * A host's own panel for the element ID review, such as VS Code's Panel area
+ * beside Problems: it draws the view the core builds and hands each action back
+ * to the core's `ElementIdReviewService`. Without it, Generate IDs from Names
+ * only says the editor cannot show the review; the canvas never shows it.
+ */
+export interface ElementIdReviewPort {
+    show(view: ElementIdReviewView): void;
+    /** Brings the panel up: the user asked for the review. Comes after a show. */
+    focus(): void;
+    /** The review is over: applied, discarded, or its editor closed. */
+    close(): void;
 }

@@ -83,6 +83,12 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "Child process",
     "Human",
     "Java delegate",
+    // The ID-from-name links: the harvest snapshot predates them.
+    "Generate from name",
+    "Review all IDs…",
+    "Rename the ID to {id}",
+    "The ID already follows the name.",
+    "Add a name to generate the ID from it.",
     // The BPMN merge view's panes and legend: the harvest driver opens no merge pane.
     "Current",
     "Incoming",
