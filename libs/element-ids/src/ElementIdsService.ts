@@ -92,7 +92,7 @@ export class ElementIdsService {
 
     /** The review's rows for a host's own panel; without `unchecked`, the rows it starts with. */
     list(unchecked: ReadonlySet<string> = this.initiallyUnchecked()): ElementIdProposals {
-        return { rows: this.propose(unchecked).map(rowOf), unchecked: [...unchecked] };
+        return { rows: this.propose(unchecked).map(rowOf) };
     }
 
     /** The IDs the review starts with unchecked. */

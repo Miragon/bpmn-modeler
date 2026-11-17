@@ -70,22 +70,17 @@ const BOTH_UNCHECKED: ElementIdReview = {
     unchecked: new Set(["Process_1", "Activity_1"]),
 };
 
-const listing = (
-    editorId: string,
-    unchecked: readonly string[] = ["Process_1"],
-): ElementIdReviewEvent => ({
+const listing = (editorId: string): ElementIdReviewEvent => ({
     type: "reported",
     editorId,
     status: "listed",
     rows: ROWS,
-    unchecked,
 });
 const unsupported: ElementIdReviewEvent = {
     type: "reported",
     editorId: "order",
     status: "unsupported",
     rows: [],
-    unchecked: [],
 };
 const show = (unchecked: readonly string[]): ElementIdReviewAction => ({
     kind: "show",
@@ -143,9 +138,9 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         actions: [show(["Process_1"]), { kind: "focusPanel" }],
     },
     {
-        name: "keeps its own unchecked rows over a later listing's",
+        name: "keeps its own unchecked rows over a listing drawn before a click",
         review: BOTH_UNCHECKED,
-        event: listing("order", ["Process_1"]),
+        event: listing("order"),
         next: BOTH_UNCHECKED,
         actions: [show(["Process_1", "Activity_1"])],
     },
@@ -157,7 +152,6 @@ const ROWS_OF_TRANSITIONS: Row[] = [
             editorId: "order",
             status: "listed",
             rows: ROWS_WITH_ADDED_PROCESS,
-            unchecked: ["Process_1"],
         },
         next: {
             ...LISTED,
@@ -180,7 +174,7 @@ const ROWS_OF_TRANSITIONS: Row[] = [
     {
         name: "leaves a process the user checked checked",
         review: { ...LISTED, unchecked: new Set() },
-        event: listing("order", []),
+        event: listing("order"),
         next: { ...LISTED, unchecked: new Set() },
         actions: [show([])],
     },
@@ -379,12 +373,11 @@ describe("reduceElementIdReview", () => {
             editorId: "order",
             status: "listed",
             rows: ROWS.filter((row) => row.id !== "Process_1"),
-            unchecked: [],
         };
         const checked: ElementIdReview = { ...LISTED, unchecked: new Set() };
 
         const deleted = reduceElementIdReview(checked, poolDeleted).next;
-        const restored = reduceElementIdReview(deleted, listing("order", []));
+        const restored = reduceElementIdReview(deleted, listing("order"));
 
         expect(restored).toMatchObject({ next: { unchecked: new Set() }, actions: [show([])] });
     });

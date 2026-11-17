@@ -83,7 +83,7 @@ const ROWS: ElementIdRow[] = [
     },
 ];
 
-const LISTED = new ElementIdProposalsCommand("listed", ROWS, ["Process_1"]);
+const LISTED = new ElementIdProposalsCommand("listed", ROWS);
 
 function createPanelService() {
     const host = createTestHost();
@@ -224,10 +224,7 @@ describe("ElementIdReviewService with the host's own review panel", () => {
         await service.generate(editor.id);
         editor.posted.length = 0;
 
-        await service.reportProposals(
-            editor.id,
-            new ElementIdProposalsCommand("unsupported", [], []),
-        );
+        await service.reportProposals(editor.id, new ElementIdProposalsCommand("unsupported", []));
         await service.reportProposals(editor.id, LISTED);
 
         expect(notifier.infos).toEqual([SWITCH_MODE]);
@@ -243,10 +240,7 @@ describe("ElementIdReviewService with the host's own review panel", () => {
         const viewer = host.openEditor("/work/viewer.bpmn");
 
         await service.generate(viewer.id);
-        await service.reportProposals(
-            viewer.id,
-            new ElementIdProposalsCommand("unsupported", [], []),
-        );
+        await service.reportProposals(viewer.id, new ElementIdProposalsCommand("unsupported", []));
 
         expect(panel.closed).toBe(1);
         expect(notifier.infos).toEqual([SWITCH_MODE]);
@@ -255,7 +249,7 @@ describe("ElementIdReviewService with the host's own review panel", () => {
     it("says so in the panel when the editor switches to View mode during the review", async () => {
         const { service, editor, panel, notifier } = await openReview();
 
-        service.reportProposals(editor.id, new ElementIdProposalsCommand("unsupported", [], []));
+        service.reportProposals(editor.id, new ElementIdProposalsCommand("unsupported", []));
 
         expect(panel.last).toMatchObject({ message: SWITCH_MODE, groups: [], renameCount: 0 });
         expect(notifier.infos).toEqual([]);

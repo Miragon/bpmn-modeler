@@ -208,7 +208,7 @@ describe("the host's own element ID review", () => {
 
         await openElementIdReviewHandler(service)(new OpenElementIdReviewCommand(), editor.id);
         await elementIdProposalsHandler(service)(
-            new ElementIdProposalsCommand("listed", [], []),
+            new ElementIdProposalsCommand("listed", []),
             editor.id,
         );
 
@@ -219,12 +219,12 @@ describe("the host's own element ID review", () => {
     it("asks a restarted page for the rows again and closes the panel once applied", async () => {
         const { editor, panel, service } = setUp();
         await service.generate(editor.id);
-        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", [], ["P"]));
+        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", []));
 
         await resumeElementIdReviewHandler(service)(new GetBpmnFileCommand(), editor.id);
         await elementIdsAppliedHandler(service)(new ElementIdsAppliedCommand(), editor.id);
 
-        expect(editor.posted.at(-1)).toEqual(new ElementIdProposalsQuery(["P"]));
+        expect(editor.posted.at(-1)).toEqual(new ElementIdProposalsQuery([]));
         expect(panel.close).toHaveBeenCalledOnce();
     });
 });

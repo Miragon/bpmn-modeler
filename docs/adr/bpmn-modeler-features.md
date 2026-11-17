@@ -182,7 +182,8 @@ the designer: names and IDs are engine-neutral.
 - The review belongs to the hosts, not the module: a panel in the canvas sits in the area bpmn-io
   owns, while each host has a native place for a list of pending changes. The module offers only a
   contract and no review UI, not even as a fallback. `proposeElementIds(unchecked?)` lists the rows
-  (`ElementIdRow`: the current and new ID, kind, status, a counter flag and the element to reveal) for
+  (`ElementIdRow`: the current and new ID, kind, status, a counter flag, the element to reveal and
+  whether the row starts unchecked, so a host derives its set from the rows) for
   an unchecked set the host keeps, recomputed from the live diagram on every call;
   `renameElementIds(unchecked)` applies the checked ones; `setElementIdSettings({ followName?,
   convention?, openReview? })` hands "Review all IDs…" under the ID field to the host's panel, and

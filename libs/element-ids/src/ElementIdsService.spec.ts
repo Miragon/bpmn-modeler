@@ -149,7 +149,6 @@ describe("ElementIdsService", () => {
                         startsUnchecked: false,
                     },
                 ],
-                unchecked: ["Process_1"],
             });
         });
 
@@ -159,9 +158,8 @@ describe("ElementIdsService", () => {
                 shape("bpmn:Task", "Activity_2", ""),
             ]);
 
-            const { rows, unchecked } = service.list(new Set(["Activity_1"]));
+            const { rows } = service.list(new Set(["Activity_1"]));
 
-            expect(unchecked).toEqual(["Activity_1"]);
             expect(rows.map((row) => [row.status, row.newId])).toEqual([
                 ["unchecked", "task_notify"],
                 ["skipped", undefined],

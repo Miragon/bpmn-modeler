@@ -661,7 +661,6 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                     startsUnchecked: false,
                 },
             ],
-            unchecked: ["Process_1"],
         };
 
         async function openReview() {
@@ -723,13 +722,13 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                 postedQueries(frames, "ElementIdProposalsQuery").map(
                     (f) => f.params.message.unchecked,
                 ),
-            ).toEqual([null, ["Process_1", "Activity_1"]]);
+            ).toEqual([null, ["Activity_1"]]);
             expect(postedQueries(frames, "FocusElementQuery")[0]?.params.message.elementId).toBe(
                 "Activity_1",
             );
             expect(
                 postedQueries(frames, "ApplyElementIdsQuery")[0]?.params.message.unchecked,
-            ).toEqual(["Process_1", "Activity_1"]);
+            ).toEqual(["Activity_1"]);
             await waitForFrame(frames, (f) => f.method === "elementIdReview/close");
         });
 
@@ -753,7 +752,6 @@ describe("bridge modeler commands (real core over a fake transport)", () => {
                         type: "ElementIdProposalsCommand",
                         status: "unsupported",
                         rows: [],
-                        unchecked: [],
                     },
                 }),
             );

@@ -175,9 +175,12 @@ failing session hooks); the price is indirection.
   natively by each host from a view the core builds: VS Code's Panel area holds an Element IDs
   tab, a checkbox tree beside Problems and Output, and IntelliJ an Element IDs tool window. The
   core keeps the review's state (`reduceElementIdReview`, carried out by `ElementIdReviewService`
-  behind `ElementIdReviewPort`), including which rows are unchecked: it takes them from the first
-  listing, and later adds only rows new to the review that start unchecked, such as a process
-  from a pool added meanwhile, so a listing that crosses a checkbox click cannot undo it. The webview
+  behind `ElementIdReviewPort`), including which rows are unchecked: it takes the rows that start
+  unchecked (`ElementIdRow.startsUnchecked`) from the first listing, and later adds only rows new to
+  the review that start unchecked, such as a process from a pool added meanwhile, so a listing that
+  crosses a checkbox click cannot undo it. The review lives in the core process only: IntelliJ
+  closes its tool window when the bridge process dies, and the core tells a page that still lists
+  for a review it does not hold to stop, at the cost of a review lost on a crash. The webview
   lists the rows (`ElementIdProposalsQuery` → `ElementIdProposalsCommand`) after every change,
   host import and mode switch and applies them (`ApplyElementIdsQuery` →
   `ElementIdsAppliedCommand`), and IntelliJ reaches the port over `elementIdReview/*`. VS Code

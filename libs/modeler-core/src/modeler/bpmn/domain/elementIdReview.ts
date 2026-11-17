@@ -14,7 +14,7 @@ import { SWITCH_MODE_TO_GENERATE_IDS } from "./elementIdTexts";
  */
 export type ElementIdReview =
     | { readonly stage: "closed" }
-    // The package decides which rows start unchecked, so the first listing brings them.
+    // Each row says whether it starts unchecked, so the first listing brings the set.
     | { readonly stage: "opening"; readonly editorId: string; readonly title: string }
     | {
           readonly stage: "listed";
@@ -39,7 +39,6 @@ export type ElementIdReviewEvent =
           readonly editorId: string;
           readonly status: ElementIdProposalsStatus;
           readonly rows: readonly ElementIdRow[];
-          readonly unchecked: readonly string[];
       }
     | { readonly type: "checked"; readonly ids: readonly string[]; readonly checked: boolean }
     | { readonly type: "apply" }
@@ -139,7 +138,7 @@ function report(
             ...review,
             stage: "listed",
             rows: event.rows,
-            unchecked: new Set(event.unchecked),
+            unchecked: new Set(rowsStartingUnchecked(event.rows, new Set())),
             everListed: new Set(idsOf(event.rows)),
         };
         return {

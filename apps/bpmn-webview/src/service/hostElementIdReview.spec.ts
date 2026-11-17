@@ -29,9 +29,8 @@ function setUp() {
     const posted: (Command | Query)[] = [];
     const editable = {
         newDiagram: vi.fn(),
-        proposeElementIds: vi.fn((unchecked?: readonly string[]): ElementIdProposals => ({
+        proposeElementIds: vi.fn((_unchecked?: readonly string[]): ElementIdProposals => ({
             rows: [row],
-            unchecked: unchecked ?? ["Process_1"],
         })),
         renameElementIds: vi.fn(() => 2),
     };
@@ -60,7 +59,7 @@ describe("createHostElementIdReview", () => {
         review.handlers.ElementIdProposalsQuery(new ElementIdProposalsQuery(null));
 
         expect(editable.proposeElementIds).toHaveBeenCalledWith(undefined);
-        expect(posted).toEqual([new ElementIdProposalsCommand("listed", [row], ["Process_1"])]);
+        expect(posted).toEqual([new ElementIdProposalsCommand("listed", [row])]);
     });
 
     it("lists the rows again after a change, with the IDs the host unchecked", () => {
@@ -72,6 +71,15 @@ describe("createHostElementIdReview", () => {
 
         expect(editable.proposeElementIds).toHaveBeenLastCalledWith(["Activity_1"]);
         expect(posted).toHaveLength(3);
+    });
+
+    it("lets the package decide what starts unchecked on its own listings until the host sends its set", () => {
+        const { editable, review } = setUp();
+        review.handlers.ElementIdProposalsQuery(new ElementIdProposalsQuery(null));
+
+        review.refresh();
+
+        expect(editable.proposeElementIds).toHaveBeenLastCalledWith(undefined);
     });
 
     it("lists nothing while no review is open", () => {
@@ -107,8 +115,8 @@ describe("createHostElementIdReview", () => {
         review.refresh();
 
         expect(posted).toEqual([
-            new ElementIdProposalsCommand("listed", [row], ["Process_1"]),
-            new ElementIdProposalsCommand("listed", [row], ["Process_1"]),
+            new ElementIdProposalsCommand("listed", [row]),
+            new ElementIdProposalsCommand("listed", [row]),
         ]);
     });
 
@@ -134,9 +142,9 @@ describe("createHostElementIdReview", () => {
 
         expect(editable.renameElementIds).not.toHaveBeenCalled();
         expect(posted.slice(1)).toEqual([
-            new ElementIdProposalsCommand("unsupported", [], []),
-            new ElementIdProposalsCommand("unsupported", [], []),
-            new ElementIdProposalsCommand("listed", [row], ["Activity_1"]),
+            new ElementIdProposalsCommand("unsupported", []),
+            new ElementIdProposalsCommand("unsupported", []),
+            new ElementIdProposalsCommand("listed", [row]),
         ]);
     });
 });

@@ -93,8 +93,7 @@ export interface ElementIdRow {
 /** `unsupported` from a surface that cannot change IDs, such as View mode. */
 export type ElementIdProposalsStatus = "listed" | "unsupported";
 
-/** The review's rows and the IDs it leaves unchecked. */
+/** The review's rows. */
 export interface ElementIdProposals {
     readonly rows: readonly ElementIdRow[];
-    readonly unchecked: readonly string[];
 }

@@ -15,7 +15,7 @@ describe("ElementIdReviewParticipant", () => {
             new ElementIdReviewParticipant(service),
         ]);
         await service.generate(editor.id);
-        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", [], []));
+        service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", []));
 
         editor.dispose();
 

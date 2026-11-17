@@ -349,9 +349,10 @@ export interface BpmnModelerHandle extends BpmnSurfaceHandle, PendingInputHandle
 
     /**
      * [A] The rows of a review of IDs generated from element names, for a host
-     * to show in its own panel: every named element with the ID its name yields
-     * and whether it changes, and the IDs left `unchecked`, which keep their ID.
-     * Without `unchecked`, the rows a review starts with: process IDs unchecked.
+     * to show in its own panel: every named element with the ID its name yields,
+     * whether it changes and whether it starts unchecked. The `unchecked` IDs
+     * keep their ID; without them, the rows a review starts with: process IDs
+     * unchecked.
      * Recomputed from the live diagram on each call.
      */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;

@@ -1019,14 +1019,13 @@ export class ElementIdProposalsQuery extends Query<"ElementIdProposalsQuery"> {
 }
 
 /**
- * Webview → host: the review's rows and the IDs it left unchecked;
- * `unsupported` from a surface that cannot change IDs, such as View mode.
+ * Webview → host: the review's rows; `unsupported` from a surface that cannot
+ * change IDs, such as View mode.
  */
 export class ElementIdProposalsCommand extends Command<"ElementIdProposalsCommand"> {
     constructor(
         public readonly status: ElementIdProposalsStatus,
         public readonly rows: readonly ElementIdRow[],
-        public readonly unchecked: readonly string[],
     ) {
         super("ElementIdProposalsCommand");
     }

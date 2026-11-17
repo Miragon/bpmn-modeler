@@ -109,7 +109,7 @@ export function applyFavouriteBpmnElements(
         ?.setFavourites([...types]);
 }
 
-const NO_ELEMENT_IDS: ElementIdProposals = { rows: [], unchecked: [] };
+const NO_ELEMENT_IDS: ElementIdProposals = { rows: [] };
 
 export function proposeSurfaceElementIds(
     surface: SurfaceServices,

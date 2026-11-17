@@ -21,13 +21,12 @@ export interface HostElementIdReview {
     refresh(): void;
 }
 
-const UNSUPPORTED = new ElementIdProposalsCommand("unsupported", [], []);
+const UNSUPPORTED = new ElementIdProposalsCommand("unsupported", []);
 
 /**
  * Serves the element ID review a host shows in its own panel. The host keeps
  * which rows are unchecked and sends them with every query; this lists the rows
- * for them until the host applies or closes the review. The host takes the
- * unchecked rows this sends only from the first listing.
+ * for them until the host applies or closes the review.
  */
 export function createHostElementIdReview(
     host: HostChannel,
@@ -43,10 +42,8 @@ export function createHostElementIdReview(
             host.postMessage(UNSUPPORTED);
             return;
         }
-        const proposals = surface.proposeElementIds(unchecked);
-        unchecked = proposals.unchecked;
         host.postMessage(
-            new ElementIdProposalsCommand("listed", proposals.rows, proposals.unchecked),
+            new ElementIdProposalsCommand("listed", surface.proposeElementIds(unchecked).rows),
         );
     }
 

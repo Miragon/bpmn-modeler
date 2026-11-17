@@ -169,7 +169,14 @@ const proposedIds = (handle: ElementIdHandle) =>
 
 /** Renames what a review renames as it starts, with process IDs unchecked unless `processes`. */
 const renameAll = (handle: ElementIdHandle, { processes = false } = {}) =>
-    handle.renameElementIds(processes ? [] : handle.proposeElementIds().unchecked);
+    handle.renameElementIds(
+        processes
+            ? []
+            : handle
+                  .proposeElementIds()
+                  .rows.filter((row) => row.startsUnchecked)
+                  .map((row) => row.id),
+    );
 
 async function showGeneralGroup(panel: HTMLElement): Promise<void> {
     if (!panel.querySelector(".eid-id-actions")) {
@@ -198,9 +205,11 @@ describe("generating element IDs from names", () => {
     it("lists the rows for a host's panel, with process IDs unchecked", async () => {
         const { handle } = await openModeler();
 
-        const { rows, unchecked } = handle.proposeElementIds();
+        const { rows } = handle.proposeElementIds();
 
-        expect(unchecked).toEqual(["Process_0d1e2f3"]);
+        expect(rows.filter((row) => row.startsUnchecked).map((row) => row.id)).toEqual([
+            "Process_0d1e2f3",
+        ]);
         expect(rows.map((row) => [row.id, row.status, row.newId])).toEqual([
             ["Process_0d1e2f3", "unchecked", "orderFulfilment"],
             ["Event_0k3j1vq", "rename", "startEvent_orderReceived"],

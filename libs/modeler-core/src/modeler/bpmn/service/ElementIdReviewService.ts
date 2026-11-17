@@ -49,8 +49,8 @@ export class ElementIdReviewService {
         await this.dispatch({ type: "generate", editorId, title });
     }
 
-    reportProposals(editorId: string, { status, rows, unchecked }: ElementIdProposalsCommand) {
-        return this.dispatch({ type: "reported", editorId, status, rows, unchecked });
+    reportProposals(editorId: string, { status, rows }: ElementIdProposalsCommand) {
+        return this.dispatch({ type: "reported", editorId, status, rows });
     }
 
     setChecked(ids: readonly string[], checked: boolean): Promise<void> {

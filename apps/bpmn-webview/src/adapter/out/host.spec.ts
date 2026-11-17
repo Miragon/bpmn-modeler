@@ -122,7 +122,7 @@ const BPMN_EDITOR_COMMANDS: { [Type in BpmnEditorCommandType]: MessageOfType<Typ
     UpdateScriptVariablesCommand: new UpdateScriptVariablesCommand([]),
     DiagramFormattedCommand: new DiagramFormattedCommand("formatted", []),
     CleanupReportCommand: new CleanupReportCommand({ status: "reported", items: [] }, false),
-    ElementIdProposalsCommand: new ElementIdProposalsCommand("listed", [], []),
+    ElementIdProposalsCommand: new ElementIdProposalsCommand("listed", []),
     ElementIdsAppliedCommand: new ElementIdsAppliedCommand(),
     OpenElementIdReviewCommand: new OpenElementIdReviewCommand(),
 };
