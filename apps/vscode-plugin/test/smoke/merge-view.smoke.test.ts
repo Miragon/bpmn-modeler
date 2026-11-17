@@ -1109,6 +1109,11 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(tabLabels, { timeout: TIMEOUT_MS })
                 .not.toContainEqual(expect.stringContaining("(Merge: Incoming ↔ Result)"));
+            // The key press left the focus in the closed tab's frame, where F1 never reaches the workbench.
+            const current = await vscode().editorWebview(
+                'body[data-diff-side="after"] .diff-legend__comparison-switch',
+            );
+            await current.locator(".diff-legend__comparison").click();
         });
 
         it("lists the notes of a build that kept a task without the flows removed with it", async () => {
