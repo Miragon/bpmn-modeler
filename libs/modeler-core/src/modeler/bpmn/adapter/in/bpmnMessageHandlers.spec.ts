@@ -222,7 +222,7 @@ describe("the host's own element ID review", () => {
         service.reportProposals(editor.id, new ElementIdProposalsCommand("listed", [], ["P"]));
 
         await resumeElementIdReviewHandler(service)(new GetBpmnFileCommand(), editor.id);
-        await elementIdsAppliedHandler(service)(new ElementIdsAppliedCommand(0), editor.id);
+        await elementIdsAppliedHandler(service)(new ElementIdsAppliedCommand(), editor.id);
 
         expect(editor.posted.at(-1)).toEqual(new ElementIdProposalsQuery(["P"]));
         expect(panel.close).toHaveBeenCalledOnce();

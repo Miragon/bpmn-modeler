@@ -81,7 +81,7 @@ describe("createHostElementIdReview", () => {
         expect(posted).toEqual([]);
     });
 
-    it("renames the checked rows, reports how many changed and stops listing", () => {
+    it("renames the checked rows, reports that it did and stops listing", () => {
         const { posted, editable, review } = setUp();
         review.handlers.ElementIdProposalsQuery(new ElementIdProposalsQuery(null));
 
@@ -89,7 +89,7 @@ describe("createHostElementIdReview", () => {
         review.refresh();
 
         expect(editable.renameElementIds).toHaveBeenCalledWith(["Process_1"]);
-        expect(posted.at(-1)).toEqual(new ElementIdsAppliedCommand(2));
+        expect(posted.at(-1)).toEqual(new ElementIdsAppliedCommand());
         expect(posted).toHaveLength(2);
     });
 

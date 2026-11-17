@@ -26,14 +26,15 @@ const UNSUPPORTED = new ElementIdProposalsCommand("unsupported", [], []);
 /**
  * Serves the element ID review a host shows in its own panel. The host keeps
  * which rows are unchecked and sends them with every query; this lists the rows
- * for them until the host applies or closes the review.
+ * for them until the host applies or closes the review. The host takes the
+ * unchecked rows this sends only from the first listing.
  */
 export function createHostElementIdReview(
     host: HostChannel,
     getSurface: () => SurfaceHandle,
 ): HostElementIdReview {
     let open = false;
-    // `undefined` until the first listing settles the rows the review starts with.
+    // The host's last set, for this page's own refreshes; `undefined` lets the package decide.
     let unchecked: readonly string[] | undefined;
 
     function list(): void {
@@ -63,9 +64,8 @@ export function createHostElementIdReview(
                     return;
                 }
                 open = false;
-                host.postMessage(
-                    new ElementIdsAppliedCommand(surface.renameElementIds(query.unchecked)),
-                );
+                surface.renameElementIds(query.unchecked);
+                host.postMessage(new ElementIdsAppliedCommand());
             },
             CloseElementIdReviewQuery: () => {
                 open = false;

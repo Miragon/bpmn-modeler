@@ -185,18 +185,14 @@ export function cleanupReportHandler(
 export function elementIdProposalsHandler(
     elementIdsSvc: ElementIdsService,
 ): MessageHandler<ElementIdProposalsCommand> {
-    return (message, editorId) => {
-        elementIdsSvc.reportProposals(editorId, message);
-    };
+    return (message, editorId) => elementIdsSvc.reportProposals(editorId, message);
 }
 
 /** `ElementIdsAppliedCommand` → the host's review is over. */
 export function elementIdsAppliedHandler(
     elementIdsSvc: ElementIdsService,
 ): MessageHandler<ElementIdsAppliedCommand> {
-    return (message, editorId) => {
-        elementIdsSvc.reportApplied(editorId, message);
-    };
+    return (_message, editorId) => elementIdsSvc.reportApplied(editorId);
 }
 
 /** `OpenElementIdReviewCommand` → "Review all IDs…" opens the host's review of this diagram. */

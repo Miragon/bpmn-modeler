@@ -43,7 +43,7 @@
  * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
  * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
  * - {@link ElementIdProposalsCommand}         — the review's rows for the host's panel
- * - {@link ElementIdsAppliedCommand}          — how many IDs the host's review renamed
+ * - {@link ElementIdsAppliedCommand}          — the host's review renamed its IDs
  * - {@link OpenElementIdReviewCommand}        — the ID field's link asks for the host's review
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
@@ -1038,9 +1038,9 @@ export class ApplyElementIdsQuery extends Query<"ApplyElementIdsQuery"> {
     }
 }
 
-/** Webview → host: how many IDs {@link ApplyElementIdsQuery} renamed; the review is over. */
+/** Webview → host: {@link ApplyElementIdsQuery} renamed the IDs; the review is over. */
 export class ElementIdsAppliedCommand extends Command<"ElementIdsAppliedCommand"> {
-    constructor(public readonly renamed: number) {
+    constructor() {
         super("ElementIdsAppliedCommand");
     }
 }

@@ -5,7 +5,6 @@ import {
     CloseElementIdReviewQuery,
     ElementIdProposalsCommand,
     ElementIdProposalsQuery,
-    ElementIdsAppliedCommand,
     FocusElementQuery,
 } from "@miragon/bpmn-modeler-shared";
 import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
@@ -34,7 +33,6 @@ describe("ElementIdsService on a host without a review panel", () => {
             "This editor cannot show the review of IDs generated from names. Use Generate from name under an element's ID.",
         ]);
         expect(editor.posted).toEqual([]);
-        expect(service.hasReviewPanel).toBe(false);
     });
 });
 
@@ -103,7 +101,6 @@ describe("ElementIdsService with the host's own review panel", () => {
 
         await service.generate(editor.id);
 
-        expect(service.hasReviewPanel).toBe(true);
         expect(editor.posted).toEqual([new ElementIdProposalsQuery(null)]);
         expect(other.posted).toEqual([]);
         expect(panel.shown).toEqual([]);
@@ -167,7 +164,7 @@ describe("ElementIdsService with the host's own review panel", () => {
         const { service, editor, panel } = await openReview();
 
         await service.apply();
-        service.reportApplied(editor.id, new ElementIdsAppliedCommand(1));
+        await service.reportApplied(editor.id);
         service.reportProposals(editor.id, LISTED);
 
         expect(editor.posted).toEqual([new ApplyElementIdsQuery(["Process_1"])]);

@@ -6,52 +6,36 @@ import {
     type Command,
     type ElementIdProposalsCommand,
     ElementIdProposalsQuery,
-    type ElementIdsAppliedCommand,
     FocusElementQuery,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
-import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort } from "../../../kernel/port/hostPorts";
 import { EditorSessionStore } from "../../../editorSession/service/EditorSessionStore";
 import {
-    elementIdReviewView,
-    hiddenEditorReviewView,
-    unsupportedReviewView,
-} from "../domain/elementIdReviewView";
-import {
-    ELEMENT_ID_REVIEW_UNAVAILABLE,
-    SWITCH_MODE_TO_GENERATE_IDS,
-} from "../domain/elementIdTexts";
+    CLOSED_ELEMENT_ID_REVIEW,
+    type ElementIdReview,
+    type ElementIdReviewAction,
+    type ElementIdReviewEvent,
+    reduceElementIdReview,
+} from "../domain/elementIdReview";
+import { ELEMENT_ID_REVIEW_UNAVAILABLE } from "../domain/elementIdTexts";
 import type { ElementIdReviewPort } from "../port/bpmnPorts";
-
-/** The review a host shows in its own panel; the core keeps which rows are unchecked. */
-interface HostReview {
-    readonly editorId: string;
-    readonly title: string;
-    rows: readonly ElementIdRow[];
-    /** `null` until the editor lists the rows the review starts with. */
-    unchecked: Set<string> | null;
-}
 
 /**
  * Generate IDs from Names for every host: the VS Code command and the IntelliJ
  * action each make one call. The host shows the review in its own
- * {@link ElementIdReviewPort} and hands its actions back here.
+ * {@link ElementIdReviewPort} and hands its actions back here; the review's
+ * rules live in {@link reduceElementIdReview}.
  */
 export class ElementIdsService {
-    private review: HostReview | undefined;
+    private review: ElementIdReview = CLOSED_ELEMENT_ID_REVIEW;
 
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly notifier: NotifierPort,
         private readonly reviewPanel?: ElementIdReviewPort,
     ) {}
-
-    /** Only then does the editor offer "Review all IDs…" under the ID field. */
-    get hasReviewPanel(): boolean {
-        return this.reviewPanel !== undefined;
-    }
 
     /**
      * Opens the review of the editor's diagram. Running it again on the same
@@ -62,102 +46,80 @@ export class ElementIdsService {
             this.notifier.showInfo(ELEMENT_ID_REVIEW_UNAVAILABLE);
             return;
         }
-        const previous = this.review;
-        if (previous?.editorId !== editorId) {
-            this.review = {
-                editorId,
-                title: basename(this.editorStore.requireHandle(editorId).documentPath()),
-                rows: [],
-                unchecked: null,
-            };
-            if (previous) {
-                await this.postQuietly(previous.editorId, new CloseElementIdReviewQuery());
-            }
-        }
-        await this.askForRows();
+        const title = basename(this.editorStore.requireHandle(editorId).documentPath());
+        await this.dispatch({ type: "generate", editorId, title });
     }
 
-    reportProposals(editorId: string, message: ElementIdProposalsCommand): void {
-        const review = this.reviewOf(editorId);
-        if (!review || !this.reviewPanel) return;
-        if (message.status === "unsupported") {
-            if (review.unchecked === null) {
-                this.review = undefined;
-                this.notifier.showInfo(SWITCH_MODE_TO_GENERATE_IDS);
-            } else {
-                this.reviewPanel.show(unsupportedReviewView(review.title));
-            }
-            return;
-        }
-        review.rows = message.rows;
-        review.unchecked = new Set(message.unchecked);
-        this.reviewPanel.show(elementIdReviewView(review.title, review.rows, review.unchecked));
+    reportProposals(editorId: string, { status, rows, unchecked }: ElementIdProposalsCommand) {
+        return this.dispatch({ type: "reported", editorId, status, rows, unchecked });
     }
 
-    async setChecked(ids: readonly string[], checked: boolean): Promise<void> {
-        const review = this.review;
-        if (!review?.unchecked) return;
-        for (const id of ids) {
-            if (checked) review.unchecked.delete(id);
-            else review.unchecked.add(id);
-        }
-        this.reviewPanel?.show(elementIdReviewView(review.title, review.rows, review.unchecked));
-        await this.askForRows();
+    setChecked(ids: readonly string[], checked: boolean): Promise<void> {
+        return this.dispatch({ type: "checked", ids, checked });
     }
 
-    async apply(): Promise<void> {
-        const review = this.review;
-        if (!review?.unchecked) return;
-        await this.postToReview(new ApplyElementIdsQuery([...review.unchecked]));
+    apply(): Promise<void> {
+        return this.dispatch({ type: "apply" });
     }
 
-    reportApplied(editorId: string, _message: ElementIdsAppliedCommand): void {
-        if (this.reviewOf(editorId)) this.end(editorId);
+    reportApplied(editorId: string): Promise<void> {
+        return this.dispatch({ type: "applied", editorId });
     }
 
-    async discard(): Promise<void> {
-        const review = this.review;
-        if (!review) return;
-        this.end(review.editorId);
-        await this.postQuietly(review.editorId, new CloseElementIdReviewQuery());
+    discard(): Promise<void> {
+        return this.dispatch({ type: "discard" });
     }
 
-    async reveal(elementId: string): Promise<void> {
-        await this.postToReview(new FocusElementQuery(elementId));
+    reveal(elementId: string): Promise<void> {
+        return this.dispatch({ type: "reveal", elementId });
     }
 
     /** The editor's page restarted, so it lists the open review's rows again. */
-    async resume(editorId: string): Promise<void> {
-        if (this.reviewOf(editorId)?.unchecked) await this.askForRows();
+    resume(editorId: string): Promise<void> {
+        return this.dispatch({ type: "resumed", editorId });
     }
 
-    /** The review is over for this editor: applied, discarded or closed. */
+    /** The review is over for this editor: its editor closed. Closing posts nothing, so it needs no await. */
     end(editorId: string): void {
-        if (!this.reviewOf(editorId)) return;
-        this.review = undefined;
-        this.reviewPanel?.close();
+        void this.dispatch({ type: "ended", editorId });
     }
 
-    private reviewOf(editorId: string): HostReview | undefined {
-        return this.review?.editorId === editorId ? this.review : undefined;
+    /** Stores the next review first, so a post's await already sees it. */
+    private async dispatch(event: ElementIdReviewEvent): Promise<void> {
+        const { next, actions } = reduceElementIdReview(this.review, event);
+        this.review = next;
+        for (const action of actions) {
+            // Panel and notifier actions run synchronously, before any post's await.
+            const posting = this.carryOut(action);
+            if (posting) await posting;
+        }
     }
 
-    private async askForRows(): Promise<void> {
-        const unchecked = this.review?.unchecked;
-        await this.postToReview(new ElementIdProposalsQuery(unchecked ? [...unchecked] : null));
+    private carryOut(action: ElementIdReviewAction): Promise<void> | undefined {
+        switch (action.kind) {
+            case "askForRows":
+                return this.post(action.editorId, new ElementIdProposalsQuery(action.unchecked));
+            case "rename":
+                return this.post(action.editorId, new ApplyElementIdsQuery(action.unchecked));
+            case "reveal":
+                return this.post(action.editorId, new FocusElementQuery(action.elementId));
+            case "stopListing":
+                return this.postQuietly(action.editorId, new CloseElementIdReviewQuery());
+            case "show":
+                this.reviewPanel?.show(action.view);
+                return undefined;
+            case "notify":
+                this.notifier.showInfo(action.text);
+                return undefined;
+            case "closePanel":
+                this.reviewPanel?.close();
+                return undefined;
+        }
     }
 
-    /** A hidden editor's page cannot answer until it is shown, so the panel says so. */
-    private async postToReview(message: Command | Query): Promise<void> {
-        const review = this.review;
-        if (!review) return;
-        const outcome = await this.editorStore.postUnlessHidden(review.editorId, message);
-        if (outcome === "hidden" && review.unchecked && this.review === review) {
-            this.reviewPanel?.show(
-                hiddenEditorReviewView(
-                    elementIdReviewView(review.title, review.rows, review.unchecked),
-                ),
-            );
+    private async post(editorId: string, message: Command | Query): Promise<void> {
+        if ((await this.editorStore.postUnlessHidden(editorId, message)) === "hidden") {
+            await this.dispatch({ type: "editorHidden", editorId });
         }
     }
 
