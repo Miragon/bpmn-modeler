@@ -1,4 +1,4 @@
-import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
+import type { ElementIdProposalsStatus, ElementIdRow } from "@miragon/bpmn-modeler-types";
 
 import {
     elementIdReviewView,
@@ -35,7 +35,7 @@ export type ElementIdReviewEvent =
     | {
           readonly type: "reported";
           readonly editorId: string;
-          readonly status: "listed" | "unsupported";
+          readonly status: ElementIdProposalsStatus;
           readonly rows: readonly ElementIdRow[];
           readonly unchecked: readonly string[];
       }
@@ -152,6 +152,33 @@ function check(
     return { next, actions: [{ kind: "show", view: listedView(next) }, askForRows(next)] };
 }
 
+const stay = (
+    review: ElementIdReview,
+    ...actions: ElementIdReviewAction[]
+): ElementIdReviewTransition => ({ next: review, actions });
+
+const whenOpen = (
+    review: ElementIdReview,
+    act: (open: OpenReview) => ElementIdReviewTransition,
+): ElementIdReviewTransition => (review.stage === "closed" ? unchanged(review) : act(review));
+
+const whenOpenOn = (
+    review: ElementIdReview,
+    editorId: string,
+    act: (open: OpenReview) => ElementIdReviewTransition,
+): ElementIdReviewTransition => (isOpenOn(review, editorId) ? act(review) : unchanged(review));
+
+const whenListed = (
+    review: ElementIdReview,
+    act: (listed: ListedReview) => ElementIdReviewTransition,
+): ElementIdReviewTransition => (review.stage === "listed" ? act(review) : unchanged(review));
+
+const whenListedOn = (
+    review: ElementIdReview,
+    editorId: string,
+    act: (listed: ListedReview) => ElementIdReviewTransition,
+): ElementIdReviewTransition => whenOpenOn(review, editorId, () => whenListed(review, act));
+
 /** The review's next state and what the service does about an event. */
 export function reduceElementIdReview(
     review: ElementIdReview,
@@ -161,51 +188,36 @@ export function reduceElementIdReview(
         case "generate":
             return generate(review, event.editorId, event.title);
         case "reported":
-            return isOpenOn(review, event.editorId) ? report(review, event) : unchanged(review);
+            return whenOpenOn(review, event.editorId, (open) => report(open, event));
         case "checked":
-            return review.stage === "listed"
-                ? check(review, event.ids, event.checked)
-                : unchanged(review);
+            return whenListed(review, (listed) => check(listed, event.ids, event.checked));
         case "apply":
-            return review.stage === "listed"
-                ? {
-                      next: review,
-                      actions: [
-                          {
-                              kind: "rename",
-                              editorId: review.editorId,
-                              unchecked: [...review.unchecked],
-                          },
-                      ],
-                  }
-                : unchanged(review);
+            return whenListed(review, (listed) =>
+                stay(listed, {
+                    kind: "rename",
+                    editorId: listed.editorId,
+                    unchecked: [...listed.unchecked],
+                }),
+            );
         case "applied":
         case "ended":
-            return isOpenOn(review, event.editorId) ? close() : unchanged(review);
+            return whenOpenOn(review, event.editorId, () => close());
         case "discard":
-            return review.stage === "closed"
-                ? unchanged(review)
-                : close({ kind: "stopListing", editorId: review.editorId });
+            return whenOpen(review, (open) =>
+                close({ kind: "stopListing", editorId: open.editorId }),
+            );
         case "reveal":
-            return review.stage === "closed"
-                ? unchanged(review)
-                : {
-                      next: review,
-                      actions: [
-                          { kind: "reveal", editorId: review.editorId, elementId: event.elementId },
-                      ],
-                  };
+            return whenOpen(review, (open) =>
+                stay(open, { kind: "reveal", editorId: open.editorId, elementId: event.elementId }),
+            );
         case "resumed":
-            return review.stage === "listed" && review.editorId === event.editorId
-                ? { next: review, actions: [askForRows(review)] }
-                : unchanged(review);
+            return whenListedOn(review, event.editorId, (listed) =>
+                stay(listed, askForRows(listed)),
+            );
         case "editorHidden":
             // A hidden editor's page cannot answer until it is shown, so the panel says so.
-            return review.stage === "listed" && review.editorId === event.editorId
-                ? {
-                      next: review,
-                      actions: [{ kind: "show", view: hiddenEditorReviewView(listedView(review)) }],
-                  }
-                : unchanged(review);
+            return whenListedOn(review, event.editorId, (listed) =>
+                stay(listed, { kind: "show", view: hiddenEditorReviewView(listedView(listed)) }),
+            );
     }
 }

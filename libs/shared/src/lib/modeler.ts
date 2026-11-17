@@ -77,6 +77,7 @@ import type {
     DiffSide,
     DmnModelerSetting,
     ElementIdConventionOptions,
+    ElementIdProposalsStatus,
     ElementIdRow,
     ElementTemplateRef,
     Engine,
@@ -1023,7 +1024,7 @@ export class ElementIdProposalsQuery extends Query<"ElementIdProposalsQuery"> {
  */
 export class ElementIdProposalsCommand extends Command<"ElementIdProposalsCommand"> {
     constructor(
-        public readonly status: "listed" | "unsupported",
+        public readonly status: ElementIdProposalsStatus,
         public readonly rows: readonly ElementIdRow[],
         public readonly unchecked: readonly string[],
     ) {
