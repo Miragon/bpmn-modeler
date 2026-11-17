@@ -3,7 +3,7 @@ import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mer
 import type { MergeDecisions } from "./mergeDecisions";
 import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
-import { type ElementState, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
+import { type ElementState, type MergeElement, type MergeSide, addedOnlyBy } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
 import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
 
@@ -32,7 +32,7 @@ export interface PickNotDrawn {
 }
 
 /** Why the other side lacks an element this side holds: it removed it from the base, or there is no base version. */
-export type OtherSideLack = "removed" | "missing";
+type OtherSideLack = "removed" | "missing";
 
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface PickableElement {
@@ -156,10 +156,7 @@ function paneDecisions(
 
 function otherSideLacks(element: MergeElement, side: MergeSide): OtherSideLack | undefined {
     if (keptAgainstRemoval(element, side)) return "removed";
-    const { versions } = element;
-    return versions[side] !== undefined && versions[otherSide(side)] === undefined
-        ? "missing"
-        : undefined;
+    return addedOnlyBy(element, side) ? "missing" : undefined;
 }
 
 /** The marker an element gets on a pane of a side, or none. */

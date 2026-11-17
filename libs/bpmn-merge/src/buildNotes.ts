@@ -6,6 +6,7 @@ import {
     type MergeElement,
     type MergeResult,
     type MergeSide,
+    addedOnlyBy,
     chosenVersionOf,
 } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
@@ -59,11 +60,7 @@ export function addedAtSamePlaceNotes(
     const addedBounds = (side: MergeSide) =>
         result.elements.flatMap((element) => {
             const onlyThisSide =
-                element.versions.base === undefined &&
-                resolution.elements[element.id] === side &&
-                MERGE_SIDES.every(
-                    (other) => (element.versions[other] !== undefined) === (other === side),
-                );
+                addedOnlyBy(element, side) && resolution.elements[element.id] === side;
             const bounds = onlyThisSide ? boundsOf(element.id, side) : undefined;
             return bounds ? [{ id: element.id, bounds }] : [];
         });
