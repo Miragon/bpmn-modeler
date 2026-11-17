@@ -131,40 +131,57 @@ describe("form webview with the real form-js editor", () => {
     });
 
     it.each([
-        ["textfield", "maxLength", "20"],
-        ["number", "min", "5"],
-        ["number", "max", "20"],
-        ["number", "min", "0"],
-        ["number", "min", "-2.5"],
-    ])("saves a focused %s %s bound %s as a string", async (type, bound, value) => {
-        const { flushReplies } = bootstrapWithRealFormJs();
-        dispatch(new FormFileQuery(formWithField({ type }), 1));
-        await selectField("Field_1");
+        ["textfield", "maxLength", "20", "20"],
+        ["number", "min", "5", 5],
+        ["number", "max", "20", 20],
+        ["number", "min", "0", 0],
+        ["number", "max", "0", 0],
+        ["number", "min", "-2", -2],
+        ["number", "max", "-2", -2],
+        ["number", "min", "-2.5", -2.5],
+        ["number", "max", "2.5", 2.5],
+    ] as const)(
+        "saves a focused %s %s bound %s with its schema type",
+        async (type, bound, value, expected) => {
+            const { flushReplies } = bootstrapWithRealFormJs();
+            dispatch(new FormFileQuery(formWithField({ type }), 1));
+            await selectField("Field_1");
 
-        await typeInto(bound, value);
+            await typeInto(bound, value);
 
-        expect((await flushField(flushReplies)).validate?.[bound]).toBe(value);
-    });
+            expect((await flushField(flushReplies)).validate?.[bound]).toBe(expected);
+        },
+    );
 
-    it("syncs a focused numeric bound as a string after normal input debounce", async () => {
-        // Number and FEEL inputs debounce in sequence; don't race the wall clock.
-        vi.useFakeTimers();
-        const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
-        dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
-        await selectField("Field_1");
-        await vi.runAllTimersAsync();
+    it.each([
+        ["min", "0", 0],
+        ["max", "0", 0],
+        ["min", "-2", -2],
+        ["max", "-2", -2],
+        ["min", "-2.5", -2.5],
+        ["max", "2.5", 2.5],
+    ] as const)(
+        "syncs a focused %s bound %s as a number after normal input debounce",
+        async (bound, value, expected) => {
+            // Number and FEEL inputs debounce in sequence; don't race the wall clock.
+            vi.useFakeTimers();
+            const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
+            dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
+            await selectField("Field_1");
+            await vi.runAllTimersAsync();
 
-        const minimum = await typeInto("min", "-2.5");
-        expect(document.activeElement).toBe(minimum);
-        expect(syncCommands()).toHaveLength(0);
+            const minimum = await typeInto(bound, value);
+            expect(document.activeElement).toBe(minimum);
+            expect(syncCommands()).toHaveLength(0);
 
-        await vi.runAllTimersAsync();
-        expect(syncCommands()).not.toHaveLength(0);
-        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("-2.5");
-        expect(flushReplies()).toHaveLength(0);
-    });
+            await vi.runAllTimersAsync();
+            expect(syncCommands()).not.toHaveLength(0);
+            expect(savedField(syncCommands().at(-1)!.content).validate?.[bound]).toBe(expected);
+            expect(flushReplies()).toHaveLength(0);
+        },
+    );
 
-    it("saves blurred and still-focused numeric bounds with the same string type", async () => {
+    it("saves blurred and still-focused numeric bounds with the same number type", async () => {
         vi.useFakeTimers();
         const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
         dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
@@ -175,11 +192,39 @@ describe("form webview with the real form-js editor", () => {
         minimum.blur();
         await vi.runAllTimersAsync();
         expect(syncCommands()).not.toHaveLength(0);
-        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe("5");
+        expect(savedField(syncCommands().at(-1)!.content).validate?.min).toBe(5);
         await typeInto("max", "20");
 
-        expect((await flushField(flushReplies)).validate).toMatchObject({ min: "5", max: "20" });
+        expect((await flushField(flushReplies)).validate).toMatchObject({ min: 5, max: 20 });
     });
+
+    it.each(["min", "max"])(
+        "keeps %s numeric when blurring after both input debounces settle",
+        async (bound) => {
+            vi.useFakeTimers();
+            const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
+            dispatch(new FormFileQuery(formWithField({ type: "number" }), 1));
+            await selectField("Field_1");
+            await vi.runAllTimersAsync();
+
+            const input = await typeInto(bound, "-2.5");
+            await vi.runAllTimersAsync();
+            expect(syncCommands()).not.toHaveLength(0);
+            expect(savedField(syncCommands().at(-1)!.content).validate?.[bound]).toBe(-2.5);
+
+            input.blur();
+            await vi.runAllTimersAsync();
+
+            for (const command of syncCommands()) {
+                expect(savedField(command.content).validate?.[bound]).toBe(-2.5);
+            }
+            expect(savedField(syncCommands().at(-1)!.content).validate?.[bound]).toBe(-2.5);
+            dispatch(new FlushDocumentQuery(7));
+            await vi.waitFor(() => expect(flushReplies()).toHaveLength(1));
+            expect(flushReplies()[0].status).toBe("clean");
+            expect(flushReplies()[0].content).toBeUndefined();
+        },
+    );
 
     it("preserves an existing FEEL bound when editing its numeric sibling", async () => {
         const { flushReplies } = bootstrapWithRealFormJs();
@@ -198,7 +243,7 @@ describe("form webview with the real form-js editor", () => {
 
         expect((await flushField(flushReplies)).validate).toMatchObject({
             min: "= lowerLimit + 1",
-            max: "20",
+            max: 20,
         });
     });
 
@@ -217,42 +262,51 @@ describe("form webview with the real form-js editor", () => {
         expect((await flushField(flushReplies)).validate ?? {}).not.toHaveProperty(bound);
     });
 
-    it("does not rewrite legacy numeric validation when opening and flushing without edits", async () => {
-        const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
-        const content = formWithField({ type: "number", validate: { min: 0, max: 20 } });
-        dispatch(new FormFileQuery(content, 1));
-        await selectField("Field_1");
+    it.each([
+        { min: 0, max: 20 },
+        { min: "0", max: "20" },
+    ])(
+        "does not rewrite validation %j when opening and flushing without edits",
+        async (validate) => {
+            const { flushReplies, syncCommands } = bootstrapWithRealFormJs();
+            const content = formWithField({ type: "number", validate });
+            dispatch(new FormFileQuery(content, 1));
+            await selectField("Field_1");
 
-        dispatch(new FlushDocumentQuery(7));
-        await vi.waitFor(() => expect(flushReplies()).toHaveLength(1));
-        expect(flushReplies()[0].status).toBe("clean");
-        expect(flushReplies()[0].content).toBeUndefined();
-        expect(syncCommands()).toHaveLength(0);
-    });
+            dispatch(new FlushDocumentQuery(7));
+            await vi.waitFor(() => expect(flushReplies()).toHaveLength(1));
+            expect(flushReplies()[0].status).toBe("clean");
+            expect(flushReplies()[0].content).toBeUndefined();
+            expect(syncCommands()).toHaveLength(0);
+        },
+    );
 
-    it("normalizes legacy sibling bounds but keeps numeric settings and required boolean when editing validation", async () => {
-        const { flushReplies } = bootstrapWithRealFormJs();
-        dispatch(
-            new FormFileQuery(
-                formWithField({
-                    type: "number",
-                    defaultValue: 1.5,
-                    decimalDigits: 2,
-                    validate: { min: 0, required: true },
-                }),
-                1,
-            ),
-        );
-        await selectField("Field_1");
+    it.each([0, "0"])(
+        "normalizes sibling bound %j but keeps numeric settings and required boolean when editing validation",
+        async (min) => {
+            const { flushReplies } = bootstrapWithRealFormJs();
+            dispatch(
+                new FormFileQuery(
+                    formWithField({
+                        type: "number",
+                        defaultValue: 1.5,
+                        decimalDigits: 2,
+                        validate: { min, required: true },
+                    }),
+                    1,
+                ),
+            );
+            await selectField("Field_1");
 
-        await typeInto("max", "20");
+            await typeInto("max", "20");
 
-        expect(await flushField(flushReplies)).toMatchObject({
-            defaultValue: 1.5,
-            decimalDigits: 2,
-            validate: { min: "0", max: "20", required: true },
-        });
-    });
+            expect(await flushField(flushReplies)).toMatchObject({
+                defaultValue: 1.5,
+                decimalDigits: 2,
+                validate: { min: 0, max: 20, required: true },
+            });
+        },
+    );
 
     it.each([
         ["Camunda Cloud", "8.8.0"],

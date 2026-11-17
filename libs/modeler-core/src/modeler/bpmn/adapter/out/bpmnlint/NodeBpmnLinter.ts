@@ -1,13 +1,17 @@
 import { dirname } from "path";
 
 import { type BpmnModdleFactory, loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
-import { LintResults } from "@miragon/bpmn-modeler-types";
+import { ElementIdConventionOptions, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 
 import { TRUSTED_WORKSPACE } from "../../../../../kernel/adapter/out/TrustedWorkspace";
 import { CodeApproval } from "../../../../../kernel/domain/codeApproval";
 import { fileSystemPathOf, toWorkspacePath } from "../../../../../kernel/domain/workspacePath";
+import {
+    ELEMENT_ID_NAMING_RULE,
+    elementIdConventionOptionsOf,
+} from "../../../domain/elementIdConvention";
 import { PathStamp } from "../../../domain/installedPackage";
 import { isParsedAsJson, rulePackageApprovalsKey } from "../../../domain/rulePackageApproval";
 import { LintRun, LintRunnerPort } from "../../../port/bpmnPorts";
@@ -103,6 +107,20 @@ export class NodeBpmnLinter implements LintRunnerPort {
             refused: setup.gate?.refusedModules() ?? [],
             untrusted: setup.untrusted,
         };
+    }
+
+    async elementIdConventionOptions(
+        configPath: string,
+        config: Record<string, unknown>,
+    ): Promise<ElementIdConventionOptions> {
+        const setup = await this.currentLintSetup(configPath, config);
+        const resolver = new CompositeResolver(setup.resolvers, setup.resolved, setup.gate);
+        try {
+            const rules = await new Linter({ config, resolver }).resolveConfiguredRules(config);
+            return elementIdConventionOptionsOf(rules[ELEMENT_ID_NAMING_RULE]);
+        } catch {
+            return {};
+        }
     }
 
     /** Checked before every run: once cached, an allowed package's rules never reach the gate again. */

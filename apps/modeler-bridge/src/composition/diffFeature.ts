@@ -2,11 +2,13 @@ import {
     BpmnDiffService,
     DiffPaneHandle,
     DiffPaneStore,
+    ElementXmlDiffService,
     WebviewMessageRouter,
     createDiffPaneRouter,
 } from "@miragon/bpmn-modeler-core";
 
 import { RpcDiffPaneHandle } from "../diff/adapter/out/RpcDiffPaneHandle";
+import { RpcElementXmlDiffView } from "../diff/adapter/out/RpcElementXmlDiffView";
 import { diffHandlers } from "../diff/adapter/in/diffHandlers";
 import { bindHandlers } from "./bindHandlers";
 import { BridgeSharedDeps } from "./sharedDeps";
@@ -24,7 +26,17 @@ export function register(deps: BridgeSharedDeps): {
     paneRoutes: Pick<WebviewMessageRouter<DiffPaneHandle>, "routeOf">;
 } {
     const diffStore = new DiffPaneStore();
-    const diffService = new BpmnDiffService(deps.notifier, deps.settings, diffStore);
+    const elementXmlDiffs = new ElementXmlDiffService(
+        diffStore,
+        new RpcElementXmlDiffView(deps.rpc),
+        deps.notifier,
+    );
+    const diffService = new BpmnDiffService(
+        deps.notifier,
+        deps.settings,
+        diffStore,
+        elementXmlDiffs,
+    );
     // IntelliJ's diff viewer swaps the sides itself, so the swap never reaches the bridge.
     const paneRouter = createDiffPaneRouter(diffService, { paneLog: deps.notifier });
 
@@ -33,6 +45,7 @@ export function register(deps: BridgeSharedDeps): {
         diffHandlers({
             diffStore,
             paneRouter,
+            elementXmlDiffs,
             createPane: (uri, content) => new RpcDiffPaneHandle(uri, content, deps.rpc),
             log: deps.log,
         }),
