@@ -147,13 +147,23 @@ describe("ElementIdReviewService with the host's own review panel", () => {
         expect(panel.focused).toBe(2);
     });
 
-    it("ignores rows from an editor whose review it is not", async () => {
+    it("tells an editor whose review it is not to stop listing", async () => {
         const { service, host, panel } = await openReview();
         const other = host.openEditor("/work/other.bpmn");
 
-        service.reportProposals(other.id, LISTED);
+        await service.reportProposals(other.id, LISTED);
 
         expect(panel.shown).toHaveLength(1);
+        expect(other.posted).toEqual([new CloseElementIdReviewQuery()]);
+    });
+
+    it("tells a page that still lists without a review, as after a bridge respawn, to stop", async () => {
+        const { service, editor, panel } = createPanelService();
+
+        await service.reportProposals(editor.id, LISTED);
+
+        expect(panel.shown).toEqual([]);
+        expect(editor.posted).toEqual([new CloseElementIdReviewQuery()]);
     });
 
     it("shows a change of a checkbox at once and asks the editor for the new rows", async () => {

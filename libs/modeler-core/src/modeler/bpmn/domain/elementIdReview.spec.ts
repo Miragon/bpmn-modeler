@@ -185,18 +185,19 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         actions: [show([])],
     },
     {
-        name: "ignores rows from an editor whose review it is not",
+        name: "tells an editor whose review it is not to stop listing",
         review: LISTED,
         event: listing("other"),
         next: LISTED,
-        actions: [],
+        actions: [{ kind: "stopListing", editorId: "other" }],
     },
     {
-        name: "ignores rows once it is closed",
+        // Such as a page that kept listing across a bridge respawn.
+        name: "tells an editor to stop listing once it is closed",
         review: CLOSED_ELEMENT_ID_REVIEW,
         event: listing("order"),
         next: CLOSED_ELEMENT_ID_REVIEW,
-        actions: [],
+        actions: [{ kind: "stopListing", editorId: "order" }],
     },
     {
         // The panel may still show the diagram the review moved away from.
