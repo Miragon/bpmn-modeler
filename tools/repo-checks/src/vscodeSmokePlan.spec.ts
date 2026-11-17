@@ -82,7 +82,7 @@ describe("the suites a change selects", () => {
     });
 
     it("runs every suite for another file of the smoke folder", () => {
-        expect(selectSuites(sample, [`${SMOKE_FOLDER}/support/smokeSuite.ts`])).toEqual([
+        expect(selectSuites(sample, [`${SMOKE_FOLDER}/support/sharedHelper.ts`])).toEqual([
             "editor",
             "diff",
             "allowance",
