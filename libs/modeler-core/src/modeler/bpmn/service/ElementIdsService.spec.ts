@@ -151,6 +151,18 @@ describe("ElementIdsService with the host's own review panel", () => {
         expect(editor.posted).toEqual([new ElementIdProposalsQuery(["Process_1", "Activity_1"])]);
     });
 
+    it("keeps a row unchecked when a listing the page sent before the click arrives after it", async () => {
+        const { service, editor, panel } = await openReview();
+
+        await service.setChecked(["Activity_1"], false);
+        service.reportProposals(editor.id, LISTED);
+        editor.posted.length = 0;
+        await service.apply();
+
+        expect(panel.last?.renameCount).toBe(0);
+        expect(editor.posted).toEqual([new ApplyElementIdsQuery(["Process_1", "Activity_1"])]);
+    });
+
     it("renames the checked rows and closes the panel once the editor has", async () => {
         const { service, editor, panel } = await openReview();
 
