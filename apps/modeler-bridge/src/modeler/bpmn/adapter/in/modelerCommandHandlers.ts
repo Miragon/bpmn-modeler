@@ -3,6 +3,7 @@ import {
     BpmnMigrationService,
     EngineVersionSelectionService,
     EditorSessionStore,
+    ElementIdReviewService,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     NotifierPort,
     ModelerLanguageService,
@@ -15,11 +16,12 @@ import { WorkspaceRoots } from "../../../../kernel/port/WorkspaceRoots";
 
 /**
  * RPC (Host → Core): modeler/changeEngineVersion, modeler/changeLanguage, layout/format,
- * layout/cleanup, migration/migrateAll.
+ * layout/cleanup, elementIds/generate, migration/migrateAll.
  */
 export function modelerCommandHandlers({
     engineSelection,
     layout,
+    elementIdReview,
     migration,
     store,
     notifier,
@@ -28,6 +30,7 @@ export function modelerCommandHandlers({
 }: {
     engineSelection: EngineVersionSelectionService;
     layout: BpmnLayoutService;
+    elementIdReview: ElementIdReviewService;
     migration: BpmnMigrationService;
     store: EditorSessionStore;
     notifier: NotifierPort;
@@ -60,6 +63,7 @@ export function modelerCommandHandlers({
         // outcome comes back over the webview channel, which the BPMN editor routes.
         [METHODS.layoutFormat]: () => withActiveEditor((id) => layout.format(id)),
         [METHODS.layoutCleanup]: () => withActiveEditor((id) => layout.inspectCleanup(id)),
+        [METHODS.elementIdsGenerate]: () => withActiveEditor((id) => elementIdReview.generate(id)),
         [METHODS.migrationMigrateAll]: async (params: MigrateAllParams) => {
             // Migrate can fire with no editor open, so temporarily register its root.
             // NodeWorkspace reference-counts roots, preserving any live session claim.

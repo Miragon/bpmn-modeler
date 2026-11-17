@@ -36,6 +36,8 @@ import javax.swing.SwingConstants
  * core. The one exception is **swap-sides** (see [swap]): swapping recreates the
  * two panes, a host/lifecycle concern, so it is handled here rather than in the
  * vscode-free core — mirroring how VS Code keeps swap in `DiffController`.
+ * Below the browsers it hosts the element XML diff the core shows
+ * ([SplitElementXmlDiffPanel]).
  *
  * **Pane identity** ([uriFor]) is the key wrinkle: a `#<diffId>-<role>` fragment
  * is appended to each side's file URL so that (a) the two sides stay distinct
@@ -95,6 +97,10 @@ class BpmnDiffViewer(
     // in init(), the EDT lifecycle point where heavy work belongs.
     private var startSession: (() -> Unit)? = null
 
+    // One per viewer, kept across a swap's reopen so the core's close of the
+    // swapped-out diff still reaches the panel.
+    private var elementXmlDiff: ElementXmlDiffSlot? = null
+
     init {
         if (coreProcess == null) {
             origin = "scm"
@@ -122,7 +128,12 @@ class BpmnDiffViewer(
             val splitter = JBSplitter(false, 0.5f)
             splitter.firstComponent = beforePane.component
             splitter.secondComponent = afterPane.component
-            rootComponent = splitter
+            val xmlDiffPanel =
+                SplitElementXmlDiffPanel(project, ownDisposable, request.contentTitles, splitter) {
+                    elementXmlDiff?.closeByUser()
+                }
+            elementXmlDiff = ElementXmlDiffSlot(xmlDiffPanel) { diffKey -> coreProcess.elementXmlDiffClosed(diffKey) }
+            rootComponent = xmlDiffPanel.component
 
             startSession = { openAndLoad() }
         }
@@ -156,6 +167,7 @@ class BpmnDiffViewer(
             uriFor(ROLE_AFTER),
             afterText,
             panes[1].post,
+            checkNotNull(elementXmlDiff),
         )
         panes.forEach { it.load() }
     }

@@ -2,7 +2,7 @@ import type { Engine } from "@miragon/bpmn-modeler-types";
 import type { LintCallbacks } from "./bpmnlint/LintConfigService";
 import type { LintTierInit } from "./bpmnlint/lintTierMachine";
 import type { ModelerMode } from "./mode/mode";
-import type { LintingOptions } from "./publicApi";
+import type { ElementIdConvention, LintingOptions } from "./publicApi";
 
 // Fires at most once per page: an omitted `linting` used to enable in-page
 // linting, so a silent upgrade would strip a consumer's linter without a word.
@@ -59,4 +59,15 @@ export function buildLintModules(
             callbacks,
         ),
     ];
+}
+
+/**
+ * The lint rule's convention for IDs generated from names, with its Miragon
+ * defaults, so a surface built with the lint module never names an ID the rule
+ * would flag; a host that reads a `.bpmnlintrc` hands in its options instead.
+ */
+export function lintElementIdConvention(
+    linting: LintingOptions | undefined,
+): ElementIdConvention | undefined {
+    return linting ? linting.module.createElementIdConvention?.() : undefined;
 }
