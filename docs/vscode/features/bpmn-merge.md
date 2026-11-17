@@ -28,7 +28,7 @@ Opening the view writes nothing: the file and Git's index stay as Git left them.
 | **Taken from this side** (heavy contour) | The merge takes this pane's version without asking. |
 | **Taken from the other side** (hatched) | The merge takes the other pane's version, also when the other side removed the element. |
 
-Only content counts: a difference in layout is never a conflict, and the merge takes current's layout. Elements without a shape, such as the process's own attributes or a message, are listed in the legend under **Without a shape**.
+Only content counts: a difference in layout is never a conflict. The merge keeps current's layout of an element unless only incoming changed it; an element inside a container can also take the side its container is drawn from, so it stays inside. When both sides moved an element to different places, the build notes it. Elements without a shape, such as the process's own attributes or a message, are listed in the legend under **Without a shape**.
 
 The legend counts the open conflicts. **‹** and **›** step through them in flow order on both panes; **Step through: All merged elements** steps through every marked element instead, so you can also change what the merge decided by itself.
 
@@ -63,7 +63,7 @@ Once no conflict is open, **Build** in the right pane's legend writes the merged
 
 <figure class="shot"><img src="./images/bm-notes.png" alt="The right pane's legend with Review notes (1) open, listing that Check feature order is kept without the flows the other side removed with it, with buttons for the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
 
-**Review notes (N)** lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
+**Review notes (N)** lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
 
 ## Compare the result
 

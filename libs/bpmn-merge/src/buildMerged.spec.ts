@@ -170,7 +170,9 @@ describe("buildMerged", () => {
             expect(
                 notes.filter(
                     (note) =>
-                        note.kind !== "frameDiffers" && note.kind !== "drawnApartFromContainer",
+                        note.kind !== "frameDiffers" &&
+                        note.kind !== "drawnApartFromContainer" &&
+                        note.kind !== "layoutChangedByBoth",
                 ),
             ).toEqual([]);
         });
@@ -993,6 +995,20 @@ ${
             const { notes } = await automaticMerge(versions);
 
             expect(notes).toEqual([{ kind: "addedAtSamePlace", ids: ["Task_Here", "Task_There"] }]);
+        });
+
+        it("names an element both sides moved differently and the side whose layout it keeps", async () => {
+            const { notes } = await automaticMerge(scenarioNamed("both moved differently"));
+
+            expect(notes).toEqual([
+                { kind: "layoutChangedByBoth", ids: ["Task_Reject"], keptSide: "current" },
+            ]);
+        });
+
+        it("notes nothing for an element both sides moved alike", async () => {
+            const { notes } = await automaticMerge(scenarioNamed("both moved the same way"));
+
+            expect(notes).toEqual([]);
         });
 
         it("names a frame attribute the sides changed differently and keeps current's", async () => {

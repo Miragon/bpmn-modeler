@@ -156,6 +156,8 @@ function noteElementIds(note: MergePaneBuildNote): readonly string[] {
             return [note.id, ...note.containers];
         case "restoredWithoutConnections":
             return [note.id, ...note.connections];
+        case "layoutChangedByBoth":
+            return note.ids;
         case "frameDiffers":
             return [];
     }

@@ -1,5 +1,6 @@
 import type { DiagramBounds } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
+import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
 import {
     type LayoutState,
     MERGE_SIDES,
@@ -29,6 +30,11 @@ export type BuildNote =
           readonly id: string;
           readonly connections: readonly string[];
       }
+    | {
+          readonly kind: "layoutChangedByBoth";
+          readonly ids: readonly string[];
+          readonly keptSide: MergeSide;
+      }
     | { readonly kind: "frameDiffers"; readonly attribute: string };
 
 /**
@@ -38,17 +44,23 @@ export type BuildNote =
  */
 export function flowEndsNotes(result: MergeResult, resolution: MergeResolution): BuildNote[] {
     const drawnFrom = drawnFromOf(result, resolution);
-    const notes: BuildNote[] = [];
-    for (const element of result.elements) {
-        const version = chosenVersionOf(element, (id) => resolution.elements[id]);
-        if (!version || resolution.layout[element.id] === undefined) continue;
-        const ends = [...new Set(version.references.filter(isEdgeEnd).map(({ target }) => target))];
-        const sides = new Set([element.id, ...ends].map(drawnFrom));
-        if (MERGE_SIDES.every((side) => sides.has(side))) {
-            notes.push({ kind: "flowEndsFromDifferentSides", id: element.id, ends });
-        }
-    }
-    return notes;
+    return result.elements.flatMap((element): BuildNote[] => {
+        const ends = endsDrawnApartOf(element, resolution, drawnFrom);
+        return ends ? [{ kind: "flowEndsFromDifferentSides", id: element.id, ends }] : [];
+    });
+}
+
+/** A drawn flow's ends, when the flow and its ends are drawn from both sides together. */
+function endsDrawnApartOf(
+    element: MergeElement,
+    resolution: MergeResolution,
+    drawnFrom: (id: string) => MergeSide | undefined,
+): string[] | undefined {
+    const version = chosenVersionOf(element, (id) => resolution.elements[id]);
+    if (!version || resolution.layout[element.id] === undefined) return undefined;
+    const ends = [...new Set(version.references.filter(isEdgeEnd).map(({ target }) => target))];
+    const sides = new Set([element.id, ...ends].map(drawnFrom));
+    return MERGE_SIDES.every((side) => sides.has(side)) ? ends : undefined;
 }
 
 /** Elements only one side has, one from each side, whose shapes overlap. */
@@ -130,6 +142,103 @@ export function restoredWithoutConnectionsNotes(
             ? []
             : [{ kind: "restoredWithoutConnections", id: element.id, connections }];
     });
+}
+
+/**
+ * Elements the base and both sides draw, each side apart from the base and from the other: the
+ * result keeps one side's drawing. Members linked through a host, a parent, the pool drawing a
+ * parent process or a flow's end form one group, split by the side the result draws them from.
+ * A note lists only a part's outermost members, as a container stands for its contents and an
+ * end for its flows. A flow drawn from another side than one of its ends is left to
+ * `flowEndsNotes`, which already names it: when each side moved one end, its waypoints differ on
+ * both sides without either side routing it. Lanes link nothing: one can hold most of a diagram.
+ * Without a base nothing is noted, as every element the sides draw differently counts as
+ * changed by both.
+ */
+export function layoutChangedByBothNotes(
+    result: MergeResult,
+    resolution: MergeResolution,
+    layoutOf: (id: string, side: MergeSide) => string | undefined,
+): BuildNote[] {
+    const drawnFrom = drawnFromOf(result, resolution);
+    const keptSides = new Map<string, MergeSide>();
+    for (const element of result.elements) {
+        const keptSide = resolution.layout[element.id];
+        if (
+            keptSide !== undefined &&
+            changedApartByBoth(element, layoutOf) &&
+            !endsDrawnApartOf(element, resolution, drawnFrom)
+        ) {
+            keptSides.set(element.id, keptSide);
+        }
+    }
+    const links = memberLinksOf(result, resolution, keptSides);
+    const groupOf = groupsOf(links);
+    const parts = new Map<string, { readonly keptSide: MergeSide; readonly ids: string[] }>();
+    for (const [id, keptSide] of keptSides) {
+        const key = `${groupOf(id)} ${keptSide}`;
+        const part = parts.get(key) ?? { keptSide, ids: [] };
+        part.ids.push(id);
+        parts.set(key, part);
+    }
+    return [...parts.values()].map(({ keptSide, ids }): BuildNote => {
+        const inPart = new Set(ids);
+        const outermost = ids.filter((id) => !links.get(id)?.some((link) => inPart.has(link)));
+        return { kind: "layoutChangedByBoth", ids: outermost, keptSide };
+    });
+}
+
+function changedApartByBoth(
+    { id, layout, versions }: MergeElement,
+    layoutOf: (id: string, side: MergeSide) => string | undefined,
+): boolean {
+    return (
+        layout === "bothChanged" &&
+        versions.base?.drawn === true &&
+        versions.current?.drawn === true &&
+        versions.incoming?.drawn === true &&
+        layoutOf(id, "current") !== layoutOf(id, "incoming")
+    );
+}
+
+/** Each member's containers and flow ends that are members too. */
+function memberLinksOf(
+    result: MergeResult,
+    resolution: MergeResolution,
+    members: ReadonlyMap<string, MergeSide>,
+): ReadonlyMap<string, readonly string[]> {
+    const sideInResult = (id: string) => resolution.elements[id];
+    const pools = poolsByProcess(result.elements, sideInResult);
+    const links = new Map<string, readonly string[]>();
+    for (const element of result.elements) {
+        if (!members.has(element.id)) continue;
+        const version = chosenVersionOf(element, sideInResult);
+        const containers = drawingContainersOf(version, pools)
+            .filter(({ kind }) => kind !== "lane")
+            .map(({ id }) => id);
+        const ends = (version?.references ?? []).filter(isEdgeEnd).map(({ target }) => target);
+        links.set(
+            element.id,
+            [...containers, ...ends].filter((id) => members.has(id)),
+        );
+    }
+    return links;
+}
+
+/** The connected sets of `links`, each named by one of its ids. */
+function groupsOf(links: ReadonlyMap<string, readonly string[]>): (id: string) => string {
+    const representatives = new Map<string, string>([...links.keys()].map((id) => [id, id]));
+    const groupOf = (id: string): string => {
+        const representative = representatives.get(id) ?? id;
+        if (representative === id) return id;
+        const group = groupOf(representative);
+        representatives.set(id, group);
+        return group;
+    };
+    for (const [id, linked] of links) {
+        for (const other of linked) representatives.set(groupOf(other), groupOf(id));
+    }
+    return groupOf;
 }
 
 /** The side an element of the result is drawn from, undefined when both sides draw it alike or it is not drawn. */

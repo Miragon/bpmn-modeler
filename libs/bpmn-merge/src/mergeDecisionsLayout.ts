@@ -165,7 +165,7 @@ function followsContainer(
 }
 
 /** Host first, then the parent or, for a process, the pool drawing it, then the lanes. */
-function drawingContainersOf(
+export function drawingContainersOf(
     version: ElementVersion | undefined,
     poolOfProcess: ReadonlyMap<string, string>,
 ): { readonly id: string; readonly kind: ContainerKind }[] {
@@ -186,7 +186,8 @@ function drawingContainersOf(
     ];
 }
 
-function poolsByProcess(
+/** The pool of the result that draws each process, by the process. */
+export function poolsByProcess(
     elements: readonly MergeElement[],
     sideInResult: SideInResult,
 ): ReadonlyMap<string, string> {

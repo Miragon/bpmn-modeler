@@ -246,7 +246,10 @@ const COMPARISON_TEXTS: Record<MergeSide, string> = {
 };
 
 /** What each build note asks the user to check, with the canvas's names of its elements. */
-const BUILD_NOTE_TEXTS: Record<MergePaneBuildNote["kind"], string> = {
+const BUILD_NOTE_TEXTS: Record<
+    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth">,
+    string
+> = {
     flowEndsFromDifferentSides:
         "{element} connects shapes drawn by different sides; check where it meets {ends}",
     addedAtSamePlace: "{first} and {second} were added at the same place",
@@ -255,6 +258,11 @@ const BUILD_NOTE_TEXTS: Record<MergePaneBuildNote["kind"], string> = {
     restoredWithoutConnections:
         "{element} is kept without the flows the other side removed with it: {connections}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+};
+
+const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
+    current: "Both sides changed the layout of {elements}; current's is kept",
+    incoming: "Both sides changed the layout of {elements}; incoming's is kept",
 };
 
 /** Why Build is disabled. */
@@ -296,7 +304,11 @@ export function buildNoteText(
     translate: MergeTranslate,
 ): string {
     const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
-    return translate(BUILD_NOTE_TEXTS[note.kind], noteReplacements(note, nameOf, names));
+    const template =
+        note.kind === "layoutChangedByBoth"
+            ? LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide]
+            : BUILD_NOTE_TEXTS[note.kind];
+    return translate(template, noteReplacements(note, nameOf, names));
 }
 
 function noteReplacements(
@@ -313,6 +325,8 @@ function noteReplacements(
             return { element: nameOf(note.id), containers: names(note.containers) };
         case "restoredWithoutConnections":
             return { element: nameOf(note.id), connections: names(note.connections) };
+        case "layoutChangedByBoth":
+            return { elements: names(note.ids) };
         case "frameDiffers":
             return { attribute: note.attribute };
     }

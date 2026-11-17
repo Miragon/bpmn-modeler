@@ -929,6 +929,34 @@ describe("MergeMode", () => {
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
         });
 
+        it("lists a layout both sides changed with a button per element it names", async () => {
+            await startMergePane();
+            dispatch(
+                afterStates({
+                    canBuild: true,
+                    openConflicts: 0,
+                    built: true,
+                    notes: [
+                        {
+                            kind: "layoutChangedByBoth",
+                            ids: ["Task_Pack", "Task_Check"],
+                            keptSide: "incoming",
+                        },
+                    ],
+                }),
+            );
+
+            legendButton("Review notes (1)").click();
+
+            expect(legendText()).toContain(
+                "Both sides changed the layout of Pack parcel, Task_Check; incoming's is kept",
+            );
+            legendButton("Pack parcel").click();
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+            legendButton("Task_Check").click();
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
+        });
+
         it("offers no notes before a build or after one with none", async () => {
             await startMergePane();
             dispatch(afterStates({ canBuild: true, openConflicts: 0, built: true }));
