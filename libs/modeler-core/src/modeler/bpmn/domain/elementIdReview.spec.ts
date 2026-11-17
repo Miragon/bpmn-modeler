@@ -189,11 +189,14 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         actions: [],
     },
     {
-        name: "closes and tells the user to switch modes when the review cannot open",
+        name: "closes, stops the editor listing and tells the user to switch modes when the review cannot open",
         review: OPENING,
         event: unsupported,
         next: CLOSED_ELEMENT_ID_REVIEW,
-        actions: [{ kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS }],
+        actions: [
+            { kind: "stopListing", editorId: "order" },
+            { kind: "notify", text: SWITCH_MODE_TO_GENERATE_IDS },
+        ],
     },
     {
         name: "says so in the panel when the editor leaves the modes that change IDs",
