@@ -310,14 +310,17 @@ its own VS Code window, profile and workspace:
    theme) and restores the workspace's files, so a test opens what it needs and
    depends on no test before it. `freshProfile` starts every test on an empty
    profile, for a suite that changes what the extension stores for the user.
-3. A second development extension, the driver in `support/driver/`, runs the
-   functions a test sends it against the VS Code API (`session.evaluate`,
-   `executeCommand`, `openFile`, `setSetting`). Test plumbing goes through it:
-   opening a file, closing editors, changing a setting, focusing a view. It
-   needs neither the keyboard nor the focus. What is under test still runs as a
-   user runs it: a command of the extension from the palette (`runCommand`, so
-   its title and `when` clause count), a menu entry from its menu, a shortcut
-   by its keys.
+3. A second development extension, the driver in `support/driver/`, acts on
+   the window through the VS Code API when the test asks it to: run a command
+   by its id, change a setting, close tabs, report the window's state
+   (`session.executeCommand`, `openFile`, `setSetting`). Test plumbing goes
+   through it: opening a file, closing editors, changing a setting, focusing a
+   view. It needs neither the keyboard nor the focus. The driver runs a fixed
+   set of operations, never code it is sent; add an operation to
+   `extension.cjs` and `vscodeDriver.ts` when plumbing needs one. What is under
+   test still runs as a user runs it: a command of the extension from the
+   palette (`runCommand`, so its title and `when` clause count), a menu entry
+   from its menu, a shortcut by its keys.
 4. A failed test leaves `failure-<test>.png` and `failure-<test>.focus.json`
    (whether the window and which document held the keyboard), and the next test
    gets a new window. A stuck window fails one test, not the rest of the file.

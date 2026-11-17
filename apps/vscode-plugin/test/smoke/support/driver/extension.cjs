@@ -1,16 +1,69 @@
-// The smoke test's companion extension. It runs the functions the test sends
-// against the VS Code API, so test plumbing needs neither the keyboard nor
-// the focus. VS Code loads it as a second development extension.
+// The smoke test's companion extension. It answers the test's requests with
+// VS Code API calls, so test plumbing needs neither the keyboard nor the
+// focus. VS Code loads it as a second development extension. It runs the
+// operations below and nothing else: no code it is sent.
 const { randomBytes } = require("node:crypto");
 const { writeFileSync } = require("node:fs");
 const { createServer } = require("node:http");
 const { join } = require("node:path");
-const { compileFunction } = require("node:vm");
 
 const vscode = require("vscode");
 
 // Beside this file: the session copies the driver into its own folder, where it reads the endpoint.
 const ENDPOINT_FILE = join(__dirname, "endpoint.json");
+
+/** JSON has no URI, so a file's URI travels as `{ $fileUri: path }`. */
+function revived(argument) {
+    return argument !== null && typeof argument === "object" && "$fileUri" in argument
+        ? vscode.Uri.file(String(argument.$fileUri))
+        : argument;
+}
+
+const allTabs = () => vscode.window.tabGroups.all.flatMap((group) => group.tabs);
+
+const OPERATIONS = new Map([
+    [
+        "executeCommand",
+        async ({ command, args }) => {
+            await vscode.commands.executeCommand(String(command), ...args.map(revived));
+        },
+    ],
+    [
+        "updateSetting",
+        async ({ key, value }) => {
+            await vscode.workspace
+                .getConfiguration()
+                .update(String(key), value, vscode.ConfigurationTarget.Global);
+        },
+    ],
+    [
+        "closeTabs",
+        async ({ labels }) => {
+            await vscode.window.tabGroups.close(
+                allTabs().filter((tab) => labels.includes(tab.label)),
+            );
+        },
+    ],
+    [
+        // Closing an unsaved tab through the API would ask; this drops the changes.
+        "revertAndCloseAllEditors",
+        async () => {
+            for (let closed = 0; closed < 50 && allTabs().length > 0; closed++) {
+                await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+            }
+        },
+    ],
+    [
+        "windowState",
+        () => ({
+            windowFocused: vscode.window.state.focused,
+            activeTab: vscode.window.tabGroups.activeTabGroup.activeTab?.label ?? null,
+            tabs: vscode.window.tabGroups.all.map((group) =>
+                group.tabs.map((tab) => ({ label: tab.label, isDirty: tab.isDirty })),
+            ),
+        }),
+    ],
+]);
 
 function bodyOf(request) {
     return new Promise((resolve, reject) => {
@@ -21,10 +74,11 @@ function bodyOf(request) {
     });
 }
 
-async function evaluate(request) {
-    const { source, argument } = JSON.parse(await bodyOf(request));
-    const run = compileFunction(`return (${source})(vscode, argument)`, ["vscode", "argument"]);
-    return run(vscode, argument);
+async function answer(request) {
+    const { operation, payload } = JSON.parse(await bodyOf(request));
+    const run = OPERATIONS.get(operation);
+    if (!run) throw new Error(`the smoke driver knows no operation ${JSON.stringify(operation)}`);
+    return run(payload ?? {});
 }
 
 function activate(context) {
@@ -39,7 +93,7 @@ function activate(context) {
             reply(401, { error: "unauthorized" });
             return;
         }
-        evaluate(request).then(
+        answer(request).then(
             (result) => reply(200, { result }),
             (error) => reply(500, { error: String(error?.stack ?? error) }),
         );

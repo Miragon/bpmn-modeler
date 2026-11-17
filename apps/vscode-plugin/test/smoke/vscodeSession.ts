@@ -14,7 +14,7 @@ import {
     type Page,
 } from "playwright-core";
 
-import { VsCodeDriver, type VsCodeApi } from "./support/vscodeDriver";
+import { VsCodeDriver, fileUri } from "./support/vscodeDriver";
 
 const runFile = promisify(execFile);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
@@ -201,31 +201,22 @@ export class VsCodeSession {
         return join(this.options.rootDirectory, "user-data", "logs");
     }
 
-    /** Runs `run` in the extension host against the VS Code API; see {@link VsCodeDriver.evaluate}. */
-    evaluate<Result, Argument = undefined>(
-        run: (api: VsCodeApi, argument: Argument) => Result | Promise<Result>,
-        argument?: Argument,
-    ): Promise<Awaited<Result>> {
-        return this.driver.evaluate(run, argument);
-    }
-
-    /** Runs a command by its id, whatever has the focus. Test plumbing; a command under test runs as a user runs it. */
+    /**
+     * Runs a command by its id through the driver, whatever has the focus.
+     * Test plumbing; a command under test runs as a user runs it.
+     */
     async executeCommand(command: string, ...args: unknown[]): Promise<void> {
-        await this.evaluate(
-            async (api, call) => {
-                await api.commands.executeCommand(call.command, ...call.args);
-            },
-            { command, args },
-        );
+        await this.driver.call("executeCommand", { command, args });
     }
 
     /** Opens the file in a tab of its own, in the editor VS Code picks for it. */
     async openFile(file: string): Promise<void> {
-        await this.evaluate(async (api, path) => {
-            await api.commands.executeCommand("vscode.open", api.Uri.file(path), {
-                preview: false,
-            });
-        }, file);
+        await this.executeCommand("vscode.open", fileUri(file), { preview: false });
+    }
+
+    /** Opens the file in the custom editor of `viewType`, as Reopen Editor With does. */
+    async openFileWith(file: string, viewType: string): Promise<void> {
+        await this.executeCommand("vscode.openWith", fileUri(file), viewType);
     }
 
     /** Opens the file and waits until it is the active tab and `isRendered` holds for its webview. */
@@ -263,16 +254,11 @@ export class VsCodeSession {
      */
     async resetWorkbench(): Promise<void> {
         await this.page.mouse.move(0, 0);
-        await this.evaluate(async (api) => {
-            await api.commands.executeCommand("workbench.action.closeQuickOpen");
-            await api.commands.executeCommand("notifications.clearAll");
-            const hasTabs = () => api.window.tabGroups.all.some((group) => group.tabs.length > 0);
-            for (let closed = 0; closed < 50 && hasTabs(); closed++) {
-                await api.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
-            }
-            await api.commands.executeCommand("workbench.action.closePanel");
-            await api.commands.executeCommand("workbench.view.explorer");
-        });
+        await this.executeCommand("workbench.action.closeQuickOpen");
+        await this.executeCommand("notifications.clearAll");
+        await this.driver.call("revertAndCloseAllEditors");
+        await this.executeCommand("workbench.action.closePanel");
+        await this.executeCommand("workbench.view.explorer");
         await this.setColorTheme(this.options.colorTheme);
         await this.setGitEnabled(false);
         const leftovers = this.page.locator(
@@ -340,13 +326,7 @@ export class VsCodeSession {
                     .catch(unavailable),
             });
         }
-        const api = await this.evaluate((vscodeApi) => ({
-            windowFocused: vscodeApi.window.state.focused,
-            activeTab: vscodeApi.window.tabGroups.activeTabGroup.activeTab?.label ?? null,
-            tabs: vscodeApi.window.tabGroups.all.map((group) =>
-                group.tabs.map((tab) => `${tab.label}${tab.isDirty ? " (dirty)" : ""}`),
-            ),
-        })).catch(unavailable);
+        const api = await this.driver.call("windowState").catch(unavailable);
         return { windows, workbench, webviews, api };
     }
 
@@ -380,16 +360,11 @@ export class VsCodeSession {
     /** Closes the editor tabs whose title matches, whichever editor is active. */
     async closeEditorTab(title: RegExp): Promise<void> {
         const tab = this.page.locator(".tabs-container .tab").filter({ hasText: title }).first();
-        await this.evaluate(
-            async (api, { source, flags }) => {
-                const pattern = new RegExp(source, flags);
-                const matching = api.window.tabGroups.all
-                    .flatMap((group) => group.tabs)
-                    .filter((candidate) => pattern.test(candidate.label));
-                await api.window.tabGroups.close(matching);
-            },
-            { source: title.source, flags: title.flags },
-        );
+        const { tabs } = await this.driver.call("windowState");
+        const labels = tabs.flat().map(({ label }) => label);
+        await this.driver.call("closeTabs", {
+            labels: labels.filter((label) => title.test(label)),
+        });
         await tab.waitFor({ state: "detached", timeout: this.options.timeoutMs });
     }
 
@@ -583,14 +558,7 @@ export class VsCodeSession {
      * it. A rewritten settings file is only seen by a watcher, which can miss it.
      */
     async setSetting(key: string, value: unknown): Promise<void> {
-        await this.evaluate(
-            async (api, setting) => {
-                await api.workspace
-                    .getConfiguration()
-                    .update(setting.key, setting.value, api.ConfigurationTarget.Global);
-            },
-            { key, value },
-        );
+        await this.driver.call("updateSetting", { key, value });
     }
 
     /**

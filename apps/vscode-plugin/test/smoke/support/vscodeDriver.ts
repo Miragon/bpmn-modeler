@@ -2,18 +2,35 @@ import { cp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type * as vscode from "vscode";
-
 const DRIVER_SOURCES = fileURLToPath(new URL("./driver/", import.meta.url));
 const ENDPOINT_FILE = "endpoint.json";
 const RETRY_INTERVAL_MS = 100;
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
-export type VsCodeApi = typeof vscode;
-
 interface Endpoint {
     port: number;
     token: string;
+}
+
+interface WindowState {
+    windowFocused: boolean;
+    activeTab: string | null;
+    /** The tabs of each editor group. */
+    tabs: { label: string; isDirty: boolean }[][];
+}
+
+/** What the driver does in its window; `./driver/extension.cjs` holds the other half. */
+interface DriverOperations {
+    executeCommand: { payload: { command: string; args: unknown[] }; result: void };
+    updateSetting: { payload: { key: string; value: unknown }; result: void };
+    closeTabs: { payload: { labels: string[] }; result: void };
+    revertAndCloseAllEditors: { payload?: undefined; result: void };
+    windowState: { payload?: undefined; result: WindowState };
+}
+
+/** A file's URI as a command argument, which the driver turns into a `vscode.Uri`. */
+export function fileUri(path: string): { $fileUri: string } {
+    return { $fileUri: path };
 }
 
 /** A call the driver ran, or one that never reached a driver and can be sent again. */
@@ -28,9 +45,9 @@ function isConnectionRefused(error: unknown): boolean {
 }
 
 /**
- * Runs functions against the VS Code API of a window, through the companion
- * extension in `./driver`. A function is sent as its source text, so it can
- * use its two parameters only, as with Playwright's `evaluate`.
+ * Asks the companion extension in `./driver` to act on its window through
+ * the VS Code API: run a command by its id, change a setting, close tabs,
+ * report the window's state.
  */
 export class VsCodeDriver {
     private constructor(
@@ -49,18 +66,18 @@ export class VsCodeDriver {
 
     /**
      * Waits for the window's extension host, also after a reload, which starts
-     * a new one on a new port. A call that awaits a modal dialog never returns:
-     * start such a command without awaiting it.
+     * a new one on a new port. A command that awaits a modal dialog never
+     * returns, so no test plumbing may run one.
      */
-    async evaluate<Result, Argument = undefined>(
-        run: (api: VsCodeApi, argument: Argument) => Result | Promise<Result>,
-        argument?: Argument,
-    ): Promise<Awaited<Result>> {
+    async call<Name extends keyof DriverOperations>(
+        operation: Name,
+        payload?: DriverOperations[Name]["payload"],
+    ): Promise<DriverOperations[Name]["result"]> {
         const deadline = Date.now() + this.timeoutMs;
         let lastReason: unknown = new Error("no attempt was made");
         while (Date.now() < deadline) {
-            const attempt = await this.send(run.toString(), argument, deadline);
-            if (attempt.reached) return attempt.result as Awaited<Result>;
+            const attempt = await this.send(operation, payload, deadline);
+            if (attempt.reached) return attempt.result as DriverOperations[Name]["result"];
             lastReason = attempt.reason;
             await delay(RETRY_INTERVAL_MS);
         }
@@ -70,7 +87,7 @@ export class VsCodeDriver {
     }
 
     /** Throws once a driver has the call: sending it again could run it twice. */
-    private async send(source: string, argument: unknown, deadline: number): Promise<Attempt> {
+    private async send(operation: string, payload: unknown, deadline: number): Promise<Attempt> {
         const endpoint = await readFile(join(this.extensionPath, ENDPOINT_FILE), "utf8")
             .then((text) => JSON.parse(text) as Endpoint)
             .catch((reason: unknown) => ({ reason }));
@@ -84,14 +101,14 @@ export class VsCodeDriver {
                     "authorization": `Bearer ${endpoint.token}`,
                     "content-type": "application/json",
                 },
-                body: JSON.stringify({ source, argument }),
+                body: JSON.stringify({ operation, payload }),
                 signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
             });
         } catch (error) {
             // Nothing listens there yet, or no more: the endpoint file is about to change.
             if (isConnectionRefused(error)) return { reached: false, reason: error };
             throw new Error(
-                `the smoke driver did not answer a call (a modal dialog may be waiting): ${String(error)}`,
+                `the smoke driver did not answer ${operation} (a modal dialog may be waiting): ${String(error)}`,
                 { cause: error },
             );
         }

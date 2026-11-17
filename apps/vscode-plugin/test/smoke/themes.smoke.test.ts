@@ -42,13 +42,10 @@ describe("VS Code's color themes in the packaged extension's webviews", () => {
     });
 
     it.each(COLOR_THEMES)("shows the element template editor in the $name theme", async (theme) => {
-        await vscode().evaluate(async (api, file) => {
-            await api.commands.executeCommand(
-                "vscode.openWith",
-                api.Uri.file(file),
-                "bpmn-modeler.elementTemplateEditor",
-            );
-        }, suite.file(TEMPLATE_FILE));
+        await vscode().openFileWith(
+            suite.file(TEMPLATE_FILE),
+            "bpmn-modeler.elementTemplateEditor",
+        );
         const webview = vscode().webview();
         // The preview beside the builder shows the template's field once both have rendered.
         await webview

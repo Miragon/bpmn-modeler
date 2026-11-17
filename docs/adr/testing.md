@@ -114,8 +114,9 @@ none ([enforcement](architecture-enforcement.md#fitness-functions)).
   `--extensionTestsPath`: that mode changes how VS Code behaves (it refuses
   save dialogs, for one). What is under test still runs as a user runs it: a
   command of the extension from the palette, a menu entry from its menu. The
-  cost is a loopback port in the test window that runs what it is sent; a
-  token only the test knows guards it, and no shipped code knows of it.
+  cost is a loopback port in the test window that runs any VS Code command it
+  is asked for. A token only the test knows guards it, it runs a fixed set of
+  operations and no code it is sent, and no shipped code knows of it.
 
   **CI runs the suites a change selects.** The workflow has path filters, a
   weekly run against the newest stable VS Code and a manual version input.
