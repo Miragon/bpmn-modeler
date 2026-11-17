@@ -30,7 +30,10 @@ function expectSoundProjections(
 ): void {
     const { result } = decisions;
     const order = mergeNavigationOrder(result, sources);
-    const views = MERGE_SIDES.map((side) => ({ side, view: mergePaneView(decisions, side) }));
+    const views = MERGE_SIDES.map((side) => ({
+        side,
+        view: mergePaneView(decisions, side, sources),
+    }));
     const steps = MERGE_SIDES.map((side) => mergePaneSteps(decisions, order, side));
     const elementsById = new Map(result.elements.map((element) => [element.id, element]));
 

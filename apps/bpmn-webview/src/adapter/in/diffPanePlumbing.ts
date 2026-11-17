@@ -69,8 +69,7 @@ export class DiffPanePlumbing {
             additionalModules: [
                 createElementXmlChangesModule({
                     canShowElementXmlChanges: () => this.hostShowsElementXmlChanges,
-                    showElementXmlChanges: (elementId) =>
-                        this.host.postMessage(new ShowElementXmlChangesCommand(elementId)),
+                    showElementXmlChanges: (elementId) => this.showElementXmlChanges(elementId),
                 }),
                 ...additionalModules,
             ],
@@ -132,6 +131,11 @@ export class DiffPanePlumbing {
 
     offerElementXmlChanges(offered: boolean): void {
         this.hostShowsElementXmlChanges = offered;
+    }
+
+    /** Asks the host for an element's XML changes, from the context pad or a merge pane's menu row. */
+    showElementXmlChanges(elementId: string): void {
+        this.host.postMessage(new ShowElementXmlChangesCommand(elementId));
     }
 
     /** Names the pane's side with what `compose` returns, again whenever the language changes. */

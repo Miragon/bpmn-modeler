@@ -5,6 +5,7 @@ import {
     mergeElement,
     mergeResult,
     mergeResultWithoutBase,
+    NO_SOURCES,
     refersTo,
 } from "./__fixtures__/mergeResultBuilder";
 import { computeMerge } from "./computeMerge";
@@ -23,11 +24,11 @@ describe("mergePaneView", () => {
             mergeResult(mergeElement("Task_Reject", "takenFromIncoming")),
         );
 
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromThisSide: ["Task_Reject"],
         });
-        expect(mergePaneView(decisions, "current").marks).toEqual({
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromOtherSide: ["Task_Reject"],
         });
@@ -38,11 +39,11 @@ describe("mergePaneView", () => {
             mergeResult(mergeElement("Note_Check", "removedByCurrent")),
         );
 
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromOtherSide: ["Note_Check"],
         });
-        expect(mergePaneView(decisions, "current").marks).toEqual(NO_MARKS);
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual(NO_MARKS);
     });
 
     it("marks an element one side added as taken from that side on its own pane only", () => {
@@ -50,11 +51,11 @@ describe("mergePaneView", () => {
             mergeResult(mergeElement("Task_Audit", "addedByIncoming")),
         );
 
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromThisSide: ["Task_Audit"],
         });
-        expect(mergePaneView(decisions, "current").marks).toEqual(NO_MARKS);
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual(NO_MARKS);
     });
 
     it("marks open and dangling elements as conflicts", async () => {
@@ -64,11 +65,13 @@ describe("mergePaneView", () => {
             ),
         );
 
-        const incoming = mergePaneView(decisions, "incoming").marks;
+        const incoming = mergePaneView(decisions, "incoming", NO_SOURCES).marks;
         expect(incoming.conflict).toEqual(expect.arrayContaining(["Task_Reject", "Flow_Escalate"]));
         expect(incoming.takenFromThisSide).not.toContain("Task_Reject");
         expect(incoming.takenFromOtherSide).not.toContain("Task_Reject");
-        expect(mergePaneView(decisions, "current").marks.conflict).not.toContain("Task_Reject");
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks.conflict).not.toContain(
+            "Task_Reject",
+        );
     });
 
     it("marks a conflict on both panes that hold the element", () => {
@@ -79,11 +82,11 @@ describe("mergePaneView", () => {
             ),
         );
 
-        expect(mergePaneView(decisions, "current").marks).toEqual({
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             conflict: ["Task_Pack"],
         });
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             conflict: ["Task_Pack", "End_Rejected"],
         });
@@ -94,8 +97,8 @@ describe("mergePaneView", () => {
         (state) => {
             const decisions = MergeDecisions.from(mergeResult(mergeElement("Task_1", state)));
 
-            expect(mergePaneView(decisions, "current").marks).toEqual(NO_MARKS);
-            expect(mergePaneView(decisions, "incoming").marks).toEqual(NO_MARKS);
+            expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual(NO_MARKS);
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual(NO_MARKS);
         },
     );
 
@@ -109,11 +112,11 @@ describe("mergePaneView", () => {
             ),
         );
 
-        expect(mergePaneView(decisions, "current").marks).toEqual({
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             conflict: ["Task_Check", "Task_Audit"],
         });
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             conflict: ["Task_Check", "Task_Extra"],
         });
@@ -125,11 +128,11 @@ describe("mergePaneView", () => {
         );
         decisions.pick("Task_Pack", "incoming");
 
-        expect(mergePaneView(decisions, "incoming").marks).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromThisSide: ["Task_Pack"],
         });
-        expect(mergePaneView(decisions, "current").marks).toEqual({
+        expect(mergePaneView(decisions, "current", NO_SOURCES).marks).toEqual({
             ...NO_MARKS,
             takenFromOtherSide: ["Task_Pack"],
         });
@@ -147,7 +150,7 @@ describe("mergePaneView", () => {
             ),
         );
 
-        expect(mergePaneView(decisions, "current")).toMatchObject({
+        expect(mergePaneView(decisions, "current", NO_SOURCES)).toMatchObject({
             marks: { ...NO_MARKS, conflict: ["Task_Pack"] },
             shapeless: [
                 { id: "Process_1", type: "bpmn:Process", marker: "conflict" },
@@ -169,12 +172,12 @@ describe("mergePaneView", () => {
             ),
         );
 
-        expect(mergePaneView(decisions, "current").counts).toEqual({
+        expect(mergePaneView(decisions, "current", NO_SOURCES).counts).toEqual({
             takenFromThisSide: 0,
             takenFromOtherSide: 1,
             conflict: 2,
         });
-        expect(mergePaneView(decisions, "incoming").counts).toEqual({
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).counts).toEqual({
             takenFromThisSide: 2,
             takenFromOtherSide: 0,
             conflict: 2,
@@ -184,12 +187,15 @@ describe("mergePaneView", () => {
     it("lists no shape-less element the pane leaves unmarked", () => {
         const decisions = MergeDecisions.from(mergeResult(process("unchanged")));
 
-        expect(mergePaneView(decisions, "incoming").shapeless).toEqual([]);
+        expect(mergePaneView(decisions, "incoming", NO_SOURCES).shapeless).toEqual([]);
     });
 
     describe("shape-less rows", () => {
         const shapeless = (id: string, state: ElementState, type = "bpmn:Message") =>
             mergeElement(id, state, { type, drawn: false });
+        // Without sources no side names the element or writes a value.
+        const heldByBoth = { current: {}, incoming: {}, differences: [] };
+        const addedByCurrent = { current: {}, differences: [] };
 
         it("lists the shape-less elements either pane marks, also one the pane's side lacks, with the marker as this side sees it", () => {
             const decisions = MergeDecisions.from(
@@ -202,10 +208,16 @@ describe("mergePaneView", () => {
                 ),
             );
 
-            const incoming = mergePaneView(decisions, "incoming");
+            const incoming = mergePaneView(decisions, "incoming", NO_SOURCES);
 
             expect(incoming.shapelessRows).toStrictEqual([
-                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: false },
+                {
+                    id: "Process_1",
+                    type: "bpmn:Process",
+                    marker: "conflict",
+                    container: false,
+                    ...heldByBoth,
+                },
                 {
                     id: "Message_Mine",
                     type: "bpmn:Message",
@@ -213,6 +225,7 @@ describe("mergePaneView", () => {
                     container: false,
                     takenSide: "current",
                     lackingSide: { side: "incoming", lack: "missing" },
+                    ...addedByCurrent,
                 },
                 {
                     id: "Error_Theirs",
@@ -221,6 +234,8 @@ describe("mergePaneView", () => {
                     container: false,
                     takenSide: "incoming",
                     lackingSide: { side: "current", lack: "missing" },
+                    incoming: {},
+                    differences: [],
                 },
             ]);
             expect(incoming.shapeless.map(({ id }) => id)).toStrictEqual([
@@ -235,13 +250,15 @@ describe("mergePaneView", () => {
                 mergeResult(process("unchanged"), shapeless("Message_Old", "removedAndChanged")),
             );
 
-            expect(mergePaneView(decisions, "current").shapelessRows).toStrictEqual([
+            expect(mergePaneView(decisions, "current", NO_SOURCES).shapelessRows).toStrictEqual([
                 {
                     id: "Message_Old",
                     type: "bpmn:Message",
                     marker: "conflict",
                     container: false,
                     lackingSide: { side: "current", lack: "removed" },
+                    incoming: {},
+                    differences: [],
                 },
             ]);
         });
@@ -254,7 +271,7 @@ describe("mergePaneView", () => {
             decisions.pick("Process_1", "incoming");
             decisions.pick("Message_Mine", "incoming");
 
-            expect(mergePaneView(decisions, "incoming").shapelessRows).toStrictEqual([
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).shapelessRows).toStrictEqual([
                 {
                     id: "Process_1",
                     type: "bpmn:Process",
@@ -262,6 +279,7 @@ describe("mergePaneView", () => {
                     container: false,
                     takenSide: "incoming",
                     pick: { keptSide: "incoming", scope: "element" },
+                    ...heldByBoth,
                 },
                 {
                     id: "Message_Mine",
@@ -271,6 +289,7 @@ describe("mergePaneView", () => {
                     takenSide: "incoming",
                     lackingSide: { side: "incoming", lack: "missing" },
                     pick: { keptSide: "incoming", scope: "element" },
+                    ...addedByCurrent,
                 },
             ]);
         });
@@ -283,8 +302,14 @@ describe("mergePaneView", () => {
                 ),
             );
 
-            expect(mergePaneView(decisions, "current").shapelessRows).toStrictEqual([
-                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+            expect(mergePaneView(decisions, "current", NO_SOURCES).shapelessRows).toStrictEqual([
+                {
+                    id: "Process_1",
+                    type: "bpmn:Process",
+                    marker: "conflict",
+                    container: true,
+                    ...heldByBoth,
+                },
             ]);
         });
     });
@@ -311,13 +336,13 @@ describe("mergePaneView", () => {
 
             decisions.pick("Task_Pack", "incoming");
 
-            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toEqual([
                 { id: "Task_Pack", kind: "keptHere", keptSide: "incoming", scope: "element" },
             ]);
-            expect(mergePaneView(decisions, "current").badges).toEqual([
+            expect(mergePaneView(decisions, "current", NO_SOURCES).badges).toEqual([
                 { id: "Task_Pack", kind: "replacedHere", keptSide: "incoming", scope: "element" },
             ]);
-            expect(mergePaneView(decisions, "current").picksNotDrawn).toEqual([]);
+            expect(mergePaneView(decisions, "current", NO_SOURCES).picksNotDrawn).toEqual([]);
         });
 
         it("lists a pick the side has no version of as not drawn", () => {
@@ -330,11 +355,11 @@ describe("mergePaneView", () => {
 
             decisions.pick("Task_Reject", "incoming");
 
-            expect(mergePaneView(decisions, "current").badges).toEqual([]);
-            expect(mergePaneView(decisions, "current").picksNotDrawn).toEqual([
+            expect(mergePaneView(decisions, "current", NO_SOURCES).badges).toEqual([]);
+            expect(mergePaneView(decisions, "current", NO_SOURCES).picksNotDrawn).toEqual([
                 { id: "Task_Reject", keptSide: "incoming", scope: "element" },
             ]);
-            expect(mergePaneView(decisions, "incoming").badges).toHaveLength(1);
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toHaveLength(1);
         });
 
         it("lists a picked element no canvas draws as not drawn on both panes", () => {
@@ -343,7 +368,7 @@ describe("mergePaneView", () => {
             decisions.pick("Process_1", "current");
 
             for (const side of ["current", "incoming"] as const) {
-                expect(mergePaneView(decisions, side).picksNotDrawn).toEqual([
+                expect(mergePaneView(decisions, side, NO_SOURCES).picksNotDrawn).toEqual([
                     { id: "Process_1", keptSide: "current", scope: "element" },
                 ]);
             }
@@ -363,7 +388,7 @@ describe("mergePaneView", () => {
 
             decisions.pickWithContents("Sub", "incoming");
 
-            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toEqual([
                 { id: "Sub", kind: "keptHere", keptSide: "incoming", scope: "withContents" },
                 { id: "Inner", kind: "keptHere", keptSide: "incoming", scope: "element" },
             ]);
@@ -381,7 +406,7 @@ describe("mergePaneView", () => {
 
             decisions.pickWithConnections("Task_Reject", "incoming");
 
-            expect(mergePaneView(decisions, "incoming").badges).toEqual([
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toEqual([
                 {
                     id: "Task_Reject",
                     kind: "keptHere",
@@ -404,10 +429,10 @@ describe("mergePaneView", () => {
 
             decisions.pick("F", "incoming");
 
-            const incoming = mergePaneView(decisions, "incoming");
+            const incoming = mergePaneView(decisions, "incoming", NO_SOURCES);
             expect(incoming.consequences).toEqual(["B"]);
             expect(incoming.badges.map(({ id }) => id)).toEqual(["F"]);
-            expect(mergePaneView(decisions, "current").consequences).toEqual([]);
+            expect(mergePaneView(decisions, "current", NO_SOURCES).consequences).toEqual([]);
         });
 
         it("offers every element for a pick, a removal included, a container with its contents, and how to take back a pick", () => {
@@ -429,11 +454,11 @@ describe("mergePaneView", () => {
                 { id: "Sub", container: true, takenSide: "current", undo: "withContents" },
                 { id: "Inner", container: false, takenSide: "current", undo: "element" },
             ];
-            expect(mergePaneView(decisions, "current").pickable).toStrictEqual([
+            expect(mergePaneView(decisions, "current", NO_SOURCES).pickable).toStrictEqual([
                 ...pickable,
                 { id: "Task_Audit", container: false, takenSide: "incoming" },
             ]);
-            expect(mergePaneView(decisions, "incoming").pickable).toStrictEqual([
+            expect(mergePaneView(decisions, "incoming", NO_SOURCES).pickable).toStrictEqual([
                 ...pickable,
                 {
                     id: "Task_Audit",
@@ -472,8 +497,9 @@ describe("mergePaneView", () => {
                     ),
                 );
                 const lacksOn = (side: "current" | "incoming") =>
-                    mergePaneView(decisions, side).pickable.find(({ id }) => id === "Task_A")
-                        ?.otherSideLacks;
+                    mergePaneView(decisions, side, NO_SOURCES).pickable.find(
+                        ({ id }) => id === "Task_A",
+                    )?.otherSideLacks;
 
                 expect(lacksOn("current")).toBe(onCurrent);
                 expect(lacksOn("incoming")).toBe(onIncoming);
@@ -496,14 +522,16 @@ describe("mergePaneView", () => {
             decisions.pick("Inner", "incoming");
             decisions.pick("Sub", "incoming");
 
-            const view = mergePaneView(decisions, "incoming");
+            const view = mergePaneView(decisions, "incoming", NO_SOURCES);
             expect(view.badges.find(({ id }) => id === "Sub")?.scope).toBe("element");
             expect(view.pickable.find(({ id }) => id === "Sub")?.undo).toBe("element");
 
             decisions.pick("Inner2", "incoming");
 
             expect(
-                mergePaneView(decisions, "incoming").badges.find(({ id }) => id === "Sub")?.scope,
+                mergePaneView(decisions, "incoming", NO_SOURCES).badges.find(
+                    ({ id }) => id === "Sub",
+                )?.scope,
             ).toBe("withContents");
         });
 
@@ -523,8 +551,9 @@ describe("mergePaneView", () => {
             decisions.pick("Flow_No", "incoming");
 
             const scopeOfTask = () =>
-                mergePaneView(decisions, "incoming").badges.find(({ id }) => id === "Task_Reject")
-                    ?.scope;
+                mergePaneView(decisions, "incoming", NO_SOURCES).badges.find(
+                    ({ id }) => id === "Task_Reject",
+                )?.scope;
             expect(scopeOfTask()).toBe("element");
 
             decisions.pick("Flow_Rejected", "incoming");
@@ -548,7 +577,9 @@ describe("mergePaneView", () => {
             );
 
             expect(
-                mergePaneView(decisions, "current").pickable.find(({ id }) => id === "Task_Check"),
+                mergePaneView(decisions, "current", NO_SOURCES).pickable.find(
+                    ({ id }) => id === "Task_Check",
+                ),
             ).toEqual({ id: "Task_Check", container: false });
         });
 
@@ -564,7 +595,7 @@ describe("mergePaneView", () => {
                 );
 
                 expect(
-                    mergePaneView(decisions, "current").pickable.find(
+                    mergePaneView(decisions, "current", NO_SOURCES).pickable.find(
                         ({ id }) => id === "Container",
                     )?.container,
                 ).toBe(true);
@@ -582,7 +613,7 @@ describe("mergePaneView", () => {
             );
             const takenSides = (side: "current" | "incoming") =>
                 Object.fromEntries(
-                    mergePaneView(decisions, side).pickable.map(({ id, takenSide }) => [
+                    mergePaneView(decisions, side, NO_SOURCES).pickable.map(({ id, takenSide }) => [
                         id,
                         takenSide,
                     ]),

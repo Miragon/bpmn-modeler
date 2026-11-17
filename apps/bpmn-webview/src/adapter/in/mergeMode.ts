@@ -123,6 +123,7 @@ export class MergeMode {
                 onBuild: () => this.host.postMessage(new BuildMergeResultCommand()),
                 onCompare: (against) =>
                     this.host.postMessage(new CompareMergeResultCommand(against)),
+                onXmlChanges: (id) => this.pane.showElementXmlChanges(id),
             },
             i18n,
         );
@@ -327,7 +328,7 @@ export class MergeMode {
         this.bar.update({
             caption,
             counts,
-            controls: this.controls(states, this.outcomes.menuRows()),
+            controls: this.controls(states, this.outcomes.menuRows(this.states.elementXmlChanges)),
         });
     }
 

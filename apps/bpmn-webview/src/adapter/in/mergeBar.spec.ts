@@ -30,10 +30,12 @@ const CONTROLS: MergeBarControls = {
             id: "Message_1",
             type: "bpmn:Message",
             marker: "conflict",
+            values: { differences: [] },
             decisions: [
                 { kind: "keep", scope: "element", side: "current" },
                 { kind: "keep", scope: "element", side: "incoming" },
             ],
+            xmlChanges: false,
         },
     ],
     shapelessConflicts: 1,
@@ -96,6 +98,7 @@ describe("MergeBar", () => {
             onShapeless: vi.fn(),
             onDecide: vi.fn(),
             onCompare: vi.fn(),
+            onXmlChanges: vi.fn(),
         };
     });
 

@@ -335,6 +335,36 @@
     white-space: nowrap;
 }
 
+.merge-menu__row-values {
+    padding: 0 14px 2px 36px;
+    font-size: 12px;
+    color: var(--diff-legend-muted);
+}
+
+/* A long value wraps inside the menu instead of widening it past the pane. */
+.merge-menu__row-value {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.merge-menu__value {
+    font-family: var(--vscode-editor-font-family, monospace);
+    color: var(--diff-legend-text);
+}
+
+.merge-menu__xml {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    padding: 0;
+}
+
+.merge-menu__xml svg {
+    width: 14px;
+    height: 14px;
+}
+
 .merge-menu__row-picks {
     display: flex;
     flex-wrap: wrap;

@@ -1,4 +1,8 @@
-import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
+import {
+    type ModdleElement,
+    isModdleElement,
+    ownAttributeEntries,
+} from "@miragon/bpmn-modeler-diff";
 
 import type { BuildNote } from "./buildNotes";
 import type { MergeModdle } from "./engineModdle";
@@ -66,14 +70,9 @@ export async function frameOfDefinitions(
     definitions: ModdleElement,
 ): Promise<DocumentFrame> {
     const attributes: Record<string, string> = {};
-    for (const name of typedAttributesOf(definitions)) {
-        // A descriptor default is read through the prototype; only a value the file sets is the file's.
-        if (Object.prototype.hasOwnProperty.call(definitions, name)) {
-            attributes[name] = String(definitions[name]);
-        }
-    }
-    for (const [name, value] of Object.entries(definitions.$attrs ?? {})) {
-        if (name !== "xmlns" && !name.startsWith("xmlns:")) attributes[name] = value;
+    for (const { property, name, value } of ownAttributeEntries(definitions)) {
+        // applyFrame writes a typed attribute back by its property's name.
+        if (property?.isReference !== true) attributes[property?.name ?? name] = value;
     }
     const textOf = async (value: unknown) => {
         const elements = (Array.isArray(value) ? value : [value]).filter(isModdleElement);

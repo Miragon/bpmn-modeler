@@ -21,6 +21,7 @@ import {
     openShapelessConflictsText,
     reviewNotesText,
     shapelessHeadingText,
+    shapelessValueLines,
 } from "./mergeBarTexts";
 import {
     buildNoteText,
@@ -68,6 +69,13 @@ const AWAITING_TRANSLATION: ReadonlySet<string> = new Set([
     "Keep incoming with everything inside",
     "Leave out",
     "Also keep its removed flows",
+    // A shape-less row's value lines.
+    "none",
+    "and other content",
+    "Removed in current",
+    "Removed in incoming",
+    "Not in current",
+    "Not in incoming",
     // The build note on a layout both sides changed.
     "Both sides changed the layout of {elements}; current's is kept",
     "Both sides changed the layout of {elements}; incoming's is kept",
@@ -113,6 +121,14 @@ function mergeTextKeys(): Set<string> {
         decisionButtonText({ kind: "leaveOut", side, otherSideLacks: "removed" }, translate);
     }
     decisionButtonText({ kind: "undo", scope: "element" }, translate);
+    const attributeOnOneSide = { attribute: "errorCode", current: "E1" };
+    shapelessValueLines({ differences: [attributeOnOneSide] }, translate);
+    shapelessValueLines({ differences: [], moreDiffers: true }, translate);
+    for (const side of MERGE_SIDES) {
+        for (const lack of ["removed", "missing"] as const) {
+            shapelessValueLines({ lackingSide: { side, lack }, differences: [] }, translate);
+        }
+    }
     for (const count of [0, 1, 2]) {
         openConflictsText(count, translate);
         buildBlockedText(count, translate);

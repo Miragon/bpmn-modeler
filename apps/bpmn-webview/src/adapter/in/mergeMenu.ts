@@ -19,9 +19,11 @@ import {
     reviewNotesText,
     shapelessEntryText,
     shapelessHeadingText,
+    shapelessValueLines,
 } from "../../domain/mergeBarTexts";
 import { compareWithText, type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
 import { MergeBuildButton } from "./mergeBuildButton";
+import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
 import { closeMergePopupOnDismiss } from "./mergePopupDismissal";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
@@ -32,6 +34,8 @@ export interface MergeMenuActions {
     readonly onShapeless: (elementId: string) => void;
     readonly onDecide: (elementId: string, decision: MergePadDecision) => void;
     readonly onCompare: (against: MergeSide) => void;
+    /** Opens a shape-less element's XML changes from its row, as the pad does for a drawn one. */
+    readonly onXmlChanges: (elementId: string) => void;
     readonly onReviewNotes: () => void;
     readonly onBuild: () => void;
 }
@@ -252,6 +256,7 @@ export class MergeMenu {
             rows.map((row) => [
                 row,
                 shapelessEntryText(row, this.translate),
+                shapelessValueLines(row.values, this.translate),
                 row.decisions.map((decision) => padDecisionText(decision, this.translate)),
             ]),
         );
@@ -289,6 +294,20 @@ export class MergeMenu {
             ),
             createElement("span", "merge-menu__row-name", name),
         );
+        const lines = shapelessValueLines(row.values, translate);
+        const values = createElement("div", "merge-menu__row-values");
+        values.hidden = lines.length === 0;
+        values.append(
+            ...lines.map((segments) => {
+                const line = createElement("p", "merge-menu__row-value");
+                line.append(
+                    ...segments.map(({ text, value }) =>
+                        value ? createElement("code", "merge-menu__value", text) : text,
+                    ),
+                );
+                return line;
+            }),
+        );
         const decisions = createElement("div", "merge-menu__row-picks");
         decisions.setAttribute("role", "group");
         decisions.setAttribute("aria-label", name);
@@ -306,11 +325,24 @@ export class MergeMenu {
                 return decisionButton;
             }),
         );
+        if (row.xmlChanges) decisions.append(this.xmlChangesButton(row.id));
         const outcome = createElement("div", "merge-menu__outcome");
         outcome.hidden = row.outcome === undefined;
         outcome.append(...(row.outcome ?? []).map((line) => createElement("span", "", line)));
-        item.append(stepButton, decisions, outcome);
+        item.append(stepButton, values, decisions, outcome);
         return item;
+    }
+
+    private xmlChangesButton(elementId: string): HTMLButtonElement {
+        const title = this.translate(ELEMENT_XML_CHANGES_TITLE);
+        const xmlButton = createButton("merge-menu__mini merge-menu__xml", () =>
+            this.actions.onXmlChanges(elementId),
+        );
+        xmlButton.dataset.focusKey = "xml";
+        xmlButton.setAttribute("aria-label", title);
+        xmlButton.setAttribute(MERGE_TOOLTIP_ATTRIBUTE, title);
+        xmlButton.innerHTML = CODE_ICON_SVG;
+        return xmlButton;
     }
 
     /**

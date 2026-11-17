@@ -8,6 +8,7 @@ import { type ElementSnapshot, elementSnapshots } from "./elementSnapshots";
 import { elementXml } from "./elementXml";
 import { walkContainment } from "./moddleContainment";
 import { type ModdleElement, isType } from "./moddleElement";
+import { isNamespaceDeclaration } from "./namespaceDeclarations";
 import { trackedElementOf } from "./trackedElements";
 
 const parseCount = vi.hoisted(() => ({ value: 0 }));
@@ -307,6 +308,63 @@ describe("elementSnapshots", () => {
             await expect(taskContentOf('<bpmn:task id="Task_1" xmlns="urn:x" />')).resolves.toBe(
                 await taskContentOf('<bpmn:task id="Task_1" />'),
             );
+        });
+    });
+
+    describe("attributes", () => {
+        /** The attribute names of the snippet's first start tag, namespace declarations left out. */
+        function startTagAttributeNames(xml: string): string[] {
+            const attributes = /^<[^\s/>]+([^>]*?)\/?>/.exec(xml)?.[1] ?? "";
+            return [...attributes.matchAll(/([^\s=]+)="/g)]
+                .map(([, name]) => name)
+                .filter((name) => !isNamespaceDeclaration(name))
+                .sort();
+        }
+
+        it.each([
+            ...SINGLE_DOCUMENTS.map(([label, xml]) => [label, xml, undefined] as const),
+            ...VERSION_PAIRS,
+        ])(
+            "are the ones each unit's start tag writes in %s",
+            async (_label, xml, prefixSources) => {
+                const snapshots = await elementSnapshots(xml, {
+                    isUnit: isMergeLikeUnit,
+                    ...(prefixSources === undefined ? {} : { prefixSources }),
+                });
+
+                for (const [id, snapshot] of snapshots) {
+                    expect({ id, names: Object.keys(snapshot.attributes).sort() }).toStrictEqual({
+                        id,
+                        names: startTagAttributeNames(snapshot.xml),
+                    });
+                }
+            },
+        );
+
+        it("keep an engine attribute at its default, and leave out a BPMN default, as the start tag does", async () => {
+            const snapshots = await elementSnapshots(
+                `<bpmn:definitions xmlns:bpmn="${BPMN}" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1">
+  <bpmn:itemDefinition id="Item_1" />
+  <bpmn:error id="Error_1" structureRef="Item_1" />
+  <bpmn:dataStore id="DataStore_1" name="Ledger" isUnlimited="true" />
+  <bpmn:process id="Process_1" isExecutable="false" camunda:isStartableInTasklist="true" />
+</bpmn:definitions>`,
+                { isUnit: isMergeLikeUnit },
+            );
+
+            expect(snapshotOf(snapshots, "Process_1").attributes).toStrictEqual({
+                "id": "Process_1",
+                "isExecutable": "false",
+                "camunda:isStartableInTasklist": "true",
+            });
+            expect(snapshotOf(snapshots, "DataStore_1").attributes).toStrictEqual({
+                id: "DataStore_1",
+                name: "Ledger",
+            });
+            expect(snapshotOf(snapshots, "Error_1").attributes).toStrictEqual({
+                id: "Error_1",
+                structureRef: "Item_1",
+            });
         });
     });
 

@@ -16,6 +16,8 @@ import {
     reviewNotesText,
     shapelessEntryText,
     shapelessHeadingText,
+    shapelessValueLines,
+    type MergeShapelessValues,
 } from "./mergeBarTexts";
 import type { MergePadDecision } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTexts";
@@ -204,6 +206,84 @@ describe("shapelessEntryText", () => {
         const text = shapelessEntryText({ id: "Element_1", type }, (key) => `de:${key}`);
 
         expect(text).toMatch(/^Element_1 \(de:[A-Z][a-z]+( [a-z]+)*\)$/);
+    });
+});
+
+describe("shapelessValueLines", () => {
+    const lineTexts = (values: MergeShapelessValues) =>
+        shapelessValueLines(values, untranslated).map((line) =>
+            line.map(({ text }) => text).join(""),
+        );
+
+    it.each<[string, MergeShapelessValues, string[]]>([
+        [
+            "gives each differing attribute both sides' values, the name on a line of its own",
+            {
+                differences: [
+                    {
+                        attribute: "name",
+                        current: "Payment declined",
+                        incoming: "Payment rejected",
+                    },
+                    { attribute: "errorCode", current: "E1", incoming: "E2" },
+                ],
+            },
+            [
+                "name: Current Payment declined · Incoming Payment rejected",
+                "errorCode: Current E1 · Incoming E2",
+            ],
+        ],
+        [
+            "says none for a side without the attribute",
+            {
+                differences: [{ attribute: "custom:flag", incoming: "x" }],
+            },
+            ["custom:flag: Current none · Incoming x"],
+        ],
+        [
+            "says that other content differs beyond the attributes",
+            { differences: [], moreDiffers: true },
+            ["and other content"],
+        ],
+        [
+            "says that a side removed the element the base holds",
+            { lackingSide: { side: "current", lack: "removed" }, differences: [] },
+            ["Removed in current"],
+        ],
+        [
+            "says that a side lacks the element without a base",
+            { lackingSide: { side: "incoming", lack: "missing" }, differences: [] },
+            ["Not in incoming"],
+        ],
+        ["has no line where nothing it knows differs", { differences: [] }, []],
+    ])("%s", (_case, values, expected) => {
+        expect(lineTexts(values)).toStrictEqual(expected);
+    });
+
+    it("sets the values apart from the words, but not none", () => {
+        const [line] = shapelessValueLines(
+            { differences: [{ attribute: "errorCode", current: "E1" }] },
+            untranslated,
+        );
+
+        expect(line?.filter(({ value }) => value).map(({ text }) => text)).toStrictEqual(["E1"]);
+    });
+
+    it("names the sides and the lack with the translated words", () => {
+        const german = (key: string) => `de:${key}`;
+
+        expect(
+            shapelessValueLines(
+                { lackingSide: { side: "incoming", lack: "removed" }, differences: [] },
+                german,
+            ).map((line) => line.map(({ text }) => text).join("")),
+        ).toStrictEqual(["de:Removed in incoming"]);
+        expect(
+            shapelessValueLines(
+                { differences: [{ attribute: "errorCode", current: "E1" }] },
+                german,
+            ).map((line) => line.map(({ text }) => text).join("")),
+        ).toStrictEqual(["errorCode: de:Current E1 · de:Incoming de:none"]);
     });
 });
 

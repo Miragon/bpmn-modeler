@@ -32,6 +32,7 @@ export type {
     PickScope,
     ShapelessRow,
 } from "./mergePaneView";
+export type { ValueDifference } from "./shapelessValues";
 export type {
     ConflictState,
     ElementReference,

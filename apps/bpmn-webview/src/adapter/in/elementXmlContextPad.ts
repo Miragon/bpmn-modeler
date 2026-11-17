@@ -4,6 +4,8 @@ import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
 
+import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
+
 import "./elementXmlContextPad.css";
 
 /** What the entry asks of the diff pane that adds it. */
@@ -32,10 +34,6 @@ interface Canvas {
 
 type Translate = (template: string) => string;
 
-const ENTRY_TITLE = "Show XML changes";
-
-const CODE_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>`;
-
 /** One context-pad entry that asks the host for the element's XML changes. */
 export class ElementXmlChangesContextPadProvider {
     static $inject = ["contextPad", "canvas", "translate", "elementXmlChangesEntryConfig"];
@@ -56,7 +54,7 @@ export class ElementXmlChangesContextPadProvider {
         ) {
             return {};
         }
-        const title = this.translate(ENTRY_TITLE);
+        const title = this.translate(ELEMENT_XML_CHANGES_TITLE);
         return {
             "element-xml-changes": {
                 group: "element-xml",

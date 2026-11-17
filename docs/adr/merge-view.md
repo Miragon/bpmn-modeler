@@ -129,15 +129,26 @@ on a narrow pane, which shift one diagram. Cost: the bar copies the legend's CSS
 **Projections in the library, typed by modeler-types.** What a pane shows is a pure function of
 the decisions in `libs/bpmn-merge`: `mergePaneView` (markers of the drawn elements, the
 shape-less ones listed, the count of each marker over both, and `shapelessRows`, the menu's list
-of the shape-less elements either pane marks with the user's pick), `mergePaneSteps` (each step
-naming the sub-process plane that draws it and which panes hold it) and `mergeNavigationOrder`
-(current's flow, an element only incoming's flow places after its nearest predecessor there,
-both flow orders kept in `MergeSources`), `hasNoShape` (no version drawn, or the process or
-collaboration that owns the root plane). The core's `domain/` cannot import the library, so
-`MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose step and shape-less
-copies a spec pins to the library's types. The webview paints and counts what it gets: it skips
-an id its canvas lacks and decides no marker. The menu's own list gives a row to a conflict only
-current holds, which incoming's counts, computed in the library, leave out.
+of the shape-less elements either pane marks with the user's pick and both sides' values),
+`mergePaneSteps` (each step naming the sub-process plane that draws it and which panes hold it)
+and `mergeNavigationOrder` (current's flow, an element only incoming's flow places after its
+nearest predecessor there, both flow orders kept in `MergeSources`), `hasNoShape` (no version
+drawn, or the process or collaboration that owns the root plane). The core's `domain/` cannot
+import the library, so `MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose
+step and shape-less copies a spec pins to the library's types. The webview paints and counts
+what it gets: it skips an id its canvas lacks and decides no marker. The menu's own list gives a
+row to a conflict only current holds, which incoming's counts, computed in the library, leave
+out.
+
+**A shape-less row shows what each side holds:** each side's presence and name, the attributes
+its snapshot's start tag writes whose values differ, as text (a reference as its target's id),
+and whether more differs (a child, the parent, the lanes). They sit on `shapelessRows`, not on
+the marks, which leave out what the pane's side lacks; whether a lacking side removed the
+element or never had it is the row's `lackingSide`, which also decides its picks. The title is
+current's name, else incoming's, so a pick changes neither the title nor the value lines; the
+base's value is not shown. Rejected: per-side name maps (silent on an `errorCode`), values read
+with the engine's descriptor (it drops an engine default the snapshot writes), the sides' XML
+diffed in the webview. Cost: "and other content" says only that more differs, the `</>` shows what.
 
 **A `"merge"` viewer mode.** diagram-js fixes a pane's modules when it is built, so the host
 tells a merge pane what it is in its first `BpmnFileQuery`; the merge session is attached before
@@ -161,15 +172,12 @@ keeps the list (`MergeStepListChangedCommand`) and the step a pane moved to per 
 them with every `ApplyMergeStatesQuery`, so both panes walk one list and a pane that reloaded
 after a tab switch goes back to the step. Rejected: relaying the toggle pane to pane, which a
 reload loses; the webview's `setState`, which keeps one pane only. Each pane keeps its cursor by
-element id, so a repaint leaves it in place and a decided conflict's successor is found from its
-place. On an element the walked list lacks, the counter counts it at that place, one more than
-the list holds, so a pick keeps the user's place. A shape-less step opens the right pane's menu
-at its row, with the reason, and leaves the focus on ‹ ›; a reload onto it does not, and the
-next step onto a drawn element or Escape on ‹ › closes it again. A step only the partner draws
-leaves the pane where it is, since a neighbour here would point at something else, but the pane
-enters the plane the partner stepped into, or notes that its version lacks it, which stops the
-viewport sync. The pane that draws such a step (`onOtherPane` false) posts its viewport after
-the step, so the partner shows the same part of the diagram.
+element id, so a repaint or a pick keeps the user's place, also on an element the walked list
+lacks. A shape-less step opens the right pane's menu at its row and leaves the focus on ‹ ›. A
+step only the partner draws leaves the pane where it is, since a neighbour here would point at
+something else, but the pane enters the plane the partner stepped into, or notes that its
+version lacks it, which stops the viewport sync. The pane that draws such a step (`onOtherPane`
+false) posts its viewport after the step, so the partner shows the same part of the diagram.
 
 ### Picking
 
@@ -212,33 +220,32 @@ diagram-js's pad has no keyboard handling, so a drawn element is decided by mous
 edge, clear of the type icon and of a collapsed sub-process's drilldown button: a check mark and
 the kept side's word as the caption has it ("✓ Incoming"), its full words as `aria-label`,
 filled on the side that kept it and outlined on the side whose version it replaced; a container
-kept with everything inside adds a nested box. Below 70 % zoom it shrinks to the check. A flow
-gets the check alone in the middle of its longest segment, scaled with the zoom, and none where
-no segment keeps it off the arrowhead (`flowBadgePlace`). diagram-js's overlays throw on an id
-the canvas lacks, so a pane badges only ids its registry holds, and a pick it cannot draw
-(removed on its side, or shape-less) is undone in the pad of the pane that draws it, or in its
-menu row. Consequences get a dotted outline and no badge; automatic resolutions keep only their
-marker.
+kept with everything inside adds a nested box. A flow gets the check alone (`flowBadgePlace`).
+diagram-js's overlays throw on an id the canvas lacks, so a pane badges only ids its registry
+holds, and a pick it cannot draw (removed on its side, or shape-less) is undone in the pad of
+the pane that draws it, or in its menu row. Consequences get a dotted outline and no badge;
+automatic resolutions keep only their marker.
 
 **The last outcome travels with the state; the acting pane shows it on a card.** The core keeps
 what the last pick or undo did per merge view: what it pulled in, dropped and opened again (the
 open conflicts before and after, since the merge names only what it newly decided), or why it
 was refused, as the merge's obstacle kind with the two elements and whether the whole target or
 a part is missing. It names the elements the menu lists and the outcome names as the side the
-merge takes each from names them; the webview falls back to its canvas, where an unnamed flow
-reads "Flow from A to B" (`mergeElementLabel`), then to the id. The sending pane remembers its
-side, which the outcome lacks (`mergeOutcomeMemory`, in `MergeOutcomes`), and shows the answer
-as a card below the element, its label, its boundary events and the pad; a flow's goes below its
-label or middle, away from the pad (`mergeOutcomeCardPlace`). It closes on the next step,
-another selection, × or the partner's newer decision, told by the outcome with the picks, since
-it names no side; it shows again on reselection and announces each outcome once, through live
-regions that exist before their text. The partner shows none; a row says its own. Rejected: the
-outcome in the header, far from the element and uneven in height; the acting pane in
-`lastOutcome`; a scored placement, which jumped from pick to pick. Cost: a reload or tab switch
-loses the card; the badge and the pad's restore offer stay, as the core projects them. Keeping
-an element the other side removed offers its flows on the kept side's pane, on the card and the
-pad, a shape-less one's on both panes; accepting is one `pickWithConnections`, declining leaves
-the build's `restoredWithoutConnections` note, and Undo takes the flows back too.
+merge takes each from names them (a row's title takes the row's own names); the webview falls
+back to its canvas, where an unnamed flow reads "Flow from A to B" (`mergeElementLabel`), then
+to the id. The sending pane remembers its side, which the outcome lacks (`mergeOutcomeMemory`,
+in `MergeOutcomes`), and shows the answer as a card below the element, its label, its boundary
+events and the pad; a flow's goes below its label or middle, away from the pad
+(`mergeOutcomeCardPlace`). It closes on the next step, another selection, × or the partner's
+newer decision, told by the outcome with the picks, since it names no side; it shows again on
+reselection and announces each outcome once, through live regions that exist before their text.
+The partner shows none; a row says its own. Rejected: the outcome in the header, far from the
+element and uneven in height; the acting pane in `lastOutcome`; a scored placement, which jumped
+from pick to pick. Cost: a reload or tab switch loses the card; the badge and the pad's restore
+offer stay, as the core projects them. Keeping an element the other side removed offers its
+flows on the kept side's pane, on the card and the pad, a shape-less one's on both panes;
+accepting is one `pickWithConnections`, declining leaves the build's
+`restoredWithoutConnections` note, and Undo takes the flows back too.
 
 ### Building
 
@@ -257,17 +264,16 @@ it lands in the editable modeler only because a merge tab names no file.
 
 **Ask before replacing what the user may want.** `overwriteDecision` writes without asking over
 Git's markers as the merge view read them when it opened, or over the last build as its save
-left the file (line endings and save participants may change the text); `git checkout -m` or
-the next build brings either back, and line endings never count as a change. It asks first
-over unsaved changes (the save would lose them), over markers changed since the merge view
-opened (a conflict resolved by hand there is not recoverable), over a file without markers
-that was never built (resolved another way, or another merge tool filled it) and over a build
-the user edited. A build the library refuses writes nothing and shows its reason, which names
-the elements; a second Build while one runs is ignored, and one with open conflicts is refused.
-The core keeps the last build and its notes in the
-merge session and sends them to the panes before it opens the file, which hides the merge tab,
-so the panes show the notes when the user comes back. Rejected: a command that picks one side
-for every open conflict, which decides for the user.
+left the file (line endings and save participants may change the text); `git checkout -m` or the
+next build brings either back, and line endings never count as a change. It asks first over
+unsaved changes (the save would lose them), over markers changed since the merge view opened (a
+conflict resolved by hand there is not recoverable), over a file without markers that was never
+built (resolved another way, or another merge tool filled it) and over a build the user edited.
+A build the library refuses writes nothing and shows its reason, which names the elements; a
+second Build while one runs is ignored, and one with open conflicts is refused. The core keeps
+the last build and its notes in the merge session and sends them to the panes before it opens
+the file, which hides the merge tab, so the panes show the notes when the user comes back.
+Rejected: a command that picks one side for every open conflict, which decides for the user.
 
 **The comparison is a plain BPMN diff of copies.** "Compare with current/incoming" reads the
 working file as it is open, unsaved edits included, and serves it as `order.result.bpmn` beside
@@ -297,22 +303,15 @@ conflict-marker participant.
 ## Consequences
 
 - The domain rules have table specs; `MergeViewOpener`, `ResolvableConflictsService` and the
-  participant run against the test kit's fakes; `describeConflictVersionsContract` and
-  `describeMergeSidesViewContract` hold every adapter, the fakes included.
-- `mergePaneProjections.spec.ts` checks what both panes show over every merge scenario and
-  150 random versions, before and after random picks: no open conflict off both panes, no
-  mark a side cannot hold, no step on neither pane, and every element a flow reaches before
-  the rest of the order.
+  participant run against the test kit's fakes, and the contract suites
+  (`describeConflictVersionsContract`, `describeMergeSidesViewContract`) hold every adapter.
+- `mergePaneProjections.spec.ts` checks both panes over every merge scenario and 150 random
+  versions, before and after random picks: no open conflict off both panes, no mark a side
+  cannot hold, no step on neither pane, every element a flow reaches before the rest.
 - `DiffController.spec.ts` keeps the working file an editable modeler beside a live and a
   restored merge tab, and a real SCM diff of it still a diff pane.
-- `test/e2e/merge.e2e.test.ts` opens a merge and a rebase conflict on 1.76.0 and stable; the
-  smoke test's `open` and `marks` steps cover each Git operation, a non-BPMN row, the notice,
-  the reload, the reopening and both panes' markers, through the DOM only.
-- `MergeDecisionService.spec.ts` covers picks, the side a pick names, Undo, a refused pick, the
-  restore offer and the menu's list on fake panes; the smoke test's `pick` steps decide on the
-  pad and read the outcome card, its `marks` step checks both bars level and unclipped.
-- `MergeBuildService.spec.ts` covers building, overwriting and comparing on fake ports;
-  `test/e2e` builds on 1.76.0 and stable and checks the index and that no diff pane holds the
-  built file; the smoke test's `build` steps build, compare, reload and let Git continue.
+- `MergeDecisionService.spec.ts` and `MergeBuildService.spec.ts` cover picking, building,
+  overwriting and comparing on fake ports; `test/e2e` opens a merge and a rebase conflict and
+  builds on 1.76.0 and stable; the smoke test opens, marks, picks and builds through the DOM.
 - The bridge builds no `MergeDecisionService` or `MergeBuildService` and ignores the build
   commands, yet the merge library reaches its binary through the core's barrel.

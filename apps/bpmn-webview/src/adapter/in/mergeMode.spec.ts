@@ -179,6 +179,9 @@ const step = (
     ...(plane === undefined ? {} : { plane }),
 });
 
+// No side names the element, and the sides differ in nothing the row lists.
+const HELD_BY_BOTH = { current: {}, incoming: {}, differences: [] } as const;
+
 const STATES: MergePaneStates = {
     caption: { side: "incoming", role: "upstream", ref: "feature", shortHash: "2222222" },
     marks: {
@@ -187,7 +190,13 @@ const STATES: MergePaneStates = {
         conflict: ["Task_Pack"],
     },
     shapelessRows: [
-        { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: false },
+        {
+            id: "Process_1",
+            type: "bpmn:Process",
+            marker: "conflict",
+            container: false,
+            ...HELD_BY_BOTH,
+        },
     ],
     counts: { takenFromThisSide: 1, takenFromOtherSide: 1, conflict: 2 },
     openConflictSteps: [
@@ -506,6 +515,7 @@ describe("MergeMode", () => {
                             type: "bpmn:Message",
                             marker: "takenFromThisSide",
                             container: false,
+                            ...HELD_BY_BOTH,
                         },
                     ],
                 }),
@@ -840,6 +850,21 @@ describe("MergeMode", () => {
                 side: (message as { side?: string }).side,
             }));
 
+        it("opens a shape-less element's XML changes from its row only where the host shows them", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            expect(rowOf("Process_1")?.querySelector(".merge-menu__xml")).toBeNull();
+
+            dispatch(mergeStates({}, true));
+            rowOf("Process_1")?.querySelector<HTMLButtonElement>(".merge-menu__xml")?.click();
+
+            expect(
+                posted()
+                    .filter((message) => message.type === "ShowElementXmlChangesCommand")
+                    .map((message) => (message as { elementId: string }).elementId),
+            ).toStrictEqual(["Process_1"]);
+        });
+
         it("keeps a shape-less element from either side through its menu row, naming the side", async () => {
             await startMergePane();
             dispatch(mergeStates());
@@ -873,6 +898,7 @@ describe("MergeMode", () => {
                             type: "bpmn:Process",
                             marker: "conflict",
                             container: true,
+                            ...HELD_BY_BOTH,
                         },
                     ],
                 }),
@@ -906,6 +932,7 @@ describe("MergeMode", () => {
                             type: "bpmn:Process",
                             marker: "takenFromThisSide",
                             container: true,
+                            ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "withContents" },
                         },
@@ -941,9 +968,10 @@ describe("MergeMode", () => {
                             marker: "conflict",
                             container: false,
                             lackingSide: { side: "incoming", lack: "removed" },
+                            current: { name: "Order received" },
+                            differences: [],
                         },
                     ],
-                    names: { Message_1: "Order received" },
                 }),
             );
 
@@ -981,6 +1009,7 @@ describe("MergeMode", () => {
                             type: "bpmn:Process",
                             marker: "takenFromThisSide",
                             container: false,
+                            ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "element" },
                         },
@@ -1044,6 +1073,7 @@ describe("MergeMode", () => {
                             type: "bpmn:Process",
                             marker: "takenFromThisSide",
                             container: false,
+                            ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "element" },
                         },
@@ -1096,6 +1126,8 @@ describe("MergeMode", () => {
                             takenSide: "current",
                             lackingSide: { side: "incoming", lack: "removed" },
                             pick: { keptSide: "current", scope: "element" },
+                            current: {},
+                            differences: [],
                         },
                     ],
                     restoreOffer: {

@@ -8,6 +8,7 @@ import type {
     PickScope,
     RequirementObstacle,
     ShapelessRow,
+    ValueDifference,
 } from "@miragon/bpmn-modeler-merge";
 import {
     type ApplyMergeStatesQuery,
@@ -18,6 +19,7 @@ import {
     type MergePanePickNotDrawn,
     type MergePaneShapelessRow,
     type MergePaneStep,
+    type MergePaneValueDifference,
     type MergePickScope,
     PickMergeSideCommand,
     SHOW_ALL_CURSOR,
@@ -197,14 +199,22 @@ describe("MergeDecisionService", () => {
         });
     });
 
-    it("lists a shape-less conflict in the menu and names it before any pick", async () => {
+    it("lists a shape-less conflict in the menu with both sides' values, the same on both panes", async () => {
         const { current, incoming, bothReady } = await openMergeView();
 
         await bothReady();
 
         for (const pane of [current, incoming]) {
             expect(lastStatesOf(pane).states.shapelessRows).toStrictEqual([
-                { id: "Process_1", type: "bpmn:Process", marker: "conflict", container: true },
+                {
+                    id: "Process_1",
+                    type: "bpmn:Process",
+                    marker: "conflict",
+                    container: true,
+                    current: { name: "Order A" },
+                    incoming: { name: "Order B" },
+                    differences: [{ attribute: "name", current: "Order A", incoming: "Order B" }],
+                },
             ]);
             expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order A" });
         }
@@ -275,6 +285,7 @@ describe("MergeDecisionService", () => {
     it("keeps the protocol's copies of the step and the shape-less row equal to the merge's", () => {
         expectTypeOf<MergePaneStep>().toEqualTypeOf<MergeStep>();
         expectTypeOf<MergePaneShapelessRow>().toEqualTypeOf<ShapelessRow>();
+        expectTypeOf<MergePaneValueDifference>().toEqualTypeOf<ValueDifference>();
     });
 
     it("keeps the protocol's copies of the picks and the obstacles equal to the merge's", () => {
