@@ -2,6 +2,8 @@
 export interface ElementXmlDiff {
     /** The key of the diagram diff's session. */
     readonly diffKey: string;
+    /** The diagram diff's before pane, for a host that shows the XML diff inside it. */
+    readonly paneUri: string;
     readonly elementId: string;
     readonly title: string;
     /** Empty when the element exists only on the other side. */

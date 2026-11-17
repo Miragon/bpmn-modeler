@@ -1,5 +1,6 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
+import type { ElementIdOptions as LibraryElementIdOptions } from "@miragon/bpmn-modeler-element-ids";
 import { BpmnModeler } from "./modeler";
 import { BpmnViewer } from "./viewer/viewer";
 import { BpmnDesigner } from "./design/designer";
@@ -7,6 +8,7 @@ import type {
     BpmnModelerHandle,
     ClipboardOptions,
     ContentSavedEvent,
+    ElementIdOptions,
     CoreModelerServices,
     CreateModeler,
     CreateModelerOptions,
@@ -214,6 +216,9 @@ void _entryConforms;
 
 // ThemeMode aliases the private SurfaceThemeMode, so an edit there would change the published type.
 expectTypeOf<ThemeMode>().toEqualTypeOf<"light" | "dark" | "automatic">();
+
+// The library's options reach the surface through the public ones, so an option either adds is in both.
+expectTypeOf<keyof ElementIdOptions>().toEqualTypeOf<keyof LibraryElementIdOptions>();
 const _lintOff: LintingOptions = false;
 const _lintExternal: LintingOptions = { module: _lintModule, results: "external" };
 const _lintConfig: LintingOptions = { module: _lintModule, config: {} };

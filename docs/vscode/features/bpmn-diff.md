@@ -34,11 +34,13 @@ The bar above the panes counts the changes per type, leaving out types without a
 
 Blue only says that an element changed. To see what changed, such as an input mapping or a listener, select the element and click **Show XML changes** (the `</>` icon) on its context pad. VS Code opens a text diff of that element's XML from both versions in an editor group below the diagram diff. It leaves out the diagram layout and the elements inside it, such as a sub-process's tasks, so only the element's own configuration shows. Formatting, attribute order and a renamed namespace prefix never show as changes.
 
+<figure class="shot"><img src="/shots/bpmn-diff-element-xml.gif" alt="Five captioned steps in VS Code: the changed file order.bpmn is opened from Source Control, the blue service task Charge credit card is selected in the diagram diff, the &lt;/&gt; button on its context pad is clicked, a text diff of the task's XML opens below the diagrams with a changed retry count and a new input mapping, and selecting the user task Check order moves the text diff to that task"><figcaption>Select a changed element, click <code>&lt;/&gt;</code> on its context pad, and the text diff of its XML opens below the diagrams. Select another element and it follows.</figcaption></figure>
+
 The tab names the element and the versions, as VS Code names its own diffs: for example `Activity_1 (XML): order.bpmn (Working Tree)` from Source Control, or `Activity_1 (XML): a.bpmn ↔ b.bpmn` for two compared files. An element that exists in one version only shows one empty side.
 
 While the text diff is open, clicking another element in either pane moves it to that element; the pane you clicked in keeps the element in view, and the other pane follows. Once you close the text diff, selecting elements no longer opens it; click **Show XML changes** again. The text diff closes with the diagram diff.
 
-The XML text diff is available in VS Code only; IntelliJ does not show it yet, and hosts without text diff tabs (some Theia versions) hide the entry.
+In IntelliJ, the text diff opens below the two diagrams inside the same diff tab, with the side titles of the diagram diff; close it with the **×** in its header. Hosts without text diff tabs (some Theia versions) hide the entry.
 
 The comparison uses [bpmn-js-differ](https://github.com/bpmn-io/bpmn-js-differ). The colours are Miragon's, as in [Diagit](https://github.com/Miragon/diagit).
 

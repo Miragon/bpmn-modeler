@@ -74,12 +74,7 @@ class CoreProcess(private val project: Project) : Disposable {
             // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { routers.seedAfterSpawn() },
             onRespawned = { routers.editor.reregisterLiveSessions() },
-            // Clear any in-flight spinner on a crash so it can't hang waiting on a
-            // progressEnd the dead core will never send.
-            onProcessDown = {
-                routers.hostUi.clearProgress()
-                routers.hostUi.expireActionNotices()
-            },
+            onProcessDown = { routers.clearAfterProcessDown() },
         )
     private val deps =
         BridgeDeps(
@@ -200,6 +195,12 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `layout/cleanup`; nothing is removed before the user confirms. */
     fun cleanupDiagram() = routers.modelerCommands.cleanupDiagram()
 
+    /** Fires `elementIds/generate` for the core's active editor session. */
+    fun generateElementIds() = routers.modelerCommands.generateElementIds()
+
+    /** The Element IDs tool window's checkboxes, selected rows, Apply and Discard. */
+    internal val elementIdReviewActions: ElementIdReviewActions get() = routers.elementIdReview
+
     /** Fires `deployment/switchTarget`; the core shows the target picker. */
     fun switchDeploymentTarget() = routers.modelerCommands.switchDeploymentTarget()
 
@@ -250,7 +251,7 @@ class CoreProcess(private val project: Project) : Disposable {
 
     // ── diff ─────────────────────────────────────────────────────────────────────
 
-    fun openDiff(
+    internal fun openDiff(
         diffId: String,
         origin: String,
         beforeUri: String,
@@ -259,7 +260,20 @@ class CoreProcess(private val project: Project) : Disposable {
         afterUri: String,
         afterContent: String,
         postToAfter: (String) -> Unit,
-    ) = routers.diff.openDiff(diffId, origin, beforeUri, beforeContent, postToBefore, afterUri, afterContent, postToAfter)
+        elementXmlDiff: ElementXmlDiffSlot,
+    ) = routers.diff.openDiff(
+        diffId,
+        origin,
+        beforeUri,
+        beforeContent,
+        postToBefore,
+        afterUri,
+        afterContent,
+        postToAfter,
+        elementXmlDiff,
+    )
+
+    fun elementXmlDiffClosed(diffKey: String) = routers.diff.elementXmlDiffClosed(diffKey)
 
     fun forwardDiffMessage(paneUri: String, rawMessage: String) = routers.diff.forwardDiffMessage(paneUri, rawMessage)
 

@@ -231,7 +231,11 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
             // createBpmnLayoutModule. Layout is pure geometry — the lib's runtime
             // imports are bpmn-auto-layout and bpmn-moddle, neither of which
             // carries a Camunda stack.
-            spec === "@miragon/bpmn-modeler-layout";
+            spec === "@miragon/bpmn-modeler-layout" ||
+            // Engine-neutral IDs from names: designer.ts value-imports
+            // ElementIdsModule; its runtime imports are preact, the panel's own
+            // preact and @miragon/bpmn-modeler-types.
+            spec === "@miragon/bpmn-modeler-element-ids";
         const offenders: string[] = [];
         for (const file of sourcesIn("design")) {
             for (const spec of valueImportedModules(file)) {
