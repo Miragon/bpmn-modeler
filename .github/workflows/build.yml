@@ -52,6 +52,8 @@ jobs:
               # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.
               - 'libs/modeler-types/src/elementTemplateFile.cases.json'
               - 'libs/shared/src/lib/elementTemplatePreviewMessages.cases.json'
+              # ElementIdReviewViewTest reads every field of the core's element ID review view.
+              - 'libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json'
               # EmptyDmnDiagramTest holds New DMN Model's scaffold to the shared one,
               # NewModelFileDialogTest the New BPMN/DMN Model dialog texts to the core's.
               - 'libs/modeler-types/src/emptyDmn.ts'
@@ -80,8 +82,6 @@ jobs:
               - 'apps/modeler-bridge/src/__fixtures__/intellijScriptTabs.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijProgress.cases.json'
               - 'apps/modeler-bridge/src/__fixtures__/intellijWritableScopes.json'
-              # ElementIdReviewViewTest reads every field of the core's element ID review view.
-              - 'libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json'
             standalone:
               - 'apps/standalone/**'
               - 'libs/standalone-extension/**'
