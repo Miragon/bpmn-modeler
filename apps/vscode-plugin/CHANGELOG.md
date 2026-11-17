@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.25.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.24.1...vscode-v1.25.0) (2026-11-16)
+
+
+### 🎉 New Features
+
+* **intellij-plugin:** show the selected element's XML changes below the BPMN diff ([#2499](https://github.com/Miragon/bpmn-modeler/issues/2499)) ([c2a7d6b](https://github.com/Miragon/bpmn-modeler/commit/c2a7d6b052e81db910fbdd4c87257d1d571775a9))
+
+
+### 🐞 Bug Fixes
+
+* **modeler-core:** report a camunda 7 deployment that creates no definition ([#2497](https://github.com/Miragon/bpmn-modeler/issues/2497)) [sync 102345d] ([1bf6eaa](https://github.com/Miragon/bpmn-modeler/commit/1bf6eaacdfc8b3e5955f9f692879188e6d96929f))
+
+## [1.24.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.24.0...vscode-v1.24.1) (2026-11-16)
+
+
+### 🐞 Bug Fixes
+
+* **form-webview:** use numbers for min and max in validation ([#2491](https://github.com/Miragon/bpmn-modeler/issues/2491)) [sync 9a56ef2] ([49c90e5](https://github.com/Miragon/bpmn-modeler/commit/49c90e54d28bd6c97d2083b7884a25e89201c7a2))
+
 ## [1.24.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.23.0...vscode-v1.24.0) (2026-11-14)
 
 

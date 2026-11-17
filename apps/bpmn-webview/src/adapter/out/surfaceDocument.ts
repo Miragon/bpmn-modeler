@@ -8,6 +8,8 @@ import type { HostChannel } from "../../port/hostChannel";
 
 interface SurfaceDocumentPorts {
     getSurface(): SurfaceHandle;
+    /** An import fires no command stack change, so what follows the diagram hears of it here. */
+    afterImport(): void;
 }
 
 /**
@@ -16,7 +18,7 @@ interface SurfaceDocumentPorts {
  */
 export function createSurfaceDocument(
     host: HostChannel,
-    { getSurface }: SurfaceDocumentPorts,
+    { getSurface, afterImport }: SurfaceDocumentPorts,
 ): BpmnDocumentSurface {
     async function openDocument(content: string | undefined): Promise<void> {
         const surface = getSurface();
@@ -36,7 +38,10 @@ export function createSurfaceDocument(
 
     return {
         // The session calls this inside its debounced queue, so a burst of pushes imports once.
-        importDocument: openDocument,
+        importDocument: async (content) => {
+            await openDocument(content);
+            afterImport();
+        },
         exportDocument: () => getSurface().exportDiagram(),
         afterSync: () => {
             const surface = getSurface();

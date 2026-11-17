@@ -130,6 +130,7 @@ function binderFor({
     const host = createHost();
     const session = { scheduleSync: vi.fn(), isReloadingForEngine: false };
     const elementTemplatesReply = { done: vi.fn() };
+    const elementIdReview = { refresh: vi.fn() };
     const panelRoot = document.createElement("div");
     const binder = createSurfaceBinder(host, {
         session,
@@ -137,8 +138,9 @@ function binderFor({
         engine,
         capabilities,
         elementTemplatesReply,
+        elementIdReview,
     });
-    return { host, session, elementTemplatesReply, panelRoot, binder };
+    return { host, session, elementTemplatesReply, elementIdReview, panelRoot, binder };
 }
 
 const asSurface = (handle: object) => handle as unknown as SurfaceHandle;
@@ -178,6 +180,19 @@ describe("createSurfaceBinder", () => {
                 changeCommandStack();
 
                 expect(session.scheduleSync).toHaveBeenCalledOnce();
+            },
+        );
+
+        it.each(EDITABLE_SURFACES)(
+            "lists the host's element ID review again after each change of the $surface",
+            ({ engine, fake }) => {
+                const { elementIdReview, binder } = binderFor({ engine });
+                const { handle, changeCommandStack } = fake();
+
+                binder.bindSurface(asSurface(handle));
+                changeCommandStack();
+
+                expect(elementIdReview.refresh).toHaveBeenCalledOnce();
             },
         );
 
@@ -367,6 +382,17 @@ describe("createSurfaceBinder", () => {
 
             expect(host.postMessage).not.toHaveBeenCalled();
             expect(elementTemplatesReply.done).toHaveBeenCalledExactlyOnceWith(undefined);
+        });
+
+        it.each([
+            { surface: "modeler", handle: () => fakeModeler().modeler },
+            { surface: "viewer", handle: fakeViewer },
+        ])("lists the host's element ID review again for a new $surface", ({ handle }) => {
+            const { elementIdReview, binder } = binderFor();
+
+            binder.requestSurfaceResources(asSurface(handle()));
+
+            expect(elementIdReview.refresh).toHaveBeenCalledOnce();
         });
     });
 });

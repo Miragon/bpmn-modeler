@@ -39,6 +39,7 @@ class ModelerSettingsConfigurable : Configurable {
         var language: String,
         var scriptingSpin: Boolean,
         var formPreviewAutomatic: Boolean,
+        var elementIdsFollowName: Boolean,
         var marketplacesText: String,
     )
 
@@ -126,6 +127,16 @@ class ModelerSettingsConfigurable : Configurable {
                     )
                 }
                 row {
+                    checkBox("IDs follow names")
+                        .bindSelected({ state.elementIdsFollowName }, { state.elementIdsFollowName = it })
+                        .comment(
+                            "Rename an element's ID as you change its name or type while the ID is still one " +
+                                "the modeler made (<code>Activity_0x1y2z3</code>, <code>StartEvent_1</code>) or " +
+                                "was generated from the old name and type. IDs you typed yourself and process " +
+                                "IDs never change.",
+                        )
+                }
+                row {
                     checkBox("Enable Camunda SPIN script completion")
                         .bindSelected({ state.scriptingSpin }, { state.scriptingSpin = it })
                         .comment(
@@ -206,6 +217,7 @@ class ModelerSettingsConfigurable : Configurable {
             language = language,
             scriptingSpin = scriptingSpin,
             formPreviewAutomatic = formPreviewAutomatic,
+            elementIdsFollowName = elementIdsFollowName,
             marketplaces = parseMarketplaces(marketplacesText),
         )
 
@@ -221,6 +233,7 @@ class ModelerSettingsConfigurable : Configurable {
         language = other.language
         scriptingSpin = other.scriptingSpin
         formPreviewAutomatic = other.formPreviewAutomatic
+        elementIdsFollowName = other.elementIdsFollowName
         marketplacesText = other.marketplacesText
     }
 
@@ -237,6 +250,7 @@ class ModelerSettingsConfigurable : Configurable {
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
             formPreviewAutomatic = settings.formPreviewAutomatic,
+            elementIdsFollowName = settings.elementIdsFollowName,
             marketplacesText = settings.marketplaces.joinToString("\n"),
         )
 

@@ -14,6 +14,8 @@ declare module "bpmnlint" {
     export class Linter {
         constructor(options: { config: unknown; resolver: unknown });
         lint(moddleRoot: unknown): Promise<Record<string, unknown[]>>;
+        /** The config's rules merged over every config it extends, keyed by normalized rule name. */
+        resolveConfiguredRules(config: unknown): Promise<Record<string, unknown>>;
     }
 }
 

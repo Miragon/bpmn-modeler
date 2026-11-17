@@ -4,6 +4,7 @@ import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-sear
 import type {
     BpmnlintConfig,
     CleanupOutcome,
+    ElementIdProposals,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
@@ -12,6 +13,7 @@ import type {
     ClipboardOptions,
     ContentSavedEvent,
     CoreModelerServices,
+    ElementIdOptions,
     LintingOptions,
     ThemeMode,
 } from "../publicApi";
@@ -102,6 +104,13 @@ export interface DesignerOptions {
      */
     favouriteBpmnElements?: string[];
 
+    /**
+     * The convention IDs generated from names follow and whether they follow
+     * names, the counterpart of the modeler setting `elementIdsFollowName`.
+     * Change them live with {@link BpmnDesignerHandle.setElementIdSettings}.
+     */
+    elementIdSettings?: ElementIdOptions;
+
     /** Clipboard override — omit for the native browser clipboard. */
     clipboard?: ClipboardOptions;
 
@@ -182,6 +191,22 @@ export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandl
 
     /** Report — or, with `apply`, remove — orphan DI and other leftovers. */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
+
+    /**
+     * The rows of a review of IDs generated from names for a host's own panel,
+     * as {@link BpmnModelerHandle.proposeElementIds} lists them. Engine-neutral
+     * like formatting.
+     */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
+
+    /** Rename the checked rows in one undo step, as {@link BpmnModelerHandle.renameElementIds} does. */
+    renameElementIds(unchecked: readonly string[]): number;
+
+    /**
+     * Set how IDs generated from names are spelled, and whether a still random
+     * or generated ID follows its element's name and type.
+     */
+    setElementIdSettings(options: ElementIdOptions): void;
 
     /**
      * Replace the element types pinned at the top of the append/create menu —
