@@ -89,8 +89,9 @@ export interface PropertiesPanelStatePort {
  * only says the editor cannot show the review; the canvas never shows it.
  */
 export interface ElementIdReviewPort {
-    /** Shows the review, and reveals the panel when the review opens. */
     show(view: ElementIdReviewView): void;
+    /** Brings the panel up: the user asked for the review. Comes after a show. */
+    focus(): void;
     /** The review is over: applied, discarded, or its editor closed. */
     close(): void;
 }

@@ -198,7 +198,7 @@ describe("the host's own element ID review", () => {
     function setUp() {
         const host = createTestHost();
         const editor = host.openEditor("/work/order.bpmn");
-        const panel = { show: vi.fn(), close: vi.fn() };
+        const panel = { show: vi.fn(), close: vi.fn(), focus: vi.fn() };
         const service = new ElementIdReviewService(host.store, host.notifier, panel);
         return { editor, panel, service };
     }

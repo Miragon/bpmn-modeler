@@ -14,6 +14,10 @@ export class RpcElementIdReview implements ElementIdReviewPort {
         this.rpc.notify(METHODS.elementIdReviewShow, { view } satisfies ElementIdReviewShowParams);
     }
 
+    focus(): void {
+        this.rpc.notify(METHODS.elementIdReviewFocus, {} satisfies EmptyParams);
+    }
+
     close(): void {
         this.rpc.notify(METHODS.elementIdReviewClose, {} satisfies EmptyParams);
     }

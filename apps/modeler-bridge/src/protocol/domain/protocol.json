@@ -556,6 +556,12 @@
         "paramKeys": ["view"]
     },
     {
+        "method": "elementIdReview/focus",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "elementIdReview/close",
         "direction": "coreToHost",
         "kind": "notification",

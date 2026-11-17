@@ -40,16 +40,15 @@ class ElementIdReviewToolWindowFactory :
 internal interface ElementIdReviewWindow {
     fun show(view: ElementIdReviewView)
 
+    fun focus()
+
     fun close()
 }
 
-/** Shows the review in the Element IDs tool window, and brings the window up when a review opens. */
+/** Shows the review in the Element IDs tool window, and brings the window up when the core asks. */
 internal class ToolWindowElementIdReview(
     private val project: Project,
 ) : ElementIdReviewWindow {
-    // EDT-confined.
-    private var open = false
-
     override fun show(view: ElementIdReviewView) =
         onEdt {
             val toolWindow = toolWindow() ?: return@onEdt
@@ -58,13 +57,12 @@ internal class ToolWindowElementIdReview(
             val content = toolWindow.contentManager.contents.firstOrNull { it.component is ElementIdReviewPanel } ?: return@onEdt
             (content.component as ElementIdReviewPanel).show(view)
             content.displayName = view.title
-            if (!open) toolWindow.show()
-            open = true
         }
+
+    override fun focus() = onEdt { toolWindow()?.show() }
 
     override fun close() =
         onEdt {
-            open = false
             val toolWindow = toolWindow() ?: return@onEdt
             toolWindow.contentManagerIfCreated?.contents?.forEach { (it.component as? ElementIdReviewPanel)?.clear() }
             toolWindow.hide()

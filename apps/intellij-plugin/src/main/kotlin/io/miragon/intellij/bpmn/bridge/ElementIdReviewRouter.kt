@@ -7,7 +7,7 @@ import io.miragon.intellij.bpmn.ToolWindowElementIdReview
 
 /**
  * Routes the element ID review the core shows in the Element IDs tool window:
- * `elementIdReview/show` and `elementIdReview/close` from the core, and the
+ * `elementIdReview/show`, `elementIdReview/focus` and `elementIdReview/close` from the core, and the
  * window's checkboxes, selected rows, Apply and Discard back to it.
  */
 internal class ElementIdReviewRouter(
@@ -20,6 +20,7 @@ internal class ElementIdReviewRouter(
                 val view = ElementIdReviewView.from(params.jsonObject("view"))
                 RpcAction { window.show(view) }
             }
+            .on("elementIdReview/focus") { RpcAction { window.focus() } }
             .on("elementIdReview/close") { RpcAction { window.close() } }
     }
 

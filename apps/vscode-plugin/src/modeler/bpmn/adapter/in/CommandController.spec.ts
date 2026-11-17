@@ -115,7 +115,11 @@ function createController(promptAnswers: PromptAnswers = {}) {
         host.picker,
         documentFlush as never,
         layoutSvc as never,
-        new ElementIdReviewService(host.store, host.notifier, { show: vi.fn(), close: vi.fn() }),
+        new ElementIdReviewService(host.store, host.notifier, {
+            show: vi.fn(),
+            close: vi.fn(),
+            focus: vi.fn(),
+        }),
         vsCodeModelerPreferences,
         new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
     );

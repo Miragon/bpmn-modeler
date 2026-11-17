@@ -24,6 +24,7 @@ export const MODELER_METHODS = {
     elementIdReviewDiscard: "elementIdReview/discard",
     elementIdReviewReveal: "elementIdReview/reveal",
     elementIdReviewShow: "elementIdReview/show",
+    elementIdReviewFocus: "elementIdReview/focus",
     elementIdReviewClose: "elementIdReview/close",
     settingsSetLintingEnabled: "settings/setLintingEnabled",
 } as const;
@@ -141,6 +142,12 @@ export const MODELER_CORE_TO_HOST_NOTIFICATIONS = [
                 ],
             },
         } satisfies ElementIdReviewShowParams,
+    },
+    {
+        method: MODELER_METHODS.elementIdReviewFocus,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
     },
     {
         method: MODELER_METHODS.elementIdReviewClose,

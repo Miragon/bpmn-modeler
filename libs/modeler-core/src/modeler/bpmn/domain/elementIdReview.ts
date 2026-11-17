@@ -99,7 +99,10 @@ function generate(
     // On the same diagram the choices made so far stay. Not `isOpenOn`: its
     // false branch would narrow `review` to the closed stage.
     if (review.stage !== "closed" && review.editorId === editorId) {
-        return { next: review, actions: [askForRows(review)] };
+        // Before the first listing, that listing brings the panel up.
+        const focus: ElementIdReviewAction[] =
+            review.stage === "listed" ? [{ kind: "focusPanel" }] : [];
+        return { next: review, actions: [...focus, askForRows(review)] };
     }
     const next: OpenReview = { stage: "opening", editorId, title };
     return {
@@ -138,7 +141,10 @@ function report(
             rows: event.rows,
             unchecked: new Set(event.unchecked),
         };
-        return { next, actions: [{ kind: "show", view: listedView(next) }] };
+        return {
+            next,
+            actions: [{ kind: "show", view: listedView(next) }, { kind: "focusPanel" }],
+        };
     }
     // A listing the page sent before a checkbox click must not undo it, so only rows new to the review add to it.
     const added = rowsStartingUnchecked(event.rows, review.rows);

@@ -849,7 +849,7 @@ describe("RpcStatusBar", () => {
 });
 
 describe("RpcElementIdReview", () => {
-    it("sends the review's view to the host's tool window, and closes it", () => {
+    it("sends the review's view to the host's tool window, brings it up and closes it", () => {
         const { frames, rpc } = harness();
         const review = new RpcElementIdReview(rpc);
         const view = {
@@ -861,6 +861,9 @@ describe("RpcElementIdReview", () => {
 
         review.show(view);
         expect(last(frames)).toEqual({ method: "elementIdReview/show", params: { view } });
+
+        review.focus();
+        expect(last(frames)).toEqual({ method: "elementIdReview/focus", params: {} });
 
         review.close();
         expect(last(frames)).toEqual({ method: "elementIdReview/close", params: {} });

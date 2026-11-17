@@ -194,6 +194,7 @@ describe("RPC protocol descriptor", () => {
                     "  notifier/progressEnd",
                     "  statusBar/update",
                     "  elementIdReview/show",
+                    "  elementIdReview/focus",
                     "  elementIdReview/close",
                     "  diff/postMessage",
                     "  deployment/postMessage",

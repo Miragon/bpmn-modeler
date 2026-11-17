@@ -112,6 +112,7 @@ export class ElementIdReviewService {
                 this.notifier.showInfo(action.text);
                 return undefined;
             case "focusPanel":
+                this.reviewPanel?.focus();
                 return undefined;
             case "closePanel":
                 this.reviewPanel?.close();

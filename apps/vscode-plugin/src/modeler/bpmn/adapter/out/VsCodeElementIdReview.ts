@@ -67,6 +67,7 @@ export class VsCodeElementIdReview
     private readonly changed = new EventEmitter<void>();
     readonly onDidChangeTreeData = this.changed.event;
     private view: ElementIdReviewView | undefined;
+    private shown: Promise<unknown> = Promise.resolve();
 
     // 1.76 to 1.79 already export the checkbox API, as a proposal an extension may not use.
     static isSupported(version: string = vscode.version): boolean {
@@ -93,16 +94,17 @@ export class VsCodeElementIdReview
     }
 
     show(view: ElementIdReviewView): void {
-        const opening = this.view === undefined;
         this.view = view;
         this.treeView.message = view.message;
         this.treeView.description = view.title;
-        const shown = this.setContext(true, view.renameCount > 0);
+        this.shown = this.setContext(true, view.renameCount > 0);
         this.changed.fire();
-        if (opening) {
-            // The user asked for the review, so its panel may take the focus.
-            void shown.then(() => commands.executeCommand(`${ELEMENT_ID_REVIEW_VIEW}.focus`));
-        }
+    }
+
+    // The panel's view exists only once the open context is set.
+    focus(): void {
+        if (!this.view) return;
+        void this.shown.then(() => commands.executeCommand(`${ELEMENT_ID_REVIEW_VIEW}.focus`));
     }
 
     close(): void {

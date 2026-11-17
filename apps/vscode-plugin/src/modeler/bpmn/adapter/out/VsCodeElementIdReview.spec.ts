@@ -218,11 +218,12 @@ describe("VsCodeElementIdReview", () => {
         expect(refreshed).toHaveBeenCalledOnce();
     });
 
-    it("reveals the panel when a review opens, and not again for its later rows", async () => {
+    it("brings the panel up when the core asks, once the panel's view is shown", async () => {
         const { review } = setUp();
         vscodeFake.executed.length = 0;
 
         review.show(VIEW);
+        review.focus();
         review.show({ ...VIEW, renameCount: 0 });
         await vi.waitFor(() =>
             expect(vscodeFake.executed).toContainEqual([`${ELEMENT_ID_REVIEW_VIEW}.focus`]),
@@ -235,6 +236,16 @@ describe("VsCodeElementIdReview", () => {
             ["setContext", "bpmn-modeler.elementIdReviewCanApply", false],
             [`${ELEMENT_ID_REVIEW_VIEW}.focus`],
         ]);
+    });
+
+    it("shows the review's rows without taking the focus", async () => {
+        const { review } = setUp();
+        review.focus();
+        review.show(VIEW);
+        review.show({ ...VIEW, renameCount: 0 });
+        await Promise.resolve();
+
+        expect(vscodeFake.executed).not.toContainEqual([`${ELEMENT_ID_REVIEW_VIEW}.focus`]);
     });
 
     it("empties and hides the panel when the review is over", async () => {

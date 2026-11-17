@@ -37,6 +37,10 @@ class ElementIdReviewRouterTest {
             calls += view
         }
 
+        override fun focus() {
+            calls += "focus"
+        }
+
         override fun close() {
             calls += "close"
         }
@@ -62,6 +66,15 @@ class ElementIdReviewRouterTest {
         routed.wired.handlers.dispatch("elementIdReview/show", JsonObject().apply { add("view", view) }, null)
 
         assertEquals(listOf<Any>(ElementIdReviewView.from(view)), routed.window.calls)
+    }
+
+    @Test
+    fun `brings the tool window up when the core asks`() {
+        val routed = routed()
+
+        routed.wired.handlers.dispatch("elementIdReview/focus", JsonObject(), null)
+
+        assertEquals(listOf<Any>("focus"), routed.window.calls)
     }
 
     @Test
