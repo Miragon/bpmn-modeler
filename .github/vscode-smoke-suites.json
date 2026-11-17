@@ -1,0 +1,126 @@
+{
+    "maxJobs": 3,
+    "jobSeconds": 120,
+    "suites": {
+        "bpmn-editor": { "seconds": 10 },
+        "themes": { "seconds": 8 },
+        "element-ids": { "seconds": 6 },
+        "bpmn-diff": { "seconds": 8 },
+        "dmn": { "seconds": 6 },
+        "form": { "seconds": 11 },
+        "element-templates": { "seconds": 11 },
+        "linked-form-preview": { "seconds": 32 },
+        "add-ons": { "seconds": 22 },
+        "allowance-playground": { "seconds": 150 },
+        "merge-view": { "seconds": 90 }
+    },
+    "baseline": ["bpmn-editor"],
+    "ignore": ["**/*.md", "**/*.spec.ts", "**/*.spec.tsx", "**/__fixtures__/**"],
+    "rules": [
+        {
+            "paths": ["apps/vscode-plugin/test/e2e/fixtures/**"],
+            "suites": ["bpmn-diff", "dmn"]
+        },
+        {
+            "paths": ["apps/vscode-plugin/test/e2e/**"],
+            "suites": []
+        },
+        {
+            "paths": ["resources/allowance-playground/**"],
+            "suites": ["allowance-playground"]
+        },
+        {
+            "paths": ["libs/bpmn-merge/**", "apps/bpmn-webview/src/adapter/in/merge*"],
+            "suites": ["merge-view"]
+        },
+        {
+            "paths": [
+                "libs/bpmn-diff/**",
+                "libs/modeler-core/src/diff/**",
+                "apps/vscode-plugin/src/diff/**",
+                "packages/bpmn-modeler/src/diff/**",
+                "packages/bpmn-modeler/src/viewer/diff/**",
+                "apps/bpmn-webview/src/adapter/in/diff*"
+            ],
+            "suites": ["bpmn-diff", "dmn", "merge-view"]
+        },
+        {
+            "paths": [
+                "libs/dmn-diff/**",
+                "packages/dmn-modeler/**",
+                "apps/dmn-webview/**",
+                "libs/modeler-core/src/modeler/dmn/**"
+            ],
+            "suites": ["dmn"]
+        },
+        {
+            "paths": ["apps/form-webview/**"],
+            "suites": ["form"]
+        },
+        {
+            "paths": [
+                "libs/modeler-core/src/modeler/form/**",
+                "apps/vscode-plugin/src/modeler/form/**"
+            ],
+            "suites": ["form", "linked-form-preview"]
+        },
+        {
+            "paths": ["libs/element-ids/**"],
+            "suites": ["element-ids"]
+        },
+        {
+            "paths": [
+                "libs/element-template-builder/**",
+                "libs/element-template-chooser/**",
+                "apps/bpmn-webview/src/templateEditor/**",
+                "apps/bpmn-webview/src/templateEditorMain.ts",
+                "libs/modeler-core/src/modeler/elementTemplate/**",
+                "apps/vscode-plugin/src/modeler/elementTemplate/**"
+            ],
+            "suites": ["element-templates", "themes"]
+        },
+        {
+            "paths": [
+                "apps/add-ons-webview/**",
+                "libs/modeler-core/src/addOns/**",
+                "libs/modeler-core/src/bpmnPlugins/**",
+                "apps/vscode-plugin/src/addOns/**"
+            ],
+            "suites": ["add-ons", "allowance-playground", "themes"]
+        },
+        {
+            "paths": [
+                "apps/deployment-webview/**",
+                "libs/modeler-core/src/deployment/**",
+                "apps/vscode-plugin/src/deployment/**"
+            ],
+            "suites": []
+        },
+        {
+            "paths": [
+                "apps/bpmn-webview/**",
+                "packages/bpmn-modeler/**",
+                "libs/append-menu/**",
+                "libs/bpmn-clipboard/**",
+                "libs/bpmn-i18n-extras/**",
+                "libs/bpmn-layout/**",
+                "libs/code-link/**",
+                "libs/definition-search/**",
+                "libs/flow-navigation/**",
+                "libs/inline-scripting/**",
+                "libs/model-navigation/**",
+                "libs/properties-panel/**"
+            ],
+            "suites": [
+                "bpmn-editor",
+                "themes",
+                "element-ids",
+                "bpmn-diff",
+                "element-templates",
+                "linked-form-preview",
+                "add-ons",
+                "merge-view"
+            ]
+        }
+    ]
+}

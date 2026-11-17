@@ -14,6 +14,8 @@ import {
     type Page,
 } from "playwright-core";
 
+import { VsCodeDriver, fileUri } from "./support/vscodeDriver";
+
 const runFile = promisify(execFile);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 
@@ -98,7 +100,8 @@ export interface VsCodeLaunchOptions {
     extensionId: string;
     rootDirectory: string;
     workspaceDirectory: string;
-    fileToOpen: string;
+    /** Opened by the command line, before the extension is active; a test opens its files itself. */
+    fileToOpen?: string;
     customEditors: Readonly<Record<string, string>>;
     colorTheme: string;
     timeoutMs: number;
@@ -110,6 +113,14 @@ interface ChangingUserSettings {
     gitEnabled: boolean;
 }
 
+/** Where the keyboard goes, as far as the window, its documents and the API can tell. */
+export interface FocusReport {
+    windows: unknown;
+    workbench: unknown;
+    webviews: unknown[];
+    api: unknown;
+}
+
 export class VsCodeSession {
     private readonly reportedCspViolations: string[] = [];
 
@@ -118,6 +129,7 @@ export class VsCodeSession {
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
         private changingSettings: ChangingUserSettings,
+        private readonly driver: VsCodeDriver,
     ) {
         // Chromium reports each violation as a console message of the webview frame
         // that caused it; the context sees them all, including those raised at load.
@@ -132,6 +144,11 @@ export class VsCodeSession {
         return this.reportedCspViolations;
     }
 
+    /** Hands over the violations reported so far, so a later check starts from none. */
+    takeCspViolations(): string[] {
+        return this.reportedCspViolations.splice(0);
+    }
+
     static async launch(options: VsCodeLaunchOptions): Promise<VsCodeSession> {
         const userDataDirectory = join(options.rootDirectory, "user-data");
         const extensionsDirectory = join(options.rootDirectory, "extensions");
@@ -139,6 +156,7 @@ export class VsCodeSession {
         await mkdir(extensionsDirectory, { recursive: true });
         const changingSettings = { colorTheme: options.colorTheme, gitEnabled: false };
         await writeUserSettings(options, changingSettings);
+        const driver = await VsCodeDriver.install(options.rootDirectory, options.timeoutMs);
 
         const app = await electron.launch({
             executablePath: options.executablePath,
@@ -158,8 +176,9 @@ export class VsCodeSession {
                 `--user-data-dir=${userDataDirectory}`,
                 `--extensions-dir=${extensionsDirectory}`,
                 `--extensionDevelopmentPath=${options.extensionPath}`,
+                `--extensionDevelopmentPath=${driver.extensionPath}`,
                 options.workspaceDirectory,
-                options.fileToOpen,
+                ...(options.fileToOpen ? [options.fileToOpen] : []),
             ],
             env: environmentWithoutParentVsCode(),
             timeout: options.timeoutMs,
@@ -171,7 +190,7 @@ export class VsCodeSession {
             await app.evaluate(({ BrowserWindow }, { width, height }) => {
                 BrowserWindow.getAllWindows()[0]?.setContentSize(width, height);
             }, WINDOW_SIZE);
-            return new VsCodeSession(app, page, options, changingSettings);
+            return new VsCodeSession(app, page, options, changingSettings, driver);
         } catch (error) {
             await closeApplication(app);
             throw error;
@@ -180,6 +199,135 @@ export class VsCodeSession {
 
     get logsDirectory(): string {
         return join(this.options.rootDirectory, "user-data", "logs");
+    }
+
+    /**
+     * Runs a command by its id through the driver, whatever has the focus.
+     * Test plumbing; a command under test runs as a user runs it.
+     */
+    async executeCommand(command: string, ...args: unknown[]): Promise<void> {
+        await this.driver.call("executeCommand", { command, args });
+    }
+
+    /** Opens the file in a tab of its own, in the editor VS Code picks for it. */
+    async openFile(file: string): Promise<void> {
+        await this.executeCommand("vscode.open", fileUri(file), { preview: false });
+    }
+
+    /** Opens the file in the custom editor of `viewType`, as Reopen Editor With does. */
+    async openFileWith(file: string, viewType: string): Promise<void> {
+        await this.executeCommand("vscode.openWith", fileUri(file), viewType);
+    }
+
+    /** Opens the file and waits until it is the active tab and `isRendered` holds for its webview. */
+    async openInCustomEditor(
+        file: string,
+        isRendered: (webview: FrameLocator) => Promise<boolean>,
+    ): Promise<void> {
+        const fileName = basename(file);
+        await this.openFile(file);
+        const activeTab = this.page.locator(
+            ".editor-group-container.active .tabs-container .tab.active",
+        );
+        const deadline = Date.now() + this.options.timeoutMs;
+        while (Date.now() < deadline) {
+            const isActive = ((await activeTab.textContent().catch(() => "")) ?? "").includes(
+                fileName,
+            );
+            if (isActive && (await isRendered(this.webview()).catch(() => false))) return;
+            const failures = await this.activationFailures();
+            if (failures.length > 0) {
+                throw new Error(`the extension failed to activate: ${failures.join("; ")}`);
+            }
+            await delay(100);
+        }
+        const frames = await this.page.locator("iframe.webview").count();
+        throw new Error(
+            `${fileName} never rendered in the custom editor (${frames} webview frames in the workbench)`,
+        );
+    }
+
+    /**
+     * Brings the window back to where a test starts: no editor, picker, panel or
+     * notice, the Explorer in the side bar, and the settings the window started
+     * with. Unsaved changes are dropped.
+     */
+    async resetWorkbench(): Promise<void> {
+        await this.page.mouse.move(0, 0);
+        await this.executeCommand("workbench.action.closeQuickOpen");
+        await this.executeCommand("notifications.clearAll");
+        await this.driver.call("revertAndCloseAllEditors");
+        await this.executeCommand("workbench.action.closePanel");
+        await this.executeCommand("workbench.view.explorer");
+        await this.setColorTheme(this.options.colorTheme);
+        await this.setGitEnabled(false);
+        const leftovers = this.page.locator(
+            ".tabs-container .tab, .quick-input-widget:visible, .notifications-toasts .notification-toast",
+        );
+        const deadline = Date.now() + this.options.timeoutMs;
+        while ((await leftovers.count()) > 0) {
+            if (Date.now() > deadline) {
+                throw new Error("the workbench did not come back to its start state");
+            }
+            // A notice can arrive after the first clearing, such as the extension's update notice.
+            await this.executeCommand("notifications.clearAll");
+            await delay(50);
+        }
+    }
+
+    /** For a failed step: whether the keys of the test reached the window, and which document held them. */
+    async focusReport(): Promise<FocusReport> {
+        const unavailable = (error: unknown) => `unavailable: ${String(error)}`;
+        const ofDocument = () => {
+            const active = document.activeElement;
+            return {
+                hasFocus: document.hasFocus(),
+                activeElement: active
+                    ? `${active.tagName.toLowerCase()}${active.id ? `#${active.id}` : ""}.${[...active.classList].join(".")}`
+                    : null,
+            };
+        };
+        const windows = await this.app
+            .evaluate(({ BrowserWindow }) =>
+                BrowserWindow.getAllWindows().map((window) => ({
+                    focused: window.isFocused(),
+                    visible: window.isVisible(),
+                    webContentsFocused: window.webContents.isFocused(),
+                })),
+            )
+            .catch(unavailable);
+        const workbench = await this.page
+            .evaluate(() => {
+                const active = document.activeElement;
+                const quickInput = document.querySelector<HTMLElement>(".quick-input-widget");
+                return {
+                    hasFocus: document.hasFocus(),
+                    activeElement: active
+                        ? `${active.tagName.toLowerCase()}.${[...active.classList].join(".")}`
+                        : null,
+                    quickInputVisible: quickInput !== null && quickInput.style.display !== "none",
+                    contextMenuOpen: document.querySelector(".context-view .monaco-menu") !== null,
+                    dialogOpen: document.querySelector(".monaco-dialog-box") !== null,
+                };
+            })
+            .catch(unavailable);
+        const frames = this.page.locator("iframe.webview").filter({ visible: true });
+        const webviews: unknown[] = [];
+        for (let index = 0; index < (await frames.count().catch(() => 0)); index++) {
+            const source = await frames
+                .nth(index)
+                .getAttribute("src", { timeout: 1_000 })
+                .catch(() => null);
+            webviews.push({
+                purpose: source?.includes("purpose=webviewView") ? "view" : "editor",
+                document: await pageOf(frames.nth(index))
+                    .locator("body")
+                    .evaluate(ofDocument, undefined, { timeout: 1_000 })
+                    .catch(unavailable),
+            });
+        }
+        const api = await this.driver.call("windowState").catch(unavailable);
+        return { windows, workbench, webviews, api };
     }
 
     /**
@@ -209,13 +357,14 @@ export class VsCodeSession {
         return this.firstShowing(frames, shows, "view");
     }
 
-    /** Closes the editor tab whose title matches, by its own close button, whichever editor is active. */
+    /** Closes the editor tabs whose title matches, whichever editor is active. */
     async closeEditorTab(title: RegExp): Promise<void> {
         const tab = this.page.locator(".tabs-container .tab").filter({ hasText: title }).first();
-        await tab.click();
-        const close = tab.getByRole("button", { name: /^Close/ });
-        if (await close.count()) await close.first().click();
-        else await this.page.keyboard.press(`${COMMAND_KEY}+w`);
+        const { tabs } = await this.driver.call("windowState");
+        const labels = tabs.flat().map(({ label }) => label);
+        await this.driver.call("closeTabs", {
+            labels: labels.filter((label) => title.test(label)),
+        });
         await tab.waitFor({ state: "detached", timeout: this.options.timeoutMs });
     }
 
@@ -324,11 +473,12 @@ export class VsCodeSession {
     }
 
     /**
-     * Webviews forward keybindings, so F1 reaches the palette without moving the focus first.
-     * A webview that was just opened can still take the focus, which closes the palette at any
-     * point and sends keys into the webview, an Enter included. So the title goes into the
-     * palette's input and a click on the row runs the command, which fails on a palette that
-     * closed; that one starts over.
+     * Runs a command from the palette, as a user does, so its title and its
+     * `when` clause are under test. The palette opens through the driver: F1
+     * is lost once the frame that held the focus is gone. A webview that was
+     * just opened can still take the focus, which closes the palette at any
+     * point. So the title goes into the palette's input and a click on the row
+     * runs the command, which fails on a palette that closed; that one starts over.
      */
     async runCommand(title: string): Promise<void> {
         const palette = this.page.locator(".quick-input-widget");
@@ -336,7 +486,7 @@ export class VsCodeSession {
         // The best match; until the list has filtered, that row holds another command.
         const row = palette.locator(".monaco-list-row.focused").filter({ hasText: title });
         for (let attempt = 1; ; attempt++) {
-            await this.page.keyboard.press("F1");
+            await this.executeCommand("workbench.action.showCommands");
             try {
                 await input.fill(`>${title}`, { timeout: PALETTE_ATTEMPT_MS });
                 await row.click({ timeout: PALETTE_ATTEMPT_MS });
@@ -390,19 +540,25 @@ export class VsCodeSession {
         return this.page.locator(".tabs-container .tab.active.dirty").isVisible();
     }
 
-    /** VS Code watches its settings file, so this switches the theme as a user's change does. */
     async setColorTheme(colorTheme: string): Promise<void> {
-        await this.changeSettings({ colorTheme });
+        if (this.changingSettings.colorTheme === colorTheme) return;
+        await this.setSetting("workbench.colorTheme", colorTheme);
+        this.changingSettings = { ...this.changingSettings, colorTheme };
     }
 
     /** The Git extension opens the workspace's repositories when enabled and closes them when disabled. */
     async setGitEnabled(gitEnabled: boolean): Promise<void> {
-        await this.changeSettings({ gitEnabled });
+        if (this.changingSettings.gitEnabled === gitEnabled) return;
+        await this.setSetting("git.enabled", gitEnabled);
+        this.changingSettings = { ...this.changingSettings, gitEnabled };
     }
 
-    private async changeSettings(change: Partial<ChangingUserSettings>): Promise<void> {
-        this.changingSettings = { ...this.changingSettings, ...change };
-        await writeUserSettings(this.options, this.changingSettings);
+    /**
+     * Changes a user setting through the API, which returns once VS Code applied
+     * it. A rewritten settings file is only seen by a watcher, which can miss it.
+     */
+    async setSetting(key: string, value: unknown): Promise<void> {
+        await this.driver.call("updateSetting", { key, value });
     }
 
     /**
@@ -410,7 +566,7 @@ export class VsCodeSession {
      * row does. The row appears once Git has scanned the repository.
      */
     async openSourceControlChange(fileName: string): Promise<void> {
-        await this.runCommand("Source Control: Focus on Changes View");
+        await this.executeCommand("workbench.view.scm");
         await this.page
             .locator(".scm-view .monaco-list-row .resource")
             .filter({ hasText: fileName })

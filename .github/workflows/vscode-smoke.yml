@@ -1,11 +1,13 @@
 name: VS Code smoke
 
 # The packaged extension in a real VS Code, driven through its webviews
-# (apps/vscode-plugin/test/smoke, `test:vscode`). A workflow of its own and not
-# a required check, so it neither delays nor blocks the Build workflow. Pull
-# requests run it when they change the extension, a webview or library it
-# bundles, the lockfile or the test's setup; the weekly run catches a new
-# VS Code release breaking the extension without a change here.
+# (apps/vscode-plugin/test/smoke, `test:vscode`): one suite per feature, each
+# in its own VS Code window. A workflow of its own and not a required check,
+# so it neither delays nor blocks the Build workflow. Pull requests run the
+# suites their changed files select (.github/vscode-smoke-suites.json); main,
+# the weekly run and a manual run without a suite list run every suite. The
+# weekly run catches a new VS Code release breaking the extension without a
+# change here.
 on:
   pull_request:
     paths:
@@ -19,12 +21,39 @@ on:
       - '!libs/standalone-extension/**'
       - 'packages/bpmn-modeler/**'
       - 'packages/dmn-modeler/**'
+      - 'resources/allowance-playground/**'
       - 'package.json'
       - 'yarn.lock'
       - '.yarnrc.yml'
       - 'tsconfig.base.json'
       - 'vite.shared.ts'
       - '.github/workflows/vscode-smoke.yml'
+      - '.github/vscode-smoke-suites.json'
+      - '.github/scripts/vscode-smoke-plan.mjs'
+  # Main's own run: a test that landed meets the smoke here, not in the next pull request.
+  push:
+    branches: [ main ]
+    # The pull request's paths; a repo check holds the two lists equal.
+    paths:
+      - 'apps/vscode-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/form-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'apps/add-ons-webview/**'
+      - 'libs/**'
+      - '!libs/standalone-extension/**'
+      - 'packages/bpmn-modeler/**'
+      - 'packages/dmn-modeler/**'
+      - 'resources/allowance-playground/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - 'tsconfig.base.json'
+      - 'vite.shared.ts'
+      - '.github/workflows/vscode-smoke.yml'
+      - '.github/vscode-smoke-suites.json'
+      - '.github/scripts/vscode-smoke-plan.mjs'
   schedule:
     - cron: '23 4 * * 1'
   workflow_dispatch:
@@ -33,19 +62,69 @@ on:
         description: 'VS Code version, at least 1.78 (older Electron is too old for Playwright); empty for the newest stable'
         required: false
         default: ''
+      suites:
+        description: 'Suites to run, separated by spaces (see .github/vscode-smoke-suites.json); empty for all'
+        required: false
+        default: ''
 
 permissions: {}
 
 concurrency:
   group: vscode-smoke-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  vscode-smoke:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # Lists the pull request's changed files.
+      pull-requests: read
+    outputs:
+      jobs: ${{ steps.plan.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: plan
+        name: Choose the suites and spread them over jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          REQUESTED_SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = pull_request ]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST/files" --paginate \
+              --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed-files.txt"
+            plan=$(node .github/scripts/vscode-smoke-plan.mjs --changed-files "$RUNNER_TEMP/changed-files.txt")
+          elif [ -n "$REQUESTED_SUITES" ]; then
+            plan=$(node .github/scripts/vscode-smoke-plan.mjs --suites "$REQUESTED_SUITES")
+          else
+            plan=$(node .github/scripts/vscode-smoke-plan.mjs --all)
+          fi
+          echo "jobs=$(jq -c '.jobs' <<< "$plan")" >> "$GITHUB_OUTPUT"
+          {
+            echo "### VS Code smoke suites"
+            echo
+            jq -r 'if (.suites | length) == 0 then "No suite covers the changed files."
+                   else (.jobs[] | "- Job \(.id): \(.name)") end' <<< "$plan"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  suites:
+    name: smoke (${{ matrix.name }})
+    needs: plan
+    if: needs.plan.outputs.jobs != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.jobs) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -83,26 +162,32 @@ jobs:
 
       # Not test:vscode:docker: the runner already is a throwaway Linux machine,
       # and the cache above keeps VS Code where a container volume would start empty.
-      - name: Run the VS Code smoke test
-        run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode
+      - name: Run the VS Code smoke suites
+        run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:vscode $SUITE_FILES
         env:
+          SUITE_FILES: ${{ matrix.files }}
           VSCODE_SMOKE_VERSION: ${{ steps.vscode.outputs.version }}
 
+      # Every suite's folder: screenshots always, and for a failed test its
+      # screenshot, its focus report and VS Code's logs.
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: vscode-smoke-screenshots
-          path: |
-            test-results/vscode-smoke/*.png
-            test-results/vscode-smoke-allowance/*.png
+          name: vscode-smoke-results-${{ matrix.id }}
+          path: test-results/vscode-smoke/
           if-no-files-found: ignore
           retention-days: 7
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: vscode-smoke-logs
-          path: |
-            test-results/vscode-smoke/vscode-logs/
-            test-results/vscode-smoke-allowance/
-          if-no-files-found: ignore
-          retention-days: 7
+
+  # One result for the whole run, whatever jobs the plan made.
+  vscode-smoke:
+    needs: [ plan, suites ]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          PLAN: ${{ needs.plan.result }}
+          SUITES: ${{ needs.suites.result }}
+        run: |
+          echo "plan: $PLAN, suites: $SUITES"
+          [ "$PLAN" = success ] && { [ "$SUITES" = success ] || [ "$SUITES" = skipped ]; }
