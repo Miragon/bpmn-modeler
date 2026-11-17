@@ -44,8 +44,9 @@ const OUTCOME_LISTS = [
 /**
  * The pick part of a merge pane's legend: the actions for a stepped element
  * no canvas draws, which the context pad cannot reach, the user's picks this pane
- * cannot draw with their undo, and what the last pick or undo did, with the
- * offer to keep the flows removed with a kept element. The action buttons
+ * cannot draw with their undo, and what the last pick or undo did where no
+ * outcome card can say it, with the offer to keep the flows removed with a
+ * kept element. The action buttons
  * stay in place across updates, so the focus stays on the one just pressed;
  * where an update hides or removes the focused control, the focus moves to
  * the Keep action or to what the last pick did. What the last pick did is

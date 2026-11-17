@@ -2,13 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MergePaneBadge, MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 
-import {
-    decidesInLegend,
-    type MergePadDecision,
-    mergePadCommandOf,
-    mergePadDecisions,
-    type MergePadStates,
-} from "./mergePadDecisions";
+import { decidesInLegend, mergePadDecisions, type MergePadStates } from "./mergePadDecisions";
 
 const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] };
 
@@ -156,33 +150,6 @@ describe("mergePadDecisions", () => {
             { kind: "leaveOut", side: otherSide, otherSideLacks: "missing" },
             { kind: "keepRemovedFlows", side: paneSide, offer: OFFER },
         ]);
-    });
-});
-
-describe("mergePadCommandOf", () => {
-    it.each<[MergePadDecision, ReturnType<typeof mergePadCommandOf>]>([
-        [
-            { kind: "keep", scope: "element", side: "incoming" },
-            { kind: "pick", scope: "element", side: "incoming" },
-        ],
-        [
-            { kind: "keep", scope: "withContents", side: "current" },
-            { kind: "pick", scope: "withContents", side: "current" },
-        ],
-        [
-            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
-            { kind: "pick", scope: "element", side: "current" },
-        ],
-        [
-            { kind: "keepRemovedFlows", side: "incoming", offer: OFFER },
-            { kind: "pick", scope: "withConnections", side: "incoming" },
-        ],
-        [
-            { kind: "undo", scope: "withContents" },
-            { kind: "unpick", scope: "withContents" },
-        ],
-    ])("sends %o as %o", (decision, expected) => {
-        expect(mergePadCommandOf(decision)).toStrictEqual(expected);
     });
 });
 

@@ -33,11 +33,6 @@ export type MergePadStates = Pick<
     "caption" | "pickable" | "badges" | "marks" | "restoreOffer"
 >;
 
-/** What a pad decision sends to the host. */
-export type MergePadCommand =
-    | { readonly kind: "pick"; readonly scope: MergePickScope; readonly side: MergeSide }
-    | { readonly kind: "unpick"; readonly scope: MergePickScope };
-
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
  * the pane's side, keep a container with everything inside, leave it out
@@ -68,19 +63,6 @@ export function mergePadDecisions(
     }
     if (pickable.undo !== undefined) decisions.push({ kind: "undo", scope: pickable.undo });
     return decisions;
-}
-
-export function mergePadCommandOf(decision: MergePadDecision): MergePadCommand {
-    switch (decision.kind) {
-        case "keep":
-            return { kind: "pick", scope: decision.scope, side: decision.side };
-        case "leaveOut":
-            return { kind: "pick", scope: "element", side: decision.side };
-        case "keepRemovedFlows":
-            return { kind: "pick", scope: "withConnections", side: decision.side };
-        case "undo":
-            return { kind: "unpick", scope: decision.scope };
-    }
 }
 
 /** The legend decides only a step the pad cannot reach, one no canvas draws. */

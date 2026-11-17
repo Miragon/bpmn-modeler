@@ -636,6 +636,11 @@ describe("the BPMN merge view", () => {
                 );
         }
 
+        /** The outcome card, which only the pane that sent the decision shows. */
+        function outcomeCard(pane: FrameLocator) {
+            return pane.locator(".merge-outcome-card");
+        }
+
         function badgeTexts(pane: FrameLocator): Promise<string[]> {
             return pane
                 .locator(".merge-pick-badge")
@@ -668,6 +673,10 @@ describe("the BPMN merge view", () => {
                 expect(await badgeLabels(pane)).toEqual(["Kept from incoming, your pick"]);
             }
             expect(await badgeTexts(incoming)).toEqual(["Incoming"]);
+            await expect
+                .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
+                .toContain("Kept from incoming: Check feature order");
+            expect(await outcomeCard(current).count()).toBe(0);
             await shot("pick-badges-both-panes");
         });
 
@@ -731,10 +740,14 @@ describe("the BPMN merge view", () => {
             await decideInPad(incoming, "Keep incoming");
 
             const offer = "Also keep the 2 flows current removed with it";
-            await incoming
+            await outcomeCard(incoming)
                 .getByRole("button", { name: offer })
                 .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            expect(await outcomeCard(incoming).innerText()).toContain(
+                "Kept from incoming: Check feature order",
+            );
             expect(await current.getByRole("button", { name: offer }).count()).toBe(0);
+            expect(await outcomeCard(current).count()).toBe(0);
             await padEntry(incoming, "Also keep its removed flows").hover();
             await expect
                 .poll(() => incoming.locator(".merge-tooltip:not([hidden])").innerText(), {
@@ -765,13 +778,14 @@ describe("the BPMN merge view", () => {
 
             await decideInPad(incoming, /^Leave out: Leave it out, as current removed it$/);
 
-            const feedback = current.locator(".merge-legend__feedback");
+            const card = outcomeCard(incoming);
             await expect
-                .poll(() => feedback.innerText(), { timeout: TIMEOUT_MS })
-                .toContain("Cannot leave out Check feature order");
-            expect(await feedback.innerText()).toContain(
-                "which you picked, needs Check feature order",
-            );
+                .poll(() => card.innerText(), { timeout: TIMEOUT_MS })
+                .toContain("Can't leave out Check feature order");
+            expect(await card.innerText()).toMatch(/Your pick .+ needs it/);
+            expect(await incoming.locator(".djs-element.merge-blocker").count()).toBeGreaterThan(0);
+            expect(await outcomeCard(current).count()).toBe(0);
+            expect(await current.locator(".merge-legend__feedback:not([hidden])").count()).toBe(0);
             await shot("pick-blocked-reason");
         });
 
@@ -787,7 +801,13 @@ describe("the BPMN merge view", () => {
                     timeout: TIMEOUT_MS,
                 })
                 .toBe(0);
+            expect(await outcomeCard(incoming).count()).toBe(0);
             await task.click();
+
+            // Selected again, the task shows its latest outcome again.
+            await expect
+                .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
+                .toContain("Can't leave out Check feature order");
 
             const entries = incoming.locator(".djs-context-pad .merge-pick-action");
             await entries.first().waitFor({ state: "visible", timeout: TIMEOUT_MS });
@@ -1089,6 +1109,11 @@ describe("the BPMN merge view", () => {
             await expect
                 .poll(tabLabels, { timeout: TIMEOUT_MS })
                 .not.toContainEqual(expect.stringContaining("(Merge: Incoming ↔ Result)"));
+            // The key press left the focus in the closed tab's frame, where F1 never reaches the workbench.
+            const current = await vscode().editorWebview(
+                'body[data-diff-side="after"] .diff-legend__comparison-switch',
+            );
+            await current.locator(".diff-legend__comparison").click();
         });
 
         it("lists the notes of a build that kept a task without the flows removed with it", async () => {

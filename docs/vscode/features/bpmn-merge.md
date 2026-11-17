@@ -44,11 +44,11 @@ Step to an element with **‹** and **›**, or click it: the step selects it on
 - **Also keep its removed flows**: after keeping an element the other side removed, keep the flows removed with it too.
 - **Undo pick**: back to what the merge decided by itself.
 
-An element without a shape is decided in the legend: step to it, then use **Keep current** or **Keep incoming**, **Keep everything inside** and **Undo pick** there. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends); the legend says what the last pick did, and why a pick was refused, naming the element in the way. A pick the pane cannot draw is listed under **Your picks**, with its undo.
+An element without a shape is decided in the legend: step to it, then use **Keep current** or **Keep incoming**, **Keep everything inside** and **Undo pick** there. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape the legend says what the last pick did. A pick the pane cannot draw is listed under **Your picks**, with its undo.
 
 <figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed, offering Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 
-Keeping an element the other side removed offers **Also keep the N flows … removed with it**. Without it, the element is kept without those flows and the build notes it.
+Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad. Without it, the element is kept without those flows and the build notes it.
 
 ## Build the result
 
