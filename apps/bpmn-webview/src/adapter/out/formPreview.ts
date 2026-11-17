@@ -1,6 +1,5 @@
 import type { FormPreviewHandle, FormPreviewRequest } from "@miragon/bpmn-modeler";
 import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
-import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { parsePreviewSchema } from "../../domain/formPreviewSchema";
@@ -15,8 +14,6 @@ export interface PreviewViewer {
 export type PreviewViewerFactory = (container: HTMLElement) => Promise<PreviewViewer>;
 
 async function createViewer(container: HTMLElement): Promise<PreviewViewer> {
-    ensureArrayToSorted();
-    ensureUrlCanParse();
     const { Form } = await import("@bpmn-io/form-js-viewer");
     return new Form({ container, properties: { readOnly: true } });
 }
