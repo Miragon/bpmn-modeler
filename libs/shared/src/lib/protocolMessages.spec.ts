@@ -59,6 +59,9 @@ describe("protocol messages", () => {
                 "MergeStepListChangedCommand",
                 "PickMergeSideCommand",
                 "UnpickMergeCommand",
+                "BuildMergeResultCommand",
+                "CompareMergeResultCommand",
+                "SwitchMergeComparisonCommand",
             ]),
         );
     });

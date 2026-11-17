@@ -4,7 +4,7 @@ import { MergePaneUris } from "../port/MergeSidesView";
 import { DiffSession } from "./DiffSession";
 
 /**
- * Milliseconds a pre-registered `compare-files` or `merge` session stays alive
+ * Milliseconds a pre-registered `compare-files`, `merge` or `merge-result` session stays alive
  * with no panes attached before it is swept.  Covers the "user triggered the command
  * but the diff tab never opened" edge case.  Longer than any realistic
  * `vscode.diff` → `resolveCustomTextEditor` latency; short enough that
@@ -64,6 +64,15 @@ export class DiffPaneStore implements EditorSubscription {
      */
     registerMerge(uris: MergePaneUris): DiffSession {
         return this.preRegister(DiffSession.forMerge(uris));
+    }
+
+    /**
+     * Pre-registers the comparison of a built merge result with one of its
+     * Git stages before the host opens it; swept like a `compare-files`
+     * session when no pane arrives.
+     */
+    registerResultComparison(stageUri: string, resultUri: string): DiffSession {
+        return this.preRegister(DiffSession.forResultComparison(stageUri, resultUri));
     }
 
     /** Adds `session`; both the eager `compare-files` and the lazy `scm` path funnel through here. */

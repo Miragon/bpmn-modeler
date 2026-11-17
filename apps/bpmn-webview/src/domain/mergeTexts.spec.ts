@@ -3,13 +3,20 @@ import { describe, expect, it } from "vitest";
 import type {
     MergePaneBadge,
     MergePaneBlock,
+    MergePaneBuildNote,
     MergePaneOutcome,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import {
     blockText,
+    buildBlockedText,
+    buildNoteText,
+    compareWithText,
+    comparisonPaneText,
+    comparisonText,
     keepSideText,
+    MERGE_BUILD_TEXTS,
     MERGE_LEGEND_TEXTS,
     MERGE_MARKER_LABELS,
     MergeTranslate,
@@ -19,6 +26,7 @@ import {
     pickBadgeText,
     pickNotDrawnText,
     restoreOfferText,
+    reviewNotesText,
     shapelessEntryText,
 } from "./mergeTexts";
 
@@ -299,5 +307,75 @@ describe("outcomeHeadline", () => {
         ],
     ])("%s", (_name, outcome, text) => {
         expect(outcomeHeadline(outcome, () => "Pack", untranslated)).toBe(text);
+    });
+});
+
+describe("build words", () => {
+    it("names the build actions", () => {
+        expect(MERGE_BUILD_TEXTS).toStrictEqual({ build: "Build", notes: "Notes of the build" });
+    });
+
+    it.each([
+        [1, "1 conflict left"],
+        [3, "3 conflicts left"],
+    ])("says why Build is disabled with %i open", (count, text) => {
+        expect(buildBlockedText(count, untranslated)).toBe(text);
+    });
+
+    it.each<[MergeSide, string, string]>([
+        ["current", "Compare with current", "Result against current"],
+        ["incoming", "Compare with incoming", "Result against incoming"],
+    ])("names the comparison with %s", (side, action, comparison) => {
+        expect(compareWithText(side, untranslated)).toBe(action);
+        expect(comparisonText(side, untranslated)).toBe(comparison);
+    });
+
+    it.each<["before" | "after", MergeSide, string]>([
+        ["before", "incoming", "Incoming"],
+        ["before", "current", "Current"],
+        ["after", "incoming", "Result"],
+    ])("labels the %s pane of a result compared with %s", (side, against, label) => {
+        expect(comparisonPaneText(side, against, untranslated)).toBe(label);
+    });
+
+    it("counts the notes to review", () => {
+        expect(reviewNotesText(2, untranslated)).toBe("Review notes (2)");
+    });
+});
+
+describe("buildNoteText", () => {
+    const nameOf = (id: string) => ({ Flow_2: "to packing", Task_Pack: "Pack box" })[id] ?? id;
+
+    it.each<[MergePaneBuildNote, string]>([
+        [
+            { kind: "flowEndsFromDifferentSides", id: "Flow_2", ends: ["Task_Check", "Task_Pack"] },
+            "to packing connects shapes drawn by different sides; check where it meets Task_Check, Pack box",
+        ],
+        [
+            { kind: "addedAtSamePlace", ids: ["Task_A", "Task_B"] },
+            "Task_A and Task_B were added at the same place",
+        ],
+        [
+            { kind: "drawnApartFromContainer", id: "Task_Pack", containers: ["Lane_1"] },
+            "Pack box is drawn by another side than Lane_1; check that it still sits inside",
+        ],
+        [
+            {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+            },
+            "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
+        ],
+        [
+            { kind: "frameDiffers", attribute: "exporterVersion" },
+            "The file's exporterVersion differs between the sides; current's is kept",
+        ],
+        [
+            { kind: "frameDiffers", attribute: "extensionElements" },
+            "The file's extensionElements differs between the sides; current's is kept",
+        ],
+    ])("words a %o note with the canvas's names", (note, text) => {
+        expect(buildNoteText(note, nameOf, untranslated)).toBe(text);
     });
 });

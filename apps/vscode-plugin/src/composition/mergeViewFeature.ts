@@ -3,6 +3,7 @@ import { ExtensionContext } from "vscode";
 import {
     ConflictMarkerParticipant,
     DiffPaneStore,
+    MergeBuildService,
     MergeDecisionService,
     MergeSessionStore,
     MergeViewOpener,
@@ -12,12 +13,13 @@ import { MergeController } from "../diff/adapter/in/MergeController";
 import { VsCodeGitConflictVersions } from "../diff/adapter/out/VsCodeGitConflictVersions";
 import { VsCodeMergeCommandAvailability } from "../diff/adapter/out/VsCodeMergeCommandAvailability";
 import { VsCodeMergeSidesView } from "../diff/adapter/out/VsCodeMergeSidesView";
+import { VsCodeMergeWorkingFile } from "../diff/adapter/out/VsCodeMergeWorkingFile";
 import { SharedDeps } from "./sharedDeps";
 
 /**
  * The BPMN merge view: Git through its extension's API, the panes under
- * `bpmn-merge:`, the command, the offer on conflict markers and the decisions
- * the panes show. Its panes are
+ * `bpmn-merge:`, the command, the offer on conflict markers, the decisions
+ * the panes show and the build into the working file. Its panes are
  * BPMN diff panes, so the diff feature registers it on its BPMN pane store.
  */
 export function register(
@@ -28,6 +30,7 @@ export function register(
     sessions: MergeSessionStore;
     opener: MergeViewOpener;
     decisions: MergeDecisionService;
+    build: MergeBuildService;
     conflictMarkers: ConflictMarkerParticipant;
 } {
     const sides = new VsCodeMergeSidesView();
@@ -40,12 +43,23 @@ export function register(
         new VsCodeMergeCommandAvailability(),
         deps.notifier,
     );
-    context.subscriptions.push(sessions, resolvable.start());
+    const decisions = new MergeDecisionService(sessions, deps.notifier);
+    const build = new MergeBuildService(
+        sessions,
+        decisions,
+        new VsCodeMergeWorkingFile(),
+        sides,
+        diffStore,
+        deps.notifier,
+        deps.picker,
+    );
+    context.subscriptions.push(sessions, resolvable.start(), build);
     new MergeController(opener, deps.notifier).register(context);
     return {
         sessions,
         opener,
-        decisions: new MergeDecisionService(sessions, deps.notifier),
+        decisions,
+        build,
         conflictMarkers: new ConflictMarkerParticipant(
             deps.vsDocument,
             deps.actionNotifier,

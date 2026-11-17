@@ -143,6 +143,11 @@ export class MergeDecisionService {
                 openAfter: openIds(session.decisions),
             }),
         );
+        await this.broadcastSession(session, elementXmlChanges);
+    }
+
+    /** Sends the panes of every tab of the merge view the full state of its decisions. */
+    async broadcastSession(session: MergeSession, elementXmlChanges: boolean): Promise<void> {
         for (const tab of this.sessions.diffSessionsOf(session)) {
             const panes = tab.armedPanes();
             if (panes) await this.broadcast({ session: tab, ...panes }, elementXmlChanges);
@@ -208,6 +213,12 @@ function statesFor(
                 session.decisions,
                 idsTheLegendNames(view.picksNotDrawn, feedback?.outcome),
             ),
+            build: {
+                canBuild: session.decisions.canBuild,
+                openConflicts: session.decisions.openConflicts.length,
+                built: session.lastBuild !== undefined,
+                notes: session.lastBuild?.notes ?? [],
+            },
         },
         elementXmlChanges,
     );

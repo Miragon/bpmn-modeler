@@ -34,25 +34,27 @@ export function register(
     dmnDiffStore: DiffPaneStore;
     mergeSessions: MergeSessionStore;
     conflictMarkers: ConflictMarkerParticipant;
+    /** Builds the newest merge view of a working file, as its Build button does. */
+    buildMerge: (fileUri: string) => Promise<void>;
 } {
     const diffStore = new DiffPaneStore();
     const dmnDiffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore, dmnDiffStore);
     const merge = mergeViewFeature.register(context, diffStore, deps);
+    const bpmnDiffService = new BpmnDiffService(
+        deps.notifier,
+        deps.vsSettings,
+        diffStore,
+        elementXmlDiffs(context, diffStore, deps, merge.sessions),
+        merge.decisions,
+        merge.build,
+    );
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
         (panel, document) => new WebviewPaneHandle(panel, document, "bpmnDiffPane"),
         deps.preferences,
-        bpmnDiffFormat(
-            new BpmnDiffService(
-                deps.notifier,
-                deps.vsSettings,
-                diffStore,
-                elementXmlDiffs(context, diffStore, deps, merge.sessions),
-                merge.decisions,
-            ),
-        ),
+        bpmnDiffFormat(bpmnDiffService),
         merge.opener,
     );
     const dmnDiffController = new DiffController(
@@ -72,6 +74,8 @@ export function register(
         dmnDiffStore,
         mergeSessions: merge.sessions,
         conflictMarkers: merge.conflictMarkers,
+        buildMerge: (fileUri) =>
+            merge.build.buildFile(fileUri, bpmnDiffService.showsElementXmlChanges),
     };
 }
 

@@ -59,6 +59,7 @@ export function createDiffPaneRouter(
             ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
             : { ignored: "the host shows no element XML diff" },
         ...mergeRoutes(diffService),
+        ...mergeResultRoutes(diffService),
         ...hostRoutes(extensions),
     });
 }
@@ -87,6 +88,29 @@ function mergeRoutes(
         UnpickMergeCommand: [
             (command, pane) => diffService.unpickMerge(pane, command.elementId, command.scope),
         ],
+    };
+}
+
+function mergeResultRoutes(
+    diffService: BpmnDiffService,
+): CommandTable<
+    "BuildMergeResultCommand" | "CompareMergeResultCommand" | "SwitchMergeComparisonCommand",
+    DiffPaneHandle
+> {
+    if (!diffService.buildsMergeResults) {
+        const ignored = { ignored: "the host builds no merge result" };
+        return {
+            BuildMergeResultCommand: ignored,
+            CompareMergeResultCommand: ignored,
+            SwitchMergeComparisonCommand: ignored,
+        };
+    }
+    return {
+        BuildMergeResultCommand: [(_command, pane) => diffService.buildMergeResult(pane)],
+        CompareMergeResultCommand: [
+            (command, pane) => diffService.compareMergeResult(pane, command.against),
+        ],
+        SwitchMergeComparisonCommand: [(_command, pane) => diffService.switchMergeComparison(pane)],
     };
 }
 

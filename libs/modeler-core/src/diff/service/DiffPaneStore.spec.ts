@@ -272,4 +272,28 @@ describe("DiffPaneStore", () => {
         expect(store.findByUri(CURRENT)).toBeUndefined();
         expect(closed).toStrictEqual(["merge"]);
     });
+
+    // ─── merge result comparisons ───────────────────────────────────────────
+
+    it("pre-registers a merge result comparison: the stage left, the working file right", () => {
+        const store = new DiffPaneStore();
+
+        const session = store.registerResultComparison(INCOMING, RIGHT);
+
+        expect(session.origin).toBe("merge-result");
+        expect([session.sideFor(INCOMING), session.sideFor(RIGHT)]).toStrictEqual([
+            "before",
+            "after",
+        ]);
+        expect(store.awaitingPaneFor(RIGHT)).toBe(session);
+    });
+
+    it("sweeps a merge result comparison no pane joined", () => {
+        const store = new DiffPaneStore();
+        store.registerResultComparison(INCOMING, RIGHT);
+
+        vi.advanceTimersByTime(30_000);
+
+        expect(store.findByUri(RIGHT)).toBeUndefined();
+    });
 });

@@ -1,5 +1,6 @@
 import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type {
+    MergePaneBuildNote,
     MergeObstacleKind,
     MergeObstacleWithMissing,
     MergePaneAction,
@@ -9,6 +10,7 @@ import type {
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import type {
+    DiffSide,
     MergeCaptionRole,
     MergeMarker,
     MergeSide,
@@ -225,4 +227,93 @@ export function outcomeHeadline(
     return translate(outcome.applied ? headlines.applied : headlines.refused, {
         element: nameOf(outcome.elementId),
     });
+}
+
+/** The build part of the merge legend, and the notes list's name. */
+export const MERGE_BUILD_TEXTS = {
+    build: "Build",
+    notes: "Notes of the build",
+} as const;
+
+const COMPARE_WITH_TEXTS: Record<MergeSide, string> = {
+    current: "Compare with current",
+    incoming: "Compare with incoming",
+};
+
+const COMPARISON_TEXTS: Record<MergeSide, string> = {
+    current: "Result against current",
+    incoming: "Result against incoming",
+};
+
+/** What each build note asks the user to check, with the canvas's names of its elements. */
+const BUILD_NOTE_TEXTS: Record<MergePaneBuildNote["kind"], string> = {
+    flowEndsFromDifferentSides:
+        "{element} connects shapes drawn by different sides; check where it meets {ends}",
+    addedAtSamePlace: "{first} and {second} were added at the same place",
+    drawnApartFromContainer:
+        "{element} is drawn by another side than {containers}; check that it still sits inside",
+    restoredWithoutConnections:
+        "{element} is kept without the flows the other side removed with it: {connections}",
+    frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+};
+
+/** Why Build is disabled. */
+export function buildBlockedText(count: number, translate: MergeTranslate): string {
+    return count === 1
+        ? translate("1 conflict left")
+        : translate("{count} conflicts left", { count: String(count) });
+}
+
+/** The legend's action that compares the built result with `side`. */
+export function compareWithText(side: MergeSide, translate: MergeTranslate): string {
+    return translate(COMPARE_WITH_TEXTS[side]);
+}
+
+/** What a result comparison's legend says it shows. */
+export function comparisonText(side: MergeSide, translate: MergeTranslate): string {
+    return translate(COMPARISON_TEXTS[side]);
+}
+
+const RESULT_TEXT = "Result";
+
+/** A result comparison's pane label: the compared side on the left, the result on the right. */
+export function comparisonPaneText(
+    paneSide: DiffSide,
+    against: MergeSide,
+    translate: MergeTranslate,
+): string {
+    return translate(paneSide === "before" ? MERGE_SIDE_TEXTS[against] : RESULT_TEXT);
+}
+
+export function reviewNotesText(count: number, translate: MergeTranslate): string {
+    return translate("Review notes ({count})", { count: String(count) });
+}
+
+/** One note of the last build, in one line. */
+export function buildNoteText(
+    note: MergePaneBuildNote,
+    nameOf: (id: string) => string,
+    translate: MergeTranslate,
+): string {
+    const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
+    return translate(BUILD_NOTE_TEXTS[note.kind], noteReplacements(note, nameOf, names));
+}
+
+function noteReplacements(
+    note: MergePaneBuildNote,
+    nameOf: (id: string) => string,
+    names: (ids: readonly string[]) => string,
+): Record<string, string> {
+    switch (note.kind) {
+        case "flowEndsFromDifferentSides":
+            return { element: nameOf(note.id), ends: names(note.ends) };
+        case "addedAtSamePlace":
+            return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
+        case "drawnApartFromContainer":
+            return { element: nameOf(note.id), containers: names(note.containers) };
+        case "restoredWithoutConnections":
+            return { element: nameOf(note.id), connections: names(note.connections) };
+        case "frameDiffers":
+            return { attribute: note.attribute };
+    }
 }

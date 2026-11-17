@@ -74,6 +74,7 @@ export default miragonDocs({
             text: "Review and deploy",
             items: [
                 { text: "BPMN diff", link: "/vscode/features/bpmn-diff" },
+                { text: "BPMN merge", link: "/vscode/features/bpmn-merge" },
                 { text: "DMN diff", link: "/vscode/features/dmn-diff" },
                 { text: "Deployment", link: "/vscode/features/deployment" },
             ],

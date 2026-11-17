@@ -16,6 +16,10 @@ import * as addOnsFeature from "./composition/addOnsFeature";
 
 /** Narrow API surface returned by `activate()` for e2e tests only. */
 export interface TestApi {
+    modeler: {
+        /** Whether the editable modeler of `uri` has opened its editor session. */
+        hasEditor(uri: string): boolean;
+    };
     diff: {
         sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
         /** Diff panes that render `uri`, attached or waiting for a partner; 0 for the editable modeler. */
@@ -26,6 +30,8 @@ export interface TestApi {
         sessionFor(
             fileUri: string,
         ): { origin: string; paneCount: number; tabCount: number; captions: unknown } | undefined;
+        /** Builds the merge view's result into the working file, as its Build button does. */
+        build(fileUri: string): Promise<void>;
     };
 }
 
@@ -60,6 +66,7 @@ export function activate(context: ExtensionContext): TestApi {
         dmnDiffStore,
         mergeSessions,
         conflictMarkers,
+        buildMerge,
     } = diffFeature.register(context, deps);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
@@ -99,6 +106,9 @@ export function activate(context: ExtensionContext): TestApi {
     });
 
     return {
+        modeler: {
+            hasEditor: (uri: string) => deps.editorStore.hasEditor(uri),
+        },
         diff: {
             sessionFor(uri: string) {
                 const session = diffStore.findByUri(uri) ?? dmnDiffStore.findByUri(uri);
@@ -125,6 +135,7 @@ export function activate(context: ExtensionContext): TestApi {
                     captions: session.captions,
                 };
             },
+            build: buildMerge,
         },
     };
 }

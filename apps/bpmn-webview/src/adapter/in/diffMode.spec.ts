@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "v
 import {
     ApplyDiffHighlightsQuery,
     type CursorChangedCommand,
+    type MergeResultComparison,
+    type SwitchMergeComparisonCommand,
     type DiffReadyCommand,
     type DiffSelectionChangedCommand,
     type LogErrorCommand,
@@ -66,6 +68,10 @@ const fakes = vi.hoisted(() => {
         static last: FakeDiffLegend;
         update = vi.fn();
         reserveRoomOn = vi.fn();
+        readonly extension = document.createElement("div");
+        extensionElement(): HTMLElement {
+            return this.extension;
+        }
         constructor(
             readonly parent: HTMLElement,
             readonly callbacks: {
@@ -116,8 +122,12 @@ vi.mock("./elementXmlContextPad", () => ({
 vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     DiffViewer: fakes.FakeDiffViewer,
     DiffNavigator: fakes.FakeDiffNavigator,
-    DiffLegend: fakes.FakeDiffLegend,
     DiffSideLabel: fakes.FakeDiffSideLabel,
+}));
+
+vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-types")>()),
+    DiffLegendView: fakes.FakeDiffLegend,
 }));
 
 import { DiffMode } from "./diffMode";
@@ -137,6 +147,7 @@ function highlights(
     origin: DiffOrigin,
     side: "before" | "after" = "after",
     elementXmlChanges = false,
+    comparison?: MergeResultComparison,
 ) {
     return new ApplyDiffHighlightsQuery(
         side,
@@ -149,6 +160,7 @@ function highlights(
         origin,
         "after.bpmn",
         elementXmlChanges,
+        comparison,
     );
 }
 
@@ -595,6 +607,82 @@ describe("DiffMode", () => {
             expect(posted()).toEqual([
                 expect.objectContaining({ type: "SwapCompareSidesCommand" }),
             ]);
+        });
+    });
+
+    describe("merge result comparison", () => {
+        const switchButton = () =>
+            [...legend().extension.querySelectorAll("button")].find(
+                (button) => button.closest("[hidden]") === null,
+            );
+
+        it("says which side the result is compared with and switches to the other", async () => {
+            await startDiffPane();
+            dispatch(
+                highlights("merge-result", "after", false, {
+                    against: "incoming",
+                    switchTo: "current",
+                }),
+            );
+
+            expect(legend().extension.textContent).toContain("Result against incoming");
+            expect(switchButton()?.textContent).toBe("Compare with current");
+            switchButton()?.click();
+
+            expect(posted()).toContainEqual(
+                expect.objectContaining({ type: "SwitchMergeComparisonCommand" }),
+            );
+            expectTypeOf<SwitchMergeComparisonCommand>().toExtend<PostedByDiffMode>();
+        });
+
+        it.each<["before" | "after", string]>([
+            ["before", "Incoming"],
+            ["after", "Result"],
+        ])("labels the %s pane with what it shows", async (side, label) => {
+            await startDiffPane();
+
+            dispatch(
+                highlights("merge-result", side, false, {
+                    against: "incoming",
+                    switchTo: "current",
+                }),
+            );
+
+            expect(sideLabel()?.showFilename).toHaveBeenLastCalledWith(label);
+        });
+
+        it("names the side without a switch where the comparison cannot switch", async () => {
+            await startDiffPane();
+            dispatch(
+                highlights("merge-result", "after", false, {
+                    against: "current",
+                }),
+            );
+
+            expect(legend().extension.textContent).toContain("Result against current");
+            expect(switchButton()).toBeUndefined();
+        });
+
+        it.each<DiffOrigin>(["scm", "compare-files"])(
+            "shows no comparison on a plain %s diff",
+            async (origin) => {
+                await startDiffPane();
+                dispatch(highlights(origin));
+
+                expect(legend().extension.hidden).toBe(true);
+            },
+        );
+
+        it("leaves the left pane's half of the bar to the right one", async () => {
+            await startDiffPane();
+            dispatch(
+                highlights("merge-result", "before", false, {
+                    against: "incoming",
+                    switchTo: "current",
+                }),
+            );
+
+            expect(legend().extension.hidden).toBe(true);
         });
     });
 });

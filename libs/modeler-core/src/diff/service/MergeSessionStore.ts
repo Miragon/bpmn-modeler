@@ -1,4 +1,4 @@
-import type { MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
+import type { BuildNote, MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
 import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
@@ -22,6 +22,16 @@ export interface MergeSession extends MergeViewContent {
     readonly sources: MergeSources;
     /** Every merge element in the order the panes' steppers walk them. */
     readonly navigationOrder: readonly string[];
+    /** The working file as the merge view read it when it opened, usually Git's conflict markers. */
+    readonly openedWorkingText?: string;
+    /** The result last built into the working file; set by each build. */
+    lastBuild?: MergeBuild;
+}
+
+/** A merge result written to the working file, and what its build asks the user to review. */
+export interface MergeBuild {
+    readonly xml: string;
+    readonly notes: readonly BuildNote[];
 }
 
 interface Entry {
@@ -40,6 +50,8 @@ interface Entry {
  */
 export class MergeSessionStore implements EditorSubscription {
     private readonly entries = new Set<Entry>();
+
+    private readonly endedListeners = new Set<(session: MergeSession) => void>();
 
     private readonly closing: EditorSubscription;
 
@@ -76,6 +88,12 @@ export class MergeSessionStore implements EditorSubscription {
         return this.entryOf(diffSession)?.session;
     }
 
+    /** Calls `listener` with each merge view whose last tab closed. */
+    onSessionEnded(listener: (session: MergeSession) => void): EditorSubscription {
+        this.endedListeners.add(listener);
+        return { dispose: () => this.endedListeners.delete(listener) };
+    }
+
     diffSessionsOf(session: MergeSession): readonly DiffSession[] {
         return [...(this.entryOfSession(session)?.diffSessions ?? [])];
     }
@@ -91,6 +109,7 @@ export class MergeSessionStore implements EditorSubscription {
         if (entry.diffSessions.size === 0) {
             this.entries.delete(entry);
             this.view.release(entry.session.uris);
+            for (const listener of this.endedListeners) listener(entry.session);
         }
     }
 

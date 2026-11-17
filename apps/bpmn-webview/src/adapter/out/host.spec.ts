@@ -59,6 +59,9 @@ import {
     MergeStepListChangedCommand,
     PickMergeSideCommand,
     UnpickMergeCommand,
+    BuildMergeResultCommand,
+    CompareMergeResultCommand,
+    SwitchMergeComparisonCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
@@ -142,6 +145,9 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     MergeStepListChangedCommand: new MergeStepListChangedCommand("all"),
     PickMergeSideCommand: new PickMergeSideCommand("Task_1", "element"),
     UnpickMergeCommand: new UnpickMergeCommand("Task_1", "element"),
+    BuildMergeResultCommand: new BuildMergeResultCommand(),
+    CompareMergeResultCommand: new CompareMergeResultCommand("incoming"),
+    SwitchMergeComparisonCommand: new SwitchMergeComparisonCommand(),
 };
 
 describe("getHostApi", () => {

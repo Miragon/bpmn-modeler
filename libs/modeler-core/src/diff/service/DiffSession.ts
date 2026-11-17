@@ -63,6 +63,14 @@ export class DiffSession {
     }
 
     /**
+     * Builds a `merge-result` session: a Git stage left and a copy of the
+     * built working file right, both served read-only.
+     */
+    static forResultComparison(stageUri: string, resultUri: string): DiffSession {
+        return new DiffSession("merge-result", stageUri, resultUri);
+    }
+
+    /**
      * Builds an `scm` session from two panes already sorted into before and
      * after, by `scmSides` where the host pairs them itself.
      */

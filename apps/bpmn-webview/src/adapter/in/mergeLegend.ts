@@ -11,6 +11,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import type { MergeStepList } from "../../domain/mergeStepper";
+import { type MergeBuildActions, MergeBuildPanel, type MergeBuildState } from "./mergeBuildPanel";
 import { type MergePickActions, MergePickPanel, type MergePickState } from "./mergePickPanel";
 import {
     MERGE_LEGEND_TEXTS,
@@ -22,7 +23,7 @@ import {
 
 import "./mergeLegend.css";
 
-export interface MergeLegendActions extends MergePickActions {
+export interface MergeLegendActions extends MergePickActions, MergeBuildActions {
     readonly onPrevious: () => void;
     readonly onNext: () => void;
     readonly onShowAll: () => void;
@@ -41,6 +42,8 @@ export interface MergeLegendState {
     /** The element the stepper is on. */
     readonly current?: string;
     readonly picking: MergePickState;
+    /** The build part, on the pane that shows it. */
+    readonly building?: MergeBuildState;
 }
 
 /** The legend's translator, which renders its templates with replacements. */
@@ -62,8 +65,9 @@ const STEP_LISTS: readonly { readonly list: MergeStepList; readonly label: strin
  * with the merge's own controls below the counts: how many conflicts are
  * left, which list Next and Previous walk (open conflicts or every merged
  * element), the marked elements no canvas draws, each a button that steps
- * to it, and the {@link MergePickPanel}. Every control is a button, so the
- * keyboard reaches all of it.
+ * to it, the {@link MergePickPanel} and, on the right pane, the
+ * {@link MergeBuildPanel}. Every control is a button, so the keyboard reaches
+ * all of it.
  */
 export class MergeLegend {
     private readonly view: DiffLegendView<MergeMarker>;
@@ -75,6 +79,7 @@ export class MergeLegend {
     private readonly shapelessLabel = createElement("span", "merge-legend__shapeless-label");
     private readonly shapelessList = createElement("ul", "merge-legend__shapeless-list");
     private readonly picking: MergePickPanel;
+    private readonly building: MergeBuildPanel;
     private state?: MergeLegendState;
     private listedShapeless: string | undefined;
 
@@ -105,13 +110,21 @@ export class MergeLegend {
         this.stepListGroup.append(this.stepListLabel, ...this.stepListButtons.values());
         this.shapelessGroup.append(this.shapelessLabel, this.shapelessList);
         this.picking = new MergePickPanel(actions, translator.translate.bind(translator));
+        this.building = new MergeBuildPanel(actions, translator.translate.bind(translator));
         this.view
             .extensionElement()
-            .append(this.openCount, this.stepListGroup, this.shapelessGroup, this.picking.element);
+            .append(
+                this.openCount,
+                this.stepListGroup,
+                this.shapelessGroup,
+                this.picking.element,
+                this.building.element,
+            );
         this.renderWords();
         translator.onChange(() => {
             this.renderWords();
             this.picking.render();
+            this.building.render();
         });
     }
 
@@ -128,6 +141,7 @@ export class MergeLegend {
         }
         this.renderShapeless(state);
         this.picking.update(state.picking);
+        this.building.update(state.building);
         this.renderWords();
     }
 

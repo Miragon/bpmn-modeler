@@ -128,3 +128,52 @@
 .merge-legend__restore {
     border-color: var(--diff-legend-primary-border);
 }
+
+/* ─── Build ────────────────────────────────────────────────────────────── */
+
+.merge-legend__build {
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}
+
+.merge-legend__build[hidden],
+.merge-legend__build [hidden] {
+    display: none;
+}
+
+.merge-legend__build-btn:not(:disabled) {
+    color: var(--diff-legend-primary-text);
+    background: var(--diff-legend-primary-surface);
+    border-color: var(--diff-legend-primary-border);
+}
+
+.merge-legend__build-btn:not(:disabled):hover {
+    background: var(--diff-legend-primary-hover);
+}
+
+.merge-legend__build-blocked {
+    color: var(--diff-legend-muted);
+    white-space: nowrap;
+}
+
+.merge-legend__notes {
+    display: flex;
+    flex: 1 0 100%;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.merge-legend__note {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding-left: 8px;
+    border-left: 3px solid var(--diff-legend-moved);
+}
