@@ -369,4 +369,20 @@ describe("reduceElementIdReview", () => {
     it.each(ROWS_OF_TRANSITIONS)("$name", ({ review, event, next, actions }) => {
         expect(reduceElementIdReview(review, event)).toEqual({ next, actions });
     });
+
+    it("leaves a process the user checked checked when its pool is deleted and restored", () => {
+        const poolDeleted: ElementIdReviewEvent = {
+            type: "reported",
+            editorId: "order",
+            status: "listed",
+            rows: ROWS.filter((row) => row.id !== "Process_1"),
+            unchecked: [],
+        };
+        const checked: ElementIdReview = { ...LISTED, unchecked: new Set() };
+
+        const deleted = reduceElementIdReview(checked, poolDeleted).next;
+        const restored = reduceElementIdReview(deleted, listing("order", []));
+
+        expect(restored).toMatchObject({ next: { unchecked: new Set() }, actions: [show([])] });
+    });
 });
