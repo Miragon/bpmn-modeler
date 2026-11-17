@@ -151,7 +151,7 @@ function report(
     const next: ListedReview = {
         ...review,
         rows: event.rows,
-        unchecked: added.length === 0 ? review.unchecked : new Set([...review.unchecked, ...added]),
+        unchecked: new Set([...review.unchecked, ...added]),
     };
     const show: ElementIdReviewAction = { kind: "show", view: listedView(next) };
     // The page drew the new rows as checked, so it lists them again with the review's choice.
