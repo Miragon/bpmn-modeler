@@ -137,7 +137,7 @@ const MERGE_OBSTACLE_TEXTS: Record<MergeObstacleKind, string> = {
     targetTakenWithoutPart: "{element} needs a part of {target} that the kept version lacks",
     dependentPicked: "{element}, which you picked, needs {target}",
     dependentPulledInByThisPick: "This pick brings in {element}, which needs {target}",
-    idHeldByAnother: "{element} and {target} hold the same id",
+    idHeldByAnother: "{element} and {target} hold the same ID",
     processInAnotherCollaboration: "{element} and {target} each have a pool of the same process",
 };
 

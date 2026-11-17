@@ -283,6 +283,99 @@ const dictionary: Record<string, string> = {
     "The ID already follows the name.": "ID가 이미 이름과 일치합니다.",
     "Add a name to generate the ID from it.":
         "이름을 추가하면 그 이름으로 ID를 생성할 수 있습니다.",
+    "Current": "현재",
+    "Incoming": "수신",
+    "your branch": "내 브랜치",
+    "other branch": "다른 브랜치",
+    "your commit": "내 커밋",
+    "your stash": "내 스태시",
+    "Taken from this side": "이쪽에서 가져옴",
+    "Taken from the other side": "다른 쪽에서 가져옴",
+    "Conflict": "충돌",
+    "Step through": "이동 대상",
+    "Open conflicts": "미해결 충돌",
+    "All merged elements": "병합된 모든 요소",
+    "Without a shape": "도형 없음",
+    "No open conflicts": "미해결 충돌 없음",
+    "1 open conflict": "미해결 충돌 1개",
+    "{count} open conflicts": "미해결 충돌 {count}개",
+    "Keep this version": "이 버전 유지",
+    "Keep everything inside": "내부 전체 유지",
+    "Undo pick": "선택 취소",
+    "Your picks": "내 선택",
+    "Pulled in:": "추가됨:",
+    "Dropped:": "제외됨:",
+    "Open again:": "다시 미해결:",
+    "Keep current": "현재 유지",
+    "Keep incoming": "수신 유지",
+    "C": "현",
+    "I": "수",
+    "Kept from current, your pick": "현재에서 유지, 내 선택",
+    "Kept from incoming, your pick": "수신에서 유지, 내 선택",
+    "Kept from current with everything inside, your pick":
+        "현재에서 내부 전체와 함께 유지, 내 선택",
+    "Kept from incoming with everything inside, your pick":
+        "수신에서 내부 전체와 함께 유지, 내 선택",
+    "Kept from current with its flows, your pick": "현재에서 흐름과 함께 유지, 내 선택",
+    "Kept from incoming with its flows, your pick": "수신에서 흐름과 함께 유지, 내 선택",
+    "Kept from current: {element}": "현재에서 유지: {element}",
+    "Kept from incoming: {element}": "수신에서 유지: {element}",
+    "{element} needs {target}, which no version has":
+        "{element}에 필요한 {target}이(가) 어느 버전에도 없습니다",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element}에 필요한 {target}이(가) 선택한 쪽에 없습니다",
+    "{element} needs {target}, which this pick drops":
+        "{element}에 필요한 {target}을(를) 이 선택이 제외합니다",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element}에 필요한 {target}의 일부를 이 선택이 제외합니다",
+    "{element} needs {target}, which this side does not have":
+        "{element}에 필요한 {target}이(가) 이쪽에 없습니다",
+    "{element} needs {target}, which the result leaves out":
+        "{element}에 필요한 {target}이(가) 결과에서 제외됩니다",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element}에 필요한 {target}의 일부가 유지한 버전에 없습니다",
+    "{element}, which you picked, needs {target}": "선택한 {element}에 {target}이(가) 필요합니다",
+    "This pick brings in {element}, which needs {target}":
+        "이 선택으로 추가되는 {element}에 {target}이(가) 필요합니다",
+    "{element} and {target} hold the same ID": "{element}와(과) {target}의 ID가 같습니다",
+    "{element} and {target} each have a pool of the same process":
+        "{element}와(과) {target}에 각각 같은 프로세스의 풀이 있습니다",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element}에 필요한 {target}의 일부가 선택한 쪽에 없습니다",
+    "{element} needs a part of {target} that this side does not have":
+        "{element}에 필요한 {target}의 일부가 이쪽에 없습니다",
+    "Also keep the flow current removed with it": "현재가 함께 제거한 흐름도 유지",
+    "Also keep the {count} flows current removed with it":
+        "현재가 함께 제거한 흐름 {count}개도 유지",
+    "Also keep the flow incoming removed with it": "수신이 함께 제거한 흐름도 유지",
+    "Also keep the {count} flows incoming removed with it":
+        "수신이 함께 제거한 흐름 {count}개도 유지",
+    "Kept {element}": "{element} 유지됨",
+    "Cannot keep {element}": "{element}을(를) 유지할 수 없음",
+    "Left out {element}": "{element} 제외됨",
+    "Cannot leave out {element}": "{element}을(를) 제외할 수 없음",
+    "Took back the pick of {element}": "{element} 선택 취소됨",
+    "Cannot take back the pick of {element}": "{element} 선택을 취소할 수 없음",
+    "Build": "생성",
+    "Notes of the build": "생성 참고 사항",
+    "Compare with current": "현재와 비교",
+    "Compare with incoming": "수신과 비교",
+    "Result against current": "결과 대 현재",
+    "Result against incoming": "결과 대 수신",
+    "Result": "결과",
+    "Review notes ({count})": "참고 사항 검토 ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element}이(가) 서로 다른 쪽에서 그린 도형을 연결합니다. {ends}과(와) 만나는 위치를 확인하십시오",
+    "{first} and {second} were added at the same place":
+        "{first}와(과) {second}이(가) 같은 위치에 추가되었습니다",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element}은(는) {containers}와(과) 다른 쪽에서 그렸습니다. 여전히 내부에 있는지 확인하십시오",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "파일의 {attribute}이(가) 양쪽에서 다릅니다. 현재의 값이 유지됩니다",
+    "1 conflict left": "남은 충돌 1개",
+    "{count} conflicts left": "남은 충돌 {count}개",
 };
 
 export default dictionary;

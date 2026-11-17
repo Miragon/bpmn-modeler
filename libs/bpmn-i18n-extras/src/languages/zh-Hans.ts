@@ -265,6 +265,94 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "将 ID 重命名为 {id}",
     "The ID already follows the name.": "ID 已与名称一致。",
     "Add a name to generate the ID from it.": "添加名称后即可据此生成 ID。",
+    "Current": "当前",
+    "Incoming": "传入",
+    "your branch": "您的分支",
+    "other branch": "另一分支",
+    "your commit": "您的提交",
+    "your stash": "您的储藏",
+    "Taken from this side": "取自此侧",
+    "Taken from the other side": "取自另一侧",
+    "Conflict": "冲突",
+    "Step through": "逐个查看",
+    "Open conflicts": "未解决的冲突",
+    "All merged elements": "所有合并的元素",
+    "Without a shape": "无形状",
+    "No open conflicts": "没有未解决的冲突",
+    "1 open conflict": "1 个未解决的冲突",
+    "{count} open conflicts": "{count} 个未解决的冲突",
+    "Keep this version": "保留此版本",
+    "Keep everything inside": "保留其中的全部内容",
+    "Undo pick": "撤销选择",
+    "Your picks": "您的选择",
+    "Pulled in:": "带入：",
+    "Dropped:": "移除：",
+    "Open again:": "再次未解决：",
+    "Keep current": "保留当前",
+    "Keep incoming": "保留传入",
+    "C": "当",
+    "I": "传",
+    "Kept from current, your pick": "从当前保留，您的选择",
+    "Kept from incoming, your pick": "从传入保留，您的选择",
+    "Kept from current with everything inside, your pick": "从当前连同其中全部内容保留，您的选择",
+    "Kept from incoming with everything inside, your pick": "从传入连同其中全部内容保留，您的选择",
+    "Kept from current with its flows, your pick": "从当前连同其流保留，您的选择",
+    "Kept from incoming with its flows, your pick": "从传入连同其流保留，您的选择",
+    "Kept from current: {element}": "从当前保留：{element}",
+    "Kept from incoming: {element}": "从传入保留：{element}",
+    "{element} needs {target}, which no version has":
+        "{element} 需要 {target}，但没有任何版本包含它",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} 需要 {target}，但您选择的一侧没有它",
+    "{element} needs {target}, which this pick drops":
+        "{element} 需要 {target}，但此选择会将其移除",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} 需要 {target} 的一部分，但此选择会将其排除",
+    "{element} needs {target}, which this side does not have":
+        "{element} 需要 {target}，但此侧没有它",
+    "{element} needs {target}, which the result leaves out":
+        "{element} 需要 {target}，但结果中不包含它",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} 需要 {target} 的一部分，但保留的版本缺少它",
+    "{element}, which you picked, needs {target}": "您选择的 {element} 需要 {target}",
+    "This pick brings in {element}, which needs {target}":
+        "此选择会带入 {element}，而它需要 {target}",
+    "{element} and {target} hold the same ID": "{element} 和 {target} 的 ID 相同",
+    "{element} and {target} each have a pool of the same process":
+        "{element} 和 {target} 各有一个同一流程的池",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} 需要 {target} 的一部分，但您选择的一侧没有它",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} 需要 {target} 的一部分，但此侧没有它",
+    "Also keep the flow current removed with it": "同时保留当前随其删除的流",
+    "Also keep the {count} flows current removed with it": "同时保留当前随其删除的 {count} 条流",
+    "Also keep the flow incoming removed with it": "同时保留传入随其删除的流",
+    "Also keep the {count} flows incoming removed with it": "同时保留传入随其删除的 {count} 条流",
+    "Kept {element}": "已保留 {element}",
+    "Cannot keep {element}": "无法保留 {element}",
+    "Left out {element}": "已排除 {element}",
+    "Cannot leave out {element}": "无法排除 {element}",
+    "Took back the pick of {element}": "已撤销对 {element} 的选择",
+    "Cannot take back the pick of {element}": "无法撤销对 {element} 的选择",
+    "Build": "生成",
+    "Notes of the build": "生成说明",
+    "Compare with current": "与当前比较",
+    "Compare with incoming": "与传入比较",
+    "Result against current": "结果与当前对比",
+    "Result against incoming": "结果与传入对比",
+    "Result": "结果",
+    "Review notes ({count})": "查看说明（{count}）",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} 连接了由不同侧绘制的形状；请检查它与 {ends} 的连接处",
+    "{first} and {second} were added at the same place": "{first} 和 {second} 被添加在同一位置",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} 与 {containers} 由不同侧绘制；请检查它是否仍位于其中",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} 被保留，但不含另一侧随其删除的流：{connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "文件的 {attribute} 在两侧不同；保留当前的值",
+    "1 conflict left": "剩余 1 个冲突",
+    "{count} conflicts left": "剩余 {count} 个冲突",
 };
 
 export default dictionary;

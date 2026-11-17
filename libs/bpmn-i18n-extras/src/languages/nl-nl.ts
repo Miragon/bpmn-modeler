@@ -296,6 +296,102 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "ID hernoemen naar {id}",
     "The ID already follows the name.": "De ID volgt de naam al.",
     "Add a name to generate the ID from it.": "Voeg een naam toe om er de ID uit te genereren.",
+    "Current": "Huidig",
+    "Incoming": "Inkomend",
+    "your branch": "jouw branch",
+    "other branch": "andere branch",
+    "your commit": "jouw commit",
+    "your stash": "jouw stash",
+    "Taken from this side": "Overgenomen van deze kant",
+    "Taken from the other side": "Overgenomen van de andere kant",
+    "Conflict": "Conflict",
+    "Step through": "Doorlopen",
+    "Open conflicts": "Open conflicten",
+    "All merged elements": "Alle samengevoegde elementen",
+    "Without a shape": "Zonder vorm",
+    "No open conflicts": "Geen open conflicten",
+    "1 open conflict": "1 open conflict",
+    "{count} open conflicts": "{count} open conflicten",
+    "Keep this version": "Deze versie behouden",
+    "Keep everything inside": "Alles erin behouden",
+    "Undo pick": "Keuze terugnemen",
+    "Your picks": "Jouw keuzes",
+    "Pulled in:": "Meegenomen:",
+    "Dropped:": "Weggevallen:",
+    "Open again:": "Weer open:",
+    "Keep current": "Huidig behouden",
+    "Keep incoming": "Inkomend behouden",
+    "C": "H",
+    "I": "I",
+    "Kept from current, your pick": "Behouden van Huidig, jouw keuze",
+    "Kept from incoming, your pick": "Behouden van Inkomend, jouw keuze",
+    "Kept from current with everything inside, your pick":
+        "Behouden van Huidig met alles erin, jouw keuze",
+    "Kept from incoming with everything inside, your pick":
+        "Behouden van Inkomend met alles erin, jouw keuze",
+    "Kept from current with its flows, your pick": "Behouden van Huidig met zijn flows, jouw keuze",
+    "Kept from incoming with its flows, your pick":
+        "Behouden van Inkomend met zijn flows, jouw keuze",
+    "Kept from current: {element}": "Behouden van Huidig: {element}",
+    "Kept from incoming: {element}": "Behouden van Inkomend: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} heeft {target} nodig, dat geen enkele versie heeft",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} heeft {target} nodig, dat ontbreekt aan de kant die je koos",
+    "{element} needs {target}, which this pick drops":
+        "{element} heeft {target} nodig, dat door deze keuze wegvalt",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} heeft een deel van {target} nodig dat deze keuze weglaat",
+    "{element} needs {target}, which this side does not have":
+        "{element} heeft {target} nodig, dat deze kant niet heeft",
+    "{element} needs {target}, which the result leaves out":
+        "{element} heeft {target} nodig, dat het resultaat weglaat",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} heeft een deel van {target} nodig dat in de behouden versie ontbreekt",
+    "{element}, which you picked, needs {target}": "{element}, dat je koos, heeft {target} nodig",
+    "This pick brings in {element}, which needs {target}":
+        "Deze keuze neemt {element} mee, dat {target} nodig heeft",
+    "{element} and {target} hold the same ID": "{element} en {target} hebben dezelfde ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} en {target} hebben elk een pool van hetzelfde proces",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} heeft een deel van {target} nodig, dat ontbreekt aan de kant die je koos",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} heeft een deel van {target} nodig dat deze kant niet heeft",
+    "Also keep the flow current removed with it":
+        "Ook de flow behouden die Huidig ermee verwijderde",
+    "Also keep the {count} flows current removed with it":
+        "Ook de {count} flows behouden die Huidig ermee verwijderde",
+    "Also keep the flow incoming removed with it":
+        "Ook de flow behouden die Inkomend ermee verwijderde",
+    "Also keep the {count} flows incoming removed with it":
+        "Ook de {count} flows behouden die Inkomend ermee verwijderde",
+    "Kept {element}": "{element} is behouden",
+    "Cannot keep {element}": "{element} kan niet worden behouden",
+    "Left out {element}": "{element} is weggelaten",
+    "Cannot leave out {element}": "{element} kan niet worden weggelaten",
+    "Took back the pick of {element}": "Keuze voor {element} is teruggenomen",
+    "Cannot take back the pick of {element}": "Keuze voor {element} kan niet worden teruggenomen",
+    "Build": "Samenstellen",
+    "Notes of the build": "Opmerkingen bij het samenstellen",
+    "Compare with current": "Vergelijken met Huidig",
+    "Compare with incoming": "Vergelijken met Inkomend",
+    "Result against current": "Resultaat tegenover Huidig",
+    "Result against incoming": "Resultaat tegenover Inkomend",
+    "Result": "Resultaat",
+    "Review notes ({count})": "Opmerkingen bekijken ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} verbindt vormen die door verschillende kanten zijn getekend; controleer waar het {ends} raakt",
+    "{first} and {second} were added at the same place":
+        "{first} en {second} zijn op dezelfde plek toegevoegd",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} is door een andere kant getekend dan {containers}; controleer of het er nog in ligt",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} is behouden zonder de flows die de andere kant ermee verwijderde: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "Het attribuut {attribute} van het bestand verschilt tussen de kanten; dat van Huidig blijft behouden",
+    "1 conflict left": "Nog 1 conflict",
+    "{count} conflicts left": "Nog {count} conflicten",
 };
 
 export default dictionary;

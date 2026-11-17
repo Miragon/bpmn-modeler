@@ -283,6 +283,99 @@ const dictionary: Record<string, string> = {
     "Rename the ID to {id}": "Rename the ID to {id}",
     "The ID already follows the name.": "The ID already follows the name.",
     "Add a name to generate the ID from it.": "Add a name to generate the ID from it.",
+    "Current": "Current",
+    "Incoming": "Incoming",
+    "your branch": "your branch",
+    "other branch": "other branch",
+    "your commit": "your commit",
+    "your stash": "your stash",
+    "Taken from this side": "Taken from this side",
+    "Taken from the other side": "Taken from the other side",
+    "Conflict": "Conflict",
+    "Step through": "Step through",
+    "Open conflicts": "Open conflicts",
+    "All merged elements": "All merged elements",
+    "Without a shape": "Without a shape",
+    "No open conflicts": "No open conflicts",
+    "1 open conflict": "1 open conflict",
+    "{count} open conflicts": "{count} open conflicts",
+    "Keep this version": "Keep this version",
+    "Keep everything inside": "Keep everything inside",
+    "Undo pick": "Undo pick",
+    "Your picks": "Your picks",
+    "Pulled in:": "Pulled in:",
+    "Dropped:": "Dropped:",
+    "Open again:": "Open again:",
+    "Keep current": "Keep current",
+    "Keep incoming": "Keep incoming",
+    "C": "C",
+    "I": "I",
+    "Kept from current, your pick": "Kept from current, your pick",
+    "Kept from incoming, your pick": "Kept from incoming, your pick",
+    "Kept from current with everything inside, your pick":
+        "Kept from current with everything inside, your pick",
+    "Kept from incoming with everything inside, your pick":
+        "Kept from incoming with everything inside, your pick",
+    "Kept from current with its flows, your pick": "Kept from current with its flows, your pick",
+    "Kept from incoming with its flows, your pick": "Kept from incoming with its flows, your pick",
+    "Kept from current: {element}": "Kept from current: {element}",
+    "Kept from incoming: {element}": "Kept from incoming: {element}",
+    "{element} needs {target}, which no version has":
+        "{element} needs {target}, which no version has",
+    "{element} needs {target}, which you picked from a side without it":
+        "{element} needs {target}, which you picked from a side without it",
+    "{element} needs {target}, which this pick drops":
+        "{element} needs {target}, which this pick drops",
+    "{element} needs a part of {target} that this pick leaves out":
+        "{element} needs a part of {target} that this pick leaves out",
+    "{element} needs {target}, which this side does not have":
+        "{element} needs {target}, which this side does not have",
+    "{element} needs {target}, which the result leaves out":
+        "{element} needs {target}, which the result leaves out",
+    "{element} needs a part of {target} that the kept version lacks":
+        "{element} needs a part of {target} that the kept version lacks",
+    "{element}, which you picked, needs {target}": "{element}, which you picked, needs {target}",
+    "This pick brings in {element}, which needs {target}":
+        "This pick brings in {element}, which needs {target}",
+    "{element} and {target} hold the same ID": "{element} and {target} hold the same ID",
+    "{element} and {target} each have a pool of the same process":
+        "{element} and {target} each have a pool of the same process",
+    "{element} needs a part of {target}, which you picked from a side without it":
+        "{element} needs a part of {target}, which you picked from a side without it",
+    "{element} needs a part of {target} that this side does not have":
+        "{element} needs a part of {target} that this side does not have",
+    "Also keep the flow current removed with it": "Also keep the flow current removed with it",
+    "Also keep the {count} flows current removed with it":
+        "Also keep the {count} flows current removed with it",
+    "Also keep the flow incoming removed with it": "Also keep the flow incoming removed with it",
+    "Also keep the {count} flows incoming removed with it":
+        "Also keep the {count} flows incoming removed with it",
+    "Kept {element}": "Kept {element}",
+    "Cannot keep {element}": "Cannot keep {element}",
+    "Left out {element}": "Left out {element}",
+    "Cannot leave out {element}": "Cannot leave out {element}",
+    "Took back the pick of {element}": "Took back the pick of {element}",
+    "Cannot take back the pick of {element}": "Cannot take back the pick of {element}",
+    "Build": "Build",
+    "Notes of the build": "Notes of the build",
+    "Compare with current": "Compare with current",
+    "Compare with incoming": "Compare with incoming",
+    "Result against current": "Result against current",
+    "Result against incoming": "Result against incoming",
+    "Result": "Result",
+    "Review notes ({count})": "Review notes ({count})",
+    "{element} connects shapes drawn by different sides; check where it meets {ends}":
+        "{element} connects shapes drawn by different sides; check where it meets {ends}",
+    "{first} and {second} were added at the same place":
+        "{first} and {second} were added at the same place",
+    "{element} is drawn by another side than {containers}; check that it still sits inside":
+        "{element} is drawn by another side than {containers}; check that it still sits inside",
+    "{element} is kept without the flows the other side removed with it: {connections}":
+        "{element} is kept without the flows the other side removed with it: {connections}",
+    "The file's {attribute} differs between the sides; current's is kept":
+        "The file's {attribute} differs between the sides; current's is kept",
+    "1 conflict left": "1 conflict left",
+    "{count} conflicts left": "{count} conflicts left",
 };
 
 export default dictionary;
