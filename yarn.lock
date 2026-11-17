@@ -1201,9 +1201,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/lint-core@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@bpmn-io/lint-core@npm:0.1.0"
+"@bpmn-io/lint-core@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "@bpmn-io/lint-core@npm:0.1.1"
   dependencies:
     "@bpmn-io/moddle-utils": "npm:^0.3.0"
     ansi-colors: "npm:^4.1.3"
@@ -1213,7 +1213,7 @@ __metadata:
     mri: "npm:^1.2.0"
     pluralize: "npm:^8.0.0"
     tiny-glob: "npm:^0.2.9"
-  checksum: 10c0/ee4d3b624b60a1930d7f0a365f42fc4ad0944ad75d2c5d46852624e328b278535ffbb0c8a655d8afbae74d1705551e305d2d80102308831aa91c2decb5a55c27
+  checksum: 10c0/d0cdbd1f41e331ed3bc78f0815c4df866e4276d7a612161f12f40199eb17dd58710e51a4bc00e1b6b86b3a0c14e5d69874910436366ab0432b46494d58b1a5a7
   languageName: node
   linkType: hard
 
@@ -3243,7 +3243,7 @@ __metadata:
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
-    bpmnlint: "npm:12.0.0"
+    bpmnlint: "npm:12.1.1"
     camunda-bpmn-moddle: "npm:8.0.2"
     jsonc-parser: "npm:3.3.1"
     tslib: "npm:2.9.1"
@@ -3339,7 +3339,7 @@ __metadata:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
     bpmn-moddle: "npm:10.3.1"
-    bpmnlint: "npm:12.0.0"
+    bpmnlint: "npm:12.1.1"
     jsdom: "npm:30.1.3"
     preact: "npm:10.29.8"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3674,7 +3674,7 @@ __metadata:
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.31.1"
     bpmn-js-bpmnlint: "npm:0.25.0"
-    bpmnlint: "npm:12.0.0"
+    bpmnlint: "npm:12.1.1"
     diagram-js: "npm:15.28.1"
     jsdom: "npm:30.1.3"
     portless: "npm:0.16.0"
@@ -3733,7 +3733,7 @@ __metadata:
     bpmn-js-properties-panel: "npm:5.65.3"
     bpmn-js-token-simulation: "npm:1.1.0"
     bpmn-moddle: "npm:10.3.1"
-    bpmnlint: "npm:12.0.0"
+    bpmnlint: "npm:12.1.1"
     camunda-bpmn-js-behaviors: "npm:1.18.0"
     camunda-bpmn-moddle: "npm:8.0.2"
     camunda-transaction-boundaries: "npm:1.1.2"
@@ -9499,7 +9499,7 @@ __metadata:
     "@vitest/browser-playwright": "npm:5.1.0"
     "@vitest/coverage-v8": "npm:5.1.0"
     bpmn-moddle: "npm:10.3.1"
-    bpmnlint: "npm:12.0.0"
+    bpmnlint: "npm:12.1.1"
     camunda-bpmn-moddle: "npm:8.0.2"
     eslint: "npm:10.14.0"
     eslint-config-prettier: "npm:10.1.8"
@@ -9541,17 +9541,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmnlint@npm:12.0.0":
-  version: 12.0.0
-  resolution: "bpmnlint@npm:12.0.0"
+"bpmnlint@npm:12.1.1":
+  version: 12.1.1
+  resolution: "bpmnlint@npm:12.1.1"
   dependencies:
-    "@bpmn-io/lint-core": "npm:^0.1.0"
+    "@bpmn-io/lint-core": "npm:^0.1.1"
     bpmn-moddle: "npm:^10.1.0"
     bpmnlint-utils: "npm:^1.1.1"
     min-dash: "npm:^5.1.0"
   bin:
     bpmnlint: bin/bpmnlint.js
-  checksum: 10c0/e388b0c6c747288ed6b6a63f27a41ba467eadb91c4c0b3d34d9dc5ea1278ebffffae8820b2b0d54b8ed813aafe4ef9eaf4aaf173630f2f130438edcc17927aa8
+  checksum: 10c0/a7ed8ed7ab8a2935bece5f2d76a87634fc7dab1a7f3ba80205d48ec87d488818b9311cb4e932d7299ff24e1f0d17ebd731230ffae0c42c200c68c51e5c39ab18
   languageName: node
   linkType: hard
 
