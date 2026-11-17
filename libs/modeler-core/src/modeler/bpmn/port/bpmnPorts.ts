@@ -85,7 +85,7 @@ export interface PropertiesPanelStatePort {
 /**
  * A host's own panel for the element ID review, such as VS Code's Panel area
  * beside Problems: it draws the view the core builds and hands each action back
- * to the core's `ElementIdsService`. Without it, the review opens in the canvas.
+ * to the core's `ElementIdReviewService`. Without it, the review opens in the canvas.
  */
 export interface ElementIdReviewPort {
     /** Shows the review, and reveals the panel when the review opens. */

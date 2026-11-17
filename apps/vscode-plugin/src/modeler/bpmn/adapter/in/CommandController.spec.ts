@@ -77,7 +77,7 @@ vi.mock("vscode", () => ({
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import {
-    ElementIdsService,
+    ElementIdReviewService,
     FOCUS_BPMN_DIAGRAM_MESSAGE,
     getLatestVersion,
     newModelEnginePrompt,
@@ -115,7 +115,7 @@ function createController(promptAnswers: PromptAnswers = {}) {
         host.picker,
         documentFlush as never,
         layoutSvc as never,
-        new ElementIdsService(host.store, host.notifier, { show: vi.fn(), close: vi.fn() }),
+        new ElementIdReviewService(host.store, host.notifier, { show: vi.fn(), close: vi.fn() }),
         vsCodeModelerPreferences,
         new ModelerLanguageService(host.picker, vsCodeModelerPreferences, host.notifier),
     );

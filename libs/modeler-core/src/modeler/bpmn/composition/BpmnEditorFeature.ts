@@ -74,7 +74,7 @@ import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 import { BpmnlintParticipant } from "../service/BpmnlintParticipant";
 import { BpmnSettingsParticipant } from "../service/BpmnSettingsParticipant";
 import { ElementIdReviewParticipant } from "../service/ElementIdReviewParticipant";
-import { ElementIdsService } from "../service/ElementIdsService";
+import { ElementIdReviewService } from "../service/ElementIdReviewService";
 import { ElementTemplatesParticipant } from "../service/ElementTemplatesParticipant";
 import { EngineVersionStatusBarParticipant } from "../service/EngineVersionStatusBarParticipant";
 import { LoadedTemplateDirs } from "../service/LoadedTemplateDirs";
@@ -174,7 +174,7 @@ export class BpmnEditorFeature {
     /** What the add-on catalog lists of the element templates. */
     readonly templateInventory: TemplateInventory;
     readonly layout: BpmnLayoutService;
-    readonly elementIds: ElementIdsService;
+    readonly elementIdReview: ElementIdReviewService;
     readonly lintConfig: BpmnLintConfigService;
     /** What the add-on catalog lists of the rule packages; absent without {@link BpmnRulePackagePorts}. */
     readonly rulePackageInventory?: RulePackageInventory;
@@ -220,7 +220,11 @@ export class BpmnEditorFeature {
         });
         this.templateInventory = new TemplateInventory(loadedTemplateDirs, ports.artifacts);
         this.layout = new BpmnLayoutService(ports.store, ports.notifier, ports.picker);
-        this.elementIds = new ElementIdsService(ports.store, ports.notifier, ports.elementIdReview);
+        this.elementIdReview = new ElementIdReviewService(
+            ports.store,
+            ports.notifier,
+            ports.elementIdReview,
+        );
         const lintConfigLocator = new BpmnLintConfigLocator(
             ports.workspace,
             ports.settings,
@@ -294,9 +298,9 @@ export class BpmnEditorFeature {
             SetTextClipboardCommand: [setTextClipboardHandler(clipboard)],
             DiagramFormattedCommand: [diagramFormattedHandler(this.layout)],
             CleanupReportCommand: [cleanupReportHandler(this.layout)],
-            ElementIdProposalsCommand: [elementIdProposalsHandler(this.elementIds)],
-            ElementIdsAppliedCommand: [elementIdsAppliedHandler(this.elementIds)],
-            OpenElementIdReviewCommand: [openElementIdReviewHandler(this.elementIds)],
+            ElementIdProposalsCommand: [elementIdProposalsHandler(this.elementIdReview)],
+            ElementIdsAppliedCommand: [elementIdsAppliedHandler(this.elementIdReview)],
+            OpenElementIdReviewCommand: [openElementIdReviewHandler(this.elementIdReview)],
             NavigateToReferencedModelCommand: [
                 navigation.commandHandlers.NavigateToReferencedModelCommand,
             ],
@@ -331,7 +335,7 @@ export class BpmnEditorFeature {
             contributions.deploymentStatus,
             scriptEditor.participant,
             codeLink.participant,
-            new ElementIdReviewParticipant(this.elementIds),
+            new ElementIdReviewParticipant(this.elementIdReview),
             ...(contributions.plugins ? [contributions.plugins.participant] : []),
         ];
     }
@@ -380,7 +384,7 @@ export class BpmnEditorFeature {
                     this.ports.notifier,
                     "Bpmn modeler is ready",
                 ),
-                resumeElementIdReviewHandler(this.elementIds),
+                resumeElementIdReviewHandler(this.elementIdReview),
             ],
             SyncDocumentCommand: [syncDocumentHandler(this.bpmnService)],
             DocumentFlushedCommand: [documentFlushedHandler(documentSync.flushes)],

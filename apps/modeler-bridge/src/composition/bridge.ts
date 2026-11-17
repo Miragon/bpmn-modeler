@@ -138,7 +138,7 @@ export function createBridge(
     commandsFeature.register(deps, {
         bpmnService: editor.bpmnService,
         layout: editor.layout,
-        elementIds: editor.elementIds,
+        elementIdReview: editor.elementIdReview,
         coreWriteRenderer: editor,
     });
     const { marketplaces } = marketplaceFeature.registerHandlers(deps, {

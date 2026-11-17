@@ -1,6 +1,6 @@
 import { commands, type Disposable, type ExtensionContext } from "vscode";
 
-import type { ElementIdsService, LoggerPort } from "@miragon/bpmn-modeler-core";
+import type { ElementIdReviewService, LoggerPort } from "@miragon/bpmn-modeler-core";
 
 export const APPLY_ELEMENT_IDS_CMD = "bpmn-modeler.elementIdReview.apply";
 export const DISCARD_ELEMENT_IDS_CMD = "bpmn-modeler.elementIdReview.discard";
@@ -19,8 +19,8 @@ interface ElementIdReviewChecks extends Disposable {
 export class ElementIdReviewController {
     constructor(
         private readonly review: ElementIdReviewChecks | undefined,
-        private readonly elementIds: Pick<
-            ElementIdsService,
+        private readonly elementIdReview: Pick<
+            ElementIdReviewService,
             "apply" | "discard" | "reveal" | "setChecked"
         >,
         private readonly logger: Pick<LoggerPort, "logError">,
@@ -29,19 +29,19 @@ export class ElementIdReviewController {
     register(context: ExtensionContext): void {
         context.subscriptions.push(
             commands.registerCommand(APPLY_ELEMENT_IDS_CMD, () =>
-                this.run(() => this.elementIds.apply()),
+                this.run(() => this.elementIdReview.apply()),
             ),
             commands.registerCommand(DISCARD_ELEMENT_IDS_CMD, () =>
-                this.run(() => this.elementIds.discard()),
+                this.run(() => this.elementIdReview.discard()),
             ),
             commands.registerCommand(REVEAL_ELEMENT_ID_ROW_CMD, (elementId: string) =>
-                this.run(() => this.elementIds.reveal(elementId)),
+                this.run(() => this.elementIdReview.reveal(elementId)),
             ),
         );
         if (this.review) {
             context.subscriptions.push(
                 this.review.onDidChangeChecks((ids, checked) => {
-                    void this.run(() => this.elementIds.setChecked(ids, checked));
+                    void this.run(() => this.elementIdReview.setChecked(ids, checked));
                 }),
                 this.review,
             );

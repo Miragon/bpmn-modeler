@@ -17,7 +17,7 @@ const vscodeFake = vi.hoisted(() => {
 
 vi.mock("vscode", () => vscodeFake.module);
 
-import type { ElementIdsService } from "@miragon/bpmn-modeler-core";
+import type { ElementIdReviewService } from "@miragon/bpmn-modeler-core";
 import type { ExtensionContext } from "vscode";
 
 import {
@@ -36,7 +36,7 @@ function setUp({ panel = true }: { panel?: boolean } = {}) {
         },
         dispose: vi.fn(),
     };
-    const elementIds = {
+    const elementIdReview = {
         apply: vi.fn(async () => undefined),
         discard: vi.fn(async () => undefined),
         reveal: vi.fn(async () => undefined),
@@ -46,11 +46,11 @@ function setUp({ panel = true }: { panel?: boolean } = {}) {
     const context = { subscriptions: [] as { dispose(): void }[] };
     new ElementIdReviewController(
         panel ? review : undefined,
-        elementIds as unknown as ElementIdsService,
+        elementIdReview as unknown as ElementIdReviewService,
         logger,
     ).register(context as unknown as ExtensionContext);
     return {
-        elementIds,
+        elementIdReview,
         logger,
         context,
         review,
@@ -65,40 +65,40 @@ beforeEach(() => {
 
 describe("ElementIdReviewController", () => {
     it("applies and discards the review from the panel's title actions", async () => {
-        const { elementIds, run } = setUp();
+        const { elementIdReview, run } = setUp();
 
         await run(APPLY_ELEMENT_IDS_CMD);
         await run(DISCARD_ELEMENT_IDS_CMD);
 
-        expect(elementIds.apply).toHaveBeenCalledOnce();
-        expect(elementIds.discard).toHaveBeenCalledOnce();
+        expect(elementIdReview.apply).toHaveBeenCalledOnce();
+        expect(elementIdReview.discard).toHaveBeenCalledOnce();
     });
 
     it("reveals the element of a clicked row", async () => {
-        const { elementIds, run } = setUp();
+        const { elementIdReview, run } = setUp();
 
         await run(REVEAL_ELEMENT_ID_ROW_CMD, "Participant_1");
 
-        expect(elementIds.reveal).toHaveBeenCalledExactlyOnceWith("Participant_1");
+        expect(elementIdReview.reveal).toHaveBeenCalledExactlyOnceWith("Participant_1");
     });
 
     it("hands each checkbox change the panel reports to the core", async () => {
-        const { elementIds, reportChecks } = setUp();
+        const { elementIdReview, reportChecks } = setUp();
 
         reportChecks(["Activity_1", "Activity_2"], false);
         reportChecks(["Event_1"], true);
-        await vi.waitFor(() => expect(elementIds.setChecked).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() => expect(elementIdReview.setChecked).toHaveBeenCalledTimes(2));
 
-        expect(elementIds.setChecked.mock.calls).toEqual([
+        expect(elementIdReview.setChecked.mock.calls).toEqual([
             [["Activity_1", "Activity_2"], false],
             [["Event_1"], true],
         ]);
     });
 
     it("logs a failed action instead of letting VS Code report the command", async () => {
-        const { elementIds, logger, run } = setUp();
+        const { elementIdReview, logger, run } = setUp();
         const failure = new Error("No editor found for id: order.bpmn");
-        elementIds.apply.mockRejectedValueOnce(failure);
+        elementIdReview.apply.mockRejectedValueOnce(failure);
 
         await run(APPLY_ELEMENT_IDS_CMD);
 
@@ -107,13 +107,13 @@ describe("ElementIdReviewController", () => {
 
     // The manifest declares them for every VS Code; without a panel the core finds no review.
     it("registers the review's commands on a VS Code without the panel too", async () => {
-        const { elementIds, run } = setUp({ panel: false });
+        const { elementIdReview, run } = setUp({ panel: false });
 
         expect([...vscodeFake.registered.keys()].sort()).toEqual(
             [APPLY_ELEMENT_IDS_CMD, DISCARD_ELEMENT_IDS_CMD, REVEAL_ELEMENT_ID_ROW_CMD].sort(),
         );
         await run(APPLY_ELEMENT_IDS_CMD);
-        expect(elementIds.apply).toHaveBeenCalledOnce();
+        expect(elementIdReview.apply).toHaveBeenCalledOnce();
     });
 
     it("disposes its commands, its listener and the panel with the extension", () => {

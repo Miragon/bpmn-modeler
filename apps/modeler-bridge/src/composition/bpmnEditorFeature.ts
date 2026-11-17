@@ -98,7 +98,7 @@ export function register(
             onSettingsApplied: handles.onSettingsApplied,
         }),
     );
-    bindHandlers(deps.rpc, elementIdReviewHandlers(editor.elementIds, deps.notifier));
+    bindHandlers(deps.rpc, elementIdReviewHandlers(editor.elementIdReview, deps.notifier));
     bindHandlers(deps.rpc, templatePreferenceHandlers(deps.templatePreferences));
     bindHandlers(deps.rpc, workspaceTrustHandlers(deps.workspaceTrust));
 

@@ -174,7 +174,7 @@ failing session hooks); the price is indirection.
 - The element ID review ([IDs from names](bpmn-modeler-features.md#ids-from-names)) is drawn
   natively by each host from a view the core builds: VS Code's Panel area holds an Element IDs
   tab, a checkbox tree beside Problems and Output, and IntelliJ an Element IDs tool window. The
-  core's `ElementIdsService` keeps the review's state behind `ElementIdReviewPort`; the webview
+  core's `ElementIdReviewService` keeps the review's state behind `ElementIdReviewPort`; the webview
   lists the rows (`ElementIdProposalsQuery` → `ElementIdProposalsCommand`) after every change,
   host import and mode switch and applies them (`ApplyElementIdsQuery` →
   `ElementIdsAppliedCommand`), and IntelliJ reaches the port over `elementIdReview/*`. VS Code

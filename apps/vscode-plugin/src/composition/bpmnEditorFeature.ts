@@ -131,7 +131,7 @@ export function register(
         initialPanelVisible: () => editor.initialPanelVisible(),
     }).register(context);
 
-    new ElementIdReviewController(elementIdReview, editor.elementIds, deps.notifier).register(
+    new ElementIdReviewController(elementIdReview, editor.elementIdReview, deps.notifier).register(
         context,
     );
 

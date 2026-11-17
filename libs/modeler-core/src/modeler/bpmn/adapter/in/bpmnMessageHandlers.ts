@@ -24,7 +24,7 @@ import { BpmnLayoutService } from "../../service/BpmnLayoutService";
 import { BpmnLintConfigService } from "../../service/BpmnLintConfigService";
 import { BpmnPropertiesPanelService } from "../../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
-import { ElementIdsService } from "../../service/ElementIdsService";
+import { ElementIdReviewService } from "../../service/ElementIdReviewService";
 
 // Factories that turn a BPMN-webview command into a call on the owning service,
 // registered on each host's WebviewMessageRouter. A handler awaits its service
@@ -183,28 +183,28 @@ export function cleanupReportHandler(
 
 /** `ElementIdProposalsCommand` → the host's review panel shows the rows. */
 export function elementIdProposalsHandler(
-    elementIdsSvc: ElementIdsService,
+    elementIdReviewSvc: ElementIdReviewService,
 ): MessageHandler<ElementIdProposalsCommand> {
-    return (message, editorId) => elementIdsSvc.reportProposals(editorId, message);
+    return (message, editorId) => elementIdReviewSvc.reportProposals(editorId, message);
 }
 
 /** `ElementIdsAppliedCommand` → the host's review is over. */
 export function elementIdsAppliedHandler(
-    elementIdsSvc: ElementIdsService,
+    elementIdReviewSvc: ElementIdReviewService,
 ): MessageHandler<ElementIdsAppliedCommand> {
-    return (_message, editorId) => elementIdsSvc.reportApplied(editorId);
+    return (_message, editorId) => elementIdReviewSvc.reportApplied(editorId);
 }
 
 /** `OpenElementIdReviewCommand` → "Review all IDs…" opens the host's review of this diagram. */
 export function openElementIdReviewHandler(
-    elementIdsSvc: ElementIdsService,
+    elementIdReviewSvc: ElementIdReviewService,
 ): MessageHandler<OpenElementIdReviewCommand> {
-    return (_message, editorId) => elementIdsSvc.generate(editorId);
+    return (_message, editorId) => elementIdReviewSvc.generate(editorId);
 }
 
 /** `GetBpmnFileCommand` → a restarted page lists the open review's rows again. */
 export function resumeElementIdReviewHandler(
-    elementIdsSvc: ElementIdsService,
+    elementIdReviewSvc: ElementIdReviewService,
 ): MessageHandler<GetBpmnFileCommand> {
-    return (_message, editorId) => elementIdsSvc.resume(editorId);
+    return (_message, editorId) => elementIdReviewSvc.resume(editorId);
 }

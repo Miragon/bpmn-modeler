@@ -15,7 +15,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { createTestHost } from "../../../../testing";
-import { ElementIdsService } from "../../service/ElementIdsService";
+import { ElementIdReviewService } from "../../service/ElementIdReviewService";
 import {
     answerWithoutPluginsHandler,
     elementIdProposalsHandler,
@@ -199,7 +199,7 @@ describe("the host's own element ID review", () => {
         const host = createTestHost();
         const editor = host.openEditor("/work/order.bpmn");
         const panel = { show: vi.fn(), close: vi.fn() };
-        const service = new ElementIdsService(host.store, host.notifier, panel);
+        const service = new ElementIdReviewService(host.store, host.notifier, panel);
         return { editor, panel, service };
     }
 

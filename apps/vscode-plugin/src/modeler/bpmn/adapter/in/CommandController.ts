@@ -24,7 +24,7 @@ import { EMPTY_DMN_DIAGRAM } from "@miragon/bpmn-modeler-types";
 import { ModelerPreferences } from "../../../../shared/port/ModelerPreferences";
 import { promptNewFileTarget } from "../../../../shared/adapter/in/newFileTarget";
 import { VsCodeTextEditor } from "../../../../shared/adapter/in/VsCodeTextEditor";
-import { BpmnLayoutService, ElementIdsService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService, ElementIdReviewService } from "@miragon/bpmn-modeler-core";
 import { NotifierPort, PendingEditsFlush, PickerPort } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "@miragon/bpmn-modeler-core";
 
@@ -70,7 +70,7 @@ export class CommandController {
         private readonly picker: PickerPort,
         private readonly documentFlush: DocumentFlusher,
         private readonly layoutSvc: BpmnLayoutService,
-        private readonly elementIds: ElementIdsService,
+        private readonly elementIdReview: ElementIdReviewService,
         private readonly preferences: ModelerPreferences,
         private readonly languageService: ModelerLanguageService,
     ) {}
@@ -115,9 +115,9 @@ export class CommandController {
         return this.withActiveDiagram((editorId) => this.layoutSvc.inspectCleanup(editorId));
     }
 
-    /** Opens the review in the active diagram; {@link ElementIdsService} reports its outcome. */
+    /** Opens the review in the active diagram; {@link ElementIdReviewService} reports its outcome. */
     generateElementIds(): Promise<void> {
-        return this.withActiveDiagram((editorId) => this.elementIds.generate(editorId));
+        return this.withActiveDiagram((editorId) => this.elementIdReview.generate(editorId));
     }
 
     private async withActiveDiagram(action: (editorId: string) => Promise<void>): Promise<void> {

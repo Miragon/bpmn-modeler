@@ -28,7 +28,7 @@ import type { ElementIdReviewPort } from "../port/bpmnPorts";
  * {@link ElementIdReviewPort} and hands its actions back here; the review's
  * rules live in {@link reduceElementIdReview}.
  */
-export class ElementIdsService {
+export class ElementIdReviewService {
     private review: ElementIdReview = CLOSED_ELEMENT_ID_REVIEW;
 
     constructor(

@@ -12,18 +12,18 @@ import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
 import { createTestHost } from "../../../testing";
 import type { ElementIdReviewView } from "../domain/elementIdReviewView";
 import type { ElementIdReviewPort } from "../port/bpmnPorts";
-import { ElementIdsService } from "./ElementIdsService";
+import { ElementIdReviewService } from "./ElementIdReviewService";
 
 const SWITCH_MODE = "Switch to Design or Implement mode to generate IDs from names.";
 
 function createService() {
     const host = createTestHost();
     const editor = host.openEditor("/work/diagram.bpmn");
-    const service = new ElementIdsService(host.store, host.notifier);
+    const service = new ElementIdReviewService(host.store, host.notifier);
     return { service, host, editor, notifier: host.notifier };
 }
 
-describe("ElementIdsService on a host without a review panel", () => {
+describe("ElementIdReviewService on a host without a review panel", () => {
     it("says the editor cannot show the review, and asks no editor for its rows", async () => {
         const { service, editor, notifier } = createService();
 
@@ -82,7 +82,7 @@ function createPanelService() {
     const host = createTestHost();
     const editor = host.openEditor("/work/order.bpmn");
     const panel = new RecordingReviewPanel();
-    const service = new ElementIdsService(host.store, host.notifier, panel);
+    const service = new ElementIdReviewService(host.store, host.notifier, panel);
     return { service, host, editor, panel, notifier: host.notifier };
 }
 
@@ -94,7 +94,7 @@ async function openReview() {
     return setUp;
 }
 
-describe("ElementIdsService with the host's own review panel", () => {
+describe("ElementIdReviewService with the host's own review panel", () => {
     it("asks the editor the command targets for the review's rows", async () => {
         const { service, host, editor, panel } = createPanelService();
         const other = host.openEditor("/work/other.bpmn");
