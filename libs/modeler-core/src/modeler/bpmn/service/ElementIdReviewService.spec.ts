@@ -192,9 +192,12 @@ describe("ElementIdReviewService with the host's own review panel", () => {
 
         await service.apply();
         await service.reportApplied(editor.id);
-        service.reportProposals(editor.id, LISTED);
+        await service.reportProposals(editor.id, LISTED);
 
-        expect(editor.posted).toEqual([new ApplyElementIdsQuery(["Process_1"])]);
+        expect(editor.posted).toEqual([
+            new ApplyElementIdsQuery(["Process_1"]),
+            new CloseElementIdReviewQuery(),
+        ]);
         expect(panel.closed).toBe(1);
         expect(panel.shown).toHaveLength(1);
     });
@@ -229,7 +232,10 @@ describe("ElementIdReviewService with the host's own review panel", () => {
 
         expect(notifier.infos).toEqual([SWITCH_MODE]);
         expect(panel.shown).toEqual([]);
-        expect(editor.posted).toEqual([new CloseElementIdReviewQuery()]);
+        expect(editor.posted).toEqual([
+            new CloseElementIdReviewQuery(),
+            new CloseElementIdReviewQuery(),
+        ]);
     });
 
     it("closes the first diagram's panel when the review moves to a diagram that cannot change IDs", async () => {

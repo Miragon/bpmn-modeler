@@ -219,7 +219,10 @@ export function reduceElementIdReview(
         case "generate":
             return generate(review, event.editorId, event.title);
         case "reported":
-            return whenOpenOn(review, event.editorId, (open) => report(open, event));
+            // A page lists only while it holds a review open: one this review is not on is stale, as after a respawn.
+            return isOpenOn(review, event.editorId)
+                ? report(review, event)
+                : stay(review, { kind: "stopListing", editorId: event.editorId });
         case "checked":
             return whenListed(review, (listed) => check(listed, event.ids, event.checked));
         case "apply":
