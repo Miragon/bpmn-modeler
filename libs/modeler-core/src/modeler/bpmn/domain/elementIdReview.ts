@@ -61,6 +61,7 @@ export type ElementIdReviewAction =
     | { readonly kind: "stopListing"; readonly editorId: string }
     | { readonly kind: "show"; readonly view: ElementIdReviewView }
     | { readonly kind: "notify"; readonly text: string }
+    | { readonly kind: "focusPanel" }
     | { readonly kind: "closePanel" };
 
 export interface ElementIdReviewTransition {

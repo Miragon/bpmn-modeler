@@ -108,13 +108,21 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         actions: [{ kind: "askForRows", editorId: "order", unchecked: null }],
     },
     {
-        name: "keeps the choices when it runs again on the same diagram",
+        name: "keeps the choices and brings the panel up when it runs again on the same diagram",
         review: BOTH_UNCHECKED,
         event: { type: "generate", editorId: "order", title: "order.bpmn" },
         next: BOTH_UNCHECKED,
         actions: [
+            { kind: "focusPanel" },
             { kind: "askForRows", editorId: "order", unchecked: ["Process_1", "Activity_1"] },
         ],
+    },
+    {
+        name: "brings the panel up with the first listing when it runs again before it",
+        review: OPENING,
+        event: { type: "generate", editorId: "order", title: "order.bpmn" },
+        next: OPENING,
+        actions: [{ kind: "askForRows", editorId: "order", unchecked: null }],
     },
     {
         name: "moves to another diagram, and the first one stops listing",
@@ -127,11 +135,11 @@ const ROWS_OF_TRANSITIONS: Row[] = [
         ],
     },
     {
-        name: "takes the rows that start unchecked from the first listing",
+        name: "takes the rows that start unchecked from the first listing and brings the panel up",
         review: OPENING,
         event: listing("order"),
         next: LISTED,
-        actions: [show(["Process_1"])],
+        actions: [show(["Process_1"]), { kind: "focusPanel" }],
     },
     {
         name: "keeps its own unchecked rows over a later listing's",

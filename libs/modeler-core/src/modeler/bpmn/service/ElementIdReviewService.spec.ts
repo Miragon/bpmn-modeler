@@ -39,6 +39,7 @@ describe("ElementIdReviewService on a host without a review panel", () => {
 class RecordingReviewPanel implements ElementIdReviewPort {
     readonly shown: ElementIdReviewView[] = [];
     closed = 0;
+    focused = 0;
 
     show(view: ElementIdReviewView): void {
         this.shown.push(view);
@@ -46,6 +47,10 @@ class RecordingReviewPanel implements ElementIdReviewPort {
 
     close(): void {
         this.closed++;
+    }
+
+    focus(): void {
+        this.focused++;
     }
 
     get last(): ElementIdReviewView | undefined {
@@ -130,6 +135,16 @@ describe("ElementIdReviewService with the host's own review panel", () => {
                 { id: "activity", checked: true },
             ],
         });
+    });
+
+    it("brings the panel up with the first rows and each time Generate runs again", async () => {
+        const { service, editor, panel } = await openReview();
+        expect(panel.focused).toBe(1);
+
+        await service.generate(editor.id);
+        await service.reportProposals(editor.id, LISTED);
+
+        expect(panel.focused).toBe(2);
     });
 
     it("ignores rows from an editor whose review it is not", async () => {
