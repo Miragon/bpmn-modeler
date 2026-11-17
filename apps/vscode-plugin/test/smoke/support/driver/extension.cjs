@@ -21,49 +21,53 @@ function revived(argument) {
 
 const allTabs = () => vscode.window.tabGroups.all.flatMap((group) => group.tabs);
 
-const OPERATIONS = new Map([
-    [
-        "executeCommand",
-        async ({ command, args }) => {
-            await vscode.commands.executeCommand(String(command), ...args.map(revived));
-        },
-    ],
-    [
-        "updateSetting",
-        async ({ key, value }) => {
-            await vscode.workspace
-                .getConfiguration()
-                .update(String(key), value, vscode.ConfigurationTarget.Global);
-        },
-    ],
-    [
-        "closeTabs",
-        async ({ labels }) => {
-            await vscode.window.tabGroups.close(
-                allTabs().filter((tab) => labels.includes(tab.label)),
-            );
-        },
-    ],
-    [
-        // Closing an unsaved tab through the API would ask; this drops the changes.
-        "revertAndCloseAllEditors",
-        async () => {
-            for (let closed = 0; closed < 50 && allTabs().length > 0; closed++) {
-                await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
-            }
-        },
-    ],
-    [
-        "windowState",
-        () => ({
-            windowFocused: vscode.window.state.focused,
-            activeTab: vscode.window.tabGroups.activeTabGroup.activeTab?.label ?? null,
-            tabs: vscode.window.tabGroups.all.map((group) =>
-                group.tabs.map((tab) => ({ label: tab.label, isDirty: tab.isDirty })),
-            ),
-        }),
-    ],
-]);
+async function executeCommand({ command, args }) {
+    await vscode.commands.executeCommand(String(command), ...args.map(revived));
+}
+
+async function updateSetting({ key, value }) {
+    await vscode.workspace
+        .getConfiguration()
+        .update(String(key), value, vscode.ConfigurationTarget.Global);
+}
+
+async function closeTabs({ labels }) {
+    await vscode.window.tabGroups.close(allTabs().filter((tab) => labels.includes(tab.label)));
+}
+
+/** Closing an unsaved tab through the API would ask; this drops the changes. */
+async function revertAndCloseAllEditors() {
+    for (let closed = 0; closed < 50 && allTabs().length > 0; closed++) {
+        await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    }
+}
+
+function windowState() {
+    return {
+        windowFocused: vscode.window.state.focused,
+        activeTab: vscode.window.tabGroups.activeTabGroup.activeTab?.label ?? null,
+        tabs: vscode.window.tabGroups.all.map((group) =>
+            group.tabs.map((tab) => ({ label: tab.label, isDirty: tab.isDirty })),
+        ),
+    };
+}
+
+function run(operation, payload) {
+    switch (operation) {
+        case "executeCommand":
+            return executeCommand(payload);
+        case "updateSetting":
+            return updateSetting(payload);
+        case "closeTabs":
+            return closeTabs(payload);
+        case "revertAndCloseAllEditors":
+            return revertAndCloseAllEditors();
+        case "windowState":
+            return windowState();
+        default:
+            throw new Error(`the smoke driver knows no operation ${JSON.stringify(operation)}`);
+    }
+}
 
 function bodyOf(request) {
     return new Promise((resolve, reject) => {
@@ -76,9 +80,7 @@ function bodyOf(request) {
 
 async function answer(request) {
     const { operation, payload } = JSON.parse(await bodyOf(request));
-    const run = OPERATIONS.get(operation);
-    if (!run) throw new Error(`the smoke driver knows no operation ${JSON.stringify(operation)}`);
-    return run(payload ?? {});
+    return run(operation, payload);
 }
 
 function activate(context) {
