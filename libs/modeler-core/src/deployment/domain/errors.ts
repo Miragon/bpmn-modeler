@@ -170,3 +170,20 @@ export class StartInstanceFailedError extends Error {
 function detailSuffix(detail: string | undefined): string {
     return detail === undefined ? "." : `: ${detail}`;
 }
+
+/**
+ * Camunda 7 answers 2xx for a deployment that yields no definition, for
+ * example a process with `isExecutable="false"`, and keeps the empty deployment.
+ */
+export class NothingDeployedError extends Error {
+    constructor(deploymentName: string, deploymentId: string | undefined) {
+        super(
+            `Deployment '${deploymentName}' created no process or decision definition, so nothing can run. ` +
+                'A BPMN process must be marked executable (isExecutable="true").' +
+                (deploymentId === undefined
+                    ? ""
+                    : ` The engine keeps the empty deployment ${deploymentId}.`),
+        );
+        this.name = "NothingDeployedError";
+    }
+}

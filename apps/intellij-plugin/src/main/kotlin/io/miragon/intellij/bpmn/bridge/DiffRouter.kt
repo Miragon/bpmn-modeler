@@ -1,20 +1,25 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonParser
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import io.miragon.intellij.bpmn.ElementXmlDiffContent
+import io.miragon.intellij.bpmn.ElementXmlDiffSlot
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Routes host-originated BPMN diff sessions. A diff has two JCEF browsers and is
  * keyed by `paneUri` (not editor id); [diffPanes] maps each pane's URI to its
  * core→webview sink, and [diffPaneUris] lets [disposeDiff] drop both panes of a
- * diff at once.
+ * diff at once. Each diff also has the element XML diff the core shows inside
+ * it, found by a pane the core names.
  */
 internal class DiffRouter(private val deps: BridgeDeps) {
     private val log = Logger.getInstance(DiffRouter::class.java)
 
     private val diffPanes = ConcurrentHashMap<String, (String) -> Unit>()
     private val diffPaneUris = ConcurrentHashMap<String, List<String>>()
+    private val elementXmlDiffs = ConcurrentHashMap<String, ElementXmlDiffSlot>()
 
     fun register() {
         deps.handlers.on("diff/postMessage") { params ->
@@ -22,7 +27,31 @@ internal class DiffRouter(private val deps: BridgeDeps) {
             val message = params.element("message")
             RpcAction { diffPanes[paneUri]?.invoke(deps.gson.toJson(message)) }
         }
+        deps.handlers.on("elementXmlDiff/show") { params ->
+            val paneUri = params.string("paneUri")
+            val diffKey = params.string("diffKey")
+            val content = elementXmlDiffContent(params)
+            RpcAction { onEdt { elementXmlDiffOf(paneUri)?.show(diffKey, content) } }
+        }
+        deps.handlers.on("elementXmlDiff/refresh") { params ->
+            val paneUri = params.string("paneUri")
+            val diffKey = params.string("diffKey")
+            val content = elementXmlDiffContent(params)
+            RpcAction { onEdt { elementXmlDiffOf(paneUri)?.refresh(diffKey, content) } }
+        }
+        deps.handlers.on("elementXmlDiff/close") { params ->
+            val diffKey = params.string("diffKey")
+            RpcAction { onEdt { elementXmlDiffs.values.forEach { it.close(diffKey) } } }
+        }
     }
+
+    private fun elementXmlDiffContent(params: RpcParams) =
+        ElementXmlDiffContent(params.string("title"), params.string("before"), params.string("after"))
+
+    private fun elementXmlDiffOf(paneUri: String): ElementXmlDiffSlot? =
+        diffPaneUris.entries.firstOrNull { (_, paneUris) -> paneUri in paneUris }?.let { elementXmlDiffs[it.key] }
+
+    private fun onEdt(work: () -> Unit) = ApplicationManager.getApplication().invokeLater(work)
 
     /**
      * Starts a host-originated diff session in the core. Both sides are known up
@@ -41,10 +70,12 @@ internal class DiffRouter(private val deps: BridgeDeps) {
         afterUri: String,
         afterContent: String,
         postToAfter: (String) -> Unit,
+        elementXmlDiff: ElementXmlDiffSlot,
     ) {
         diffPanes[beforeUri] = postToBefore
         diffPanes[afterUri] = postToAfter
         diffPaneUris[diffId] = listOf(beforeUri, afterUri)
+        elementXmlDiffs[diffId] = elementXmlDiff
         // Route the panes, enqueue diff/open, then spawn off the EDT (the queue
         // holds the frame until the writer exists), so opening a diff never blocks.
         deps.channel.notify(
@@ -78,11 +109,18 @@ internal class DiffRouter(private val deps: BridgeDeps) {
      */
     fun disposeDiff(diffId: String) {
         diffPaneUris.remove(diffId)?.forEach { diffPanes.remove(it) }
+        elementXmlDiffs.remove(diffId)
         deps.channel.notify(HostToCoreMethod.DIFF_DISPOSE, linkedMapOf("diffId" to diffId))
+    }
+
+    /** The user closed the element XML diff [diffKey], so the core follows no selection with it. */
+    fun elementXmlDiffClosed(diffKey: String) {
+        deps.channel.notify(HostToCoreMethod.ELEMENT_XML_DIFF_CLOSED, linkedMapOf("diffKey" to diffKey))
     }
 
     fun clear() {
         diffPanes.clear()
         diffPaneUris.clear()
+        elementXmlDiffs.clear()
     }
 }

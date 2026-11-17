@@ -291,6 +291,11 @@ const dictionary: Record<string, string> = {
     "Use the task definition": "Gebruik de taakdefinitie",
     "Users cannot enter FEEL into a field they cannot edit.":
         "Gebruikers kunnen geen FEEL invoeren in een veld dat ze niet kunnen bewerken.",
+    "Generate from name": "Genereren uit naam",
+    "Review all IDs…": "Alle ID's controleren…",
+    "Rename the ID to {id}": "ID hernoemen naar {id}",
+    "The ID already follows the name.": "De ID volgt de naam al.",
+    "Add a name to generate the ID from it.": "Voeg een naam toe om er de ID uit te genereren.",
     "Current": "Huidig",
     "Incoming": "Inkomend",
     "your branch": "jouw branch",

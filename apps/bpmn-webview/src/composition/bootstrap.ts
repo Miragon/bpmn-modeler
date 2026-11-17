@@ -6,6 +6,7 @@ import {
     type BpmnPluginsQuery,
     type ElementTemplatesQuery,
     GetBpmnFileCommand,
+    OpenElementIdReviewCommand,
     GetBpmnModelerSettingCommand,
     GetBpmnPluginsCommand,
     GetPropertiesPanelStateCommand,
@@ -28,6 +29,7 @@ import { isEditableSurface } from "@miragon/bpmn-modeler/mode";
 import { installHostEditorActions } from "../adapter/in/hostEditorActions";
 import { HostModelerState } from "../domain/hostModelerState";
 import { BpmnDocumentSession } from "../service/documentSession";
+import { createHostElementIdReview } from "../service/hostElementIdReview";
 import { mountEditorChrome } from "../adapter/in/editorChrome";
 import type { Translator } from "../port/documentSessionPorts";
 import type { BpmnWebviewHost, DiffPaneChannel, HostChannel } from "../port/hostChannel";
@@ -42,6 +44,7 @@ import { createModeController } from "../adapter/in/modeController";
 import { createProtocolCapabilities } from "../adapter/out/protocolCapabilities";
 import { resolveClipboard } from "../adapter/out/protocolClipboard";
 import { createSurfaceBinder } from "../adapter/in/surfaceBinding";
+import { loadElementIdConvention } from "../adapter/out/elementIdConvention";
 import { createSurfaceDocument } from "../adapter/out/surfaceDocument";
 import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
 import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "../adapter/out/surfacePlugins";
@@ -154,7 +157,10 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
     const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
     const pluginsResolver = createResolver<BpmnPluginsQuery>();
 
+    const elementIdReview = createHostElementIdReview(editorHost, getSurface);
+
     const surfaceRequests = createSurfaceRequests(editorHost, getSurface, {
+        loadElementIdConvention,
         setFormPreviewAutomatic: protocolCapabilities.setFormPreviewAutomatic,
         hostModelerState,
         theme: themeAdapter,
@@ -162,7 +168,10 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
     });
 
     const session = new BpmnDocumentSession(editorHost, {
-        surface: createSurfaceDocument(editorHost, modeController),
+        surface: createSurfaceDocument(editorHost, {
+            getSurface,
+            afterImport: elementIdReview.refresh,
+        }),
         page: {
             cancelPendingSurfaceWork: () => {
                 protocolCapabilities.dispose();
@@ -185,6 +194,7 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
             TakeFocusQuery: () => takeFocus(focusCanvas),
             ...session.handlers,
             ...surfaceRequests.handlers,
+            ...elementIdReview.handlers,
             ...lintBridge.handlers,
             ...clipboard.handlers,
             ...protocolCapabilities.handlers,
@@ -301,6 +311,7 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                 engine,
                 capabilities,
                 elementTemplatesReply: elementTemplatesResolver,
+                elementIdReview,
             }),
             container: chrome.canvas,
             engine,
@@ -312,6 +323,9 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                 clipboard: clipboard.options,
                 lintBridge,
                 hostModelerState,
+                openElementIdReview: bpmnFileQuery?.hostElementIdReview
+                    ? () => editorHost.postMessage(new OpenElementIdReviewCommand())
+                    : undefined,
                 onModelerModeChanged: modeController.followModelerToggle,
             }),
             initialMode: savedMode ?? bpmnFileQuery?.defaultMode ?? null,
