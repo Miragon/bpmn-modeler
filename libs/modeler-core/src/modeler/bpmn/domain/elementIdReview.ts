@@ -127,15 +127,33 @@ function report(
                   actions: [{ kind: "show", view: unsupportedReviewView(review.title) }],
               };
     }
+    if (review.stage === "opening") {
+        const next: ListedReview = {
+            ...review,
+            stage: "listed",
+            rows: event.rows,
+            unchecked: new Set(event.unchecked),
+        };
+        return { next, actions: [{ kind: "show", view: listedView(next) }] };
+    }
+    // A listing the page sent before a checkbox click must not undo it, so only rows new to the review add to it.
+    const added = rowsStartingUnchecked(event.rows, review.rows);
     const next: ListedReview = {
-        stage: "listed",
-        editorId: review.editorId,
-        title: review.title,
+        ...review,
         rows: event.rows,
-        // A listing the page sent before a checkbox click must not undo it.
-        unchecked: review.stage === "listed" ? review.unchecked : new Set(event.unchecked),
+        unchecked: added.length === 0 ? review.unchecked : new Set([...review.unchecked, ...added]),
     };
-    return { next, actions: [{ kind: "show", view: listedView(next) }] };
+    const show: ElementIdReviewAction = { kind: "show", view: listedView(next) };
+    // The page drew the new rows as checked, so it lists them again with the review's choice.
+    return { next, actions: added.length === 0 ? [show] : [show, askForRows(next)] };
+}
+
+function rowsStartingUnchecked(
+    rows: readonly ElementIdRow[],
+    knownRows: readonly ElementIdRow[],
+): string[] {
+    const known = new Set(knownRows.map((row) => row.id));
+    return rows.filter((row) => row.startsUnchecked && !known.has(row.id)).map((row) => row.id);
 }
 
 function check(

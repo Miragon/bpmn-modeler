@@ -176,7 +176,8 @@ failing session hooks); the price is indirection.
   tab, a checkbox tree beside Problems and Output, and IntelliJ an Element IDs tool window. The
   core keeps the review's state (`reduceElementIdReview`, carried out by `ElementIdReviewService`
   behind `ElementIdReviewPort`), including which rows are unchecked: it takes them from the first
-  listing only, so a listing that crosses a checkbox click cannot undo it. The webview
+  listing, and later adds only rows new to the review that start unchecked, such as a process
+  from a pool added meanwhile, so a listing that crosses a checkbox click cannot undo it. The webview
   lists the rows (`ElementIdProposalsQuery` → `ElementIdProposalsCommand`) after every change,
   host import and mode switch and applies them (`ApplyElementIdsQuery` →
   `ElementIdsAppliedCommand`), and IntelliJ reaches the port over `elementIdReview/*`. VS Code
