@@ -87,7 +87,7 @@ none ([enforcement](architecture-enforcement.md#fitness-functions)).
   extension on the `engines.vscode` floor and the newest stable release and stays
   at the VS Code API boundary (commands, custom-editor resolution, diff routing).
   It cannot see inside a webview.
-- The [VS Code smoke test](../../apps/vscode-plugin/test/smoke/vscode-smoke.test.ts)
+- The [VS Code smoke test](../../apps/vscode-plugin/test/smoke)
   covers what neither it nor the browser tests reach: the packaged VSIX, webview
   bundles under the host's CSP, the host/webview protocol and the `TextDocument`
   behind the custom editor. It packs with `vsce`, unpacks outside the repository
@@ -97,10 +97,37 @@ none ([enforcement](architecture-enforcement.md#fitness-functions)).
   gates exclude it. The driver is ported, not imported from
   `@miragon/modeler-shell`, because that driver expects the shell's chrome and
   assumes npm. Locally it runs in a Linux container (a native macOS run steals
-  focus). CI has a workflow of its own with path filters, a weekly run against the
-  newest stable VS Code and a manual version input; it is **not** part of the
-  required `ci` check because it needs a full install and drives workbench DOM
-  VS Code does not keep stable. A red run blocks no merge, so reviewers must look.
+  focus).
+
+  **One suite per feature, each in its own window.** One file with one window
+  for every feature let a stuck window (a palette that no longer opens, a
+  frame that keeps the focus) fail every later test, and made every change run
+  every test. Each suite now has its own VS Code, resets the window and the
+  workspace before every test and starts a new window after a failed one, so
+  tests are independent and a failure stays with its test. The cost is a
+  VS Code start per suite (about 3 s) and a reset per test.
+
+  **Test plumbing runs through a companion extension, not the keyboard.** A
+  second development extension answers the test's calls with the VS Code API.
+  Opening a file, closing editors and changing a setting no longer depend on
+  the focus, on a key reaching the workbench or on a file watcher. This is not
+  `--extensionTestsPath`: that mode changes how VS Code behaves (it refuses
+  save dialogs, for one). What is under test still runs as a user runs it: a
+  command of the extension from the palette, a menu entry from its menu. The
+  cost is a loopback port in the test window that runs any VS Code command it
+  is asked for. A token only the test knows guards it, it runs a fixed set of
+  operations and no code it is sent, and no shipped code knows of it.
+
+  **CI runs the suites a change selects.** The workflow has path filters, a
+  weekly run against the newest stable VS Code and a manual version input.
+  `.github/vscode-smoke-suites.json` maps changed paths to suites; a path no
+  rule knows runs every suite, and main runs every suite after a merge, so a
+  rule that is too narrow shows on main, not never. The suites share at most
+  three jobs, because every job pays its own install and build. A failed test
+  runs once more and is then reported as flaky, where a silent retry would
+  hide it. The smoke is **not** part of the required `ci` check because it
+  needs a full install and drives workbench DOM VS Code does not keep stable.
+  A red run blocks no merge, so reviewers must look.
 
 The Orca plugin has the same two layers. Its
 [e2e suite](../../apps/orca-plugin/test/e2e) (in the `ci` check) opens each editor
