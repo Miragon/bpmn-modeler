@@ -22,10 +22,10 @@
     "clean": "rimraf lib"
   },
   "dependencies": {
-    "@theia/core": "1.76.0",
-    "@theia/editor": "1.76.0",
-    "@theia/monaco": "1.76.0",
-    "@theia/plugin-ext": "1.76.0"
+    "@theia/core": "1.77.0",
+    "@theia/editor": "1.77.0",
+    "@theia/monaco": "1.77.0",
+    "@theia/plugin-ext": "1.77.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -41,7 +41,7 @@
     "react-dom": "19.3.1",
     "rimraf": "6.1.4",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "vite": "8.3.6",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }
