@@ -27,7 +27,7 @@ export { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowO
 export type { FlowPosition } from "./bpmnFlowOrder";
 export { elementSnapshots } from "./elementSnapshots";
 export { elementTexts, rebindReferences, standaloneElementText } from "./elementTexts";
-export type { ElementTextOptions, OwnPropertyFilter } from "./elementTexts";
+export type { ElementTextOptions, OwnPropertyFilter, UnitText } from "./elementTexts";
 export { rootElementNamesOf } from "./rootElements";
 export type { RootElementName } from "./rootElements";
 export { unitParts, unitReferences } from "./unitStructure";
@@ -47,5 +47,5 @@ export type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 export { loadExecutionPackage } from "./executionPackages";
 export type { ExecutionEngine, ExecutionPackage } from "./executionPackages";
 export { isNamespaceDeclaration, namespaceDeclarations } from "./namespaceDeclarations";
-export { isUnresolvedReferenceWarning } from "./bpmnModdleFactory";
-export type { ModdleParseResult, ModdleReference } from "./bpmnModdleFactory";
+export { isUnresolvedReferenceWarning, parseWarningMessages } from "./bpmnModdleFactory";
+export type { ModdleParseResult, ModdleParseWarning, ModdleReference } from "./bpmnModdleFactory";

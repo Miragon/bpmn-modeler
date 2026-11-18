@@ -2,6 +2,7 @@ import {
     type ModdleElement,
     isUnresolvedReferenceWarning,
     namespaceDeclarations,
+    parseWarningMessages,
     rootElementNamesOf,
     standaloneElementText,
     walkContainment,
@@ -232,9 +233,7 @@ async function unknownNamespacesOf({ mergeModdle }: MergeSources, text: string):
 function parseWarningsOf(
     warnings: Awaited<ReturnType<typeof parseElementText>>["warnings"],
 ): string | undefined {
-    const messages = warnings
-        .filter((warning) => !isUnresolvedReferenceWarning(warning))
-        .map(({ message }) => message ?? "unnamed warning");
+    const messages = parseWarningMessages(warnings, isUnresolvedReferenceWarning);
     return messages.length > 0 ? messages.join("; ") : undefined;
 }
 

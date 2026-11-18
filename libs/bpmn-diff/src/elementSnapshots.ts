@@ -1,18 +1,13 @@
-import { type ModdleParseResult, skippedContentWarning } from "./bpmnModdleFactory";
-import { diagramLayouts } from "./diagramLayout";
-import { createDocumentModdle } from "./documentModdle";
 import {
-    type UnitRule,
-    deleteDerivedReferences,
-    isDiffUnit,
-    prefixSourcesWith,
-    serialiseSnippet,
-    snippetRootsOf,
-    stripUnits,
-    unitRuleRequiringId,
-} from "./elementSnippets";
-import { ownAttributeEntries, walkContainment } from "./moddleContainment";
+    type ModdleParseResult,
+    parseWarningMessages,
+    skippedContentWarning,
+} from "./bpmnModdleFactory";
+import { diagramLayouts } from "./diagramLayout";
+import { type UnitRule, isDiffUnit, serialiseSnippet, snippetRootsOf } from "./elementSnippets";
+import { ownAttributeEntries } from "./moddleContainment";
 import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import { parsedUnitsOf, stripEveryUnit, unitContentOf } from "./parsedUnits";
 import { type SnapshotReference, unitParts, unitReferences } from "./unitStructure";
 
 export interface ElementSnapshotOptions {
@@ -71,20 +66,11 @@ export async function elementSnapshots(
         rejectWarnings = false,
     }: ElementSnapshotOptions = {},
 ): Promise<ReadonlyMap<string, ElementSnapshot>> {
-    const prefixedModdle = await createDocumentModdle(prefixSourcesWith(prefixSources, xml));
-    const parsed = await prefixedModdle.moddle.fromXML(xml);
-    const rejection = rejectionOf(parsed, rejectWarnings);
-    if (rejection) throw new Error(`Failed to parse BPMN: ${rejection}`);
-    const definitions = parsed.rootElement;
-
-    const everyElement: ModdleElement[] = [];
-    walkContainment(definitions, (element) => everyElement.push(element));
-    const unitSet = new Set(everyElement.filter(unitRuleRequiringId(isUnit)));
-    const isKnownUnit = (element: ModdleElement) => unitSet.has(element);
-    const units = Object.values(parsed.elementsById).filter(
-        (element): element is ModdleElement & { id: string } =>
-            element !== undefined && unitSet.has(element),
+    const parsedUnits = await parsedUnitsOf(xml, prefixSources, isUnit, (parsed) =>
+        rejectionOf(parsed, rejectWarnings),
     );
+    const { prefixedModdle, parsed, everyElement, units, isKnownUnit } = parsedUnits;
+    const definitions = parsed.rootElement;
     const rootsByUnit = new Map(units.map((unit) => [unit, snippetRootsOf(unit, isKnownUnit)]));
     const unitBySnippetRoot = new Map<ModdleElement, ModdleElement>();
     for (const [unit, roots] of rootsByUnit)
@@ -118,18 +104,14 @@ export async function elementSnapshots(
         }),
     );
 
-    stripUnits(
-        everyElement.filter((element) => element !== definitions),
-        isKnownUnit,
-    );
+    stripEveryUnit(parsedUnits);
 
     const snapshots = new Map<string, ElementSnapshot>();
     for (const unit of units) {
         const roots = rootsByUnit.get(unit)!;
         const parts = unitParts(unit, roots);
         const unitXml = await serialiseSnippet(prefixedModdle, roots, unit.id);
-        for (const root of roots) walkContainment(root, deleteDerivedReferences);
-        const content = await serialiseSnippet(prefixedModdle, roots, unit.id);
+        const content = await unitContentOf(prefixedModdle, roots, unit.id);
         const { parent, container, lanes, references, layout } = structure.get(unit)!;
         snapshots.set(unit.id, {
             id: unit.id,
@@ -179,6 +161,6 @@ function lanesByFlowNode(elements: readonly ModdleElement[]): Map<ModdleElement,
 
 function rejectionOf(parsed: ModdleParseResult, rejectWarnings: boolean): string | undefined {
     if (!rejectWarnings) return skippedContentWarning(parsed);
-    const messages = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
+    const messages = parseWarningMessages(parsed.warnings);
     return messages.length > 0 ? messages.join("; ") : undefined;
 }

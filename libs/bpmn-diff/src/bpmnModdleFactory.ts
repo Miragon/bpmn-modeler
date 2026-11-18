@@ -5,7 +5,7 @@
 
 import type { ModdleElement } from "./moddleElement";
 
-interface ModdleParseWarning {
+export interface ModdleParseWarning {
     message?: string;
     /** For an unresolved reference: the element holding it, its qualified property and the id it names. */
     element?: ModdleElement;
@@ -31,6 +31,16 @@ const UNRESOLVED_REFERENCE_PREFIX = "unresolved reference";
 
 export function isUnresolvedReferenceWarning(warning: ModdleParseWarning): boolean {
     return warning.message?.startsWith(UNRESOLVED_REFERENCE_PREFIX) === true;
+}
+
+/** Each warning's message, in the parser's order, but those `except` holds for. */
+export function parseWarningMessages(
+    warnings: readonly ModdleParseWarning[] | undefined,
+    except: (warning: ModdleParseWarning) => boolean = () => false,
+): string[] {
+    return (warnings ?? [])
+        .filter((warning) => !except(warning))
+        .map(({ message }) => message ?? "unnamed warning");
 }
 
 /** The parser reports content it skipped, such as an undeclared prefix, only as this warning. */

@@ -23,7 +23,12 @@ describe("elementTexts", () => {
         const texts = await elementTexts(KITCHEN_SINK_XML, ids);
 
         expect(Object.fromEntries(texts)).toEqual(
-            Object.fromEntries(ids.map((id) => [id, snapshots.get(id)!.content])),
+            Object.fromEntries(
+                ids.map((id) => {
+                    const { type, content } = snapshots.get(id)!;
+                    return [id, { type, text: content }];
+                }),
+            ),
         );
     });
 
@@ -40,8 +45,8 @@ describe("elementTexts", () => {
             keepOwnProperty: (_unit, property) => property.name === "id",
         });
 
-        expect(texts.get(id!)).toMatch(new RegExp(`^<[^ ]+ [^>]*id="${id}"[^>]*/>$`));
-        expect(texts.get(id!)).not.toContain("name=");
+        expect(texts.get(id!)?.text).toMatch(new RegExp(`^<[^ ]+ [^>]*id="${id}"[^>]*/>$`));
+        expect(texts.get(id!)?.text).not.toContain("name=");
     });
 
     it("rejects a document whose content the parser skips", async () => {

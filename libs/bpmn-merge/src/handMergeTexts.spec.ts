@@ -36,6 +36,15 @@ describe("handMergeTexts", () => {
         expect(sources.handMergeTexts.size).toBe(0);
     });
 
+    it.each([
+        "type: current replaces a task with a collapsed sub-process incoming renames",
+        "type: incoming replaces a task with a collapsed sub-process current renames",
+    ])("has no entry where the versions differ in type (%s)", async (name) => {
+        const sources = await prepareMergeSources(scenarioNamed(name));
+
+        expect(sources.handMergeTexts.has("Task_Reject")).toBe(false);
+    });
+
     it("cuts a container's text to its start tag, documentation and extension elements", async () => {
         const sources = await prepareMergeSources(containersChangedByBoth());
 

@@ -801,6 +801,28 @@ const hardeningScenarios = [
         incoming: deleteNode("Boundary_Timeout"),
     }),
     scenario({
+        name: "type: current replaces a task with a collapsed sub-process incoming renames",
+        expect: "Task_Reject bothChanged, a bpmn:SubProcess on current and a bpmn:UserTask on base and incoming",
+        current: changeNode("Task_Reject", {
+            type: "subProcess",
+            collapsed: true,
+            width: 100,
+            height: 80,
+        }),
+        incoming: renameNode("Task_Reject", "Reject order"),
+    }),
+    scenario({
+        name: "type: incoming replaces a task with a collapsed sub-process current renames",
+        expect: "Task_Reject bothChanged, a bpmn:SubProcess on incoming and a bpmn:UserTask on base and current",
+        current: renameNode("Task_Reject", "Reject order"),
+        incoming: changeNode("Task_Reject", {
+            type: "subProcess",
+            collapsed: true,
+            width: 100,
+            height: 80,
+        }),
+    }),
+    scenario({
         name: "interface and operation reference only incoming adds",
         expect: "Interface_Orders addedByIncoming; Task_Check takenFromIncoming names Operation_Check inside it",
         incoming: (model) => {

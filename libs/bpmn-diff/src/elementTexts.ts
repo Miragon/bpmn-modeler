@@ -1,17 +1,7 @@
 import { type ModdleReference, skippedContentWarning } from "./bpmnModdleFactory";
-import { createDocumentModdle } from "./documentModdle";
-import {
-    type UnitRule,
-    deleteDerivedReferences,
-    isDiffUnit,
-    prefixSourcesWith,
-    serialiseSnippet,
-    snippetRootsOf,
-    stripUnits,
-    unitRuleRequiringId,
-} from "./elementSnippets";
-import { walkContainment } from "./moddleContainment";
+import { type UnitRule, isDiffUnit, snippetRootsOf } from "./elementSnippets";
 import type { ModdleElement, ModdlePropertyDescriptor } from "./moddleElement";
+import { parsedUnitsOf, stripEveryUnit, unitContentOf } from "./parsedUnits";
 import type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 
 /** Which of a unit's own properties its text keeps; foreign attributes always stay. */
@@ -28,41 +18,39 @@ export interface ElementTextOptions {
     readonly keepOwnProperty?: OwnPropertyFilter;
 }
 
+/** A unit's type and its text. */
+export interface UnitText {
+    readonly type: string;
+    readonly text: string;
+}
+
 /**
- * Parses `xml` once and returns the text of each unit of `ids` the document
- * holds, as `elementSnapshots` writes its `content`, cut to the own
- * properties `keepOwnProperty` keeps. Rejects like `elementSnapshots`.
+ * Parses `xml` once and returns the type and text of each unit of `ids` the
+ * document holds, the text as `elementSnapshots` writes its `content`, cut to
+ * the own properties `keepOwnProperty` keeps. Rejects like `elementSnapshots`.
  */
 export async function elementTexts(
     xml: string,
     ids: Iterable<string>,
     { prefixSources = [xml], isUnit = isDiffUnit, keepOwnProperty }: ElementTextOptions = {},
-): Promise<ReadonlyMap<string, string>> {
-    const prefixedModdle = await createDocumentModdle(prefixSourcesWith(prefixSources, xml));
-    const parsed = await prefixedModdle.moddle.fromXML(xml);
-    const skipped = skippedContentWarning(parsed);
-    if (skipped) throw new Error(`Failed to parse BPMN: ${skipped}`);
-    const definitions = parsed.rootElement;
-    const everyElement: ModdleElement[] = [];
-    walkContainment(definitions, (element) => everyElement.push(element));
-    const unitSet = new Set(everyElement.filter(unitRuleRequiringId(isUnit)));
-    const isKnownUnit = (element: ModdleElement) => unitSet.has(element);
+): Promise<ReadonlyMap<string, UnitText>> {
+    const parsedUnits = await parsedUnitsOf(xml, prefixSources, isUnit, skippedContentWarning);
+    const { prefixedModdle, parsed, isKnownUnit } = parsedUnits;
     const requested = [...ids]
         .map((id) => parsed.elementsById[id])
         .filter(
             (element): element is ModdleElement & { id: string } =>
-                element !== undefined && unitSet.has(element),
+                element !== undefined && isKnownUnit(element),
         );
     const rootsByUnit = new Map(requested.map((unit) => [unit, snippetRootsOf(unit, isKnownUnit)]));
-    stripUnits(
-        everyElement.filter((element) => element !== definitions),
-        isKnownUnit,
-    );
-    const texts = new Map<string, string>();
+    stripEveryUnit(parsedUnits);
+    const texts = new Map<string, UnitText>();
     for (const [unit, roots] of rootsByUnit) {
         if (keepOwnProperty) cutOwnProperties(unit, keepOwnProperty);
-        for (const root of roots) walkContainment(root, deleteDerivedReferences);
-        texts.set(unit.id, await serialiseSnippet(prefixedModdle, roots, unit.id));
+        texts.set(unit.id, {
+            type: unit.$type,
+            text: await unitContentOf(prefixedModdle, roots, unit.id),
+        });
     }
     return texts;
 }
@@ -78,8 +66,7 @@ export async function standaloneElementText(
     keepOwnProperty?: OwnPropertyFilter,
 ): Promise<string> {
     if (keepOwnProperty) cutOwnProperties(element, keepOwnProperty);
-    walkContainment(element, deleteDerivedReferences);
-    return serialiseSnippet(prefixedModdle, [element], element.id);
+    return unitContentOf(prefixedModdle, [element], element.id);
 }
 
 function cutOwnProperties(unit: ModdleElement, keepOwnProperty: OwnPropertyFilter): void {
