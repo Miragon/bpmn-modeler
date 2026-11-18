@@ -116,7 +116,8 @@ async function spliceHandMerges(
 ): Promise<void> {
     for (const { id, side, scope, content } of handMerges) {
         const unit = parsed[side].elementsById[id];
-        if (unit === undefined) throw new Error(`The ${side} version has no ${id} to merge by hand`);
+        if (unit === undefined)
+            throw new Error(`The ${side} version has no ${id} to merge by hand`);
         const text = await parseElementText(mergeModdle, content, unit.$type);
         spliceHandMergedText(unit, text, scope, isMergeUnit, (target) => {
             const found =

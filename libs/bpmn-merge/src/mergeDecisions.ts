@@ -328,7 +328,11 @@ export class MergeDecisions {
         return this.mergeResult.elements.find((element) => element.id === id)?.versions[side];
     }
 
-    private apply(ids: readonly string[], side: MergeSide, options?: HandMergeOptions): PickOutcome {
+    private apply(
+        ids: readonly string[],
+        side: MergeSide,
+        options?: HandMergeOptions,
+    ): PickOutcome {
         return this.change(this.picksWith(ids, side), options);
     }
 

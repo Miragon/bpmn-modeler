@@ -149,7 +149,9 @@ describe("MergeDecisions hand merges", () => {
         });
 
         expect(decisions.handMergeOf("T")).toBeUndefined();
-        expect(versionOf(decisions, "T", "current")).toEqual(result().elements[2]!.versions.current);
+        expect(versionOf(decisions, "T", "current")).toEqual(
+            result().elements[2]!.versions.current,
+        );
     });
 
     it("keeps the hand merge through a refused pick, which names its blocks", () => {

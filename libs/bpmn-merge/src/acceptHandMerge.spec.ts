@@ -52,7 +52,9 @@ describe("acceptHandMerge", () => {
         });
         const { xml } = await buildMerged(sources, decisions);
         expect(xml).toMatch(/<camunda:executionListener [^>]*expression="\$\{audit\}"/);
-        expect(xml).toContain('<camunda:inputParameter name="currency">EUR</camunda:inputParameter>');
+        expect(xml).toContain(
+            '<camunda:inputParameter name="currency">EUR</camunda:inputParameter>',
+        );
         expect(xml).toContain('name="Check order now"');
     });
 
@@ -128,7 +130,8 @@ describe("acceptHandMerge", () => {
             {
                 name: "a text the parser warns about",
                 id: "Task_Pack",
-                text: (own) => own.replace('name="Pack parcel"', 'name="Pack parcel" bpmn:color="red"'),
+                text: (own) =>
+                    own.replace('name="Pack parcel"', 'name="Pack parcel" bpmn:color="red"'),
                 refusal: { kind: "unparsable" },
             },
             {
@@ -153,28 +156,40 @@ describe("acceptHandMerge", () => {
                 name: "a flow node inside a sub-process text",
                 id: "Sub_Ship",
                 text: (own) =>
-                    own.replace(' name="Ship now" />', ' name="Ship now"><bpmn:task id="Task_Inner" /></bpmn:subProcess>'),
+                    own.replace(
+                        ' name="Ship now" />',
+                        ' name="Ship now"><bpmn:task id="Task_Inner" /></bpmn:subProcess>',
+                    ),
                 refusal: { kind: "holdsElementsOfTheirOwn", ids: ["Task_Inner"] },
             },
             {
                 name: "a container's text beyond its attributes, documentation and extension elements",
                 id: "Sub_Ship",
                 text: (own) =>
-                    own.replace(' name="Ship now" />', ' name="Ship now"><bpmn:property id="Property_Ship" /></bpmn:subProcess>'),
+                    own.replace(
+                        ' name="Ship now" />',
+                        ' name="Ship now"><bpmn:property id="Property_Ship" /></bpmn:subProcess>',
+                    ),
                 refusal: { kind: "beyondOwnAttributes", properties: ["bpmn:properties"] },
             },
             {
                 name: "a namespace no version declares",
                 id: "Task_Pack",
                 text: (own) =>
-                    own.replace('id="Task_Pack"', 'xmlns:other="urn:other" other:flag="1" id="Task_Pack"'),
+                    own.replace(
+                        'id="Task_Pack"',
+                        'xmlns:other="urn:other" other:flag="1" id="Task_Pack"',
+                    ),
                 refusal: { kind: "unknownNamespace", namespaces: ["urn:other"] },
             },
             {
                 name: "an engine attribute the engine's descriptor does not know",
                 id: "Task_Check",
                 text: (own) =>
-                    own.replace('custom:owner="billing"', 'custom:owner="billing" camunda:noSuchSetting="1"'),
+                    own.replace(
+                        'custom:owner="billing"',
+                        'custom:owner="billing" camunda:noSuchSetting="1"',
+                    ),
                 refusal: { kind: "rejectedByEngine" },
             },
             {
@@ -186,20 +201,25 @@ describe("acceptHandMerge", () => {
             {
                 name: "a reference no version can resolve",
                 id: "Start_Order",
-                text: (own) => own.replace('messageRef="Message_Order"', 'messageRef="Message_Nowhere"'),
+                text: (own) =>
+                    own.replace('messageRef="Message_Order"', 'messageRef="Message_Nowhere"'),
                 refusal: { kind: "namesMissingElement", ids: ["Message_Nowhere"] },
             },
             {
                 name: "a reference to an element the result leaves out",
                 id: "Start_Order",
-                text: (own) => own.replace('messageRef="Message_Order"', 'messageRef="Message_Old"'),
+                text: (own) =>
+                    own.replace('messageRef="Message_Order"', 'messageRef="Message_Old"'),
                 refusal: { kind: "namesLeftOutElement", ids: ["Message_Old"] },
             },
             {
                 name: "dropping a data input an association of the result targets",
                 id: "Task_Check",
                 text: (own) =>
-                    own.replace('  <bpmn:property id="Property_Check" name="__targetRef_placeholder" />\n', ""),
+                    own.replace(
+                        '  <bpmn:property id="Property_Check" name="__targetRef_placeholder" />\n',
+                        "",
+                    ),
                 refusal: { kind: "changesOtherDecisions", ids: ["DataInput_Order"] },
             },
         ];
@@ -222,7 +242,12 @@ describe("acceptHandMerge", () => {
             const { sources, decisions, textOf } = await pickedOn("current");
             decisions.unpick("Task_Pack");
 
-            const outcome = await acceptHandMerge(sources, decisions, "Task_Pack", textOf("Task_Pack"));
+            const outcome = await acceptHandMerge(
+                sources,
+                decisions,
+                "Task_Pack",
+                textOf("Task_Pack"),
+            );
 
             expect(outcome).toEqual({ applied: false, refusal: { kind: "notHandMergeable" } });
         });

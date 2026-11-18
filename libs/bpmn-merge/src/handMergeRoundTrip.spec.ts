@@ -15,7 +15,11 @@ const ROUND_TRIP_TIMEOUT_MS = 30_000;
 
 /** Picks each open conflict's first side that applies; false when one has none. */
 function settleOpenConflicts(decisions: MergeDecisions): boolean {
-    for (let [open] = decisions.openConflicts; open !== undefined; [open] = decisions.openConflicts) {
+    for (
+        let [open] = decisions.openConflicts;
+        open !== undefined;
+        [open] = decisions.openConflicts
+    ) {
         const settled = MERGE_SIDES.some((side) => decisions.pick(open!.id, side).applied);
         if (!settled) return false;
     }

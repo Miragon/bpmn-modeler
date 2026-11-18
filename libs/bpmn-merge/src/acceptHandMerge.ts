@@ -8,6 +8,7 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import type { MergeSources } from "./buildMergedSources";
+import { elementReferenceOf } from "./elementVersion";
 import {
     type HandMergedVersion,
     type HandMergeOutcome,
@@ -28,15 +29,21 @@ import {
     referenceStub,
 } from "./handMergeText";
 import type { MergeDecisions } from "./mergeDecisions";
-import { elementReferenceOf } from "./elementVersion";
 import { type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 
 const BPMN_MODEL_NAMESPACE = "http://www.omg.org/spec/BPMN/20100524/MODEL";
 const CONFLICT_MARKER_LINE = /^(<{7}|\|{7}|={7}|>{7})(\s|$)/m;
 
-type HandMergeAnalysis =
-    | { readonly merged: HandMergedVersion }
-    | { readonly refusal: HandMergeRefusal };
+type Refused = { readonly refusal: HandMergeRefusal };
+
+/** What a text gives the element as its build would write it, read back as a snapshot reads an element. */
+interface ElementText {
+    readonly type: string;
+    readonly scope: HandMergeScope;
+    /** The picked side's own element, which the text is spliced into. */
+    readonly sideContent: string;
+    readonly owningElementOf: (id: string) => string | undefined;
+}
 
 /**
  * Takes `text` as the version of the picked element `id`, merged by hand from
@@ -63,10 +70,9 @@ export async function acceptHandMerge(
 
 /**
  * Reads `text` as the picked side's version of `id` with what the hand merge
- * may change put in: the text parsed as the element's type, spliced into the
- * side's own element, written as the engine's descriptor writes it and read
- * back as a snapshot reads an element. Checks the text alone; the decisions
- * check what it names.
+ * may change put in: parsed as the element's type, spliced into the side's own
+ * element, written under the engine's descriptor and read back as a snapshot
+ * reads an element. Checks the text alone; the decisions check what it names.
  */
 export async function handMergedVersionOf(
     sources: MergeSources,
@@ -74,45 +80,108 @@ export async function handMergedVersionOf(
     id: string,
     side: MergeSide,
     text: string,
-): Promise<HandMergeAnalysis> {
+): Promise<{ readonly merged: HandMergedVersion } | Refused> {
     const snapshot = sources.snapshots[side].get(id);
-    const element = result.elements.find((candidate) => candidate.id === id);
-    const sideVersion = element?.versions[side];
+    const sideVersion = result.elements.find((element) => element.id === id)?.versions[side];
     if (snapshot === undefined || sideVersion === undefined) {
         return { refusal: { kind: "notHandMergeable" } };
     }
-    const type = snapshot.type;
-    const scope = handMergeScopeOf(type);
-    if (CONFLICT_MARKER_LINE.test(text)) return { refusal: { kind: "conflictMarkersLeft" } };
-    const rootRefusal = await rootRefusalOf(text, type);
-    if (rootRefusal) return { refusal: rootRefusal };
-    const unknown = await unknownNamespacesOf(sources, text);
-    if (unknown.length > 0) {
-        return { refusal: { kind: "unknownNamespace", namespaces: unknown } };
-    }
-    const textModdle = sources.snapshotModdle;
-    const textRefusal = await textRefusalOf(textModdle, text, type, id, scope);
-    if (textRefusal) return { refusal: textRefusal };
-
-    const keep = keepsInText(scope);
-    const written = await cutElementText(textModdle, text, type, keep);
-    const owningElementOf = owningElementResolver(result, side);
-    const spliced = await splicedIntoSide(sources, snapshot.content, written, type, scope);
-    if ("refusal" in spliced) return spliced;
-    const canonical = await canonicalElementOf(
-        textModdle,
-        spliced.text,
-        type,
-        owningElementOf,
+    const element: ElementText = {
+        type: snapshot.type,
+        scope: handMergeScopeOf(snapshot.type),
+        sideContent: snapshot.content,
+        owningElementOf: owningElementResolver(result, side),
+    };
+    const refusal = await textRefusalOf(sources, text, id, element);
+    if (refusal) return { refusal };
+    const written = await cutElementText(
+        sources.snapshotModdle,
+        text,
+        element.type,
+        keepsInText(element.scope),
     );
-    const engineWrites = await cutElementText(textModdle, canonical.content, type, keep);
-    const rewritten = await splicedIntoSide(sources, snapshot.content, canonical.content, type, scope);
-    if (
-        engineWrites !== written ||
-        "refusal" in rewritten ||
-        (await canonicalElementOf(textModdle, rewritten.text, type, owningElementOf)).content !==
-            canonical.content
-    ) {
+    const canonical = await asTheBuildWrites(sources, written, element);
+    if ("refusal" in canonical) return canonical;
+    if (canonical.unresolved.length > 0) {
+        return {
+            refusal: { kind: "namesMissingElement", ids: [...new Set(canonical.unresolved)] },
+        };
+    }
+    return {
+        merged: {
+            id,
+            side,
+            scope: element.scope,
+            content: canonical.content,
+            attributes: canonical.attributes,
+            version: {
+                ...sideVersion,
+                references: canonical.references.map(elementReferenceOf),
+                parts: [...canonical.parts],
+            },
+        },
+    };
+}
+
+/** What the text alone refuses, before it is spliced anywhere. */
+async function textRefusalOf(
+    sources: MergeSources,
+    text: string,
+    id: string,
+    { type, scope }: ElementText,
+): Promise<HandMergeRefusal | undefined> {
+    if (CONFLICT_MARKER_LINE.test(text)) return { kind: "conflictMarkersLeft" };
+    const rootRefusal = await rootRefusalOf(text, type);
+    if (rootRefusal) return rootRefusal;
+    const unknown = await unknownNamespacesOf(sources, text);
+    if (unknown.length > 0) return { kind: "unknownNamespace", namespaces: unknown };
+    let parsed: Awaited<ReturnType<typeof parseElementText>>;
+    try {
+        parsed = await parseElementText(sources.snapshotModdle, text, type);
+    } catch (error) {
+        return {
+            kind: "unparsable",
+            detail: error instanceof Error ? error.message : String(error),
+        };
+    }
+    const warnings = parseWarningsOf(parsed.warnings);
+    if (warnings) return { kind: "unparsable", detail: warnings };
+    const root = parsed.element;
+    if (root.id !== id) {
+        return root.id === undefined
+            ? { kind: "idChanged", expected: id }
+            : { kind: "idChanged", expected: id, found: root.id };
+    }
+    const ownElements: string[] = [];
+    walkContainment(root, (inner) => {
+        if (inner !== root && isMergeUnit(inner)) ownElements.push(inner.id!);
+    });
+    if (ownElements.length > 0) return { kind: "holdsElementsOfTheirOwn", ids: ownElements };
+    const beyond = propertiesBeyond(root, scope);
+    return beyond.length > 0 ? { kind: "beyondOwnAttributes", properties: beyond } : undefined;
+}
+
+/**
+ * The element the build writes from `text`, read back. Refused when the
+ * engine's descriptor writes the text otherwise than it reads it, or when
+ * writing what it wrote again would change it, since the build would then
+ * refuse the file.
+ */
+async function asTheBuildWrites(
+    sources: MergeSources,
+    text: string,
+    element: ElementText,
+): Promise<CanonicalElement | Refused> {
+    const once = await splicedAndReadBack(sources, text, element);
+    if ("refusal" in once) return once;
+    const twice = await splicedAndReadBack(sources, once.content, element);
+    const writtenBack = await cutElementText(
+        sources.snapshotModdle,
+        once.content,
+        element.type,
+        keepsInText(element.scope),
+    );
+    if ("refusal" in twice || twice.content !== once.content || writtenBack !== text) {
         return {
             refusal: {
                 kind: "rejectedByEngine",
@@ -120,31 +189,33 @@ export async function handMergedVersionOf(
             },
         };
     }
-    if (canonical.unresolved.length > 0) {
-        return { refusal: { kind: "namesMissingElement", ids: [...new Set(canonical.unresolved)] } };
-    }
-    return {
-        merged: {
-            id,
-            side,
-            scope,
-            content: canonical.content,
-            attributes: canonical.attributes,
-            version: { ...sideVersion, ...structureOf(canonical) },
-        },
-    };
+    return once;
 }
 
-function structureOf({ references, parts }: CanonicalElement) {
-    return { references: references.map(elementReferenceOf), parts: [...parts] };
+/** `text` spliced into the side's own element under the engine's descriptor, then read as a snapshot reads it. */
+async function splicedAndReadBack(
+    { mergeModdle, snapshotModdle }: MergeSources,
+    text: string,
+    { type, scope, sideContent, owningElementOf }: ElementText,
+): Promise<CanonicalElement | Refused> {
+    const merged = await parseElementText(mergeModdle, text, type);
+    const warnings = parseWarningsOf(merged.warnings);
+    if (warnings) return { refusal: { kind: "rejectedByEngine", detail: warnings } };
+    const sideElement = await parseElementText(mergeModdle, sideContent, type);
+    bindToStubs(mergeModdle, sideElement);
+    const unit = sideElement.element as ModdleElement & { id: string };
+    spliceHandMergedText(unit, merged, scope, isMergeUnit, (outer) =>
+        referenceStub(mergeModdle, outer),
+    );
+    const written = await standaloneElementText(mergeModdle, unit);
+    return canonicalElementOf(snapshotModdle, written, type, owningElementOf);
 }
 
 async function rootRefusalOf(text: string, type: string): Promise<HandMergeRefusal | undefined> {
     const roots = await rootElementNamesOf(text);
     if (roots.length !== 1) return { kind: "notOneElement", found: roots.length };
     const [{ localName, namespace }] = roots as [(typeof roots)[number]];
-    const expectedName = tagNameOf(type);
-    if (namespace === BPMN_MODEL_NAMESPACE && localName === expectedName) return undefined;
+    if (namespace === BPMN_MODEL_NAMESPACE && localName === tagNameOf(type)) return undefined;
     return {
         kind: "typeChanged",
         expected: type,
@@ -157,39 +228,18 @@ async function unknownNamespacesOf({ mergeModdle }: MergeSources, text: string):
     return [...new Set(used.filter((uri) => !mergeModdle.knowsNamespace(uri)))];
 }
 
-/** What the text alone refuses: a parse error or warning, another id, an element of its own inside, a property beyond the scope. */
-async function textRefusalOf(
-    textModdle: Parameters<typeof parseElementText>[0],
-    text: string,
-    type: string,
-    id: string,
-    scope: HandMergeScope,
-): Promise<HandMergeRefusal | undefined> {
-    let parsed: Awaited<ReturnType<typeof parseElementText>>;
-    try {
-        parsed = await parseElementText(textModdle, text, type);
-    } catch (error) {
-        return { kind: "unparsable", detail: messageOf(error) };
-    }
-    const warnings = parsed.warnings.filter((warning) => !isUnresolvedReferenceWarning(warning));
-    if (warnings.length > 0) {
-        return {
-            kind: "unparsable",
-            detail: warnings.map(({ message }) => message ?? "unnamed warning").join("; "),
-        };
-    }
-    const root = parsed.element;
-    if (root.id !== id) {
-        return root.id === undefined
-            ? { kind: "idChanged", expected: id }
-            : { kind: "idChanged", expected: id, found: root.id };
-    }
-    const ownElements: string[] = [];
-    walkContainment(root, (inner) => {
-        if (inner !== root && isMergeUnit(inner)) ownElements.push(inner.id!);
-    });
-    if (ownElements.length > 0) return { kind: "holdsElementsOfTheirOwn", ids: ownElements };
-    const beyond = (root.$descriptor.properties ?? [])
+/** Every parse warning but an unresolved reference, which names an element outside the text. */
+function parseWarningsOf(
+    warnings: Awaited<ReturnType<typeof parseElementText>>["warnings"],
+): string | undefined {
+    const messages = warnings
+        .filter((warning) => !isUnresolvedReferenceWarning(warning))
+        .map(({ message }) => message ?? "unnamed warning");
+    return messages.length > 0 ? messages.join("; ") : undefined;
+}
+
+function propertiesBeyond(root: ModdleElement, scope: HandMergeScope): string[] {
+    return (root.$descriptor.properties ?? [])
         .filter(
             (property) =>
                 property.name !== "id" &&
@@ -198,37 +248,9 @@ async function textRefusalOf(
                 hasValue(root[property.name]),
         )
         .map((property) => property.ns?.name ?? property.name);
-    return beyond.length > 0 ? { kind: "beyondOwnAttributes", properties: beyond } : undefined;
 }
 
-/** The side's own element, parsed from its snapshot, with the text spliced in and written under the engine's descriptor. */
-async function splicedIntoSide(
-    { mergeModdle }: MergeSources,
-    sideContent: string,
-    text: string,
-    type: string,
-    scope: HandMergeScope,
-): Promise<{ readonly text: string } | { readonly refusal: HandMergeRefusal }> {
-    const sideElement = await parseElementText(mergeModdle, sideContent, type);
-    bindToStubs(mergeModdle, sideElement);
-    const merged = await parseElementText(mergeModdle, text, type);
-    const warnings = merged.warnings.filter((warning) => !isUnresolvedReferenceWarning(warning));
-    if (warnings.length > 0) {
-        return {
-            refusal: {
-                kind: "rejectedByEngine",
-                detail: warnings.map(({ message }) => message ?? "unnamed warning").join("; "),
-            },
-        };
-    }
-    const unit = sideElement.element as ModdleElement & { id: string };
-    spliceHandMergedText(unit, merged, scope, isMergeUnit, (outer) =>
-        referenceStub(mergeModdle, outer),
-    );
-    return { text: await standaloneElementText(mergeModdle, unit) };
-}
-
-/** The element of the result holding an id: the element itself, else the element whose version holds it as a part, the picked side's first. */
+/** The element of the result holding an id: the element itself, else the one whose version holds it as a part, the picked side's first. */
 function owningElementResolver(
     result: MergeResult,
     side: MergeSide,
@@ -255,8 +277,4 @@ function upperFirst(name: string): string {
 
 function hasValue(value: unknown): boolean {
     return value !== undefined && !(Array.isArray(value) && value.length === 0);
-}
-
-function messageOf(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
 }

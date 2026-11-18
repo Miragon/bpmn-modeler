@@ -34,7 +34,13 @@ async function spliced(id: string, type: string, text: string) {
     const document = await moddle.moddle.fromXML(DOCUMENT);
     const unit = document.elementsById[id]!;
     const parsed = await parseElementText(moddle, text, type);
-    spliceHandMergedText(unit, parsed, "ownContent", isMergeUnit, (outer) => document.elementsById[outer]);
+    spliceHandMergedText(
+        unit,
+        parsed,
+        "ownContent",
+        isMergeUnit,
+        (outer) => document.elementsById[outer],
+    );
     return { unit, byId: (target: string) => document.elementsById[target], moddle };
 }
 
@@ -92,7 +98,11 @@ describe("spliceHandMergedText", () => {
         );
 
         const [, association] = unit.dataInputAssociations as ModdleElement[];
-        expect(ids(association!.sourceRef)).toEqual(["DataRef_1", "Property_New", "DataStoreRef_1"]);
+        expect(ids(association!.sourceRef)).toEqual([
+            "DataRef_1",
+            "Property_New",
+            "DataStoreRef_1",
+        ]);
         expect((association!.sourceRef as ModdleElement[])[0]).toBe(byId("DataRef_1"));
     });
 

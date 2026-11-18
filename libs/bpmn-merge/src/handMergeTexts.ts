@@ -1,4 +1,8 @@
-import { type ElementSnapshot, type PrefixedModdle, elementTexts } from "@miragon/bpmn-modeler-diff";
+import {
+    type ElementSnapshot,
+    type PrefixedModdle,
+    elementTexts,
+} from "@miragon/bpmn-modeler-diff";
 
 import { handMergeScopeOf } from "./handMerge";
 import type { HandMergeTexts } from "./handMergeEligibility";

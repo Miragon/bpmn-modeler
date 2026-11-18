@@ -45,7 +45,10 @@ describe("elementTexts", () => {
     });
 
     it("rejects a document whose content the parser skips", async () => {
-        const skipped = KITCHEN_SINK_XML.replace("<bpmn:process ", "<undeclared:thing /><bpmn:process ");
+        const skipped = KITCHEN_SINK_XML.replace(
+            "<bpmn:process ",
+            "<undeclared:thing /><bpmn:process ",
+        );
 
         await expect(elementTexts(skipped, [])).rejects.toThrow(/unparsable content/);
     });
@@ -61,7 +64,9 @@ describe("standaloneElementText", () => {
             const { prefixedModdle, parsed } = await parsedAlone(snapshot.content, snapshot.type);
             rebindReferences(
                 parsed.references ?? [],
-                (id) => parsed.elementsById[id] ?? prefixedModdle.moddle.create("bpmn:BaseElement", { id }),
+                (id) =>
+                    parsed.elementsById[id] ??
+                    prefixedModdle.moddle.create("bpmn:BaseElement", { id }),
             );
 
             const text = await standaloneElementText(

@@ -50,7 +50,9 @@ describe("handMergeTexts", () => {
         const sources = await prepareMergeSources(containersChangedByBoth());
 
         const participantTexts = sources.handMergeTexts.get("Participant_Shop")!;
-        expect(participantTexts.incoming).toMatch(/^<bpmn:participant [^>]*name="Shop later"[^>]*\/>$/);
+        expect(participantTexts.incoming).toMatch(
+            /^<bpmn:participant [^>]*name="Shop later"[^>]*\/>$/,
+        );
         expect(participantTexts.incoming).not.toContain("<bpmn:process");
     });
 });

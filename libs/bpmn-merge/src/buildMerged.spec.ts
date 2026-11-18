@@ -1140,7 +1140,10 @@ describe("buildMerged with versions merged by hand", () => {
 
     it("declares no namespace on an element merged by hand", async () => {
         const { sources, decisions, textOf } = await pickedOnCurrent();
-        const merged = textOf("Task_Check").replace('custom:owner="billing"', 'custom:owner="sales"');
+        const merged = textOf("Task_Check").replace(
+            'custom:owner="billing"',
+            'custom:owner="sales"',
+        );
         expect(merged).toMatch(/^<bpmn:serviceTask xmlns:camunda=/);
         expect(await acceptHandMerge(sources, decisions, "Task_Check", merged)).toEqual({
             applied: true,

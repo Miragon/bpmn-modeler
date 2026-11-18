@@ -15,7 +15,10 @@ import type { ModdleElement, ModdlePropertyDescriptor } from "./moddleElement";
 import type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 
 /** Which of a unit's own properties its text keeps; foreign attributes always stay. */
-export type OwnPropertyFilter = (unit: ModdleElement, property: ModdlePropertyDescriptor) => boolean;
+export type OwnPropertyFilter = (
+    unit: ModdleElement,
+    property: ModdlePropertyDescriptor,
+) => boolean;
 
 export interface ElementTextOptions {
     /** As for `elementSnapshots`. */

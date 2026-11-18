@@ -22,12 +22,18 @@ describe("describeHandMergeRefusal", () => {
             text: "not bpmn:laneSets",
         },
         { refusal: { kind: "unknownNamespace", namespaces: ["urn:x"] }, text: "urn:x" },
-        { refusal: { kind: "rejectedByEngine", detail: "unknown attribute" }, text: "unknown attribute" },
+        {
+            refusal: { kind: "rejectedByEngine", detail: "unknown attribute" },
+            text: "unknown attribute",
+        },
         {
             refusal: { kind: "changesStructure", properties: ["bpmn:SequenceFlow#targetRef"] },
             text: "bpmn:SequenceFlow#targetRef, which follow the pick",
         },
-        { refusal: { kind: "namesMissingElement", ids: ["M_1"] }, text: "M_1, which no version has" },
+        {
+            refusal: { kind: "namesMissingElement", ids: ["M_1"] },
+            text: "M_1, which no version has",
+        },
         {
             refusal: { kind: "namesLeftOutElement", ids: ["M_2"] },
             text: "M_2, which the result leaves out",

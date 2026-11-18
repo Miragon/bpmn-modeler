@@ -43,17 +43,6 @@ export function closePicks(
     };
 }
 
-/** The picks without `ids`, closed as `closePicks` does. */
-export function closeUnpick(
-    index: ReferenceIndex,
-    before: DecidedSides,
-    ids: readonly string[],
-): ClosedDecisions {
-    const picks = new Map(before.picks);
-    ids.forEach((id) => picks.delete(id));
-    return closePicks(index, before, picks);
-}
-
 /** Each queued element remembers whether it stems from a pick this call makes or changes, or from an earlier one. */
 interface Queued {
     readonly id: string;

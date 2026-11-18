@@ -48,8 +48,7 @@ export type HandMergeRefusal =
     | { readonly kind: "notHandMergeable" };
 
 export type HandMergeOutcome =
-    | { readonly applied: true }
-    | { readonly applied: false; readonly refusal: HandMergeRefusal };
+    { readonly applied: true } | { readonly applied: false; readonly refusal: HandMergeRefusal };
 
 export const HAND_MERGE_APPLIED: HandMergeOutcome = { applied: true };
 

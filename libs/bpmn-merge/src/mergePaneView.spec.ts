@@ -782,7 +782,10 @@ describe("mergePaneView", () => {
             decisions.pick("Process_1", "current");
             const changed = sources.handMergeTexts
                 .get("Process_1")!
-                .current.replace('camunda:historyTimeToLive="30"', 'camunda:historyTimeToLive="60"');
+                .current.replace(
+                    'camunda:historyTimeToLive="30"',
+                    'camunda:historyTimeToLive="60"',
+                );
             expect(await acceptHandMerge(sources, decisions, "Process_1", changed)).toEqual({
                 applied: true,
             });
