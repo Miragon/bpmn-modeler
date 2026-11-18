@@ -271,7 +271,7 @@ export function checkPullRequest(pullRequest, registry) {
     };
 }
 
-/** The job summary of a failed check: each error, then the block the files suggest. */
+/** The job summary of a failed check: each error, then the unticked block the files suggest. */
 export function checkSummary({ errors, suggestion }) {
     if (errors.length === 0) return "";
     const carried = errors.some((error) => error.includes(suggestion));
@@ -282,7 +282,7 @@ export function checkSummary({ errors, suggestion }) {
         ...(carried
             ? []
             : [
-                  "The lines the changed files reach, ready to paste under the PR body's Ships in:",
+                  "The lines the changed files reach, unticked: paste them under the PR body's Ships in and tick only those whose users get the change.",
                   "",
                   "```markdown",
                   suggestion.trimEnd(),

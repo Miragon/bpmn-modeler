@@ -32,9 +32,8 @@ function undeclaredError(title, files, registry) {
     const [type] = /^[a-z]+/.exec(title);
     return [
         `This ${type} reaches ${codeList(derivedLines(files, registry))} by its files, so the PR must say which of them ships it.`,
-        'Under "Ships in", tick each line whose users get the change, judged by wiring (does that line offer the feature?), not by the files it bundles.',
+        'Replace the body\'s "Ships in" section with this block and tick only the lines whose users get the change, judged by wiring (the question after each line: does that line offer the feature?), not by the files it bundles.',
         `Tick \`${NO_LINE}\` when no released user gets it, such as a fix to a feature no release shipped yet.`,
-        "Ready to paste, with the lines its files reach ticked:",
         "",
         suggest({ files, registry }),
     ].join("\n");

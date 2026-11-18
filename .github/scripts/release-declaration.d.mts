@@ -19,4 +19,8 @@ export function parseShipsIn(
     registry: ReleaseLineRegistry,
 ): ShipsInDeclaration;
 export function isDeclared(declaration: Pick<ShipsInDeclaration, "lines" | "none">): boolean;
-export function shipsInBlock(tickedIds: readonly string[], registry: ReleaseLineRegistry): string;
+export const CANDIDATES_GUIDANCE: string;
+export function shipsInCandidates(
+    candidateIds: readonly string[],
+    registry: ReleaseLineRegistry,
+): string;

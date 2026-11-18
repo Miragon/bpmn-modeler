@@ -119,7 +119,9 @@ out only the base branch and runs `release-lines-sync.mjs check --pr`, which rea
 the title, body and every changed file through the API. It fails when:
 
 - a `feat`/`fix` reaches two or more lines by its files and nothing is ticked; the
-  job summary has the block to paste, with those lines ticked as a starting point;
+  job summary has a block to paste with those lines and `none`, all unticked, each
+  line followed by its `wiring` question. Tick only the lines whose users get the
+  change; pasted unchanged, the block still fails;
 - a ticked line ships none of the changed files;
 - `none` is ticked together with a line;
 - a breaking `!` touches a line's `breaking` globs and that line is not ticked;
@@ -146,7 +148,7 @@ node .github/scripts/release-lines-sync.mjs check --pr <number> --repo Miragon/b
 `gh pr create` and on a `gh pr edit` that sets the title or body, of an open PR in
 this repository. It reads the PR the same way the job does and runs the check. A
 `feat`/`fix` that reaches two or more lines with nothing ticked is blocked with
-what to tick and how to decide; ticked boxes add a request to confirm each line by
+the same unticked block and its wiring questions; ticked boxes add a request to confirm each line by
 its wiring and to fix the body with `gh pr edit --body-file`. Anything else stays
 silent, and any error (no `gh`, no network, another repository's PR) lets the
 command pass.

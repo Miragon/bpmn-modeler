@@ -85,8 +85,13 @@ The job "Validate release lines" in
 [lint-pr-title.yml](../../.github/workflows/lint-pr-title.yml) runs the same rules
 on every PR and on every body edit (`release-lines-sync.mjs check --pr`). It fails a
 `feat`/`fix` whose files reach two or more lines with nothing ticked, and prints the
-block to paste; a ticked line that ships none of the files; `none` with a line; a
-breaking `!` whose files hit a line's `breaking` globs without that line ticked; a
+block to paste: those lines and `none`, unticked, each line with its `wiring`
+question. It ticks nothing because a shared library such as `libs/bpmn-i18n-extras`
+is in every line's `ships`, so a merge-view feat would come out ticked for all five
+lines, and pasting it unchanged would pass. Translation files still count toward a
+line: a translation-only fix must reach the lines that bundle it. It also fails a
+ticked line that ships none of the files; `none` with a line; a breaking `!` whose
+files hit a line's `breaking` globs without that line ticked; a
 per-line subject that is no `feat`/`fix` subject or whose `!` differs from the
 title's for that line; a box it cannot read; and any PR but the release PR (its
 branch in this repository, not a fork's) that edits an existing line's folder under

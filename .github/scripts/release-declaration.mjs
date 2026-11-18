@@ -156,12 +156,23 @@ export function isDeclared(declaration) {
     return declaration.lines.length > 0 || declaration.none;
 }
 
-/** A "Ships in" block with the given lines ticked, `none` unticked. */
-export function shipsInBlock(tickedIds, registry) {
+/** What the author decides when a suggested block lists candidate lines. */
+export const CANDIDATES_GUIDANCE = `Tick only the lines whose users get the change; \`${NO_LINE}\` is for a fix to a feature no release shipped.`;
+
+/**
+ * A "Ships in" block that lists the candidate lines with their wiring question
+ * and `none`, all unticked: pasted unchanged it declares nothing, so the
+ * author still has to decide.
+ */
+export function shipsInCandidates(candidateIds, registry) {
     return [
         "## Ships in",
         "",
-        ...registry.lines.map(({ id }) => `- [${tickedIds.includes(id) ? "x" : " "}] \`${id}\``),
+        `<!-- ${CANDIDATES_GUIDANCE} -->`,
+        "",
+        ...registry.lines
+            .filter(({ id }) => candidateIds.includes(id))
+            .map(({ id, wiring }) => `- [ ] \`${id}\`${wiring === undefined ? "" : `: ${wiring}`}`),
         `- [ ] \`${NO_LINE}\``,
         "",
     ].join("\n");

@@ -165,8 +165,7 @@ function blockReason(pullRequest, registry, errors) {
     const reached = derivedLines(pullRequest.files, registry);
     return [
         `PR #${pullRequest.number} is a feat or fix whose files reach ${reached.map((id) => `\`${id}\``).join(", ")}, but it ticks nothing under "Ships in", so every one of those lines would list it.`,
-        "Tick only the lines whose users get the change, judged by wiring, not by the files a line bundles. Check for each line:",
-        bulletList([...reached, NO_LINE].map((id) => wiringCheck(id, registry))),
+        "The block below lists those lines unticked, each with its wiring question. Answer each question and tick only the lines whose users get the change, or `none`; do not tick a line because it bundles the files.",
         `Then write the corrected body to a file and run \`gh pr edit ${pullRequest.number} --body-file <file>\`. The release-line check says:`,
         "",
         errors.join("\n\n"),
