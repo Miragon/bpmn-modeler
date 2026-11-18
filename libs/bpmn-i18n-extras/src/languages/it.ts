@@ -323,10 +323,10 @@ const dictionary: Record<string, string> = {
         "Mantenuto da Corrente con tutto il contenuto, scelta tua",
     "Kept from incoming with everything inside, your pick":
         "Mantenuto da In ingresso con tutto il contenuto, scelta tua",
-    "Kept from current with its flows, your pick":
-        "Mantenuto da Corrente con i suoi flussi, scelta tua",
-    "Kept from incoming with its flows, your pick":
-        "Mantenuto da In ingresso con i suoi flussi, scelta tua",
+    "Kept from current with what was removed with it, your pick":
+        "Mantenuto da Corrente con ciò che è stato rimosso con esso, scelta tua",
+    "Kept from incoming with what was removed with it, your pick":
+        "Mantenuto da In ingresso con ciò che è stato rimosso con esso, scelta tua",
     "Kept from current: {element}": "Mantenuto da Corrente: {element}",
     "Kept from incoming: {element}": "Mantenuto da In ingresso: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -395,7 +395,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Mantieni Corrente con tutto il contenuto",
     "Keep incoming with everything inside": "Mantieni In ingresso con tutto il contenuto",
     "Leave out": "Lascia fuori",
-    "Also keep its removed flows": "Mantieni anche i suoi flussi rimossi",
+    "Also keep what was removed with it": "Mantieni anche ciò che è stato rimosso con esso",
     "Keep it as current has it": "Mantienilo come lo ha Corrente",
     "Keep it as incoming has it": "Mantienilo come lo ha In ingresso",
     "Keep it and everything inside as current has them":
@@ -421,10 +421,10 @@ const dictionary: Record<string, string> = {
         "Mantenuto da Corrente con tutto il contenuto: {element}",
     "Kept from incoming with everything inside: {element}":
         "Mantenuto da In ingresso con tutto il contenuto: {element}",
-    "Kept from current with its flows: {element}":
-        "Mantenuto da Corrente con i suoi flussi: {element}",
-    "Kept from incoming with its flows: {element}":
-        "Mantenuto da In ingresso con i suoi flussi: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Mantenuto da Corrente con ciò che è stato rimosso con esso: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Mantenuto da In ingresso con ciò che è stato rimosso con esso: {element}",
     "Left out: {element}, as current removed it":
         "Lasciato fuori: {element}, perché Corrente lo ha rimosso",
     "Left out: {element}, as current doesn't have it":

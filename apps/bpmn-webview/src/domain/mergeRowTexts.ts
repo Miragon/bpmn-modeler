@@ -39,8 +39,8 @@ export function decisionButtonText(
             return keepSideText(decision.side, translate);
         case "leaveOut":
             return translate(MERGE_PAD_TEXTS.leaveOut);
-        case "keepRemovedFlows":
-            return translate(MERGE_PAD_TEXTS.keepRemovedFlows);
+        case "keepRemovedWith":
+            return translate(MERGE_PAD_TEXTS.keepRemovedWith);
         case "undo":
             return translate(MERGE_PICK_TEXTS.undo);
     }

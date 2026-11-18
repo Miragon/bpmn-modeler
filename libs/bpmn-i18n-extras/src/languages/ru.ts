@@ -314,10 +314,10 @@ const dictionary: Record<string, string> = {
         "Оставлено со стороны «Текущее» со всем содержимым, ваш выбор",
     "Kept from incoming with everything inside, your pick":
         "Оставлено со стороны «Входящее» со всем содержимым, ваш выбор",
-    "Kept from current with its flows, your pick":
-        "Оставлено со стороны «Текущее» вместе с потоками, ваш выбор",
-    "Kept from incoming with its flows, your pick":
-        "Оставлено со стороны «Входящее» вместе с потоками, ваш выбор",
+    "Kept from current with what was removed with it, your pick":
+        "Оставлено со стороны «Текущее» вместе с тем, что удалено с ним, ваш выбор",
+    "Kept from incoming with what was removed with it, your pick":
+        "Оставлено со стороны «Входящее» вместе с тем, что удалено с ним, ваш выбор",
     "Kept from current: {element}": "Оставлено со стороны «Текущее»: {element}",
     "Kept from incoming: {element}": "Оставлено со стороны «Входящее»: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -386,7 +386,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Оставить «Текущее» со всем содержимым",
     "Keep incoming with everything inside": "Оставить «Входящее» со всем содержимым",
     "Leave out": "Исключить",
-    "Also keep its removed flows": "Также оставить удалённые потоки",
+    "Also keep what was removed with it": "Также оставить то, что удалено вместе с ним",
     "Keep it as current has it": "Оставить в том виде, как на стороне «Текущее»",
     "Keep it as incoming has it": "Оставить в том виде, как на стороне «Входящее»",
     "Keep it and everything inside as current has them":
@@ -412,10 +412,10 @@ const dictionary: Record<string, string> = {
         "Оставлено со стороны «Текущее» со всем содержимым: {element}",
     "Kept from incoming with everything inside: {element}":
         "Оставлено со стороны «Входящее» со всем содержимым: {element}",
-    "Kept from current with its flows: {element}":
-        "Оставлено со стороны «Текущее» вместе с потоками: {element}",
-    "Kept from incoming with its flows: {element}":
-        "Оставлено со стороны «Входящее» вместе с потоками: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Оставлено со стороны «Текущее» вместе с тем, что удалено с ним: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Оставлено со стороны «Входящее» вместе с тем, что удалено с ним: {element}",
     "Left out: {element}, as current removed it":
         "Исключено: {element}, так как сторона «Текущее» его удалила",
     "Left out: {element}, as current doesn't have it":

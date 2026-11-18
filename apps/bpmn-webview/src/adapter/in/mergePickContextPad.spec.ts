@@ -20,7 +20,7 @@ const EVERY_DECISION: readonly MergePadDecision[] = [
     { kind: "keep", scope: "element", side: "incoming" },
     { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
     { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
-    { kind: "keepRemovedFlows", side: "incoming", offer: OFFER } as MergePadDecision,
+    { kind: "keepRemovedWith", side: "incoming", offer: OFFER } as MergePadDecision,
     { kind: "undo", scope: "withContents" },
 ];
 
@@ -123,7 +123,7 @@ describe("MergePickContextPadProvider", () => {
             "merge-keep",
             "merge-keep-inside",
             "merge-leave-out",
-            "merge-keep-removed-flows",
+            "merge-keep-removed-with",
             "merge-undo",
         ]);
         expect(Object.values(entries).every(({ group }) => group === "merge-pick")).toBe(true);
@@ -139,7 +139,7 @@ describe("MergePickContextPadProvider", () => {
             "Keep incoming",
             "Keep incoming with everything inside",
             "Leave out: Leave it out, as current removed it",
-            "Also keep its removed flows",
+            "Also keep what was removed with it",
             "Undo pick",
         ]);
         expect(buttons[0].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
@@ -149,7 +149,7 @@ describe("MergePickContextPadProvider", () => {
             "Keep incoming with everything inside: Keep it and everything inside as incoming has them",
         );
         expect(buttons[3].getAttribute(MERGE_TOOLTIP_ATTRIBUTE)).toBe(
-            "Also keep its removed flows: Also keep the 2 flows current removed with it",
+            "Also keep what was removed with it: Also keep the 2 flows current removed with it",
         );
         for (const button of buttons) {
             expect(button.tagName).toBe("BUTTON");

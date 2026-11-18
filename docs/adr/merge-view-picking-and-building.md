@@ -101,7 +101,7 @@ offer stay, as the core projects them.
 
 **Keeping a removed element offers what the other side removed with it.** The library's offer
 (`removedWithLeftOut`, [merge](merge.md)) shows on the kept side's pane, on the card and the pad,
-a shape-less element's on both panes; accepting is one `pickWithConnections`, and Undo takes the
+a shape-less element's on both panes; accepting is one `pickWithRemoved`, and Undo takes the
 flows and boundary events back too. Not offered, as each would bring back what the user did not
 ask for: a flow whose other end the removing side deleted too, a message flow whose message it
 deleted, a boundary event that needs an error or a lane it deleted, and that event's flows.

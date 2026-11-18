@@ -21,21 +21,21 @@ const LEAVE_OUT: MergePadDecision = {
     side: "current",
     otherSideLacks: "removed",
 };
-const KEEP_FLOWS: MergePadDecision = {
-    kind: "keepRemovedFlows",
+const KEEP_REMOVED_WITH: MergePadDecision = {
+    kind: "keepRemovedWith",
     side: "incoming",
     offer: { elementId: "Task_A", connections: ["Flow_1"], removedBy: "current" },
 };
 const UNDO: MergePadDecision = { kind: "undo", scope: "element" };
 
-const ALL = [KEEP, KEEP_INSIDE, LEAVE_OUT, KEEP_FLOWS, UNDO];
+const ALL = [KEEP, KEEP_INSIDE, LEAVE_OUT, KEEP_REMOVED_WITH, UNDO];
 
 describe("padEntryOf", () => {
     it.each<[MergePadDecision, MergePadEntry]>([
         [KEEP, "keep"],
         [KEEP_INSIDE, "keepInside"],
         [LEAVE_OUT, "leaveOut"],
-        [KEEP_FLOWS, "keepRemovedFlows"],
+        [KEEP_REMOVED_WITH, "keepRemovedWith"],
         [UNDO, "undo"],
     ])("names the pad entry of %o", (decision, entry) => {
         expect(padEntryOf(decision)).toBe(entry);
@@ -47,7 +47,7 @@ describe("padDecisionFor", () => {
         ["keep", KEEP],
         ["keepInside", KEEP_INSIDE],
         ["leaveOut", LEAVE_OUT],
-        ["keepRemovedFlows", KEEP_FLOWS],
+        ["keepRemovedWith", KEEP_REMOVED_WITH],
         ["undo", UNDO],
     ])("runs %s as the pad's entry for it, side and reach included", (entry, decision) => {
         expect(padDecisionFor(ALL, entry)).toBe(decision);
@@ -58,7 +58,7 @@ describe("padDecisionFor", () => {
         ["a keep the result has already", [KEEP_INSIDE, UNDO], "keep"],
         ["a container's keep inside on an element", [KEEP, UNDO], "keepInside"],
         ["a leave-out where the other side holds it", [KEEP], "leaveOut"],
-        ["the removed flows without an offer", [KEEP, UNDO], "keepRemovedFlows"],
+        ["what was removed with it without an offer", [KEEP, UNDO], "keepRemovedWith"],
         ["an undo without a pick", [KEEP], "undo"],
     ])("decides nothing where the pad does not offer it: %s", (_case, decisions, entry) => {
         expect(padDecisionFor(decisions, entry)).toBeUndefined();

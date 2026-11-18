@@ -9,7 +9,7 @@ export const MERGE_DECISION_ICONS: Readonly<Record<MergePadEntry, string>> = {
     ),
     leaveOut: padIconSvg(`<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>`),
     // A sequence flow's arrow and a plus: the flows come back.
-    keepRemovedFlows: padIconSvg(
+    keepRemovedWith: padIconSvg(
         `<path d="M3 12h10"/><path d="m10 8 4 4-4 4"/><path d="M19 9v6"/><path d="M16 12h6"/>`,
     ),
     undo: padIconSvg(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`),

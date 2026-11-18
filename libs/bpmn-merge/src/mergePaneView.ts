@@ -12,7 +12,7 @@ import {
     otherSide,
 } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
-import { idsRemovedWith, keptAgainstRemoval } from "./removedConnections";
+import { idsRemovedWith, keptAgainstRemoval } from "./removedWith";
 import {
     type ShapelessValues,
     type ShapelessValueSources,
@@ -247,7 +247,7 @@ function scopeOf(
     }
     if (!idsRemovedWith(elements, element, keptSide).some(pickedOn)) return "element";
     const { connections, boundaryEvents } = decisions.removedWithLeftOut(element.id, keptSide);
-    return connections.length === 0 && boundaryEvents.length === 0 ? "withConnections" : "element";
+    return connections.length === 0 && boundaryEvents.length === 0 ? "withRemoved" : "element";
 }
 
 function lackingSideOf(element: MergeElement): ShapelessRow["lackingSide"] {

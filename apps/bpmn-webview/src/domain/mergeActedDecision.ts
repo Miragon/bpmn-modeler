@@ -45,12 +45,12 @@ export function actedInMenu(elementId: string, decision: MergePadDecision): Merg
 }
 
 /** Keeping the flows the other side removed keeps the element from `side` with them, from the pad or the card. */
-export function keepRemovedFlowsDecision(
+export function keepRemovedWithDecision(
     elementId: string,
     side: MergeSide,
     origin: MergeDecisionOrigin = "canvas",
 ): MergeActedDecision {
-    return { kind: "keep", elementId, scope: "withConnections", side, origin };
+    return { kind: "keep", elementId, scope: "withRemoved", side, origin };
 }
 
 function acted(
@@ -69,8 +69,8 @@ function acted(
                 otherSideLacks: decision.otherSideLacks,
                 origin,
             };
-        case "keepRemovedFlows":
-            return keepRemovedFlowsDecision(elementId, decision.side, origin);
+        case "keepRemovedWith":
+            return keepRemovedWithDecision(elementId, decision.side, origin);
         case "undo":
             return { kind: "undo", elementId, scope: decision.scope, origin };
     }

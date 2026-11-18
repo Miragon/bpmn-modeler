@@ -385,7 +385,7 @@ describe("package.json ↔ code contract", () => {
             [MERGE_PANE_COMMAND_IDS.keep]: "ctrl+k k | cmd+k k",
             [MERGE_PANE_COMMAND_IDS.keepInside]: "ctrl+k shift+k | cmd+k shift+k",
             [MERGE_PANE_COMMAND_IDS.leaveOut]: "ctrl+k l | cmd+k l",
-            [MERGE_PANE_COMMAND_IDS.keepRemovedFlows]: "ctrl+k shift+f | cmd+k shift+f",
+            [MERGE_PANE_COMMAND_IDS.keepRemovedWith]: "ctrl+k shift+f | cmd+k shift+f",
             [MERGE_PANE_COMMAND_IDS.undo]: "ctrl+k backspace | cmd+k backspace",
             [MERGE_PANE_COMMAND_IDS.next]: "alt+f5",
             [MERGE_PANE_COMMAND_IDS.previous]: "shift+alt+f5",

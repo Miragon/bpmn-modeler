@@ -4,7 +4,7 @@ import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultB
 import { restoredWithoutConnectionsNotes } from "./buildNotes";
 import type { MergeResolution } from "./mergeDecisions";
 import type { ElementState, MergeSide } from "./mergeResult";
-import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
+import { connectionsRemovedWith, keptAgainstRemoval } from "./removedWith";
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });
 
@@ -31,7 +31,7 @@ const result = mergeResult(
 );
 const task = result.elements.find(({ id }) => id === "Task")!;
 
-describe("removedConnections", () => {
+describe("removedWith", () => {
     it.each<[ElementState, MergeSide, boolean]>([
         ["removedByCurrent", "incoming", true],
         ["removedByCurrent", "current", false],
@@ -51,7 +51,7 @@ describe("removedConnections", () => {
         expect(connectionsRemovedWith(result.elements, task, "current")).toEqual([]);
     });
 
-    it("names only the connections pickWithConnections left out", () => {
+    it("names only the connections pickWithRemoved left out", () => {
         const resolution = (kept: readonly string[]): MergeResolution => ({
             elements: Object.fromEntries(
                 result.elements.map(({ id, state }) => [

@@ -40,9 +40,12 @@ describe("pickBadgeText", () => {
             { side: "Current", label: "Kept from current with everything inside, your pick" },
         ],
         [
-            "says an element was kept with its flows",
-            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withConnections" },
-            { side: "Incoming", label: "Kept from incoming with its flows, your pick" },
+            "says an element was kept with what was removed with it",
+            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withRemoved" },
+            {
+                side: "Incoming",
+                label: "Kept from incoming with what was removed with it, your pick",
+            },
         ],
     ])("%s", (_name, badge, expected) => {
         expect(pickBadgeText(badge, untranslated)).toStrictEqual(expected);
@@ -93,18 +96,19 @@ describe("padDecisionText", () => {
             },
         ],
         [
-            { kind: "keepRemovedFlows", side: "incoming", offer: offer(["Flow_1", "Flow_2"]) },
+            { kind: "keepRemovedWith", side: "incoming", offer: offer(["Flow_1", "Flow_2"]) },
             {
-                label: "Also keep its removed flows",
+                label: "Also keep what was removed with it",
                 tooltip:
-                    "Also keep its removed flows: Also keep the 2 flows current removed with it",
+                    "Also keep what was removed with it: Also keep the 2 flows current removed with it",
             },
         ],
         [
-            { kind: "keepRemovedFlows", side: "incoming", offer: offer(["Flow_1"]) },
+            { kind: "keepRemovedWith", side: "incoming", offer: offer(["Flow_1"]) },
             {
-                label: "Also keep its removed flows",
-                tooltip: "Also keep its removed flows: Also keep the flow current removed with it",
+                label: "Also keep what was removed with it",
+                tooltip:
+                    "Also keep what was removed with it: Also keep the flow current removed with it",
             },
         ],
         [

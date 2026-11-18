@@ -22,7 +22,7 @@ import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
-import { restoredFlowDefaultsOf } from "./removedConnections";
+import { restoredFlowDefaultsOf } from "./removedWith";
 
 export type { BuildNote } from "./buildNotes";
 

@@ -65,7 +65,7 @@ import {
 const PICK_SCOPES: Record<MergePickScope, true> = {
     element: true,
     withContents: true,
-    withConnections: true,
+    withRemoved: true,
 };
 const REACHES: Record<MergePaneContainerReach, true> = { contents: true, poolProcesses: true };
 const LACKS: Record<MergePaneOtherSideLack, true> = { removed: true, missing: true };
@@ -142,9 +142,9 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
     ],
     leaveOut: (side) =>
         keysOf(LACKS).map((otherSideLacks) => ({ kind: "leaveOut", side, otherSideLacks })),
-    keepRemovedFlows: (side) =>
+    keepRemovedWith: (side) =>
         OFFERED.map((offered) => ({
-            kind: "keepRemovedFlows",
+            kind: "keepRemovedWith",
             side: otherSide(side),
             offer: { elementId: "a", ...offered, removedBy: side },
         })),

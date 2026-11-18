@@ -30,20 +30,20 @@ function removedSubProcess(): MergeDecisions {
 const PICKS: Record<PickScope, (decisions: MergeDecisions, id: string, side: MergeSide) => void> = {
     element: (decisions, id, side) => decisions.pick(id, side),
     withContents: (decisions, id, side) => decisions.pickWithContents(id, side),
-    withConnections: (decisions, id, side) => decisions.pickWithConnections(id, side),
+    withRemoved: (decisions, id, side) => decisions.pickWithRemoved(id, side),
 };
 
 const UNPICKS: Record<PickScope, (decisions: MergeDecisions, id: string) => void> = {
     element: (decisions, id) => decisions.unpick(id),
     withContents: (decisions, id) => decisions.unpickWithContents(id),
-    withConnections: (decisions, id) => decisions.unpickWithConnections(id),
+    withRemoved: (decisions, id) => decisions.unpickWithRemoved(id),
 };
 
 const picksOf = (decisions: MergeDecisions) =>
     decisions.result.elements.map(({ id }) => [id, decisions.originOf(id), decisions.sideOf(id)]);
 
 describe("MergeDecisions scoped picks", () => {
-    it.each(["element", "withContents", "withConnections"] as const)(
+    it.each(["element", "withContents", "withRemoved"] as const)(
         "picks and takes back as far as %s reaches",
         (scope) => {
             const scoped = removedSubProcess();

@@ -73,10 +73,11 @@ export interface MergePaneStepping {
 
 /**
  * How far a pick reaches: the element, the element with everything inside
- * it, or an element the other side removed with the flows removed with it.
+ * it, or an element the other side removed with the flows and boundary
+ * events removed with it.
  * Undo takes back the same reach.
  */
-export type MergePickScope = "element" | "withContents" | "withConnections";
+export type MergePickScope = "element" | "withContents" | "withRemoved";
 
 /** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
 export interface MergePaneBadge {
@@ -368,7 +369,7 @@ export const MERGE_PAD_ENTRIES = [
     "keep",
     "keepInside",
     "leaveOut",
-    "keepRemovedFlows",
+    "keepRemovedWith",
     "undo",
 ] as const;
 

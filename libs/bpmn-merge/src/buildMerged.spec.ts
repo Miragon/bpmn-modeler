@@ -970,7 +970,7 @@ ${
                 "dangling: current removes a task, incoming adds a flow from it",
             );
             const decisions = await decisionsFor(scenario);
-            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+            expect(decisions.pickWithRemoved("Task_Reject", "incoming").applied).toBe(true);
 
             const { xml, notes } = await buildMerged(
                 await prepareMergeSources(scenario),
@@ -990,7 +990,7 @@ ${
             );
             const decisions = await decisionsFor(scenario);
             expect(decisions.sideOf("Gateway_Ok")).toBe("current");
-            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+            expect(decisions.pickWithRemoved("Task_Reject", "incoming").applied).toBe(true);
 
             const { xml, notes } = await buildMerged(
                 await prepareMergeSources(scenario),
@@ -1010,7 +1010,7 @@ ${
                 },
             });
             const decisions = await decisionsFor(versions);
-            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+            expect(decisions.pickWithRemoved("Task_Reject", "incoming").applied).toBe(true);
 
             const { xml, notes } = await buildMerged(
                 await prepareMergeSources(versions),
@@ -1036,7 +1036,7 @@ ${
                 },
             });
             const decisions = await decisionsFor(versions);
-            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+            expect(decisions.pickWithRemoved("Task_Reject", "incoming").applied).toBe(true);
 
             const { xml, notes } = await buildMerged(
                 await prepareMergeSources(versions),

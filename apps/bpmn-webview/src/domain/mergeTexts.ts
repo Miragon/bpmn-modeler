@@ -57,9 +57,9 @@ const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
         current: "Kept from current with everything inside, your pick",
         incoming: "Kept from incoming with everything inside, your pick",
     },
-    withConnections: {
-        current: "Kept from current with its flows, your pick",
-        incoming: "Kept from incoming with its flows, your pick",
+    withRemoved: {
+        current: "Kept from current with what was removed with it, your pick",
+        incoming: "Kept from incoming with what was removed with it, your pick",
     },
 };
 
@@ -138,7 +138,7 @@ function keepInsideText(side: MergeSide, translate: MergeTranslate): string {
 /** The context pad's words that name no side. */
 export const MERGE_PAD_TEXTS = {
     leaveOut: "Leave out",
-    keepRemovedFlows: "Also keep its removed flows",
+    keepRemovedWith: "Also keep what was removed with it",
     undoTip: "Go back to what the merge decided by itself",
 } as const;
 
@@ -171,9 +171,9 @@ export function padDecisionText(
             );
             return { label: tooltip, tooltip };
         }
-        case "keepRemovedFlows":
+        case "keepRemovedWith":
             return withTip(
-                translate(MERGE_PAD_TEXTS.keepRemovedFlows),
+                translate(MERGE_PAD_TEXTS.keepRemovedWith),
                 restoreOfferText(decision.offer, translate),
             );
         case "undo":
@@ -203,9 +203,9 @@ const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
         current: "Kept from current with everything inside: {element}",
         incoming: "Kept from incoming with everything inside: {element}",
     },
-    withConnections: {
-        current: "Kept from current with its flows: {element}",
-        incoming: "Kept from incoming with its flows: {element}",
+    withRemoved: {
+        current: "Kept from current with what was removed with it: {element}",
+        incoming: "Kept from incoming with what was removed with it: {element}",
     },
 };
 

@@ -311,8 +311,10 @@ const dictionary: Record<string, string> = {
         "Kept from current with everything inside, your pick",
     "Kept from incoming with everything inside, your pick":
         "Kept from incoming with everything inside, your pick",
-    "Kept from current with its flows, your pick": "Kept from current with its flows, your pick",
-    "Kept from incoming with its flows, your pick": "Kept from incoming with its flows, your pick",
+    "Kept from current with what was removed with it, your pick":
+        "Kept from current with what was removed with it, your pick",
+    "Kept from incoming with what was removed with it, your pick":
+        "Kept from incoming with what was removed with it, your pick",
     "Kept from current: {element}": "Kept from current: {element}",
     "Kept from incoming: {element}": "Kept from incoming: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -378,7 +380,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Keep current with everything inside",
     "Keep incoming with everything inside": "Keep incoming with everything inside",
     "Leave out": "Leave out",
-    "Also keep its removed flows": "Also keep its removed flows",
+    "Also keep what was removed with it": "Also keep what was removed with it",
     "Keep it as current has it": "Keep it as current has it",
     "Keep it as incoming has it": "Keep it as incoming has it",
     "Keep it and everything inside as current has them":
@@ -404,8 +406,10 @@ const dictionary: Record<string, string> = {
         "Kept from current with everything inside: {element}",
     "Kept from incoming with everything inside: {element}":
         "Kept from incoming with everything inside: {element}",
-    "Kept from current with its flows: {element}": "Kept from current with its flows: {element}",
-    "Kept from incoming with its flows: {element}": "Kept from incoming with its flows: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Kept from current with what was removed with it: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Kept from incoming with what was removed with it: {element}",
     "Left out: {element}, as current removed it": "Left out: {element}, as current removed it",
     "Left out: {element}, as current doesn't have it":
         "Left out: {element}, as current doesn't have it",

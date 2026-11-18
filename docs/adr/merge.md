@@ -172,10 +172,10 @@ parser and asserts that the module still loads.
   connects to it or to them, that the other side removed with it, that nobody decided and
   the pick still leaves out, each only if all it requires besides the element and the
   offered boundary events stays in the result, so the offer brings back nothing the user did
-  not ask for. `pickWithConnections` picks them with the element in one `closePicks`, so it
+  not ask for. `pickWithRemoved` picks them with the element in one `closePicks`, so it
   is refused as a whole and equals the plain picks. Flows and boundary events are
   dependents, not requirements, so they cannot come back as a consequence.
-  `unpickWithConnections` takes the element back with everything on its side the other side
+  `unpickWithRemoved` takes the element back with everything on its side the other side
   removed with it (`removedWith`); `unpick` alone would keep the element as a consequence of
   those picks. The library keeps no groups: picks stay its only state, and `mergePaneView`
   rebuilds a pick's reach from them alone. A container counts as kept with everything inside
@@ -268,7 +268,7 @@ each of those.
   sides, an element drawn from another side than its container, elements both sides added
   at the same place, an element kept against the other side's removal whose flows on its
   own side stay out (each flow is decided on its own, so the flows removed with it stay
-  removed unless `pickWithConnections` kept them, and it may be left unconnected), a kept
+  removed unless `pickWithRemoved` kept them, and it may be left unconnected), a kept
   flow no longer its source's default (`defaultFlowNotRestored`), elements the base and both
   sides draw, each side differently (`layoutChangedByBoth`), and every frame difference the
   result does not carry (attributes both sides changed, incoming's extensions or imports).

@@ -325,10 +325,10 @@ const dictionary: Record<string, string> = {
         "Conservado de Actual con todo su contenido, su elección",
     "Kept from incoming with everything inside, your pick":
         "Conservado de Entrante con todo su contenido, su elección",
-    "Kept from current with its flows, your pick":
-        "Conservado de Actual con sus flujos, su elección",
-    "Kept from incoming with its flows, your pick":
-        "Conservado de Entrante con sus flujos, su elección",
+    "Kept from current with what was removed with it, your pick":
+        "Conservado de Actual con lo que se eliminó con él, su elección",
+    "Kept from incoming with what was removed with it, your pick":
+        "Conservado de Entrante con lo que se eliminó con él, su elección",
     "Kept from current: {element}": "Conservado de Actual: {element}",
     "Kept from incoming: {element}": "Conservado de Entrante: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -397,7 +397,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Conservar Actual con todo su contenido",
     "Keep incoming with everything inside": "Conservar Entrante con todo su contenido",
     "Leave out": "Dejar fuera",
-    "Also keep its removed flows": "Conservar también sus flujos eliminados",
+    "Also keep what was removed with it": "Conservar también lo que se eliminó con él",
     "Keep it as current has it": "Conservarlo como lo tiene Actual",
     "Keep it as incoming has it": "Conservarlo como lo tiene Entrante",
     "Keep it and everything inside as current has them":
@@ -423,9 +423,10 @@ const dictionary: Record<string, string> = {
         "Conservado de Actual con todo su contenido: {element}",
     "Kept from incoming with everything inside: {element}":
         "Conservado de Entrante con todo su contenido: {element}",
-    "Kept from current with its flows: {element}": "Conservado de Actual con sus flujos: {element}",
-    "Kept from incoming with its flows: {element}":
-        "Conservado de Entrante con sus flujos: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Conservado de Actual con lo que se eliminó con él: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Conservado de Entrante con lo que se eliminó con él: {element}",
     "Left out: {element}, as current removed it":
         "Dejado fuera: {element}, ya que Actual lo eliminó",
     "Left out: {element}, as current doesn't have it":

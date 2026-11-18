@@ -16,7 +16,7 @@ import {
     connectionsOn,
     keptAgainstRemoval,
     removedWith,
-} from "./removedConnections";
+} from "./removedWith";
 
 export type BuildNote =
     | {
@@ -138,7 +138,7 @@ export function drawnApartFromContainerNotes(
  * An element kept against the other side's removal, while the boundary events
  * the other side removed with it, or flows that connect it or them on its own
  * side, stay out: each is decided on its own, so what was removed with the
- * element stays removed unless kept with it (`pickWithConnections`).
+ * element stays removed unless kept with it (`pickWithRemoved`).
  */
 export function restoredWithoutConnectionsNotes(
     result: MergeResult,

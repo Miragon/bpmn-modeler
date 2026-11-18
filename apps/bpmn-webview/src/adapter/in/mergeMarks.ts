@@ -64,7 +64,7 @@ const BADGE_KIND_CLASSES: Record<MergePaneBadge["kind"], string> = {
 const BADGE_SCOPE_CLASSES: Record<MergePickScope, string> = {
     element: "",
     withContents: " merge-pick-badge--with-contents",
-    withConnections: " merge-pick-badge--with-connections",
+    withRemoved: " merge-pick-badge--with-removed",
 };
 
 // Below this zoom a worded badge is wider than the shape it names, so it shows its check alone.
