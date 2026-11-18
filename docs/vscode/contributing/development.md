@@ -354,9 +354,11 @@ its own VS Code window, profile and workspace:
   a new one for a tab that comes back.
 - Click nothing in the window's lower right corner, where a notice can cover
   it.
-- The extension starts with its first editor, view or command, not with the
-  window. A test of something it contributes to a VS Code menu opens a file of
-  the extension first.
+- The extension starts with the window when the workspace holds a `.bpmn`
+  file or a `.json` file under an `element-templates` folder, and otherwise
+  with its first editor, view or command. A test of something it contributes
+  to a VS Code menu in a workspace without either opens a file of the
+  extension first.
 - A test leaves a repository of the workspace as it found it: the window's Git
   watches it, and the next test expects it in the same state. To stage or
   commit, copy the repository (the merge-view suite continues a merge that
