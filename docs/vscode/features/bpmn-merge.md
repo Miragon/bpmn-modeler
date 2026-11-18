@@ -2,7 +2,7 @@
 
 Resolve a Git conflict in a `.bpmn` file as two diagrams instead of conflict markers in XML. You decide per element which side to keep, build the result into the file, check it in the modeler and stage it as usual.
 
-<figure class="shot"><img src="./images/bm-open.png" alt="A merge tab titled merged.bpmn (Merge: main ↔ feature) with current's diagram on the left and incoming's on the right, each pane naming its branch and commit, and a legend counting the open conflict"><figcaption>Current on the left, incoming on the right, during a rebase too.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-open.png" alt="A merge tab titled merged.bpmn (Merge: main ↔ feature) with current's diagram on the left and incoming's on the right, each pane with a one-line bar: Current and its counts on the left, Incoming with its counts, ‹ –/1 ›, the … menu and a disabled Build on the right"><figcaption>Current on the left, incoming on the right, during a rebase too.</figcaption></figure>
 
 ## Open the merge view
 
@@ -20,7 +20,7 @@ Opening the view writes nothing: the file and Git's index stay as Git left them.
 
 ## Read the markers
 
-<figure class="shot"><img src="./images/bm-marks.png" alt="Both panes with the task both sides renamed outlined as a conflict with an exclamation badge, and the end event only incoming renamed marked as taken from that side"><figcaption>One open conflict, and the end event the merge took from incoming without asking.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-marks.png" alt="Both panes with the task both sides renamed outlined as a conflict with an exclamation badge, and the end event only incoming renamed hatched on the current pane and outlined heavily on the incoming pane as taken from incoming; each bar counts one taken element and one conflict"><figcaption>One open conflict, and the end event the merge took from incoming without asking.</figcaption></figure>
 
 | Marker | Meaning |
 |---|---|
@@ -34,7 +34,7 @@ Each pane has one bar: its side, branch and commit, and how many elements it mar
 
 ## Pick a side
 
-<figure class="shot"><img src="./images/bm-pick.png" alt="Both panes with a badge reading ✓ Incoming above the renamed task, and the legend reading No open conflicts"><figcaption>A pick carries a badge naming the kept side above the element, on each pane that draws it.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-pick.png" alt="Both panes with a badge reading ✓ Incoming above the renamed task and its context pad open with icons only, the incoming bar at 1/1 with Build enabled, and a card below the incoming task reading Kept from incoming: Check feature order"><figcaption>A pick carries a badge naming the kept side above the element, on each pane that draws it.</figcaption></figure>
 
 Step to an element with **‹** and **›**, or click it: the step selects it on each pane that draws it and opens its context pad there. Hover an icon on the pad to see what it does:
 
@@ -44,15 +44,15 @@ Step to an element with **‹** and **›**, or click it: the step selects it on
 - **Also keep its removed flows**: after keeping an element the other side removed, keep the flows removed with it too.
 - **Undo pick**: back to what the merge decided by itself.
 
-An element without a shape is decided in its row of the **…** menu, which a step onto it opens: **Keep current**, **Keep incoming**, **Leave out** where one side lacks it, and **Undo pick** while your pick decides it. A container such as the process also shows the pad's **Keep everything inside** icon next to each side's **Keep**; it shows pressed while your pick keeps that side with everything inside. The pad is made for the mouse and has no keyboard support yet. A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape its row says what the pick did. A pick a pane cannot draw is undone in the pad of the other pane, or in its row.
+An element without a shape is decided in its row of the **…** menu, which a step onto it opens: **Keep current**, **Keep incoming**, **Leave out** where one side lacks it, and **Undo pick** while your pick decides it. A container such as the process also shows the pad's **Keep everything inside** icon next to each side's **Keep**; it shows pressed while your pick keeps that side with everything inside. To decide by keyboard, see [Keyboard](#keyboard). A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape its row says what the pick did. A pick a pane cannot draw is undone in the pad of the other pane, or in its row.
 
-<figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed, offering Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed: a ✓ Incoming badge, the pad's tooltip Also keep its removed flows: Also keep the 2 flows current removed with it, and below the task a card reading Kept from incoming: Check feature order with the button Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 
 Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad, or in its row for an element without a shape, whichever side you kept. Without it, the element is kept without those flows and the build notes it.
 
 ## Build the result
 
-<figure class="shot"><img src="./images/bm-build-disabled.png" alt="The right pane's legend with a disabled Build button, 1 conflict left, and disabled Compare with current and Compare with incoming buttons"><figcaption>Build waits until every conflict is decided.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-build-disabled.png" alt="The merge tab narrowed beside the modeler, the incoming pane's … menu open with a disabled Build at its top, the step list on Open conflicts, Show all, and disabled Compare with current, Compare with incoming and Review notes (0)"><figcaption>Build waits until every conflict is decided.</figcaption></figure>
 
 Once no conflict is open, **Build** in the right pane's bar (or in its **…** menu on a narrow pane) writes the merged diagram over the conflicted file, saves it and opens it in the modeler. The merge view stays open beside it, so you can change a pick and build again.
 
@@ -63,7 +63,7 @@ Once no conflict is open, **Build** in the right pane's bar (or in its **…** m
 - Build asks before it replaces your work: when the file has unsaved changes, when you changed it since the last build, when you changed Git's conflict markers since the merge view opened (for example, resolved a conflict by hand), or when it holds no conflict markers and was never built (you resolved it another way, or another merge tool changed it). Building over Git's markers as Git wrote them or over an untouched build does not ask.
 - A failed build writes nothing. If the result fails a check, the file stays as it was and the message names the elements.
 
-<figure class="shot"><img src="./images/bm-notes.png" alt="The right pane's legend with Review notes (1) open, listing that Check feature order is kept without the flows the other side removed with it, with buttons for the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
+<figure class="shot"><img src="./images/bm-notes.png" alt="The incoming pane after a build with the notes of the build open, saying that Check feature order is kept without the flows the other side removed with it, and linking the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
 
 **Review notes (N)** in the **…** menu lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
 
@@ -83,6 +83,25 @@ git merge --continue      # or: git rebase --continue, git cherry-pick --continu
 ```
 
 To start over before you stage it, `git checkout -m -- order.bpmn` brings back Git's conflict markers.
+
+## Keyboard
+
+While a merge pane has the focus, these commands act on the element selected in that pane and do what the pad's icon for it does, side included. A command shows only where it applies, so a key that does nothing there keeps VS Code's own meaning.
+
+Each is also in the Command Palette as **Miragon BPMN Modeler: Merge View: …**, and runs on the merge pane that had the focus last. The palette lists them once a merge pane got the focus, as when its tab opens or you click into it, and keeps listing them while the focus moves to the palette, the terminal or a side bar, as long as that pane's tab still shows in the active editor group. It stops when the tab is hidden or closed or another editor group becomes active. The keys act only while the pane itself has the focus.
+
+| Key | macOS | Command |
+|---|---|---|
+| <kbd>Alt</kbd>+<kbd>F5</kbd> | <kbd>⌥</kbd><kbd>F5</kbd> | **Next Conflict**, as **›**, on the list chosen in **…** |
+| <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F5</kbd> | <kbd>⇧</kbd><kbd>⌥</kbd><kbd>F5</kbd> | **Previous Conflict**, as **‹** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>K</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>K</kbd> | **Keep This Side** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Shift</kbd>+<kbd>K</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⇧</kbd><kbd>K</kbd> | **Keep with Everything Inside** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>L</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>L</kbd> | **Leave Out** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Shift</kbd>+<kbd>F</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⇧</kbd><kbd>F</kbd> | **Also Keep Its Removed Flows** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Backspace</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⌫</kbd> | **Undo Pick** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>B</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>B</kbd> | **Build Result**; with conflicts open, a message says how many are left |
+
+A step selects its element, so the keyboard way is <kbd>Alt</kbd>+<kbd>F5</kbd>, then <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>K</kbd>. The commands leave the focus where it is; the card below the element says what the pick did. An element without a shape is decided with the buttons in its row of the **…** menu, which a step onto it opens. <kbd>Alt</kbd>+<kbd>F5</kbd> and <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F5</kbd> are the keys VS Code's compare editor uses for the next and previous change; the <kbd>Ctrl</kbd>+<kbd>K</kbd> chords use second keys VS Code leaves free. Change any of them in **Keyboard Shortcuts** (search for `Merge View`).
 
 ## Limits
 

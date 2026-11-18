@@ -20,7 +20,8 @@ preserves earlier decisions and their evolution.
 | [Diff](diff.md) | BPMN and DMN model diff: data libraries, navigation order, shared vocabulary and legend, diff panes |
 | [Merge](merge.md) | Three-way BPMN merge: the unpublished library, merge elements, classification, decisions and reference rules, layout side, building and checking the merged file |
 | [Merge XML editor](merge-xml-editor.md) | The line-wise XML merge of one element in VS Code's merge editor: the internal command, the writable output, the conflict-text prefill, finishing on tab close |
-| [Merge view](merge-view.md) | The BPMN merge view in VS Code: opening from Git through its extension's API, the `bpmn-merge:` panes and their identity, where the command shows, the conflict-marker offer, hosts |
+| [Merge view](merge-view.md) | The BPMN merge view in VS Code: opening from Git through its extension's API, the `bpmn-merge:` panes and their identity, where the command shows, the conflict-marker offer, the panes' markers, bar, projections and step lists, hosts |
+| [Merge view picking and building](merge-view-picking-and-building.md) | Picks in the core, pad and menu decisions, keyboard commands and their target, badges and outcome cards, building into the working file, overwrite questions, the result comparison |
 | [BPMN plugins](bpmn-plugins.md) | bpmn-js plugin format, the `/plugins` loader, discovery, serving from the content-addressed cache, what a plugin can reach |
 | [Workspace code allowance](code-allowance.md) | When workspace code may run: the allowance per repository and add-on, approval store, the question flow, host trust |
 | [Add-ons](add-ons.md) | The add-on catalog and its view: allow and revoke, page protocol and reveals, brand look, VS Code and IntelliJ placement |

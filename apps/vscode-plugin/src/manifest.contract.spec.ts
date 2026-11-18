@@ -41,8 +41,15 @@ import {
 import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
 import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
 import { OPEN_BPMN_MERGE_VIEW } from "./diff/adapter/in/MergeController";
+import { MERGE_PANE_COMMAND_IDS } from "./diff/adapter/in/MergeKeyboardController";
+import {
+    MERGE_PANE_COMMAND_KEYS,
+    MERGE_PANE_FOCUSED_KEY,
+    MERGE_PANE_TARGETED_KEY,
+} from "./diff/adapter/out/VsCodeMergePaneCommandKeys";
 import { MERGE_SIDE_SCHEME } from "./diff/domain/documentRevision";
 import { RESOLVE_IN_MERGE_VIEW_LABEL } from "@miragon/bpmn-modeler-core";
+import { MERGE_PANE_COMMANDS } from "@miragon/bpmn-modeler-shared";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -102,7 +109,7 @@ interface Manifest {
     activationEvents: string[];
     contributes: {
         commands: { command: string; title: string; category?: string }[];
-        keybindings: { command: string; key?: string }[];
+        keybindings: { command: string; key: string; mac?: string; when?: string }[];
         menus: Record<string, { command: string; when?: string; group?: string }[]>;
         viewsContainers: Record<string, { id: string; title: string; icon: string }[]>;
         views: Record<string, { type?: string; id: string; name: string; when?: string }[]>;
@@ -180,6 +187,7 @@ const CODE_COMMAND_IDS = [
     REFRESH_ADD_ONS_CMD,
     REVIEW_ADD_ONS_CMD,
     OPEN_BPMN_MERGE_VIEW,
+    ...Object.values(MERGE_PANE_COMMAND_IDS),
 ];
 
 const LEGACY_NAMESPACE = ["miragon", "camundaModeler"].join("."); // built so this file is not its own false positive
@@ -338,6 +346,44 @@ describe("package.json ↔ code contract", () => {
         expect(manifest.contributes.menus.commandPalette).toContainEqual({
             command: OPEN_BPMN_MERGE_VIEW,
             when,
+        });
+    });
+
+    it("offers each merge pane command by its key while a merge pane has the focus, and in the palette while one is the target, gated on the key the adapter sets for it", () => {
+        for (const command of MERGE_PANE_COMMANDS) {
+            const id = MERGE_PANE_COMMAND_IDS[command];
+            const commandKey = MERGE_PANE_COMMAND_KEYS[command];
+            expect(
+                manifest.contributes.commands.find((entry) => entry.command === id),
+            ).toMatchObject({ category: "Miragon BPMN Modeler" });
+            expect(
+                manifest.contributes.keybindings
+                    .filter((entry) => entry.command === id)
+                    .map(({ when }) => when),
+            ).toStrictEqual([`${MERGE_PANE_FOCUSED_KEY} && ${commandKey}`]);
+            expect(
+                manifest.contributes.menus.commandPalette.filter((entry) => entry.command === id),
+            ).toStrictEqual([{ command: id, when: `${MERGE_PANE_TARGETED_KEY} && ${commandKey}` }]);
+        }
+    });
+
+    // Alt+F5 is the compare editor's next change; each Ctrl+K chord's second key no default binding uses.
+    it("binds the merge panes' keys as the ADR records them", () => {
+        const keys = Object.fromEntries(
+            manifest.contributes.keybindings
+                .filter(({ command }) => command.startsWith("bpmn-modeler.merge"))
+                .map(({ command, key, mac }) => [command, mac ? `${key} | ${mac}` : key]),
+        );
+
+        expect(keys).toStrictEqual({
+            [MERGE_PANE_COMMAND_IDS.keep]: "ctrl+k k | cmd+k k",
+            [MERGE_PANE_COMMAND_IDS.keepInside]: "ctrl+k shift+k | cmd+k shift+k",
+            [MERGE_PANE_COMMAND_IDS.leaveOut]: "ctrl+k l | cmd+k l",
+            [MERGE_PANE_COMMAND_IDS.keepRemovedFlows]: "ctrl+k shift+f | cmd+k shift+f",
+            [MERGE_PANE_COMMAND_IDS.undo]: "ctrl+k backspace | cmd+k backspace",
+            [MERGE_PANE_COMMAND_IDS.next]: "alt+f5",
+            [MERGE_PANE_COMMAND_IDS.previous]: "shift+alt+f5",
+            [MERGE_PANE_COMMAND_IDS.build]: "ctrl+k b | cmd+k b",
         });
     });
 
@@ -766,6 +812,15 @@ describe("package.json ↔ code contract", () => {
             "bpmn-modeler.templateEditorShowsFile",
             "bpmn-modeler.resolvableBpmnConflicts",
             "bpmn-modeler.hasResolvableBpmnConflicts",
+            "bpmn-modeler.mergePaneFocused",
+            "bpmn-modeler.mergePaneTargeted",
+            "bpmn-modeler.mergePane.canKeep",
+            "bpmn-modeler.mergePane.canKeepInside",
+            "bpmn-modeler.mergePane.canLeaveOut",
+            "bpmn-modeler.mergePane.canKeepRemovedFlows",
+            "bpmn-modeler.mergePane.canUndo",
+            "bpmn-modeler.mergePane.canStep",
+            "bpmn-modeler.mergePane.offersBuild",
             "bpmn-modeler.elementIdReviewAvailable",
             "bpmn-modeler.elementIdReviewOpen",
             "bpmn-modeler.elementIdReviewCanApply",

@@ -3,14 +3,12 @@ import SelectionModule from "diagram-js/lib/features/selection";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
+import type { MergePadEntry } from "@miragon/bpmn-modeler-shared";
 
+import { padEntryOf } from "../../domain/mergePaneCommands";
 import type { MergePadDecision } from "../../domain/mergePadDecisions";
 import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
-import {
-    MERGE_DECISION_ICONS,
-    type MergeDecisionGlyph,
-    mergeDecisionGlyph,
-} from "./mergeDecisionIcons";
+import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 import "./mergePickContextPad.css";
@@ -22,6 +20,8 @@ export interface MergePickEntryConfig {
     decide(elementId: string, decision: MergePadDecision): void;
     /** Receives the provider once diagram-js built it, to refresh an open pad after each state. */
     attach(provider: MergePickContextPadProvider): void;
+    /** Told of every selection change, a step's and the partner's included, whose pad a keyboard command runs. */
+    selectionChanged(): void;
 }
 
 interface ContextPadEntry {
@@ -46,7 +46,11 @@ interface Canvas {
     getRootElement(): unknown;
 }
 
-const ENTRY_IDS: Record<MergeDecisionGlyph, string> = {
+interface EventBus {
+    on(event: string, listener: () => void): void;
+}
+
+const ENTRY_IDS: Record<MergePadEntry, string> = {
     keep: "merge-keep",
     keepInside: "merge-keep-inside",
     leaveOut: "merge-leave-out",
@@ -63,18 +67,36 @@ const ENTRY_IDS: Record<MergeDecisionGlyph, string> = {
  * `title`, which would show a second one.
  */
 export class MergePickContextPadProvider {
-    static $inject = ["contextPad", "canvas", "selection", "translate", "mergePickEntryConfig"];
+    static $inject = [
+        "contextPad",
+        "canvas",
+        "selection",
+        "eventBus",
+        "translate",
+        "mergePickEntryConfig",
+    ];
 
     constructor(
         private readonly contextPad: ContextPad,
         private readonly canvas: Canvas,
         private readonly selection: Selection,
+        eventBus: EventBus,
         private readonly translate: MergeTranslate,
         private readonly entryConfig: MergePickEntryConfig,
     ) {
         contextPad.registerProvider(this);
         installMergeTooltips(document);
+        eventBus.on("selection.changed", () => entryConfig.selectionChanged());
         entryConfig.attach(this);
+    }
+
+    /** The BPMN id of the element selected alone, whose pad shows its decisions; none for the root. */
+    selectedElementId(): string | undefined {
+        const selected = this.selection.get();
+        const [only] = selected;
+        return selected.length === 1 && only !== this.canvas.getRootElement()
+            ? bpmnElementIdOf(only)
+            : undefined;
     }
 
     /** Reopens an open pad, which diagram-js rebuilds only on a selection or element change, on the host's latest state. */
@@ -89,7 +111,7 @@ export class MergePickContextPadProvider {
         return Object.fromEntries(
             this.entryConfig
                 .decisionsOf(bpmnElementIdOf(element))
-                .map((decision) => [ENTRY_IDS[mergeDecisionGlyph(decision)], this.entry(decision)]),
+                .map((decision) => [ENTRY_IDS[padEntryOf(decision)], this.entry(decision)]),
         );
     }
 
@@ -97,7 +119,7 @@ export class MergePickContextPadProvider {
         const { label, tooltip } = padDecisionText(decision, this.translate);
         return {
             group: "merge-pick",
-            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${MERGE_DECISION_ICONS[mergeDecisionGlyph(decision)]}</button>`,
+            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${MERGE_DECISION_ICONS[padEntryOf(decision)]}</button>`,
             action: {
                 click: (_event, clicked) =>
                     this.entryConfig.decide(bpmnElementIdOf(clicked), decision),

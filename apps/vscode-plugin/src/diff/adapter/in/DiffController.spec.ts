@@ -85,7 +85,10 @@ function fakePanel() {
     return { panel: panel as never, cbs };
 }
 
-function createController(extension: DiffFileExtension = ".bpmn") {
+function createController(
+    extension: DiffFileExtension = ".bpmn",
+    keyboard?: ConstructorParameters<typeof DiffController>[6],
+) {
     const closedDiagramDiffs: string[] = [];
     const store = new DiffPaneStore();
     store.onSessionClosed((session) => {
@@ -114,6 +117,7 @@ function createController(extension: DiffFileExtension = ".bpmn") {
             rebroadcastLanguage: diffService.rebroadcastLanguage,
         },
         merge,
+        keyboard,
     );
     return {
         controller,
@@ -586,6 +590,16 @@ describe("DiffController message dispatch", () => {
         await send({ type: "LogErrorCommand", message: "import failed" });
 
         expect(notifier.logged("error")).toEqual(["[webview:m.bpmn] import failed"]);
+    });
+
+    it("hands each pane's panel to the merge keyboard", () => {
+        const keyboard = { watch: vi.fn() };
+        const { controller } = createController(".bpmn", keyboard);
+        const { panel } = fakePanel();
+
+        controller.resolveDiffPane(panel, fakeDoc("git", "/m.bpmn", "git:/m.bpmn"));
+
+        expect(keyboard.watch).toHaveBeenCalledExactlyOnceWith(panel, expect.anything());
     });
 
     it("ignores unknown command types", async () => {

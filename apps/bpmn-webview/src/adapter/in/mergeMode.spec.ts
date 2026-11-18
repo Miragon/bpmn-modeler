@@ -2,9 +2,13 @@ import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "v
 
 import {
     ApplyMergeStatesQuery,
+    MERGE_PAD_ENTRIES,
+    type MergePadEntry,
+    type MergePaneCommand,
     type MergePaneStates,
     type MergePaneStep,
     type MergePaneStepList,
+    RunMergePaneCommandQuery,
     SHOW_ALL_CURSOR,
     SyncCursorQuery,
     SyncDiffPlaneQuery,
@@ -70,9 +74,16 @@ const fakes = vi.hoisted(() => {
                   decisionsOf(id: string): readonly unknown[];
                   decide(id: string, decision: unknown): void;
                   attach(provider: { refresh(): void }): void;
+                  selectionChanged(): void;
               }
             | undefined,
-        provider: { refresh: vi.fn() },
+        provider: {
+            refresh: vi.fn(),
+            selected: undefined as string | undefined,
+            selectedElementId(): string | undefined {
+                return this.selected;
+            },
+        },
     };
     const names = { nameOf: (id: string) => ({ Task_Pack: "Pack parcel" })[id] ?? id };
 
@@ -159,6 +170,8 @@ vi.mock("./mergeMarks", () => ({
     },
 }));
 
+import { padEntryOf } from "../../domain/mergePaneCommands";
+import type { MergePadDecision } from "../../domain/mergePadDecisions";
 import type { MergeStepList } from "../../domain/mergeStepper";
 import { MergeMode } from "./mergeMode";
 
@@ -314,6 +327,7 @@ describe("MergeMode", () => {
         vi.restoreAllMocks();
         host.postMessage.mockReset();
         fakes.marks.paint.mockReset();
+        fakes.pickPad.provider.selected = undefined;
         legendParent.remove();
         delete document.body.dataset.diffSide;
     });
@@ -1403,6 +1417,165 @@ describe("MergeMode", () => {
             expect(shown().at(-1)?.headline).toBe(
                 "Left out: Pack parcel, as incoming doesn't have it",
             );
+        });
+    });
+
+    describe("keyboard commands", () => {
+        const commandsPosted = () =>
+            posted()
+                .filter((message) => message.type === "MergePaneCommandsChangedCommand")
+                .map(
+                    (message) => (message as { available: readonly MergePaneCommand[] }).available,
+                );
+        const decisionsPosted = () =>
+            posted()
+                .filter(
+                    (message) =>
+                        message.type === "PickMergeSideCommand" ||
+                        message.type === "UnpickMergeCommand",
+                )
+                .map((message) => ({ ...message }));
+        const typesPosted = () => posted().map((message) => message.type);
+        /** diagram-js reports every selection, the user's, a step's and the partner's. */
+        const selectOnCanvas = (id: string | undefined) => {
+            fakes.pickPad.provider.selected = id;
+            fakes.pickPad.config!.selectionChanged();
+        };
+        const run = (command: MergePaneCommand) => dispatch(new RunMergePaneCommandQuery(command));
+        // A container this pane kept nothing of yet, which current removed, with the flows it removed.
+        const EVERY_ENTRY: Partial<MergePaneStates> = {
+            pickable: [
+                {
+                    id: "Task_Pack",
+                    container: "contents",
+                    undo: "element",
+                    otherSideLacks: "removed",
+                },
+            ],
+            restoreOffer: { elementId: "Task_Pack", connections: ["Flow_1"], removedBy: "current" },
+        };
+
+        it("tells the host what its selection allows with every state and selection, once per change", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            selectOnCanvas("Task_Pack");
+            selectOnCanvas("Task_Pack");
+            dispatch(
+                mergeStates({
+                    pickable: [{ id: "Task_Pack", undo: "element" }],
+                    badges: [
+                        {
+                            id: "Task_Pack",
+                            kind: "keptHere",
+                            keptSide: "incoming",
+                            scope: "element",
+                        },
+                    ],
+                }),
+            );
+            selectOnCanvas(undefined);
+
+            expect(commandsPosted()).toEqual([
+                ["next", "previous", "build"],
+                ["keep", "next", "previous", "build"],
+                ["undo", "next", "previous", "build"],
+                ["next", "previous", "build"],
+            ]);
+        });
+
+        it.each<[MergePadEntry, Record<string, unknown>]>([
+            ["keep", { type: "PickMergeSideCommand", scope: "element", side: "incoming" }],
+            [
+                "keepInside",
+                { type: "PickMergeSideCommand", scope: "withContents", side: "incoming" },
+            ],
+            ["leaveOut", { type: "PickMergeSideCommand", scope: "element", side: "current" }],
+            [
+                "keepRemovedFlows",
+                { type: "PickMergeSideCommand", scope: "withConnections", side: "incoming" },
+            ],
+            ["undo", { type: "UnpickMergeCommand", scope: "element" }],
+        ])(
+            "runs %s on the selected element as the pad's entry does, side included",
+            async (entry, sent) => {
+                await startMergePane();
+                dispatch(mergeStates(EVERY_ENTRY));
+                selectOnCanvas("Task_Pack");
+                const pad = fakes.pickPad.config!;
+                const padDecision = pad
+                    .decisionsOf("Task_Pack")
+                    .find((decision) => padEntryOf(decision as MergePadDecision) === entry);
+                expect(padDecision).toBeDefined();
+
+                run(entry);
+                pad.decide("Task_Pack", padDecision);
+
+                const [byKeyboard, byPad] = decisionsPosted();
+                expect(byKeyboard).toMatchObject({ elementId: "Task_Pack", ...sent });
+                expect(byKeyboard).toEqual(byPad);
+            },
+        );
+
+        it("picks nothing with nothing selected or where the pad does not offer the decision", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            for (const entry of MERGE_PAD_ENTRIES) run(entry);
+            selectOnCanvas("Task_Pack");
+            for (const entry of MERGE_PAD_ENTRIES.filter((candidate) => candidate !== "keep"))
+                run(entry);
+            selectOnCanvas("Task_Unmarked");
+            run("keep");
+
+            expect(decisionsPosted()).toEqual([]);
+        });
+
+        it("steps with next and previous as ‹ › do, on either pane", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            run("next");
+            run("next");
+            run("previous");
+
+            expect(cursorsPosted()).toEqual([2, 3, 2]);
+            expect(counter()).toBe("1/3");
+        });
+
+        it("steps on the left pane too, which has no ‹ ›", async () => {
+            await startMergePane();
+            dispatch(leftStates());
+
+            run("next");
+
+            expect(cursorsPosted()).toEqual([2]);
+        });
+
+        it("posts Build even while conflicts are open, so the host's refusal answers it", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            run("build");
+
+            expect(typesPosted()).toContain("BuildMergeResultCommand");
+        });
+
+        it("moves no focus, onto a shape-less step's menu row neither", async () => {
+            await startMergePane();
+            dispatch(mergeStates(EVERY_ENTRY));
+            const outside = document.createElement("button");
+            document.body.append(outside);
+            outside.focus();
+
+            for (const command of ["next", "next", "next"] as const) run(command);
+            selectOnCanvas("Task_Pack");
+            run("keep");
+            run("build");
+
+            expect(menu().hidden).toBe(false);
+            expect(document.activeElement).toBe(outside);
+            outside.remove();
         });
     });
 

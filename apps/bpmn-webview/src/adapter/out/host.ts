@@ -259,6 +259,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug(`[DEBUG] ${command.type}`, command.elementId, command.scope);
                 break;
             }
+            case "MergePaneCommandsChangedCommand": {
+                // No keyboard commands to offer in a browser preview.
+                console.debug("[DEBUG] MergePaneCommandsChangedCommand", command.available);
+                break;
+            }
             case "BuildMergeResultCommand":
             case "CompareMergeResultCommand":
             case "SwitchMergeComparisonCommand": {

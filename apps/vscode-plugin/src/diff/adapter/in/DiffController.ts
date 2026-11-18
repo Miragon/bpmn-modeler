@@ -20,6 +20,7 @@ import {
 import { ModelerPreferences } from "../../../shared/port/ModelerPreferences";
 import { isGitProvidedDocument, isMergeSideDocument } from "../../domain/documentRevision";
 import { mergeViewEndedPage } from "./mergeViewEndedPage";
+import type { DiffPaneKeyboard } from "./MergeKeyboardController";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
@@ -71,6 +72,8 @@ export class DiffController {
      *   that drives their content.
      * @param merge Decides what a merge pane shows; absent for a format the
      *   merge view does not open.
+     * @param keyboard Follows each pane's focus for the merge panes' keyboard
+     *   commands; absent where the merge view does not open.
      */
     constructor(
         private readonly store: DiffPaneStore,
@@ -79,6 +82,7 @@ export class DiffController {
         private readonly preferences: ModelerPreferences,
         private readonly format: DiffPaneFormat,
         private readonly merge?: Pick<MergeViewOpener, "attachPane">,
+        private readonly keyboard?: DiffPaneKeyboard,
     ) {
         this.paneRouter = format.createRouter({
             swapSides: (pane) => this.swapCompareFilesSides(pane),
@@ -249,6 +253,7 @@ export class DiffController {
             }),
         );
         panel.onDidDispose(() => this.store.detach(handle));
+        this.keyboard?.watch(panel, handle);
     }
 
     /**

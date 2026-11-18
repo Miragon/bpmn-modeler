@@ -14,7 +14,11 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { actedInMenu, actedOnPad } from "../../domain/mergeActedDecision";
 import { openShapelessConflicts } from "../../domain/mergeMenuRows";
-import { decidesInMenu, mergePadDecisions } from "../../domain/mergePadDecisions";
+import {
+    decidesInMenu,
+    type MergePadDecision,
+    mergePadDecisions,
+} from "../../domain/mergePadDecisions";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
 import { MERGE_MARK_TEXTS, type MergeTranslate, pickBadgeText } from "../../domain/mergeTexts";
 import type { DiffPaneChannel } from "../../port/hostChannel";
@@ -24,6 +28,7 @@ import { createMergeElementNamesModule, type MergeElementNames } from "./mergeEl
 import { createMergeMarksModule, type MergeMarks } from "./mergeMarks";
 import { createMergeOutcomeCardModule } from "./mergeOutcomeCard";
 import { MergeOutcomes } from "./mergeOutcomes";
+import { MergePaneKeyboard, type MergeSelectedPad } from "./mergePaneKeyboard";
 import { createMergePickModule, type MergePickContextPadProvider } from "./mergePickContextPad";
 
 const STEPS_OF: Readonly<
@@ -63,6 +68,11 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     {@link CompareMergeResultCommand} from the right pane's bar; the
  *     host builds, and its states say whether Build and the comparisons are
  *     enabled and what the last build noted.
+ *   - Outgoing {@link MergePaneCommandsChangedCommand} whenever what its
+ *     keyboard commands can do changes, and incoming
+ *     `RunMergePaneCommandQuery` → run one as the pad's entry on the
+ *     selected element, ‹ › or Build does, moving no focus
+ *     ({@link MergePaneKeyboard}).
  *
  * The stepper keeps its own cursor by element id: a decided conflict leaves
  * the open list, and the step after it goes on from its place. A step
@@ -89,6 +99,8 @@ export class MergeMode {
 
     private cursorId: string | undefined;
 
+    private readonly keyboard: MergePaneKeyboard;
+
     constructor(
         canvas: HTMLElement,
         legendParent: HTMLElement,
@@ -100,13 +112,21 @@ export class MergeMode {
             select: (id) => this.select(id, { keepCard: true }),
             translate,
         });
+        this.keyboard = new MergePaneKeyboard({
+            post: (command) => host.postMessage(command),
+            step: (direction) => this.step(direction),
+            build: () => host.postMessage(new BuildMergeResultCommand()),
+            selectedPad: () => this.selectedPad(),
+            decide: (id, decision) => this.outcomes.send(actedOnPad(id, decision)),
+        });
         this.pane = new DiffPanePlumbing(canvas, host, [
             createMergeMarksModule({ attach: (marks) => (this.marks = marks) }),
             createMergeElementNamesModule({ attach: (names) => (this.names = names) }),
             createMergePickModule({
-                decisionsOf: (id) => (this.states ? mergePadDecisions(this.states.states, id) : []),
+                decisionsOf: (id) => this.padDecisionsOf(id),
                 decide: (id, decision) => this.outcomes.send(actedOnPad(id, decision)),
                 attach: (pad) => (this.pickPad = pad),
+                selectionChanged: () => this.reportCommands(),
             }),
             createMergeOutcomeCardModule({ attach: (card) => this.outcomes.attachCard(card) }),
         ]);
@@ -155,7 +175,23 @@ export class MergeMode {
                     if (id !== undefined) this.goTo(id, { shareViewport: true, openMenu: true });
                 }
                 break;
+            case "RunMergePaneCommandQuery":
+                this.keyboard.run(query.command);
+                break;
         }
+    }
+
+    private reportCommands(): void {
+        if (this.states) this.keyboard.report({ canStep: this.canStep() });
+    }
+
+    private selectedPad(): MergeSelectedPad {
+        const id = this.pickPad?.selectedElementId();
+        return id === undefined ? { decisions: [] } : { id, decisions: this.padDecisionsOf(id) };
+    }
+
+    private padDecisionsOf(id: string): readonly MergePadDecision[] {
+        return this.states ? mergePadDecisions(this.states.states, id) : [];
     }
 
     private paint(query: ApplyMergeStatesQuery): void {
@@ -175,6 +211,7 @@ export class MergeMode {
         }
         const rowSaid = this.outcomes.settle(answer);
         if (rowSaid !== undefined) this.bar.announceRowOutcome(rowSaid);
+        this.reportCommands();
     }
 
     private paintMarks(): void {
@@ -223,6 +260,11 @@ export class MergeMode {
 
     private stepIds(): readonly string[] {
         return this.states ? STEPS_OF[this.stepList](this.states.states).map(({ id }) => id) : [];
+    }
+
+    /** Whether ‹ › have a step, for the bar's buttons and the keys alike. */
+    private canStep(): boolean {
+        return this.stepIds().length > 0;
     }
 
     private allStepIds(): readonly string[] {
@@ -301,6 +343,7 @@ export class MergeMode {
     private switchStepList(list: MergeStepList): void {
         this.stepList = list;
         this.updateBar();
+        this.reportCommands();
         this.host.postMessage(new MergeStepListChangedCommand(list));
     }
 
@@ -335,7 +378,7 @@ export class MergeMode {
     private controls(states: MergePaneStates, rows: MergeBarControls["rows"]): MergeBarControls {
         const position = mergeStepPosition(this.stepIds(), this.allStepIds(), this.cursorId);
         return {
-            canStep: this.stepIds().length > 0,
+            canStep: this.canStep(),
             ...(position === undefined ? {} : { position }),
             total: this.stepIds().length,
             openConflicts: states.openConflicts,

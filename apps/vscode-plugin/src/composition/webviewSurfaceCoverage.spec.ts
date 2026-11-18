@@ -87,6 +87,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         BuildMergeResultCommand: HANDLED,
         CompareMergeResultCommand: HANDLED,
         SwitchMergeComparisonCommand: HANDLED,
+        MergePaneCommandsChangedCommand: HANDLED,
     },
     dmnDiffPane: {
         GetDmnFileCommand: HANDLED,

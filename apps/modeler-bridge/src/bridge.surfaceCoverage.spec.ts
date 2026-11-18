@@ -70,6 +70,9 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         BuildMergeResultCommand: ignored("the host builds no merge result"),
         CompareMergeResultCommand: ignored("the host builds no merge result"),
         SwitchMergeComparisonCommand: ignored("the host builds no merge result"),
+        MergePaneCommandsChangedCommand: ignored(
+            "the host offers no keyboard commands for merge panes",
+        ),
     },
     dmnEditor: absent("IntelliJ has no DMN editor"),
     dmnDiffPane: absent("IntelliJ has no DMN editor"),

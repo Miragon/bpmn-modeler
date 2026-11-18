@@ -352,3 +352,48 @@ export class SwitchMergeComparisonCommand extends Command<"SwitchMergeComparison
         super("SwitchMergeComparisonCommand");
     }
 }
+
+/** The context pad's decision entries; a keyboard command names each one. */
+export const MERGE_PAD_ENTRIES = [
+    "keep",
+    "keepInside",
+    "leaveOut",
+    "keepRemovedFlows",
+    "undo",
+] as const;
+
+export type MergePadEntry = (typeof MERGE_PAD_ENTRIES)[number];
+
+/** What a keyboard command asks of the focused merge pane: a pad entry on its selection, a step of ‹ ›, or Build. */
+export const MERGE_PANE_COMMANDS = [...MERGE_PAD_ENTRIES, "next", "previous", "build"] as const;
+
+export type MergePaneCommand = (typeof MERGE_PANE_COMMANDS)[number];
+
+/**
+ * Sent from a merge pane whenever the keyboard commands it can run change,
+ * as its selection or its states do. The host offers only those, and only
+ * while the pane has the focus.
+ */
+export class MergePaneCommandsChangedCommand extends Command<"MergePaneCommandsChangedCommand"> {
+    public readonly available: readonly MergePaneCommand[];
+
+    constructor(available: readonly MergePaneCommand[] = []) {
+        super("MergePaneCommandsChangedCommand");
+        this.available = available;
+    }
+}
+
+/**
+ * Sent from the host to the focused merge pane when the user runs one of its
+ * keyboard commands. The pane runs it as the pad, ‹ › or Build does, so the
+ * keyboard reaches what the mouse reaches; Build is posted even while
+ * conflicts are open, so the host's refusal answers it.
+ */
+export class RunMergePaneCommandQuery extends Query<"RunMergePaneCommandQuery"> {
+    public readonly command: MergePaneCommand;
+
+    constructor(command: MergePaneCommand = "next") {
+        super("RunMergePaneCommandQuery");
+        this.command = command;
+    }
+}

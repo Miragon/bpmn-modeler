@@ -62,6 +62,8 @@ describe("protocol messages", () => {
                 "BuildMergeResultCommand",
                 "CompareMergeResultCommand",
                 "SwitchMergeComparisonCommand",
+                "MergePaneCommandsChangedCommand",
+                "RunMergePaneCommandQuery",
             ]),
         );
     });

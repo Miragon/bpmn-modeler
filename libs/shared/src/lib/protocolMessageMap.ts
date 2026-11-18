@@ -21,8 +21,10 @@ import type {
     ApplyMergeStatesQuery,
     BuildMergeResultCommand,
     CompareMergeResultCommand,
+    MergePaneCommandsChangedCommand,
     MergeStepListChangedCommand,
     PickMergeSideCommand,
+    RunMergePaneCommandQuery,
     SwitchMergeComparisonCommand,
     UnpickMergeCommand,
 } from "./mergePaneMessages";
@@ -192,6 +194,7 @@ export type ProtocolQuery =
     | SyncDiffPlaneQuery
     | SyncDiffSelectionQuery
     | ApplyMergeStatesQuery
+    | RunMergePaneCommandQuery
     | ApplyDmnDiffHighlightsQuery
     | SyncDmnDiffViewQuery
     | SyncDmnDiffScrollQuery
@@ -269,6 +272,7 @@ export type ProtocolCommand =
     | BuildMergeResultCommand
     | CompareMergeResultCommand
     | SwitchMergeComparisonCommand
+    | MergePaneCommandsChangedCommand
     | SwapCompareSidesCommand
     | DmnDiffViewChangedCommand
     | DmnDiffScrollChangedCommand

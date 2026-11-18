@@ -74,7 +74,11 @@ export const window = {
         windowStateListeners.add(listener);
         return { dispose: () => windowStateListeners.delete(listener) };
     },
-    tabGroups: { all: [], onDidChangeTabs: () => disposable },
+    tabGroups: {
+        all: [],
+        onDidChangeTabs: () => disposable,
+        onDidChangeTabGroups: () => disposable,
+    },
     onDidChangeActiveTextEditor: () => disposable,
     registerCustomEditorProvider: () => disposable,
     registerWebviewViewProvider: (viewId: string, provider: unknown, options?: unknown) => {
