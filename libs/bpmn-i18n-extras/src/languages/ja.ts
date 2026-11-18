@@ -358,6 +358,8 @@ const dictionary: Record<string, string> = {
         "{element} は、反対側が一緒に削除したフローなしで保持されています: {connections}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} は保持されていますが、{element} のデフォルトフローではなくなりました",
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
+        "{flow} は保持されていますが、{element} のデフォルトフローは {keptDefault} のままです",
     "The file's {attribute} differs between the sides; current's is kept":
         "ファイルの {attribute} が側によって異なります。現在の値を保持します",
     "1 conflict left": "残りの競合 1 件",

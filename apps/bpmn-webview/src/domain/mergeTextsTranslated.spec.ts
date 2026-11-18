@@ -286,6 +286,9 @@ function mergeTextKeys(): Set<string> {
         if (note.kind === "layoutChangedByBoth") {
             buildNoteText({ ...note, keptSide: "incoming" }, nameOf, translate);
         }
+        if (note.kind === "defaultFlowNotRestored") {
+            buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
+        }
     }
     return keys;
 }

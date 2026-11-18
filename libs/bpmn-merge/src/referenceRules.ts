@@ -108,8 +108,12 @@ const REFERENCE_ROLES = new Map<string, ReferenceRole>([
 ]);
 
 /** `ElementReference.property` reads `owner#property`, as `@miragon/bpmn-modeler-diff` writes it. */
+function propertyNameOf(reference: ElementReference): string {
+    return reference.property.slice(reference.property.indexOf("#") + 1);
+}
+
 function roleOf(reference: ElementReference): ReferenceRole | undefined {
-    return REFERENCE_ROLES.get(reference.property.slice(reference.property.indexOf("#") + 1));
+    return REFERENCE_ROLES.get(propertyNameOf(reference));
 }
 
 /** A participant's process, which its pool draws. */
@@ -119,6 +123,11 @@ export function isProcessReference(reference: ElementReference): boolean {
 
 export function isEdgeEnd(reference: ElementReference): boolean {
     return roleOf(reference) === "edgeEnd";
+}
+
+/** The end a flow, message flow or association starts at. */
+export function isEdgeSource(reference: ElementReference): boolean {
+    return isEdgeEnd(reference) && propertyNameOf(reference) === "sourceRef";
 }
 
 /** A boundary event's host. */

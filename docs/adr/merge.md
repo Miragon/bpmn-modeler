@@ -190,20 +190,8 @@ parser and asserts that the module still loads.
   removing side deleted too, which would bring back an end the user did not ask for; a
   boundary event that needs something besides its host the result does not hold, such as an
   error or a lane the removing side deleted too, and its flows. The offer's text counts
-  elements once it holds a boundary event.
-- *A kept flow stays its source's default.* Removing a flow takes its source's `default`
-  with it, so keeping the flow against that removal means the default too.
-  `restoredFlowDefaultsOf` derives it from the sides alone, however the flow came back: the
-  build sets `default` on the source's version in the result and keeps every other change
-  of that side. A source whose version in the result names another flow of the result keeps
-  it, since the removing side chose it, and the build note `defaultFlowNotRestored` names
-  both; so does a source whose type holds no default. Rejected: picking the whole source
-  from the keeping side, the only pick the library has, which drops the other side's
-  changes to it (a rename, a condition) and decides a conflict for the user; a note alone,
-  which leaves the offer promising more than it keeps; a field on the pick's outcome, since
-  a later pick of the source creates or lifts the clash and only the build sees the final
-  sides. Cost: the one attribute the build writes that no side's version of the element
-  holds, so the content check strips exactly that `default` before it compares.
+  elements once it holds a boundary event. [The build](merge-view-picking-and-building.md#building)
+  restores a kept flow's `default`.
 - *Consequences follow the picks, not their order.* The only state is the user's picks:
   each pick or unpick derives every consequence again from them over the automatic
   resolutions. Picking an element back, or unpicking it, restores what its first pick
@@ -288,10 +276,9 @@ each of those.
   at the same place, an element kept against the other side's removal whose flows on its
   own side stay out (each flow is decided on its own, so the flows removed with it stay
   removed unless `pickWithConnections` kept them, and it may be left unconnected), a kept
-  flow its source no longer names as its default (`defaultFlowNotRestored`), elements
-  the base and both sides draw, each side differently (`layoutChangedByBoth`), and every
-  frame difference the result does not carry (attributes both sides changed, incoming's
-  extensions or imports).
+  flow no longer its source's default (`defaultFlowNotRestored`), elements the base and both
+  sides draw, each side differently (`layoutChangedByBoth`), and every frame difference the
+  result does not carry (attributes both sides changed, incoming's extensions or imports).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from

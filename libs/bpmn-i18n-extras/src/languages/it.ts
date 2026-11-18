@@ -367,6 +367,8 @@ const dictionary: Record<string, string> = {
         "{element} è mantenuto senza i flussi che l'altro lato ha rimosso con esso: {connections}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} è mantenuto, ma non è più il flusso predefinito di {element}",
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
+        "{flow} è mantenuto, ma {element} mantiene {keptDefault} come flusso predefinito",
     "The file's {attribute} differs between the sides; current's is kept":
         "L'attributo {attribute} del file differisce tra i lati; viene mantenuto quello di Corrente",
     "1 conflict left": "1 conflitto rimasto",
