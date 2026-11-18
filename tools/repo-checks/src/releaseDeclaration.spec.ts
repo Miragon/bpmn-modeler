@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import releaseLines from "../../../.github/release-lines.json";
 import { needsDeclaration, validate } from "../../../.github/scripts/release-check.mjs";
-import { parseShipsIn } from "../../../.github/scripts/release-declaration.mjs";
+import { NONE_WIRING, parseShipsIn } from "../../../.github/scripts/release-declaration.mjs";
 import {
     planAttributions,
     pullRequestNumber,
@@ -27,12 +27,14 @@ const sample: ReleaseLineRegistry = {
             componentPath: "release/package",
             ships: ["packages/lib/**", "libs/types/**"],
             breaking: ["**"],
+            wiring: "does a consumer of the package reach the code?",
         },
         {
             id: "host",
             componentPath: "release/host",
             ships: ["apps/host/**", "packages/lib/**", "libs/types/**", "libs/merge/**"],
             breaking: ["apps/host/**"],
+            wiring: "does the host open the editor that uses the code?",
         },
     ],
 };
@@ -58,7 +60,14 @@ describe("the Ships in declaration of a PR body", () => {
                 shipsIn("- [x] `host`: the host", "- [ ] `package`: the npm package"),
                 sample,
             ),
-        ).toEqual({ found: true, lines: ["host"], none: false, wording: {}, errors: [] });
+        ).toEqual({
+            found: true,
+            sections: 1,
+            lines: ["host"],
+            none: false,
+            wording: {},
+            errors: [],
+        });
     });
 
     it.each([
@@ -94,6 +103,7 @@ describe("the Ships in declaration of a PR body", () => {
     it("finds nothing in a body without the section", () => {
         expect(parseShipsIn("## Description\n\n- [x] `host`\n", sample)).toEqual({
             found: false,
+            sections: 0,
             lines: [],
             none: false,
             wording: {},
@@ -233,7 +243,9 @@ describe("the Ships in declaration of a PR body", () => {
         );
 
         expect(declaration.lines).toEqual(["host"]);
-        expect(declaration.errors).toEqual(["The body has 2 Ships in sections; keep one."]);
+        expect(declaration.errors).toEqual([
+            "The body has 2 Ships in sections, and the check reads only the first; keep one.",
+        ]);
     });
 
     it("lists every release line and none in the PR template, all unticked", () => {
@@ -449,15 +461,31 @@ describe("the validation of a PR", () => {
             ...overrides,
         });
 
-    it("asks a feat that reaches two lines to declare them, with the block to paste", () => {
+    it("asks a feat that reaches two lines to declare them, with the boxes to put under Ships in", () => {
         const [error, ...rest] = pr({});
 
         expect(rest).toEqual([]);
         expect(error).toContain("reaches `package`, `host` by its files");
-        expect(error).toContain("by wiring");
+        expect(error).toContain('in place of the boxes under the body\'s "## Ships in" heading');
         expect(error).toContain(
             suggest({ title: "feat(types): add a", files: shared, registry: sample }),
         );
+        expect(error).not.toContain("- [x]");
+    });
+
+    it("says once what to tick and once what `none` means", () => {
+        const [error] = pr({});
+
+        expect(error.split(/\btick\b/i)).toHaveLength(2);
+        expect(error.split("no release shipped")).toHaveLength(2);
+    });
+
+    it("reports only the second section when a block is pasted below the template's", () => {
+        const pastedBelow = `${shipsIn("- [ ] `package`", "- [ ] `host`")}\n\n## Ships in\n\n- [x] \`host\`\n`;
+
+        expect(pr({ body: pastedBelow })).toEqual([
+            "The body has 2 Ships in sections, and the check reads only the first; keep one.",
+        ]);
     });
 
     it.each([
@@ -629,16 +657,67 @@ describe("the PR number of a squash commit", () => {
 });
 
 describe("the suggested Ships in block", () => {
-    it("ticks the derived lines and leaves the others and none unticked", () => {
-        expect(suggest({ title: "feat: a", files: ["libs/merge/m.ts"], registry: sample })).toBe(
-            ["## Ships in", "", "- [ ] `package`", "- [x] `host`", "- [ ] `none`", ""].join("\n"),
+    const shared = ["libs/types/a.ts"];
+    const pasted = (block: string) =>
+        validate({
+            title: "feat(types): add a",
+            body: shipsIn(block),
+            files: shared,
+            registry: sample,
+            headBranch: "feat/a",
+        });
+
+    it("lists each line the files reach unticked with its wiring question, then none with its own", () => {
+        expect(suggest({ title: "feat: a", files: shared, registry: sample })).toBe(
+            [
+                "- [ ] `package`: does a consumer of the package reach the code?",
+                "- [ ] `host`: does the host open the editor that uses the code?",
+                `- [ ] \`none\`: ${NONE_WIRING}`,
+                "",
+            ].join("\n"),
         );
     });
 
-    it("parses back to the derived lines", () => {
-        const block = suggest({ title: "feat: a", files: ["libs/types/a.ts"], registry: sample });
+    it("leaves out the lines the files do not reach", () => {
+        const block = suggest({ title: "feat: a", files: ["libs/merge/m.ts"], registry: sample });
 
-        expect(parseShipsIn(block, sample).lines).toEqual(["package", "host"]);
+        expect(block).toContain("- [ ] `host`");
+        expect(block).not.toContain("`package`");
+    });
+
+    it("asks a line without wiring whether it offers the change", () => {
+        const unwired: ReleaseLineRegistry = {
+            ...sample,
+            lines: sample.lines.map(({ wiring: _wiring, ...line }) => line),
+        };
+
+        expect(suggest({ files: ["libs/merge/m.ts"], registry: unwired })).toContain(
+            "- [ ] `host`: does this line offer the change?\n",
+        );
+    });
+
+    it("ticks nothing, so pasted unchanged it still fails the check", () => {
+        const block = suggest({ title: "feat: a", files: shared, registry: sample });
+
+        expect(parseShipsIn(shipsIn(block), sample)).toMatchObject({
+            lines: [],
+            none: false,
+            errors: [],
+        });
+        expect(pasted(block)).toEqual([expect.stringContaining("must say which of them ships it")]);
+    });
+
+    it.each([
+        { box: "`host`", lines: ["host"], none: false },
+        { box: "`none`", lines: [], none: true },
+    ])("passes the check once $box is ticked in the pasted block", ({ box, lines, none }) => {
+        const block = suggest({ title: "feat: a", files: shared, registry: sample }).replace(
+            `- [ ] ${box}`,
+            `- [x] ${box}`,
+        );
+
+        expect(parseShipsIn(shipsIn(block), sample)).toMatchObject({ lines, none });
+        expect(pasted(block)).toEqual([]);
     });
 });
 
@@ -660,6 +739,27 @@ describe("real merged PRs", () => {
                 headBranch: "peterhnm/feat-2486-restore-source-default",
             }),
         ).toHaveLength(1);
+    });
+
+    it("suggests every line a translation reaches unticked, so the merge view must pick vscode", () => {
+        const merge = {
+            title: "feat(bpmn-merge): restore the source's default with a restored flow",
+            files: mergeFiles,
+            registry,
+            headBranch: "peterhnm/feat-2486-restore-source-default",
+        };
+        const block = suggest(merge);
+        const templateBoxes = /(?:^- \[ \] `[^\n]*\n)+/m;
+        const body = template.replace(templateBoxes, block);
+        const withBody = (text: string) => validate({ ...merge, body: text });
+
+        for (const line of registry.lines) {
+            expect(block).toContain(`- [ ] \`${line.id}\`: ${line.wiring}`);
+        }
+        expect(block).not.toContain("- [x]");
+        expect(body).toContain("as `fix(viewer): keep the zoom when the diagram reloads`");
+        expect(withBody(body)).toHaveLength(1);
+        expect(withBody(body.replace("- [ ] `vscode`", "- [x] `vscode`"))).toEqual([]);
     });
 
     it("lists the merge view under VS Code only once the PR ticks vscode", () => {

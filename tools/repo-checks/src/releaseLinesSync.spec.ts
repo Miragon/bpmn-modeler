@@ -26,8 +26,27 @@ describe("the check of a PR", () => {
 
         expect(result.errors).toHaveLength(1);
         expect(result.derivedLines).toEqual(["vscode", "intellij", "orca"]);
-        expect(result.suggestion).toContain("- [x] `orca`");
+        expect(result.suggestion).toContain(
+            `- [ ] \`orca\`: ${registry.lines.find(({ id }) => id === "orca")?.wiring}`,
+        );
+        expect(result.suggestion).not.toContain("- [x]");
         expect(result.attribution.source).toBe("derived");
+    });
+
+    it("suggests no boxes to a PR that already ticks a line and fails for another reason", () => {
+        const result = checkPullRequest(
+            {
+                title: "feat(bpmn-modeler)!: drop a",
+                body: "## Ships in\n\n- [x] `vscode`\n",
+                files: ["packages/bpmn-modeler/src/index.ts", "libs/bpmn-i18n-extras/src/de.json"],
+                headBranch: "feat/drop",
+            },
+            registry,
+        );
+
+        expect(result.errors).toEqual([expect.stringContaining("tick `bpmn-modeler`")]);
+        expect(result.suggestion).toBeUndefined();
+        expect(checkSummary(result)).not.toContain("- [ ]");
     });
 
     it("passes once the PR ticks the line that offers it", () => {
@@ -43,13 +62,8 @@ describe("the check of a PR", () => {
         });
     });
 
-    it("writes each error and the suggested block to the job summary", () => {
-        expect(
-            checkSummary({
-                errors: ["first", "second"],
-                suggestion: "## Ships in\n\n- [ ] `none`\n",
-            }),
-        ).toBe(
+    it("writes each error to the job summary", () => {
+        expect(checkSummary({ errors: ["first", "second"] })).toBe(
             [
                 "### Validate release lines",
                 "",
@@ -61,28 +75,18 @@ describe("the check of a PR", () => {
                 "second",
                 "```",
                 "",
-                "The lines the changed files reach, ready to paste under the PR body's Ships in:",
-                "",
-                "```markdown",
-                "## Ships in",
-                "",
-                "- [ ] `none`",
-                "```",
-                "",
             ].join("\n"),
         );
     });
 
-    it("writes the suggested block once when an error already carries it", () => {
-        const block = "## Ships in\n\n- [x] `vscode`\n";
-        const summary = checkSummary({ errors: [`declare it:\n\n${block}`], suggestion: block });
+    it("writes the suggested boxes once, inside the error that asks for them", () => {
+        const summary = checkSummary(checkPullRequest({ ...mergeFeat, body: "" }, registry));
 
-        expect(summary.split("## Ships in")).toHaveLength(2);
-        expect(summary).not.toContain("ready to paste under");
+        expect(summary.split("- [ ] `none`")).toHaveLength(2);
     });
 
     it("writes no summary when the check passes", () => {
-        expect(checkSummary({ errors: [], suggestion: "x" })).toBe("");
+        expect(checkSummary({ errors: [] })).toBe("");
     });
 });
 

@@ -3,6 +3,8 @@ import type { ReleaseLineRegistry } from "./release-routing.mjs";
 export interface ShipsInDeclaration {
     /** Whether the body has a "Ships in" section at all. */
     found: boolean;
+    /** How many "Ships in" sections the body has; only the first is read. */
+    sections: number;
     /** The ticked release lines, in the registry's order. */
     lines: string[];
     none: boolean;
@@ -13,10 +15,15 @@ export interface ShipsInDeclaration {
 }
 
 export const NO_LINE: string;
+export const NONE_WIRING: string;
 
 export function parseShipsIn(
     body: string | undefined,
     registry: ReleaseLineRegistry,
 ): ShipsInDeclaration;
 export function isDeclared(declaration: Pick<ShipsInDeclaration, "lines" | "none">): boolean;
-export function shipsInBlock(tickedIds: readonly string[], registry: ReleaseLineRegistry): string;
+export function wiringQuestion(id: string, registry: ReleaseLineRegistry): string;
+export function shipsInCandidates(
+    candidateIds: readonly string[],
+    registry: ReleaseLineRegistry,
+): string;

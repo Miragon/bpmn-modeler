@@ -8,7 +8,7 @@
 // release-check.mjs validates a PR against these rules; release-lines-sync.mjs
 // turns the decisions into attribution commits.
 import { matchesGlobs } from "./glob.mjs";
-import { parseShipsIn, shipsInBlock } from "./release-declaration.mjs";
+import { parseShipsIn, shipsInCandidates } from "./release-declaration.mjs";
 
 const CONVENTIONAL_TITLE = /^(?<type>[a-z]+)(?:\([^)]*\))?(?<breaking>!)?:/;
 const ATTRIBUTED_SUBJECT = /^(?:feat|fix)(?:\([^)]*\))?!?: \S/;
@@ -126,9 +126,9 @@ export function resolveAttribution({ title, files, body }, registry) {
     return { source: "derived", groups: groupBySubject(shipped, subjectOf) };
 }
 
-/** The "Ships in" block to paste, with the lines the files reach ticked. */
+/** The "Ships in" boxes to put in: the lines the files reach as unticked candidates. */
 export function suggest({ files, registry }) {
-    return shipsInBlock(derivedLines(files, registry), registry);
+    return shipsInCandidates(derivedLines(files, registry), registry);
 }
 
 const SHORT_SHA_LENGTH = 7;

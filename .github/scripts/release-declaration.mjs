@@ -6,6 +6,12 @@
 /** The Ships in box for a change no released user gets. */
 export const NO_LINE = "none";
 
+/** The question before ticking `none`; a line's own question is its `wiring` in the registry. */
+export const NONE_WIRING =
+    "does no released user of any line get the change, as with a fix to a feature no release shipped yet?";
+
+const UNWIRED_QUESTION = "does this line offer the change?";
+
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const HTML_COMMENT_BLOCK = /^ {0,3}<!--/;
 const INDENTED = /^(?: {4}|\t)/;
@@ -118,8 +124,12 @@ function shipsInSections(body) {
 /** The lines a PR body ticks under "Ships in", with each line's own wording. */
 export function parseShipsIn(body, registry) {
     const { count, section } = shipsInSections(body);
-    const declaration = { found: count > 0, none: false, wording: {}, errors: [] };
-    if (count > 1) declaration.errors.push(`The body has ${count} Ships in sections; keep one.`);
+    const declaration = { found: count > 0, sections: count, none: false, wording: {}, errors: [] };
+    if (count > 1) {
+        declaration.errors.push(
+            `The body has ${count} Ships in sections, and the check reads only the first; keep one.`,
+        );
+    }
     const ids = registry.lines.map(({ id }) => id);
     const ticked = new Set();
     for (const line of section ?? []) {
@@ -156,13 +166,22 @@ export function isDeclared(declaration) {
     return declaration.lines.length > 0 || declaration.none;
 }
 
-/** A "Ships in" block with the given lines ticked, `none` unticked. */
-export function shipsInBlock(tickedIds, registry) {
-    return [
-        "## Ships in",
-        "",
-        ...registry.lines.map(({ id }) => `- [${tickedIds.includes(id) ? "x" : " "}] \`${id}\``),
-        `- [ ] \`${NO_LINE}\``,
-        "",
-    ].join("\n");
+/** The question whose answer decides a Ships in box: a line's wiring, or the one for `none`. */
+export function wiringQuestion(id, registry) {
+    if (id === NO_LINE) return NONE_WIRING;
+    return registry.lines.find((line) => line.id === id)?.wiring ?? UNWIRED_QUESTION;
+}
+
+/**
+ * The Ships in boxes of the candidate lines and `none`, each with its question,
+ * all unticked: put in place unchanged they declare nothing, so the author
+ * still has to decide. No heading, so they replace the template's boxes and
+ * keep its guidance comment.
+ */
+export function shipsInCandidates(candidateIds, registry) {
+    const ids = [
+        ...registry.lines.filter(({ id }) => candidateIds.includes(id)).map(({ id }) => id),
+        NO_LINE,
+    ];
+    return ids.map((id) => `- [ ] \`${id}\`: ${wiringQuestion(id, registry)}\n`).join("");
 }

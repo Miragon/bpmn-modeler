@@ -13,7 +13,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fetchPullRequest } from "../../.github/scripts/github-pull-requests.mjs";
 import { needsDeclaration, validate } from "../../.github/scripts/release-check.mjs";
-import { isDeclared, NO_LINE, parseShipsIn } from "../../.github/scripts/release-declaration.mjs";
+import {
+    isDeclared,
+    NO_LINE,
+    parseShipsIn,
+    wiringQuestion,
+} from "../../.github/scripts/release-declaration.mjs";
 import { derivedLines, isAttributedType } from "../../.github/scripts/release-routing.mjs";
 
 // Under the hook's 20 s timeout, so a slow network fails open instead of timing out.
@@ -42,10 +47,6 @@ const REPO_FLAGS = new Set(["-R", "--repo"]);
 const REDIRECT = /^\d*(?:<<?-?|>>?)&?(.*)$/;
 const PR_URL = /https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/g;
 const GITHUB_REMOTE = /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?(?:\s|$)/gm;
-
-/** What to check before ticking `none`; each line's own check is its `wiring` in the registry. */
-export const NONE_WIRING =
-    "a fix to a feature no release shipped yet: is that true for every line?";
 
 /** Words and operators of a shell command, quotes resolved. */
 function shellTokens(command) {
@@ -153,21 +154,17 @@ function bulletList(items) {
 }
 
 function wiringCheck(id, registry) {
-    const wiring =
-        id === NO_LINE
-            ? NONE_WIRING
-            : (registry.lines.find((line) => line.id === id)?.wiring ??
-              "the code that wires this line's users to the change");
-    return `\`${id}\`: ${wiring}`;
+    return `\`${id}\`: ${wiringQuestion(id, registry)}`;
 }
 
-function blockReason(pullRequest, registry, errors) {
+function blockReason(pullRequest, registry, declaration, errors) {
     const reached = derivedLines(pullRequest.files, registry);
+    const problem =
+        declaration.sections > 1
+            ? `PR #${pullRequest.number} has ${declaration.sections} "Ships in" sections, and the check reads only the first.`
+            : `PR #${pullRequest.number} is a feat or fix whose files reach ${reached.map((id) => `\`${id}\``).join(", ")}, but it ticks nothing under "Ships in", so every one of those lines would list it.`;
     return [
-        `PR #${pullRequest.number} is a feat or fix whose files reach ${reached.map((id) => `\`${id}\``).join(", ")}, but it ticks nothing under "Ships in", so every one of those lines would list it.`,
-        "Tick only the lines whose users get the change, judged by wiring, not by the files a line bundles. Check for each line:",
-        bulletList([...reached, NO_LINE].map((id) => wiringCheck(id, registry))),
-        `Then write the corrected body to a file and run \`gh pr edit ${pullRequest.number} --body-file <file>\`. The release-line check says:`,
+        `${problem} Fix the body as the release-line check below says, write it to a file and run \`gh pr edit ${pullRequest.number} --body-file <file>\`.`,
         "",
         errors.join("\n\n"),
     ].join("\n");
@@ -199,7 +196,7 @@ export function hookOutput(pullRequest, registry) {
         };
     }
     if (!needsDeclaration(pullRequest, registry)) return undefined;
-    return { decision: "block", reason: blockReason(pullRequest, registry, errors) };
+    return { decision: "block", reason: blockReason(pullRequest, registry, declaration, errors) };
 }
 
 function toolOutputText(toolResponse) {
