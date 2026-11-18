@@ -6,42 +6,6 @@ const TRIGGER_PATH = /^ {6,}- (?:'([^']+)'|"([^"]+)"|([^\s'"#]\S*))\s*(?:#.*)?$/
 const BLOCK_RUN = /^(\s*)(?:- )?run: ([|>][-+]?)\s*$/;
 const FOLDED_YARN_COMMAND = /^\s*((?:corepack )?yarn .*?)\s*$/;
 
-interface Assignment {
-    readonly value: string;
-    readonly expands: boolean;
-}
-
-function readAssignment(workflow: SourceFile, variable: string): Assignment {
-    const assignment = new RegExp(`^\\s*${variable}=(?:'([^']+)'|"([^"]+)")$`, "m").exec(
-        workflow.text,
-    );
-    if (!assignment) {
-        throw new Error(`${workflow.path} assigns no ${variable}`);
-    }
-    return assignment[1] === undefined
-        ? { value: assignment[2], expands: true }
-        : { value: assignment[1], expands: false };
-}
-
-/** A one-line `VARIABLE='…'` or `VARIABLE="…"` in a `run:` script. */
-export function workflowAssignment(workflow: SourceFile, variable: string): string {
-    return readAssignment(workflow, variable).value;
-}
-
-function expandedAssignment(workflow: SourceFile, variable: string): string {
-    const { value, expands } = readAssignment(workflow, variable);
-    return expands
-        ? value.replace(/\$\{(\w+)\}/g, (_reference, referenced: string) =>
-              expandedAssignment(workflow, referenced),
-          )
-        : value;
-}
-
-/** A double-quoted assignment expands each `${VARIABLE}`, as the workflow's shell does. */
-export function workflowPattern(workflow: SourceFile, variable: string): RegExp {
-    return new RegExp(expandedAssignment(workflow, variable));
-}
-
 function indentOf(line: string): number {
     return line.length - line.trimStart().length;
 }

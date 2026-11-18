@@ -21,7 +21,7 @@ merge in VS Code's merge editor have records of their own ([merge view](merge-vi
 `libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, flat, DOM-free like `libs/bpmn-diff`)
 holds `computeMerge`, `MergeDecisions` and `buildMerged`. It is not in `libs/bpmn-diff`,
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
-not published; `release-please-config.json` excludes the workspace from the npm component.
+not published; `.github/release-lines.json` ships the workspace on the hosts only, not on the npm line.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
 share one notion of an element's XML, and on `@miragon/bpmn-modeler-types/engine` for the
 modeler's engine rule. It imports that subpath, not the barrel, which would pull DOM-typed

@@ -1,7 +1,7 @@
 {
-  ".": "1.11.0",
-  "apps/vscode-plugin": "1.26.0",
-  "apps/intellij-plugin": "1.20.0",
-  "packages/dmn-modeler": "0.11.0",
-  "apps/orca-plugin": "0.5.0"
+  "release/bpmn-modeler": "1.11.0",
+  "release/vscode": "1.26.0",
+  "release/intellij": "1.20.0",
+  "release/orca": "0.5.0",
+  "release/dmn-modeler": "0.11.0"
 }

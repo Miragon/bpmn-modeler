@@ -30,8 +30,12 @@ describe("the Orca plugin's manifest", () => {
         expect(manifest.version).toBe(
             readJson<{ version: string }>(resolve(app, "package.json")).version,
         );
-        expect(releaseConfig.packages["apps/orca-plugin"]?.["extra-files"]).toContainEqual(
-            expect.objectContaining({ path: "orca-plugin.json", jsonpath: "$.version" }),
+        expect(releaseConfig.packages["release/orca"]?.["extra-files"]).toEqual(
+            expect.arrayContaining(
+                ["/apps/orca-plugin/package.json", "/apps/orca-plugin/orca-plugin.json"].map(
+                    (path) => expect.objectContaining({ path, jsonpath: "$.version" }),
+                ),
+            ),
         );
     });
 
