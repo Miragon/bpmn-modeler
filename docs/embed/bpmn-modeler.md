@@ -426,6 +426,23 @@ centres it, as a user pan, so `DiffPaneCoordinator` carries the new viewport to 
 mirroring pane stays put. A selection the user panned away from, or one still in full view, stays
 where it is. Pass `OutlineModule` with a context pad so the selection is visible.
 
+Neither `DiffNavigator` nor `DiffPaneCoordinator` selects the change a step lands on; it only glows.
+To select it, as the modeler's own diff panes do, read the navigator's `currentChangeId` and
+`drawsCurrentChange` after a step and call `selectStep` on each pane that draws the change; a pane
+that does not draw it gets `selectStep( undefined, … )`, which drops its old selection. Like
+`mirrorSelection`, `selectStep` reports nothing to `onSelectedElementChanged` listeners. Pass
+`keepInView: true` on one pane only, the one whose resize should keep the change in view, usually
+the pane the user stepped in or the only one that has the change:
+
+```ts
+const navigator = new DiffNavigator( after );
+navigator.setChanges( result.navigationOrder );
+navigator.advance( 1 );
+after.selectStep( navigator.drawsCurrentChange ? navigator.currentChangeId : undefined, {
+    keepInView: true,
+} );
+```
+
 `DiffPaneCoordinator` keeps the two panes' pan/zoom in lockstep and steps a single shared cursor
 across both. Pass its `canStep` to each legend so **Prev** and **Next** are enabled only when there is
 a change to step to; without it the legend enables them whenever a count is above zero. A pane that

@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-15
+- Last reviewed: 2026-11-18
 
 ## Context
 
@@ -170,19 +170,36 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   `NO_DIFF_SELECTION`, which the core ignores for the XML diff. Which selection and
   viewport changes are the user's is one guard (`UserChangeGuard`), read by the
   listeners and the resize rule alike, so a selection the pane does not report as the
-  user's is not centred as the user's on resize either.
+  user's is not centred as the user's on resize either; the one exception is a step's
+  selection (`UserChangeGuard.selectForUser`), which is not reported but kept in view.
+- *A step selects its change*, as a click does and as in the
+  [merge view](merge-view-picking-and-building.md). Each pane that draws the change
+  selects it after its own cursor entered the change's plane, since diagram-js drops a
+  selection on `root.set`, so its context pad opens; a pane that lacks it anchors on a
+  neighbour, selects nothing and drops its old selection. The stepping pane then posts
+  `DiffSelectionChangedCommand` with the change, also one only the partner draws, so an
+  open XML diff follows on the selection's route and a closed one stays closed; the
+  partner's mirror finds the change selected already, so nothing echoes. The rule lives
+  in the webview's `DiffMode`, with the decision in `diffStepSelection`;
+  `DiffNavigator` only names the change and whether it drew it (`currentChangeId`,
+  `drawsCurrentChange`) and `DiffViewer.selectStep` selects it, so the stepper of a
+  `DiffPaneCoordinator`, which shares no selection, still selects nothing. The blue
+  glow stays beside the outline: it marks the stepper's place, which a later click does
+  not move. Show all keeps the selection, as the merge view's does, except where leaving
+  a sub-process plane drops it. The cost: two webview homes for a step's selection,
+  `DiffMode` and `mergeMode`'s `goTo`, and a core that cannot tell a step's selection
+  from a click's.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
-  KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in the pane the
-  user selected in: when a resize cuts off a selected element that was fully in view,
-  the pane centres it as a user pan, so the partner follows through the viewport sync;
-  the mirroring pane never scrolls, since its own scroll posted a competing viewport. A
-  selection the user panned away from, or one still in view, stays put. The rule runs
-  on every viewbox, selection and size change instead of upstream's debounce. The cost:
-  the partner follows after the viewport debounce, and the stepper's focus
-  (`focusedId`) stays apart from the selection, so a resize after stepping keeps the
-  selection in view, not the stepped change. The webview depends on diagram-js directly
-  at the package's pin, because bpmn-js's context pad needs `modeling`, which a viewer
-  lacks.
+  KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in one pane:
+  the one the user selected in, or for a step the stepping pane, or the partner when
+  only it has the change (`selectStep`'s `keepInView`). When a resize cuts off a
+  selected element that was fully in view, that pane centres it as a user pan, so the
+  partner follows through the viewport sync; the mirroring pane never scrolls, since
+  its own scroll posted a competing viewport. A selection the user panned away from, or
+  one still in view, stays put. The rule runs on every viewbox, selection and size
+  change instead of upstream's debounce. The cost: the partner follows after the
+  viewport debounce. The webview depends on diagram-js directly at the package's pin,
+  because bpmn-js's context pad needs `modeling`, which a viewer lacks.
 - *One switch per host.* The host's element XML handler, handed to `BpmnDiffService`, is
   the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`, which
   shows the entry, and decides whether the router handles `ShowElementXmlChangesCommand`

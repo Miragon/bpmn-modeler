@@ -377,18 +377,41 @@ export class DiffViewer {
         if (elementId !== undefined && singleSelectedElementId(selection.get()) === elementId) {
             return true;
         }
+        return this.selectOnShownPlane(elementId, (select) =>
+            this.changes.selectProgrammatically(select),
+        );
+    }
+
+    /**
+     * Selects the element a step landed on, by BPMN id, or nothing for
+     * `undefined`, without telling {@link onSelectedElementChanged} listeners;
+     * call it after {@link focusElement}, which enters the element's plane.
+     * With `keepInView`, a resize keeps it in view as it keeps the user's own
+     * selection; pass it on one pane only, or both panes scroll. Selects again
+     * an element selected already, so the step decides which pane keeps it.
+     * Returns `false`, clearing the selection, as {@link mirrorSelection} does.
+     */
+    selectStep(elementId: string | undefined, { keepInView }: { keepInView: boolean }): boolean {
+        return this.selectOnShownPlane(elementId, (select) =>
+            keepInView
+                ? this.changes.selectForUser(select)
+                : this.changes.selectProgrammatically(select),
+        );
+    }
+
+    private selectOnShownPlane(
+        elementId: string | undefined,
+        runSelection: (select: () => void) => void,
+    ): boolean {
+        const selection = this.getViewer().get<Selection>("selection");
         const element =
             elementId === undefined
                 ? undefined
                 : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
         const canvas = this.getCanvas();
         const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
-        this.changes.selectProgrammatically(() => selection.select(shown ? element : null));
+        runSelection(() => selection.select(shown ? element : null));
         return shown || elementId === undefined;
-    }
-
-    selectStep(_elementId: string | undefined, _options: { keepInView: boolean }): boolean {
-        return false;
     }
 
     /**

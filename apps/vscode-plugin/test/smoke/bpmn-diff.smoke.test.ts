@@ -97,6 +97,14 @@ async function paneAlignment(
     };
 }
 
+function selectedElementIds(webview: FrameLocator): Promise<string[]> {
+    return webview
+        .locator(".djs-shape.selected, .djs-connection.selected")
+        .evaluateAll((elements) =>
+            elements.map((element) => element.getAttribute("data-element-id") ?? ""),
+        );
+}
+
 /** Monaco renders each space as a no-break space. */
 async function textDiffLines(page: Page): Promise<string> {
     const sides = await page
@@ -196,6 +204,19 @@ describe("the BPMN visual diff in a real VS Code", () => {
         await settle(after);
         await settle(page);
         await suite.screenshot("bpmn-diff-element-xml-follow");
+
+        // A step selects the first change, Check invoice, in both panes, and the text diff follows it.
+        await after.locator(".diff-legend__next-btn").click();
+
+        await expect
+            .poll(async () => (await editorGroupsTopToBottom(page))[1]?.tabs ?? "")
+            .toContain(CHECK_INVOICE_TASK_ID);
+        await expect.poll(() => textDiffLines(page)).toContain("=invoice.totalAmount");
+        for (const pane of [before, after]) {
+            await expect.poll(() => selectedElementIds(pane)).toEqual([CHECK_INVOICE_TASK_ID]);
+        }
+        expect(await after.locator(SHOW_XML_CHANGES_ENTRY).isVisible()).toBe(true);
+        expect(await editorGroupsTopToBottom(page)).toHaveLength(2);
     });
 
     it("shows an element's XML changes from a Source Control diff under a title that names both versions", async () => {

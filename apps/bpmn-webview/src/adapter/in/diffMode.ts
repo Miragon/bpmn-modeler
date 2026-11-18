@@ -1,6 +1,7 @@
 import {
     ApplyDiffHighlightsQuery,
     CursorChangedCommand,
+    DiffSelectionChangedCommand,
     type ProtocolMessage,
     SHOW_ALL_CURSOR,
     SwapCompareSidesCommand,
@@ -18,6 +19,7 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";
 
 import { diffPaneLabel } from "../../domain/diffPaneLabel";
+import { changesOnlyThisSideHas, diffStepSelection } from "../../domain/diffStepSelection";
 import { comparisonPaneText, type MergeTranslate } from "../../domain/mergeTexts";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
@@ -38,7 +40,10 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *   - Incoming {@link SyncCursorQuery} → advance the local navigator without
  *     re-emitting (would otherwise ping-pong the two panes forever).
  *   - Outgoing {@link CursorChangedCommand} on user-driven Next/Prev so the
- *     partner pane's stepper stays in lockstep.
+ *     partner pane's stepper stays in lockstep, then
+ *     {@link DiffSelectionChangedCommand} with the change stepped to, which
+ *     moves an open element XML diff there. Each pane selects the change
+ *     itself, after its cursor entered the change's plane.
  *   - On a built merge result compared with one side, the bar names the side
  *     and posts {@link SwitchMergeComparisonCommand} from its switch, which
  *     it shows only where the query's `comparison` offers it.
@@ -58,6 +63,8 @@ export class DiffMode {
     private readonly navigator: DiffNavigator;
 
     private legendContext: DiffLegendState | undefined;
+
+    private changesOnlyHere: ReadonlySet<string> = new Set();
 
     constructor(
         canvas: HTMLElement,
@@ -111,6 +118,7 @@ export class DiffMode {
                 } else {
                     this.pane.setPlaneMissing(false);
                     this.navigator.applyCursor(query.index);
+                    this.selectStepped({ steppedHere: false });
                     this.showPosition(query.index);
                 }
                 break;
@@ -128,6 +136,7 @@ export class DiffMode {
         }
 
         this.navigator.setChanges(query.navigationOrder);
+        this.changesOnlyHere = changesOnlyThisSideHas(query);
         const { comparison } = query;
         this.pane.label(query.side, () =>
             comparison
@@ -179,14 +188,34 @@ export class DiffMode {
     /**
      * User-driven step from this pane's Next/Prev buttons.  Advances the local
      * navigator, then posts {@link CursorChangedCommand} so the host can fan it
-     * to the partner pane via {@link SyncCursorQuery}.
+     * to the partner pane via {@link SyncCursorQuery}. The change goes out as
+     * the selection even when only the partner draws it, so the XML diff follows.
      */
     private step(direction: 1 | -1): void {
         const cursor = this.navigator.advance(direction);
         if (cursor !== undefined) {
             this.pane.setPlaneMissing(false);
             this.showPosition(cursor);
+            this.selectStepped({ steppedHere: true });
             this.host.postMessage(new CursorChangedCommand(cursor));
+            const changeId = this.navigator.currentChangeId;
+            if (changeId !== undefined) {
+                this.host.postMessage(new DiffSelectionChangedCommand(changeId));
+            }
+        }
+    }
+
+    private selectStepped({ steppedHere }: { readonly steppedHere: boolean }): void {
+        const changeId = this.navigator.currentChangeId;
+        const selection = diffStepSelection({
+            steppedHere,
+            drawnHere: this.navigator.drawsCurrentChange,
+            onlyThisSideHasIt: changeId !== undefined && this.changesOnlyHere.has(changeId),
+        });
+        if (selection.kind === "select") {
+            this.pane.viewer.selectStep(changeId, { keepInView: selection.keepsInView });
+        } else {
+            this.pane.viewer.selectStep(undefined, { keepInView: false });
         }
     }
 }
