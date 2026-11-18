@@ -17,7 +17,6 @@
 * **bpmn-webview:** show a pick's outcome as a card below its element ([#2522](https://github.com/Miragon/bpmn-modeler/issues/2522)) ([3afd9bf](https://github.com/Miragon/bpmn-modeler/commit/3afd9bfe4c7c808b1bd550f2f38474a8371f21ec))
 * generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) ([4d479d0](https://github.com/Miragon/bpmn-modeler/commit/4d479d003ca57f54ce98d723035bff536f358235))
 * **modeler-core:** build the merge result into the working file ([#2488](https://github.com/Miragon/bpmn-modeler/issues/2488)) ([15902a9](https://github.com/Miragon/bpmn-modeler/commit/15902a9d4b39fde22a30e15f3be530510b9481da))
-* **modeler-core:** let a merge pick name the side it keeps ([#2518](https://github.com/Miragon/bpmn-modeler/issues/2518)) [sync b978ce1] ([ebd83d9](https://github.com/Miragon/bpmn-modeler/commit/ebd83d9869a2d4d5676de3bd7d6f5d9d84a24438))
 * **vscode-plugin:** add keyboard commands to the BPMN merge view ([#2529](https://github.com/Miragon/bpmn-modeler/issues/2529)) ([a768ad6](https://github.com/Miragon/bpmn-modeler/commit/a768ad6b9873aa6bf2e1e0bc503a590684045aa1))
 * **vscode-plugin:** open a conflicted bpmn file in a merge view from source control ([#2483](https://github.com/Miragon/bpmn-modeler/issues/2483)) ([dd20337](https://github.com/Miragon/bpmn-modeler/commit/dd2033762d25c7ccf6778a22b65379f35ff894d9))
 
@@ -25,7 +24,6 @@
 ### 🐞 Bug Fixes
 
 * **bpmn-webview:** fetch a surface in at most ten files at once ([#2538](https://github.com/Miragon/bpmn-modeler/issues/2538)) ([5bc86fa](https://github.com/Miragon/bpmn-modeler/commit/5bc86fac53ad205afa21279ccd4d08a7ac676664))
-* **bpmn-webview:** keep the stepper's place after a pick in the merge view ([#2516](https://github.com/Miragon/bpmn-modeler/issues/2516)) [sync 6caef42] ([4c6e423](https://github.com/Miragon/bpmn-modeler/commit/4c6e42310485db6d2256527e707921d48a50df96))
 * **vscode-plugin:** offer the merge view on a Merge Changes row before the extension started ([#2541](https://github.com/Miragon/bpmn-modeler/issues/2541)) ([1ce30b3](https://github.com/Miragon/bpmn-modeler/commit/1ce30b3d7c0b562ac3cf57add6109765705d50a6))
 
 
