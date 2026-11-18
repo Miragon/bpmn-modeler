@@ -56,6 +56,7 @@ function handMerged(
         side,
         scope: "ownContent",
         content: `<bpmn:task id="${id}" name="by hand" />`,
+        shownText: `<bpmn:task id="${id}" name="by hand" />`,
         attributes: { id, name: "by hand" },
         version: { ...plain, ...change },
     };

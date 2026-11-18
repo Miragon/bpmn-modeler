@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { handMergeVersions } from "./__fixtures__/handMergeVersions";
+import { containersChangedByBoth, handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { acceptHandMerge } from "./acceptHandMerge";
 import { buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
@@ -23,7 +23,8 @@ async function pickedOn(side: MergeSide) {
     const decisions = MergeDecisions.from(result);
     for (const id of BOTH_CHANGED) expect(decisions.pick(id, side).applied).toBe(true);
     const textOf = (id: string) => sources.handMergeTexts.get(id)![side];
-    const accept = (id: string, text: string) => acceptHandMerge(sources, decisions, id, text);
+    const accept = (id: string, text: string) =>
+        acceptHandMerge(sources, decisions, id, side, text);
     return { sources, decisions, textOf, accept };
 }
 
@@ -106,6 +107,30 @@ describe("acceptHandMerge", () => {
         const { xml } = await buildMerged(sources, decisions);
         expect(xml).toContain('<bpmn:subProcess id="Sub_Ship" name="Ship soon">');
         expect(xml).toContain('<bpmn:userTask id="Task_Pack" name="Pack box"');
+    });
+
+    it("keeps the text as it was shown, so taking it again changes nothing", async () => {
+        const versions = containersChangedByBoth();
+        const [result, sources] = await Promise.all([
+            computeMerge(versions),
+            prepareMergeSources(versions),
+        ]);
+        const decisions = MergeDecisions.from(result);
+        decisions.pick("Process_1", "incoming");
+        const merged = replaced(
+            sources.handMergeTexts.get("Process_1")!.incoming,
+            'camunda:historyTimeToLive="90"',
+            'camunda:historyTimeToLive="60"',
+        );
+        await acceptHandMerge(sources, decisions, "Process_1", "incoming", merged);
+        const accepted = decisions.handMergeOf("Process_1")!;
+        expect(accepted.content).toContain("laneSet");
+
+        expect(accepted.shownText).toBe(merged);
+        expect(
+            await acceptHandMerge(sources, decisions, "Process_1", "incoming", accepted.shownText),
+        ).toEqual({ applied: true });
+        expect(decisions.handMergeOf("Process_1")).toEqual(accepted);
     });
 
     describe("refuses, changing nothing,", () => {
@@ -246,10 +271,28 @@ describe("acceptHandMerge", () => {
                 sources,
                 decisions,
                 "Task_Pack",
+                "current",
                 textOf("Task_Pack"),
             );
 
             expect(outcome).toEqual({ applied: false, refusal: { kind: "notHandMergeable" } });
+        });
+
+        it("a text merged for the side the user has since picked away from", async () => {
+            const { sources, decisions, textOf } = await pickedOn("current");
+            const merged = replaced(textOf("Sub_Ship"), 'name="Ship now"', 'name="Ship soon"');
+            expect(decisions.pick("Sub_Ship", "incoming").applied).toBe(true);
+
+            const outcome = await acceptHandMerge(
+                sources,
+                decisions,
+                "Sub_Ship",
+                "current",
+                merged,
+            );
+
+            expect(outcome).toEqual({ applied: false, refusal: { kind: "notHandMergeable" } });
+            expect(decisions.handMergeOf("Sub_Ship")).toBeUndefined();
         });
 
         it("an element without three texts to merge", async () => {
@@ -260,6 +303,7 @@ describe("acceptHandMerge", () => {
                 sources,
                 decisions,
                 "Task_Reject",
+                "incoming",
                 sources.snapshots.incoming.get("Task_Reject")!.content,
             );
 

@@ -763,7 +763,7 @@ describe("mergePaneView", () => {
             const renamed = sources.handMergeTexts
                 .get("Task_Pack")!
                 .current.replace('name="Pack parcel"', 'name="Pack it"');
-            await acceptHandMerge(sources, decisions, "Task_Pack", renamed);
+            await acceptHandMerge(sources, decisions, "Task_Pack", "current", renamed);
 
             const badgeOf = (side: "current" | "incoming") =>
                 mergePaneView(decisions, side, sources).badges.find(({ id }) => id === "Task_Pack");
@@ -786,7 +786,9 @@ describe("mergePaneView", () => {
                     'camunda:historyTimeToLive="30"',
                     'camunda:historyTimeToLive="60"',
                 );
-            expect(await acceptHandMerge(sources, decisions, "Process_1", changed)).toEqual({
+            expect(
+                await acceptHandMerge(sources, decisions, "Process_1", "current", changed),
+            ).toEqual({
                 applied: true,
             });
 

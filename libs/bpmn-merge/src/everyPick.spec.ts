@@ -334,7 +334,7 @@ describe("a hand merge of each picked element's own text", () => {
 
             for (const id of picked.filter((candidate) => decisions.sideOf(candidate) === side)) {
                 const own = sources.handMergeTexts.get(id)![side];
-                expect(await acceptHandMerge(sources, decisions, id, own), id).toEqual({
+                expect(await acceptHandMerge(sources, decisions, id, side, own), id).toEqual({
                     applied: true,
                 });
             }

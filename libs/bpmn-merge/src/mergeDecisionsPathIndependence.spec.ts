@@ -428,13 +428,15 @@ describe("MergeDecisions path independence", () => {
         const renamed = sources.handMergeTexts
             .get("Task_Pack")!
             .incoming.replace('name="Pack box"', 'name="Pack it"');
-        expect(await acceptHandMerge(sources, handMerged, "Task_Pack", renamed)).toEqual({
+        expect(
+            await acceptHandMerge(sources, handMerged, "Task_Pack", "incoming", renamed),
+        ).toEqual({
             applied: true,
         });
         expect(stateOf(handMerged)).toEqual(stateOf(plain));
 
         for (const [id, { incoming }] of sources.handMergeTexts) {
-            expect(await acceptHandMerge(sources, handMerged, id, incoming)).toEqual({
+            expect(await acceptHandMerge(sources, handMerged, id, "incoming", incoming)).toEqual({
                 applied: true,
             });
         }

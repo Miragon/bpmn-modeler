@@ -47,20 +47,22 @@ interface ElementText {
 }
 
 /**
- * Takes `text` as the version of the picked element `id`, merged by hand from
- * its texts in `sources.handMergeTexts`. A text that writes the picked side's
- * own version takes that version back. Refused, changing nothing, for a text
- * that does not stand as the element's version or that would change another
- * decision.
+ * Takes `text`, merged by hand from the texts in `sources.handMergeTexts`, as
+ * the version of `id` on `side`, the side it was merged for. A text that
+ * writes the side's own version takes that version back. Refused, changing
+ * nothing, while the element is not picked on `side`, and for a text that does
+ * not stand as the element's version or that would change another decision.
  */
 export async function acceptHandMerge(
     sources: MergeSources,
     decisions: MergeDecisions,
     id: string,
+    side: MergeSide,
     text: string,
 ): Promise<HandMergeOutcome> {
-    const side = handMergeableSide(decisions, sources.handMergeTexts, id);
-    if (side === undefined) return handMergeRefused({ kind: "notHandMergeable" });
+    if (handMergeableSide(decisions, sources.handMergeTexts, id) !== side) {
+        return handMergeRefused({ kind: "notHandMergeable" });
+    }
     const analysis = await handMergedVersionOf(sources, decisions.result, id, side, text);
     if ("refusal" in analysis) return handMergeRefused(analysis.refusal);
     const { merged } = analysis;
@@ -114,6 +116,7 @@ export async function handMergedVersionOf(
             side,
             scope: element.scope,
             content: canonical.content,
+            shownText: written,
             attributes: canonical.attributes,
             version: {
                 ...sideVersion,

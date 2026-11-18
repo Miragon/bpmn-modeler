@@ -18,8 +18,10 @@ export interface HandMergedVersion {
     /** The picked side, which gives everything outside the scope. */
     readonly side: MergeSide;
     readonly scope: HandMergeScope;
-    /** The compared text, as `ElementSnapshot.content` writes it. */
+    /** The compared text, as `ElementSnapshot.content` writes it; a container's holds what follows the pick too. */
     readonly content: string;
+    /** The text as `HandMergeTexts` shows it, which a hand merge of the element starts from again. */
+    readonly shownText: string;
     /** The start tag's attributes by name, as `ElementSnapshot.attributes` writes them. */
     readonly attributes: Readonly<Record<string, string>>;
     readonly version: ElementVersion;

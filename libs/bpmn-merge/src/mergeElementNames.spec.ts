@@ -64,12 +64,12 @@ describe("mergeElementNames", () => {
         const unnamed = sources.handMergeTexts
             .get("Task_Pack")!
             .incoming.replace(' name="Pack box"', "");
-        await acceptHandMerge(sources, decisions, "Task_Pack", unnamed);
+        await acceptHandMerge(sources, decisions, "Task_Pack", "incoming", unnamed);
         decisions.pick("Task_Check", "current");
         const renamed = sources.handMergeTexts
             .get("Task_Check")!
             .current.replace('name="Check order now"', 'name="Check by hand"');
-        await acceptHandMerge(sources, decisions, "Task_Check", renamed);
+        await acceptHandMerge(sources, decisions, "Task_Check", "current", renamed);
 
         expect(mergeElementNames(sources, decisions, ["Task_Check", "Task_Pack"])).toEqual({
             Task_Check: "Check by hand",

@@ -1120,7 +1120,7 @@ describe("buildMerged with versions merged by hand", () => {
     it("keeps a sub-process merged by hand with its children and its shape", async () => {
         const { sources, decisions, plain, textOf } = await pickedOnCurrent();
         const merged = textOf("Sub_Ship").replace('name="Ship now"', 'name="Ship soon"');
-        expect(await acceptHandMerge(sources, decisions, "Sub_Ship", merged)).toEqual({
+        expect(await acceptHandMerge(sources, decisions, "Sub_Ship", "current", merged)).toEqual({
             applied: true,
         });
 
@@ -1145,7 +1145,7 @@ describe("buildMerged with versions merged by hand", () => {
             'custom:owner="sales"',
         );
         expect(merged).toMatch(/^<bpmn:serviceTask xmlns:camunda=/);
-        expect(await acceptHandMerge(sources, decisions, "Task_Check", merged)).toEqual({
+        expect(await acceptHandMerge(sources, decisions, "Task_Check", "current", merged)).toEqual({
             applied: true,
         });
 
