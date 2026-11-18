@@ -343,6 +343,8 @@ const dictionary: Record<string, string> = {
         "{element} is kept without the flows the other side removed with it: {connections}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} is kept but is no longer the default flow of {element}",
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
+        "{flow} is kept, but {element} keeps {keptDefault} as its default flow",
     "The file's {attribute} differs between the sides; current's is kept":
         "The file's {attribute} differs between the sides; current's is kept",
     "1 conflict left": "1 conflict left",

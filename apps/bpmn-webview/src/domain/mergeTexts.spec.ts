@@ -222,6 +222,10 @@ describe("buildNoteText", () => {
                 flow: "Flow_2",
                 keptDefault: "Flow_3",
             },
+            "to packing is kept, but Pack box keeps Flow_3 as its default flow",
+        ],
+        [
+            { kind: "defaultFlowNotRestored", id: "Task_Pack", flow: "Flow_2" },
             "to packing is kept but is no longer the default flow of Pack box",
         ],
         [

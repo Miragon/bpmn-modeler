@@ -363,6 +363,9 @@ const BUILD_NOTE_TEXTS: Record<
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
 };
 
+const OTHER_DEFAULT_KEPT_TEXT =
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
+
 const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
     current: "Both sides changed the layout of {elements}; current's is kept",
     incoming: "Both sides changed the layout of {elements}; incoming's is kept",
@@ -396,11 +399,25 @@ export function buildNoteText(
     translate: MergeTranslate,
 ): string {
     const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
-    const template =
-        note.kind === "layoutChangedByBoth"
-            ? LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide]
-            : BUILD_NOTE_TEXTS[note.kind];
-    return translate(template, noteReplacements(note, nameOf, names));
+    return translate(buildNoteTemplate(note), noteReplacements(note, nameOf, names));
+}
+
+function buildNoteTemplate(note: MergePaneBuildNote): string {
+    if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
+    if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
+        return OTHER_DEFAULT_KEPT_TEXT;
+    }
+    return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function defaultFlowNoteReplacements(
+    note: Extract<MergePaneBuildNote, { kind: "defaultFlowNotRestored" }>,
+    nameOf: (id: string) => string,
+): Record<string, string> {
+    const replacements = { element: nameOf(note.id), flow: nameOf(note.flow) };
+    return note.keptDefault === undefined
+        ? replacements
+        : { ...replacements, keptDefault: nameOf(note.keptDefault) };
 }
 
 function noteReplacements(
@@ -418,7 +435,7 @@ function noteReplacements(
         case "restoredWithoutConnections":
             return { element: nameOf(note.id), connections: names(note.connections) };
         case "defaultFlowNotRestored":
-            return { element: nameOf(note.id), flow: nameOf(note.flow) };
+            return defaultFlowNoteReplacements(note, nameOf);
         case "layoutChangedByBoth":
             return { elements: names(note.ids) };
         case "frameDiffers":
