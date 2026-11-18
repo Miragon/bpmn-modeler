@@ -1,19 +1,18 @@
-#!/usr/bin/env node
 // Decides which release lines a change reaches, from .github/release-lines.json.
 // A file reaches every line whose `ships` globs match it, unless an `ignore`
 // glob matches it first: no user receives a spec, a fixture or a README. Only
 // feat and fix are attributed; a breaking `!` stays only on the lines whose
-// `breaking` globs match a file the line ships. The sync, reconcile and audit
-// modes (release-lines-sync.mjs) turn these decisions into attribution commits.
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { argv, stdout } from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
-
+// `breaking` globs match a file the line ships. release-lines-sync.mjs turns
+// these decisions into attribution commits.
 import { matchesGlobs } from "./glob.mjs";
 
 const CONVENTIONAL_TITLE = /^(?<type>[a-z]+)(?:\([^)]*\))?(?<breaking>!)?:/;
-const ATTRIBUTED_TYPES = new Set(["feat", "fix"]);
+/** The only types that reach a line, so the only changelog sections that can fill. */
+export const ATTRIBUTED_TYPES = Object.freeze(["feat", "fix"]);
+
+function attributedType(title) {
+    return ATTRIBUTED_TYPES.includes(CONVENTIONAL_TITLE.exec(title)?.groups.type);
+}
 
 function releasedFiles(files, registry) {
     return files.filter((file) => !matchesGlobs(registry.ignore, file));
@@ -45,12 +44,11 @@ function withoutBreakingMark(title) {
 
 /** The lines a merged commit is listed on, grouped by the subject each group shows. */
 export function resolveAttribution({ title, files }, registry) {
-    const parsed = CONVENTIONAL_TITLE.exec(title);
-    if (!parsed || !ATTRIBUTED_TYPES.has(parsed.groups.type)) {
-        return { source: "derived", groups: [] };
-    }
+    if (!attributedType(title)) return { source: "derived", groups: [] };
     const lines = derivedLines(files, registry);
-    const breaking = parsed.groups.breaking ? breakingLines(files, registry) : [];
+    const breaking = CONVENTIONAL_TITLE.exec(title).groups.breaking
+        ? breakingLines(files, registry)
+        : [];
     const groups = [
         { subject: title, lines: lines.filter((id) => breaking.includes(id)) },
         {
@@ -65,6 +63,11 @@ const SHORT_SHA_LENGTH = 7;
 const SYNC_SUFFIX = /\[sync (?<sha>[0-9a-f]{7,40})\]$/;
 const RELEASE_BRANCH_PREFIX = "release-please--";
 const RELEASE_TITLE = /^chore(?:\([^)]*\))?: release\b/;
+
+/** The branch of the one combined release PR (`separate-pull-requests: false`). */
+export function releaseBranchOf(targetBranch) {
+    return `${RELEASE_BRANCH_PREFIX}branches--${targetBranch}`;
+}
 
 function shortSha(sha) {
     return sha.slice(0, SHORT_SHA_LENGTH);
@@ -136,9 +139,7 @@ export function planAttributions(commits, existing, registry) {
     for (const commit of commits) {
         const decision = { sha: commit.sha, title: commit.title, lines: [], attributed: [] };
         decision.skipped = skipReason(commit);
-        decision.attributable = ATTRIBUTED_TYPES.has(
-            CONVENTIONAL_TITLE.exec(commit.title)?.groups.type,
-        );
+        decision.attributable = attributedType(commit.title);
         decisions.push(decision);
         if (decision.skipped !== undefined) continue;
         for (const group of resolveAttribution(commit, registry).groups) {
@@ -157,15 +158,6 @@ export function planAttributions(commits, existing, registry) {
         }
     }
     return { decisions, writes };
-}
-
-/** The attributions a line still lacks, per commit, in the commits' order. */
-export function missingAttributions(commits, existing, registry) {
-    return planAttributions(commits, existing, registry).writes.map(({ sha, subject, lines }) => ({
-        sha,
-        subject,
-        lines,
-    }));
 }
 
 function decisionText({ skipped, attributable, lines, attributed }) {
@@ -207,39 +199,4 @@ export function auditReport(writes, reconcileCommand) {
         "",
         `Add the missing attributions: ${reconcileCommand}`,
     ].join("\n");
-}
-
-const USAGE = [
-    "release-routing: usage:",
-    "  derive <files…>",
-    "  attribute --title <title> <files…>",
-    "  sync <before>..<sha> [--dry-run]",
-    "  reconcile [--dry-run]",
-    "  audit",
-].join("\n");
-
-async function main(args) {
-    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-    const registry = JSON.parse(
-        readFileSync(resolve(repoRoot, ".github/release-lines.json"), "utf8"),
-    );
-    const [mode, ...rest] = args;
-    if (mode === "derive") {
-        stdout.write(`${JSON.stringify(derivedLines(rest, registry))}\n`);
-    } else if (mode === "attribute" && rest[0] === "--title" && rest[1] !== undefined) {
-        const [, title, ...files] = rest;
-        stdout.write(`${JSON.stringify(resolveAttribution({ title, files }, registry))}\n`);
-    } else if (["sync", "reconcile", "audit"].includes(mode)) {
-        const { runReleaseSync } = await import("./release-lines-sync.mjs");
-        await runReleaseSync({ mode, args: rest, registry, repoRoot });
-    } else {
-        throw new Error(USAGE);
-    }
-}
-
-if (import.meta.url === pathToFileURL(argv[1] ?? "").href) {
-    main(argv.slice(2)).catch((error) => {
-        console.error(error.message);
-        process.exitCode = 1;
-    });
 }

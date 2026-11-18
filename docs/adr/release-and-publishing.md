@@ -50,13 +50,17 @@ which files no user receives (specs, tests, fixtures, READMEs) and which workspa
 no line ships. For every first-parent commit pushed to main,
 [release-routing.mjs](../../.github/scripts/release-routing.mjs) derives the lines
 of a `feat` or `fix` from its changed files, until #2548 adds the PR's declaration,
-and the sync workflow writes one attribution commit per line group. It changes
+and the sync workflow writes one attribution commit per line group through
+[release-lines-sync.mjs](../../.github/scripts/release-lines-sync.mjs), which
+holds the command line and the I/O. It changes
 `release/<id>/ATTRIBUTION` of each line in the group, and its subject is the
 commit's subject plus `[sync <short sha>]`. A breaking `!` stays only on the lines
 whose `breaking` globs match a shipped file: the npm package's contract spans its
 inlined libraries, a host breaks only through its own folder. `chore`, `docs` and
-`refactor` reach no line. The sync skips its own commits and release-please's,
-writes nothing twice and retries when main moves under it.
+`refactor` reach no line, and the changelog sections are `feat` and `fix` only, so
+a commit of another type that changes `release/<id>/` releases nothing. The sync
+skips its own commits and release-please's, writes nothing twice, writes no commit
+that leaves the tree unchanged and retries when main moves under it.
 
 The specs hold the registry to the builds
 ([releaseLines.spec.ts](../../tools/repo-checks/src/releaseLines.spec.ts)) and the
@@ -71,8 +75,12 @@ off its lines, so the
 [release attribution check](../../.github/workflows/release-attribution.yml) fails
 the release PR when a `feat`/`fix` since a line's last tag lacks its attribution,
 and a `reconcile` dispatch of the sync adds what is missing. Every
-other PR passes that check at once, so it can be required. A source PR's
-`BEGIN_COMMIT_OVERRIDE` does not reach its attribution commits.
+other PR passes that check at once, so it can be required. release-please pushes
+the release PR only when its body changes, which a missing attribution does not,
+so a failed sync run re-runs the check; a sync that never ran is caught only by
+re-running it before the merge. Only the commit's subject reaches a line: a source
+PR's `BEGIN_COMMIT_OVERRIDE`, a `BREAKING CHANGE:` footer and a `Release-As:`
+footer do not reach its attribution commits, so a break is marked with `!`.
 
 Rejected: a root component with a blocklist of `exclude-paths`, because
 release-please matches them as folder prefixes only, so top-level files such as

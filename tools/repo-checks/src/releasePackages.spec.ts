@@ -3,7 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import type { ReleaseLineRegistry } from "../../../.github/scripts/release-routing.mjs";
+import {
+    ATTRIBUTED_TYPES,
+    releaseBranchOf,
+    type ReleaseLineRegistry,
+} from "../../../.github/scripts/release-routing.mjs";
 
 /**
  * release-please releases each line from its folder release/<id>, which only
@@ -19,13 +23,25 @@ interface ExtraFile {
     jsonpath?: string;
 }
 
-interface ReleasePackage {
+/** The keys besides `component` and `include-component-in-tag` that change a tag. */
+interface TagFormat {
+    "tag-separator"?: string;
+    "include-v-in-tag"?: boolean;
+}
+
+interface ReleasePackage extends TagFormat {
     "release-type": string;
     "component": string;
     "include-component-in-tag": boolean;
     "changelog-path": string;
     "exclude-paths"?: string[];
     "extra-files": ExtraFile[];
+}
+
+interface ReleasePleaseConfig extends TagFormat {
+    "separate-pull-requests": boolean;
+    "changelog-sections": { type: string; section: string; hidden?: boolean }[];
+    "packages": Record<string, ReleasePackage>;
 }
 
 function readRepoText(path: string): string {
@@ -42,9 +58,7 @@ function repoPath(releasePleasePath: string): string {
 }
 
 const registry = readRepoJson<ReleaseLineRegistry>(".github/release-lines.json");
-const config = readRepoJson<{ packages: Record<string, ReleasePackage> }>(
-    "release-please-config.json",
-);
+const config = readRepoJson<ReleasePleaseConfig>("release-please-config.json");
 const manifest = readRepoJson<Record<string, string>>(".release-please-manifest.json");
 const componentPaths = registry.lines.map(({ componentPath }) => componentPath);
 const lines = registry.lines.map(({ id, componentPath }) => ({
@@ -80,6 +94,21 @@ describe("the release-please packages", () => {
             expect(releasePackage["exclude-paths"]).toBeUndefined();
         },
     );
+
+    it("are tagged <component>-v<version>, the tag the sync's reconcile and audit read", () => {
+        for (const tagFormat of [config, ...Object.values(config.packages)]) {
+            expect(tagFormat["tag-separator"]).toBeUndefined();
+            expect(tagFormat["include-v-in-tag"]).toBeUndefined();
+        }
+    });
+
+    it("list in their changelogs only the types an attribution commit carries", () => {
+        const shownTypes = config["changelog-sections"]
+            .filter(({ hidden }) => hidden !== true)
+            .map(({ type }) => type);
+
+        expect(shownTypes).toEqual([...ATTRIBUTED_TYPES]);
+    });
 
     it.each(lines)("keep the changelog of $id at a repository path", ({ releasePackage }) => {
         const changelog = releasePackage["changelog-path"];
@@ -146,6 +175,32 @@ describe("the workflows around the release lines", () => {
         ].map(([, path]) => path);
 
         expect(new Set(outputPaths)).toEqual(new Set(componentPaths));
+    });
+
+    it("check the release PR under the branch name release-please gives it", () => {
+        const releaseBranch = releaseBranchOf("main");
+        const workflows = ["release-attribution.yml", "sync-release-lines.yml"].map((name) =>
+            readRepoText(`.github/workflows/${name}`),
+        );
+
+        expect(config["separate-pull-requests"]).toBe(false);
+        for (const workflow of workflows) {
+            expect(workflow.match(/release-please--branches--\S*/g)).toEqual([releaseBranch]);
+            expect(workflow).toContain(`RELEASE_BRANCH: ${releaseBranch}\n`);
+        }
+    });
+
+    it("skip the attribution check only on a PR that is not the release PR", () => {
+        const conditions = [
+            ...readRepoText(".github/workflows/release-attribution.yml").matchAll(
+                /^\s+(?:- )?if: (.+)$/gm,
+            ),
+        ].map(([, condition]) => condition);
+
+        expect(conditions.length).toBeGreaterThan(0);
+        for (const condition of conditions) {
+            expect(condition).toMatch(/^github\.head_ref [!=]= env\.RELEASE_BRANCH$/);
+        }
     });
 
     it("keep the sync from triggering on its own attribution commits", () => {

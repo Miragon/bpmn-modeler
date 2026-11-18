@@ -72,11 +72,14 @@ export interface TagWindow {
     shas: readonly string[];
 }
 
+export const ATTRIBUTED_TYPES: readonly string[];
+
 export function derivedLines(files: readonly string[], registry: ReleaseLineRegistry): string[];
 export function resolveAttribution(
     change: { title: string; files: readonly string[] },
     registry: ReleaseLineRegistry,
 ): Attribution;
+export function releaseBranchOf(targetBranch: string): string;
 export function syncedSha(message: string): string | undefined;
 export function skipReason(commit: { title: string; pullRequestHead?: string }): string | undefined;
 export function attributionMessage(subject: string, sha: string): string;
@@ -89,11 +92,6 @@ export function planAttributions(
     existing: readonly ExistingAttribution[],
     registry: ReleaseLineRegistry,
 ): { decisions: RoutingDecision[]; writes: AttributionWrite[] };
-export function missingAttributions(
-    commits: readonly MergedCommit[],
-    existing: readonly ExistingAttribution[],
-    registry: ReleaseLineRegistry,
-): MissingAttribution[];
 export function routingSummary(heading: string, decisions: readonly RoutingDecision[]): string;
 export function auditReport(
     writes: readonly MissingAttribution[],

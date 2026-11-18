@@ -3,8 +3,9 @@ name: Release attribution
 # On the release PR, fails when a feat or fix since a line's last tag lacks its
 # attribution commit, and prints the reconcile run that adds it. Every other PR
 # passes at once, so the check can be required without blocking them.
-# release-please pushes the release branch after every push to main, so the
-# check re-runs once a reconcile has written the attributions.
+# release-please pushes the release branch only when the PR body changes. A
+# reconcile changes it, so the check re-runs after one. A failed sync does not,
+# so sync-release-lines.yml re-runs this check when it fails.
 
 on:
   pull_request:
@@ -22,11 +23,14 @@ jobs:
   audit:
     name: Release attribution
     runs-on: ubuntu-latest
+    env:
+      # The one combined release PR's branch (separate-pull-requests: false).
+      RELEASE_BRANCH: release-please--branches--main
     steps:
-      - if: github.head_ref != 'release-please--branches--main'
+      - if: github.head_ref != env.RELEASE_BRANCH
         run: echo "Not the release PR; nothing to check."
 
-      - if: github.head_ref == 'release-please--branches--main'
+      - if: github.head_ref == env.RELEASE_BRANCH
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # main's history and tags, not the release branch's merge ref.
@@ -35,13 +39,13 @@ jobs:
           filter: blob:none
           persist-credentials: false
 
-      - if: github.head_ref == 'release-please--branches--main'
+      - if: github.head_ref == env.RELEASE_BRANCH
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
       - name: Check the attributions since each line's last tag
-        if: github.head_ref == 'release-please--branches--main'
+        if: github.head_ref == env.RELEASE_BRANCH
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node .github/scripts/release-routing.mjs audit
+        run: node .github/scripts/release-lines-sync.mjs audit

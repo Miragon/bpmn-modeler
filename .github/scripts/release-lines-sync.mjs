@@ -1,16 +1,20 @@
-// The I/O of the sync and audit modes of release-routing.mjs: main's history
-// and tags from the local clone, merged pull requests and existing
-// attributions from the GitHub API, attribution commits through the Git Data
-// API. The decisions are the pure functions of release-routing.mjs.
+#!/usr/bin/env node
+// The command line and I/O of the release routing: main's history and tags
+// from the local clone, merged pull requests and existing attributions from
+// the GitHub API, attribution commits through the Git Data API. The decisions
+// are the pure functions of release-routing.mjs.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { env, stdout } from "node:process";
+import { dirname, resolve } from "node:path";
+import { argv, env, stdout } from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
     auditReport,
     commitsSinceTags,
+    derivedLines,
     planAttributions,
+    resolveAttribution,
     routingSummary,
     skipReason,
     syncedSha,
@@ -67,7 +71,7 @@ function mergedPullRequestHead(repo, sha) {
 
 function pushedShas(repoRoot, range) {
     const [before, sha] = range.split("..");
-    if (!sha) throw new Error(`release-routing: sync takes <before>..<sha>, not ${range}`);
+    if (!sha) throw new Error(`release-lines-sync: sync takes <before>..<sha>, not ${range}`);
     return NO_COMMIT.test(before)
         ? [sha]
         : gitLines(repoRoot, ["rev-list", "--first-parent", "--reverse", `${before}..${sha}`]);
@@ -101,29 +105,53 @@ function existingAttributions(repo, head, registry, since) {
     );
 }
 
-function writeAttributions(repo, base, writes) {
+function gitDataApi(repo) {
+    return {
+        treeOf: (commitSha) => ghJson([`repos/${repo}/git/commits/${commitSha}`]).tree.sha,
+        createTree: (baseTree, files) =>
+            ghJson(["-X", "POST", `repos/${repo}/git/trees`], {
+                base_tree: baseTree,
+                tree: files.map(({ path, content }) => ({
+                    path,
+                    mode: "100644",
+                    type: "blob",
+                    content,
+                })),
+            }).sha,
+        createCommit: ({ message, tree, parent }) =>
+            ghJson(["-X", "POST", `repos/${repo}/git/commits`], {
+                message,
+                tree,
+                parents: [parent],
+            }).sha,
+        fastForward: (sha) =>
+            ghJson(["-X", "PATCH", `repos/${repo}/git/refs/heads/${TARGET_BRANCH}`], {
+                sha,
+                force: false,
+            }),
+    };
+}
+
+/**
+ * Chains the attribution commits onto `base` and moves main to the last one.
+ * A write that leaves the tree as it was is dropped: release-please puts a
+ * commit without files on every line.
+ */
+export function writeAttributions(api, base, writes) {
     let parent = base;
-    let tree = ghJson([`repos/${repo}/git/commits/${base}`]).tree.sha;
-    for (const { message, files } of writes) {
-        tree = ghJson(["-X", "POST", `repos/${repo}/git/trees`], {
-            base_tree: tree,
-            tree: files.map(({ path, content }) => ({
-                path,
-                mode: "100644",
-                type: "blob",
-                content,
-            })),
-        }).sha;
-        parent = ghJson(["-X", "POST", `repos/${repo}/git/commits`], {
-            message,
-            tree,
-            parents: [parent],
-        }).sha;
+    let tree = api.treeOf(base);
+    const unchanged = [];
+    for (const write of writes) {
+        const nextTree = api.createTree(tree, write.files);
+        if (nextTree === tree) {
+            unchanged.push(write);
+            continue;
+        }
+        tree = nextTree;
+        parent = api.createCommit({ message: write.message, tree, parent });
     }
-    ghJson(["-X", "PATCH", `repos/${repo}/git/refs/heads/${TARGET_BRANCH}`], {
-        sha: parent,
-        force: false,
-    });
+    if (parent !== base) api.fastForward(parent);
+    return { unchanged };
 }
 
 function isNotFastForward(error) {
@@ -140,7 +168,7 @@ function parseOptions(mode, args) {
     const repoIndex = args.indexOf("--repo");
     const repo = repoIndex === -1 ? env.GITHUB_REPOSITORY : args[repoIndex + 1];
     if (!repo)
-        throw new Error("release-routing: pass --repo <owner/name> or set GITHUB_REPOSITORY");
+        throw new Error("release-lines-sync: pass --repo <owner/name> or set GITHUB_REPOSITORY");
     const range = args.find((arg) => arg.includes(".."));
     return { dryRun, repo, range };
 }
@@ -168,7 +196,7 @@ function headingOf(mode, range, dryRun) {
     return `${headings[mode]}${dryRun && mode !== "audit" ? " (dry run)" : ""}`;
 }
 
-export function runReleaseSync({ mode, args, registry, repoRoot }) {
+function runReleaseSync({ mode, args, registry, repoRoot }) {
     const { dryRun, repo, range } = parseOptions(mode, args);
     const commits = readCommits({ mode, repoRoot, registry, range, repo });
     const heading = headingOf(mode, range, dryRun);
@@ -203,12 +231,49 @@ export function runReleaseSync({ mode, args, registry, repoRoot }) {
             return;
         }
         try {
-            writeAttributions(repo, head, writes);
+            const { unchanged } = writeAttributions(gitDataApi(repo), head, writes);
             report(routingSummary(heading, decisions));
+            unchanged.forEach(({ message }) =>
+                stdout.write(`not written, the file already says so: ${message}\n`),
+            );
             return;
         } catch (error) {
             if (!isNotFastForward(error) || attempt === MAX_ATTEMPTS) throw error;
             stdout.write(`${TARGET_BRANCH} moved; attempt ${attempt + 1} of ${MAX_ATTEMPTS}\n`);
         }
+    }
+}
+
+const USAGE = [
+    "release-lines-sync: usage:",
+    "  derive <files…>",
+    "  attribute --title <title> <files…>",
+    "  sync <before>..<sha> [--dry-run] [--repo <owner/name>]",
+    "  reconcile [--dry-run] [--repo <owner/name>]",
+    "  audit [--repo <owner/name>]",
+].join("\n");
+
+function main(args) {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+    const registry = readJson(repoRoot, ".github/release-lines.json");
+    const [mode, ...rest] = args;
+    if (mode === "derive") {
+        stdout.write(`${JSON.stringify(derivedLines(rest, registry))}\n`);
+    } else if (mode === "attribute" && rest[0] === "--title" && rest[1] !== undefined) {
+        const [, title, ...files] = rest;
+        stdout.write(`${JSON.stringify(resolveAttribution({ title, files }, registry))}\n`);
+    } else if (["sync", "reconcile", "audit"].includes(mode)) {
+        runReleaseSync({ mode, args: rest, registry, repoRoot });
+    } else {
+        throw new Error(USAGE);
+    }
+}
+
+if (import.meta.url === pathToFileURL(argv[1] ?? "").href) {
+    try {
+        main(argv.slice(2));
+    } catch (error) {
+        console.error(error.message);
+        process.exitCode = 1;
     }
 }

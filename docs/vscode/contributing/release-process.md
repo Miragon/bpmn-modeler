@@ -67,6 +67,11 @@ does a change to only top-level files (`yarn.lock`, `package.json`, `AGENTS.md`)
 from the files alone, so a change to a shared library reaches every line that
 bundles it, whether or not that line offers the feature.
 
+Only the commit's subject, the PR title, reaches a line. Mark a breaking change
+with `!` in the title: a `BREAKING CHANGE:` or `Release-As:` footer does not reach
+the attribution commit. Set a version with `release-as` instead (see "Correcting a
+pending release PR").
+
 ### Attribution commits
 
 On every push to `main`, the sync workflow takes each first-parent commit of the
@@ -86,7 +91,8 @@ That puts the real change under its real title into each line's changelog.
   in a commit of their own.
 - **Nothing is written twice.** Before writing, the sync reads the existing
   `[sync <short sha>]` commits of each line and skips a line that has one, so a
-  re-run is safe.
+  re-run is safe. A write that would leave `ATTRIBUTION` as it is gets no commit:
+  release-please would put a commit without files on every line.
 - **Races retry.** When `main` moves between the read and the ref update, the run
   re-reads `main` and tries again, up to five times. The workflow has no
   concurrency group, because GitHub would cancel all but one pending run of a
@@ -97,8 +103,8 @@ That puts the real change under its real title into each line's changelog.
 
 [`release-attribution.yml`](https://github.com/Miragon/bpmn-modeler/blob/main/.github/workflows/release-attribution.yml)
 runs on every PR to `main` and passes at once, except on the release PR
-(`release-please--branches--main`). There it runs `release-routing.mjs audit` and
-fails when a `feat`/`fix` since a line's last tag lacks its attribution, which
+(`release-please--branches--main`). There it runs `release-lines-sync.mjs audit`
+and fails when a `feat`/`fix` since a line's last tag lacks its attribution, which
 happens when a sync run failed or was skipped. The log names each gap and the
 command that fills it:
 
@@ -106,13 +112,18 @@ command that fills it:
 gh workflow run sync-release-lines.yml --repo Miragon/bpmn-modeler --ref main -f reconcile=true
 ```
 
+release-please pushes the release branch only when the PR body changes, and a
+missing attribution leaves the body as it was. So a failed sync run re-runs this
+check on the open release PR, which then fails. A sync that never ran at all
+re-runs nothing: re-run the check by hand right before merging the release PR.
+
 A `reconcile` dispatch walks every first-parent commit since each line's last tag
 and adds only the attributions that are missing. Dispatched with `reconcile`
 unchecked, it lists them in the step summary and writes nothing. To see the same
 locally (read-only, needs `gh auth`):
 
 ```bash
-node .github/scripts/release-routing.mjs reconcile --dry-run --repo Miragon/bpmn-modeler
+node .github/scripts/release-lines-sync.mjs reconcile --dry-run --repo Miragon/bpmn-modeler
 ```
 
 ### Correcting a pending release PR
@@ -190,11 +201,18 @@ holds to the registry:
     `orca-plugin.json`, and for `intellij` `gradle.properties` (`pluginVersion`)
     through the `generic` updater, anchored by the
     `# x-release-please-start-version` markers.
-  - `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
-    `chore`) to changelog headings.
+  - `changelog-sections` lists only `feat` and `fix`, the types an attribution
+    commit carries. release-please leaves out every other type, and a line whose
+    commits are all left out does not release.
 - **`.release-please-manifest.json`** — `{ "release/bpmn-modeler": "…",
   "release/vscode": "…", … }`, the current version of each line. release-please
   updates it on each release.
+
+The commit that switched to attribution commits (#2552) creates every
+`release/<id>/` file. Its PR body holds a `BEGIN_COMMIT_OVERRIDE`, which
+release-please reads on every run; leave it there until every line has released
+past that commit. Without it the commit is a `chore`, which has no changelog
+section, so it still releases no line.
 
 ## Releasing
 
@@ -204,10 +222,12 @@ holds to the registry:
    changed files decide which lines a `feat`/`fix` lands on (see "How commits are
    routed" above); the sync workflow writes the attribution commits.
 2. release-please opens/updates **one Release PR** (`chore: release main`)
-   with a section per affected line. Review the versions + changelogs, and check
-   that `Release attribution` is green (see "The release PR check and
-   reconcile").
-3. **Merge the Release PR.** It pushes the version bumps, tags every included
+   with a section per affected line. Review the versions + changelogs, re-run
+   `Release attribution` and check that it is green (see "The release PR check
+   and reconcile").
+3. Pause merges to `main` until the release is merged: a sync that lands after
+   the release tag puts its change into the next release, on lines that may have
+   nothing else new. Then **merge the Release PR.** It pushes the version bumps, tags every included
    line (e.g. `vscode-v<version>`, `intellij-v<version>`), and creates their
    GitHub Releases — which triggers their publish jobs after one approval.
 

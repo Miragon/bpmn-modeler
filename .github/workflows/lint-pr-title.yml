@@ -26,10 +26,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Restricted to the types release-please acts on: feat/fix bump the
-          # version, and all five are changelog-sections in
-          # release-please-config.json. Other types never reach the changelog —
-          # fold them into `chore`.
+          # Only feat and fix reach a release line (release-routing.mjs) and its
+          # changelog, the two changelog-sections in release-please-config.json.
+          # refactor, docs and chore reach no line; fold any other type into
+          # `chore`.
           types: |
             feat
             fix

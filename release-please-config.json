@@ -4,10 +4,7 @@
   "separate-pull-requests": false,
   "changelog-sections": [
     { "type": "feat", "section": "🎉 New Features" },
-    { "type": "fix", "section": "🐞 Bug Fixes" },
-    { "type": "refactor", "section": "🔨 Refactoring" },
-    { "type": "docs", "section": "📔 Documentation" },
-    { "type": "chore", "section": "🛠️ Misc" }
+    { "type": "fix", "section": "🐞 Bug Fixes" }
   ],
   "packages": {
     "release/bpmn-modeler": {

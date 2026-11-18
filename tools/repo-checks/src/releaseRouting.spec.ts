@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import releaseLines from "../../../.github/release-lines.json";
@@ -7,16 +9,28 @@ import {
     auditReport,
     commitsSinceTags,
     derivedLines,
-    missingAttributions,
     planAttributions,
+    releaseBranchOf,
     resolveAttribution,
     routingSummary,
     skipReason,
     syncedSha,
+    type ExistingAttribution,
+    type MergedCommit,
     type ReleaseLineRegistry,
 } from "../../../.github/scripts/release-routing.mjs";
 
 const registry: ReleaseLineRegistry = releaseLines;
+
+function missingAttributions(
+    commits: readonly MergedCommit[],
+    existing: readonly ExistingAttribution[],
+    lineRegistry: ReleaseLineRegistry,
+) {
+    return planAttributions(commits, existing, lineRegistry).writes.map(
+        ({ sha, subject, lines }) => ({ sha, subject, lines }),
+    );
+}
 
 /** A package and a host that bundles it, so a case states its own rules. */
 const sample: ReleaseLineRegistry = {
@@ -172,11 +186,15 @@ describe("the commits on main that are not routed", () => {
         { title: "chore: release main (#13)", reason: "release commit" },
         {
             title: "chore(main): release things",
-            pullRequestHead: "release-please--branches--main",
+            pullRequestHead: releaseBranchOf("main"),
             reason: "release commit",
         },
     ])("skips $title as a $reason", (commit) => {
         expect(skipReason(commit)).toBe(commit.reason);
+    });
+
+    it("names the branch of the one combined release PR", () => {
+        expect(releaseBranchOf("main")).toBe("release-please--branches--main");
     });
 
     it("routes a feat merged from a feature branch", () => {
@@ -318,6 +336,20 @@ describe("the routing report", () => {
 
     it("reports nothing when no attribution is missing", () => {
         expect(auditReport([], "gh workflow run x.yml")).toBe("");
+    });
+});
+
+describe("the routing module", () => {
+    it("decides without I/O: it imports only the glob matcher", () => {
+        const source = readFileSync(
+            join(__dirname, "../../../.github/scripts/release-routing.mjs"),
+            "utf8",
+        );
+
+        expect(
+            [...source.matchAll(/^import .* from "([^"]+)";$/gm)].map(([, from]) => from),
+        ).toEqual(["./glob.mjs"]);
+        expect(source).not.toMatch(/\bimport\(|\bprocess\./);
     });
 });
 
