@@ -295,14 +295,11 @@ const dictionary: Record<string, string> = {
     "Step through": "이동 대상",
     "Open conflicts": "미해결 충돌",
     "All merged elements": "병합된 모든 요소",
-    "Without a shape": "도형 없음",
     "No open conflicts": "미해결 충돌 없음",
     "1 open conflict": "미해결 충돌 1개",
     "{count} open conflicts": "미해결 충돌 {count}개",
-    "Keep this version": "이 버전 유지",
     "Keep everything inside": "내부 전체 유지",
     "Undo pick": "선택 취소",
-    "Your picks": "내 선택",
     "Pulled in:": "추가됨:",
     "Dropped:": "제외됨:",
     "Open again:": "다시 미해결:",
@@ -318,42 +315,16 @@ const dictionary: Record<string, string> = {
     "Kept from incoming with its flows, your pick": "수신에서 흐름과 함께 유지, 내 선택",
     "Kept from current: {element}": "현재에서 유지: {element}",
     "Kept from incoming: {element}": "수신에서 유지: {element}",
-    "{element} needs {target}, which no version has":
-        "{element}에 필요한 {target}이(가) 어느 버전에도 없습니다",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element}에 필요한 {target}이(가) 선택한 쪽에 없습니다",
-    "{element} needs {target}, which this pick drops":
-        "{element}에 필요한 {target}을(를) 이 선택이 제외합니다",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element}에 필요한 {target}의 일부를 이 선택이 제외합니다",
-    "{element} needs {target}, which this side does not have":
-        "{element}에 필요한 {target}이(가) 이쪽에 없습니다",
-    "{element} needs {target}, which the result leaves out":
-        "{element}에 필요한 {target}이(가) 결과에서 제외됩니다",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element}에 필요한 {target}의 일부가 유지한 버전에 없습니다",
-    "{element}, which you picked, needs {target}": "선택한 {element}에 {target}이(가) 필요합니다",
     "This pick brings in {element}, which needs {target}":
         "이 선택으로 추가되는 {element}에 {target}이(가) 필요합니다",
     "{element} and {target} hold the same ID": "{element}와(과) {target}의 ID가 같습니다",
-    "{element} and {target} each have a pool of the same process":
-        "{element}와(과) {target}에 각각 같은 프로세스의 풀이 있습니다",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element}에 필요한 {target}의 일부가 선택한 쪽에 없습니다",
-    "{element} needs a part of {target} that this side does not have":
-        "{element}에 필요한 {target}의 일부가 이쪽에 없습니다",
     "Also keep the flow current removed with it": "현재가 함께 제거한 흐름도 유지",
     "Also keep the {count} flows current removed with it":
         "현재가 함께 제거한 흐름 {count}개도 유지",
     "Also keep the flow incoming removed with it": "수신이 함께 제거한 흐름도 유지",
     "Also keep the {count} flows incoming removed with it":
         "수신이 함께 제거한 흐름 {count}개도 유지",
-    "Kept {element}": "{element} 유지됨",
-    "Cannot keep {element}": "{element}을(를) 유지할 수 없음",
-    "Left out {element}": "{element} 제외됨",
-    "Cannot leave out {element}": "{element}을(를) 제외할 수 없음",
     "Took back the pick of {element}": "{element} 선택 취소됨",
-    "Cannot take back the pick of {element}": "{element} 선택을 취소할 수 없음",
     "Build": "생성",
     "Notes of the build": "생성 참고 사항",
     "Compare with current": "현재와 비교",
@@ -374,6 +345,114 @@ const dictionary: Record<string, string> = {
         "파일의 {attribute}이(가) 양쪽에서 다릅니다. 현재의 값이 유지됩니다",
     "1 conflict left": "남은 충돌 1개",
     "{count} conflicts left": "남은 충돌 {count}개",
+    "Elements of this version the result keeps as they are here.":
+        "결과가 여기 있는 그대로 유지하는 이 버전의 요소입니다.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "결과가 다른 버전에서 가져오거나, 다른 버전이 제거하여 제외하는 이 버전의 요소입니다.",
+    "Open conflicts on elements this version has.": "이 버전에 있는 요소의 미해결 충돌입니다.",
+    "Elements only the other version has are counted on the other pane only.":
+        "다른 버전에만 있는 요소는 다른 창에서만 집계됩니다.",
+    "More actions": "추가 작업",
+    "This step has no shape, so it is listed here.": "이 단계에는 도형이 없어 여기에 표시됩니다.",
+    "Not visible in the diagram ({count})": "다이어그램에 표시되지 않음 ({count})",
+    "1 open conflict not visible in the diagram": "다이어그램에 표시되지 않는 미해결 충돌 1개",
+    "{count} open conflicts not visible in the diagram":
+        "다이어그램에 표시되지 않는 미해결 충돌 {count}개",
+    "Keep current with everything inside": "현재를 내부 전체와 함께 유지",
+    "Keep incoming with everything inside": "수신을 내부 전체와 함께 유지",
+    "Leave out": "제외",
+    "Also keep its removed flows": "제거된 흐름도 유지",
+    "Keep it as current has it": "현재에 있는 그대로 유지",
+    "Keep it as incoming has it": "수신에 있는 그대로 유지",
+    "Keep it and everything inside as current has them": "내부 전체와 함께 현재에 있는 그대로 유지",
+    "Keep it and everything inside as incoming has them":
+        "내부 전체와 함께 수신에 있는 그대로 유지",
+    "Keep it and every pool with its process as current has them":
+        "모든 풀과 해당 프로세스와 함께 현재에 있는 그대로 유지",
+    "Keep it and every pool with its process as incoming has them":
+        "모든 풀과 해당 프로세스와 함께 수신에 있는 그대로 유지",
+    "Leave it out, as current removed it": "현재에서 제거되었으므로 제외",
+    "Leave it out, as current doesn't have it": "현재에 없으므로 제외",
+    "Leave it out, as incoming removed it": "수신에서 제거되었으므로 제외",
+    "Leave it out, as incoming doesn't have it": "수신에 없으므로 제외",
+    "Go back to what the merge decided by itself": "병합이 자동으로 결정한 상태로 되돌리기",
+    "none": "값 없음",
+    "and other content": "및 기타 내용",
+    "Removed in current": "현재에서 제거됨",
+    "Not in current": "현재에 없음",
+    "Removed in incoming": "수신에서 제거됨",
+    "Not in incoming": "수신에 없음",
+    "Kept from current with everything inside: {element}":
+        "현재에서 내부 전체와 함께 유지: {element}",
+    "Kept from incoming with everything inside: {element}":
+        "수신에서 내부 전체와 함께 유지: {element}",
+    "Kept from current with its flows: {element}": "현재에서 흐름과 함께 유지: {element}",
+    "Kept from incoming with its flows: {element}": "수신에서 흐름과 함께 유지: {element}",
+    "Left out: {element}, as current removed it": "제외됨: {element} (현재에서 제거됨)",
+    "Left out: {element}, as current doesn't have it": "제외됨: {element} (현재에 없음)",
+    "Left out: {element}, as incoming removed it": "제외됨: {element} (수신에서 제거됨)",
+    "Left out: {element}, as incoming doesn't have it": "제외됨: {element} (수신에 없음)",
+    "Took back the pick. {element} is an open conflict again.":
+        "선택을 취소했습니다. {element}은(는) 다시 미해결 충돌입니다.",
+    "Can't keep {element}": "{element}을(를) 유지할 수 없음",
+    "Can't leave out {element}": "{element}을(를) 제외할 수 없음",
+    "Can't take back the pick of {element}": "{element} 선택을 취소할 수 없음",
+    "Nothing blocks keeping {element} now": "이제 {element}을(를) 유지할 수 있습니다",
+    "Nothing blocks leaving out {element} now": "이제 {element}을(를) 제외할 수 있습니다",
+    "Nothing blocks taking back the pick of {element} now":
+        "이제 {element} 선택을 취소할 수 있습니다",
+    "{element} needs {target}; no version has it":
+        "{element}에 필요한 {target}이(가) 어느 버전에도 없습니다",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element}에 필요한 {target}이(가) 선택한 쪽에 없습니다",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element}에 필요한 {target}의 일부가 선택한 쪽에 없습니다",
+    "{element} needs {target}; this pick drops it":
+        "{element}에 필요한 {target}을(를) 이 선택이 제외합니다",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element}에 필요한 {target}의 일부를 이 선택이 제외합니다",
+    "{element} needs {target}; this side lacks it":
+        "{element}에 필요한 {target}이(가) 이쪽에 없습니다",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element}에 필요한 {target}의 일부가 이쪽에 없습니다",
+    "{element} needs {target}; the result leaves it out":
+        "{element}에 필요한 {target}이(가) 결과에서 제외됩니다",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element}에 필요한 {target}의 일부가 유지한 버전에 없습니다",
+    "Your pick of {element} needs {target}": "{element} 선택에 {target}이(가) 필요합니다",
+    "{element} and {target} have a pool of the same process":
+        "{element}와(과) {target}에 같은 프로세스의 풀이 있습니다",
+    "{element} needs it; no version has it": "{element}에 필요하지만 어느 버전에도 없습니다",
+    "{element} needs it; your pick takes a side without it":
+        "{element}에 필요하지만 선택한 쪽에 없습니다",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element}에 필요한 일부가 선택한 쪽에 없습니다",
+    "{element} needs it": "{element}에 필요합니다",
+    "{element} needs a part of it this pick leaves out":
+        "{element}에 필요한 일부를 이 선택이 제외합니다",
+    "{element} needs it; this side lacks it": "{element}에 필요하지만 이쪽에 없습니다",
+    "{element} needs a part of it; this side lacks it": "{element}에 필요한 일부가 이쪽에 없습니다",
+    "{element} needs a part of it the kept version lacks":
+        "{element}에 필요한 일부가 유지한 버전에 없습니다",
+    "Your pick of {element} needs it": "{element} 선택에 필요합니다",
+    "This pick brings in {element}, which needs it": "이 선택으로 추가되는 {element}에 필요합니다",
+    "{element} holds the same ID": "{element}와(과) ID가 같습니다",
+    "{element} has a pool of the same process": "{element}에 같은 프로세스의 풀이 있습니다",
+    "and {count} more": "외 {count}개",
+    "Data store": "데이터 저장소",
+    "Item definition": "항목 정의",
+    "Category": "카테고리",
+    "Interface": "인터페이스",
+    "End point": "엔드포인트",
+    "Partner entity": "파트너 엔터티",
+    "Partner role": "파트너 역할",
+    "Correlation property": "상관 속성",
+    "Global task": "전역 작업",
+    "Flow from {source} to {target}": "{source}에서 {target}(으)로 가는 흐름",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "양쪽이 {elements}의 레이아웃을 변경했습니다. 현재의 레이아웃이 유지됩니다",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "양쪽이 {elements}의 레이아웃을 변경했습니다. 수신의 레이아웃이 유지됩니다",
 };
 
 export default dictionary;

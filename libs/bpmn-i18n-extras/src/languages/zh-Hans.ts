@@ -277,14 +277,11 @@ const dictionary: Record<string, string> = {
     "Step through": "逐个查看",
     "Open conflicts": "未解决的冲突",
     "All merged elements": "所有合并的元素",
-    "Without a shape": "无形状",
     "No open conflicts": "没有未解决的冲突",
     "1 open conflict": "1 个未解决的冲突",
     "{count} open conflicts": "{count} 个未解决的冲突",
-    "Keep this version": "保留此版本",
     "Keep everything inside": "保留其中的全部内容",
     "Undo pick": "撤销选择",
-    "Your picks": "您的选择",
     "Pulled in:": "带入：",
     "Dropped:": "移除：",
     "Open again:": "再次未解决：",
@@ -298,40 +295,14 @@ const dictionary: Record<string, string> = {
     "Kept from incoming with its flows, your pick": "从传入连同其流保留，您的选择",
     "Kept from current: {element}": "从当前保留：{element}",
     "Kept from incoming: {element}": "从传入保留：{element}",
-    "{element} needs {target}, which no version has":
-        "{element} 需要 {target}，但没有任何版本包含它",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element} 需要 {target}，但您选择的一侧没有它",
-    "{element} needs {target}, which this pick drops":
-        "{element} 需要 {target}，但此选择会将其移除",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element} 需要 {target} 的一部分，但此选择会将其排除",
-    "{element} needs {target}, which this side does not have":
-        "{element} 需要 {target}，但此侧没有它",
-    "{element} needs {target}, which the result leaves out":
-        "{element} 需要 {target}，但结果中不包含它",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element} 需要 {target} 的一部分，但保留的版本缺少它",
-    "{element}, which you picked, needs {target}": "您选择的 {element} 需要 {target}",
     "This pick brings in {element}, which needs {target}":
         "此选择会带入 {element}，而它需要 {target}",
     "{element} and {target} hold the same ID": "{element} 和 {target} 的 ID 相同",
-    "{element} and {target} each have a pool of the same process":
-        "{element} 和 {target} 各有一个同一流程的池",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element} 需要 {target} 的一部分，但您选择的一侧没有它",
-    "{element} needs a part of {target} that this side does not have":
-        "{element} 需要 {target} 的一部分，但此侧没有它",
     "Also keep the flow current removed with it": "同时保留当前随其删除的流",
     "Also keep the {count} flows current removed with it": "同时保留当前随其删除的 {count} 条流",
     "Also keep the flow incoming removed with it": "同时保留传入随其删除的流",
     "Also keep the {count} flows incoming removed with it": "同时保留传入随其删除的 {count} 条流",
-    "Kept {element}": "已保留 {element}",
-    "Cannot keep {element}": "无法保留 {element}",
-    "Left out {element}": "已排除 {element}",
-    "Cannot leave out {element}": "无法排除 {element}",
     "Took back the pick of {element}": "已撤销对 {element} 的选择",
-    "Cannot take back the pick of {element}": "无法撤销对 {element} 的选择",
     "Build": "生成",
     "Notes of the build": "生成说明",
     "Compare with current": "与当前比较",
@@ -351,6 +322,105 @@ const dictionary: Record<string, string> = {
         "文件的 {attribute} 在两侧不同；保留当前的值",
     "1 conflict left": "剩余 1 个冲突",
     "{count} conflicts left": "剩余 {count} 个冲突",
+    "Elements of this version the result keeps as they are here.":
+        "结果按此处原样保留的此版本元素。",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "结果从另一版本获取的此版本元素，或因另一版本已删除而排除的元素。",
+    "Open conflicts on elements this version has.": "此版本所含元素上未解决的冲突。",
+    "Elements only the other version has are counted on the other pane only.":
+        "仅另一版本具有的元素只在另一窗格中计数。",
+    "More actions": "更多操作",
+    "This step has no shape, so it is listed here.": "此步骤没有形状，因此列在这里。",
+    "Not visible in the diagram ({count})": "在图表中不可见（{count}）",
+    "1 open conflict not visible in the diagram": "1 个未解决的冲突在图表中不可见",
+    "{count} open conflicts not visible in the diagram": "{count} 个未解决的冲突在图表中不可见",
+    "Keep current with everything inside": "保留当前及其中全部内容",
+    "Keep incoming with everything inside": "保留传入及其中全部内容",
+    "Leave out": "排除",
+    "Also keep its removed flows": "同时保留其已删除的流",
+    "Keep it as current has it": "按当前中的样子保留",
+    "Keep it as incoming has it": "按传入中的样子保留",
+    "Keep it and everything inside as current has them": "按当前中的样子保留它及其中全部内容",
+    "Keep it and everything inside as incoming has them": "按传入中的样子保留它及其中全部内容",
+    "Keep it and every pool with its process as current has them":
+        "按当前中的样子保留它及每个池及其流程",
+    "Keep it and every pool with its process as incoming has them":
+        "按传入中的样子保留它及每个池及其流程",
+    "Leave it out, as current removed it": "排除，因为当前已将其删除",
+    "Leave it out, as current doesn't have it": "排除，因为当前没有它",
+    "Leave it out, as incoming removed it": "排除，因为传入已将其删除",
+    "Leave it out, as incoming doesn't have it": "排除，因为传入没有它",
+    "Go back to what the merge decided by itself": "恢复为合并自动决定的结果",
+    "none": "无值",
+    "and other content": "以及其他内容",
+    "Removed in current": "已在当前中删除",
+    "Not in current": "不在当前中",
+    "Removed in incoming": "已在传入中删除",
+    "Not in incoming": "不在传入中",
+    "Kept from current with everything inside: {element}": "从当前连同其中全部内容保留：{element}",
+    "Kept from incoming with everything inside: {element}": "从传入连同其中全部内容保留：{element}",
+    "Kept from current with its flows: {element}": "从当前连同其流保留：{element}",
+    "Kept from incoming with its flows: {element}": "从传入连同其流保留：{element}",
+    "Left out: {element}, as current removed it": "已排除：{element}，因为当前已将其删除",
+    "Left out: {element}, as current doesn't have it": "已排除：{element}，因为当前没有它",
+    "Left out: {element}, as incoming removed it": "已排除：{element}，因为传入已将其删除",
+    "Left out: {element}, as incoming doesn't have it": "已排除：{element}，因为传入没有它",
+    "Took back the pick. {element} is an open conflict again.":
+        "已撤销选择。{element} 再次成为未解决的冲突。",
+    "Can't keep {element}": "无法保留 {element}",
+    "Can't leave out {element}": "无法排除 {element}",
+    "Can't take back the pick of {element}": "无法撤销对 {element} 的选择",
+    "Nothing blocks keeping {element} now": "现在可以保留 {element} 了",
+    "Nothing blocks leaving out {element} now": "现在可以排除 {element} 了",
+    "Nothing blocks taking back the pick of {element} now": "现在可以撤销对 {element} 的选择了",
+    "{element} needs {target}; no version has it": "{element} 需要 {target}；没有任何版本包含它",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element} 需要 {target}；您的选择采用了没有它的一侧",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element} 需要 {target} 的一部分；您的选择采用了没有该部分的一侧",
+    "{element} needs {target}; this pick drops it": "{element} 需要 {target}；此选择会将其移除",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element} 需要 {target} 的一部分，但此选择会将其排除",
+    "{element} needs {target}; this side lacks it": "{element} 需要 {target}；此侧没有它",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element} 需要 {target} 的一部分；此侧没有该部分",
+    "{element} needs {target}; the result leaves it out": "{element} 需要 {target}；结果中不包含它",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element} 需要 {target} 的一部分，但保留的版本缺少它",
+    "Your pick of {element} needs {target}": "您对 {element} 的选择需要 {target}",
+    "{element} and {target} have a pool of the same process":
+        "{element} 和 {target} 都有同一流程的池",
+    "{element} needs it; no version has it": "{element} 需要它；没有任何版本包含它",
+    "{element} needs it; your pick takes a side without it":
+        "{element} 需要它；您的选择采用了没有它的一侧",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element} 需要它的一部分；您的选择采用了没有该部分的一侧",
+    "{element} needs it": "{element} 需要它",
+    "{element} needs a part of it this pick leaves out":
+        "{element} 需要它的一部分，但此选择会将该部分排除",
+    "{element} needs it; this side lacks it": "{element} 需要它；此侧没有它",
+    "{element} needs a part of it; this side lacks it": "{element} 需要它的一部分；此侧没有该部分",
+    "{element} needs a part of it the kept version lacks":
+        "{element} 需要它的一部分，但保留的版本缺少该部分",
+    "Your pick of {element} needs it": "您对 {element} 的选择需要它",
+    "This pick brings in {element}, which needs it": "此选择会带入需要它的 {element}",
+    "{element} holds the same ID": "{element} 与它的 ID 相同",
+    "{element} has a pool of the same process": "{element} 有同一流程的池",
+    "and {count} more": "以及另外 {count} 项",
+    "Data store": "数据存储",
+    "Item definition": "项定义",
+    "Category": "类别",
+    "Interface": "接口",
+    "End point": "端点",
+    "Partner entity": "合作伙伴实体",
+    "Partner role": "合作伙伴角色",
+    "Correlation property": "关联属性",
+    "Global task": "全局任务",
+    "Flow from {source} to {target}": "从 {source} 到 {target} 的流",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "两侧都更改了 {elements} 的布局；保留当前的布局",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "两侧都更改了 {elements} 的布局；保留传入的布局",
 };
 
 export default dictionary;

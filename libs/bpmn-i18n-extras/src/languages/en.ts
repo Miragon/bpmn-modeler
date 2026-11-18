@@ -295,14 +295,11 @@ const dictionary: Record<string, string> = {
     "Step through": "Step through",
     "Open conflicts": "Open conflicts",
     "All merged elements": "All merged elements",
-    "Without a shape": "Without a shape",
     "No open conflicts": "No open conflicts",
     "1 open conflict": "1 open conflict",
     "{count} open conflicts": "{count} open conflicts",
-    "Keep this version": "Keep this version",
     "Keep everything inside": "Keep everything inside",
     "Undo pick": "Undo pick",
-    "Your picks": "Your picks",
     "Pulled in:": "Pulled in:",
     "Dropped:": "Dropped:",
     "Open again:": "Open again:",
@@ -318,42 +315,16 @@ const dictionary: Record<string, string> = {
     "Kept from incoming with its flows, your pick": "Kept from incoming with its flows, your pick",
     "Kept from current: {element}": "Kept from current: {element}",
     "Kept from incoming: {element}": "Kept from incoming: {element}",
-    "{element} needs {target}, which no version has":
-        "{element} needs {target}, which no version has",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element} needs {target}, which you picked from a side without it",
-    "{element} needs {target}, which this pick drops":
-        "{element} needs {target}, which this pick drops",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element} needs a part of {target} that this pick leaves out",
-    "{element} needs {target}, which this side does not have":
-        "{element} needs {target}, which this side does not have",
-    "{element} needs {target}, which the result leaves out":
-        "{element} needs {target}, which the result leaves out",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element} needs a part of {target} that the kept version lacks",
-    "{element}, which you picked, needs {target}": "{element}, which you picked, needs {target}",
     "This pick brings in {element}, which needs {target}":
         "This pick brings in {element}, which needs {target}",
     "{element} and {target} hold the same ID": "{element} and {target} hold the same ID",
-    "{element} and {target} each have a pool of the same process":
-        "{element} and {target} each have a pool of the same process",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element} needs a part of {target}, which you picked from a side without it",
-    "{element} needs a part of {target} that this side does not have":
-        "{element} needs a part of {target} that this side does not have",
     "Also keep the flow current removed with it": "Also keep the flow current removed with it",
     "Also keep the {count} flows current removed with it":
         "Also keep the {count} flows current removed with it",
     "Also keep the flow incoming removed with it": "Also keep the flow incoming removed with it",
     "Also keep the {count} flows incoming removed with it":
         "Also keep the {count} flows incoming removed with it",
-    "Kept {element}": "Kept {element}",
-    "Cannot keep {element}": "Cannot keep {element}",
-    "Left out {element}": "Left out {element}",
-    "Cannot leave out {element}": "Cannot leave out {element}",
     "Took back the pick of {element}": "Took back the pick of {element}",
-    "Cannot take back the pick of {element}": "Cannot take back the pick of {element}",
     "Build": "Build",
     "Notes of the build": "Notes of the build",
     "Compare with current": "Compare with current",
@@ -374,6 +345,117 @@ const dictionary: Record<string, string> = {
         "The file's {attribute} differs between the sides; current's is kept",
     "1 conflict left": "1 conflict left",
     "{count} conflicts left": "{count} conflicts left",
+    "Elements of this version the result keeps as they are here.":
+        "Elements of this version the result keeps as they are here.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "Elements of this version the result takes from the other version, or leaves out as the other version removed them.",
+    "Open conflicts on elements this version has.": "Open conflicts on elements this version has.",
+    "Elements only the other version has are counted on the other pane only.":
+        "Elements only the other version has are counted on the other pane only.",
+    "More actions": "More actions",
+    "This step has no shape, so it is listed here.":
+        "This step has no shape, so it is listed here.",
+    "Not visible in the diagram ({count})": "Not visible in the diagram ({count})",
+    "1 open conflict not visible in the diagram": "1 open conflict not visible in the diagram",
+    "{count} open conflicts not visible in the diagram":
+        "{count} open conflicts not visible in the diagram",
+    "Keep current with everything inside": "Keep current with everything inside",
+    "Keep incoming with everything inside": "Keep incoming with everything inside",
+    "Leave out": "Leave out",
+    "Also keep its removed flows": "Also keep its removed flows",
+    "Keep it as current has it": "Keep it as current has it",
+    "Keep it as incoming has it": "Keep it as incoming has it",
+    "Keep it and everything inside as current has them":
+        "Keep it and everything inside as current has them",
+    "Keep it and everything inside as incoming has them":
+        "Keep it and everything inside as incoming has them",
+    "Keep it and every pool with its process as current has them":
+        "Keep it and every pool with its process as current has them",
+    "Keep it and every pool with its process as incoming has them":
+        "Keep it and every pool with its process as incoming has them",
+    "Leave it out, as current removed it": "Leave it out, as current removed it",
+    "Leave it out, as current doesn't have it": "Leave it out, as current doesn't have it",
+    "Leave it out, as incoming removed it": "Leave it out, as incoming removed it",
+    "Leave it out, as incoming doesn't have it": "Leave it out, as incoming doesn't have it",
+    "Go back to what the merge decided by itself": "Go back to what the merge decided by itself",
+    "none": "none",
+    "and other content": "and other content",
+    "Removed in current": "Removed in current",
+    "Not in current": "Not in current",
+    "Removed in incoming": "Removed in incoming",
+    "Not in incoming": "Not in incoming",
+    "Kept from current with everything inside: {element}":
+        "Kept from current with everything inside: {element}",
+    "Kept from incoming with everything inside: {element}":
+        "Kept from incoming with everything inside: {element}",
+    "Kept from current with its flows: {element}": "Kept from current with its flows: {element}",
+    "Kept from incoming with its flows: {element}": "Kept from incoming with its flows: {element}",
+    "Left out: {element}, as current removed it": "Left out: {element}, as current removed it",
+    "Left out: {element}, as current doesn't have it":
+        "Left out: {element}, as current doesn't have it",
+    "Left out: {element}, as incoming removed it": "Left out: {element}, as incoming removed it",
+    "Left out: {element}, as incoming doesn't have it":
+        "Left out: {element}, as incoming doesn't have it",
+    "Took back the pick. {element} is an open conflict again.":
+        "Took back the pick. {element} is an open conflict again.",
+    "Can't keep {element}": "Can't keep {element}",
+    "Can't leave out {element}": "Can't leave out {element}",
+    "Can't take back the pick of {element}": "Can't take back the pick of {element}",
+    "Nothing blocks keeping {element} now": "Nothing blocks keeping {element} now",
+    "Nothing blocks leaving out {element} now": "Nothing blocks leaving out {element} now",
+    "Nothing blocks taking back the pick of {element} now":
+        "Nothing blocks taking back the pick of {element} now",
+    "{element} needs {target}; no version has it": "{element} needs {target}; no version has it",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element} needs {target}; your pick takes a side without it",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element} needs a part of {target}; your pick takes a side without it",
+    "{element} needs {target}; this pick drops it": "{element} needs {target}; this pick drops it",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element} needs a part of {target} this pick leaves out",
+    "{element} needs {target}; this side lacks it": "{element} needs {target}; this side lacks it",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element} needs a part of {target}; this side lacks it",
+    "{element} needs {target}; the result leaves it out":
+        "{element} needs {target}; the result leaves it out",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element} needs a part of {target} the kept version lacks",
+    "Your pick of {element} needs {target}": "Your pick of {element} needs {target}",
+    "{element} and {target} have a pool of the same process":
+        "{element} and {target} have a pool of the same process",
+    "{element} needs it; no version has it": "{element} needs it; no version has it",
+    "{element} needs it; your pick takes a side without it":
+        "{element} needs it; your pick takes a side without it",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element} needs a part of it; your pick takes a side without it",
+    "{element} needs it": "{element} needs it",
+    "{element} needs a part of it this pick leaves out":
+        "{element} needs a part of it this pick leaves out",
+    "{element} needs it; this side lacks it": "{element} needs it; this side lacks it",
+    "{element} needs a part of it; this side lacks it":
+        "{element} needs a part of it; this side lacks it",
+    "{element} needs a part of it the kept version lacks":
+        "{element} needs a part of it the kept version lacks",
+    "Your pick of {element} needs it": "Your pick of {element} needs it",
+    "This pick brings in {element}, which needs it":
+        "This pick brings in {element}, which needs it",
+    "{element} holds the same ID": "{element} holds the same ID",
+    "{element} has a pool of the same process": "{element} has a pool of the same process",
+    "and {count} more": "and {count} more",
+    "Data store": "Data store",
+    "Item definition": "Item definition",
+    "Category": "Category",
+    "Interface": "Interface",
+    "End point": "End point",
+    "Partner entity": "Partner entity",
+    "Partner role": "Partner role",
+    "Correlation property": "Correlation property",
+    "Global task": "Global task",
+    "Flow from {source} to {target}": "Flow from {source} to {target}",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "Both sides changed the layout of {elements}; current's is kept",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "Both sides changed the layout of {elements}; incoming's is kept",
 };
 
 export default dictionary;

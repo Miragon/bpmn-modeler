@@ -304,14 +304,11 @@ const dictionary: Record<string, string> = {
     "Step through": "移動対象",
     "Open conflicts": "未解決の競合",
     "All merged elements": "マージされたすべての要素",
-    "Without a shape": "形状なし",
     "No open conflicts": "未解決の競合はありません",
     "1 open conflict": "未解決の競合 1 件",
     "{count} open conflicts": "未解決の競合 {count} 件",
-    "Keep this version": "このバージョンを保持",
     "Keep everything inside": "内部をすべて保持",
     "Undo pick": "選択を取り消す",
-    "Your picks": "自分の選択",
     "Pulled in:": "追加:",
     "Dropped:": "除外:",
     "Open again:": "再び未解決:",
@@ -325,42 +322,16 @@ const dictionary: Record<string, string> = {
     "Kept from incoming with its flows, your pick": "入力側からフローごと保持 (自分の選択)",
     "Kept from current: {element}": "現在から保持: {element}",
     "Kept from incoming: {element}": "入力側から保持: {element}",
-    "{element} needs {target}, which no version has":
-        "{element} には {target} が必要ですが、どのバージョンにもありません",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element} には {target} が必要ですが、選択した側にはありません",
-    "{element} needs {target}, which this pick drops":
-        "{element} には {target} が必要ですが、この選択で除外されます",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element} には {target} の一部が必要ですが、この選択では含まれません",
-    "{element} needs {target}, which this side does not have":
-        "{element} には {target} が必要ですが、この側にはありません",
-    "{element} needs {target}, which the result leaves out":
-        "{element} には {target} が必要ですが、結果には含まれません",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element} には {target} の一部が必要ですが、保持したバージョンにはありません",
-    "{element}, which you picked, needs {target}": "選択した {element} には {target} が必要です",
     "This pick brings in {element}, which needs {target}":
         "この選択で追加される {element} には {target} が必要です",
     "{element} and {target} hold the same ID": "{element} と {target} の ID が同じです",
-    "{element} and {target} each have a pool of the same process":
-        "{element} と {target} はそれぞれ同じプロセスのプールを持っています",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element} には {target} の一部が必要ですが、選択した側にはありません",
-    "{element} needs a part of {target} that this side does not have":
-        "{element} には {target} の一部が必要ですが、この側にはありません",
     "Also keep the flow current removed with it": "現在が一緒に削除したフローも保持",
     "Also keep the {count} flows current removed with it":
         "現在が一緒に削除した {count} 個のフローも保持",
     "Also keep the flow incoming removed with it": "入力側が一緒に削除したフローも保持",
     "Also keep the {count} flows incoming removed with it":
         "入力側が一緒に削除した {count} 個のフローも保持",
-    "Kept {element}": "{element} を保持しました",
-    "Cannot keep {element}": "{element} を保持できません",
-    "Left out {element}": "{element} を除外しました",
-    "Cannot leave out {element}": "{element} を除外できません",
     "Took back the pick of {element}": "{element} の選択を取り消しました",
-    "Cannot take back the pick of {element}": "{element} の選択を取り消せません",
     "Build": "生成",
     "Notes of the build": "生成の注意事項",
     "Compare with current": "現在と比較",
@@ -381,6 +352,113 @@ const dictionary: Record<string, string> = {
         "ファイルの {attribute} が側によって異なります。現在の値を保持します",
     "1 conflict left": "残りの競合 1 件",
     "{count} conflicts left": "残りの競合 {count} 件",
+    "Elements of this version the result keeps as they are here.":
+        "このバージョンの要素のうち、結果がここでの状態のまま保持するもの。",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "このバージョンの要素のうち、結果がもう一方のバージョンから採用するもの、またはもう一方のバージョンで削除されたため除外するもの。",
+    "Open conflicts on elements this version has.": "このバージョンにある要素の未解決の競合。",
+    "Elements only the other version has are counted on the other pane only.":
+        "もう一方のバージョンにしかない要素は、もう一方のペインでのみ数えられます。",
+    "More actions": "その他の操作",
+    "This step has no shape, so it is listed here.":
+        "このステップには形状がないため、ここに表示されています。",
+    "Not visible in the diagram ({count})": "ダイアグラムに表示されない要素 ({count})",
+    "1 open conflict not visible in the diagram": "ダイアグラムに表示されない未解決の競合 1 件",
+    "{count} open conflicts not visible in the diagram":
+        "ダイアグラムに表示されない未解決の競合 {count} 件",
+    "Keep current with everything inside": "現在を内部ごと保持",
+    "Keep incoming with everything inside": "入力側を内部ごと保持",
+    "Leave out": "除外",
+    "Also keep its removed flows": "削除されたフローも保持",
+    "Keep it as current has it": "現在にあるとおり保持",
+    "Keep it as incoming has it": "入力側にあるとおり保持",
+    "Keep it and everything inside as current has them": "内部ごと現在にあるとおり保持",
+    "Keep it and everything inside as incoming has them": "内部ごと入力側にあるとおり保持",
+    "Keep it and every pool with its process as current has them":
+        "各プールとそのプロセスごと現在にあるとおり保持",
+    "Keep it and every pool with its process as incoming has them":
+        "各プールとそのプロセスごと入力側にあるとおり保持",
+    "Leave it out, as current removed it": "現在で削除されているため除外",
+    "Leave it out, as current doesn't have it": "現在にはないため除外",
+    "Leave it out, as incoming removed it": "入力側で削除されているため除外",
+    "Leave it out, as incoming doesn't have it": "入力側にはないため除外",
+    "Go back to what the merge decided by itself": "マージが自動で決めた状態に戻す",
+    "none": "値なし",
+    "and other content": "その他の内容",
+    "Removed in current": "現在で削除",
+    "Not in current": "現在にはない",
+    "Removed in incoming": "入力側で削除",
+    "Not in incoming": "入力側にはない",
+    "Kept from current with everything inside: {element}": "現在から内部ごと保持: {element}",
+    "Kept from incoming with everything inside: {element}": "入力側から内部ごと保持: {element}",
+    "Kept from current with its flows: {element}": "現在からフローごと保持: {element}",
+    "Kept from incoming with its flows: {element}": "入力側からフローごと保持: {element}",
+    "Left out: {element}, as current removed it": "除外: {element} (現在で削除されているため)",
+    "Left out: {element}, as current doesn't have it": "除外: {element} (現在にはないため)",
+    "Left out: {element}, as incoming removed it": "除外: {element} (入力側で削除されているため)",
+    "Left out: {element}, as incoming doesn't have it": "除外: {element} (入力側にはないため)",
+    "Took back the pick. {element} is an open conflict again.":
+        "選択を取り消しました。{element} は再び未解決の競合です。",
+    "Can't keep {element}": "{element} を保持できません",
+    "Can't leave out {element}": "{element} を除外できません",
+    "Can't take back the pick of {element}": "{element} の選択を取り消せません",
+    "Nothing blocks keeping {element} now": "{element} を保持できるようになりました",
+    "Nothing blocks leaving out {element} now": "{element} を除外できるようになりました",
+    "Nothing blocks taking back the pick of {element} now":
+        "{element} の選択を取り消せるようになりました",
+    "{element} needs {target}; no version has it":
+        "{element} には {target} が必要ですが、どのバージョンにもありません",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element} には {target} が必要ですが、選択した側にはありません",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element} には {target} の一部が必要ですが、選択した側にはありません",
+    "{element} needs {target}; this pick drops it":
+        "{element} には {target} が必要ですが、この選択で除外されます",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element} には {target} の一部が必要ですが、この選択では含まれません",
+    "{element} needs {target}; this side lacks it":
+        "{element} には {target} が必要ですが、この側にはありません",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element} には {target} の一部が必要ですが、この側にはありません",
+    "{element} needs {target}; the result leaves it out":
+        "{element} には {target} が必要ですが、結果には含まれません",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element} には {target} の一部が必要ですが、保持したバージョンにはありません",
+    "Your pick of {element} needs {target}": "{element} の選択には {target} が必要です",
+    "{element} and {target} have a pool of the same process":
+        "{element} と {target} は同じプロセスのプールを持っています",
+    "{element} needs it; no version has it": "{element} に必要ですが、どのバージョンにもありません",
+    "{element} needs it; your pick takes a side without it":
+        "{element} に必要ですが、選択した側にはありません",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element} にはその一部が必要ですが、選択した側にはありません",
+    "{element} needs it": "{element} に必要です",
+    "{element} needs a part of it this pick leaves out":
+        "{element} にはその一部が必要ですが、この選択では含まれません",
+    "{element} needs it; this side lacks it": "{element} に必要ですが、この側にはありません",
+    "{element} needs a part of it; this side lacks it":
+        "{element} にはその一部が必要ですが、この側にはありません",
+    "{element} needs a part of it the kept version lacks":
+        "{element} にはその一部が必要ですが、保持したバージョンにはありません",
+    "Your pick of {element} needs it": "{element} の選択に必要です",
+    "This pick brings in {element}, which needs it": "この選択で追加される {element} に必要です",
+    "{element} holds the same ID": "{element} と ID が同じです",
+    "{element} has a pool of the same process": "{element} は同じプロセスのプールを持っています",
+    "and {count} more": "他 {count} 件",
+    "Data store": "データストア",
+    "Item definition": "アイテム定義",
+    "Category": "カテゴリ",
+    "Interface": "インターフェース",
+    "End point": "エンドポイント",
+    "Partner entity": "パートナーエンティティ",
+    "Partner role": "パートナーロール",
+    "Correlation property": "相関プロパティ",
+    "Global task": "グローバルタスク",
+    "Flow from {source} to {target}": "{source} から {target} へのフロー",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "両側が {elements} のレイアウトを変更しました。現在のレイアウトを保持します",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "両側が {elements} のレイアウトを変更しました。入力側のレイアウトを保持します",
 };
 
 export default dictionary;

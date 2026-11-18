@@ -304,14 +304,11 @@ const dictionary: Record<string, string> = {
     "Step through": "Percorrer",
     "Open conflicts": "Conflitos abertos",
     "All merged elements": "Todos os elementos mesclados",
-    "Without a shape": "Sem forma",
     "No open conflicts": "Nenhum conflito aberto",
     "1 open conflict": "1 conflito aberto",
     "{count} open conflicts": "{count} conflitos abertos",
-    "Keep this version": "Manter esta versão",
     "Keep everything inside": "Manter todo o conteúdo",
     "Undo pick": "Desfazer escolha",
-    "Your picks": "Suas escolhas",
     "Pulled in:": "Incluído:",
     "Dropped:": "Descartado:",
     "Open again:": "Aberto novamente:",
@@ -328,31 +325,9 @@ const dictionary: Record<string, string> = {
         "Mantido de Entrada com seus fluxos, sua escolha",
     "Kept from current: {element}": "Mantido de Atual: {element}",
     "Kept from incoming: {element}": "Mantido de Entrada: {element}",
-    "{element} needs {target}, which no version has":
-        "{element} precisa de {target}, que nenhuma versão tem",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element} precisa de {target}, que falta no lado que você escolheu",
-    "{element} needs {target}, which this pick drops":
-        "{element} precisa de {target}, que esta escolha descarta",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element} precisa de uma parte de {target} que esta escolha deixa de fora",
-    "{element} needs {target}, which this side does not have":
-        "{element} precisa de {target}, que este lado não tem",
-    "{element} needs {target}, which the result leaves out":
-        "{element} precisa de {target}, que o resultado deixa de fora",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element} precisa de uma parte de {target} que falta na versão mantida",
-    "{element}, which you picked, needs {target}":
-        "{element}, que você escolheu, precisa de {target}",
     "This pick brings in {element}, which needs {target}":
         "Esta escolha inclui {element}, que precisa de {target}",
     "{element} and {target} hold the same ID": "{element} e {target} têm o mesmo ID",
-    "{element} and {target} each have a pool of the same process":
-        "{element} e {target} têm cada um um pool do mesmo processo",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element} precisa de uma parte de {target}, que falta no lado que você escolheu",
-    "{element} needs a part of {target} that this side does not have":
-        "{element} precisa de uma parte de {target} que este lado não tem",
     "Also keep the flow current removed with it": "Manter também o fluxo que Atual removeu com ele",
     "Also keep the {count} flows current removed with it":
         "Manter também os {count} fluxos que Atual removeu com ele",
@@ -360,12 +335,7 @@ const dictionary: Record<string, string> = {
         "Manter também o fluxo que Entrada removeu com ele",
     "Also keep the {count} flows incoming removed with it":
         "Manter também os {count} fluxos que Entrada removeu com ele",
-    "Kept {element}": "{element} mantido",
-    "Cannot keep {element}": "Não é possível manter {element}",
-    "Left out {element}": "{element} deixado de fora",
-    "Cannot leave out {element}": "Não é possível deixar {element} de fora",
     "Took back the pick of {element}": "Escolha de {element} desfeita",
-    "Cannot take back the pick of {element}": "Não é possível desfazer a escolha de {element}",
     "Build": "Gerar",
     "Notes of the build": "Notas da geração",
     "Compare with current": "Comparar com Atual",
@@ -386,6 +356,123 @@ const dictionary: Record<string, string> = {
         "O atributo {attribute} do arquivo difere entre os lados; o de Atual é mantido",
     "1 conflict left": "1 conflito restante",
     "{count} conflicts left": "{count} conflitos restantes",
+    "Elements of this version the result keeps as they are here.":
+        "Elementos desta versão que o resultado mantém como estão aqui.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "Elementos desta versão que o resultado toma da outra versão, ou deixa de fora porque a outra versão os removeu.",
+    "Open conflicts on elements this version has.":
+        "Conflitos abertos em elementos que esta versão tem.",
+    "Elements only the other version has are counted on the other pane only.":
+        "Elementos que só a outra versão tem são contados apenas no outro painel.",
+    "More actions": "Mais ações",
+    "This step has no shape, so it is listed here.":
+        "Esta etapa não tem forma, por isso aparece aqui.",
+    "Not visible in the diagram ({count})": "Não visíveis no diagrama ({count})",
+    "1 open conflict not visible in the diagram": "1 conflito aberto não visível no diagrama",
+    "{count} open conflicts not visible in the diagram":
+        "{count} conflitos abertos não visíveis no diagrama",
+    "Keep current with everything inside": "Manter Atual com todo o conteúdo",
+    "Keep incoming with everything inside": "Manter Entrada com todo o conteúdo",
+    "Leave out": "Deixar de fora",
+    "Also keep its removed flows": "Manter também seus fluxos removidos",
+    "Keep it as current has it": "Manter como Atual o tem",
+    "Keep it as incoming has it": "Manter como Entrada o tem",
+    "Keep it and everything inside as current has them":
+        "Manter com todo o conteúdo como Atual o tem",
+    "Keep it and everything inside as incoming has them":
+        "Manter com todo o conteúdo como Entrada o tem",
+    "Keep it and every pool with its process as current has them":
+        "Manter com cada pool e seu processo como Atual os tem",
+    "Keep it and every pool with its process as incoming has them":
+        "Manter com cada pool e seu processo como Entrada os tem",
+    "Leave it out, as current removed it": "Deixar de fora, pois Atual o removeu",
+    "Leave it out, as current doesn't have it": "Deixar de fora, pois Atual não o tem",
+    "Leave it out, as incoming removed it": "Deixar de fora, pois Entrada o removeu",
+    "Leave it out, as incoming doesn't have it": "Deixar de fora, pois Entrada não o tem",
+    "Go back to what the merge decided by itself": "Voltar ao que a mesclagem decidiu sozinha",
+    "none": "sem valor",
+    "and other content": "e outro conteúdo",
+    "Removed in current": "Removido em Atual",
+    "Not in current": "Não está em Atual",
+    "Removed in incoming": "Removido em Entrada",
+    "Not in incoming": "Não está em Entrada",
+    "Kept from current with everything inside: {element}":
+        "Mantido de Atual com todo o conteúdo: {element}",
+    "Kept from incoming with everything inside: {element}":
+        "Mantido de Entrada com todo o conteúdo: {element}",
+    "Kept from current with its flows: {element}": "Mantido de Atual com seus fluxos: {element}",
+    "Kept from incoming with its flows: {element}": "Mantido de Entrada com seus fluxos: {element}",
+    "Left out: {element}, as current removed it":
+        "Deixado de fora: {element}, pois Atual o removeu",
+    "Left out: {element}, as current doesn't have it":
+        "Deixado de fora: {element}, pois Atual não o tem",
+    "Left out: {element}, as incoming removed it":
+        "Deixado de fora: {element}, pois Entrada o removeu",
+    "Left out: {element}, as incoming doesn't have it":
+        "Deixado de fora: {element}, pois Entrada não o tem",
+    "Took back the pick. {element} is an open conflict again.":
+        "Escolha desfeita. {element} é novamente um conflito aberto.",
+    "Can't keep {element}": "Não é possível manter {element}",
+    "Can't leave out {element}": "Não é possível deixar {element} de fora",
+    "Can't take back the pick of {element}": "Não é possível desfazer a escolha de {element}",
+    "Nothing blocks keeping {element} now": "Agora nada impede manter {element}",
+    "Nothing blocks leaving out {element} now": "Agora nada impede deixar {element} de fora",
+    "Nothing blocks taking back the pick of {element} now":
+        "Agora nada impede desfazer a escolha de {element}",
+    "{element} needs {target}; no version has it":
+        "{element} precisa de {target}; nenhuma versão o tem",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element} precisa de {target}; sua escolha toma um lado sem ele",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element} precisa de uma parte de {target}; sua escolha toma um lado sem ela",
+    "{element} needs {target}; this pick drops it":
+        "{element} precisa de {target}; esta escolha o descarta",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element} precisa de uma parte de {target} que esta escolha deixa de fora",
+    "{element} needs {target}; this side lacks it":
+        "{element} precisa de {target}; este lado não o tem",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element} precisa de uma parte de {target}; este lado não a tem",
+    "{element} needs {target}; the result leaves it out":
+        "{element} precisa de {target}; o resultado o deixa de fora",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element} precisa de uma parte de {target} que falta na versão mantida",
+    "Your pick of {element} needs {target}": "Sua escolha de {element} precisa de {target}",
+    "{element} and {target} have a pool of the same process":
+        "{element} e {target} têm um pool do mesmo processo",
+    "{element} needs it; no version has it": "{element} precisa dele; nenhuma versão o tem",
+    "{element} needs it; your pick takes a side without it":
+        "{element} precisa dele; sua escolha toma um lado sem ele",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element} precisa de uma parte dele; sua escolha toma um lado sem ela",
+    "{element} needs it": "{element} precisa dele",
+    "{element} needs a part of it this pick leaves out":
+        "{element} precisa de uma parte dele que esta escolha deixa de fora",
+    "{element} needs it; this side lacks it": "{element} precisa dele; este lado não o tem",
+    "{element} needs a part of it; this side lacks it":
+        "{element} precisa de uma parte dele; este lado não a tem",
+    "{element} needs a part of it the kept version lacks":
+        "{element} precisa de uma parte dele que falta na versão mantida",
+    "Your pick of {element} needs it": "Sua escolha de {element} precisa dele",
+    "This pick brings in {element}, which needs it":
+        "Esta escolha inclui {element}, que precisa dele",
+    "{element} holds the same ID": "{element} tem o mesmo ID",
+    "{element} has a pool of the same process": "{element} tem um pool do mesmo processo",
+    "and {count} more": "e mais {count}",
+    "Data store": "Repositório de dados",
+    "Item definition": "Definição de item",
+    "Category": "Categoria",
+    "Interface": "Interface",
+    "End point": "Ponto de extremidade",
+    "Partner entity": "Entidade parceira",
+    "Partner role": "Papel de parceiro",
+    "Correlation property": "Propriedade de correlação",
+    "Global task": "Tarefa global",
+    "Flow from {source} to {target}": "Fluxo de {source} para {target}",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "Ambos os lados alteraram o layout de {elements}; o de Atual é mantido",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "Ambos os lados alteraram o layout de {elements}; o de Entrada é mantido",
 };
 
 export default dictionary;

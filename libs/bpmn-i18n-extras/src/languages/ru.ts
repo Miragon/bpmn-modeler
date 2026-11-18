@@ -298,14 +298,11 @@ const dictionary: Record<string, string> = {
     "Step through": "Навигация",
     "Open conflicts": "Открытые конфликты",
     "All merged elements": "Все объединённые элементы",
-    "Without a shape": "Без фигуры",
     "No open conflicts": "Нет открытых конфликтов",
     "1 open conflict": "1 открытый конфликт",
     "{count} open conflicts": "Открытых конфликтов: {count}",
-    "Keep this version": "Оставить эту версию",
     "Keep everything inside": "Оставить всё содержимое",
     "Undo pick": "Отменить выбор",
-    "Your picks": "Ваш выбор",
     "Pulled in:": "Добавлено:",
     "Dropped:": "Исключено:",
     "Open again:": "Снова открыто:",
@@ -323,31 +320,9 @@ const dictionary: Record<string, string> = {
         "Оставлено со стороны «Входящее» вместе с потоками, ваш выбор",
     "Kept from current: {element}": "Оставлено со стороны «Текущее»: {element}",
     "Kept from incoming: {element}": "Оставлено со стороны «Входящее»: {element}",
-    "{element} needs {target}, which no version has":
-        "{element}: требуется элемент {target}, которого нет ни в одной версии",
-    "{element} needs {target}, which you picked from a side without it":
-        "{element}: требуется элемент {target}, которого нет на выбранной вами стороне",
-    "{element} needs {target}, which this pick drops":
-        "{element}: требуется элемент {target}, который этот выбор исключает",
-    "{element} needs a part of {target} that this pick leaves out":
-        "{element}: требуется часть элемента {target}, которую этот выбор исключает",
-    "{element} needs {target}, which this side does not have":
-        "{element}: требуется элемент {target}, которого нет на этой стороне",
-    "{element} needs {target}, which the result leaves out":
-        "{element}: требуется элемент {target}, которого нет в результате",
-    "{element} needs a part of {target} that the kept version lacks":
-        "{element}: требуется часть элемента {target}, которой нет в оставленной версии",
-    "{element}, which you picked, needs {target}":
-        "{element} (ваш выбор): требуется элемент {target}",
     "This pick brings in {element}, which needs {target}":
         "Этот выбор добавляет элемент {element}, которому требуется элемент {target}",
     "{element} and {target} hold the same ID": "У элементов {element} и {target} одинаковый ID",
-    "{element} and {target} each have a pool of the same process":
-        "У каждого из элементов {element} и {target} есть пул одного и того же процесса",
-    "{element} needs a part of {target}, which you picked from a side without it":
-        "{element}: требуется часть элемента {target}, которой нет на выбранной вами стороне",
-    "{element} needs a part of {target} that this side does not have":
-        "{element}: требуется часть элемента {target}, которой нет на этой стороне",
     "Also keep the flow current removed with it":
         "Также оставить поток, удалённый вместе с ним стороной «Текущее»",
     "Also keep the {count} flows current removed with it":
@@ -356,12 +331,7 @@ const dictionary: Record<string, string> = {
         "Также оставить поток, удалённый вместе с ним стороной «Входящее»",
     "Also keep the {count} flows incoming removed with it":
         "Также оставить потоки ({count}), удалённые вместе с ним стороной «Входящее»",
-    "Kept {element}": "Оставлено: {element}",
-    "Cannot keep {element}": "Невозможно оставить: {element}",
-    "Left out {element}": "Исключено: {element}",
-    "Cannot leave out {element}": "Невозможно исключить: {element}",
     "Took back the pick of {element}": "Выбор отменён: {element}",
-    "Cannot take back the pick of {element}": "Невозможно отменить выбор: {element}",
     "Build": "Собрать",
     "Notes of the build": "Примечания к сборке",
     "Compare with current": "Сравнить со стороной «Текущее»",
@@ -382,6 +352,129 @@ const dictionary: Record<string, string> = {
         "Атрибут {attribute} файла различается между сторонами; сохраняется значение стороны «Текущее»",
     "1 conflict left": "Остался 1 конфликт",
     "{count} conflicts left": "Осталось конфликтов: {count}",
+    "Elements of this version the result keeps as they are here.":
+        "Элементы этой версии, которые результат оставляет в том виде, в каком они здесь.",
+    "Elements of this version the result takes from the other version, or leaves out as the other version removed them.":
+        "Элементы этой версии, которые результат берёт из другой версии или исключает, так как другая версия их удалила.",
+    "Open conflicts on elements this version has.":
+        "Открытые конфликты в элементах, которые есть в этой версии.",
+    "Elements only the other version has are counted on the other pane only.":
+        "Элементы, которые есть только в другой версии, учитываются только на другой панели.",
+    "More actions": "Другие действия",
+    "This step has no shape, so it is listed here.":
+        "У этого шага нет фигуры, поэтому он указан здесь.",
+    "Not visible in the diagram ({count})": "Не видны на диаграмме ({count})",
+    "1 open conflict not visible in the diagram": "1 открытый конфликт не виден на диаграмме",
+    "{count} open conflicts not visible in the diagram":
+        "Открытых конфликтов, не видимых на диаграмме: {count}",
+    "Keep current with everything inside": "Оставить «Текущее» со всем содержимым",
+    "Keep incoming with everything inside": "Оставить «Входящее» со всем содержимым",
+    "Leave out": "Исключить",
+    "Also keep its removed flows": "Также оставить удалённые потоки",
+    "Keep it as current has it": "Оставить в том виде, как на стороне «Текущее»",
+    "Keep it as incoming has it": "Оставить в том виде, как на стороне «Входящее»",
+    "Keep it and everything inside as current has them":
+        "Оставить вместе со всем содержимым в том виде, как на стороне «Текущее»",
+    "Keep it and everything inside as incoming has them":
+        "Оставить вместе со всем содержимым в том виде, как на стороне «Входящее»",
+    "Keep it and every pool with its process as current has them":
+        "Оставить вместе с каждым пулом и его процессом в том виде, как на стороне «Текущее»",
+    "Keep it and every pool with its process as incoming has them":
+        "Оставить вместе с каждым пулом и его процессом в том виде, как на стороне «Входящее»",
+    "Leave it out, as current removed it": "Исключить, так как сторона «Текущее» его удалила",
+    "Leave it out, as current doesn't have it": "Исключить, так как на стороне «Текущее» его нет",
+    "Leave it out, as incoming removed it": "Исключить, так как сторона «Входящее» его удалила",
+    "Leave it out, as incoming doesn't have it": "Исключить, так как на стороне «Входящее» его нет",
+    "Go back to what the merge decided by itself": "Вернуться к тому, что слияние решило само",
+    "none": "без значения",
+    "and other content": "и другое содержимое",
+    "Removed in current": "Удалено на стороне «Текущее»",
+    "Not in current": "Нет на стороне «Текущее»",
+    "Removed in incoming": "Удалено на стороне «Входящее»",
+    "Not in incoming": "Нет на стороне «Входящее»",
+    "Kept from current with everything inside: {element}":
+        "Оставлено со стороны «Текущее» со всем содержимым: {element}",
+    "Kept from incoming with everything inside: {element}":
+        "Оставлено со стороны «Входящее» со всем содержимым: {element}",
+    "Kept from current with its flows: {element}":
+        "Оставлено со стороны «Текущее» вместе с потоками: {element}",
+    "Kept from incoming with its flows: {element}":
+        "Оставлено со стороны «Входящее» вместе с потоками: {element}",
+    "Left out: {element}, as current removed it":
+        "Исключено: {element}, так как сторона «Текущее» его удалила",
+    "Left out: {element}, as current doesn't have it":
+        "Исключено: {element}, так как на стороне «Текущее» его нет",
+    "Left out: {element}, as incoming removed it":
+        "Исключено: {element}, так как сторона «Входящее» его удалила",
+    "Left out: {element}, as incoming doesn't have it":
+        "Исключено: {element}, так как на стороне «Входящее» его нет",
+    "Took back the pick. {element} is an open conflict again.":
+        "Выбор отменён. {element} — снова открытый конфликт.",
+    "Can't keep {element}": "Невозможно оставить: {element}",
+    "Can't leave out {element}": "Невозможно исключить: {element}",
+    "Can't take back the pick of {element}": "Невозможно отменить выбор: {element}",
+    "Nothing blocks keeping {element} now": "Теперь ничто не мешает оставить элемент {element}",
+    "Nothing blocks leaving out {element} now":
+        "Теперь ничто не мешает исключить элемент {element}",
+    "Nothing blocks taking back the pick of {element} now":
+        "Теперь ничто не мешает отменить выбор элемента {element}",
+    "{element} needs {target}; no version has it":
+        "{element}: требуется элемент {target}, которого нет ни в одной версии",
+    "{element} needs {target}; your pick takes a side without it":
+        "{element}: требуется элемент {target}, а ваш выбор берёт сторону без него",
+    "{element} needs a part of {target}; your pick takes a side without it":
+        "{element}: требуется часть элемента {target}, а ваш выбор берёт сторону без неё",
+    "{element} needs {target}; this pick drops it":
+        "{element}: требуется элемент {target}, который этот выбор исключает",
+    "{element} needs a part of {target} this pick leaves out":
+        "{element}: требуется часть элемента {target}, которую этот выбор исключает",
+    "{element} needs {target}; this side lacks it":
+        "{element}: требуется элемент {target}, которого нет на этой стороне",
+    "{element} needs a part of {target}; this side lacks it":
+        "{element}: требуется часть элемента {target}, которой нет на этой стороне",
+    "{element} needs {target}; the result leaves it out":
+        "{element}: требуется элемент {target}, которого нет в результате",
+    "{element} needs a part of {target} the kept version lacks":
+        "{element}: требуется часть элемента {target}, которой нет в оставленной версии",
+    "Your pick of {element} needs {target}":
+        "Вашему выбору элемента {element} требуется элемент {target}",
+    "{element} and {target} have a pool of the same process":
+        "У элементов {element} и {target} есть пул одного и того же процесса",
+    "{element} needs it; no version has it":
+        "{element}: требуется этот элемент, которого нет ни в одной версии",
+    "{element} needs it; your pick takes a side without it":
+        "{element}: требуется этот элемент, а ваш выбор берёт сторону без него",
+    "{element} needs a part of it; your pick takes a side without it":
+        "{element}: требуется часть этого элемента, а ваш выбор берёт сторону без неё",
+    "{element} needs it": "{element}: требуется этот элемент",
+    "{element} needs a part of it this pick leaves out":
+        "{element}: требуется часть этого элемента, которую этот выбор исключает",
+    "{element} needs it; this side lacks it":
+        "{element}: требуется этот элемент, которого нет на этой стороне",
+    "{element} needs a part of it; this side lacks it":
+        "{element}: требуется часть этого элемента, которой нет на этой стороне",
+    "{element} needs a part of it the kept version lacks":
+        "{element}: требуется часть этого элемента, которой нет в оставленной версии",
+    "Your pick of {element} needs it": "Вашему выбору элемента {element} требуется этот элемент",
+    "This pick brings in {element}, which needs it":
+        "Этот выбор добавляет элемент {element}, которому требуется этот элемент",
+    "{element} holds the same ID": "У элемента {element} такой же ID",
+    "{element} has a pool of the same process": "У элемента {element} есть пул того же процесса",
+    "and {count} more": "и ещё {count}",
+    "Data store": "Хранилище данных",
+    "Item definition": "Определение элемента",
+    "Category": "Категория",
+    "Interface": "Интерфейс",
+    "End point": "Конечная точка",
+    "Partner entity": "Сущность партнёра",
+    "Partner role": "Роль партнёра",
+    "Correlation property": "Свойство корреляции",
+    "Global task": "Глобальная задача",
+    "Flow from {source} to {target}": "Поток {source} → {target}",
+    "Both sides changed the layout of {elements}; current's is kept":
+        "Обе стороны изменили расположение элементов {elements}; сохраняется расположение стороны «Текущее»",
+    "Both sides changed the layout of {elements}; incoming's is kept":
+        "Обе стороны изменили расположение элементов {elements}; сохраняется расположение стороны «Входящее»",
 };
 
 export default dictionary;
