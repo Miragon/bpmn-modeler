@@ -179,16 +179,19 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   neighbour, selects nothing and drops its old selection. The stepping pane then posts
   `DiffSelectionChangedCommand` with the change, also one only the partner draws, so an
   open XML diff follows on the selection's route and a closed one stays closed; the
-  partner's mirror finds the change selected already, so nothing echoes. The rule lives
-  in the webview's `DiffMode`, with the decision in `diffStepSelection`;
-  `DiffNavigator` only names the change and whether it drew it (`currentChangeId`,
-  `drawsCurrentChange`) and `DiffViewer.selectStep` selects it, so the stepper of a
-  `DiffPaneCoordinator`, which shares no selection, still selects nothing. The blue
-  glow stays beside the outline: it marks the stepper's place, which a later click does
-  not move. Show all keeps the selection, as the merge view's does, except where leaving
-  a sub-process plane drops it. The cost: two webview homes for a step's selection,
-  `DiffMode` and `mergeMode`'s `goTo`, and a core that cannot tell a step's selection
-  from a click's.
+  partner's mirror finds the change selected already, so nothing echoes. The decision
+  lives in the webview's `diffStepSelection`, which `DiffMode` and the merge view's
+  step both apply. A diff pane knows a change only its version has from its side of
+  `ApplyDiffHighlightsQuery`, whose `added` and `removed` hold exactly those
+  (`BpmnDiffService` pins it); a merge pane from its step's `onThisPane` and
+  `onOtherPane`. `DiffNavigator` and `DiffPaneCoordinator` only name the change and
+  whether a pane drew it (`currentChangeId`, `drawsCurrentChange`) and
+  `DiffViewer.selectStep` selects it, so a `DiffPaneCoordinator`, which shares no
+  selection, still selects nothing by itself. The blue glow stays beside the outline:
+  it marks the stepper's place, which a later click does not move. Show all keeps the
+  selection, as the merge view's does, except where leaving a sub-process plane drops
+  it. The cost: two webview callers that each read the stepped change their own way,
+  and a core that cannot tell a step's selection from a click's.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
   KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in one pane:
   the one the user selected in, or for a step the stepping pane, or the partner when

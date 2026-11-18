@@ -25,7 +25,7 @@ import { centreOf, type PositionedElement, viewboxCentredOn } from "../../elemen
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
 import { bpmnElementIdOf, singleSelectedElementId, type BpmnDiagramElement } from "./diffSelection";
-import { armKeepUserSelectionVisible, UserChangeGuard } from "./selectionPolicy";
+import { armKeepSelectionVisible, UserChangeGuard } from "./selectionPolicy";
 
 /**
  * How a pane names the plane it opened on, so a process on one side and a
@@ -114,7 +114,7 @@ export class DiffViewer {
         this.store.add(() => this.sizeObserver.dispose());
         this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
         this.store.add(
-            ...armKeepUserSelectionVisible(
+            ...armKeepSelectionVisible(
                 {
                     eventBus: this.getViewer().get<EventBus>("eventBus"),
                     canvas: this.getCanvas(),
@@ -418,9 +418,10 @@ export class DiffViewer {
      * Subscribes to the user changing the selection: the selected element's
      * BPMN id (a label as the element it labels), or `undefined` when the
      * selection is empty or holds several elements. Not reported are
-     * {@link mirrorSelection}, the selection an {@link importXML} drops and a
-     * selection the pane drops by entering a plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports every
-     * selection as diagram element ids, it names one BPMN element, so two
+     * {@link mirrorSelection}, {@link selectStep}, the selection an
+     * {@link importXML} drops and a selection the pane drops by entering a
+     * plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports
+     * every selection as diagram element ids, it names one BPMN element, so two
      * versions of a diagram can share it. Returns a disposer that unsubscribes.
      */
     onSelectedElementChanged(listener: (elementId: string | undefined) => void): () => void {

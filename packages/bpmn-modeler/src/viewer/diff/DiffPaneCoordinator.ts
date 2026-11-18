@@ -93,12 +93,12 @@ export class DiffPaneCoordinator {
 
     /** The change the shared cursor is on; `undefined` before the first step. */
     get currentChangeId(): string | undefined {
-        return undefined;
+        return this.beforeNav.currentChangeId;
     }
 
     /** Whether that side's pane focused {@link currentChangeId}, rather than anchoring on a neighbour. */
-    drawsCurrentChange(_side: DiffSide): boolean {
-        return false;
+    drawsCurrentChange(side: DiffSide): boolean {
+        return (side === "before" ? this.beforeNav : this.afterNav).drawsCurrentChange;
     }
 
     /** Whether Next and Previous have a change to step to; pass it to each pane's legend. */

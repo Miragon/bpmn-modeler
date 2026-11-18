@@ -40,7 +40,7 @@ Each pane has one bar: its side, branch and commit, and how many elements it mar
 
 <figure class="shot"><img src="./images/bm-pick.png" alt="Both panes with a badge reading ✓ Incoming above the renamed task and its context pad open with icons only, the incoming bar at 1/1 with Build enabled, and a card below the incoming task reading Kept from incoming: Check feature order"><figcaption>A pick carries a badge naming the kept side above the element, on each pane that draws it.</figcaption></figure>
 
-Step to an element with **‹** and **›**, or click it: the step selects it on each pane that draws it and opens its context pad there. Hover an icon on the pad to see what it does:
+Step to an element with **‹** and **›**, or click it: the step selects it on each pane that draws it and opens its context pad there. While an element's XML changes are open, a step moves them to the element it lands on, as a click does; a step onto an element without a shape leaves them where they are. Hover an icon on the pad to see what it does:
 
 - **Keep current** (left pane) or **Keep incoming** (right pane): keep that side's version.
 - **Keep everything inside**: a sub-process, pool or lane with every element in it, from that side. A process, a collaboration or another container without a shape is kept with everything inside from its row in the **…** menu (see below); for a collaboration, everything inside is every pool and its process.

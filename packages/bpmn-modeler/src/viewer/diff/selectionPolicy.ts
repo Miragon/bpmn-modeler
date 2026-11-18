@@ -92,12 +92,12 @@ export class UserChangeGuard {
  * user pan, so the partner follows through the viewport sync; a mirroring pane's
  * own scroll would post a competing viewport.
  */
-export function armKeepUserSelectionVisible(
+export function armKeepSelectionVisible(
     diagram: { eventBus: EventBus; canvas: Canvas; selection: Selection },
     pane: { changes: UserChangeGuard; isPaneSized(): boolean },
 ): Disposer[] {
     const { eventBus, canvas, selection } = diagram;
-    let selectionIsUsers = false;
+    let selectionKeptInView = false;
     // Measured on every viewbox, selection and size change, so a resize can tell what it cut off.
     let selectionWasVisible = false;
 
@@ -115,7 +115,7 @@ export function armKeepUserSelectionVisible(
         }
         const element = singleSelected(selection.get());
         const centre = element ? centreOf(element as PositionedElement) : undefined;
-        if (centre && selectionIsUsers && selectionWasVisible && !isSelectionVisible()) {
+        if (centre && selectionKeptInView && selectionWasVisible && !isSelectionVisible()) {
             canvas.viewbox(viewboxCentredOn(centre, canvas.viewbox()));
         }
         recordSelectionVisibility();
@@ -123,7 +123,7 @@ export function armKeepUserSelectionVisible(
 
     return [
         subscribe(eventBus, "selection.changed", () => {
-            selectionIsUsers = pane.changes.keepsSelectionInView();
+            selectionKeptInView = pane.changes.keepsSelectionInView();
             recordSelectionVisibility();
         }),
         subscribe(eventBus, "canvas.viewbox.changed", recordSelectionVisibility),

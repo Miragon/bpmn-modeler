@@ -421,26 +421,27 @@ not show, so a pane never keeps an element its partner no longer selects. It dif
 `SelectionManager.onSelectionChanged` on purpose: that one reports every selection as diagram
 element ids (a label as `<id>_label`), which do not identify the same element across two versions.
 `importXML` reports nothing, so a pane that imports late does not clear its partner's selection.
-When a resize cuts off a selection that was fully in view, only the pane the user selected in
-centres it, as a user pan, so `DiffPaneCoordinator` carries the new viewport to the partner; the
+When a resize cuts off a selection that was fully in view, only the pane the user selected in, or
+the one `selectStep` was given `keepInView: true`, centres it, as a user pan, so `DiffPaneCoordinator` carries the new viewport to the partner; the
 mirroring pane stays put. A selection the user panned away from, or one still in full view, stays
 where it is. Pass `OutlineModule` with a context pad so the selection is visible.
 
 Neither `DiffNavigator` nor `DiffPaneCoordinator` selects the change a step lands on; it only glows.
-To select it, as the modeler's own diff panes do, read the navigator's `currentChangeId` and
-`drawsCurrentChange` after a step and call `selectStep` on each pane that draws the change; a pane
-that does not draw it gets `selectStep( undefined, … )`, which drops its old selection. Like
-`mirrorSelection`, `selectStep` reports nothing to `onSelectedElementChanged` listeners. Pass
+To select it, as the modeler's own diff panes do, read `currentChangeId` after a step, and whether
+each pane drew it, and call `selectStep` on each pane that draws the change; a pane that does not
+draw it gets `selectStep( undefined, … )`, which drops its old selection. `DiffPaneCoordinator`
+answers with `drawsCurrentChange( side )`, a `DiffNavigator` of your own with `drawsCurrentChange`.
+Like `mirrorSelection`, `selectStep` reports nothing to `onSelectedElementChanged` listeners. Pass
 `keepInView: true` on one pane only, the one whose resize should keep the change in view, usually
-the pane the user stepped in or the only one that has the change:
+the after pane or the only one that has the change:
 
 ```ts
-const navigator = new DiffNavigator( after );
-navigator.setChanges( result.navigationOrder );
-navigator.advance( 1 );
-after.selectStep( navigator.drawsCurrentChange ? navigator.currentChangeId : undefined, {
-    keepInView: true,
-} );
+coordinator.next();
+const changeId = coordinator.currentChangeId;
+const drawnBefore = coordinator.drawsCurrentChange( "before" );
+const drawnAfter = coordinator.drawsCurrentChange( "after" );
+before.selectStep( drawnBefore ? changeId : undefined, { keepInView: drawnBefore && !drawnAfter } );
+after.selectStep( drawnAfter ? changeId : undefined, { keepInView: drawnAfter } );
 ```
 
 `DiffPaneCoordinator` keeps the two panes' pan/zoom in lockstep and steps a single shared cursor

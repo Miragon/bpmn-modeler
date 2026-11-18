@@ -184,7 +184,10 @@ describe("BpmnDiffService", () => {
     });
 
     it("lists as each pane's added and removed exactly the changes only its version has", async () => {
-        const versionWith = (task: string, keptName: string) => `<?xml version="1.0" encoding="UTF-8"?>
+        const versionWith = (
+            task: string,
+            keptName: string,
+        ) => `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="false">
     <bpmn:task id="${task}" />
