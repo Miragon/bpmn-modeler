@@ -3,7 +3,8 @@ name: Sync release lines
 # No release line watches source code: release-please releases each line from
 # the commits that change its folder release/<id>/, and only this workflow
 # writes there. For every first-parent commit of a push, release-routing.mjs
-# decides the lines from .github/release-lines.json and writes one attribution
+# decides the lines from the merged PR's "Ships in" boxes, else from
+# .github/release-lines.json and the changed files, and writes one attribution
 # commit per line group (subject "<subject> [sync <short sha>]") through the Git
 # Data API, all as one fast-forward of main. A line that already has the
 # attribution of a commit is skipped, so a re-run writes nothing twice.

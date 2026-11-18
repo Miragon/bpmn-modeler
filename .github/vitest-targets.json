@@ -317,6 +317,10 @@
                 ".github/scripts/release-lines-sync.{mjs,d.mts}",
                 ".github/scripts/glob.{mjs,d.mts}",
                 ".github/release-lines.json",
+                ".github/pull_request_template.md",
+                ".github/workflows/lint-pr-title.yml",
+                ".claude/hooks/ships-in-check.{mjs,d.mts}",
+                ".claude/settings.json",
                 ".github/vscode-smoke-suites.json",
                 "apps/vscode-plugin/test/smoke/*.smoke.test.ts"
             ],

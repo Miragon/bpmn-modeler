@@ -1,0 +1,20 @@
+{
+    "session_id": "abc123",
+    "transcript_path": "/tmp/transcript.jsonl",
+    "cwd": "/tmp/bpmn-modeler",
+    "permission_mode": "default",
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+        "command": "git push -u origin feat/merge && gh pr create --title \"feat(bpmn-merge): offer the removed boundary events\" --body \"$(cat <<'EOF'\n## Ships in\n\n- [ ] `vscode`\nEOF\n)\"",
+        "description": "Push and open the PR"
+    },
+    "tool_response": {
+        "stdout": "branch 'feat/merge' set up to track 'origin/feat/merge'.\nhttps://github.com/Miragon/bpmn-modeler/pull/2600\n",
+        "stderr": "",
+        "interrupted": false,
+        "isImage": false
+    },
+    "tool_use_id": "toolu_01ABC123",
+    "duration_ms": 2400
+}

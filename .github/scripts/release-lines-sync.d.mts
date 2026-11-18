@@ -1,4 +1,10 @@
-import type { AttributionFile, AttributionWrite } from "./release-routing.mjs";
+import type {
+    Attribution,
+    AttributionFile,
+    AttributionWrite,
+    ReleaseLineRegistry,
+    ShipsInDeclaration,
+} from "./release-routing.mjs";
 
 /** The Git Data API calls that chain attribution commits onto main. */
 export interface GitDataApi {
@@ -13,3 +19,24 @@ export function writeAttributions(
     base: string,
     writes: readonly AttributionWrite[],
 ): { unchanged: AttributionWrite[] };
+
+export interface PullRequestToCheck {
+    title: string;
+    body: string;
+    files: readonly string[];
+    headBranch: string | undefined;
+}
+
+export interface CheckResult {
+    errors: string[];
+    derivedLines: string[];
+    declaration: ShipsInDeclaration;
+    attribution: Attribution;
+    suggestion: string;
+}
+
+export function checkPullRequest(
+    pullRequest: PullRequestToCheck,
+    registry: ReleaseLineRegistry,
+): CheckResult;
+export function checkSummary(result: Pick<CheckResult, "errors" | "suggestion">): string;

@@ -39,3 +39,48 @@ jobs:
           # Host attribution in the changelog is a cosmetic scope prefix, and one
           # webview scope can map to several hosts.
           requireScope: false
+
+  # Checks the body's "Ships in" boxes against the title and the changed files
+  # (release-routing.mjs validate). Runs on every PR, the release PR and
+  # Dependabot's included, so it can be required; `edited` re-checks a body
+  # edit. Only the base branch's code runs: the PR's title and body arrive
+  # through env and files, never inside the script.
+  release-lines:
+    name: Validate release lines
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Check the Ships in declaration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          # A base branch from before the check (an older stacked base) has nothing to run.
+          if ! grep -q '^export function validate' .github/scripts/release-routing.mjs; then
+            echo "The base branch has no release-line check yet; nothing to validate."
+            exit 0
+          fi
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/pr-files.txt"
+          node .github/scripts/release-lines-sync.mjs check \
+            --title "$PR_TITLE" \
+            --body-file "$RUNNER_TEMP/pr-body.md" \
+            --files-file "$RUNNER_TEMP/pr-files.txt" \
+            --head-branch "$HEAD_BRANCH"

@@ -186,7 +186,7 @@ describe("the commits on main that are not routed", () => {
         { title: "chore: release main (#13)", reason: "release commit" },
         {
             title: "chore(main): release things",
-            pullRequestHead: releaseBranchOf("main"),
+            pullRequest: { head: releaseBranchOf("main"), body: "" },
             reason: "release commit",
         },
     ])("skips $title as a $reason", (commit) => {
@@ -198,7 +198,9 @@ describe("the commits on main that are not routed", () => {
     });
 
     it("routes a feat merged from a feature branch", () => {
-        expect(skipReason({ title: "feat: a (#14)", pullRequestHead: "feat/a" })).toBeUndefined();
+        expect(
+            skipReason({ title: "feat: a (#14)", pullRequest: { head: "feat/a", body: "" } }),
+        ).toBeUndefined();
     });
 
     it("reads the short sha an attribution commit names", () => {

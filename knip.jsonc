@@ -55,6 +55,7 @@
         ".github/scripts/release-routing.d.mts",
         ".github/scripts/release-lines-sync.d.mts",
         ".github/scripts/glob.d.mts",
+        ".claude/hooks/ships-in-check.d.mts",
         // Types the shared rule rows for the spec that imports them; a JSON
         // import resolves to it through the same sibling lookup.
         "libs/modeler-types/src/elementTemplateFile.cases.d.json.ts",

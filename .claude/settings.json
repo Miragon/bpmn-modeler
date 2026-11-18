@@ -20,5 +20,26 @@
       "mcp__plugin_playwright_playwright__browser_network_requests",
       "mcp__plugin_playwright_playwright__browser_resize"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh pr *)",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ships-in-check.mjs\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "if": "Bash(rtk gh pr *)",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ships-in-check.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
   }
 }

@@ -1,0 +1,12 @@
+{
+    "number": 2600,
+    "url": "https://github.com/Miragon/bpmn-modeler/pull/2600",
+    "title": "feat(bpmn-merge): offer the removed boundary events",
+    "headRefName": "feat/merge",
+    "body": "## Issue\r\n\r\nCloses #2599\r\n\r\n## Description\r\n\r\nOffers the boundary events.\r\n\r\n## Ships in\r\n\r\n<!--\r\nA line can show its own changelog subject instead of the PR title:\r\n  - [x] `bpmn-modeler` as `fix(viewer): keep the zoom`\r\n-->\r\n\r\n- [ ] `bpmn-modeler`: npm package `@miragon/bpmn-modeler`\r\n- [ ] `vscode`: VS Code extension, Open VSX, standalone app\r\n- [ ] `intellij`: IntelliJ plugin\r\n- [ ] `orca`: Orca plugin\r\n- [ ] `dmn-modeler`: npm package `@miragon/dmn-modeler`\r\n- [ ] `none`: no released user gets it\r\n\r\n## Author checklist\r\n\r\n- [x] PR title follows Conventional Commits\r\n",
+    "files": [
+        { "path": "libs/bpmn-merge/src/pickOutcome.ts", "additions": 40, "deletions": 3 },
+        { "path": "libs/bpmn-merge/src/pickOutcome.spec.ts", "additions": 80, "deletions": 0 },
+        { "path": "libs/shared/src/lib/mergePaneMessages.ts", "additions": 4, "deletions": 0 }
+    ]
+}
