@@ -27,12 +27,14 @@ const sample: ReleaseLineRegistry = {
             componentPath: "release/package",
             ships: ["packages/lib/**", "libs/types/**"],
             breaking: ["**"],
+            wiring: "does a consumer of the package reach the code?",
         },
         {
             id: "host",
             componentPath: "release/host",
             ships: ["apps/host/**", "packages/lib/**", "libs/types/**", "libs/merge/**"],
             breaking: ["apps/host/**"],
+            wiring: "does the host open the editor that uses the code?",
         },
     ],
 };
@@ -455,9 +457,11 @@ describe("the validation of a PR", () => {
         expect(rest).toEqual([]);
         expect(error).toContain("reaches `package`, `host` by its files");
         expect(error).toContain("by wiring");
+        expect(error).toContain("tick only the lines whose users get the change");
         expect(error).toContain(
             suggest({ title: "feat(types): add a", files: shared, registry: sample }),
         );
+        expect(error).not.toContain("- [x]");
     });
 
     it.each([
@@ -629,16 +633,67 @@ describe("the PR number of a squash commit", () => {
 });
 
 describe("the suggested Ships in block", () => {
-    it("ticks the derived lines and leaves the others and none unticked", () => {
-        expect(suggest({ title: "feat: a", files: ["libs/merge/m.ts"], registry: sample })).toBe(
-            ["## Ships in", "", "- [ ] `package`", "- [x] `host`", "- [ ] `none`", ""].join("\n"),
+    const shared = ["libs/types/a.ts"];
+    const pasted = (block: string) =>
+        validate({
+            title: "feat(types): add a",
+            body: `## Description\n\nText.\n\n${block}`,
+            files: shared,
+            registry: sample,
+            headBranch: "feat/a",
+        });
+
+    it("lists each line the files reach unticked with its wiring question, then none", () => {
+        expect(suggest({ title: "feat: a", files: shared, registry: sample })).toBe(
+            [
+                "## Ships in",
+                "",
+                "<!-- Tick only the lines whose users get the change; `none` is for a fix to a feature no release shipped. -->",
+                "",
+                "- [ ] `package`: does a consumer of the package reach the code?",
+                "- [ ] `host`: does the host open the editor that uses the code?",
+                "- [ ] `none`",
+                "",
+            ].join("\n"),
         );
     });
 
-    it("parses back to the derived lines", () => {
-        const block = suggest({ title: "feat: a", files: ["libs/types/a.ts"], registry: sample });
+    it("leaves out the lines the files do not reach", () => {
+        const block = suggest({ title: "feat: a", files: ["libs/merge/m.ts"], registry: sample });
 
-        expect(parseShipsIn(block, sample).lines).toEqual(["package", "host"]);
+        expect(block).toContain("- [ ] `host`");
+        expect(block).not.toContain("`package`");
+    });
+
+    it("names a line without a wiring question by its id alone", () => {
+        const unwired: ReleaseLineRegistry = {
+            ...sample,
+            lines: sample.lines.map(({ wiring: _wiring, ...line }) => line),
+        };
+
+        expect(suggest({ files: ["libs/merge/m.ts"], registry: unwired })).toContain(
+            "\n- [ ] `host`\n- [ ] `none`\n",
+        );
+    });
+
+    it("ticks nothing, so pasted unchanged it still fails the check", () => {
+        const block = suggest({ title: "feat: a", files: shared, registry: sample });
+
+        expect(parseShipsIn(block, sample)).toMatchObject({ lines: [], none: false, errors: [] });
+        expect(pasted(block)).toEqual([expect.stringContaining("must say which of them ships it")]);
+    });
+
+    it.each([
+        { box: "`host`", lines: ["host"], none: false },
+        { box: "`none`", lines: [], none: true },
+    ])("passes the check once $box is ticked in the pasted block", ({ box, lines, none }) => {
+        const block = suggest({ title: "feat: a", files: shared, registry: sample }).replace(
+            `- [ ] ${box}`,
+            `- [x] ${box}`,
+        );
+
+        expect(parseShipsIn(block, sample)).toMatchObject({ lines, none });
+        expect(pasted(block)).toEqual([]);
     });
 });
 
@@ -660,6 +715,24 @@ describe("real merged PRs", () => {
                 headBranch: "peterhnm/feat-2486-restore-source-default",
             }),
         ).toHaveLength(1);
+    });
+
+    it("suggests every line a translation reaches unticked, so the merge view must pick vscode", () => {
+        const merge = {
+            title: "feat(bpmn-merge): restore the source's default with a restored flow",
+            files: mergeFiles,
+            registry,
+            headBranch: "peterhnm/feat-2486-restore-source-default",
+        };
+        const block = suggest(merge);
+        const withBlock = (body: string) => validate({ ...merge, body });
+
+        for (const line of registry.lines) {
+            expect(block).toContain(`- [ ] \`${line.id}\`: ${line.wiring}`);
+        }
+        expect(block).not.toContain("- [x]");
+        expect(withBlock(block)).toHaveLength(1);
+        expect(withBlock(block.replace("- [ ] `vscode`", "- [x] `vscode`"))).toEqual([]);
     });
 
     it("lists the merge view under VS Code only once the PR ticks vscode", () => {

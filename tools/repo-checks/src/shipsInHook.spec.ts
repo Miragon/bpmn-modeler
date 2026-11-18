@@ -217,9 +217,11 @@ describe("the hook's answer", () => {
         expect(output).toMatchObject({ decision: "block" });
         expect(output?.reason).toContain("reach `vscode`, `intellij`, `orca`");
         expect(output?.reason).toContain("judged by wiring");
-        expect(output?.reason).toContain(`\`intellij\`: ${wiringOf("intellij")}`);
+        expect(output?.reason).toContain(`- [ ] \`intellij\`: ${wiringOf("intellij")}`);
+        expect(output?.reason).toContain("- [ ] `none`");
+        expect(output?.reason).toContain("`none` is for a fix to a feature no release shipped");
         expect(output?.reason).toContain("gh pr edit 2600 --body-file <file>");
-        expect(output?.reason).toContain("- [x] `orca`");
+        expect(output?.reason).not.toContain("- [x]");
     });
 
     it("asks to confirm each ticked line by its wiring", () => {

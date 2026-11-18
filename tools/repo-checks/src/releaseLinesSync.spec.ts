@@ -26,7 +26,10 @@ describe("the check of a PR", () => {
 
         expect(result.errors).toHaveLength(1);
         expect(result.derivedLines).toEqual(["vscode", "intellij", "orca"]);
-        expect(result.suggestion).toContain("- [x] `orca`");
+        expect(result.suggestion).toContain(
+            `- [ ] \`orca\`: ${registry.lines.find(({ id }) => id === "orca")?.wiring}`,
+        );
+        expect(result.suggestion).not.toContain("- [x]");
         expect(result.attribution.source).toBe("derived");
     });
 
@@ -61,7 +64,7 @@ describe("the check of a PR", () => {
                 "second",
                 "```",
                 "",
-                "The lines the changed files reach, ready to paste under the PR body's Ships in:",
+                "The lines the changed files reach, unticked: paste them under the PR body's Ships in and tick only those whose users get the change.",
                 "",
                 "```markdown",
                 "## Ships in",
@@ -78,7 +81,7 @@ describe("the check of a PR", () => {
         const summary = checkSummary({ errors: [`declare it:\n\n${block}`], suggestion: block });
 
         expect(summary.split("## Ships in")).toHaveLength(2);
-        expect(summary).not.toContain("ready to paste under");
+        expect(summary).not.toContain("The lines the changed files reach");
     });
 
     it("writes no summary when the check passes", () => {
