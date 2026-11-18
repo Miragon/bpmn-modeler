@@ -28,6 +28,7 @@ export * from "./dom";
 export * from "./diffStepper";
 export * from "./diffVocabulary";
 export * from "./mergeVocabulary";
+export * from "./conflictMarkers";
 export * from "./elementTypeNames";
 export * from "./layout";
 export * from "./errors";

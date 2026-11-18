@@ -8,6 +8,7 @@ import {
     standaloneElementText,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
+import { readConflictMarkers } from "@miragon/bpmn-modeler-types/conflictMarkers";
 
 import type { MergeSources } from "./buildMergedSources";
 import { elementReferenceOf } from "./elementVersion";
@@ -38,7 +39,6 @@ import { type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 
 const BPMN_MODEL_NAMESPACE = "http://www.omg.org/spec/BPMN/20100524/MODEL";
 const XML_SCHEMA_INSTANCE_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance";
-const CONFLICT_MARKER_LINE = /^(<{7}|\|{7}|={7}|>{7})(\s|$)/m;
 
 type Refused = { readonly refusal: HandMergeRefusal };
 
@@ -143,7 +143,7 @@ async function textRefusalOf(
     id: string,
     { type, scope, typeOfOuter }: ElementText,
 ): Promise<HandMergeRefusal | undefined> {
-    if (CONFLICT_MARKER_LINE.test(text)) return { kind: "conflictMarkersLeft" };
+    if (readConflictMarkers(text).hasMarkers) return { kind: "conflictMarkersLeft" };
     const rootRefusal = await rootRefusalOf(text, type);
     if (rootRefusal) return rootRefusal;
     const unknown = await unknownNamespacesOf(sources, text);

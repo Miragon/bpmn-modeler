@@ -12,19 +12,19 @@ import {
     detectEngineWithNamespaceFallback,
     Engine,
     ENGINE_EXECUTION_PLATFORM,
-    ENGINE_NAMESPACE,
     ENGINE_LABEL,
+    ENGINE_NAMESPACE,
     ExecutionPlatformAttributeNames,
     executionPlatformAttributeNames,
     isBlankDocument,
     MODELER_NAMESPACE_URI,
+    readConflictMarkers,
     readDefinitionsStartTag,
     readStartTag,
     XmlAttribute,
     XmlStartTag,
 } from "@miragon/bpmn-modeler-types";
 
-import { readConflictMarkers } from "./conflictMarkers";
 import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 import { NewModelEngine } from "./newModelEngine";

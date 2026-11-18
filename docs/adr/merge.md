@@ -39,7 +39,10 @@ The core, the protocol and the merge view's webview share one vocabulary (the si
 markers a pane paints, the caption roles) in `libs/modeler-types/src/mergeVocabulary.ts`, which
 imports nothing at runtime; the library reaches it through the
 `@miragon/bpmn-modeler-types/mergeVocabulary` subpath, everything else through the barrel,
-whose exact specifier is the only one the core's `domain/` may import.
+whose exact specifier is the only one the core's `domain/` may import. Git's conflict-marker
+grammar sits beside it in `conflictMarkers.ts` (subpath `/conflictMarkers`) for the same
+reason: the core reads a file's markers and the library refuses a hand-merged text that still
+holds them, and a second grammar had already drifted from the first.
 
 `libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so the
 vocabulary file is excluded from the npm component by path like this library, and the merge

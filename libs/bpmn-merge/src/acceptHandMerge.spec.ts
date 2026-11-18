@@ -109,6 +109,18 @@ describe("acceptHandMerge", () => {
         expect(xml).toContain('<bpmn:userTask id="Task_Pack" name="Pack box"');
     });
 
+    it("takes documentation with a line of seven equals signs, which is no conflict", async () => {
+        const { decisions, textOf, accept } = await pickedOn("current");
+        const documented = replaced(
+            textOf("Task_Pack"),
+            " />",
+            ">\n  <bpmn:documentation>Payment\n=======\nBy card</bpmn:documentation>\n</bpmn:userTask>",
+        );
+
+        expect(await accept("Task_Pack", documented)).toEqual({ applied: true });
+        expect(decisions.handMergeOf("Task_Pack")?.shownText).toBe(documented);
+    });
+
     it("keeps the text as it was shown, so taking it again changes nothing", async () => {
         const versions = containersChangedByBoth();
         const [result, sources] = await Promise.all([
