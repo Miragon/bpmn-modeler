@@ -60,17 +60,106 @@ reading the registry
   tests, fixtures, READMEs, changelogs.
 - `unreleased` lists the workspaces no line ships (`tools/*`, `docs`).
 
-For a `feat` or `fix`, the lines are those that ship one of its changed files
+For a `feat` or `fix`, the lines are those its PR ticks under "Ships in" (see
+below). With nothing ticked, they are those that ship one of its changed files
 that is not ignored. `chore`, `docs` and `refactor` reach no line, and neither
 does a change to only top-level files (`yarn.lock`, `package.json`, `AGENTS.md`),
-`.github`, docs or tests. Until #2548 adds a declaration in the PR, the lines come
-from the files alone, so a change to a shared library reaches every line that
-bundles it, whether or not that line offers the feature.
+`.github`, docs or tests.
 
-Only the commit's subject, the PR title, reaches a line. Mark a breaking change
-with `!` in the title: a `BREAKING CHANGE:` or `Release-As:` footer does not reach
-the attribution commit. Set a version with `release-as` instead (see "Correcting a
-pending release PR").
+Only the commit's subject, the PR title, reaches a line, unless the PR gives a
+line its own wording. Mark a breaking change with `!` in the title: a
+`BREAKING CHANGE:` or `Release-As:` footer does not reach the attribution commit.
+Set a version with `release-as` instead (see "Correcting a pending release PR").
+
+### Declaring the lines in a PR
+
+The files say what a line bundles, not what it offers. The merge view lives in
+`libs/bpmn-merge` and `libs/modeler-types`, which several lines bundle, but only
+VS Code opens it. So the PR template has a **Ships in** section: one box per line
+and `none`.
+
+```markdown
+## Ships in
+
+- [ ] `bpmn-modeler`: npm package `@miragon/bpmn-modeler`
+- [x] `vscode`: VS Code extension, Open VSX, standalone app
+- [ ] `intellij`: IntelliJ plugin
+- [ ] `orca`: Orca plugin
+- [ ] `dmn-modeler`: npm package `@miragon/dmn-modeler`
+- [ ] `none`: no released user gets it
+```
+
+- **Tick by wiring.** A line gets the change only when it offers it. Each line's
+  `wiring` in
+  [`release-lines.json`](https://github.com/Miragon/bpmn-modeler/blob/main/.github/release-lines.json)
+  says where to look, for example IntelliJ's bridge composition and `plugin.xml`.
+- **`none`** is for a change no released user gets, such as a fix to a feature
+  no release shipped yet. It attributes the change to no line.
+- **Own wording per line**: `` - [x] `bpmn-modeler` as `fix(viewer): keep the zoom` ``
+  lists the change on that line under this subject, with the PR number of the
+  title. Lines with the same subject share one attribution commit. The breaking
+  `!` still comes from the title and the line's `breaking` globs: write it in the
+  wording exactly when the title gives it to that line.
+- **Nothing ticked** falls back to the files. A `chore`, `docs` or `refactor` PR
+  may leave the section empty.
+- Boxes in HTML comments, fenced code and indented code do not count, so the
+  template's example never does. Write each box as `` - [x] `<line id>` ``; a
+  ticked box the check cannot read fails it.
+
+The sync, `reconcile` and the release PR check all read the merged PR's body. The
+sync looks the PR up by the `(#N)` of the squash subject, so it finds the PR even
+before GitHub links the commit to it. A ticked line that ships none of the changed
+files is dropped. A commit with no merged PR (a direct push) follows its files,
+and the step summary marks it `derived: no PR found`.
+
+**The PR check.** The job **Validate release lines** (in
+[`lint-pr-title.yml`](https://github.com/Miragon/bpmn-modeler/blob/main/.github/workflows/lint-pr-title.yml))
+runs on every PR, on every push and on every edit of the title or body. It checks
+out only the base branch and runs `release-lines-sync.mjs check --pr`, which reads
+the title, body and every changed file through the API. It fails when:
+
+- a `feat`/`fix` reaches two or more lines by its files and nothing is ticked; the
+  job summary has the block to paste, with those lines ticked as a starting point;
+- a ticked line ships none of the changed files;
+- `none` is ticked together with a line;
+- a breaking `!` touches a line's `breaking` globs and that line is not ticked;
+- a line's own wording is no `feat`/`fix` subject, or its `!` differs from the
+  one the title gives that line;
+- a ticked box cannot be read, a line is ticked twice or the body has two Ships in
+  sections;
+- the PR changes a line's folder under `release/**` (only the sync workflow and the
+  release PR, `release-please--branches--main` in this repository, do). A PR that
+  adds a line may create that line's new folder.
+
+A PR opened with `GITHUB_TOKEN` (such as the one `update-engine-versions.yml`
+opens) starts no `pull_request` workflow, so neither this check nor the title
+check runs on it.
+
+Run the same check locally (read-only, needs `gh auth`):
+
+```bash
+node .github/scripts/release-lines-sync.mjs check --pr <number> --repo Miragon/bpmn-modeler
+```
+
+**The Claude Code hook.** `.claude/settings.json` runs
+`.claude/hooks/ships-in-check.mjs` after every Bash command; it acts only on
+`gh pr create` and on a `gh pr edit` that sets the title or body, of an open PR in
+this repository. It reads the PR the same way the job does and runs the check. A
+`feat`/`fix` that reaches two or more lines with nothing ticked is blocked with
+what to tick and how to decide; ticked boxes add a request to confirm each line by
+its wiring and to fix the body with `gh pr edit --body-file`. Anything else stays
+silent, and any error (no `gh`, no network, another repository's PR) lets the
+command pass.
+
+**Correcting a declaration.** Before the merge, edit the PR body; the check
+re-runs. After the merge, an edit changes no attribution already written:
+
+- **A line is missing**: tick it in the merged PR's body, then run `reconcile`
+  (see below). It adds the attributions the body now asks for.
+- **A line should not list it**: untick it in the merged PR's body so later
+  audits agree, then follow "A line lists a change it does not ship" below. If
+  no ticked line is left, tick `none`: an empty section falls back to the files,
+  and the audit would then ask for every line they reach.
 
 ### Attribution commits
 
@@ -132,8 +221,10 @@ release-please regenerates the Release PR on every push to `main`, and a reverte
 attribution commit still counts, so fix a wrong release in this order:
 
 - **A change is missing on a line**: run `reconcile` as above.
-- **A line lists a change it does not ship**: fix the registry so the next change
-  routes right. For the pending release, pause merges to `main`, then edit that
+- **A line lists a change it does not ship**: untick the line in the merged PR's
+  body (tick `none` if no line is left), or fix the registry when the files
+  misled the fallback, so the next
+  change routes right. For the pending release, pause merges to `main`, then edit that
   line's section in the Release PR body and its `CHANGELOG.md` on the release
   branch right before merging. The GitHub Release notes come from the merged PR
   body.

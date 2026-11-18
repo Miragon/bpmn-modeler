@@ -38,6 +38,10 @@ included, is in `docs/vscode/contributing/development.md` (Coding agents).
   is listed in `.github/vscode-smoke-suites.json` with the paths that select it;
   a repo check fails otherwise. Its conventions are in
   `docs/vscode/contributing/development.md` (VS Code smoke test).
+- A `feat`/`fix` PR ticks the lines under "Ships in" whose users get the
+  change, judged by wiring (does that host or package offer it?), not by the
+  files a line bundles. A hook in `.claude/settings.json` checks it after
+  `gh pr create` and `gh pr edit`.
 - VS Code settings use the `miragon.bpmnModeler` namespace (for example
   `miragon.bpmnModeler.language`), never the legacy `miragon.camundaModeler`
   prefix.

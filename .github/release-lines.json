@@ -22,6 +22,7 @@
         {
             "id": "bpmn-modeler",
             "componentPath": "release/bpmn-modeler",
+            "wiring": "the npm package's entry points (the `exports` of packages/bpmn-modeler/package.json and the files behind them): does a consumer of @miragon/bpmn-modeler reach the code?",
             "ships": [
                 "packages/bpmn-modeler/**",
                 "libs/append-menu/**",
@@ -45,6 +46,7 @@
         {
             "id": "vscode",
             "componentPath": "release/vscode",
+            "wiring": "the extension (apps/vscode-plugin/package.json contributions and apps/vscode-plugin/src): does VS Code open the editor or run the command that uses the code?",
             "ships": [
                 "apps/vscode-plugin/**",
                 "apps/standalone/**",
@@ -82,6 +84,7 @@
         {
             "id": "intellij",
             "componentPath": "release/intellij",
+            "wiring": "the bridge composition (apps/modeler-bridge/src/composition) and apps/intellij-plugin/src/main/resources/META-INF/plugin.xml: does IntelliJ register the editor or action, and does the bridge wire the service?",
             "ships": [
                 "apps/intellij-plugin/**",
                 "apps/modeler-bridge/**",
@@ -115,6 +118,7 @@
         {
             "id": "orca",
             "componentPath": "release/orca",
+            "wiring": "the surfaces apps/orca-plugin/src creates (apps/orca-plugin/src/composition): does the Orca plugin create the surface that uses the code?",
             "ships": [
                 "apps/orca-plugin/**",
                 "packages/bpmn-modeler/**",
@@ -141,6 +145,7 @@
         {
             "id": "dmn-modeler",
             "componentPath": "release/dmn-modeler",
+            "wiring": "whether @miragon/dmn-modeler uses the code at all (packages/dmn-modeler/src and its exports)",
             "ships": [
                 "packages/dmn-modeler/**",
                 "libs/bpmn-diff/**",

@@ -48,9 +48,9 @@ addressed from the repository root with a leading `/`. Tags stay
 The [registry](../../.github/release-lines.json) says which paths each line ships,
 which files no user receives (specs, tests, fixtures, READMEs) and which workspaces
 no line ships. For every first-parent commit pushed to main,
-[release-routing.mjs](../../.github/scripts/release-routing.mjs) derives the lines
-of a `feat` or `fix` from its changed files, until #2548 adds the PR's declaration,
-and the sync workflow writes one attribution commit per line group through
+[release-routing.mjs](../../.github/scripts/release-routing.mjs) decides the lines
+of a `feat` or `fix` from its merged PR's declaration (below), else from its changed
+files, and the sync workflow writes one attribution commit per line group through
 [release-lines-sync.mjs](../../.github/scripts/release-lines-sync.mjs), which
 holds the command line and the I/O. It changes
 `release/<id>/ATTRIBUTION` of each line in the group, and its subject is the
@@ -61,6 +61,57 @@ inlined libraries, a host breaks only through its own folder. `chore`, `docs` an
 a commit of another type that changes `release/<id>/` releases nothing. The sync
 skips its own commits and release-please's, writes nothing twice, writes no commit
 that leaves the tree unchanged and retries when main moves under it.
+
+The files say what a line bundles, not what it offers: the merge view lives in
+`libs/bpmn-merge`, which three lines bundle, but only VS Code opens it. So the PR
+author declares the lines under "Ships in" in the PR body: one box per line and
+`none` (no released user gets it). Ticked lines win; a ticked line that ships none
+of the files is dropped; `none` attributes nothing; nothing ticked falls back to the
+files. A ticked line may carry its own changelog subject
+(`` `bpmn-modeler` as `fix(viewer): …` ``); lines with the same subject share one
+attribution commit. The breaking `!` of every subject comes from the title and the
+line's `breaking` globs, never from the wording, so a wording can neither drop a
+major bump nor add one. Sync, `reconcile` and the audit read the merged PR's body as
+it reads now, so the audit asks only for the ticked lines. The sync finds the PR by
+the `(#N)` of the squash subject first, because GitHub may not have linked a
+just-pushed commit to its PR yet. A commit without a merged PR follows its files,
+and the step summary says so. The declaration is parsed in
+[release-declaration.mjs](../../.github/scripts/release-declaration.mjs), the PR
+rules in [release-check.mjs](../../.github/scripts/release-check.mjs), both pure;
+[github-pull-requests.mjs](../../.github/scripts/github-pull-requests.mjs) is the
+one place that reads a PR from GitHub, for the job, the sync and the hook.
+
+The job "Validate release lines" in
+[lint-pr-title.yml](../../.github/workflows/lint-pr-title.yml) runs the same rules
+on every PR and on every body edit (`release-lines-sync.mjs check --pr`). It fails a
+`feat`/`fix` whose files reach two or more lines with nothing ticked, and prints the
+block to paste; a ticked line that ships none of the files; `none` with a line; a
+breaking `!` whose files hit a line's `breaking` globs without that line ticked; a
+per-line subject that is no `feat`/`fix` subject or whose `!` differs from the
+title's for that line; a box it cannot read; and any PR but the release PR (its
+branch in this repository, not a fork's) that edits an existing line's folder under
+`release/**`. A PR that adds a line may create the new line's folder. It runs only
+the base branch's code with a read-only token, so it can be required. It reports on
+every PR that starts workflows: a PR opened with `GITHUB_TOKEN` (such as
+`update-engine-versions.yml`'s) starts none, the same gap the title check has. A
+Claude Code `PostToolUse` hook
+([ships-in-check.mjs](../../.claude/hooks/ships-in-check.mjs)) runs the check after
+`gh pr create` and after a `gh pr edit` of the title or body of an open PR, because
+that is the one moment the decision is made: it blocks the undeclared case and asks
+Claude to confirm ticked lines by their wiring, which each line names in the
+registry (`wiring`). It is one handler on every Bash call, spawned without a shell:
+an `if` filter still runs on any `$()` command, and a shell-form path does not
+expand in PowerShell. It fails open.
+
+Cost: the author must know the wiring, and a wrong box is a wrong changelog. The
+check catches boxes that contradict the files, not boxes that contradict the
+wiring; the hook and the `architecture-review` skill ask for that. A body edited
+after the merge changes no attribution already written: `reconcile` adds the
+attributions of newly ticked lines, and an unticked line is removed only by hand
+(see the release process); a section left empty falls back to the files, so the
+last line is removed by ticking `none`. `bpmn-modeler`'s breaking glob is `**`, so a
+breaking change to any file it bundles must tick it, even when the npm package does
+not offer the change.
 
 The specs hold the registry to the builds
 ([releaseLines.spec.ts](../../tools/repo-checks/src/releaseLines.spec.ts)) and the
@@ -87,9 +138,11 @@ release-please matches them as folder prefixes only, so top-level files such as
 `yarn.lock` reached the npm notes, and native routing counted spec files. Path
 markers per bundled folder (the previous `BUNDLED_WEBVIEW`/`BUNDLED_LIBS`), because
 they copied every shared change into every line that bundles the folder. Labels,
-because they are set by hand after the fact and are not in the history
-release-please reads. Rewriting the release PR's notes, because every push to main
-regenerates the PR.
+because fork authors cannot set them and they are not in the history
+release-please reads. Commit trailers for the declaration, because they depend on
+the squash settings. The scope alone, because one scope maps to several lines and
+the lines it names are wrong both ways. Rewriting the release PR's notes, because
+every push to main regenerates the PR.
 
 ### Release pull request
 

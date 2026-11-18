@@ -203,6 +203,27 @@ describe("the workflows around the release lines", () => {
         }
     });
 
+    it("validate the release lines of every PR, also after a body edit, running only base-branch code", () => {
+        const workflow = readRepoText(".github/workflows/lint-pr-title.yml");
+        const job = workflow.slice(workflow.indexOf("  release-lines:\n"));
+        const scripts = [...job.matchAll(/run: \|\n((?: {10}.*\n?)+)/g)].map(
+            ([, script]) => script,
+        );
+
+        expect(workflow).toMatch(
+            /pull_request:\n\s+types: \[opened, edited, synchronize, reopened\]\n\n/,
+        );
+        expect(job).toContain("name: Validate release lines\n");
+        expect(job).not.toMatch(/^\s+if:/m);
+        expect(job).toContain("ref: ${{ github.base_ref }}\n");
+        expect(job).toMatch(/permissions:\n\s+contents: read\n\s+pull-requests: read\n/);
+        expect(scripts.length).toBeGreaterThan(0);
+        for (const script of scripts) expect(script).not.toContain("${{");
+        // The script reads the PR itself, so the job keeps no copy of the file fetch.
+        expect(scripts.join("")).toMatch(/release-lines-sync\.mjs check --pr /);
+        expect(scripts.join("")).not.toContain("gh api");
+    });
+
     it("keep the sync from triggering on its own attribution commits", () => {
         expect(readRepoText(".github/workflows/sync-release-lines.yml")).toMatch(
             /paths-ignore:\n\s+- 'release\/\*\*'/,

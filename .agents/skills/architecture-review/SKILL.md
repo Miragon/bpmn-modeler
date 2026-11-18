@@ -266,6 +266,9 @@ Erosion recurs as:
 - **Wiring per host**: a feature, route or session participant wired in one
   host's composition and not in the other's (VS Code, bridge, Kotlin), or in
   another order.
+- **"Ships in" against wiring**: on a `feat`/`fix` PR, check each release
+  line by its `wiring` in `.github/release-lines.json`. Name a line ticked
+  without wiring, and one wired but not ticked (`gh pr view <n> --json body`).
 - **A workspace without its siblings' guards**: a new workspace or top-level
   folder without the architecture spec, the manifest's architecture
   declaration and the ADR coverage of dependencies and layering its siblings

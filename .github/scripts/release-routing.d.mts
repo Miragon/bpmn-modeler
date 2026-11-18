@@ -4,6 +4,8 @@ export interface ReleaseLine {
     ships: readonly string[];
     /** Checked only against the files the line ships. */
     breaking: readonly string[];
+    /** Where a reader decides whether the line offers a change, for the hook and reviews. */
+    wiring?: string;
 }
 
 export interface ReleaseLineRegistry {
@@ -18,8 +20,14 @@ export interface AttributionGroup {
 }
 
 export interface Attribution {
-    source: "derived";
+    /** declared: the PR ticks lines; none: it ticks `none`; derived: from the files. */
+    source: "declared" | "derived" | "none";
     groups: AttributionGroup[];
+}
+
+export interface MergedPullRequest {
+    head: string;
+    body: string;
 }
 
 export interface MergedCommit {
@@ -27,8 +35,8 @@ export interface MergedCommit {
     /** The commit's subject, which carries the merged pull request's title. */
     title: string;
     files: readonly string[];
-    /** The head branch of the merged pull request, when there is one. */
-    pullRequestHead?: string;
+    /** The merged pull request; null when none was found, absent when not looked up. */
+    pullRequest?: MergedPullRequest | null;
     /** The lines that have not released the commit yet; every line when absent. */
     unreleasedLines?: readonly string[];
 }
@@ -64,6 +72,9 @@ export interface RoutingDecision {
     lines: string[];
     /** The lines that already carry its attribution. */
     attributed: string[];
+    /** Absent for a skipped commit. */
+    source?: Attribution["source"];
+    pullRequestFound?: boolean;
 }
 
 export interface TagWindow {
@@ -74,14 +85,31 @@ export interface TagWindow {
 
 export const ATTRIBUTED_TYPES: readonly string[];
 
+export function isAttributedType(title: string): boolean;
+export function isAttributedSubject(subject: string): boolean;
+export function isBreaking(subject: string): boolean;
+export function pullRequestNumber(title: string): number | undefined;
 export function derivedLines(files: readonly string[], registry: ReleaseLineRegistry): string[];
+export function breakingLinesOf(
+    title: string,
+    files: readonly string[],
+    registry: ReleaseLineRegistry,
+): string[];
 export function resolveAttribution(
-    change: { title: string; files: readonly string[] },
+    change: { title: string; files: readonly string[]; body?: string },
     registry: ReleaseLineRegistry,
 ): Attribution;
+export function suggest(change: {
+    title?: string;
+    files: readonly string[];
+    registry: ReleaseLineRegistry;
+}): string;
 export function releaseBranchOf(targetBranch: string): string;
 export function syncedSha(message: string): string | undefined;
-export function skipReason(commit: { title: string; pullRequestHead?: string }): string | undefined;
+export function skipReason(commit: {
+    title: string;
+    pullRequest?: MergedPullRequest | null;
+}): string | undefined;
 export function attributionMessage(subject: string, sha: string): string;
 export function attributionFile(componentPath: string, sha: string): AttributionFile;
 export function commitsSinceTags(

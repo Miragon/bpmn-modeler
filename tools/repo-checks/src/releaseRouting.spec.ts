@@ -186,7 +186,7 @@ describe("the commits on main that are not routed", () => {
         { title: "chore: release main (#13)", reason: "release commit" },
         {
             title: "chore(main): release things",
-            pullRequestHead: releaseBranchOf("main"),
+            pullRequest: { head: releaseBranchOf("main"), body: "" },
             reason: "release commit",
         },
     ])("skips $title as a $reason", (commit) => {
@@ -198,7 +198,9 @@ describe("the commits on main that are not routed", () => {
     });
 
     it("routes a feat merged from a feature branch", () => {
-        expect(skipReason({ title: "feat: a (#14)", pullRequestHead: "feat/a" })).toBeUndefined();
+        expect(
+            skipReason({ title: "feat: a (#14)", pullRequest: { head: "feat/a", body: "" } }),
+        ).toBeUndefined();
     });
 
     it("reads the short sha an attribution commit names", () => {
@@ -339,16 +341,20 @@ describe("the routing report", () => {
     });
 });
 
-describe("the routing module", () => {
-    it("decides without I/O: it imports only the glob matcher", () => {
-        const source = readFileSync(
-            join(__dirname, "../../../.github/scripts/release-routing.mjs"),
-            "utf8",
-        );
+describe("the routing modules", () => {
+    it.each([
+        { module: "release-routing.mjs", imports: ["./glob.mjs", "./release-declaration.mjs"] },
+        { module: "release-declaration.mjs", imports: [] },
+        {
+            module: "release-check.mjs",
+            imports: ["./release-declaration.mjs", "./release-routing.mjs"],
+        },
+    ])("decide without I/O: $module imports only its pure siblings", ({ module, imports }) => {
+        const source = readFileSync(join(__dirname, "../../../.github/scripts", module), "utf8");
 
         expect(
-            [...source.matchAll(/^import .* from "([^"]+)";$/gm)].map(([, from]) => from),
-        ).toEqual(["./glob.mjs"]);
+            [...source.matchAll(/^import [\s\S]*? from "([^"]+)";$/gm)].map(([, from]) => from),
+        ).toEqual(imports);
         expect(source).not.toMatch(/\bimport\(|\bprocess\./);
     });
 });

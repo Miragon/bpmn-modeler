@@ -1,10 +1,90 @@
 import { describe, expect, it } from "vitest";
 
+import releaseLines from "../../../.github/release-lines.json";
 import {
+    checkPullRequest,
+    checkSummary,
     writeAttributions,
     type GitDataApi,
 } from "../../../.github/scripts/release-lines-sync.mjs";
-import type { AttributionWrite } from "../../../.github/scripts/release-routing.mjs";
+import type {
+    AttributionWrite,
+    ReleaseLineRegistry,
+} from "../../../.github/scripts/release-routing.mjs";
+
+const registry: ReleaseLineRegistry = releaseLines;
+
+describe("the check of a PR", () => {
+    const mergeFeat = {
+        title: "feat(bpmn-merge): offer the removed boundary events",
+        files: ["libs/bpmn-merge/src/pickOutcome.ts", "libs/shared/src/lib/mergePaneMessages.ts"],
+        headBranch: "feat/merge",
+    };
+
+    it("fails a shared feat without a declaration and suggests the lines its files reach", () => {
+        const result = checkPullRequest({ ...mergeFeat, body: "" }, registry);
+
+        expect(result.errors).toHaveLength(1);
+        expect(result.derivedLines).toEqual(["vscode", "intellij", "orca"]);
+        expect(result.suggestion).toContain("- [x] `orca`");
+        expect(result.attribution.source).toBe("derived");
+    });
+
+    it("passes once the PR ticks the line that offers it", () => {
+        const result = checkPullRequest(
+            { ...mergeFeat, body: "## Ships in\n\n- [x] `vscode`\n" },
+            registry,
+        );
+
+        expect(result.errors).toEqual([]);
+        expect(result.attribution).toEqual({
+            source: "declared",
+            groups: [{ subject: mergeFeat.title, lines: ["vscode"] }],
+        });
+    });
+
+    it("writes each error and the suggested block to the job summary", () => {
+        expect(
+            checkSummary({
+                errors: ["first", "second"],
+                suggestion: "## Ships in\n\n- [ ] `none`\n",
+            }),
+        ).toBe(
+            [
+                "### Validate release lines",
+                "",
+                "```text",
+                "first",
+                "```",
+                "",
+                "```text",
+                "second",
+                "```",
+                "",
+                "The lines the changed files reach, ready to paste under the PR body's Ships in:",
+                "",
+                "```markdown",
+                "## Ships in",
+                "",
+                "- [ ] `none`",
+                "```",
+                "",
+            ].join("\n"),
+        );
+    });
+
+    it("writes the suggested block once when an error already carries it", () => {
+        const block = "## Ships in\n\n- [x] `vscode`\n";
+        const summary = checkSummary({ errors: [`declare it:\n\n${block}`], suggestion: block });
+
+        expect(summary.split("## Ships in")).toHaveLength(2);
+        expect(summary).not.toContain("ready to paste under");
+    });
+
+    it("writes no summary when the check passes", () => {
+        expect(checkSummary({ errors: [], suggestion: "x" })).toBe("");
+    });
+});
 
 /** Trees are content-addressed, as in Git: the same files give the same tree id. */
 function fakeGitData(files: Record<string, string>) {
