@@ -73,10 +73,11 @@ export interface MergePaneStepping {
 
 /**
  * How far a pick reaches: the element, the element with everything inside
- * it, or an element the other side removed with the flows removed with it.
+ * it, or an element the other side removed with the flows and boundary
+ * events removed with it.
  * Undo takes back the same reach.
  */
-export type MergePickScope = "element" | "withContents" | "withConnections";
+export type MergePickScope = "element" | "withContents" | "withRemoved";
 
 /** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
 export interface MergePaneBadge {
@@ -178,11 +179,12 @@ export interface MergePaneRestoreOffer {
  * Something the last build asks the user to look at, as the merge library's
  * `BuildNote` names it: a flow whose ends are drawn from different sides, two
  * elements the sides added at the same place, an element drawn apart from its
- * container, an element kept without the flows removed with it, a kept flow
- * its source no longer names as its default (with the default it keeps, if
- * any), elements whose layout both sides changed differently with the side the result keeps,
- * or a part of the file's `definitions` that differs between the sides, of
- * which the result keeps current's.
+ * container, an element kept without the boundary events or flows removed
+ * with it, a kept flow its source no longer names as its default (with the
+ * default it keeps, if any), elements whose layout both sides changed
+ * differently with the side the result keeps, or a part of the file's
+ * `definitions` that differs between the sides, of which the result keeps
+ * current's.
  */
 export type MergePaneBuildNote =
     | {
@@ -197,7 +199,7 @@ export type MergePaneBuildNote =
           readonly containers: readonly string[];
       }
     | {
-          readonly kind: "restoredWithoutConnections";
+          readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
           readonly connections: readonly string[];
           readonly boundaryEvents?: readonly string[];
@@ -368,7 +370,7 @@ export const MERGE_PAD_ENTRIES = [
     "keep",
     "keepInside",
     "leaveOut",
-    "keepRemovedFlows",
+    "keepRemovedWith",
     "undo",
 ] as const;
 

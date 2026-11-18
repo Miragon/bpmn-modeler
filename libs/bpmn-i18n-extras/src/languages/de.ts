@@ -323,10 +323,10 @@ const dictionary: Record<string, string> = {
         "Von Aktuell mit allem darin behalten, Ihre Wahl",
     "Kept from incoming with everything inside, your pick":
         "Von Eingehend mit allem darin behalten, Ihre Wahl",
-    "Kept from current with its flows, your pick":
-        "Von Aktuell mit seinen Flüssen behalten, Ihre Wahl",
-    "Kept from incoming with its flows, your pick":
-        "Von Eingehend mit seinen Flüssen behalten, Ihre Wahl",
+    "Kept from current with what was removed with it, your pick":
+        "Von Aktuell mit dem damit Entfernten behalten, Ihre Wahl",
+    "Kept from incoming with what was removed with it, your pick":
+        "Von Eingehend mit dem damit Entfernten behalten, Ihre Wahl",
     "Kept from current: {element}": "Von Aktuell behalten: {element}",
     "Kept from incoming: {element}": "Von Eingehend behalten: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -395,7 +395,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Aktuell mit allem darin behalten",
     "Keep incoming with everything inside": "Eingehend mit allem darin behalten",
     "Leave out": "Weglassen",
-    "Also keep its removed flows": "Auch seine entfernten Flüsse behalten",
+    "Also keep what was removed with it": "Auch behalten, was damit entfernt wurde",
     "Keep it as current has it": "Es so behalten, wie Aktuell es hat",
     "Keep it as incoming has it": "Es so behalten, wie Eingehend es hat",
     "Keep it and everything inside as current has them":
@@ -422,10 +422,10 @@ const dictionary: Record<string, string> = {
         "Von Aktuell mit allem darin behalten: {element}",
     "Kept from incoming with everything inside: {element}":
         "Von Eingehend mit allem darin behalten: {element}",
-    "Kept from current with its flows: {element}":
-        "Von Aktuell mit seinen Flüssen behalten: {element}",
-    "Kept from incoming with its flows: {element}":
-        "Von Eingehend mit seinen Flüssen behalten: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Von Aktuell mit dem damit Entfernten behalten: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Von Eingehend mit dem damit Entfernten behalten: {element}",
     "Left out: {element}, as current removed it":
         "Weggelassen: {element}, da Aktuell es entfernt hat",
     "Left out: {element}, as current doesn't have it":

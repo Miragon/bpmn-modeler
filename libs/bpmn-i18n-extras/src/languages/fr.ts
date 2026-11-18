@@ -324,10 +324,10 @@ const dictionary: Record<string, string> = {
         "Conservé depuis Actuel avec tout son contenu, votre choix",
     "Kept from incoming with everything inside, your pick":
         "Conservé depuis Entrant avec tout son contenu, votre choix",
-    "Kept from current with its flows, your pick":
-        "Conservé depuis Actuel avec ses flux, votre choix",
-    "Kept from incoming with its flows, your pick":
-        "Conservé depuis Entrant avec ses flux, votre choix",
+    "Kept from current with what was removed with it, your pick":
+        "Conservé depuis Actuel avec ce qui a été supprimé avec lui, votre choix",
+    "Kept from incoming with what was removed with it, your pick":
+        "Conservé depuis Entrant avec ce qui a été supprimé avec lui, votre choix",
     "Kept from current: {element}": "Conservé depuis Actuel : {element}",
     "Kept from incoming: {element}": "Conservé depuis Entrant : {element}",
     "This pick brings in {element}, which needs {target}":
@@ -396,7 +396,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Conserver Actuel avec tout son contenu",
     "Keep incoming with everything inside": "Conserver Entrant avec tout son contenu",
     "Leave out": "Laisser de côté",
-    "Also keep its removed flows": "Conserver aussi ses flux supprimés",
+    "Also keep what was removed with it": "Conserver aussi ce qui a été supprimé avec lui",
     "Keep it as current has it": "Le conserver tel que l'a Actuel",
     "Keep it as incoming has it": "Le conserver tel que l'a Entrant",
     "Keep it and everything inside as current has them":
@@ -423,10 +423,10 @@ const dictionary: Record<string, string> = {
         "Conservé depuis Actuel avec tout son contenu : {element}",
     "Kept from incoming with everything inside: {element}":
         "Conservé depuis Entrant avec tout son contenu : {element}",
-    "Kept from current with its flows: {element}":
-        "Conservé depuis Actuel avec ses flux : {element}",
-    "Kept from incoming with its flows: {element}":
-        "Conservé depuis Entrant avec ses flux : {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Conservé depuis Actuel avec ce qui a été supprimé avec lui : {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Conservé depuis Entrant avec ce qui a été supprimé avec lui : {element}",
     "Left out: {element}, as current removed it":
         "Laissé de côté : {element}, car Actuel l'a supprimé",
     "Left out: {element}, as current doesn't have it":

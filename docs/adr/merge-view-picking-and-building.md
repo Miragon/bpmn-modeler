@@ -105,11 +105,11 @@ offer stay, as the core projects them.
 
 **Keeping a removed element offers what the other side removed with it.** The library's offer
 (`removedWithLeftOut`, [merge](merge.md)) shows on the kept side's pane, on the card and the pad,
-a shape-less element's on both panes; accepting is one `pickWithConnections`, and Undo takes the
+a shape-less element's on both panes; accepting is one `pickWithRemoved`, and Undo takes the
 flows and boundary events back too. Not offered, as each would bring back what the user did not
 ask for: a flow whose other end the removing side deleted too, a message flow whose message it
 deleted, a boundary event that needs an error or a lane it deleted, and that event's flows.
-Declining, or a plain pick, leaves the build note `restoredWithoutConnections`, which names the
+Declining, or a plain pick, leaves the build note `restoredWithoutRemovedWith`, which names the
 boundary events removed with the element that the result leaves out and every flow of the element
 or of those events left out, so a kept activity never loses its timer silently; a kept boundary
 event's flows get its own note. The offer and the note share `removedWith`, not one rule: the note

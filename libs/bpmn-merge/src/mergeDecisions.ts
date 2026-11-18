@@ -12,7 +12,7 @@ import {
     type MergeSide,
 } from "./mergeResult";
 import { dependentsByTarget, type ReferenceIndex, requirementsOf } from "./referenceRules";
-import { idsRemovedWith, removedWith } from "./removedConnections";
+import { idsRemovedWith, removedWith } from "./removedWith";
 import type { UnmetRequirement } from "./unmetRequirement";
 
 export type { BlockedPick, PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
@@ -107,8 +107,8 @@ export class MergeDecisions {
                 return this.pick(id, side);
             case "withContents":
                 return this.pickWithContents(id, side);
-            case "withConnections":
-                return this.pickWithConnections(id, side);
+            case "withRemoved":
+                return this.pickWithRemoved(id, side);
         }
     }
 
@@ -119,8 +119,8 @@ export class MergeDecisions {
                 return this.unpick(id);
             case "withContents":
                 return this.unpickWithContents(id);
-            case "withConnections":
-                return this.unpickWithConnections(id);
+            case "withRemoved":
+                return this.unpickWithRemoved(id);
         }
     }
 
@@ -140,11 +140,6 @@ export class MergeDecisions {
     pickWithContents(id: string, side: MergeSide): PickOutcome {
         this.requireElement(id);
         return this.apply([id, ...descendantsOf(id, this.mergeResult.elements)], side);
-    }
-
-    /** The connections of `removedWithLeftOut`. */
-    connectionsLeftOut(id: string, side: MergeSide): readonly string[] {
-        return this.removedWithLeftOut(id, side).connections;
     }
 
     /**
@@ -186,17 +181,17 @@ export class MergeDecisions {
     }
 
     /** The element and its `removedWithLeftOut`, as one pick. */
-    pickWithConnections(id: string, side: MergeSide): PickOutcome {
+    pickWithRemoved(id: string, side: MergeSide): PickOutcome {
         const { connections, boundaryEvents } = this.removedWithLeftOut(id, side);
         return this.apply([id, ...boundaryEvents, ...connections], side);
     }
 
     /**
      * Takes back the element's pick and the picks of what the other side removed with it on its side
-     * (`removedWith`), as `pickWithConnections` made them: their picks would otherwise keep the element as a
+     * (`removedWith`), as `pickWithRemoved` made them: their picks would otherwise keep the element as a
      * consequence.
      */
-    unpickWithConnections(id: string): PickOutcome {
+    unpickWithRemoved(id: string): PickOutcome {
         const element = this.requireElement(id);
         const side = this.sides.picks.get(id);
         if (side === undefined) return NOTHING_DECIDED;

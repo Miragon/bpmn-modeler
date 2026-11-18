@@ -26,9 +26,9 @@ export type MergePadDecision =
           readonly side: MergeSide;
           readonly otherSideLacks: MergePaneOtherSideLack;
       }
-    /** Picks the element again with the flows `offer` names. */
+    /** Picks the element again with the flows and boundary events `offer` names. */
     | {
-          readonly kind: "keepRemovedFlows";
+          readonly kind: "keepRemovedWith";
           readonly side: MergeSide;
           readonly offer: MergePaneRestoreOffer;
       }
@@ -43,7 +43,7 @@ export type MergePadStates = Pick<
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
  * the pane's side, keep a container with everything inside, leave it out
- * where the other side lacks it, keep the flows the host offers with it,
+ * where the other side lacks it, keep what the host offers with it,
  * undo the user's pick. An entry whose outcome the result already has is
  * left out, so every entry changes something.
  */
@@ -70,7 +70,7 @@ export function mergePadDecisions(
             ? { kind: "keep", scope: "withContents", side: paneSide, reach: pickable.container }
             : undefined,
         facts.lacking === undefined ? undefined : sidePick(facts, facts.lacking.side),
-        keepRemovedFlows(states, elementId),
+        keepRemovedWith(states, elementId),
         pickable.undo === undefined ? undefined : { kind: "undo", scope: pickable.undo },
     ];
     return decisions.filter((decision) => decision !== undefined);
@@ -95,10 +95,10 @@ export function keepsEverythingInside<Decision extends MergePadDecision>(
  * The decisions a menu row offers on a shape-less element, by the pad's
  * rule: no other pane decides it, so it offers a pick of either side, keep
  * where the side holds it, a container also with everything inside, and
- * leave out where the side lacks it, then the flows the host offers and the
- * undo of the user's pick. Unlike the pad's, a container's keep with
- * everything inside stays while the user's pick holds it, pressed, so the
- * row shows which reach the pick has.
+ * leave out where the side lacks it, then what the host offers to keep with
+ * it and the undo of the user's pick. Unlike the pad's, a container's keep
+ * with everything inside stays while the user's pick holds it, pressed, so
+ * the row shows which reach the pick has.
  */
 export function mergeRowDecisions(
     states: MergeRowStates,
@@ -123,7 +123,7 @@ export function mergeRowDecisions(
             : undefined;
     const decisions: (MergeRowDecision | undefined)[] = [
         ...MERGE_SIDES.flatMap((side) => [sidePick(facts, side), withContents(side)]),
-        keepRemovedFlows(states, row.id),
+        keepRemovedWith(states, row.id),
         row.pick === undefined ? undefined : { kind: "undo", scope: row.pick.scope },
     ];
     return decisions.filter((decision) => decision !== undefined);
@@ -134,14 +134,14 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
     return step.shapeless;
 }
 
-/** The host's offer of the flows removed with `elementId`, kept from the side that kept the element. */
-export function keepRemovedFlows(
+/** The host's offer of what was removed with `elementId`, kept from the side that kept the element. */
+export function keepRemovedWith(
     states: MergeRowStates,
     elementId: string,
 ): MergePadDecision | undefined {
     const offer = states.restoreOffer;
     return offer?.elementId === elementId
-        ? { kind: "keepRemovedFlows", side: otherSide(offer.removedBy), offer }
+        ? { kind: "keepRemovedWith", side: otherSide(offer.removedBy), offer }
         : undefined;
 }
 

@@ -97,7 +97,7 @@ const fakes = vi.hoisted(() => {
     }
     interface CardActions {
         onSelect(id: string): void;
-        onKeepRemovedFlows(id: string): void;
+        onKeepRemovedWith(id: string): void;
         closeLabel: string;
     }
     /** The card shows only at an element the pane's canvas draws, as the real one. */
@@ -1186,13 +1186,13 @@ describe("MergeMode", () => {
                 }),
             );
 
-            rowButton("Process_1", "Also keep its removed flows").click();
+            rowButton("Process_1", "Also keep what was removed with it").click();
 
             expect(picksOf()).toEqual([
                 {
                     type: "PickMergeSideCommand",
                     elementId: "Process_1",
-                    scope: "withConnections",
+                    scope: "withRemoved",
                     side: "incoming",
                 },
             ]);
@@ -1222,13 +1222,13 @@ describe("MergeMode", () => {
                 }),
             );
 
-            rowButton("Message_1", "Also keep its removed flows").click();
+            rowButton("Message_1", "Also keep what was removed with it").click();
 
             expect(picksOf()).toEqual([
                 {
                     type: "PickMergeSideCommand",
                     elementId: "Message_1",
-                    scope: "withConnections",
+                    scope: "withRemoved",
                     side: "current",
                 },
             ]);
@@ -1290,7 +1290,7 @@ describe("MergeMode", () => {
             ).toEqual([
                 { type: "PickMergeSideCommand", scope: "element", side: "incoming" },
                 { type: "PickMergeSideCommand", scope: "element", side: "current" },
-                { type: "PickMergeSideCommand", scope: "withConnections", side: "incoming" },
+                { type: "PickMergeSideCommand", scope: "withRemoved", side: "incoming" },
                 { type: "UnpickMergeCommand", scope: "element", side: undefined },
             ]);
         });
@@ -1452,13 +1452,13 @@ describe("MergeMode", () => {
             expect(content.offer?.text).toBe("Also keep the 2 flows current removed with it");
             expect(legendText()).not.toContain("Also keep");
             host.postMessage.mockClear();
-            actions.onKeepRemovedFlows("Task_Pack");
+            actions.onKeepRemovedWith("Task_Pack");
 
             expect(posted()).toEqual([
                 expect.objectContaining({
                     type: "PickMergeSideCommand",
                     elementId: "Task_Pack",
-                    scope: "withConnections",
+                    scope: "withRemoved",
                     side: "incoming",
                 }),
             ]);
@@ -1575,8 +1575,8 @@ describe("MergeMode", () => {
             ],
             ["leaveOut", { type: "PickMergeSideCommand", scope: "element", side: "current" }],
             [
-                "keepRemovedFlows",
-                { type: "PickMergeSideCommand", scope: "withConnections", side: "incoming" },
+                "keepRemovedWith",
+                { type: "PickMergeSideCommand", scope: "withRemoved", side: "incoming" },
             ],
             ["undo", { type: "UnpickMergeCommand", scope: "element" }],
         ])(
@@ -1725,7 +1725,7 @@ describe("MergeMode", () => {
                         built: true,
                         notes: [
                             {
-                                kind: "restoredWithoutConnections",
+                                kind: "restoredWithoutRemovedWith",
                                 id: "Task_Pack",
                                 connections: ["Task_Gone", "Flow_1"],
                             },

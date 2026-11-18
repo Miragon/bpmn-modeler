@@ -335,7 +335,7 @@
             },
             {
                 "command": "bpmn-modeler.mergeKeepRemovedFlows",
-                "title": "Merge View: Also Keep Its Removed Flows",
+                "title": "Merge View: Also Keep What Was Removed With It",
                 "category": "Miragon BPMN Modeler"
             },
             {

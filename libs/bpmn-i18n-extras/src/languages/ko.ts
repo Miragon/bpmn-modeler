@@ -311,8 +311,10 @@ const dictionary: Record<string, string> = {
         "현재에서 내부 전체와 함께 유지, 내 선택",
     "Kept from incoming with everything inside, your pick":
         "수신에서 내부 전체와 함께 유지, 내 선택",
-    "Kept from current with its flows, your pick": "현재에서 흐름과 함께 유지, 내 선택",
-    "Kept from incoming with its flows, your pick": "수신에서 흐름과 함께 유지, 내 선택",
+    "Kept from current with what was removed with it, your pick":
+        "현재에서 함께 제거된 항목과 함께 유지, 내 선택",
+    "Kept from incoming with what was removed with it, your pick":
+        "수신에서 함께 제거된 항목과 함께 유지, 내 선택",
     "Kept from current: {element}": "현재에서 유지: {element}",
     "Kept from incoming: {element}": "수신에서 유지: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -376,7 +378,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "현재를 내부 전체와 함께 유지",
     "Keep incoming with everything inside": "수신을 내부 전체와 함께 유지",
     "Leave out": "제외",
-    "Also keep its removed flows": "제거된 흐름도 유지",
+    "Also keep what was removed with it": "함께 제거된 항목도 유지",
     "Keep it as current has it": "현재에 있는 그대로 유지",
     "Keep it as incoming has it": "수신에 있는 그대로 유지",
     "Keep it and everything inside as current has them": "내부 전체와 함께 현재에 있는 그대로 유지",
@@ -401,8 +403,10 @@ const dictionary: Record<string, string> = {
         "현재에서 내부 전체와 함께 유지: {element}",
     "Kept from incoming with everything inside: {element}":
         "수신에서 내부 전체와 함께 유지: {element}",
-    "Kept from current with its flows: {element}": "현재에서 흐름과 함께 유지: {element}",
-    "Kept from incoming with its flows: {element}": "수신에서 흐름과 함께 유지: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "현재에서 함께 제거된 항목과 함께 유지: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "수신에서 함께 제거된 항목과 함께 유지: {element}",
     "Left out: {element}, as current removed it": "제외됨: {element} (현재에서 제거됨)",
     "Left out: {element}, as current doesn't have it": "제외됨: {element} (현재에 없음)",
     "Left out: {element}, as incoming removed it": "제외됨: {element} (수신에서 제거됨)",

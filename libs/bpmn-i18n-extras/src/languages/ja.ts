@@ -318,8 +318,10 @@ const dictionary: Record<string, string> = {
     "Kept from incoming, your pick": "入力側から保持 (自分の選択)",
     "Kept from current with everything inside, your pick": "現在から内部ごと保持 (自分の選択)",
     "Kept from incoming with everything inside, your pick": "入力側から内部ごと保持 (自分の選択)",
-    "Kept from current with its flows, your pick": "現在からフローごと保持 (自分の選択)",
-    "Kept from incoming with its flows, your pick": "入力側からフローごと保持 (自分の選択)",
+    "Kept from current with what was removed with it, your pick":
+        "現在から一緒に削除されたものごと保持 (自分の選択)",
+    "Kept from incoming with what was removed with it, your pick":
+        "入力側から一緒に削除されたものごと保持 (自分の選択)",
     "Kept from current: {element}": "現在から保持: {element}",
     "Kept from incoming: {element}": "入力側から保持: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -385,7 +387,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "現在を内部ごと保持",
     "Keep incoming with everything inside": "入力側を内部ごと保持",
     "Leave out": "除外",
-    "Also keep its removed flows": "削除されたフローも保持",
+    "Also keep what was removed with it": "一緒に削除されたものも保持",
     "Keep it as current has it": "現在にあるとおり保持",
     "Keep it as incoming has it": "入力側にあるとおり保持",
     "Keep it and everything inside as current has them": "内部ごと現在にあるとおり保持",
@@ -407,8 +409,10 @@ const dictionary: Record<string, string> = {
     "Not in incoming": "入力側にはない",
     "Kept from current with everything inside: {element}": "現在から内部ごと保持: {element}",
     "Kept from incoming with everything inside: {element}": "入力側から内部ごと保持: {element}",
-    "Kept from current with its flows: {element}": "現在からフローごと保持: {element}",
-    "Kept from incoming with its flows: {element}": "入力側からフローごと保持: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "現在から一緒に削除されたものごと保持: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "入力側から一緒に削除されたものごと保持: {element}",
     "Left out: {element}, as current removed it": "除外: {element} (現在で削除されているため)",
     "Left out: {element}, as current doesn't have it": "除外: {element} (現在にはないため)",
     "Left out: {element}, as incoming removed it": "除外: {element} (入力側で削除されているため)",

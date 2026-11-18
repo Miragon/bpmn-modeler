@@ -65,7 +65,7 @@ import {
 const PICK_SCOPES: Record<MergePickScope, true> = {
     element: true,
     withContents: true,
-    withConnections: true,
+    withRemoved: true,
 };
 const REACHES: Record<MergePaneContainerReach, true> = { contents: true, poolProcesses: true };
 const LACKS: Record<MergePaneOtherSideLack, true> = { removed: true, missing: true };
@@ -91,7 +91,7 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndsFromDifferentSides: { kind: "flowEndsFromDifferentSides", id: "a", ends: ["b"] },
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
     drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
-    restoredWithoutConnections: { kind: "restoredWithoutConnections", id: "a", connections: ["b"] },
+    restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
@@ -142,9 +142,9 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
     ],
     leaveOut: (side) =>
         keysOf(LACKS).map((otherSideLacks) => ({ kind: "leaveOut", side, otherSideLacks })),
-    keepRemovedFlows: (side) =>
+    keepRemovedWith: (side) =>
         OFFERED.map((offered) => ({
-            kind: "keepRemovedFlows",
+            kind: "keepRemovedWith",
             side: otherSide(side),
             offer: { elementId: "a", ...offered, removedBy: side },
         })),
@@ -289,7 +289,7 @@ function mergeTextKeys(): Set<string> {
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
         }
-        if (note.kind === "restoredWithoutConnections") {
+        if (note.kind === "restoredWithoutRemovedWith") {
             buildNoteText({ ...note, boundaryEvents: ["c"] }, nameOf, translate);
             buildNoteText({ ...note, connections: [], boundaryEvents: ["c"] }, nameOf, translate);
         }

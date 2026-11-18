@@ -324,9 +324,10 @@ const dictionary: Record<string, string> = {
         "Behouden van Huidig met alles erin, jouw keuze",
     "Kept from incoming with everything inside, your pick":
         "Behouden van Inkomend met alles erin, jouw keuze",
-    "Kept from current with its flows, your pick": "Behouden van Huidig met zijn flows, jouw keuze",
-    "Kept from incoming with its flows, your pick":
-        "Behouden van Inkomend met zijn flows, jouw keuze",
+    "Kept from current with what was removed with it, your pick":
+        "Behouden van Huidig met wat ermee verwijderd werd, jouw keuze",
+    "Kept from incoming with what was removed with it, your pick":
+        "Behouden van Inkomend met wat ermee verwijderd werd, jouw keuze",
     "Kept from current: {element}": "Behouden van Huidig: {element}",
     "Kept from incoming: {element}": "Behouden van Inkomend: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -395,7 +396,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Huidig met alles erin behouden",
     "Keep incoming with everything inside": "Inkomend met alles erin behouden",
     "Leave out": "Weglaten",
-    "Also keep its removed flows": "Ook de verwijderde flows behouden",
+    "Also keep what was removed with it": "Ook behouden wat ermee verwijderd werd",
     "Keep it as current has it": "Behouden zoals Huidig het heeft",
     "Keep it as incoming has it": "Behouden zoals Inkomend het heeft",
     "Keep it and everything inside as current has them":
@@ -422,9 +423,10 @@ const dictionary: Record<string, string> = {
         "Behouden van Huidig met alles erin: {element}",
     "Kept from incoming with everything inside: {element}":
         "Behouden van Inkomend met alles erin: {element}",
-    "Kept from current with its flows: {element}": "Behouden van Huidig met zijn flows: {element}",
-    "Kept from incoming with its flows: {element}":
-        "Behouden van Inkomend met zijn flows: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Behouden van Huidig met wat ermee verwijderd werd: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Behouden van Inkomend met wat ermee verwijderd werd: {element}",
     "Left out: {element}, as current removed it":
         "Weggelaten: {element}, omdat Huidig het verwijderde",
     "Left out: {element}, as current doesn't have it":

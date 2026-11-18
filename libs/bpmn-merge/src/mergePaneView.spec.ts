@@ -478,14 +478,14 @@ describe("mergePaneView", () => {
                 ),
             );
 
-            decisions.pickWithConnections("Task_Reject", "incoming");
+            decisions.pickWithRemoved("Task_Reject", "incoming");
 
             expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toEqual([
                 {
                     id: "Task_Reject",
                     kind: "keptHere",
                     keptSide: "incoming",
-                    scope: "withConnections",
+                    scope: "withRemoved",
                 },
                 { id: "Flow_No", kind: "keptHere", keptSide: "incoming", scope: "element" },
             ]);
@@ -608,7 +608,7 @@ describe("mergePaneView", () => {
             ).toBe("withContents");
         });
 
-        it("badges an element with its flows only once no flow a pick could keep with it is left out", () => {
+        it("badges an element with what was removed with it only once no flow a pick could keep with it is left out", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -631,10 +631,10 @@ describe("mergePaneView", () => {
 
             decisions.pick("Flow_Rejected", "incoming");
 
-            expect(scopeOfTask()).toBe("withConnections");
+            expect(scopeOfTask()).toBe("withRemoved");
         });
 
-        it("badges an element with its flows only once no boundary event a pick could keep with it is left out", () => {
+        it("badges an element with what was removed with it only once no boundary event a pick could keep with it is left out", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -660,7 +660,7 @@ describe("mergePaneView", () => {
 
             decisions.pick("Timer_Pay", "incoming");
 
-            expect(scopeOfTask()).toBe("withConnections");
+            expect(scopeOfTask()).toBe("withRemoved");
         });
 
         it("offers no everything inside for a task that holds a data input association", () => {

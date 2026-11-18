@@ -9,7 +9,7 @@ import {
     drawnApartFromContainerNotes,
     flowEndsNotes,
     layoutChangedByBothNotes,
-    restoredWithoutConnectionsNotes,
+    restoredWithoutRemovedWithNotes,
 } from "./buildNotes";
 import { isEnclosingContainer } from "./containerContents";
 import { boundsIn, diagramIndexOf } from "./diagramIndex";
@@ -22,7 +22,7 @@ import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
-import { restoredFlowDefaultsOf } from "./removedConnections";
+import { restoredFlowDefaultsOf } from "./removedWith";
 
 export type { BuildNote } from "./buildNotes";
 
@@ -85,7 +85,7 @@ export async function buildMerged(
             ...drawnApartFromContainerNotes(result, resolution, (id) =>
                 isEnclosingContainer(resultUnits.get(id)),
             ),
-            ...restoredWithoutConnectionsNotes(result, resolution),
+            ...restoredWithoutRemovedWithNotes(result, resolution),
             ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
             ...layoutChangedByBothNotes(
                 result,

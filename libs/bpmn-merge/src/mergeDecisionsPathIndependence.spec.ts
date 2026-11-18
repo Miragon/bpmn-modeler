@@ -6,7 +6,7 @@ import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
-import { restoredFlowDefaultsOf } from "./removedConnections";
+import { restoredFlowDefaultsOf } from "./removedWith";
 
 function stateOf(decisions: MergeDecisions) {
     return {
@@ -350,7 +350,7 @@ describe("MergeDecisions path independence", () => {
                         ...offered.map((offeredId) => oneByOne.pick(offeredId, side)),
                     ].every((outcome) => outcome.applied);
 
-                    expect(together.pickWithConnections(id, side).applied, label).toBe(applied);
+                    expect(together.pickWithRemoved(id, side).applied, label).toBe(applied);
                     if (applied) expect(stateOf(together), label).toEqual(stateOf(oneByOne));
                     defaultsRestored += flowDefaultsOf(together).filter(
                         ({ kind }) => kind === "restored",

@@ -7,7 +7,7 @@ export interface RemovedWithLeftOut {
 }
 
 /** How far a pick reaches, and so what Undo takes back with it. */
-export type PickScope = "element" | "withContents" | "withConnections";
+export type PickScope = "element" | "withContents" | "withRemoved";
 
 export interface BlockedPick {
     /** The element the rule would need this pick to change. */
@@ -20,7 +20,7 @@ export type PickOutcome =
           readonly applied: true;
           readonly pulledIn: readonly string[];
           readonly dropped: readonly string[];
-          /** Set on a pick, each only when not empty: what `removedWithLeftOut` names, which `pickWithConnections` keeps too. */
+          /** Set on a pick, each only when not empty: what `removedWithLeftOut` names, which `pickWithRemoved` keeps too. */
           readonly connectionsLeftOut?: readonly string[];
           readonly boundaryEventsLeftOut?: readonly string[];
       }

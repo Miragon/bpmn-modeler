@@ -47,7 +47,7 @@ const refused = (
 
 const keep = (
     elementId: string,
-    scope: "element" | "withContents" | "withConnections" = "element",
+    scope: "element" | "withContents" | "withRemoved" = "element",
     side: "current" | "incoming" = "incoming",
 ): MergeActedDecision => ({ kind: "keep", elementId, scope, side, origin: "canvas" });
 
@@ -94,12 +94,12 @@ describe("mergeOutcomeCardContent", () => {
             "Kept from current with everything inside: Cancel order",
         ],
         [
-            "an element kept with its flows",
+            "an element kept with what was removed with it",
             {
                 outcome: applied("pick", "Task_Cancel"),
-                acted: keep("Task_Cancel", "withConnections"),
+                acted: keep("Task_Cancel", "withRemoved"),
             },
-            "Kept from incoming with its flows: Cancel order",
+            "Kept from incoming with what was removed with it: Cancel order",
         ],
         [
             "a leave-out of what the other side removed",

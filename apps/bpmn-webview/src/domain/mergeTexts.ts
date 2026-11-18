@@ -57,9 +57,9 @@ const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
         current: "Kept from current with everything inside, your pick",
         incoming: "Kept from incoming with everything inside, your pick",
     },
-    withConnections: {
-        current: "Kept from current with its flows, your pick",
-        incoming: "Kept from incoming with its flows, your pick",
+    withRemoved: {
+        current: "Kept from current with what was removed with it, your pick",
+        incoming: "Kept from incoming with what was removed with it, your pick",
     },
 };
 
@@ -138,7 +138,7 @@ function keepInsideText(side: MergeSide, translate: MergeTranslate): string {
 /** The context pad's words that name no side. */
 export const MERGE_PAD_TEXTS = {
     leaveOut: "Leave out",
-    keepRemovedFlows: "Also keep its removed flows",
+    keepRemovedWith: "Also keep what was removed with it",
     undoTip: "Go back to what the merge decided by itself",
 } as const;
 
@@ -171,9 +171,9 @@ export function padDecisionText(
             );
             return { label: tooltip, tooltip };
         }
-        case "keepRemovedFlows":
+        case "keepRemovedWith":
             return withTip(
-                translate(MERGE_PAD_TEXTS.keepRemovedFlows),
+                translate(MERGE_PAD_TEXTS.keepRemovedWith),
                 restoreOfferText(decision.offer, translate),
             );
         case "undo":
@@ -203,9 +203,9 @@ const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
         current: "Kept from current with everything inside: {element}",
         incoming: "Kept from incoming with everything inside: {element}",
     },
-    withConnections: {
-        current: "Kept from current with its flows: {element}",
-        incoming: "Kept from incoming with its flows: {element}",
+    withRemoved: {
+        current: "Kept from current with what was removed with it: {element}",
+        incoming: "Kept from incoming with what was removed with it: {element}",
     },
 };
 
@@ -369,7 +369,7 @@ const BUILD_NOTE_TEXTS: Record<
     addedAtSamePlace: "{first} and {second} were added at the same place",
     drawnApartFromContainer:
         "{element} is drawn by another side than {containers}; check that it still sits inside",
-    restoredWithoutConnections:
+    restoredWithoutRemovedWith:
         "{element} is kept without the flows the other side removed with it: {connections}",
     defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
@@ -378,7 +378,7 @@ const BUILD_NOTE_TEXTS: Record<
 const OTHER_DEFAULT_KEPT_TEXT =
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
 
-/** `restoredWithoutConnections` once it names a boundary event, counted as the restore offer counts. */
+/** `restoredWithoutRemovedWith` once it names a boundary event, counted as the restore offer counts. */
 const RESTORED_WITHOUT_ELEMENTS_TEXTS = {
     boundaryEvent:
         "{element} is kept without the boundary event the other side removed with it: {elements}",
@@ -427,7 +427,7 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }
-    if (note.kind === "restoredWithoutConnections" && note.boundaryEvents !== undefined) {
+    if (note.kind === "restoredWithoutRemovedWith" && note.boundaryEvents !== undefined) {
         return restoredWithoutElementsOf(note).length === 1
             ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
@@ -436,13 +436,13 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
 }
 
 function restoredWithoutElementsOf(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
 ): readonly string[] {
     return [...(note.boundaryEvents ?? []), ...note.connections];
 }
 
 function restoredWithoutReplacements(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
     nameOf: (id: string) => string,
     names: (ids: readonly string[]) => string,
 ): Record<string, string> {
@@ -475,7 +475,7 @@ function noteReplacements(
             return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
         case "drawnApartFromContainer":
             return { element: nameOf(note.id), containers: names(note.containers) };
-        case "restoredWithoutConnections":
+        case "restoredWithoutRemovedWith":
             return restoredWithoutReplacements(note, nameOf, names);
         case "defaultFlowNotRestored":
             return defaultFlowNoteReplacements(note, nameOf);

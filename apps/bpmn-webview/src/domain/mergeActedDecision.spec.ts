@@ -5,7 +5,7 @@ import type { MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 import {
     actedInMenu,
     actedOnPad,
-    keepRemovedFlowsDecision,
+    keepRemovedWithDecision,
     type MergeActedDecision,
     type MergeDecisionCommand,
     mergeDecisionCommandOf,
@@ -51,11 +51,11 @@ describe("actedOnPad", () => {
             },
         ],
         [
-            { kind: "keepRemovedFlows", side: "incoming", offer: OFFER },
+            { kind: "keepRemovedWith", side: "incoming", offer: OFFER },
             {
                 kind: "keep",
                 elementId: "Task_1",
-                scope: "withConnections",
+                scope: "withRemoved",
                 side: "incoming",
                 origin: "canvas",
             },
@@ -73,7 +73,7 @@ describe("actedInMenu", () => {
     it.each<MergePadDecision>([
         { kind: "keep", scope: "element", side: "current" },
         { kind: "leaveOut", side: "incoming", otherSideLacks: "removed" },
-        { kind: "keepRemovedFlows", side: "incoming", offer: OFFER },
+        { kind: "keepRemovedWith", side: "incoming", offer: OFFER },
         { kind: "undo", scope: "element" },
     ])("remembers a row's %o as the pad's, decided in the menu", (decision) => {
         expect(actedInMenu("Message_1", decision)).toStrictEqual({
@@ -83,14 +83,14 @@ describe("actedInMenu", () => {
     });
 });
 
-describe("keepRemovedFlowsDecision", () => {
+describe("keepRemovedWithDecision", () => {
     it("keeps the element from the side it names with the flows the other side removed, as the pad's entry does", () => {
-        expect(keepRemovedFlowsDecision("Task_1", "incoming")).toStrictEqual(
-            actedOnPad("Task_1", { kind: "keepRemovedFlows", side: "incoming", offer: OFFER }),
+        expect(keepRemovedWithDecision("Task_1", "incoming")).toStrictEqual(
+            actedOnPad("Task_1", { kind: "keepRemovedWith", side: "incoming", offer: OFFER }),
         );
-        expect(keepRemovedFlowsDecision("Task_1", "current")).toMatchObject({
+        expect(keepRemovedWithDecision("Task_1", "current")).toMatchObject({
             kind: "keep",
-            scope: "withConnections",
+            scope: "withRemoved",
             side: "current",
             origin: "canvas",
         });
@@ -113,11 +113,11 @@ describe("mergeDecisionCommandOf", () => {
             {
                 kind: "keep",
                 elementId: "Task_1",
-                scope: "withConnections",
+                scope: "withRemoved",
                 side: "current",
                 origin: "canvas",
             },
-            { kind: "pick", elementId: "Task_1", scope: "withConnections", side: "current" },
+            { kind: "pick", elementId: "Task_1", scope: "withRemoved", side: "current" },
         ],
         [
             {

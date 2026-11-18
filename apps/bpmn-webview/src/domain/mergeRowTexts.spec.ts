@@ -24,11 +24,11 @@ describe("decisionButtonText", () => {
         [{ kind: "leaveOut", side: "current", otherSideLacks: "removed" }, "Leave out"],
         [
             {
-                kind: "keepRemovedFlows",
+                kind: "keepRemovedWith",
                 side: "incoming",
                 offer: { elementId: "a", connections: ["f"], removedBy: "current" },
             },
-            "Also keep its removed flows",
+            "Also keep what was removed with it",
         ],
         [{ kind: "undo", scope: "element" }, "Undo pick"],
     ])("words a row's button for %o", (decision, expected) => {

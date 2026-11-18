@@ -74,10 +74,10 @@ describe("mergePadDecisions", () => {
             ["undo"],
         ],
         [
-            "the user kept it with its flows from this side: undo only",
+            "the user kept it with what was removed with it from this side: undo only",
             {
-                pickable: [{ id: "Task_1", undo: "withConnections" }],
-                badges: [keptHere("withConnections")],
+                pickable: [{ id: "Task_1", undo: "withRemoved" }],
+                badges: [keptHere("withRemoved")],
             },
             ["undo"],
         ],
@@ -113,13 +113,13 @@ describe("mergePadDecisions", () => {
             ["keep element"],
         ],
         [
-            "the host offers its removed flows: keep them too",
+            "the host offers what was removed with it: keep that too",
             {
                 pickable: [{ id: "Task_1", undo: "element" }],
                 badges: [keptHere("element")],
                 restoreOffer: OFFER,
             },
-            ["keepRemovedFlows", "undo"],
+            ["keepRemovedWith", "undo"],
         ],
         [
             "the host offers another element's flows: no offer here",
@@ -127,7 +127,7 @@ describe("mergePadDecisions", () => {
             ["keep element"],
         ],
         [
-            "a container the other side removed, kept with its flows offered: every entry in order",
+            "a container the other side removed, kept with what was removed with it offered: every entry in order",
             {
                 pickable: [
                     {
@@ -140,7 +140,7 @@ describe("mergePadDecisions", () => {
                 badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
                 restoreOffer: OFFER,
             },
-            ["keep element", "keep withContents", "leaveOut", "keepRemovedFlows", "undo"],
+            ["keep element", "keep withContents", "leaveOut", "keepRemovedWith", "undo"],
         ],
     ])("%s", (_case, overrides, expected) => {
         expect(kinds(states(overrides))).toStrictEqual(expected);
@@ -182,7 +182,7 @@ describe("mergePadDecisions", () => {
     );
 
     it.each(["current", "incoming"] as const)(
-        "keeps the removed flows from the side that kept the element, as the row does, on the %s pane",
+        "keeps what was removed with it from the side that kept the element, as the row does, on the %s pane",
         (paneSide) => {
             const decisions = mergePadDecisions(
                 states({ caption: { side: paneSide, role: "unknown" }, restoreOffer: OFFER }),
@@ -190,7 +190,7 @@ describe("mergePadDecisions", () => {
             );
 
             expect(decisions.at(-1)).toStrictEqual({
-                kind: "keepRemovedFlows",
+                kind: "keepRemovedWith",
                 side: "incoming",
                 offer: OFFER,
             });
@@ -213,7 +213,7 @@ describe("mergeRowDecisions", () => {
                     ? `keepInside ${decision.side}${decision.pressed ? " pressed" : ""}`
                     : `keep ${decision.side}`;
             case "leaveOut":
-            case "keepRemovedFlows":
+            case "keepRemovedWith":
                 return `${decision.kind} ${decision.side}`;
             case "undo":
                 return `undo ${decision.scope}`;
@@ -304,7 +304,7 @@ describe("mergeRowDecisions", () => {
                 pick: { keptSide: "incoming", scope: "element" },
             },
             { restoreOffer: { elementId: "Message_1", connections: ["F"], removedBy: "current" } },
-            ["leaveOut current", "keepRemovedFlows incoming", "undo element"],
+            ["leaveOut current", "keepRemovedWith incoming", "undo element"],
         ],
         [
             "the host offers another element's flows: no offer here",

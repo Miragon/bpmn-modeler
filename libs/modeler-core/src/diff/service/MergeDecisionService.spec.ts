@@ -449,12 +449,12 @@ describe("MergeDecisionService", () => {
             });
             expect(lastStatesOf(current).states.restoreOffer).toBeUndefined();
 
-            await pick(incoming, "Task_Pack", "withConnections");
+            await pick(incoming, "Task_Pack", "withRemoved");
 
             const { states } = lastStatesOf(incoming);
             expect(states.restoreOffer).toBeUndefined();
             expect(states.badges.map(({ id, scope }) => [id, scope])).toStrictEqual([
-                ["Task_Pack", "withConnections"],
+                ["Task_Pack", "withRemoved"],
                 ["Flow_2", "element"],
                 ["Flow_3", "element"],
             ]);
@@ -464,9 +464,9 @@ describe("MergeDecisionService", () => {
             const { current, incoming, bothReady, pick, unpick } =
                 await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
-            await pick(incoming, "Task_Pack", "withConnections");
+            await pick(incoming, "Task_Pack", "withRemoved");
 
-            await unpick(current, "Task_Pack", "withConnections");
+            await unpick(current, "Task_Pack", "withRemoved");
 
             expect(lastStatesOf(incoming).states.badges).toStrictEqual([]);
             expect(lastStatesOf(incoming).states.consequences).toStrictEqual([]);
