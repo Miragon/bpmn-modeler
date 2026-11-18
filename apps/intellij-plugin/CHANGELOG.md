@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.20.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.19.0...intellij-v1.20.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) ([4d479d0](https://github.com/Miragon/bpmn-modeler/commit/4d479d003ca57f54ce98d723035bff536f358235))
+* **bpmn-webview:** open a BPMN file that could not be read once its text is valid again, for example after its conflict markers are resolved, without reopening the editor ([#2488](https://github.com/Miragon/bpmn-modeler/issues/2488))
+
 ## [1.19.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.18.0...intellij-v1.19.0) (2026-11-16)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.10.0...bpmn-modeler-v1.11.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* generate element ids from names: "Generate from name" under the ID field, `proposeElementIds` and `renameElementIds` on the modeler handle, the `elementIdsFollowName` setting and `createElementIdConvention` in `@miragon/bpmn-modeler/lint` ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347))
+
+
+### 🐞 Bug Fixes
+
+* **viewer:** leave an element that is already selected as it is when `DiffViewer.mirrorSelection` mirrors it ([#2521](https://github.com/Miragon/bpmn-modeler/issues/2521))
+
 ## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.9.0...bpmn-modeler-v1.10.0) (2026-11-16)
 
 

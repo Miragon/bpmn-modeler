@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.4.0...orca-v0.5.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* offer "Generate from name" under the ID field of the properties panel in Design and Implement mode ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347))
+
 ## [0.4.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.3.1...orca-v0.4.0) (2026-11-14)
 
 

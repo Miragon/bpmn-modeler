@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.11.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.10.0...dmn-modeler-v0.11.0) (2026-11-18)
+
+No user-facing changes. This version republishes the package built from the shared code of this release.
+
 ## [0.10.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.9.0...dmn-modeler-v0.10.0) (2026-11-14)
 
 
