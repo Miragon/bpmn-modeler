@@ -32,7 +32,9 @@ const MIN_CONNECTIONS_KEPT = 20;
 const MIN_BOUNDARY_EVENTS_KEPT = 5;
 /** Fewer would mean the walks no longer keep a flow that was its source's default. */
 const MIN_DEFAULTS_RESTORED = 3;
-/** About 25 s on a developer machine; CI runners are slower. */
+/** The range runs in chunks, each with its own timeout: 200 seeds in one test took 175 s of 180 s on CI. */
+const SEEDS_PER_CHUNK = 50;
+/** About 7 s per chunk on a developer machine; CI runners are slower. */
 const FUZZ_TIMEOUT_MS = 180_000;
 
 type Pick =
@@ -590,27 +592,37 @@ async function expectMergesSoundly(seed: number): Promise<SeedCounts> {
 }
 
 describe("random versions of the order process", () => {
-    it(
-        `merge soundly for seeds ${FIRST_SEED} to ${FIRST_SEED + SEED_COUNT - 1}`,
-        async () => {
-            let connectionsKept = 0;
-            let defaultsRestored = 0;
-            for (let seed = FIRST_SEED; seed < FIRST_SEED + SEED_COUNT; seed++) {
-                const counts = await expectMergesSoundly(seed);
-                connectionsKept += counts.connectionsKept;
-                defaultsRestored += counts.defaultsRestored;
-            }
-            expect(
-                connectionsKept,
-                "walks that kept an element with its connections",
-            ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
-            expect(
-                defaultsRestored,
-                "builds that put a kept flow back as its source's default",
-            ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
-        },
-        FUZZ_TIMEOUT_MS,
-    );
+    let connectionsKept = 0;
+    let defaultsRestored = 0;
+    for (
+        let chunkStart = FIRST_SEED;
+        chunkStart < FIRST_SEED + SEED_COUNT;
+        chunkStart += SEEDS_PER_CHUNK
+    ) {
+        const chunkEnd = Math.min(chunkStart + SEEDS_PER_CHUNK, FIRST_SEED + SEED_COUNT) - 1;
+        it(
+            `merge soundly for seeds ${chunkStart} to ${chunkEnd}`,
+            async () => {
+                for (let seed = chunkStart; seed <= chunkEnd; seed++) {
+                    const counts = await expectMergesSoundly(seed);
+                    connectionsKept += counts.connectionsKept;
+                    defaultsRestored += counts.defaultsRestored;
+                }
+            },
+            FUZZ_TIMEOUT_MS,
+        );
+    }
+
+    it(`reach kept connections and restored defaults over seeds ${FIRST_SEED} to ${FIRST_SEED + SEED_COUNT - 1}`, () => {
+        expect(
+            connectionsKept,
+            "walks that kept an element with its connections",
+        ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
+        expect(
+            defaultsRestored,
+            "builds that put a kept flow back as its source's default",
+        ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
+    });
 
     it(`merge soundly for the seeds ${PINNED_SEEDS.join(", ")}`, async () => {
         for (const seed of PINNED_SEEDS) await expectMergesSoundly(seed);
