@@ -186,14 +186,6 @@ async function captions(): Promise<{ current: string; incoming: string }> {
     return { current: await sideLabel(current), incoming: await sideLabel(incoming) };
 }
 
-/**
- * The rows offer the merge view once the extension runs, and VS Code starts
- * it with the first BPMN editor, not with the window.
- */
-async function startExtension(): Promise<void> {
-    await suite.open(CLEAN_FILE, diagramRendered);
-}
-
 /** What every visible editor webview of the extension shows. */
 async function visiblePanes(): Promise<{ ended: boolean; canvas: boolean }[]> {
     const panes = [];
@@ -405,7 +397,6 @@ beforeEach(async () => {
 describe("the BPMN merge view", () => {
     describe("open", () => {
         it("offers the merge view on a Merge Changes row while a text file is the active editor", async () => {
-            await startExtension();
             await vscode().openFile(suite.file(TEXT_FILE));
             await expect.poll(activeTabLabel).toContain(TEXT_FILE);
 
@@ -422,8 +413,6 @@ describe("the BPMN merge view", () => {
         });
 
         it("explains a Merge Changes row it cannot open", async () => {
-            await startExtension();
-
             await vscode().runSourceControlCommand(NOTES_FILE, COMMAND_TITLE);
 
             await notification(

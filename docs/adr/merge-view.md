@@ -80,16 +80,18 @@ rule less.
 
 **Where the command shows.** "Resolve in BPMN Merge View" sits on Merge Changes rows while
 `bpmn-modeler.hasResolvableBpmnConflicts` is true, which the core sets while
-`ResolvableConflictsService` holds a resolvable `.bpmn`. No row can be told apart: on a Source
-Control row `resourceExtname` is the active editor's, and VS Code caches the row menu per
-`contextValue`, which Git leaves at the repository kind. So while one BPMN conflict exists the
-entry shows on every Merge Changes row, and the command explains a row it cannot open. It has
-no inline icon, which would sit on text rows too. The editor title and the palette use
+`ResolvableConflictsService` holds a resolvable `.bpmn`. Only the running extension sets the
+key, so the manifest activates on `workspaceContains:**/*.bpmn`; the cost is that the extension
+starts in every workspace with a BPMN file, not only in one with a conflict. No row can be
+told apart: on a Source Control row `resourceExtname` is the active editor's, and VS Code
+caches the row menu per `contextValue`, which Git leaves at the repository kind. So while one
+BPMN conflict exists the entry shows on every Merge Changes row, and the command explains a row
+it cannot open. It has no inline icon, which would sit on text rows too. The editor title and the palette use
 `resource in bpmn-modeler.resolvableBpmnConflicts`, the list the core decides, so a deleted
 side or a non-BPMN file never shows them. Rejected: the row entry on every Merge Changes row
 unconditionally, which every project without BPMN would see; `resource in git.mergeChanges`,
 which lists files one side deleted. The manifest contract spec pins the three `when` clauses
-and rejects `resourceExtname` and `inline` on a row.
+and the activation event, and rejects `resourceExtname` and `inline` on a row.
 
 **The offer on conflict markers** is an editor-session participant in the core's `diff/`
 context: once per editor, again only after the markers left and came back, not on every re-show

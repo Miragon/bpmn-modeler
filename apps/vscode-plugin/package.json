@@ -96,7 +96,8 @@
         "onFileSystem:bpmn-form-output-values",
         "onFileSystem:bpmn-element-xml",
         "onFileSystem:bpmn-merge",
-        "workspaceContains:**/element-templates/**/*.json"
+        "workspaceContains:**/element-templates/**/*.json",
+        "workspaceContains:**/*.bpmn"
     ],
     "contributes": {
         "walkthroughs": [
