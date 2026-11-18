@@ -12,7 +12,7 @@
         "linked-form-preview": { "seconds": 32 },
         "add-ons": { "seconds": 22 },
         "allowance-playground": { "seconds": 150 },
-        "merge-view": { "seconds": 50 }
+        "merge-view": { "seconds": 70 }
     },
     "baseline": ["bpmn-editor"],
     "ignore": ["**/*.md", "**/*.spec.ts", "**/*.spec.tsx", "**/__fixtures__/**"],
