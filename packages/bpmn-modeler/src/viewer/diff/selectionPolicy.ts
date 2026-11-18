@@ -37,6 +37,14 @@ export class UserChangeGuard {
         return this.selectionDepth === 0 && this.positioningDepth === 0;
     }
 
+    keepsSelectionInView(): boolean {
+        return this.isUserSelectionChange();
+    }
+
+    selectForUser(action: () => void): void {
+        action();
+    }
+
     positionProgrammatically(action: () => void): void {
         this.positioningDepth += 1;
         try {

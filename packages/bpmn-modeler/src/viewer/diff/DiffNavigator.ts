@@ -58,6 +58,14 @@ export class DiffNavigator {
         return this._cursor;
     }
 
+    get currentChangeId(): string | undefined {
+        return undefined;
+    }
+
+    get drawsCurrentChange(): boolean {
+        return false;
+    }
+
     get cycleLength(): number {
         return this.changeIds.length;
     }

@@ -387,6 +387,10 @@ export class DiffViewer {
         return shown || elementId === undefined;
     }
 
+    selectStep(_elementId: string | undefined, _options: { keepInView: boolean }): boolean {
+        return false;
+    }
+
     /**
      * Subscribes to the user changing the selection: the selected element's
      * BPMN id (a label as the element it labels), or `undefined` when the

@@ -193,6 +193,16 @@ describe("ElementXmlDiffService", () => {
         expect(view.openedCount).toBe(1);
     });
 
+    it("follows a step to an element the stepping pane does not draw, with that side empty", async () => {
+        const { service, view, after } = diagramDiff();
+        await service.show(after, "Review");
+
+        await service.follow(after, "Archive");
+
+        expect(view.shown(DIFF_KEY)).toMatchObject({ elementId: "Archive", after: "" });
+        expect(view.shown(DIFF_KEY)?.before).toContain('name="Archive"');
+    });
+
     it("keeps the open XML diff on its element when the selection is cleared", async () => {
         const { service, view, after, parsedElements } = diagramDiff();
         await service.show(after, "Review");
