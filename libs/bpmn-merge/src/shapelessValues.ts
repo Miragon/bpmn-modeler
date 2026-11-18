@@ -1,6 +1,7 @@
 import type { MergeSources } from "./buildMergedSources";
 import type { HandMergedVersion } from "./handMerge";
 import { type ElementVersion, type MergeElement, type MergeSide, sameLanes } from "./mergeResult";
+import { type SideText, sideNameOf, sideTextOf } from "./sideText";
 
 /** One own attribute whose value differs between the sides; a side without it has none. */
 export interface ValueDifference {
@@ -38,18 +39,10 @@ export function shapelessValuesOf(
     element: MergeElement,
     handMerge?: HandMergedVersion,
 ): ShapelessValues {
-    const valuesOf = (side: MergeSide): SideValues | undefined => {
-        if (handMerge?.side === side) return handMerge;
-        const snapshot = sources.snapshots[side].get(element.id);
-        return snapshot === undefined
-            ? undefined
-            : { attributes: snapshot.attributes, content: snapshot.content };
-    };
+    const valuesOf = (side: MergeSide) =>
+        sideTextOf(sources.snapshots, handMerge, element.id, side);
     const held = (side: MergeSide) => {
-        const name =
-            handMerge?.side === side
-                ? handMerge.attributes["name"]
-                : sources.names[side].get(element.id);
+        const name = sideNameOf(sources.names, handMerge, element.id, side);
         return element.versions[side] === undefined
             ? undefined
             : name === undefined
@@ -68,15 +61,9 @@ export function shapelessValuesOf(
     };
 }
 
-/** What a side writes of the element: a snapshot's, or a hand-merged version's. */
-interface SideValues {
-    readonly attributes: Readonly<Record<string, string>>;
-    readonly content: string;
-}
-
 function comparedSides(
-    currentSnapshot: SideValues | undefined,
-    incomingSnapshot: SideValues | undefined,
+    currentSnapshot: SideText | undefined,
+    incomingSnapshot: SideText | undefined,
     current: ElementVersion,
     incoming: ElementVersion,
 ): Pick<ShapelessValues, "differences" | "moreDiffers"> {

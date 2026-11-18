@@ -26,6 +26,7 @@ import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
 import { restoredFlowDefaultsOf } from "./removedWith";
+import { sideTextOf } from "./sideText";
 
 export type { BuildNote } from "./buildNotes";
 
@@ -160,16 +161,13 @@ function sourceSnapshotsOf(
     const sourceSnapshots = new Map<string, ElementSnapshot>();
     for (const [id, side] of Object.entries(sides)) {
         const snapshot = snapshots[side].get(id);
-        const handMerge = decisions.handMergeOf(id);
-        if (snapshot && handMerge?.side === side) {
-            sourceSnapshots.set(id, {
-                ...snapshot,
-                content: handMerge.content,
-                attributes: handMerge.attributes,
-            });
-        } else if (snapshot) {
-            sourceSnapshots.set(id, snapshot);
-        }
+        const text = sideTextOf(snapshots, decisions.handMergeOf(id), id, side);
+        if (snapshot === undefined || text === undefined) continue;
+        sourceSnapshots.set(id, {
+            ...snapshot,
+            content: text.content,
+            attributes: text.attributes,
+        });
     }
     return sourceSnapshots;
 }

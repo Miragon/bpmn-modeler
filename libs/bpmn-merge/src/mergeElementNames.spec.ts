@@ -76,4 +76,21 @@ describe("mergeElementNames", () => {
             Task_Pack: "Pack parcel",
         });
     });
+
+    it("names an element whose hand merge blanks its name as a plain pick of a blank name does", async () => {
+        const versions = handMergeVersions();
+        const sources = await prepareMergeSources(versions);
+        const decisions = MergeDecisions.from(await computeMerge(versions));
+        decisions.pick("Task_Pack", "incoming");
+        const blanked = sources.handMergeTexts
+            .get("Task_Pack")!
+            .incoming.replace('name="Pack box"', 'name=""');
+        expect(await acceptHandMerge(sources, decisions, "Task_Pack", "incoming", blanked)).toEqual(
+            { applied: true },
+        );
+
+        expect(mergeElementNames(sources, decisions, ["Task_Pack"])).toEqual({
+            Task_Pack: "Pack parcel",
+        });
+    });
 });

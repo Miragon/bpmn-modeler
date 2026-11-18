@@ -1,6 +1,7 @@
 import type { MergeSources } from "./buildMergedSources";
 import type { MergeDecisions } from "./mergeDecisions";
 import { otherSide } from "./mergeResult";
+import { sideNameOf } from "./sideText";
 
 /**
  * The names of the elements a view names by id, the same on both panes: as
@@ -17,9 +18,9 @@ export function mergeElementNames(
     for (const id of ids) {
         const side = decisions.sideOf(id) ?? "current";
         const handMerge = decisions.handMergeOf(id);
-        const sideName =
-            handMerge?.side === side ? handMerge.attributes["name"] : sources.names[side].get(id);
-        const name = sideName ?? sources.names[otherSide(side)].get(id);
+        const name =
+            sideNameOf(sources.names, handMerge, id, side) ??
+            sideNameOf(sources.names, handMerge, id, otherSide(side));
         if (name !== undefined) names[id] = name;
     }
     return names;
