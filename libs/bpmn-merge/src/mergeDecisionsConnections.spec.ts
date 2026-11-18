@@ -8,6 +8,7 @@ import {
 } from "./__fixtures__/mergeResultBuilder";
 import { MergeDecisions } from "./mergeDecisions";
 import type { ElementState, MergeElement, MergeResult, MergeSide } from "./mergeResult";
+import { restoredFlowDefaultsOf } from "./removedConnections";
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });
 
@@ -206,6 +207,123 @@ describe("MergeDecisions.pickWithConnections", () => {
 
         expect(decisions.originOf("Flow_No")).toBe("picked");
         expect(decisions.sideOf("Task_Reject")).toBe("current");
+    });
+});
+
+describe("the default a kept flow was of its source", () => {
+    /**
+     * Base's source names Flow_No as its default; current removed Task_Reject with its flows, and with them the
+     * source's default or, given `currentDefault`, set another one; incoming kept them all.
+     */
+    const removedWithTheDefaultFlow = ({
+        defaultProperty = "bpmn:ExclusiveGateway#default",
+        currentDefault,
+    }: { defaultProperty?: string; currentDefault?: string } = {}) =>
+        mergeResult(
+            process,
+            mergeElement("Source", "takenFromCurrent", {
+                type: defaultProperty.slice(0, defaultProperty.indexOf("#")),
+                parent: "Process",
+                references: [refersTo(defaultProperty, "Flow_No")],
+                current: {
+                    references:
+                        currentDefault === undefined
+                            ? []
+                            : [refersTo(defaultProperty, currentDefault)],
+                },
+            }),
+            mergeElement("End", "unchanged", { parent: "Process" }),
+            mergeElement("Task_Reject", "removedByCurrent", { parent: "Process" }),
+            sequenceFlow("Flow_No", "Source", "Task_Reject", "removedByCurrent"),
+            sequenceFlow("Flow_Rejected", "Task_Reject", "End", "removedByCurrent"),
+            sequenceFlow("Flow_Yes", "Source", "End", "unchanged"),
+        );
+
+    const flowDefaultsOf = (decisions: MergeDecisions) => {
+        const { elements } = decisions.resolution();
+        return restoredFlowDefaultsOf(decisions.result.elements, (id) => elements[id]);
+    };
+
+    it.each([
+        "bpmn:ExclusiveGateway#default",
+        "bpmn:InclusiveGateway#default",
+        "bpmn:ComplexGateway#default",
+        "bpmn:Activity#default",
+    ])("restores %s with the flow the offer keeps, on the source current changed", (property) => {
+        const decisions = MergeDecisions.from(
+            removedWithTheDefaultFlow({ defaultProperty: property }),
+        );
+
+        decisions.pickWithConnections("Task_Reject", "incoming");
+
+        expect(decisions.sideOf("Source")).toBe("current");
+        expect(flowDefaultsOf(decisions)).toEqual([
+            { kind: "restored", source: "Source", flow: "Flow_No" },
+        ]);
+    });
+
+    it("restores it whichever way the flow came back, a pick of the flow alone too", () => {
+        const decisions = MergeDecisions.from(removedWithTheDefaultFlow());
+
+        expect(decisions.pick("Flow_No", "incoming").applied).toBe(true);
+
+        expect(decisions.isInResult("Task_Reject")).toBe(true);
+        expect(flowDefaultsOf(decisions)).toEqual([
+            { kind: "restored", source: "Source", flow: "Flow_No" },
+        ]);
+    });
+
+    it("keeps the default current set instead and names it", () => {
+        const decisions = MergeDecisions.from(
+            removedWithTheDefaultFlow({ currentDefault: "Flow_Yes" }),
+        );
+
+        decisions.pickWithConnections("Task_Reject", "incoming");
+
+        expect(flowDefaultsOf(decisions)).toEqual([
+            {
+                kind: "otherDefaultKept",
+                source: "Source",
+                flow: "Flow_No",
+                keptDefault: "Flow_Yes",
+            },
+        ]);
+    });
+
+    it.each<[string, (decisions: MergeDecisions) => void]>([
+        ["the flow stays out", (decisions) => decisions.pick("Task_Reject", "incoming")],
+        [
+            "the source is taken from the side that names the flow",
+            (decisions) => {
+                decisions.pick("Source", "incoming");
+                decisions.pickWithConnections("Task_Reject", "incoming");
+            },
+        ],
+        ["nothing is picked", () => undefined],
+    ])("restores nothing when %s", (_name, decide) => {
+        const decisions = MergeDecisions.from(removedWithTheDefaultFlow());
+
+        decide(decisions);
+
+        expect(flowDefaultsOf(decisions)).toEqual([]);
+    });
+
+    it("restores nothing for a flow the other side did not remove", () => {
+        const decisions = MergeDecisions.from(
+            mergeResult(
+                process,
+                mergeElement("Source", "takenFromCurrent", {
+                    type: "bpmn:ExclusiveGateway",
+                    parent: "Process",
+                    references: [refersTo("bpmn:ExclusiveGateway#default", "Flow_No")],
+                    current: { references: [] },
+                }),
+                mergeElement("End", "unchanged", { parent: "Process" }),
+                sequenceFlow("Flow_No", "Source", "End", "unchanged"),
+            ),
+        );
+
+        expect(flowDefaultsOf(decisions)).toEqual([]);
     });
 });
 

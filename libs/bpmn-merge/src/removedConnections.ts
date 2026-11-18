@@ -1,4 +1,4 @@
-import { type MergeElement, type MergeSide, otherSide } from "./mergeResult";
+import { type MergeElement, type MergeSide, type SideInResult, otherSide } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
 
 /** The ancestor and `side` have the element and the other side removed it. */
@@ -45,4 +45,21 @@ export function otherEndsOf(
     return (connection.versions[side]?.references ?? [])
         .filter((reference) => isEdgeEnd(reference) && reference.target !== elementId)
         .map(({ target }) => target);
+}
+
+/** What becomes of the default a flow kept against the other side's removal was of its source on the keeping side. */
+export type RestoredFlowDefault =
+    | { readonly kind: "restored"; readonly source: string; readonly flow: string }
+    | {
+          readonly kind: "otherDefaultKept";
+          readonly source: string;
+          readonly flow: string;
+          readonly keptDefault: string;
+      };
+
+export function restoredFlowDefaultsOf(
+    _elements: readonly MergeElement[],
+    _sideInResult: SideInResult,
+): readonly RestoredFlowDefault[] {
+    return [];
 }

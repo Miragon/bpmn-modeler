@@ -984,6 +984,50 @@ ${
             expect(notes.filter((note) => note.kind === "restoredWithoutConnections")).toEqual([]);
         });
 
+        it("keeps the gateway's default with the default flow current removed", async () => {
+            const scenario = scenarioNamed(
+                "dangling: current removes a task, incoming adds a flow from it",
+            );
+            const decisions = await decisionsFor(scenario);
+            expect(decisions.sideOf("Gateway_Ok")).toBe("current");
+            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+
+            const { xml, notes } = await buildMerged(
+                await prepareMergeSources(scenario),
+                decisions,
+            );
+
+            const { elementsById } = await parseWithoutWarnings(xml);
+            expect(elementsById.Gateway_Ok).toHaveProperty("default.id", "Flow_No");
+            expect(notes.filter((note) => note.kind === "defaultFlowNotRestored")).toEqual([]);
+        });
+
+        it("keeps the default current set instead of the restored flow and names both", async () => {
+            const versions = fixtureTriple({
+                current: (model) => {
+                    removeNode(model, "Task_Reject");
+                    nodeById(model, "Gateway_Ok").default = "Flow_Yes";
+                },
+            });
+            const decisions = await decisionsFor(versions);
+            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+
+            const { xml, notes } = await buildMerged(
+                await prepareMergeSources(versions),
+                decisions,
+            );
+
+            const { elementsById } = await parseWithoutWarnings(xml);
+            expect(elementsById, "Flow_No").toHaveProperty("Flow_No");
+            expect(elementsById.Gateway_Ok).toHaveProperty("default.id", "Flow_Yes");
+            expect(notes).toContainEqual({
+                kind: "defaultFlowNotRestored",
+                id: "Gateway_Ok",
+                flow: "Flow_No",
+                keptDefault: "Flow_Yes",
+            });
+        });
+
         it("names elements both sides added at the same place", async () => {
             const addTask = (id: string, x: number) => (model: BpmnFixtureModel) => {
                 model.nodes.push({ id, type: "task", name: id, x, y: 320, lane: "Lane_Manager" });
