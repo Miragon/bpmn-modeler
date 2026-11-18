@@ -359,8 +359,12 @@ const BUILD_NOTE_TEXTS: Record<
         "{element} is drawn by another side than {containers}; check that it still sits inside",
     restoredWithoutConnections:
         "{element} is kept without the flows the other side removed with it: {connections}",
+    defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
 };
+
+const OTHER_DEFAULT_KEPT_TEXT =
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
 
 const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
     current: "Both sides changed the layout of {elements}; current's is kept",
@@ -395,11 +399,25 @@ export function buildNoteText(
     translate: MergeTranslate,
 ): string {
     const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
-    const template =
-        note.kind === "layoutChangedByBoth"
-            ? LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide]
-            : BUILD_NOTE_TEXTS[note.kind];
-    return translate(template, noteReplacements(note, nameOf, names));
+    return translate(buildNoteTemplate(note), noteReplacements(note, nameOf, names));
+}
+
+function buildNoteTemplate(note: MergePaneBuildNote): string {
+    if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
+    if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
+        return OTHER_DEFAULT_KEPT_TEXT;
+    }
+    return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function defaultFlowNoteReplacements(
+    note: Extract<MergePaneBuildNote, { kind: "defaultFlowNotRestored" }>,
+    nameOf: (id: string) => string,
+): Record<string, string> {
+    const replacements = { element: nameOf(note.id), flow: nameOf(note.flow) };
+    return note.keptDefault === undefined
+        ? replacements
+        : { ...replacements, keptDefault: nameOf(note.keptDefault) };
 }
 
 function noteReplacements(
@@ -416,6 +434,8 @@ function noteReplacements(
             return { element: nameOf(note.id), containers: names(note.containers) };
         case "restoredWithoutConnections":
             return { element: nameOf(note.id), connections: names(note.connections) };
+        case "defaultFlowNotRestored":
+            return defaultFlowNoteReplacements(note, nameOf);
         case "layoutChangedByBoth":
             return { elements: names(note.ids) };
         case "frameDiffers":

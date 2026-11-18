@@ -5,6 +5,7 @@ import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
 import {
     type BuildNote,
     addedAtSamePlaceNotes,
+    defaultFlowNotRestoredNotes,
     drawnApartFromContainerNotes,
     flowEndsNotes,
     layoutChangedByBothNotes,
@@ -17,9 +18,11 @@ import type { MergeModdle } from "./engineModdle";
 import type { MergeDecisions } from "./mergeDecisions";
 import type { MergeSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
+import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
+import { restoredFlowDefaultsOf } from "./removedConnections";
 
 export type { BuildNote } from "./buildNotes";
 
@@ -31,8 +34,9 @@ export interface MergedDocument {
 /**
  * Writes the merged BPMN of the sources' versions: current's file as the
  * frame with the definitions attributes only incoming changed, each element
- * and its drawing as its side wrote them, derived references rebuilt,
- * serialised as the modeler saves. Throws on open conflicts and refuses a
+ * and its drawing as its side wrote them, derived references rebuilt, a
+ * flow kept against its removal its source's default again
+ * (`restoredFlowDefaultsOf`), serialised as the modeler saves. Throws on open conflicts and refuses a
  * result that fails its checks, naming the ids.
  */
 export async function buildMerged(
@@ -53,6 +57,8 @@ export async function buildMerged(
 
     applyFrame(current, frame.takenFromIncoming);
     const resultUnits = assembleSemanticTree(trees, resolution.elements);
+    const flowDefaults = restoredFlowDefaultsOf(result.elements, (id) => resolution.elements[id]);
+    const restoredDefaults = restoreDefaultFlows(resultUnits, flowDefaults);
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
@@ -65,6 +71,7 @@ export async function buildMerged(
             sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements),
             drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides),
             laneMembers,
+            restoredDefaults,
         },
         mergeModdle,
     );
@@ -79,6 +86,7 @@ export async function buildMerged(
                 isEnclosingContainer(resultUnits.get(id)),
             ),
             ...restoredWithoutConnectionsNotes(result, resolution),
+            ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
             ...layoutChangedByBothNotes(
                 result,
                 resolution,

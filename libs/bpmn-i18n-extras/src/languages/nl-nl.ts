@@ -357,6 +357,10 @@ const dictionary: Record<string, string> = {
         "{element} is door een andere kant getekend dan {containers}; controleer of het er nog in ligt",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is behouden zonder de flows die de andere kant ermee verwijderde: {connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "{flow} is behouden, maar is niet langer de default-flow van {element}",
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
+        "{flow} is behouden, maar {element} houdt {keptDefault} als default-flow",
     "The file's {attribute} differs between the sides; current's is kept":
         "Het attribuut {attribute} van het bestand verschilt tussen de kanten; dat van Huidig blijft behouden",
     "1 conflict left": "Nog 1 conflict",

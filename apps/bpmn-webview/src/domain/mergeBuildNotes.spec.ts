@@ -22,6 +22,10 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         { kind: "restoredWithoutConnections", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
         ["Task_A", "Flow_1", "Flow_2"],
     ],
+    defaultFlowNotRestored: [
+        { kind: "defaultFlowNotRestored", id: "Gateway_1", flow: "Flow_1", keptDefault: "Flow_2" },
+        ["Gateway_1", "Flow_1", "Flow_2"],
+    ],
     layoutChangedByBoth: [
         { kind: "layoutChangedByBoth", ids: ["Task_A", "Gateway_1"], keptSide: "incoming" },
         ["Task_A", "Gateway_1"],
@@ -32,5 +36,15 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
 describe("buildNoteElementIds", () => {
     it.each(Object.entries(CASES))("names the elements a %s note shows", (_kind, [note, ids]) => {
         expect(buildNoteElementIds(note)).toStrictEqual(ids);
+    });
+
+    it("names no kept default for a source that keeps none", () => {
+        expect(
+            buildNoteElementIds({
+                kind: "defaultFlowNotRestored",
+                id: "Gateway_1",
+                flow: "Flow_1",
+            }),
+        ).toStrictEqual(["Gateway_1", "Flow_1"]);
     });
 });

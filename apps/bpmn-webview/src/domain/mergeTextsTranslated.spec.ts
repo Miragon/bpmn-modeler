@@ -92,6 +92,7 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
     drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
     restoredWithoutConnections: { kind: "restoredWithoutConnections", id: "a", connections: ["b"] },
+    defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };
@@ -278,6 +279,9 @@ function mergeTextKeys(): Set<string> {
         buildNoteText(note, nameOf, translate);
         if (note.kind === "layoutChangedByBoth") {
             buildNoteText({ ...note, keptSide: "incoming" }, nameOf, translate);
+        }
+        if (note.kind === "defaultFlowNotRestored") {
+            buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
         }
     }
     return keys;

@@ -1,7 +1,7 @@
 # Merge view picking and building
 
 - Status: accepted
-- Last reviewed: 2026-11-17
+- Last reviewed: 2026-11-18
 
 ## Context
 
@@ -142,6 +142,19 @@ switch's target from `ApplyDiffHighlightsQuery.comparison`; the switch opens the
 comparison, then closes this one, and goes once the merge view closed. Cost: it does not follow
 later edits. Rejected: the `file:` URI on the right, which a restored, unresolved comparison
 turned into a pending diff half, so the working file opened as a dead viewer.
+
+**A kept flow stays its source's default.** Removing a flow takes its source's `default` with it,
+so keeping the flow against that removal means the default too. `restoredFlowDefaultsOf` derives
+it from the final sides alone, however the flow came back: the build sets `default` on the
+source's version in the result and keeps every other change of that side. A source whose version
+in the result names another flow keeps it, since the removing side chose it, and the build note
+`defaultFlowNotRestored` names that flow; a source whose type holds no default gets the note
+without one. Rejected: picking the whole source from the keeping side, the only pick the library
+has, which drops the other side's changes to it (a rename, a condition) and decides a conflict for
+the user; a note alone, which leaves the offer promising more than it keeps; a field on the pick's
+outcome, since a later pick of the source creates or lifts the clash and only the build sees the
+final sides. Cost: the one attribute the build writes that no side's version of the element holds,
+so the content check strips exactly that `default` before it compares.
 
 **The modeler retries a failed first import**, so a tab open on the markers shows the build.
 

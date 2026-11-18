@@ -26,6 +26,8 @@ const STEPS_PER_WALK = 8;
 const PINNED_SEEDS = [2050, 2557, 2766, 3049, 3357, 3368];
 /** Fewer would mean the walks no longer reach the flows a removal took along. */
 const MIN_CONNECTIONS_KEPT = 20;
+/** Fewer would mean the walks no longer keep a flow that was its source's default. */
+const MIN_DEFAULTS_RESTORED = 3;
 /** About 25 s on a developer machine; CI runners are slower. */
 const FUZZ_TIMEOUT_MS = 180_000;
 
@@ -170,12 +172,19 @@ function expectContracts(
     expectAChoiceForEveryConflict(result, picks, decisions, label);
 }
 
+interface SeedCounts {
+    readonly connectionsKept: number;
+    readonly defaultsRestored: number;
+}
+
+type ParsedElements = Readonly<Record<string, { readonly default?: { readonly id?: string } }>>;
+
 /** The build succeeds, parses cleanly and holds exactly the elements the resolution keeps. */
 async function expectBuilds(
     sources: MergeSources,
     decisions: MergeDecisions,
     label: string,
-): Promise<readonly BuildNote[]> {
+): Promise<{ readonly notes: readonly BuildNote[]; readonly defaultsRestored: number }> {
     const resolution = decisions.resolution();
     const { xml, notes } = await buildMerged(sources, decisions).catch((error: unknown) => {
         throw new Error(`${label}: ${String(error)}`);
@@ -188,7 +197,61 @@ async function expectBuilds(
         })
         .map(({ id }) => id);
     expect(misplaced, label).toEqual([]);
-    return notes;
+    const defaultsRestored = expectKeptFlowsStayDefaults(
+        decisions,
+        elementsById as ParsedElements,
+        notes,
+        label,
+    );
+    return { notes, defaultsRestored };
+}
+
+/**
+ * A flow kept against the other side's removal that its source named as its
+ * default on the keeping side is that source's default in the built file, or
+ * a note names it. Returns how many defaults the build put back.
+ */
+function expectKeptFlowsStayDefaults(
+    decisions: MergeDecisions,
+    elementsById: ParsedElements,
+    notes: readonly BuildNote[],
+    label: string,
+): number {
+    const { elements: sides } = decisions.resolution();
+    const elementsByIdInResult = new Map(
+        decisions.result.elements.map((element) => [element.id, element]),
+    );
+    const property = (reference: { readonly property: string }) =>
+        reference.property.slice(reference.property.indexOf("#") + 1);
+    let defaultsRestored = 0;
+    for (const flow of decisions.result.elements) {
+        const side = sides[flow.id]!;
+        const { base, [side]: kept, [otherSide(side)]: removed } = flow.versions;
+        if (base === undefined || kept === undefined || removed !== undefined) continue;
+        for (const { target: source } of kept.references.filter(
+            (ref) => property(ref) === "sourceRef",
+        )) {
+            const namedOnKeptSide = elementsByIdInResult
+                .get(source)
+                ?.versions[side]?.references.some(
+                    (ref) => property(ref) === "default" && ref.target === flow.id,
+                );
+            if (!namedOnKeptSide || elementsById[source] === undefined) continue;
+            const builtDefault = elementsById[source]?.default?.id;
+            const noted = notes.some(
+                (note) =>
+                    note.kind === "defaultFlowNotRestored" &&
+                    note.id === source &&
+                    note.flow === flow.id,
+            );
+            expect(
+                builtDefault === flow.id || noted,
+                `${label}: ${source} keeps ${flow.id} as its default or a note names it`,
+            ).toBe(true);
+            if (builtDefault === flow.id && sides[source] !== side) defaultsRestored += 1;
+        }
+    }
+    return defaultsRestored;
 }
 
 /**
@@ -371,13 +434,14 @@ function expectPanesShowEveryPick(
  * picks give on a fresh merge; and once its conflicts are closed at random,
  * it builds.
  */
-/** Returns how many applied steps kept an element with at least one connection. */
+/** Counts the applied steps that kept an element with at least one connection, and the defaults the builds put back. */
 async function expectPathIndependentWalks(
     result: MergeResult,
     sources: MergeSources,
     seed: number,
-): Promise<number> {
+): Promise<SeedCounts> {
     let connectionsKept = 0;
+    let defaultsRestored = 0;
     const random = seededRandom(seed ^ 0x9e3779b9);
     for (let walk = 0; walk < WALKS_PER_SEED; walk++) {
         const decisions = MergeDecisions.from(result);
@@ -445,11 +509,12 @@ async function expectPathIndependentWalks(
         }
         if (decisions.canBuild) {
             const label = `seed ${seed}: ${JSON.stringify(picks)}`;
-            const notes = await expectBuilds(sources, decisions, label);
-            expectNoRestoredConnectionNoted(picks, decisions, notes, label);
+            const built = await expectBuilds(sources, decisions, label);
+            expectNoRestoredConnectionNoted(picks, decisions, built.notes, label);
+            defaultsRestored += built.defaultsRestored;
         }
     }
-    return connectionsKept;
+    return { connectionsKept, defaultsRestored };
 }
 
 /**
@@ -461,7 +526,7 @@ function finalPicksOf(result: MergeResult, picks: readonly Pick[]): Pick[] {
     return [...picksLeftBy(result, picks)].map(([id, side]) => ({ kind: "pick", id, side }));
 }
 
-async function expectMergesSoundly(seed: number): Promise<number> {
+async function expectMergesSoundly(seed: number): Promise<SeedCounts> {
     const versions = randomMergeVersions(seed);
     const result = await computeMerge(versions);
     const sources = await prepareMergeSources(versions);
@@ -474,13 +539,20 @@ describe("random versions of the order process", () => {
         `merge soundly for seeds ${FIRST_SEED} to ${FIRST_SEED + SEED_COUNT - 1}`,
         async () => {
             let connectionsKept = 0;
+            let defaultsRestored = 0;
             for (let seed = FIRST_SEED; seed < FIRST_SEED + SEED_COUNT; seed++) {
-                connectionsKept += await expectMergesSoundly(seed);
+                const counts = await expectMergesSoundly(seed);
+                connectionsKept += counts.connectionsKept;
+                defaultsRestored += counts.defaultsRestored;
             }
             expect(
                 connectionsKept,
                 "walks that kept an element with its connections",
             ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
+            expect(
+                defaultsRestored,
+                "builds that put a kept flow back as its source's default",
+            ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
         },
         FUZZ_TIMEOUT_MS,
     );

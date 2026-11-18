@@ -48,7 +48,7 @@ An element without a shape is decided in its row of the **…** menu, which a st
 
 <figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed: a ✓ Incoming badge, the pad's tooltip Also keep its removed flows: Also keep the 2 flows current removed with it, and below the task a card reading Kept from incoming: Check feature order with the button Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 
-Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad, or in its row for an element without a shape, whichever side you kept. Without it, the element is kept without those flows and the build notes it.
+Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep its removed flows** on its pad, or in its row for an element without a shape, whichever side you kept. Without it, the element is kept without those flows and the build notes it. A flow you keep that was the default flow of its gateway or task is its default again in the result, unless the other side made another flow the default; then that one stays and the build notes it.
 
 ## Build the result
 
@@ -65,7 +65,7 @@ Once no conflict is open, **Build** in the right pane's bar (or in its **…** m
 
 <figure class="shot"><img src="./images/bm-notes.png" alt="The incoming pane after a build with the notes of the build open, saying that Check feature order is kept without the flows the other side removed with it, and linking the task and both flows"><figcaption>The notes name the elements to check; each name selects its element.</figcaption></figure>
 
-**Review notes (N)** in the **…** menu lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
+**Review notes (N)** in the **…** menu lists what the build asks you to look at: a flow whose ends are drawn by different sides, two elements both sides added at the same place, an element drawn apart from its container, an element kept without the flows removed with it, a kept flow that is no longer the default flow of its gateway or task, elements both sides moved to different places (one note per moved block, naming the side whose layout is kept), a part of the file's definitions (an attribute, its extensions or imports) that differs between the sides, of which current's is kept.
 
 ## Compare the result
 

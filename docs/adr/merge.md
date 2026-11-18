@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-17
+- Last reviewed: 2026-11-18
 
 ## Context
 
@@ -182,9 +182,9 @@ parser and asserts that the module still loads.
   collaboration offers everything inside; a task holds its data associations but offers
   only itself. The offer and the build note `restoredWithoutConnectionsNotes` share the
   helpers of `removedConnections.ts`, not one rule: the note names every flow left out, the
-  offer only those it can bring back. Not offered: a flow
-  whose other end the removing side deleted too, which would bring back an end the user did
-  not ask for; a boundary event removed with its host; a restored flow's source `default`.
+  offer only those it can bring back. Not offered: a flow whose other end the removing side
+  deleted too (it would bring back an end the user did not ask for); a boundary event removed
+  with its host. [The build](merge-view-picking-and-building.md#building) restores a kept flow's `default`.
 - *Consequences follow the picks, not their order.* The only state is the user's picks:
   each pick or unpick derives every consequence again from them over the automatic
   resolutions. Picking an element back, or unpicking it, restores what its first pick
@@ -268,10 +268,10 @@ each of those.
   sides, an element drawn from another side than its container, elements both sides added
   at the same place, an element kept against the other side's removal whose flows on its
   own side stay out (each flow is decided on its own, so the flows removed with it stay
-  removed unless `pickWithConnections` kept them, and it may be left unconnected), elements
-  the base and both sides draw, each side differently (`layoutChangedByBoth`), and every
-  frame difference the result does not carry (attributes both sides changed, incoming's
-  extensions or imports).
+  removed unless `pickWithConnections` kept them, and it may be left unconnected), a kept
+  flow no longer its source's default (`defaultFlowNotRestored`), elements the base and both
+  sides draw, each side differently (`layoutChangedByBoth`), and every frame difference the
+  result does not carry (attributes both sides changed, incoming's extensions or imports).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from

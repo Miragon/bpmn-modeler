@@ -18,6 +18,7 @@ import { isMergeElement } from "./mergeElements";
 
 const valid = scenarioNamed("table: unchanged").current;
 const TASK_CHECK_SHAPE = /<bpmndi:BPMNShape id="Task_Check_di"[\s\S]*?<\/bpmndi:BPMNShape>/;
+const NONE_RESTORED: ReadonlyMap<string, string> = new Map();
 
 async function parse(xml: string) {
     return (await loadBpmnModdle())().fromXML(xml);
@@ -45,6 +46,7 @@ async function expectationsFor(xml: string): Promise<BuildExpectations> {
         sourceSnapshots: snapshots,
         drawnByShape: new Set(["Task_Check", "Flow_Start", "Lane_Clerk"]),
         laneMembers: laneMembersOf(snapshots),
+        restoredDefaults: NONE_RESTORED,
     };
 }
 
@@ -226,7 +228,7 @@ describe("requireSourceContent", () => {
 
         const source = await snapshotsOf(valid);
 
-        expect(() => requireSourceContent(renamed, source)).toThrow(
+        expect(() => requireSourceContent(renamed, source, NONE_RESTORED)).toThrow(
             "elements differ from the side they are taken from: Task_Check",
         );
     });
@@ -236,7 +238,7 @@ describe("requireSourceContent", () => {
         const moved = new Map(source);
         moved.set("Task_Reject", { ...source.get("Task_Reject")!, lanes: ["Lane_Clerk"] });
 
-        expect(() => requireSourceContent(moved, source)).toThrow(": Task_Reject");
+        expect(() => requireSourceContent(moved, source, NONE_RESTORED)).toThrow(": Task_Reject");
     });
 
     it("refuses an element in another container than its side's", async () => {
@@ -244,7 +246,7 @@ describe("requireSourceContent", () => {
         const moved = new Map(source);
         moved.set("Task_Reject", { ...source.get("Task_Reject")!, parent: "Sub_Ship" });
 
-        expect(() => requireSourceContent(moved, source)).toThrow(": Task_Reject");
+        expect(() => requireSourceContent(moved, source, NONE_RESTORED)).toThrow(": Task_Reject");
     });
 
     it("refuses a missing and an unexpected element", async () => {
@@ -253,7 +255,32 @@ describe("requireSourceContent", () => {
         result.delete("Task_Reject");
         result.set("Task_Stray", source.get("Task_Check")!);
 
-        expect(() => requireSourceContent(result, source)).toThrow(": Task_Reject, Task_Stray");
+        expect(() => requireSourceContent(result, source, NONE_RESTORED)).toThrow(
+            ": Task_Reject, Task_Stray",
+        );
+    });
+
+    describe("with a default flow the build restored", () => {
+        const withoutDefault = valid.replace(' default="Flow_No"', "");
+        const restored = new Map([["Gateway_Ok", "Flow_No"]]);
+
+        it("accepts the source as its side wrote it with that default added", async () => {
+            expect(withoutDefault).not.toBe(valid);
+            const source = await snapshotsOf(withoutDefault);
+            const result = await snapshotsOf(valid);
+
+            expect(() => requireSourceContent(result, source, restored)).not.toThrow();
+        });
+
+        it.each([
+            ["without the default", withoutDefault],
+            ["naming another default", valid.replace('default="Flow_No"', 'default="Flow_Yes"')],
+        ])("refuses the source %s", async (_name, merged) => {
+            const source = await snapshotsOf(withoutDefault);
+            const result = await snapshotsOf(merged);
+
+            expect(() => requireSourceContent(result, source, restored)).toThrow(": Gateway_Ok");
+        });
     });
 });
 

@@ -320,6 +320,10 @@ const dictionary: Record<string, string> = {
         "{element} 與 {containers} 由不同側繪製；請檢查它是否仍位於其中",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} 被保留，但不含另一側隨其刪除的流：{connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "{flow} 被保留，但不再是 {element} 的預設流",
+    "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
+        "{flow} 被保留，但 {element} 的預設流仍是 {keptDefault}",
     "The file's {attribute} differs between the sides; current's is kept":
         "檔案的 {attribute} 在兩側不同；保留目前的值",
     "1 conflict left": "剩餘 1 個衝突",
