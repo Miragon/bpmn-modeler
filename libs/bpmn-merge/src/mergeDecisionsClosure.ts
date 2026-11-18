@@ -1,4 +1,4 @@
-import type { BlockedPick, PickOutcome } from "./pickOutcome";
+import type { BlockedPick, ClosedPickOutcome } from "./pickOutcome";
 import { findClashes, rivalCollaborationsOf } from "./mergeDecisionsClashes";
 import type { DecidedSides } from "./mergeDecisionsSides";
 import { MERGE_SIDES, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
@@ -11,7 +11,7 @@ import {
 import type { RequirementObstacle } from "./unmetRequirement";
 
 export interface ClosedDecisions {
-    readonly outcome: PickOutcome;
+    readonly outcome: ClosedPickOutcome;
     readonly after: DecidedSides;
 }
 

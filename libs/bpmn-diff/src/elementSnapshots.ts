@@ -3,16 +3,17 @@ import { diagramLayouts } from "./diagramLayout";
 import { createDocumentModdle } from "./documentModdle";
 import {
     type UnitRule,
+    deleteDerivedReferences,
     isDiffUnit,
-    isNameableElement,
     prefixSourcesWith,
     serialiseSnippet,
     snippetRootsOf,
     stripUnits,
     unitRuleRequiringId,
 } from "./elementSnippets";
-import { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
+import { ownAttributeEntries, walkContainment } from "./moddleContainment";
 import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import { type SnapshotReference, unitParts, unitReferences } from "./unitStructure";
 
 export interface ElementSnapshotOptions {
     /** Declarations that fix one prefix per namespace (default: the document itself), as for elementXml. */
@@ -27,14 +28,7 @@ export interface ElementSnapshotOptions {
     readonly rejectWarnings?: boolean;
 }
 
-export interface SnapshotReference {
-    /** The referring element's type and property, for example `bpmn:SequenceFlow#sourceRef`. */
-    readonly property: string;
-    /** The unit that holds the referenced element. */
-    readonly target: string;
-    /** The referenced element's own id when it lies inside `target`. */
-    readonly targetPart?: string;
-}
+export type { SnapshotReference } from "./unitStructure";
 
 export interface ElementSnapshot {
     readonly id: string;
@@ -60,13 +54,6 @@ export interface ElementSnapshot {
     /** The `bpmnElement` id of the plane holding the unit's first shape or edge; `undefined` when none does. */
     readonly plane?: string;
 }
-
-const DERIVED_REFERENCES = new Set([
-    "bpmn:incoming",
-    "bpmn:outgoing",
-    "bpmn:flowNodeRef",
-    "bpmn:boundaryEventRefs",
-]);
 
 /**
  * Parses `xml` once and returns a snapshot of every unit with an id, in
@@ -119,11 +106,11 @@ export async function elementSnapshots(
                             ? holder.id
                             : undefined,
                     lanes: lanesByNode.get(unit) ?? [],
-                    references: referencesOf(
+                    references: unitReferences(
                         unit,
                         rootsByUnit.get(unit)!,
                         isKnownUnit,
-                        owningUnitOf,
+                        (target) => owningUnitOf(target)?.id,
                     ),
                     layout: layouts.get(unit),
                 },
@@ -139,7 +126,7 @@ export async function elementSnapshots(
     const snapshots = new Map<string, ElementSnapshot>();
     for (const unit of units) {
         const roots = rootsByUnit.get(unit)!;
-        const parts = partsOf(unit, roots);
+        const parts = unitParts(unit, roots);
         const unitXml = await serialiseSnippet(prefixedModdle, roots, unit.id);
         for (const root of roots) walkContainment(root, deleteDerivedReferences);
         const content = await serialiseSnippet(prefixedModdle, roots, unit.id);
@@ -190,62 +177,8 @@ function lanesByFlowNode(elements: readonly ModdleElement[]): Map<ModdleElement,
     return lanesByNode;
 }
 
-function referencesOf(
-    unit: ModdleElement,
-    roots: readonly ModdleElement[],
-    isUnit: UnitRule,
-    owningUnitOf: (element: ModdleElement) => ModdleElement | undefined,
-): SnapshotReference[] {
-    const references: SnapshotReference[] = [];
-    const visit = (element: ModdleElement): void => {
-        for (const property of element.$descriptor.properties ?? []) {
-            if (!property.isReference || property.isVirtual || isDerived(property.ns?.name))
-                continue;
-            const value = element[property.name];
-            for (const target of (Array.isArray(value) ? value : [value]).filter(isModdleElement)) {
-                const targetUnit = owningUnitOf(target);
-                if (!targetUnit?.id || targetUnit === unit) continue;
-                references.push({
-                    property: `${element.$type}#${property.name}`,
-                    target: targetUnit.id,
-                    ...(target === targetUnit || !target.id ? {} : { targetPart: target.id }),
-                });
-            }
-        }
-        for (const name of containmentProperties(element)) {
-            const value = element[name];
-            for (const child of (Array.isArray(value) ? value : [value]).filter(isModdleElement)) {
-                if (!isUnit(child)) visit(child);
-            }
-        }
-    };
-    for (const root of roots) visit(root);
-    return references;
-}
-
 function rejectionOf(parsed: ModdleParseResult, rejectWarnings: boolean): string | undefined {
     if (!rejectWarnings) return skippedContentWarning(parsed);
     const messages = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
     return messages.length > 0 ? messages.join("; ") : undefined;
-}
-
-/** Called once the units are stripped, so the walk stays inside the unit. */
-function partsOf(unit: ModdleElement, roots: readonly ModdleElement[]): string[] {
-    const parts: string[] = [];
-    for (const root of roots) {
-        walkContainment(root, (element) => {
-            if (element !== unit && isNameableElement(element)) parts.push(element.id);
-        });
-    }
-    return parts;
-}
-
-function isDerived(qualifiedName: string | undefined): boolean {
-    return qualifiedName !== undefined && DERIVED_REFERENCES.has(qualifiedName);
-}
-
-function deleteDerivedReferences(element: ModdleElement): void {
-    for (const property of element.$descriptor.properties ?? []) {
-        if (isDerived(property.ns?.name)) delete element[property.name];
-    }
 }

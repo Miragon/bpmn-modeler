@@ -1,4 +1,4 @@
-import type { ElementSnapshot, ModdleElement } from "@miragon/bpmn-modeler-diff";
+import type { ElementSnapshot, ModdleParseResult } from "@miragon/bpmn-modeler-diff";
 
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
@@ -15,8 +15,11 @@ import { isEnclosingContainer } from "./containerContents";
 import { boundsIn, diagramIndexOf } from "./diagramIndex";
 import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
+import type { HandMergedVersion } from "./handMerge";
+import { spliceHandMergedText } from "./handMergeSplice";
+import { isMergeUnit, parseElementText } from "./handMergeText";
 import type { MergeDecisions } from "./mergeDecisions";
-import type { MergeSide } from "./mergeResult";
+import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
 import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
@@ -47,10 +50,13 @@ export async function buildMerged(
     requireSourcesOf(result, sources);
     const resolution = decisions.resolution();
     const { mergeModdle, versions } = sources;
-    const [current, incoming] = await Promise.all([
-        parsedVersion(mergeModdle, versions.current),
-        parsedVersion(mergeModdle, versions.incoming),
-    ]);
+    const parsed = {
+        current: await mergeModdle.moddle.fromXML(versions.current),
+        incoming: await mergeModdle.moddle.fromXML(versions.incoming),
+    };
+    await spliceHandMerges(mergeModdle, decisions.handMergedVersions, parsed);
+    const current = parsed.current.rootElement;
+    const incoming = parsed.incoming.rootElement;
     const diagramIndexes = { current: diagramIndexOf(current), incoming: diagramIndexOf(incoming) };
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };
@@ -68,7 +74,7 @@ export async function buildMerged(
     await checkMergedXml(
         xml,
         {
-            sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements),
+            sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements, decisions),
             drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides),
             laneMembers,
             restoredDefaults,
@@ -97,18 +103,50 @@ export async function buildMerged(
     };
 }
 
-async function parsedVersion(mergeModdle: MergeModdle, xml: string): Promise<ModdleElement> {
-    return (await mergeModdle.moddle.fromXML(xml)).rootElement;
+/**
+ * Splices each hand-merged version into its side's element before the trees
+ * are taken apart, so it moves like the rest of the side; its references name
+ * the side's elements first, then the other side's. An accepted version always
+ * splices, so a failure is a bug.
+ */
+async function spliceHandMerges(
+    mergeModdle: MergeModdle,
+    handMerges: readonly HandMergedVersion[],
+    parsed: Readonly<Record<MergeSide, ModdleParseResult>>,
+): Promise<void> {
+    for (const { id, side, scope, content } of handMerges) {
+        const unit = parsed[side].elementsById[id];
+        if (unit === undefined) throw new Error(`The ${side} version has no ${id} to merge by hand`);
+        const text = await parseElementText(mergeModdle, content, unit.$type);
+        spliceHandMergedText(unit, text, scope, isMergeUnit, (target) => {
+            const found =
+                parsed[side].elementsById[target] ?? parsed[otherSide(side)].elementsById[target];
+            if (found === undefined) {
+                throw new Error(`The hand-merged ${id} names ${target}, which neither side has`);
+            }
+            return found;
+        });
+    }
 }
 
 function sourceSnapshotsOf(
     { snapshots }: MergeSources,
     sides: Readonly<Record<string, MergeSide>>,
+    decisions: MergeDecisions,
 ): Map<string, ElementSnapshot> {
     const sourceSnapshots = new Map<string, ElementSnapshot>();
     for (const [id, side] of Object.entries(sides)) {
         const snapshot = snapshots[side].get(id);
-        if (snapshot) sourceSnapshots.set(id, snapshot);
+        const handMerge = decisions.handMergeOf(id);
+        if (snapshot && handMerge?.side === side) {
+            sourceSnapshots.set(id, {
+                ...snapshot,
+                content: handMerge.content,
+                attributes: handMerge.attributes,
+            });
+        } else if (snapshot) {
+            sourceSnapshots.set(id, snapshot);
+        }
     }
     return sourceSnapshots;
 }

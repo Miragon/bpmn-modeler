@@ -40,7 +40,7 @@ export function mergePickFeedback({
                 applied: false,
                 action,
                 elementId,
-                blockedBy: outcome.blockedBy.map(blockOf),
+                blockedBy: "blockedBy" in outcome ? outcome.blockedBy.map(blockOf) : [],
             },
         };
     }

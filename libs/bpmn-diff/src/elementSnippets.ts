@@ -1,10 +1,34 @@
 import { containmentProperties, walkContainment } from "./moddleContainment";
-import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import {
+    type ModdleElement,
+    type ModdlePropertyDescriptor,
+    isModdleElement,
+    isType,
+} from "./moddleElement";
 import { XMLNS_PREFIX, isNamespaceDeclaration, namePrefix } from "./namespaceDeclarations";
 import { trackedElementOf } from "./trackedElements";
 import type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 
 export type UnitRule = (element: ModdleElement) => boolean;
+
+const DERIVED_REFERENCES = new Set([
+    "bpmn:incoming",
+    "bpmn:outgoing",
+    "bpmn:flowNodeRef",
+    "bpmn:boundaryEventRefs",
+]);
+
+/** A reference the modeler derives from other elements: incoming, outgoing, flowNodeRef, boundaryEventRefs. */
+export function isDerivedReference(property: ModdlePropertyDescriptor): boolean {
+    const qualifiedName = property.ns?.name;
+    return qualifiedName !== undefined && DERIVED_REFERENCES.has(qualifiedName);
+}
+
+export function deleteDerivedReferences(element: ModdleElement): void {
+    for (const property of element.$descriptor.properties ?? []) {
+        if (isDerivedReference(property)) delete element[property.name];
+    }
+}
 
 export function isSemanticElement(element: ModdleElement): boolean {
     return isType(element, "bpmn:BaseElement") && !isType(element, "bpmn:Definitions");
