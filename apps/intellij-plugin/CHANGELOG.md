@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.20.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.19.0...intellij-v1.20.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** note a layout both sides changed differently ([#2519](https://github.com/Miragon/bpmn-modeler/issues/2519)) [sync 6fad52e] ([4087e03](https://github.com/Miragon/bpmn-modeler/commit/4087e03daa6ae559965f65455589da83ced424cf))
+* **bpmn-merge:** offer the boundary events removed with a kept activity ([#2543](https://github.com/Miragon/bpmn-modeler/issues/2543)) [sync 6b23693] ([09659f3](https://github.com/Miragon/bpmn-modeler/commit/09659f3e19a3c8b0d71a71e1ab1e5d3b33f53e96))
+* **bpmn-merge:** restore the source's default with a restored flow ([#2542](https://github.com/Miragon/bpmn-modeler/issues/2542)) [sync 3e9dbb7] ([aa93c13](https://github.com/Miragon/bpmn-modeler/commit/aa93c137b6bbca0e70579448a6883ff5e1e1994c))
+* **bpmn-merge:** show both sides' values in a shape-less merge row ([#2527](https://github.com/Miragon/bpmn-modeler/issues/2527)) [sync 7536402] ([d64a7c7](https://github.com/Miragon/bpmn-modeler/commit/d64a7c75c7d2e25c49e4ad813ca91f2738ff54ca))
+* **bpmn-webview:** give each merge pane a one-line bar with a "…" menu ([#2525](https://github.com/Miragon/bpmn-modeler/issues/2525)) [sync 4befbc8] ([1f68e25](https://github.com/Miragon/bpmn-modeler/commit/1f68e252aeb7b3eeb2e0c02347d1f1a49a1b1fce))
+* **bpmn-webview:** keep a shape-less container whole from the menu ([#2528](https://github.com/Miragon/bpmn-modeler/issues/2528)) [sync 9c86c43] ([70a393c](https://github.com/Miragon/bpmn-modeler/commit/70a393c0f126d0a70745bb3492ced598ba46028a))
+* **bpmn-webview:** let a step select its element and decide in the pad ([#2521](https://github.com/Miragon/bpmn-modeler/issues/2521)) [sync 3f176a9] ([84afb2b](https://github.com/Miragon/bpmn-modeler/commit/84afb2b3acbf2d77746d8699e9e14658380f5535))
+* **bpmn-webview:** mark conflicts and automatic resolutions in the merge view ([#2484](https://github.com/Miragon/bpmn-modeler/issues/2484)) [sync 6755c3d] ([ccfe012](https://github.com/Miragon/bpmn-modeler/commit/ccfe012a1e462fb2ed387857e138b47ad65d1cb0))
+* **bpmn-webview:** pick the side to keep per element in the merge view ([#2485](https://github.com/Miragon/bpmn-modeler/issues/2485)) [sync 92a82e1] ([2127e98](https://github.com/Miragon/bpmn-modeler/commit/2127e98026e71cfd689d3ac954431cc4671a3eb5))
+* **bpmn-webview:** show a pick's outcome as a card below its element ([#2522](https://github.com/Miragon/bpmn-modeler/issues/2522)) [sync 3afd9bf] ([53f86c7](https://github.com/Miragon/bpmn-modeler/commit/53f86c79379f34698be6e17f93fcb31ce84af082))
+* generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) ([4d479d0](https://github.com/Miragon/bpmn-modeler/commit/4d479d003ca57f54ce98d723035bff536f358235))
+* **modeler-core:** build the merge result into the working file ([#2488](https://github.com/Miragon/bpmn-modeler/issues/2488)) [sync 15902a9] ([283652b](https://github.com/Miragon/bpmn-modeler/commit/283652bd0432ad63c43056710048434b4152c0f9))
+* **modeler-core:** let a merge pick name the side it keeps ([#2518](https://github.com/Miragon/bpmn-modeler/issues/2518)) [sync b978ce1] ([ebd83d9](https://github.com/Miragon/bpmn-modeler/commit/ebd83d9869a2d4d5676de3bd7d6f5d9d84a24438))
+* **vscode-plugin:** add keyboard commands to the BPMN merge view ([#2529](https://github.com/Miragon/bpmn-modeler/issues/2529)) [sync a768ad6] ([48a4899](https://github.com/Miragon/bpmn-modeler/commit/48a48999a39a32a3b1a7481781533b1feff6877b))
+* **vscode-plugin:** open a conflicted bpmn file in a merge view from source control ([#2483](https://github.com/Miragon/bpmn-modeler/issues/2483)) [sync dd20337] ([68a0c99](https://github.com/Miragon/bpmn-modeler/commit/68a0c99bc834cfae36a0d9a73dd219fd5e03176a))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** fetch a surface in at most ten files at once ([#2538](https://github.com/Miragon/bpmn-modeler/issues/2538)) [sync 5bc86fa] ([4c1e287](https://github.com/Miragon/bpmn-modeler/commit/4c1e2874c2e43031192aa1c478427c9a4b4e91ec))
+* **bpmn-webview:** keep the stepper's place after a pick in the merge view ([#2516](https://github.com/Miragon/bpmn-modeler/issues/2516)) [sync 6caef42] ([4c6e423](https://github.com/Miragon/bpmn-modeler/commit/4c6e42310485db6d2256527e707921d48a50df96))
+
 ## [1.19.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.18.0...intellij-v1.19.0) (2026-11-16)
 
 

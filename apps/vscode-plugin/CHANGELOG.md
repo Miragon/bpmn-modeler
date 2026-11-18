@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.26.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.25.0...vscode-v1.26.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** note a layout both sides changed differently ([#2519](https://github.com/Miragon/bpmn-modeler/issues/2519)) [sync 6fad52e] ([4087e03](https://github.com/Miragon/bpmn-modeler/commit/4087e03daa6ae559965f65455589da83ced424cf))
+* **bpmn-merge:** offer the boundary events removed with a kept activity ([#2543](https://github.com/Miragon/bpmn-modeler/issues/2543)) [sync 6b23693] ([09659f3](https://github.com/Miragon/bpmn-modeler/commit/09659f3e19a3c8b0d71a71e1ab1e5d3b33f53e96))
+* **bpmn-merge:** restore the source's default with a restored flow ([#2542](https://github.com/Miragon/bpmn-modeler/issues/2542)) [sync 3e9dbb7] ([aa93c13](https://github.com/Miragon/bpmn-modeler/commit/aa93c137b6bbca0e70579448a6883ff5e1e1994c))
+* **bpmn-merge:** show both sides' values in a shape-less merge row ([#2527](https://github.com/Miragon/bpmn-modeler/issues/2527)) [sync 7536402] ([d64a7c7](https://github.com/Miragon/bpmn-modeler/commit/d64a7c75c7d2e25c49e4ad813ca91f2738ff54ca))
+* **bpmn-webview:** give each merge pane a one-line bar with a "…" menu ([#2525](https://github.com/Miragon/bpmn-modeler/issues/2525)) ([4befbc8](https://github.com/Miragon/bpmn-modeler/commit/4befbc87851584200a566e127634915996cf11df))
+* **bpmn-webview:** keep a shape-less container whole from the menu ([#2528](https://github.com/Miragon/bpmn-modeler/issues/2528)) [sync 9c86c43] ([70a393c](https://github.com/Miragon/bpmn-modeler/commit/70a393c0f126d0a70745bb3492ced598ba46028a))
+* **bpmn-webview:** let a step select its element and decide in the pad ([#2521](https://github.com/Miragon/bpmn-modeler/issues/2521)) ([3f176a9](https://github.com/Miragon/bpmn-modeler/commit/3f176a9d7909d3fb95353857422a670c8f8dd141))
+* **bpmn-webview:** mark conflicts and automatic resolutions in the merge view ([#2484](https://github.com/Miragon/bpmn-modeler/issues/2484)) ([6755c3d](https://github.com/Miragon/bpmn-modeler/commit/6755c3d07de45e5ee0fc74b5798d7f29795708ea))
+* **bpmn-webview:** pick the side to keep per element in the merge view ([#2485](https://github.com/Miragon/bpmn-modeler/issues/2485)) ([92a82e1](https://github.com/Miragon/bpmn-modeler/commit/92a82e16b6d8906d77a07c423cba4df976828c46))
+* **bpmn-webview:** show a pick's outcome as a card below its element ([#2522](https://github.com/Miragon/bpmn-modeler/issues/2522)) ([3afd9bf](https://github.com/Miragon/bpmn-modeler/commit/3afd9bfe4c7c808b1bd550f2f38474a8371f21ec))
+* generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) ([4d479d0](https://github.com/Miragon/bpmn-modeler/commit/4d479d003ca57f54ce98d723035bff536f358235))
+* **modeler-core:** build the merge result into the working file ([#2488](https://github.com/Miragon/bpmn-modeler/issues/2488)) ([15902a9](https://github.com/Miragon/bpmn-modeler/commit/15902a9d4b39fde22a30e15f3be530510b9481da))
+* **modeler-core:** let a merge pick name the side it keeps ([#2518](https://github.com/Miragon/bpmn-modeler/issues/2518)) [sync b978ce1] ([ebd83d9](https://github.com/Miragon/bpmn-modeler/commit/ebd83d9869a2d4d5676de3bd7d6f5d9d84a24438))
+* **vscode-plugin:** add keyboard commands to the BPMN merge view ([#2529](https://github.com/Miragon/bpmn-modeler/issues/2529)) ([a768ad6](https://github.com/Miragon/bpmn-modeler/commit/a768ad6b9873aa6bf2e1e0bc503a590684045aa1))
+* **vscode-plugin:** open a conflicted bpmn file in a merge view from source control ([#2483](https://github.com/Miragon/bpmn-modeler/issues/2483)) ([dd20337](https://github.com/Miragon/bpmn-modeler/commit/dd2033762d25c7ccf6778a22b65379f35ff894d9))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** fetch a surface in at most ten files at once ([#2538](https://github.com/Miragon/bpmn-modeler/issues/2538)) ([5bc86fa](https://github.com/Miragon/bpmn-modeler/commit/5bc86fac53ad205afa21279ccd4d08a7ac676664))
+* **bpmn-webview:** keep the stepper's place after a pick in the merge view ([#2516](https://github.com/Miragon/bpmn-modeler/issues/2516)) [sync 6caef42] ([4c6e423](https://github.com/Miragon/bpmn-modeler/commit/4c6e42310485db6d2256527e707921d48a50df96))
+* **vscode-plugin:** offer the merge view on a Merge Changes row before the extension started ([#2541](https://github.com/Miragon/bpmn-modeler/issues/2541)) ([1ce30b3](https://github.com/Miragon/bpmn-modeler/commit/1ce30b3d7c0b562ac3cf57add6109765705d50a6))
+
+
+### 🛠️ Misc
+
+* **modeler-types:** add the merge vocabulary and the diff hooks the merge view needs ([#2482](https://github.com/Miragon/bpmn-modeler/issues/2482)) ([787ac1f](https://github.com/Miragon/bpmn-modeler/commit/787ac1f7c2f3a9fa9094e03fd1b93f69dc6e70b5))
+* **vscode-plugin:** run the merge-view smoke as independent tests ([#2536](https://github.com/Miragon/bpmn-modeler/issues/2536)) ([08dd483](https://github.com/Miragon/bpmn-modeler/commit/08dd483b96aaa4e5f075201817d49d4492cb6436))
+* **vscode-plugin:** split the vs code smoke into feature suites ([#2532](https://github.com/Miragon/bpmn-modeler/issues/2532)) ([a0516a9](https://github.com/Miragon/bpmn-modeler/commit/a0516a93722208bab06599502af7ddc2b117c45e))
+
 ## [1.25.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.24.1...vscode-v1.25.0) (2026-11-16)
 
 

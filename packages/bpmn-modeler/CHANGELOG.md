@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.10.0...bpmn-modeler-v1.11.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** offer the boundary events removed with a kept activity ([#2543](https://github.com/Miragon/bpmn-modeler/issues/2543)) ([6b23693](https://github.com/Miragon/bpmn-modeler/commit/6b23693f3aab3e4f216e26e46ba3277777edc194))
+* **bpmn-merge:** restore the source's default with a restored flow ([#2542](https://github.com/Miragon/bpmn-modeler/issues/2542)) ([3e9dbb7](https://github.com/Miragon/bpmn-modeler/commit/3e9dbb75fad2fe5089ec14517d2a106886f05da8))
+* **bpmn-merge:** show both sides' values in a shape-less merge row ([#2527](https://github.com/Miragon/bpmn-modeler/issues/2527)) ([7536402](https://github.com/Miragon/bpmn-modeler/commit/7536402d871e2cbc441d4aa59a7fbe585fcfe27c))
+* **bpmn-webview:** give each merge pane a one-line bar with a "…" menu ([#2525](https://github.com/Miragon/bpmn-modeler/issues/2525)) ([4befbc8](https://github.com/Miragon/bpmn-modeler/commit/4befbc87851584200a566e127634915996cf11df))
+* **bpmn-webview:** let a step select its element and decide in the pad ([#2521](https://github.com/Miragon/bpmn-modeler/issues/2521)) ([3f176a9](https://github.com/Miragon/bpmn-modeler/commit/3f176a9d7909d3fb95353857422a670c8f8dd141))
+* **bpmn-webview:** mark conflicts and automatic resolutions in the merge view ([#2484](https://github.com/Miragon/bpmn-modeler/issues/2484)) ([6755c3d](https://github.com/Miragon/bpmn-modeler/commit/6755c3d07de45e5ee0fc74b5798d7f29795708ea))
+* generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) ([4d479d0](https://github.com/Miragon/bpmn-modeler/commit/4d479d003ca57f54ce98d723035bff536f358235))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** fetch a surface in at most ten files at once ([#2538](https://github.com/Miragon/bpmn-modeler/issues/2538)) ([5bc86fa](https://github.com/Miragon/bpmn-modeler/commit/5bc86fac53ad205afa21279ccd4d08a7ac676664))
+
+
+### 🛠️ Misc
+
+* **bpmn-i18n-extras:** translate the bpmn merge view ([#2489](https://github.com/Miragon/bpmn-modeler/issues/2489)) ([3616d10](https://github.com/Miragon/bpmn-modeler/commit/3616d10f277c3f29076245b695627f8cf637b3aa))
+* **bpmn-i18n-extras:** translate the merge view redesign ([#2530](https://github.com/Miragon/bpmn-modeler/issues/2530)) ([d491081](https://github.com/Miragon/bpmn-modeler/commit/d4910810b26923cd0d6ffbecd40be07b20fba0c4))
+* **modeler-types:** add the merge vocabulary and the diff hooks the merge view needs ([#2482](https://github.com/Miragon/bpmn-modeler/issues/2482)) ([787ac1f](https://github.com/Miragon/bpmn-modeler/commit/787ac1f7c2f3a9fa9094e03fd1b93f69dc6e70b5))
+* release main ([#2498](https://github.com/Miragon/bpmn-modeler/issues/2498)) ([7329584](https://github.com/Miragon/bpmn-modeler/commit/73295841b99dce0cef9c379fa2fe128ea40860cf))
+* **vscode-plugin:** split the vs code smoke into feature suites ([#2532](https://github.com/Miragon/bpmn-modeler/issues/2532)) ([a0516a9](https://github.com/Miragon/bpmn-modeler/commit/a0516a93722208bab06599502af7ddc2b117c45e))
+
 ## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.9.0...bpmn-modeler-v1.10.0) (2026-11-16)
 
 

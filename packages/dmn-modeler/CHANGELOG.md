@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.10.0...dmn-modeler-v0.11.0) (2026-11-18)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** offer the boundary events removed with a kept activity ([#2543](https://github.com/Miragon/bpmn-modeler/issues/2543)) [sync 6b23693] ([09659f3](https://github.com/Miragon/bpmn-modeler/commit/09659f3e19a3c8b0d71a71e1ab1e5d3b33f53e96))
+* **bpmn-merge:** restore the source's default with a restored flow ([#2542](https://github.com/Miragon/bpmn-modeler/issues/2542)) [sync 3e9dbb7] ([aa93c13](https://github.com/Miragon/bpmn-modeler/commit/aa93c137b6bbca0e70579448a6883ff5e1e1994c))
+* **bpmn-merge:** show both sides' values in a shape-less merge row ([#2527](https://github.com/Miragon/bpmn-modeler/issues/2527)) [sync 7536402] ([d64a7c7](https://github.com/Miragon/bpmn-modeler/commit/d64a7c75c7d2e25c49e4ad813ca91f2738ff54ca))
+* **bpmn-webview:** give each merge pane a one-line bar with a "…" menu ([#2525](https://github.com/Miragon/bpmn-modeler/issues/2525)) [sync 4befbc8] ([1f68e25](https://github.com/Miragon/bpmn-modeler/commit/1f68e252aeb7b3eeb2e0c02347d1f1a49a1b1fce))
+* **bpmn-webview:** let a step select its element and decide in the pad ([#2521](https://github.com/Miragon/bpmn-modeler/issues/2521)) [sync 3f176a9] ([84afb2b](https://github.com/Miragon/bpmn-modeler/commit/84afb2b3acbf2d77746d8699e9e14658380f5535))
+* generate element ids from names in vs code and intellij ([#2347](https://github.com/Miragon/bpmn-modeler/issues/2347)) [sync 4d479d0] ([7c4647b](https://github.com/Miragon/bpmn-modeler/commit/7c4647b7b9b7ea7d432deb5c6f70c03548a97e17))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** fetch a surface in at most ten files at once ([#2538](https://github.com/Miragon/bpmn-modeler/issues/2538)) [sync 5bc86fa] ([4c1e287](https://github.com/Miragon/bpmn-modeler/commit/4c1e2874c2e43031192aa1c478427c9a4b4e91ec))
+
 ## [0.10.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.9.0...dmn-modeler-v0.10.0) (2026-11-14)
 
 
