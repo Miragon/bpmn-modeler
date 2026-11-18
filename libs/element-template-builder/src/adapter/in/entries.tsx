@@ -1,4 +1,6 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
+import { elementTypeName } from "@miragon/bpmn-modeler-types";
+
 import {
     CONDITION_OPERATORS,
     conditionValueKind,
@@ -6,7 +8,6 @@ import {
     type ConditionOperator,
     type ConditionRow,
 } from "../../domain/conditions";
-import { elementTypeName } from "../../domain/elementTypes";
 import { Icon, SettingRow, useDraft, type SettingProps, type Translate } from "./settings";
 
 export interface AppliesToEntryProps extends SettingProps {

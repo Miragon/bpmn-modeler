@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 
 import { describe, expect, it } from "vitest";
 
+import { elementTypeName } from "@miragon/bpmn-modeler-types";
+
 import { catalogFor } from "./index";
 
 /**
@@ -48,5 +50,15 @@ describe.each(["c7", "c8"] as const)("the %s catalog's coverage of the schema", 
 
     it("never both edits and leaves a binding type", () => {
         expect(catalogTypes.filter((type) => jsonOnly.includes(type))).toEqual([]);
+    });
+});
+
+describe.each(["c7", "c8"] as const)("the %s catalog's element types", (engine) => {
+    it("each have a name", () => {
+        const unnamed = catalogFor(engine).elementTypes.filter(
+            (type) => elementTypeName(type, (name) => name) === type,
+        );
+
+        expect(unnamed).toEqual([]);
     });
 });

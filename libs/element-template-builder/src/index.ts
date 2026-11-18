@@ -21,7 +21,6 @@ export type {
 } from "./domain/editorPage";
 export type { Diagnostic } from "./domain/diagnostics";
 export type { TemplateChoice } from "./domain/templateFile";
-export { elementTypeName } from "./domain/elementTypes";
 export { newTemplateText, templateIdentity, withSchema } from "./domain/skeleton";
 export { applyTemplateEdits } from "./domain/templateText";
 export type { TemplateEdit, TemplateEditResult } from "./domain/templateText";

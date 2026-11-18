@@ -188,8 +188,9 @@ function reachablePaths(targetDir) {
                     resolve(repoRoot, dirname(file), specifier),
                 );
                 if (importedPath.startsWith(`${targetDir}/`)) continue;
-                reachable.add(importedPath);
                 const importedFile = existingSourceFile(importedPath);
+                // The file an extensionless import resolves to, which a trigger glob can name.
+                reachable.add(importedFile ?? importedPath);
                 if (importedFile) pendingFiles.push(importedFile);
             } else {
                 const importedWorkspace = aliasedWorkspace(specifier);

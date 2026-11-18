@@ -342,9 +342,12 @@ its own VS Code window, profile and workspace:
 - Select a field's text with `selectText()`, not Ctrl/Cmd+A. In a webview that
   shortcut is a VS Code command, which selects a moment later and takes the
   first typed characters with it.
-- Leave a webview only once it has loaded. After one closed while it loaded
-  its script, the next webview can stay blank for up to 30 s
-  ([#2535](https://github.com/Miragon/bpmn-modeler/issues/2535)). The reset
+- Leave a webview only once it has loaded. VS Code serves at most 32 resource
+  loads at a time for all webviews of one view type, and a webview closed
+  while it loads keeps its loads' slots for 30 s
+  ([#2535](https://github.com/Miragon/bpmn-modeler/issues/2535)). The BPMN
+  bundle keeps one merge view below that; webviews closed one after another
+  while they load still reach it, and the next one stays blank. The reset
   between tests waits for this itself; before a tab switch or a reload inside
   a test, wait for what the tab shows or call `session.webviewsLoaded()`.
 - Look a webview up again after a tab switch (`editorWebview`): VS Code makes
