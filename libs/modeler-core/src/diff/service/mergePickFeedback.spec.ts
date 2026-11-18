@@ -64,6 +64,26 @@ describe("mergePickFeedback", () => {
         });
     });
 
+    it("names the elements merged by hand a refused pick would move off their side", () => {
+        const { outcome } = mergePickFeedback({
+            action: "pick",
+            elementId: "Sub_Ship",
+            keptSide: "incoming",
+            outcome: { applied: false, handMergesAtStake: ["Sub_Ship", "Task_Pack"] },
+            openBefore: [],
+            openAfter: [],
+        });
+
+        expect(outcome).toStrictEqual({
+            applied: false,
+            action: "pick",
+            elementId: "Sub_Ship",
+            blockedBy: [],
+            handMergesAtStake: ["Sub_Ship", "Task_Pack"],
+        });
+        expect(idsNamedInWords([], outcome)).toStrictEqual(new Set(["Sub_Ship", "Task_Pack"]));
+    });
+
     it("names what an applied pick did and offers the flows it left out on the side that kept it", () => {
         const outcome: PickOutcome = {
             applied: true,

@@ -176,6 +176,8 @@ export type MergePaneOutcome =
           readonly action: MergePaneAction;
           readonly elementId: string;
           readonly blockedBy: readonly MergePaneBlock[];
+          /** The elements merged by hand the call would move off their side, which it drops only when asked to. */
+          readonly handMergesAtStake?: readonly string[];
       };
 
 /** The flows and boundary events the other side removed with an element the user kept, offered on the pane of the kept side. */

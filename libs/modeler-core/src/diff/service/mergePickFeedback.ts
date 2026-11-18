@@ -35,13 +35,12 @@ export function mergePickFeedback({
     readonly openAfter: readonly string[];
 }): MergePickFeedback {
     if (!outcome.applied) {
+        const refused = { applied: false, action, elementId } as const;
         return {
-            outcome: {
-                applied: false,
-                action,
-                elementId,
-                blockedBy: "blockedBy" in outcome ? outcome.blockedBy.map(blockOf) : [],
-            },
+            outcome:
+                "handMergesAtStake" in outcome
+                    ? { ...refused, blockedBy: [], handMergesAtStake: outcome.handMergesAtStake }
+                    : { ...refused, blockedBy: outcome.blockedBy.map(blockOf) },
         };
     }
     const shown: MergePickFeedback = {
@@ -82,7 +81,10 @@ export function idsNamedInWords(
     named.add(outcome.elementId);
     const outcomeIds = outcome.applied
         ? [...outcome.pulledIn, ...outcome.dropped, ...outcome.reopened]
-        : outcome.blockedBy.flatMap(({ elementId, targetId }) => [elementId, targetId]);
+        : [
+              ...outcome.blockedBy.flatMap(({ elementId, targetId }) => [elementId, targetId]),
+              ...(outcome.handMergesAtStake ?? []),
+          ];
     outcomeIds.forEach((id) => named.add(id));
     return named;
 }
