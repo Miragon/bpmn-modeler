@@ -23,7 +23,7 @@ export interface MergeOutcomeCardConfig {
 export interface MergeOutcomeCardActions {
     /** Shows an element the card names. */
     readonly onSelect: (elementId: string) => void;
-    /** Keeps the flows the other side removed with the element, as the host offered. */
+    /** Keeps what the other side removed with the element, as the host offered. */
     readonly onKeepRemovedWith: (elementId: string) => void;
     readonly closeLabel: string;
 }

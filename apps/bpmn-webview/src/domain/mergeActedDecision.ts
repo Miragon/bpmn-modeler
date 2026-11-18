@@ -44,7 +44,7 @@ export function actedInMenu(elementId: string, decision: MergePadDecision): Merg
     return acted(elementId, decision, "menu");
 }
 
-/** Keeping the flows the other side removed keeps the element from `side` with them, from the pad or the card. */
+/** Keeping what the other side removed with the element keeps the element from `side` with it, from the pad or the card. */
 export function keepRemovedWithDecision(
     elementId: string,
     side: MergeSide,

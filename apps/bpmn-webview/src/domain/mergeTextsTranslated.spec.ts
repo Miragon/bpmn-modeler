@@ -91,7 +91,7 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndsFromDifferentSides: { kind: "flowEndsFromDifferentSides", id: "a", ends: ["b"] },
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
     drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
-    restoredWithoutConnections: { kind: "restoredWithoutConnections", id: "a", connections: ["b"] },
+    restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
@@ -289,7 +289,7 @@ function mergeTextKeys(): Set<string> {
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
         }
-        if (note.kind === "restoredWithoutConnections") {
+        if (note.kind === "restoredWithoutRemovedWith") {
             buildNoteText({ ...note, boundaryEvents: ["c"] }, nameOf, translate);
             buildNoteText({ ...note, connections: [], boundaryEvents: ["c"] }, nameOf, translate);
         }

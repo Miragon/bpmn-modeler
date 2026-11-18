@@ -271,9 +271,10 @@ each of those.
   Lanes are listed outermost first, so every comparison takes them in order.
 - *Notes for the reviewer:* a flow drawn from another side than its ends, an element drawn
   from another side than its container, elements both sides added at the same place, an
-  element kept against a removal whose flows stay out (each flow is decided on its own), a
-  kept flow no longer its source's default, elements the base and both sides draw
-  differently, and every frame difference the result does not carry.
+  element kept against a removal whose boundary events or flows removed with it stay out
+  (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
+  source's default, elements the base and both sides draw differently, and every frame
+  difference the result does not carry.
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from

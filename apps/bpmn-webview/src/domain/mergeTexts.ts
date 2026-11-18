@@ -369,7 +369,7 @@ const BUILD_NOTE_TEXTS: Record<
     addedAtSamePlace: "{first} and {second} were added at the same place",
     drawnApartFromContainer:
         "{element} is drawn by another side than {containers}; check that it still sits inside",
-    restoredWithoutConnections:
+    restoredWithoutRemovedWith:
         "{element} is kept without the flows the other side removed with it: {connections}",
     defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
@@ -378,7 +378,7 @@ const BUILD_NOTE_TEXTS: Record<
 const OTHER_DEFAULT_KEPT_TEXT =
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
 
-/** `restoredWithoutConnections` once it names a boundary event, counted as the restore offer counts. */
+/** `restoredWithoutRemovedWith` once it names a boundary event, counted as the restore offer counts. */
 const RESTORED_WITHOUT_ELEMENTS_TEXTS = {
     boundaryEvent:
         "{element} is kept without the boundary event the other side removed with it: {elements}",
@@ -427,7 +427,7 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }
-    if (note.kind === "restoredWithoutConnections" && note.boundaryEvents !== undefined) {
+    if (note.kind === "restoredWithoutRemovedWith" && note.boundaryEvents !== undefined) {
         return restoredWithoutElementsOf(note).length === 1
             ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
@@ -436,13 +436,13 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
 }
 
 function restoredWithoutElementsOf(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
 ): readonly string[] {
     return [...(note.boundaryEvents ?? []), ...note.connections];
 }
 
 function restoredWithoutReplacements(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
     nameOf: (id: string) => string,
     names: (ids: readonly string[]) => string,
 ): Record<string, string> {
@@ -475,7 +475,7 @@ function noteReplacements(
             return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
         case "drawnApartFromContainer":
             return { element: nameOf(note.id), containers: names(note.containers) };
-        case "restoredWithoutConnections":
+        case "restoredWithoutRemovedWith":
             return restoredWithoutReplacements(note, nameOf, names);
         case "defaultFlowNotRestored":
             return defaultFlowNoteReplacements(note, nameOf);

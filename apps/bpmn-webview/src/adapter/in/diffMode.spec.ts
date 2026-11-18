@@ -39,6 +39,9 @@ const fakes = vi.hoisted(() => {
             this.viewportListener = listener;
         });
         mirrorSelection = vi.fn((_elementId: string | undefined) => true);
+        selectStep = vi.fn(
+            (_elementId: string | undefined, _options: { keepInView: boolean }) => true,
+        );
         selectionListener: ((elementId: string | undefined) => void) | undefined;
         onSelectedElementChanged = vi.fn((listener: (elementId: string | undefined) => void) => {
             this.selectionListener = listener;
@@ -56,9 +59,24 @@ const fakes = vi.hoisted(() => {
         canStep = true;
         setChanges = vi.fn();
         cycleLength = 3;
-        applyCursor = vi.fn();
+        applyCursor = vi.fn((_index: number): boolean => false);
         reset = vi.fn();
         advance = vi.fn((_direction: 1 | -1): number | undefined => undefined);
+        currentChangeId: string | undefined = undefined;
+        drawsCurrentChange = false;
+        /** Lands each step on `changeId`, drawn on this pane or not. */
+        landOn(changeId: string, drawn: boolean, cursor = 0): void {
+            this.advance.mockImplementation(() => {
+                this.currentChangeId = changeId;
+                this.drawsCurrentChange = drawn;
+                return cursor;
+            });
+            this.applyCursor.mockImplementation(() => {
+                this.currentChangeId = changeId;
+                this.drawsCurrentChange = drawn;
+                return drawn;
+            });
+        }
         constructor() {
             FakeDiffNavigator.last = this;
         }
@@ -607,6 +625,115 @@ describe("DiffMode", () => {
             expect(posted()).toEqual([
                 expect.objectContaining({ type: "SwapCompareSidesCommand" }),
             ]);
+        });
+    });
+
+    describe("a step selects the change it lands on", () => {
+        it("selects a change it draws, keeps it in view and reports it after the cursor", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm", "after", true));
+            host.postMessage.mockClear();
+            navigator().landOn("Changed_1", true, 0);
+
+            legend().callbacks.onNext();
+
+            expect(viewer().selectStep).toHaveBeenCalledExactlyOnceWith("Changed_1", {
+                keepInView: true,
+            });
+            expect(posted()).toEqual([
+                expect.objectContaining({ type: "CursorChangedCommand", index: 0 }),
+                expect.objectContaining({
+                    type: "DiffSelectionChangedCommand",
+                    elementId: "Changed_1",
+                }),
+            ]);
+        });
+
+        it("drops its selection on a change only the partner draws, and still reports the change", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm", "after", true));
+            host.postMessage.mockClear();
+            navigator().landOn("Removed_1", false, 2);
+
+            legend().callbacks.onPrevious();
+
+            expect(viewer().selectStep).toHaveBeenCalledExactlyOnceWith(undefined, {
+                keepInView: false,
+            });
+            expect(posted()).toEqual([
+                expect.objectContaining({ type: "CursorChangedCommand", index: 2 }),
+                expect.objectContaining({
+                    type: "DiffSelectionChangedCommand",
+                    elementId: "Removed_1",
+                }),
+            ]);
+        });
+
+        it("asks for no XML changes, so a step opens no XML diff", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm", "after", true));
+            host.postMessage.mockClear();
+            navigator().landOn("Changed_1", true);
+
+            legend().callbacks.onNext();
+
+            expect(posted()).not.toContainEqual(
+                expect.objectContaining({ type: "ShowElementXmlChangesCommand" }),
+            );
+        });
+
+        it.each<[string, string, boolean, string | undefined, boolean]>([
+            [
+                "selects the partner's change, leaving it to the partner to keep in view",
+                "Changed_1",
+                true,
+                "Changed_1",
+                false,
+            ],
+            ["keeps a change in view that only this pane draws", "Added_1", true, "Added_1", true],
+            ["drops its selection on a change it lacks", "Removed_1", false, undefined, false],
+        ])(
+            "%s on the partner's step, without echoing it",
+            async (_case, changeId, drawn, selected, keepInView) => {
+                await startDiffPane();
+                dispatch(highlights("scm", "after", true));
+                host.postMessage.mockClear();
+                navigator().landOn(changeId, drawn);
+
+                dispatch(new SyncCursorQuery(1));
+
+                expect(viewer().selectStep).toHaveBeenCalledExactlyOnceWith(selected, {
+                    keepInView,
+                });
+                expect(host.postMessage).not.toHaveBeenCalled();
+            },
+        );
+
+        it("selects after the partner's cursor entered the change's plane, and mirrors the partner's report without echoing it", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm", "after", true));
+            host.postMessage.mockClear();
+            navigator().landOn("Changed_1", true);
+
+            dispatch(new SyncCursorQuery(0));
+            dispatch(new SyncDiffSelectionQuery("Changed_1"));
+
+            expect(navigator().applyCursor.mock.invocationCallOrder[0]).toBeLessThan(
+                viewer().selectStep.mock.invocationCallOrder[0],
+            );
+            expect(viewer().mirrorSelection).toHaveBeenCalledExactlyOnceWith("Changed_1");
+            expect(host.postMessage).not.toHaveBeenCalled();
+        });
+
+        it("keeps the selection with Show all", async () => {
+            await startDiffPane();
+            dispatch(highlights("scm"));
+
+            legend().callbacks.onShowAll?.();
+            dispatch(new SyncCursorQuery(-1));
+
+            expect(viewer().selectStep).not.toHaveBeenCalled();
+            expect(viewer().mirrorSelection).not.toHaveBeenCalled();
         });
     });
 

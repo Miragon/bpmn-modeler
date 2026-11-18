@@ -30,6 +30,7 @@ const fakes = vi.hoisted(() => {
         setViewport = vi.fn();
         showPlane = vi.fn((_planeId: string) => true);
         mirrorSelection = vi.fn((_id: string | undefined) => true);
+        selectStep = vi.fn((_id: string | undefined, _options: { keepInView: boolean }) => true);
         getViewport = vi.fn(() => ({ x: 10, y: 20, width: 400, height: 300 }));
         onPlaneChanged = vi.fn();
         viewportListener: ((viewport: Viewport) => void) | undefined;
@@ -489,7 +490,7 @@ describe("MergeMode", () => {
             dispatch(new SyncCursorQuery(4));
 
             expect(menu().hidden).toBe(true);
-            expect(viewer().mirrorSelection).toHaveBeenLastCalledWith(undefined);
+            expect(viewer().selectStep).toHaveBeenLastCalledWith(undefined, { keepInView: false });
         });
 
         it("steps to a shape-less element from its menu row", async () => {
@@ -636,7 +637,13 @@ describe("MergeMode", () => {
     });
 
     describe("the step's selection", () => {
-        const selected = () => viewer().mirrorSelection.mock.calls.map(([id]) => id);
+        const selected = () => viewer().selectStep.mock.calls.map(([id]) => id);
+        const keptInView = () =>
+            viewer().selectStep.mock.calls.map(([id, { keepInView }]) => [id, keepInView]);
+        const selectionsPosted = () =>
+            posted()
+                .filter((message) => message.type === "DiffSelectionChangedCommand")
+                .map((message) => (message as { elementId: string }).elementId);
 
         it("selects the element a step lands on, after entering its plane, so its pad opens there", async () => {
             await startMergePane();
@@ -646,8 +653,81 @@ describe("MergeMode", () => {
 
             expect(selected()).toEqual(["Task_Pack"]);
             expect(viewer().focusElement.mock.invocationCallOrder[0]).toBeLessThan(
-                viewer().mirrorSelection.mock.invocationCallOrder[0],
+                viewer().selectStep.mock.invocationCallOrder[0],
             );
+        });
+
+        it("keeps the stepped element in view on the pane that stepped", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            next();
+
+            expect(keptInView()).toEqual([["Task_Pack", true]]);
+        });
+
+        it("leaves keeping the partner's step in view to the partner, unless only this pane has it", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates({
+                    allSteps: [
+                        step("Task_Check", false, true, undefined, false),
+                        ...STATES.allSteps.slice(1),
+                    ],
+                }),
+            );
+
+            dispatch(new SyncCursorQuery(2));
+            dispatch(new SyncCursorQuery(0));
+
+            expect(keptInView()).toEqual([
+                ["Task_Pack", false],
+                ["Task_Check", true],
+            ]);
+        });
+
+        it("reports the stepped element after the cursor, so an open XML diff follows the step", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            host.postMessage.mockClear();
+
+            next();
+
+            expect(posted().map(({ type }) => type)).toEqual([
+                "CursorChangedCommand",
+                "DiffSelectionChangedCommand",
+            ]);
+            expect(selectionsPosted()).toEqual(["Task_Pack"]);
+        });
+
+        it("reports a step only the partner draws too, which then selects it there", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+
+            next();
+
+            expect(selectionsPosted()).toEqual(["Task_Pack", "Task_Gone"]);
+        });
+
+        it("reports no step without a shape, whose partner would select its process's root", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            previous();
+
+            expect(cursorsPosted()).toEqual([4]);
+            expect(selectionsPosted()).toEqual([]);
+        });
+
+        it("reports a clicked element of the merge once, as the user's selection, and keeps that selection", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            viewer().userSelects("Task_Check");
+
+            expect(selectionsPosted()).toEqual(["Task_Check"]);
+            expect(viewer().selectStep).not.toHaveBeenCalled();
         });
 
         it("centres the stepped element at the current zoom", async () => {
@@ -706,7 +786,6 @@ describe("MergeMode", () => {
 
             expect(cursorsPosted()).toEqual([0]);
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Check");
-            expect(selected()).toEqual(["Task_Check"]);
             expect(counter()).toBe("1/4");
         });
 
@@ -755,8 +834,12 @@ describe("MergeMode", () => {
             expect(
                 posted()
                     .map(({ type }) => type)
-                    .slice(-2),
-            ).toEqual(["CursorChangedCommand", "ViewportChangedCommand"]);
+                    .slice(-3),
+            ).toEqual([
+                "CursorChangedCommand",
+                "DiffSelectionChangedCommand",
+                "ViewportChangedCommand",
+            ]);
             expect(viewportsPosted()).toEqual([
                 expect.objectContaining({ viewport: { x: 10, y: 20, width: 400, height: 300 } }),
             ]);
@@ -1642,7 +1725,7 @@ describe("MergeMode", () => {
                         built: true,
                         notes: [
                             {
-                                kind: "restoredWithoutConnections",
+                                kind: "restoredWithoutRemovedWith",
                                 id: "Task_Pack",
                                 connections: ["Task_Gone", "Flow_1"],
                             },

@@ -18,11 +18,15 @@ import { singleSelected } from "./diffSelection";
  * steps, plane changes and partner sync through {@link positionProgrammatically},
  * and the selections it mirrors or an import drops through
  * {@link selectProgrammatically}; the events fired inside are not the user's.
+ * A selection it makes for the user, as a step's, runs through
+ * {@link selectForUser}: not reported, but kept in view as the user's.
  */
 export class UserChangeGuard {
     private positioningDepth = 0;
 
     private selectionDepth = 0;
+
+    private forUserDepth = 0;
 
     /** Whether the viewport or plane change now firing came from the user. */
     isUserPositioning(): boolean {
@@ -34,7 +38,21 @@ export class UserChangeGuard {
      * plane drops the selection, which the user did not do either.
      */
     isUserSelectionChange(): boolean {
+        return this.keepsSelectionInView() && this.forUserDepth === 0;
+    }
+
+    /** Whether a resize keeps the selection now firing in view: the user's, or one made for the user. */
+    keepsSelectionInView(): boolean {
         return this.selectionDepth === 0 && this.positioningDepth === 0;
+    }
+
+    selectForUser(action: () => void): void {
+        this.forUserDepth += 1;
+        try {
+            action();
+        } finally {
+            this.forUserDepth -= 1;
+        }
     }
 
     positionProgrammatically(action: () => void): void {
@@ -70,15 +88,16 @@ export class UserChangeGuard {
  * height, as when an editor opens below the diff, can cut the selection off at
  * its bottom edge. As upstream did, only a selection that was fully in view is
  * brought back, so a user who panned away keeps their place. Only the pane the
- * user selected in centres it, as a user pan, so the partner follows through the
- * viewport sync; a mirroring pane's own scroll would post a competing viewport.
+ * user selected in, or the one a step selected for the user, centres it, as a
+ * user pan, so the partner follows through the viewport sync; a mirroring pane's
+ * own scroll would post a competing viewport.
  */
-export function armKeepUserSelectionVisible(
+export function armKeepSelectionVisible(
     diagram: { eventBus: EventBus; canvas: Canvas; selection: Selection },
     pane: { changes: UserChangeGuard; isPaneSized(): boolean },
 ): Disposer[] {
     const { eventBus, canvas, selection } = diagram;
-    let selectionIsUsers = false;
+    let selectionKeptInView = false;
     // Measured on every viewbox, selection and size change, so a resize can tell what it cut off.
     let selectionWasVisible = false;
 
@@ -96,7 +115,7 @@ export function armKeepUserSelectionVisible(
         }
         const element = singleSelected(selection.get());
         const centre = element ? centreOf(element as PositionedElement) : undefined;
-        if (centre && selectionIsUsers && selectionWasVisible && !isSelectionVisible()) {
+        if (centre && selectionKeptInView && selectionWasVisible && !isSelectionVisible()) {
             canvas.viewbox(viewboxCentredOn(centre, canvas.viewbox()));
         }
         recordSelectionVisibility();
@@ -104,7 +123,7 @@ export function armKeepUserSelectionVisible(
 
     return [
         subscribe(eventBus, "selection.changed", () => {
-            selectionIsUsers = pane.changes.isUserSelectionChange();
+            selectionKeptInView = pane.changes.keepsSelectionInView();
             recordSelectionVisibility();
         }),
         subscribe(eventBus, "canvas.viewbox.changed", recordSelectionVisibility),

@@ -958,7 +958,7 @@ ${
 
             const { notes } = await buildMerged(await prepareMergeSources(scenario), decisions);
 
-            const restored = notes.filter((note) => note.kind === "restoredWithoutConnections");
+            const restored = notes.filter((note) => note.kind === "restoredWithoutRemovedWith");
             expect(restored).toHaveLength(1);
             expect(restored[0]).toMatchObject({ id: "Task_Reject" });
             expect(restored[0]).toHaveProperty(
@@ -983,7 +983,7 @@ ${
             for (const id of ["Task_Reject", "Flow_No", "Flow_Rejected", "Flow_Timeout"]) {
                 expect(elementsById, id).toHaveProperty(id);
             }
-            expect(notes.filter((note) => note.kind === "restoredWithoutConnections")).toEqual([]);
+            expect(notes.filter((note) => note.kind === "restoredWithoutRemovedWith")).toEqual([]);
         });
 
         it("keeps the gateway's default with the default flow current removed", async () => {
