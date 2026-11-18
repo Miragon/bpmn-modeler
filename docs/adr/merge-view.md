@@ -81,11 +81,17 @@ rule less.
 **Where the command shows.** "Resolve in BPMN Merge View" sits on Merge Changes rows while
 `bpmn-modeler.hasResolvableBpmnConflicts` is true, which the core sets while
 `ResolvableConflictsService` holds a resolvable `.bpmn`. Only the running extension sets the
-key, so the manifest activates on `workspaceContains:**/*.bpmn`; the cost is that the extension
-starts in every workspace with a BPMN file, not only in one with a conflict. No row can be
-told apart: on a Source Control row `resourceExtname` is the active editor's, and VS Code
-caches the row menu per `contextValue`, which Git leaves at the repository kind. So while one
-BPMN conflict exists the entry shows on every Merge Changes row, and the command explains a row
+key, so the manifest activates on `workspaceContains:**/*.bpmn`. The cost: the extension starts
+in every workspace with a BPMN file, not only in one with a conflict, so the release notice,
+the marketplace update offer, the plugin-copy prune and the rewrite of old approvals run when
+such a window opens, not when its first editor does. VS Code matches the glob case-sensitively,
+stops searching after seven seconds and searches only when the window opens or a workspace
+folder is added, so a window that opened without a `.bpmn` (an add/add conflict of a new diagram, a branch that
+brings the first one), an `Order.BPMN` or a `.bpmn` outside the workspace folders still needs a
+BPMN editor opened first, whose conflict-marker notice then offers the view. No row can be told
+apart: on a Source Control row `resourceExtname` is the active editor's, and VS Code caches the
+row menu per `contextValue`, which Git leaves at the repository kind. So while one BPMN
+conflict exists the entry shows on every Merge Changes row, and the command explains a row
 it cannot open. It has no inline icon, which would sit on text rows too. The editor title and the palette use
 `resource in bpmn-modeler.resolvableBpmnConflicts`, the list the core decides, so a deleted
 side or a non-BPMN file never shows them. Rejected: the row entry on every Merge Changes row
