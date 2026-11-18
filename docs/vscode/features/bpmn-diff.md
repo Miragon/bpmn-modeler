@@ -28,7 +28,7 @@ In IntelliJ, **Show Diff** and **Compare Files** open the same view.
 | Blue | Both panes | Changed attribute (name, condition, implementation, …) |
 | Amber, dashed connections | Both panes | Moved: only the layout changed |
 
-The bar above the panes counts the changes per type, leaving out types without a change. The arrows **‹** and **›** (tooltips **Prev change** and **Next change**) step through the changes in flow order, move both panes together and show which change of how many you are on; the current element glows blue. **Show all** takes both panes back to the whole diagram. Drilling into a collapsed subprocess on one side takes the other side into it too; if that version has no such subprocess, its label says **Not in this version**. A sequence flow or other connection that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only but you can pan, zoom and use the keyboard. Selecting an element in one pane selects it in the other; clicking the background clears both.
+The bar above the panes counts the changes per type, leaving out types without a change. The arrows **‹** and **›** (tooltips **Prev change** and **Next change**) step through the changes in flow order, move both panes together and show which change of how many you are on; the current element glows blue and is selected in each pane that has it, with its context pad open. **Show all** takes both panes back to the whole diagram. Drilling into a collapsed subprocess on one side takes the other side into it too; if that version has no such subprocess, its label says **Not in this version**. A sequence flow or other connection that only moved along with its shapes is highlighted and counted, but not a step of its own. Both panes are read-only but you can pan, zoom and use the keyboard. Selecting an element in one pane selects it in the other; clicking the background clears both.
 
 ## See an element's XML changes
 
@@ -38,7 +38,7 @@ Blue only says that an element changed. To see what changed, such as an input ma
 
 The tab names the element and the versions, as VS Code names its own diffs: for example `Activity_1 (XML): order.bpmn (Working Tree)` from Source Control, or `Activity_1 (XML): a.bpmn ↔ b.bpmn` for two compared files. An element that exists in one version only shows one empty side.
 
-While the text diff is open, clicking another element in either pane moves it to that element; the pane you clicked in keeps the element in view, and the other pane follows. Once you close the text diff, selecting elements no longer opens it; click **Show XML changes** again. The text diff closes with the diagram diff.
+While the text diff is open, clicking another element in either pane, or stepping to it with **‹** and **›**, moves it to that element, also to an element only one version has; the pane you clicked or stepped in keeps the element in view, or the other pane when only it has the element, and the other pane follows. Stepping opens no text diff while it is closed. Once you close the text diff, selecting elements no longer opens it; click **Show XML changes** again. The text diff closes with the diagram diff.
 
 In IntelliJ, the text diff opens below the two diagrams inside the same diff tab, with the side titles of the diagram diff; close it with the **×** in its header. Hosts without text diff tabs (some Theia versions) hide the entry.
 

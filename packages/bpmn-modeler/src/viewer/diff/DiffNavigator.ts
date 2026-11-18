@@ -20,6 +20,8 @@ export class DiffNavigator {
 
     private _cursor = -1;
 
+    private drewCurrentChange = false;
+
     constructor(private readonly viewer: DiffViewer) {}
 
     /**
@@ -46,7 +48,7 @@ export class DiffNavigator {
             );
             this.changeIds = navigationOrder.filter((id) => !skipped.has(id));
         }
-        this._cursor = -1;
+        this.moveCursorTo(-1);
     }
 
     /** Whether Next and Previous have a change to step to. */
@@ -56,6 +58,16 @@ export class DiffNavigator {
 
     get cursor(): number {
         return this._cursor;
+    }
+
+    /** The change the cursor is on; `undefined` before the first step. */
+    get currentChangeId(): string | undefined {
+        return this._cursor < 0 ? undefined : this.changeIds[this._cursor];
+    }
+
+    /** Whether this pane focused {@link currentChangeId}, rather than anchoring on a neighbour. */
+    get drawsCurrentChange(): boolean {
+        return this.drewCurrentChange;
     }
 
     get cycleLength(): number {
@@ -78,7 +90,7 @@ export class DiffNavigator {
 
     /** Goes back to the whole diagram; the next step starts at the first change again. */
     reset(): void {
-        this._cursor = -1;
+        this.moveCursorTo(-1);
         this.viewer.fitDiagram();
     }
 
@@ -98,10 +110,11 @@ export class DiffNavigator {
         if (this.changeIds.length === 0) {
             return false;
         }
-        this._cursor = index;
+        this.moveCursorTo(index);
         const targetId = this.changeIds[this._cursor];
 
         if (this.viewer.focusElement(targetId)) {
+            this.drewCurrentChange = true;
             return true;
         }
 
@@ -118,6 +131,11 @@ export class DiffNavigator {
         }
         this.viewer.clearSelectionMarker();
         return false;
+    }
+
+    private moveCursorTo(index: number): void {
+        this._cursor = index;
+        this.drewCurrentChange = false;
     }
 
     // Array.isArray does not narrow a union with a readonly array.

@@ -172,6 +172,42 @@ describe("DiffNavigator", () => {
         expect(calls.clearSelection).toBe(1);
     });
 
+    it("names the change a step lands on and whether this pane drew it", () => {
+        const { viewer } = stubViewer({ present: ["A", "C"] });
+        const nav = new DiffNavigator(viewer);
+        nav.setChanges(["A", "B", "C"]);
+        const landings = () => [nav.currentChangeId, nav.drawsCurrentChange];
+
+        const beforeTheFirstStep = landings();
+        nav.advance(1);
+        const onA = landings();
+        nav.advance(1);
+        const onPartnerOnlyB = landings();
+        nav.applyCursor(2);
+        const onSyncedC = landings();
+
+        expect([beforeTheFirstStep, onA, onPartnerOnlyB, onSyncedC]).toEqual([
+            [undefined, false],
+            ["A", true],
+            ["B", false],
+            ["C", true],
+        ]);
+    });
+
+    it.each<[string, (nav: DiffNavigator) => void]>([
+        ["goes back to the whole diagram", (nav) => nav.reset()],
+        ["takes a new diff", (nav) => nav.setChanges(["A", "B"])],
+    ])("names no change once it %s", (_case, act) => {
+        const { viewer } = stubViewer({ present: ["A", "B"] });
+        const nav = new DiffNavigator(viewer);
+        nav.setChanges(["A", "B"]);
+        nav.advance(1);
+
+        act(nav);
+
+        expect([nav.currentChangeId, nav.drawsCurrentChange]).toEqual([undefined, false]);
+    });
+
     it("goes back to the whole diagram, before the first change", () => {
         const { viewer, calls } = stubViewer({ present: ["A", "B"] });
         const nav = new DiffNavigator(viewer);

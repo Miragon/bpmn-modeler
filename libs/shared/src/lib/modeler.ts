@@ -1539,7 +1539,8 @@ export class ProcessDefinitionKeyQuery extends Query<"ProcessDefinitionKeyQuery"
  * and `bpmn-js-differ` has produced its result.  Each side receives only the
  * element ids relevant to its canvas (e.g. `_removed` ids on the `before`
  * side only; `_added` on `after` only; `_changed` and `_layoutChanged` on
- * both because the elements exist in both versions).
+ * both because the elements exist in both versions).  So a side's `added` and
+ * `removed` together are exactly the changes only its version has.
  */
 export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> {
     public readonly side: DiffSide;
