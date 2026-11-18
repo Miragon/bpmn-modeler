@@ -52,6 +52,17 @@ function windowState() {
     };
 }
 
+/** The files Git lists as unmerged in the repositories it has opened; none while it is disabled or still starting. */
+function unmergedFiles() {
+    const git = vscode.extensions.getExtension("vscode.git")?.exports;
+    if (!git?.enabled) return [];
+    return git
+        .getAPI(1)
+        .repositories.flatMap((repository) =>
+            repository.state.mergeChanges.map((change) => change.uri.fsPath),
+        );
+}
+
 function run(operation, payload) {
     switch (operation) {
         case "executeCommand":
@@ -64,6 +75,8 @@ function run(operation, payload) {
             return revertAndCloseAllEditors();
         case "windowState":
             return windowState();
+        case "unmergedFiles":
+            return unmergedFiles();
         default:
             throw new Error(`the smoke driver knows no operation ${JSON.stringify(operation)}`);
     }

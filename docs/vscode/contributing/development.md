@@ -289,7 +289,7 @@ its own VS Code window, profile and workspace:
 | `linked-form-preview` | The preview of a user task's linked form in the BPMN editor |
 | `add-ons` | A workspace bpmn-js plugin from its notice to Allow and Revoke, Review Add-ons, the view's fonts |
 | `allowance-playground` | The checklist of `resources/allowance-playground/README.md`, one window per row on one profile |
-| `merge-view` | The BPMN merge view from Source Control |
+| `merge-view` | The BPMN merge view of a merge, a rebase, a cherry-pick and a stash pop: marks, picks, the build and Git's continue |
 
 **How a run works.**
 
@@ -310,10 +310,13 @@ its own VS Code window, profile and workspace:
    theme) and restores the workspace's files, so a test opens what it needs and
    depends on no test before it. `freshProfile` starts every test on an empty
    profile, for a suite that changes what the extension stores for the user.
+   `git` starts the window with Git enabled, for a suite whose workspace holds
+   repositories: Git scans the workspace's folders for them only as it starts.
 3. A second development extension, the driver in `support/driver/`, acts on
    the window through the VS Code API when the test asks it to: run a command
-   by its id, change a setting, close tabs, report the window's state
-   (`session.executeCommand`, `openFile`, `setSetting`). Test plumbing goes
+   by its id, change a setting, close tabs, report the window's state and the
+   files Git lists as unmerged (`session.executeCommand`, `openFile`,
+   `setSetting`, `unmergedFiles`). Test plumbing goes
    through it: opening a file, closing editors, changing a setting, focusing a
    view. It needs neither the keyboard nor the focus. The driver runs a fixed
    set of operations, never code it is sent; add an operation to
@@ -339,6 +342,22 @@ its own VS Code window, profile and workspace:
 - Select a field's text with `selectText()`, not Ctrl/Cmd+A. In a webview that
   shortcut is a VS Code command, which selects a moment later and takes the
   first typed characters with it.
+- Leave a webview only once it has loaded. After one closed while it loaded
+  its script, the next webview can stay blank for up to 30 s
+  ([#2535](https://github.com/Miragon/bpmn-modeler/issues/2535)). The reset
+  between tests waits for this itself; before a tab switch or a reload inside
+  a test, wait for what the tab shows or call `session.webviewsLoaded()`.
+- Look a webview up again after a tab switch (`editorWebview`): VS Code makes
+  a new one for a tab that comes back.
+- Click nothing in the window's lower right corner, where a notice can cover
+  it.
+- The extension starts with its first editor, view or command, not with the
+  window. A test of something it contributes to a VS Code menu opens a file of
+  the extension first.
+- A test leaves a repository of the workspace as it found it: the window's Git
+  watches it, and the next test expects it in the same state. To stage or
+  commit, copy the repository (the merge-view suite continues a merge that
+  way).
 - A new suite file is listed in `.github/vscode-smoke-suites.json` with the
   paths that select it; a repo check fails otherwise.
 
@@ -378,7 +397,7 @@ and Yarn's cache live in the volumes `bpmn-modeler-vscode-smoke-vscode` and
 `bpmn-modeler-vscode-smoke-yarn`. The image is built for the host's
 architecture, arm64 on Apple silicon, x64 elsewhere. With the image and both
 volumes warm, a run of every suite takes about five minutes on an Apple silicon
-Mac: about 45 s install, 30 s build, 110 s for the playground suite, 40 s for
+Mac: about 45 s install, 30 s build, 110 s for the playground suite, 45 s for
 the merge view and 80 s for the other nine. The first run also builds the image
 and downloads VS Code, a few minutes more.
 

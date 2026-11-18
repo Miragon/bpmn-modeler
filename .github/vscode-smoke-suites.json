@@ -12,7 +12,7 @@
         "linked-form-preview": { "seconds": 32 },
         "add-ons": { "seconds": 22 },
         "allowance-playground": { "seconds": 150 },
-        "merge-view": { "seconds": 90 }
+        "merge-view": { "seconds": 50 }
     },
     "baseline": ["bpmn-editor"],
     "ignore": ["**/*.md", "**/*.spec.ts", "**/*.spec.tsx", "**/__fixtures__/**"],
@@ -30,7 +30,11 @@
             "suites": ["allowance-playground"]
         },
         {
-            "paths": ["libs/bpmn-merge/**", "apps/bpmn-webview/src/adapter/in/merge*"],
+            "paths": [
+                "libs/bpmn-merge/**",
+                "apps/bpmn-webview/src/adapter/in/merge*",
+                "apps/bpmn-webview/src/domain/merge*"
+            ],
             "suites": ["merge-view"]
         },
         {

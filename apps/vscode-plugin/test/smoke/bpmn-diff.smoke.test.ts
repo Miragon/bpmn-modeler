@@ -1,8 +1,5 @@
-import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { devNull } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 
 import type { FrameLocator, Page } from "playwright-core";
 import { describe, expect, it } from "vitest";
@@ -14,6 +11,7 @@ import {
     expectMarked,
     legendSlots,
 } from "./support/diff";
+import { runGit } from "./support/git";
 import { diagramRendered, selectElement, settle } from "./support/modeler";
 import { smokeSuite } from "./support/smokeSuite";
 
@@ -32,38 +30,6 @@ const SCM_REPOSITORY_FOLDER = "scm-repository";
 const SCM_DIFF_FILE = "order.bpmn";
 /** VS Code names a working-tree change in Source Control by its newer side only. */
 const SCM_XML_DIFF_VERSIONS = `${SCM_DIFF_FILE} (Working Tree)`;
-
-const runFile = promisify(execFile);
-
-/** Commits as a throwaway identity, without the user's signing or hooks. */
-function runGit(repository: string, ...args: string[]): Promise<unknown> {
-    return runFile(
-        "git",
-        [
-            "-c",
-            "user.name=VS Code smoke",
-            "-c",
-            "user.email=vscode-smoke@example.invalid",
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "init.defaultBranch=main",
-            ...args,
-        ],
-        // A caller's GIT_DIR would point every command at another repository; the
-        // user's global config could add hooks or templates.
-        {
-            cwd: repository,
-            env: {
-                ...Object.fromEntries(
-                    Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
-                ),
-                GIT_CONFIG_GLOBAL: devNull,
-                GIT_CONFIG_NOSYSTEM: "1",
-            },
-        },
-    );
-}
 
 interface EditorGroupInWorkbench {
     top: number;

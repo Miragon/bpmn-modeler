@@ -29,6 +29,13 @@ const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
 const CLOSE_TIMEOUT_MS = 10_000;
 const EXPLORER_SCROLLS = 20;
+const MENU_RETRY_INTERVAL_MS = 200;
+/** `vscode.ViewColumn.Beside` */
+const VIEW_COLUMN_BESIDE = -2;
+const RELOAD_PENDING_ATTRIBUTE = "data-smoke-reload-pending";
+/** The reset goes on after this long: a webview that never loads must not hold up the next test. */
+const WEBVIEW_LOAD_MS = 10_000;
+const WEBVIEW_PROBE_MS = 1_000;
 
 /** Bypass Codium's Node CLI shim so Playwright attaches to the actual Electron process. */
 export async function flatpakVSCodium(rootDirectory: string): Promise<string> {
@@ -104,6 +111,8 @@ export interface VsCodeLaunchOptions {
     fileToOpen?: string;
     customEditors: Readonly<Record<string, string>>;
     colorTheme: string;
+    /** Git scans the workspace's folders for repositories only as it starts, so a suite that needs them starts with it. */
+    gitEnabled?: boolean;
     timeoutMs: number;
 }
 
@@ -111,6 +120,12 @@ export interface VsCodeLaunchOptions {
 interface ChangingUserSettings {
     colorTheme: string;
     gitEnabled: boolean;
+}
+
+/** One of the extension's webviews: VS Code's outer frame and the extension's own page inside it. */
+export interface WebviewFrame {
+    frame: Locator;
+    page: FrameLocator;
 }
 
 /** Where the keyboard goes, as far as the window, its documents and the API can tell. */
@@ -154,7 +169,10 @@ export class VsCodeSession {
         const extensionsDirectory = join(options.rootDirectory, "extensions");
         await mkdir(join(userDataDirectory, "User"), { recursive: true });
         await mkdir(extensionsDirectory, { recursive: true });
-        const changingSettings = { colorTheme: options.colorTheme, gitEnabled: false };
+        const changingSettings = {
+            colorTheme: options.colorTheme,
+            gitEnabled: options.gitEnabled ?? false,
+        };
         await writeUserSettings(options, changingSettings);
         const driver = await VsCodeDriver.install(options.rootDirectory, options.timeoutMs);
 
@@ -210,8 +228,11 @@ export class VsCodeSession {
     }
 
     /** Opens the file in a tab of its own, in the editor VS Code picks for it. */
-    async openFile(file: string): Promise<void> {
-        await this.executeCommand("vscode.open", fileUri(file), { preview: false });
+    async openFile(file: string, { toTheSide = false } = {}): Promise<void> {
+        await this.executeCommand("vscode.open", fileUri(file), {
+            preview: false,
+            ...(toTheSide ? { viewColumn: VIEW_COLUMN_BESIDE } : {}),
+        });
     }
 
     /** Opens the file in the custom editor of `viewType`, as Reopen Editor With does. */
@@ -256,11 +277,12 @@ export class VsCodeSession {
         await this.page.mouse.move(0, 0);
         await this.executeCommand("workbench.action.closeQuickOpen");
         await this.executeCommand("notifications.clearAll");
+        await this.webviewsLoaded();
         await this.driver.call("revertAndCloseAllEditors");
         await this.executeCommand("workbench.action.closePanel");
         await this.executeCommand("workbench.view.explorer");
         await this.setColorTheme(this.options.colorTheme);
-        await this.setGitEnabled(false);
+        await this.setGitEnabled(this.options.gitEnabled ?? false);
         const leftovers = this.page.locator(
             ".tabs-container .tab, .quick-input-widget:visible, .notifications-toasts .notification-toast",
         );
@@ -271,6 +293,76 @@ export class VsCodeSession {
             }
             // A notice can arrive after the first clearing, such as the extension's update notice.
             await this.executeCommand("notifications.clearAll");
+            await delay(50);
+        }
+    }
+
+    /**
+     * Reloads the window, as Developer: Reload Window does, and waits for the
+     * new workbench. From the palette: the extension host that would answer
+     * the driver ends with the old window.
+     */
+    async reloadWindow(): Promise<void> {
+        await this.webviewsLoaded();
+        await this.page.evaluate(
+            (attribute) => document.body.setAttribute(attribute, ""),
+            RELOAD_PENDING_ATTRIBUTE,
+        );
+        await this.runCommand("Developer: Reload Window");
+        await this.page.waitForFunction(
+            (attribute) =>
+                document.querySelector(".monaco-workbench") !== null &&
+                !document.body.hasAttribute(attribute),
+            RELOAD_PENDING_ATTRIBUTE,
+        );
+    }
+
+    /** The files Git lists as unmerged; none until it has scanned their repositories. */
+    unmergedFiles(): Promise<string[]> {
+        return this.driver.call("unmergedFiles");
+    }
+
+    /**
+     * Waits until no visible webview of the extension still loads a script or
+     * a stylesheet. After a webview closed while it loaded, the next one can
+     * stay blank for up to 30 s. So a test, and the reset after it, leaves a
+     * webview only once it has loaded.
+     */
+    async webviewsLoaded(): Promise<void> {
+        const frames = this.page.locator(
+            `iframe.webview[src*="extensionId=${this.options.extensionId}" i]`,
+        );
+        const deadline = Date.now() + WEBVIEW_LOAD_MS;
+        while (Date.now() < deadline) {
+            const loading = await Promise.all(
+                (await this.visibleWebviews(frames)).map(({ page }) =>
+                    page
+                        .locator("html")
+                        .evaluate(
+                            () => {
+                                const loaded = new Set(
+                                    performance
+                                        .getEntriesByType("resource")
+                                        .map(({ name }) => name),
+                                );
+                                const stylesheets =
+                                    document.querySelectorAll<HTMLLinkElement>(
+                                        'link[rel="stylesheet"]',
+                                    );
+                                const wanted = [
+                                    ...[...document.scripts].map(({ src }) => src),
+                                    ...[...stylesheets].map(({ href }) => href),
+                                ];
+                                return wanted.some((url) => url && !loaded.has(url));
+                            },
+                            undefined,
+                            { timeout: WEBVIEW_PROBE_MS },
+                        )
+                        // A frame that is going away loads nothing any more.
+                        .catch(() => false),
+                ),
+            );
+            if (!loading.includes(true)) return;
             await delay(50);
         }
     }
@@ -360,6 +452,7 @@ export class VsCodeSession {
     /** Closes the editor tabs whose title matches, whichever editor is active. */
     async closeEditorTab(title: RegExp): Promise<void> {
         const tab = this.page.locator(".tabs-container .tab").filter({ hasText: title }).first();
+        await this.webviewsLoaded();
         const { tabs } = await this.driver.call("windowState");
         const labels = tabs.flat().map(({ label }) => label);
         await this.driver.call("closeTabs", {
@@ -378,12 +471,9 @@ export class VsCodeSession {
         shows: string,
         kind: string,
     ): Promise<FrameLocator> {
-        const visible = frames.filter({ visible: true });
         const deadline = Date.now() + this.options.timeoutMs;
         while (Date.now() < deadline) {
-            const count = await visible.count();
-            for (let index = 0; index < count; index++) {
-                const page = pageOf(visible.nth(index));
+            for (const { page } of await this.visibleWebviews(frames)) {
                 const matches = await page
                     .locator(shows)
                     .count()
@@ -393,6 +483,28 @@ export class VsCodeSession {
             await delay(200);
         }
         throw new Error(`no visible ${kind} of the extension shows ${shows}`);
+    }
+
+    /** The extension's visible editor webviews: VS Code's outer frame of each and the extension's page in it. */
+    visibleEditors(): Promise<WebviewFrame[]> {
+        return this.visibleWebviews(this.editorFrames());
+    }
+
+    /**
+     * Each visible frame by the name VS Code gave it. A frame's position among
+     * the visible ones shifts while a closed editor's frame is still going
+     * away, so a locator by position would end up on another webview.
+     */
+    private async visibleWebviews(frames: Locator): Promise<WebviewFrame[]> {
+        const names = await frames
+            .filter({ visible: true })
+            .evaluateAll((elements) => elements.map((element) => element.getAttribute("name")));
+        return names
+            .filter((name): name is string => name !== null)
+            .map((name) => {
+                const frame = this.page.locator(`iframe.webview[name="${name}"]`);
+                return { frame, page: pageOf(frame) };
+            });
     }
 
     /**
@@ -430,17 +542,11 @@ export class VsCodeSession {
         );
     }
 
-    async openFromExplorer(fileName: string): Promise<void> {
+    private async openFromExplorer(fileName: string): Promise<void> {
         // Leave any hovered label before dismissing transient workbench UI.
         await this.page.mouse.move(0, 0);
         await this.page.keyboard.press("Escape");
         await (await this.explorerRow(fileName)).click();
-        await this.movePointerAway();
-    }
-
-    /** A double click keeps the tab, where a single click opens one the next file replaces. */
-    async keepOpenFromExplorer(fileName: string): Promise<void> {
-        await (await this.explorerRow(fileName)).dblclick();
         await this.movePointerAway();
     }
 
@@ -575,6 +681,70 @@ export class VsCodeSession {
         await this.movePointerAway();
     }
 
+    /**
+     * Runs `command` from the context menu of the file's Source Control row,
+     * as a user does. The extension offers an entry a moment after Git lists
+     * the row, so a menu without it is opened again.
+     */
+    async runSourceControlCommand(fileName: string, command: string): Promise<void> {
+        await this.executeCommand("workbench.view.scm");
+        const menu = this.page.locator(".context-view .monaco-menu");
+        const item = menu.getByText(command, { exact: true });
+        const deadline = Date.now() + this.options.timeoutMs;
+        while (Date.now() < deadline) {
+            await this.page.mouse.move(0, 0);
+            await this.page.keyboard.press("Escape");
+            await (await this.sourceControlRow(fileName)).click({ button: "right" });
+            const isOffered = await menu
+                .waitFor({ timeout: PALETTE_ATTEMPT_MS })
+                .then(() => item.isVisible())
+                .catch(() => false);
+            if (isOffered) {
+                await delay(MENU_MOUSE_DELAY_MS);
+                await item.click();
+                await this.movePointerAway();
+                return;
+            }
+            await delay(MENU_RETRY_INTERVAL_MS);
+        }
+        throw new Error(`the Source Control row of ${fileName} never offered "${command}"`);
+    }
+
+    /** The Source Control list renders only the rows in sight, so it is scrolled to the row first. */
+    private async sourceControlRow(fileName: string): Promise<Locator> {
+        const list = this.page.locator(".scm-view .monaco-list").first();
+        const row = this.page
+            .locator(".scm-view .monaco-list-row")
+            .filter({ has: this.page.locator(".resource") })
+            .filter({ hasText: fileName })
+            .first();
+        const deadline = Date.now() + this.options.timeoutMs;
+        // The row exists once Git has scanned its repository. The list scrolls a
+        // bounded distance per wheel event, so it walks up, then down, looking.
+        while (!(await row.isVisible()) && Date.now() < deadline) {
+            await list.hover();
+            for (let scrolls = 0; scrolls < 20 && !(await row.isVisible()); scrolls++) {
+                await this.page.mouse.wheel(0, -300);
+                await delay(100);
+            }
+            for (let scrolls = 0; scrolls < 40 && !(await row.isVisible()); scrolls++) {
+                await this.page.mouse.wheel(0, 150);
+                await delay(100);
+            }
+        }
+        // A group's sticky header can cover the row it scrolled to.
+        const sticky = this.page.locator(".scm-view .monaco-tree-sticky-container").first();
+        for (let nudges = 0; nudges < 10; nudges++) {
+            const rowBox = await row.boundingBox();
+            const stickyBox = await sticky.boundingBox().catch(() => null);
+            if (!rowBox || !stickyBox || rowBox.y >= stickyBox.y + stickyBox.height) break;
+            await list.hover();
+            await this.page.mouse.wheel(0, -44);
+            await delay(100);
+        }
+        return row;
+    }
+
     workbenchHasClass(className: string): Promise<boolean> {
         return this.page
             .locator(".monaco-workbench")
@@ -621,9 +791,19 @@ export class VsCodeSession {
         return logs.join("\n");
     }
 
-    /** CSS pixels, so a Retina Mac and a CI runner produce the same image size. */
-    async screenshot(path: string): Promise<void> {
-        await this.page.screenshot({ path, scale: "css" });
+    /**
+     * CSS pixels, so a Retina Mac and a CI runner produce the same image size.
+     * Notices can be hidden for the picture; dismissing them instead would
+     * move the focus and close an open menu.
+     */
+    async screenshot(path: string, { hideNotifications = false } = {}): Promise<void> {
+        await this.page.screenshot({
+            path,
+            scale: "css",
+            ...(hideNotifications
+                ? { style: ".notifications-toasts { visibility: hidden !important; }" }
+                : {}),
+        });
     }
 
     close(): Promise<"quit" | "killed"> {
