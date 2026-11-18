@@ -30,6 +30,7 @@ on:
       - '.github/workflows/vscode-smoke.yml'
       - '.github/vscode-smoke-suites.json'
       - '.github/scripts/vscode-smoke-plan.mjs'
+      - '.github/scripts/glob.mjs'
   # Main's own run: a test that landed meets the smoke here, not in the next pull request.
   push:
     branches: [ main ]
@@ -54,6 +55,7 @@ on:
       - '.github/workflows/vscode-smoke.yml'
       - '.github/vscode-smoke-suites.json'
       - '.github/scripts/vscode-smoke-plan.mjs'
+      - '.github/scripts/glob.mjs'
   schedule:
     - cron: '23 4 * * 1'
   workflow_dispatch:

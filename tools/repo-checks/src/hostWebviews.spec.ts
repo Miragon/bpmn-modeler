@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { hostBuildOf, webviewAppsOf, type WebviewApp } from "./testing/hostBuilds";
 import { workspacesBuiltBy } from "./testing/rootScripts";
-import { stagingFolders, viteStagingFolder } from "./testing/webviewStaging";
 import {
     focusedWorkspaces,
     jobConditionTargets,
@@ -29,27 +29,12 @@ function readWorkflow(fileName: string): SourceFile {
     return readRepoFile(`.github/workflows/${fileName}`);
 }
 
-interface WebviewApp {
-    readonly webview: string;
-    readonly packageName: string;
-    readonly stagingFolder: string;
-}
-
 const workspaces = readWorkspaces(REPO_ROOT);
 
-// The staging folder decides, not the dir name, so a copy of a folder no app writes fails.
-const webviewApps: WebviewApp[] = requireMatches(
-    "apps whose Vite build writes dist/webview-staging",
-    workspaces.flatMap(({ name, dir }) => {
-        const viteConfigPath = `${dir}/vite.config.mts`;
-        if (!dir.startsWith("apps/") || !existsSync(join(REPO_ROOT, viteConfigPath))) {
-            return [];
-        }
-        const stagingFolder = viteStagingFolder(readRepoFile(viteConfigPath));
-        return stagingFolder === undefined
-            ? []
-            : [{ webview: dir.slice("apps/".length), packageName: name, stagingFolder }];
-    }),
+const webviewApps = webviewAppsOf(workspaces, (dir) =>
+    existsSync(join(REPO_ROOT, dir, "vite.config.mts"))
+        ? readRepoFile(`${dir}/vite.config.mts`)
+        : undefined,
 );
 
 const rootManifest = JSON.parse(readRepoFile("package.json").text) as {
@@ -59,17 +44,7 @@ const rootManifest = JSON.parse(readRepoFile("package.json").text) as {
 const markerWorkflow = readWorkflow("sync-release-markers.yml");
 
 function readHostBuild(name: string, buildFilePath: string) {
-    const buildFile = readRepoFile(buildFilePath);
-    const folders = stagingFolders(buildFile);
-    return {
-        name,
-        buildFile: buildFile.path,
-        unwrittenFolders: folders.filter(
-            (folder) => !webviewApps.some((app) => app.stagingFolder === folder),
-        ),
-        shipped: webviewApps.filter((app) => folders.includes(app.stagingFolder)),
-        notShipped: webviewApps.filter((app) => !folders.includes(app.stagingFolder)),
-    };
+    return hostBuildOf(name, readRepoFile(buildFilePath), webviewApps);
 }
 
 const vsCode = {

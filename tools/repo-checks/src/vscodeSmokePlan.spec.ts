@@ -5,12 +5,12 @@ import { describe, expect, it } from "vitest";
 
 import {
     LISTED_FILES_LIMIT,
-    globToRegExp,
     planJobs,
     selectSuites,
     suiteFile,
     type SmokeSuiteRegistry,
 } from "../../../.github/scripts/vscode-smoke-plan.mjs";
+import { globToRegExp } from "../../../.github/scripts/glob.mjs";
 import { triggerPaths } from "./testing/workflowText";
 
 const repoRoot = join(__dirname, "../../..");
@@ -37,22 +37,6 @@ const sample: SmokeSuiteRegistry = {
         { paths: ["apps/deployment/**"], suites: [] },
     ],
 };
-
-describe("the globs of a smoke suite rule", () => {
-    it.each([
-        { glob: "libs/diff/**", file: "libs/diff/src/a/b.ts", matches: true },
-        { glob: "libs/diff/**", file: "libs/diff-view/src/a.ts", matches: false },
-        { glob: "**/*.spec.ts", file: "a.spec.ts", matches: true },
-        { glob: "**/*.spec.ts", file: "libs/x/src/a.spec.ts", matches: true },
-        { glob: "**/*.spec.ts", file: "libs/x/src/a.spec.tsx", matches: false },
-        { glob: "apps/webview/src/diff*", file: "apps/webview/src/diffMode.ts", matches: true },
-        { glob: "apps/webview/src/diff*", file: "apps/webview/src/diff/a.ts", matches: false },
-        { glob: "**/__fixtures__/**", file: "libs/x/src/__fixtures__/a.bpmn", matches: true },
-        { glob: "apps/a.b/x.ts", file: "apps/aXb/x.ts", matches: false },
-    ])("$glob matches $file: $matches", ({ glob, file, matches }) => {
-        expect(globToRegExp(glob).test(file)).toBe(matches);
-    });
-});
 
 describe("the suites a change selects", () => {
     it("runs the suites of the first rule a file matches, with the baseline", () => {
