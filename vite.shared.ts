@@ -42,6 +42,15 @@ export const modelerBundlePreset = {
     },
 } satisfies UserConfig;
 
+const VS_CODE_LOADS_PER_VIEW_TYPE = 32;
+// A merge view's two panes and an editor.
+const WEBVIEWS_LOADING_AT_ONCE = 3;
+
+/** The most files a webview may fetch at once, so that the webviews loading at once fit in VS Code's slots. */
+export const WEBVIEW_FILES_AT_ONCE = Math.floor(
+    VS_CODE_LOADS_PER_VIEW_TYPE / WEBVIEWS_LOADING_AT_ONCE,
+);
+
 /** A chunk of a build's output: its file and the chunks it imports. */
 export interface BundleChunk {
     readonly fileName: string;
@@ -49,17 +58,17 @@ export interface BundleChunk {
     readonly dynamicImports: readonly string[];
 }
 
-/** The files a dynamic import fetches at once: its chunk and the imported chunks not loaded yet. */
+/** The files a load fetches at once: its chunk and the imported chunks not loaded yet. */
 export interface ImportBurst {
     readonly chunk: string;
     readonly files: readonly string[];
 }
 
 /**
- * Every dynamic import reachable from `entry` with the files it fetches at
- * once, given that the entry and the chunks of the dynamic imports that led to
- * it have loaded. An import reached on several paths counts from the shortest
- * chain of dynamic imports.
+ * The page's first load, the entry with the chunks it imports, then every
+ * dynamic import reachable from it with the files it fetches at once. An
+ * import that several chains of dynamic imports reach counts from the chain
+ * that loaded the least of it.
  */
 export function importBursts(chunks: readonly BundleChunk[], entry: string): ImportBurst[] {
     const byFileName = new Map(chunks.map((chunk) => [chunk.fileName, chunk]));
@@ -69,33 +78,33 @@ export function importBursts(chunks: readonly BundleChunk[], entry: string): Imp
         for (const imported of byFileName.get(fileName)?.imports ?? []) closure(imported, into);
         return into;
     };
-    const bursts: ImportBurst[] = [];
-    const reached = new Set<string>([entry]);
-    const pending: Set<string>[] = [closure(entry)];
-    for (let loaded = pending.shift(); loaded; loaded = pending.shift()) {
-        for (const loadedChunk of loaded) {
-            for (const target of byFileName.get(loadedChunk)?.dynamicImports ?? []) {
-                if (reached.has(target)) continue;
-                reached.add(target);
-                const fetched = closure(target);
-                const files = [...fetched].filter((file) => !loaded.has(file)).sort();
-                if (files.length > 0) bursts.push({ chunk: target, files });
-                pending.push(new Set([...loaded, ...fetched]));
+    const firstLoad = closure(entry);
+    const largest = new Map<string, readonly string[]>([[entry, [...firstLoad].sort()]]);
+    // A chunk loaded earlier on the chain had its dynamic imports followed with less loaded.
+    const follow = (loaded: ReadonlySet<string>, importers: Iterable<string>): void => {
+        for (const importer of importers) {
+            for (const target of byFileName.get(importer)?.dynamicImports ?? []) {
+                if (loaded.has(target)) continue;
+                const files = [...closure(target)].filter((file) => !loaded.has(file)).sort();
+                if (files.length > (largest.get(target)?.length ?? 0)) largest.set(target, files);
+                follow(new Set([...loaded, ...files]), files);
             }
         }
-    }
-    return bursts;
+    };
+    follow(firstLoad, firstLoad);
+    return [...largest].map(([chunk, files]) => ({ chunk, files }));
 }
 
 /**
- * Fails the build when a dynamic import reachable from `entry` fetches more
- * than `maxFiles` files at once. VS Code's webview service worker runs at most
- * 32 resource loads at a time for all webviews of one view type, and the loads
- * of a webview closed mid-load keep their slots until its 30 s timeout: two
- * merge panes that fetch 16 files each fill it, and the next webview of the
- * type stays blank for those 30 s.
+ * Fails the build when the page's first load or a dynamic import reachable
+ * from `entry` fetches more than `WEBVIEW_FILES_AT_ONCE` files at once. VS
+ * Code's webview service worker runs at most `VS_CODE_LOADS_PER_VIEW_TYPE`
+ * resource loads at a time for all webviews of one view type, and the loads of
+ * a webview closed mid-load keep their slots until its 30 s timeout: two merge
+ * panes that fetch 16 files each fill it, and the next webview of the type
+ * stays blank for those 30 s.
  */
-export function webviewImportBudget(options: { entry: string; maxFiles: number }): Plugin {
+export function webviewImportBudget(options: { entry: string }): Plugin {
     return {
         name: "webview-import-budget",
         apply: "build",
@@ -104,7 +113,7 @@ export function webviewImportBudget(options: { entry: string; maxFiles: number }
                 output.type === "chunk" ? [output] : [],
             );
             const over = importBursts(chunks, options.entry).filter(
-                (burst) => burst.files.length > options.maxFiles,
+                (burst) => burst.files.length > WEBVIEW_FILES_AT_ONCE,
             );
             if (over.length === 0) return;
             const listed = over
@@ -114,9 +123,10 @@ export function webviewImportBudget(options: { entry: string; maxFiles: number }
                 )
                 .join("; ");
             this.error(
-                `${listed}. A webview's dynamic import may fetch at most ${options.maxFiles}: VS Code runs at most ` +
-                    `32 resource loads at a time for all webviews of one view type, and a webview closed mid-load ` +
-                    `holds its loads' slots for 30 s. Put small chunks into a group of the bundle's output.codeSplitting.`,
+                `${listed}. A webview may fetch at most ${WEBVIEW_FILES_AT_ONCE} files at once: VS Code runs at most ` +
+                    `${VS_CODE_LOADS_PER_VIEW_TYPE} resource loads at a time for all webviews of one view type, and a ` +
+                    `webview closed mid-load holds its loads' slots for 30 s. Put small chunks into a group of the ` +
+                    `bundle's output.codeSplitting.`,
             );
         },
     };

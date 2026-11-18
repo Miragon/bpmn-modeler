@@ -122,9 +122,11 @@ The BPMN webview ships one `index.js`, one `index.css` (CSS code
 splitting is off because host shells link a single stylesheet) and lazy `chunks/**` relative
 to the entry (`base: "./"`), so every host serves the whole directory.
 
-A dynamic import of the BPMN page fetches at most ten files at once; `webviewImportBudget`
-(`vite.shared.ts`) fails the build above that, and two chunk groups put the small helpers and
-the parsers every surface loads into one chunk each. VS Code 1.130 and later serves at most 32
+The BPMN page's first load and each of its dynamic imports fetch at most ten files at once
+(`WEBVIEW_FILES_AT_ONCE`, which the merge-view smoke test checks too); `webviewImportBudget`
+(`vite.shared.ts`) fails the build above that, counting an import that several chains reach
+from the one that loaded the least of it, and two chunk groups put the small helpers and the
+parsers every surface loads into one chunk each. VS Code 1.130 and later serves at most 32
 resource loads at a time for all webviews of one view type, and a webview closed while it loads
 keeps its loads' slots until a 30 s timeout. The merge view's two panes fetched 16 files each, so
 closing one while it loaded left the next BPMN webview blank for 30 s

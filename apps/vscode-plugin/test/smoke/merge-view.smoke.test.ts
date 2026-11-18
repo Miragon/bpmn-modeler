@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { BpmnModdle } from "bpmn-moddle";
 
+import { WEBVIEW_FILES_AT_ONCE } from "../../../../vite.shared";
 import { gitOutcome, runGit } from "./support/git";
 import {
     CONFLICTED,
@@ -43,9 +44,6 @@ const NARROWEST_EDITOR_WIDTH = 220;
 const COMMAND_TITLE = "Resolve in BPMN Merge View";
 const OPEN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
 const KEY_RETRY_INTERVAL_MS = 1_000;
-// VS Code serves 32 resource loads at a time for all webviews of one view type, and a
-// webview closed while it loads holds its slots for 30 s: two panes of 16 held them all.
-const MOST_LOADS_AT_ONCE = 10;
 
 /** What the panes of the operations other than a merge say about their sides. */
 const OTHER_OPERATIONS: readonly {
@@ -509,14 +507,14 @@ describe("the BPMN merge view", () => {
             await shot("merge-view-reopened");
         });
 
-        it("loads at most ten files at once in each pane, so that one closed while it loads leaves VS Code's resource slots to the next", async () => {
+        it(`loads at most ${WEBVIEW_FILES_AT_ONCE} files at once in each pane, so that one closed while it loads leaves VS Code's resource slots to the next`, async () => {
             await openMergeView(conflictedFile("merge"));
             await vscode().webviewsLoaded();
 
             const panes = await vscode().visibleEditors();
             expect(panes).toHaveLength(2);
             for (const { page } of panes) {
-                expect(await mostLoadsAtOnce(page)).toBeLessThanOrEqual(MOST_LOADS_AT_ONCE);
+                expect(await mostLoadsAtOnce(page)).toBeLessThanOrEqual(WEBVIEW_FILES_AT_ONCE);
             }
         });
     });

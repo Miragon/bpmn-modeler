@@ -10,8 +10,20 @@ function chunk(
     return { fileName, imports, dynamicImports };
 }
 
-describe("the files a webview bundle's dynamic import fetches at once", () => {
-    it("are its chunk and the chunks it imports that the entry has not loaded", () => {
+describe("the files a webview bundle fetches at once", () => {
+    it("are the entry and the chunks it imports on the page's first load", () => {
+        const bundle = [
+            chunk("index.js", ["shared.js"]),
+            chunk("shared.js", ["runtime.js"]),
+            chunk("runtime.js"),
+        ];
+
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["index.js", "runtime.js", "shared.js"] },
+        ]);
+    });
+
+    it("are, for a dynamic import, its chunk and the chunks it imports that the entry has not loaded", () => {
         const bundle = [
             chunk("index.js", ["shared.js"], ["surface.js"]),
             chunk("shared.js"),
@@ -21,6 +33,7 @@ describe("the files a webview bundle's dynamic import fetches at once", () => {
         ];
 
         expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["index.js", "shared.js"] },
             { chunk: "surface.js", files: ["engine.js", "surface.js", "viewer.js"] },
         ]);
     });
@@ -35,6 +48,7 @@ describe("the files a webview bundle's dynamic import fetches at once", () => {
         ];
 
         expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["index.js"] },
             { chunk: "mode.js", files: ["core.js", "mode.js"] },
             { chunk: "lint.js", files: ["lint.js", "rules.js"] },
         ]);
@@ -49,9 +63,25 @@ describe("the files a webview bundle's dynamic import fetches at once", () => {
         ];
 
         expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["index.js"] },
             { chunk: "viewer.js", files: ["core.js", "viewer.js"] },
             { chunk: "diff.js", files: ["core.js", "diff.js", "viewer.js"] },
         ]);
+    });
+
+    it("count an import two chains reach from the chain that loaded less of it", () => {
+        const bundle = [
+            chunk("index.js", [], ["design.js", "merge.js"]),
+            chunk("design.js", ["engine.js"], ["lint.js"]),
+            chunk("merge.js", [], ["pane.js"]),
+            chunk("pane.js", [], ["lint.js"]),
+            chunk("lint.js", ["engine.js"]),
+            chunk("engine.js"),
+        ];
+
+        const lint = importBursts(bundle, "index.js").find(({ chunk }) => chunk === "lint.js");
+
+        expect(lint).toEqual({ chunk: "lint.js", files: ["engine.js", "lint.js"] });
     });
 
     it("end on a cycle of static imports", () => {
@@ -62,6 +92,7 @@ describe("the files a webview bundle's dynamic import fetches at once", () => {
         ];
 
         expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["index.js"] },
             { chunk: "a.js", files: ["a.js", "b.js"] },
         ]);
     });
@@ -69,6 +100,8 @@ describe("the files a webview bundle's dynamic import fetches at once", () => {
     it("leave out a dynamic import that the entry loads statically too", () => {
         const bundle = [chunk("index.js", ["core.js"], ["core.js"]), chunk("core.js")];
 
-        expect(importBursts(bundle, "index.js")).toEqual([]);
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "index.js", files: ["core.js", "index.js"] },
+        ]);
     });
 });

@@ -6,9 +6,6 @@ import { resolve } from "path";
 import { modelerBundlePreset, webviewImportBudget } from "../../vite.shared";
 
 const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
-// Three webviews fetching a surface each, a merge view's two panes and an editor,
-// fit in the 32 loads VS Code serves at a time for all webviews of one view type.
-const MAX_FILES_PER_IMPORT = 10;
 // Helpers of a few KB that every surface imports, which would each be a chunk of their own.
 const SMALL_HELPERS = [
     /node_modules[\\/](?:min-dash|ids|domify|lodash|semver-compare|classnames)[\\/]/,
@@ -48,11 +45,7 @@ export default defineConfig({
     // import. Relative deps resolve against import.meta.url in every host.
     base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-    plugins: [
-        tsconfigPaths(),
-        lazySvgToImage(),
-        webviewImportBudget({ entry: "index.js", maxFiles: MAX_FILES_PER_IMPORT }),
-    ],
+    plugins: [tsconfigPaths(), lazySvgToImage(), webviewImportBudget({ entry: "index.js" })],
     ...modelerBundlePreset,
     optimizeDeps: {
         include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],
