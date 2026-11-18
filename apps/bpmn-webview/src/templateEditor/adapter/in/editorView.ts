@@ -1,10 +1,10 @@
 import {
     catalogFor,
     type EditorMain,
-    elementTypeName,
     type TemplateChoice,
 } from "@miragon/bpmn-modeler-element-template-builder";
 import {
+    elementTypeName,
     ENGINE_LABEL,
     ENGINES,
     type Engine,

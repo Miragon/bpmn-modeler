@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { BpmnModdle } from "bpmn-moddle";
 
+import { WEBVIEW_FILES_AT_ONCE } from "../../../../vite.shared";
 import { gitOutcome, runGit } from "./support/git";
 import {
     CONFLICTED,
@@ -184,6 +185,25 @@ async function captions(): Promise<{ current: string; incoming: string }> {
     await expect.poll(() => sideLabel(current)).toMatch(/^Current/);
     await expect.poll(() => sideLabel(incoming)).toMatch(/^Incoming/);
     return { current: await sideLabel(current), incoming: await sideLabel(incoming) };
+}
+
+/** The most resource loads the page had in flight at one time, from its resource timing. */
+function mostLoadsAtOnce(page: FrameLocator): Promise<number> {
+    return page.locator("html").evaluate(() => {
+        const edges = (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+            .flatMap(({ startTime, responseEnd }) => [
+                { at: startTime, change: 1 },
+                { at: responseEnd, change: -1 },
+            ])
+            .sort((one, other) => one.at - other.at || one.change - other.change);
+        let inFlight = 0;
+        let most = 0;
+        for (const { change } of edges) {
+            inFlight += change;
+            most = Math.max(most, inFlight);
+        }
+        return most;
+    });
 }
 
 /** What every visible editor webview of the extension shows. */
@@ -474,6 +494,17 @@ describe("the BPMN merge view", () => {
             const { current } = await captions();
             expect(current).toMatch(/^Current: your branch main/);
             await shot("merge-view-reopened");
+        });
+
+        it(`loads at most ${WEBVIEW_FILES_AT_ONCE} files at once in each pane, so that one closed while it loads leaves VS Code's resource slots to the next`, async () => {
+            await openMergeView(conflictedFile("merge"));
+            await vscode().webviewsLoaded();
+
+            const panes = await vscode().visibleEditors();
+            expect(panes).toHaveLength(2);
+            for (const { page } of panes) {
+                expect(await mostLoadsAtOnce(page)).toBeLessThanOrEqual(WEBVIEW_FILES_AT_ONCE);
+            }
         });
     });
 

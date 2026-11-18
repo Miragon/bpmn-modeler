@@ -120,9 +120,25 @@ Platform-owned saves:
 
 The BPMN webview ships one `index.js`, one `index.css` (CSS code
 splitting is off because host shells link a single stylesheet) and lazy `chunks/**` relative
-to the entry (`base: "./"`), so every host serves the whole directory. Every BPMN, DMN, form,
-deployment and add-ons shell sends a CSP with `default-src 'none'`, so injected markup cannot run
-script with the host message channel; each allows only what its bundle needs:
+to the entry (`base: "./"`), so every host serves the whole directory.
+
+The BPMN page's first load and each of its dynamic imports fetch at most ten files at once
+(`WEBVIEW_FILES_AT_ONCE`, which the merge-view smoke test checks too); `webviewImportBudget`
+(`vite.shared.ts`) fails the build above that, counting an import that several chains reach
+from the one that loaded the least of it, and two chunk groups put the small helpers and the
+parsers every surface loads into one chunk each. VS Code 1.130 and later serves at most 32
+resource loads at a time for all webviews of one view type, and a webview closed while it loads
+keeps its loads' slots until a 30 s timeout. The merge view's two panes fetched 16 files each, so
+closing one while it loaded left the next BPMN webview blank for 30 s
+([#2535](https://github.com/Miragon/bpmn-modeler/issues/2535)). Ten leaves room for both panes
+and an editor. Cost: about 20 KB more in the first load, a group to extend when a surface grows
+past the limit, and webviews closed one after another while they load can still use up the
+slots until VS Code frees them
+([microsoft/vscode#349058](https://github.com/microsoft/vscode/issues/349058)).
+
+Every BPMN, DMN, form, deployment and add-ons shell sends a CSP with `default-src 'none'`, so
+injected markup cannot run script with the host message channel; each allows only what its
+bundle needs:
 
 - `script-src`: the entry by nonce in VS Code, `'self'` in IntelliJ; VS Code BPMN/DMN shells
   also list `webview.cspSource` because modulepreload links carry no nonce. No
