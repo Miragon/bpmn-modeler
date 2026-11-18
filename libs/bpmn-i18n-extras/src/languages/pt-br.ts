@@ -352,6 +352,8 @@ const dictionary: Record<string, string> = {
         "{element} é desenhado por outro lado que não {containers}; verifique se ainda está dentro",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} é mantido sem os fluxos que o outro lado removeu com ele: {connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "{flow} é mantido, mas não é mais o fluxo padrão de {element}",
     "The file's {attribute} differs between the sides; current's is kept":
         "O atributo {attribute} do arquivo difere entre os lados; o de Atual é mantido",
     "1 conflict left": "1 conflito restante",

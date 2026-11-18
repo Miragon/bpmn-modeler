@@ -92,6 +92,7 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
     drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
     restoredWithoutConnections: { kind: "restoredWithoutConnections", id: "a", connections: ["b"] },
+    defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };

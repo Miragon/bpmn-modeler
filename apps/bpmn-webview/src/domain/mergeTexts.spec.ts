@@ -216,6 +216,15 @@ describe("buildNoteText", () => {
             "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
         ],
         [
+            {
+                kind: "defaultFlowNotRestored",
+                id: "Task_Pack",
+                flow: "Flow_2",
+                keptDefault: "Flow_3",
+            },
+            "to packing is kept but is no longer the default flow of Pack box",
+        ],
+        [
             { kind: "layoutChangedByBoth", ids: ["Task_Pack", "Flow_2"], keptSide: "current" },
             "Both sides changed the layout of Pack box, to packing; current's is kept",
         ],

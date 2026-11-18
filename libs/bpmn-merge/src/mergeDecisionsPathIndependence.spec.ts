@@ -6,6 +6,7 @@ import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
+import { restoredFlowDefaultsOf } from "./removedConnections";
 
 function stateOf(decisions: MergeDecisions) {
     return {
@@ -16,7 +17,14 @@ function stateOf(decisions: MergeDecisions) {
         ]),
         openConflicts: decisions.openConflicts,
         canBuild: decisions.canBuild,
+        flowDefaults: flowDefaultsOf(decisions),
     };
+}
+
+function flowDefaultsOf(decisions: MergeDecisions) {
+    if (!decisions.canBuild) return [];
+    const { elements } = decisions.resolution();
+    return restoredFlowDefaultsOf(decisions.result.elements, (id) => elements[id]);
 }
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });
@@ -75,6 +83,27 @@ const HAND_BUILT: readonly { readonly name: string; readonly result: MergeResult
                 ],
             }),
             mergeElement("X", "unchanged", { parent: "Process" }),
+        ),
+    },
+    {
+        name: "a gateway whose default flow current removed with its target",
+        result: mergeResult(
+            process,
+            mergeElement("G", "takenFromCurrent", {
+                type: "bpmn:ExclusiveGateway",
+                parent: "Process",
+                references: [refersTo("bpmn:ExclusiveGateway#default", "F")],
+                current: { references: [] },
+            }),
+            mergeElement("T", "removedByCurrent", { parent: "Process" }),
+            mergeElement("F", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                parent: "Process",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", "G"),
+                    refersTo("bpmn:SequenceFlow#targetRef", "T"),
+                ],
+            }),
         ),
     },
     {
@@ -286,6 +315,7 @@ describe("MergeDecisions path independence", () => {
 
     it("keeps an element with its connections as the plain pick followed by a pick of each flow", async () => {
         let offers = 0;
+        let defaultsRestored = 0;
         for (const { name, result } of await mergeResults()) {
             for (const { id } of result.elements) {
                 for (const side of MERGE_SIDES) {
@@ -302,10 +332,14 @@ describe("MergeDecisions path independence", () => {
 
                     expect(together.pickWithConnections(id, side).applied, label).toBe(applied);
                     if (applied) expect(stateOf(together), label).toEqual(stateOf(oneByOne));
+                    defaultsRestored += flowDefaultsOf(together).filter(
+                        ({ kind }) => kind === "restored",
+                    ).length;
                 }
             }
         }
         expect(offers).toBeGreaterThan(0);
+        expect(defaultsRestored, "offers that restored a source's default").toBeGreaterThan(0);
     }, 30_000);
 
     it("keeps every pick on its side and leaves a choice for every open conflict", async () => {

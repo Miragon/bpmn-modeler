@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-17
+- Last reviewed: 2026-11-18
 
 ## Context
 
@@ -184,7 +184,20 @@ parser and asserts that the module still loads.
   helpers of `removedConnections.ts`, not one rule: the note names every flow left out, the
   offer only those it can bring back. Not offered: a flow
   whose other end the removing side deleted too, which would bring back an end the user did
-  not ask for; a boundary event removed with its host; a restored flow's source `default`.
+  not ask for; a boundary event removed with its host.
+- *A kept flow stays its source's default.* Removing a flow takes its source's `default`
+  with it, so keeping the flow against that removal means the default too.
+  `restoredFlowDefaultsOf` derives it from the sides alone, however the flow came back: the
+  build sets `default` on the source's version in the result and keeps every other change
+  of that side. A source whose version in the result names another flow of the result keeps
+  it, since the removing side chose it, and the build note `defaultFlowNotRestored` names
+  both; so does a source whose type holds no default. Rejected: picking the whole source
+  from the keeping side, the only pick the library has, which drops the other side's
+  changes to it (a rename, a condition) and decides a conflict for the user; a note alone,
+  which leaves the offer promising more than it keeps; a field on the pick's outcome, since
+  a later pick of the source creates or lifts the clash and only the build sees the final
+  sides. Cost: the one attribute the build writes that no side's version of the element
+  holds, so the content check strips exactly that `default` before it compares.
 - *Consequences follow the picks, not their order.* The only state is the user's picks:
   each pick or unpick derives every consequence again from them over the automatic
   resolutions. Picking an element back, or unpicking it, restores what its first pick
@@ -268,7 +281,8 @@ each of those.
   sides, an element drawn from another side than its container, elements both sides added
   at the same place, an element kept against the other side's removal whose flows on its
   own side stay out (each flow is decided on its own, so the flows removed with it stay
-  removed unless `pickWithConnections` kept them, and it may be left unconnected), elements
+  removed unless `pickWithConnections` kept them, and it may be left unconnected), a kept
+  flow its source no longer names as its default (`defaultFlowNotRestored`), elements
   the base and both sides draw, each side differently (`layoutChangedByBoth`), and every
   frame difference the result does not carry (attributes both sides changed, incoming's
   extensions or imports).

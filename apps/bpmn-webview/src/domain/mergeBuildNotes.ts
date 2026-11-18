@@ -12,6 +12,12 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
             return [note.id, ...note.containers];
         case "restoredWithoutConnections":
             return [note.id, ...note.connections];
+        case "defaultFlowNotRestored":
+            return [
+                note.id,
+                note.flow,
+                ...(note.keptDefault === undefined ? [] : [note.keptDefault]),
+            ];
         case "frameDiffers":
             return [];
     }

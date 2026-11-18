@@ -11,7 +11,7 @@ import {
     chosenVersionOf,
 } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
-import { connectionsOn, keptAgainstRemoval } from "./removedConnections";
+import { type RestoredFlowDefault, connectionsOn, keptAgainstRemoval } from "./removedConnections";
 
 export type BuildNote =
     | {
@@ -29,6 +29,13 @@ export type BuildNote =
           readonly kind: "restoredWithoutConnections";
           readonly id: string;
           readonly connections: readonly string[];
+      }
+    | {
+          readonly kind: "defaultFlowNotRestored";
+          readonly id: string;
+          readonly flow: string;
+          /** The default the source keeps instead; none when it keeps no default. */
+          readonly keptDefault?: string;
       }
     | {
           readonly kind: "layoutChangedByBoth";
@@ -141,6 +148,24 @@ export function restoredWithoutConnectionsNotes(
         return connections.length === 0
             ? []
             : [{ kind: "restoredWithoutConnections", id: element.id, connections }];
+    });
+}
+
+/** A flow kept against its removal that its source in the result does not name as its default. */
+export function defaultFlowNotRestoredNotes(
+    flowDefaults: readonly RestoredFlowDefault[],
+    restored: ReadonlyMap<string, string>,
+): BuildNote[] {
+    return flowDefaults.flatMap((flowDefault): BuildNote[] => {
+        const note = {
+            kind: "defaultFlowNotRestored",
+            id: flowDefault.source,
+            flow: flowDefault.flow,
+        } as const;
+        if (flowDefault.kind === "otherDefaultKept") {
+            return [{ ...note, keptDefault: flowDefault.keptDefault }];
+        }
+        return restored.get(flowDefault.source) === flowDefault.flow ? [] : [note];
     });
 }
 

@@ -96,7 +96,7 @@ export function dependentsByTarget(
     return dependents;
 }
 
-type ReferenceRole = "process" | "edgeEnd" | "host";
+type ReferenceRole = "process" | "edgeEnd" | "host" | "defaultFlow";
 
 /** References the merge reads beyond the one rule, by the property name of `owner#property`. */
 const REFERENCE_ROLES = new Map<string, ReferenceRole>([
@@ -104,6 +104,7 @@ const REFERENCE_ROLES = new Map<string, ReferenceRole>([
     ["sourceRef", "edgeEnd"],
     ["targetRef", "edgeEnd"],
     ["attachedToRef", "host"],
+    ["default", "defaultFlow"],
 ]);
 
 /** `ElementReference.property` reads `owner#property`, as `@miragon/bpmn-modeler-diff` writes it. */
@@ -123,4 +124,9 @@ export function isEdgeEnd(reference: ElementReference): boolean {
 /** A boundary event's host. */
 export function isHostReference(reference: ElementReference): boolean {
     return roleOf(reference) === "host";
+}
+
+/** The default flow of a gateway or an activity. */
+export function isDefaultFlowReference(reference: ElementReference): boolean {
+    return roleOf(reference) === "defaultFlow";
 }

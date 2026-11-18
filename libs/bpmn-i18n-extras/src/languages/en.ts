@@ -341,6 +341,8 @@ const dictionary: Record<string, string> = {
         "{element} is drawn by another side than {containers}; check that it still sits inside",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is kept without the flows the other side removed with it: {connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "{flow} is kept but is no longer the default flow of {element}",
     "The file's {attribute} differs between the sides; current's is kept":
         "The file's {attribute} differs between the sides; current's is kept",
     "1 conflict left": "1 conflict left",

@@ -348,6 +348,8 @@ const dictionary: Record<string, string> = {
         "Элемент {element} нарисован другой стороной, чем {containers}; проверьте, что он всё ещё внутри",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "Элемент {element} оставлен без потоков, которые другая сторона удалила вместе с ним: {connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "Поток {flow} оставлен, но больше не является потоком по умолчанию для {element}",
     "The file's {attribute} differs between the sides; current's is kept":
         "Атрибут {attribute} файла различается между сторонами; сохраняется значение стороны «Текущее»",
     "1 conflict left": "Остался 1 конфликт",

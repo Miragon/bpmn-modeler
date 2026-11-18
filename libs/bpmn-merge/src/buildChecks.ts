@@ -29,6 +29,8 @@ export interface BuildExpectations {
     readonly drawnByShape: ReadonlySet<string>;
     /** Every lane of the result with the nodes it lists. */
     readonly laneMembers: ReadonlyMap<string, ReadonlySet<string>>;
+    /** The flow each source names as its default again, on top of the version it is taken from. */
+    readonly restoredDefaults: ReadonlyMap<string, string>;
 }
 
 /**
@@ -49,7 +51,11 @@ export async function checkMergedXml(
     requireDrawingsReachableFromTheirRootPlane(diagramIndex);
     requireRebuiltDerivedReferences(parsed.rootElement, expectations.laneMembers);
     const resultSnapshots = await elementSnapshots(xml, { prefixSources, isUnit: isMergeElement });
-    requireSourceContent(resultSnapshots, expectations.sourceSnapshots);
+    requireSourceContent(
+        resultSnapshots,
+        expectations.sourceSnapshots,
+        expectations.restoredDefaults,
+    );
 }
 
 /** A parser warning is an unresolved reference, a duplicate id or skipped content, which the parse then leaves out. */
@@ -183,13 +189,14 @@ export function requireRebuiltDerivedReferences(
 export function requireSourceContent(
     resultSnapshots: ReadonlyMap<string, ElementSnapshot>,
     sourceSnapshots: ReadonlyMap<string, ElementSnapshot>,
+    restoredDefaults: ReadonlyMap<string, string>,
 ): void {
     const differing = [...sourceSnapshots]
         .filter(([id, source]) => {
             const merged = resultSnapshots.get(id);
             return (
                 merged === undefined ||
-                merged.content !== source.content ||
+                contentOnItsSide(merged, restoredDefaults.get(id)) !== source.content ||
                 merged.parent !== source.parent ||
                 !sameLanes(merged.lanes, source.lanes)
             );
@@ -199,6 +206,19 @@ export function requireSourceContent(
     if (differing.length + unexpected.length > 0) {
         refuse("elements differ from the side they are taken from", [...differing, ...unexpected]);
     }
+}
+
+/**
+ * The merged element's content without the default flow the build restored on it, so it compares with its side's
+ * version; undefined when that default is not the one its start tag names.
+ */
+function contentOnItsSide(
+    merged: ElementSnapshot,
+    restoredDefault: string | undefined,
+): string | undefined {
+    if (restoredDefault === undefined) return merged.content;
+    if (merged.attributes.default !== restoredDefault) return undefined;
+    return merged.content.replace(` default="${restoredDefault}"`, "");
 }
 
 /** The derived lists keep the order an element had, so only which ids and how often counts. */

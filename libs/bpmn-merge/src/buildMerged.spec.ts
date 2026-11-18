@@ -1028,6 +1028,31 @@ ${
             });
         });
 
+        it("names the default a source of a type without one cannot take back", async () => {
+            const versions = fixtureTriple({
+                current: (model) => {
+                    removeNode(model, "Task_Reject");
+                    nodeById(model, "Gateway_Ok").type = "parallelGateway";
+                },
+            });
+            const decisions = await decisionsFor(versions);
+            expect(decisions.pickWithConnections("Task_Reject", "incoming").applied).toBe(true);
+
+            const { xml, notes } = await buildMerged(
+                await prepareMergeSources(versions),
+                decisions,
+            );
+
+            const { elementsById } = await parseWithoutWarnings(xml);
+            expect(elementsById.Gateway_Ok).toHaveProperty("$type", "bpmn:ParallelGateway");
+            expect(elementsById.Gateway_Ok).not.toHaveProperty("default");
+            expect(notes).toContainEqual({
+                kind: "defaultFlowNotRestored",
+                id: "Gateway_Ok",
+                flow: "Flow_No",
+            });
+        });
+
         it("names elements both sides added at the same place", async () => {
             const addTask = (id: string, x: number) => (model: BpmnFixtureModel) => {
                 model.nodes.push({ id, type: "task", name: id, x, y: 320, lane: "Lane_Manager" });

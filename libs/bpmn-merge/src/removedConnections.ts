@@ -1,5 +1,12 @@
-import { type MergeElement, type MergeSide, type SideInResult, otherSide } from "./mergeResult";
-import { isEdgeEnd } from "./referenceRules";
+import {
+    type ElementVersion,
+    type MergeElement,
+    type MergeSide,
+    type SideInResult,
+    chosenVersionOf,
+    otherSide,
+} from "./mergeResult";
+import { isDefaultFlowReference, isEdgeEnd } from "./referenceRules";
 
 /** The ancestor and `side` have the element and the other side removed it. */
 export function keptAgainstRemoval(element: MergeElement, side: MergeSide): boolean {
@@ -57,9 +64,38 @@ export type RestoredFlowDefault =
           readonly keptDefault: string;
       };
 
+/**
+ * Removing a flow takes its source's `default` with it, so a pick that keeps the flow against the removal means its
+ * default too. The source keeps the version the result takes, with all of that side's changes; it gets the flow back
+ * as its default unless that version names another flow of the result, which the removing side chose and is kept.
+ * Derived from the sides alone, so it follows the picks, not the way the flow came back.
+ */
 export function restoredFlowDefaultsOf(
-    _elements: readonly MergeElement[],
-    _sideInResult: SideInResult,
+    elements: readonly MergeElement[],
+    sideInResult: SideInResult,
 ): readonly RestoredFlowDefault[] {
-    return [];
+    const elementsById = new Map(elements.map((element) => [element.id, element]));
+    const versionInResult = (id: string) => {
+        const element = elementsById.get(id);
+        return element === undefined ? undefined : chosenVersionOf(element, sideInResult);
+    };
+    return elements.flatMap((flow): RestoredFlowDefault[] => {
+        const side = sideInResult(flow.id);
+        if (side === undefined || !keptAgainstRemoval(flow, side)) return [];
+        const ends = new Set(otherEndsOf(flow, flow.id, side));
+        return [...ends].flatMap((source): RestoredFlowDefault[] => {
+            if (defaultFlowOf(elementsById.get(source)?.versions[side]) !== flow.id) return [];
+            const sourceInResult = versionInResult(source);
+            if (sourceInResult === undefined) return [];
+            const keptDefault = defaultFlowOf(sourceInResult);
+            if (keptDefault === flow.id) return [];
+            return keptDefault !== undefined && versionInResult(keptDefault) !== undefined
+                ? [{ kind: "otherDefaultKept", source, flow: flow.id, keptDefault }]
+                : [{ kind: "restored", source, flow: flow.id }];
+        });
+    });
+}
+
+function defaultFlowOf(version: ElementVersion | undefined): string | undefined {
+    return version?.references.find(isDefaultFlowReference)?.target;
 }

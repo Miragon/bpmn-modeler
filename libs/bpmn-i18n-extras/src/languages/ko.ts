@@ -341,6 +341,8 @@ const dictionary: Record<string, string> = {
         "{element}은(는) {containers}와(과) 다른 쪽에서 그렸습니다. 여전히 내부에 있는지 확인하십시오",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
+    "{flow} is kept but is no longer the default flow of {element}":
+        "{flow}은(는) 유지되지만 더 이상 {element}의 기본 흐름이 아닙니다",
     "The file's {attribute} differs between the sides; current's is kept":
         "파일의 {attribute}이(가) 양쪽에서 다릅니다. 현재의 값이 유지됩니다",
     "1 conflict left": "남은 충돌 1개",
