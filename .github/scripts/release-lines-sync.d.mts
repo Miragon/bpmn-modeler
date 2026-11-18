@@ -1,9 +1,9 @@
+import type { ShipsInDeclaration } from "./release-declaration.mjs";
 import type {
     Attribution,
     AttributionFile,
     AttributionWrite,
     ReleaseLineRegistry,
-    ShipsInDeclaration,
 } from "./release-routing.mjs";
 
 /** The Git Data API calls that chain attribution commits onto main. */

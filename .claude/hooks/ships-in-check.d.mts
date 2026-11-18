@@ -14,16 +14,16 @@ export interface PullRequestTarget {
     /** A number, URL or branch; gh pr edit falls back to the current branch's PR. */
     selector?: string;
     repo?: string;
+    /** Whether a gh pr edit sets the title or body. */
+    setsText: boolean;
 }
 
-/** The fields of `gh pr view --json title,body,files,headRefName,url,number`. */
+/** The fields of `gh pr view --json number,url,state`. */
 export interface PullRequestView {
     number?: number;
     url: string;
-    title?: string;
-    body?: string;
-    headRefName?: string;
-    files?: { path: string }[];
+    /** OPEN, CLOSED or MERGED. */
+    state?: string;
 }
 
 export interface HookPullRequest {
@@ -31,6 +31,7 @@ export interface HookPullRequest {
     title: string;
     body: string;
     headBranch: string | undefined;
+    fromFork: boolean;
     files: string[];
 }
 
@@ -40,7 +41,7 @@ export interface HookOutput {
     hookSpecificOutput?: { hookEventName: "PostToolUse"; additionalContext: string };
 }
 
-export const WIRING_CHECKS: Readonly<Record<string, string>>;
+export const NONE_WIRING: string;
 
 export function pullRequestTargets(command: string): PullRequestTarget[];
 export function lastPullRequestUrl(
@@ -48,10 +49,10 @@ export function lastPullRequestUrl(
 ): { repo: string; number: number; url: string } | undefined;
 export function githubRepos(remoteOutput: string): string[];
 export function viewArguments(input: HookInput): string[] | undefined;
-export function pullRequestOf(
+export function ownOpenPullRequest(
     view: PullRequestView,
     ownRepos: readonly string[],
-): HookPullRequest | undefined;
+): { repo: string; number: number } | undefined;
 export function hookOutput(
     pullRequest: HookPullRequest,
     registry: ReleaseLineRegistry,

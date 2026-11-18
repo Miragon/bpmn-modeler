@@ -3,13 +3,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import releaseLines from "../../../.github/release-lines.json";
+import { needsDeclaration, validate } from "../../../.github/scripts/release-check.mjs";
+import { parseShipsIn } from "../../../.github/scripts/release-declaration.mjs";
 import {
-    parseShipsIn,
     planAttributions,
+    pullRequestNumber,
     resolveAttribution,
     routingSummary,
     suggest,
-    validate,
     type ReleaseLineRegistry,
 } from "../../../.github/scripts/release-routing.mjs";
 
@@ -151,6 +152,90 @@ describe("the Ships in declaration of a PR body", () => {
         ]);
     });
 
+    it("reads a box in an ordered list", () => {
+        expect(parseShipsIn(shipsIn("1. [x] `host`"), sample).lines).toEqual(["host"]);
+    });
+
+    it("keeps reading after a code span or a fenced block that holds <!--", () => {
+        expect(
+            parseShipsIn(
+                ["Use `<!--` to hide text.", "", "## Ships in", "", "- [x] `host`"].join("\n"),
+                sample,
+            ).lines,
+        ).toEqual(["host"]);
+        expect(
+            parseShipsIn(
+                ["```html", "<!-- a", "```", "", "## Ships in", "", "- [x] `none`"].join("\n"),
+                sample,
+            ).none,
+        ).toBe(true);
+    });
+
+    it("keeps reading after an unclosed <!-- inside a line, which GitHub shows as text", () => {
+        expect(
+            parseShipsIn(
+                ["Text <!-- not closed", "", "## Ships in", "", "- [x] `host`"].join("\n"),
+                sample,
+            ).lines,
+        ).toEqual(["host"]);
+    });
+
+    it("hides the rest after an unclosed <!-- at a line start, as GitHub does", () => {
+        expect(
+            parseShipsIn(["<!-- note", "", "## Ships in", "", "- [x] `host`"].join("\n"), sample)
+                .found,
+        ).toBe(false);
+    });
+
+    it("ignores a ticked box in an indented code block", () => {
+        expect(parseShipsIn(shipsIn("    - [x] `host`"), sample).lines).toEqual([]);
+        expect(parseShipsIn(shipsIn("Text:", "", "\t- [x] `host`"), sample).lines).toEqual([]);
+    });
+
+    it("reads an indented box that continues a list, also after a blank line", () => {
+        expect(parseShipsIn(shipsIn("- [ ] `package`", "    - [x] `host`"), sample).lines).toEqual([
+            "host",
+        ]);
+        expect(
+            parseShipsIn(shipsIn("- [ ] `package`", "", "    - [x] `host`"), sample).lines,
+        ).toEqual(["host"]);
+    });
+
+    it.each(["**host**", "[host](https://example.com)", ""])(
+        "reports the ticked box %j, whose line it cannot read",
+        (text) => {
+            expect(parseShipsIn(shipsIn(`- [x] ${text}`), sample)).toMatchObject({
+                lines: [],
+                errors: [
+                    `The ticked box \`${`- [x] ${text}`.trim()}\` under Ships in names no line; write it as - [x] \`<line id>\`.`,
+                ],
+            });
+        },
+    );
+
+    it("reports a wording without backticks", () => {
+        expect(parseShipsIn(shipsIn("- [x] `host` as fix: a"), sample).errors).toEqual([
+            "The wording of `host` under Ships in needs backticks: - [x] `host` as `fix(<scope>): <subject>`.",
+        ]);
+    });
+
+    it("reports a line ticked twice", () => {
+        expect(
+            parseShipsIn(shipsIn("- [x] `host` as `fix: a`", "- [x] `host` as `fix: b`"), sample)
+                .errors,
+        ).toEqual(["`host` is ticked twice under Ships in; keep one box."]);
+    });
+
+    it("reports a second Ships in section and reads the first", () => {
+        const declaration = parseShipsIn(
+            `${shipsIn("- [x] `host`")}\n\n## Ships in\n\n- [x] \`package\`\n`,
+            sample,
+        );
+
+        expect(declaration.lines).toEqual(["host"]);
+        expect(declaration.errors).toEqual(["The body has 2 Ships in sections; keep one."]);
+    });
+
     it("lists every release line and none in the PR template, all unticked", () => {
         const declaration = parseShipsIn(template, registry);
         const ticked = parseShipsIn(template.replaceAll("- [ ] `", "- [x] `"), registry);
@@ -238,6 +323,54 @@ describe("the attribution of a declared change", () => {
             { subject: "feat(types)!: rename a (#4)", lines: ["package"] },
             { subject: "feat(types): rename a (#4)", lines: ["host"] },
         ]);
+    });
+
+    it.each(["chore: x", ""])(
+        "ignores the wording %j, which is no feat or fix subject, and lists the title",
+        (wording) => {
+            expect(
+                resolveAttribution(
+                    {
+                        title: "feat(types): add a (#5)",
+                        files,
+                        body: shipsIn(`- [x] \`host\` as \`${wording}\``),
+                    },
+                    sample,
+                ).groups,
+            ).toEqual([{ subject: "feat(types): add a (#5)", lines: ["host"] }]);
+        },
+    );
+
+    it("gives a wording the breaking mark the title gives its line", () => {
+        expect(
+            resolveAttribution(
+                {
+                    title: "feat(types)!: rename a (#6)",
+                    files,
+                    body: shipsIn(
+                        "- [x] `package` as `feat(npm): rename a`",
+                        "- [x] `host` as `feat(host)!: rename a`",
+                    ),
+                },
+                sample,
+            ).groups,
+        ).toEqual([
+            { subject: "feat(npm)!: rename a (#6)", lines: ["package"] },
+            { subject: "feat(host): rename a (#6)", lines: ["host"] },
+        ]);
+    });
+
+    it("drops a breaking mark a wording adds to a change that is not breaking", () => {
+        expect(
+            resolveAttribution(
+                {
+                    title: "feat(types): add a (#7)",
+                    files,
+                    body: shipsIn("- [x] `host` as `feat(host)!: add a`"),
+                },
+                sample,
+            ).groups,
+        ).toEqual([{ subject: "feat(host): add a (#7)", lines: ["host"] }]);
     });
 
     it("attributes a chore to no line, whatever it ticks", () => {
@@ -374,8 +507,34 @@ describe("the validation of a PR", () => {
         ]);
     });
 
-    it("passes a wording that is a feat or fix subject, also a breaking one", () => {
-        expect(pr({ body: shipsIn("- [x] `host` as `fix(viewer)!: keep the zoom`") })).toEqual([]);
+    it("passes a wording that is a feat or fix subject", () => {
+        expect(pr({ body: shipsIn("- [x] `host` as `fix(viewer): keep the zoom`") })).toEqual([]);
+    });
+
+    it("rejects a wording that adds a breaking mark the title does not give its line", () => {
+        const added =
+            "The wording of `host` under Ships in has a breaking `!`, but a line takes `!` only from a breaking title whose files hit its breaking globs; drop the `!`.";
+
+        expect(pr({ body: shipsIn("- [x] `host` as `fix(viewer)!: keep the zoom`") })).toEqual([
+            added,
+        ]);
+        expect(
+            pr({
+                title: "feat(types)!: rename a",
+                body: shipsIn("- [x] `package`", "- [x] `host` as `feat(host)!: rename a`"),
+            }),
+        ).toEqual([added]);
+    });
+
+    it("rejects a wording that drops the breaking mark the title gives its line", () => {
+        expect(
+            pr({
+                title: "feat(types)!: rename a",
+                body: shipsIn("- [x] `package` as `feat(npm): rename a`"),
+            }),
+        ).toEqual([
+            "The wording of `package` under Ships in has no `!`, but the breaking title applies to that line (its breaking globs); mark the wording breaking too.",
+        ]);
     });
 
     it("reports a ticked id that is no release line", () => {
@@ -390,6 +549,33 @@ describe("the validation of a PR", () => {
         ]);
     });
 
+    it("lets a PR add the folder of a line the registry does not have yet", () => {
+        expect(
+            pr({
+                title: "chore(release): add a line",
+                files: [".github/release-lines.json", "release/new-line/version.txt"],
+            }),
+        ).toEqual([]);
+    });
+
+    it.each([
+        { case: "another release-please branch", headBranch: "release-please--branches--x" },
+        {
+            case: "the release branch of a fork",
+            headBranch: "release-please--branches--main",
+            fromFork: true,
+        },
+    ])("rejects release/** changes from $case", ({ headBranch, fromFork }) => {
+        expect(
+            pr({
+                title: "chore: release main",
+                files: ["release/host/version.txt"],
+                headBranch,
+                fromFork,
+            }),
+        ).toHaveLength(1);
+    });
+
     it("lets the release PR change release/**", () => {
         expect(
             pr({
@@ -399,6 +585,46 @@ describe("the validation of a PR", () => {
                 headBranch: "release-please--branches--main",
             }),
         ).toEqual([]);
+    });
+});
+
+describe("whether a PR must declare its lines", () => {
+    const shared = ["libs/types/src/a.ts"];
+
+    it.each([
+        { case: "a feat reaching two lines, nothing ticked", files: shared, body: "", needs: true },
+        {
+            case: "a feat that ticks a line",
+            files: shared,
+            body: shipsIn("- [x] `host`"),
+            needs: false,
+        },
+        {
+            case: "a feat that ticks none",
+            files: shared,
+            body: shipsIn("- [x] `none`"),
+            needs: false,
+        },
+        { case: "a feat that reaches one line", files: ["apps/host/a.ts"], body: "", needs: false },
+    ])("says $needs for $case", ({ files, body, needs }) => {
+        expect(needsDeclaration({ title: "feat: a", files, body }, sample)).toBe(needs);
+    });
+
+    it("says false for a chore that reaches two lines", () => {
+        expect(needsDeclaration({ title: "chore: a", files: shared, body: "" }, sample)).toBe(
+            false,
+        );
+    });
+});
+
+describe("the PR number of a squash commit", () => {
+    it.each([
+        { title: "feat: a (#12)", number: 12 },
+        { title: 'Revert "feat: a (#3)" (#9)', number: 9 },
+        { title: "feat: a", number: undefined },
+        { title: "feat: a (#12) more", number: undefined },
+    ])("reads $number from $title", ({ title, number }) => {
+        expect(pullRequestNumber(title)).toBe(number);
     });
 });
 

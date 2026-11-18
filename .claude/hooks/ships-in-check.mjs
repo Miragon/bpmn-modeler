@@ -1,33 +1,29 @@
 #!/usr/bin/env node
-// PostToolUse hook on Bash: after `gh pr create` or `gh pr edit`, reads the
-// real PR and checks its "Ships in" boxes with release-routing.mjs. A feat or
-// fix that reaches two or more lines with nothing ticked is blocked; ticked
-// boxes get a request to confirm them by wiring. Fails open: any error, a
-// missing gh, no network or another repository's PR exits silently.
+// PostToolUse hook on Bash: after `gh pr create`, or a `gh pr edit` of the
+// title or body, reads the open PR as the "Validate release lines" job does
+// and checks its "Ships in" boxes with release-check.mjs. A feat or fix that
+// reaches two or more lines with nothing ticked is blocked; ticked boxes get a
+// request to confirm them by wiring. Fails open: any error, a missing gh, no
+// network, a closed PR or another repository's PR exits silently.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { argv, stdin, stdout } from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import {
-    derivedLines,
-    isAttributedType,
-    NO_LINE,
-    parseShipsIn,
-    validate,
-} from "../../.github/scripts/release-routing.mjs";
+import { fetchPullRequest } from "../../.github/scripts/github-pull-requests.mjs";
+import { needsDeclaration, validate } from "../../.github/scripts/release-check.mjs";
+import { isDeclared, NO_LINE, parseShipsIn } from "../../.github/scripts/release-declaration.mjs";
+import { derivedLines, isAttributedType } from "../../.github/scripts/release-routing.mjs";
 
-const GH_TIMEOUT_MS = 8000;
+// Under the hook's 20 s timeout, so a slow network fails open instead of timing out.
+const GH_BUDGET_MS = 15000;
 const OPERATORS = ["&&", "||", ";;", "$(", "|", ";", "&", "(", ")", "\n", "`"];
+// gh pr edit flags that set the title or body, the only edits that change the check.
+const TEXT_FLAGS = new Set(["-t", "--title", "-b", "--body", "-F", "--body-file"]);
 // gh pr edit flags that take a value; the first other word is the PR selector.
 const EDIT_VALUE_FLAGS = new Set([
-    "-t",
-    "--title",
-    "-b",
-    "--body",
-    "-F",
-    "--body-file",
+    ...TEXT_FLAGS,
     "-B",
     "--base",
     "-m",
@@ -47,19 +43,9 @@ const REDIRECT = /^\d*(?:<<?-?|>>?)&?(.*)$/;
 const PR_URL = /https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/g;
 const GITHUB_REMOTE = /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?(?:\s|$)/gm;
 
-/** Where a reader of each line's code decides whether that line offers a change. */
-export const WIRING_CHECKS = Object.freeze({
-    "bpmn-modeler":
-        "the npm package's entry points (the `exports` of packages/bpmn-modeler/package.json and the files behind them): does a consumer of @miragon/bpmn-modeler reach the code?",
-    "vscode":
-        "the extension (apps/vscode-plugin/package.json contributions and apps/vscode-plugin/src): does VS Code open the editor or run the command that uses the code?",
-    "intellij":
-        "the bridge composition (apps/modeler-bridge/src/composition) and apps/intellij-plugin/src/main/resources/META-INF/plugin.xml: does IntelliJ register the editor or action, and does the bridge wire the service?",
-    "orca": "the surfaces apps/orca-plugin/src creates (apps/orca-plugin/src/composition): does the Orca plugin create the surface that uses the code?",
-    "dmn-modeler":
-        "whether @miragon/dmn-modeler uses the code at all (packages/dmn-modeler/src and its exports)",
-    [NO_LINE]: "a fix to a feature no release shipped yet: is that true for every line?",
-});
+/** What to check before ticking `none`; each line's own check is its `wiring` in the registry. */
+export const NONE_WIRING =
+    "a fix to a feature no release shipped yet: is that true for every line?";
 
 /** Words and operators of a shell command, quotes resolved. */
 function shellTokens(command) {
@@ -116,7 +102,7 @@ function withoutPrefix(words) {
 }
 
 function prTarget(action, args) {
-    const target = { action };
+    const target = { action, setsText: false };
     for (let index = 0; index < args.length; index++) {
         const redirect = REDIRECT.exec(args[index]);
         if (redirect !== null) {
@@ -128,6 +114,7 @@ function prTarget(action, args) {
             REPO_FLAGS.has(flag) || (action === "edit" && EDIT_VALUE_FLAGS.has(flag));
         const value = inlineValue ?? (takesValue ? args[++index] : undefined);
         if (REPO_FLAGS.has(flag)) target.repo = value;
+        else if (action === "edit" && TEXT_FLAGS.has(flag)) target.setsText = true;
         else if (!flag.startsWith("-") && action === "edit" && target.selector === undefined) {
             target.selector = args[index];
         }
@@ -165,8 +152,13 @@ function bulletList(items) {
     return items.map((item) => `- ${item}`).join("\n");
 }
 
-function wiringCheck(id) {
-    return `\`${id}\`: ${WIRING_CHECKS[id] ?? "the code that wires this line's users to the change"}`;
+function wiringCheck(id, registry) {
+    const wiring =
+        id === NO_LINE
+            ? NONE_WIRING
+            : (registry.lines.find((line) => line.id === id)?.wiring ??
+              "the code that wires this line's users to the change");
+    return `\`${id}\`: ${wiring}`;
 }
 
 function blockReason(pullRequest, registry, errors) {
@@ -174,18 +166,18 @@ function blockReason(pullRequest, registry, errors) {
     return [
         `PR #${pullRequest.number} is a feat or fix whose files reach ${reached.map((id) => `\`${id}\``).join(", ")}, but it ticks nothing under "Ships in", so every one of those lines would list it.`,
         "Tick only the lines whose users get the change, judged by wiring, not by the files a line bundles. Check for each line:",
-        bulletList([...reached, NO_LINE].map(wiringCheck)),
+        bulletList([...reached, NO_LINE].map((id) => wiringCheck(id, registry))),
         `Then write the corrected body to a file and run \`gh pr edit ${pullRequest.number} --body-file <file>\`. The release-line check says:`,
         "",
         errors.join("\n\n"),
     ].join("\n");
 }
 
-function confirmContext(pullRequest, declaration, errors) {
+function confirmContext(pullRequest, declaration, errors, registry) {
     const ticked = declaration.none ? [...declaration.lines, NO_LINE] : declaration.lines;
     return [
         `PR #${pullRequest.number} ticks ${ticked.map((id) => `\`${id}\``).join(", ")} under "Ships in". Confirm each ticked line by its wiring, and that no other line offers the change:`,
-        bulletList(ticked.map(wiringCheck)),
+        bulletList(ticked.map((id) => wiringCheck(id, registry))),
         `If a box is wrong, write the corrected body to a file and run \`gh pr edit ${pullRequest.number} --body-file <file>\`. If every box is right, nothing to do.`,
         ...(errors.length > 0
             ? ["", "The release-line check also reports:", "", errors.join("\n\n")]
@@ -198,15 +190,15 @@ export function hookOutput(pullRequest, registry) {
     if (!isAttributedType(pullRequest.title)) return undefined;
     const declaration = parseShipsIn(pullRequest.body, registry);
     const errors = validate({ ...pullRequest, registry });
-    if (declaration.lines.length > 0 || declaration.none) {
+    if (isDeclared(declaration)) {
         return {
             hookSpecificOutput: {
                 hookEventName: "PostToolUse",
-                additionalContext: confirmContext(pullRequest, declaration, errors),
+                additionalContext: confirmContext(pullRequest, declaration, errors, registry),
             },
         };
     }
-    if (derivedLines(pullRequest.files, registry).length < 2) return undefined;
+    if (!needsDeclaration(pullRequest, registry)) return undefined;
     return { decision: "block", reason: blockReason(pullRequest, registry, errors) };
 }
 
@@ -215,10 +207,12 @@ function toolOutputText(toolResponse) {
     return `${toolResponse?.stdout ?? ""}\n${toolResponse?.stderr ?? ""}`;
 }
 
-/** The `gh pr view` arguments for the PR a hook input acted on, or undefined. */
+/** The `gh pr view` arguments for the PR a hook input created or retitled, or undefined. */
 export function viewArguments(input) {
     if (input?.tool_name !== "Bash") return undefined;
-    const target = pullRequestTargets(input.tool_input?.command ?? "").at(-1);
+    const target = pullRequestTargets(input.tool_input?.command ?? "")
+        .filter(({ action, setsText }) => action === "create" || setsText)
+        .at(-1);
     if (target === undefined) return undefined;
     const selector =
         target.action === "create"
@@ -231,33 +225,27 @@ export function viewArguments(input) {
         ...(selector === undefined ? [] : [selector]),
         ...(target.repo === undefined ? [] : ["--repo", target.repo]),
         "--json",
-        "title,body,files,headRefName,url,number",
+        "number,url,state",
     ];
 }
 
-/** The PR as the check reads it, from `gh pr view --json` output; undefined for another repository's PR. */
-export function pullRequestOf(view, ownRepos) {
+/** The repository and number of the viewed PR; undefined for a closed PR or another repository's. */
+export function ownOpenPullRequest(view, ownRepos) {
     const location = lastPullRequestUrl(view.url);
     if (location === undefined || !ownRepos.includes(location.repo.toLowerCase())) return undefined;
-    return {
-        number: view.number ?? location.number,
-        title: view.title ?? "",
-        body: view.body ?? "",
-        headBranch: view.headRefName,
-        files: (view.files ?? []).map(({ path }) => path),
-    };
-}
-
-function run(file, args, cwd) {
-    return execFileSync(file, args, {
-        cwd,
-        encoding: "utf8",
-        timeout: GH_TIMEOUT_MS,
-        stdio: ["ignore", "pipe", "ignore"],
-    });
+    if (view.state !== "OPEN") return undefined;
+    return { repo: location.repo, number: view.number ?? location.number };
 }
 
 function main() {
+    const deadline = Date.now() + GH_BUDGET_MS;
+    const run = (file, args, cwd) =>
+        execFileSync(file, args, {
+            cwd,
+            encoding: "utf8",
+            timeout: Math.max(1, deadline - Date.now()),
+            stdio: ["ignore", "pipe", "ignore"],
+        });
     const input = JSON.parse(readFileSync(stdin.fd, "utf8"));
     const args = viewArguments(input);
     if (args === undefined) return;
@@ -266,8 +254,14 @@ function main() {
         readFileSync(resolve(repoRoot, ".github/release-lines.json"), "utf8"),
     );
     const ownRepos = githubRepos(run("git", ["remote", "-v"], repoRoot));
-    const pullRequest = pullRequestOf(JSON.parse(run("gh", args, input.cwd ?? repoRoot)), ownRepos);
-    if (pullRequest === undefined) return;
+    const location = ownOpenPullRequest(
+        JSON.parse(run("gh", args, input.cwd ?? repoRoot)),
+        ownRepos,
+    );
+    if (location === undefined) return;
+    const pullRequest = fetchPullRequest(location.repo, location.number, (apiArgs) =>
+        run("gh", ["api", ...apiArgs], repoRoot),
+    );
     const output = hookOutput(pullRequest, registry);
     if (output !== undefined) stdout.write(`${JSON.stringify(output)}\n`);
 }

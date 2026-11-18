@@ -7,11 +7,12 @@ import {
     githubRepos,
     hookOutput,
     lastPullRequestUrl,
-    pullRequestOf,
+    NONE_WIRING,
+    ownOpenPullRequest,
     pullRequestTargets,
     viewArguments,
-    WIRING_CHECKS,
     type HookInput,
+    type HookPullRequest,
     type PullRequestView,
 } from "../../../.claude/hooks/ships-in-check.mjs";
 import releaseLines from "../../../.github/release-lines.json";
@@ -27,7 +28,14 @@ function fixture<T>(name: string): T {
 }
 
 const createInput = fixture<HookInput>("postToolUseCreate.json");
-const mergeFeatView = fixture<PullRequestView>("prViewMergeFeat.json");
+const mergeFeatView = fixture<
+    PullRequestView & {
+        title: string;
+        body: string;
+        headRefName: string;
+        files: { path: string }[];
+    }
+>("prViewMergeFeat.json");
 const OWN_REPOS = ["miragon/bpmn-modeler"];
 
 function bashInput(command: string, stdout = ""): HookInput {
@@ -38,41 +46,69 @@ function bashInput(command: string, stdout = ""): HookInput {
     };
 }
 
-function mergeFeat(body: string) {
-    return pullRequestOf({ ...mergeFeatView, body }, OWN_REPOS)!;
+function mergeFeat(body: string): HookPullRequest {
+    return {
+        number: mergeFeatView.number!,
+        title: mergeFeatView.title,
+        body,
+        headBranch: mergeFeatView.headRefName,
+        fromFork: false,
+        files: mergeFeatView.files.map(({ path }) => path),
+    };
+}
+
+function wiringOf(id: string): string {
+    return registry.lines.find((line) => line.id === id)!.wiring!;
 }
 
 describe("the PR commands the hook acts on", () => {
     it.each([
-        { command: "gh pr create --fill", targets: [{ action: "create" }] },
+        { command: "gh pr create --fill", targets: [{ action: "create", setsText: false }] },
         {
             command: "gh pr edit 12 --body-file body.md",
-            targets: [{ action: "edit", selector: "12" }],
+            targets: [{ action: "edit", selector: "12", setsText: true }],
         },
         {
             command: "gh pr edit --title 'fix: a && b' https://github.com/o/r/pull/3",
-            targets: [{ action: "edit", selector: "https://github.com/o/r/pull/3" }],
+            targets: [
+                { action: "edit", selector: "https://github.com/o/r/pull/3", setsText: true },
+            ],
         },
         {
             command: "gh pr edit --add-label=x feat/branch",
-            targets: [{ action: "edit", selector: "feat/branch" }],
+            targets: [{ action: "edit", selector: "feat/branch", setsText: false }],
         },
         {
             command: "gh pr edit -R o/r 4",
-            targets: [{ action: "edit", repo: "o/r", selector: "4" }],
+            targets: [{ action: "edit", repo: "o/r", selector: "4", setsText: false }],
         },
-        { command: "gh pr edit --body-file - <<'EOF'", targets: [{ action: "edit" }] },
-        { command: "gh pr edit > out.txt", targets: [{ action: "edit" }] },
-        { command: "gh pr edit 8 2>&1 | tail", targets: [{ action: "edit", selector: "8" }] },
+        {
+            command: "gh pr edit --body-file - <<'EOF'",
+            targets: [{ action: "edit", setsText: true }],
+        },
+        { command: "gh pr edit > out.txt", targets: [{ action: "edit", setsText: false }] },
+        {
+            command: "gh pr edit 8 -t x 2>&1 | tail",
+            targets: [{ action: "edit", selector: "8", setsText: true }],
+        },
         {
             command: "git push && GH_PROMPT_DISABLED=1 gh pr create --fill",
-            targets: [{ action: "create" }],
+            targets: [{ action: "create", setsText: false }],
         },
-        { command: "(cd repo && gh pr edit 5 -b x)", targets: [{ action: "edit", selector: "5" }] },
-        { command: "rtk gh pr edit 6; echo done", targets: [{ action: "edit", selector: "6" }] },
+        {
+            command: "(cd repo && gh pr edit 5 -b x)",
+            targets: [{ action: "edit", selector: "5", setsText: true }],
+        },
+        {
+            command: "rtk gh pr edit 6 --body=x; echo done",
+            targets: [{ action: "edit", selector: "6", setsText: true }],
+        },
         {
             command: "gh pr create --fill && gh pr edit 7 --add-label x",
-            targets: [{ action: "create" }, { action: "edit", selector: "7" }],
+            targets: [
+                { action: "create", setsText: false },
+                { action: "edit", selector: "7", setsText: false },
+            ],
         },
     ])("finds $command", ({ command, targets }) => {
         expect(pullRequestTargets(command)).toEqual(targets);
@@ -96,7 +132,7 @@ describe("the PR the hook reads", () => {
             "view",
             "https://github.com/Miragon/bpmn-modeler/pull/2600",
             "--json",
-            "title,body,files,headRefName,url,number",
+            "number,url,state",
         ]);
     });
 
@@ -118,12 +154,16 @@ describe("the PR the hook reads", () => {
 
     it.each([
         { case: "another tool", input: { ...createInput, tool_name: "Write" } },
-        { case: "another command", input: bashInput("git status") },
+        { case: "another command", input: bashInput("gh pr view 12") },
         {
             case: "a create that printed no URL",
             input: bashInput("gh pr create --fill", "aborted"),
         },
         { case: "an input without a command", input: { tool_name: "Bash" } },
+        {
+            case: "an edit of neither title nor body",
+            input: bashInput("gh pr edit 7 --add-label x"),
+        },
     ])("views nothing for $case", ({ input }) => {
         expect(viewArguments(input as HookInput)).toBeUndefined();
     });
@@ -154,48 +194,44 @@ describe("the PR the hook reads", () => {
         ).toEqual(["someone/bpmn-modeler", "miragon/bpmn-modeler"]);
     });
 
-    it("reads the PR's number, title, body, head branch and file paths", () => {
-        expect(pullRequestOf(mergeFeatView, OWN_REPOS)).toMatchObject({
+    it("reads an open PR of this repository by its repository and number", () => {
+        expect(ownOpenPullRequest(mergeFeatView, OWN_REPOS)).toEqual({
+            repo: "Miragon/bpmn-modeler",
             number: 2600,
-            title: "feat(bpmn-merge): offer the removed boundary events",
-            headBranch: "feat/merge",
-            files: [
-                "libs/bpmn-merge/src/pickOutcome.ts",
-                "libs/bpmn-merge/src/pickOutcome.spec.ts",
-                "libs/shared/src/lib/mergePaneMessages.ts",
-            ],
         });
     });
 
-    it("leaves another repository's PR alone", () => {
-        expect(
-            pullRequestOf({ ...mergeFeatView, url: "https://github.com/o/r/pull/1" }, OWN_REPOS),
-        ).toBeUndefined();
+    it.each([
+        { case: "another repository's PR", view: { url: "https://github.com/o/r/pull/1" } },
+        { case: "a merged PR", view: { state: "MERGED" } },
+        { case: "a closed PR", view: { state: "CLOSED" } },
+    ])("leaves $case alone", ({ view }) => {
+        expect(ownOpenPullRequest({ ...mergeFeatView, ...view }, OWN_REPOS)).toBeUndefined();
     });
 });
 
 describe("the hook's answer", () => {
     it("blocks a shared feat with nothing ticked and says what to tick and how to fix it", () => {
-        const output = hookOutput(mergeFeat(mergeFeatView.body!), registry);
+        const output = hookOutput(mergeFeat(mergeFeatView.body), registry);
 
         expect(output).toMatchObject({ decision: "block" });
         expect(output?.reason).toContain("reach `vscode`, `intellij`, `orca`");
         expect(output?.reason).toContain("judged by wiring");
-        expect(output?.reason).toContain(`\`intellij\`: ${WIRING_CHECKS.intellij}`);
+        expect(output?.reason).toContain(`\`intellij\`: ${wiringOf("intellij")}`);
         expect(output?.reason).toContain("gh pr edit 2600 --body-file <file>");
         expect(output?.reason).toContain("- [x] `orca`");
     });
 
     it("asks to confirm each ticked line by its wiring", () => {
         const output = hookOutput(
-            mergeFeat(mergeFeatView.body!.replace("- [ ] `vscode`", "- [x] `vscode`")),
+            mergeFeat(mergeFeatView.body.replace("- [ ] `vscode`", "- [x] `vscode`")),
             registry,
         );
 
         expect(output).toEqual({
             hookSpecificOutput: {
                 hookEventName: "PostToolUse",
-                additionalContext: expect.stringContaining(`\`vscode\`: ${WIRING_CHECKS.vscode}`),
+                additionalContext: expect.stringContaining(`\`vscode\`: ${wiringOf("vscode")}`),
             },
         });
         expect(output?.hookSpecificOutput?.additionalContext).toContain("gh pr edit 2600");
@@ -208,7 +244,7 @@ describe("the hook's answer", () => {
             registry,
         )?.hookSpecificOutput?.additionalContext;
 
-        expect(context).toContain(`\`none\`: ${WIRING_CHECKS.none}`);
+        expect(context).toContain(`\`none\`: ${NONE_WIRING}`);
         expect(context).toContain("also reports");
         expect(context).toContain("`bpmn-modeler` is ticked under Ships in, but it ships none");
     });
@@ -223,14 +259,15 @@ describe("the hook's answer", () => {
         { case: "a docs change", title: "docs: a", files: ["docs/a.md"] },
     ])("stays silent for $case with nothing ticked", ({ title, files }) => {
         expect(
-            hookOutput({ number: 1, title, body: "", files, headBranch: "x" }, registry),
+            hookOutput(
+                { number: 1, title, body: "", files, headBranch: "x", fromFork: false },
+                registry,
+            ),
         ).toBeUndefined();
     });
 
-    it("has a wiring check for every release line and none", () => {
-        expect(Object.keys(WIRING_CHECKS).sort()).toEqual(
-            [...registry.lines.map(({ id }) => id), "none"].sort(),
-        );
+    it("has the wiring of every release line in the registry", () => {
+        for (const line of registry.lines) expect(line.wiring, line.id).toMatch(/\S/);
     });
 });
 
@@ -247,18 +284,20 @@ describe("the hook process", () => {
         expect(runHook(stdin)).toBe("");
     });
 
-    it("is registered after Bash for gh pr commands, also rewritten through rtk, with a timeout", () => {
+    it("is registered once after every Bash call, spawned without a shell", () => {
         const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
-        const handler = (filter: string) => ({
-            type: "command",
-            if: filter,
-            command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/ships-in-check.mjs"',
-            timeout: 20,
-        });
 
+        // An `if` filter runs the hook anyway on `$()`, so two filters ran it twice.
         expect(settings.hooks.PostToolUse).toContainEqual({
             matcher: "Bash",
-            hooks: [handler("Bash(gh pr *)"), handler("Bash(rtk gh pr *)")],
+            hooks: [
+                {
+                    type: "command",
+                    command: "node",
+                    args: ["${CLAUDE_PROJECT_DIR}/.claude/hooks/ships-in-check.mjs"],
+                    timeout: 20,
+                },
+            ],
         });
     });
 });

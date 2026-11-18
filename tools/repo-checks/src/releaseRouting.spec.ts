@@ -341,16 +341,20 @@ describe("the routing report", () => {
     });
 });
 
-describe("the routing module", () => {
-    it("decides without I/O: it imports only the glob matcher", () => {
-        const source = readFileSync(
-            join(__dirname, "../../../.github/scripts/release-routing.mjs"),
-            "utf8",
-        );
+describe("the routing modules", () => {
+    it.each([
+        { module: "release-routing.mjs", imports: ["./glob.mjs", "./release-declaration.mjs"] },
+        { module: "release-declaration.mjs", imports: [] },
+        {
+            module: "release-check.mjs",
+            imports: ["./release-declaration.mjs", "./release-routing.mjs"],
+        },
+    ])("decide without I/O: $module imports only its pure siblings", ({ module, imports }) => {
+        const source = readFileSync(join(__dirname, "../../../.github/scripts", module), "utf8");
 
         expect(
-            [...source.matchAll(/^import .* from "([^"]+)";$/gm)].map(([, from]) => from),
-        ).toEqual(["./glob.mjs"]);
+            [...source.matchAll(/^import [\s\S]*? from "([^"]+)";$/gm)].map(([, from]) => from),
+        ).toEqual(imports);
         expect(source).not.toMatch(/\bimport\(|\bprocess\./);
     });
 });

@@ -28,14 +28,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(gh pr *)",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ships-in-check.mjs\"",
-            "timeout": 20
-          },
-          {
-            "type": "command",
-            "if": "Bash(rtk gh pr *)",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/ships-in-check.mjs\"",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/ships-in-check.mjs"],
             "timeout": 20
           }
         ]

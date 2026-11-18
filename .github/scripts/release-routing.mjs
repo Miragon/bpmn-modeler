@@ -1,27 +1,38 @@
 // Decides which release lines a change reaches, from .github/release-lines.json.
 // A file reaches every line whose `ships` globs match it, unless an `ignore`
 // glob matches it first: no user receives a spec, a fixture or a README. Only
-// feat and fix are attributed. A PR may tick its lines under "Ships in"; the
-// declaration wins, because the files say what a line bundles, not what it
-// offers. A breaking `!` stays only on the lines whose `breaking` globs match a
-// file the line ships. release-lines-sync.mjs turns these decisions into
-// attribution commits and runs the PR check.
+// feat and fix are attributed. A PR may tick its lines under "Ships in"
+// (release-declaration.mjs); the declaration wins, because the files say what a
+// line bundles, not what it offers. A breaking `!` stays only on the lines whose
+// `breaking` globs match a file the line ships, also under a line's own wording.
+// release-check.mjs validates a PR against these rules; release-lines-sync.mjs
+// turns the decisions into attribution commits.
 import { matchesGlobs } from "./glob.mjs";
+import { parseShipsIn, shipsInBlock } from "./release-declaration.mjs";
 
 const CONVENTIONAL_TITLE = /^(?<type>[a-z]+)(?:\([^)]*\))?(?<breaking>!)?:/;
 const ATTRIBUTED_SUBJECT = /^(?:feat|fix)(?:\([^)]*\))?!?: \S/;
-const PR_NUMBER_SUFFIX = / \(#\d+\)$/;
+const PR_NUMBER_SUFFIX = / \(#(?<number>\d+)\)$/;
 /** The only types that reach a line, so the only changelog sections that can fill. */
 export const ATTRIBUTED_TYPES = Object.freeze(["feat", "fix"]);
-/** The Ships in box for a change no released user gets. */
-export const NO_LINE = "none";
 
 export function isAttributedType(title) {
     return ATTRIBUTED_TYPES.includes(CONVENTIONAL_TITLE.exec(title)?.groups.type);
 }
 
-function isBreaking(title) {
-    return CONVENTIONAL_TITLE.exec(title)?.groups.breaking !== undefined;
+/** Whether a subject is a feat or fix subject a changelog lists, `!` allowed. */
+export function isAttributedSubject(subject) {
+    return ATTRIBUTED_SUBJECT.test(subject);
+}
+
+export function isBreaking(subject) {
+    return CONVENTIONAL_TITLE.exec(subject)?.groups.breaking !== undefined;
+}
+
+/** The PR a squash commit names at the end of its subject, as `(#123)`. */
+export function pullRequestNumber(title) {
+    const number = PR_NUMBER_SUFFIX.exec(title)?.groups.number;
+    return number === undefined ? undefined : Number(number);
 }
 
 function releasedFiles(files, registry) {
@@ -48,74 +59,18 @@ function breakingLines(files, registry) {
         .map(({ id }) => id);
 }
 
-function withoutBreakingMark(title) {
-    return title.replace(/^([a-z]+(?:\([^)]*\))?)!:/, "$1:");
+/** The lines a breaking title marks breaking; none for a title without `!`. */
+export function breakingLinesOf(title, files, registry) {
+    return isBreaking(title) ? breakingLines(files, registry) : [];
 }
 
-function codeList(ids) {
-    return ids.map((id) => `\`${id}\``).join(", ");
+function withoutBreakingMark(subject) {
+    return subject.replace(/^([a-z]+(?:\([^)]*\))?)!:/, "$1:");
 }
 
-function choiceList(ids) {
-    const codes = ids.map((id) => `\`${id}\``);
-    return `${codes.slice(0, -1).join(", ")} or ${codes.at(-1)}`;
-}
-
-const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
-const SECTION_HEADING = /^#{1,6}\s+ships in\s*:?\s*#*\s*$/i;
-const HEADING = /^#{1,6}\s/;
-const CHECKBOX = /^\s*[-*+]\s+\[([ xX])\]\s*(.*)$/;
-const BOX_ITEM = /^`?(?<id>[A-Za-z0-9][\w.-]*)`?(?:\s+as\s+`(?<wording>[^`]*)`)?/;
-
-/** The body's lines a reader sees: no HTML comment, no fenced code. */
-function visibleLines(body) {
-    const text = (body ?? "").replace(/\r\n?/g, "\n").replace(HTML_COMMENT, "");
-    let fence;
-    return text.split("\n").filter((line) => {
-        const marker = FENCE.exec(line)?.[1];
-        if (fence !== undefined) {
-            if (marker?.[0] === fence[0] && marker.length >= fence.length) fence = undefined;
-            return false;
-        }
-        if (marker !== undefined) fence = marker;
-        return marker === undefined;
-    });
-}
-
-function shipsInSection(body) {
-    const lines = visibleLines(body);
-    const start = lines.findIndex((line) => SECTION_HEADING.test(line));
-    if (start === -1) return undefined;
-    const next = lines.findIndex((line, index) => index > start && HEADING.test(line));
-    return lines.slice(start + 1, next === -1 ? undefined : next);
-}
-
-function tickedItem(line) {
-    const box = CHECKBOX.exec(line);
-    if (box === null || box[1] === " ") return undefined;
-    return BOX_ITEM.exec(box[2])?.groups;
-}
-
-/** The lines a PR body ticks under "Ships in", with each line's own wording. */
-export function parseShipsIn(body, registry) {
-    const section = shipsInSection(body);
-    const declaration = { found: section !== undefined, none: false, wording: {}, errors: [] };
-    const ids = registry.lines.map(({ id }) => id);
-    const ticked = new Set();
-    for (const item of (section ?? []).map(tickedItem)) {
-        if (item === undefined) continue;
-        if (item.id === NO_LINE) declaration.none = true;
-        else if (!ids.includes(item.id)) {
-            declaration.errors.push(
-                `\`${item.id}\` under Ships in is no release line; tick one of ${choiceList([...ids, NO_LINE])}.`,
-            );
-        } else {
-            ticked.add(item.id);
-            if (item.wording !== undefined) declaration.wording[item.id] = item.wording;
-        }
-    }
-    return { ...declaration, lines: ids.filter((id) => ticked.has(id)) };
+function withBreakingMark(subject, breaking) {
+    const unmarked = withoutBreakingMark(subject);
+    return breaking ? unmarked.replace(/^([a-z]+(?:\([^)]*\))?):/, "$1!:") : unmarked;
 }
 
 function groupBySubject(lines, subjectOf) {
@@ -136,6 +91,24 @@ function withPrNumberOf(title, wording) {
 }
 
 /**
+ * Each line's subject: its own wording when that is a feat or fix subject,
+ * else the title. The breaking mark comes from the title and the line's
+ * breaking globs, never from the wording, so a wording can neither drop nor
+ * add a major bump.
+ */
+function subjectOfLine(title, files, registry, declaration) {
+    const breaking = breakingLinesOf(title, files, registry);
+    return (id) => {
+        const wording = declaration.wording[id];
+        const subject =
+            wording !== undefined && isAttributedSubject(wording)
+                ? withPrNumberOf(title, wording)
+                : title;
+        return withBreakingMark(subject, breaking.includes(id));
+    };
+}
+
+/**
  * The lines a merged commit is listed on, grouped by the subject each group
  * shows: the lines its PR body ticks, else the lines its files reach. A ticked
  * line that ships none of the files is left out.
@@ -144,15 +117,10 @@ export function resolveAttribution({ title, files, body }, registry) {
     if (!isAttributedType(title)) return { source: "derived", groups: [] };
     const declaration = parseShipsIn(body, registry);
     const shipped = derivedLines(files, registry);
-    const breaking = isBreaking(title) ? breakingLines(files, registry) : [];
-    const subjectOf = (id) => (breaking.includes(id) ? title : withoutBreakingMark(title));
+    const subjectOf = subjectOfLine(title, files, registry, declaration);
     if (declaration.lines.length > 0) {
-        const declaredSubjectOf = (id) =>
-            declaration.wording[id] === undefined
-                ? subjectOf(id)
-                : withPrNumberOf(title, declaration.wording[id]);
         const lines = declaration.lines.filter((id) => shipped.includes(id));
-        return { source: "declared", groups: groupBySubject(lines, declaredSubjectOf) };
+        return { source: "declared", groups: groupBySubject(lines, subjectOf) };
     }
     if (declaration.none) return { source: "none", groups: [] };
     return { source: "derived", groups: groupBySubject(shipped, subjectOf) };
@@ -160,79 +128,7 @@ export function resolveAttribution({ title, files, body }, registry) {
 
 /** The "Ships in" block to paste, with the lines the files reach ticked. */
 export function suggest({ files, registry }) {
-    const shipped = derivedLines(files, registry);
-    return [
-        "## Ships in",
-        "",
-        ...registry.lines.map(({ id }) => `- [${shipped.includes(id) ? "x" : " "}] \`${id}\``),
-        `- [ ] \`${NO_LINE}\``,
-        "",
-    ].join("\n");
-}
-
-function undeclaredError(title, files, registry) {
-    const { type } = CONVENTIONAL_TITLE.exec(title).groups;
-    return [
-        `This ${type} reaches ${codeList(derivedLines(files, registry))} by its files, so the PR must say which of them ships it.`,
-        'Under "Ships in", tick each line whose users get the change, judged by wiring (does that line offer the feature?), not by the files it bundles.',
-        `Tick \`${NO_LINE}\` when no released user gets it, such as a fix to a feature no release shipped yet.`,
-        "Ready to paste, with the lines its files reach ticked:",
-        "",
-        suggest({ files, registry }),
-    ].join("\n");
-}
-
-function declarationErrors(declaration, shipped) {
-    const errors = [...declaration.errors];
-    if (declaration.none && declaration.lines.length > 0) {
-        errors.push(
-            `\`${NO_LINE}\` is ticked together with ${codeList(declaration.lines)} under Ships in; tick either \`${NO_LINE}\` or the lines.`,
-        );
-    }
-    for (const id of declaration.lines.filter((line) => !shipped.includes(line))) {
-        errors.push(
-            `\`${id}\` is ticked under Ships in, but it ships none of the changed files; untick it.`,
-        );
-    }
-    for (const [id, wording] of Object.entries(declaration.wording)) {
-        if (ATTRIBUTED_SUBJECT.test(wording)) continue;
-        errors.push(
-            `The wording of \`${id}\` under Ships in, \`${wording}\`, is no feat or fix subject; write it as \`fix(<scope>): <subject>\` or \`feat(<scope>): <subject>\`.`,
-        );
-    }
-    return errors;
-}
-
-function attributedErrors({ title, files, registry }, declaration, shipped) {
-    if (!isAttributedType(title)) return [];
-    const declared = declaration.lines.length > 0 || declaration.none;
-    if (!declared) return shipped.length >= 2 ? [undeclaredError(title, files, registry)] : [];
-    if (!isBreaking(title)) return [];
-    return breakingLines(files, registry)
-        .filter((id) => !declaration.lines.includes(id))
-        .map(
-            (id) =>
-                `The breaking change touches what \`${id}\` guarantees (its breaking globs); tick \`${id}\` under Ships in.`,
-        );
-}
-
-/** What is wrong with a PR's title, body and files for the release routing, each with what to do. */
-export function validate(pullRequest) {
-    const { body, files, registry, headBranch } = pullRequest;
-    const edited = headBranch?.startsWith(RELEASE_BRANCH_PREFIX)
-        ? []
-        : files.filter((file) => file.startsWith("release/"));
-    const declaration = parseShipsIn(body, registry);
-    const shipped = derivedLines(files, registry);
-    return [
-        ...(edited.length > 0
-            ? [
-                  `This PR changes ${edited.join(", ")}; only the sync workflow and the release PR write release/**. Revert the change.`,
-              ]
-            : []),
-        ...declarationErrors(declaration, shipped),
-        ...attributedErrors(pullRequest, declaration, shipped),
-    ];
+    return shipsInBlock(derivedLines(files, registry), registry);
 }
 
 const SHORT_SHA_LENGTH = 7;

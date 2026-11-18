@@ -24,7 +24,8 @@ lines" check fails when they reach two or more lines.
 A line can show its own changelog subject instead of the PR title:
   - [x] `bpmn-modeler` as `fix(viewer): keep the zoom when the diagram reloads`
 
-A breaking `!` in the title must tick each line whose contract it touches.
+A breaking `!` in the title must tick each line whose contract it touches. A
+wording carries `!` exactly when the title gives it to that line.
 
 chore, docs and refactor PRs reach no line and may leave this empty.
 -->

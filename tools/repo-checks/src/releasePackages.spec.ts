@@ -219,6 +219,9 @@ describe("the workflows around the release lines", () => {
         expect(job).toMatch(/permissions:\n\s+contents: read\n\s+pull-requests: read\n/);
         expect(scripts.length).toBeGreaterThan(0);
         for (const script of scripts) expect(script).not.toContain("${{");
+        // The script reads the PR itself, so the job keeps no copy of the file fetch.
+        expect(scripts.join("")).toMatch(/release-lines-sync\.mjs check --pr /);
+        expect(scripts.join("")).not.toContain("gh api");
     });
 
     it("keep the sync from triggering on its own attribution commits", () => {

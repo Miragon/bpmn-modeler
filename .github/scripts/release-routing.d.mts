@@ -4,6 +4,8 @@ export interface ReleaseLine {
     ships: readonly string[];
     /** Checked only against the files the line ships. */
     breaking: readonly string[];
+    /** Where a reader decides whether the line offers a change, for the hook and reviews. */
+    wiring?: string;
 }
 
 export interface ReleaseLineRegistry {
@@ -21,26 +23,6 @@ export interface Attribution {
     /** declared: the PR ticks lines; none: it ticks `none`; derived: from the files. */
     source: "declared" | "derived" | "none";
     groups: AttributionGroup[];
-}
-
-export interface ShipsInDeclaration {
-    /** Whether the body has a "Ships in" section at all. */
-    found: boolean;
-    /** The ticked release lines, in the registry's order. */
-    lines: string[];
-    none: boolean;
-    /** A ticked line's own changelog subject, by line id. */
-    wording: Record<string, string>;
-    /** Ticked ids that are no release line. */
-    errors: string[];
-}
-
-export interface PullRequestToValidate {
-    title: string;
-    body: string | undefined;
-    files: readonly string[];
-    registry: ReleaseLineRegistry;
-    headBranch: string | undefined;
 }
 
 export interface MergedPullRequest {
@@ -102,24 +84,26 @@ export interface TagWindow {
 }
 
 export const ATTRIBUTED_TYPES: readonly string[];
-export const NO_LINE: string;
 
 export function isAttributedType(title: string): boolean;
+export function isAttributedSubject(subject: string): boolean;
+export function isBreaking(subject: string): boolean;
+export function pullRequestNumber(title: string): number | undefined;
 export function derivedLines(files: readonly string[], registry: ReleaseLineRegistry): string[];
-export function parseShipsIn(
-    body: string | undefined,
+export function breakingLinesOf(
+    title: string,
+    files: readonly string[],
     registry: ReleaseLineRegistry,
-): ShipsInDeclaration;
+): string[];
 export function resolveAttribution(
     change: { title: string; files: readonly string[]; body?: string },
     registry: ReleaseLineRegistry,
 ): Attribution;
 export function suggest(change: {
-    title: string;
+    title?: string;
     files: readonly string[];
     registry: ReleaseLineRegistry;
 }): string;
-export function validate(pullRequest: PullRequestToValidate): string[];
 export function releaseBranchOf(targetBranch: string): string;
 export function syncedSha(message: string): string | undefined;
 export function skipReason(commit: {

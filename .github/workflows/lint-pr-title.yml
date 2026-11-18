@@ -41,10 +41,11 @@ jobs:
           requireScope: false
 
   # Checks the body's "Ships in" boxes against the title and the changed files
-  # (release-routing.mjs validate). Runs on every PR, the release PR and
-  # Dependabot's included, so it can be required; `edited` re-checks a body
-  # edit. Only the base branch's code runs: the PR's title and body arrive
-  # through env and files, never inside the script.
+  # (release-check.mjs validate). Runs on every PR that starts workflows, the
+  # release PR and Dependabot's included, so it can be required; `edited`
+  # re-checks a body edit. Only the base branch's code runs, and it reads the
+  # PR's title, body and files through the API, the same way the sync and the
+  # Claude Code hook do.
   release-lines:
     name: Validate release lines
     runs-on: ubuntu-latest
@@ -67,20 +68,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           # A base branch from before the check (an older stacked base) has nothing to run.
-          if ! grep -q '^export function validate' .github/scripts/release-routing.mjs; then
+          if ! grep -q 'check --pr' .github/scripts/release-lines-sync.mjs 2>/dev/null; then
             echo "The base branch has no release-line check yet; nothing to validate."
             exit 0
           fi
-          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
-          gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" \
-            --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/pr-files.txt"
-          node .github/scripts/release-lines-sync.mjs check \
-            --title "$PR_TITLE" \
-            --body-file "$RUNNER_TEMP/pr-body.md" \
-            --files-file "$RUNNER_TEMP/pr-files.txt" \
-            --head-branch "$HEAD_BRANCH"
+          node .github/scripts/release-lines-sync.mjs check --pr "$PR_NUMBER" --repo "$REPO"

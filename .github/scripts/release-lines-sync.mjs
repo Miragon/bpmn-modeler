@@ -3,25 +3,26 @@
 // from the local clone, merged pull requests (with the bodies that declare
 // their lines) and existing attributions from the GitHub API, attribution
 // commits through the Git Data API, and the PR check (`check`). The decisions
-// are the pure functions of release-routing.mjs.
+// are the pure functions of release-routing.mjs and release-check.mjs.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { argv, env, stdout } from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { fetchPullRequest, ghApi as gh, mergedPullRequest } from "./github-pull-requests.mjs";
+import { validate } from "./release-check.mjs";
+import { parseShipsIn } from "./release-declaration.mjs";
 import {
     auditReport,
     commitsSinceTags,
     derivedLines,
-    parseShipsIn,
     planAttributions,
     resolveAttribution,
     routingSummary,
     skipReason,
     suggest,
     syncedSha,
-    validate,
 } from "./release-routing.mjs";
 
 const TARGET_BRANCH = "main";
@@ -37,14 +38,6 @@ function gitLines(repoRoot, args) {
     return git(repoRoot, args)
         .split("\n")
         .filter((line) => line !== "");
-}
-
-function gh(args, input) {
-    return execFileSync("gh", ["api", ...args], {
-        encoding: "utf8",
-        input: input === undefined ? undefined : JSON.stringify(input),
-        stdio: ["pipe", "pipe", "pipe"],
-    });
 }
 
 function ghJson(args, input) {
@@ -63,15 +56,6 @@ function readCommit(repoRoot, sha) {
         files: gitLines(repoRoot, ["diff", "--name-only", "--no-renames", `${sha}^1`, sha]),
         date: git(repoRoot, ["log", "-1", "--format=%cI", sha]),
     };
-}
-
-/** The PR a commit was merged from, with its body as it reads now; null when there is none. */
-function mergedPullRequest(repo, sha) {
-    const pulls = ghJson([`repos/${repo}/commits/${sha}/pulls`]);
-    const merged =
-        pulls.find((pull) => pull.merge_commit_sha === sha) ??
-        pulls.find((pull) => pull.merged_at && pull.base.ref === TARGET_BRANCH);
-    return merged === undefined ? null : { head: merged.head.ref, body: merged.body ?? "" };
 }
 
 function pushedShas(repoRoot, range) {
@@ -187,7 +171,7 @@ function readCommits({ mode, repoRoot, registry, range, repo }) {
         const commit = { ...readCommit(repoRoot, sha), unreleasedLines };
         // A commit its subject already skips needs no pull request lookup.
         return skipReason(commit) === undefined
-            ? { ...commit, pullRequest: mergedPullRequest(repo, sha) }
+            ? { ...commit, pullRequest: mergedPullRequest(repo, commit) }
             : commit;
     });
 }
@@ -252,20 +236,6 @@ function runReleaseSync({ mode, args, registry, repoRoot }) {
 function optionValue(args, name) {
     const index = args.indexOf(name);
     return index === -1 ? undefined : args[index + 1];
-}
-
-/** A PR's title, body, head branch and files, renamed files under both names. */
-function fetchPullRequest(repo, number) {
-    const pull = ghJson([`repos/${repo}/pulls/${number}`]);
-    const files = gh([
-        "--paginate",
-        `repos/${repo}/pulls/${number}/files?per_page=100`,
-        "--jq",
-        ".[] | .filename, (.previous_filename // empty)",
-    ])
-        .split("\n")
-        .filter((file) => file !== "");
-    return { title: pull.title, body: pull.body ?? "", headBranch: pull.head.ref, files };
 }
 
 function readPullRequest(args) {
