@@ -88,17 +88,6 @@ export function idsRemovedWith(
     return [...boundaryEvents, ...connections].map(({ id }) => id);
 }
 
-/** The ends of a connection's version on `side` other than the element. */
-export function otherEndsOf(
-    connection: MergeElement,
-    elementId: string,
-    side: MergeSide,
-): readonly string[] {
-    return (connection.versions[side]?.references ?? [])
-        .filter((reference) => isEdgeEnd(reference) && reference.target !== elementId)
-        .map(({ target }) => target);
-}
-
 /** What becomes of the default a flow kept against the other side's removal was of its source on the keeping side. */
 export type RestoredFlowDefault =
     | { readonly kind: "restored"; readonly source: string; readonly flow: string }

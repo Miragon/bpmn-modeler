@@ -12,7 +12,7 @@ import {
     type MergeSide,
 } from "./mergeResult";
 import { dependentsByTarget, type ReferenceIndex, requirementsOf } from "./referenceRules";
-import { idsRemovedWith, otherEndsOf, removedWith } from "./removedConnections";
+import { idsRemovedWith, removedWith } from "./removedConnections";
 import type { UnmetRequirement } from "./unmetRequirement";
 
 export type { BlockedPick, PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
@@ -150,9 +150,9 @@ export class MergeDecisions {
     /**
      * What `side` keeps of an element the other side removed, which the other side removed with it and a pick of the
      * element would leave out: the connections and boundary events of `removedWith`, as long as nobody decided them
-     * and whatever else they need stays in the result, so keeping them brings back nothing the user did not pick.
-     * A connection of a boundary event comes only with its event. Empty when the other side kept the element, or
-     * when the pick is refused.
+     * and everything they require besides the element stays in the result, so keeping them brings back nothing the
+     * user did not pick. A connection of a boundary event comes only with its event. Empty when the other side kept
+     * the element, or when the pick is refused.
      */
     removedWithLeftOut(id: string, side: MergeSide): RemovedWithLeftOut {
         const element = this.requireElement(id);
@@ -170,24 +170,17 @@ export class MergeDecisions {
             this.sides.isAutomatic(candidate.id) &&
             after.isAutomatic(candidate.id) &&
             !inResult(candidate.id);
+        const offerable = (candidate: MergeElement, keptTogether: ReadonlySet<string>) =>
+            leftOut(candidate) &&
+            requirementsOf(candidate, side).every(
+                ({ target }) => keptTogether.has(target) || inResult(target),
+            );
         const boundaryEvents = candidates.boundaryEvents
-            .filter(
-                (event) =>
-                    leftOut(event) &&
-                    requirementsOf(event, side).every(
-                        ({ target }) => target === id || inResult(target),
-                    ),
-            )
+            .filter((event) => offerable(event, new Set([id])))
             .map((event) => event.id);
         const keptTogether = new Set([id, ...boundaryEvents]);
         const connections = candidates.connections
-            .filter(
-                (connection) =>
-                    leftOut(connection) &&
-                    otherEndsOf(connection, id, side).every(
-                        (end) => keptTogether.has(end) || inResult(end),
-                    ),
-            )
+            .filter((connection) => offerable(connection, keptTogether))
             .map((connection) => connection.id);
         return { connections, boundaryEvents };
     }

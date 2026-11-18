@@ -93,6 +93,39 @@ describe("MergeDecisions.pickWithConnections", () => {
         expect(decisions.isInResult("Flow_Rejected")).toBe(false);
     });
 
+    it.each([
+        { messageState: "unchanged", offered: ["Flow_Order"] },
+        { messageState: "removedByCurrent", offered: [] },
+    ] as const)(
+        "offers a message flow only when the result holds its message: $messageState message",
+        ({ messageState, offered }) => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    mergeElement("Collaboration", "unchanged", { type: "bpmn:Collaboration" }),
+                    mergeElement("Task_Send", "removedByCurrent", { parent: "Collaboration" }),
+                    mergeElement("Task_Receive", "unchanged", { parent: "Collaboration" }),
+                    mergeElement("Message_Order", messageState, { type: "bpmn:Message" }),
+                    mergeElement("Flow_Order", "removedByCurrent", {
+                        type: "bpmn:MessageFlow",
+                        parent: "Collaboration",
+                        references: [
+                            refersTo("bpmn:MessageFlow#sourceRef", "Task_Send"),
+                            refersTo("bpmn:MessageFlow#targetRef", "Task_Receive"),
+                            refersTo("bpmn:MessageFlow#messageRef", "Message_Order"),
+                        ],
+                    }),
+                ),
+            );
+
+            expect(decisions.removedWithLeftOut("Task_Send", "incoming").connections).toEqual(
+                offered,
+            );
+            decisions.pickWithConnections("Task_Send", "incoming");
+
+            expect(decisions.isInResult("Message_Order")).toBe(messageState === "unchanged");
+        },
+    );
+
     it("leaves out a flow the user picked away", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
         decisions.pick("Flow_No", "current");
