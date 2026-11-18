@@ -1,614 +1,418 @@
-import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { devNull, tmpdir } from "node:os";
-import { join } from "node:path";
+import { cp, readFile, rm, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 
-import type { FrameLocator } from "playwright-core";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import type { FrameLocator, Locator } from "playwright-core";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { BpmnModdle } from "bpmn-moddle";
 
-import { COMMAND_KEY, VsCodeSession, downloadVsCode, packExtension } from "./vscodeSession";
+import { gitOutcome, runGit } from "./support/git";
+import {
+    CONFLICTED,
+    NOTES_FILE,
+    REMOVAL_FILE,
+    conflictedRepositories,
+    repositoryFolder,
+    unmergedStages,
+    type ConflictAsGitLeftIt,
+    type GitOperation,
+} from "./support/mergeConflicts";
+import { diagramRendered, settle } from "./support/modeler";
+import { smokeSuite } from "./support/smokeSuite";
+import { fileUri } from "./support/vscodeDriver";
+import { COMMAND_KEY } from "./vscodeSession";
 
 /**
  * The BPMN merge view in a real VS Code, asserted through the DOM only:
- * opened from a Merge Changes row for a merge, a rebase, a cherry-pick and a
- * stash pop, explained on a row it cannot open, offered by an editor that
- * opens a file with conflict markers, ended after a window reload, and
- * opened again live beside the ended tab, its panes marking what is open
- * and what was taken automatically, the user's picks, by the pad and by the
- * keyboard commands' keys, and the build into
- * the working file up to Git's continue. No editor association for
- * `*.bpmn`: the custom editor's own priority decides, as for a user.
+ * opened from a Merge Changes row, explained on a row it cannot open, shown
+ * for a merge, a rebase, a cherry-pick and a stash pop, offered by an editor
+ * that opens a file with conflict markers, ended after a window reload and
+ * opened again live beside the ended tab, its panes marking what is open and
+ * what was taken automatically, the user's picks, by the pad and by the
+ * keyboard commands' keys, and the build into the working file up to Git's
+ * continue.
  */
 
-const runFile = promisify(execFile);
-const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
-const DIST_DIRECTORY = join(REPOSITORY_ROOT, "dist/apps/vscode-plugin");
-const RESULTS_DIRECTORY = join(REPOSITORY_ROOT, "test-results/vscode-smoke/merge-view");
-const FIXTURES_DIRECTORY = fileURLToPath(new URL("./fixtures/", import.meta.url));
-const TIMEOUT_MS = 30_000;
+const SMOKE_PROCESS = fileURLToPath(new URL("./fixtures/smoke.bpmn", import.meta.url));
+const CLEAN_FILE = "clean.bpmn";
+const TEXT_FILE = "readme.txt";
+const UNMERGED_FILES = [...Object.values(CONFLICTED), REMOVAL_FILE, NOTES_FILE].sort();
 // VS Code's minimum editor width, which the merge bar fits on one line.
 const NARROWEST_EDITOR_WIDTH = 220;
 const COMMAND_TITLE = "Resolve in BPMN Merge View";
-const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
+const OPEN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
+const KEY_RETRY_INTERVAL_MS = 1_000;
 
-type Operation = "merge" | "rebase" | "cherry-pick" | "stash";
+/** What the panes of the operations other than a merge say about their sides. */
+const OTHER_OPERATIONS: readonly {
+    name: string;
+    operation: GitOperation;
+    tab: string;
+    current: RegExp;
+    incoming: RegExp;
+    picture?: string;
+}[] = [
+    {
+        name: "a rebase, naming the user's own commit",
+        operation: "rebase",
+        tab: "rebased.bpmn (Merge: ",
+        current: /^Current: other branch · [0-9a-f]{7}$/,
+        incoming: /^Incoming: your commit · [0-9a-f]{7}$/,
+        picture: "rebase-two-panes",
+    },
+    {
+        name: "a cherry-pick",
+        operation: "cherry-pick",
+        tab: "picked.bpmn (Merge: main ↔ ",
+        current: /^Current: your branch main · /,
+        incoming: /^Incoming: other branch · [0-9a-f]{7}$/,
+    },
+    {
+        name: "a stash pop",
+        operation: "stash",
+        tab: "stashed.bpmn (Merge: main ↔ ",
+        current: /^Current: your branch main · /,
+        incoming: /^Incoming: your stash$/,
+    },
+];
 
-/** Each operation conflicts its own file in its own repository, so the rows tell them apart. */
-const CONFLICTED: Record<Operation, string> = {
-    "merge": "merged.bpmn",
-    "rebase": "rebased.bpmn",
-    "cherry-pick": "picked.bpmn",
-    "stash": "stashed.bpmn",
-};
+const conflictsAsGitLeftThem = {} as Record<GitOperation, ConflictAsGitLeftIt>;
 
-function runGit(repository: string, ...args: string[]): Promise<{ stdout: string; code: number }> {
-    return runFile(
-        "git",
-        [
-            "-c",
-            "user.name=VS Code smoke",
-            "-c",
-            "user.email=vscode-smoke@example.invalid",
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "init.defaultBranch=main",
-            ...args,
-        ],
-        {
-            cwd: repository,
-            env: {
-                ...Object.fromEntries(
-                    Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
-                ),
-                GIT_CONFIG_GLOBAL: devNull,
-                GIT_CONFIG_NOSYSTEM: "1",
-            },
-        },
-    ).then(
-        ({ stdout }) => ({ stdout, code: 0 }),
-        // A conflicting merge, rebase, cherry-pick or stash pop exits 1.
-        (error: { stdout?: string; stderr?: string; code?: number }) => ({
-            stdout: `${error.stdout ?? ""}${error.stderr ?? ""}`,
-            code: error.code ?? 1,
-        }),
-    );
+const suite = smokeSuite({
+    name: "merge-view",
+    async workspace(directory) {
+        const processXml = await readFile(SMOKE_PROCESS, "utf8");
+        Object.assign(conflictsAsGitLeftThem, await conflictedRepositories(directory, processXml));
+        await cp(SMOKE_PROCESS, join(directory, CLEAN_FILE));
+        await writeFile(join(directory, TEXT_FILE), "not a diagram\n");
+    },
+    // The docs' pictures of the merge view are this suite's screenshots.
+    colorTheme: "Default Light Modern",
+    // No association for `*.bpmn`: the custom editor's own priority decides, as for a user.
+    customEditors: {},
+    git: true,
+});
+const { vscode } = suite;
+
+const repositoryOf = (operation: GitOperation) => suite.file(repositoryFolder(operation));
+const conflictedFile = (operation: GitOperation) =>
+    join(repositoryOf(operation), CONFLICTED[operation]);
+const removalFile = () => join(repositoryOf("merge"), REMOVAL_FILE);
+
+interface MergePanes {
+    current: FrameLocator;
+    incoming: FrameLocator;
 }
 
-/** In the merge, main deleted the task with both of its flows while feature renamed it. */
-const REMOVAL_FILE = "removed.bpmn";
+/** A picture for the docs and for review. A notice left by an earlier step would cover the editor's corner. */
+async function shot(name: string, { withNotifications = false } = {}): Promise<void> {
+    for (const { page } of await vscode().visibleEditors()) {
+        // The page of an ended merge view runs no script, so it has no frame to wait for.
+        if ((await countIn(page, ".djs-container")) > 0) await settle(page);
+    }
+    await settle(vscode().page);
+    await suite.screenshot(name, { hideNotifications: !withNotifications });
+}
 
-function withoutCheckTask(base: string): string {
-    return base
-        .replace(/\s*<bpmn:task id="Task_Check"[\s\S]*?<\/bpmn:task>/, "")
-        .replace(/\s*<bpmn:outgoing>Flow_To_Task<\/bpmn:outgoing>/, "")
-        .replace(/\s*<bpmn:incoming>Flow_To_End<\/bpmn:incoming>/, "")
-        .replace(/\s*<bpmn:sequenceFlow id="Flow_To_(Task|End)"[^>]*\/>/g, "")
-        .replace(/\s*<bpmndi:BPMNShape id="Task_Check_di"[\s\S]*?<\/bpmndi:BPMNShape>/, "")
-        .replace(/\s*<bpmndi:BPMNEdge id="Flow_To_(Task|End)_di"[\s\S]*?<\/bpmndi:BPMNEdge>/g, "");
+/** A frame that VS Code replaces while a tab settles counts as showing nothing. */
+function countIn(page: FrameLocator, selector: string): Promise<number> {
+    return page
+        .locator(selector)
+        .count()
+        .catch(() => 0);
+}
+
+/** Both panes of the visible merge view or result comparison. A tab switch replaces them, so they are looked up again after one. */
+async function mergePanes(): Promise<MergePanes> {
+    return {
+        current: await vscode().editorWebview('body[data-diff-side="before"]'),
+        incoming: await vscode().editorWebview('body[data-diff-side="after"]'),
+    };
+}
+
+/** The open conflicts, as the incoming pane's ‹ n/N › names them in its tooltip. */
+async function openCount(incoming: FrameLocator): Promise<string> {
+    return (
+        (await incoming.locator(".merge-bar__position").getAttribute("data-merge-tooltip")) ?? ""
+    );
 }
 
 /**
- * A repository whose one file conflicts after `operation`: both sides rename
- * the task. In the merge, feature alone also renames the end event, which the
- * merge takes from feature without asking, and a second file conflicts on a
- * task main deleted and feature renamed.
+ * Opens a conflicted file's merge view by the command's id, where the way in
+ * is not under test, and returns its panes once the incoming one counts the
+ * file's one conflict.
  */
-async function conflictedRepository(
-    workspace: string,
-    operation: Operation,
-    base: string,
-): Promise<string> {
-    const repository = join(workspace, `${operation}-repo`);
-    const fileName = CONFLICTED[operation];
-    const file = join(repository, fileName);
-    const renamed = (name: string) => base.replace('name="Check order"', `name="${name}"`);
-    const commitAll = (message: string) =>
-        runGit(repository, "commit", "-q", "-a", "--no-verify", "-m", message);
-    await mkdir(repository, { recursive: true });
-    await writeFile(file, base);
-    if (operation === "merge") await writeFile(join(repository, REMOVAL_FILE), base);
-    await runGit(repository, "init", "-q");
-    await runGit(repository, "add", fileName);
-    if (operation === "merge") await runGit(repository, "add", REMOVAL_FILE);
-    await runGit(repository, "commit", "-q", "--no-verify", "-m", "Add the order process");
-    if (operation === "stash") {
-        await writeFile(file, renamed("Check stashed order"));
-        await runGit(repository, "stash", "push", "-q");
-        await writeFile(file, renamed("Check main order"));
-        await commitAll("Rename the check on main");
-        await runGit(repository, "stash", "pop");
-        return repository;
-    }
-    await runGit(repository, "checkout", "-q", "-b", "feature");
-    const featureVersion = renamed("Check feature order");
-    await writeFile(
-        file,
-        operation === "merge"
-            ? featureVersion.replace('name="Order checked"', 'name="Order verified"')
-            : featureVersion,
-    );
-    if (operation === "merge") {
-        await writeFile(join(repository, REMOVAL_FILE), renamed("Check feature order"));
-    }
-    if (operation === "merge") await writeFile(join(repository, "notes.txt"), "feature\n");
-    if (operation === "merge") await runGit(repository, "add", "notes.txt");
-    await commitAll("Rename the check on feature");
-    await runGit(repository, "checkout", "-q", "main");
-    await writeFile(file, renamed("Check main order"));
-    if (operation === "merge")
-        await writeFile(join(repository, REMOVAL_FILE), withoutCheckTask(base));
-    if (operation === "merge") await writeFile(join(repository, "notes.txt"), "main\n");
-    if (operation === "merge") await runGit(repository, "add", "notes.txt");
-    await commitAll("Rename the check on main");
-    if (operation === "merge") await runGit(repository, "merge", "feature", "--no-edit");
-    if (operation === "cherry-pick") await runGit(repository, "cherry-pick", "feature");
-    if (operation === "rebase") {
-        await runGit(repository, "checkout", "-q", "feature");
-        await runGit(repository, "rebase", "main");
-    }
-    return repository;
+async function openMergeView(file: string): Promise<MergePanes> {
+    await vscode().executeCommand(OPEN_MERGE_VIEW, fileUri(file));
+    const panes = await mergePanes();
+    await expect.poll(() => openCount(panes.incoming)).toBe("1 open conflict");
+    return panes;
 }
 
-describe("the BPMN merge view", () => {
-    let rootDirectory = "";
-    let workspaceDirectory = "";
-    const repositories = {} as Record<Operation, string>;
-    const untouched = {} as Record<Operation, { workingFile: string; stages: string }>;
-    let session: VsCodeSession | undefined;
-    const vscode = (): VsCodeSession => {
-        if (!session) throw new Error("VS Code did not start");
-        return session;
-    };
+async function tabLabels(): Promise<string[]> {
+    return vscode()
+        .page.locator(".tabs-container .tab")
+        .evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("aria-label") ?? ""));
+}
 
-    // The container runs VS Code as root, whose warning toast would show in every picture;
-    // hiding toasts, unlike dismissing them, leaves the focus, an open menu and the pad as they are.
-    async function shot(name: string, { withNotifications = false } = {}): Promise<void> {
-        await delay(800);
-        await vscode().page.screenshot({
-            path: join(RESULTS_DIRECTORY, `${name}.png`),
-            scale: "css",
-            style: withNotifications
-                ? undefined
-                : ".notifications-toasts { visibility: hidden !important; }",
+async function activeTabLabel(): Promise<string> {
+    return (
+        (await vscode()
+            .page.locator(".editor-group-container.active .tabs-container .tab.active")
+            .first()
+            .getAttribute("aria-label")) ?? ""
+    );
+}
+
+function mergeTab(fileName: string): Locator {
+    return vscode()
+        .page.locator(".tabs-container .tab")
+        .filter({ hasText: "(Merge: " })
+        .filter({ hasText: fileName })
+        .first();
+}
+
+/** A pane's caption in its bar, in full: a narrow bar hides the branch and commit, not the text. */
+async function sideLabel(pane: FrameLocator): Promise<string> {
+    return (await pane.locator(".merge-bar__caption").textContent()) ?? "";
+}
+
+/** The captions of both panes of the visible merge view, once both painted theirs. */
+async function captions(): Promise<{ current: string; incoming: string }> {
+    const { current, incoming } = await mergePanes();
+    await expect.poll(() => sideLabel(current)).toMatch(/^Current/);
+    await expect.poll(() => sideLabel(incoming)).toMatch(/^Incoming/);
+    return { current: await sideLabel(current), incoming: await sideLabel(incoming) };
+}
+
+/**
+ * The rows offer the merge view once the extension runs, and VS Code starts
+ * it with the first BPMN editor, not with the window.
+ */
+async function startExtension(): Promise<void> {
+    await suite.open(CLEAN_FILE, diagramRendered);
+}
+
+/** What every visible editor webview of the extension shows. */
+async function visiblePanes(): Promise<{ ended: boolean; canvas: boolean }[]> {
+    const panes = [];
+    for (const { page } of await vscode().visibleEditors()) {
+        panes.push({
+            ended: (await countIn(page, "[data-merge-view-ended]")) > 0,
+            canvas: (await countIn(page, ".djs-container")) > 0,
         });
     }
+    return panes;
+}
 
-    /** A focused webview can swallow F1, so the focus moves to the side bar first. */
-    async function runFromSideBar(title: string): Promise<void> {
-        await vscode().page.keyboard.press("Escape");
-        await vscode().page.locator(".part.sidebar .composite.title").first().click();
-        await vscode().runCommand(title);
-    }
+/** The editable modeler, not a diff pane that never paired: it has a palette and a properties panel. */
+async function editableModelerShows(): Promise<boolean> {
+    const modeler = await vscode().editorWebview(".djs-palette");
+    return (await modeler.locator("#js-properties-panel").count()) > 0;
+}
 
-    /** The Source Control list renders only the rows in sight, so it is scrolled to the row first. */
-    async function sourceControlRow(fileName: string) {
-        const list = vscode().page.locator(".scm-view .monaco-list").first();
-        const row = vscode()
-            .page.locator(".scm-view .monaco-list-row")
-            .filter({ has: vscode().page.locator(".resource") })
-            .filter({ hasText: fileName })
-            .first();
-        const deadline = Date.now() + TIMEOUT_MS;
-        // The list scrolls a bounded distance per wheel event, so it walks up, then down, looking.
-        while (!(await row.isVisible()) && Date.now() < deadline) {
-            await list.hover();
-            for (let scrolls = 0; scrolls < 20 && !(await row.isVisible()); scrolls++) {
-                await vscode().page.mouse.wheel(0, -300);
-                await delay(100);
-            }
-            for (let scrolls = 0; scrolls < 40 && !(await row.isVisible()); scrolls++) {
-                await vscode().page.mouse.wheel(0, 150);
-                await delay(100);
-            }
-            if (!(await row.isVisible())) await delay(500);
+const notifications = () => vscode().page.locator(".notifications-toasts .notification-toast");
+
+async function notification(text: string): Promise<Locator> {
+    const toast = notifications().filter({ hasText: text }).first();
+    await toast.waitFor({ state: "visible" });
+    return toast;
+}
+
+/** The keyboard's way: focus the button and press Enter, no click. */
+async function press(pane: FrameLocator, name: string): Promise<void> {
+    const target = pane.getByRole("button", { name, exact: true });
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await target.waitFor({ state: "visible" });
+            await target.focus();
+            break;
+        } catch (error) {
+            // VS Code can replace a webview's frame while a newly opened tab settles.
+            if (attempt === 3 || !String(error).includes("has been closed")) throw error;
         }
-        // A group's sticky header can cover the row it scrolled to.
-        const sticky = vscode().page.locator(".scm-view .monaco-tree-sticky-container").first();
-        for (let nudges = 0; nudges < 10; nudges++) {
-            const rowBox = await row.boundingBox();
-            const stickyBox = await sticky.boundingBox().catch(() => null);
-            if (!rowBox || !stickyBox || rowBox.y >= stickyBox.y + stickyBox.height) break;
-            await list.hover();
-            await vscode().page.mouse.wheel(0, -44);
-            await delay(100);
-        }
-        return row;
     }
+    await vscode().page.keyboard.press("Enter");
+}
 
-    /** The conflicted files sit in their repositories' folders, which the Explorer shows collapsed. */
-    async function openWithQuickOpen(
-        fileName: string,
-        { toTheSide = false }: { toTheSide?: boolean } = {},
-    ): Promise<void> {
-        await vscode().page.keyboard.press("Escape");
-        await vscode().page.locator(".part.sidebar .composite.title").first().click();
-        await vscode().page.keyboard.press(`${COMMAND_KEY}+p`);
-        const input = vscode().page.locator(".quick-input-widget .quick-input-box input");
-        await input.fill(fileName);
-        // Recently opened merge tabs are listed too, and the list may still change while it fills,
-        // so the file is picked by its row, not by moving the focus.
-        const row = vscode()
-            .page.locator(".quick-input-widget .quick-input-list .monaco-list-row")
-            .filter({ hasText: fileName })
-            .filter({ hasNotText: "(Merge: " })
-            .first();
-        await row.waitFor({ timeout: TIMEOUT_MS });
-        if (toTheSide) {
-            await row.hover();
-            await row.getByRole("button", { name: /to the Side/i }).click();
-        } else {
-            await row.click();
-        }
-        await vscode().page.mouse.move(0, 0);
-    }
+/** The mouse's way: an entry of the context pad a step or a click opened, by its label. */
+function padEntry(pane: FrameLocator, name: string | RegExp): Locator {
+    return pane
+        .locator(".djs-context-pad")
+        .getByRole("button", { name, exact: typeof name === "string" });
+}
 
-    /** Right-clicks a Merge Changes row and returns the menu's labels, running `command` if given. */
-    async function rowMenu(fileName: string, command?: string): Promise<string[]> {
-        await runFromSideBar("Source Control: Focus on Changes View");
-        const row = await sourceControlRow(fileName);
-        await row.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-        await row.click({ button: "right" });
-        const labels = vscode().page.locator(".context-view .action-label");
-        await labels.first().waitFor({ timeout: TIMEOUT_MS });
-        // A menu item listens for the mouse only 100 ms after it renders.
-        await delay(300);
-        const items = (await labels.allTextContents()).map((label) => label.trim());
-        if (command) {
-            await vscode()
-                .page.locator(".context-view")
-                .getByText(command, { exact: true })
-                .click();
-            await vscode().page.mouse.move(0, 0);
-        } else {
-            await vscode().page.keyboard.press("Escape");
-        }
-        return items;
-    }
+async function decideInPad(pane: FrameLocator, name: string | RegExp): Promise<void> {
+    await padEntry(pane, name).click();
+}
 
-    async function tabLabels(): Promise<string[]> {
-        return vscode()
-            .page.locator(".tabs-container .tab")
-            .evaluateAll((tabs) => tabs.map((tab) => tab.getAttribute("aria-label") ?? ""));
-    }
+/** Steps to the file's one conflict and keeps incoming's version of it on the pad the step opens. */
+async function keepIncoming(incoming: FrameLocator): Promise<void> {
+    await press(incoming, "Next change");
+    await decideInPad(incoming, "Keep incoming");
+    await expect.poll(() => openCount(incoming)).toBe("No open conflicts");
+}
 
-    async function activeTabLabel(): Promise<string> {
-        return (
-            (await vscode()
-                .page.locator(".editor-group-container.active .tabs-container .tab.active")
-                .first()
-                .getAttribute("aria-label")) ?? ""
+/**
+ * A click on the canvas's empty corner gives the pane the focus and selects
+ * nothing. The corner below the bar: a notice can cover the one at the bottom.
+ */
+async function clickEmptyCanvas(pane: FrameLocator): Promise<void> {
+    const barHeight = (await pane.locator(".merge-bar").boundingBox())?.height ?? 0;
+    await pane.locator(".djs-container").click({ position: { x: 30, y: barHeight + 30 } });
+}
+
+/** Opens the incoming pane's "…" menu the keyboard's way, unless it is open. */
+async function openMenu(incoming: FrameLocator): Promise<void> {
+    const shown = incoming.locator(".merge-menu:not([hidden])");
+    if ((await shown.count()) > 0) return;
+    await incoming.locator(".merge-bar__more").focus();
+    await vscode().page.keyboard.press("Enter");
+    await shown.waitFor({ state: "visible" });
+}
+
+/** Closes the menu with Escape, which gives the focus back to "…". */
+async function closeMenu(incoming: FrameLocator): Promise<void> {
+    await vscode().page.keyboard.press("Escape");
+    await incoming.locator(".merge-menu").waitFor({ state: "hidden" });
+}
+
+async function chooseStepList(incoming: FrameLocator, name: string): Promise<void> {
+    await openMenu(incoming);
+    const stepList = incoming.getByRole("radio", { name, exact: true });
+    await stepList.focus();
+    await vscode().page.keyboard.press("Enter");
+    await expect.poll(() => stepList.getAttribute("aria-checked")).toBe("true");
+    await closeMenu(incoming);
+}
+
+/** The menu's way: opens "…" and presses one of its entries. */
+async function pressInMenu(incoming: FrameLocator, name: string): Promise<void> {
+    await openMenu(incoming);
+    await press(incoming, name);
+}
+
+/**
+ * Build where the bar has room for it, else the first item of the "…" menu.
+ * A pane fits its bar once its states arrived, which a tab switch back to
+ * it makes it wait for again.
+ */
+async function pressBuild(incoming: FrameLocator): Promise<void> {
+    const onBar = incoming.locator(".merge-bar__build:enabled");
+    const inMenu = incoming.locator(
+        ".merge-menu__section:not([hidden]) .merge-menu__build:enabled",
+    );
+    await expect
+        .poll(async () => (await onBar.isVisible()) || (await inMenu.count()) > 0)
+        .toBe(true);
+    if (await onBar.isVisible()) await press(incoming, "Build");
+    else await pressInMenu(incoming, "Build");
+}
+
+/**
+ * One line each, level with each other, and nothing cut off: the bars'
+ * layout across a pane's width. A part cut off or an ellipsized caption
+ * overflows its box.
+ */
+async function barLayout(pane: FrameLocator) {
+    return pane.locator(".merge-bar").evaluate((bar) => {
+        const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
+            (selector) => bar.querySelector<HTMLElement>(selector),
         );
-    }
+        return {
+            height: (bar as HTMLElement).offsetHeight,
+            clipped: parts.some((part) => part === null || part.scrollWidth > part.clientWidth),
+        };
+    });
+}
 
-    /** A pane's caption in its bar, in full: a narrow bar hides the branch and commit, not the text. */
-    async function sideLabel(webview: FrameLocator): Promise<string> {
-        return (
-            (await webview.locator(".merge-bar__caption").textContent({ timeout: TIMEOUT_MS })) ??
-            ""
+/** Both bars have one height and cut nothing off, so the two diagrams stay level. */
+async function expectBarsLevel({ current, incoming }: MergePanes): Promise<void> {
+    await expect
+        .poll(async () => {
+            const [left, right] = [await barLayout(current), await barLayout(incoming)];
+            return {
+                level: left.height > 0 && left.height === right.height,
+                clipped: [left.clipped, right.clipped],
+            };
+        })
+        .toEqual({ level: true, clipped: [false, false] });
+}
+
+/**
+ * Widens a pane's bar until it says everything, then narrows it step by
+ * step down to VS Code's narrowest editor, as a narrowing pane would, and
+ * gives back its layout at each width and the menu's first item at the
+ * narrowest; the bar gets its width back afterwards.
+ */
+async function narrowBar(pane: FrameLocator) {
+    return pane.locator(".merge-bar").evaluate(async (element, narrowest) => {
+        const bar = element as HTMLElement;
+        const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
+            (selector) => bar.querySelector<HTMLElement>(selector),
         );
-    }
-
-    /** The captions of both panes of the visible merge view, once both painted theirs. */
-    async function captions(): Promise<{ current: string; incoming: string }> {
-        const current = await vscode().editorWebview('body[data-diff-side="before"]');
-        const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
-        await expect.poll(() => sideLabel(current), { timeout: TIMEOUT_MS }).toMatch(/^Current/);
-        return { current: await sideLabel(current), incoming: await sideLabel(incoming) };
-    }
-
-    /** What every visible editor webview of the extension shows. */
-    async function visiblePanes(): Promise<
-        { ended: boolean; canvas: boolean; palette: boolean }[]
-    > {
-        const frames = vscode().editorFrames().filter({ visible: true });
-        const panes = [];
-        for (let index = 0; index < (await frames.count()); index++) {
-            const page = frames
-                .nth(index)
-                .contentFrame()
-                .locator("iframe#active-frame")
-                .contentFrame();
-            const count = (selector: string) =>
-                page
-                    .locator(selector)
-                    .count()
-                    .catch(() => 0);
-            panes.push({
-                ended: (await count("[data-merge-view-ended]")) > 0,
-                canvas: (await count(".djs-container")) > 0,
-                palette: (await count(".djs-palette")) > 0,
+        // The bar refits in its ResizeObserver, which runs before the next frame paints.
+        const nextFrame = () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const widths: { width: number; fit?: string; height: number; clipped: boolean }[] = [];
+        for (let width = 1600; width >= narrowest; width -= 10) {
+            bar.style.width = `${width}px`;
+            await nextFrame();
+            widths.push({
+                width,
+                fit: bar.dataset.fit,
+                height: bar.offsetHeight,
+                clipped: parts.some((part) => part === null || part.scrollWidth > part.clientWidth),
             });
         }
-        return panes;
-    }
-
-    /** The editable modeler, not a diff pane that never paired: it has a palette and a properties panel. */
-    async function editableModelerShows(): Promise<boolean> {
-        const modeler = await vscode().editorWebview(".djs-palette");
-        return (await modeler.locator("#js-properties-panel").count()) > 0;
-    }
-
-    async function notification(text: string) {
-        const toast = vscode()
-            .page.locator(".notifications-toasts .notification-toast")
-            .filter({ hasText: text })
-            .first();
-        await toast.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-        return toast;
-    }
-
-    /** The keyboard's way: focus the legend's button and press Enter, no click. */
-    async function press(pane: FrameLocator, name: string): Promise<void> {
-        const target = pane.getByRole("button", { name, exact: true });
-        for (let attempt = 1; ; attempt++) {
-            try {
-                await target.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-                await target.focus();
-                break;
-            } catch (error) {
-                // VS Code can replace a webview's frame while a newly opened tab settles.
-                if (attempt === 3 || !String(error).includes("has been closed")) throw error;
-            }
-        }
-        await vscode().page.keyboard.press("Enter");
-    }
-
-    /** The mouse's way: an entry of the context pad a step or a click opened, by its label. */
-    function padEntry(pane: FrameLocator, name: string | RegExp) {
-        return pane
-            .locator(".djs-context-pad")
-            .getByRole("button", { name, exact: typeof name === "string" });
-    }
-
-    async function decideInPad(pane: FrameLocator, name: string | RegExp): Promise<void> {
-        const entry = padEntry(pane, name);
-        await entry.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-        await entry.click();
-    }
-
-    async function mergePanes(): Promise<{ current: FrameLocator; incoming: FrameLocator }> {
-        return {
-            current: await vscode().editorWebview('body[data-diff-side="before"]'),
-            incoming: await vscode().editorWebview('body[data-diff-side="after"]'),
+        const more = bar.querySelector<HTMLButtonElement>(".merge-bar__more");
+        more?.click();
+        const first = bar.querySelector<HTMLButtonElement>(".merge-menu button");
+        const menuFirst = first && {
+            text: first.textContent,
+            disabled: first.disabled,
+            reason: first.ownerDocument.getElementById(first.getAttribute("aria-describedby") ?? "")
+                ?.textContent,
+            tooltip: first.parentElement?.getAttribute("data-merge-tooltip"),
         };
-    }
+        more?.click();
+        bar.style.removeProperty("width");
+        await nextFrame();
+        return { widths, menuFirst };
+    }, NARROWEST_EDITOR_WIDTH);
+}
 
-    /** The open conflicts, as the incoming pane's ‹ n/N › names them in its tooltip. */
-    async function openCount(incoming: FrameLocator): Promise<string> {
-        return (
-            (await incoming
-                .locator(".merge-bar__position")
-                .getAttribute("data-merge-tooltip", { timeout: TIMEOUT_MS })) ?? ""
-        );
-    }
+/** The view never writes: the working file and the index stay as Git left them. */
+async function expectUntouched(operation: GitOperation): Promise<void> {
+    expect(await readFile(conflictedFile(operation), "utf8")).toBe(
+        conflictsAsGitLeftThem[operation].workingFile,
+    );
+    expect(await unmergedStages(repositoryOf(operation))).toBe(
+        conflictsAsGitLeftThem[operation].stages,
+    );
+}
 
-    /** Opens the incoming pane's "…" menu the keyboard's way, unless it is open. */
-    async function openMenu(incoming: FrameLocator): Promise<void> {
-        const shown = incoming.locator(".merge-menu:not([hidden])");
-        if ((await shown.count()) > 0) return;
-        const more = incoming.locator(".merge-bar__more");
-        await more.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-        await more.focus();
-        await vscode().page.keyboard.press("Enter");
-        await shown.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-    }
+beforeEach(async () => {
+    // Git lists the conflicts once it has scanned the repositories, and the extension reads them from it.
+    await expect
+        .poll(async () => (await vscode().unmergedFiles()).map((file) => basename(file)).sort())
+        .toEqual(UNMERGED_FILES);
+    // Where a user in a merge looks, and what the docs' pictures show beside the view.
+    await vscode().executeCommand("workbench.view.scm");
+});
 
-    /** Switches the step list in the menu and closes it with Escape, which gives the focus back to "…". */
-    async function chooseStepList(incoming: FrameLocator, name: string): Promise<void> {
-        await openMenu(incoming);
-        await incoming.getByRole("radio", { name, exact: true }).focus();
-        await vscode().page.keyboard.press("Enter");
-        await expect
-            .poll(
-                () =>
-                    incoming.getByRole("radio", { name, exact: true }).getAttribute("aria-checked"),
-                {
-                    timeout: TIMEOUT_MS,
-                },
-            )
-            .toBe("true");
-        await vscode().page.keyboard.press("Escape");
-        await incoming.locator(".merge-menu").waitFor({ state: "hidden", timeout: TIMEOUT_MS });
-    }
-
-    /** The menu's way: opens "…" and presses one of its entries. */
-    async function pressInMenu(incoming: FrameLocator, name: string): Promise<void> {
-        await openMenu(incoming);
-        await press(incoming, name);
-    }
-
-    /**
-     * Build where the bar has room for it, else the first item of the "…"
-     * menu. A pane that reloaded after a tab switch refits its bar once its
-     * states arrive, so Build gets a moment to show on the bar first.
-     */
-    async function pressBuild(incoming: FrameLocator): Promise<void> {
-        const onBar = await incoming
-            .locator(".merge-bar__build")
-            .waitFor({ state: "visible", timeout: 5_000 })
-            .then(() => true)
-            .catch(() => false);
-        if (onBar) {
-            await press(incoming, "Build");
-            return;
-        }
-        await openMenu(incoming);
-        const inMenu = incoming.locator(".merge-menu").getByRole("button", {
-            name: "Build",
-            exact: true,
-        });
-        await inMenu.waitFor({ state: "visible", timeout: TIMEOUT_MS });
-        await inMenu.focus();
-        await vscode().page.keyboard.press("Enter");
-    }
-
-    /**
-     * One line each, level with each other, and nothing cut off: the bars'
-     * layout across a pane's width. A part cut off or an ellipsized caption
-     * overflows its box.
-     */
-    async function barLayout(pane: FrameLocator) {
-        return pane.locator(".merge-bar").evaluate((bar) => {
-            const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
-                (selector) => bar.querySelector<HTMLElement>(selector),
-            );
-            return {
-                height: (bar as HTMLElement).offsetHeight,
-                clipped: parts.some((part) => part === null || part.scrollWidth > part.clientWidth),
-            };
-        });
-    }
-
-    /** Both bars have one height and cut nothing off, so the two diagrams stay level. */
-    async function expectBarsLevel(current: FrameLocator, incoming: FrameLocator): Promise<void> {
-        await expect
-            .poll(
-                async () => {
-                    const [left, right] = [await barLayout(current), await barLayout(incoming)];
-                    return {
-                        level: left.height > 0 && left.height === right.height,
-                        clipped: [left.clipped, right.clipped],
-                    };
-                },
-                { timeout: TIMEOUT_MS },
-            )
-            .toEqual({ level: true, clipped: [false, false] });
-    }
-
-    /**
-     * Widens a pane's bar until it says everything, then narrows it step by
-     * step down to VS Code's narrowest editor, as a narrowing pane would, and
-     * gives back its layout at each width and the menu's first item at the
-     * narrowest; the bar gets its width back afterwards.
-     */
-    async function narrowBar(pane: FrameLocator) {
-        return pane.locator(".merge-bar").evaluate(async (element, narrowest) => {
-            const bar = element as HTMLElement;
-            const parts = [".merge-bar__row", ".merge-bar__caption", ".merge-bar__counts"].map(
-                (selector) => bar.querySelector<HTMLElement>(selector),
-            );
-            // The bar refits in its ResizeObserver, which runs before the next frame paints.
-            const nextFrame = () =>
-                new Promise((resolve) =>
-                    requestAnimationFrame(() => requestAnimationFrame(resolve)),
-                );
-            const widths: { width: number; fit?: string; height: number; clipped: boolean }[] = [];
-            for (let width = 1600; width >= narrowest; width -= 10) {
-                bar.style.width = `${width}px`;
-                await nextFrame();
-                widths.push({
-                    width,
-                    fit: bar.dataset.fit,
-                    height: bar.offsetHeight,
-                    clipped: parts.some(
-                        (part) => part === null || part.scrollWidth > part.clientWidth,
-                    ),
-                });
-            }
-            const more = bar.querySelector<HTMLButtonElement>(".merge-bar__more");
-            more?.click();
-            const first = bar.querySelector<HTMLButtonElement>(".merge-menu button");
-            const menuFirst = first && {
-                text: first.textContent,
-                disabled: first.disabled,
-                reason: first.ownerDocument.getElementById(
-                    first.getAttribute("aria-describedby") ?? "",
-                )?.textContent,
-                tooltip: first.parentElement?.getAttribute("data-merge-tooltip"),
-            };
-            more?.click();
-            bar.style.removeProperty("width");
-            await nextFrame();
-            return { widths, menuFirst };
-        }, NARROWEST_EDITOR_WIDTH);
-    }
-
-    async function expectUntouched(operation: Operation): Promise<void> {
-        const repository = repositories[operation];
-        expect(await readFile(join(repository, CONFLICTED[operation]), "utf8")).toBe(
-            untouched[operation].workingFile,
-        );
-        expect((await runGit(repository, "ls-files", "-u")).stdout).toBe(
-            untouched[operation].stages,
-        );
-    }
-
-    beforeAll(async () => {
-        await rm(RESULTS_DIRECTORY, { recursive: true, force: true });
-        await mkdir(RESULTS_DIRECTORY, { recursive: true });
-        rootDirectory = await mkdtemp(join(tmpdir(), "bpmn-modeler-merge-view-"));
-        workspaceDirectory = join(rootDirectory, "workspace");
-        await mkdir(workspaceDirectory, { recursive: true });
-        const base = await readFile(join(FIXTURES_DIRECTORY, "smoke.bpmn"), "utf8");
-        for (const operation of Object.keys(CONFLICTED) as Operation[]) {
-            const repository = await conflictedRepository(workspaceDirectory, operation, base);
-            repositories[operation] = repository;
-            untouched[operation] = {
-                workingFile: await readFile(join(repository, CONFLICTED[operation]), "utf8"),
-                stages: (await runGit(repository, "ls-files", "-u")).stdout,
-            };
-        }
-        await cp(join(FIXTURES_DIRECTORY, "smoke.bpmn"), join(workspaceDirectory, "clean.bpmn"));
-        await writeFile(join(workspaceDirectory, "readme.txt"), "not a diagram\n");
-
-        const manifest = JSON.parse(await readFile(join(DIST_DIRECTORY, "package.json"), "utf8"));
-        const extensionPath = await packExtension(DIST_DIRECTORY, rootDirectory);
-        const executablePath = await downloadVsCode(
-            extensionPath,
-            process.env.VSCODE_SMOKE_VERSION || undefined,
-            (line) => console.log(`[merge-view] ${line}`),
-        );
-        session = await VsCodeSession.launch({
-            executablePath,
-            extensionPath,
-            extensionId: `${manifest.publisher}.${manifest.name}`.toLowerCase(),
-            rootDirectory,
-            workspaceDirectory,
-            fileToOpen: join(workspaceDirectory, "clean.bpmn"),
-            customEditors: {},
-            colorTheme: "Default Light Modern",
-            timeoutMs: TIMEOUT_MS,
-        });
-        await session.showInCustomEditor("clean.bpmn", async (webview) => {
-            return (await webview.locator(".djs-container .djs-element.djs-shape").count()) >= 3;
-        });
-        await session.setGitEnabled(true);
-    });
-
-    afterEach(async ({ task }) => {
-        if (task.result?.state !== "fail") return;
-        const name = task.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        await session
-            ?.screenshot(join(RESULTS_DIRECTORY, `failure-${name}.png`))
-            .catch(() => undefined);
-    });
-
-    afterAll(async () => {
-        if (session) {
-            await cp(session.logsDirectory, join(RESULTS_DIRECTORY, "vscode-logs"), {
-                recursive: true,
-            }).catch(() => undefined);
-        }
-        await session?.close();
-        if (rootDirectory) await rm(rootDirectory, { recursive: true, force: true });
-    });
-
+describe("the BPMN merge view", () => {
     describe("open", () => {
         it("offers the merge view on a Merge Changes row while a text file is the active editor", async () => {
-            await runFromSideBar("View: Show Explorer");
-            await vscode().openFromExplorer("readme.txt");
-            await expect.poll(activeTabLabel, { timeout: TIMEOUT_MS }).toContain("readme.txt");
+            await startExtension();
+            await vscode().openFile(suite.file(TEXT_FILE));
+            await expect.poll(activeTabLabel).toContain(TEXT_FILE);
 
-            const items = await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
+            await vscode().runSourceControlCommand(CONFLICTED.merge, COMMAND_TITLE);
 
-            expect(items).toContain(COMMAND_TITLE);
             await expect
-                .poll(tabLabels, { timeout: TIMEOUT_MS })
+                .poll(tabLabels)
                 .toContainEqual(expect.stringContaining("merged.bpmn (Merge: main ↔ feature)"));
             const { current, incoming } = await captions();
             expect(current).toMatch(/^Current: your branch main · [0-9a-f]{7}$/);
@@ -618,103 +422,65 @@ describe("the BPMN merge view", () => {
         });
 
         it("explains a Merge Changes row it cannot open", async () => {
-            const items = await rowMenu("notes.txt", COMMAND_TITLE);
+            await startExtension();
 
-            expect(items).toContain(COMMAND_TITLE);
+            await vscode().runSourceControlCommand(NOTES_FILE, COMMAND_TITLE);
+
             await notification(
                 "notes.txt is not a BPMN file. The BPMN merge view opens conflicted .bpmn files only.",
             );
         });
 
-        it("opens both sides of a rebase and names the user's own commit", async () => {
-            await rowMenu(CONFLICTED.rebase, COMMAND_TITLE);
+        it.each(OTHER_OPERATIONS)("opens both sides of $name", async (sides) => {
+            await openMergeView(conflictedFile(sides.operation));
 
-            await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
-                .toContain("rebased.bpmn (Merge: ");
+            await expect.poll(activeTabLabel).toContain(sides.tab);
             const { current, incoming } = await captions();
-            expect(current).toMatch(/^Current: other branch · [0-9a-f]{7}$/);
-            expect(incoming).toMatch(/^Incoming: your commit · [0-9a-f]{7}$/);
-            await expectUntouched("rebase");
-            await shot("rebase-two-panes");
-        });
-
-        it("opens both sides of a cherry-pick", async () => {
-            await rowMenu(CONFLICTED["cherry-pick"], COMMAND_TITLE);
-
-            await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
-                .toContain("picked.bpmn (Merge: main ↔ ");
-            const { current, incoming } = await captions();
-            expect(current).toMatch(/^Current: your branch main · /);
-            expect(incoming).toMatch(/^Incoming: other branch · [0-9a-f]{7}$/);
-            await expectUntouched("cherry-pick");
-        });
-
-        it("opens both sides of a stash pop", async () => {
-            await rowMenu(CONFLICTED.stash, COMMAND_TITLE);
-
-            await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
-                .toContain("stashed.bpmn (Merge: main ↔ ");
-            const { current, incoming } = await captions();
-            expect(current).toMatch(/^Current: your branch main · /);
-            expect(incoming).toBe("Incoming: your stash");
-            await expectUntouched("stash");
+            expect(current).toMatch(sides.current);
+            expect(incoming).toMatch(sides.incoming);
+            await expectUntouched(sides.operation);
+            if (sides.picture) await shot(sides.picture);
         });
 
         it("opens the working file as the editable modeler beside its merge tab and offers the merge view", async () => {
-            await openWithQuickOpen(CONFLICTED.merge);
+            await openMergeView(conflictedFile("merge"));
 
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
+            await vscode().openFile(conflictedFile("merge"));
+
+            await expect.poll(editableModelerShows).toBe(true);
             const notice = await notification(
                 "merged.bpmn holds Git conflict markers, so the modeler cannot show it.",
             );
             await shot("conflict-marker-notice", { withNotifications: true });
             await notice.getByRole("button", { name: COMMAND_TITLE }).click();
 
-            await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
-                .toContain("merged.bpmn (Merge: main ↔ feature)");
+            await expect.poll(activeTabLabel).toContain("merged.bpmn (Merge: main ↔ feature)");
         });
 
-        it("shows that the merge view ended in both restored panes after a window reload", async () => {
-            await runFromSideBar("Developer: Reload Window");
-            await delay(3000);
-            await vscode().page.waitForSelector(".monaco-workbench", { timeout: TIMEOUT_MS });
+        it("shows that the merge view ended in both panes a window reload restored, beside which the working file opens as the modeler and the row opens live panes again", async () => {
+            await openMergeView(conflictedFile("merge"));
+            await vscode().reloadWindow();
 
             await expect
-                .poll(
-                    async () => {
-                        const panes = await visiblePanes();
-                        return panes.length >= 2 && panes.every((pane) => pane.ended);
-                    },
-                    { timeout: TIMEOUT_MS },
-                )
+                .poll(async () => {
+                    const panes = await visiblePanes();
+                    return panes.length >= 2 && panes.every((pane) => pane.ended);
+                })
                 .toBe(true);
             expect((await visiblePanes()).some((pane) => pane.canvas)).toBe(false);
             await shot("merge-view-after-reload");
-        });
 
-        it("opens the working file as the editable modeler beside the restored ended tab", async () => {
-            await openWithQuickOpen(CONFLICTED.merge);
+            await vscode().openFile(conflictedFile("merge"));
 
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
-        });
+            await expect.poll(editableModelerShows).toBe(true);
 
-        it("opens live panes again beside the restored ended tab", async () => {
-            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
+            await vscode().runSourceControlCommand(CONFLICTED.merge, COMMAND_TITLE);
 
             await expect
-                .poll(
-                    async () => {
-                        const panes = await visiblePanes();
-                        return (
-                            panes.length >= 2 && panes.every((pane) => pane.canvas && !pane.ended)
-                        );
-                    },
-                    { timeout: TIMEOUT_MS },
-                )
+                .poll(async () => {
+                    const panes = await visiblePanes();
+                    return panes.length >= 2 && panes.every((pane) => pane.canvas && !pane.ended);
+                })
                 .toBe(true);
             const { current } = await captions();
             expect(current).toMatch(/^Current: your branch main/);
@@ -728,50 +494,42 @@ describe("the BPMN merge view", () => {
             return pane
                 .locator(`.djs-element[data-element-id="${elementId}"]`)
                 .first()
-                .getAttribute("class", { timeout: TIMEOUT_MS })
+                .getAttribute("class")
                 .then((classes) => classes ?? "");
         }
 
-        it("counts the open conflict and marks the task both sides renamed on both panes", async () => {
-            // The other operations' tabs would show in the docs' pictures of this tab.
-            await runFromSideBar("View: Close All Editors");
-            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
-            const current = await vscode().editorWebview('body[data-diff-side="before"]');
-            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
+        it("counts the open conflict, marks the task both sides renamed on both panes and the end event only feature renamed as taken from incoming", async () => {
+            const panes = await openMergeView(conflictedFile("merge"));
+            const { current, incoming } = panes;
 
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
             for (const pane of [current, incoming]) {
                 await expect
-                    .poll(
-                        () =>
-                            pane
-                                .locator(".diff-legend__slot--merge-conflict")
-                                .textContent()
-                                .then((text) => text?.replace(/\s+/g, " ").trim()),
-                        { timeout: TIMEOUT_MS },
+                    .poll(() =>
+                        pane
+                            .locator(".diff-legend__slot--merge-conflict")
+                            .textContent()
+                            .then((text) => text?.replace(/\s+/g, " ").trim()),
                     )
                     .toBe("Conflict 1");
-                // Until the new tab shows, the pane locator can still reach the earlier tab's pane.
-                await expect
-                    .poll(() => classesOf(pane, "Task_Check"), { timeout: TIMEOUT_MS })
-                    .toContain("merge-conflict");
-                await expect
-                    .poll(() => pane.locator(".merge-conflict-badge").count(), {
-                        timeout: TIMEOUT_MS,
-                    })
-                    .toBe(1);
+                await expect.poll(() => classesOf(pane, "Task_Check")).toContain("merge-conflict");
+                await expect.poll(() => pane.locator(".merge-conflict-badge").count()).toBe(1);
             }
-            await expectBarsLevel(current, incoming);
+            await expect
+                .poll(() => classesOf(incoming, "End_Order"))
+                .toContain("merge-taken-from-this-side");
+            expect(await classesOf(current, "End_Order")).toContain("merge-taken-from-other-side");
+            expect(await classesOf(current, "Start_Order")).not.toMatch(/merge-/);
+            await expectBarsLevel(panes);
+            await expectUntouched("merge");
             await shot("marks-both-panes");
         });
 
         it("keeps the bar on one line of one height down to the narrowest editor with the conflict open, dropping the caption's branch and commit, then the counts' labels, then moving Build into the menu", async () => {
-            const { current, incoming } = await mergePanes();
-            const { height } = await barLayout(incoming);
+            const panes = await openMergeView(conflictedFile("merge"));
+            await expectBarsLevel(panes);
+            const { height } = await barLayout(panes.incoming);
 
-            const { widths, menuFirst } = await narrowBar(incoming);
+            const { widths, menuFirst } = await narrowBar(panes.incoming);
 
             const fits = widths
                 .map(({ fit }) => fit)
@@ -792,25 +550,13 @@ describe("the BPMN merge view", () => {
                 reason: "1 conflict left",
                 tooltip: "1 conflict left",
             });
-            await expectBarsLevel(current, incoming);
-        });
-
-        it("marks the end event only feature renamed as taken from the incoming side", async () => {
-            const current = await vscode().editorWebview('body[data-diff-side="before"]');
-            const incoming = await vscode().editorWebview('body[data-diff-side="after"]');
-
-            await expect
-                .poll(() => classesOf(incoming, "End_Order"), { timeout: TIMEOUT_MS })
-                .toContain("merge-taken-from-this-side");
-            expect(await classesOf(current, "End_Order")).toContain("merge-taken-from-other-side");
-            expect(await classesOf(current, "Start_Order")).not.toMatch(/merge-/);
-            await expectUntouched("merge");
+            await expectBarsLevel(panes);
         });
 
         it("switches the step list in the incoming pane's menu, which the host keeps for the tab", async () => {
-            const { current, incoming } = await mergePanes();
+            const { current, incoming } = await openMergeView(conflictedFile("merge"));
             const position = () => incoming.locator(".merge-bar__position").innerText();
-            await expect.poll(position, { timeout: TIMEOUT_MS }).toBe("–/1");
+            await expect.poll(position).toBe("–/1");
             expect(await current.locator(".merge-bar__more:visible").count()).toBe(0);
             await openMenu(incoming);
             const allSteps = incoming.getByRole("radio", {
@@ -821,13 +567,10 @@ describe("the BPMN merge view", () => {
             await allSteps.focus();
             await vscode().page.keyboard.press("Enter");
 
-            await expect
-                .poll(() => allSteps.getAttribute("aria-checked"), { timeout: TIMEOUT_MS })
-                .toBe("true");
-            await expect.poll(position, { timeout: TIMEOUT_MS }).not.toBe("–/1");
+            await expect.poll(() => allSteps.getAttribute("aria-checked")).toBe("true");
+            await expect.poll(position).not.toBe("–/1");
             await shot("marks-step-list-shared");
-            await vscode().page.keyboard.press("Escape");
-            await incoming.locator(".merge-menu").waitFor({ state: "hidden", timeout: TIMEOUT_MS });
+            await closeMenu(incoming);
         });
     });
 
@@ -843,11 +586,6 @@ describe("the BPMN merge view", () => {
                 );
         }
 
-        /** The outcome card, which only the pane that sent the decision shows. */
-        function outcomeCard(pane: FrameLocator) {
-            return pane.locator(".merge-outcome-card");
-        }
-
         function badgeTexts(pane: FrameLocator): Promise<string[]> {
             return pane
                 .locator(".merge-pick-badge")
@@ -858,9 +596,18 @@ describe("the BPMN merge view", () => {
                 );
         }
 
+        /** The outcome card, which only the pane that sent the decision shows. */
+        function outcomeCard(pane: FrameLocator): Locator {
+            return pane.locator(".merge-outcome-card");
+        }
+
+        const tooltipText = (pane: FrameLocator) =>
+            pane.locator(".merge-tooltip:not([hidden])").innerText();
+
         it("keeps incoming's version of the conflict from the pad a step opens and badges it on both panes", async () => {
-            const { current, incoming } = await mergePanes();
-            await chooseStepList(incoming, "Open conflicts");
+            const panes = await openMergeView(conflictedFile("merge"));
+            const { current, incoming } = panes;
+
             await press(incoming, "Next change");
 
             // The step selects the conflict on both panes, so each opens its pad, and shows no tooltip.
@@ -868,84 +615,80 @@ describe("the BPMN merge view", () => {
                 await pane
                     .locator(".djs-context-pad .merge-pick-action")
                     .first()
-                    .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+                    .waitFor({ state: "visible" });
                 expect(await pane.locator(".merge-tooltip:not([hidden])").count()).toBe(0);
             }
+
             await decideInPad(incoming, "Keep incoming");
 
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("No open conflicts");
+            await expect.poll(() => openCount(incoming)).toBe("No open conflicts");
             for (const pane of [current, incoming]) {
                 await expect
-                    .poll(() => badgeLabels(pane), { timeout: TIMEOUT_MS })
+                    .poll(() => badgeLabels(pane))
                     .toEqual(["Kept from incoming, your pick"]);
             }
-            await expectBarsLevel(current, incoming);
+            await expectBarsLevel(panes);
             expect(await badgeTexts(incoming)).toEqual(["Incoming"]);
             await expect
-                .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
+                .poll(() => outcomeCard(incoming).innerText())
                 .toContain("Kept from incoming: Check feature order");
             expect(await outcomeCard(current).count()).toBe(0);
             await shot("pick-badges-both-panes");
         });
 
         it("steps to the conflict and keeps it by the commands' keys, leaving the focus in the pane", async () => {
-            const { current, incoming } = await mergePanes();
-            await decideInPad(incoming, "Undo pick");
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
-            // A click on the canvas's empty corner gives the pane the focus and selects nothing.
-            const canvas = incoming.locator(".djs-container");
-            const height = (await canvas.boundingBox())?.height ?? 0;
-            await canvas.click({ position: { x: 30, y: height - 30 } });
+            const { current, incoming } = await openMergeView(conflictedFile("merge"));
+            await clickEmptyCanvas(incoming);
             const position = () => incoming.locator(".merge-bar__position").innerText();
 
-            // The host sets the keys' context once the pane reported its focus and commands.
+            // The host sets the keys' context once the pane reported its focus and commands,
+            // so a key pressed before then goes nowhere and is pressed again.
             await expect
                 .poll(
                     async () => {
                         await vscode().page.keyboard.press("Alt+F5");
                         return position();
                     },
-                    { timeout: TIMEOUT_MS, interval: 1_000 },
+                    { interval: KEY_RETRY_INTERVAL_MS },
                 )
                 .toBe("1/1");
-            await padEntry(incoming, "Keep incoming").waitFor({
-                state: "visible",
-                timeout: TIMEOUT_MS,
-            });
-            // Pressed once: a second chord after the keep would name a key combination that is no command.
-            await delay(1_000);
-            await vscode().page.keyboard.press(`${COMMAND_KEY}+k`);
-            await vscode().page.keyboard.press("k");
+            await padEntry(incoming, "Keep incoming").waitFor({ state: "visible" });
             await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
+                .poll(
+                    async () => {
+                        // Only while the conflict is open: after the keep the chord names no command.
+                        if ((await openCount(incoming)) === "1 open conflict") {
+                            await vscode().page.keyboard.press(`${COMMAND_KEY}+k`);
+                            await vscode().page.keyboard.press("k");
+                        }
+                        return openCount(incoming);
+                    },
+                    { interval: KEY_RETRY_INTERVAL_MS },
+                )
                 .toBe("No open conflicts");
 
             for (const pane of [current, incoming]) {
                 await expect
-                    .poll(() => badgeLabels(pane), { timeout: TIMEOUT_MS })
+                    .poll(() => badgeLabels(pane))
                     .toEqual(["Kept from incoming, your pick"]);
             }
             await expect
-                .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
+                .poll(() => outcomeCard(incoming).innerText())
                 .toContain("Kept from incoming: Check feature order");
             expect(await incoming.locator("body").evaluate(() => document.hasFocus())).toBe(true);
             await expectUntouched("merge");
         });
 
         it("undoes the pick on the pad, then overrides an automatic resolution of all merged elements", async () => {
-            const { current, incoming } = await mergePanes();
+            const panes = await openMergeView(conflictedFile("merge"));
+            const { current, incoming } = panes;
+            await keepIncoming(incoming);
             await chooseStepList(incoming, "All merged elements");
-            await expectBarsLevel(current, incoming);
+            await expectBarsLevel(panes);
 
             await decideInPad(incoming, "Undo pick");
 
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
+            await expect.poll(() => openCount(incoming)).toBe("1 open conflict");
             expect(await badgeLabels(current)).toEqual([]);
             expect(await badgeLabels(incoming)).toEqual([]);
 
@@ -953,7 +696,7 @@ describe("the BPMN merge view", () => {
             await decideInPad(current, "Keep current");
 
             await expect
-                .poll(() => badgeLabels(incoming), { timeout: TIMEOUT_MS })
+                .poll(() => badgeLabels(incoming))
                 .toEqual(["Kept from current, your pick"]);
             expect(
                 await current
@@ -965,39 +708,28 @@ describe("the BPMN merge view", () => {
         });
 
         it("keeps the badge after a switch to another tab and back", async () => {
-            await openWithQuickOpen("clean.bpmn");
-            await vscode().editorWebview(".djs-palette");
-            await vscode()
-                .page.locator(".tabs-container .tab")
-                .filter({ hasText: "(Merge: " })
-                .filter({ hasText: CONFLICTED.merge })
-                .first()
-                .click();
+            const { incoming } = await openMergeView(conflictedFile("merge"));
+            await keepIncoming(incoming);
 
-            const { current, incoming } = await mergePanes();
-            for (const pane of [current, incoming]) {
+            await suite.open(CLEAN_FILE, diagramRendered);
+            await mergeTab(CONFLICTED.merge).click();
+
+            const { current, incoming: restored } = await mergePanes();
+            for (const pane of [current, restored]) {
                 await expect
-                    .poll(() => badgeLabels(pane), { timeout: TIMEOUT_MS })
-                    .toEqual(["Kept from current, your pick"]);
+                    .poll(() => badgeLabels(pane))
+                    .toEqual(["Kept from incoming, your pick"]);
             }
         });
 
         it("offers the flows main removed with a task feature kept, and keeps them on request", async () => {
-            // Alone in the group, the new tab's panes are not swapped with an earlier tab's while they settle.
-            await vscode().runCommand("View: Close All Editors");
-            await rowMenu(REMOVAL_FILE, COMMAND_TITLE);
-            const { current, incoming } = await mergePanes();
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
+            const { current, incoming } = await openMergeView(removalFile());
             await press(incoming, "Next change");
 
             await decideInPad(incoming, "Keep incoming");
 
             const offer = "Also keep the 2 flows current removed with it";
-            await outcomeCard(incoming)
-                .getByRole("button", { name: offer })
-                .waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            await outcomeCard(incoming).getByRole("button", { name: offer }).waitFor();
             expect(await outcomeCard(incoming).innerText()).toContain(
                 "Kept from incoming: Check feature order",
             );
@@ -1005,37 +737,34 @@ describe("the BPMN merge view", () => {
             expect(await outcomeCard(current).count()).toBe(0);
             await padEntry(incoming, "Also keep its removed flows").hover();
             await expect
-                .poll(() => incoming.locator(".merge-tooltip:not([hidden])").innerText(), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => tooltipText(incoming))
                 .toBe(`Also keep its removed flows: ${offer}`);
             await shot("pick-restore-offer");
 
             await decideInPad(incoming, "Also keep its removed flows");
 
-            await expect
-                .poll(() => badgeLabels(incoming).then((labels) => labels.length), {
-                    timeout: TIMEOUT_MS,
-                })
-                .toBe(3);
+            await expect.poll(() => badgeLabels(incoming).then((labels) => labels.length)).toBe(3);
             // The current pane lacks what incoming kept, so it draws no badge for it and lists none.
             expect(await badgeLabels(current)).toEqual([]);
             await shot("pick-kept-with-flows");
         });
 
-        it("names the flows that block leaving out the task main removed", async () => {
-            const { current, incoming } = await mergePanes();
+        it("names the flows that block leaving out the task main removed, and shows the reason and the pad's icons again once the task is selected again", async () => {
+            const { current, incoming } = await openMergeView(removalFile());
+            await keepIncoming(incoming);
+            await decideInPad(incoming, "Also keep its removed flows");
+            await expect.poll(() => badgeLabels(incoming).then((labels) => labels.length)).toBe(3);
+            const task = incoming.locator('.djs-element[data-element-id="Task_Check"]').first();
+            const entries = incoming.locator(".djs-context-pad .merge-pick-action");
             // diagram-js deselects on a click on the element already selected alone, so it starts from none.
-            const canvas = incoming.locator(".djs-container");
-            const height = (await canvas.boundingBox())?.height ?? 0;
-            await canvas.click({ position: { x: 30, y: height - 30 } });
-            await incoming.locator('.djs-element[data-element-id="Task_Check"]').first().click();
+            await clickEmptyCanvas(incoming);
+            await task.click();
 
             await decideInPad(incoming, /^Leave out: Leave it out, as current removed it$/);
 
             const card = outcomeCard(incoming);
             await expect
-                .poll(() => card.innerText(), { timeout: TIMEOUT_MS })
+                .poll(() => card.innerText())
                 .toContain("Can't leave out Check feature order");
             expect(await card.innerText()).toMatch(/Your pick .+ needs it/);
             expect(await incoming.locator(".djs-element.merge-blocker").count()).toBeGreaterThan(0);
@@ -1043,30 +772,17 @@ describe("the BPMN merge view", () => {
             // The left pane has no menu whose rows could say it.
             expect(await current.locator(".merge-menu:not([hidden])").count()).toBe(0);
             await shot("pick-blocked-reason");
-        });
 
-        it("shows the decisions on the context pad as icons with a tooltip and no native title", async () => {
-            const { incoming } = await mergePanes();
-            const task = incoming.locator('.djs-element[data-element-id="Task_Check"]').first();
-            // diagram-js deselects on a click on the element already selected alone, so it starts from none.
-            const canvas = incoming.locator(".djs-container");
-            const height = (await canvas.boundingBox())?.height ?? 0;
-            await canvas.click({ position: { x: 30, y: height - 30 } });
-            await expect
-                .poll(() => incoming.locator(".djs-context-pad .merge-pick-action").count(), {
-                    timeout: TIMEOUT_MS,
-                })
-                .toBe(0);
-            expect(await outcomeCard(incoming).count()).toBe(0);
+            await clickEmptyCanvas(incoming);
+            await expect.poll(() => entries.count()).toBe(0);
+            expect(await card.count()).toBe(0);
             await task.click();
 
             // Selected again, the task shows its latest outcome again.
             await expect
-                .poll(() => outcomeCard(incoming).innerText(), { timeout: TIMEOUT_MS })
+                .poll(() => card.innerText())
                 .toContain("Can't leave out Check feature order");
-
-            const entries = incoming.locator(".djs-context-pad .merge-pick-action");
-            await entries.first().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            await entries.first().waitFor({ state: "visible" });
             expect(
                 await entries.evaluateAll((buttons) =>
                     buttons.map((button) => ({
@@ -1080,9 +796,7 @@ describe("the BPMN merge view", () => {
             ]);
             await padEntry(incoming, "Undo pick").hover();
             await expect
-                .poll(() => incoming.locator(".merge-tooltip:not([hidden])").innerText(), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => tooltipText(incoming))
                 .toBe("Undo pick: Go back to what the merge decided by itself");
             await shot("pick-context-pad");
         });
@@ -1091,46 +805,13 @@ describe("the BPMN merge view", () => {
     describe("build", () => {
         const dialog = () => vscode().page.locator(".monaco-dialog-box");
 
-        function mergeTab(fileName: string) {
-            return vscode()
-                .page.locator(".tabs-container .tab")
-                .filter({ hasText: "(Merge: " })
-                .filter({ hasText: fileName })
-                .first();
-        }
-
         /** The tab of the working file in the modeler, not a merge or comparison tab. */
-        function workingFileTab(fileName: string) {
+        function workingFileTab(fileName: string): Locator {
             return vscode()
                 .page.locator(".tabs-container .tab")
                 .filter({ hasText: fileName })
                 .filter({ hasNotText: "(Merge: " })
                 .first();
-        }
-
-        /** Visible modelers that draw a diagram: a palette and the process's shapes. */
-        async function modelersShowingDiagram(): Promise<number> {
-            const frames = vscode().editorFrames().filter({ visible: true });
-            let showing = 0;
-            for (let index = 0; index < (await frames.count()); index++) {
-                const page = frames
-                    .nth(index)
-                    .contentFrame()
-                    .locator("iframe#active-frame")
-                    .contentFrame();
-                const count = (selector: string) =>
-                    page
-                        .locator(selector)
-                        .count()
-                        .catch(() => 0);
-                if (
-                    (await count(".djs-palette")) > 0 &&
-                    (await count(".djs-shape[data-element-id]")) >= 3
-                ) {
-                    showing += 1;
-                }
-            }
-            return showing;
         }
 
         /**
@@ -1142,10 +823,9 @@ describe("the BPMN merge view", () => {
             const active = await vscode()
                 .page.locator(".editor-group-container.active")
                 .boundingBox();
-            const frames = vscode().editorFrames().filter({ visible: true });
             const shown = [];
-            for (let index = 0; index < (await frames.count()); index++) {
-                const box = await frames.nth(index).boundingBox();
+            for (const { frame, page } of await vscode().visibleEditors()) {
+                const box = await frame.boundingBox();
                 if (!box || !active) continue;
                 const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
                 const inActive =
@@ -1154,48 +834,76 @@ describe("the BPMN merge view", () => {
                     centre.y >= active.y &&
                     centre.y <= active.y + active.height;
                 if (inActive !== (groups === "active")) continue;
-                const page = frames
-                    .nth(index)
-                    .contentFrame()
-                    .locator("iframe#active-frame")
-                    .contentFrame();
-                const count = (selector: string) =>
-                    page
-                        .locator(selector)
-                        .count()
-                        .catch(() => 0);
                 shown.push({
                     editable:
-                        (await count(".djs-palette")) > 0 &&
-                        (await count("#js-properties-panel")) > 0,
-                    diagram: (await count(".djs-shape[data-element-id]")) >= 3,
+                        (await countIn(page, ".djs-palette")) > 0 &&
+                        (await countIn(page, "#js-properties-panel")) > 0,
+                    diagram: (await countIn(page, ".djs-shape[data-element-id]")) >= 3,
                 });
             }
             return shown;
         }
 
-        async function workingFileText(operation: Operation): Promise<string> {
-            return readFile(join(repositories[operation], CONFLICTED[operation]), "utf8");
+        /** Visible modelers that draw a diagram: a palette and the process's shapes. */
+        async function modelersShowingDiagram(): Promise<number> {
+            const modelers = [...(await modelersIn("active")), ...(await modelersIn("others"))];
+            return modelers.filter(({ editable, diagram }) => editable && diagram).length;
         }
 
-        async function taskName(xml: string): Promise<unknown> {
-            const { elementsById } = await BpmnModdle().fromXML(xml);
+        async function taskName(file: string): Promise<unknown> {
+            const { elementsById } = await BpmnModdle().fromXML(await readFile(file, "utf8"));
             return elementsById.Task_Check?.name;
         }
 
+        async function expectBuilt(file: string): Promise<void> {
+            await expect.poll(() => readFile(file, "utf8")).not.toContain("<<<<<<<");
+        }
+
         /** The working file holds the built BPMN, while Git still lists it unmerged with its stages as before. */
-        async function expectBuiltButUnmerged(operation: Operation, name: string): Promise<void> {
-            await expect
-                .poll(() => workingFileText(operation), { timeout: TIMEOUT_MS })
-                .not.toContain("<<<<<<<");
-            expect(await taskName(await workingFileText(operation))).toBe(name);
-            const repository = repositories[operation];
+        async function expectBuiltButUnmerged(
+            operation: GitOperation,
+            name: string,
+        ): Promise<void> {
+            await expectBuilt(conflictedFile(operation));
+            expect(await taskName(conflictedFile(operation))).toBe(name);
             expect(
-                (await runGit(repository, "status", "--porcelain", CONFLICTED[operation])).stdout,
+                await runGit(
+                    repositoryOf(operation),
+                    "status",
+                    "--porcelain",
+                    CONFLICTED[operation],
+                ),
             ).toMatch(/^UU /);
-            expect((await runGit(repository, "ls-files", "-u")).stdout).toBe(
-                untouched[operation].stages,
+            expect(await unmergedStages(repositoryOf(operation))).toBe(
+                conflictsAsGitLeftThem[operation].stages,
             );
+        }
+
+        /**
+         * Opens a file's merge view, keeps incoming's version of its conflict
+         * and builds the result into the working file. Build then opens the
+         * file in the modeler in front of the merge tab, which would cover a
+         * step taken before it has.
+         */
+        async function build(file: string): Promise<void> {
+            const { incoming } = await openMergeView(file);
+            await keepIncoming(incoming);
+            await pressBuild(incoming);
+            await expectBuilt(file);
+            await expect.poll(activeTabLabel).not.toContain("(Merge: ");
+            await expect.poll(modelersShowingDiagram).toBe(1);
+        }
+
+        async function buildMerge(): Promise<void> {
+            await build(conflictedFile("merge"));
+            await notification("Built merged.bpmn from your decisions.");
+        }
+
+        /** Goes back from the built file's modeler to its merge tab. */
+        async function backToMergeView(): Promise<MergePanes> {
+            await vscode().webviewsLoaded();
+            await mergeTab(CONFLICTED.merge).click();
+            return mergePanes();
         }
 
         /** Renames the task in the visible modeler through direct editing. */
@@ -1206,51 +914,54 @@ describe("the BPMN merge view", () => {
                 .locator('.djs-shape[data-element-id="Task_Check"] > .djs-hit')
                 .dblclick({ position: { x: 90, y: 40 } });
             const textBox = modeler.locator(".djs-direct-editing-content");
-            await textBox.waitFor({ state: "visible", timeout: TIMEOUT_MS });
             await textBox.fill(name);
             await vscode().page.keyboard.press("Enter");
-            await textBox.waitFor({ state: "hidden", timeout: TIMEOUT_MS });
+            await textBox.waitFor({ state: "hidden" });
+            await expect.poll(() => vscode().isActiveTabDirty()).toBe(true);
         }
 
         async function cancelDialog(text: string): Promise<void> {
-            await dialog().waitFor({ state: "visible", timeout: TIMEOUT_MS });
+            await dialog().waitFor({ state: "visible" });
             expect(await dialog().innerText()).toContain(text);
             await dialog().getByRole("button", { name: "Cancel" }).click();
-            await dialog().waitFor({ state: "hidden", timeout: TIMEOUT_MS });
+            await dialog().waitFor({ state: "hidden" });
         }
 
-        it("builds the decided merge into the working file, which Git still lists unmerged", async () => {
-            await runFromSideBar("View: Close All Editors");
-            await rowMenu(CONFLICTED.merge, COMMAND_TITLE);
-            await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
-                .toContain(`${CONFLICTED.merge} (Merge: main ↔ feature)`);
+        /**
+         * A copy of the repository as the build left it, where a test stages
+         * and continues: every test finds the window's repositories stopped
+         * at their conflict, and Git watches them.
+         */
+        async function repositoryCopy(operation: GitOperation): Promise<string> {
+            const copy = join(suite.rootDirectory(), `continued-${repositoryFolder(operation)}`);
+            await rm(copy, { recursive: true, force: true });
+            await cp(repositoryOf(operation), copy, { recursive: true });
+            return copy;
+        }
+
+        it("builds the decided merge into the working file, which Git still lists unmerged, and shows it in a modeler beside the merge tab and in the one open before", async () => {
+            await openMergeView(conflictedFile("merge"));
             // A modeler already open on the conflicted file beside the merge tab, in a second group.
-            await openWithQuickOpen(CONFLICTED.merge, { toTheSide: true });
+            await vscode().openFile(conflictedFile("merge"), { toTheSide: true });
             await expect
-                .poll(() => vscode().page.locator(".editor-group-container").count(), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => vscode().page.locator(".editor-group-container").count())
                 .toBe(2);
-            await mergeTab(CONFLICTED.merge).click();
-            await runFromSideBar("Notifications: Clear All Notifications");
-            const { current, incoming } = await mergePanes();
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
+            const panes = await backToMergeView();
+            const { current, incoming } = panes;
+            await expect.poll(() => openCount(incoming)).toBe("1 open conflict");
             // Two groups leave each pane too narrow for Build on the bar, so it is the menu's first item.
-            await expectBarsLevel(current, incoming);
+            await expectBarsLevel(panes);
             expect(await incoming.locator(".merge-bar__build").isVisible()).toBe(false);
             await openMenu(incoming);
-            const build = incoming.getByRole("button", { name: "Build", exact: true });
-            expect(await build.isDisabled()).toBe(true);
+            const buildButton = incoming.getByRole("button", { name: "Build", exact: true });
+            expect(await buildButton.isDisabled()).toBe(true);
             expect(
                 await incoming
                     .locator(".merge-menu__build-wrap")
                     .getAttribute("data-merge-tooltip"),
             ).toBe("1 conflict left");
             expect(
-                await build.evaluate(
+                await buildButton.evaluate(
                     (button) =>
                         button.ownerDocument.getElementById(
                             button.getAttribute("aria-describedby") ?? "",
@@ -1261,45 +972,37 @@ describe("the BPMN merge view", () => {
                 0,
             );
             await shot("build-disabled");
-            await vscode().page.keyboard.press("Escape");
+            await closeMenu(incoming);
+            await keepIncoming(incoming);
 
-            await press(incoming, "Next change");
-            await decideInPad(incoming, "Keep incoming");
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("No open conflicts");
             await pressBuild(incoming);
 
             await expectBuiltButUnmerged("merge", "Check feature order");
-        });
-
-        it("opens the built file as the editable modeler beside the open merge tab, and the modeler open before shows it too", async () => {
-            await expect.poll(activeTabLabel, { timeout: TIMEOUT_MS }).toContain(CONFLICTED.merge);
+            await expect.poll(activeTabLabel).toContain(CONFLICTED.merge);
             expect(await activeTabLabel()).not.toContain("(Merge: ");
             // A diff pane that never paired would show no palette and no properties panel.
             await expect
-                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
+                .poll(() => modelersIn("active"))
                 .toStrictEqual([{ editable: true, diagram: true }]);
             expect(await tabLabels()).toContainEqual(
                 expect.stringContaining(`${CONFLICTED.merge} (Merge: main ↔ feature)`),
             );
             // Whether Build opened a second modeler or revealed the one open before, every modeler shows the result.
             await expect
-                .poll(
-                    async () =>
-                        [...(await modelersIn("active")), ...(await modelersIn("others"))]
-                            .filter(({ editable }) => editable)
-                            .every(({ diagram }) => diagram),
-                    { timeout: TIMEOUT_MS },
+                .poll(async () =>
+                    [...(await modelersIn("active")), ...(await modelersIn("others"))]
+                        .filter(({ editable }) => editable)
+                        .every(({ diagram }) => diagram),
                 )
                 .toBe(true);
             await notification("Built merged.bpmn from your decisions.");
         });
 
         it("builds again without asking while the file is untouched", async () => {
-            await runFromSideBar("Notifications: Clear All Notifications");
-            await mergeTab(CONFLICTED.merge).click();
-            const { incoming } = await mergePanes();
+            await buildMerge();
+            await vscode().executeCommand("notifications.clearAll");
+            await expect.poll(() => notifications().count()).toBe(0);
+            const { incoming } = await backToMergeView();
 
             await pressBuild(incoming);
 
@@ -1308,133 +1011,96 @@ describe("the BPMN merge view", () => {
         });
 
         it("asks before it builds over a saved edit and leaves the file on Cancel", async () => {
-            // One group, so the modeler gets the whole width.
-            await runFromSideBar("View: Join All Editor Groups");
-            await workingFileTab(CONFLICTED.merge).click();
-            await expect.poll(modelersShowingDiagram, { timeout: TIMEOUT_MS }).toBe(1);
+            await buildMerge();
             await shot("build-opened-modeler");
             await renameTask("Check edited order");
-            await expect
-                .poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS })
-                .toBe(true);
-            await vscode().page.keyboard.press(`${COMMAND_KEY}+s`);
-            await expect
-                .poll(async () => taskName(await workingFileText("merge")), {
-                    timeout: TIMEOUT_MS,
-                })
-                .toBe("Check edited order");
-            await mergeTab(CONFLICTED.merge).click();
-            const { incoming } = await mergePanes();
+            await vscode().executeCommand("workbench.action.files.save");
+            await expect.poll(() => taskName(conflictedFile("merge"))).toBe("Check edited order");
+            const { incoming } = await backToMergeView();
 
             await pressBuild(incoming);
 
             await cancelDialog("merged.bpmn changed since the last build. Build over it?");
-            expect(await taskName(await workingFileText("merge"))).toBe("Check edited order");
+            expect(await taskName(conflictedFile("merge"))).toBe("Check edited order");
         });
 
-        it("asks before it builds over unsaved changes", async () => {
-            await workingFileTab(CONFLICTED.merge).click();
+        it("asks before it builds over unsaved changes and leaves them on Cancel", async () => {
+            await buildMerge();
             await renameTask("Check unsaved order");
-            await expect
-                .poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS })
-                .toBe(true);
-            await mergeTab(CONFLICTED.merge).click();
-            const { incoming } = await mergePanes();
+            const { incoming } = await backToMergeView();
 
             await pressBuild(incoming);
 
             await cancelDialog("merged.bpmn has unsaved changes. Build over them?");
-            expect(await taskName(await workingFileText("merge"))).toBe("Check edited order");
+            expect(await taskName(conflictedFile("merge"))).toBe("Check feature order");
             await workingFileTab(CONFLICTED.merge).click();
-            await runFromSideBar("File: Revert File");
-            await expect
-                .poll(() => vscode().isActiveTabDirty(), { timeout: TIMEOUT_MS })
-                .toBe(false);
+            expect(await vscode().isActiveTabDirty()).toBe(true);
         });
 
         it("compares the result with incoming and switches the comparison to current", async () => {
-            await mergeTab(CONFLICTED.merge).click();
-            const { incoming } = await mergePanes();
+            await buildMerge();
+            const { incoming } = await backToMergeView();
 
             await pressInMenu(incoming, "Compare with incoming");
 
             await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
+                .poll(activeTabLabel)
                 .toContain(`${CONFLICTED.merge} (Merge: Incoming ↔ Result)`);
             const result = await vscode().editorWebview(
                 'body[data-diff-side="after"] .diff-legend__comparison-switch',
             );
             await expect
-                .poll(() => result.locator(".diff-legend__comparison").innerText(), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => result.locator(".diff-legend__comparison").innerText())
                 .toBe("Result against incoming");
             await shot("build-compare-incoming");
 
             await press(result, "Compare with current");
 
             await expect
-                .poll(activeTabLabel, { timeout: TIMEOUT_MS })
+                .poll(activeTabLabel)
                 .toContain(`${CONFLICTED.merge} (Merge: Current ↔ Result)`);
             // The switch opens the other comparison first, so the one it replaces closes after.
             await expect
-                .poll(tabLabels, { timeout: TIMEOUT_MS })
+                .poll(tabLabels)
                 .not.toContainEqual(expect.stringContaining("(Merge: Incoming ↔ Result)"));
-            // The key press left the focus in the closed tab's frame, where F1 never reaches the workbench.
-            const current = await vscode().editorWebview(
-                'body[data-diff-side="after"] .diff-legend__comparison-switch',
-            );
-            await current.locator(".diff-legend__comparison").click();
         });
 
-        it("opens the built file as the editable modeler beside the restored tabs after a reload", async () => {
-            await mergeTab(CONFLICTED.merge).click();
-            await runFromSideBar("Developer: Reload Window");
-            await delay(3000);
-            await vscode().page.waitForSelector(".monaco-workbench", { timeout: TIMEOUT_MS });
+        it("opens the built file as the editable modeler beside the tabs a window reload restored", async () => {
+            await buildMerge();
+            await pressInMenu((await backToMergeView()).incoming, "Compare with current");
+            await expect
+                .poll(activeTabLabel)
+                .toContain(`${CONFLICTED.merge} (Merge: Current ↔ Result)`);
+            await backToMergeView();
+
+            await vscode().reloadWindow();
 
             // The comparison's tab is restored in the background, where VS Code does not resolve it.
-            expect(await tabLabels()).toContainEqual(
-                expect.stringContaining(`${CONFLICTED.merge} (Merge: Current ↔ Result)`),
-            );
+            await expect
+                .poll(tabLabels)
+                .toContainEqual(
+                    expect.stringContaining(`${CONFLICTED.merge} (Merge: Current ↔ Result)`),
+                );
             expect(await activeTabLabel()).not.toContain("Result)");
 
-            await openWithQuickOpen(CONFLICTED.merge);
+            await vscode().openFile(conflictedFile("merge"));
 
             await expect
-                .poll(() => modelersIn("active"), { timeout: TIMEOUT_MS })
+                .poll(() => modelersIn("active"))
                 .toStrictEqual([{ editable: true, diagram: true }]);
         });
 
         it("lists the notes of a build that kept a task without the flows removed with it", async () => {
-            // The restored tabs of the other file would show in the docs' picture of the notes.
-            await runFromSideBar("View: Close All Editors");
-            await rowMenu(REMOVAL_FILE, COMMAND_TITLE);
-            const { incoming } = await mergePanes();
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
-            await press(incoming, "Next change");
-            await decideInPad(incoming, "Keep incoming");
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("No open conflicts");
-            await pressBuild(incoming);
-            await expect
-                .poll(() => readFile(join(repositories.merge, REMOVAL_FILE), "utf8"), {
-                    timeout: TIMEOUT_MS,
-                })
-                .not.toContain("<<<<<<<");
+            await build(removalFile());
+            await vscode().webviewsLoaded();
             await mergeTab(REMOVAL_FILE).click();
             const panes = await mergePanes();
-            await expectBarsLevel(panes.current, panes.incoming);
+            await expectBarsLevel(panes);
 
             await pressInMenu(panes.incoming, "Review notes (1)");
 
             await expect
-                .poll(() => panes.incoming.locator(".merge-notes__list").innerText(), {
-                    timeout: TIMEOUT_MS,
-                })
+                .poll(() => panes.incoming.locator(".merge-notes__list").innerText())
                 .toContain(
                     "Check feature order is kept without the flows the other side removed with it",
                 );
@@ -1442,11 +1108,13 @@ describe("the BPMN merge view", () => {
         });
 
         it("lets Git continue the merge once the user staged the built files", async () => {
-            const repository = repositories.merge;
-            await writeFile(join(repository, "notes.txt"), "main and feature\n");
-            await runGit(repository, "add", CONFLICTED.merge, REMOVAL_FILE, "notes.txt");
+            await build(conflictedFile("merge"));
+            await build(removalFile());
+            const repository = await repositoryCopy("merge");
+            await writeFile(join(repository, NOTES_FILE), "main and feature\n");
+            await runGit(repository, "add", CONFLICTED.merge, REMOVAL_FILE, NOTES_FILE);
 
-            const continued = await runGit(
+            const continued = await gitOutcome(
                 repository,
                 "-c",
                 "core.editor=true",
@@ -1454,38 +1122,26 @@ describe("the BPMN merge view", () => {
                 "--continue",
             );
 
-            expect(continued.code, continued.stdout).toBe(0);
-            const parents = (await runGit(repository, "log", "-1", "--format=%P")).stdout.trim();
+            expect(continued.code, continued.output).toBe(0);
+            const parents = (await runGit(repository, "log", "-1", "--format=%P")).trim();
             expect(parents.split(" ")).toHaveLength(2);
         });
 
         it("builds a rebase conflict and lets Git continue the rebase once it is staged", async () => {
-            await runFromSideBar("View: Close All Editors");
-            await rowMenu(CONFLICTED.rebase, COMMAND_TITLE);
-            const { incoming } = await mergePanes();
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("1 open conflict");
-            await press(incoming, "Next change");
-            await decideInPad(incoming, "Keep incoming");
-            await expect
-                .poll(() => openCount(incoming), { timeout: TIMEOUT_MS })
-                .toBe("No open conflicts");
-
-            await pressBuild(incoming);
+            await build(conflictedFile("rebase"));
 
             await expectBuiltButUnmerged("rebase", "Check feature order");
-            await expect.poll(editableModelerShows, { timeout: TIMEOUT_MS }).toBe(true);
-            const repository = repositories.rebase;
+            await expect.poll(editableModelerShows).toBe(true);
+            const repository = await repositoryCopy("rebase");
             await runGit(repository, "add", CONFLICTED.rebase);
-            const continued = await runGit(
+            const continued = await gitOutcome(
                 repository,
                 "-c",
                 "core.editor=true",
                 "rebase",
                 "--continue",
             );
-            expect(continued.code, continued.stdout).toBe(0);
+            expect(continued.code, continued.output).toBe(0);
         });
     });
 });

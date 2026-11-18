@@ -27,6 +27,13 @@ export interface SmokeSuiteOptions {
     workspace: (directory: string) => Promise<void>;
     colorTheme?: string;
     /**
+     * The profile's editor associations; the extension's editors for its file
+     * types unless given. `{}` leaves the choice to each editor's priority, as for a user.
+     */
+    customEditors?: Readonly<Record<string, string>>;
+    /** Starts the window with Git enabled, for a suite whose workspace holds repositories. */
+    git?: boolean;
+    /**
      * Starts every test in a new window on an empty profile, for a suite whose
      * tests change what the extension stores for the user, such as allowances.
      */
@@ -44,7 +51,7 @@ export interface SmokeSuite {
         fileName: string,
         isRendered: (webview: FrameLocator) => Promise<boolean>,
     ): Promise<FrameLocator>;
-    screenshot(name: string): Promise<void>;
+    screenshot(name: string, options?: { hideNotifications?: boolean }): Promise<void>;
 }
 
 /** A workspace of the named smoke fixtures, files or folders. */
@@ -135,8 +142,9 @@ export function smokeSuite(options: SmokeSuiteOptions): SmokeSuite {
             extensionId: run.extensionId,
             rootDirectory,
             workspaceDirectory,
-            customEditors: CUSTOM_EDITORS,
+            customEditors: options.customEditors ?? CUSTOM_EDITORS,
             colorTheme: options.colorTheme ?? DEFAULT_COLOR_THEME,
+            gitEnabled: options.git,
             timeoutMs: TIMEOUT_MS,
         });
         // VS Code reopens the editors the folder's last window held, unsaved changes included.
@@ -205,10 +213,10 @@ export function smokeSuite(options: SmokeSuiteOptions): SmokeSuite {
             await vscode().openInCustomEditor(join(workspaceDirectory, fileName), isRendered);
             return vscode().webview();
         },
-        async screenshot(name) {
+        async screenshot(name, screenshotOptions) {
             const path = join(resultsDirectory, `${name}.png`);
             await mkdir(dirname(path), { recursive: true });
-            await vscode().screenshot(path);
+            await vscode().screenshot(path, screenshotOptions);
         },
     };
 }
