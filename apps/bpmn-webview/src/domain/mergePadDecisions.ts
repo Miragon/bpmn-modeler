@@ -26,7 +26,7 @@ export type MergePadDecision =
           readonly side: MergeSide;
           readonly otherSideLacks: MergePaneOtherSideLack;
       }
-    /** Picks the element again with the flows `offer` names. */
+    /** Picks the element again with the flows and boundary events `offer` names. */
     | {
           readonly kind: "keepRemovedWith";
           readonly side: MergeSide;
@@ -95,10 +95,10 @@ export function keepsEverythingInside<Decision extends MergePadDecision>(
  * The decisions a menu row offers on a shape-less element, by the pad's
  * rule: no other pane decides it, so it offers a pick of either side, keep
  * where the side holds it, a container also with everything inside, and
- * leave out where the side lacks it, then the flows the host offers and the
- * undo of the user's pick. Unlike the pad's, a container's keep with
- * everything inside stays while the user's pick holds it, pressed, so the
- * row shows which reach the pick has.
+ * leave out where the side lacks it, then what the host offers to keep with
+ * it and the undo of the user's pick. Unlike the pad's, a container's keep
+ * with everything inside stays while the user's pick holds it, pressed, so
+ * the row shows which reach the pick has.
  */
 export function mergeRowDecisions(
     states: MergeRowStates,
@@ -134,7 +134,7 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
     return step.shapeless;
 }
 
-/** The host's offer of the flows removed with `elementId`, kept from the side that kept the element. */
+/** The host's offer of what was removed with `elementId`, kept from the side that kept the element. */
 export function keepRemovedWith(
     states: MergeRowStates,
     elementId: string,

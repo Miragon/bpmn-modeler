@@ -9,7 +9,7 @@ import {
     drawnApartFromContainerNotes,
     flowEndsNotes,
     layoutChangedByBothNotes,
-    restoredWithoutConnectionsNotes,
+    restoredWithoutRemovedWithNotes,
 } from "./buildNotes";
 import { isEnclosingContainer } from "./containerContents";
 import { boundsIn, diagramIndexOf } from "./diagramIndex";
@@ -85,7 +85,7 @@ export async function buildMerged(
             ...drawnApartFromContainerNotes(result, resolution, (id) =>
                 isEnclosingContainer(resultUnits.get(id)),
             ),
-            ...restoredWithoutConnectionsNotes(result, resolution),
+            ...restoredWithoutRemovedWithNotes(result, resolution),
             ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
             ...layoutChangedByBothNotes(
                 result,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
-import { restoredWithoutConnectionsNotes } from "./buildNotes";
+import { restoredWithoutRemovedWithNotes } from "./buildNotes";
 import type { MergeResolution } from "./mergeDecisions";
 import type { ElementState, MergeSide } from "./mergeResult";
 import { connectionsRemovedWith, keptAgainstRemoval } from "./removedWith";
@@ -62,11 +62,11 @@ describe("removedWith", () => {
             layout: {},
         });
 
-        expect(restoredWithoutConnectionsNotes(result, resolution(["Task", "Flow_In"]))).toEqual([
-            { kind: "restoredWithoutConnections", id: "Task", connections: ["Flow_Out"] },
+        expect(restoredWithoutRemovedWithNotes(result, resolution(["Task", "Flow_In"]))).toEqual([
+            { kind: "restoredWithoutRemovedWith", id: "Task", connections: ["Flow_Out"] },
         ]);
         expect(
-            restoredWithoutConnectionsNotes(result, resolution(["Task", "Flow_In", "Flow_Out"])),
+            restoredWithoutRemovedWithNotes(result, resolution(["Task", "Flow_In", "Flow_Out"])),
         ).toEqual([]);
     });
 });

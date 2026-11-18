@@ -1642,7 +1642,7 @@ describe("MergeMode", () => {
                         built: true,
                         notes: [
                             {
-                                kind: "restoredWithoutConnections",
+                                kind: "restoredWithoutRemovedWith",
                                 id: "Task_Pack",
                                 connections: ["Task_Gone", "Flow_1"],
                             },

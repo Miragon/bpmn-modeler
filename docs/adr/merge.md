@@ -266,9 +266,10 @@ each of those.
   first, so the classification, the layout side and the check all compare them in order.
 - *Notes for the reviewer:* a flow whose layout and its ends' layouts come from different
   sides, an element drawn from another side than its container, elements both sides added
-  at the same place, an element kept against the other side's removal whose flows on its
-  own side stay out (each flow is decided on its own, so the flows removed with it stay
-  removed unless `pickWithRemoved` kept them, and it may be left unconnected), a kept
+  at the same place, an element kept against the other side's removal whose boundary events
+  removed with it, or flows on its own side, stay out (`restoredWithoutRemovedWith`; each is
+  decided on its own, so what was removed with it stays removed unless `pickWithRemoved` kept
+  it, and the element may be left unconnected or without its timer), a kept
   flow no longer its source's default (`defaultFlowNotRestored`), elements the base and both
   sides draw, each side differently (`layoutChangedByBoth`), and every frame difference the
   result does not carry (attributes both sides changed, incoming's extensions or imports).

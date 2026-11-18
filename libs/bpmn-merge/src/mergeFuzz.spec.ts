@@ -382,7 +382,7 @@ function expectNoRestoredConnectionNoted(
         if (pick.kind !== "pickWithRemoved" || !pickedOn(pick.id, pick.side)) continue;
         const kept = offeredWith(pick).filter((id) => pickedOn(id, pick.side));
         const noted = notes.flatMap((note) =>
-            note.kind === "restoredWithoutConnections" && note.id === pick.id
+            note.kind === "restoredWithoutRemovedWith" && note.id === pick.id
                 ? [...note.connections, ...(note.boundaryEvents ?? [])].filter((id) =>
                       kept.includes(id),
                   )

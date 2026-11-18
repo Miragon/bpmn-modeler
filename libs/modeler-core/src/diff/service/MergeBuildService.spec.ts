@@ -318,7 +318,7 @@ describe("MergeBuildService", () => {
         await mergeView.diffService.buildMergeResult(mergeView.incoming);
 
         expect(notesWhenOpened).toContainEqual({
-            kind: "restoredWithoutConnections",
+            kind: "restoredWithoutRemovedWith",
             id: "Task_Pack",
             connections: ["Flow_2", "Flow_3"],
         });

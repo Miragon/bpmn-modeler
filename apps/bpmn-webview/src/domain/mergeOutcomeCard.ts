@@ -58,8 +58,8 @@ const OUTCOME_ROWS = [
 
 /**
  * The card for a decision this pane sent: a headline naming the side, then
- * what it changed and the offer of the flows the other side removed, or up
- * to three short reasons it was refused, and what an undo freed.
+ * what it changed and the offer of what the other side removed with it, or
+ * up to three short reasons it was refused, and what an undo freed.
  */
 export function mergeOutcomeCardContent(
     remembered: MergeRememberedOutcome,

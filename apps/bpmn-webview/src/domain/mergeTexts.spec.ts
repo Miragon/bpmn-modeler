@@ -241,7 +241,7 @@ describe("buildNoteText", () => {
         ],
         [
             {
-                kind: "restoredWithoutConnections",
+                kind: "restoredWithoutRemovedWith",
                 id: "Task_Pack",
                 connections: ["Flow_2", "Flow_3"],
             },
@@ -249,7 +249,7 @@ describe("buildNoteText", () => {
         ],
         [
             {
-                kind: "restoredWithoutConnections",
+                kind: "restoredWithoutRemovedWith",
                 id: "Task_Pack",
                 connections: ["Flow_2"],
                 boundaryEvents: ["Timer_1"],
@@ -258,7 +258,7 @@ describe("buildNoteText", () => {
         ],
         [
             {
-                kind: "restoredWithoutConnections",
+                kind: "restoredWithoutRemovedWith",
                 id: "Task_Pack",
                 connections: [],
                 boundaryEvents: ["Timer_1"],
