@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import releaseLines from "../../../.github/release-lines.json";
 import { needsDeclaration, validate } from "../../../.github/scripts/release-check.mjs";
-import { parseShipsIn } from "../../../.github/scripts/release-declaration.mjs";
+import { NONE_WIRING, parseShipsIn } from "../../../.github/scripts/release-declaration.mjs";
 import {
     planAttributions,
     pullRequestNumber,
@@ -235,7 +235,9 @@ describe("the Ships in declaration of a PR body", () => {
         );
 
         expect(declaration.lines).toEqual(["host"]);
-        expect(declaration.errors).toEqual(["The body has 2 Ships in sections; keep one."]);
+        expect(declaration.errors).toEqual([
+            "The body has 2 Ships in sections, and the check reads only the first; keep one.",
+        ]);
     });
 
     it("lists every release line and none in the PR template, all unticked", () => {
@@ -451,17 +453,31 @@ describe("the validation of a PR", () => {
             ...overrides,
         });
 
-    it("asks a feat that reaches two lines to declare them, with the block to paste", () => {
+    it("asks a feat that reaches two lines to declare them, with the boxes to put under Ships in", () => {
         const [error, ...rest] = pr({});
 
         expect(rest).toEqual([]);
         expect(error).toContain("reaches `package`, `host` by its files");
-        expect(error).toContain("by wiring");
-        expect(error).toContain("tick only the lines whose users get the change");
+        expect(error).toContain('in place of the boxes under the body\'s "## Ships in" heading');
         expect(error).toContain(
             suggest({ title: "feat(types): add a", files: shared, registry: sample }),
         );
         expect(error).not.toContain("- [x]");
+    });
+
+    it("says once what to tick and once what `none` means", () => {
+        const [error] = pr({});
+
+        expect(error.split(/\btick\b/i)).toHaveLength(2);
+        expect(error.split("no release shipped")).toHaveLength(2);
+    });
+
+    it("reports only the second section when a block is pasted below the template's", () => {
+        const pastedBelow = `${shipsIn("- [ ] `package`", "- [ ] `host`")}\n\n## Ships in\n\n- [x] \`host\`\n`;
+
+        expect(pr({ body: pastedBelow })).toEqual([
+            "The body has 2 Ships in sections, and the check reads only the first; keep one.",
+        ]);
     });
 
     it.each([
@@ -637,22 +653,18 @@ describe("the suggested Ships in block", () => {
     const pasted = (block: string) =>
         validate({
             title: "feat(types): add a",
-            body: `## Description\n\nText.\n\n${block}`,
+            body: shipsIn(block),
             files: shared,
             registry: sample,
             headBranch: "feat/a",
         });
 
-    it("lists each line the files reach unticked with its wiring question, then none", () => {
+    it("lists each line the files reach unticked with its wiring question, then none with its own", () => {
         expect(suggest({ title: "feat: a", files: shared, registry: sample })).toBe(
             [
-                "## Ships in",
-                "",
-                "<!-- Tick only the lines whose users get the change; `none` is for a fix to a feature no release shipped. -->",
-                "",
                 "- [ ] `package`: does a consumer of the package reach the code?",
                 "- [ ] `host`: does the host open the editor that uses the code?",
-                "- [ ] `none`",
+                `- [ ] \`none\`: ${NONE_WIRING}`,
                 "",
             ].join("\n"),
         );
@@ -665,14 +677,14 @@ describe("the suggested Ships in block", () => {
         expect(block).not.toContain("`package`");
     });
 
-    it("names a line without a wiring question by its id alone", () => {
+    it("asks a line without wiring whether it offers the change", () => {
         const unwired: ReleaseLineRegistry = {
             ...sample,
             lines: sample.lines.map(({ wiring: _wiring, ...line }) => line),
         };
 
         expect(suggest({ files: ["libs/merge/m.ts"], registry: unwired })).toContain(
-            "\n- [ ] `host`\n- [ ] `none`\n",
+            "- [ ] `host`: does this line offer the change?\n",
         );
     });
 
@@ -725,14 +737,17 @@ describe("real merged PRs", () => {
             headBranch: "peterhnm/feat-2486-restore-source-default",
         };
         const block = suggest(merge);
-        const withBlock = (body: string) => validate({ ...merge, body });
+        const templateBoxes = /(?:^- \[ \] `[^\n]*\n)+/m;
+        const body = template.replace(templateBoxes, block);
+        const withBody = (text: string) => validate({ ...merge, body: text });
 
         for (const line of registry.lines) {
             expect(block).toContain(`- [ ] \`${line.id}\`: ${line.wiring}`);
         }
         expect(block).not.toContain("- [x]");
-        expect(withBlock(block)).toHaveLength(1);
-        expect(withBlock(block.replace("- [ ] `vscode`", "- [x] `vscode`"))).toEqual([]);
+        expect(body).toContain("as `fix(viewer): keep the zoom when the diagram reloads`");
+        expect(withBody(body)).toHaveLength(1);
+        expect(withBody(body.replace("- [ ] `vscode`", "- [x] `vscode`"))).toEqual([]);
     });
 
     it("lists the merge view under VS Code only once the PR ticks vscode", () => {

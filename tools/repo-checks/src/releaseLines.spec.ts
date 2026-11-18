@@ -142,6 +142,15 @@ describe("the release line registry", () => {
         }
     });
 
+    // A line's wiring becomes the question after its box in a PR body: a newline
+    // would start a box of its own, and a bare @scope/name a team mention.
+    it("asks each line's wiring as one question, on one line, with package names in backticks", () => {
+        for (const { id, wiring } of registry.lines) {
+            expect(wiring, id).toMatch(/^[^\r\n]*\?$/);
+            expect(wiring?.replace(/`[^`]*`/g, ""), id).not.toContain("@");
+        }
+    });
+
     it("ships every workspace on a line or lists it as unreleased", () => {
         const unrouted = workspaceDirs.filter(
             (dir) =>

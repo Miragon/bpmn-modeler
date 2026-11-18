@@ -7,7 +7,6 @@ import {
     githubRepos,
     hookOutput,
     lastPullRequestUrl,
-    NONE_WIRING,
     ownOpenPullRequest,
     pullRequestTargets,
     viewArguments,
@@ -16,6 +15,7 @@ import {
     type PullRequestView,
 } from "../../../.claude/hooks/ships-in-check.mjs";
 import releaseLines from "../../../.github/release-lines.json";
+import { NONE_WIRING } from "../../../.github/scripts/release-declaration.mjs";
 import type { ReleaseLineRegistry } from "../../../.github/scripts/release-routing.mjs";
 
 const registry: ReleaseLineRegistry = releaseLines;
@@ -216,12 +216,22 @@ describe("the hook's answer", () => {
 
         expect(output).toMatchObject({ decision: "block" });
         expect(output?.reason).toContain("reach `vscode`, `intellij`, `orca`");
-        expect(output?.reason).toContain("judged by wiring");
         expect(output?.reason).toContain(`- [ ] \`intellij\`: ${wiringOf("intellij")}`);
-        expect(output?.reason).toContain("- [ ] `none`");
-        expect(output?.reason).toContain("`none` is for a fix to a feature no release shipped");
+        expect(output?.reason).toContain(`- [ ] \`none\`: ${NONE_WIRING}`);
         expect(output?.reason).toContain("gh pr edit 2600 --body-file <file>");
         expect(output?.reason).not.toContain("- [x]");
+        expect(output?.reason?.split(/\btick\b/i)).toHaveLength(2);
+    });
+
+    it("names the duplicate Ships in section instead of asking for another paste", () => {
+        const pastedBelow = `${mergeFeatView.body}\n\n## Ships in\n\n- [x] \`vscode\`\n`;
+        const output = hookOutput(mergeFeat(pastedBelow), registry);
+
+        expect(output).toMatchObject({ decision: "block" });
+        expect(output?.reason).toContain('2 "Ships in" sections');
+        expect(output?.reason).toContain("reads only the first");
+        expect(output?.reason).not.toContain("ticks nothing");
+        expect(output?.reason).not.toContain("- [ ]");
     });
 
     it("asks to confirm each ticked line by its wiring", () => {
@@ -251,6 +261,21 @@ describe("the hook's answer", () => {
         expect(context).toContain("`bpmn-modeler` is ticked under Ships in, but it ships none");
     });
 
+    it("asks a line without wiring the same question as the suggested boxes", () => {
+        const unwired: ReleaseLineRegistry = {
+            ...registry,
+            lines: registry.lines.map(({ wiring: _wiring, ...line }) => line),
+        };
+        const output = hookOutput(
+            mergeFeat(mergeFeatView.body.replace("- [ ] `vscode`", "- [x] `vscode`")),
+            unwired,
+        );
+
+        expect(output?.hookSpecificOutput?.additionalContext).toContain(
+            "`vscode`: does this line offer the change?",
+        );
+    });
+
     it.each([
         { case: "a chore", title: "chore(bpmn-merge): tidy", files: ["libs/bpmn-merge/src/a.ts"] },
         {
@@ -266,10 +291,6 @@ describe("the hook's answer", () => {
                 registry,
             ),
         ).toBeUndefined();
-    });
-
-    it("has the wiring of every release line in the registry", () => {
-        for (const line of registry.lines) expect(line.wiring, line.id).toMatch(/\S/);
     });
 });
 
