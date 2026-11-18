@@ -183,6 +183,34 @@ describe("BpmnDiffService", () => {
         expect(afterHighlights?.added).toContain("Task_1");
     });
 
+    it("lists as each pane's added and removed exactly the changes only its version has", async () => {
+        const versionWith = (task: string, keptName: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:task id="${task}" />
+    <bpmn:task id="Task_Kept" name="${keptName}" />
+  </bpmn:process>
+</bpmn:definitions>`;
+        const { service, store } = createService();
+        const { before, after } = attachedPair(
+            store,
+            versionWith("Task_Old", "Check"),
+            versionWith("Task_New", "Check order"),
+        );
+
+        await service.markReady(before);
+        await service.markReady(after);
+
+        const onlyThisVersionHas = (handle: FakeDiffPaneHandle) => {
+            const highlights = handle.posted
+                .map((m) => m as { type: string; added?: string[]; removed?: string[] })
+                .find((m) => m.type === "ApplyDiffHighlightsQuery");
+            return { added: highlights?.added, removed: highlights?.removed };
+        };
+        expect(onlyThisVersionHas(before)).toEqual({ added: [], removed: ["Task_Old"] });
+        expect(onlyThisVersionHas(after)).toEqual({ added: ["Task_New"], removed: [] });
+    });
+
     it("names each side's file in its highlights, the git ref ignored", async () => {
         const { service, store } = createService();
         const { before, after } = attachedPair(store, beforeBpmn, afterBpmn);
