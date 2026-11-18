@@ -1155,4 +1155,30 @@ describe("buildMerged with versions merged by hand", () => {
         expect(startTag).toContain('custom:owner="sales"');
         expect(startTag).not.toContain("xmlns");
     });
+
+    it("builds a hand merge naming a part another hand merge adds", async () => {
+        const { sources, decisions, textOf } = await pickedOnCurrent();
+        const withProperty = textOf("Task_Check").replace(
+            '  <bpmn:property id="Property_Check"',
+            '  <bpmn:property id="Property_New" />\n  <bpmn:property id="Property_Check"',
+        );
+        const loopingOverIt = textOf("Task_Pack").replace(
+            " />",
+            ">\n  <bpmn:multiInstanceLoopCharacteristics>\n" +
+                "    <bpmn:loopDataInputRef>Property_New</bpmn:loopDataInputRef>\n" +
+                "  </bpmn:multiInstanceLoopCharacteristics>\n</bpmn:userTask>",
+        );
+        expect(withProperty).toContain("Property_New");
+        expect(
+            await acceptHandMerge(sources, decisions, "Task_Check", "current", withProperty),
+        ).toEqual({ applied: true });
+        expect(
+            await acceptHandMerge(sources, decisions, "Task_Pack", "current", loopingOverIt),
+        ).toEqual({ applied: true });
+
+        const { xml } = await buildMerged(sources, decisions);
+
+        expect(xml).toContain('<bpmn:property id="Property_New" />');
+        expect(xml).toContain("<bpmn:loopDataInputRef>Property_New</bpmn:loopDataInputRef>");
+    });
 });

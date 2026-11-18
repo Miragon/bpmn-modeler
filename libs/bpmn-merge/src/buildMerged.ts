@@ -1,4 +1,4 @@
-import type { ElementSnapshot, ModdleParseResult } from "@miragon/bpmn-modeler-diff";
+import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon/bpmn-modeler-diff";
 
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
@@ -105,23 +105,45 @@ export async function buildMerged(
 
 /**
  * Splices each hand-merged version into its side's element before the trees
- * are taken apart, so it moves like the rest of the side; its references name
- * the side's elements first, then the other side's. An accepted version always
- * splices, so a failure is a bug.
+ * are taken apart, so it moves like the rest of the side. A reference names
+ * what the hand merges bring in on its side first, then the side's elements,
+ * then the same on the other side, so one hand merge may name a part another
+ * adds. An accepted version always splices, so a failure is a bug.
  */
 async function spliceHandMerges(
     mergeModdle: MergeModdle,
     handMerges: readonly HandMergedVersion[],
     parsed: Readonly<Record<MergeSide, ModdleParseResult>>,
 ): Promise<void> {
-    for (const { id, side, scope, content } of handMerges) {
-        const unit = parsed[side].elementsById[id];
-        if (unit === undefined)
-            throw new Error(`The ${side} version has no ${id} to merge by hand`);
-        const text = await parseElementText(mergeModdle, content, unit.$type);
+    const texts = await Promise.all(
+        handMerges.map(async (handMerge) => {
+            const unit = parsed[handMerge.side].elementsById[handMerge.id];
+            if (unit === undefined) {
+                throw new Error(
+                    `The ${handMerge.side} version has no ${handMerge.id} to merge by hand`,
+                );
+            }
+            const text = await parseElementText(mergeModdle, handMerge.content, unit.$type);
+            return { handMerge, unit, text };
+        }),
+    );
+    const broughtIn: Record<MergeSide, Map<string, ModdleElement>> = {
+        current: new Map(),
+        incoming: new Map(),
+    };
+    for (const { handMerge, text } of texts) {
+        for (const [id, element] of Object.entries(text.elementsById)) {
+            if (element !== undefined && element !== text.element) {
+                broughtIn[handMerge.side].set(id, element);
+            }
+        }
+    }
+    const elementOn = (side: MergeSide, id: string) =>
+        broughtIn[side].get(id) ?? parsed[side].elementsById[id];
+    for (const { handMerge, unit, text } of texts) {
+        const { id, side, scope } = handMerge;
         spliceHandMergedText(unit, text, scope, isMergeUnit, (target) => {
-            const found =
-                parsed[side].elementsById[target] ?? parsed[otherSide(side)].elementsById[target];
+            const found = elementOn(side, target) ?? elementOn(otherSide(side), target);
             if (found === undefined) {
                 throw new Error(`The hand-merged ${id} names ${target}, which neither side has`);
             }

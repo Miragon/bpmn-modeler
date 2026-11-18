@@ -27,6 +27,13 @@ export interface HandMergedVersion {
     readonly version: ElementVersion;
 }
 
+export interface WrongTypeReference {
+    /** Qualified, for example `bpmn:messageRef`. */
+    readonly property: string;
+    readonly target: string;
+    readonly expected: string;
+}
+
 /** Why a hand-merged text is not taken; the decisions stay as they were. */
 export type HandMergeRefusal =
     | { readonly kind: "conflictMarkersLeft" }
@@ -34,8 +41,11 @@ export type HandMergeRefusal =
     | { readonly kind: "notOneElement"; readonly found: number }
     | { readonly kind: "typeChanged"; readonly expected: string; readonly found: string }
     | { readonly kind: "idChanged"; readonly expected: string; readonly found?: string }
+    /** Each by its id, or by its type when it has none. */
     | { readonly kind: "holdsElementsOfTheirOwn"; readonly ids: readonly string[] }
     | { readonly kind: "beyondOwnAttributes"; readonly properties: readonly string[] }
+    /** References whose target is not of the type their property takes. */
+    | { readonly kind: "namesWrongType"; readonly references: readonly WrongTypeReference[] }
     | { readonly kind: "unknownNamespace"; readonly namespaces: readonly string[] }
     | { readonly kind: "rejectedByEngine"; readonly detail: string }
     /** An edge end, a boundary event's host or a pool's process differs from the picked side's. */
@@ -77,6 +87,13 @@ export function describeHandMergeRefusal(refusal: HandMergeRefusal): string {
             return `The text holds elements merged on their own: ${refusal.ids.join(", ")}.`;
         case "beyondOwnAttributes":
             return `For a container only its attributes, documentation and extension elements merge by hand, not ${refusal.properties.join(", ")}.`;
+        case "namesWrongType":
+            return `The text names ${refusal.references
+                .map(
+                    ({ property, target, expected }) =>
+                        `${target} as ${property}, which takes a ${expected}`,
+                )
+                .join("; ")}.`;
         case "unknownNamespace":
             return `No version declares the namespace ${refusal.namespaces.join(", ")}.`;
         case "rejectedByEngine":

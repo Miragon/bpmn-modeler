@@ -172,6 +172,26 @@ describe("acceptHandMerge", () => {
                 refusal: { kind: "typeChanged", expected: "bpmn:UserTask", found: "bpmn:Task" },
             },
             {
+                name: "a type changed by xsi:type",
+                id: "Task_Pack",
+                text: (own) =>
+                    own.replace(
+                        'id="Task_Pack"',
+                        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="bpmn:tTask" id="Task_Pack"',
+                    ),
+                refusal: { kind: "typeChanged", expected: "bpmn:UserTask", found: "bpmn:tTask" },
+            },
+            {
+                name: "a type changed by xsi:type under another prefix",
+                id: "Task_Pack",
+                text: (own) =>
+                    own.replace(
+                        'id="Task_Pack"',
+                        'xmlns:schema="http://www.w3.org/2001/XMLSchema-instance" schema:type="bpmn:tTask" id="Task_Pack"',
+                    ),
+                refusal: { kind: "typeChanged", expected: "bpmn:UserTask", found: "bpmn:tTask" },
+            },
+            {
                 name: "a changed id",
                 id: "Task_Pack",
                 text: (own) => own.replace('id="Task_Pack"', 'id="Task_Packing"'),
@@ -246,6 +266,53 @@ describe("acceptHandMerge", () => {
                         "",
                     ),
                 refusal: { kind: "changesOtherDecisions", ids: ["DataInput_Order"] },
+            },
+            {
+                name: "an element of its own without an id",
+                id: "Task_Check",
+                text: (own) =>
+                    own.replace(
+                        "</bpmn:serviceTask>",
+                        "  <bpmn:dataInputAssociation>\n" +
+                            "    <bpmn:targetRef>Property_Check</bpmn:targetRef>\n" +
+                            "  </bpmn:dataInputAssociation>\n</bpmn:serviceTask>",
+                    ),
+                refusal: {
+                    kind: "holdsElementsOfTheirOwn",
+                    ids: ["a bpmn:DataInputAssociation without an id"],
+                },
+            },
+            {
+                name: "a message reference that names a task",
+                id: "Start_Order",
+                text: (own) =>
+                    own.replace('messageRef="Message_Order"', 'messageRef="Task_Reject"'),
+                refusal: {
+                    kind: "namesWrongType",
+                    references: [
+                        {
+                            property: "bpmn:messageRef",
+                            target: "Task_Reject",
+                            expected: "bpmn:Message",
+                        },
+                    ],
+                },
+            },
+            {
+                name: "a message reference that names a part of another element",
+                id: "Start_Order",
+                text: (own) =>
+                    own.replace('messageRef="Message_Order"', 'messageRef="Property_Check"'),
+                refusal: {
+                    kind: "namesWrongType",
+                    references: [
+                        {
+                            property: "bpmn:messageRef",
+                            target: "Property_Check",
+                            expected: "bpmn:Message",
+                        },
+                    ],
+                },
             },
         ];
 

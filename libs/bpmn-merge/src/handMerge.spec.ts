@@ -35,6 +35,15 @@ describe("describeHandMergeRefusal", () => {
             text: "M_1, which no version has",
         },
         {
+            refusal: {
+                kind: "namesWrongType",
+                references: [
+                    { property: "bpmn:messageRef", target: "Task_1", expected: "bpmn:Message" },
+                ],
+            },
+            text: "Task_1 as bpmn:messageRef, which takes a bpmn:Message",
+        },
+        {
             refusal: { kind: "namesLeftOutElement", ids: ["M_2"] },
             text: "M_2, which the result leaves out",
         },

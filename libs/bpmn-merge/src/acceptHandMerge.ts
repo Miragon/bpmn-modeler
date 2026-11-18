@@ -1,5 +1,6 @@
 import {
     type ModdleElement,
+    isType,
     isUnresolvedReferenceWarning,
     namespaceDeclarations,
     parseWarningMessages,
@@ -10,11 +11,13 @@ import {
 
 import type { MergeSources } from "./buildMergedSources";
 import { elementReferenceOf } from "./elementVersion";
+import type { MergeModdle } from "./engineModdle";
 import {
     type HandMergedVersion,
     type HandMergeOutcome,
     type HandMergeRefusal,
     type HandMergeScope,
+    type WrongTypeReference,
     handMergeRefused,
     handMergeScopeOf,
 } from "./handMerge";
@@ -30,9 +33,11 @@ import {
     referenceStub,
 } from "./handMergeText";
 import type { MergeDecisions } from "./mergeDecisions";
+import { isMergeElement } from "./mergeElements";
 import { type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 
 const BPMN_MODEL_NAMESPACE = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+const XML_SCHEMA_INSTANCE_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance";
 const CONFLICT_MARKER_LINE = /^(<{7}|\|{7}|={7}|>{7})(\s|$)/m;
 
 type Refused = { readonly refusal: HandMergeRefusal };
@@ -44,6 +49,8 @@ interface ElementText {
     /** The picked side's own element, which the text is spliced into. */
     readonly sideContent: string;
     readonly owningElementOf: (id: string) => string | undefined;
+    /** The type of an element or part outside the text, the side's first. */
+    readonly typeOfOuter: (id: string) => string | undefined;
 }
 
 /**
@@ -94,6 +101,8 @@ export async function handMergedVersionOf(
         scope: handMergeScopeOf(snapshot.type),
         sideContent: snapshot.content,
         owningElementOf: owningElementResolver(result, side),
+        typeOfOuter: (outer) =>
+            sources.types[side].get(outer) ?? sources.types[otherSide(side)].get(outer),
     };
     const refusal = await textRefusalOf(sources, text, id, element);
     if (refusal) return { refusal };
@@ -132,7 +141,7 @@ async function textRefusalOf(
     sources: MergeSources,
     text: string,
     id: string,
-    { type, scope }: ElementText,
+    { type, scope, typeOfOuter }: ElementText,
 ): Promise<HandMergeRefusal | undefined> {
     if (CONFLICT_MARKER_LINE.test(text)) return { kind: "conflictMarkersLeft" };
     const rootRefusal = await rootRefusalOf(text, type);
@@ -156,13 +165,59 @@ async function textRefusalOf(
             ? { kind: "idChanged", expected: id }
             : { kind: "idChanged", expected: id, found: root.id };
     }
+    const xsiType = xsiTypeOf(root);
+    if (xsiType !== undefined) return { kind: "typeChanged", expected: type, found: xsiType };
     const ownElements: string[] = [];
     walkContainment(root, (inner) => {
-        if (inner !== root && isMergeUnit(inner)) ownElements.push(inner.id!);
+        if (inner !== root && isMergeElement(inner)) {
+            ownElements.push(inner.id ?? `a ${inner.$type} without an id`);
+        }
     });
     if (ownElements.length > 0) return { kind: "holdsElementsOfTheirOwn", ids: ownElements };
     const beyond = propertiesBeyond(root, scope);
-    return beyond.length > 0 ? { kind: "beyondOwnAttributes", properties: beyond } : undefined;
+    if (beyond.length > 0) return { kind: "beyondOwnAttributes", properties: beyond };
+    const wrongType = wrongTypeReferencesOf(sources, parsed, typeOfOuter);
+    return wrongType.length > 0 ? { kind: "namesWrongType", references: wrongType } : undefined;
+}
+
+/** The root's `xsi:type`, which would name another type than its tag in the built file. */
+function xsiTypeOf(root: ModdleElement): string | undefined {
+    const attributes = root.$attrs ?? {};
+    for (const [name, value] of Object.entries(attributes)) {
+        const [prefix, localName] = name.split(":");
+        const isSchemaInstance =
+            prefix === "xsi" || attributes[`xmlns:${prefix}`] === XML_SCHEMA_INSTANCE_NAMESPACE;
+        if (localName === "type" && isSchemaInstance) return value;
+    }
+    return undefined;
+}
+
+/**
+ * The references whose target is not of the type their property takes: a
+ * target inside the text by its own type, one outside by `typeOfOuter`. A
+ * target of no known type is left to the check for missing elements.
+ */
+function wrongTypeReferencesOf(
+    { mergeModdle }: MergeSources,
+    { references, elementsById }: Awaited<ReturnType<typeof parseElementText>>,
+    typeOfOuter: (id: string) => string | undefined,
+): WrongTypeReference[] {
+    return references.flatMap(({ element, property, id }) => {
+        const expected = element.$descriptor.properties?.find(
+            (candidate) => candidate.ns?.name === property,
+        )?.type;
+        const actual = elementsById[id]?.$type ?? typeOfOuter(id);
+        if (expected === undefined || actual === undefined) return [];
+        return isOfType(mergeModdle, actual, expected) ? [] : [{ property, target: id, expected }];
+    });
+}
+
+function isOfType({ moddle }: MergeModdle, actual: string, expected: string): boolean {
+    try {
+        return isType(moddle.create(actual), expected);
+    } catch {
+        return true;
+    }
 }
 
 /**
