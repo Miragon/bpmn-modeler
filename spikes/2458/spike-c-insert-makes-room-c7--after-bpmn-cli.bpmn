@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:custom="urn:miragon:custom" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.40.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.23.0">
+  <bpmn:message id="Message_Order" name="Order placed" />
+  <bpmn:error id="Error_Stock" name="Out of stock" errorCode="STOCK" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Shop" name="Shop" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1" isExecutable="true" camunda:historyTimeToLive="180">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Clerk" name="Clerk">
+        <bpmn:flowNodeRef>Start_Order</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Check</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Timeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Ok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Sub_Ship</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Validate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Sub_Ship_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Pack</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Sub_Ship_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Manager">
+        <bpmn:flowNodeRef>Task_Reject</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Rejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DataRef_Order</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:dataObject id="DataObject_Order" />
+    <bpmn:startEvent id="Start_Order" name="Order placed">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_Order" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Check" name="Check order" camunda:delegateExpression="${checkOrder}" custom:owner="billing">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="amount">${order.amount}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_Checked</bpmn:outgoing>
+      <bpmn:dataInputAssociation id="DataInput_Order">
+        <bpmn:sourceRef>DataRef_Order</bpmn:sourceRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Boundary_Timeout" name="1h" cancelActivity="false" attachedToRef="Task_Check">
+      <bpmn:outgoing>Flow_Timeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="Gateway_Ok" name="OK?" default="Flow_No">
+      <bpmn:incoming>Flow_Validated</bpmn:incoming>
+      <bpmn:outgoing>Flow_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:subProcess id="Sub_Ship" name="Ship">
+      <bpmn:incoming>Flow_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Shipped</bpmn:outgoing>
+      <bpmn:startEvent id="Sub_Ship_Start">
+        <bpmn:outgoing>Flow_Ship_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="Task_Pack" name="Pack">
+        <bpmn:incoming>Flow_Ship_1</bpmn:incoming>
+        <bpmn:outgoing>Flow_Ship_2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="Sub_Ship_End">
+        <bpmn:incoming>Flow_Ship_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_Ship_1" sourceRef="Sub_Ship_Start" targetRef="Task_Pack" />
+      <bpmn:sequenceFlow id="Flow_Ship_2" sourceRef="Task_Pack" targetRef="Sub_Ship_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_Done" name="Done">
+      <bpmn:incoming>Flow_Shipped</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_Reject" name="Reject">
+      <bpmn:incoming>Flow_No</bpmn:incoming>
+      <bpmn:incoming>Flow_Timeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Rejected" name="Rejected">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_1" errorRef="Error_Stock" />
+    </bpmn:endEvent>
+    <bpmn:dataObjectReference id="DataRef_Order" name="Order" dataObjectRef="DataObject_Order" />
+    <bpmn:task id="Task_Validate" name="Validate">
+      <bpmn:incoming>Flow_Checked</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validated</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Order" targetRef="Task_Check" />
+    <bpmn:sequenceFlow id="Flow_Checked" sourceRef="Task_Check" targetRef="Task_Validate" />
+    <bpmn:sequenceFlow id="Flow_Yes" sourceRef="Gateway_Ok" targetRef="Sub_Ship">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ok}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_No" sourceRef="Gateway_Ok" targetRef="Task_Reject" />
+    <bpmn:sequenceFlow id="Flow_Shipped" sourceRef="Sub_Ship" targetRef="End_Done" />
+    <bpmn:sequenceFlow id="Flow_Rejected" sourceRef="Task_Reject" targetRef="End_Rejected" />
+    <bpmn:sequenceFlow id="Flow_Timeout" sourceRef="Boundary_Timeout" targetRef="Task_Reject" />
+    <bpmn:sequenceFlow id="Flow_Validated" sourceRef="Task_Validate" targetRef="Gateway_Ok" />
+    <bpmn:textAnnotation id="Note_Check">
+      <bpmn:text>Four-eyes rule</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Check" sourceRef="Task_Check" targetRef="Note_Check" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Spike">
+    <bpmndi:BPMNPlane id="Plane_Spike" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_Shop_di" bpmnElement="Participant_Shop" isHorizontal="true">
+        <dc:Bounds x="120" y="60" width="1220" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Clerk_di" bpmnElement="Lane_Clerk" isHorizontal="true">
+        <dc:Bounds x="150" y="60" width="1190" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="150" y="260" width="1190" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Order_di" bpmnElement="Start_Order">
+        <dc:Bounds x="200" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Check_di" bpmnElement="Task_Check">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Ok_di" bpmnElement="Gateway_Ok">
+        <dc:Bounds x="565" y="135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_Ship_di" bpmnElement="Sub_Ship" isExpanded="true">
+        <dc:Bounds x="680" y="80" width="300" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_Ship_Start_di" bpmnElement="Sub_Ship_Start">
+        <dc:Bounds x="710" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pack_di" bpmnElement="Task_Pack">
+        <dc:Bounds x="790" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sub_Ship_End_di" bpmnElement="Sub_Ship_End">
+        <dc:Bounds x="922" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Done_di" bpmnElement="End_Done">
+        <dc:Bounds x="1052" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Reject_di" bpmnElement="Task_Reject">
+        <dc:Bounds x="680" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Rejected_di" bpmnElement="End_Rejected">
+        <dc:Bounds x="852" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataRef_Order_di" bpmnElement="DataRef_Order">
+        <dc:Bounds x="322" y="290" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_Check_di" bpmnElement="Note_Check">
+        <dc:Bounds x="400" y="280" width="100" height="30" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Validate_di" bpmnElement="Task_Validate">
+        <dc:Bounds x="420" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Timeout_di" bpmnElement="Boundary_Timeout">
+        <dc:Bounds x="322" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
+        <di:waypoint x="218" y="160" />
+        <di:waypoint x="218" y="200" />
+        <di:waypoint x="340" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Checked_di" bpmnElement="Flow_Checked">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="405" y="200" />
+        <di:waypoint x="405" y="160" />
+        <di:waypoint x="420" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Yes_di" bpmnElement="Flow_Yes">
+        <di:waypoint x="615" y="160" />
+        <di:waypoint x="680" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_No_di" bpmnElement="Flow_No">
+        <di:waypoint x="590" y="160" />
+        <di:waypoint x="590" y="360" />
+        <di:waypoint x="730" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Shipped_di" bpmnElement="Flow_Shipped">
+        <di:waypoint x="980" y="160" />
+        <di:waypoint x="1052" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Rejected_di" bpmnElement="Flow_Rejected">
+        <di:waypoint x="780" y="360" />
+        <di:waypoint x="852" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Timeout_di" bpmnElement="Flow_Timeout">
+        <di:waypoint x="340" y="258" />
+        <di:waypoint x="340" y="275" />
+        <di:waypoint x="730" y="275" />
+        <di:waypoint x="730" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Ship_1_di" bpmnElement="Flow_Ship_1">
+        <di:waypoint x="746" y="160" />
+        <di:waypoint x="790" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Ship_2_di" bpmnElement="Flow_Ship_2">
+        <di:waypoint x="890" y="160" />
+        <di:waypoint x="922" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInput_Order_di" bpmnElement="DataInput_Order">
+        <di:waypoint x="340" y="315" />
+        <di:waypoint x="340" y="200" />
+        <di:waypoint x="340" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Check_di" bpmnElement="Association_Check">
+        <di:waypoint x="340" y="200" />
+        <di:waypoint x="340" y="295" />
+        <di:waypoint x="450" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Validated_di" bpmnElement="Flow_Validated">
+        <di:waypoint x="520" y="160" />
+        <di:waypoint x="565" y="160" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
