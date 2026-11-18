@@ -40,9 +40,8 @@ markers a pane paints, the caption roles) in `libs/modeler-types/src/mergeVocabu
 imports nothing at runtime; the library reaches it through the
 `@miragon/bpmn-modeler-types/mergeVocabulary` subpath, everything else through the barrel,
 whose exact specifier is the only one the core's `domain/` may import. Git's conflict-marker
-grammar sits beside it in `conflictMarkers.ts` (subpath `/conflictMarkers`) for the same
-reason: the core reads a file's markers and the library refuses a hand-merged text that still
-holds them, and a second grammar had already drifted from the first.
+grammar sits beside it (`conflictMarkers.ts`, subpath `/conflictMarkers`), so the core's file
+check and the hand-merge check read markers alike; a second grammar had drifted.
 
 `libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so the
 vocabulary file is excluded from the npm component by path like this library, and the merge
@@ -188,9 +187,11 @@ parser and asserts that the module still loads.
 
 ### Versions merged by hand
 
-A picked element whose base, current and incoming texts all differ can take a version merged
-by hand from those texts (#2457); the [merge XML editor](merge-xml-editor.md) record covers
-the editor, this library checks and keeps the version.
+A picked element that base, current and incoming hold as one type, with texts that all
+differ, can take a version merged by hand from those texts (#2457); the
+[merge XML editor](merge-xml-editor.md) record covers the editor, this library checks and
+keeps the version. A type that differs leaves nothing to merge, since no text may change it.
+An accept names the side the text was merged for and is refused once the pick has moved.
 
 - *I1, it lives on its pick.* It stands only while its element stays picked on its side. A
   pick or unpick that would move it off that side, an ancestor's keep-inside from the other
@@ -201,12 +202,15 @@ the editor, this library checks and keeps the version.
   of its side's, and every rule, projection and the build read that one list.
 - *I3, an accept changes no other decision.* `mergeByHand` refuses a version that names an
   element the result leaves out, or whose trial closure would pull in, drop or reopen
-  anything: what the text names must already be in the result. A name the result keeps from
-  the other side is met, since a requirement asks for presence, not a side.
+  anything: what the text names must already be in the result, of the type its property
+  takes. A name the result keeps from the other side is met, since a requirement asks for
+  presence, not a side.
 - *I4, structure follows the pick.* Parent, container, lanes, edge ends, host and process
   stay the picked side's. A container's text (sub-process, pool, lane, process,
   collaboration) covers only its start tag, documentation and extension elements, so its
-  children, lane sets and ioSpecification follow the pick; no text holds an element of its own.
+  children, lane sets and ioSpecification follow the pick; no text holds an element of its own,
+  one without an id included. The version keeps the text as shown, which a reopened editor
+  starts from.
 - *I5, back to the plain pick.* A text that writes the picked side's own version drops it.
 - *Refusals are data.* `HandMergeRefusal` is a closed union, one kind per reason, returned and
   never thrown, with an English `describeHandMergeRefusal` a view replaces, as for
@@ -242,7 +246,8 @@ each of those.
   incoming declares is dropped; moddle-xml then declares every prefix it writes.
 - *Spliced, then moved whole.* A version merged by hand is spliced into its side's element in
   place before the trees are taken apart, so the diagram and every reference keep the same
-  object. Each element is then taken from its side as written, unknown extensions included,
+  object; what the hand merges bring in is resolved first, so one may name a part another
+  adds. Each element is then taken from its side as written, unknown extensions included,
   and placed in the collection its side used; incoming-only elements go after the sibling
   they followed. References inside a moved element still point at the other tree's objects
   and serialise by id.
