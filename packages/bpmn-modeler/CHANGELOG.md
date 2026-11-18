@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.11.0...bpmn-modeler-v1.11.1) (2026-11-18)
+
+
+### 🛠️ Misc
+
+* **release:** route changes to release lines from one tested registry ([#2550](https://github.com/Miragon/bpmn-modeler/issues/2550)) ([4d1d421](https://github.com/Miragon/bpmn-modeler/commit/4d1d4216aad89f29f606515b4c09a8e770a3bab1))
+
 ## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.10.0...bpmn-modeler-v1.11.0) (2026-11-18)
 
 
