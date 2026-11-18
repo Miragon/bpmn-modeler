@@ -1,6 +1,5 @@
-import { elementTypeName } from "@miragon/bpmn-modeler-element-template-builder";
 import type { MergePaneOtherSideLack, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
-import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
+import { elementTypeName, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeKeepInside, MergePadDecision } from "./mergePadDecisions";
 import {

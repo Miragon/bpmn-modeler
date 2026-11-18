@@ -3,9 +3,23 @@ import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
-import { modelerBundlePreset } from "../../vite.shared";
+import { modelerBundlePreset, webviewImportBudget } from "../../vite.shared";
 
 const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
+// Helpers of a few KB that every surface imports, which would each be a chunk of their own.
+const SMALL_HELPERS = [
+    /node_modules[\\/](?:min-dash|ids|domify|lodash|semver-compare|classnames)[\\/]/,
+    /node_modules[\\/]@bpmn-io[\\/]moddle-utils[\\/]/,
+    /node_modules[\\/]bpmn-js[\\/]lib[\\/]util[\\/]ModelUtil\.js$/,
+    /node_modules[\\/]diagram-js[\\/]lib[\\/]util[\\/]EscapeUtil\.js$/,
+];
+// The Lezer runtime, the FEEL grammars and the semver parser element templates use.
+const PARSERS = [
+    /node_modules[\\/]@lezer[\\/](?:common|highlight|lr)[\\/]/,
+    /node_modules[\\/]@bpmn-io[\\/](?:lezer-feel|lezer-feelers|semver-compat)[\\/]/,
+];
+const matchesAny = (patterns: RegExp[]) => (id: string) =>
+    patterns.some((pattern) => pattern.test(id));
 
 // The package exposes no deep path to the real module, so the shim's own import
 // must bypass the redirect by importer rather than through an alias.
@@ -31,7 +45,7 @@ export default defineConfig({
     // import. Relative deps resolve against import.meta.url in every host.
     base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-    plugins: [tsconfigPaths(), lazySvgToImage()],
+    plugins: [tsconfigPaths(), lazySvgToImage(), webviewImportBudget({ entry: "index.js" })],
     ...modelerBundlePreset,
     optimizeDeps: {
         include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],
@@ -58,6 +72,13 @@ export default defineConfig({
             output: {
                 entryFileNames: `[name].js`,
                 chunkFileNames: "chunks/[name]-[hash].js",
+                // Fewer files per surface: a webview fetches a surface's chunks at once.
+                codeSplitting: {
+                    groups: [
+                        { name: "helpers", test: matchesAny(SMALL_HELPERS) },
+                        { name: "parsers", test: matchesAny(PARSERS) },
+                    ],
+                },
                 // The shells link `index.css`; without CSS splitting Vite names the sheet `style.css`.
                 assetFileNames: (asset) =>
                     asset.names.some((name) => name.endsWith(".css"))
