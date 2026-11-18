@@ -335,6 +335,12 @@ describe("package.json ↔ code contract", () => {
         ]);
     });
 
+    // The row's context key is set only by the running extension, and no editor,
+    // view or command of it may have run in a freshly opened window.
+    it("activates in a workspace with a BPMN file, so a Merge Changes row offers the merge view before any editor opened", () => {
+        expect(manifest.activationEvents).toContain("workspaceContains:**/*.bpmn");
+    });
+
     it("offers Resolve in BPMN Merge View in the editor title and the palette for a resolvable file only", () => {
         const when = "resource in bpmn-modeler.resolvableBpmnConflicts";
 
