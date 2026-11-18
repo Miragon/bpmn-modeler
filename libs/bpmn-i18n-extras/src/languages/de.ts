@@ -340,6 +340,14 @@ const dictionary: Record<string, string> = {
         "Auch den Fluss behalten, den Eingehend damit entfernt hat",
     "Also keep the {count} flows incoming removed with it":
         "Auch die {count} Flüsse behalten, die Eingehend damit entfernt hat",
+    "Also keep the boundary event current removed with it":
+        "Auch das Grenzereignis behalten, das Aktuell damit entfernt hat",
+    "Also keep the {count} elements current removed with it":
+        "Auch die {count} Elemente behalten, die Aktuell damit entfernt hat",
+    "Also keep the boundary event incoming removed with it":
+        "Auch das Grenzereignis behalten, das Eingehend damit entfernt hat",
+    "Also keep the {count} elements incoming removed with it":
+        "Auch die {count} Elemente behalten, die Eingehend damit entfernt hat",
     "Took back the pick of {element}": "Wahl für {element} wurde zurückgenommen",
     "Build": "Erstellen",
     "Notes of the build": "Hinweise zur Erstellung",
@@ -357,6 +365,10 @@ const dictionary: Record<string, string> = {
         "{element} wurde von einer anderen Seite gezeichnet als {containers}; prüfen Sie, ob es noch darin liegt",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} wird ohne die Flüsse behalten, die die andere Seite damit entfernt hat: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} wird ohne das Grenzereignis behalten, das die andere Seite damit entfernt hat: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} wird ohne die {count} Elemente behalten, die die andere Seite damit entfernt hat: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} wird behalten, ist aber nicht mehr der Standardfluss von {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

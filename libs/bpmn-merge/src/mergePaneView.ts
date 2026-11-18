@@ -12,7 +12,7 @@ import {
     otherSide,
 } from "./mergeResult";
 import type { PickScope } from "./pickOutcome";
-import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
+import { idsRemovedWith, keptAgainstRemoval } from "./removedConnections";
 import {
     type ShapelessValues,
     type ShapelessValueSources,
@@ -245,10 +245,9 @@ function scopeOf(
     if (containers.has(element.id) && descendantsOf(element.id, elements).every(pickedOn)) {
         return "withContents";
     }
-    const keptWithFlows =
-        connectionsRemovedWith(elements, element, keptSide).some(({ id }) => pickedOn(id)) &&
-        decisions.connectionsLeftOut(element.id, keptSide).length === 0;
-    return keptWithFlows ? "withConnections" : "element";
+    if (!idsRemovedWith(elements, element, keptSide).some(pickedOn)) return "element";
+    const { connections, boundaryEvents } = decisions.removedWithLeftOut(element.id, keptSide);
+    return connections.length === 0 && boundaryEvents.length === 0 ? "withConnections" : "element";
 }
 
 function lackingSideOf(element: MergeElement): ShapelessRow["lackingSide"] {

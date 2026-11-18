@@ -3,7 +3,7 @@ import { descendantsOf } from "./mergeDecisionsContainment";
 import { findDanglingConflicts, type DanglingConflict } from "./mergeDecisionsDangling";
 import { layoutSidesOf } from "./mergeDecisionsLayout";
 import { DecidedSides } from "./mergeDecisionsSides";
-import type { PickOutcome, PickScope } from "./pickOutcome";
+import type { PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
 import {
     isConflictState,
     type ConflictState,
@@ -11,11 +11,11 @@ import {
     type MergeResult,
     type MergeSide,
 } from "./mergeResult";
-import { dependentsByTarget, type ReferenceIndex } from "./referenceRules";
-import { connectionsRemovedWith, otherEndsOf } from "./removedConnections";
+import { dependentsByTarget, type ReferenceIndex, requirementsOf } from "./referenceRules";
+import { idsRemovedWith, removedWith } from "./removedConnections";
 import type { UnmetRequirement } from "./unmetRequirement";
 
-export type { BlockedPick, PickOutcome, PickScope } from "./pickOutcome";
+export type { BlockedPick, PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
 
 export type OpenConflict =
     | { readonly id: string; readonly state: ConflictState; readonly related: readonly string[] }
@@ -28,6 +28,7 @@ export type OpenConflict =
       };
 
 const NOTHING_DECIDED: PickOutcome = { applied: true, pulledIn: [], dropped: [] };
+const NOTHING_LEFT_OUT: RemovedWithLeftOut = { connections: [], boundaryEvents: [] };
 
 /** An automatic resolution, the user's pick, or what a pick pulled in or dropped. */
 export type DecisionOrigin = "automatic" | "picked" | "consequence";
@@ -127,8 +128,12 @@ export class MergeDecisions {
         this.requireElement(id);
         const outcome = this.apply([id], side);
         if (!outcome.applied) return outcome;
-        const connectionsLeftOut = this.connectionsLeftOut(id, side);
-        return connectionsLeftOut.length === 0 ? outcome : { ...outcome, connectionsLeftOut };
+        const { connections, boundaryEvents } = this.removedWithLeftOut(id, side);
+        return {
+            ...outcome,
+            ...(connections.length === 0 ? {} : { connectionsLeftOut: connections }),
+            ...(boundaryEvents.length === 0 ? {} : { boundaryEventsLeftOut: boundaryEvents }),
+        };
     }
 
     /** The container and every descendant in either version, as one pick. */
@@ -137,49 +142,68 @@ export class MergeDecisions {
         return this.apply([id, ...descendantsOf(id, this.mergeResult.elements)], side);
     }
 
-    /**
-     * The flows `side`'s version connects to an element the other side removed, which the other side removed with
-     * it and a pick of the element would leave out, as long as nobody decided them and their other ends stay in the
-     * result. Empty when the other side kept the element, or when the pick is refused.
-     */
+    /** The connections of `removedWithLeftOut`. */
     connectionsLeftOut(id: string, side: MergeSide): readonly string[] {
+        return this.removedWithLeftOut(id, side).connections;
+    }
+
+    /**
+     * What `side` keeps of an element the other side removed, which the other side removed with it and a pick of the
+     * element would leave out: the connections and boundary events of `removedWith`, as long as nobody decided them
+     * and everything they require besides the element stays in the result, so keeping them brings back nothing the
+     * user did not pick. A connection of a boundary event comes only with its event. Empty when the other side kept
+     * the element, or when the pick is refused.
+     */
+    removedWithLeftOut(id: string, side: MergeSide): RemovedWithLeftOut {
         const element = this.requireElement(id);
-        const candidates = connectionsRemovedWith(this.mergeResult.elements, element, side);
-        if (candidates.length === 0) return [];
+        const candidates = removedWith(this.mergeResult.elements, element, side);
+        if (candidates.connections.length === 0 && candidates.boundaryEvents.length === 0) {
+            return NOTHING_LEFT_OUT;
+        }
         const trial = closePicks(this.index, this.sides, this.picksWith([id], side));
-        if (!trial.outcome.applied) return [];
+        if (!trial.outcome.applied) return NOTHING_LEFT_OUT;
         const after = trial.after;
         const dangling = findDanglingConflicts(this.mergeResult.elements, this.index, after);
         const inResult = (candidate: string) =>
             !dangling.has(candidate) && after.isPresent(candidate);
-        return candidates
-            .filter(
-                (connection) =>
-                    this.sides.isAutomatic(connection.id) &&
-                    after.isAutomatic(connection.id) &&
-                    !inResult(connection.id) &&
-                    otherEndsOf(connection, id, side).every(inResult),
-            )
+        const leftOut = (candidate: MergeElement) =>
+            this.sides.isAutomatic(candidate.id) &&
+            after.isAutomatic(candidate.id) &&
+            !inResult(candidate.id);
+        const offerable = (candidate: MergeElement, keptTogether: ReadonlySet<string>) =>
+            leftOut(candidate) &&
+            requirementsOf(candidate, side).every(
+                ({ target }) => keptTogether.has(target) || inResult(target),
+            );
+        const boundaryEvents = candidates.boundaryEvents
+            .filter((event) => offerable(event, new Set([id])))
+            .map((event) => event.id);
+        const keptTogether = new Set([id, ...boundaryEvents]);
+        const connections = candidates.connections
+            .filter((connection) => offerable(connection, keptTogether))
             .map((connection) => connection.id);
+        return { connections, boundaryEvents };
     }
 
-    /** The element and its `connectionsLeftOut`, as one pick. */
+    /** The element and its `removedWithLeftOut`, as one pick. */
     pickWithConnections(id: string, side: MergeSide): PickOutcome {
-        return this.apply([id, ...this.connectionsLeftOut(id, side)], side);
+        const { connections, boundaryEvents } = this.removedWithLeftOut(id, side);
+        return this.apply([id, ...boundaryEvents, ...connections], side);
     }
 
     /**
-     * Takes back the element's pick and the picks of the flows on its side that the other side removed with it, as
-     * `pickWithConnections` made them: their picks would otherwise keep the element as a consequence.
+     * Takes back the element's pick and the picks of what the other side removed with it on its side
+     * (`removedWith`), as `pickWithConnections` made them: their picks would otherwise keep the element as a
+     * consequence.
      */
     unpickWithConnections(id: string): PickOutcome {
         const element = this.requireElement(id);
         const side = this.sides.picks.get(id);
         if (side === undefined) return NOTHING_DECIDED;
-        const connections = connectionsRemovedWith(this.mergeResult.elements, element, side)
-            .map((connection) => connection.id)
-            .filter((connection) => this.sides.picks.get(connection) === side);
-        return this.take(closeUnpick(this.index, this.sides, [id, ...connections]));
+        const removed = idsRemovedWith(this.mergeResult.elements, element, side).filter(
+            (removedId) => this.sides.picks.get(removedId) === side,
+        );
+        return this.take(closeUnpick(this.index, this.sides, [id, ...removed]));
     }
 
     /** Takes back a container's pick and the picks of everything inside it on the same side. */

@@ -340,6 +340,14 @@ const dictionary: Record<string, string> = {
         "Ook de flow behouden die Inkomend ermee verwijderde",
     "Also keep the {count} flows incoming removed with it":
         "Ook de {count} flows behouden die Inkomend ermee verwijderde",
+    "Also keep the boundary event current removed with it":
+        "Ook het boundary-event behouden dat Huidig ermee verwijderde",
+    "Also keep the {count} elements current removed with it":
+        "Ook de {count} elementen behouden die Huidig ermee verwijderde",
+    "Also keep the boundary event incoming removed with it":
+        "Ook het boundary-event behouden dat Inkomend ermee verwijderde",
+    "Also keep the {count} elements incoming removed with it":
+        "Ook de {count} elementen behouden die Inkomend ermee verwijderde",
     "Took back the pick of {element}": "Keuze voor {element} is teruggenomen",
     "Build": "Samenstellen",
     "Notes of the build": "Opmerkingen bij het samenstellen",
@@ -357,6 +365,10 @@ const dictionary: Record<string, string> = {
         "{element} is door een andere kant getekend dan {containers}; controleer of het er nog in ligt",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is behouden zonder de flows die de andere kant ermee verwijderde: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} is behouden zonder het boundary-event dat de andere kant ermee verwijderde: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} is behouden zonder de {count} elementen die de andere kant ermee verwijderde: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} is behouden, maar is niet langer de default-flow van {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

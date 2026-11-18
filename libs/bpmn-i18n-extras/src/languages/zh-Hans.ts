@@ -302,6 +302,12 @@ const dictionary: Record<string, string> = {
     "Also keep the {count} flows current removed with it": "同时保留当前随其删除的 {count} 条流",
     "Also keep the flow incoming removed with it": "同时保留传入随其删除的流",
     "Also keep the {count} flows incoming removed with it": "同时保留传入随其删除的 {count} 条流",
+    "Also keep the boundary event current removed with it": "同时保留当前随其删除的边界事件",
+    "Also keep the {count} elements current removed with it":
+        "同时保留当前随其删除的 {count} 个元素",
+    "Also keep the boundary event incoming removed with it": "同时保留传入随其删除的边界事件",
+    "Also keep the {count} elements incoming removed with it":
+        "同时保留传入随其删除的 {count} 个元素",
     "Took back the pick of {element}": "已撤销对 {element} 的选择",
     "Build": "生成",
     "Notes of the build": "生成说明",
@@ -318,6 +324,10 @@ const dictionary: Record<string, string> = {
         "{element} 与 {containers} 由不同侧绘制；请检查它是否仍位于其中",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} 被保留，但不含另一侧随其删除的流：{connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} 被保留，但不含另一侧随其删除的边界事件：{elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} 被保留，但不含另一侧随其删除的 {count} 个元素：{elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} 被保留，但不再是 {element} 的默认流",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

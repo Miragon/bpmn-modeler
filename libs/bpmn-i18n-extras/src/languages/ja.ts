@@ -331,6 +331,14 @@ const dictionary: Record<string, string> = {
     "Also keep the flow incoming removed with it": "入力側が一緒に削除したフローも保持",
     "Also keep the {count} flows incoming removed with it":
         "入力側が一緒に削除した {count} 個のフローも保持",
+    "Also keep the boundary event current removed with it":
+        "現在が一緒に削除した境界イベントも保持",
+    "Also keep the {count} elements current removed with it":
+        "現在が一緒に削除した {count} 個の要素も保持",
+    "Also keep the boundary event incoming removed with it":
+        "入力側が一緒に削除した境界イベントも保持",
+    "Also keep the {count} elements incoming removed with it":
+        "入力側が一緒に削除した {count} 個の要素も保持",
     "Took back the pick of {element}": "{element} の選択を取り消しました",
     "Build": "生成",
     "Notes of the build": "生成の注意事項",
@@ -348,6 +356,10 @@ const dictionary: Record<string, string> = {
         "{element} は {containers} とは別の側が描いています。まだ内側にあるか確認してください",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} は、反対側が一緒に削除したフローなしで保持されています: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} は、反対側が一緒に削除した境界イベントなしで保持されています: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} は、反対側が一緒に削除した {count} 個の要素なしで保持されています: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} は保持されていますが、{element} のデフォルトフローではなくなりました",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

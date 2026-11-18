@@ -17,12 +17,12 @@ file (epic #2459).
 
 **The picks live in the core, for the merge view's life.** A pane posts `PickMergeSideCommand`
 or `UnpickMergeCommand` with the element and a reach (the element, everything inside it, or the
-flows the other side removed with it); `BpmnDiffService` hands it, with the pane's tab, to
-`MergeDecisionService`, which decides it on the session's `MergeDecisions` (`pickScoped`,
-`unpickScoped`) and sends every pane of every tab the full state again. An Undo of an element
-no longer picked, from a pad or menu not yet repainted, changes nothing. The webview shows a
-pick only once the core made it and holds no rule: what an element allows (`pickable`, with the
-reach Undo takes back, `otherSideLacks`: the other side removed it, or never had it, and
+flows and boundary events the other side removed with it); `BpmnDiffService` hands it, with the
+pane's tab, to `MergeDecisionService`, which decides it on the session's `MergeDecisions`
+(`pickScoped`, `unpickScoped`) and sends every pane of every tab the full state again. An
+Undo of an element no longer picked, from a pad or menu not yet repainted, changes nothing.
+The webview shows a pick only once the core made it and holds no rule: what an element allows
+(`pickable`, with the reach Undo takes back, `otherSideLacks`: the other side removed it, or never had it, and
 `takenSide`, the side the result takes it from), the
 badges, the picks a pane cannot draw and the consequences all come from `mergePaneView`. The
 picks end with the session, so a window reload loses them. Rejected: picks in the webview's
@@ -97,10 +97,20 @@ reselection and announces each outcome once, through live regions that exist bef
 The partner shows none; a row says its own. Rejected: the outcome in the header, far from the
 element and uneven in height; the acting pane in `lastOutcome`; a scored placement, which jumped
 from pick to pick. Cost: a reload or tab switch loses the card; the badge and the pad's restore
-offer stay, as the core projects them. Keeping an element the other side removed offers its
-flows on the kept side's pane, on the card and the pad, a shape-less one's on both panes;
-accepting is one `pickWithConnections`, declining leaves the build's
-`restoredWithoutConnections` note, and Undo takes the flows back too.
+offer stay, as the core projects them.
+
+**Keeping a removed element offers what the other side removed with it.** The library's offer
+(`removedWithLeftOut`, [merge](merge.md)) shows on the kept side's pane, on the card and the pad,
+a shape-less element's on both panes; accepting is one `pickWithConnections`, and Undo takes the
+flows and boundary events back too. Not offered, as each would bring back what the user did not
+ask for: a flow whose other end the removing side deleted too, a message flow whose message it
+deleted, a boundary event that needs an error or a lane it deleted, and that event's flows.
+Declining, or a plain pick, leaves the build note `restoredWithoutConnections`, which names the
+boundary events removed with the element that the result leaves out and every flow of the element
+or of those events left out, so a kept activity never loses its timer silently; a kept boundary
+event's flows get its own note. The offer and the note share `removedWith`, not one rule: the note
+names all that stays out, the offer what it can bring back. Both texts count elements once they
+name a boundary event.
 
 ### Building
 

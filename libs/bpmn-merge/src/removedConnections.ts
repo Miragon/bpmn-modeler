@@ -6,7 +6,7 @@ import {
     chosenVersionOf,
     otherSide,
 } from "./mergeResult";
-import { isDefaultFlowReference, isEdgeEnd, isEdgeSource } from "./referenceRules";
+import { isDefaultFlowReference, isEdgeEnd, isEdgeSource, isHostReference } from "./referenceRules";
 
 /** The ancestor and `side` have the element and the other side removed it. */
 export function keptAgainstRemoval(element: MergeElement, side: MergeSide): boolean {
@@ -43,15 +43,49 @@ export function connectionsRemovedWith(
         : [];
 }
 
-/** The ends of a connection's version on `side` other than the element. */
-export function otherEndsOf(
-    connection: MergeElement,
-    elementId: string,
+/** The boundary events `side` attaches to an element the other side removed, which the other side removed with it. */
+function boundaryEventsRemovedWith(
+    elements: readonly MergeElement[],
+    element: MergeElement,
+    side: MergeSide,
+): readonly MergeElement[] {
+    return keptAgainstRemoval(element, side)
+        ? elements.filter(
+              (candidate) =>
+                  keptAgainstRemoval(candidate, side) &&
+                  (candidate.versions[side]?.references ?? []).some(
+                      (reference) => isHostReference(reference) && reference.target === element.id,
+                  ),
+          )
+        : [];
+}
+
+/** What `side` keeps that the other side removed with an element: its boundary events and the connections of both. */
+export interface RemovedWith {
+    readonly boundaryEvents: readonly MergeElement[];
+    readonly connections: readonly MergeElement[];
+}
+
+export function removedWith(
+    elements: readonly MergeElement[],
+    element: MergeElement,
+    side: MergeSide,
+): RemovedWith {
+    const boundaryEvents = boundaryEventsRemovedWith(elements, element, side);
+    const connections = [element, ...boundaryEvents].flatMap((end) =>
+        connectionsRemovedWith(elements, end, side),
+    );
+    return { boundaryEvents, connections: [...new Set(connections)] };
+}
+
+/** The ids of everything `removedWith` names. */
+export function idsRemovedWith(
+    elements: readonly MergeElement[],
+    element: MergeElement,
     side: MergeSide,
 ): readonly string[] {
-    return (connection.versions[side]?.references ?? [])
-        .filter((reference) => isEdgeEnd(reference) && reference.target !== elementId)
-        .map(({ target }) => target);
+    const { boundaryEvents, connections } = removedWith(elements, element, side);
+    return [...boundaryEvents, ...connections].map(({ id }) => id);
 }
 
 /** What becomes of the default a flow kept against the other side's removal was of its source on the keeping side. */

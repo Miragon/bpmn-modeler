@@ -38,6 +38,17 @@ describe("buildNoteElementIds", () => {
         expect(buildNoteElementIds(note)).toStrictEqual(ids);
     });
 
+    it("names the boundary events a kept element is noted without", () => {
+        expect(
+            buildNoteElementIds({
+                kind: "restoredWithoutConnections",
+                id: "Task_A",
+                connections: ["Flow_1"],
+                boundaryEvents: ["Timer_1"],
+            }),
+        ).toStrictEqual(["Task_A", "Timer_1", "Flow_1"]);
+    });
+
     it("names no kept default for a source that keeps none", () => {
         expect(
             buildNoteElementIds({

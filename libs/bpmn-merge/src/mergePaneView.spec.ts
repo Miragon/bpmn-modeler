@@ -634,6 +634,35 @@ describe("mergePaneView", () => {
             expect(scopeOfTask()).toBe("withConnections");
         });
 
+        it("badges an element with its flows only once no boundary event a pick could keep with it is left out", () => {
+            const decisions = MergeDecisions.from(
+                mergeResult(
+                    process("unchanged"),
+                    mergeElement("Gateway", "unchanged", { parent: "Process_1" }),
+                    mergeElement("Task_Pay", "removedByCurrent", { parent: "Process_1" }),
+                    flow("Flow_Pay", "Gateway", "Task_Pay", "removedByCurrent"),
+                    mergeElement("Timer_Pay", "removedByCurrent", {
+                        type: "bpmn:BoundaryEvent",
+                        parent: "Process_1",
+                        references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Task_Pay")],
+                    }),
+                ),
+            );
+
+            decisions.pick("Task_Pay", "incoming");
+            decisions.pick("Flow_Pay", "incoming");
+
+            const scopeOfTask = () =>
+                mergePaneView(decisions, "incoming", NO_SOURCES).badges.find(
+                    ({ id }) => id === "Task_Pay",
+                )?.scope;
+            expect(scopeOfTask()).toBe("element");
+
+            decisions.pick("Timer_Pay", "incoming");
+
+            expect(scopeOfTask()).toBe("withConnections");
+        });
+
         it("offers no everything inside for a task that holds a data input association", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(

@@ -17,7 +17,7 @@ export interface MergePickFeedback {
 /**
  * What a pick or an undo did, as the panes show it: the open conflicts before
  * and after name what it reopened, and a pick's kept side gets the offer of
- * the flows it left out.
+ * the flows and boundary events it left out.
  */
 export function mergePickFeedback({
     action,
@@ -54,9 +54,15 @@ export function mergePickFeedback({
             reopened: reopenedConflicts(openBefore, openAfter),
         },
     };
-    return outcome.connectionsLeftOut === undefined || keptSide === undefined
-        ? shown
-        : { ...shown, offer: { elementId, connections: outcome.connectionsLeftOut, keptSide } };
+    const { connectionsLeftOut, boundaryEventsLeftOut } = outcome;
+    if (keptSide === undefined) return shown;
+    if (connectionsLeftOut === undefined && boundaryEventsLeftOut === undefined) return shown;
+    const connections = connectionsLeftOut ?? [];
+    const offer: PickRestoreOffer =
+        boundaryEventsLeftOut === undefined
+            ? { elementId, connections, keptSide }
+            : { elementId, connections, boundaryEvents: boundaryEventsLeftOut, keptSide };
+    return { ...shown, offer };
 }
 
 function blockOf({ reason: { element, requirement, obstacle } }: BlockedPick): MergePaneBlock {

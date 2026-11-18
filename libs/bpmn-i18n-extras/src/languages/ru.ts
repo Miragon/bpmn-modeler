@@ -331,6 +331,14 @@ const dictionary: Record<string, string> = {
         "Также оставить поток, удалённый вместе с ним стороной «Входящее»",
     "Also keep the {count} flows incoming removed with it":
         "Также оставить потоки ({count}), удалённые вместе с ним стороной «Входящее»",
+    "Also keep the boundary event current removed with it":
+        "Также оставить граничное событие, удалённое вместе с ним стороной «Текущее»",
+    "Also keep the {count} elements current removed with it":
+        "Также оставить элементы ({count}), удалённые вместе с ним стороной «Текущее»",
+    "Also keep the boundary event incoming removed with it":
+        "Также оставить граничное событие, удалённое вместе с ним стороной «Входящее»",
+    "Also keep the {count} elements incoming removed with it":
+        "Также оставить элементы ({count}), удалённые вместе с ним стороной «Входящее»",
     "Took back the pick of {element}": "Выбор отменён: {element}",
     "Build": "Собрать",
     "Notes of the build": "Примечания к сборке",
@@ -348,6 +356,10 @@ const dictionary: Record<string, string> = {
         "Элемент {element} нарисован другой стороной, чем {containers}; проверьте, что он всё ещё внутри",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "Элемент {element} оставлен без потоков, которые другая сторона удалила вместе с ним: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "Элемент {element} оставлен без граничного события, которое другая сторона удалила вместе с ним: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "Элемент {element} оставлен без элементов ({count}), которые другая сторона удалила вместе с ним: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "Поток {flow} оставлен, но больше не является потоком по умолчанию для {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

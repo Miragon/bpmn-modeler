@@ -324,6 +324,13 @@ const dictionary: Record<string, string> = {
     "Also keep the flow incoming removed with it": "수신이 함께 제거한 흐름도 유지",
     "Also keep the {count} flows incoming removed with it":
         "수신이 함께 제거한 흐름 {count}개도 유지",
+    "Also keep the boundary event current removed with it": "현재가 함께 제거한 경계 이벤트도 유지",
+    "Also keep the {count} elements current removed with it":
+        "현재가 함께 제거한 요소 {count}개도 유지",
+    "Also keep the boundary event incoming removed with it":
+        "수신이 함께 제거한 경계 이벤트도 유지",
+    "Also keep the {count} elements incoming removed with it":
+        "수신이 함께 제거한 요소 {count}개도 유지",
     "Took back the pick of {element}": "{element} 선택 취소됨",
     "Build": "생성",
     "Notes of the build": "생성 참고 사항",
@@ -341,6 +348,10 @@ const dictionary: Record<string, string> = {
         "{element}은(는) {containers}와(과) 다른 쪽에서 그렸습니다. 여전히 내부에 있는지 확인하십시오",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element}은(는) 다른 쪽이 함께 제거한 경계 이벤트 없이 유지됩니다: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element}은(는) 다른 쪽이 함께 제거한 요소 {count}개 없이 유지됩니다: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow}은(는) 유지되지만 더 이상 {element}의 기본 흐름이 아닙니다",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

@@ -121,7 +121,13 @@ const SHAPELESS_TYPES = [
 const keysOf = <Kind extends string>(record: Record<Kind, unknown>) =>
     Object.keys(record) as Kind[];
 
-const CONNECTION_COUNTS = [["f1"], ["f1", "f2"]];
+/** What a restore offer can hold: one or more flows, a boundary event alone, or both. */
+const OFFERED: readonly { connections: string[]; boundaryEvents?: string[] }[] = [
+    { connections: ["f1"] },
+    { connections: ["f1", "f2"] },
+    { connections: [], boundaryEvents: ["b1"] },
+    { connections: ["f1"], boundaryEvents: ["b1"] },
+];
 
 /** Every pad decision of each kind for `side`, over every reach, lack, connection count and scope. */
 const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => MergePadDecision[]> = {
@@ -137,10 +143,10 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
     leaveOut: (side) =>
         keysOf(LACKS).map((otherSideLacks) => ({ kind: "leaveOut", side, otherSideLacks })),
     keepRemovedFlows: (side) =>
-        CONNECTION_COUNTS.map((connections) => ({
+        OFFERED.map((offered) => ({
             kind: "keepRemovedFlows",
             side: otherSide(side),
-            offer: { elementId: "a", connections, removedBy: side },
+            offer: { elementId: "a", ...offered, removedBy: side },
         })),
     undo: () => keysOf(PICK_SCOPES).map((scope) => ({ kind: "undo", scope })),
 };
@@ -214,8 +220,8 @@ function mergeTextKeys(): Set<string> {
         comparisonText(side, translate);
         comparisonPaneText("before", side, translate);
         comparisonPaneText("after", side, translate);
-        for (const connections of CONNECTION_COUNTS) {
-            restoreOfferText({ elementId: "a", connections, removedBy: side }, translate);
+        for (const offered of OFFERED) {
+            restoreOfferText({ elementId: "a", ...offered, removedBy: side }, translate);
         }
         for (const decisions of Object.values(PAD_DECISIONS)) {
             for (const decision of decisions(side)) {
@@ -282,6 +288,10 @@ function mergeTextKeys(): Set<string> {
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
+        }
+        if (note.kind === "restoredWithoutConnections") {
+            buildNoteText({ ...note, boundaryEvents: ["c"] }, nameOf, translate);
+            buildNoteText({ ...note, connections: [], boundaryEvents: ["c"] }, nameOf, translate);
         }
     }
     return keys;
@@ -353,8 +363,8 @@ describe("the merge view's translations", () => {
                 ...keysOf(PICK_SCOPES).map(
                     (scope) => pickBadgeText({ keptSide: side, scope }, translate).label,
                 ),
-                ...CONNECTION_COUNTS.map((connections) =>
-                    restoreOfferText({ elementId: "a", connections, removedBy: side }, translate),
+                ...OFFERED.map((offered) =>
+                    restoreOfferText({ elementId: "a", ...offered, removedBy: side }, translate),
                 ),
                 ...[...PAD_DECISIONS.keep(side), ...PAD_DECISIONS.leaveOut(side)].map(
                     (decision) => padDecisionText(decision, translate).label,

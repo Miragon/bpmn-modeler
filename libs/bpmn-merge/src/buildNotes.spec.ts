@@ -369,6 +369,71 @@ describe("restoredWithoutConnectionsNotes", () => {
         expect(restoredWithoutConnectionsNotes(result, { elements, layout: {} })).toEqual([]);
     });
 
+    describe("with a boundary event the other side removed with the element", () => {
+        /** Current removed Task_Pay with its timer and the timer's flow; incoming kept them all. */
+        const removedWithItsTimer = mergeResult(
+            gateway,
+            mergeElement("Task_Pay", "removedByCurrent"),
+            mergeElement("Timer_Pay", "removedByCurrent", {
+                type: "bpmn:BoundaryEvent",
+                references: [refersTo("bpmn:BoundaryEvent#attachedToRef", "Task_Pay")],
+            }),
+            mergeElement("Flow_Timeout", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", "Timer_Pay"),
+                    refersTo("bpmn:SequenceFlow#targetRef", "Gateway"),
+                ],
+            }),
+        );
+        const keeping = (kept: readonly string[]): MergeResolution => ({
+            elements: Object.fromEntries(
+                ["Gateway", "Task_Pay", "Timer_Pay", "Flow_Timeout"].map((id) => [
+                    id,
+                    kept.includes(id) ? "incoming" : "current",
+                ]),
+            ),
+            layout: {},
+        });
+
+        it("names the boundary event left out and its flow", () => {
+            expect(
+                restoredWithoutConnectionsNotes(removedWithItsTimer, keeping(["Task_Pay"])),
+            ).toEqual([
+                {
+                    kind: "restoredWithoutConnections",
+                    id: "Task_Pay",
+                    connections: ["Flow_Timeout"],
+                    boundaryEvents: ["Timer_Pay"],
+                },
+            ]);
+        });
+
+        it("leaves the flow of a kept boundary event to the event's own note", () => {
+            expect(
+                restoredWithoutConnectionsNotes(
+                    removedWithItsTimer,
+                    keeping(["Task_Pay", "Timer_Pay"]),
+                ),
+            ).toEqual([
+                {
+                    kind: "restoredWithoutConnections",
+                    id: "Timer_Pay",
+                    connections: ["Flow_Timeout"],
+                },
+            ]);
+        });
+
+        it("names nothing once the boundary event and its flow are kept", () => {
+            expect(
+                restoredWithoutConnectionsNotes(
+                    removedWithItsTimer,
+                    keeping(["Task_Pay", "Timer_Pay", "Flow_Timeout"]),
+                ),
+            ).toEqual([]);
+        });
+    });
+
     it("ignores an element no side removed, even when the other side removed one of its flows", () => {
         const result = mergeResult(
             gateway,

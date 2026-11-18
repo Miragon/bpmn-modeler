@@ -167,6 +167,34 @@ describe("restoreOfferText", () => {
             ),
         ).toBe(text);
     });
+
+    it.each<[string, readonly string[], readonly string[], string]>([
+        [
+            "a boundary event alone",
+            [],
+            ["Timer_1"],
+            "Also keep the boundary event incoming removed with it",
+        ],
+        [
+            "flows and boundary events together",
+            ["Flow_1", "Flow_2"],
+            ["Timer_1"],
+            "Also keep the 3 elements incoming removed with it",
+        ],
+        [
+            "two boundary events",
+            [],
+            ["Timer_1", "Error_1"],
+            "Also keep the 2 elements incoming removed with it",
+        ],
+    ])("counts elements for %s", (_name, connections, boundaryEvents, text) => {
+        expect(
+            restoreOfferText(
+                { elementId: "Task_Pack", connections, boundaryEvents, removedBy: "incoming" },
+                untranslated,
+            ),
+        ).toBe(text);
+    });
 });
 
 describe("build words", () => {
@@ -214,6 +242,24 @@ describe("buildNoteText", () => {
                 connections: ["Flow_2", "Flow_3"],
             },
             "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
+        ],
+        [
+            {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: ["Flow_2"],
+                boundaryEvents: ["Timer_1"],
+            },
+            "Pack box is kept without the 2 elements the other side removed with it: Timer_1, to packing",
+        ],
+        [
+            {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: [],
+                boundaryEvents: ["Timer_1"],
+            },
+            "Pack box is kept without the boundary event the other side removed with it: Timer_1",
         ],
         [
             {

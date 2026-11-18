@@ -324,6 +324,14 @@ const dictionary: Record<string, string> = {
     "Also keep the flow incoming removed with it": "Also keep the flow incoming removed with it",
     "Also keep the {count} flows incoming removed with it":
         "Also keep the {count} flows incoming removed with it",
+    "Also keep the boundary event current removed with it":
+        "Also keep the boundary event current removed with it",
+    "Also keep the {count} elements current removed with it":
+        "Also keep the {count} elements current removed with it",
+    "Also keep the boundary event incoming removed with it":
+        "Also keep the boundary event incoming removed with it",
+    "Also keep the {count} elements incoming removed with it":
+        "Also keep the {count} elements incoming removed with it",
     "Took back the pick of {element}": "Took back the pick of {element}",
     "Build": "Build",
     "Notes of the build": "Notes of the build",
@@ -341,6 +349,10 @@ const dictionary: Record<string, string> = {
         "{element} is drawn by another side than {containers}; check that it still sits inside",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is kept without the flows the other side removed with it: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} is kept without the boundary event the other side removed with it: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} is kept without the {count} elements the other side removed with it: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} is kept but is no longer the default flow of {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

@@ -11,7 +11,7 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
         case "drawnApartFromContainer":
             return [note.id, ...note.containers];
         case "restoredWithoutConnections":
-            return [note.id, ...note.connections];
+            return [note.id, ...(note.boundaryEvents ?? []), ...note.connections];
         case "defaultFlowNotRestored":
             return [
                 note.id,

@@ -11,7 +11,12 @@ import {
     chosenVersionOf,
 } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
-import { type RestoredFlowDefault, connectionsOn, keptAgainstRemoval } from "./removedConnections";
+import {
+    type RestoredFlowDefault,
+    connectionsOn,
+    keptAgainstRemoval,
+    removedWith,
+} from "./removedConnections";
 
 export type BuildNote =
     | {
@@ -29,6 +34,8 @@ export type BuildNote =
           readonly kind: "restoredWithoutConnections";
           readonly id: string;
           readonly connections: readonly string[];
+          /** The boundary events the other side removed with the element that the result leaves out. */
+          readonly boundaryEvents?: readonly string[];
       }
     | {
           readonly kind: "defaultFlowNotRestored";
@@ -128,27 +135,37 @@ export function drawnApartFromContainerNotes(
 }
 
 /**
- * An element kept against the other side's removal, while flows that connect
- * it on its own side stay out: each flow is decided on its own, so the flows
- * removed with the element stay removed, unless kept with it
- * (`pickWithConnections`), and it may be left unconnected.
+ * An element kept against the other side's removal, while the boundary events
+ * the other side removed with it, or flows that connect it or them on its own
+ * side, stay out: each is decided on its own, so what was removed with the
+ * element stays removed unless kept with it (`pickWithConnections`).
  */
 export function restoredWithoutConnectionsNotes(
     result: MergeResult,
     resolution: MergeResolution,
 ): BuildNote[] {
-    const isInResult = (element: MergeElement) =>
-        chosenVersionOf(element, (id) => resolution.elements[id]) !== undefined;
+    const leftOut = (candidates: readonly MergeElement[]) =>
+        candidates.filter((candidate) => !isInResultOf(candidate, resolution));
     return result.elements.flatMap((element): BuildNote[] => {
         const side = resolution.elements[element.id];
         if (side === undefined || !keptAgainstRemoval(element, side)) return [];
-        const connections = connectionsOn(result.elements, element.id, side)
-            .filter((candidate) => !isInResult(candidate))
-            .map(({ id }) => id);
-        return connections.length === 0
-            ? []
-            : [{ kind: "restoredWithoutConnections", id: element.id, connections }];
+        const boundaryEvents = leftOut(removedWith(result.elements, element, side).boundaryEvents);
+        const connected = [element, ...boundaryEvents].flatMap((end) =>
+            connectionsOn(result.elements, end.id, side),
+        );
+        const connections = leftOut([...new Set(connected)]).map(({ id }) => id);
+        if (connections.length === 0 && boundaryEvents.length === 0) return [];
+        const note = { kind: "restoredWithoutConnections", id: element.id, connections } as const;
+        return [
+            boundaryEvents.length === 0
+                ? note
+                : { ...note, boundaryEvents: boundaryEvents.map(({ id }) => id) },
+        ];
     });
+}
+
+function isInResultOf(element: MergeElement, resolution: MergeResolution): boolean {
+    return chosenVersionOf(element, (id) => resolution.elements[id]) !== undefined;
 }
 
 /** A flow kept against its removal that its source in the result does not name as its default. */

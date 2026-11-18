@@ -165,10 +165,12 @@ export type MergePaneOutcome =
           readonly blockedBy: readonly MergePaneBlock[];
       };
 
-/** The flows the other side removed with an element the user kept, offered on the pane of the kept side. */
+/** The flows and boundary events the other side removed with an element the user kept, offered on the pane of the kept side. */
 export interface MergePaneRestoreOffer {
     readonly elementId: string;
     readonly connections: readonly string[];
+    /** Set only when not empty. */
+    readonly boundaryEvents?: readonly string[];
     readonly removedBy: MergeSide;
 }
 
@@ -198,6 +200,7 @@ export type MergePaneBuildNote =
           readonly kind: "restoredWithoutConnections";
           readonly id: string;
           readonly connections: readonly string[];
+          readonly boundaryEvents?: readonly string[];
       }
     | {
           readonly kind: "defaultFlowNotRestored";

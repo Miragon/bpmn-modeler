@@ -107,6 +107,23 @@ const HAND_BUILT: readonly { readonly name: string; readonly result: MergeResult
         ),
     },
     {
+        name: "a task current removed with its timer and the timer's flow",
+        result: mergeResult(
+            process,
+            mergeElement("T", "removedByCurrent", { parent: "Process" }),
+            attachedTo("B", "removedByCurrent", "T"),
+            mergeElement("F", "removedByCurrent", {
+                type: "bpmn:SequenceFlow",
+                parent: "Process",
+                references: [
+                    refersTo("bpmn:SequenceFlow#sourceRef", "B"),
+                    refersTo("bpmn:SequenceFlow#targetRef", "X"),
+                ],
+            }),
+            mergeElement("X", "unchanged", { parent: "Process" }),
+        ),
+    },
+    {
         name: "a flow incoming points at a task it adds",
         result: mergeResult(
             process,
@@ -313,21 +330,24 @@ describe("MergeDecisions path independence", () => {
         }
     }, 30_000);
 
-    it("keeps an element with its connections as the plain pick followed by a pick of each flow", async () => {
+    it("keeps an element with its connections as the plain pick followed by a pick of each element offered", async () => {
         let offers = 0;
+        let boundaryEventOffers = 0;
         let defaultsRestored = 0;
         for (const { name, result } of await mergeResults()) {
             for (const { id } of result.elements) {
                 for (const side of MERGE_SIDES) {
                     const together = MergeDecisions.from(result);
-                    const connections = together.connectionsLeftOut(id, side);
-                    if (connections.length === 0) continue;
+                    const { connections, boundaryEvents } = together.removedWithLeftOut(id, side);
+                    const offered = [...boundaryEvents, ...connections];
+                    if (offered.length === 0) continue;
                     offers += 1;
+                    if (boundaryEvents.length > 0) boundaryEventOffers += 1;
                     const label = `${name}: ${id} ${side}`;
                     const oneByOne = MergeDecisions.from(result);
                     const applied = [
                         oneByOne.pick(id, side),
-                        ...connections.map((connection) => oneByOne.pick(connection, side)),
+                        ...offered.map((offeredId) => oneByOne.pick(offeredId, side)),
                     ].every((outcome) => outcome.applied);
 
                     expect(together.pickWithConnections(id, side).applied, label).toBe(applied);
@@ -339,6 +359,7 @@ describe("MergeDecisions path independence", () => {
             }
         }
         expect(offers).toBeGreaterThan(0);
+        expect(boundaryEventOffers, "offers that keep a boundary event").toBeGreaterThan(0);
         expect(defaultsRestored, "offers that restored a source's default").toBeGreaterThan(0);
     }, 30_000);
 
