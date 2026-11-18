@@ -1,6 +1,16 @@
-import { randomUUID } from "node:crypto";
+import {
+    commands,
+    ExtensionContext,
+    Tab,
+    TextDocumentSaveReason,
+    Uri,
+    window,
+    workspace,
+} from "vscode";
 
-import { commands, Disposable, Tab, Uri, window, workspace } from "vscode";
+import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
+
+import { elementXmlUris } from "./elementXmlUris";
 
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
@@ -17,106 +27,124 @@ export interface ElementXmlMergeRequest {
     readonly start: string;
 }
 
-/** The files the adapter serves, as the host sets them. */
-export interface ServedTextFiles {
-    setContent(uri: Uri, content: string): void;
-    deleteFile(uri: Uri): void;
-}
-
-/** The result's files, which also know what the editor wrote. */
-export interface EditorWrittenTextFiles extends ServedTextFiles {
-    lastEditorWriteOf(uri: Uri): string | undefined;
-}
-
-interface ServedMerge {
+interface OpenMerge {
     readonly base: Uri;
     readonly current: Uri;
     readonly incoming: Uri;
     readonly result: Uri;
+    closingFromCode: boolean;
+    manualSaveUnderway: boolean;
+    answer: string | undefined;
 }
 
 /**
  * Opens one element's XML in VS Code's merge editor: base and both sides
  * read-only under `bpmn-merge-xml:`, the result writable under
- * `bpmn-merge-result:`. The merge finishes when its tab closes, with the last
- * text the editor wrote, or none; a merge closed from code finishes with none.
+ * `bpmn-merge-result:`. The merge finishes when its last tab closes, with the
+ * text the user's last manual save wrote, or none: an auto-save is no answer,
+ * and a merge closed from code finishes with none.
  */
 export class VsCodeElementXmlMergeEditor {
-    private readonly servedByKey = new Map<string, ServedMerge>();
-    private readonly closingKeys = new Set<string>();
+    private readonly mergesByKey = new Map<string, OpenMerge>();
 
-    /** @param onFinished Told the key of a merge whose tab closed and the text the editor last wrote. */
+    /** @param onFinished Told the key of a finished merge and the text the user saved, if any. */
     constructor(
-        private readonly inputs: ServedTextFiles,
-        private readonly results: EditorWrittenTextFiles,
+        private readonly inputs: ServedTextFiles<Uri>,
+        private readonly results: EditorWrittenTextFiles<Uri>,
         private readonly onFinished: (key: string, written: string | undefined) => void,
     ) {}
 
-    register(): Disposable {
-        return window.tabGroups.onDidChangeTabs((event) => this.finishClosed(event.closed));
+    register(context: ExtensionContext): void {
+        context.subscriptions.push(
+            window.tabGroups.onDidChangeTabs((event) => this.finishClosed(event.closed)),
+            workspace.onWillSaveTextDocument(({ document, reason }) => {
+                const merge = this.mergeOfResult(document.uri);
+                if (merge) merge.manualSaveUnderway = reason === TextDocumentSaveReason.Manual;
+            }),
+            workspace.onDidSaveTextDocument((document) => {
+                const merge = this.mergeOfResult(document.uri);
+                if (!merge?.manualSaveUnderway) return;
+                merge.answer = this.results.lastEditorWriteOf(merge.result);
+                merge.manualSaveUnderway = false;
+            }),
+        );
     }
 
     async open(request: ElementXmlMergeRequest): Promise<void> {
-        const served = this.serve(request);
-        await commands.executeCommand(OPEN_MERGE_EDITOR, {
-            base: served.base,
-            input1: { uri: served.current, title: request.labels.current },
-            input2: { uri: served.incoming, title: request.labels.incoming },
-            output: served.result,
-        });
+        if (this.mergesByKey.has(request.key)) {
+            throw new Error(`The element XML merge ${request.key} is already open.`);
+        }
+        const merge = this.serve(request);
+        try {
+            await commands.executeCommand(OPEN_MERGE_EDITOR, {
+                base: merge.base,
+                input1: { uri: merge.current, title: request.labels.current },
+                input2: { uri: merge.incoming, title: request.labels.incoming },
+                output: merge.result,
+            });
+        } catch (error) {
+            this.finish(request.key, merge, undefined);
+            throw error;
+        }
     }
 
     async close(key: string): Promise<void> {
-        const served = this.servedByKey.get(key);
-        if (!served) return;
-        this.closingKeys.add(key);
+        const merge = this.mergesByKey.get(key);
+        if (!merge) return;
+        // The command returns before the editor shows, so only here is a merge without a tab known to have none.
+        if (tabsShowing(merge.result).length === 0) {
+            this.finish(key, merge, undefined);
+            return;
+        }
+        merge.closingFromCode = true;
         // The result is dirty from the start, and closing a dirty result asks the user to save it.
         const result = workspace.textDocuments.find(
-            (document) => document.uri.toString() === served.result.toString(),
+            (document) => document.uri.toString() === merge.result.toString(),
         );
         if (result) await result.save();
-        const tabs = tabsShowing(served.result);
+        const tabs = tabsShowing(merge.result);
         if (tabs.length > 0) await window.tabGroups.close(tabs, true);
     }
 
-    private serve(request: ElementXmlMergeRequest): ServedMerge {
-        const authority = randomUUID();
-        const uriOf = (scheme: string, side: string) =>
-            Uri.from({ scheme, authority, path: `/${request.elementId}.${side}.xml` });
-        const served = {
+    private serve(request: ElementXmlMergeRequest): OpenMerge {
+        const uriOf = elementXmlUris(request.elementId);
+        const merge: OpenMerge = {
             base: uriOf(MERGE_XML_SCHEME, "base"),
             current: uriOf(MERGE_XML_SCHEME, "current"),
             incoming: uriOf(MERGE_XML_SCHEME, "incoming"),
-            result: Uri.from({
-                scheme: MERGE_RESULT_SCHEME,
-                authority,
-                path: `/${request.elementId}.xml`,
-            }),
+            result: uriOf(MERGE_RESULT_SCHEME),
+            closingFromCode: false,
+            manualSaveUnderway: false,
+            answer: undefined,
         };
-        this.inputs.setContent(served.base, request.base);
-        this.inputs.setContent(served.current, request.current);
-        this.inputs.setContent(served.incoming, request.incoming);
-        this.results.setContent(served.result, request.start);
-        this.servedByKey.set(request.key, served);
-        return served;
+        this.inputs.setContent(merge.base, request.base);
+        this.inputs.setContent(merge.current, request.current);
+        this.inputs.setContent(merge.incoming, request.incoming);
+        this.results.setContent(merge.result, request.start);
+        this.mergesByKey.set(request.key, merge);
+        return merge;
+    }
+
+    private mergeOfResult(uri: Uri): OpenMerge | undefined {
+        return [...this.mergesByKey.values()].find(
+            (merge) => merge.result.toString() === uri.toString(),
+        );
     }
 
     private finishClosed(closed: readonly Tab[]): void {
         const closedResults = new Set(closed.map(mergeResultOf).map((uri) => uri?.toString()));
-        for (const [key, served] of this.servedByKey) {
-            const result = served.result;
-            if (!closedResults.has(result.toString()) || tabsShowing(result).length > 0) continue;
-            const written = this.closingKeys.has(key)
-                ? undefined
-                : this.results.lastEditorWriteOf(result);
-            this.servedByKey.delete(key);
-            this.closingKeys.delete(key);
-            [served.base, served.current, served.incoming].forEach((uri) =>
-                this.inputs.deleteFile(uri),
-            );
-            this.results.deleteFile(result);
-            this.onFinished(key, written);
+        for (const [key, merge] of this.mergesByKey) {
+            if (!closedResults.has(merge.result.toString())) continue;
+            if (tabsShowing(merge.result).length > 0) continue;
+            this.finish(key, merge, merge.closingFromCode ? undefined : merge.answer);
         }
+    }
+
+    private finish(key: string, merge: OpenMerge, written: string | undefined): void {
+        this.mergesByKey.delete(key);
+        [merge.base, merge.current, merge.incoming].forEach((uri) => this.inputs.deleteFile(uri));
+        this.results.deleteFile(merge.result);
+        this.onFinished(key, written);
     }
 }
 

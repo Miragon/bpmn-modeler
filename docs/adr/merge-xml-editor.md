@@ -1,7 +1,7 @@
 # Merge XML editor
 
 - Status: proposed
-- Last reviewed: 2026-11-17
+- Last reviewed: 2026-11-18
 
 ## Context
 
@@ -34,15 +34,20 @@ changed different parts to a whole pick.
   extension's Complete Merge button is gated to its own files, so the extension adds its
   own editor title button that runs `mergeEditor.acceptMerge`. That command reports
   success even when the user cancels its second dialog and the tab stays open, so the
-  extension takes the last text the editor wrote to the provider when the merge tab
-  closes; a close without a write discards. The text then passes #2457's checks.
+  extension takes the text the user's last manual save wrote to the provider when the
+  last merge tab closes; a close without one discards. A save whose
+  `onWillSaveTextDocument` reason is not `Manual` is no answer: the result is dirty from
+  the start, so any `files.autoSave` mode would otherwise
+  write the editor's own merge, base at every true conflict, before the user did anything.
+  The text then passes #2457's checks.
 - *Placement.* The command takes no view column and opens in the active group, so the
   group below the diagrams is focused first, as for the [XML diff](diff.md#element-xml-diff).
 - *Offered only where the command is.* A leading underscore marks a command VS Code may
   change without notice; this shape held from 1.69 to 1.146. The entry shows only when
   `commands.getCommands(false)` lists it (the filtered list hides it); otherwise the
   element is picked whole. The call cannot report a failed open: the command returns
-  before the editor loads. Theia registers the command with the same arguments, but it
+  before the editor loads. A merge whose editor never showed is finished without a text
+  when the merge view closes it; a rejected call finishes it at once. Theia registers the command with the same arguments, but it
   has not run there and Theia's tab API reports the inputs swapped, so the standalone app
   does not offer the entry yet.
 
@@ -58,6 +63,8 @@ side's change from a conflict.
 - The marker text makes the result dirty from the start, so closing asks to save and
   accepting always writes. "Complete with Conflicts" keeps the base's text for every open
   conflict, which parses and passes the checks; only the editor's dialog warns.
+- A Ctrl+S followed by a revert or by Don't Save still counts the saved text: the provider
+  cannot tell it from a save followed by a close.
 - The second dialog can be switched off per profile, so the number of dialogs is not
   fixed. Ctrl+Enter and the palette's Complete Merge exist only from 1.100, and the title
   button shows only in the focused group unless `workbench.editor.alwaysShowEditorActions`

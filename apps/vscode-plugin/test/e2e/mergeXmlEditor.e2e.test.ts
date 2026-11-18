@@ -61,6 +61,7 @@ const MERGED_BY_EDITOR = BASE.replace('type="check"', 'type="check-v2"').replace
     'target="order"',
     'target="incomingOrder"',
 );
+// The shape `writeConflictMarkers` writes; libs/modeler-core's conflictMarkers.spec.ts pins it to this one.
 const MARKER_TEXT = `<<<<<<< Current\n${CURRENT}=======\n${INCOMING}>>>>>>> Incoming\n`;
 
 const TIMEOUT = Symbol("timeout");
@@ -90,6 +91,17 @@ function report(step: string, observed: Record<string, unknown>): void {
 
 const resultDocuments = () =>
     vscode.workspace.textDocuments.filter((document) => document.uri.scheme === RESULT_SCHEME);
+
+const mergeResultOf = (tab: vscode.Tab): unknown => (tab.input as { result?: unknown })?.result;
+
+function mergeTabsOf(resultPath: string): vscode.Tab[] {
+    return vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .filter((tab) => {
+            const result = mergeResultOf(tab);
+            return result instanceof vscode.Uri && result.path === resultPath;
+        });
+}
 
 function describeValue(value: unknown): unknown {
     if (value instanceof vscode.Uri) return value.toString();
@@ -134,6 +146,7 @@ suite("Element XML merge editor", () => {
         key: string;
         finished: Promise<string | undefined>;
         result: vscode.TextDocument;
+        tabShownWhenOpenReturned: boolean;
     }> {
         opened += 1;
         const key = `merge-${opened}`;
@@ -147,6 +160,7 @@ suite("Element XML merge editor", () => {
             start: MARKER_TEXT,
         });
         await merge.opened;
+        const tabShownWhenOpenReturned = mergeTabsOf(`/Task_Check_${opened}.xml`).length > 0;
         const result = await waitFor(
             () =>
                 resultDocuments().find(
@@ -159,7 +173,7 @@ suite("Element XML merge editor", () => {
                     resultDocuments().map((document) => document.getText()),
                 )}`,
         );
-        return { key, finished: merge.finished, result };
+        return { key, finished: merge.finished, result, tabShownWhenOpenReturned };
     }
 
     async function closeActiveEditor(): Promise<"closed" | "prompted"> {
@@ -170,13 +184,18 @@ suite("Element XML merge editor", () => {
     test("1. merges the one-sided edits itself and leaves base at the true conflict", async () => {
         const { finished, result } = await openMerge();
         const shownBeforeSave = result.getText();
+        const documentDirtyBeforeSave = result.isDirty;
+        const tabDirtyBeforeSave = vscode.window.tabGroups.activeTabGroup.activeTab?.isDirty;
 
         await vscode.commands.executeCommand("workbench.action.files.save");
+        const documentDirtyAfterSave = result.isDirty;
         const close = await closeActiveEditor();
         const written = await within(finished, 10_000);
 
         report("1-marker-text", {
-            dirtyBeforeSave: result.isDirty,
+            documentDirtyBeforeSave,
+            tabDirtyBeforeSave,
+            documentDirtyAfterSave,
             shownBeforeSave,
             close,
             written: written === TIMEOUT ? "never finished" : written,
@@ -216,10 +235,10 @@ suite("Element XML merge editor", () => {
     });
 
     test("3. a merge tab's input names the result", async () => {
-        const { finished, result } = await openMerge();
+        const { finished, result, tabShownWhenOpenReturned } = await openMerge();
         const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
 
-        report("3-tab-input", describeTab(activeTab));
+        report("3-tab-input", { tabShownWhenOpenReturned, ...describeTab(activeTab) });
 
         await vscode.commands.executeCommand("workbench.action.files.revert");
         await closeActiveEditor();
@@ -242,11 +261,21 @@ suite("Element XML merge editor", () => {
         assert.ok(!filtered.includes(OPEN_MERGE_EDITOR));
     });
 
+    // A refused save prompt rejects the close on 1.76 but is only logged on stable, so the
+    // proof that nothing could ask is the tab being clean when it closed.
     test("5. closes a dirty result from code without asking to save", async () => {
-        const { key, finished } = await openMerge();
+        const { key, finished, result } = await openMerge();
         const prompts: string[] = [];
         const tabBefore = vscode.window.tabGroups.activeTabGroup.activeTab;
         const tabDirtyBeforeClose = tabBefore?.isDirty;
+        const closedTabsDirty: boolean[] = [];
+        const listener = vscode.window.tabGroups.onDidChangeTabs((event) =>
+            closedTabsDirty.push(
+                ...event.closed
+                    .filter((tab) => mergeResultOf(tab)?.toString() === result.uri.toString())
+                    .map((tab) => tab.isDirty),
+            ),
+        );
 
         const close = await within(
             api.mergeXml.close(key).catch((error: unknown) => {
@@ -255,11 +284,13 @@ suite("Element XML merge editor", () => {
             5_000,
         );
         const written = await within(finished, 5_000);
+        listener.dispose();
 
         report("5-close-dirty-from-code", {
             tabDirtyBeforeClose,
             close: close === TIMEOUT ? "hung" : "returned",
             prompts,
+            closedTabsDirty,
             written: written === TIMEOUT ? "never finished" : (written ?? null),
         });
         assert.strictEqual(
@@ -268,6 +299,7 @@ suite("Element XML merge editor", () => {
             "the result was not dirty, so nothing could ask",
         );
         assert.deepStrictEqual(prompts, []);
+        assert.deepStrictEqual(closedTabsDirty, [false], "the merge tab closed while dirty");
         assert.strictEqual(written, undefined);
         assert.ok(
             !vscode.window.tabGroups.all.some((group) =>
@@ -275,5 +307,36 @@ suite("Element XML merge editor", () => {
             ),
             "the merge tab is still open",
         );
+    });
+
+    test("6. an auto-save of the result is no answer", async () => {
+        const files = vscode.workspace.getConfiguration("files");
+        await files.update("autoSaveDelay", 100, vscode.ConfigurationTarget.Global);
+        await files.update("autoSave", "afterDelay", vscode.ConfigurationTarget.Global);
+        const saveReasons: vscode.TextDocumentSaveReason[] = [];
+        const listener = vscode.workspace.onWillSaveTextDocument((event) => {
+            if (event.document.uri.scheme === RESULT_SCHEME) saveReasons.push(event.reason);
+        });
+        try {
+            const { finished } = await openMerge();
+            await new Promise((done) => setTimeout(done, 2_000));
+            const tabDirtyAfterDelay = vscode.window.tabGroups.activeTabGroup.activeTab?.isDirty;
+
+            await vscode.commands.executeCommand("workbench.action.files.revert");
+            const close = await closeActiveEditor();
+            const written = await within(finished, 10_000);
+
+            report("6-auto-save", {
+                tabDirtyAfterDelay,
+                saveReasons,
+                close,
+                written: written === TIMEOUT ? "never finished" : (written ?? null),
+            });
+            assert.strictEqual(written, undefined);
+        } finally {
+            listener.dispose();
+            await files.update("autoSave", undefined, vscode.ConfigurationTarget.Global);
+            await files.update("autoSaveDelay", undefined, vscode.ConfigurationTarget.Global);
+        }
     });
 });

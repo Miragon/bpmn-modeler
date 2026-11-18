@@ -23,13 +23,17 @@ export interface ElementXmlMergeProbe {
  * behaves on the oldest and newest supported version.
  */
 export function register(context: ExtensionContext): ElementXmlMergeProbe {
-    const inputs = new InMemoryFileSystemProvider(true);
-    const results = new InMemoryFileSystemProvider();
-    const finishes = new Map<string, (written: string | undefined) => void>();
+    const inputs = new InMemoryFileSystemProvider({ readOnly: true });
+    const results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
+    const finishes = new Map<
+        string,
+        { finished: Promise<string | undefined>; finish: (written: string | undefined) => void }
+    >();
     const editor = new VsCodeElementXmlMergeEditor(inputs, results, (key, written) => {
-        finishes.get(key)?.(written);
+        finishes.get(key)?.finish(written);
         finishes.delete(key);
     });
+    editor.register(context);
     context.subscriptions.push(
         inputs,
         results,
@@ -40,13 +44,15 @@ export function register(context: ExtensionContext): ElementXmlMergeProbe {
         workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results, {
             isCaseSensitive: true,
         }),
-        editor.register(),
     );
     return {
         open(request) {
-            const finished = new Promise<string | undefined>((done) =>
-                finishes.set(request.key, done),
-            );
+            // A second open of one key is refused, and its `finished` is the open merge's.
+            const open = finishes.get(request.key);
+            if (open) return { opened: editor.open(request), finished: open.finished };
+            let finish: (written: string | undefined) => void = () => undefined;
+            const finished = new Promise<string | undefined>((done) => (finish = done));
+            finishes.set(request.key, { finished, finish });
             return { opened: editor.open(request), finished };
         },
         close: (key) => editor.close(key),

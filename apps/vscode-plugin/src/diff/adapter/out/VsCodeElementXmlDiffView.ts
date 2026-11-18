@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
     commands,
     ExtensionContext,
@@ -13,6 +11,8 @@ import {
 } from "vscode";
 
 import { ElementXmlDiff, ElementXmlDiffView } from "@miragon/bpmn-modeler-core";
+
+import { elementXmlUris } from "./elementXmlUris";
 
 export const ELEMENT_XML_SCHEME = "bpmn-element-xml";
 
@@ -130,14 +130,11 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     }
 
     private serve(diff: ElementXmlDiff): ShownElementXml {
-        const authority = randomUUID();
-        const uriFor = (side: string) =>
-            Uri.from({
-                scheme: ELEMENT_XML_SCHEME,
-                authority,
-                path: `/${diff.elementId}.${side}.xml`,
-            });
-        const shown = { beforeUri: uriFor("before"), afterUri: uriFor("after") };
+        const uriOf = elementXmlUris(diff.elementId);
+        const shown = {
+            beforeUri: uriOf(ELEMENT_XML_SCHEME, "before"),
+            afterUri: uriOf(ELEMENT_XML_SCHEME, "after"),
+        };
         this.textsByUri.set(shown.beforeUri.toString(), diff.before);
         this.textsByUri.set(shown.afterUri.toString(), diff.after);
         return shown;

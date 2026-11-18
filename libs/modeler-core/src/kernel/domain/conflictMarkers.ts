@@ -37,6 +37,27 @@ export function readConflictMarkers(text: string): ConflictMarkerReading {
     };
 }
 
+/**
+ * Writes Git's conflict text for two sides without a base section, which makes
+ * VS Code's merge editor merge the one-sided edits itself.
+ */
+export function writeConflictMarkers(
+    sides: { readonly current: string; readonly incoming: string },
+    labels: { readonly current: string; readonly incoming: string },
+): string {
+    return [
+        `${OPENING} ${labels.current}\n`,
+        endingInNewline(sides.current),
+        `${SEPARATOR}\n`,
+        endingInNewline(sides.incoming),
+        `${CLOSING} ${labels.incoming}\n`,
+    ].join("");
+}
+
+function endingInNewline(text: string): string {
+    return text === "" || text.endsWith("\n") ? text : `${text}\n`;
+}
+
 function isMarker(line: string, marker: string): boolean {
     return (
         line.startsWith(marker) && (line.length === marker.length || line[marker.length] === " ")

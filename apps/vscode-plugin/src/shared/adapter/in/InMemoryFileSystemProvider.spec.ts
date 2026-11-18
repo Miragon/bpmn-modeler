@@ -75,7 +75,7 @@ describe("InMemoryFileSystemProvider", () => {
     });
 
     it("rejects user writes to a read-only provider while the host can still update it", () => {
-        const provider = new InMemoryFileSystemProvider(true);
+        const provider = new InMemoryFileSystemProvider({ readOnly: true });
 
         provider.setContent(INPUT, '{"approved":true}');
 
@@ -150,8 +150,31 @@ describe("InMemoryFileSystemProvider", () => {
         expect(provider.lastEditorWriteOf(OTHER_SESSION_INPUT)).toBeUndefined();
     });
 
-    it("ignores an editor write to a file it no longer serves", () => {
+    it("lets an editor recreate a file the host dropped", () => {
         const provider = new InMemoryFileSystemProvider();
+        provider.setContent(INPUT, "{}");
+        provider.deleteFile(INPUT);
+
+        provider.writeFile(INPUT, bytes('{"amount":2}'), CREATE_OR_OVERWRITE);
+
+        expect(text(provider.readFile(INPUT))).toBe('{"amount":2}');
+    });
+
+    it("ignores an editor write that would create a file when only the host creates them", () => {
+        const provider = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
+        const changes = recordChanges(provider);
+
+        provider.writeFile(INPUT, bytes("{}"), CREATE_OR_OVERWRITE);
+
+        expect(provider.lastEditorWriteOf(INPUT)).toBeUndefined();
+        expect(() => provider.readFile(INPUT)).toThrow(
+            expect.objectContaining({ code: "FileNotFound" }),
+        );
+        expect(changes).toEqual([]);
+    });
+
+    it("ignores an editor write to a file it no longer serves when only the host creates them", () => {
+        const provider = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
         const changes = recordChanges(provider);
         provider.setContent(INPUT, "{}");
         provider.writeFile(INPUT, bytes('{"amount":1}'), CREATE_OR_OVERWRITE);
@@ -167,7 +190,7 @@ describe("InMemoryFileSystemProvider", () => {
     });
 
     it("serves a file again once the host sets its content", () => {
-        const provider = new InMemoryFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
         provider.setContent(INPUT, "{}");
         provider.deleteFile(INPUT);
         provider.setContent(INPUT, "[]");

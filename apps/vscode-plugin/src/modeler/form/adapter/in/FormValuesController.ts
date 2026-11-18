@@ -44,7 +44,7 @@ interface VirtualDocumentOwner {
 
 export class FormValuesController {
     private readonly inputFiles = new InMemoryFileSystemProvider();
-    private readonly outputFiles = new InMemoryFileSystemProvider(true);
+    private readonly outputFiles = new InMemoryFileSystemProvider({ readOnly: true });
     private readonly sessions = new Map<string, FormValuesSession>();
     // Preserve backing data when VS Code refuses to close a dirty companion tab.
     private readonly retiredSessions = new Set<FormValuesSession>();
