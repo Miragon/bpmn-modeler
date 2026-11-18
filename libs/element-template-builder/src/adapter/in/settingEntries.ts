@@ -1,10 +1,10 @@
 import type { ComponentType } from "@bpmn-io/properties-panel/preact";
+import { elementTypeName } from "@miragon/bpmn-modeler-types";
 
 import type { BindingField, EngineCatalog } from "../../domain/catalog";
 import { bindingOptions } from "../../domain/bindingOptions";
 import { allowedTypes, bindingSpecOf } from "../../domain/bindingRules";
 import { conditionOf, conditionRows } from "../../domain/conditions";
-import { elementTypeName } from "../../domain/elementTypes";
 import { arrayOf, objectOf, stringOf, stringsOf, valueAt, type Json } from "../../domain/json";
 import { normalizedNumberText, readNumberText } from "../../domain/numberText";
 import {
