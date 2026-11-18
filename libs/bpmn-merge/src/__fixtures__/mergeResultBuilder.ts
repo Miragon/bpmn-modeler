@@ -96,4 +96,5 @@ export function mergeResultWithoutBase(...elements: MergeElement[]): MergeResult
 export const NO_SOURCES: ShapelessValueSources = {
     names: { current: new Map(), incoming: new Map() },
     snapshots: { current: new Map(), incoming: new Map() },
+    handMergeTexts: new Map(),
 };

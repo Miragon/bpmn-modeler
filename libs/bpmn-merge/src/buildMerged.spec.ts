@@ -14,7 +14,9 @@ import {
     MERGE_SCENARIOS,
     scenarioNamed,
 } from "./__fixtures__/mergeScenarios";
+import { handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { acceptHandMerge } from "./acceptHandMerge";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
@@ -1099,5 +1101,55 @@ ${
             ]);
             expect(xml).toBe(versions.current);
         });
+    });
+});
+
+describe("buildMerged with versions merged by hand", () => {
+    const BOTH_CHANGED = ["Start_Order", "Task_Check", "Sub_Ship", "Task_Pack", "Flow_Yes"];
+
+    async function pickedOnCurrent() {
+        const versions = handMergeVersions();
+        const sources = await prepareMergeSources(versions);
+        const decisions = await decisionsFor(versions);
+        for (const id of BOTH_CHANGED) decisions.pick(id, "current");
+        const plain = await buildMerged(sources, decisions);
+        const textOf = (id: string) => sources.handMergeTexts.get(id)!.current;
+        return { sources, decisions, plain, textOf };
+    }
+
+    it("keeps a sub-process merged by hand with its children and its shape", async () => {
+        const { sources, decisions, plain, textOf } = await pickedOnCurrent();
+        const merged = textOf("Sub_Ship").replace('name="Ship now"', 'name="Ship soon"');
+        expect(await acceptHandMerge(sources, decisions, "Sub_Ship", merged)).toEqual({
+            applied: true,
+        });
+
+        const { xml } = await buildMerged(sources, decisions);
+
+        expect(xml).toBe(plain.xml.replace('name="Ship now"', 'name="Ship soon"'));
+        const parsed = await parseWithoutWarnings(xml);
+        const subProcess = parsed.elementsById["Sub_Ship"]!;
+        expect((subProcess.flowElements as { id: string }[]).map(({ id }) => id)).toEqual([
+            "Sub_Ship_Start",
+            "Task_Pack",
+            "Sub_Ship_End",
+            "Flow_Ship_1",
+            "Flow_Ship_2",
+        ]);
+    });
+
+    it("declares no namespace on an element merged by hand", async () => {
+        const { sources, decisions, textOf } = await pickedOnCurrent();
+        const merged = textOf("Task_Check").replace('custom:owner="billing"', 'custom:owner="sales"');
+        expect(merged).toMatch(/^<bpmn:serviceTask xmlns:camunda=/);
+        expect(await acceptHandMerge(sources, decisions, "Task_Check", merged)).toEqual({
+            applied: true,
+        });
+
+        const { xml } = await buildMerged(sources, decisions);
+
+        const startTag = xml.match(/<bpmn:serviceTask [^>]*>/)![0];
+        expect(startTag).toContain('custom:owner="sales"');
+        expect(startTag).not.toContain("xmlns");
     });
 });

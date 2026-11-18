@@ -1,4 +1,5 @@
 import type { MergeSources } from "./buildMergedSources";
+import type { HandMergedVersion } from "./handMerge";
 import { type ElementVersion, type MergeElement, type MergeSide, sameLanes } from "./mergeResult";
 
 /** One own attribute whose value differs between the sides; a side without it has none. */
@@ -21,7 +22,7 @@ export interface ShapelessValues {
 }
 
 /** What the values are read from, parsed once per merge. */
-export type ShapelessValueSources = Pick<MergeSources, "names" | "snapshots">;
+export type ShapelessValueSources = Pick<MergeSources, "names" | "snapshots" | "handMergeTexts">;
 
 const NO_VALUES: Readonly<Record<string, string>> = {};
 
@@ -29,14 +30,26 @@ const NO_VALUES: Readonly<Record<string, string>> = {};
  * Each side's presence and name and, where both sides hold the element, the
  * own attributes whose values differ, compared as text, and whether anything
  * beyond them differs. The base's values are not shown, so they are not read;
- * why a side lacks the element is the row's `lackingSide`.
+ * why a side lacks the element is the row's `lackingSide`. A version merged by
+ * hand stands for its side's own.
  */
 export function shapelessValuesOf(
     sources: ShapelessValueSources,
     element: MergeElement,
+    handMerge?: HandMergedVersion,
 ): ShapelessValues {
+    const valuesOf = (side: MergeSide): SideValues | undefined => {
+        if (handMerge?.side === side) return handMerge;
+        const snapshot = sources.snapshots[side].get(element.id);
+        return snapshot === undefined
+            ? undefined
+            : { attributes: snapshot.attributes, content: snapshot.content };
+    };
     const held = (side: MergeSide) => {
-        const name = sources.names[side].get(element.id);
+        const name =
+            handMerge?.side === side
+                ? handMerge.attributes["name"]
+                : sources.names[side].get(element.id);
         return element.versions[side] === undefined
             ? undefined
             : name === undefined
@@ -51,18 +64,22 @@ export function shapelessValuesOf(
         ...(incomingSide === undefined ? {} : { incoming: incomingSide }),
         ...(current === undefined || incoming === undefined
             ? { differences: [] }
-            : comparedSides(sources, element.id, current, incoming)),
+            : comparedSides(valuesOf("current"), valuesOf("incoming"), current, incoming)),
     };
 }
 
+/** What a side writes of the element: a snapshot's, or a hand-merged version's. */
+interface SideValues {
+    readonly attributes: Readonly<Record<string, string>>;
+    readonly content: string;
+}
+
 function comparedSides(
-    sources: ShapelessValueSources,
-    id: string,
+    currentSnapshot: SideValues | undefined,
+    incomingSnapshot: SideValues | undefined,
     current: ElementVersion,
     incoming: ElementVersion,
 ): Pick<ShapelessValues, "differences" | "moreDiffers"> {
-    const currentSnapshot = sources.snapshots.current.get(id);
-    const incomingSnapshot = sources.snapshots.incoming.get(id);
     const currentValues = currentSnapshot?.attributes ?? NO_VALUES;
     const incomingValues = incomingSnapshot?.attributes ?? NO_VALUES;
     const attributes = new Set([...Object.keys(currentValues), ...Object.keys(incomingValues)]);

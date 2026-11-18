@@ -7,6 +7,7 @@ import {
     scenarioNamed,
 } from "./__fixtures__/mergeScenarios";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { acceptHandMerge } from "./acceptHandMerge";
 import { buildMerged } from "./buildMerged";
 import { type MergeSources, prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
@@ -305,4 +306,37 @@ describe("every end state the picks reach, overriding one automatic resolution e
             }
         },
     );
+});
+
+describe("a hand merge of each picked element's own text", () => {
+    it.each(
+        MERGE_SCENARIOS.filter(({ base }) => base !== undefined).map((scenario) => ({
+            ...scenario,
+        })),
+    )("$name: equal text builds byte-equal", async (scenario) => {
+        const [result, sources] = await Promise.all([
+            computeMerge(scenario),
+            prepareMergeSources(scenario),
+        ]);
+        for (const side of SIDES) {
+            const decisions = MergeDecisions.from(result);
+            const picked = [...sources.handMergeTexts.keys()].filter(
+                (id) => decisions.pick(id, side).applied,
+            );
+            for (let [open] = decisions.openConflicts; open; [open] = decisions.openConflicts) {
+                expect(SIDES.some((choice) => decisions.pick(open!.id, choice).applied)).toBe(true);
+            }
+            const plain = await buildMerged(sources, decisions);
+
+            for (const id of picked.filter((candidate) => decisions.sideOf(candidate) === side)) {
+                const own = sources.handMergeTexts.get(id)![side];
+                expect(await acceptHandMerge(sources, decisions, id, own), id).toEqual({
+                    applied: true,
+                });
+            }
+
+            expect(decisions.handMergedVersions).toEqual([]);
+            expect((await buildMerged(sources, decisions)).xml).toBe(plain.xml);
+        }
+    });
 });
