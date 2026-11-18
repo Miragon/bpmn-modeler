@@ -2,6 +2,10 @@
 
 Resolve a Git conflict in a `.bpmn` file as two diagrams instead of conflict markers in XML. You decide per element which side to keep, build the result into the file, check it in the modeler and stage it as usual.
 
+::: warning Alpha: check the result before you stage it
+The BPMN merge view is in alpha. The file it builds can miss something one of the sides had, such as an element, an attribute, an extension element or a shape, in cases the merge view does not detect yet. Before you stage the file, look through it in the modeler and use [Compare the result](#compare-the-result) against both sides. Until you stage it, `git checkout -m -- <file>` brings back Git's conflict markers, so you can start over or resolve the file as text.
+:::
+
 <figure class="shot"><img src="./images/bm-open.png" alt="A merge tab titled merged.bpmn (Merge: main ↔ feature) with current's diagram on the left and incoming's on the right, each pane with a one-line bar: Current and its counts on the left, Incoming with its counts, ‹ –/1 ›, the … menu and a disabled Build on the right"><figcaption>Current on the left, incoming on the right, during a rebase too.</figcaption></figure>
 
 ## Open the merge view
@@ -105,6 +109,7 @@ A step selects its element, so the keyboard way is <kbd>Alt</kbd>+<kbd>F5</kbd>,
 
 ## Limits
 
+- The merge view is in alpha: check the built file before you stage it, as the note at the top says.
 - Picks live while the merge view is open. Closing its tab or reloading the window loses them; a restored tab says the view has ended, and the command opens it again.
 - VS Code only: IntelliJ opens no merge view. The standalone app is untested.
 - For a `.bpmn` file under Git LFS or with a textconv driver, Git hands over text that is not BPMN, so the merge view refuses it.
