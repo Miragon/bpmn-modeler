@@ -49,5 +49,5 @@ erased and stays allowed.
 
 `@miragon/bpmn-modeler-types/mergeVocabulary` is `src/mergeVocabulary.ts` alone, for the same reason:
 the merge view's sides, markers, marker classes and caption roles, which `libs/bpmn-merge` reads without
-the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. The file is excluded from the
-npm component in `release-please-config.json` (`docs/adr/merge.md`).
+the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. `.github/release-lines.json`
+routes it like the rest of the library, to every line that ships it (`docs/adr/merge.md`).

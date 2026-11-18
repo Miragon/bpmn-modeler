@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    focusedWorkspaces,
-    jobConditionTargets,
-    triggerPaths,
-    workflowAssignment,
-    workflowPattern,
-    yarnRunSteps,
-} from "./workflowText";
+import { focusedWorkspaces, jobConditionTargets, triggerPaths, yarnRunSteps } from "./workflowText";
 
 const workflow = {
     path: ".github/workflows/example.yml",
@@ -38,11 +31,7 @@ jobs:
       contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'one') ||
       contains(fromJSON(needs.detect-changes.outputs.affected-targets), 'two')
     steps:
-      - run: |
-          SHARED='^libs/shared/'
-          EXTRA='^apps/extra/'
-          RELEVANT="^apps/(one|two)/|\${SHARED}|\${EXTRA}"
-          LITERAL='^apps/\${SHARED}'
+      - run: echo e2e
   other:
     if: always()
 `,
@@ -92,17 +81,6 @@ describe("workflow parsers", () => {
         );
     });
 
-    it("expand every shell variable a double-quoted pattern names", () => {
-        expect(workflowAssignment(workflow, "SHARED")).toBe("^libs/shared/");
-        expect(workflowPattern(workflow, "RELEVANT").test("libs/shared/src/x.ts")).toBe(true);
-        expect(workflowPattern(workflow, "RELEVANT").test("apps/extra/src/x.ts")).toBe(true);
-        expect(workflowPattern(workflow, "RELEVANT").test("apps/three/src/x.ts")).toBe(false);
-    });
-
-    it("leave a single-quoted pattern unexpanded, as the shell does", () => {
-        expect(workflowPattern(workflow, "LITERAL").source).toBe("^apps\\/${SHARED}");
-    });
-
     it.each([
         ["|", "yarn build:extra"],
         [">-", "corepack yarn workspace @scope/extra build"],
@@ -133,7 +111,6 @@ describe("workflow parsers", () => {
 
     it.each([
         ["triggerPaths", () => triggerPaths(empty, "push"), "has no push paths"],
-        ["workflowAssignment", () => workflowAssignment(empty, "X"), "assigns no X"],
         ["focusedWorkspaces", () => focusedWorkspaces(empty), "yarn workspaces focus"],
         ["yarnRunSteps", () => yarnRunSteps(empty), "no one-line"],
         ["jobConditionTargets", () => jobConditionTargets(workflow, "other"), "names no"],

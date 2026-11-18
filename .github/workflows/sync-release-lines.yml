@@ -1,0 +1,106 @@
+name: Sync release lines
+
+# No release line watches source code: release-please releases each line from
+# the commits that change its folder release/<id>/, and only this workflow
+# writes there. For every first-parent commit of a push, release-routing.mjs
+# decides the lines from .github/release-lines.json and writes one attribution
+# commit per line group (subject "<subject> [sync <short sha>]") through the Git
+# Data API, all as one fast-forward of main. A line that already has the
+# attribution of a commit is skipped, so a re-run writes nothing twice.
+#
+# The App token makes the push re-trigger release-please.yml; a GITHUB_TOKEN
+# push would not. Attribution commits change only release/**, so they do not
+# trigger this workflow. There is no concurrency group: GitHub keeps one pending
+# run per group and cancels the others, which would drop a push. Parallel runs
+# re-read main and retry on a non-fast-forward instead.
+#
+# workflow_dispatch adds every attribution a line lacks since its last tag
+# (reconcile). Unchecked, it only lists them in the step summary.
+#
+# A failed run re-runs the release PR's Release attribution check, which then
+# fails: release-please pushes the release branch only when the PR body changes,
+# and a missing attribution leaves the body as it was.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'release/**'
+  workflow_dispatch:
+    inputs:
+      reconcile:
+        description: Write the missing attributions since each line's last tag (unchecked lists them only)
+        type: boolean
+        default: false
+
+# Writes use the App token. GITHUB_TOKEN reads for the listing dispatch and
+# re-runs the release PR's check after a failure.
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  sync:
+    name: Attribute commits to release lines
+    # The history of main decides the commits since each tag.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      # The one combined release PR's branch (separate-pull-requests: false).
+      RELEASE_BRANCH: release-please--branches--main
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The history and tags decide the commits; the writes go through the API.
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - if: github.event_name == 'push' || inputs.reconcile
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - name: Attribute the pushed commits
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RANGE: ${{ github.event.before }}..${{ github.sha }}
+        run: node .github/scripts/release-lines-sync.mjs sync "$RANGE"
+
+      - name: Reconcile since each line's last tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          RECONCILE: ${{ inputs.reconcile }}
+        run: |
+          if [ "$RECONCILE" = "true" ]; then
+            node .github/scripts/release-lines-sync.mjs reconcile
+          else
+            node .github/scripts/release-lines-sync.mjs reconcile --dry-run
+          fi
+
+      - name: Re-run the release PR's attribution check
+        if: failure() || cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          head=$(gh pr list --head "$RELEASE_BRANCH" --base main --state open --json headRefOid --jq '.[0].headRefOid // empty')
+          if [ -z "$head" ]; then
+            echo "No open release PR; its check runs when release-please opens it."
+            exit 0
+          fi
+          run=$(gh run list --workflow release-attribution.yml --commit "$head" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ]; then
+            echo "::warning::No Release attribution run for $head; re-run it on the release PR before merging."
+            exit 0
+          fi
+          gh run rerun "$run" || echo "::warning::Could not re-run Release attribution run $run; re-run it on the release PR before merging."

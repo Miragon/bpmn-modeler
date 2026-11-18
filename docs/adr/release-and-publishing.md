@@ -1,13 +1,13 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-18
 
 ## Context
 
 Published packages and IDE hosts have independent version lines but bundle shared
-source. Release routing must account for changes in those shared inputs without
-treating every package API break as a host break. Releases are cut occasionally
+source. Each line's notes must list the changes its users get and no other, and a
+package API break must not count as a host break. Releases are cut occasionally
 and usually ship every component with pending changes. npm and VS Code
 Marketplace publishing need authentication without a standing CI token (Azure
 DevOps retires the global PATs the Marketplace accepted on December 1, 2026, and
@@ -18,7 +18,7 @@ Open VSX offers the same OIDC exchange). Operational steps are in the
 
 ## Contents
 
-- [Release components and markers](#release-components-and-markers)
+- [Release lines and attribution](#release-lines-and-attribution)
 - [Release pull request](#release-pull-request)
 - [Packing and publishing](#packing-and-publishing)
 - [Orca plugin](#orca-plugin)
@@ -26,55 +26,70 @@ Open VSX offers the same OIDC exchange). Operational steps are in the
 
 ## Decision
 
-### Release components and markers
+### Release lines and attribution
 
-Release-please routes by changed file paths, not Conventional Commit scope. Only
-its root component can observe multiple paths, so give that slot to the BPMN
-package, whose public semver contract spans its package sources and inlined
-libraries. The [release configuration](../../release-please-config.json) is the
-source of truth for routing and version-stamped files.
+No release line watches source code. Release-please stays the version and
+changelog engine, but each of the five lines is a `simple` package at
+`release/<id>` (`version.txt`, `ATTRIBUTION`), and only the
+[sync workflow](../../.github/workflows/sync-release-lines.yml) commits there. Its
+changelog (`changelog-path`) and versioned files (`extra-files`) keep their places,
+addressed from the repository root with a leading `/`. Tags stay
+`<component>-v<version>`. The private root `package.json` is an extra file of
+`bpmn-modeler`, as it followed the npm package when that package was the root.
 
-| Component | Watched location | Shared-source mechanism |
-| --- | --- | --- |
-| `bpmn-modeler` | Root `.` with exclusions | Receives its package and inlined-library changes directly |
-| `dmn-modeler` | `packages/dmn-modeler` | `BUNDLED_LIBS` for `modeler-types`, `bpmn-diff` and `bpmn-i18n-extras` |
-| `vscode` | `apps/vscode-plugin` | `BUNDLED_WEBVIEW` for bundled packages, webviews, core/shared and standalone sources |
-| `intellij` | `apps/intellij-plugin` | `BUNDLED_WEBVIEW` for its bundled webviews, bridge/core and relevant package/library sources |
-| `orca` | `apps/orca-plugin` | `BUNDLED_WEBVIEW` for both packages, the libraries they inline and `libs/shared` |
+| Line | Ships to |
+| --- | --- |
+| `bpmn-modeler` | npm `@miragon/bpmn-modeler` |
+| `vscode` | VS Code Marketplace, Open VSX, standalone app |
+| `intellij` | JetBrains Marketplace |
+| `orca` | Miragon/orca-plugins |
+| `dmn-modeler` | npm `@miragon/dmn-modeler` |
 
-The root excludes applications, docs, CI, host libraries, the DMN package and root
-tooling files individually. It is a blocklist without globs: review new root files
-so unrelated tooling does not trigger npm releases. Docs and workflow changes do
-not themselves release products. Tags stay `<component>-v<version>` and changelogs
-live with each component. Root `package.json` tracks the BPMN npm version; VS
-Code's extra files keep standalone and its extension version in lockstep.
+The [registry](../../.github/release-lines.json) says which paths each line ships,
+which files no user receives (specs, tests, fixtures, READMEs) and which workspaces
+no line ships. For every first-parent commit pushed to main,
+[release-routing.mjs](../../.github/scripts/release-routing.mjs) derives the lines
+of a `feat` or `fix` from its changed files, until #2548 adds the PR's declaration,
+and the sync workflow writes one attribution commit per line group through
+[release-lines-sync.mjs](../../.github/scripts/release-lines-sync.mjs), which
+holds the command line and the I/O. It changes
+`release/<id>/ATTRIBUTION` of each line in the group, and its subject is the
+commit's subject plus `[sync <short sha>]`. A breaking `!` stays only on the lines
+whose `breaking` globs match a shipped file: the npm package's contract spans its
+inlined libraries, a host breaks only through its own folder. `chore`, `docs` and
+`refactor` reach no line, and the changelog sections are `feat` and `fix` only, so
+a commit of another type that changes `release/<id>/` releases nothing. The sync
+skips its own commits and release-please's, writes nothing twice, writes no commit
+that leaves the tree unchanged and retries when main moves under it.
 
-**Markers.** For shared `feat`/`fix` changes, the
-[marker workflow](../../.github/workflows/sync-release-markers.yml) creates one
-commit touching the affected markers and mirroring the triggering squash-merge PR
-title. It preserves the type (`feat` gives minor, `fix` patch) but strips the
-breaking `!`: a shared API break need not break a bundling host. A genuinely broken
-component must be touched in its own directory or get an explicit `Release-As`
-override. Shared `chore`/`docs`/`refactor` changes ship with the next release
-without marker attribution. DMN's three inlined libraries use the same mechanism
-(IntelliJ bundles no DMN editor and gets no DMN-only markers); marker files are
-excluded from trigger paths where needed, DMN's in particular, to prevent
-recursive marker commits. The
-[release-marker spec](../../tools/repo-checks/src/releaseMarkers.spec.ts) fails when
-a library either package inlines is missing from the workflow's trigger paths or
-the routing pattern. The
-[host webview spec](../../tools/repo-checks/src/hostWebviews.spec.ts) takes the
-webviews each host ships from its build and fails when the trigger paths or a host's
-routing pattern misses one of them, or matches a webview that host does not ship. It
-checks the publish workflows' focused installs and build steps against the same lists,
-and fails when a focus line names a package that is no workspace, which otherwise
-surfaces only at release time.
+The specs hold the registry to the builds
+([releaseLines.spec.ts](../../tools/repo-checks/src/releaseLines.spec.ts)) and the
+registry, release-please configuration, manifest, `version.txt` files and versioned
+files to each other
+([releasePackages.spec.ts](../../tools/repo-checks/src/releasePackages.spec.ts)).
+The [host webview spec](../../tools/repo-checks/src/hostWebviews.spec.ts) keeps the
+publish workflows' installs and builds to the webviews each host ships.
 
-Keeping VS Code as root would leave the npm package's inlined-library changes
-under-versioned and could major-release VS Code for package-only breaks. Generic
-patch or scheduled batch markers would lose meaningful changelog entries or
-attribute shipped changes to a later release. The accepted cost is a bot commit for
-each relevant shared feature/fix.
+Cost: the sync run now carries the notes. A failed or skipped run leaves a change
+off its lines, so the
+[release attribution check](../../.github/workflows/release-attribution.yml) fails
+the release PR when a `feat`/`fix` since a line's last tag lacks its attribution,
+and a `reconcile` dispatch of the sync adds what is missing. Every
+other PR passes that check at once, so it can be required. release-please pushes
+the release PR only when its body changes, which a missing attribution does not,
+so a failed sync run re-runs the check; a sync that never ran is caught only by
+re-running it before the merge. Only the commit's subject reaches a line: a source
+PR's `BEGIN_COMMIT_OVERRIDE`, a `BREAKING CHANGE:` footer and a `Release-As:`
+footer do not reach its attribution commits, so a break is marked with `!`.
+
+Rejected: a root component with a blocklist of `exclude-paths`, because
+release-please matches them as folder prefixes only, so top-level files such as
+`yarn.lock` reached the npm notes, and native routing counted spec files. Path
+markers per bundled folder (the previous `BUNDLED_WEBVIEW`/`BUNDLED_LIBS`), because
+they copied every shared change into every line that bundles the folder. Labels,
+because they are set by hand after the fact and are not in the history
+release-please reads. Rewriting the release PR's notes, because every push to main
+regenerates the PR.
 
 ### Release pull request
 
@@ -152,8 +167,7 @@ build output, and manual dispatch is a dry run.
 
 - release-please bumps `orca-plugin.json` with the workspace's version (the
   [manifest spec](../../apps/orca-plugin/src/manifest.contract.spec.ts) keeps the
-  two equal) and the line starts at `0.1.0` (`initial-version`) because
-  release-please gives a package without a released version `1.0.0`.
+  two equal). The line started at `0.1.0`.
 - One build writes both editor pages, so shared code ships once. The bundle ships
   unminified with sourcemaps but without the libraries' comments: Orca's listing
   policy forbids only code minified to hide what it does.
@@ -161,9 +175,9 @@ build output, and manual dispatch is a dry run.
 ## Consequences
 
 Packages keep separate version lines while bundled feature/fix changes reach the
-hosts that ship them, and everything releases together from one PR and one
-approval. Routing exclusions and marker input sets are maintained configuration,
-not inferred from the module graph. npm, VS Code Marketplace and Open VSX
+lines that ship them, and everything releases together from one PR and one
+approval. The registry is maintained configuration, checked against the builds by
+specs rather than inferred from the module graph at release time. npm, VS Code Marketplace and Open VSX
 publishing use short-lived identity; package bootstrap and trusted-publisher
 registration remain explicit setup steps, and the workflow file name and
 environment name are tied to each registry's policy.

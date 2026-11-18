@@ -92,7 +92,8 @@ local hook checks commits. Use the `commit` skill to create one.
   repo-wide change.
 - **Body/footer:** optional. Explain the *why* when the subject does not.
   Reference PRs/issues in the footer (`(#1056)`). Mark a breaking change with
-  `!` after the type/scope or a `BREAKING CHANGE:` footer.
+  `!` after the type/scope in the PR title: the release lines read only the
+  title, so a `BREAKING CHANGE:` footer alone reaches no changelog.
 
 Examples from the history:
 
