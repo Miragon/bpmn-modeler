@@ -155,7 +155,7 @@ describe("the release lines of past changes", () => {
         expect(derivedLines(files, registry)).toEqual([]);
     });
 
-    it("keeps a host off its line when only one of its specs changed (PR 2499)", () => {
+    it("keeps a host off its line when only one of its specs changed (a PR 2499-like change)", () => {
         expect(
             derivedLines(
                 [
@@ -169,7 +169,7 @@ describe("the release lines of past changes", () => {
         ).toEqual(["intellij"]);
     });
 
-    it("routes a webview change with a lockfile bump to the hosts, not the npm package (PR 2484)", () => {
+    it("routes a webview change with a lockfile bump to the hosts, not the npm package (a PR 2484-like change)", () => {
         expect(
             derivedLines(
                 ["yarn.lock", "apps/bpmn-webview/src/merge/view.ts", "libs/shared/src/protocol.ts"],
@@ -178,7 +178,7 @@ describe("the release lines of past changes", () => {
         ).toEqual(["vscode", "intellij", "orca"]);
     });
 
-    it("routes a change to the npm package and both plugins to all their lines (PR 2347)", () => {
+    it("routes a change to the npm package and both plugins to all their lines (a PR 2347-like change)", () => {
         expect(
             derivedLines(
                 [
@@ -191,13 +191,19 @@ describe("the release lines of past changes", () => {
         ).toEqual(["bpmn-modeler", "vscode", "intellij", "orca"]);
     });
 
-    it("routes a viewer fix in the npm package to it and every host that bundles it (PR 2521)", () => {
+    it("routes a viewer fix in the npm package to it and every host that bundles it (a PR 2521-like change)", () => {
         expect(derivedLines(["packages/bpmn-modeler/src/viewer/DiffViewer.ts"], registry)).toEqual([
             "bpmn-modeler",
             "vscode",
             "intellij",
             "orca",
         ]);
+    });
+
+    it("routes the merge vocabulary to every line that ships the types library", () => {
+        expect(derivedLines(["libs/modeler-types/src/mergeVocabulary.ts"], registry)).toEqual(
+            derivedLines(["libs/modeler-types/src/index.ts"], registry),
+        );
     });
 
     it("routes a VS Code walkthrough page, which the extension shows, to VS Code", () => {

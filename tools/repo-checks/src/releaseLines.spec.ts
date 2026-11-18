@@ -1,4 +1,5 @@
 import { readWorkspaces, type SourceFile } from "@miragon/architecture-testing";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -169,13 +170,20 @@ describe("the release line registry", () => {
         ).toEqual([]);
     });
 
-    it("names only paths that exist", () => {
-        const globs = [...registry.ignore, ...registry.lines.flatMap(({ ships }) => ships)];
-        const missing = globs
-            .map((glob) => glob.replace(/^!/, "").replace(/\/\*\*$/, ""))
-            .filter((path) => !path.includes("*") && !existsSync(join(REPO_ROOT, path)));
+    it("names only globs that match a tracked file", () => {
+        const trackedFiles = execFileSync("git", ["ls-files"], { cwd: REPO_ROOT, encoding: "utf8" })
+            .split("\n")
+            .filter((path) => path !== "");
+        const globs = [
+            ...registry.ignore,
+            ...registry.lines.flatMap(({ ships, breaking }) => [...ships, ...breaking]),
+        ];
+        const dead = [...new Set(globs)].filter((glob) => {
+            const pattern = globToRegExp(glob.replace(/^!/, ""));
+            return !trackedFiles.some((path) => pattern.test(path));
+        });
 
-        expect(missing, `${REGISTRY_PATH} names paths that do not exist`).toEqual([]);
+        expect(dead, `${REGISTRY_PATH} names globs that match no tracked file`).toEqual([]);
     });
 
     it("keeps test tooling out of the runtime dependencies of a shipped workspace", () => {
@@ -253,13 +261,5 @@ describe("the libraries the npm packages inline", () => {
 
     it.each(dmnInlined)("ships libs/%s on the dmn-modeler line", (library) => {
         expect(derivedLines([sourceFileIn(`libs/${library}`)], registry)).toContain("dmn-modeler");
-    });
-});
-
-describe("the merge vocabulary", () => {
-    it("ships only on the lines that ship the merge library, which alone reads it", () => {
-        expect(derivedLines(["libs/modeler-types/src/mergeVocabulary.ts"], registry)).toEqual(
-            derivedLines([sourceFileIn("libs/bpmn-merge")], registry),
-        );
     });
 });
