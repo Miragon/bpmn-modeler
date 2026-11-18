@@ -19,7 +19,7 @@ import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { FormInputValuesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { InMemoryJsonFileSystemProvider } from "./InMemoryJsonFileSystemProvider";
+import { InMemoryFileSystemProvider } from "../../../../shared/adapter/in/InMemoryFileSystemProvider";
 
 export const TOGGLE_FORM_INPUT_VALUES_CMD = "bpmn-modeler.toggleFormInputValues";
 export const TOGGLE_FORM_OUTPUT_VALUES_CMD = "bpmn-modeler.toggleFormOutputValues";
@@ -43,8 +43,8 @@ interface VirtualDocumentOwner {
 }
 
 export class FormValuesController {
-    private readonly inputFiles = new InMemoryJsonFileSystemProvider();
-    private readonly outputFiles = new InMemoryJsonFileSystemProvider(true);
+    private readonly inputFiles = new InMemoryFileSystemProvider();
+    private readonly outputFiles = new InMemoryFileSystemProvider(true);
     private readonly sessions = new Map<string, FormValuesSession>();
     // Preserve backing data when VS Code refuses to close a dirty companion tab.
     private readonly retiredSessions = new Set<FormValuesSession>();
@@ -314,7 +314,7 @@ export class FormValuesController {
         this.providerFor(uri).deleteFile(uri);
     }
 
-    private providerFor(uri: Uri): InMemoryJsonFileSystemProvider {
+    private providerFor(uri: Uri): InMemoryFileSystemProvider {
         return uri.scheme === FORM_INPUT_VALUES_SCHEME ? this.inputFiles : this.outputFiles;
     }
 

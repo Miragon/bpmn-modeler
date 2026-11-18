@@ -13,6 +13,7 @@ import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
 import * as addOnsFeature from "./composition/addOnsFeature";
+import * as elementXmlMergeFeature from "./composition/elementXmlMergeFeature";
 
 /** Narrow API surface returned by `activate()` for e2e tests only. */
 export interface TestApi {
@@ -33,6 +34,7 @@ export interface TestApi {
         /** Builds the merge view's result into the working file, as its Build button does. */
         build(fileUri: string): Promise<void>;
     };
+    mergeXml: elementXmlMergeFeature.ElementXmlMergeProbe;
 }
 
 /**
@@ -68,6 +70,7 @@ export function activate(context: ExtensionContext): TestApi {
         conflictMarkers,
         buildMerge,
     } = diffFeature.register(context, deps);
+    const mergeXml = elementXmlMergeFeature.register(context);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
@@ -137,5 +140,6 @@ export function activate(context: ExtensionContext): TestApi {
             },
             build: buildMerge,
         },
+        mergeXml,
     };
 }

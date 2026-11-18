@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("vscode", () => import("../../../../__fixtures__/vscodeFileSystemFake"));
+vi.mock("vscode", () => import("../../../__fixtures__/vscodeFileSystemFake"));
 
 import { FileChangeType, FileType, Uri } from "vscode";
 
-import { InMemoryJsonFileSystemProvider } from "./InMemoryJsonFileSystemProvider";
+import { InMemoryFileSystemProvider } from "./InMemoryFileSystemProvider";
 
 const ROOT = Uri.parse("bpmn-form-input-values://session-a/");
 const INPUT = Uri.parse("bpmn-form-input-values://session-a/order.input.json");
@@ -14,7 +14,7 @@ const CREATE_OR_OVERWRITE = { create: true, overwrite: true };
 const bytes = (text: string) => new TextEncoder().encode(text);
 const text = (content: Uint8Array) => new TextDecoder().decode(content);
 
-function recordChanges(provider: InMemoryJsonFileSystemProvider) {
+function recordChanges(provider: InMemoryFileSystemProvider) {
     const changes: { type: FileChangeType; uri: string }[] = [];
     provider.onDidChangeFile((events) =>
         changes.push(...events.map((event) => ({ type: event.type, uri: event.uri.toString() }))),
@@ -26,9 +26,9 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe("InMemoryJsonFileSystemProvider", () => {
+describe("InMemoryFileSystemProvider", () => {
     it("serves written content and stats it as a file", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
 
         provider.setContent(INPUT, '{"amount":1}');
 
@@ -38,7 +38,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("reports a missing file as FileNotFound", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
 
         expect(() => provider.readFile(INPUT)).toThrow(
             expect.objectContaining({ code: "FileNotFound" }),
@@ -49,7 +49,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("keeps its own copy of the bytes", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
         const written = bytes("{}");
         provider.writeFile(INPUT, written, CREATE_OR_OVERWRITE);
 
@@ -60,7 +60,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("honours the create and overwrite flags of a user write", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
 
         expect(() =>
             provider.writeFile(INPUT, bytes("{}"), { create: false, overwrite: true }),
@@ -75,7 +75,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("rejects user writes to a read-only provider while the host can still update it", () => {
-        const provider = new InMemoryJsonFileSystemProvider(true);
+        const provider = new InMemoryFileSystemProvider(true);
 
         provider.setContent(INPUT, '{"approved":true}');
 
@@ -86,7 +86,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("refuses to create directories, delete or rename through the explorer", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
         provider.setContent(INPUT, "{}");
         const noPermissions = expect.objectContaining({ code: "NoPermissions" });
 
@@ -97,7 +97,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     });
 
     it("announces creation, real changes and deletion exactly once each", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
         const changes = recordChanges(provider);
 
         provider.setContent(INPUT, "{}");
@@ -119,7 +119,7 @@ describe("InMemoryJsonFileSystemProvider", () => {
     it("advances the modification time on every change, even within one millisecond", () => {
         vi.useFakeTimers();
         vi.setSystemTime(1_000);
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
 
         provider.setContent(INPUT, "{}");
         const created = provider.stat(INPUT);
@@ -130,8 +130,55 @@ describe("InMemoryJsonFileSystemProvider", () => {
         expect(changed).toMatchObject({ ctime: 1_000, mtime: 1_001 });
     });
 
+    it("records the text the editor wrote, also when the bytes did not change", () => {
+        const provider = new InMemoryFileSystemProvider();
+        provider.setContent(INPUT, "{}");
+
+        provider.writeFile(INPUT, bytes("{}"), CREATE_OR_OVERWRITE);
+
+        expect(provider.lastEditorWriteOf(INPUT)).toBe("{}");
+    });
+
+    it("does not count the host's own content as an editor write", () => {
+        const provider = new InMemoryFileSystemProvider();
+        provider.setContent(INPUT, "{}");
+        provider.writeFile(INPUT, bytes('{"amount":1}'), CREATE_OR_OVERWRITE);
+
+        provider.setContent(INPUT, '{"amount":2}');
+
+        expect(provider.lastEditorWriteOf(INPUT)).toBe('{"amount":1}');
+        expect(provider.lastEditorWriteOf(OTHER_SESSION_INPUT)).toBeUndefined();
+    });
+
+    it("ignores an editor write to a file it no longer serves", () => {
+        const provider = new InMemoryFileSystemProvider();
+        const changes = recordChanges(provider);
+        provider.setContent(INPUT, "{}");
+        provider.writeFile(INPUT, bytes('{"amount":1}'), CREATE_OR_OVERWRITE);
+        provider.deleteFile(INPUT);
+
+        provider.writeFile(INPUT, bytes('{"amount":2}'), CREATE_OR_OVERWRITE);
+
+        expect(provider.lastEditorWriteOf(INPUT)).toBeUndefined();
+        expect(() => provider.readFile(INPUT)).toThrow(
+            expect.objectContaining({ code: "FileNotFound" }),
+        );
+        expect(changes.at(-1)).toEqual({ type: FileChangeType.Deleted, uri: INPUT.toString() });
+    });
+
+    it("serves a file again once the host sets its content", () => {
+        const provider = new InMemoryFileSystemProvider();
+        provider.setContent(INPUT, "{}");
+        provider.deleteFile(INPUT);
+        provider.setContent(INPUT, "[]");
+
+        provider.writeFile(INPUT, bytes('{"amount":3}'), CREATE_OR_OVERWRITE);
+
+        expect(provider.lastEditorWriteOf(INPUT)).toBe('{"amount":3}');
+    });
+
     it("lists only the files of the requested session", () => {
-        const provider = new InMemoryJsonFileSystemProvider();
+        const provider = new InMemoryFileSystemProvider();
         provider.setContent(INPUT, "{}");
         provider.setContent(OTHER_SESSION_INPUT, "{}");
 

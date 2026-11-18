@@ -16,8 +16,11 @@ interface FileEntry {
     content: Uint8Array;
 }
 
-export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Disposable {
+export class InMemoryFileSystemProvider implements FileSystemProvider, Disposable {
     private readonly files = new Map<string, FileEntry>();
+    private readonly editorWrites = new Map<string, string>();
+    // An editor still open on a file the host dropped may save it; that save must not bring it back.
+    private readonly retiredUris = new Set<string>();
     private readonly changes = new EventEmitter<FileChangeEvent[]>();
 
     readonly onDidChangeFile = this.changes.event;
@@ -68,10 +71,13 @@ export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Dispo
         options: { readonly create: boolean; readonly overwrite: boolean },
     ): void {
         if (this.readOnly) throw FileSystemError.NoPermissions(uri);
+        if (this.retiredUris.has(uri.toString())) return;
 
         const exists = this.files.has(uri.toString());
         if (!exists && !options.create) throw FileSystemError.FileNotFound(uri);
         if (exists && !options.overwrite) throw FileSystemError.FileExists(uri);
+        // Before the identical-bytes skip: saving an unchanged text is still the user's answer.
+        this.editorWrites.set(uri.toString(), new TextDecoder().decode(content));
         this.setBytes(uri, content);
     }
 
@@ -83,17 +89,26 @@ export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Dispo
         throw FileSystemError.NoPermissions(oldUri);
     }
 
+    lastEditorWriteOf(uri: Uri): string | undefined {
+        return this.editorWrites.get(uri.toString());
+    }
+
     setContent(uri: Uri, content: string): void {
+        this.retiredUris.delete(uri.toString());
         this.setBytes(uri, new TextEncoder().encode(content));
     }
 
     deleteFile(uri: Uri): void {
+        this.editorWrites.delete(uri.toString());
         if (!this.files.delete(uri.toString())) return;
+        this.retiredUris.add(uri.toString());
         this.changes.fire([{ type: FileChangeType.Deleted, uri }]);
     }
 
     dispose(): void {
         this.files.clear();
+        this.editorWrites.clear();
+        this.retiredUris.clear();
         this.changes.dispose();
     }
 
