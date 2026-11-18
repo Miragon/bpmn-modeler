@@ -324,9 +324,10 @@ export class VsCodeSession {
 
     /**
      * Waits until no visible webview of the extension still loads a script or
-     * a stylesheet. After a webview closed while it loaded, the next one can
-     * stay blank for up to 30 s. So a test, and the reset after it, leaves a
-     * webview only once it has loaded.
+     * a stylesheet. VS Code serves 32 resource loads at a time for a view
+     * type's webviews and keeps a closed webview's loads for 30 s, so webviews
+     * closed while they load can leave the next one blank for that long. A
+     * test, and the reset after it, leaves a webview only once it has loaded.
      */
     async webviewsLoaded(): Promise<void> {
         const frames = this.page.locator(

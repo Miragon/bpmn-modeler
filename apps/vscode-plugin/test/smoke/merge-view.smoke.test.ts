@@ -43,6 +43,9 @@ const NARROWEST_EDITOR_WIDTH = 220;
 const COMMAND_TITLE = "Resolve in BPMN Merge View";
 const OPEN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
 const KEY_RETRY_INTERVAL_MS = 1_000;
+// VS Code serves 32 resource loads at a time for all webviews of one view type, and a
+// webview closed while it loads holds its slots for 30 s: two panes of 16 held them all.
+const MOST_LOADS_AT_ONCE = 10;
 
 /** What the panes of the operations other than a merge say about their sides. */
 const OTHER_OPERATIONS: readonly {
@@ -192,6 +195,25 @@ async function captions(): Promise<{ current: string; incoming: string }> {
  */
 async function startExtension(): Promise<void> {
     await suite.open(CLEAN_FILE, diagramRendered);
+}
+
+/** The most resource loads the page had in flight at one time, from its resource timing. */
+function mostLoadsAtOnce(page: FrameLocator): Promise<number> {
+    return page.locator("html").evaluate(() => {
+        const edges = (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+            .flatMap(({ startTime, responseEnd }) => [
+                { at: startTime, change: 1 },
+                { at: responseEnd, change: -1 },
+            ])
+            .sort((one, other) => one.at - other.at || one.change - other.change);
+        let inFlight = 0;
+        let most = 0;
+        for (const { change } of edges) {
+            inFlight += change;
+            most = Math.max(most, inFlight);
+        }
+        return most;
+    });
 }
 
 /** What every visible editor webview of the extension shows. */
@@ -485,6 +507,17 @@ describe("the BPMN merge view", () => {
             const { current } = await captions();
             expect(current).toMatch(/^Current: your branch main/);
             await shot("merge-view-reopened");
+        });
+
+        it("loads at most ten files at once in each pane, so that one closed while it loads leaves VS Code's resource slots to the next", async () => {
+            await openMergeView(conflictedFile("merge"));
+            await vscode().webviewsLoaded();
+
+            const panes = await vscode().visibleEditors();
+            expect(panes).toHaveLength(2);
+            for (const { page } of panes) {
+                expect(await mostLoadsAtOnce(page)).toBeLessThanOrEqual(MOST_LOADS_AT_ONCE);
+            }
         });
     });
 

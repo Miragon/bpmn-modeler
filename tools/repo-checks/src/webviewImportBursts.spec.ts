@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+
+import { importBursts, type BundleChunk } from "../../../vite.shared";
+
+function chunk(
+    fileName: string,
+    imports: string[] = [],
+    dynamicImports: string[] = [],
+): BundleChunk {
+    return { fileName, imports, dynamicImports };
+}
+
+describe("the files a webview bundle's dynamic import fetches at once", () => {
+    it("are its chunk and the chunks it imports that the entry has not loaded", () => {
+        const bundle = [
+            chunk("index.js", ["shared.js"], ["surface.js"]),
+            chunk("shared.js"),
+            chunk("surface.js", ["shared.js", "viewer.js"]),
+            chunk("viewer.js", ["engine.js"]),
+            chunk("engine.js"),
+        ];
+
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "surface.js", files: ["engine.js", "surface.js", "viewer.js"] },
+        ]);
+    });
+
+    it("leave out what the chunk importing it dynamically has loaded already", () => {
+        const bundle = [
+            chunk("index.js", [], ["mode.js"]),
+            chunk("mode.js", ["core.js"], ["lint.js"]),
+            chunk("core.js"),
+            chunk("lint.js", ["core.js", "rules.js"]),
+            chunk("rules.js"),
+        ];
+
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "mode.js", files: ["core.js", "mode.js"] },
+            { chunk: "lint.js", files: ["lint.js", "rules.js"] },
+        ]);
+    });
+
+    it("name an import once although two chunks reach it", () => {
+        const bundle = [
+            chunk("index.js", [], ["viewer.js", "diff.js"]),
+            chunk("diff.js", ["viewer.js"], []),
+            chunk("viewer.js", ["core.js"]),
+            chunk("core.js"),
+        ];
+
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "viewer.js", files: ["core.js", "viewer.js"] },
+            { chunk: "diff.js", files: ["core.js", "diff.js", "viewer.js"] },
+        ]);
+    });
+
+    it("end on a cycle of static imports", () => {
+        const bundle = [
+            chunk("index.js", [], ["a.js"]),
+            chunk("a.js", ["b.js"]),
+            chunk("b.js", ["a.js"]),
+        ];
+
+        expect(importBursts(bundle, "index.js")).toEqual([
+            { chunk: "a.js", files: ["a.js", "b.js"] },
+        ]);
+    });
+
+    it("leave out a dynamic import that the entry loads statically too", () => {
+        const bundle = [chunk("index.js", ["core.js"], ["core.js"]), chunk("core.js")];
+
+        expect(importBursts(bundle, "index.js")).toEqual([]);
+    });
+});
