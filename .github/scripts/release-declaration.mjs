@@ -156,8 +156,7 @@ export function isDeclared(declaration) {
     return declaration.lines.length > 0 || declaration.none;
 }
 
-/** What the author decides when a suggested block lists candidate lines. */
-export const CANDIDATES_GUIDANCE = `Tick only the lines whose users get the change; \`${NO_LINE}\` is for a fix to a feature no release shipped.`;
+const CANDIDATES_GUIDANCE = `Tick only the lines whose users get the change; \`${NO_LINE}\` is for a fix to a feature no release shipped.`;
 
 /**
  * A "Ships in" block that lists the candidate lines with their wiring question
