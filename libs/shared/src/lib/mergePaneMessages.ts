@@ -200,6 +200,7 @@ export type MergePaneBuildNote =
           readonly kind: "restoredWithoutConnections";
           readonly id: string;
           readonly connections: readonly string[];
+          readonly boundaryEvents?: readonly string[];
       }
     | {
           readonly kind: "defaultFlowNotRestored";

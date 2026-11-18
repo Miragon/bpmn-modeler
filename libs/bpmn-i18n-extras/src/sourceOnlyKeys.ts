@@ -143,6 +143,8 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "{first} and {second} were added at the same place",
     "{element} is drawn by another side than {containers}; check that it still sits inside",
     "{element} is kept without the flows the other side removed with it: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}",
     "{flow} is kept but is no longer the default flow of {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow",
     "The file's {attribute} differs between the sides; current's is kept",

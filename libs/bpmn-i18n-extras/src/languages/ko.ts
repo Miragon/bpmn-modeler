@@ -348,6 +348,10 @@ const dictionary: Record<string, string> = {
         "{element}은(는) {containers}와(과) 다른 쪽에서 그렸습니다. 여전히 내부에 있는지 확인하십시오",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element}은(는) 다른 쪽이 함께 제거한 경계 이벤트 없이 유지됩니다: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element}은(는) 다른 쪽이 함께 제거한 요소 {count}개 없이 유지됩니다: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow}은(는) 유지되지만 더 이상 {element}의 기본 흐름이 아닙니다",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

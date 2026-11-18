@@ -289,6 +289,10 @@ function mergeTextKeys(): Set<string> {
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
         }
+        if (note.kind === "restoredWithoutConnections") {
+            buildNoteText({ ...note, boundaryEvents: ["c"] }, nameOf, translate);
+            buildNoteText({ ...note, connections: [], boundaryEvents: ["c"] }, nameOf, translate);
+        }
     }
     return keys;
 }

@@ -369,7 +369,7 @@ function expectConnectionsKeptAsPicks(
     }
 }
 
-/** A connection still kept with its element is never noted as missing from it. */
+/** A connection or boundary event still kept with its element is never noted as missing from it. */
 function expectNoRestoredConnectionNoted(
     picks: readonly Pick[],
     decisions: MergeDecisions,
@@ -380,10 +380,12 @@ function expectNoRestoredConnectionNoted(
         decisions.originOf(id) === "picked" && decisions.sideOf(id) === side;
     for (const pick of picks) {
         if (pick.kind !== "pickWithConnections" || !pickedOn(pick.id, pick.side)) continue;
-        const kept = pick.connections.filter((id) => pickedOn(id, pick.side));
+        const kept = offeredWith(pick).filter((id) => pickedOn(id, pick.side));
         const noted = notes.flatMap((note) =>
             note.kind === "restoredWithoutConnections" && note.id === pick.id
-                ? note.connections.filter((id) => kept.includes(id))
+                ? [...note.connections, ...(note.boundaryEvents ?? [])].filter((id) =>
+                      kept.includes(id),
+                  )
                 : [],
         );
         expect(noted, `${label}: connections kept with ${pick.id} noted`).toEqual([]);

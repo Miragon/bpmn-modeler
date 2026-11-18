@@ -324,6 +324,10 @@ const dictionary: Record<string, string> = {
         "{element} 与 {containers} 由不同侧绘制；请检查它是否仍位于其中",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} 被保留，但不含另一侧随其删除的流：{connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} 被保留，但不含另一侧随其删除的边界事件：{elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} 被保留，但不含另一侧随其删除的 {count} 个元素：{elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} 被保留，但不再是 {element} 的默认流",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":

@@ -378,6 +378,14 @@ const BUILD_NOTE_TEXTS: Record<
 const OTHER_DEFAULT_KEPT_TEXT =
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
 
+/** `restoredWithoutConnections` once it names a boundary event, counted as the restore offer counts. */
+const RESTORED_WITHOUT_ELEMENTS_TEXTS = {
+    boundaryEvent:
+        "{element} is kept without the boundary event the other side removed with it: {elements}",
+    elements:
+        "{element} is kept without the {count} elements the other side removed with it: {elements}",
+};
+
 const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
     current: "Both sides changed the layout of {elements}; current's is kept",
     incoming: "Both sides changed the layout of {elements}; incoming's is kept",
@@ -419,7 +427,30 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }
+    if (note.kind === "restoredWithoutConnections" && note.boundaryEvents !== undefined) {
+        return restoredWithoutElementsOf(note).length === 1
+            ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
+            : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
+    }
     return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function restoredWithoutElementsOf(
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+): readonly string[] {
+    return [...(note.boundaryEvents ?? []), ...note.connections];
+}
+
+function restoredWithoutReplacements(
+    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutConnections" }>,
+    nameOf: (id: string) => string,
+    names: (ids: readonly string[]) => string,
+): Record<string, string> {
+    if (note.boundaryEvents === undefined) {
+        return { element: nameOf(note.id), connections: names(note.connections) };
+    }
+    const elements = restoredWithoutElementsOf(note);
+    return { element: nameOf(note.id), count: String(elements.length), elements: names(elements) };
 }
 
 function defaultFlowNoteReplacements(
@@ -445,7 +476,7 @@ function noteReplacements(
         case "drawnApartFromContainer":
             return { element: nameOf(note.id), containers: names(note.containers) };
         case "restoredWithoutConnections":
-            return { element: nameOf(note.id), connections: names(note.connections) };
+            return restoredWithoutReplacements(note, nameOf, names);
         case "defaultFlowNotRestored":
             return defaultFlowNoteReplacements(note, nameOf);
         case "layoutChangedByBoth":

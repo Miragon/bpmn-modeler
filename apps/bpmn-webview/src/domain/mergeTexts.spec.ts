@@ -245,6 +245,24 @@ describe("buildNoteText", () => {
         ],
         [
             {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: ["Flow_2"],
+                boundaryEvents: ["Timer_1"],
+            },
+            "Pack box is kept without the 2 elements the other side removed with it: Timer_1, to packing",
+        ],
+        [
+            {
+                kind: "restoredWithoutConnections",
+                id: "Task_Pack",
+                connections: [],
+                boundaryEvents: ["Timer_1"],
+            },
+            "Pack box is kept without the boundary event the other side removed with it: Timer_1",
+        ],
+        [
+            {
                 kind: "defaultFlowNotRestored",
                 id: "Task_Pack",
                 flow: "Flow_2",

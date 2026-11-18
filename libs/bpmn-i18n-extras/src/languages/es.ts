@@ -367,6 +367,10 @@ const dictionary: Record<string, string> = {
         "{element} está dibujado por otro lado que {containers}; compruebe que sigue dentro",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} se conserva sin los flujos que el otro lado eliminó con él: {connections}",
+    "{element} is kept without the boundary event the other side removed with it: {elements}":
+        "{element} se conserva sin el evento de borde que el otro lado eliminó con él: {elements}",
+    "{element} is kept without the {count} elements the other side removed with it: {elements}":
+        "{element} se conserva sin los {count} elementos que el otro lado eliminó con él: {elements}",
     "{flow} is kept but is no longer the default flow of {element}":
         "{flow} se conserva, pero ya no es el flujo predeterminado de {element}",
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow":
