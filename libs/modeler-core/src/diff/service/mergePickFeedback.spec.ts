@@ -94,6 +94,43 @@ describe("mergePickFeedback", () => {
         });
     });
 
+    it.each<
+        [
+            string,
+            {
+                readonly connectionsLeftOut?: readonly string[];
+                readonly boundaryEventsLeftOut?: readonly string[];
+            },
+            object,
+        ]
+    >([
+        [
+            "with the flows",
+            { connectionsLeftOut: ["Flow_2"], boundaryEventsLeftOut: ["Timer_1"] },
+            { connections: ["Flow_2"], boundaryEvents: ["Timer_1"] },
+        ],
+        [
+            "alone",
+            { boundaryEventsLeftOut: ["Timer_1"] },
+            { connections: [], boundaryEvents: ["Timer_1"] },
+        ],
+    ])("offers the boundary events an applied pick left out %s", (_name, leftOut, offered) => {
+        const { offer } = mergePickFeedback({
+            action: "pick",
+            elementId: "Task_Reject",
+            keptSide: "incoming",
+            outcome: { applied: true, pulledIn: [], dropped: [], ...leftOut },
+            openBefore: [],
+            openAfter: [],
+        });
+
+        expect(offer).toStrictEqual({
+            elementId: "Task_Reject",
+            ...offered,
+            keptSide: "incoming",
+        });
+    });
+
     it("names every element a pane names in words: the rows its menu lists and the last outcome's", () => {
         const { outcome } = mergePickFeedback({
             action: "leaveOut",

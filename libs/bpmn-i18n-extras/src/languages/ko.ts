@@ -324,6 +324,13 @@ const dictionary: Record<string, string> = {
     "Also keep the flow incoming removed with it": "수신이 함께 제거한 흐름도 유지",
     "Also keep the {count} flows incoming removed with it":
         "수신이 함께 제거한 흐름 {count}개도 유지",
+    "Also keep the boundary event current removed with it": "현재가 함께 제거한 경계 이벤트도 유지",
+    "Also keep the {count} elements current removed with it":
+        "현재가 함께 제거한 요소 {count}개도 유지",
+    "Also keep the boundary event incoming removed with it":
+        "수신이 함께 제거한 경계 이벤트도 유지",
+    "Also keep the {count} elements incoming removed with it":
+        "수신이 함께 제거한 요소 {count}개도 유지",
     "Took back the pick of {element}": "{element} 선택 취소됨",
     "Build": "생성",
     "Notes of the build": "생성 참고 사항",

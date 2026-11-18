@@ -331,6 +331,14 @@ const dictionary: Record<string, string> = {
         "Также оставить поток, удалённый вместе с ним стороной «Входящее»",
     "Also keep the {count} flows incoming removed with it":
         "Также оставить потоки ({count}), удалённые вместе с ним стороной «Входящее»",
+    "Also keep the boundary event current removed with it":
+        "Также оставить граничное событие, удалённое вместе с ним стороной «Текущее»",
+    "Also keep the {count} elements current removed with it":
+        "Также оставить элементы ({count}), удалённые вместе с ним стороной «Текущее»",
+    "Also keep the boundary event incoming removed with it":
+        "Также оставить граничное событие, удалённое вместе с ним стороной «Входящее»",
+    "Also keep the {count} elements incoming removed with it":
+        "Также оставить элементы ({count}), удалённые вместе с ним стороной «Входящее»",
     "Took back the pick of {element}": "Выбор отменён: {element}",
     "Build": "Собрать",
     "Notes of the build": "Примечания к сборке",

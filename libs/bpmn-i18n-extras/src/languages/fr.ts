@@ -341,6 +341,14 @@ const dictionary: Record<string, string> = {
         "Conserver aussi le flux supprimé avec lui par Entrant",
     "Also keep the {count} flows incoming removed with it":
         "Conserver aussi les {count} flux supprimés avec lui par Entrant",
+    "Also keep the boundary event current removed with it":
+        "Conserver aussi l'événement de bordure supprimé avec lui par Actuel",
+    "Also keep the {count} elements current removed with it":
+        "Conserver aussi les {count} éléments supprimés avec lui par Actuel",
+    "Also keep the boundary event incoming removed with it":
+        "Conserver aussi l'événement de bordure supprimé avec lui par Entrant",
+    "Also keep the {count} elements incoming removed with it":
+        "Conserver aussi les {count} éléments supprimés avec lui par Entrant",
     "Took back the pick of {element}": "Choix de {element} annulé",
     "Build": "Générer",
     "Notes of the build": "Notes de la génération",

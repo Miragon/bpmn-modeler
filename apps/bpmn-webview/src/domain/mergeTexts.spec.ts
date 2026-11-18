@@ -167,6 +167,34 @@ describe("restoreOfferText", () => {
             ),
         ).toBe(text);
     });
+
+    it.each<[string, readonly string[], readonly string[], string]>([
+        [
+            "a boundary event alone",
+            [],
+            ["Timer_1"],
+            "Also keep the boundary event incoming removed with it",
+        ],
+        [
+            "flows and boundary events together",
+            ["Flow_1", "Flow_2"],
+            ["Timer_1"],
+            "Also keep the 3 elements incoming removed with it",
+        ],
+        [
+            "two boundary events",
+            [],
+            ["Timer_1", "Error_1"],
+            "Also keep the 2 elements incoming removed with it",
+        ],
+    ])("counts elements for %s", (_name, connections, boundaryEvents, text) => {
+        expect(
+            restoreOfferText(
+                { elementId: "Task_Pack", connections, boundaryEvents, removedBy: "incoming" },
+                untranslated,
+            ),
+        ).toBe(text);
+    });
 });
 
 describe("build words", () => {

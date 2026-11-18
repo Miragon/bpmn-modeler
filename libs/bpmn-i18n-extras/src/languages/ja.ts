@@ -331,6 +331,14 @@ const dictionary: Record<string, string> = {
     "Also keep the flow incoming removed with it": "入力側が一緒に削除したフローも保持",
     "Also keep the {count} flows incoming removed with it":
         "入力側が一緒に削除した {count} 個のフローも保持",
+    "Also keep the boundary event current removed with it":
+        "現在が一緒に削除した境界イベントも保持",
+    "Also keep the {count} elements current removed with it":
+        "現在が一緒に削除した {count} 個の要素も保持",
+    "Also keep the boundary event incoming removed with it":
+        "入力側が一緒に削除した境界イベントも保持",
+    "Also keep the {count} elements incoming removed with it":
+        "入力側が一緒に削除した {count} 個の要素も保持",
     "Took back the pick of {element}": "{element} の選択を取り消しました",
     "Build": "生成",
     "Notes of the build": "生成の注意事項",

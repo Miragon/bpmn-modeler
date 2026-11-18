@@ -302,6 +302,12 @@ const dictionary: Record<string, string> = {
     "Also keep the {count} flows current removed with it": "同时保留当前随其删除的 {count} 条流",
     "Also keep the flow incoming removed with it": "同时保留传入随其删除的流",
     "Also keep the {count} flows incoming removed with it": "同时保留传入随其删除的 {count} 条流",
+    "Also keep the boundary event current removed with it": "同时保留当前随其删除的边界事件",
+    "Also keep the {count} elements current removed with it":
+        "同时保留当前随其删除的 {count} 个元素",
+    "Also keep the boundary event incoming removed with it": "同时保留传入随其删除的边界事件",
+    "Also keep the {count} elements incoming removed with it":
+        "同时保留传入随其删除的 {count} 个元素",
     "Took back the pick of {element}": "已撤销对 {element} 的选择",
     "Build": "生成",
     "Notes of the build": "生成说明",

@@ -340,6 +340,14 @@ const dictionary: Record<string, string> = {
         "Ook de flow behouden die Inkomend ermee verwijderde",
     "Also keep the {count} flows incoming removed with it":
         "Ook de {count} flows behouden die Inkomend ermee verwijderde",
+    "Also keep the boundary event current removed with it":
+        "Ook het boundary-event behouden dat Huidig ermee verwijderde",
+    "Also keep the {count} elements current removed with it":
+        "Ook de {count} elementen behouden die Huidig ermee verwijderde",
+    "Also keep the boundary event incoming removed with it":
+        "Ook het boundary-event behouden dat Inkomend ermee verwijderde",
+    "Also keep the {count} elements incoming removed with it":
+        "Ook de {count} elementen behouden die Inkomend ermee verwijderde",
     "Took back the pick of {element}": "Keuze voor {element} is teruggenomen",
     "Build": "Samenstellen",
     "Notes of the build": "Opmerkingen bij het samenstellen",

@@ -15,7 +15,7 @@ import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 import { mergePaneView } from "./mergePaneView";
-import { connectionsRemovedWith } from "./removedConnections";
+import { idsRemovedWith } from "./removedConnections";
 
 const FIRST_SEED = 1;
 const SEED_COUNT = 200;
@@ -24,8 +24,12 @@ const WALKS_PER_SEED = 3;
 const STEPS_PER_WALK = 8;
 /** Beyond the range, seeds on which a pick once left its side or an open conflict had no choice. */
 const PINNED_SEEDS = [2050, 2557, 2766, 3049, 3357, 3368];
+/** Beyond the range, seeds on which one side removes a task with its boundary event and the other keeps them. */
+const BOUNDARY_EVENT_SEEDS = [358, 508, 613, 660, 712, 786];
 /** Fewer would mean the walks no longer reach the flows a removal took along. */
 const MIN_CONNECTIONS_KEPT = 20;
+/** Fewer would mean the boundary event seeds no longer offer the boundary events a removal took along. */
+const MIN_BOUNDARY_EVENTS_KEPT = 5;
 /** Fewer would mean the walks no longer keep a flow that was its source's default. */
 const MIN_DEFAULTS_RESTORED = 3;
 /** About 25 s on a developer machine; CI runners are slower. */
@@ -41,8 +45,9 @@ type Pick =
           readonly kind: "pickWithConnections";
           readonly id: string;
           readonly side: MergeSide;
-          /** Captured before the step, since which flows qualify depends on the state. */
+          /** Captured before the step, since what qualifies depends on the state. */
           readonly connections: readonly string[];
+          readonly boundaryEvents: readonly string[];
       }
     | {
           readonly kind: "unpick" | "unpickWithContents" | "unpickWithConnections";
@@ -110,7 +115,7 @@ function picksLeftBy(result: MergeResult, picks: readonly Pick[]): Map<string, M
                 if (side === undefined) break;
                 sides.delete(pick.id);
                 const element = result.elements.find(({ id }) => id === pick.id)!;
-                for (const { id } of connectionsRemovedWith(result.elements, element, side)) {
+                for (const id of idsRemovedWith(result.elements, element, side)) {
                     if (sides.get(id) === side) sides.delete(id);
                 }
                 break;
@@ -124,7 +129,7 @@ function picksLeftBy(result: MergeResult, picks: readonly Pick[]): Map<string, M
                 }
                 break;
             case "pickWithConnections":
-                for (const id of [pick.id, ...pick.connections]) set(id, pick.side);
+                for (const id of offeredWith(pick)) set(id, pick.side);
                 break;
         }
     }
@@ -172,8 +177,14 @@ function expectContracts(
     expectAChoiceForEveryConflict(result, picks, decisions, label);
 }
 
+/** The element of a pick with connections and everything it offered. */
+function offeredWith(pick: Extract<Pick, { kind: "pickWithConnections" }>): readonly string[] {
+    return [pick.id, ...pick.boundaryEvents, ...pick.connections];
+}
+
 interface SeedCounts {
     readonly connectionsKept: number;
+    readonly boundaryEventsKept: number;
     readonly defaultsRestored: number;
 }
 
@@ -307,8 +318,8 @@ function randomPick(random: Random, decisions: MergeDecisions, picked: readonly 
     if (roll < 0.1) {
         const kept = removedByOneSide(random, decisions);
         if (kept !== undefined) {
-            const connections = decisions.connectionsLeftOut(kept.id, kept.side);
-            return { kind: "pickWithConnections", ...kept, connections };
+            const offered = decisions.removedWithLeftOut(kept.id, kept.side);
+            return { kind: "pickWithConnections", ...kept, ...offered };
         }
     }
     if (roll < 0.45 && open.length > 0) {
@@ -343,17 +354,13 @@ function expectConnectionsKeptAsPicks(
     label: string,
 ) {
     const oneByOne = replayed(result, prefix);
-    const plainApplied = [pick.id, ...pick.connections].every(
-        (id) => oneByOne.pick(id, pick.side).applied,
-    );
+    const plainApplied = offeredWith(pick).every((id) => oneByOne.pick(id, pick.side).applied);
     expect(plainApplied, `${label} one by one applied`).toBe(true);
     expect(stateOf(oneByOne), `${label} one by one`).toEqual(stateOf(decisions));
     const picksBefore = picksLeftBy(result, prefix);
     const element = result.elements.find(({ id }) => id === pick.id)!;
-    // It takes back every flow the other side removed with the element, a flow picked by hand too.
-    const takenBack = connectionsRemovedWith(result.elements, element, pick.side).map(
-        ({ id }) => id,
-    );
+    // It takes back everything the other side removed with the element, what was picked by hand too.
+    const takenBack = idsRemovedWith(result.elements, element, pick.side);
     if ([pick.id, ...takenBack].every((id) => !picksBefore.has(id))) {
         const undone = replayed(result, [...prefix, pick]);
         if (undone.unpickWithConnections(pick.id).applied) {
@@ -514,7 +521,7 @@ async function expectPathIndependentWalks(
             defaultsRestored += built.defaultsRestored;
         }
     }
-    return { connectionsKept, defaultsRestored };
+    return { connectionsKept, boundaryEventsKept: 0, defaultsRestored };
 }
 
 /**
@@ -526,12 +533,58 @@ function finalPicksOf(result: MergeResult, picks: readonly Pick[]): Pick[] {
     return [...picksLeftBy(result, picks)].map(([id, side]) => ({ kind: "pick", id, side }));
 }
 
+/**
+ * Every offer that keeps a boundary event, taken on a fresh merge: the
+ * contracts hold, it equals the plain picks, Undo takes it back, and once
+ * its conflicts are closed at random, it builds. Returns how many there are.
+ */
+async function expectBoundaryEventOffersKept(
+    result: MergeResult,
+    sources: MergeSources,
+    seed: number,
+): Promise<number> {
+    let offers = 0;
+    const random = seededRandom(seed ^ 0x85ebca6b);
+    for (const { id } of result.elements) {
+        for (const side of MERGE_SIDES) {
+            const decisions = MergeDecisions.from(result);
+            const offered = decisions.removedWithLeftOut(id, side);
+            if (offered.boundaryEvents.length === 0) continue;
+            const pick: Pick = { kind: "pickWithConnections", id, side, ...offered };
+            const label = `seed ${seed}: ${JSON.stringify(pick)}`;
+            const before = stateOf(decisions);
+            expect(apply(decisions, pick).applied, label).toBe(true);
+            offers += 1;
+            const picks: Pick[] = [pick];
+            expectContracts(result, picks, decisions, label);
+            expectPanesShowEveryPick(result, sources, picks, decisions, label);
+            expectConnectionsKeptAsPicks(result, [], pick, decisions, before, label);
+            for (let guard = 0; guard < 30 && decisions.openConflicts.length > 0; guard++) {
+                const open = decisions.openConflicts;
+                const close: Pick = {
+                    kind: "pick",
+                    id: open[randomIndex(random, open.length)]!.id,
+                    side: randomItem(random, MERGE_SIDES)!,
+                };
+                if (apply(decisions, close).applied) picks.push(close);
+            }
+            if (decisions.canBuild) {
+                const built = await expectBuilds(sources, decisions, label);
+                expectNoRestoredConnectionNoted(picks, decisions, built.notes, label);
+            }
+        }
+    }
+    return offers;
+}
+
 async function expectMergesSoundly(seed: number): Promise<SeedCounts> {
     const versions = randomMergeVersions(seed);
     const result = await computeMerge(versions);
     const sources = await prepareMergeSources(versions);
     await expectEndStatesBuild(result, sources, seed);
-    return expectPathIndependentWalks(result, sources, seed);
+    const boundaryEventsKept = await expectBoundaryEventOffersKept(result, sources, seed);
+    const walks = await expectPathIndependentWalks(result, sources, seed);
+    return { ...walks, boundaryEventsKept };
 }
 
 describe("random versions of the order process", () => {
@@ -559,5 +612,16 @@ describe("random versions of the order process", () => {
 
     it(`merge soundly for the seeds ${PINNED_SEEDS.join(", ")}`, async () => {
         for (const seed of PINNED_SEEDS) await expectMergesSoundly(seed);
+    });
+
+    it(`keep the boundary events removed with a task for the seeds ${BOUNDARY_EVENT_SEEDS.join(", ")}`, async () => {
+        let boundaryEventsKept = 0;
+        for (const seed of BOUNDARY_EVENT_SEEDS) {
+            boundaryEventsKept += (await expectMergesSoundly(seed)).boundaryEventsKept;
+        }
+        expect(
+            boundaryEventsKept,
+            "offers that kept a task with its boundary events",
+        ).toBeGreaterThanOrEqual(MIN_BOUNDARY_EVENTS_KEPT);
     });
 });

@@ -210,6 +210,183 @@ describe("MergeDecisions.pickWithConnections", () => {
     });
 });
 
+describe("the boundary events the other side removed with a kept activity", () => {
+    const boundaryEvent = (id: string, host: string, state: ElementState, error?: string) =>
+        mergeElement(id, state, {
+            type: "bpmn:BoundaryEvent",
+            parent: "Process",
+            references: [
+                refersTo("bpmn:BoundaryEvent#attachedToRef", host),
+                ...(error === undefined
+                    ? []
+                    : [refersTo("bpmn:ErrorEventDefinition#errorRef", error)]),
+            ],
+        });
+
+    /** Current removed Task_Pay with its flows, its timer Timer_Pay and the timer's flow; incoming kept them all. */
+    const removedWithItsTimer = ({
+        reminderState = "unchanged",
+        timerState = "removedByCurrent",
+        more = [],
+    }: {
+        reminderState?: ElementState;
+        timerState?: ElementState;
+        more?: readonly MergeElement[];
+    } = {}) =>
+        mergeResult(
+            process,
+            mergeElement("Start", "unchanged", { parent: "Process" }),
+            mergeElement("End", "unchanged", { parent: "Process" }),
+            mergeElement("Task_Remind", reminderState, { parent: "Process" }),
+            mergeElement("Task_Pay", "removedByCurrent", { parent: "Process" }),
+            sequenceFlow("Flow_In", "Start", "Task_Pay", "removedByCurrent"),
+            sequenceFlow("Flow_Out", "Task_Pay", "End", "removedByCurrent"),
+            boundaryEvent("Timer_Pay", "Task_Pay", timerState),
+            sequenceFlow("Flow_Timeout", "Timer_Pay", "Task_Remind", "removedByCurrent"),
+            ...more,
+        );
+
+    it("offers the timer and its flow with the flows of the task", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer());
+
+        expect(decisions.pick("Task_Pay", "incoming")).toEqual({
+            applied: true,
+            pulledIn: [],
+            dropped: [],
+            connectionsLeftOut: ["Flow_In", "Flow_Out", "Flow_Timeout"],
+            boundaryEventsLeftOut: ["Timer_Pay"],
+        });
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: ["Flow_In", "Flow_Out", "Flow_Timeout"],
+            boundaryEvents: ["Timer_Pay"],
+        });
+    });
+
+    it("keeps the timer and its flow as picks on the task's side in one step", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer());
+
+        expect(decisions.pickWithConnections("Task_Pay", "incoming").applied).toBe(true);
+
+        for (const id of ["Task_Pay", "Flow_In", "Flow_Out", "Timer_Pay", "Flow_Timeout"]) {
+            expect([id, decisions.sideOf(id), decisions.originOf(id)]).toEqual([
+                id,
+                "incoming",
+                "picked",
+            ]);
+            expect(decisions.isInResult(id)).toBe(true);
+        }
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: [],
+            boundaryEvents: [],
+        });
+    });
+
+    it("offers the timer without its flow when the flow's other end stays out", () => {
+        const decisions = MergeDecisions.from(
+            removedWithItsTimer({ reminderState: "removedByCurrent" }),
+        );
+
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: ["Flow_In", "Flow_Out"],
+            boundaryEvents: ["Timer_Pay"],
+        });
+        decisions.pickWithConnections("Task_Pay", "incoming");
+
+        expect(decisions.isInResult("Timer_Pay")).toBe(true);
+        expect(decisions.isInResult("Flow_Timeout")).toBe(false);
+        expect(decisions.isInResult("Task_Remind")).toBe(false);
+    });
+
+    it("offers neither a boundary event that would bring back what it refers to nor its flow", () => {
+        const decisions = MergeDecisions.from(
+            removedWithItsTimer({
+                more: [
+                    mergeElement("Error_Declined", "removedByCurrent", { type: "bpmn:Error" }),
+                    boundaryEvent("Error_Pay", "Task_Pay", "removedByCurrent", "Error_Declined"),
+                    sequenceFlow("Flow_Declined", "Error_Pay", "End", "removedByCurrent"),
+                ],
+            }),
+        );
+
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: ["Flow_In", "Flow_Out", "Flow_Timeout"],
+            boundaryEvents: ["Timer_Pay"],
+        });
+        decisions.pickWithConnections("Task_Pay", "incoming");
+
+        for (const id of ["Error_Declined", "Error_Pay", "Flow_Declined"]) {
+            expect(decisions.isInResult(id)).toBe(false);
+        }
+    });
+
+    it("leaves out a boundary event the user picked away, and its flow", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer());
+        decisions.pick("Timer_Pay", "current");
+
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: ["Flow_In", "Flow_Out"],
+            boundaryEvents: [],
+        });
+    });
+
+    it("does not offer a boundary event the other side kept", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer({ timerState: "unchanged" }));
+
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming").boundaryEvents).toEqual([]);
+    });
+
+    it("offers once a flow from the timer back to its own task", () => {
+        const decisions = MergeDecisions.from(
+            removedWithItsTimer({
+                more: [sequenceFlow("Flow_Retry", "Timer_Pay", "Task_Pay", "removedByCurrent")],
+            }),
+        );
+
+        expect(decisions.removedWithLeftOut("Task_Pay", "incoming")).toEqual({
+            connections: ["Flow_In", "Flow_Out", "Flow_Retry", "Flow_Timeout"],
+            boundaryEvents: ["Timer_Pay"],
+        });
+    });
+
+    it("offers the boundary events of an activity without flows of its own", () => {
+        const decisions = MergeDecisions.from(
+            mergeResult(
+                process,
+                mergeElement("Task_Pay", "removedByCurrent", { parent: "Process" }),
+                boundaryEvent("Timer_Pay", "Task_Pay", "removedByCurrent"),
+            ),
+        );
+
+        expect(decisions.pick("Task_Pay", "incoming")).toEqual({
+            applied: true,
+            pulledIn: [],
+            dropped: [],
+            boundaryEventsLeftOut: ["Timer_Pay"],
+        });
+    });
+
+    it("unpickWithConnections returns the timer and its flow to their automatic resolution", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer());
+        const before = stateOf(decisions);
+        decisions.pickWithConnections("Task_Pay", "incoming");
+
+        expect(decisions.unpickWithConnections("Task_Pay").applied).toBe(true);
+
+        expect(stateOf(decisions)).toEqual(before);
+    });
+
+    it("unpickWithConnections keeps a timer the user picked to the other side", () => {
+        const decisions = MergeDecisions.from(removedWithItsTimer());
+        decisions.pick("Task_Pay", "incoming");
+        decisions.pick("Timer_Pay", "current");
+
+        decisions.unpickWithConnections("Task_Pay");
+
+        expect(decisions.originOf("Timer_Pay")).toBe("picked");
+        expect(decisions.sideOf("Task_Pay")).toBe("current");
+    });
+});
+
 describe("the default a kept flow was of its source", () => {
     /**
      * Base's source names Flow_No as its default; current removed Task_Reject with its flows, and with them the

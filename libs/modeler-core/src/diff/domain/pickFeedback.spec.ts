@@ -51,8 +51,26 @@ describe("restoreOfferOnPane", () => {
         },
     );
 
-    it("offers nothing without flows left out", () => {
+    it("offers the boundary events left out with the flows, or alone", () => {
+        expect(
+            restoreOfferOnPane(
+                { ...offer, connections: [], boundaryEvents: ["Timer_1"] },
+                "incoming",
+                [],
+            ),
+        ).toStrictEqual({
+            elementId: "Task_Reject",
+            connections: [],
+            boundaryEvents: ["Timer_1"],
+            removedBy: "current",
+        });
+    });
+
+    it("offers nothing without flows or boundary events left out", () => {
         expect(restoreOfferOnPane({ ...offer, connections: [] }, "incoming", [])).toBeUndefined();
+        expect(
+            restoreOfferOnPane({ ...offer, connections: [], boundaryEvents: [] }, "incoming", []),
+        ).toBeUndefined();
         expect(restoreOfferOnPane(undefined, "incoming", [])).toBeUndefined();
     });
 });

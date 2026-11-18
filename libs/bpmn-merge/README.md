@@ -32,10 +32,10 @@ for (const conflict of decisions.openConflicts) {
 decisions.unpick("Task_1"); // back to its automatic resolution or open, unless another pick needs it
 decisions.originOf("Task_1"); // "automatic", "picked", "consequence", or undefined while open
 
-// Keeping an element the other side removed: the flows removed with it come back only on request.
-const kept = decisions.pick("Task_Reject", "incoming"); // kept.connectionsLeftOut: ["Flow_No", …]
-decisions.pickWithConnections("Task_Reject", "incoming"); // the element and those flows, as one pick
-decisions.unpickWithConnections("Task_Reject"); // takes the flows back with it
+// Keeping an element the other side removed: the flows and boundary events removed with it come back only on request.
+const kept = decisions.pick("Task_Reject", "incoming"); // kept.connectionsLeftOut: ["Flow_No", …], kept.boundaryEventsLeftOut
+decisions.pickWithConnections("Task_Reject", "incoming"); // the element and those flows and boundary events, as one pick
+decisions.unpickWithConnections("Task_Reject"); // takes them back with it
 decisions.pickWithContents("SubProcess_1", "current");
 decisions.unpickWithContents("SubProcess_1"); // and everything inside picked on the same side
 decisions.pickScoped("SubProcess_1", "current", "withContents"); // a view's reach: element, withContents, withConnections

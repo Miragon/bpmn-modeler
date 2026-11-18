@@ -166,14 +166,18 @@ parser and asserts that the module still loads.
   to its automatic resolution or to open, which is the way out of two picks that name each
   other. `originOf` tells a user's pick from an automatic resolution and from a pick's
   consequence, so a view can badge only the user's picks.
-- *Keeping a removed element offers its flows.* A pick that keeps an element the other side
-  removed returns `connectionsLeftOut`: the flows its side connects to it that the other side
-  removed with it, that nobody decided, that the pick still leaves out, and whose other end
-  stays in the result. `pickWithConnections` picks the element and those flows in one
-  `closePicks`, so it is refused as a whole and equals the plain picks. A flow is a dependent,
-  not a requirement, so it cannot come back as a consequence. `unpickWithConnections` takes
-  the element back with every flow on its side the other side removed with it; `unpick` alone
-  would keep the element as a consequence of its picked flows. The library keeps no groups:
+- *Keeping a removed element offers its flows and boundary events.* A pick that keeps an
+  element the other side removed returns `connectionsLeftOut` and `boundaryEventsLeftOut`
+  (`removedWithLeftOut`): the boundary events its side attaches to it and the flows its side
+  connects to it or to them, that the other side removed with it, that nobody decided and
+  the pick still leaves out. A boundary event comes only if all it refers to besides its host
+  stays in the result, a flow only if its other end stays or is an offered boundary event,
+  so the offer brings back nothing the user did not ask for. `pickWithConnections` picks
+  them with the element in one `closePicks`, so it is refused as a whole and equals the plain
+  picks. Flows and boundary events are dependents, not requirements, so they cannot come
+  back as a consequence. `unpickWithConnections` takes the element back with everything on
+  its side the other side removed with it (`removedWith`); `unpick` alone would keep the
+  element as a consequence of those picks. The library keeps no groups:
   picks stay its only state, and `mergePaneView` rebuilds a pick's reach from them alone. A
   container counts as kept with everything inside only while every element inside is picked
   on its side, and an element as kept with its flows only while one of them is picked and
@@ -181,10 +185,12 @@ parser and asserts that the module still loads.
   Undo takes back no pick the user made apart. Only a sub-process, pool, lane, process or
   collaboration offers everything inside; a task holds its data associations but offers
   only itself. The offer and the build note `restoredWithoutConnectionsNotes` share the
-  helpers of `removedConnections.ts`, not one rule: the note names every flow left out, the
-  offer only those it can bring back. Not offered: a flow
-  whose other end the removing side deleted too, which would bring back an end the user did
-  not ask for; a boundary event removed with its host.
+  helpers of `removedConnections.ts`, not one rule: the note names every flow of the element
+  left out, the offer what it can bring back. Not offered: a flow whose other end the
+  removing side deleted too, which would bring back an end the user did not ask for; a
+  boundary event that needs something besides its host the result does not hold, such as an
+  error or a lane the removing side deleted too, and its flows. The offer's text counts
+  elements once it holds a boundary event.
 - *A kept flow stays its source's default.* Removing a flow takes its source's `default`
   with it, so keeping the flow against that removal means the default too.
   `restoredFlowDefaultsOf` derives it from the sides alone, however the flow came back: the

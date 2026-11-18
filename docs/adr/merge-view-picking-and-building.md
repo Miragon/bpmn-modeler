@@ -17,12 +17,12 @@ file (epic #2459).
 
 **The picks live in the core, for the merge view's life.** A pane posts `PickMergeSideCommand`
 or `UnpickMergeCommand` with the element and a reach (the element, everything inside it, or the
-flows the other side removed with it); `BpmnDiffService` hands it, with the pane's tab, to
-`MergeDecisionService`, which decides it on the session's `MergeDecisions` (`pickScoped`,
-`unpickScoped`) and sends every pane of every tab the full state again. An Undo of an element
-no longer picked, from a pad or menu not yet repainted, changes nothing. The webview shows a
-pick only once the core made it and holds no rule: what an element allows (`pickable`, with the
-reach Undo takes back, `otherSideLacks`: the other side removed it, or never had it, and
+flows and boundary events the other side removed with it); `BpmnDiffService` hands it, with the
+pane's tab, to `MergeDecisionService`, which decides it on the session's `MergeDecisions`
+(`pickScoped`, `unpickScoped`) and sends every pane of every tab the full state again. An
+Undo of an element no longer picked, from a pad or menu not yet repainted, changes nothing.
+The webview shows a pick only once the core made it and holds no rule: what an element allows
+(`pickable`, with the reach Undo takes back, `otherSideLacks`: the other side removed it, or never had it, and
 `takenSide`, the side the result takes it from), the
 badges, the picks a pane cannot draw and the consequences all come from `mergePaneView`. The
 picks end with the session, so a window reload loses them. Rejected: picks in the webview's
