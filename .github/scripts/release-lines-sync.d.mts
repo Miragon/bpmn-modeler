@@ -32,11 +32,12 @@ export interface CheckResult {
     derivedLines: string[];
     declaration: ShipsInDeclaration;
     attribution: Attribution;
-    suggestion: string;
+    /** The boxes to put under Ships in; only when the PR must declare its lines. */
+    suggestion: string | undefined;
 }
 
 export function checkPullRequest(
     pullRequest: PullRequestToCheck,
     registry: ReleaseLineRegistry,
 ): CheckResult;
-export function checkSummary(result: Pick<CheckResult, "errors" | "suggestion">): string;
+export function checkSummary(result: Pick<CheckResult, "errors">): string;

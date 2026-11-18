@@ -119,16 +119,17 @@ out only the base branch and runs `release-lines-sync.mjs check --pr`, which rea
 the title, body and every changed file through the API. It fails when:
 
 - a `feat`/`fix` reaches two or more lines by its files and nothing is ticked; the
-  job summary has a block to paste with those lines and `none`, all unticked, each
-  line followed by its `wiring` question. Tick only the lines whose users get the
-  change; pasted unchanged, the block still fails;
+  error lists those lines and `none` as unticked boxes, each followed by its
+  question (a line's `wiring`), to put in place of the boxes under the heading.
+  Tick each box whose question you answer with yes; put in unchanged, the boxes
+  still fail;
 - a ticked line ships none of the changed files;
 - `none` is ticked together with a line;
 - a breaking `!` touches a line's `breaking` globs and that line is not ticked;
 - a line's own wording is no `feat`/`fix` subject, or its `!` differs from the
   one the title gives that line;
 - a ticked box cannot be read, a line is ticked twice or the body has two Ships in
-  sections;
+  sections (only the first is read, and the check then asks for no boxes);
 - the PR changes a line's folder under `release/**` (only the sync workflow and the
   release PR, `release-please--branches--main` in this repository, do). A PR that
   adds a line may create that line's new folder.
@@ -148,8 +149,8 @@ node .github/scripts/release-lines-sync.mjs check --pr <number> --repo Miragon/b
 `gh pr create` and on a `gh pr edit` that sets the title or body, of an open PR in
 this repository. It reads the PR the same way the job does and runs the check. A
 `feat`/`fix` that reaches two or more lines with nothing ticked is blocked with
-the same unticked block and its wiring questions; ticked boxes add a request to confirm each line by
-its wiring and to fix the body with `gh pr edit --body-file`. Anything else stays
+the check's error and its unticked boxes; ticked boxes add a request to confirm
+each line by its question and to fix the body with `gh pr edit --body-file`. Anything else stays
 silent, and any error (no `gh`, no network, another repository's PR) lets the
 command pass.
 

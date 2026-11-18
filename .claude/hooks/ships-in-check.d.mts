@@ -41,8 +41,6 @@ export interface HookOutput {
     hookSpecificOutput?: { hookEventName: "PostToolUse"; additionalContext: string };
 }
 
-export const NONE_WIRING: string;
-
 export function pullRequestTargets(command: string): PullRequestTarget[];
 export function lastPullRequestUrl(
     text: string | undefined,

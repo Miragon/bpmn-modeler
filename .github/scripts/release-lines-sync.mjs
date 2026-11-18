@@ -11,7 +11,7 @@ import { argv, env, stdout } from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fetchPullRequest, ghApi as gh, mergedPullRequest } from "./github-pull-requests.mjs";
-import { validate } from "./release-check.mjs";
+import { needsDeclaration, validate } from "./release-check.mjs";
 import { parseShipsIn } from "./release-declaration.mjs";
 import {
     auditReport,
@@ -267,28 +267,19 @@ export function checkPullRequest(pullRequest, registry) {
         derivedLines: derivedLines(pullRequest.files, registry),
         declaration: parseShipsIn(pullRequest.body, registry),
         attribution: resolveAttribution(pullRequest, registry),
-        suggestion: suggest({ ...pullRequest, registry }),
+        suggestion: needsDeclaration(pullRequest, registry)
+            ? suggest({ ...pullRequest, registry })
+            : undefined,
     };
 }
 
-/** The job summary of a failed check: each error, then the unticked block the files suggest. */
-export function checkSummary({ errors, suggestion }) {
+/** The job summary of a failed check; the error that asks for boxes carries them. */
+export function checkSummary({ errors }) {
     if (errors.length === 0) return "";
-    const carried = errors.some((error) => error.includes(suggestion));
     return [
         "### Validate release lines",
         "",
         ...errors.flatMap((error) => ["```text", error.trimEnd(), "```", ""]),
-        ...(carried
-            ? []
-            : [
-                  "The lines the changed files reach, unticked: paste them under the PR body's Ships in and tick only those whose users get the change.",
-                  "",
-                  "```markdown",
-                  suggestion.trimEnd(),
-                  "```",
-                  "",
-              ]),
     ].join("\n");
 }
 

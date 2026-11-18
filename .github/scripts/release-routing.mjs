@@ -126,7 +126,7 @@ export function resolveAttribution({ title, files, body }, registry) {
     return { source: "derived", groups: groupBySubject(shipped, subjectOf) };
 }
 
-/** The "Ships in" block to paste: the lines the files reach as unticked candidates. */
+/** The "Ships in" boxes to put in: the lines the files reach as unticked candidates. */
 export function suggest({ files, registry }) {
     return shipsInCandidates(derivedLines(files, registry), registry);
 }

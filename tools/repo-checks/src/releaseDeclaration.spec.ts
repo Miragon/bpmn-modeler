@@ -60,7 +60,14 @@ describe("the Ships in declaration of a PR body", () => {
                 shipsIn("- [x] `host`: the host", "- [ ] `package`: the npm package"),
                 sample,
             ),
-        ).toEqual({ found: true, lines: ["host"], none: false, wording: {}, errors: [] });
+        ).toEqual({
+            found: true,
+            sections: 1,
+            lines: ["host"],
+            none: false,
+            wording: {},
+            errors: [],
+        });
     });
 
     it.each([
@@ -96,6 +103,7 @@ describe("the Ships in declaration of a PR body", () => {
     it("finds nothing in a body without the section", () => {
         expect(parseShipsIn("## Description\n\n- [x] `host`\n", sample)).toEqual({
             found: false,
+            sections: 0,
             lines: [],
             none: false,
             wording: {},
@@ -691,7 +699,11 @@ describe("the suggested Ships in block", () => {
     it("ticks nothing, so pasted unchanged it still fails the check", () => {
         const block = suggest({ title: "feat: a", files: shared, registry: sample });
 
-        expect(parseShipsIn(block, sample)).toMatchObject({ lines: [], none: false, errors: [] });
+        expect(parseShipsIn(shipsIn(block), sample)).toMatchObject({
+            lines: [],
+            none: false,
+            errors: [],
+        });
         expect(pasted(block)).toEqual([expect.stringContaining("must say which of them ships it")]);
     });
 
@@ -704,7 +716,7 @@ describe("the suggested Ships in block", () => {
             `- [x] ${box}`,
         );
 
-        expect(parseShipsIn(block, sample)).toMatchObject({ lines, none });
+        expect(parseShipsIn(shipsIn(block), sample)).toMatchObject({ lines, none });
         expect(pasted(block)).toEqual([]);
     });
 });

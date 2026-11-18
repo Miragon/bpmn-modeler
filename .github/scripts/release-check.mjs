@@ -32,8 +32,7 @@ function undeclaredError(title, files, registry) {
     const [type] = /^[a-z]+/.exec(title);
     return [
         `This ${type} reaches ${codeList(derivedLines(files, registry))} by its files, so the PR must say which of them ships it.`,
-        'Replace the body\'s "Ships in" section with this block and tick only the lines whose users get the change, judged by wiring (the question after each line: does that line offer the feature?), not by the files it bundles.',
-        `Tick \`${NO_LINE}\` when no released user gets it, such as a fix to a feature no release shipped yet.`,
+        'Put these boxes in place of the boxes under the body\'s "## Ships in" heading (add the heading if the body has none) and tick each one whose question you answer with yes. A line gets the change only when it offers it, not because it bundles the files.',
         "",
         suggest({ files, registry }),
     ].join("\n");
@@ -76,7 +75,8 @@ function wordingErrors({ title, files, registry }, declaration) {
 
 function attributedErrors({ title, files, body, registry }, declaration) {
     if (needsDeclaration({ title, files, body }, registry)) {
-        return [undeclaredError(title, files, registry)];
+        // The second section has its own error; asking for the boxes again would invite a third.
+        return declaration.sections > 1 ? [] : [undeclaredError(title, files, registry)];
     }
     if (!isAttributedType(title) || !isDeclared(declaration)) return [];
     return breakingLinesOf(title, files, registry)

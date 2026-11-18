@@ -22,7 +22,7 @@
         {
             "id": "bpmn-modeler",
             "componentPath": "release/bpmn-modeler",
-            "wiring": "the npm package's entry points (the `exports` of packages/bpmn-modeler/package.json and the files behind them): does a consumer of @miragon/bpmn-modeler reach the code?",
+            "wiring": "the npm package's entry points (the `exports` of packages/bpmn-modeler/package.json and the files behind them): does a consumer of `@miragon/bpmn-modeler` reach the code?",
             "ships": [
                 "packages/bpmn-modeler/**",
                 "libs/append-menu/**",
@@ -145,7 +145,7 @@
         {
             "id": "dmn-modeler",
             "componentPath": "release/dmn-modeler",
-            "wiring": "whether @miragon/dmn-modeler uses the code at all (packages/dmn-modeler/src and its exports)",
+            "wiring": "the package's sources and entry points (packages/dmn-modeler/src and the `exports` of packages/dmn-modeler/package.json): does `@miragon/dmn-modeler` use the code at all?",
             "ships": [
                 "packages/dmn-modeler/**",
                 "libs/bpmn-diff/**",
