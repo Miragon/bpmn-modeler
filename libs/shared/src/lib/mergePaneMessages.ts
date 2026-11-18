@@ -23,6 +23,9 @@ export interface MergePaneStep {
 /** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
 export type MergePaneOtherSideLack = "removed" | "missing";
 
+/** How far keeping a container with everything inside reaches: its contents, or every pool with its process. */
+export type MergePaneContainerReach = "contents" | "poolProcesses";
+
 /**
  * A shape-less element either side holds and either pane marks, as the
  * pane's menu lists it with the user's pick; it covers an element the pane's
@@ -33,8 +36,8 @@ export interface MergePaneShapelessRow {
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
-    /** Something lies inside it, such as a process's elements, which a pick can keep with it. */
-    readonly container: boolean;
+    /** Set where something lies inside it, such as a process's elements, which a pick can keep with it: how far that reaches. */
+    readonly container?: MergePaneContainerReach;
     /** As {@link MergePanePickable.takenSide}. */
     readonly takenSide?: MergeSide;
     /** Set where one side lacks the element: that side, and why. */
@@ -93,8 +96,8 @@ export interface MergePanePickNotDrawn {
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface MergePanePickable {
     readonly id: string;
-    /** Something lies inside it, which a pick can keep with it. */
-    readonly container: boolean;
+    /** Set where something lies inside it, which a pick can keep with it: how far that reaches. */
+    readonly container?: MergePaneContainerReach;
     /**
      * The side the result takes it from where the sides differ, the same on
      * both panes; a side that lacks it leaves it out. Absent while it is open.

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type {
+    ContainerReach,
     MergeStep,
     PickableElement,
     PickBadge,
@@ -15,6 +16,7 @@ import {
     type MergeObstacleKind,
     type MergeObstacleWithMissing,
     type MergePaneBadge,
+    type MergePaneContainerReach,
     type MergePanePickable,
     type MergePanePickNotDrawn,
     type MergePaneShapelessRow,
@@ -210,7 +212,7 @@ describe("MergeDecisionService", () => {
                     id: "Process_1",
                     type: "bpmn:Process",
                     marker: "conflict",
-                    container: true,
+                    container: "contents",
                     current: { name: "Order A" },
                     incoming: { name: "Order B" },
                     differences: [{ attribute: "name", current: "Order A", incoming: "Order B" }],
@@ -293,6 +295,7 @@ describe("MergeDecisionService", () => {
         expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
         expectTypeOf<MergePanePickNotDrawn>().toEqualTypeOf<PickNotDrawn>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
+        expectTypeOf<MergePaneContainerReach>().toEqualTypeOf<ContainerReach>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
         expectTypeOf<MergeObstacleWithMissing>().toEqualTypeOf<
             Extract<RequirementObstacle, { missing: unknown }>["kind"]
@@ -320,7 +323,6 @@ describe("MergeDecisionService", () => {
             expect(currentStates.openConflicts).toBe(1);
             expect(incomingStates.pickable).toContainEqual({
                 id: "Task_Pack",
-                container: false,
                 takenSide: "incoming",
                 undo: "element",
             });
@@ -351,7 +353,7 @@ describe("MergeDecisionService", () => {
             ]);
             expect(states.pickable).toContainEqual({
                 id: "Sub_Packing",
-                container: true,
+                container: "contents",
                 undo: "withContents",
             });
         });
@@ -636,13 +638,11 @@ describe("MergeDecisionService", () => {
 
             expect(lastStatesOf(incoming).states.pickable).toContainEqual({
                 id: "Task_Pack",
-                container: false,
                 takenSide: "current",
                 otherSideLacks: "removed",
             });
             expect(lastStatesOf(current).states.pickable).toContainEqual({
                 id: "Task_Pack",
-                container: false,
                 takenSide: "current",
             });
         });

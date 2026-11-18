@@ -194,7 +194,6 @@ const STATES: MergePaneStates = {
             id: "Process_1",
             type: "bpmn:Process",
             marker: "conflict",
-            container: false,
             ...HELD_BY_BOTH,
         },
     ],
@@ -217,11 +216,11 @@ const STATES: MergePaneStates = {
     picksNotDrawn: [],
     consequences: [],
     pickable: [
-        { id: "Task_Check", container: false },
-        { id: "Flow_1", container: false },
-        { id: "Task_Pack", container: false },
-        { id: "Task_Gone", container: false },
-        { id: "Process_1", container: true },
+        { id: "Task_Check" },
+        { id: "Flow_1" },
+        { id: "Task_Pack" },
+        { id: "Task_Gone" },
+        { id: "Process_1", container: "contents" },
     ],
     names: {},
     build: { canBuild: false, openConflicts: 3, built: false, notes: [] },
@@ -278,17 +277,18 @@ describe("MergeMode", () => {
         legendParent.querySelector<HTMLElement>(`.merge-menu [data-row-for="${id}"]`);
     const rowStep = (id: string) =>
         rowOf(id)?.querySelector<HTMLButtonElement>(".merge-menu__row-step") ?? null;
+    // An icon button has no words, so its name is its label.
+    const nameOf = (candidate: Element) =>
+        candidate.textContent || candidate.getAttribute("aria-label");
     const rowButton = (id: string, text: string) => {
         const found = [
             ...(rowOf(id)?.querySelectorAll<HTMLButtonElement>(".merge-menu__mini") ?? []),
-        ].find((candidate) => candidate.textContent === text);
+        ].find((candidate) => nameOf(candidate) === text);
         if (!found) throw new Error(`no ${text} in the row of ${id}`);
         return found;
     };
     const rowButtons = (id: string) =>
-        [...(rowOf(id)?.querySelectorAll(".merge-menu__mini") ?? [])].map(
-            (candidate) => candidate.textContent,
-        );
+        [...(rowOf(id)?.querySelectorAll(".merge-menu__mini") ?? [])].map(nameOf);
     const caption = () => legendParent.querySelector(".merge-bar__caption")?.textContent;
     const openMenu = () =>
         legendParent.querySelector<HTMLButtonElement>(".merge-bar__more")?.click();
@@ -514,7 +514,6 @@ describe("MergeMode", () => {
                             id: "Message_1",
                             type: "bpmn:Message",
                             marker: "takenFromThisSide",
-                            container: false,
                             ...HELD_BY_BOTH,
                         },
                     ],
@@ -888,21 +887,15 @@ describe("MergeMode", () => {
             ]);
         });
 
-        it("keeps a shape-less container, such as the process, with everything inside from either side through its row", async () => {
+        it("keeps a shape-less entry with everything inside, and undoes its pick", async () => {
             await startMergePane();
-            dispatch(
-                mergeStates({
-                    shapelessRows: [
-                        {
-                            id: "Process_1",
-                            type: "bpmn:Process",
-                            marker: "conflict",
-                            container: true,
-                            ...HELD_BY_BOTH,
-                        },
-                    ],
-                }),
-            );
+            const processRow = {
+                id: "Process_1",
+                type: "bpmn:Process",
+                container: "contents" as const,
+                ...HELD_BY_BOTH,
+            };
+            dispatch(mergeStates({ shapelessRows: [{ ...processRow, marker: "conflict" }] }));
 
             expect(rowButtons("Process_1")).toEqual([
                 "Keep current",
@@ -910,29 +903,16 @@ describe("MergeMode", () => {
                 "Keep incoming",
                 "Keep incoming with everything inside",
             ]);
-            rowButton("Process_1", "Keep incoming with everything inside").click();
-
-            expect(picksOf()).toEqual([
-                {
-                    type: "PickMergeSideCommand",
-                    elementId: "Process_1",
-                    scope: "withContents",
-                    side: "incoming",
-                },
-            ]);
-        });
-
-        it("offers a row's decisions by the pad's rule: no Keep of the side the user's pick holds, and Undo while it does", async () => {
-            await startMergePane();
+            openMenu();
+            const keepInside = rowButton("Process_1", "Keep incoming with everything inside");
+            keepInside.focus();
+            keepInside.click();
             dispatch(
                 mergeStates({
                     shapelessRows: [
                         {
-                            id: "Process_1",
-                            type: "bpmn:Process",
+                            ...processRow,
                             marker: "takenFromThisSide",
-                            container: true,
-                            ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "withContents" },
                         },
@@ -943,10 +923,21 @@ describe("MergeMode", () => {
             expect(rowButtons("Process_1")).toEqual([
                 "Keep current",
                 "Keep current with everything inside",
+                "Keep incoming with everything inside",
                 "Undo pick",
             ]);
+            const pressed = rowButton("Process_1", "Keep incoming with everything inside");
+            expect(pressed.getAttribute("aria-pressed")).toBe("true");
+            expect(document.activeElement).toBe(pressed);
             rowButton("Process_1", "Undo pick").click();
+
             expect(picksOf()).toEqual([
+                {
+                    type: "PickMergeSideCommand",
+                    elementId: "Process_1",
+                    scope: "withContents",
+                    side: "incoming",
+                },
                 {
                     type: "UnpickMergeCommand",
                     elementId: "Process_1",
@@ -966,7 +957,6 @@ describe("MergeMode", () => {
                             id: "Message_1",
                             type: "bpmn:Message",
                             marker: "conflict",
-                            container: false,
                             lackingSide: { side: "incoming", lack: "removed" },
                             current: { name: "Order received" },
                             differences: [],
@@ -1008,7 +998,6 @@ describe("MergeMode", () => {
                             id: "Process_1",
                             type: "bpmn:Process",
                             marker: "takenFromThisSide",
-                            container: false,
                             ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "element" },
@@ -1072,7 +1061,6 @@ describe("MergeMode", () => {
                             id: "Process_1",
                             type: "bpmn:Process",
                             marker: "takenFromThisSide",
-                            container: false,
                             ...HELD_BY_BOTH,
                             takenSide: "incoming",
                             pick: { keptSide: "incoming", scope: "element" },
@@ -1122,7 +1110,6 @@ describe("MergeMode", () => {
                             id: "Message_1",
                             type: "bpmn:Message",
                             marker: "takenFromOtherSide",
-                            container: false,
                             takenSide: "current",
                             lackingSide: { side: "incoming", lack: "removed" },
                             pick: { keptSide: "current", scope: "element" },
@@ -1180,7 +1167,6 @@ describe("MergeMode", () => {
                     pickable: [
                         {
                             id: "Task_Pack",
-                            container: false,
                             undo: "element",
                             otherSideLacks: "removed",
                         },

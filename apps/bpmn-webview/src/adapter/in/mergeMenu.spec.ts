@@ -34,6 +34,37 @@ const PICKED_ROW: MergeMenuRowContent = {
     xmlChanges: false,
 };
 
+const CONTAINER_ROW: MergeMenuRowContent = {
+    id: "Process_1",
+    type: "bpmn:Process",
+    marker: "conflict",
+    values: { differences: [] },
+    decisions: [
+        { kind: "keep", scope: "element", side: "current" },
+        { kind: "keep", scope: "withContents", side: "current", reach: "contents" },
+        { kind: "keep", scope: "element", side: "incoming" },
+        { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
+    ],
+    xmlChanges: false,
+};
+
+const KEPT_CONTAINER_ROW: MergeMenuRowContent = {
+    ...CONTAINER_ROW,
+    marker: "takenFromThisSide",
+    decisions: [
+        { kind: "keep", scope: "element", side: "current" },
+        { kind: "keep", scope: "withContents", side: "current", reach: "contents" },
+        {
+            kind: "keep",
+            scope: "withContents",
+            side: "incoming",
+            reach: "contents",
+            pressed: true,
+        },
+        { kind: "undo", scope: "withContents" },
+    ],
+};
+
 const STATE: MergeMenuState = {
     stepList: "openConflicts",
     canStep: true,
@@ -333,6 +364,125 @@ describe("MergeMenu", () => {
             menu.update({ ...STATE, rows: [CONFLICT_ROW] });
 
             expect(rowOf("Message_1")?.contains(document.activeElement)).toBe(true);
+        });
+    });
+
+    describe("a container's row", () => {
+        const keepInside = (side: string) =>
+            rowOf("Process_1")?.querySelector<HTMLButtonElement>(
+                `.merge-menu__keep-inside[aria-label="Keep ${side} with everything inside"]`,
+            ) ?? null;
+
+        beforeEach(() => {
+            menu.update({ ...STATE, rows: [CONTAINER_ROW] });
+            menu.open(true);
+        });
+
+        it("offers keeping everything inside as the pad's icon next to each side's Keep, with the pad's words as its name and tooltip", () => {
+            const decisions = [
+                ...(rowOf("Process_1")?.querySelectorAll<HTMLButtonElement>(".merge-menu__mini") ??
+                    []),
+            ];
+            expect(
+                decisions.map(
+                    (decision) => decision.textContent || decision.getAttribute("aria-label"),
+                ),
+            ).toStrictEqual([
+                "Keep current",
+                "Keep current with everything inside",
+                "Keep incoming",
+                "Keep incoming with everything inside",
+            ]);
+            const incoming = keepInside("incoming");
+            expect(incoming?.querySelector("svg")).not.toBeNull();
+            expect(incoming?.getAttribute("data-merge-tooltip")).toBe(
+                "Keep incoming with everything inside: Keep it and everything inside as incoming has them",
+            );
+            expect(incoming?.getAttribute("aria-pressed")).toBe("false");
+            expect(incoming?.hasAttribute("title")).toBe(false);
+        });
+
+        it("sends a keep with everything inside of the icon's side", () => {
+            keepInside("incoming")?.click();
+
+            expect(actions.onDecide).toHaveBeenCalledWith("Process_1", {
+                kind: "keep",
+                scope: "withContents",
+                side: "incoming",
+                reach: "contents",
+            });
+        });
+
+        it("shows the icon pressed while the user's pick keeps that side with everything inside, and sends nothing from it", () => {
+            menu.update({ ...STATE, rows: [KEPT_CONTAINER_ROW] });
+
+            expect(keepInside("incoming")?.getAttribute("aria-pressed")).toBe("true");
+            expect(keepInside("incoming")?.getAttribute("aria-disabled")).toBe("true");
+            expect(keepInside("current")?.getAttribute("aria-pressed")).toBe("false");
+            keepInside("incoming")?.click();
+            expect(actions.onDecide).not.toHaveBeenCalled();
+        });
+
+        it("words a collaboration's icon by the reach its decisions carry, every pool with its process", () => {
+            menu.update({
+                ...STATE,
+                rows: [
+                    {
+                        ...CONTAINER_ROW,
+                        type: "bpmn:Collaboration",
+                        decisions: [
+                            {
+                                kind: "keep",
+                                scope: "withContents",
+                                side: "current",
+                                reach: "poolProcesses",
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            expect(keepInside("current")?.getAttribute("data-merge-tooltip")).toBe(
+                "Keep current with everything inside: Keep it and every pool with its process as current has them",
+            );
+        });
+
+        it("reaches the icons with the arrow keys", () => {
+            rowOf("Process_1")?.querySelector<HTMLButtonElement>(".merge-menu__mini")?.focus();
+
+            key("ArrowDown");
+            expect(document.activeElement).toBe(keepInside("current"));
+            key("ArrowDown");
+            key("ArrowDown");
+            expect(document.activeElement).toBe(keepInside("incoming"));
+        });
+
+        it("keeps the focus on the icon when the pick it sent repaints it pressed", () => {
+            keepInside("incoming")?.focus();
+
+            menu.update({ ...STATE, rows: [KEPT_CONTAINER_ROW] });
+
+            expect(document.activeElement).toBe(keepInside("incoming"));
+            expect(keepInside("incoming")?.getAttribute("aria-pressed")).toBe("true");
+        });
+
+        it("draws the icon from the decisions, not the type: a container without a keep with everything inside shows none", () => {
+            menu.update({
+                ...STATE,
+                rows: [
+                    {
+                        ...CONTAINER_ROW,
+                        decisions: [
+                            { kind: "keep", scope: "element", side: "current" },
+                            { kind: "keep", scope: "element", side: "incoming" },
+                        ],
+                    },
+                ],
+            });
+
+            const row = rowOf("Process_1");
+            expect(row?.querySelectorAll(".merge-menu__mini")).toHaveLength(2);
+            expect(row?.querySelector(".merge-menu__keep-inside")).toBeNull();
         });
     });
 

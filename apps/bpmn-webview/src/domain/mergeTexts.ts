@@ -1,5 +1,6 @@
 import type {
     MergePaneBuildNote,
+    MergePaneContainerReach,
     MergeObstacleKind,
     MergeObstacleWithMissing,
     MergePaneAction,
@@ -100,9 +101,16 @@ const KEEP_TIPS: Record<MergeSide, string> = {
     incoming: "Keep it as incoming has it",
 };
 
-const KEEP_INSIDE_TIPS: Record<MergeSide, string> = {
-    current: "Keep it and everything inside as current has them",
-    incoming: "Keep it and everything inside as incoming has them",
+// A collaboration's contents reach each pool's process, close to the whole model, which "everything inside" undersells.
+const KEEP_INSIDE_TIPS: Record<MergePaneContainerReach, Record<MergeSide, string>> = {
+    contents: {
+        current: "Keep it and everything inside as current has them",
+        incoming: "Keep it and everything inside as incoming has them",
+    },
+    poolProcesses: {
+        current: "Keep it and every pool with its process as current has them",
+        incoming: "Keep it and every pool with its process as incoming has them",
+    },
 };
 
 const LEAVE_OUT_TIPS: Record<MergeSide, Record<MergePaneOtherSideLack, string>> = {
@@ -117,7 +125,7 @@ const LEAVE_OUT_TIPS: Record<MergeSide, Record<MergePaneOtherSideLack, string>> 
 };
 
 /** The action that keeps a container from `side` with everything inside. */
-export function keepInsideText(side: MergeSide, translate: MergeTranslate): string {
+function keepInsideText(side: MergeSide, translate: MergeTranslate): string {
     return translate(KEEP_INSIDE_TEXTS[side]);
 }
 
@@ -130,7 +138,8 @@ export const MERGE_PAD_TEXTS = {
 
 /**
  * A pad entry's words: its label for screen readers, which names the side
- * where the entry picks one, and its tooltip, the label and what it does.
+ * where the entry picks one, and its tooltip, the label and what it does,
+ * for a keep with everything inside as far as it reaches.
  */
 export function padDecisionText(
     decision: MergePadDecision,
@@ -142,7 +151,7 @@ export function padDecisionText(
             return decision.scope === "withContents"
                 ? withTip(
                       keepInsideText(decision.side, translate),
-                      translate(KEEP_INSIDE_TIPS[decision.side]),
+                      translate(KEEP_INSIDE_TIPS[decision.reach][decision.side]),
                   )
                 : withTip(
                       keepSideText(decision.side, translate),

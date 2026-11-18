@@ -1,7 +1,7 @@
 import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
 import type { MergeDecisions } from "./mergeDecisions";
-import { containersOf, descendantsOf } from "./mergeDecisionsContainment";
+import { type ContainerReach, containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
 import {
     type ElementState,
@@ -27,6 +27,7 @@ interface ShapelessMark {
 }
 
 export type { PickScope } from "./pickOutcome";
+export type { ContainerReach } from "./mergeDecisionsContainment";
 
 /** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
 export interface PickBadge {
@@ -49,8 +50,8 @@ type OtherSideLack = "removed" | "missing";
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface PickableElement {
     readonly id: string;
-    /** Something lies inside it, which a pick can keep with it. */
-    readonly container: boolean;
+    /** Set where something lies inside it, which a pick can keep with it: how far that reaches. */
+    readonly container?: ContainerReach;
     /** The side the result takes it from where the sides differ; a side that lacks it leaves it out. Absent while it is open. */
     readonly takenSide?: MergeSide;
     /** Set while the user's pick decides it: what Undo takes back. */
@@ -70,8 +71,8 @@ export interface ShapelessRow extends ShapelessValues {
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
-    /** Something lies inside it, such as a process's elements, which a pick can keep with it. */
-    readonly container: boolean;
+    /** Set where something lies inside it, such as a process's elements, which a pick can keep with it: how far that reaches. */
+    readonly container?: ContainerReach;
     /** As {@link PickableElement.takenSide}. */
     readonly takenSide?: MergeSide;
     /** Set where one side lacks the element: that side, and why. */
@@ -176,9 +177,10 @@ function paneDecisions(
         }
         const lack = otherSideLacks(element, side);
         const takenSide = takenSideOf(decisions, element);
+        const reach = containers.get(element.id);
         pickable.push({
             id: element.id,
-            container: containers.has(element.id),
+            ...(reach === undefined ? {} : { container: reach }),
             ...(takenSide === undefined ? {} : { takenSide }),
             ...(pick === undefined ? {} : { undo: pick.scope }),
             ...(lack === undefined ? {} : { otherSideLacks: lack }),
@@ -202,12 +204,13 @@ function shapelessRowsOf(
         const takenSide = takenSideOf(decisions, element);
         const lacking = lackingSideOf(element);
         const pick = pickOf(decisions, containers, element);
+        const reach = containers.get(element.id);
         return [
             {
                 id: element.id,
                 type: element.type,
                 marker,
-                container: containers.has(element.id),
+                ...(reach === undefined ? {} : { container: reach }),
                 ...(takenSide === undefined ? {} : { takenSide }),
                 ...(lacking === undefined ? {} : { lackingSide: lacking }),
                 ...(pick === undefined ? {} : { pick }),
@@ -220,7 +223,7 @@ function shapelessRowsOf(
 /** The side and scope of the user's pick on an element, or none while no pick decides it. */
 function pickOf(
     decisions: MergeDecisions,
-    containers: ReadonlySet<string>,
+    containers: ReadonlyMap<string, ContainerReach>,
     element: MergeElement,
 ): { readonly keptSide: MergeSide; readonly scope: PickScope } | undefined {
     const keptSide = decisions.sideOf(element.id);
@@ -232,7 +235,7 @@ function pickOf(
 // Read from the picks, never from how they were made, so every order of the same picks badges alike.
 function scopeOf(
     decisions: MergeDecisions,
-    containers: ReadonlySet<string>,
+    containers: ReadonlyMap<string, ContainerReach>,
     element: MergeElement,
     keptSide: MergeSide,
 ): PickScope {

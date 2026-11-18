@@ -71,7 +71,7 @@ describe("padDecisionText", () => {
             { label: "Keep current", tooltip: "Keep current: Keep it as current has it" },
         ],
         [
-            { kind: "keep", scope: "withContents", side: "incoming" },
+            { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
             {
                 label: "Keep incoming with everything inside",
                 tooltip:
@@ -118,9 +118,22 @@ describe("padDecisionText", () => {
         expect(padDecisionText(decision, untranslated)).toStrictEqual(expected);
     });
 
+    it("says that keeping everything inside a collaboration keeps every pool with its process, as the library reaches", () => {
+        expect(
+            padDecisionText(
+                { kind: "keep", scope: "withContents", side: "current", reach: "poolProcesses" },
+                untranslated,
+            ),
+        ).toStrictEqual({
+            label: "Keep current with everything inside",
+            tooltip:
+                "Keep current with everything inside: Keep it and every pool with its process as current has them",
+        });
+    });
+
     it.each<Extract<MergePadDecision, { side: MergeSide }>>([
         { kind: "keep", scope: "element", side: "current" },
-        { kind: "keep", scope: "withContents", side: "incoming" },
+        { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
         { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
     ])("names the side in the screen readers' label of %o", (decision) => {
         expect(padDecisionText(decision, untranslated).label.toLowerCase()).toContain(

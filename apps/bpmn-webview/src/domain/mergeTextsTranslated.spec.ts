@@ -11,7 +11,6 @@ import {
 
 import {
     buildBlockedText,
-    decisionButtonText,
     MERGE_MARKER_LABELS,
     MERGE_MENU_TEXTS,
     MERGE_STEP_TEXTS,
@@ -20,9 +19,8 @@ import {
     openConflictsText,
     openShapelessConflictsText,
     reviewNotesText,
-    shapelessHeadingText,
-    shapelessValueLines,
 } from "./mergeBarTexts";
+import { decisionButtonText, shapelessHeadingText, shapelessValueLines } from "./mergeRowTexts";
 import {
     buildNoteText,
     compareWithText,
@@ -33,6 +31,7 @@ import {
     MERGE_MARK_TEXTS,
     MERGE_PICK_TEXTS,
     outcomeCardHeadline,
+    padDecisionText,
     pickBadgeText,
     restoreOfferText,
 } from "./mergeTexts";
@@ -69,6 +68,10 @@ const AWAITING_TRANSLATION: ReadonlySet<string> = new Set([
     "Keep incoming with everything inside",
     "Leave out",
     "Also keep its removed flows",
+    "Keep it and everything inside as current has them",
+    "Keep it and everything inside as incoming has them",
+    "Keep it and every pool with its process as current has them",
+    "Keep it and every pool with its process as incoming has them",
     // A shape-less row's value lines.
     "none",
     "and other content",
@@ -115,8 +118,9 @@ function mergeTextKeys(): Set<string> {
             restoreOfferText(offer, translate);
             decisionButtonText({ kind: "keepRemovedFlows", side, offer }, translate);
         }
-        for (const scope of ["element", "withContents"] as const) {
-            decisionButtonText({ kind: "keep", scope, side }, translate);
+        decisionButtonText({ kind: "keep", scope: "element", side }, translate);
+        for (const reach of ["contents", "poolProcesses"] as const) {
+            padDecisionText({ kind: "keep", scope: "withContents", side, reach }, translate);
         }
         decisionButtonText({ kind: "leaveOut", side, otherSideLacks: "removed" }, translate);
     }

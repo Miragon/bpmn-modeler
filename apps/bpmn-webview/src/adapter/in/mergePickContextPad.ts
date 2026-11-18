@@ -6,6 +6,11 @@ import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/
 
 import type { MergePadDecision } from "../../domain/mergePadDecisions";
 import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import {
+    MERGE_DECISION_ICONS,
+    type MergeDecisionGlyph,
+    mergeDecisionGlyph,
+} from "./mergeDecisionIcons";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 import "./mergePickContextPad.css";
@@ -41,41 +46,13 @@ interface Canvas {
     getRootElement(): unknown;
 }
 
-type DecisionGlyph = "keep" | "keepInside" | "leaveOut" | "keepRemovedFlows" | "undo";
-
-const ICON = (paths: string) =>
-    `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
-
-const GLYPHS: Record<DecisionGlyph, { readonly entryId: string; readonly icon: string }> = {
-    keep: { entryId: "merge-keep", icon: ICON(`<path d="M20 6 9 17l-5-5"/>`) },
-    keepInside: {
-        entryId: "merge-keep-inside",
-        icon: ICON(
-            `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m16 9-5.5 6L8 12.5"/>`,
-        ),
-    },
-    leaveOut: {
-        entryId: "merge-leave-out",
-        icon: ICON(`<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>`),
-    },
-    // A sequence flow's arrow and a plus: the flows come back.
-    keepRemovedFlows: {
-        entryId: "merge-keep-removed-flows",
-        icon: ICON(
-            `<path d="M3 12h10"/><path d="m10 8 4 4-4 4"/><path d="M19 9v6"/><path d="M16 12h6"/>`,
-        ),
-    },
-    undo: {
-        entryId: "merge-undo",
-        icon: ICON(`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`),
-    },
+const ENTRY_IDS: Record<MergeDecisionGlyph, string> = {
+    keep: "merge-keep",
+    keepInside: "merge-keep-inside",
+    leaveOut: "merge-leave-out",
+    keepRemovedFlows: "merge-keep-removed-flows",
+    undo: "merge-undo",
 };
-
-function glyphOf(decision: MergePadDecision): DecisionGlyph {
-    return decision.kind === "keep" && decision.scope === "withContents"
-        ? "keepInside"
-        : decision.kind;
-}
 
 /**
  * The merge pane's decisions beside "Show XML changes", as icons at
@@ -112,7 +89,7 @@ export class MergePickContextPadProvider {
         return Object.fromEntries(
             this.entryConfig
                 .decisionsOf(bpmnElementIdOf(element))
-                .map((decision) => [GLYPHS[glyphOf(decision)].entryId, this.entry(decision)]),
+                .map((decision) => [ENTRY_IDS[mergeDecisionGlyph(decision)], this.entry(decision)]),
         );
     }
 
@@ -120,7 +97,7 @@ export class MergePickContextPadProvider {
         const { label, tooltip } = padDecisionText(decision, this.translate);
         return {
             group: "merge-pick",
-            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${GLYPHS[glyphOf(decision)].icon}</button>`,
+            html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${MERGE_DECISION_ICONS[mergeDecisionGlyph(decision)]}</button>`,
             action: {
                 click: (_event, clicked) =>
                     this.entryConfig.decide(bpmnElementIdOf(clicked), decision),

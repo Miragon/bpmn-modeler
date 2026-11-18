@@ -25,6 +25,7 @@ export { mergePaneSteps } from "./mergePaneSteps";
 export type { MergePaneSteps, MergeStep } from "./mergePaneSteps";
 export { mergePaneView } from "./mergePaneView";
 export type {
+    ContainerReach,
     MergePaneView,
     PickableElement,
     PickBadge,

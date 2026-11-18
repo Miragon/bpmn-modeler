@@ -1,4 +1,5 @@
 import type {
+    MergePaneContainerReach,
     MergePaneOtherSideLack,
     MergePaneRestoreOffer,
     MergePaneShapelessRow,
@@ -7,13 +8,18 @@ import type {
 } from "@miragon/bpmn-modeler-shared";
 import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
+/** Keeps a container from `side` with everything inside, as far as the library says it reaches. */
+export interface MergeKeepInside {
+    readonly kind: "keep";
+    readonly scope: "withContents";
+    readonly side: MergeSide;
+    readonly reach: MergePaneContainerReach;
+}
+
 /** One decision the context pad offers on an element the pane draws, or a menu row on a shape-less one. */
 export type MergePadDecision =
-    | {
-          readonly kind: "keep";
-          readonly scope: "element" | "withContents";
-          readonly side: MergeSide;
-      }
+    | { readonly kind: "keep"; readonly scope: "element"; readonly side: MergeSide }
+    | MergeKeepInside
     /** Picks the side whose version lacks the element, which leaves it out of the result. */
     | {
           readonly kind: "leaveOut";
@@ -60,8 +66,8 @@ export function mergePadDecisions(
     const keptHere = badge?.keptSide === paneSide ? badge.scope : undefined;
     const decisions: (MergePadDecision | undefined)[] = [
         sidePick(facts, paneSide),
-        pickable.container && keptHere !== "withContents"
-            ? { kind: "keep", scope: "withContents", side: paneSide }
+        pickable.container !== undefined && keptHere !== "withContents"
+            ? { kind: "keep", scope: "withContents", side: paneSide, reach: pickable.container }
             : undefined,
         facts.lacking === undefined ? undefined : sidePick(facts, facts.lacking.side),
         keepRemovedFlows(states, elementId),
@@ -73,28 +79,49 @@ export function mergePadDecisions(
 /** What a menu row reads of the host's states. */
 export type MergeRowStates = Pick<MergePaneStates, "restoreOffer">;
 
+/** A menu row's keep with everything inside; `pressed` while the user's pick holds it, which then changes nothing. */
+export type MergeRowKeepInside = MergeKeepInside & { readonly pressed?: true };
+
+/** A menu row's decision; only a keep with everything inside can be pressed. */
+export type MergeRowDecision = Exclude<MergePadDecision, MergeKeepInside> | MergeRowKeepInside;
+
+export function keepsEverythingInside<Decision extends MergePadDecision>(
+    decision: Decision,
+): decision is Extract<Decision, MergeKeepInside> {
+    return decision.kind === "keep" && decision.scope === "withContents";
+}
+
 /**
  * The decisions a menu row offers on a shape-less element, by the pad's
  * rule: no other pane decides it, so it offers a pick of either side, keep
  * where the side holds it, a container also with everything inside, and
  * leave out where the side lacks it, then the flows the host offers and the
- * undo of the user's pick.
+ * undo of the user's pick. Unlike the pad's, a container's keep with
+ * everything inside stays while the user's pick holds it, pressed, so the
+ * row shows which reach the pick has.
  */
 export function mergeRowDecisions(
     states: MergeRowStates,
     row: MergePaneShapelessRow,
-): readonly MergePadDecision[] {
+): readonly MergeRowDecision[] {
     const facts: SidePickFacts = {
         pickedSide: row.pick?.keptSide,
         takenSide: row.takenSide,
         lacking: row.lackingSide,
     };
     const keptWithContentsFrom = row.pick?.scope === "withContents" ? row.pick.keptSide : undefined;
-    const withContents = (side: MergeSide): MergePadDecision | undefined =>
-        row.container && row.lackingSide?.side !== side && keptWithContentsFrom !== side
-            ? { kind: "keep", scope: "withContents", side }
+    const reach = row.container;
+    const withContents = (side: MergeSide): MergeRowKeepInside | undefined =>
+        reach !== undefined && row.lackingSide?.side !== side
+            ? {
+                  kind: "keep",
+                  scope: "withContents",
+                  side,
+                  reach,
+                  ...(keptWithContentsFrom === side ? { pressed: true } : {}),
+              }
             : undefined;
-    const decisions: (MergePadDecision | undefined)[] = [
+    const decisions: (MergeRowDecision | undefined)[] = [
         ...MERGE_SIDES.flatMap((side) => [sidePick(facts, side), withContents(side)]),
         keepRemovedFlows(states, row.id),
         row.pick === undefined ? undefined : { kind: "undo", scope: row.pick.scope },
