@@ -7,26 +7,24 @@ import {
 import { closePicks } from "./mergeDecisionsClosure";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { findDanglingConflicts, type DanglingConflict } from "./mergeDecisionsDangling";
+import {
+    changedStructuralProperties,
+    type EffectiveElements,
+    effectiveElementsOf,
+    trialOfHandMerges,
+} from "./mergeDecisionsHandMerges";
 import { layoutSidesOf } from "./mergeDecisionsLayout";
 import { DecidedSides } from "./mergeDecisionsSides";
 import type { HandMergeOptions, PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
 import {
     isConflictState,
     type ConflictState,
-    type ElementReference,
     type ElementVersion,
     type MergeElement,
     type MergeResult,
     type MergeSide,
 } from "./mergeResult";
-import {
-    dependentsByTarget,
-    isEdgeEnd,
-    isHostReference,
-    isProcessReference,
-    type ReferenceIndex,
-    requirementsOf,
-} from "./referenceRules";
+import { type ReferenceIndex, requirementsOf } from "./referenceRules";
 import { idsRemovedWith, removedWith } from "./removedWith";
 import type { UnmetRequirement } from "./unmetRequirement";
 
@@ -59,12 +57,6 @@ export interface MergeResolution {
     readonly elements: Readonly<Record<string, MergeSide>>;
     /** Every element in the result that is drawn: the side whose DI is taken. */
     readonly layout: Readonly<Record<string, MergeSide>>;
-}
-
-/** What the decisions read: the result with each hand-merged version in place of its side's. */
-interface EffectiveElements {
-    readonly result: MergeResult;
-    readonly index: ReferenceIndex;
 }
 
 /**
@@ -379,43 +371,16 @@ export class MergeDecisions {
         id: string,
     ): HandMergeOutcome {
         const effective = effectiveElementsOf(this.mergeResult, handMerges);
-        const before = this.sides.over(effective.index.elementsById);
-        const element = effective.index.elementsById.get(id)!;
-        const requirements = requirementsOf(element, this.sides.picks.get(id)!);
-        const missing = requirements
-            .filter(({ target }) => !effective.index.elementsById.has(target))
-            .map(({ target }) => target);
-        if (missing.length > 0) {
-            return handMergeRefused({ kind: "namesMissingElement", ids: unique(missing) });
-        }
-        const leftOut = requirements
-            .filter((requirement) => before.isUnmet(requirement))
-            .map(({ target }) => target);
-        if (leftOut.length > 0) {
-            return handMergeRefused({ kind: "namesLeftOutElement", ids: unique(leftOut) });
-        }
-        const { outcome, after } = closePicks(effective.index, before, this.sides.picks);
-        if (!outcome.applied) {
-            return handMergeRefused({
-                kind: "changesOtherDecisions",
-                ids: unique(outcome.blockedBy.map((blocked) => blocked.id)),
-            });
-        }
-        const dangling = findDanglingConflicts(effective.result.elements, effective.index, after);
-        const changed = this.elements
-            .map((candidate) => candidate.id)
-            .filter(
-                (candidate) =>
-                    decisionOf(candidate, this.sides, this.dangling) !==
-                    decisionOf(candidate, after, dangling),
-            );
-        if (changed.length > 0) {
-            return handMergeRefused({ kind: "changesOtherDecisions", ids: changed });
-        }
+        const trial = trialOfHandMerges(
+            effective,
+            { elements: this.elements, sides: this.sides, dangling: this.dangling },
+            id,
+        );
+        if ("refusal" in trial) return handMergeRefused(trial.refusal);
         this.handMerges = handMerges;
         this.effective = effective;
-        this.sides = after;
-        this.dangling = dangling;
+        this.sides = trial.after;
+        this.dangling = trial.dangling;
         return HAND_MERGE_APPLIED;
     }
 
@@ -446,62 +411,4 @@ export class MergeDecisions {
         }
         return element;
     }
-}
-
-function effectiveElementsOf(
-    plain: MergeResult,
-    handMerges: ReadonlyMap<string, HandMergedVersion>,
-): EffectiveElements {
-    const elements =
-        handMerges.size === 0
-            ? plain.elements
-            : plain.elements.map((element) => {
-                  const handMerge = handMerges.get(element.id);
-                  return handMerge === undefined
-                      ? element
-                      : {
-                            ...element,
-                            versions: { ...element.versions, [handMerge.side]: handMerge.version },
-                        };
-              });
-    return {
-        result: elements === plain.elements ? plain : { ...plain, elements },
-        index: {
-            elementsById: new Map(elements.map((element) => [element.id, element])),
-            dependentsByTarget: dependentsByTarget(elements),
-        },
-    };
-}
-
-/** An element's side and presence, or open while it dangles, as one comparable text. */
-function decisionOf(
-    id: string,
-    sides: DecidedSides,
-    dangling: ReadonlyMap<string, DanglingConflict>,
-): string {
-    const side = dangling.has(id) ? undefined : sides.decidedSideOf(id);
-    return side === undefined ? "open" : `${side}:${sides.isPresent(id)}`;
-}
-
-/** The references that place an element, an edge's ends, a boundary event's host and a pool's process, that differ. */
-function changedStructuralProperties(before: ElementVersion, after: ElementVersion): string[] {
-    const placing = (version: ElementVersion) =>
-        version.references.filter(
-            (reference) =>
-                isEdgeEnd(reference) || isHostReference(reference) || isProcessReference(reference),
-        );
-    const keyOf = ({ property, target, targetPart }: ElementReference) =>
-        JSON.stringify([property, target, targetPart ?? null]);
-    const beforeKeys = new Set(placing(before).map(keyOf));
-    const afterKeys = new Set(placing(after).map(keyOf));
-    return unique(
-        [
-            ...placing(before).filter((reference) => !afterKeys.has(keyOf(reference))),
-            ...placing(after).filter((reference) => !beforeKeys.has(keyOf(reference))),
-        ].map(({ property }) => property),
-    );
-}
-
-function unique(ids: readonly string[]): string[] {
-    return [...new Set(ids)];
 }
