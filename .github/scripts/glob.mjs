@@ -1,12 +1,25 @@
 // The path globs of the .github registries: `**` crosses folders, `*` stays
-// within one, nothing else is a wildcard.
+// within one, `{a,b}` matches either alternative, nothing else is a wildcard.
 
 export function globToRegExp(glob) {
-    const pattern = glob
-        .replace(/[.+^${}()|[\]\\?]/g, "\\$&")
-        .replace(/\*\*\/|\*\*|\*/g, (wildcard) =>
-            wildcard === "**/" ? "(?:.*/)?" : wildcard === "**" ? ".*" : "[^/]*",
-        );
+    let pattern = "";
+    let braceDepth = 0;
+    for (let index = 0; index < glob.length; index++) {
+        const char = glob[index];
+        if (char === "*" && glob[index + 1] === "*") {
+            const slashFollows = glob[index + 2] === "/";
+            pattern += slashFollows ? "(?:.*/)?" : ".*";
+            index += slashFollows ? 2 : 1;
+        } else if (char === "*") pattern += "[^/]*";
+        else if (char === "{") {
+            braceDepth++;
+            pattern += "(?:";
+        } else if (char === "}" && braceDepth > 0) {
+            braceDepth--;
+            pattern += ")";
+        } else if (char === "," && braceDepth > 0) pattern += "|";
+        else pattern += char.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+    }
     return new RegExp(`^${pattern}$`);
 }
 

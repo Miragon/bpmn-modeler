@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { globToRegExp } from "./glob.mjs";
 import { readPathCandidates, uncoveredReads, withoutQuery } from "./vitest-target-reads.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -271,23 +272,6 @@ function sourceFiles(dir) {
         if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourceFiles(path);
         return SOURCE_FILE.test(entry.name) ? [path] : [];
     });
-}
-
-function globToRegExp(glob) {
-    let pattern = "";
-    for (let index = 0; index < glob.length; index++) {
-        const char = glob[index];
-        if (char === "*" && glob[index + 1] === "*") {
-            const slashFollows = glob[index + 2] === "/";
-            pattern += slashFollows ? "(?:.*/)?" : ".*";
-            index += slashFollows ? 2 : 1;
-        } else if (char === "*") pattern += "[^/]*";
-        else if (char === "{") pattern += "(?:";
-        else if (char === "}") pattern += ")";
-        else if (char === ",") pattern += "|";
-        else pattern += char.replace(/[.+?^$()|[\]\\]/g, "\\$&");
-    }
-    return new RegExp(`^${pattern}$`);
 }
 
 function readJson(path) {

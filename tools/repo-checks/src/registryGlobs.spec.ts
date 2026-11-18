@@ -14,6 +14,15 @@ describe("the globs of the .github registries", () => {
         { glob: "**/__fixtures__/**", file: "libs/x/src/__fixtures__/a.bpmn", matches: true },
         { glob: "apps/a.b/x.ts", file: "apps/aXb/x.ts", matches: false },
         { glob: "**", file: "yarn.lock", matches: true },
+        { glob: "{apps,packages}/*/vite*.mts", file: "apps/a/vite.config.mts", matches: true },
+        { glob: "{apps,packages}/*/vite*.mts", file: "packages/b/vite.editor.mts", matches: true },
+        { glob: "{apps,packages}/*/vite*.mts", file: "libs/c/vite.config.mts", matches: false },
+        { glob: "scripts/glob.{mjs,d.mts}", file: "scripts/glob.d.mts", matches: true },
+        { glob: "scripts/glob.{mjs,d.mts}", file: "scripts/glob.dXmts", matches: false },
+        { glob: "a/{b,c{d,e}}.ts", file: "a/ce.ts", matches: true },
+        { glob: "a/{b,c{d,e}}.ts", file: "a/c.ts", matches: false },
+        { glob: "a,b.txt", file: "a,b.txt", matches: true },
+        { glob: "a,b.txt", file: "a", matches: false },
     ])("$glob matches $file: $matches", ({ glob, file, matches }) => {
         expect(globToRegExp(glob).test(file)).toBe(matches);
     });
