@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { bpmnInlinedLibraries, dmnInlinedLibraries } from "./testing/inlinedLibraries";
 import { triggerPaths, workflowPattern } from "./testing/workflowText";
 
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
@@ -15,40 +16,19 @@ const markerWorkflow = readRepoFile(".github/workflows/sync-release-markers.yml"
 
 const pushTriggerPaths = triggerPaths(markerWorkflow, "push");
 
-function libraryDirectories(sourceRoots: string[]): string[] {
-    return sourceRoots.map((sourceRoot) => {
-        const directory = /^\.\.\/\.\.\/libs\/([^/]+)\/src$/.exec(sourceRoot)?.[1];
-        if (!directory) {
-            throw new Error(`unexpected inlined library source root ${sourceRoot}`);
-        }
-        return directory;
-    });
-}
-
-const bpmnInlinedSourceRoots = (
-    JSON.parse(readRepoFile("packages/bpmn-modeler/inlined-libraries.json").text) as {
-        sourceRoot: string;
-    }[]
-).map((library) => library.sourceRoot);
-
-const bpmnInlinedLibraries = libraryDirectories(bpmnInlinedSourceRoots);
-
-const dmnInlinedSourceRoots =
-    /INLINED_LIB_SRC = \[([^\]]*)\]/.exec(
-        readRepoFile("packages/dmn-modeler/vite.config.mts").text,
-    )?.[1] ?? "";
-
-const dmnInlinedLibraries = libraryDirectories(
-    [...dmnInlinedSourceRoots.matchAll(/"([^"]+)"/g)].map((entry) => entry[1]),
+const bpmnInlined = bpmnInlinedLibraries(
+    readRepoFile("packages/bpmn-modeler/inlined-libraries.json").text,
 );
+
+const dmnInlined = dmnInlinedLibraries(readRepoFile("packages/dmn-modeler/vite.config.mts").text);
 
 describe("release markers for inlined libraries", () => {
     it("reads the inlined libraries of both packages", () => {
-        expect(bpmnInlinedLibraries).toContain("modeler-types");
-        expect(dmnInlinedLibraries).toContain("modeler-types");
+        expect(bpmnInlined).toContain("modeler-types");
+        expect(dmnInlined).toContain("modeler-types");
     });
 
-    it.each(bpmnInlinedLibraries)(
+    it.each(bpmnInlined)(
         "routes a fix in libs/%s to the VS Code and IntelliJ release lines",
         (directory) => {
             expect(pushTriggerPaths).toContain(`libs/${directory}/**`);
@@ -58,7 +38,7 @@ describe("release markers for inlined libraries", () => {
         },
     );
 
-    it.each([...new Set([...bpmnInlinedLibraries, ...dmnInlinedLibraries, "shared"])])(
+    it.each([...new Set([...bpmnInlined, ...dmnInlined, "shared"])])(
         "routes a fix in libs/%s to the Orca plugin's release line",
         (directory) => {
             expect(pushTriggerPaths).toContain(`libs/${directory}/**`);
@@ -82,17 +62,12 @@ describe("release markers for inlined libraries", () => {
         },
     );
 
-    it.each(dmnInlinedLibraries)(
-        "routes a fix in libs/%s to the DMN modeler release line",
-        (directory) => {
-            expect(pushTriggerPaths).toContain(`libs/${directory}/**`);
-            expect(
-                workflowPattern(markerWorkflow, "DMN_RELEVANT").test(
-                    `libs/${directory}/src/index.ts`,
-                ),
-            ).toBe(true);
-        },
-    );
+    it.each(dmnInlined)("routes a fix in libs/%s to the DMN modeler release line", (directory) => {
+        expect(pushTriggerPaths).toContain(`libs/${directory}/**`);
+        expect(
+            workflowPattern(markerWorkflow, "DMN_RELEVANT").test(`libs/${directory}/src/index.ts`),
+        ).toBe(true);
+    });
 });
 
 describe("release markers for the modeler bundle preset", () => {

@@ -8,24 +8,12 @@ import { dirname, resolve } from "node:path";
 import { argv, stdout } from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { matchesGlobs } from "./glob.mjs";
+
 const SUITE_FOLDER = "apps/vscode-plugin/test/smoke";
 const SUITE_FILE = /^apps\/vscode-plugin\/test\/smoke\/([^/]+)\.smoke\.test\.ts$/;
 /** The pull request files API lists no more, so a longer change is not known in full. */
 export const LISTED_FILES_LIMIT = 3000;
-
-/** `**` crosses folders, `*` stays within one; nothing else is a wildcard. */
-export function globToRegExp(glob) {
-    const pattern = glob
-        .replace(/[.+^${}()|[\]\\?]/g, "\\$&")
-        .replace(/\*\*\/|\*\*|\*/g, (wildcard) =>
-            wildcard === "**/" ? "(?:.*/)?" : wildcard === "**" ? ".*" : "[^/]*",
-        );
-    return new RegExp(`^${pattern}$`);
-}
-
-function matchesAny(globs, file) {
-    return globs.some((glob) => globToRegExp(glob).test(file));
-}
 
 /** The suites a change runs, in the registry's order. */
 export function selectSuites(registry, changedFiles) {
@@ -38,8 +26,8 @@ export function selectSuites(registry, changedFiles) {
             selected.add(ownSuite);
             continue;
         }
-        if (matchesAny(registry.ignore, file)) continue;
-        const rule = registry.rules.find(({ paths }) => matchesAny(paths, file));
+        if (matchesGlobs(registry.ignore, file)) continue;
+        const rule = registry.rules.find(({ paths }) => matchesGlobs(paths, file));
         for (const suite of rule ? [...registry.baseline, ...rule.suites] : allSuites) {
             selected.add(suite);
         }

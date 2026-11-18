@@ -19,7 +19,6 @@ export interface SmokeJob {
 }
 
 export const LISTED_FILES_LIMIT: number;
-export function globToRegExp(glob: string): RegExp;
 export function selectSuites(
     registry: SmokeSuiteRegistry,
     changedFiles: readonly string[],
