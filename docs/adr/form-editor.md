@@ -57,7 +57,8 @@ The values a form takes and returns open as JSON beside it, on the extension's i
 systems: the input writable, the output read-only. They take their URIs and the sweep that closes a
 restored tab from the same `shared/adapter/out/` helpers as the element XML diff and merge editor
 ([merge XML editor](merge-xml-editor.md)). A restored tab is closed unserved: VS Code 1.147 reopens
-it unread and closes it without asking. The cost: an active restored tab can show VS Code's "file
+it unread and closes it without asking. As for the merge result, a save to an input the extension no
+longer serves is ignored rather than created and deleted again. The cost: an active restored tab can show VS Code's "file
 not found" for the moment before it closes, where serving `{}` first would show an empty object.
 
 The contracts live in the specs under `libs/modeler-core/src/modeler/form/`; the form-js input

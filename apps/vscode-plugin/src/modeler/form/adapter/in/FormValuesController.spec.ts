@@ -165,8 +165,10 @@ vi.mock("vscode", () => ({
 
 import { TabInputText } from "vscode";
 
-import { registeredFormValueFiles } from "../../../../__fixtures__/formValueFiles";
-import { closeUnservedTabs } from "../../../../shared/adapter/out/unservedTabs";
+import {
+    register as registerFormValues,
+    registeredFormValueFiles,
+} from "../../../../composition/formValuesFeature";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -225,11 +227,6 @@ describe("FormValuesController", () => {
             expect.any(FormValuesController),
         );
 
-        const inputUri = vscodeMocks.TestUri.from({
-            scheme: FORM_INPUT_VALUES_SCHEME,
-            authority: "session",
-            path: "/input.json",
-        });
         const outputUri = vscodeMocks.TestUri.from({
             scheme: FORM_OUTPUT_VALUES_SCHEME,
             authority: "session",
@@ -241,12 +238,6 @@ describe("FormValuesController", () => {
                 overwrite: true,
             }),
         ).toThrow();
-        expect(() =>
-            registeredProvider(0).writeFile(inputUri, new TextEncoder().encode("{}"), {
-                create: false,
-                overwrite: true,
-            }),
-        ).toThrow("File not found");
     });
 
     it("opens the input JSON in the standard editor beside the form", async () => {
@@ -424,26 +415,24 @@ describe("FormValuesController", () => {
         const restored = restoredInputUri();
         const tab = { input: new TabInputText(restored as never) };
         vscodeMocks.openTabGroups = [{ tabs: [tab] }];
-        const { controller, context } = setup();
+        const host = createTestHost();
 
-        closeUnservedTabs(context as never, (candidate) => controller.isUnservedTab(candidate));
+        registerFormValues({ subscriptions: [] } as never, {
+            editorStore: host.store,
+            notifier: host.notifier,
+        });
 
         expect(vscodeMocks.closeTab).toHaveBeenCalledWith([tab], true);
         expect(() => registeredProvider(0).readFile(restored)).toThrow("File not found");
     });
 
-    it("drops a file the editor wrote for a values tab of a gone session once that tab closes", () => {
+    it("ignores a write to the values of a gone session", () => {
         setup();
         const restored = restoredInputUri();
+
         registeredProvider(0).writeFile(restored, new TextEncoder().encode("{}"), {
             create: true,
             overwrite: true,
-        });
-
-        vscodeMocks.tabChangeListener?.({
-            opened: [],
-            closed: [{ input: new TabInputText(restored as never) }],
-            changed: [],
         });
 
         expect(() => registeredProvider(0).readFile(restored)).toThrow("File not found");

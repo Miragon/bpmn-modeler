@@ -4,7 +4,6 @@ import {
     commands,
     ExtensionContext,
     Tab,
-    TabChangeEvent,
     TabInputText,
     TextDocument,
     TextDocumentChangeEvent,
@@ -76,7 +75,7 @@ export class FormValuesController {
     register(context: ExtensionContext): void {
         context.subscriptions.push(
             workspace.onDidChangeTextDocument((event) => this.handleDocumentChange(event)),
-            window.tabGroups.onDidChangeTabs((event) => this.handleTabsChanged(event)),
+            window.tabGroups.onDidChangeTabs(() => this.removeRetiredSessionsWithoutTabs()),
             commands.registerCommand(TOGGLE_FORM_INPUT_VALUES_CMD, this.toggleInputValues, this),
             commands.registerCommand(TOGGLE_FORM_OUTPUT_VALUES_CMD, this.toggleOutputValues, this),
             {
@@ -265,11 +264,7 @@ export class FormValuesController {
         this.scheduledSaves.delete(key);
     }
 
-    private handleTabsChanged(event: TabChangeEvent): void {
-        for (const tab of event.closed) {
-            const uri = virtualTabUri(tab);
-            if (uri && !this.owners.has(uri.toString())) this.deleteStaleFile(uri);
-        }
+    private removeRetiredSessionsWithoutTabs(): void {
         for (const session of this.retiredSessions) {
             if (
                 this.findTabs(session.inputUri).length + this.findTabs(session.outputUri).length ===
@@ -289,14 +284,6 @@ export class FormValuesController {
         this.owners.delete(session.outputUri.toString());
         this.inputFiles.deleteFile(session.inputUri);
         this.outputFiles.deleteFile(session.outputUri);
-    }
-
-    private deleteStaleFile(uri: Uri): void {
-        this.providerFor(uri).deleteFile(uri);
-    }
-
-    private providerFor(uri: Uri): ServedTextFiles<Uri> {
-        return uri.scheme === FORM_INPUT_VALUES_SCHEME ? this.inputFiles : this.outputFiles;
     }
 
     private findTabs(uri: Uri): Tab[] {

@@ -26,9 +26,12 @@ changed different parts to a whole pick.
   reload restored is closed: its texts are gone, and a save to a file the provider no
   longer serves is ignored. VS Code 1.147 brings the result back clean and unread, even
   when it was dirty, and closes it without asking, so the tab is closed unserved. The
-  XML diff, this editor and the form's values share that sweep and their URIs
-  (`apps/vscode-plugin/src/shared/adapter/out/`), so the next in-memory view does not
-  copy one of two answers.
+  in-memory text views (the XML diff, this editor and the form's values; not the
+  `bpmn-merge:` panes) share that sweep, which logs a close VS Code refuses, and their
+  URIs (`apps/vscode-plugin/src/shared/adapter/out/`). Their two writable files, this
+  result and the form's input, both ignore a save the provider no longer serves
+  (`editorMayCreateFiles: false`), so the next in-memory view does not copy one of two
+  answers.
 - *The result starts as Git's conflict text, not as the pick.* The editor keeps the output
   as given unless a line starts with `<<<<<<<`, and counts a range as handled when the
   result holds either side. Prefilled with the pick, every true conflict counts as
