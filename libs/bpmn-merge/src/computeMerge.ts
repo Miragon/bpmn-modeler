@@ -1,5 +1,6 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
+import { elementVersionOf } from "./elementVersion";
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
 import { parseFailure } from "./mergeRefusal";
@@ -110,18 +111,4 @@ function classifiedVersionOf(snapshot: ElementSnapshot | undefined): ClassifiedV
         lanesKeyOf(snapshot.lanes),
     ]);
     return snapshot.layout === undefined ? { key } : { key, layout: snapshot.layout };
-}
-
-function elementVersionOf(snapshot: ElementSnapshot): ElementVersion {
-    return {
-        ...(snapshot.parent === undefined ? {} : { parent: snapshot.parent }),
-        ...(snapshot.container === undefined ? {} : { container: snapshot.container }),
-        lanes: [...snapshot.lanes],
-        references: snapshot.references.map(({ property, target, targetPart }) =>
-            targetPart === undefined ? { property, target } : { property, target, targetPart },
-        ),
-        parts: [...snapshot.parts],
-        drawn: snapshot.layout !== undefined,
-        ...(snapshot.plane === undefined ? {} : { plane: snapshot.plane }),
-    };
 }

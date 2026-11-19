@@ -35,23 +35,19 @@ consumers for five call sites. The library also holds what a merge view shows of
 decisions, as pure projections (`mergePaneView`, `mergePaneSteps`, `mergeNavigationOrder`,
 `hasNoShape`); the [merge view record](merge-view.md) says why.
 
-The core, the protocol and the merge view's webview share one vocabulary: the two sides, the
-markers a pane paints and their classes, the roles a pane caption gives a side and the caption
-itself. Its home is `libs/modeler-types/src/mergeVocabulary.ts`, which imports nothing at
-runtime; the library reaches it through the `@miragon/bpmn-modeler-types/mergeVocabulary`
-subpath, everything else through the barrel, whose exact specifier is the only one the core's
-`domain/` may import. `MergeSide` moved there, and `mergeResult.ts` re-exports it.
+The core, the protocol and the merge view's webview share one vocabulary (the sides, the
+markers a pane paints, the caption roles) in `libs/modeler-types/src/mergeVocabulary.ts`, which
+imports nothing at runtime; the library reaches it through the
+`@miragon/bpmn-modeler-types/mergeVocabulary` subpath, everything else through the barrel,
+whose exact specifier is the only one the core's `domain/` may import. Git's conflict-marker
+grammar sits beside it (`conflictMarkers.ts`, subpath `/conflictMarkers`), so the core's file
+check and the hand-merge check read markers alike; a second grammar had drifted.
 
-`libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so a change
-to either counts toward the npm component. The vocabulary file is excluded from that
-component like this library. The other edits the merge view needs in those libraries land in
-two `chore` changes around the feature changes: one before them (the `"merge"` and
-`"merge-result"` diff origins, the `"merge"` viewer mode, and a diff legend that takes its own
-count slots and an extension element), one after them with the webview's translations. The
-feature changes touch only excluded paths, so the merge view adds no entry to the npm
-changelog and no version bump. Cost: the exclusion is by path, so a published file that later
-imports the vocabulary is not excluded; and the published barrel carries the vocabulary,
-although no package entry re-exports it.
+`libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so the
+vocabulary file is excluded from the npm component by path like this library, and the merge
+view's other edits there land in `chore` changes, so it adds no npm changelog entry. Cost: a
+published file that later imports the vocabulary is not excluded, and the published barrel
+carries the vocabulary although no package entry re-exports it.
 
 ### Merge elements
 
@@ -64,18 +60,13 @@ all, although event definitions and operations name them. Event definitions,
 `ioSpecification`, lane sets, labels and extension elements stay part of their element.
 
 - *Elements are matched by id, and only an element with an id stands on its own.* An
-  element deleted and drawn again has a new id and shows as removed and added. A child
-  without an id inside a merge element, such as a data association some exporters write,
-  stays inside it, in `elementSnapshots` and in `elementXml` alike, so a change to it is a
-  change of that element and never lost. A root element or a lane without an id has no
-  such element to stay in (definitions is none, and lane membership is keyed by lane id),
+  element deleted and drawn again shows as removed and added. A child without an id, such
+  as a data association some exporters write, stays inside its merge element, so a change
+  to it is never lost. A root element or a lane without an id has no element to stay in,
   so a version holding one is refused, naming the side and the type.
 - *One parse per version.* `elementSnapshots(xml, { isUnit, prefixSources, rejectWarnings })`
-  in `bpmn-diff` returns every element's text, parent, lanes, references, inner ids
-  (`parts`), the non-element object holding it (`container`, such as a lane set), its plane
-  and its layout from one parse; it shares its serialiser with `elementXml`, so the default
-  unit rule gives the same text. Calling `elementXml` per element costs one parse each
-  (about 40 ms at 0.8 MB), far too slow for three versions.
+  in `bpmn-diff` returns every element's text, structure, parts, plane and layout from one
+  parse and shares its serialiser with `elementXml`, so the default unit rule gives the same text.
 
 ### Classification
 
@@ -85,15 +76,11 @@ conflicts: both changed, both added, removed and changed, changed and removed. W
 base, an element only one side has, or that the sides hold differently, is a conflict.
 
 - *Only clean versions.* A version that parses with any warning is refused, naming it:
-  moddle drops an unresolved reference with nothing but a warning, so a merge would lose it.
-  It is parsed a second time with the merge's engine descriptor (current's engine, else
-  incoming's), which warns on an engine attribute or extension element the descriptor does
-  not know: the file is built with that descriptor, so such a version could never be built.
-  `requireMergeableVersions` holds every up-front refusal, so building the file can run the
-  same checks. A refusal is thrown as a typed `MergeRefusal` (a text the parser rejects, one
-  that parses with warnings, two engines, an element without an id), which `mergeRefusalOf`
-  reads, so a caller explains each in its own words; the error's English message is for a
-  developer. Any other error the library throws is a bug, not a refusal.
+  moddle drops an unresolved reference with nothing but a warning. It is parsed a second
+  time with the merge's engine descriptor (current's engine, else incoming's), which builds
+  the file, so an engine attribute it does not know is refused too. `requireMergeableVersions`
+  holds every up-front refusal; it throws a typed `MergeRefusal`, which `mergeRefusalOf`
+  reads so a caller explains each in its own words. Any other error thrown is a bug.
 - *What a state compares.* The element's text without its child elements, `bpmndi` and
   the derived references `incoming`, `outgoing`, `flowNodeRef` and `boundaryEventRefs`,
   together with its parent and its lanes. Keeping derived references would make both ends
@@ -123,12 +110,9 @@ parser and asserts that the module still loads.
 
 - *One rule.* Every element in the result needs, in the version its side gives, its
   parent, the container it sits in, each of its lanes and every reference target the parse
-  lists (both flow ends, boundary host, `default`, the event definitions' message, error,
-  signal and escalation, data object and store, data association ends, compensation,
-  `processRef`, `categoryValueRef`, item definitions, operations). A reference or container
-  inside another element (a data association's target property, a lane's lane set) also
-  needs that element's chosen version to hold the part. A generic walk over the
-  descriptors' references covers every reference the parse resolves.
+  resolves, found by a generic walk over the descriptors' references. A reference or
+  container inside another element (a data association's target property, a lane's lane
+  set) also needs that element's chosen version to hold the part.
 - *Automatic resolutions are checked too.* One that breaks the rule becomes an open
   conflict for the element and its target, computed again after each pick.
 - *Elements that cannot stand side by side.* Two elements of the result that hold the same
@@ -159,42 +143,33 @@ parser and asserts that the module still loads.
   results that each pick sits on its side and every open conflict has a choice.
   A blocked pick and a dangling resolution give the reason as data (element, requirement,
   obstacle), not as a sentence: the library ships one English `describeUnmetRequirement`,
-  and a view in another locale replaces it.
-  `pickWithContents` decides a container and everything in it at once; a later pick inside
-  overrides it, and `unpickWithContents` takes back the container with everything inside
-  picked on the same side. `unpick` takes a pick back; an element nothing else needs returns
-  to its automatic resolution or to open, which is the way out of two picks that name each
-  other. `originOf` tells a user's pick from an automatic resolution and from a pick's
-  consequence, so a view can badge only the user's picks.
+  and a view in another locale replaces it. `unpick` returns an element nothing else needs
+  to its automatic resolution or to open, the way out of two picks that name each other.
 - *Keeping a removed element offers its flows and boundary events.* A pick that keeps an
   element the other side removed returns `connectionsLeftOut` and `boundaryEventsLeftOut`
   (`removedWithLeftOut`): the boundary events its side attaches to it and the flows its side
   connects to it or to them, that the other side removed with it, that nobody decided and
   the pick still leaves out, each only if all it requires besides the element and the
   offered boundary events stays in the result, so the offer brings back nothing the user did
-  not ask for. `pickWithRemoved` picks them with the element in one `closePicks`, so it
-  is refused as a whole and equals the plain picks. Flows and boundary events are
-  dependents, not requirements, so they cannot come back as a consequence.
-  `unpickWithRemoved` takes the element back with everything on its side the other side
-  removed with it (`removedWith`); `unpick` alone would keep the element as a consequence of
-  those picks. The library keeps no groups: picks stay its only state, and `mergePaneView`
-  rebuilds a pick's reach from them alone. A container counts as kept with everything inside
-  only while every element inside is picked on its side, and an element as kept with its
-  flows only while one of them is picked and none it could keep is left out, so any order of
-  the same picks shows the same badges and Undo takes back no pick the user made apart. Only
+  not ask for. `pickWithRemoved` picks them with the element in one closure, so it is
+  refused as a whole and equals the plain picks; flows and boundary events are dependents,
+  not requirements, so they never come back as a consequence. The library keeps no groups:
+  `mergePaneView` rebuilds a pick's reach from the picks alone. A container counts as kept
+  with everything inside only while every element inside is picked on its side, and an
+  element as kept with its flows only while one of them is picked and none it could keep is
+  left out, so any order of the same picks shows the same badges and Undo takes back no pick
+  the user made apart. Only
   a sub-process, pool, lane, process or collaboration offers everything inside; a task holds
   its data associations but offers only itself. [Picking and building](merge-view-picking-and-building.md#picking)
   covers what the offer leaves out and the build note on it; [building](merge-view-picking-and-building.md#building) a kept flow's `default`.
-- *Consequences follow the picks, not their order.* The only state is the user's picks:
-  each pick or unpick derives every consequence again from them over the automatic
-  resolutions. Picking an element back, or unpicking it, restores what its first pick
-  dropped, pulled in or settled, so no addition is lost and no closed conflict stays closed
-  on its own; a sequence of picks and its final picks made on a fresh merge agree
-  (`mergeDecisionsPathIndependence.spec.ts`). A dependent both versions hold that a pick
-  or an unpick leaves unmet reopens rather than refusing the call. The cost is one closure
-  over all picks per call, plus a pass over the result for clashes and dead ends, which is
-  linear in the result for the few picks a merge has; and a pick can reopen an element the
-  user did not touch, which then waits for its own choice.
+- *Consequences follow the picks, not their order.* The state is the user's picks and the
+  versions merged by hand on them (below): each pick or unpick derives every consequence
+  again from them over the automatic resolutions. Picking an element back, or unpicking it,
+  restores what its first pick dropped, pulled in or settled, so no addition is lost and no
+  closed conflict stays closed on its own; a sequence of picks and its final picks made on a
+  fresh merge agree (`mergeDecisionsPathIndependence.spec.ts`). The cost is one closure over
+  all picks per call, plus a pass for clashes and dead ends; and a pick can reopen an
+  element the user did not touch, which then waits for its own choice.
 - *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
   from its own side when the preferred side does not draw it, or draws it in another
   parent, lane, host or between other ends, since bpmn-js reads lane membership and
@@ -205,6 +180,51 @@ parser and asserts that the module still loads.
   another plane (a collapsed sub-process), and a flow follows its ends when one of them had
   to.
 
+  to. Containers settle first: an element follows its host, parent,
+  pool or lane when that side moved the container, or when its own side draws it on
+  another plane (a collapsed sub-process), and a flow follows its ends when one of them had
+  to.
+
+### Versions merged by hand
+
+A picked element that base, current and incoming hold as one type, with texts that all
+differ, can take a version merged by hand from those texts (#2457); the
+[merge XML editor](merge-xml-editor.md) record covers the editor, this library checks and
+keeps the version. A type that differs leaves nothing to merge, since no text may change it.
+An accept names the side the text was merged for and is refused once the pick has moved.
+
+- *I1, it lives on its pick.* It stands only while its element stays picked on its side. A
+  pick or unpick that would move it off that side, an ancestor's keep-inside from the other
+  side included, returns `handMergesAtStake` and changes nothing unless the caller passes
+  `dropHandMerges`; a refused call drops nothing, and a pick of the same side keeps it. So a
+  view can ask before the text is lost, and nothing outlives the picks it rests on.
+- *I2, one effective result.* `MergeDecisions.result` holds each hand-merged version in place
+  of its side's, and every rule, projection and the build read that one list.
+- *I3, an accept changes no other decision.* `mergeByHand` refuses a version that names an
+  element the result leaves out, or whose trial closure would pull in, drop or reopen
+  anything: what the text names must already be in the result, of the type its property
+  takes. A name the result keeps from the other side is met, since a requirement asks for
+  presence, not a side.
+- *I4, structure follows the pick.* Parent, container, lanes, edge ends, host and process
+  stay the picked side's. A container's text (sub-process, pool, lane, process,
+  collaboration) covers only its start tag, documentation and extension elements, so its
+  children, lane sets and ioSpecification follow the pick; no text holds an element of its own,
+  one without an id included. The version keeps the text as shown, which a reopened editor
+  starts from.
+- *I5, back to the plain pick.* A text that writes the picked side's own version drops it.
+- *Refusals are data.* `HandMergeRefusal` is a closed union, one kind per reason, returned and
+  never thrown, with an English `describeHandMergeRefusal` a view replaces, as for
+  `UnmetRequirement`.
+- *Checked as the build writes it.* The text is spliced into the side's element parsed from
+  its snapshot, written under the engine's descriptor and read back as `elementSnapshots`
+  reads an element, which gives the version's text, references and parts; writing that once
+  more must not change it. `prepareMergeSources` computes the texts once, parsing the base
+  once more. Rejected: reading the version from the whole spliced side, which drops a
+  reference to an element only the other side holds, and grafting the text's own parse in
+  place of the element, which leaves the diagram and other references on the old object.
+  Cost: an element read alone must read as in its document; `handMergeRoundTrip.spec.ts`
+  builds every scenario's three-version elements from their own texts byte for byte.
+
 ### Building the file
 
 `buildMerged(sources, decisions)` refuses open conflicts and builds the file on a fresh
@@ -212,67 +232,57 @@ parse of current, which keeps everything outside the merge elements (current's l
 styles, the `definitions` extensions and imports). Building a fresh tree would have to copy
 each of those.
 
-- *The caller owns what builds share.* `prepareMergeSources(versions)` runs
-  `requireMergeableVersions`, so it refuses what `computeMerge` refuses, then parses each
-  version once (its snapshots, its frame, the shared moddle, the version keys); the
-  merge view keeps that value for the session and passes it to every build, so a preview
-  per pick does not parse the versions again. `buildMerged` refuses sources whose version
-  keys differ from the result's, naming each such version, before it parses anything: the
-  ids alone miss a version whose content changed, which would build without that change. On the 800 KB `large-c8.bpmn` a build takes
-  about 290 ms with the sources reused and 630 ms when it prepares them itself. A cache
-  keyed by the versions object did the same out of sight: a caller that copied the object
-  lost it, and one that changed it relied on a string guard.
-
+- *The caller owns what builds share.* `prepareMergeSources(versions)` refuses what
+  `computeMerge` refuses, then parses each version once; the merge view keeps that value
+  for the session and passes it to every build, so a preview per pick parses no version
+  again. `buildMerged` refuses sources whose version keys differ from the result's, naming
+  each such version: the ids alone miss a version whose content changed. Rejected: a cache
+  keyed by the versions object, which a caller that copied the object lost and one that
+  changed it fooled.
 - *Same parse as the modeler's save.* Current and incoming are parsed with current's
   engine descriptor and one prefix map built from all versions, current first, and
   written with `toXML({ format: true })`. Without the shared map, two sides using one
   prefix for different namespaces swap silently, and an attribute whose namespace only
   incoming declares is dropped; moddle-xml then declares every prefix it writes.
-- *Elements move whole.* Each element is taken from its side as written, unknown
-  extensions included, and placed in the collection its side used; incoming-only elements
-  go after the sibling they followed. References inside a moved element still point at
-  the other tree's objects and serialise by id.
+- *Spliced, then moved whole.* A version merged by hand is spliced into its side's element in
+  place before the trees are taken apart, so the diagram and every reference keep the same
+  object; what the hand merges bring in is resolved first, so one may name a part another
+  adds. Each element is then taken from its side as written, unknown extensions included,
+  and placed in the collection its side used; incoming-only elements go after the sibling
+  they followed. References inside a moved element still point at the other tree's objects
+  and serialise by id.
 - *The frame is three-way.* Each `definitions` attribute takes incoming's value when only
   incoming changed it and current's otherwise; without a base, current's. Which attributes
   are typed comes from the loaded descriptors, so an engine's extension of
   `bpmn:Definitions` (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
 - *Diagrams by what they draw.* One root diagram for the collaboration and the processes
-  its participants name, under current's ids, and one per collapsed sub-process. The root
-  diagram is a collaboration's only while the result keeps one of its pools, since bpmn-js
-  draws from a collaboration's plane only what its pools reach. Drawings take their layout
-  side's DI unchanged and go on the plane their sub-process implies, as bpmn-js reads it:
-  its own plane when it has one and its shape is not expanded, otherwise its shape's
-  plane. The build and the check share that one rule. An edge's `sourceElement` and
-  `targetElement` point at the result's drawings.
+  its participants name, a collaboration's only while the result keeps one of its pools,
+  and one per collapsed sub-process. Drawings take their layout side's DI unchanged and go
+  on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
+  and its shape is not expanded); the build and the check share that one rule.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
   from, and is not drawn when neither draws it or the chosen version does not hold it.
-- *DI ids are not merged.* Drawings are ordered by the element they draw. A diagram, plane,
-  drawing or label style of incoming whose id the result already uses gets an unused one
-  (`<element>_di`, else a numbered suffix), keeping its place. A label style an incoming
-  drawing uses joins that drawing's diagram, unless the result holds the same style under
-  its id.
+- *DI ids are not merged.* Drawings are ordered by the element they draw; an incoming DI
+  id the result already uses gets an unused one, and a label style an incoming drawing uses
+  joins its diagram unless the result holds the same style.
 - *Derived references are rebuilt, never merged:* `incoming` and `outgoing` from the
   flows, `flowNodeRef` from each element's chosen lanes; `boundaryEventRefs` is only
   shortened to the boundary events still attached, since bpmn-js never writes it. Stale
   ones parse without a warning, so nothing else would notice.
 - *Refused, not repaired.* Before it returns, a fresh parse of the result must give no
-  warning at all, every drawn element and part must have exactly one shape or edge on the
-  plane its container implies, every drawing on a root plane must be reachable from the
-  plane's owner as bpmn-js walks it (a process's contents; a collaboration's own elements,
-  the processes its pools name and any process with lanes), the derived references must list the rebuilt ids, each as often, in
-  any order, and every element's compared text, parent and lanes must equal its source
-  side's, which catches dropped attributes and namespace swaps. Lanes are listed outermost
-  first, so the classification, the layout side and the check all compare them in order.
-- *Notes for the reviewer:* a flow whose layout and its ends' layouts come from different
-  sides, an element drawn from another side than its container, elements both sides added
-  at the same place, an element kept against the other side's removal whose boundary events
-  removed with it, or flows on its own side, stay out (`restoredWithoutRemovedWith`; each is
-  decided on its own, so what was removed with it stays removed unless `pickWithRemoved` kept
-  it, and the element may be left unconnected or without its timer), a kept
-  flow no longer its source's default (`defaultFlowNotRestored`), elements the base and both
-  sides draw, each side differently (`layoutChangedByBoth`), and every frame difference the
-  result does not carry (attributes both sides changed, incoming's extensions or imports).
+  warning, every drawn element and part exactly one shape or edge on the plane its
+  container implies, every drawing on a root plane must be reachable from the plane's owner
+  as bpmn-js walks it, the derived references must list the rebuilt ids, each as often, and
+  every element's compared text, parent and lanes must equal its source side's (its
+  hand-merged text where it has one), which catches dropped attributes and namespace swaps.
+  Lanes are listed outermost first, so every comparison takes them in order.
+- *Notes for the reviewer:* a flow drawn from another side than its ends, an element drawn
+  from another side than its container, elements both sides added at the same place, an
+  element kept against a removal whose boundary events or flows removed with it stay out
+  (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
+  source's default, elements the base and both sides draw differently, and every frame
+  difference the result does not carry.
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
@@ -285,13 +295,11 @@ each of those.
 - An all-current or all-incoming merge equals that side element by element and under
   `computeDiff`, except where the layout rules draw an element from the other side and
   where the shared prefix map renames an incoming prefix. `everyPick.spec.ts` builds every
-  end state reached by picking the open conflicts, and each of those with one automatic
-  resolution overridden, and requires a valid file. `mergeFuzz.spec.ts` does the same for
-  a few end states and random walks of 200 seeded random triples of the order process and
-  a few pinned seeds. After every applied step it checks that each pick sits on its side
-  and every open conflict has a choice that applies; it also checks that a refused pick
-  changes nothing and that the picks, not their order, decide. The fixtures are generated
-  from a plain model and equal a moddle round trip, so "what the save writes" is testable.
+  end state the picks reach, and each with one automatic resolution overridden;
+  `mergeFuzz.spec.ts` walks 200 seeded random triples and checks after every step that each
+  pick sits on its side, every open conflict has a choice, a refused pick changes nothing and
+  the picks, not their order, decide. The fixtures equal a moddle round trip, so "what the
+  save writes" is testable.
 - An element drawn from another side than its container keeps that side's coordinates; the
   build notes it but does not move it.
 - bpmn-js rewrites the diagram's plane order on every save; the build keeps current's

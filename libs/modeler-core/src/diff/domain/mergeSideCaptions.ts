@@ -1,6 +1,9 @@
-import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type {
+    ConflictMarkerReading,
+    MergeSide,
+    MergeSideCaption,
+} from "@miragon/bpmn-modeler-types";
 
-import { ConflictMarkerReading } from "../../kernel/domain/conflictMarkers";
 import { isFullCommitHash, shortCommitHash } from "./commitHash";
 import { GitCommitFact, GitRefFacts } from "./conflictFacts";
 import { GitOperation } from "./gitOperation";

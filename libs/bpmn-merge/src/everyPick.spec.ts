@@ -7,6 +7,7 @@ import {
     scenarioNamed,
 } from "./__fixtures__/mergeScenarios";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { acceptHandMerge } from "./acceptHandMerge";
 import { buildMerged } from "./buildMerged";
 import { type MergeSources, prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
@@ -177,6 +178,8 @@ async function exploreOverrides(sources: MergeSources, result: MergeResult, reac
 /** Distinct end states per scenario with more than one, so a cap or a pruned branch shows; every other scenario has one. */
 const EXPECTED_END_STATES: Readonly<Record<string, number>> = {
     "table: both changed": 2,
+    "type: current replaces a task with a collapsed sub-process incoming renames": 2,
+    "type: incoming replaces a task with a collapsed sub-process current renames": 2,
     "table: both added": 2,
     "table: removed and changed": 2,
     "table: changed and removed": 2,
@@ -246,6 +249,8 @@ const EXPECTED_DISTINCT_END_STATES: Readonly<Record<string, number>> = {
     "no base: incoming wraps the process in a pool": 3,
     "collapse: current adds a task inside a sub-process incoming collapses": 2,
     "boundary event its host lists, removed by incoming": 3,
+    "type: current replaces a task with a collapsed sub-process incoming renames": 2,
+    "type: incoming replaces a task with a collapsed sub-process current renames": 2,
     "interface and operation reference only incoming adds": 3,
     [PLATFORM_ONLY_SCENARIO]: 2,
     [ALL_CONFLICTS_SCENARIO]: 192,
@@ -305,4 +310,37 @@ describe("every end state the picks reach, overriding one automatic resolution e
             }
         },
     );
+});
+
+describe("a hand merge of each picked element's own text", () => {
+    it.each(
+        MERGE_SCENARIOS.filter(({ base }) => base !== undefined).map((scenario) => ({
+            ...scenario,
+        })),
+    )("$name: equal text builds byte-equal", async (scenario) => {
+        const [result, sources] = await Promise.all([
+            computeMerge(scenario),
+            prepareMergeSources(scenario),
+        ]);
+        for (const side of SIDES) {
+            const decisions = MergeDecisions.from(result);
+            const picked = [...sources.handMergeTexts.keys()].filter(
+                (id) => decisions.pick(id, side).applied,
+            );
+            for (let [open] = decisions.openConflicts; open; [open] = decisions.openConflicts) {
+                expect(SIDES.some((choice) => decisions.pick(open!.id, choice).applied)).toBe(true);
+            }
+            const plain = await buildMerged(sources, decisions);
+
+            for (const id of picked.filter((candidate) => decisions.sideOf(candidate) === side)) {
+                const own = sources.handMergeTexts.get(id)![side];
+                expect(await acceptHandMerge(sources, decisions, id, side, own), id).toEqual({
+                    applied: true,
+                });
+            }
+
+            expect(decisions.handMergedVersions).toEqual([]);
+            expect((await buildMerged(sources, decisions)).xml).toBe(plain.xml);
+        }
+    });
 });

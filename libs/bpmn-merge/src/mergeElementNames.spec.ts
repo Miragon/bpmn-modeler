@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { baseModel, cloneModel, nodeById, removeNode } from "./__fixtures__/baseModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
+import { handMergeVersions } from "./__fixtures__/handMergeVersions";
+import { acceptHandMerge } from "./acceptHandMerge";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
@@ -52,5 +54,43 @@ describe("mergeElementNames", () => {
         const { decisions, sources } = await renamedAndRemoved();
 
         expect(mergeElementNames(sources, decisions, ["Flow_Checked"])).toStrictEqual({});
+    });
+
+    it("names an element merged by hand as its hand-merged version does", async () => {
+        const versions = handMergeVersions();
+        const sources = await prepareMergeSources(versions);
+        const decisions = MergeDecisions.from(await computeMerge(versions));
+        decisions.pick("Task_Pack", "incoming");
+        const unnamed = sources.handMergeTexts
+            .get("Task_Pack")!
+            .incoming.replace(' name="Pack box"', "");
+        await acceptHandMerge(sources, decisions, "Task_Pack", "incoming", unnamed);
+        decisions.pick("Task_Check", "current");
+        const renamed = sources.handMergeTexts
+            .get("Task_Check")!
+            .current.replace('name="Check order now"', 'name="Check by hand"');
+        await acceptHandMerge(sources, decisions, "Task_Check", "current", renamed);
+
+        expect(mergeElementNames(sources, decisions, ["Task_Check", "Task_Pack"])).toEqual({
+            Task_Check: "Check by hand",
+            Task_Pack: "Pack parcel",
+        });
+    });
+
+    it("names an element whose hand merge blanks its name as a plain pick of a blank name does", async () => {
+        const versions = handMergeVersions();
+        const sources = await prepareMergeSources(versions);
+        const decisions = MergeDecisions.from(await computeMerge(versions));
+        decisions.pick("Task_Pack", "incoming");
+        const blanked = sources.handMergeTexts
+            .get("Task_Pack")!
+            .incoming.replace('name="Pack box"', 'name=""');
+        expect(await acceptHandMerge(sources, decisions, "Task_Pack", "incoming", blanked)).toEqual(
+            { applied: true },
+        );
+
+        expect(mergeElementNames(sources, decisions, ["Task_Pack"])).toEqual({
+            Task_Pack: "Pack parcel",
+        });
     });
 });

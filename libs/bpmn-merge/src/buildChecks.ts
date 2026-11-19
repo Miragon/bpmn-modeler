@@ -7,6 +7,7 @@ import {
     isModdleElement,
     isType,
     moddleElements,
+    parseWarningMessages,
 } from "@miragon/bpmn-modeler-diff";
 
 import { enclosingSubProcessOf } from "./containerContents";
@@ -60,7 +61,7 @@ export async function checkMergedXml(
 
 /** A parser warning is an unresolved reference, a duplicate id or skipped content, which the parse then leaves out. */
 export function requireNoParserWarnings(parsed: ModdleParseResult): void {
-    const warnings = (parsed.warnings ?? []).map((warning) => warning.message ?? String(warning));
+    const warnings = parseWarningMessages(parsed.warnings);
     if (warnings.length > 0) refuse("it parses with warnings", warnings);
 }
 

@@ -32,6 +32,11 @@ export class DecidedSides {
         return new DecidedSides(elementsById, new Map(), new Map());
     }
 
+    /** The same decisions over other versions of the elements, as hand merges give them. */
+    over(elementsById: ReadonlyMap<string, MergeElement>): DecidedSides {
+        return new DecidedSides(elementsById, this.picked, new Map(this.consequences));
+    }
+
     /** The picks over the automatic resolutions, without consequences yet. */
     withPicks(picks: ReadonlyMap<string, MergeSide>): DecidedSides {
         return new DecidedSides(this.elementsById, new Map(picks), new Map());

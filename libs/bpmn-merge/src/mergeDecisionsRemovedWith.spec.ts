@@ -207,7 +207,7 @@ describe("MergeDecisions.pickWithRemoved", () => {
         const outcome = withPart.pickWithRemoved("Task_Reject", "incoming");
 
         expect(outcome.applied).toBe(false);
-        expect(outcome.applied === false && outcome.blockedBy[0]?.reason.obstacle.kind).toBe(
+        expect("blockedBy" in outcome && outcome.blockedBy[0]?.reason.obstacle.kind).toBe(
             "idHeldByAnother",
         );
         expect(stateOf(withPart)).toEqual(before);

@@ -1,5 +1,6 @@
 import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
+import { handMergeableSide } from "./handMergeEligibility";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type ContainerReach, containersOf, descendantsOf } from "./mergeDecisionsContainment";
 import { hasNoShape } from "./mergeElementShape";
@@ -35,6 +36,8 @@ export interface PickBadge {
     readonly kind: "keptHere" | "replacedHere";
     readonly keptSide: MergeSide;
     readonly scope: PickScope;
+    /** Set while a version merged by hand replaces the kept side's own. */
+    readonly mergedByHand?: true;
 }
 
 /** A user's pick the pane cannot draw, which its legend lists instead. */
@@ -42,6 +45,15 @@ export interface PickNotDrawn {
     readonly id: string;
     readonly keptSide: MergeSide;
     readonly scope: PickScope;
+    /** As {@link PickBadge.mergedByHand}. */
+    readonly mergedByHand?: true;
+}
+
+/** The user's pick on an element, how far it reaches and whether a version merged by hand replaces its side's. */
+interface ElementPick {
+    readonly keptSide: MergeSide;
+    readonly scope: PickScope;
+    readonly mergedByHand?: true;
 }
 
 /** Why the other side lacks an element this side holds: it removed it from the base, or there is no base version. */
@@ -58,6 +70,8 @@ export interface PickableElement {
     readonly undo?: PickScope;
     /** Set where this side holds the element and the other does not, so a pick of the other side leaves it out. */
     readonly otherSideLacks?: OtherSideLack;
+    /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
+    readonly handMergeable?: true;
 }
 
 /**
@@ -78,7 +92,9 @@ export interface ShapelessRow extends ShapelessValues {
     /** Set where one side lacks the element: that side, and why. */
     readonly lackingSide?: { readonly side: MergeSide; readonly lack: OtherSideLack };
     /** Set while the user's pick decides it. */
-    readonly pick?: { readonly keptSide: MergeSide; readonly scope: PickScope };
+    readonly pick?: ElementPick;
+    /** As {@link PickableElement.handMergeable}. */
+    readonly handMergeable?: true;
 }
 
 /** What one merge pane shows of the decisions, in result order. */
@@ -140,7 +156,7 @@ export function mergePaneView(
         marks,
         shapeless,
         counts,
-        ...paneDecisions(decisions, side),
+        ...paneDecisions(decisions, side, sources),
         shapelessRows: shapelessRowsOf(decisions, side, sources),
     };
 }
@@ -153,6 +169,7 @@ export function mergePaneView(
 function paneDecisions(
     decisions: MergeDecisions,
     side: MergeSide,
+    { handMergeTexts }: ShapelessValueSources,
 ): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable"> {
     const { elements } = decisions.result;
     const containers = containersOf(elements);
@@ -164,12 +181,11 @@ function paneDecisions(
         const drawnHere = !hasNoShape(element) && element.versions[side]?.drawn === true;
         const pick = pickOf(decisions, containers, element);
         if (pick !== undefined) {
-            const { keptSide, scope } = pick;
             if (drawnHere) {
-                const kind = keptSide === side ? "keptHere" : "replacedHere";
-                badges.push({ id: element.id, kind, keptSide, scope });
+                const kind = pick.keptSide === side ? "keptHere" : "replacedHere";
+                badges.push({ id: element.id, kind, ...pick });
             } else {
-                picksNotDrawn.push({ id: element.id, keptSide, scope });
+                picksNotDrawn.push({ id: element.id, ...pick });
             }
         }
         if (decisions.originOf(element.id) === "consequence" && drawnHere) {
@@ -184,9 +200,20 @@ function paneDecisions(
             ...(takenSide === undefined ? {} : { takenSide }),
             ...(pick === undefined ? {} : { undo: pick.scope }),
             ...(lack === undefined ? {} : { otherSideLacks: lack }),
+            ...handMergeableFlag(decisions, handMergeTexts, element.id),
         });
     }
     return { badges, picksNotDrawn, consequences, pickable };
+}
+
+function handMergeableFlag(
+    decisions: MergeDecisions,
+    handMergeTexts: ShapelessValueSources["handMergeTexts"],
+    id: string,
+): { readonly handMergeable?: true } {
+    return handMergeableSide(decisions, handMergeTexts, id) === undefined
+        ? {}
+        : { handMergeable: true };
 }
 
 /** Every shape-less element the decisions mark as a side sees it, with what each side holds. */
@@ -214,7 +241,8 @@ function shapelessRowsOf(
                 ...(takenSide === undefined ? {} : { takenSide }),
                 ...(lacking === undefined ? {} : { lackingSide: lacking }),
                 ...(pick === undefined ? {} : { pick }),
-                ...shapelessValuesOf(sources, element),
+                ...handMergeableFlag(decisions, sources.handMergeTexts, element.id),
+                ...shapelessValuesOf(sources, element, decisions.handMergeOf(element.id)),
             },
         ];
     });
@@ -225,11 +253,13 @@ function pickOf(
     decisions: MergeDecisions,
     containers: ReadonlyMap<string, ContainerReach>,
     element: MergeElement,
-): { readonly keptSide: MergeSide; readonly scope: PickScope } | undefined {
+): ElementPick | undefined {
     const keptSide = decisions.sideOf(element.id);
-    return decisions.originOf(element.id) === "picked" && keptSide !== undefined
-        ? { keptSide, scope: scopeOf(decisions, containers, element, keptSide) }
-        : undefined;
+    if (decisions.originOf(element.id) !== "picked" || keptSide === undefined) return undefined;
+    const scope = scopeOf(decisions, containers, element, keptSide);
+    return decisions.handMergeOf(element.id) === undefined
+        ? { keptSide, scope }
+        : { keptSide, scope, mergedByHand: true };
 }
 
 // Read from the picks, never from how they were made, so every order of the same picks badges alike.

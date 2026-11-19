@@ -5,14 +5,42 @@
 
 import type { ModdleElement } from "./moddleElement";
 
-interface ModdleParseWarning {
+export interface ModdleParseWarning {
     message?: string;
+    /** For an unresolved reference: the element holding it, its qualified property and the id it names. */
+    element?: ModdleElement;
+    property?: string;
+    value?: string;
+}
+
+/** A reference the parser met, in document order; `property` is qualified, for example `bpmn:sourceRef`. */
+export interface ModdleReference {
+    element: ModdleElement;
+    property: string;
+    id: string;
 }
 
 export interface ModdleParseResult {
     rootElement: ModdleElement;
     elementsById: Record<string, ModdleElement | undefined>;
+    references?: ModdleReference[];
     warnings?: ModdleParseWarning[];
+}
+
+const UNRESOLVED_REFERENCE_PREFIX = "unresolved reference";
+
+export function isUnresolvedReferenceWarning(warning: ModdleParseWarning): boolean {
+    return warning.message?.startsWith(UNRESOLVED_REFERENCE_PREFIX) === true;
+}
+
+/** Each warning's message, in the parser's order, but those `except` holds for. */
+export function parseWarningMessages(
+    warnings: readonly ModdleParseWarning[] | undefined,
+    except: (warning: ModdleParseWarning) => boolean = () => false,
+): string[] {
+    return (warnings ?? [])
+        .filter((warning) => !except(warning))
+        .map(({ message }) => message ?? "unnamed warning");
 }
 
 /** The parser reports content it skipped, such as an undeclared prefix, only as this warning. */
@@ -33,7 +61,9 @@ interface ModdlePackage {
 }
 
 export interface BpmnModdle {
-    fromXML: (xml: string) => Promise<ModdleParseResult>;
+    /** `typeName` parses the root as that type; the parser accepts any tag of the type or a supertype. */
+    fromXML: (xml: string, typeName?: string) => Promise<ModdleParseResult>;
+    create: (type: string, properties?: Record<string, unknown>) => ModdleElement;
     toXML: (element: ModdleElement, options?: ModdleSerializeOptions) => Promise<{ xml: string }>;
     getPackages: () => ModdlePackage[];
 }

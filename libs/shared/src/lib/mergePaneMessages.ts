@@ -43,7 +43,13 @@ export interface MergePaneShapelessRow {
     /** Set where one side lacks the element: that side, and why. */
     readonly lackingSide?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
     /** Set while the user's pick decides it. */
-    readonly pick?: { readonly keptSide: MergeSide; readonly scope: MergePickScope };
+    readonly pick?: {
+        readonly keptSide: MergeSide;
+        readonly scope: MergePickScope;
+        readonly mergedByHand?: true;
+    };
+    /** As {@link MergePanePickable.handMergeable}. */
+    readonly handMergeable?: true;
     /** Set where current holds the element, with current's name. */
     readonly current?: { readonly name?: string };
     /** Set where incoming holds the element, with incoming's name. */
@@ -85,6 +91,8 @@ export interface MergePaneBadge {
     readonly kind: "keptHere" | "replacedHere";
     readonly keptSide: MergeSide;
     readonly scope: MergePickScope;
+    /** Set while a version merged by hand replaces the kept side's own. */
+    readonly mergedByHand?: true;
 }
 
 /** A user's pick the pane cannot draw. */
@@ -92,6 +100,8 @@ export interface MergePanePickNotDrawn {
     readonly id: string;
     readonly keptSide: MergeSide;
     readonly scope: MergePickScope;
+    /** As {@link MergePaneBadge.mergedByHand}. */
+    readonly mergedByHand?: true;
 }
 
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
@@ -112,6 +122,8 @@ export interface MergePanePickable {
      * other side leaves it out.
      */
     readonly otherSideLacks?: MergePaneOtherSideLack;
+    /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
+    readonly handMergeable?: true;
 }
 
 /** Why a pick was refused, as the merge names it. */
@@ -164,6 +176,8 @@ export type MergePaneOutcome =
           readonly action: MergePaneAction;
           readonly elementId: string;
           readonly blockedBy: readonly MergePaneBlock[];
+          /** The elements merged by hand the call would move off their side, which it drops only when asked to. */
+          readonly handMergesAtStake?: readonly string[];
       };
 
 /** The flows and boundary events the other side removed with an element the user kept, offered on the pane of the kept side. */

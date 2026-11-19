@@ -26,13 +26,19 @@ export type { DiffSide, DiffCounts, DiffCategory, DiffResult, DiffSideView } fro
 export { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
 export type { FlowPosition } from "./bpmnFlowOrder";
 export { elementSnapshots } from "./elementSnapshots";
+export { elementTexts, rebindReferences, standaloneElementText } from "./elementTexts";
+export type { ElementTextOptions, OwnPropertyFilter, UnitText } from "./elementTexts";
+export { rootElementNamesOf } from "./rootElements";
+export type { RootElementName } from "./rootElements";
+export { unitParts, unitReferences } from "./unitStructure";
+export { isDerivedReference } from "./elementSnippets";
 export type {
     ElementSnapshot,
     ElementSnapshotOptions,
     SnapshotReference,
 } from "./elementSnapshots";
 export { idOf, idsOf, isModdleElement, isType, moddleElements } from "./moddleElement";
-export type { ModdleElement } from "./moddleElement";
+export type { ModdleElement, ModdlePropertyDescriptor } from "./moddleElement";
 export { trackedElementOf } from "./trackedElements";
 export { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
 export type { OwnAttributeEntry } from "./moddleContainment";
@@ -41,4 +47,5 @@ export type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
 export { loadExecutionPackage } from "./executionPackages";
 export type { ExecutionEngine, ExecutionPackage } from "./executionPackages";
 export { isNamespaceDeclaration, namespaceDeclarations } from "./namespaceDeclarations";
-export type { ModdleParseResult } from "./bpmnModdleFactory";
+export { isUnresolvedReferenceWarning, parseWarningMessages } from "./bpmnModdleFactory";
+export type { ModdleParseResult, ModdleParseWarning, ModdleReference } from "./bpmnModdleFactory";

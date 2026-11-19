@@ -1,4 +1,4 @@
-import type { ElementSnapshot, ModdleElement } from "@miragon/bpmn-modeler-diff";
+import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon/bpmn-modeler-diff";
 
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
@@ -15,14 +15,18 @@ import { isEnclosingContainer } from "./containerContents";
 import { boundsIn, diagramIndexOf } from "./diagramIndex";
 import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
+import type { HandMergedVersion } from "./handMerge";
+import { spliceHandMergedText } from "./handMergeSplice";
+import { isMergeUnit, parseElementText } from "./handMergeText";
 import type { MergeDecisions } from "./mergeDecisions";
-import type { MergeSide } from "./mergeResult";
+import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
 import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
 import { restoredFlowDefaultsOf } from "./removedWith";
+import { sideTextOf } from "./sideText";
 
 export type { BuildNote } from "./buildNotes";
 
@@ -47,10 +51,13 @@ export async function buildMerged(
     requireSourcesOf(result, sources);
     const resolution = decisions.resolution();
     const { mergeModdle, versions } = sources;
-    const [current, incoming] = await Promise.all([
-        parsedVersion(mergeModdle, versions.current),
-        parsedVersion(mergeModdle, versions.incoming),
-    ]);
+    const parsed = {
+        current: await mergeModdle.moddle.fromXML(versions.current),
+        incoming: await mergeModdle.moddle.fromXML(versions.incoming),
+    };
+    await spliceHandMerges(mergeModdle, decisions.handMergedVersions, parsed);
+    const current = parsed.current.rootElement;
+    const incoming = parsed.incoming.rootElement;
     const diagramIndexes = { current: diagramIndexOf(current), incoming: diagramIndexOf(incoming) };
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };
@@ -68,7 +75,7 @@ export async function buildMerged(
     await checkMergedXml(
         xml,
         {
-            sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements),
+            sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements, decisions),
             drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides),
             laneMembers,
             restoredDefaults,
@@ -97,18 +104,70 @@ export async function buildMerged(
     };
 }
 
-async function parsedVersion(mergeModdle: MergeModdle, xml: string): Promise<ModdleElement> {
-    return (await mergeModdle.moddle.fromXML(xml)).rootElement;
+/**
+ * Splices each hand-merged version into its side's element before the trees
+ * are taken apart, so it moves like the rest of the side. A reference names
+ * what the hand merges bring in on its side first, then the side's elements,
+ * then the same on the other side, so one hand merge may name a part another
+ * adds. An accepted version always splices, so a failure is a bug.
+ */
+async function spliceHandMerges(
+    mergeModdle: MergeModdle,
+    handMerges: readonly HandMergedVersion[],
+    parsed: Readonly<Record<MergeSide, ModdleParseResult>>,
+): Promise<void> {
+    const texts = await Promise.all(
+        handMerges.map(async (handMerge) => {
+            const unit = parsed[handMerge.side].elementsById[handMerge.id];
+            if (unit === undefined) {
+                throw new Error(
+                    `The ${handMerge.side} version has no ${handMerge.id} to merge by hand`,
+                );
+            }
+            const text = await parseElementText(mergeModdle, handMerge.content, unit.$type);
+            return { handMerge, unit, text };
+        }),
+    );
+    const broughtIn: Record<MergeSide, Map<string, ModdleElement>> = {
+        current: new Map(),
+        incoming: new Map(),
+    };
+    for (const { handMerge, text } of texts) {
+        for (const [id, element] of Object.entries(text.elementsById)) {
+            if (element !== undefined && element !== text.element) {
+                broughtIn[handMerge.side].set(id, element);
+            }
+        }
+    }
+    const elementOn = (side: MergeSide, id: string) =>
+        broughtIn[side].get(id) ?? parsed[side].elementsById[id];
+    for (const { handMerge, unit, text } of texts) {
+        const { id, side, scope } = handMerge;
+        spliceHandMergedText(unit, text, scope, isMergeUnit, (target) => {
+            const found = elementOn(side, target) ?? elementOn(otherSide(side), target);
+            if (found === undefined) {
+                throw new Error(`The hand-merged ${id} names ${target}, which neither side has`);
+            }
+            return found;
+        });
+    }
 }
 
 function sourceSnapshotsOf(
     { snapshots }: MergeSources,
     sides: Readonly<Record<string, MergeSide>>,
+    decisions: MergeDecisions,
 ): Map<string, ElementSnapshot> {
     const sourceSnapshots = new Map<string, ElementSnapshot>();
     for (const [id, side] of Object.entries(sides)) {
         const snapshot = snapshots[side].get(id);
-        if (snapshot) sourceSnapshots.set(id, snapshot);
+        const text = sideTextOf(snapshots, decisions.handMergeOf(id), id, side);
+        if (snapshot === undefined || text === undefined) continue;
+        sourceSnapshots.set(id, {
+            ...snapshot,
+            content: text.content,
+            attributes: text.attributes,
+        });
     }
     return sourceSnapshots;
 }

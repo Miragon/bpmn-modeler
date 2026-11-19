@@ -42,4 +42,13 @@ describe("createDocumentModdle", () => {
         expect(elementsById.Task_1!.$attrs).toEqual({ "t:owner": "billing" });
         expect(xml).toContain('camunda:asyncBefore="true"');
     });
+
+    it("knows the namespaces its sources declare and those the serializer declares itself", async () => {
+        const { knowsNamespace } = await createDocumentModdle([declaring("c", "t")]);
+
+        expect(
+            [TEAM, CAMUNDA, BPMN, "http://www.w3.org/2001/XMLSchema-instance"].map(knowsNamespace),
+        ).toEqual([true, true, true, true]);
+        expect(knowsNamespace("urn:other")).toBe(false);
+    });
 });

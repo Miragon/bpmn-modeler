@@ -1528,7 +1528,7 @@ describe("MergeDecisions", () => {
             const outcome = decisions.pick("DIA", "current");
 
             expect(outcome.applied).toBe(false);
-            expect(outcome.applied || outcome.blockedBy).toEqual([
+            expect("blockedBy" in outcome && outcome.blockedBy).toEqual([
                 {
                     id: "T",
                     reason: unmet(
@@ -1554,7 +1554,7 @@ describe("MergeDecisions", () => {
 
             const outcome = decisions.pick("DIA", "current");
 
-            expect(outcome.applied || outcome.blockedBy).toEqual([
+            expect("blockedBy" in outcome && outcome.blockedBy).toEqual([
                 {
                     id: "T",
                     reason: unmet(

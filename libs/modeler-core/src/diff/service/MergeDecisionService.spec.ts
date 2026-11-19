@@ -325,6 +325,7 @@ describe("MergeDecisionService", () => {
                 id: "Task_Pack",
                 takenSide: "incoming",
                 undo: "element",
+                handMergeable: true,
             });
             expect(incomingStates.lastOutcome).toStrictEqual({
                 applied: true,

@@ -15,7 +15,8 @@ const CLOSING = ">>>>>>>";
  * Reads the first conflict Git wrote into a file: a line starting with
  * `<<<<<<<`, a later `=======` (a diff3 `|||||||` block may sit between) and a
  * later `>>>>>>>`, each at the start of its line. The text after a marker is
- * its side's label. The one marker grammar of the core.
+ * its side's label. The one marker grammar of the core and the merge: a
+ * lone marker line, such as a Markdown underline of seven `=`, is no conflict.
  */
 export function readConflictMarkers(text: string): ConflictMarkerReading {
     const lines = text.split(/\r?\n/);

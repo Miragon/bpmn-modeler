@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type {
+    ConflictMarkerReading,
+    MergeSide,
+    MergeSideCaption,
+} from "@miragon/bpmn-modeler-types";
 
-import { ConflictMarkerReading } from "../../kernel/domain/conflictMarkers";
 import { GitRefFacts } from "./conflictFacts";
 import { GitOperation } from "./gitOperation";
 import { mergeSideCaptions } from "./mergeSideCaptions";

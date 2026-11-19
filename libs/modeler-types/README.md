@@ -51,3 +51,9 @@ erased and stays allowed.
 the merge view's sides, markers, marker classes and caption roles, which `libs/bpmn-merge` reads without
 the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. `.github/release-lines.json`
 routes it like the rest of the library, to every line that ships it (`docs/adr/merge.md`).
+
+### The `/conflictMarkers` entry point
+
+`@miragon/bpmn-modeler-types/conflictMarkers` is `src/conflictMarkers.ts` alone: Git's conflict-marker
+grammar, which the core reads files with and `libs/bpmn-merge` checks a hand-merged text with, so both
+read markers alike. `conflictMarkers.spec.ts` fails on a runtime import in it.

@@ -21,6 +21,8 @@ export interface PrefixedModdle {
      * nor one the serializer declares, whose names the serializer would drop.
      */
     declarationsFor(prefixes: readonly string[], subject: string): Map<string, string>;
+    /** Whether the parser names the namespace by an `nsMap` prefix or the serializer declares it itself. */
+    knowsNamespace(uri: string): boolean;
 }
 
 /** Prefix to namespace; reserving them keeps every other namespace's prefix from colliding. */
@@ -43,8 +45,10 @@ export function createPrefixedModdle(
     const moddle = createBpmnModdle(packages, { nsMap: Object.fromEntries(prefixByUri) });
     const reserved = ownPrefixes(moddle);
     const uriByPrefix = new Map([...prefixByUri].map(([uri, prefix]) => [prefix, uri]));
+    const knownUris = new Set([...prefixByUri.keys(), ...reserved.values()]);
     return {
         moddle,
+        knowsNamespace: (uri) => knownUris.has(uri),
         declarationsFor(prefixes, subject) {
             const declarations = new Map<string, string>();
             for (const prefix of prefixes) {
