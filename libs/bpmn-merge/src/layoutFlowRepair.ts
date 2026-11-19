@@ -25,7 +25,6 @@ import {
 } from "./layoutModel";
 import { type PlaneIndex, type PlaneNodes, byPlaneWithGrid, planeNodesOf } from "./layoutPlanes";
 import {
-    type Segment,
     isOrthogonal,
     nearestPointOn,
     polylineBounds,
@@ -35,6 +34,7 @@ import {
 import { routeCost, routeOrthogonal } from "./layoutRouter";
 import {
     type AxisLine,
+    type Segment,
     outlinePointOn,
     segmentEntersOutline,
     segmentEntersShape,

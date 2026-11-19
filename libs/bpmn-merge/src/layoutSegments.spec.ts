@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiagramBounds } from "./layoutGeometry";
-import { segmentsCross, sharedRunLength } from "./layoutPolyline";
 import {
+    nearestOnSegment,
     outlinePointOn,
     segmentBounds,
     segmentEntersBounds,
     segmentEntersOutline,
     segmentEntersShape,
+    segmentsCross,
+    sharedRunLength,
     sideOfCenter,
     spansAlong,
 } from "./layoutSegments";
@@ -289,5 +291,56 @@ describe("sharedRunLength", () => {
         },
     ] as const)("is $length when $label", ({ first, second, length }) => {
         expect(sharedRunLength(first, second)).toBe(length);
+    });
+});
+
+describe("nearestOnSegment", () => {
+    it.each([
+        {
+            label: "beside the middle",
+            point: { x: 40, y: 30 },
+            nearest: { x: 40, y: 0 },
+            distance: 30,
+        },
+        {
+            label: "before the start",
+            point: { x: -30, y: 40 },
+            nearest: { x: 0, y: 0 },
+            distance: 50,
+        },
+        {
+            label: "past the end",
+            point: { x: 130, y: 40 },
+            nearest: { x: 100, y: 0 },
+            distance: 50,
+        },
+    ])("clamps to the segment for a point $label", ({ point, nearest, distance }) => {
+        expect(
+            nearestOnSegment(
+                [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 0 },
+                ],
+                point,
+            ),
+        ).toEqual({
+            point: nearest,
+            distance,
+        });
+    });
+
+    it("takes the point itself for a segment of no length", () => {
+        expect(
+            nearestOnSegment(
+                [
+                    { x: 5, y: 5 },
+                    { x: 5, y: 5 },
+                ],
+                { x: 8, y: 9 },
+            ),
+        ).toEqual({
+            point: { x: 5, y: 5 },
+            distance: 5,
+        });
     });
 });

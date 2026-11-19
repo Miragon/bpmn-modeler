@@ -7,14 +7,16 @@ import {
     inflated,
     liesInside,
 } from "./layoutGeometry";
+import { segmentsOf, withoutRedundantPoints } from "./layoutPolyline";
 import {
+    type AxisLine,
     type Segment,
+    outlinePointOn,
+    segmentEntersBounds,
     segmentsCross,
-    segmentsOf,
     sharedRunLength,
-    withoutRedundantPoints,
-} from "./layoutPolyline";
-import { type AxisLine, outlinePointOn, segmentEntersBounds, spansAlong } from "./layoutSegments";
+    spansAlong,
+} from "./layoutSegments";
 
 export interface RouteEnd {
     readonly bounds: DiagramBounds;
