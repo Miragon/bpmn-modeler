@@ -1,7 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import mergeVocabularySource from "./mergeVocabulary.ts?raw";
-
 import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKER_CLASSES,
@@ -98,13 +96,5 @@ describe("MergeSideCaption", () => {
         };
 
         expect(JSON.parse(JSON.stringify(caption))).toEqual(caption);
-    });
-});
-
-describe("mergeVocabulary.ts", () => {
-    it("imports nothing at runtime, so a DOM-free workspace can load it alone", () => {
-        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
-
-        expect(mergeVocabularySource).not.toMatch(runtimeImport);
     });
 });

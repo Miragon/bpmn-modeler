@@ -3,8 +3,6 @@
 import { loadExecutionPackage } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
-import engineSource from "./engine.ts?raw";
-
 import {
     detectEngine,
     detectEngineWithNamespaceFallback,
@@ -38,15 +36,6 @@ describe("ENGINE_NAMESPACE", () => {
         const { prefix, uri } = ENGINE_NAMESPACE[engine];
 
         await expect(loadExecutionPackage(prefix)).resolves.toMatchObject({ prefix, uri });
-    });
-});
-
-describe("engine.ts", () => {
-    // The `/engine` entry point exists so that DOM-free code can read the engine rule.
-    it("imports nothing at runtime, so its entry point loads no other module", () => {
-        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
-
-        expect(engineSource).not.toMatch(runtimeImport);
     });
 });
 

@@ -55,8 +55,6 @@ export type FlowRepair =
       }
     | { readonly kind: "notRepaired"; readonly flow: string };
 
-export type FlowRepairKind = FlowRepair["kind"];
-
 /** How far around a flow's ends and waypoints the router looks for shapes, tried from the nearest out. */
 const OBSTACLE_WINDOW_MARGINS = [120, 360];
 

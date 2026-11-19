@@ -8,7 +8,6 @@ export * from "./lib/webviewDocumentSync";
 export * from "./lib/modeler";
 export * from "./lib/dmnDiffMessages";
 export * from "./lib/mergePaneMessages";
-export * from "./lib/mergePaneBuildNotes";
 export * from "./lib/mergeHandMergeRefusal";
 export * from "./lib/protocolMessageMap";
 export * from "./lib/bpmnEditorCommands";

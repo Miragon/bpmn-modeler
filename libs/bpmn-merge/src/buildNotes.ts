@@ -1,8 +1,6 @@
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
 import type { UndrawnEdge } from "./connectionEnds";
-import type { ContainerRepair } from "./layoutContainerMoves";
-import type { FlowRepairKind } from "./layoutFlowRepair";
-import type { OverlapRepair } from "./layoutShapeMoves";
-import type { FlowSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
 import {
@@ -21,87 +19,25 @@ import {
     removedWith,
 } from "./removedWith";
 
-/** Which of two shapes on top of each other the build moved, and what it shifted to make room. */
-type OverlapNoteRepair = NoteRepairOf<OverlapRepair, "shapes">;
+export type BuildNote = MergeBuildNote;
 
-/** Whether the build brought a shape into its containers or grew one, and what it shifted to make room. */
-type ContainerNoteRepair = NoteRepairOf<ContainerRepair, "shape" | "container">;
-
-/** A repair as its note carries it: its kind as `repair`, without the ids the note names itself. */
-export type NoteRepairOf<
-    Repair extends { readonly kind: string },
-    Subject extends keyof Repair,
-> = Repair extends unknown
+/** A repair as its note carries it: its `kind` as `repair`, every other field as it is. */
+export type NoteRepairOf<Repair extends { readonly kind: string }> = Repair extends unknown
     ? {
-          readonly [
-              Key in Exclude<keyof Repair, "kind" | Subject> | "repair"
-          ]: Key extends keyof Repair ? Repair[Key] : Repair["kind"];
+          readonly [Key in Exclude<keyof Repair, "kind"> | "repair"]: Key extends keyof Repair
+              ? Repair[Key]
+              : Repair["kind"];
       }
     : never;
 
-export type BuildNote =
-    | {
-          /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
-          readonly kind: FlowSpot["kind"];
-          readonly id: string;
-          readonly shapes: readonly string[];
-          readonly repair: FlowRepairKind;
+/** A note's repair as the layout repair records it: its `repair` as `kind`, every other field as it is. */
+export type RepairOf<NoteRepair extends { readonly repair: string }> = NoteRepair extends unknown
+    ? {
+          readonly [
+              Key in Exclude<keyof NoteRepair, "repair"> | "kind"
+          ]: Key extends keyof NoteRepair ? NoteRepair[Key] : NoteRepair["repair"];
       }
-    | ({
-          /** A shape and the containers it lies outside, with what the build did about it. */
-          readonly kind: "shapeOutsideContainer";
-          readonly id: string;
-          readonly shapes: readonly string[];
-      } & ContainerNoteRepair)
-    | ({
-          /** Two shapes on top of each other, with what the build did about them. */
-          readonly kind: "shapesOverlap";
-          readonly ids: readonly string[];
-      } & OverlapNoteRepair)
-    | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
-    | ({
-          /**
-           * Lanes of one pool on top of each other, or a lane the build moved into its pool, with the lane it moved
-           * below the others, the pool and parent lanes it grew and the shapes it shifted down.
-           */
-          readonly kind: "lanesOverlap";
-          readonly ids: readonly string[];
-      } & (
-          | {
-                readonly repair: "movedByBuild";
-                readonly moved: string;
-                readonly grown: readonly string[];
-                readonly shifted: readonly string[];
-            }
-          | { readonly repair: "notRepaired" }
-      ))
-    | {
-          readonly kind: "restoredWithoutRemovedWith";
-          readonly id: string;
-          readonly connections: readonly string[];
-          /** The boundary events the other side removed with the element that the result leaves out. */
-          readonly boundaryEvents?: readonly string[];
-      }
-    | {
-          readonly kind: "defaultFlowNotRestored";
-          readonly id: string;
-          readonly flow: string;
-          /** The default the source keeps instead; none when it keeps no default. */
-          readonly keptDefault?: string;
-      }
-    | {
-          readonly kind: "layoutChangedByBoth";
-          readonly ids: readonly string[];
-          readonly keptSide: MergeSide;
-      }
-    | { readonly kind: "frameDiffers"; readonly attribute: string }
-    | {
-          /** A flow left out of the drawing, since no plane draws both its ends, with the ends it has. */
-          readonly kind: "flowNotDrawn";
-          readonly id: string;
-          readonly source?: string;
-          readonly target?: string;
-      };
+    : never;
 
 /** What the build learnt while it wrote the result, from which `buildNotesOf` notes what to check. */
 export interface BuildFindings {

@@ -5,7 +5,6 @@ import type {
     MergeObstacleWithMissing,
     MergePanePickAction,
     MergePaneBlock,
-    MergePaneBuildNote,
     MergePaneContainerReach,
     MergePaneHandMergeRefusal,
     MergePaneOtherSideLack,
@@ -17,6 +16,7 @@ import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKERS,
     MERGE_SIDES,
+    type MergeBuildNote,
     type MergeSide,
     otherSide,
 } from "@miragon/bpmn-modeler-types";
@@ -97,7 +97,7 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     targetPickedWithout: true,
     sideLacksTarget: true,
 };
-const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
+const NOTES: Record<MergeBuildNote["kind"], MergeBuildNote> = {
     flowEndOffShape: { kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
     shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
     flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "movedByBuild" },

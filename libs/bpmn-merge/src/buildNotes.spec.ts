@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import type {
+    MergeContainerRepair,
+    MergeOverlapRepair,
+} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import {
     type ElementSpec,
@@ -9,6 +14,8 @@ import {
 } from "./__fixtures__/mergeResultBuilder";
 import {
     type BuildNote,
+    type NoteRepairOf,
+    type RepairOf,
     flowNotDrawnNotes,
     layoutChangedByBothNotes,
     restoredWithoutRemovedWithNotes,
@@ -29,6 +36,17 @@ function resolutionWithLayout(layout: Record<string, MergeSide>): MergeResolutio
         appendedLanes: [],
     };
 }
+
+describe("NoteRepairOf", () => {
+    it("turns a repair the layout records back into the note's repair", () => {
+        expectTypeOf<
+            NoteRepairOf<RepairOf<MergeOverlapRepair>>
+        >().toEqualTypeOf<MergeOverlapRepair>();
+        expectTypeOf<
+            NoteRepairOf<RepairOf<MergeContainerRepair>>
+        >().toEqualTypeOf<MergeContainerRepair>();
+    });
+});
 
 describe("restoredWithoutRemovedWithNotes", () => {
     const flowInto = (target: string) => [

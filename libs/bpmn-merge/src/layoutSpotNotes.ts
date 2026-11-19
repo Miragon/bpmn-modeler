@@ -1,6 +1,8 @@
+import type { MergeFlowRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
 import type { BuildNote, NoteRepairOf } from "./buildNotes";
 import type { ContainerRepair } from "./layoutContainerMoves";
-import type { FlowRepair, FlowRepairKind } from "./layoutFlowRepair";
+import type { FlowRepair } from "./layoutFlowRepair";
 import type { LaneStacking } from "./layoutLaneStacking";
 import type { OverlapRepair } from "./layoutShapeMoves";
 import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
@@ -69,7 +71,7 @@ class SpotRepairs {
         this.movedForContainers = new Set(outcome.shapesMovedForContainers);
     }
 
-    flow(flow: string): FlowRepairKind {
+    flow(flow: string): MergeFlowRepair {
         return (
             this.outcome.flowRepairs.find((repair) => repair.flow === flow)?.kind ?? "notRepaired"
         );
@@ -158,10 +160,9 @@ function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildN
     return { kind: "shapesOverlap", ids: [...shapes], ...noteRepairOf(rest) };
 }
 
-/** The repair with its kind as `repair`, every other field as it is. */
 function noteRepairOf<Repair extends { readonly kind: string }>({
     kind,
     ...rest
-}: Repair): NoteRepairOf<Repair, never> {
-    return { ...rest, repair: kind } as NoteRepairOf<Repair, never>;
+}: Repair): NoteRepairOf<Repair> {
+    return { ...rest, repair: kind } as NoteRepairOf<Repair>;
 }
