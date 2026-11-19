@@ -9,6 +9,7 @@ import type { LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { writeLayoutChanges } from "./layoutRepairWriter";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
+import type { PlaneSlots } from "./planeSlots";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { layoutSpotNotes } from "./layoutSpotNotes";
 import type { LayoutSpot } from "./layoutSpots";
@@ -83,15 +84,16 @@ export function planLayoutRepair(
     };
 }
 
-/** Plans the repair of the assembled drawing, writes it into the drawing and returns its notes. */
+/** Plans the repair of the assembled drawing, read in the sides' plane slots, writes it into the drawing and returns its notes. */
 export function repairIntroducedSpots(
     definitions: ModdleElement,
     sideLayouts: readonly LayoutModel[],
+    slots: PlaneSlots,
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
 ): BuildNote[] {
-    const layout = layoutModelOf(definitions);
+    const layout = layoutModelOf(definitions, slots);
     const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
     writeLayoutChanges(definitions, layout, repaired, createPoint);
     return notes;

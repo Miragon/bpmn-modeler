@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds } from "./layoutGeometry";
 import {
     type LayoutEdge,
@@ -25,8 +26,7 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds: { x: 0, y: 0, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -41,8 +41,7 @@ function pool(id: string, bounds: DiagramBounds = { x: 0, y: 0, width: 900, heig
     return {
         kind: "pool",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
     } as const;
@@ -121,8 +120,7 @@ describe("framesAroundOf", () => {
         const lane = {
             kind: "lane",
             id: "Lane_1",
-            plane: PLANE,
-            planeKind: "root",
+            ...rootPlane(PLANE),
             parent: "Process_1",
             outline: "rectangle",
             bounds: { x: 30, y: 0, width: 870, height: 300 },
@@ -149,8 +147,7 @@ describe("innermostFrameOf and innermostLaneOf", () => {
     const lane = (id: string, parent: string, height: number): LayoutShape => ({
         kind: "lane",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds: { x: 30, y: 0, width: 870, height },
         outline: "rectangle",
         parent,
@@ -189,7 +186,7 @@ describe("drawnHostOf", () => {
         ["the host drawn on the event's plane", [node("Task_H")], "Task_H"],
         [
             "no host drawn on another plane",
-            [node("Task_H", { plane: "Sub_1", planeKind: "subProcess" })],
+            [node("Task_H", { ...subProcessPlane("Sub_1") })],
             undefined,
         ],
         ["no host it does not draw", [], undefined],
@@ -233,8 +230,7 @@ describe("isFrame", () => {
     const lane = {
         kind: "lane",
         id: "Lane_1",
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         parent: "Process_1",
         outline: "rectangle",
         bounds: { x: 30, y: 0, width: 870, height: 300 },
@@ -281,8 +277,7 @@ describe("lanesOf", () => {
     ): LayoutShape => ({
         kind: "lane",
         id,
-        plane,
-        planeKind: "root",
+        ...rootPlane(plane),
         bounds,
         outline: "rectangle",
         parent: "Process_1",

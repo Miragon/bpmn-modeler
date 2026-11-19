@@ -20,6 +20,11 @@ export class PlaneSlots {
         }
     }
 
+    /** One document's slots, as if it were merged with itself. */
+    static ofDocument(index: DiagramIndex): PlaneSlots {
+        return new PlaneSlots({ current: index, incoming: index });
+    }
+
     slotOf(planeOwner: string): string {
         const kind = planeKindOf(planeOwner, this.indexes.current, this.indexes.incoming);
         return `${kind}:${kind === ROOT_PLANE ? this.root(planeOwner) : planeOwner}`;

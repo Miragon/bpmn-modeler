@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { dockedModel } from "./__fixtures__/dockedModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds, Point } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
@@ -22,7 +23,13 @@ const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => (
 const at = (x: number, y: number): Point => ({ x, y });
 
 function pool(id: string, bounds: DiagramBounds): LayoutShape {
-    return { kind: "pool", id, plane: PLANE, planeKind: "root", outline: "rectangle", bounds };
+    return {
+        kind: "pool",
+        id,
+        ...rootPlane(PLANE),
+        outline: "rectangle",
+        bounds,
+    };
 }
 
 function lane(
@@ -34,8 +41,7 @@ function lane(
     return {
         kind: "lane",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         outline: "rectangle",
         parent,
         pool: inPool,
@@ -47,8 +53,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
         expanded: false,

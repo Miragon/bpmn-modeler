@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
 import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
@@ -22,8 +23,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
         expanded: false,
@@ -39,8 +39,7 @@ function pool(bounds: DiagramBounds = box(0, 0, 1200, 300)): LayoutShape {
     return {
         kind: "pool",
         id: "Pool_1",
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         outline: "rectangle",
         bounds,
     };
@@ -51,8 +50,7 @@ function lane(id: string, bounds: DiagramBounds): LaneShape {
     return {
         kind: "lane",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         outline: "rectangle",
         ...relations,
         bounds,
@@ -120,7 +118,7 @@ describe("planContainerMoves", () => {
         const start = node("Start_In", box(40, 122, 36, 36), { ...IN_SUB, outline: "circle" });
         const result = layoutOf([sub, sibling, start]);
         const current = layoutOf([sub, sibling]);
-        const onItsPlane = { plane: "Sub_1", planeKind: "subProcess" } as const;
+        const onItsPlane = subProcessPlane("Sub_1");
         const incoming = layoutOf([
             { ...sub, bounds: box(600, 40, 100, 80), expanded: false },
             { ...sibling, ...onItsPlane, bounds: box(100, 100) },
@@ -141,7 +139,7 @@ describe("planContainerMoves", () => {
         const start = node("Start_In", box(40, 122, 36, 36), { ...IN_SUB, outline: "circle" });
         const result = layoutOf([sub, sibling, start]);
         const current = layoutOf([sub, sibling]);
-        const onItsPlane = { plane: "Sub_1", planeKind: "subProcess" } as const;
+        const onItsPlane = subProcessPlane("Sub_1");
         const incoming = layoutOf([
             { ...sub, bounds: box(600, 40, 100, 80), expanded: false },
             { ...sibling, ...onItsPlane, bounds: box(100, 100) },
