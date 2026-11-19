@@ -118,21 +118,29 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   slot after that comes from the sequence flows between the two shapes, a boundary event's
   counting as its host's, where those flows run right (#2596): a shape that shares a predecessor
   or a successor with the other and is joined to it by no flow is a parallel branch, which a
-  modeller stacks, so it goes below the other shape, centred in its column, 40 px under it and
-  its label, as far along the flow as keeps it 15 px clear of foreign flows and their labels,
-  even when a free place lies in line (the user's choice on #2596). Otherwise, or when stacking
-  fails, it goes to the nearest place within 250 px that keeps every moved shape in the pool,
-  lanes and sub-processes it lies in, 15 px clear of other shapes, of flows that are not its own
-  and of their labels. Only when none exists does it make room in line: before the other shape
+  modeller stacks, so it goes below the other shape (below the host and its boundary events when
+  it lay on a boundary event), centred in its column, 40 px under it and its label, as far along
+  the flow as keeps it 15 px clear of foreign flows and their labels, even when a free place lies
+  in line (the user's choice on #2596). Otherwise, or when stacking fails, it goes to the nearest
+  place within 250 px that keeps every moved shape in the pool, lanes and sub-processes it lies
+  in, no further out of a sub-process it hangs out of, 15 px clear of other shapes, of flows that
+  are not its own and of their labels. Only when none exists does it make room in line: before the other shape
   when it leads into it, which keeps it in place and pushes the other on, never leftward, else
   after it. A room pushes only what is in the way, as the modeler's space tool would held over
   just that: what the shape lands on gives way along the flow (or down, below), with what that
   lands on and the shapes in line after it that its flows lead to while their gap would fall
-  below 50 px. A frame grows only by its shortfall, and its new strip is room asked of the
+  below 50 px. A frame grows only when it no longer holds what lies in it, and then keeps the
+  margin it had to its far-most content, at least 10 px and at most the room's gap (50 px along
+  x, 40 px down), as the space tool carries the border along. Its new strip is room asked of the
   frame around it, up to the pools on the plane, so a growing sub-process pushes its siblings
-  and a growing pool the pool beside it instead of covering them. Room below grows the lane;
-  the lanes under it shift down across the pool. A stacked branch and the shape above it then
-  stay clear of what lies right of them. The flows between shifted and staying shapes stretch
+  and a growing pool the pool beside it instead of covering them; the strip moves only what lies
+  across from it, as the frame already lay beside the rest. Room below grows the lane; the lanes
+  under it shift down across the pool, and another pool that ended level with it grows as far
+  when that lands on nothing. A stacked branch then stays clear of what lies right of it; what
+  lies right of the shape above it stays, as only introduced spots are repaired. Every place a
+  room tries, the slot after and up to 50 px further along the flow, or each step below, must
+  leave the moved shape 15 px clear of foreign labels and of foreign flows beside it once the
+  room is made; a flow running through it is a spot the flow repair re-routes. The flows between shifted and staying shapes stretch
   by runs across the push, so their segments keep their direction. Between the two shapes of a
   pair, the room that shifts fewer shapes wins, then the one that grows the frames less, then
   the shape with fewer flows. A room that adds any shape spot (an overlap, a shape outside its
@@ -152,8 +160,11 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   its siblings; stacking above, which shifts nothing below but moves the pool's origin. Cost:
   merges that reached making room now stack the moved shape below instead of in line and grow
   the lane instead of widening the pool, so the lanes under it shift across their full width;
-  pushing before the other shape and clearing the stacked column move the other shape of the
-  pair, or what follows it, which the old room never did; flows that do not run right keep the
+  pushing before the other shape moves the other shape of the pair and what follows it, which
+  the old room never did; a cramped spot both sides drew beside a stacked column stays; on the
+  harvest, a fuzz result (seed 74) now moves a gateway instead of an end event, whose re-routed
+  flow runs on another, and one (seed 69) keeps a sub-process in its parent at the cost of a
+  crossing; flows that do not run right keep the
   in-line order; a label bpmn-js places itself, without bounds in the file, is not seen; the
   container step keeps only off flows, as the clearance there added a crossing; each try still
   builds a trial drawing and finds the spots of the whole drawing once

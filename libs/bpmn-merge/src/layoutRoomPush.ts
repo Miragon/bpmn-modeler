@@ -13,6 +13,8 @@ import {
     farSideOf,
     grownAlong,
     keepsClearOf,
+    liesAheadWithin,
+    liesWithin,
     nearSideOf,
     rightOf,
     stripPast,
@@ -23,6 +25,7 @@ import {
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
+    drawnPartsOf,
     drawnPoolOf,
     innermostFrameOf,
     innermostLaneOf,
@@ -42,16 +45,19 @@ export interface RoomRequest {
     readonly box: DiagramBounds;
     /** Only what lies at or past it along the axis gives way; a frame by its near side, a node by its center. */
     readonly line: number;
-    /** What nothing before the line may lie on, when less than the box. */
-    readonly newPart?: DiagramBounds;
     /** How far back the line may move to take in what the box lands on before it. */
     readonly floor?: number;
     /** What never gives way nor stands in the way: the moved group, or a frame that grows. */
     readonly exclude: ReadonlySet<string>;
     /** What never gives way in the box's own frame but stands in the way of a frame growing around it: the shape the group lay on. */
     readonly stays?: ReadonlySet<string>;
-    /** How far what the box lands on shifts, when not as far as keeps the gap from the box: a frame's growth. */
-    readonly by?: number;
+    /**
+     * Set when the box is the strip a frame gains by growing, to how far it
+     * grew: what the strip lands on shifts that far, and only what lies
+     * across from it along the axis counts, as the frame lay beside the rest
+     * before it grew.
+     */
+    readonly frameGrowth?: number;
 }
 
 /** A node with everything that moves with it, or a pool with its lanes and contents: what gives way as one. */
@@ -76,9 +82,9 @@ interface FrameRequest extends RoomRequest {
  * tool held over just what is in the way: only what the box lands on gives
  * way, with what that then lands on and the shapes in line after it that its
  * flows lead to, all by one shift. A frame that no longer holds what lies in
- * it grows by its shortfall, and its new strip is room asked of the frame
- * around it, up to the pools on the plane. Room below in a pool with lanes
- * grows the lane, so what lies under it shifts down.
+ * it grows, keeping the margin it had, and its new strip is room asked of
+ * the frame around it, up to the pools on the plane. Room below in a pool
+ * with lanes grows the lane, so what lies under it shifts down.
  */
 export class RoomPush {
     /** How far each shifted node and frame went along the axis. */
@@ -148,7 +154,13 @@ export class RoomPush {
             this.far(request.box),
             ...pushed.units.map((unit) => this.far(unit.bounds) + pushed.by),
         );
-        if (container?.kind === "node") return this.growSubProcess(request, container, extent);
+        if (container?.kind === "node") {
+            return this.growSubProcess(
+                request,
+                container,
+                extent + this.marginOf(container, units),
+            );
+        }
         if (lane === undefined && container === undefined) return true;
         const pool = container && this.trial.shapes.get(container.id)!;
         const lanes = this.lanesWith(pool, lane);
@@ -161,26 +173,63 @@ export class RoomPush {
                       pool,
                       this.trial.shapes.get(lane.id) as LaneShape,
                       lanes,
-                      extent,
+                      extent + this.marginOf(lane, inLane),
                       units,
                   )
-                : this.growFrame(pool ?? lane!, lanes, extent);
+                : this.growFrame(
+                      pool ?? lane!,
+                      lanes,
+                      extent + this.marginOf(pool ?? lane!, units),
+                  );
         if (growth <= 0) return true;
-        return this.roomIn({
+        const made = this.roomIn({
             plane: request.plane,
             container: undefined,
             lane: undefined,
             box: stripPast(this.axis, before, growth),
             line: this.far(before),
             exclude: new Set([...request.exclude, ...(pool ? [pool.id] : [])]),
-            by: growth,
+            frameGrowth: growth,
         });
+        if (made && this.axis === "y" && pool !== undefined) {
+            this.growLevelPools(pool, before, growth);
+        }
+        return made;
     }
 
-    /** Grows the sub-process to hold the extent, and asks its own frame for the strip it gains. */
-    private growSubProcess(request: FrameRequest, container: NodeShape, extent: number): boolean {
+    /**
+     * Grows each other pool on the plane that ended level with the pool by
+     * as much, with its lanes across its far side, where the strip it gains
+     * lands on nothing: the space tool held over the plane keeps them level.
+     */
+    private growLevelPools(pool: LayoutShape, before: DiagramBounds, growth: number): void {
+        const units = this.unitsIn(pool.plane, undefined, new Set([pool.id]));
+        for (const other of units) {
+            const shape = this.trial.shapes.get(other.id)!;
+            if (shape.kind !== "pool" || Math.abs(this.far(shape.bounds) - this.far(before)) > 1) {
+                continue;
+            }
+            const strip = stripPast(this.axis, shape.bounds, growth);
+            const landsOnSome = units.some(
+                (unit) =>
+                    unit.id !== other.id &&
+                    liesAheadWithin(
+                        this.axis,
+                        strip,
+                        this.trial.shapes.get(unit.id)!.bounds,
+                        SHAPE_CLEARANCE,
+                    ),
+            );
+            if (!landsOnSome) {
+                this.growFrame(shape, lanesOf(this.trial, shape), this.far(shape.bounds) + growth);
+            }
+        }
+    }
+
+    /** Grows the sub-process to reach the far side, and asks its own frame for the strip it gains. */
+    private growSubProcess(request: FrameRequest, container: NodeShape, farSide: number): boolean {
         const frame = this.trial.shapes.get(container.id)!;
-        const growth = this.growFrame(frame, [], extent);
+        const growth = this.growFrame(frame, [], farSide);
         if (growth <= 0) return true;
         const grown = this.trial.node(frame.id)!;
         return this.roomIn({
@@ -190,7 +239,7 @@ export class RoomPush {
             box: stripPast(this.axis, frame.bounds, growth),
             line: this.far(frame.bounds),
             exclude: new Set([...request.exclude, frame.id]),
-            by: growth,
+            frameGrowth: growth,
         });
     }
 
@@ -214,20 +263,24 @@ export class RoomPush {
         units: readonly Unit[],
         request: FrameRequest,
     ): { readonly units: Unit[]; readonly by: number } | undefined {
-        const { box, newPart = box, floor } = request;
+        const { box, floor, frameGrowth } = request;
         const lands = (on: DiagramBounds, unit: Unit) =>
             !keepsClearOf(on, unit.bounds, SHAPE_CLEARANCE);
+        const reachesBox = (unit: Unit) =>
+            frameGrowth === undefined
+                ? lands(box, unit)
+                : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
         let line = request.line;
-        let blocking = units.filter((unit) => unit.lead < line && lands(newPart, unit));
+        let blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
         while (blocking.length > 0) {
             line = Math.min(...blocking.map(({ lead }) => lead));
             if (floor === undefined || line <= floor) return undefined;
-            blocking = units.filter((unit) => unit.lead < line && lands(newPart, unit));
+            blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
         }
         const past = units.filter((unit) => unit.lead >= line);
-        const hit = past.filter((unit) => lands(box, unit));
+        const hit = past.filter(reachesBox);
         const by =
-            request.by ??
+            frameGrowth ??
             Math.max(0, ...hit.map((unit) => this.far(box) + this.gap - this.near(unit.bounds)));
         if (hit.length === 0 || by <= 0) return { units: [], by: 0 };
         const pushed = new Set(hit);
@@ -323,12 +376,32 @@ export class RoomPush {
     }
 
     /**
-     * Grows the frame to hold the extent off its border, with those of the
-     * lanes that reach its far side and the boundary events on that side.
-     * Returns the growth.
+     * How far the frame kept what lies in it from its far side before the
+     * room was made, which it keeps when it grows: at least the frame
+     * padding, at most the gap the room keeps.
      */
-    private growFrame(frame: LayoutShape, lanes: readonly LaneShape[], extent: number): number {
-        const growth = extent + FRAME_PADDING - this.far(frame.bounds);
+    private marginOf(frame: LayoutShape, units: readonly Unit[]): number {
+        const { before } = this;
+        const bounds = before.shapes.get(frame.id)?.bounds ?? frame.bounds;
+        const ends = units.flatMap(({ id }) => {
+            const shape = before.shapes.get(id);
+            if (shape === undefined || !liesWithin(shape.bounds, bounds)) return [];
+            return [
+                this.far(shape.kind === "node" ? boundsAround(drawnPartsOf(shape)) : shape.bounds),
+            ];
+        });
+        if (ends.length === 0) return FRAME_PADDING;
+        const kept = this.far(bounds) - Math.max(...ends);
+        return Math.min(this.gap, Math.max(FRAME_PADDING, kept));
+    }
+
+    /**
+     * Grows the frame to reach the far side, with those of the lanes that
+     * reach its far side and the boundary events on that side. Returns the
+     * growth.
+     */
+    private growFrame(frame: LayoutShape, lanes: readonly LaneShape[], farSide: number): number {
+        const growth = farSide - this.far(frame.bounds);
         if (growth <= 0) return 0;
         const side = this.axis === "x" ? "right" : "bottom";
         const across = lanes.filter(
@@ -349,18 +422,18 @@ export class RoomPush {
     }
 
     /**
-     * Grows the lane to hold the extent below: what lies under it shifts
-     * down, the lanes across its bottom grow with it and so does the pool.
-     * Returns the growth.
+     * Grows the lane down to the far side: what lies under it shifts down,
+     * the lanes across its bottom grow with it and so does the pool. Returns
+     * the growth.
      */
     private growLane(
         pool: LayoutShape | undefined,
         lane: LaneShape,
         lanes: readonly LaneShape[],
-        extent: number,
+        farSide: number,
         units: readonly Unit[],
     ): number {
-        const growth = extent + FRAME_PADDING - bottomOf(lane.bounds);
+        const growth = farSide - bottomOf(lane.bounds);
         if (growth <= 0) return 0;
         const line = bottomOf(lane.bounds);
         for (const unit of units) {

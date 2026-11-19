@@ -30,9 +30,11 @@ export class FlowTopology {
 
     /**
      * How `moved` stands to `other`: a flow from one into the other comes
-     * first, then a shared predecessor or successor.
+     * first, then a shared predecessor or successor. A boundary event stands
+     * for its host.
      */
-    relationOf(moved: string, other: string): FlowRelation {
+    relationOf(movedShape: string, otherShape: string): FlowRelation {
+        const [moved, other] = [this.ownerOf(movedShape), this.ownerOf(otherShape)];
         if (this.followersOf(other).has(moved)) return "follows";
         if (this.followersOf(moved).has(other)) return "precedes";
         const shares = (of: (id: string) => ReadonlySet<string>) =>
@@ -44,10 +46,11 @@ export class FlowTopology {
 
     /**
      * Whether the flows at the nodes run to the right, read from the centers
-     * of their ends as drawn: further right than up or down, summed over all
-     * of them. Nodes no flow touches count as drawn left to right.
+     * of their ends as the layout draws them: further right than up or down,
+     * summed over all of them. Nodes no flow touches count as drawn left to
+     * right.
      */
-    flowsRightAt(nodes: readonly string[]): boolean {
+    flowsRightAt(layout: LayoutModel, nodes: readonly string[]): boolean {
         let alongX = 0;
         let alongY = 0;
         const counted = new Set<string>();
@@ -58,8 +61,8 @@ export class FlowTopology {
             ];
             for (const [from, to] of pairs) {
                 const key = `${from} ${to}`;
-                const source = nodeShapeIn(this.layout, from);
-                const target = nodeShapeIn(this.layout, to);
+                const source = nodeShapeIn(layout, from);
+                const target = nodeShapeIn(layout, to);
                 if (counted.has(key) || source === undefined || target === undefined) continue;
                 counted.add(key);
                 alongX += centerOf(target.bounds).x - centerOf(source.bounds).x;

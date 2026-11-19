@@ -141,6 +141,11 @@ function task(id: string, x: number, y: number, lane: string) {
     return { id, type: "task" as const, x, y, lane };
 }
 
+/** The "no" label where bpmn-js writes it, beside the gateway's way down. */
+function labelNo(model: BpmnFixtureModel): void {
+    flow(model, "Flow_No").label = { x: 446, y: 225.5, width: 20, height: 14 };
+}
+
 /** Both sides inserted a task between the gateway and Ship: in the same room, in room of different widths, or without room. */
 const BOTH_INSERTED = {
     SAME_ROOM: dockedVersions(
@@ -167,10 +172,14 @@ const BOTH_INSERTED = {
     ),
     NO_ROOM: dockedVersions(
         "c8",
-        (model) =>
-            insertIntoFlow(model, "Flow_Yes", task("Task_X", 470, 100, "Lane_Sales"), "Flow_X"),
-        (model) =>
-            insertIntoFlow(model, "Flow_Yes", task("Task_Y", 480, 100, "Lane_Sales"), "Flow_Y"),
+        (model) => {
+            labelNo(model);
+            insertIntoFlow(model, "Flow_Yes", task("Task_X", 470, 100, "Lane_Sales"), "Flow_X");
+        },
+        (model) => {
+            labelNo(model);
+            insertIntoFlow(model, "Flow_Yes", task("Task_Y", 480, 100, "Lane_Sales"), "Flow_Y");
+        },
     ),
 };
 
@@ -251,17 +260,17 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "incoming",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_X", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_X"),
                         moved("flowThroughShape", "Flow_X", "Task_Y"),
-                        moved("flowEndOffShape", "Flow_X", "Task_X", "Task_C"),
+                        moved("flowEndOffShape", "Flow_X", "Task_X"),
                     ],
                 },
                 {
                     conflictsTo: "current",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_Y", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_Y"),
                         moved("flowThroughShape", "Flow_Y", "Task_X"),
-                        moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
+                        moved("flowEndOffShape", "Flow_Y", "Task_Y"),
                     ],
                 },
             ] as const
@@ -427,10 +436,15 @@ describe("buildMerged's layout notes", () => {
             const movedId = room?.kind === "shapesOverlap" && "moved" in room ? room.moved : "";
             const otherId = movedId === "Task_X" ? "Task_Y" : "Task_X";
             const layout = await layoutOfXml(xml);
-            const [movedTask, other, ship, shipped] = [movedId, otherId, "Task_C", "End_Done"].map(
-                (id) => layout.shapes.get(id)!.bounds,
-            );
+            const [movedTask, other, ship, shipped, lane] = [
+                movedId,
+                otherId,
+                "Task_C",
+                "End_Done",
+                "Lane_Sales",
+            ].map((id) => layout.shapes.get(id)!.bounds);
             expect(movedTask!.y).toBeGreaterThanOrEqual(bottomOf(other!) + STACK_GAP);
+            expect(bottomOf(lane!) - bottomOf(movedTask!)).toBeGreaterThanOrEqual(STACK_GAP);
             expect(movedTask!.x).toBeLessThan(other!.x + other!.width);
             expect(other!.x).toBeLessThan(movedTask!.x + movedTask!.width);
             expect(

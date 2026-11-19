@@ -1,6 +1,7 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,
+    areaOutside,
     bottomOf,
     boundsAround,
     inflated,
@@ -77,10 +78,12 @@ export interface PlacementTerms {
 /** A shape moved off another keeps the shape clearance from flows as from shapes. */
 export const OFF_A_SHAPE: PlacementTerms = { flowClearance: SHAPE_CLEARANCE };
 
-/** A member of a moving group and a frame outside the group it must stay inside. */
+/** A member of a moving group and a frame outside the group it must stay inside, or come no further out of than it lies now. */
 interface KeptInside {
     readonly member: DiagramBounds;
     readonly frame: DiagramBounds;
+    /** How much of the member lies outside the frame now; zero when it lies inside. */
+    readonly outside: number;
 }
 
 /**
@@ -124,12 +127,20 @@ export class Placement {
                     : framesAroundOf(draft, member);
             return frames
                 .filter(
-                    (frame) => !members.has(frame.id) && liesWithin(member.bounds, frame.bounds),
+                    (frame) =>
+                        !members.has(frame.id) &&
+                        (frame.kind === "node" || liesWithin(member.bounds, frame.bounds)),
                 )
                 .map((frame) => {
+                    const outside = areaOutside(member.bounds, frame.bounds);
+                    if (outside > 0) return { member: member.bounds, frame: frame.bounds, outside };
                     const inner = innerBoundsOf(frame);
                     const keptOff = liesWithin(member.bounds, inner);
-                    return { member: member.bounds, frame: keptOff ? inner : frame.bounds };
+                    return {
+                        member: member.bounds,
+                        frame: keptOff ? inner : frame.bounds,
+                        outside,
+                    };
                 });
         });
         this.obstacles = draft
@@ -160,8 +171,10 @@ export class Placement {
         const movedShapes = translated(this.shapeBounds, dx, dy);
         return (
             this.into.every((frame) => liesWithin(movedShapes, frame)) &&
-            this.keptInside.every(({ member, frame }) =>
-                liesWithin(translated(member, dx, dy), frame),
+            this.keptInside.every(({ member, frame, outside }) =>
+                outside === 0
+                    ? liesWithin(translated(member, dx, dy), frame)
+                    : areaOutside(translated(member, dx, dy), frame) <= outside,
             ) &&
             this.obstacles.every((obstacle) => keepsClearOf(box, obstacle, SHAPE_CLEARANCE)) &&
             keepsClearOfFlows(box, this.flows, this.flowClearance)

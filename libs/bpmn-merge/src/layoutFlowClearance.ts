@@ -35,3 +35,13 @@ export function keepsClearOfFlows(
         flows.labels.every((label) => keepsClearOf(box, label, clearance))
     );
 }
+
+/**
+ * Whether no flow comes nearer the box than the clearance beside it, and no
+ * label at all: a flow that runs through the box is a spot the flow repair
+ * re-routes, one that passes close by stays cramped.
+ */
+export function crampsNoFlow(box: DiagramBounds, flows: ForeignFlows, clearance: number): boolean {
+    const beside = flows.segments.filter(([from, to]) => !segmentEntersBounds(from, to, box));
+    return keepsClearOfFlows(box, { ...flows, segments: beside }, clearance);
+}

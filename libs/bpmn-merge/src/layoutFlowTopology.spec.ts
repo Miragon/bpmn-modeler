@@ -31,12 +31,15 @@ function flow(source: string, target: string, kind: EdgeKind = "sequenceFlow"): 
     return { id: `${source}_${target}`, plane: PLANE, source, target, waypoints: [], kind };
 }
 
-function topologyOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): FlowTopology {
-    const layout: LayoutModel = {
+function layoutOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): LayoutModel {
+    return {
         shapes: new Map(shapes.map((shape) => [shape.id, shape])),
         edges: new Map(edges.map((edge) => [edge.id, edge])),
     };
-    return new FlowTopology(layout);
+}
+
+function topologyOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): FlowTopology {
+    return new FlowTopology(layoutOf(shapes, edges));
 }
 
 const ROW = [task("Task_A", 0, 0), task("Task_B", 200, 0), task("Task_C", 400, 0)];
@@ -76,6 +79,18 @@ describe("FlowTopology", () => {
             expect(topology.relationOf("Task_B", "Task_A")).toBe("follows");
         });
 
+        it("reads a boundary event as its host when asked about the event itself", () => {
+            const timer = task("Timer_1", 80, 60, { host: "Task_A", outline: "circle" });
+            const follows = topologyOf([...ROW, timer], [flow("Timer_1", "Task_B")]);
+            const parallel = topologyOf(
+                [...ROW, timer],
+                [flow("Task_A", "Task_C"), flow("Task_B", "Task_C")],
+            );
+
+            expect(follows.relationOf("Task_B", "Timer_1")).toBe("follows");
+            expect(parallel.relationOf("Task_B", "Timer_1")).toBe("parallel");
+        });
+
         it("reads a flow between two shapes before a shared successor", () => {
             const topology = topologyOf(ROW, [
                 flow("Task_A", "Task_B"),
@@ -89,25 +104,37 @@ describe("FlowTopology", () => {
 
     describe("flowsRightAt", () => {
         it("reads the flows at the shapes as running right when their ends lie further right", () => {
-            const topology = topologyOf(ROW, [flow("Task_A", "Task_B"), flow("Task_B", "Task_C")]);
+            const flows = [flow("Task_A", "Task_B"), flow("Task_B", "Task_C")];
+            const layout = layoutOf(ROW, flows);
 
-            expect(topology.flowsRightAt(["Task_B"])).toBe(true);
+            expect(new FlowTopology(layout).flowsRightAt(layout, ["Task_B"])).toBe(true);
         });
 
         it("reads flows that run down or left as not running right", () => {
             const column = [task("Task_A", 0, 0), task("Task_B", 0, 200), task("Task_C", -40, 400)];
-            const leftward = topologyOf(ROW, [flow("Task_C", "Task_B"), flow("Task_B", "Task_A")]);
-            const downward = topologyOf(column, [
-                flow("Task_A", "Task_B"),
-                flow("Task_B", "Task_C"),
-            ]);
+            const leftward = layoutOf(ROW, [flow("Task_C", "Task_B"), flow("Task_B", "Task_A")]);
+            const downward = layoutOf(column, [flow("Task_A", "Task_B"), flow("Task_B", "Task_C")]);
 
-            expect(leftward.flowsRightAt(["Task_B"])).toBe(false);
-            expect(downward.flowsRightAt(["Task_B"])).toBe(false);
+            expect(new FlowTopology(leftward).flowsRightAt(leftward, ["Task_B"])).toBe(false);
+            expect(new FlowTopology(downward).flowsRightAt(downward, ["Task_B"])).toBe(false);
         });
 
         it("reads shapes no flow touches as running right, as a diagram is drawn", () => {
-            expect(topologyOf(ROW, []).flowsRightAt(["Task_B"])).toBe(true);
+            const layout = layoutOf(ROW, []);
+
+            expect(new FlowTopology(layout).flowsRightAt(layout, ["Task_B"])).toBe(true);
+        });
+
+        it("reads the flows where the drawing it is given draws their ends, after shapes moved", () => {
+            const flows = [flow("Task_A", "Task_B"), flow("Task_B", "Task_C")];
+            const topology = new FlowTopology(layoutOf(ROW, flows));
+            const column = [
+                task("Task_A", 200, -200),
+                task("Task_B", 200, 0),
+                task("Task_C", 200, 200),
+            ];
+
+            expect(topology.flowsRightAt(layoutOf(column, flows), ["Task_B"])).toBe(false);
         });
     });
 

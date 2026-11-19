@@ -68,7 +68,7 @@ export function growFrameFor(
         box: { ...grown.bounds, x: rightOf(frame.bounds), width: growth.right },
         line: rightOf(frame.bounds),
         exclude: new Set([...group.members, frame.id]),
-        by: growth.right,
+        frameGrowth: growth.right,
     });
     if (!made) return undefined;
     push.stretchEdges(frame.plane, ownEdgesOf(group));

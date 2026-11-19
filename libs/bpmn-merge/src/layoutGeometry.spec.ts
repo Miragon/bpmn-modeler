@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
     type DiagramBounds,
+    areaOutside,
     bordersAt,
     gapBetween,
     keepsClearOf,
+    liesAheadWithin,
     segmentEntersOutline,
     sideOfCenter,
     spansAlong,
@@ -12,6 +14,33 @@ import {
 
 const TASK: DiagramBounds = { x: 100, y: 100, width: 100, height: 80 };
 const EVENT: DiagramBounds = { x: 300, y: 140, width: 36, height: 36 };
+
+describe("areaOutside", () => {
+    it.each([
+        { bounds: { x: 120, y: 120, width: 50, height: 40 }, outside: 0 },
+        { bounds: { x: 150, y: 150, width: 100, height: 80 }, outside: 8000 - 50 * 30 },
+        { bounds: { x: 400, y: 400, width: 10, height: 10 }, outside: 100 },
+    ])("$bounds lies $outside px² outside the task", ({ bounds, outside }) => {
+        expect(areaOutside(bounds, TASK)).toBe(outside);
+    });
+});
+
+describe("liesAheadWithin", () => {
+    const strip: DiagramBounds = { x: 200, y: 0, width: 50, height: 300 };
+
+    it.each([
+        { other: { x: 260, y: 100, width: 100, height: 80 }, axis: "x", ahead: true },
+        { other: { x: 280, y: 100, width: 100, height: 80 }, axis: "x", ahead: false },
+        { other: { x: 220, y: 100, width: 100, height: 80 }, axis: "x", ahead: true },
+        { other: { x: 0, y: 300, width: 1200, height: 200 }, axis: "x", ahead: false },
+        { other: { x: 210, y: 305, width: 100, height: 40 }, axis: "x", ahead: false },
+        { other: { x: 210, y: 305, width: 20, height: 40 }, axis: "y", ahead: true },
+        { other: { x: 260, y: 305, width: 20, height: 40 }, axis: "y", ahead: false },
+        { other: { x: 100, y: 100, width: 50, height: 50 }, axis: "x", ahead: false },
+    ] as const)("$other along $axis: $ahead", ({ other, axis, ahead }) => {
+        expect(liesAheadWithin(axis, strip, other, 15)).toBe(ahead);
+    });
+});
 
 describe("spansAlong", () => {
     it.each([

@@ -4,11 +4,12 @@ import { sameBounds } from "./layoutGeometry";
 import {
     type RoomContext,
     type RoomMade,
-    inLineSlotFor,
+    type RoomSlots,
     makeRoom,
-    slotOffsetOf,
+    slotOffsetsOf,
+    slotsFor,
 } from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape } from "./layoutModel";
+import { type LayoutModel, type NodeShape, drawnHostOf } from "./layoutModel";
 import { placeOf, placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
 import {
@@ -166,9 +167,9 @@ function nearestFreePlace(draft: DrawingDraft, movable: readonly ShapeGroup[]): 
 type GroupRoom = RoomMade & { readonly group: ShapeGroup };
 
 /**
- * A movable shape of the pair stacked below the other as a parallel branch,
- * where the flows there run right: at the free place in the other's column,
- * else with room made there.
+ * A movable shape of the pair stacked below the other, or below the host of
+ * a boundary event it lay on, where its slots say so: at the free place in
+ * that column, else with room made there.
  */
 function stackedBranch(
     draft: DrawingDraft,
@@ -179,24 +180,23 @@ function stackedBranch(
     return leastOf(
         movable.flatMap((group) => {
             const other = otherOf(pair, group);
-            const { topology } = context;
-            const branches =
-                topology.relationOf(group.node.id, other.id) === "parallel" &&
-                topology.flowsRightAt([group.node.id, other.id]);
-            if (!branches) return [];
-            const offset = slotOffsetOf(draft, group, other, "below");
-            if (Placement.fitsAt(draft, group, offset, OFF_A_SHAPE)) {
+            if (!slotsOf(draft, context, group, other).stacked) return [];
+            const column = drawnHostOf(draft, other) ?? other;
+            const free = slotOffsetsOf(draft, context.groups, group, column, "below").find(
+                (offset) => Placement.fitsAt(draft, group, offset, OFF_A_SHAPE),
+            );
+            if (free !== undefined) {
                 const trial = draft.fork();
-                trial.translate(group, offset.dx, offset.dy);
+                trial.translate(group, free.dx, free.dy);
                 return [{ draft: trial, shifted: [], grown: [], growth: 0, group }];
             }
-            const room = makeRoom(draft, context, group, other, "below");
+            const room = makeRoom(draft, context, group, column, "below");
             return room === undefined ? [] : [{ ...room, group }];
         }),
     );
 }
 
-/** Room for a movable shape of the pair in line with the other, before it when the shape leads into it and the flows there run right, else after it. */
+/** Room for a movable shape of the pair in line with the other, in the first of its slots in line that has room. */
 function roomInLine(
     draft: DrawingDraft,
     context: RoomContext,
@@ -206,15 +206,26 @@ function roomInLine(
     return leastOf(
         movable.flatMap((group) => {
             const other = otherOf(pair, group);
-            const { topology } = context;
-            const slot = topology.flowsRightAt([group.node.id, other.id])
-                ? inLineSlotFor(topology.relationOf(group.node.id, other.id))
-                : "after";
-            const room =
-                makeRoom(draft, context, group, other, slot) ??
-                (slot === "after" ? undefined : makeRoom(draft, context, group, other));
-            return room === undefined ? [] : [{ ...room, group }];
+            for (const slot of slotsOf(draft, context, group, other).inLine) {
+                const room = makeRoom(draft, context, group, other, slot);
+                if (room !== undefined) return [{ ...room, group }];
+            }
+            return [];
         }),
+    );
+}
+
+/** The slots for the group against the other shape, by how the flows join them and run where the draft draws them. */
+function slotsOf(
+    draft: DrawingDraft,
+    { topology }: RoomContext,
+    group: ShapeGroup,
+    other: NodeShape,
+): RoomSlots {
+    const pair = [group.node.id, other.id];
+    return slotsFor(
+        topology.relationOf(group.node.id, other.id),
+        topology.flowsRightAt(draft, pair),
     );
 }
 

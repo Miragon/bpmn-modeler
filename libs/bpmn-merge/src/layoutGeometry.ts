@@ -216,11 +216,46 @@ export function grownAlong(axis: Axis, bounds: DiagramBounds, by: number): Diagr
         : { ...bounds, height: bounds.height + by };
 }
 
+/**
+ * Whether the other lies across from the bounds along the axis, overlapping
+ * their span across it, and reaches into them or starts less than the
+ * clearance past their far side.
+ */
+export function liesAheadWithin(
+    axis: Axis,
+    bounds: DiagramBounds,
+    other: DiagramBounds,
+    clearance: number,
+): boolean {
+    const crossAxis: Axis = axis === "x" ? "y" : "x";
+    const overlapsAcross =
+        nearSideOf(crossAxis, other) < farSideOf(crossAxis, bounds) &&
+        nearSideOf(crossAxis, bounds) < farSideOf(crossAxis, other);
+    return (
+        overlapsAcross &&
+        nearSideOf(axis, other) < farSideOf(axis, bounds) + clearance &&
+        nearSideOf(axis, bounds) < farSideOf(axis, other)
+    );
+}
+
 /** The part bounds grown by `growth` along the axis gain past their far side. */
 export function stripPast(axis: Axis, bounds: DiagramBounds, growth: number): DiagramBounds {
     return axis === "x"
         ? { ...bounds, x: rightOf(bounds), width: growth }
         : { ...bounds, y: bottomOf(bounds), height: growth };
+}
+
+/** How much of the bounds' area lies outside the frame. */
+export function areaOutside(bounds: DiagramBounds, frame: DiagramBounds): number {
+    const width = Math.max(
+        0,
+        Math.min(rightOf(bounds), rightOf(frame)) - Math.max(bounds.x, frame.x),
+    );
+    const height = Math.max(
+        0,
+        Math.min(bottomOf(bounds), bottomOf(frame)) - Math.max(bounds.y, frame.y),
+    );
+    return bounds.width * bounds.height - width * height;
 }
 
 /** Whether the point lies strictly inside the bounds. */
