@@ -33,12 +33,12 @@ export class FlowTopology {
      * first, then a shared predecessor or successor.
      */
     relationOf(moved: string, other: string): FlowRelation {
-        if (this.successorsOf(other).has(moved)) return "follows";
-        if (this.successorsOf(moved).has(other)) return "precedes";
+        if (this.followersOf(other).has(moved)) return "follows";
+        if (this.followersOf(moved).has(other)) return "precedes";
         const shares = (of: (id: string) => ReadonlySet<string>) =>
             [...of(moved)].some((id) => of(other).has(id));
         const sharesEnd =
-            shares((id) => this.predecessorsOf(id)) || shares((id) => this.successorsOf(id));
+            shares((id) => this.predecessorsOf(id)) || shares((id) => this.followersOf(id));
         return sharesEnd ? "parallel" : "unrelated";
     }
 
@@ -53,7 +53,7 @@ export class FlowTopology {
         const counted = new Set<string>();
         for (const id of nodes.map((node) => this.ownerOf(node))) {
             const pairs = [
-                ...[...this.successorsOf(id)].map((next) => [id, next] as const),
+                ...[...this.followersOf(id)].map((next) => [id, next] as const),
                 ...[...this.predecessorsOf(id)].map((previous) => [previous, id] as const),
             ];
             for (const [from, to] of pairs) {
@@ -69,7 +69,8 @@ export class FlowTopology {
         return counted.size === 0 || (alongX > 0 && alongX >= Math.abs(alongY));
     }
 
-    private successorsOf(id: string): ReadonlySet<string> {
+    /** The nodes a sequence flow leads to from the node, or from a boundary event on it. */
+    followersOf(id: string): ReadonlySet<string> {
         return this.successors.get(id) ?? NONE;
     }
 

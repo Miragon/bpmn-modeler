@@ -1,6 +1,7 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
+import { FlowTopology } from "./layoutFlowTopology";
 import { sameBounds } from "./layoutGeometry";
-import { type RoomMade, makeRoom } from "./layoutMakeRoom";
+import { type RoomContext, type RoomMade, makeRoom } from "./layoutMakeRoom";
 import { type LayoutModel, type NodeShape } from "./layoutModel";
 import { placeOf, placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
@@ -61,6 +62,7 @@ export function planShapeMoves(
     const overlaps = spots.flatMap((spot) => (spot.kind === "shapesOverlap" ? [spot] : []));
     if (overlaps.length === 0) return { layout, repairs: [] };
     const groups = new ShapeGroups(layout);
+    const context: RoomContext = { groups, topology: new FlowTopology(layout) };
     let draft = DrawingDraft.of(layout);
     const changes = new Map<string, ShapeChange>();
     const repairs = overlaps.map(({ shapes }): OverlapRepair => {
@@ -78,7 +80,7 @@ export function planShapeMoves(
             for (const id of move.group.members) changes.set(id, { repair, withMovedGroup: true });
             return repair;
         }
-        const room = roomFor(draft, movable, [first, second]);
+        const room = roomFor(draft, context, movable, [first, second]);
         if (room === undefined) return { kind: "notRepaired", shapes };
         const moved = room.group.node.id;
         const { shifted, grown } = room;
@@ -145,12 +147,13 @@ function nearestFreePlace(draft: DrawingDraft, movable: readonly ShapeGroup[]): 
 
 function roomFor(
     draft: DrawingDraft,
+    context: RoomContext,
     movable: readonly ShapeGroup[],
     pair: readonly NodeShape[],
 ): (RoomMade & { readonly group: ShapeGroup }) | undefined {
     const made = movable.flatMap((group) => {
         const other = pair.find(({ id }) => id !== group.node.id)!;
-        const room = makeRoom(draft, group, other);
+        const room = makeRoom(draft, context, group, other);
         return room === undefined ? [] : [{ ...room, group }];
     });
     return made.reduce<(typeof made)[number] | undefined>(

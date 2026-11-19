@@ -237,7 +237,7 @@ describe("planShapeMoves", () => {
                 ]),
             );
 
-        it("makes room beyond the other shape, grows the pool and lane, and lists what it shifted", () => {
+        it("makes room beyond the other shape, shifts what it lands on, grows the pool and lane by their shortfall, and lists both", () => {
             const result = layoutOf([...row, node("Task_Y", box(470, 90))], rowFlows, frames);
             const current = layoutOf(row, rowFlows, frames);
 
@@ -255,8 +255,8 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Task_Y")).toEqual(box(610, 90));
             expect(boundsIn(plan, "Task_4")).toEqual(box(760, 90));
             expect(boundsIn(plan, "Task_3")).toEqual(row[3]!.bounds);
-            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1380, 300));
-            expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 70, 1350, 120));
+            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1230, 300));
+            expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 70, 1200, 120));
             expect(plan.layout.edges.get("Flow_3")?.waypoints).toEqual([
                 at(560, 130),
                 at(760, 130),
@@ -335,8 +335,8 @@ describe("planShapeMoves", () => {
             const tallPool = { ...POOL, bounds: box(0, 0, 1200, 400) };
             const lowerLane: LaneShape = { ...lane(190, 200), id: "Lane_2" };
             const inLowerLane = { lanes: ["Lane_2"] };
-            const shifted = node("Task_C", box(560, 250), inLowerLane);
-            const staying = node("Task_D", box(470, 260), inLowerLane);
+            const shifted = node("Task_C", box(545, 180, 100, 40), inLowerLane);
+            const staying = node("Task_D", box(470, 190, 100, 40), inLowerLane);
             const twoLanes = [tallPool, lane(70, 120), lowerLane];
             const result = layoutOf(
                 [...row, node("Task_Y", box(470, 90)), shifted, staying],
@@ -382,18 +382,98 @@ describe("planShapeMoves", () => {
             });
         });
 
-        it("makes no room that widens the pool over the pool beside it", () => {
-            const beside: LayoutShape = { ...POOL, id: "Pool_2", bounds: box(1262, 0, 600, 300) };
-            const result = layoutOf([...row, node("Task_Y", box(470, 90))], rowFlows, [
-                ...frames,
-                beside,
-            ]);
-            const current = layoutOf(row, rowFlows, [...frames, beside]);
+        it("shifts the pool beside it instead of growing the pool over it", () => {
+            const beside: LayoutShape = { ...POOL, id: "Pool_2", bounds: box(1210, 0, 300, 300) };
+            const inBeside = node("Task_P", box(1300, 90), { pool: "Pool_2", lanes: [] });
+            const withBeside = [...frames, beside];
+            const result = layoutOf(
+                [...row, inBeside, node("Task_Y", box(470, 90))],
+                rowFlows,
+                withBeside,
+            );
+            const current = layoutOf([...row, inBeside], rowFlows, withBeside);
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([{ kind: "notRepaired", shapes: ["Task_3", "Task_Y"] }]);
-            expect(plan.layout).toBe(result);
+            expect(plan.repairs).toEqual([
+                {
+                    kind: "madeRoom",
+                    shapes: ["Task_3", "Task_Y"],
+                    moved: "Task_Y",
+                    shifted: ["Pool_2", "Task_4", "Task_5", "Task_6", "Task_7"],
+                    grown: ["Pool_1", "Lane_1"],
+                },
+            ]);
+            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1230, 300));
+            expect(boundsIn(plan, "Pool_2")).toEqual(box(1240, 0, 300, 300));
+            expect(boundsIn(plan, "Task_P")).toEqual(box(1330, 90));
+        });
+
+        it("keeps the gap from a shifted shape to the shape it flows into", () => {
+            const [first, second, other] = [100, 220, 340].map((x, index) =>
+                node(`Task_${index}`, box(x, 90)),
+            );
+            const ship = node("Task_Ship", box(600, 90));
+            const shipped = node("End_Shipped", box(770, 112, 36, 36), { outline: "circle" });
+            const flows = [
+                flow("Flow_0", "Task_0", "Task_1", [at(200, 130), at(220, 130)]),
+                flow("Flow_1", "Task_1", "Task_2", [at(320, 130), at(340, 130)]),
+                flow("Flow_2", "Task_2", "Task_Ship", [at(440, 130), at(600, 130)]),
+                flow("Flow_3", "Task_Ship", "End_Shipped", [at(700, 130), at(770, 130)]),
+            ];
+            const shapes = [first, second, other, ship, shipped];
+            const result = layoutOf([...shapes, node("Task_Y", box(350, 90))], flows, frames);
+            const current = layoutOf(shapes, flows, frames);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(plan.repairs).toEqual([
+                {
+                    kind: "madeRoom",
+                    shapes: ["Task_2", "Task_Y"],
+                    moved: "Task_Y",
+                    shifted: ["Task_Ship", "End_Shipped"],
+                    grown: [],
+                },
+            ]);
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(490, 90));
+            expect(boundsIn(plan, "Task_Ship")).toEqual(box(640, 90));
+            expect(boundsIn(plan, "End_Shipped")).toEqual(box(810, 112, 36, 36));
+        });
+
+        it("grows the sub-process by its shortfall and shifts what lies beyond it instead of covering it", () => {
+            const tallLane = [POOL, lane(60, 200)];
+            const inSub = { subProcesses: ["Sub_1"] };
+            const sub = node("Sub_1", box(100, 75, 380, 120), { expanded: true });
+            const outside = node("Task_K", box(500, 90));
+            const [first, prior] = [
+                node("Task_A", box(130, 95), inSub),
+                node("Task_X", box(270, 95), inSub),
+            ];
+            const flows = [flow("Flow_A", "Task_A", "Task_X", [at(230, 135), at(270, 135)])];
+            const shapes = [sub, first, prior, outside];
+            const result = layoutOf(
+                [...shapes, node("Task_Y", box(280, 95), inSub)],
+                flows,
+                tallLane,
+            );
+            const current = layoutOf(shapes, flows, tallLane);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(plan.repairs).toEqual([
+                {
+                    kind: "madeRoom",
+                    shapes: ["Task_X", "Task_Y"],
+                    moved: "Task_Y",
+                    shifted: ["Task_K"],
+                    grown: ["Sub_1"],
+                },
+            ]);
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(420, 95));
+            expect(boundsIn(plan, "Sub_1")).toEqual(box(100, 75, 430, 120));
+            expect(boundsIn(plan, "Task_K")).toEqual(box(550, 90));
+            expect(plan.layout.shapes.get("Pool_1")).toBe(POOL);
         });
 
         it("leaves the overlap when making room would move the shape out of its sub-process", () => {

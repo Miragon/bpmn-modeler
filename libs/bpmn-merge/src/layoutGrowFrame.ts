@@ -7,16 +7,19 @@ import {
     centerOf,
     rightOf,
 } from "./layoutGeometry";
-import { type LayoutShape, type NodeShape, lanesOf, translatedNode } from "./layoutModel";
-import { breaksNothing, regionOf, shiftPast, shiftsPast } from "./layoutMakeRoom";
+import { type LayoutShape, lanesOf, translatedNode } from "./layoutModel";
+import { type RoomContext, breaksNothing, ownEdgesOf } from "./layoutMakeRoom";
+import { RoomPush } from "./layoutRoomPush";
 import type { ShapeGroup } from "./layoutShapeGroups";
 import { type Offset, innerBoundsOf } from "./layoutShapePlacement";
 import { liesOutside } from "./layoutSpots";
 
 export interface FrameGrown {
     readonly draft: DrawingDraft;
-    /** The shapes past the grown frame that shifted right to make room, in document order. */
-    readonly shifting: readonly NodeShape[];
+    /** The outermost shapes that shifted right to make room for the grown frame, in document order. */
+    readonly shifted: readonly string[];
+    /** Every shape that shifted with them. */
+    readonly moved: readonly string[];
 }
 
 interface Growth {
@@ -31,13 +34,14 @@ interface Growth {
  * where it lies: a sub-process drawn open to every side, its boundary events
  * going with the border they sit on, a pool with its lanes only sideways,
  * and a lane never on its own, as lanes are stacked. When a sub-process
- * grown right lies on what is beyond it, the shapes of its pool past its
- * right side shift right as making room does. Undefined when the growth
+ * grown right lies on what is beyond it, what it lands on gives way to the
+ * right as making room does. Undefined when the growth
  * breaks the drawing anywhere else: a shape on another, outside its frame or
  * off its host, or a pool on another pool.
  */
 export function growFrameFor(
     draft: DrawingDraft,
+    context: RoomContext,
     group: ShapeGroup,
     frames: readonly LayoutShape[],
 ): FrameGrown | undefined {
@@ -55,21 +59,20 @@ export function growFrameFor(
         frames.every((outer) => !liesOutside(trial.node(node.id)!, trial.shapes.get(outer.id)!));
 
     const inPlace = grownIn(draft, frame, growth);
-    if (holds(inPlace)) return { draft: inPlace, shifting: [] };
+    if (holds(inPlace)) return { draft: inPlace, shifted: [], moved: [] };
     if (frame.kind !== "node" || growth.right === 0) return undefined;
-    const members = new Set(group.members);
-    const outside = regionOf(draft, node).filter(({ id }) => !members.has(id));
-    const line = rightOf(frame.bounds);
-    const shifting = outside.filter(
-        (shape) =>
-            shape.id !== frame.id &&
-            !shape.subProcesses.includes(frame.id) &&
-            shiftsPast(draft, shape, line),
-    );
-    const trial = draft.fork();
-    shiftPast(draft, trial, { group, outside, shifting, line, space: growth.right });
-    const shifted = grownIn(draft, frame, growth, trial);
-    return holds(shifted) ? { draft: shifted, shifting } : undefined;
+    const trial = grownIn(draft, frame, growth);
+    const grown = trial.node(frame.id)!;
+    const push = new RoomPush(draft, trial, context.groups, context.topology, "x");
+    const made = push.push(grown, {
+        box: { ...grown.bounds, x: rightOf(frame.bounds), width: growth.right },
+        line: rightOf(frame.bounds),
+        exclude: new Set([...group.members, frame.id]),
+        by: growth.right,
+    });
+    if (!made) return undefined;
+    push.stretchEdges(frame.plane, ownEdgesOf(group));
+    return holds(trial) ? { draft: trial, shifted: push.shifted, moved: push.moved } : undefined;
 }
 
 /** Whether the lane's band, off its border, holds the bounds from top to bottom. */
@@ -90,16 +93,11 @@ function growthToHold(frames: readonly LayoutShape[], bounds: DiagramBounds): Gr
 }
 
 /**
- * A fork of the draft, or the given trial, with the frame grown, a pool's
- * lanes widened with it and the frame's boundary events moved with the
- * border they sit on.
+ * A fork of the draft with the frame grown, a pool's lanes widened with it
+ * and the frame's boundary events moved with the border they sit on.
  */
-function grownIn(
-    draft: DrawingDraft,
-    frame: LayoutShape,
-    growth: Growth,
-    trial: DrawingDraft = draft.fork(),
-): DrawingDraft {
+function grownIn(draft: DrawingDraft, frame: LayoutShape, growth: Growth): DrawingDraft {
+    const trial = draft.fork();
     const sideways = frame.kind === "pool" ? lanesOf(draft, frame) : [];
     trial.replaceShape(grown(frame, growth));
     for (const lane of sideways) trial.replaceShape(grown(lane, { ...growth, top: 0, bottom: 0 }));
