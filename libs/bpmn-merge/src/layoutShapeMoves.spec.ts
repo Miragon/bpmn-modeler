@@ -47,6 +47,7 @@ function lane(y: number, height: number, width = 1170): LaneShape {
         plane: PLANE,
         outline: "rectangle",
         parent: "Process_1",
+        pool: "Pool_1",
         bounds: box(30, y, width, height),
     };
 }

@@ -2,15 +2,8 @@ import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { growFrameFor } from "./layoutGrowFrame";
 import { outermostOf } from "./layoutMakeRoom";
-import {
-    type LayoutModel,
-    type LayoutShape,
-    drawingOfSameSize,
-    drawsWhereItLies,
-    frameIdsOf,
-    nodeShapeIn,
-    placedByBuildOutside,
-} from "./layoutModel";
+import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./layoutModel";
+import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
 import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
 import { type LayoutSpot, liesOutside } from "./layoutSpots";

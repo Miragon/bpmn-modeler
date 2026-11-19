@@ -2,9 +2,7 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
-    liesWithin,
     overlapsBeyondTolerance,
-    sameBounds,
     translated,
 } from "./layoutGeometry";
 
@@ -78,63 +76,6 @@ export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefi
     return shape?.kind === "node" ? shape : undefined;
 }
 
-/** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
-export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
-    const drawn = drawingOfSameSize(layout, node);
-    return drawn?.kind === "node" && drawn.plane === node.plane ? drawn.bounds : undefined;
-}
-
-/** Whether the layout draws the node's element just where the node lies. */
-export function drawsAt(layout: LayoutModel, node: NodeShape): boolean {
-    const place = placeOf(layout, node);
-    return place !== undefined && sameBounds(place, node.bounds);
-}
-
-/**
- * The layout's drawing of the shape's element at the shape's size, on any
- * plane: a layout that draws a sub-process collapsed draws its contents on
- * the sub-process's own plane.
- */
-export function drawingOfSameSize(
-    layout: LayoutModel,
-    shape: LayoutShape,
-): LayoutShape | undefined {
-    const drawn = layout.shapes.get(shape.id);
-    const sameSize =
-        drawn !== undefined &&
-        drawn.bounds.width === shape.bounds.width &&
-        drawn.bounds.height === shape.bounds.height;
-    return sameSize ? drawn : undefined;
-}
-
-/** Whether the layout draws the node's element just where the node lies, on any plane. */
-export function drawsWhereItLies(layout: LayoutModel, node: NodeShape): boolean {
-    const drawn = drawingOfSameSize(layout, node);
-    return drawn !== undefined && sameBounds(drawn.bounds, node.bounds);
-}
-
-/** A shape the build placed: not both sides draw it just where the result does; a boundary event goes with its host. */
-export function placedByBuild(node: NodeShape, sides: readonly LayoutModel[]): boolean {
-    return node.host === undefined && !sides.every((side) => drawsAt(side, node));
-}
-
-/**
- * Whether the build placed the node outside those frames: it placed the node,
- * or a frame lies where no side draws it, as a lane the build stacked does.
- */
-export function placedByBuildOutside(
-    node: NodeShape,
-    frames: readonly LayoutShape[],
-    sides: readonly LayoutModel[],
-): boolean {
-    const drawnByNoSide = (frame: LayoutShape) =>
-        sides.every((side) => {
-            const drawn = side.shapes.get(frame.id);
-            return drawn === undefined || !sameBounds(drawn.bounds, frame.bounds);
-        });
-    return placedByBuild(node, sides) || (node.host === undefined && frames.some(drawnByNoSide));
-}
-
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
     const moved = { ...node, bounds: translated(node.bounds, dx, dy) };
     return node.label === undefined ? moved : { ...moved, label: translated(node.label, dx, dy) };
@@ -170,13 +111,11 @@ export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape |
     return isDrawnFrameOf(node, pool) ? pool : undefined;
 }
 
-/** The lanes drawn inside the pool on its plane, in document order. */
-export function lanesOf(layout: LayoutModel, pool: LayoutShape): LayoutShape[] {
+/** The lanes of the pool's process drawn on its plane, wherever they lie, in document order. */
+export function lanesOf(layout: LayoutModel, pool: LayoutShape): LaneShape[] {
     return [...layout.shapes.values()].filter(
-        (shape) =>
-            shape.kind === "lane" &&
-            shape.plane === pool.plane &&
-            liesWithin(shape.bounds, pool.bounds),
+        (shape): shape is LaneShape =>
+            shape.kind === "lane" && shape.pool === pool.id && shape.plane === pool.plane,
     );
 }
 

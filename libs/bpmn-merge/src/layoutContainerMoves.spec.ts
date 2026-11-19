@@ -39,7 +39,8 @@ function pool(bounds: DiagramBounds = box(0, 0, 1200, 300)): LayoutShape {
 }
 
 function lane(id: string, bounds: DiagramBounds): LaneShape {
-    return { kind: "lane", id, plane: PLANE, outline: "rectangle", parent: "Process_1", bounds };
+    const relations = { parent: "Process_1", pool: "Pool_1" };
+    return { kind: "lane", id, plane: PLANE, outline: "rectangle", ...relations, bounds };
 }
 
 const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
