@@ -1,7 +1,7 @@
 # Merge view
 
 - Status: accepted
-- Last reviewed: 2026-11-17
+- Last reviewed: 2026-11-19
 
 ## Context
 
@@ -191,10 +191,11 @@ false) posts its viewport after the step, so the partner shows the same part of 
 ### Hosts
 
 VS Code keeps `^1.76.0`. On 1.76.0 the Git API under `--disable-extensions`, both
-`bpmn-merge:` panes in the custom editor and the working file opening into the modeler run in
-`test/e2e`; the menus, the comparison (the same `bpmn-merge:` diff) and the keyboard commands
-were seen on stable only, because the smoke harness cannot launch 1.76. Should a menu fail
-there, raising the minimum is the fallback. The standalone app ships `vscode.git` 1.95.3, so the
+`bpmn-merge:` panes in the custom editor, the working file opening into the modeler and the
+element XML merge editor run in `test/e2e`, the Extension-Host suite that launches 1.76.0 and
+stable. The menus, the comparison (the same `bpmn-merge:` diff) and the keyboard commands were
+seen on stable only: they need the panes' DOM, and the Playwright smoke harness drives nothing
+older than 1.78. Should a menu fail there, raising the minimum is the fallback. The standalone app ships `vscode.git` 1.95.3, so the
 view is not gated there, and it is untested: no headless harness runs the Theia app. IntelliJ
 opens no merge view: the bridge narrows `DiffOpenParams.origin` to the two diff origins and lists
 no conflict-marker participant or keyboard command.

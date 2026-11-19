@@ -96,6 +96,8 @@
         "onFileSystem:bpmn-form-output-values",
         "onFileSystem:bpmn-element-xml",
         "onFileSystem:bpmn-merge",
+        "onFileSystem:bpmn-merge-xml",
+        "onFileSystem:bpmn-merge-result",
         "workspaceContains:**/element-templates/**/*.json",
         "workspaceContains:**/*.bpmn"
     ],
@@ -317,6 +319,12 @@
                 "title": "Resolve in BPMN Merge View",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(git-merge)"
+            },
+            {
+                "command": "bpmn-modeler.acceptElementXmlMerge",
+                "title": "Accept Element XML Merge",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(check)"
             },
             {
                 "command": "bpmn-modeler.mergeKeepThisSide",
@@ -652,6 +660,10 @@
                     "when": "resource in bpmn-modeler.resolvableBpmnConflicts"
                 },
                 {
+                    "command": "bpmn-modeler.acceptElementXmlMerge",
+                    "when": "false"
+                },
+                {
                     "command": "bpmn-modeler.mergeKeepThisSide",
                     "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canKeep"
                 },
@@ -875,6 +887,11 @@
                     "command": "bpmn-modeler.openBpmnMergeView",
                     "group": "navigation",
                     "when": "resource in bpmn-modeler.resolvableBpmnConflicts"
+                },
+                {
+                    "command": "bpmn-modeler.acceptElementXmlMerge",
+                    "group": "navigation",
+                    "when": "resourceScheme == bpmn-merge-result"
                 },
                 {
                     "command": "bpmn-modeler.toggleFormInputValues",

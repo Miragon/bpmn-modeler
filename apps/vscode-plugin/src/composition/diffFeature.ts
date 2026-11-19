@@ -14,6 +14,7 @@ import {
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
+import * as elementXmlMergeFeature from "./elementXmlMergeFeature";
 import * as mergeViewFeature from "./mergeViewFeature";
 import { SharedDeps } from "./sharedDeps";
 
@@ -23,7 +24,8 @@ import { SharedDeps } from "./sharedDeps";
  * controllers are returned because two other features (the editors'
  * delegate-resolve, `compare`) dispatch into them — the one diff collaborator
  * with cross-feature reach. The BPMN merge view registers on the BPMN pane
- * store, since its panes are BPMN diff panes.
+ * store, since its panes are BPMN diff panes, and its element XML merge editor
+ * on the merge view.
  */
 export function register(
     context: ExtensionContext,
@@ -37,11 +39,16 @@ export function register(
     conflictMarkers: ConflictMarkerParticipant;
     /** Builds the newest merge view of a working file, as its Build button does. */
     buildMerge: (fileUri: string) => Promise<void>;
+    mergeXml: elementXmlMergeFeature.ElementXmlMergeProbe;
 } {
     const diffStore = new DiffPaneStore();
     const dmnDiffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore, dmnDiffStore);
     const merge = mergeViewFeature.register(context, diffStore, deps);
+    let finishing: BpmnDiffService | undefined = undefined;
+    const xmlMerge = elementXmlMergeFeature.register(context, deps, merge, async (key, written) =>
+        finishing?.finishElementXmlMerge(key, written),
+    );
     const bpmnDiffService = new BpmnDiffService(
         deps.notifier,
         deps.vsSettings,
@@ -49,7 +56,9 @@ export function register(
         elementXmlDiffs(context, diffStore, deps, merge.sessions),
         merge.decisions,
         merge.build,
+        xmlMerge.service,
     );
+    finishing = bpmnDiffService;
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
@@ -78,6 +87,7 @@ export function register(
         conflictMarkers: merge.conflictMarkers,
         buildMerge: async (fileUri) =>
             merge.build.buildFile(fileUri, await bpmnDiffService.mergeHostOffers()),
+        mergeXml: xmlMerge.probe,
     };
 }
 

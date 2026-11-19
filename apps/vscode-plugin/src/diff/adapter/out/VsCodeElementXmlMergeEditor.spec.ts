@@ -4,13 +4,23 @@ vi.mock("vscode", () => import("../../../__fixtures__/vscodeMergeEditorFake"));
 
 import { ExtensionContext, Uri, workspace } from "vscode";
 
+import type { ElementXmlMergeFinished, ElementXmlMergeRequest } from "@miragon/bpmn-modeler-core";
+import { describeElementXmlMergeEditorContract } from "@miragon/bpmn-modeler-core/testing";
+
 import {
+    activeMergeTab,
     closeMergeTabByUser,
+    closeMergeTabsOfByUser,
+    editorGroups,
     editorMergesStartTextTo,
     failNextMergeEditorOpen,
+    failToSplitGroups,
+    focusGroupByUser,
+    mergeResultTexts,
     mergeTabs,
     openNextMergeEditorWithoutTab,
     resetVscodeMergeEditor,
+    restoreMergeTabFromLastSession,
     saveMergeResult,
     splitMergeTab,
     TextDocumentSaveReason,
@@ -19,7 +29,6 @@ import {
 import { InMemoryFileSystemProvider } from "../../../shared/adapter/in/InMemoryFileSystemProvider";
 
 import {
-    ElementXmlMergeRequest,
     MERGE_RESULT_SCHEME,
     MERGE_XML_SCHEME,
     VsCodeElementXmlMergeEditor,
@@ -43,18 +52,39 @@ let results: InMemoryFileSystemProvider;
 let finished: { key: string; written: string | undefined }[];
 let editor: VsCodeElementXmlMergeEditor;
 
-beforeEach(() => {
-    resetVscodeMergeEditor();
-    editorMergesStartTextTo(() => MERGED);
+function registeredEditor(onFinished: ElementXmlMergeFinished): VsCodeElementXmlMergeEditor {
     inputs = new InMemoryFileSystemProvider({ readOnly: true });
     results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
     workspace.registerFileSystemProvider(MERGE_XML_SCHEME, inputs);
     workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results);
+    const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished);
+    registered.register({ subscriptions: [] } as unknown as ExtensionContext);
+    return registered;
+}
+
+describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished) => {
+    resetVscodeMergeEditor();
+    const contracted = registeredEditor(onFinished);
+    return {
+        editor: contracted,
+        shown: () => mergeResultTexts(),
+        focused: () => {
+            const result = activeMergeTab()?.input.result;
+            return result?.path.split("/").pop()?.replace(/\.xml$/, "");
+        },
+        save: (elementId, text) => {
+            typeIntoMergeResult(text, elementId);
+            saveMergeResult(TextDocumentSaveReason.Manual, elementId);
+        },
+        closeByUser: (elementId) => closeMergeTabsOfByUser(elementId),
+    };
+});
+
+beforeEach(() => {
+    resetVscodeMergeEditor();
+    editorMergesStartTextTo(() => MERGED);
     finished = [];
-    editor = new VsCodeElementXmlMergeEditor(inputs, results, (key, written) =>
-        finished.push({ key, written }),
-    );
-    editor.register({ subscriptions: [] } as unknown as ExtensionContext);
+    editor = registeredEditor((key, written) => finished.push({ key, written }));
 });
 
 function servedUris(): Uri[] {
@@ -186,6 +216,49 @@ describe("VsCodeElementXmlMergeEditor", () => {
         expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
         await editor.open(REQUEST);
         expect(mergeTabs()).toHaveLength(1);
+    });
+
+    it("opens the first merge in a new group below the diagrams and the next one beside it", async () => {
+        await editor.open(REQUEST);
+        focusGroupByUser(0);
+
+        await editor.open({ ...REQUEST, key: "merge-2", elementId: "Task_Pack" });
+
+        const groups = editorGroups();
+        expect(groups).toHaveLength(2);
+        expect(groups[0].tabs).toEqual([]);
+        expect(groups[1].tabs.map((tab) => tab.label)).toEqual([
+            "Merging: Task_Check.xml",
+            "Merging: Task_Pack.xml",
+        ]);
+    });
+
+    it("opens in the active group where the host cannot split it", async () => {
+        failToSplitGroups();
+
+        await editor.open(REQUEST);
+
+        expect(editorGroups().map((group) => group.tabs.length)).toEqual([1]);
+    });
+
+    it("brings an open merge to the front from another group without a second tab", async () => {
+        await editor.open(REQUEST);
+        await editor.open({ ...REQUEST, key: "merge-2", elementId: "Task_Pack" });
+        focusGroupByUser(0);
+
+        await editor.focus(REQUEST.key);
+
+        expect(mergeTabs()).toHaveLength(2);
+        expect(activeMergeTab()?.label).toBe("Merging: Task_Check.xml");
+    });
+
+    it("closes a restored merge tab whose result it no longer serves", () => {
+        resetVscodeMergeEditor();
+        restoreMergeTabFromLastSession(Uri.parse("bpmn-merge-result://gone/Task_Check.xml"));
+
+        registeredEditor(() => undefined);
+
+        expect(mergeTabs()).toEqual([]);
     });
 
     it("refuses to open a merge that is already open, and keeps the open one", async () => {

@@ -13,7 +13,6 @@ import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
 import * as addOnsFeature from "./composition/addOnsFeature";
-import * as elementXmlMergeFeature from "./composition/elementXmlMergeFeature";
 import { createTestApi, TestApi } from "./composition/testApi";
 
 /**
@@ -48,8 +47,8 @@ export function activate(context: ExtensionContext): TestApi {
         mergeSessions,
         conflictMarkers,
         buildMerge,
+        mergeXml,
     } = diffFeature.register(context, deps);
-    const mergeXml = elementXmlMergeFeature.register(context);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.

@@ -41,6 +41,11 @@ import {
 import { ADD_ONS_VIEW_ID, REFRESH_ADD_ONS_CMD } from "./addOns/adapter/in/AddOnsViewProvider";
 import { REVIEW_ADD_ONS_CMD } from "./addOns/adapter/in/ReviewAddOnsCommand";
 import { OPEN_BPMN_MERGE_VIEW } from "./diff/adapter/in/MergeController";
+import { ACCEPT_ELEMENT_XML_MERGE } from "./diff/adapter/in/ElementXmlMergeController";
+import {
+    MERGE_RESULT_SCHEME,
+    MERGE_XML_SCHEME,
+} from "./diff/adapter/out/VsCodeElementXmlMergeEditor";
 import { MERGE_PANE_COMMAND_IDS } from "./diff/adapter/in/MergeKeyboardController";
 import {
     MERGE_PANE_COMMAND_KEYS,
@@ -187,6 +192,7 @@ const CODE_COMMAND_IDS = [
     REFRESH_ADD_ONS_CMD,
     REVIEW_ADD_ONS_CMD,
     OPEN_BPMN_MERGE_VIEW,
+    ACCEPT_ELEMENT_XML_MERGE,
     ...Object.values(MERGE_PANE_COMMAND_IDS),
 ];
 
@@ -402,6 +408,30 @@ describe("package.json ↔ code contract", () => {
 
     it("activates to close restored element XML diffs", () => {
         expect(manifest.activationEvents).toContain(`onFileSystem:${ELEMENT_XML_SCHEME}`);
+    });
+
+    it("activates to close restored element XML merges", () => {
+        expect(manifest.activationEvents).toEqual(
+            expect.arrayContaining([
+                `onFileSystem:${MERGE_XML_SCHEME}`,
+                `onFileSystem:${MERGE_RESULT_SCHEME}`,
+            ]),
+        );
+    });
+
+    it("offers accepting an element XML merge in its editor's title only", () => {
+        expect(manifest.contributes.menus["editor/title"]).toEqual(
+            expect.arrayContaining([
+                {
+                    command: ACCEPT_ELEMENT_XML_MERGE,
+                    group: "navigation",
+                    when: `resourceScheme == ${MERGE_RESULT_SCHEME}`,
+                },
+            ]),
+        );
+        expect(manifest.contributes.menus.commandPalette).toEqual(
+            expect.arrayContaining([{ command: ACCEPT_ELEMENT_XML_MERGE, when: "false" }]),
+        );
     });
 
     // The preview opens on its own only once the extension runs. A glob cannot read the

@@ -2,32 +2,43 @@ import {
     commands,
     ExtensionContext,
     Tab,
+    TabGroup,
     TextDocumentSaveReason,
     Uri,
     window,
     workspace,
 } from "vscode";
 
+import {
+    ElementXmlMergeEditor,
+    ElementXmlMergeFinished,
+    ElementXmlMergeRequest,
+} from "@miragon/bpmn-modeler-core";
+
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
 
+import { groupBelowActive } from "./editorGroupBelow";
 import { elementXmlUris } from "./elementXmlUris";
+import { closeUnservedTabs } from "./unservedTabs";
 
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
-const OPEN_MERGE_EDITOR = "_open.mergeEditor";
+export const OPEN_MERGE_EDITOR = "_open.mergeEditor";
 
-export interface ElementXmlMergeRequest {
-    readonly key: string;
-    readonly elementId: string;
-    readonly labels: { readonly current: string; readonly incoming: string };
-    readonly base: string;
-    readonly current: string;
-    readonly incoming: string;
-    /** The result's text when the editor opens; a line starting with `<<<<<<<` makes the editor merge it. */
-    readonly start: string;
-}
+// VS Code numbers its groups in grid order, as these commands count them.
+const FOCUS_GROUP_COMMANDS = [
+    "workbench.action.focusFirstEditorGroup",
+    "workbench.action.focusSecondEditorGroup",
+    "workbench.action.focusThirdEditorGroup",
+    "workbench.action.focusFourthEditorGroup",
+    "workbench.action.focusFifthEditorGroup",
+    "workbench.action.focusSixthEditorGroup",
+    "workbench.action.focusSeventhEditorGroup",
+    "workbench.action.focusEighthEditorGroup",
+];
 
 interface OpenMerge {
+    readonly request: ElementXmlMergeRequest;
     readonly base: Uri;
     readonly current: Uri;
     readonly incoming: Uri;
@@ -40,18 +51,18 @@ interface OpenMerge {
 /**
  * Opens one element's XML in VS Code's merge editor: base and both sides
  * read-only under `bpmn-merge-xml:`, the result writable under
- * `bpmn-merge-result:`. The merge finishes when its last tab closes, with the
- * text the user's last manual save wrote, or none: an auto-save is no answer,
+ * `bpmn-merge-result:`, in a group below the diagrams or beside the merges
+ * already open. The merge finishes when its last tab closes, with the text
+ * the user's last manual save wrote, or none: an auto-save is no answer,
  * and a merge closed from code finishes with none.
  */
-export class VsCodeElementXmlMergeEditor {
+export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     private readonly mergesByKey = new Map<string, OpenMerge>();
 
-    /** @param onFinished Told the key of a finished merge and the text the user saved, if any. */
     constructor(
         private readonly inputs: ServedTextFiles<Uri>,
         private readonly results: EditorWrittenTextFiles<Uri>,
-        private readonly onFinished: (key: string, written: string | undefined) => void,
+        private readonly onFinished: ElementXmlMergeFinished,
     ) {}
 
     register(context: ExtensionContext): void {
@@ -68,6 +79,10 @@ export class VsCodeElementXmlMergeEditor {
                 merge.manualSaveUnderway = false;
             }),
         );
+        closeUnservedTabs(context, (tab) => {
+            const result = mergeResultOf(tab);
+            return result?.scheme === MERGE_RESULT_SCHEME && !this.mergeOfResult(result);
+        });
     }
 
     async open(request: ElementXmlMergeRequest): Promise<void> {
@@ -76,16 +91,22 @@ export class VsCodeElementXmlMergeEditor {
         }
         const merge = this.serve(request);
         try {
-            await commands.executeCommand(OPEN_MERGE_EDITOR, {
-                base: merge.base,
-                input1: { uri: merge.current, title: request.labels.current },
-                input2: { uri: merge.incoming, title: request.labels.incoming },
-                output: merge.result,
-            });
+            const besideOpenMerges = this.groupOfOpenMerges();
+            if (besideOpenMerges) await focusGroup(besideOpenMerges);
+            else await groupBelowActive();
+            await showMergeEditor(merge);
         } catch (error) {
             this.finish(request.key, merge, undefined);
             throw error;
         }
+    }
+
+    async focus(key: string): Promise<void> {
+        const merge = this.mergesByKey.get(key);
+        const tab = merge && tabsShowing(merge.result)[0];
+        if (!merge || !tab) return;
+        await focusGroup(tab.group);
+        await showMergeEditor(merge);
     }
 
     async close(key: string): Promise<void> {
@@ -109,6 +130,7 @@ export class VsCodeElementXmlMergeEditor {
     private serve(request: ElementXmlMergeRequest): OpenMerge {
         const uriOf = elementXmlUris(request.elementId);
         const merge: OpenMerge = {
+            request,
             base: uriOf(MERGE_XML_SCHEME, "base"),
             current: uriOf(MERGE_XML_SCHEME, "current"),
             incoming: uriOf(MERGE_XML_SCHEME, "incoming"),
@@ -123,6 +145,14 @@ export class VsCodeElementXmlMergeEditor {
         this.results.setContent(merge.result, request.start);
         this.mergesByKey.set(request.key, merge);
         return merge;
+    }
+
+    private groupOfOpenMerges(): TabGroup | undefined {
+        for (const merge of this.mergesByKey.values()) {
+            const tab = tabsShowing(merge.result)[0];
+            if (tab) return tab.group;
+        }
+        return undefined;
     }
 
     private mergeOfResult(uri: Uri): OpenMerge | undefined {
@@ -146,6 +176,21 @@ export class VsCodeElementXmlMergeEditor {
         this.results.deleteFile(merge.result);
         this.onFinished(key, written);
     }
+}
+
+// The command opens in the active group; an open merge of the same result there comes to the front.
+async function showMergeEditor(merge: OpenMerge): Promise<void> {
+    await commands.executeCommand(OPEN_MERGE_EDITOR, {
+        base: merge.base,
+        input1: { uri: merge.current, title: merge.request.labels.current },
+        input2: { uri: merge.incoming, title: merge.request.labels.incoming },
+        output: merge.result,
+    });
+}
+
+async function focusGroup(group: TabGroup): Promise<void> {
+    const command = FOCUS_GROUP_COMMANDS[group.viewColumn - 1];
+    if (command) await commands.executeCommand(command);
 }
 
 // `TabInputTextMerge` is proposed API, so a merge tab is told apart by the shape of its input.

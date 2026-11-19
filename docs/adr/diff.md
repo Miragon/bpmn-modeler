@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-18
+- Last reviewed: 2026-11-19
 
 ## Context
 
@@ -208,7 +208,10 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   shows the entry, and decides whether the router handles `ShowElementXmlChangesCommand`
   and the follow, so an entry whose clicks are dropped cannot occur. VS Code passes it
   where the API has `TabInputTextDiff` (not every Theia does); the bridge always passes
-  it.
+  it. A merge pane gets the same answer, and whether the host merges a picked element's
+  XML by hand ([merge XML editor](merge-xml-editor.md)), as one `MergeHostOffers` value
+  on `ApplyMergeStatesQuery`, which `BpmnDiffService.mergeHostOffers` builds for every
+  post, so a new offer adds a field rather than another positional flag.
 - *The core decides.* The core computes both texts and the title behind the render-only
   port `ElementXmlDiffView`. The rules for requests live in the domain object
   `ElementXmlRequests`: only the latest renders, the same element twice renders once, a

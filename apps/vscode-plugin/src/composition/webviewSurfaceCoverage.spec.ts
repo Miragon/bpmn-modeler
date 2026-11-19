@@ -84,7 +84,7 @@ const VSCODE_SURFACES: HostSurfaceCoverage = {
         MergeStepListChangedCommand: HANDLED,
         PickMergeSideCommand: HANDLED,
         UnpickMergeCommand: HANDLED,
-        OpenElementXmlMergeCommand: ignored("the host offers no XML merge editor"),
+        OpenElementXmlMergeCommand: HANDLED,
         BuildMergeResultCommand: HANDLED,
         CompareMergeResultCommand: HANDLED,
         SwitchMergeComparisonCommand: HANDLED,

@@ -1,4 +1,5 @@
 import { DiffPaneStore, EditorSessionStore, MergeSessionStore } from "@miragon/bpmn-modeler-core";
+import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { ElementXmlMergeProbe } from "./elementXmlMergeFeature";
 
@@ -20,6 +21,8 @@ export interface TestApi {
         ): { origin: string; paneCount: number; tabCount: number; captions: unknown } | undefined;
         /** Builds the merge view's result into the working file, as its Build button does. */
         build(fileUri: string): Promise<void>;
+        /** Keeps an element from `side` in the merge view's decisions, without telling its panes; whether it applied. */
+        pick(fileUri: string, elementId: string, side: MergeSide): boolean;
     };
     mergeXml: ElementXmlMergeProbe;
 }
@@ -65,6 +68,8 @@ export function createTestApi(handles: {
                 };
             },
             build: buildMerge,
+            pick: (fileUri, elementId, side) =>
+                mergeSessions.of(fileUri)?.decisions.pick(elementId, side).applied ?? false,
         },
         mergeXml,
     };

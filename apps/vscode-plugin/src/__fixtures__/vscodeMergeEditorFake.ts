@@ -1,9 +1,11 @@
 /**
  * The slice of the `vscode` module VS Code's merge editor touches, for
  * `vi.mock("vscode", () => import(".../vscodeMergeEditorFake"))`:
- * `_open.mergeEditor` over files the extension serves, the merge tabs, the
- * result document the editor merged, its saves with their reasons and the
- * tabs closing. Call {@link resetVscodeMergeEditor} before each test.
+ * `_open.mergeEditor` over files the extension serves, the editor groups and
+ * their merge tabs, the result document the editor merged, its saves with
+ * their reasons and the tabs closing. As in VS Code, opening a result the
+ * active group already shows brings that tab to the front. Call
+ * {@link resetVscodeMergeEditor} before each test.
  */
 import { Uri } from "./vscodeFileSystemFake";
 
@@ -13,6 +15,12 @@ export enum TextDocumentSaveReason {
     Manual = 1,
     AfterDelay = 2,
     FocusOut = 3,
+}
+
+export enum ViewColumn {
+    Beside = -2,
+    Active = -1,
+    One = 1,
 }
 
 interface MergeEditorArgs {
@@ -32,6 +40,13 @@ interface MergeTabInput {
 export interface FakeMergeTab {
     readonly label: string;
     readonly input: MergeTabInput;
+    readonly group: FakeTabGroup;
+}
+
+export interface FakeTabGroup {
+    readonly viewColumn: number;
+    readonly tabs: FakeMergeTab[];
+    activeTab: FakeMergeTab | undefined;
 }
 
 interface TabChangeEvent {
@@ -95,25 +110,50 @@ export class FakeResultDocument {
     }
 }
 
+const FOCUS_GROUP_COMMANDS = [
+    "workbench.action.focusFirstEditorGroup",
+    "workbench.action.focusSecondEditorGroup",
+    "workbench.action.focusThirdEditorGroup",
+    "workbench.action.focusFourthEditorGroup",
+];
+
 const fileSystems = new Map<string, ServedFileSystem>();
 const documents: FakeResultDocument[] = [];
-const tabs: FakeMergeTab[] = [];
+const groups: FakeTabGroup[] = [];
+let activeGroup: FakeTabGroup;
 const tabChangeListeners = new Set<Listener<TabChangeEvent>>();
 const willSaveListeners = new Set<Listener<WillSaveEvent>>();
 const didSaveListeners = new Set<Listener<FakeResultDocument>>();
+const executed: string[] = [];
+const registered = new Map<string, (...args: unknown[]) => unknown>();
+let acceptMergeFails = false;
 let nextOpen: "opens" | "fails" | "opensNoTab" = "opens";
 let mergeOf: (start: string) => string = (start) => start;
+let commandList: string[] = [];
+let groupsSplit = true;
+
+export const env = { appName: "Visual Studio Code", uriScheme: "vscode" };
 
 export function resetVscodeMergeEditor(): void {
     fileSystems.clear();
     documents.length = 0;
-    tabs.length = 0;
+    groups.length = 0;
+    activeGroup = addGroup();
     tabChangeListeners.clear();
     willSaveListeners.clear();
     didSaveListeners.clear();
+    executed.length = 0;
+    registered.clear();
+    acceptMergeFails = false;
     nextOpen = "opens";
     mergeOf = (start) => start;
+    commandList = ["_open.mergeEditor", "mergeEditor.acceptMerge"];
+    groupsSplit = true;
+    env.appName = "Visual Studio Code";
+    env.uriScheme = "vscode";
 }
+
+resetVscodeMergeEditor();
 
 /** What the editor makes of the result's start text, as it merges the one-sided edits of a marker text. */
 export function editorMergesStartTextTo(merge: (start: string) => string): void {
@@ -130,43 +170,114 @@ export function openNextMergeEditorWithoutTab(): void {
     nextOpen = "opensNoTab";
 }
 
+/** What `commands.getCommands` lists; the merge editor's commands by default. */
+export function listCommands(list: readonly string[]): void {
+    commandList = [...list];
+}
+
+/** `workbench.action.newGroupBelow` fails, as on Theia. */
+export function failToSplitGroups(): void {
+    groupsSplit = false;
+}
+
+/** `mergeEditor.acceptMerge` rejects, as when no merge editor has the focus. */
+export function failAcceptMerge(): void {
+    acceptMergeFails = true;
+}
+
+/** Runs a command the extension registered, as a title button or the palette does. */
+export function runRegisteredCommand(command: string): unknown {
+    const callback = registered.get(command);
+    if (!callback) throw new Error(`command '${command}' not registered`);
+    return callback();
+}
+
+/** Every command run through `commands.executeCommand`, in order. */
+export function executedCommands(): readonly string[] {
+    return [...executed];
+}
+
+/** Restores a merge tab from the last session, whose result the extension does not serve. */
+export function restoreMergeTabFromLastSession(result: Uri): void {
+    addTab(activeGroup, {
+        label: `Merging: ${result.path.split("/").pop() ?? ""}`,
+        input: { base: result, input1: result, input2: result, result },
+    });
+}
+
 export function mergeTabs(): readonly FakeMergeTab[] {
-    return [...tabs];
+    return groups.flatMap((group) => group.tabs);
+}
+
+export function editorGroups(): readonly FakeTabGroup[] {
+    return [...groups];
+}
+
+/** The tab in front of the active group, if any. */
+export function activeMergeTab(): FakeMergeTab | undefined {
+    return activeGroup.activeTab;
 }
 
 /** The text the merge result shows, or `undefined` when no editor holds it. */
-export function mergeResultText(): string | undefined {
-    return documents[0]?.getText();
+export function mergeResultText(elementId?: string): string | undefined {
+    return (elementId === undefined ? documents[0] : documentOf(elementId))?.getText();
 }
 
-export function typeIntoMergeResult(text: string): void {
-    onlyResult().type(text);
+/** Every merge result an editor shows, by its element. */
+export function mergeResultTexts(): Record<string, string> {
+    return Object.fromEntries(
+        documents.map((document) => [elementIdOf(document.uri), document.getText()]),
+    );
 }
 
-export function saveMergeResult(reason: TextDocumentSaveReason): void {
-    saveDocument(onlyResult(), reason);
+export function typeIntoMergeResult(text: string, elementId?: string): void {
+    resultOf(elementId).type(text);
+}
+
+export function saveMergeResult(reason: TextDocumentSaveReason, elementId?: string): void {
+    saveDocument(resultOf(elementId), reason);
 }
 
 export function revertMergeResult(): void {
-    onlyResult().revert();
+    resultOf(undefined).revert();
 }
 
 /** Plays Split Editor on the merge tab: a second tab over the same result. */
 export function splitMergeTab(): void {
-    const [tab] = tabs;
+    const [tab] = mergeTabs();
     if (!tab) throw new Error("No merge tab is open.");
-    addTab({ label: tab.label, input: tab.input });
+    addTab(tab.group, { label: tab.label, input: tab.input });
 }
 
 /** The user closes a merge tab and answers Don't Save if VS Code asks. */
 export function closeMergeTabByUser(index = 0): void {
-    const tab = tabs[index];
+    const tab = mergeTabs()[index];
     if (!tab) throw new Error(`No merge tab at ${index}.`);
     removeTabs([tab]);
 }
 
-function onlyResult(): FakeResultDocument {
-    const [document] = documents;
+/** The user closes every tab of the merge of `elementId`, answering Don't Save. */
+export function closeMergeTabsOfByUser(elementId: string): void {
+    removeTabs(mergeTabs().filter((tab) => elementIdOf(tab.input.result) === elementId));
+}
+
+/** The user focuses the group `index`, as a click into it does. */
+export function focusGroupByUser(index: number): void {
+    const group = groups[index];
+    if (!group) throw new Error(`No editor group at ${index}.`);
+    activeGroup = group;
+}
+
+function elementIdOf(result: Uri): string {
+    return (result.path.split("/").pop() ?? "").replace(/\.xml$/, "");
+}
+
+function documentOf(elementId: string): FakeResultDocument | undefined {
+    return documents.find((document) => elementIdOf(document.uri) === elementId);
+}
+
+function resultOf(elementId: string | undefined): FakeResultDocument {
+    const document = elementId === undefined ? documents[0] : documentOf(elementId);
     if (!document) throw new Error("No merge result is open.");
     return document;
 }
@@ -197,17 +308,31 @@ function subscribe<T>(listeners: Set<Listener<T>>, listener: Listener<T>): Dispo
     return { dispose: () => listeners.delete(listener) };
 }
 
-function addTab(tab: FakeMergeTab): void {
-    tabs.push(tab);
-    tabChangeListeners.forEach((listener) => listener({ opened: [tab], closed: [], changed: [] }));
+function addGroup(): FakeTabGroup {
+    const group: FakeTabGroup = { viewColumn: groups.length + 1, tabs: [], activeTab: undefined };
+    groups.push(group);
+    return group;
+}
+
+function addTab(group: FakeTabGroup, tab: Omit<FakeMergeTab, "group">): void {
+    const added: FakeMergeTab = { ...tab, group };
+    group.tabs.push(added);
+    group.activeTab = added;
+    tabChangeListeners.forEach((listener) =>
+        listener({ opened: [added], closed: [], changed: [] }),
+    );
 }
 
 function removeTabs(closing: readonly FakeMergeTab[]): void {
-    const closed = closing.filter((tab) => tabs.includes(tab));
-    for (const tab of closed) tabs.splice(tabs.indexOf(tab), 1);
-    if (!tabs.some((tab) => documents.some((document) => isShownIn(document, tab)))) {
-        documents.length = 0;
+    const closed = closing.filter((tab) => tab.group.tabs.includes(tab));
+    for (const tab of closed) {
+        tab.group.tabs.splice(tab.group.tabs.indexOf(tab), 1);
+        if (tab.group.activeTab === tab) tab.group.activeTab = tab.group.tabs.at(-1);
     }
+    const shown = documents.filter((document) =>
+        mergeTabs().some((tab) => isShownIn(document, tab)),
+    );
+    documents.splice(0, documents.length, ...shown);
     tabChangeListeners.forEach((listener) => listener({ opened: [], closed, changed: [] }));
 }
 
@@ -221,8 +346,17 @@ function openMergeEditor(args: MergeEditorArgs): void {
     if (opening === "fails") throw new Error("command '_open.mergeEditor' not found");
     [args.base, args.input1.uri, args.input2.uri].forEach(readServedFile);
     if (opening === "opensNoTab") return;
-    documents.push(new FakeResultDocument(args.output, mergeOf(readServedFile(args.output))));
-    addTab({
+    const shownHere = activeGroup.tabs.find(
+        (tab) => tab.input.result.toString() === args.output.toString(),
+    );
+    if (shownHere) {
+        activeGroup.activeTab = shownHere;
+        return;
+    }
+    if (!documents.some((document) => document.uri.toString() === args.output.toString())) {
+        documents.push(new FakeResultDocument(args.output, mergeOf(readServedFile(args.output))));
+    }
+    addTab(activeGroup, {
         label: `Merging: ${args.output.path.split("/").pop() ?? ""}`,
         input: {
             base: args.base,
@@ -251,13 +385,17 @@ export const workspace = {
 
 export const window = {
     tabGroups: {
-        get all(): { tabs: readonly FakeMergeTab[] }[] {
-            return [{ tabs: [...tabs] }];
+        get all(): readonly FakeTabGroup[] {
+            return [...groups];
+        },
+        get activeTabGroup(): FakeTabGroup {
+            return activeGroup;
         },
         // VS Code asks to save a dirty result instead; a spec must never get there.
         async close(tabOrTabs: FakeMergeTab | readonly FakeMergeTab[]): Promise<boolean> {
             const closing = (Array.isArray(tabOrTabs) ? tabOrTabs : [tabOrTabs]) as FakeMergeTab[];
-            if (documents.some((document) => document.isDirty)) {
+            const dirty = documents.filter((document) => document.isDirty);
+            if (closing.some((tab) => dirty.some((document) => isShownIn(document, tab)))) {
                 throw new Error("VS Code asked whether to save the merge result.");
             }
             removeTabs(closing);
@@ -271,8 +409,32 @@ export const window = {
 
 export const commands = {
     async executeCommand(command: string, ...args: unknown[]): Promise<unknown> {
-        if (command !== "_open.mergeEditor") throw new Error(`command '${command}' not found`);
-        openMergeEditor(args[0] as MergeEditorArgs);
-        return undefined;
+        executed.push(command);
+        if (command === "_open.mergeEditor") {
+            openMergeEditor(args[0] as MergeEditorArgs);
+            return undefined;
+        }
+        if (command === "mergeEditor.acceptMerge") {
+            if (acceptMergeFails) throw new Error("no merge editor is active");
+            return true;
+        }
+        if (command === "workbench.action.newGroupBelow") {
+            if (!groupsSplit) throw new Error(`command '${command}' not found`);
+            activeGroup = addGroup();
+            return undefined;
+        }
+        const focused = FOCUS_GROUP_COMMANDS.indexOf(command);
+        if (focused >= 0 && groups[focused]) {
+            activeGroup = groups[focused];
+            return undefined;
+        }
+        throw new Error(`command '${command}' not found`);
+    },
+    async getCommands(_filterInternal?: boolean): Promise<string[]> {
+        return [...commandList];
+    },
+    registerCommand(command: string, callback: (...args: unknown[]) => unknown): Disposable {
+        registered.set(command, callback);
+        return { dispose: () => registered.delete(command) };
     },
 };

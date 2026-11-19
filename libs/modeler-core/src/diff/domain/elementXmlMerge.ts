@@ -7,7 +7,7 @@ import {
 import { mergeSideName } from "./diffTabLabel";
 
 /** The texts of one element that base, current and incoming hold, which its merge editor shows. */
-export interface ElementXmlMergeTexts {
+interface ElementXmlMergeTexts {
     readonly base: string;
     readonly current: string;
     readonly incoming: string;
