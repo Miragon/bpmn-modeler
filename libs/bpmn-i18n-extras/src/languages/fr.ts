@@ -358,9 +358,15 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Résultat par rapport à Entrant",
     "Result": "Résultat",
     "Review notes ({count})": "Vérifier les notes ({count})",
-    "{element} does not meet {shapes}": "{element} ne rejoint pas {shapes}",
+    "The build moved {element} to meet {shapes}":
+        "La génération a déplacé {element} pour rejoindre {shapes}",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "{element} ne rejoint pas {shapes} ; la génération n'a pas pu le réparer",
     "{first} and {second} lie on top of each other": "{first} et {second} sont l'un sur l'autre",
-    "{element} runs through {shapes}": "{element} traverse {shapes}",
+    "The build moved {element} around {shapes}":
+        "La génération a déplacé {element} pour contourner {shapes}",
+    "{element} runs through {shapes}; the build could not repair it":
+        "{element} traverse {shapes} ; la génération n'a pas pu le réparer",
     "{element} lies outside {shapes}": "{element} se trouve hors de {shapes}",
     "{element} is not on the border of {host}": "{element} n'est pas sur le bord de {host}",
     "{first} and {second} overlap": "{first} et {second} se chevauchent",

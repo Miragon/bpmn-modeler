@@ -13,16 +13,44 @@ describe("buildNoteText", () => {
 
     it.each<[MergePaneBuildNote, string]>([
         [
-            { kind: "flowEndOffShape", id: "Flow_2", shapes: ["Task_Check", "Task_Pack"] },
-            "to packing does not meet Task_Check, Pack box",
+            {
+                kind: "flowEndOffShape",
+                id: "Flow_2",
+                shapes: ["Task_Check", "Task_Pack"],
+                repair: "movedByBuild",
+            },
+            "The build moved to packing to meet Task_Check, Pack box",
+        ],
+        [
+            {
+                kind: "flowEndOffShape",
+                id: "Flow_2",
+                shapes: ["Task_Pack"],
+                repair: "notRepaired",
+            },
+            "to packing does not meet Pack box; the build could not repair it",
         ],
         [
             { kind: "shapesOverlap", ids: ["Task_A", "Task_Pack"] },
             "Task_A and Pack box lie on top of each other",
         ],
         [
-            { kind: "flowThroughShape", id: "Flow_2", shapes: ["Task_Pack", "Task_B"] },
-            "to packing runs through Pack box, Task_B",
+            {
+                kind: "flowThroughShape",
+                id: "Flow_2",
+                shapes: ["Task_Pack", "Task_B"],
+                repair: "movedByBuild",
+            },
+            "The build moved to packing around Pack box, Task_B",
+        ],
+        [
+            {
+                kind: "flowThroughShape",
+                id: "Flow_2",
+                shapes: ["Task_Pack"],
+                repair: "notRepaired",
+            },
+            "to packing runs through Pack box; the build could not repair it",
         ],
         [
             { kind: "shapeOutsideContainer", id: "Task_Pack", shapes: ["Pool_1", "Lane_1"] },

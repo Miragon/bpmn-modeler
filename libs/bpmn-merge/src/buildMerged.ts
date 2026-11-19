@@ -14,9 +14,9 @@ import type { MergeModdle } from "./engineModdle";
 import type { HandMergedVersion } from "./handMerge";
 import { spliceHandMergedText } from "./handMergeSplice";
 import { isMergeUnit, parseElementText } from "./handMergeText";
+import { type FlowRepairPlanner, repairIntroducedSpots } from "./layoutDrawingRepair";
+import { planFlowRepairs } from "./layoutFlowRepair";
 import { layoutModelOf } from "./layoutModelReader";
-import { introducedLayoutSpots } from "./layoutSpotDetection";
-import { layoutSpotNotes } from "./layoutSpotNotes";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
@@ -41,11 +41,21 @@ export interface MergedDocument {
  * flow kept against its removal its source's default again
  * (`restoredFlowDefaultsOf`), serialised as the modeler saves. Throws on open conflicts and refuses a
  * result that fails its checks, naming the ids. Notes every broken spot of the drawing that
- * neither side drew itself.
+ * neither side drew itself, and re-routes the flows among them that end off their shapes or
+ * run through one.
  */
-export async function buildMerged(
+export function buildMerged(
     sources: MergeSources,
     decisions: MergeDecisions,
+): Promise<MergedDocument> {
+    return buildMergedWith(sources, decisions, planFlowRepairs);
+}
+
+/** `buildMerged` with the flow repair it applies, for the specs that compare a build without it. */
+export async function buildMergedWith(
+    sources: MergeSources,
+    decisions: MergeDecisions,
+    planRepairs: FlowRepairPlanner,
 ): Promise<MergedDocument> {
     const result = decisions.result;
     requireSourcesOf(result, sources);
@@ -71,7 +81,9 @@ export async function buildMerged(
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
     assembleDiagrams(current, diagramIndexes, resolution, drawingSides, resultUnits);
-    const layoutSpots = introducedLayoutSpots(layoutModelOf(current), sideLayouts);
+    const layoutSpotNotes = repairIntroducedSpots(current, sideLayouts, planRepairs, (point) =>
+        mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
+    );
     const { xml } = await mergeModdle.moddle.toXML(current, { format: true });
 
     await checkMergedXml(
@@ -87,7 +99,7 @@ export async function buildMerged(
     return {
         xml,
         notes: [
-            ...layoutSpotNotes(layoutSpots),
+            ...layoutSpotNotes,
             ...restoredWithoutRemovedWithNotes(result, resolution),
             ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
             ...layoutChangedByBothNotes(

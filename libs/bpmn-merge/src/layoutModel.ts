@@ -42,11 +42,17 @@ export interface LayoutEdge {
     readonly waypoints: readonly Point[];
     readonly source?: string;
     readonly target?: string;
+    /** Where the flow's name is drawn. */
+    readonly label?: DiagramBounds;
 }
 
 export const FLOW_ENDS = ["source", "target"] as const;
 
 export type FlowEnd = (typeof FLOW_ENDS)[number];
+
+export function otherEndOf(end: FlowEnd): FlowEnd {
+    return end === "source" ? "target" : "source";
+}
 
 /** One document's drawing as plain values: each element's shape or edge with what decides where it may lie. */
 export interface LayoutModel {
@@ -96,7 +102,35 @@ export function framesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
               : [...(node.pool === undefined ? [] : [node.pool]), ...node.lanes];
     return candidates.flatMap((id) => {
         const frame = layout.shapes.get(id);
-        const draws = frame !== undefined && frame.plane === node.plane;
-        return draws && (frame.kind !== "node" || frame.expanded) ? [frame] : [];
+        return isDrawnFrameOf(node, frame) ? [frame] : [];
     });
+}
+
+/**
+ * The innermost drawn frame both ends of the flow lie in: an expanded
+ * sub-process, else their pool. None for a flow between pools or to one.
+ */
+export function sharedFrameOf(layout: LayoutModel, edge: LayoutEdge): LayoutShape | undefined {
+    const [source, target] = FLOW_ENDS.map((end) => {
+        const shape = endShapeOf(layout, edge, end);
+        return shape?.kind === "node" ? enclosingFramesOf(layout, shape) : [];
+    });
+    return source!.find((frame) => target!.includes(frame));
+}
+
+/** The drawn frames around the node, innermost first; a data store's pool is not one, as it may lie outside. */
+function enclosingFramesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
+    const pool = node.pool === undefined || node.mayLieOutsidePool ? [] : [node.pool];
+    return [...node.subProcesses, ...pool].flatMap((id) => {
+        const frame = layout.shapes.get(id);
+        return isDrawnFrameOf(node, frame) ? [frame] : [];
+    });
+}
+
+function isDrawnFrameOf(node: NodeShape, frame: LayoutShape | undefined): frame is LayoutShape {
+    return (
+        frame !== undefined &&
+        frame.plane === node.plane &&
+        (frame.kind !== "node" || frame.expanded)
+    );
 }

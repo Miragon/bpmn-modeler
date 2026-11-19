@@ -86,6 +86,13 @@ export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string
     );
 }
 
+/** The edge drawing the flow that the layout reads and a repair writes: its first, in diagram order. */
+export function flowDrawingOf(index: DiagramIndex, flow: string): Drawing | undefined {
+    return index.drawingsByElement
+        .get(flow)
+        ?.find(({ element }) => isType(element, "bpmndi:BPMNEdge"));
+}
+
 /** A drawing is known by the element it draws, not by its DI id, which the sides may give two different drawings. */
 export function drawingKeyOf(drawing: ModdleElement): ItemKey {
     return idOf(drawing.bpmnElement) ?? drawing;

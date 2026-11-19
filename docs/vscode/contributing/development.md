@@ -194,9 +194,8 @@ yarn watch
 yarn docs:dev
 ```
 
-Opens the VitePress docs site in your browser. The site is built on the Miragon docs kit
-(`docs/.vitepress/miragon/`, vendored from Miragon/corporate-identity); do not edit the kit
-files, `corepack yarn workspace @miragon/bpmn-modeler-docs check:kit` reports drift.
+Opens the VitePress docs site in your browser. The site is built on the Miragon docs kit, the npm
+package `@miragon/docs-starter`.
 
 ### Run the extension in VS Code
 

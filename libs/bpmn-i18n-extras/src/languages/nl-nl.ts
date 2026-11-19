@@ -358,9 +358,15 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Resultaat tegenover Inkomend",
     "Result": "Resultaat",
     "Review notes ({count})": "Opmerkingen bekijken ({count})",
-    "{element} does not meet {shapes}": "{element} sluit niet aan op {shapes}",
+    "The build moved {element} to meet {shapes}":
+        "Bij het samenstellen is {element} verplaatst zodat het aansluit op {shapes}",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "{element} sluit niet aan op {shapes}; bij het samenstellen kon dit niet worden hersteld",
     "{first} and {second} lie on top of each other": "{first} en {second} liggen op elkaar",
-    "{element} runs through {shapes}": "{element} loopt door {shapes}",
+    "The build moved {element} around {shapes}":
+        "Bij het samenstellen is {element} om {shapes} heen geleid",
+    "{element} runs through {shapes}; the build could not repair it":
+        "{element} loopt door {shapes}; bij het samenstellen kon dit niet worden hersteld",
     "{element} lies outside {shapes}": "{element} ligt buiten {shapes}",
     "{element} is not on the border of {host}": "{element} ligt niet op de rand van {host}",
     "{first} and {second} overlap": "{first} en {second} overlappen elkaar",

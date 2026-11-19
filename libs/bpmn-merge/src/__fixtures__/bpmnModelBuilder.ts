@@ -80,6 +80,7 @@ interface FixtureFlow {
     /** For a data input: the placeholder property bpmn-js adds to the target activity as the association's target. */
     targetProperty?: string;
     waypoints?: (readonly [number, number])[];
+    label?: FixtureBounds;
 }
 
 interface FixtureBounds {
@@ -461,12 +462,7 @@ function shapeElement(
     attributes: Record<string, string> = {},
 ): XmlElement {
     return element("bpmndi:BPMNShape", { id: `${id}_di`, bpmnElement: id, ...attributes }, [
-        element("dc:Bounds", {
-            x: String(bounds.x),
-            y: String(bounds.y),
-            width: String(bounds.width),
-            height: String(bounds.height),
-        }),
+        boundsElement(bounds),
     ]);
 }
 
@@ -505,13 +501,24 @@ function waypointsOf(
     ];
 }
 
+function boundsElement(bounds: FixtureBounds): XmlElement {
+    return element("dc:Bounds", {
+        x: String(bounds.x),
+        y: String(bounds.y),
+        width: String(bounds.width),
+        height: String(bounds.height),
+    });
+}
+
 function edgeElement(model: BpmnFixtureModel, flow: FixtureFlow): XmlElement {
+    const waypoints = waypointsOf(model, flow).map(([x, y]) =>
+        element("di:waypoint", { x: String(x), y: String(y) }),
+    );
+    const label = flow.label && element("bpmndi:BPMNLabel", {}, [boundsElement(flow.label)]);
     return element(
         "bpmndi:BPMNEdge",
         { id: `${flow.id}_di`, bpmnElement: flow.id },
-        waypointsOf(model, flow).map(([x, y]) =>
-            element("di:waypoint", { x: String(x), y: String(y) }),
-        ),
+        label ? [...waypoints, label] : waypoints,
     );
 }
 

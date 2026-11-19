@@ -348,10 +348,16 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Результат и сторона «Входящее»",
     "Result": "Результат",
     "Review notes ({count})": "Просмотреть примечания ({count})",
-    "{element} does not meet {shapes}": "Элемент {element} не доходит до {shapes}",
+    "The build moved {element} to meet {shapes}":
+        "При сборке элемент {element} перемещён, чтобы доходить до {shapes}",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "Элемент {element} не доходит до {shapes}; при сборке исправить не удалось",
     "{first} and {second} lie on top of each other":
         "Элементы {first} и {second} лежат друг на друге",
-    "{element} runs through {shapes}": "Элемент {element} проходит через {shapes}",
+    "The build moved {element} around {shapes}":
+        "При сборке элемент {element} проложен в обход {shapes}",
+    "{element} runs through {shapes}; the build could not repair it":
+        "Элемент {element} проходит через {shapes}; при сборке исправить не удалось",
     "{element} lies outside {shapes}": "Элемент {element} находится за пределами {shapes}",
     "{element} is not on the border of {host}": "Элемент {element} не находится на границе {host}",
     "{first} and {second} overlap": "Элементы {first} и {second} перекрываются",

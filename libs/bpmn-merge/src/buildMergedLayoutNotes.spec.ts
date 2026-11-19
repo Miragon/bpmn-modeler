@@ -14,8 +14,11 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
+import { centerOf } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
-import { detectLayoutSpots } from "./layoutSpotDetection";
+import { distanceToPolyline } from "./layoutPolyline";
+import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
+import type { LayoutSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 
@@ -28,8 +31,8 @@ const LAYOUT_NOTE_KINDS: ReadonlySet<BuildNote["kind"]> = new Set([
     "lanesOverlap",
 ]);
 
-/** The layout notes of the build that decides every open conflict for `side`, the other side where it cannot. */
-async function layoutNotesOf(versions: MergeVersions, side: MergeSide = "current") {
+/** The build that decides every open conflict for `side`, the other side where it cannot. */
+async function builtOf(versions: MergeVersions, side: MergeSide = "current") {
     const decisions = MergeDecisions.from(await computeMerge(versions));
     while (decisions.openConflicts.length > 0) {
         const { id } = decisions.openConflicts[0]!;
@@ -37,8 +40,49 @@ async function layoutNotesOf(versions: MergeVersions, side: MergeSide = "current
             decisions.pick(id, side).applied || decisions.pick(id, otherSide(side)).applied;
         expect(applied, id).toBe(true);
     }
-    const { notes } = await buildMerged(await prepareMergeSources(versions), decisions);
+    return buildMerged(await prepareMergeSources(versions), decisions);
+}
+
+async function layoutNotesOf(versions: MergeVersions, side: MergeSide = "current") {
+    const { notes } = await builtOf(versions, side);
     return notes.filter(({ kind }) => LAYOUT_NOTE_KINDS.has(kind));
+}
+
+async function layoutOfXml(xml: string) {
+    return layoutModelOf((await parseWithoutWarnings(xml)).rootElement);
+}
+
+/** The spots the written result has that neither side drew, read after the repair. */
+async function spotsLeftIn(xml: string, versions: MergeVersions): Promise<LayoutSpot[]> {
+    const sides = await Promise.all([versions.current, versions.incoming].map(layoutOfXml));
+    return introducedLayoutSpots(await layoutOfXml(xml), sides);
+}
+
+/** Whether a note still names the spot: a flow only as one the build could not repair. */
+function namedByNote(spot: LayoutSpot, notes: readonly BuildNote[]): boolean {
+    const subject =
+        spot.kind === "flowEndOffShape" || spot.kind === "flowThroughShape" ? spot.flow : undefined;
+    return notes.some(
+        (note) =>
+            note.kind === spot.kind &&
+            (subject === undefined ||
+                ("id" in note &&
+                    note.id === subject &&
+                    "repair" in note &&
+                    note.repair === "notRepaired")),
+    );
+}
+
+function moved(kind: "flowEndOffShape" | "flowThroughShape", id: string, shape: string): BuildNote {
+    return { kind, id, shapes: [shape], repair: "movedByBuild" };
+}
+
+function notRepaired(
+    kind: "flowEndOffShape" | "flowThroughShape",
+    id: string,
+    shape: string,
+): BuildNote {
+    return { kind, id, shapes: [shape], repair: "notRepaired" };
 }
 
 function flow(model: BpmnFixtureModel, id: string) {
@@ -70,7 +114,7 @@ describe("buildMerged's layout notes", () => {
                     ),
             ),
             notes: [
-                { kind: "flowEndOffShape", id: "Flow_6", shapes: ["Task_R"] },
+                moved("flowEndOffShape", "Flow_6", "Task_R"),
                 { kind: "shapesOverlap", ids: ["Task_R", "Task_N"] },
             ],
         },
@@ -91,7 +135,7 @@ describe("buildMerged's layout notes", () => {
                     });
                 },
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Retry", shapes: ["Task_C"] }],
+            notes: [moved("flowEndOffShape", "Flow_Retry", "Task_C")],
         },
         {
             name: "03 each side moved one end of a flow",
@@ -100,7 +144,7 @@ describe("buildMerged's layout notes", () => {
                 (model) => dragNodes(model, ["Task_C", "End_Done"], 0, 30),
                 (model) => dragNodes(model, ["Gateway_Ok"], 0, -40),
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", shapes: ["Gateway_Ok"] }],
+            notes: [moved("flowEndOffShape", "Flow_Yes", "Gateway_Ok")],
         },
         {
             name: "04 both made the same room and inserted a task there",
@@ -152,10 +196,10 @@ describe("buildMerged's layout notes", () => {
             ),
             conflictsTo: "incoming",
             notes: [
-                { kind: "flowEndOffShape", id: "Flow_Y", shapes: ["Task_C"] },
+                moved("flowEndOffShape", "Flow_Y", "Task_C"),
                 { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
-                { kind: "flowThroughShape", id: "Flow_Yes", shapes: ["Task_X"] },
-                { kind: "flowThroughShape", id: "Flow_X", shapes: ["Task_Y"] },
+                moved("flowThroughShape", "Flow_Yes", "Task_X"),
+                moved("flowThroughShape", "Flow_X", "Task_Y"),
             ],
         },
         {
@@ -180,9 +224,9 @@ describe("buildMerged's layout notes", () => {
             conflictsTo: "incoming",
             notes: [
                 { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
-                { kind: "flowThroughShape", id: "Flow_Yes", shapes: ["Task_X"] },
-                { kind: "flowThroughShape", id: "Flow_Y", shapes: ["Task_X"] },
-                { kind: "flowThroughShape", id: "Flow_X", shapes: ["Task_Y"] },
+                notRepaired("flowThroughShape", "Flow_Yes", "Task_X"),
+                notRepaired("flowThroughShape", "Flow_Y", "Task_X"),
+                moved("flowThroughShape", "Flow_X", "Task_Y"),
             ],
         },
         {
@@ -197,7 +241,7 @@ describe("buildMerged's layout notes", () => {
                     moveNode(model, "End_Done", 60, 50);
                 },
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_4", shapes: ["End_Done"] }],
+            notes: [moved("flowEndOffShape", "Flow_4", "End_Done")],
         },
         {
             name: "08 a flow re-routed through a task the other side added",
@@ -219,7 +263,7 @@ describe("buildMerged's layout notes", () => {
                     });
                 },
             ),
-            notes: [{ kind: "flowThroughShape", id: "Flow_No", shapes: ["Task_Log"] }],
+            notes: [moved("flowThroughShape", "Flow_No", "Task_Log")],
         },
         {
             name: "09 a boundary event added on a host the other side moved",
@@ -303,10 +347,43 @@ describe("buildMerged's layout notes", () => {
                 (model) => dragNodes(model, ["Task_C"], -50),
             ),
             conflictsTo,
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", shapes: ["Task_C"] } as const],
+            notes: [moved("flowEndOffShape", "Flow_Yes", "Task_C")],
         })),
     ])("$name", async ({ versions, conflictsTo, notes }) => {
-        expect(await layoutNotesOf(versions, conflictsTo)).toEqual(notes);
+        const built = await builtOf(versions, conflictsTo);
+
+        expect(built.notes.filter(({ kind }) => LAYOUT_NOTE_KINDS.has(kind))).toEqual(notes);
+        for (const spot of await spotsLeftIn(built.xml, versions)) {
+            expect(namedByNote(spot, built.notes), JSON.stringify(spot)).toBe(true);
+        }
+    });
+
+    it("moves a flow's label with the flow it re-routes", async () => {
+        const labelled = (model: BpmnFixtureModel) => {
+            flow(model, "Flow_Yes").label = { x: 470, y: 120, width: 20, height: 14 };
+        };
+        const versions = dockedVersions(
+            "c7",
+            (model) => {
+                dragNodes(model, ["Task_C", "End_Done"], 0, 30);
+                labelled(model);
+            },
+            (model) => {
+                dragNodes(model, ["Gateway_Ok"], 0, -40);
+                labelled(model);
+            },
+        );
+        const sideFlow = (await layoutOfXml(versions.current)).edges.get("Flow_Yes")!;
+
+        const { xml } = await builtOf(versions);
+        const builtFlow = (await layoutOfXml(xml)).edges.get("Flow_Yes")!;
+
+        expect(builtFlow.waypoints).not.toEqual(sideFlow.waypoints);
+        expect(builtFlow.label).not.toEqual(sideFlow.label);
+        expect(distanceToPolyline(builtFlow.waypoints, centerOf(builtFlow.label!))).toBeCloseTo(
+            distanceToPolyline(sideFlow.waypoints, centerOf(sideFlow.label!)),
+            0,
+        );
     });
 
     describe("only spots neither side drew", () => {

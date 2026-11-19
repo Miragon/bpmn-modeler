@@ -321,9 +321,13 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "結果與傳入對比",
     "Result": "結果",
     "Review notes ({count})": "查看說明（{count}）",
-    "{element} does not meet {shapes}": "{element} 未連接到 {shapes}",
+    "The build moved {element} to meet {shapes}": "產生時已移動 {element}，使其連接到 {shapes}",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "{element} 未連接到 {shapes}；產生時無法修復",
     "{first} and {second} lie on top of each other": "{first} 和 {second} 疊放在一起",
-    "{element} runs through {shapes}": "{element} 穿過 {shapes}",
+    "The build moved {element} around {shapes}": "產生時已移動 {element}，使其繞開 {shapes}",
+    "{element} runs through {shapes}; the build could not repair it":
+        "{element} 穿過 {shapes}；產生時無法修復",
     "{element} lies outside {shapes}": "{element} 位於 {shapes} 之外",
     "{element} is not on the border of {host}": "{element} 不在 {host} 的邊框上",
     "{first} and {second} overlap": "{first} 和 {second} 相互重疊",

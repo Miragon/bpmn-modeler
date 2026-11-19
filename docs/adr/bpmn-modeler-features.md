@@ -134,7 +134,9 @@ work on the webview's main thread, visible on large diagrams.
 
 - Apply through `modeling.*` calls nested in one `layout.apply` handler's `preExecute` (one undo
   entry), suppressing child-recursive moves, automatic connection layout, attachment movement and
-  adaptive label positioning that would modify the planned geometry a second time.
+  label moves that would modify the planned geometry a second time. The plan moves each external
+  label, except a resized shape's: bpmn-js moves that one on `shape.resize` and has no hint to stop
+  it, so the plan leaves it out rather than undoing it.
 - Outcomes are a taxonomy the package owns: unsupported surfaces and empty diagrams are refused,
   `ENGINE_FAILED`, `APPLY_FAILED`, and `DIAGRAM_CHANGED` for an intervening edit, import, clear or
   destroy. The document revision is captured before the asynchronous export and verified after it
