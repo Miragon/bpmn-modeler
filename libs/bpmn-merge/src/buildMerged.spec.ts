@@ -863,6 +863,22 @@ describe("buildMerged", () => {
                 return buildMerged(await prepareMergeSources(versions), decisions);
             }
 
+            interface Flow {
+                readonly $type: string;
+                readonly sourceRef?: { id: string } | { id: string }[];
+                readonly targetRef?: { id: string };
+                readonly $parent: { id: string };
+            }
+
+            /** A data association runs into or out of the activity holding it. */
+            const endsBpmnJsJoins = ({ $type, sourceRef, targetRef, $parent }: Flow) => {
+                if ($type === "bpmn:DataInputAssociation") {
+                    return [(sourceRef as { id: string }[])[0]?.id, $parent.id];
+                }
+                if ($type === "bpmn:DataOutputAssociation") return [$parent.id, targetRef?.id];
+                return [(sourceRef as { id: string }).id, targetRef?.id];
+            };
+
             async function planeOfEachFlow(xml: string) {
                 const { rootElement } = await parseWithoutWarnings(xml);
                 const planes = new Map<string, { owner: string; drawn: Set<string> }>();
@@ -901,6 +917,26 @@ describe("buildMerged", () => {
                 expect(plane?.owner).toBe("Collaboration_1");
                 expect([...plane!.drawn]).toEqual(
                     expect.arrayContaining(["DataRef_Order", "Sub_Ship"]),
+                );
+                expect(notes.filter(({ kind }) => kind === "flowNotDrawn")).toEqual([]);
+            });
+
+            it("draws an association to a flow on the plane of that flow", async () => {
+                const versions = fixtureTriple({
+                    current: collapseSubShip,
+                    incoming: (model) => {
+                        model.flows.push({
+                            id: "Association_Flow",
+                            kind: "association",
+                            source: "Note_Check",
+                            target: "Flow_Checked",
+                        });
+                    },
+                });
+                const { xml, notes } = await automaticMerge(versions);
+
+                expect((await planeOfEachFlow(xml)).get("Association_Flow")?.owner).toBe(
+                    "Collaboration_1",
                 );
                 expect(notes.filter(({ kind }) => kind === "flowNotDrawn")).toEqual([]);
             });
@@ -948,20 +984,7 @@ describe("buildMerged", () => {
                         const { elementsById } = await parseWithoutWarnings(xml);
                         const endsOffPlane = [...planes]
                             .filter(([id, { drawn }]) => {
-                                const { $type, sourceRef, targetRef, $parent } = elementsById[
-                                    id
-                                ] as {
-                                    $type: string;
-                                    sourceRef?: { id: string } | { id: string }[];
-                                    targetRef?: { id: string };
-                                    $parent: { id: string };
-                                };
-                                const ends =
-                                    $type === "bpmn:DataInputAssociation"
-                                        ? [(sourceRef as { id: string }[])[0]?.id, $parent.id]
-                                        : $type === "bpmn:DataOutputAssociation"
-                                          ? [$parent.id, targetRef?.id]
-                                          : [(sourceRef as { id: string }).id, targetRef?.id];
+                                const ends = endsBpmnJsJoins(elementsById[id] as unknown as Flow);
                                 return ends.some((end) => !drawn.has(end ?? ""));
                             })
                             .map(([id]) => id);

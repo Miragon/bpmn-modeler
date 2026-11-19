@@ -24,6 +24,8 @@ const BUILD_NOTE_TEXTS: Record<
         "{element} is kept without the flows the other side removed with it: {connections}",
     defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+    flowNotDrawn:
+        "{element} is left out of the drawing: no diagram shows both {source} and {target}",
 };
 
 /** A broken flow's note, by whether the build re-routed it. */
@@ -129,5 +131,11 @@ function noteReplacements(
             return { elements: names(note.ids) };
         case "frameDiffers":
             return { attribute: note.attribute };
+        case "flowNotDrawn":
+            return {
+                element: nameOf(note.id),
+                source: nameOf(note.ends[0] ?? ""),
+                target: names(note.ends.slice(1)),
+            };
     }
 }

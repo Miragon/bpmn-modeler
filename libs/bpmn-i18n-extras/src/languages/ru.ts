@@ -373,6 +373,8 @@ const dictionary: Record<string, string> = {
         "Поток {flow} оставлен, но потоком по умолчанию для {element} остаётся {keptDefault}",
     "The file's {attribute} differs between the sides; current's is kept":
         "Атрибут {attribute} файла различается между сторонами; сохраняется значение стороны «Текущее»",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element} не нарисован: ни одна диаграмма не показывает одновременно {source} и {target}",
     "1 conflict left": "Остался 1 конфликт",
     "{count} conflicts left": "Осталось конфликтов: {count}",
     "Elements of this version the result keeps as they are here.":

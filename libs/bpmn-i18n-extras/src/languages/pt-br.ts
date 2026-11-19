@@ -377,6 +377,8 @@ const dictionary: Record<string, string> = {
         "{flow} é mantido, mas {element} mantém {keptDefault} como seu fluxo padrão",
     "The file's {attribute} differs between the sides; current's is kept":
         "O atributo {attribute} do arquivo difere entre os lados; o de Atual é mantido",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element} fica fora do desenho: nenhum diagrama mostra {source} e {target} ao mesmo tempo",
     "1 conflict left": "1 conflito restante",
     "{count} conflicts left": "{count} conflitos restantes",
     "Elements of this version the result keeps as they are here.":

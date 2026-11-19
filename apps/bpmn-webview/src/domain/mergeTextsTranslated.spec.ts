@@ -98,6 +98,7 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
+    flowNotDrawn: { kind: "flowNotDrawn", id: "a", ends: ["b", "c"] },
 };
 
 // Every root element type, and the data object, which no canvas draws.

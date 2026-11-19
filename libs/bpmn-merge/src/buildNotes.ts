@@ -54,7 +54,15 @@ export type BuildNote =
           readonly ids: readonly string[];
           readonly keptSide: MergeSide;
       }
-    | { readonly kind: "frameDiffers"; readonly attribute: string };
+    | { readonly kind: "frameDiffers"; readonly attribute: string }
+    | {
+          /** A flow left out of the drawing, since no plane draws both its ends, with those ends. */
+          readonly kind: "flowNotDrawn";
+          readonly id: string;
+          readonly ends: readonly string[];
+      };
+
+export type FlowNotDrawnNote = Extract<BuildNote, { kind: "flowNotDrawn" }>;
 
 /**
  * A drawn flow's ends, when the flow and its ends are drawn from both sides

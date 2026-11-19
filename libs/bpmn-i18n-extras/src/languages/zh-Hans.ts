@@ -341,6 +341,8 @@ const dictionary: Record<string, string> = {
         "{flow} 被保留，但 {element} 的默认流仍是 {keptDefault}",
     "The file's {attribute} differs between the sides; current's is kept":
         "文件的 {attribute} 在两侧不同；保留当前的值",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element} 未绘制：没有图表同时显示 {source} 和 {target}",
     "1 conflict left": "剩余 1 个冲突",
     "{count} conflicts left": "剩余 {count} 个冲突",
     "Elements of this version the result keeps as they are here.":

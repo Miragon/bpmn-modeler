@@ -116,6 +116,10 @@ describe("buildNoteText", () => {
             { kind: "frameDiffers", attribute: "extensionElements" },
             "The file's extensionElements differs between the sides; current's is kept",
         ],
+        [
+            { kind: "flowNotDrawn", id: "Flow_2", ends: ["Task_Check", "Task_Pack"] },
+            "to packing is left out of the drawing: no diagram shows both Task_Check and Pack box",
+        ],
     ])("words a %o note with the canvas's names", (note, text) => {
         expect(buildNoteText(note, nameOf, untranslated)).toBe(text);
     });

@@ -42,6 +42,10 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         ["Task_A", "Gateway_1"],
     ],
     frameDiffers: [{ kind: "frameDiffers", attribute: "exporter" }, []],
+    flowNotDrawn: [
+        { kind: "flowNotDrawn", id: "Flow_1", ends: ["Task_A", "Task_B"] },
+        ["Flow_1", "Task_A", "Task_B"],
+    ],
 };
 
 describe("buildNoteElementIds", () => {
