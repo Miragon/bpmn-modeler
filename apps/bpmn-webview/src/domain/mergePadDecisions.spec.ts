@@ -262,6 +262,25 @@ describe("mergePadDecisions", () => {
 
         expect(kinds(handMergeable, { elementXmlMerge: false })).toStrictEqual(["undo"]);
     });
+
+    it("offers a container the other side's pick keeps with everything inside this side's, alone and with everything inside", () => {
+        const keptElsewhereWithContents = states({
+            pickable: [{ id: "Task_1", container: "contents", undo: "withContents" }],
+            badges: [
+                {
+                    ...keptHere("withContents"),
+                    kind: "replacedHere",
+                    keptSide: "current",
+                },
+            ],
+        });
+
+        expect(kinds(keptElsewhereWithContents)).toStrictEqual([
+            "keep element",
+            "keep withContents",
+            "undo",
+        ]);
+    });
 });
 
 describe("mergeRowDecisions", () => {
@@ -458,6 +477,21 @@ describe("mergeRowDecisions", () => {
         expect(
             [pressedKeepInside, pressedKeep, pressedUndo].map(keepsEverythingInside),
         ).toStrictEqual([true, false, false]);
+    });
+
+    it("presses the held keep with everything inside where the other side lacks the container", () => {
+        const keptAgainstRemoval = row({
+            container: "contents",
+            takenSide: "incoming",
+            lackingSide: { side: "current", lack: "removed" },
+            pick: { keptSide: "incoming", scope: "withContents" },
+        });
+
+        expect(mergeRowDecisions({}, keptAgainstRemoval, NO_XML_MERGE).map(named)).toStrictEqual([
+            "leaveOut current",
+            "keepInside incoming pressed",
+            "undo withContents",
+        ]);
     });
 
     it("words a leave-out with why the side lacks the element, as the pad does", () => {
