@@ -1,23 +1,25 @@
+import {
+    type Axis,
+    along,
+    boundsShifted,
+    farSideOf,
+    grownAlong,
+    liesAheadWithin,
+    nearSideOf,
+    stripPast,
+} from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowTopology } from "./layoutFlowTopology";
 import { stretchedEdge } from "./layoutEdgeStretch";
 import {
-    type Axis,
     type DiagramBounds,
-    along,
     bordersAt,
     bottomOf,
     boundsAround,
-    boundsShifted,
     centerOf,
-    farSideOf,
-    grownAlong,
     keepsClearOf,
-    liesAheadWithin,
     liesWithin,
-    nearSideOf,
     rightOf,
-    stripPast,
     translated,
 } from "./layoutGeometry";
 import {

@@ -1,15 +1,13 @@
 import {
     type Axis,
-    type DiagramBounds,
-    type Point,
     across,
     along,
     atAcross,
     boundsShifted,
-    centerOf,
     nearSideOf,
     pointShifted,
-} from "./layoutGeometry";
+} from "./layoutAxis";
+import { type DiagramBounds, type Point, centerOf } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel } from "./layoutModel";
 
 /**

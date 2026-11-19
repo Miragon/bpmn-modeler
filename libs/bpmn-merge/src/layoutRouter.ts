@@ -1,5 +1,5 @@
+import { type Axis, type AxisLine, outlinePointOn, spansAlong } from "./layoutAxis";
 import {
-    type Axis,
     type DiagramBounds,
     type Outline,
     type Point,
@@ -9,13 +9,10 @@ import {
 } from "./layoutGeometry";
 import { segmentsOf, withoutRedundantPoints } from "./layoutPolyline";
 import {
-    type AxisLine,
     type Segment,
-    outlinePointOn,
     segmentEntersBounds,
     segmentsCross,
     sharedRunLength,
-    spansAlong,
 } from "./layoutSegments";
 
 export interface RouteEnd {

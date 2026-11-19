@@ -1,3 +1,4 @@
+import { type AxisLine, outlinePointOn, sideOfCenter, spansAlong } from "./layoutAxis";
 import {
     type DiagramBounds,
     type Outline,
@@ -32,15 +33,7 @@ import {
     withoutRedundantPoints,
 } from "./layoutPolyline";
 import { routeCost, routeOrthogonal } from "./layoutRouter";
-import {
-    type AxisLine,
-    type Segment,
-    outlinePointOn,
-    segmentEntersOutline,
-    segmentEntersShape,
-    sideOfCenter,
-    spansAlong,
-} from "./layoutSegments";
+import { type Segment, segmentEntersOutline, segmentEntersShape } from "./layoutSegments";
 import { shapesRunThrough } from "./layoutSpotDetection";
 import { type LayoutSpot, endsOffShape, isDrawnWithAnEnd, isFlowSpot } from "./layoutSpots";
 
