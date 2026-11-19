@@ -41,6 +41,13 @@ export type LayoutSpot =
       }
     | { readonly kind: "lanesOverlap"; readonly lanes: readonly [string, string] };
 
+/** A spot of one flow, which the build may re-route. */
+export type FlowSpot = Extract<LayoutSpot, { readonly flow: string }>;
+
+export function isFlowSpot(spot: LayoutSpot): spot is FlowSpot {
+    return "flow" in spot;
+}
+
 interface EndOffShape {
     readonly at: FlowEnd;
     readonly lies: OutlineMiss;

@@ -6,7 +6,9 @@ import { seededRandom } from "./__fixtures__/randomMergeVersions";
 import { buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
+import type { LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
+import { segmentsCross, segmentsOf } from "./layoutPolyline";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
@@ -55,8 +57,16 @@ async function layoutOf(xml: string) {
     return layoutModelOf((await parseWithoutWarnings(xml)).rootElement);
 }
 
-// The harvest results the design prototype changed although no spot was introduced, and four the repair re-routes.
-const CASES: readonly { seed: number; strategy: Strategy; repairs: boolean }[] = [
+/**
+ * The harvest results the design prototype changed although no spot was introduced, and four
+ * the repair re-routes, each with how many crossings between flows the repair may add (#2565).
+ */
+const CASES: readonly {
+    seed: number;
+    strategy: Strategy;
+    repairs: boolean;
+    crossingBudget: number;
+}[] = [
     ...(
         [
             [1, "conflictsAtRandom"],
@@ -87,22 +97,27 @@ const CASES: readonly { seed: number; strategy: Strategy; repairs: boolean }[] =
             [173, "conflictsToCurrent"],
             [192, "conflictsToCurrent"],
         ] as const
-    ).map(([seed, strategy]) => ({ seed, strategy, repairs: false })),
+    ).map(([seed, strategy]) => ({ seed, strategy, repairs: false, crossingBudget: 0 })),
     ...(
         [
-            [5, "conflictsToIncoming"],
-            [74, "conflictsToCurrent"],
-            [74, "conflictsToIncoming"],
-            [89, "conflictsToIncoming"],
+            [5, "conflictsToIncoming", 1],
+            [74, "conflictsToCurrent", 1],
+            [74, "conflictsToIncoming", 1],
+            [89, "conflictsToIncoming", 0],
         ] as const
-    ).map(([seed, strategy]) => ({ seed, strategy, repairs: true })),
+    ).map(([seed, strategy, crossingBudget]) => ({
+        seed,
+        strategy,
+        repairs: true,
+        crossingBudget,
+    })),
 ];
 
 describe("the flow repair on harvested merges", () => {
     it.each(CASES)(
-        "seed $seed, $strategy: changes only a result with a broken flow and breaks nothing new",
+        "seed $seed, $strategy: changes only a result with a broken flow, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
-        async ({ seed, strategy, repairs }) => {
+        async ({ seed, strategy, repairs, crossingBudget }) => {
             const versions = versionsOf(seed);
             const sources = await prepareMergeSources(versions);
             const unrepaired = await buildMergedWith(
@@ -115,8 +130,10 @@ describe("the flow repair on harvested merges", () => {
                 await decisionsOf(versions, seed, strategy),
             );
             const sides = await Promise.all([versions.current, versions.incoming].map(layoutOf));
-            const before = introducedLayoutSpots(await layoutOf(unrepaired.xml), sides);
-            const after = introducedLayoutSpots(await layoutOf(repaired.xml), sides);
+            const unrepairedLayout = await layoutOf(unrepaired.xml);
+            const repairedLayout = await layoutOf(repaired.xml);
+            const before = introducedLayoutSpots(unrepairedLayout, sides);
+            const after = introducedLayoutSpots(repairedLayout, sides);
 
             if (before.length === 0) expect(repaired.xml).toBe(unrepaired.xml);
             expect(repaired.xml !== unrepaired.xml).toBe(repairs);
@@ -124,10 +141,29 @@ describe("the flow repair on harvested merges", () => {
                 [],
             );
             expect(after.length).toBeLessThanOrEqual(before.length);
+            expect(crossingsOf(repairedLayout) - crossingsOf(unrepairedLayout)).toBeLessThanOrEqual(
+                crossingBudget,
+            );
         },
     );
 });
 
 function sameSpot(first: object, second: object): boolean {
     return JSON.stringify(first) === JSON.stringify(second);
+}
+
+/** How often two flows of one plane cross. */
+function crossingsOf(layout: LayoutModel): number {
+    const edges = [...layout.edges.values()];
+    const segmentPairs = edges.flatMap((edge, index) =>
+        edges
+            .slice(index + 1)
+            .filter((other) => other.plane === edge.plane)
+            .flatMap((other) =>
+                segmentsOf(edge.waypoints).flatMap((own) =>
+                    segmentsOf(other.waypoints).map((theirs) => [own, theirs] as const),
+                ),
+            ),
+    );
+    return segmentPairs.filter(([own, theirs]) => segmentsCross(own, theirs)).length;
 }

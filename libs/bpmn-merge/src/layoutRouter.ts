@@ -1,4 +1,5 @@
 import {
+    type AxisLine,
     type DiagramBounds,
     type Outline,
     type Point,
@@ -7,6 +8,7 @@ import {
     liesInside,
     outlinePointOn,
     segmentEntersBounds,
+    spansAlong,
 } from "./layoutGeometry";
 import {
     type Segment,
@@ -28,6 +30,8 @@ export interface RouteRequest {
     readonly obstacles: readonly DiagramBounds[];
     /** The other flows nearby: a route pays for crossing one or running along it. */
     readonly otherSegments: readonly Segment[];
+    /** The sub-process or pool the route must stay inside, when both ends lie in one. */
+    readonly frame?: DiagramBounds;
 }
 
 /** What a route pays besides its length, in pixels of length. */
@@ -35,6 +39,9 @@ const ROUTE_COST = { bend: 30, crossing: 40, sharedRunPerPixel: 3 };
 
 /** How far a route keeps from shapes, tried from the roomiest down. */
 const CLEARANCES = [15, 8, 3];
+
+/** How far a port off a rectangle's center keeps from its corners, so a flow does not dock on one. */
+const OFF_CENTER_PORT_MARGIN = 10;
 
 /** +x, +y, -x, -y. */
 type Direction = 0 | 1 | 2 | 3;
@@ -101,21 +108,25 @@ function portsOf(end: RouteEnd, towards: Point): Port[] {
         const known = ports.some((port) => port.point.x === point?.x && port.point.y === point.y);
         if (point !== undefined && !known) ports.push({ point, outward });
     };
-    const throughCenter = (axis: "x" | "y") => ({ axis, at: Math.round(center[axis]) });
+    const throughCenter = (axis: AxisLine["axis"]): AxisLine => ({
+        axis,
+        at: Math.round(center[axis]),
+    });
     add(outlinePointOn(throughCenter("y"), bounds, outline, 1), 0);
     add(outlinePointOn(throughCenter("x"), bounds, outline, 1), 1);
     add(outlinePointOn(throughCenter("y"), bounds, outline, -1), 2);
     add(outlinePointOn(throughCenter("x"), bounds, outline, -1), 3);
     if (outline === "rectangle") {
         // A straight line to the other end where it lies beside this one, off its center.
-        const facing = { x: Math.round(towards.x), y: Math.round(towards.y) };
-        if (facing.y > bounds.y + 10 && facing.y < bounds.y + bounds.height - 10) {
-            add(outlinePointOn({ axis: "y", at: facing.y }, bounds, outline, 1), 0);
-            add(outlinePointOn({ axis: "y", at: facing.y }, bounds, outline, -1), 2);
+        const horizontal: AxisLine = { axis: "y", at: Math.round(towards.y) };
+        const vertical: AxisLine = { axis: "x", at: Math.round(towards.x) };
+        if (spansAlong(bounds, horizontal, OFF_CENTER_PORT_MARGIN)) {
+            add(outlinePointOn(horizontal, bounds, outline, 1), 0);
+            add(outlinePointOn(horizontal, bounds, outline, -1), 2);
         }
-        if (facing.x > bounds.x + 10 && facing.x < bounds.x + bounds.width - 10) {
-            add(outlinePointOn({ axis: "x", at: facing.x }, bounds, outline, 1), 1);
-            add(outlinePointOn({ axis: "x", at: facing.x }, bounds, outline, -1), 3);
+        if (spansAlong(bounds, vertical, OFF_CENTER_PORT_MARGIN)) {
+            add(outlinePointOn(vertical, bounds, outline, 1), 1);
+            add(outlinePointOn(vertical, bounds, outline, -1), 3);
         }
     }
     return ports;
@@ -135,15 +146,11 @@ class RouteGrid {
         private readonly request: RouteRequest,
         clearance: number,
     ) {
-        const { source, target, obstacles } = request;
+        const { source, target, obstacles, frame } = request;
         const sourcePorts = portsOf(source, centerOf(target.bounds));
         const targetPorts = portsOf(target, centerOf(source.bounds));
         const xs = new Set<number>();
         const ys = new Set<number>();
-        for (const { point } of [...sourcePorts, ...targetPorts]) {
-            xs.add(point.x);
-            ys.add(point.y);
-        }
         for (const bounds of [...obstacles, source.bounds, target.bounds]) {
             xs.add(Math.round(bounds.x - clearance));
             xs.add(Math.round(bounds.x + bounds.width + clearance));
@@ -151,6 +158,15 @@ class RouteGrid {
             ys.add(Math.round(bounds.y + bounds.height + clearance));
         }
         addLinesBetween(source.bounds, target.bounds, xs, ys);
+        if (frame !== undefined) {
+            for (const x of xs) if (!spansAlong(frame, { axis: "x", at: x }, 0)) xs.delete(x);
+            for (const y of ys) if (!spansAlong(frame, { axis: "y", at: y }, 0)) ys.delete(y);
+        }
+        // Added after the frame, as an end may touch its border.
+        for (const { point } of [...sourcePorts, ...targetPorts]) {
+            xs.add(point.x);
+            ys.add(point.y);
+        }
         this.xs = [...xs].sort((first, second) => first - second);
         this.ys = [...ys].sort((first, second) => first - second);
         for (const port of sourcePorts) this.sourcePorts.set(this.indexOfPoint(port.point), port);

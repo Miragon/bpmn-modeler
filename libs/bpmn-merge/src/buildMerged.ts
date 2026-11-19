@@ -14,13 +14,9 @@ import type { MergeModdle } from "./engineModdle";
 import type { HandMergedVersion } from "./handMerge";
 import { spliceHandMergedText } from "./handMergeSplice";
 import { isMergeUnit, parseElementText } from "./handMergeText";
-import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
-import type { LayoutModel } from "./layoutModel";
+import { type FlowRepairPlanner, repairIntroducedSpots } from "./layoutDrawingRepair";
+import { planFlowRepairs } from "./layoutFlowRepair";
 import { layoutModelOf } from "./layoutModelReader";
-import { writeFlowRepairs } from "./layoutRepairWriter";
-import { introducedLayoutSpots } from "./layoutSpotDetection";
-import { layoutSpotNotes } from "./layoutSpotNotes";
-import type { LayoutSpot } from "./layoutSpots";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
@@ -55,9 +51,6 @@ export function buildMerged(
     return buildMergedWith(sources, decisions, planFlowRepairs);
 }
 
-/** How the build repairs the flows the merge broke; the specs build without it to compare. */
-export type FlowRepairPlanner = (layout: LayoutModel, spots: readonly LayoutSpot[]) => FlowRepair[];
-
 /** `buildMerged` with the flow repair it applies, for the specs that compare a build without it. */
 export async function buildMergedWith(
     sources: MergeSources,
@@ -88,10 +81,7 @@ export async function buildMergedWith(
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
     assembleDiagrams(current, diagramIndexes, resolution, drawingSides, resultUnits);
-    const resultLayout = layoutModelOf(current);
-    const layoutSpots = introducedLayoutSpots(resultLayout, sideLayouts);
-    const flowRepairs = planRepairs(resultLayout, layoutSpots);
-    writeFlowRepairs(current, flowRepairs, (point) =>
+    const layoutSpotNotes = repairIntroducedSpots(current, sideLayouts, planRepairs, (point) =>
         mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
     );
     const { xml } = await mergeModdle.moddle.toXML(current, { format: true });
@@ -109,7 +99,7 @@ export async function buildMergedWith(
     return {
         xml,
         notes: [
-            ...layoutSpotNotes(layoutSpots, flowRepairs),
+            ...layoutSpotNotes,
             ...restoredWithoutRemovedWithNotes(result, resolution),
             ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
             ...layoutChangedByBothNotes(

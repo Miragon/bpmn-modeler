@@ -1,12 +1,11 @@
 import {
     type ModdleElement,
-    idOf,
     isModdleElement,
     isType,
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
-import { planeOwnerOf } from "./diagramIndex";
+import { diagramIndexOf, flowDrawingOf } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -14,26 +13,24 @@ import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
 /** The document's drawing as plain values; numbers are copied, so later changes to the tree do not reach it. */
 export function layoutModelOf(definitions: ModdleElement): LayoutModel {
     const relations = layoutRelationsOf(definitions);
+    const index = diagramIndexOf(definitions);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
-    for (const diagram of moddleElements(definitions.diagrams)) {
-        const plane = planeOwnerOf(diagram);
-        const drawings = (diagram.plane as ModdleElement | undefined)?.planeElement;
-        for (const drawing of moddleElements(drawings)) {
-            const id = idOf(drawing.bpmnElement);
-            if (id === undefined || shapes.has(id) || edges.has(id)) continue;
-            if (isType(drawing, "bpmndi:BPMNShape")) {
-                const shape = shapeOf(relations, id, plane, drawing);
-                if (shape !== undefined) shapes.set(id, shape);
-            } else if (isType(drawing, "bpmndi:BPMNEdge")) {
-                const ends = relations.connections.get(id);
-                if (ends !== undefined) {
-                    const label = labelBoundsOf(drawing);
-                    const edge = { id, plane, waypoints: waypointsOf(drawing), ...ends };
-                    edges.set(id, label === undefined ? edge : { ...edge, label });
-                }
-            }
+    for (const [id, drawings] of index.drawingsByElement) {
+        const ends = relations.connections.get(id);
+        const flowDrawing = ends === undefined ? undefined : flowDrawingOf(index, id);
+        if (ends !== undefined && flowDrawing !== undefined) {
+            const { element, planeOwner: plane } = flowDrawing;
+            const label = labelBoundsOf(element);
+            const edge = { id, plane, waypoints: waypointsOf(element), ...ends };
+            edges.set(id, label === undefined ? edge : { ...edge, label });
+            continue;
         }
+        const shape = drawings
+            .filter(({ element }) => isType(element, "bpmndi:BPMNShape"))
+            .map(({ element, planeOwner }) => shapeOf(relations, id, planeOwner, element))
+            .find((drawn) => drawn !== undefined);
+        if (shape !== undefined) shapes.set(id, shape);
     }
     return { shapes, edges };
 }

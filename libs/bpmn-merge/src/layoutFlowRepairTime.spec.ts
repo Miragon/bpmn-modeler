@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
+import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
-import { introducedLayoutSpots } from "./layoutSpotDetection";
+import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 
 // The library types no host globals; the specs run in Node, which has a sub-millisecond clock.
 declare const performance: { now(): number };
@@ -84,4 +85,94 @@ describe("flow repair time", () => {
             expect(perParse).toBeLessThan(MAX_REPAIR_PER_PARSE);
         },
     );
+});
+
+const COLLABORATION = "Collaboration_1";
+
+function taskIn(pool: string, id: string, x: number, y: number): NodeShape {
+    return {
+        kind: "node",
+        id,
+        plane: COLLABORATION,
+        bounds: { x, y, width: 100, height: 80 },
+        outline: "rectangle",
+        expanded: false,
+        subProcesses: [],
+        pool,
+        lanes: [],
+        mayLieOutsidePool: false,
+    };
+}
+
+/**
+ * A message flow from a task in one pool to a second pool of `count` tasks,
+ * which one side moved 20 px down, off the flow's end; with `blocked`, a
+ * task of the first pool also stands in the flow's way.
+ */
+function messageFlowIntoLargePool(count: number, blocked: boolean): LayoutModel {
+    const perRow = 50;
+    const rows = Math.ceil(count / perRow);
+    const width = perRow * 160 + 40;
+    const pools: LayoutShape[] = [
+        {
+            kind: "pool",
+            id: "Pool_A",
+            plane: COLLABORATION,
+            outline: "rectangle",
+            bounds: { x: 0, y: 0, width, height: 300 },
+        },
+        {
+            kind: "pool",
+            id: "Pool_B",
+            plane: COLLABORATION,
+            outline: "rectangle",
+            bounds: { x: 0, y: 420, width, height: rows * 120 + 40 },
+        },
+    ];
+    const tasks = Array.from({ length: count }, (_, index) =>
+        taskIn(
+            "Pool_B",
+            `Task_${index}`,
+            40 + (index % perRow) * 160,
+            440 + Math.floor(index / perRow) * 120,
+        ),
+    );
+    const sender = taskIn("Pool_A", "Task_Send", 3950, 60);
+    const blocker = blocked ? [taskIn("Pool_A", "Task_Block", 3950, 200)] : [];
+    const flow: LayoutEdge = {
+        id: "Message_1",
+        plane: COLLABORATION,
+        source: "Task_Send",
+        target: "Pool_B",
+        waypoints: [
+            { x: 4000, y: 140 },
+            { x: 4000, y: 400 },
+        ],
+    };
+    return {
+        shapes: new Map([...pools, sender, ...blocker, ...tasks].map((shape) => [shape.id, shape])),
+        edges: new Map([[flow.id, flow]]),
+    };
+}
+
+// Measured against finding the spots in the same drawing (1 ms), best of five each, with 1,000
+// tasks in the pool: 0.25 to re-dock, 1.1 to route around a task. With the pool's tasks as
+// obstacles and the router run for a kept route that no route can beat, 30 and 52.
+const MAX_REPAIR_PER_DETECTION = 5;
+
+describe("flow repair time for a flow into a large pool", () => {
+    it.each([
+        { label: "re-docks", blocked: false },
+        { label: "routes around a task", blocked: true },
+    ])("$label in a few times finding the spots", { timeout: 60_000 }, async ({ blocked }) => {
+        const layout = messageFlowIntoLargePool(1_000, blocked);
+        const spots = detectLayoutSpots(layout);
+
+        const repairs = planFlowRepairs(layout, spots);
+        const detecting = await fastestMillisecondsOf(() => detectLayoutSpots(layout));
+        const planning = await fastestMillisecondsOf(() => planFlowRepairs(layout, spots));
+
+        expect(kindsOf(repairs)).toEqual(["movedByBuild"]);
+        expect(planning / detecting).toBeLessThan(MAX_REPAIR_PER_DETECTION);
+    });
 });

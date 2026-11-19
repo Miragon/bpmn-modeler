@@ -189,3 +189,53 @@ function reachAlong(
     if (outline === "diamond") return halfAlong * (1 - offset / halfAcross);
     return halfAlong;
 }
+
+/** Whether the line crosses the bounds at least `margin` away from their corners. */
+export function spansAlong(bounds: DiagramBounds, line: AxisLine, margin: number): boolean {
+    const [low, high] =
+        line.axis === "y" ? [bounds.y, bottomOf(bounds)] : [bounds.x, rightOf(bounds)];
+    return line.at > low + margin && line.at < high - margin;
+}
+
+/** Which side of the bounds' center the point lies on along the axis, as `outlinePointOn` takes `towards`. */
+export function sideOfCenter(bounds: DiagramBounds, point: Point, axis: AxisLine["axis"]): 1 | -1 {
+    return point[axis] > centerOf(bounds)[axis] ? 1 : -1;
+}
+
+/** The shortest orthogonal distance between the two, zero where they overlap: no route between them is shorter. */
+export function gapBetween(first: DiagramBounds, second: DiagramBounds): number {
+    const apartX = Math.max(0, second.x - rightOf(first), first.x - rightOf(second));
+    const apartY = Math.max(0, second.y - bottomOf(first), first.y - bottomOf(second));
+    return apartX + apartY;
+}
+
+/** Ternary search steps that find a segment's deepest point to well under a pixel. */
+const DEEPEST_POINT_STEPS = 40;
+
+/**
+ * Whether the segment passes inside the outline deeper than the tolerance, so
+ * a segment leaving the outline outwards or running along it does not count.
+ * Every outline is convex, so the distance along the segment has one minimum.
+ */
+export function segmentEntersOutline(
+    from: Point,
+    to: Point,
+    bounds: DiagramBounds,
+    outline: Outline,
+): boolean {
+    const distanceAt = (share: number) =>
+        outlineDistance(
+            { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share },
+            bounds,
+            outline,
+        );
+    let low = 0;
+    let high = 1;
+    for (let step = 0; step < DEEPEST_POINT_STEPS; step++) {
+        const first = low + (high - low) / 3;
+        const second = high - (high - low) / 3;
+        if (distanceAt(first) < distanceAt(second)) high = second;
+        else low = first;
+    }
+    return distanceAt((low + high) / 2) < -LAYOUT_TOLERANCE;
+}

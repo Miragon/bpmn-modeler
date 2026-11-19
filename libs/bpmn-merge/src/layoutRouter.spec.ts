@@ -35,6 +35,23 @@ function meetsOutline(
 }
 
 describe("routeOrthogonal", () => {
+    it("keeps a route inside its frame, around an obstacle with little room to it", () => {
+        const frame = { x: 0, y: 0, width: 600, height: 200 };
+        const route = routeOrthogonal({
+            source: task(50, 60),
+            target: task(450, 60),
+            obstacles: [{ x: 250, y: 10, width: 100, height: 180 }],
+            otherSegments: [],
+            frame,
+        });
+
+        expect(route).toBeDefined();
+        for (const { y } of route!) {
+            expect(y).toBeGreaterThan(frame.y);
+            expect(y).toBeLessThan(frame.y + frame.height);
+        }
+    });
+
     it("draws one straight segment between two shapes on one line", () => {
         expect(
             routeOrthogonal({

@@ -8,7 +8,8 @@ type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = Extract<
     { kind: Kind }
 >;
 
-type FlowNote = NoteOfKind<"flowEndOffShape" | "flowThroughShape">;
+/** A broken flow's note: the only notes that say whether the build repaired them. */
+type FlowNote = Extract<MergePaneBuildNote, { repair: unknown }>;
 
 /** What each build note asks the user to check, with the canvas's names of its elements; each is a translation key. */
 const BUILD_NOTE_TEXTS: Record<
@@ -65,9 +66,7 @@ export function buildNoteText(
 
 function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
-    if (note.kind === "flowEndOffShape" || note.kind === "flowThroughShape") {
-        return FLOW_NOTE_TEXTS[note.kind][note.repair];
-    }
+    if ("repair" in note) return FLOW_NOTE_TEXTS[note.kind][note.repair];
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }

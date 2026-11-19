@@ -64,7 +64,7 @@ export function introducedLayoutSpots(
     return detectLayoutSpots(result).filter((spot) => !sides.some((side) => hasSpot(side, spot)));
 }
 
-function overlapSpotsOn({ nodes, grid }: PlaneNodes): LayoutSpot[] {
+function overlapSpotsOn({ items: nodes, grid }: PlaneNodes): LayoutSpot[] {
     return nodes.flatMap((node, index) =>
         grid
             .indicesNear(node.bounds)
@@ -103,7 +103,7 @@ export function shapesRunThrough(
     });
     return [...candidates]
         .sort((first, second) => first - second)
-        .map((index) => plane.nodes[index]!)
+        .map((index) => plane.items[index]!)
         .filter((shape) => runsThrough(layout, edge, shape));
 }
 

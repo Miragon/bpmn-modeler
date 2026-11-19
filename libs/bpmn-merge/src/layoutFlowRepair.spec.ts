@@ -13,7 +13,7 @@ function node(
     id: string,
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
-    relations: Partial<Pick<NodeShape, "host" | "plane">> = {},
+    relations: Partial<Pick<NodeShape, "host" | "plane" | "subProcesses" | "expanded">> = {},
 ): NodeShape {
     return {
         kind: "node",
@@ -178,6 +178,69 @@ describe("planFlowRepairs", () => {
         expect(repair?.kind).toBe("movedByBuild");
         if (repair?.kind !== "movedByBuild") return;
         expect(Math.min(...repair.waypoints.map(({ y }) => y))).toBeGreaterThanOrEqual(180);
+    });
+
+    it("re-docks an end on the side of its shape's center that its next bend lies on", () => {
+        const layout = layoutOf(
+            [TASK_A, node("Task_B", { x: 60, y: 250, width: 100, height: 80 })],
+            [flow([at(40, 140), at(103, 140), at(103, 250)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(100, 140), at(103, 140), at(103, 250)],
+            },
+        ]);
+    });
+
+    it("does not keep a straight flow that would run through its own small end", () => {
+        const layout = layoutOf(
+            [
+                node("Task_A", { x: 300, y: 140, width: 36, height: 36 }, "circle"),
+                node("Task_B", { x: 150, y: 118, width: 100, height: 80 }),
+            ],
+            [flow([at(336, 158), at(400, 158)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            { kind: "movedByBuild", flow: "Flow_1", waypoints: [at(300, 158), at(250, 158)] },
+        ]);
+    });
+
+    it("keeps a re-routed flow inside the expanded sub-process both its ends lie in", () => {
+        const inSubProcess = { subProcesses: ["Sub_1"] };
+        const layout = layoutOf(
+            [
+                node("Sub_1", { x: 0, y: 0, width: 600, height: 200 }, "rectangle", {
+                    expanded: true,
+                }),
+                node("Task_A", { x: 50, y: 60, width: 100, height: 80 }, "rectangle", inSubProcess),
+                node(
+                    "Task_B",
+                    { x: 450, y: 60, width: 100, height: 80 },
+                    "rectangle",
+                    inSubProcess,
+                ),
+                node(
+                    "Task_C",
+                    { x: 250, y: 10, width: 100, height: 180 },
+                    "rectangle",
+                    inSubProcess,
+                ),
+            ],
+            [flow([at(150, 100), at(450, 100)])],
+        );
+
+        const [repair] = repairsOf(layout);
+
+        expect(repair?.kind).toBe("movedByBuild");
+        if (repair?.kind !== "movedByBuild") return;
+        for (const { y } of repair.waypoints) {
+            expect(y).toBeGreaterThanOrEqual(0);
+            expect(y).toBeLessThanOrEqual(200);
+        }
     });
 
     it("re-routes only the flows its spots name, in their order", () => {
