@@ -5,10 +5,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { indexModelElements } from "../cleanup/rules";
 import type { ModdleNode } from "../cleanup/rules";
 import { COLLAPSED_SUBPROCESS } from "../__fixtures__/collapsedSubprocess";
-import { MESSY_LANES_BOUNDARY_SUBPROCESS } from "../__fixtures__/integrationDiagrams";
+import {
+    LABELLED_EVENTS,
+    MESSY_LANES_BOUNDARY_SUBPROCESS,
+} from "../__fixtures__/integrationDiagrams";
 import { installHeadlessDom } from "../__fixtures__/headlessDom";
 import { parseDefinitions } from "../__fixtures__/parseBpmn";
 import { createBpmnLayoutModule } from "../module";
+import { computeLayoutPlan, polylineMidpoint } from "../plan";
+import type { DiagramSnapshot, LayoutResult, Point } from "../types";
 import { LAYOUT_APPLY_COMMAND } from "./Layouter";
 import type { LayoutOutcome } from "./Layouter";
 
@@ -333,6 +338,94 @@ describe("applying a plan through the real command stack", () => {
         expect(
             registry.get("Flow_1").waypoints?.map((point) => ({ x: point.x, y: point.y })),
         ).toEqual(waypoints);
+    });
+});
+
+/**
+ * Labels, planned by `computeLayoutPlan` and applied through the real command
+ * stack: each lands once, at the offset the user gave it from its flow or shape.
+ */
+describe("moving labels through the real command stack", () => {
+    function positionOf(registry: Registry, id: string): Point {
+        const { x, y } = registry.get(id);
+        return { x, y };
+    }
+
+    function shift(from: Point, to: Point): Point {
+        return { x: to.x - from.x, y: to.y - from.y };
+    }
+
+    async function openLabelledEvents() {
+        const { modeler, commandStack } = await openModeler(LABELLED_EVENTS);
+        const registry = modeler.get("elementRegistry") as Registry;
+        const snapshot: DiagramSnapshot = registry.getAll().map((element) => ({
+            id: element.id,
+            type: element.type,
+            x: element.x ?? 0,
+            y: element.y ?? 0,
+            width: element.width ?? 0,
+            height: element.height ?? 0,
+            waypoints: element.waypoints?.map((point) => ({ x: point.x, y: point.y })),
+            labelTargetId: element.labelTarget?.id,
+        }));
+        return {
+            registry,
+            format: (target: Partial<LayoutResult>) =>
+                commandStack.execute(LAYOUT_APPLY_COMMAND, {
+                    operations: computeLayoutPlan(snapshot, {
+                        shapes: [],
+                        edges: [],
+                        diagnostics: [],
+                        ...target,
+                    }),
+                }),
+        };
+    }
+
+    it("moves a rerouted flow's label once, by its midpoint's shift", async () => {
+        const { registry, format } = await openLabelledEvents();
+        const labelBefore = positionOf(registry, "Flow_1_label");
+        const midpointBefore = polylineMidpoint(registry.get("Flow_1").waypoints ?? []);
+        const waypoints = [
+            { x: 136, y: 118 },
+            { x: 200, y: 118 },
+            { x: 200, y: 300 },
+            { x: 415, y: 300 },
+            { x: 415, y: 133 },
+        ];
+
+        format({ edges: [{ id: "Flow_1", waypoints }] });
+
+        const midpointShift = shift(midpointBefore, polylineMidpoint(waypoints));
+        expect(positionOf(registry, "Flow_1_label")).toEqual({
+            x: labelBefore.x + midpointShift.x,
+            y: labelBefore.y + midpointShift.y,
+        });
+    });
+
+    it("moves a moved event's label once, by the event's shift", async () => {
+        const { registry, format } = await openLabelledEvents();
+        const labelBefore = positionOf(registry, "Start_1_label");
+
+        format({ shapes: [{ id: "Start_1", x: 140, y: 300, width: 36, height: 36 }] });
+
+        expect(positionOf(registry, "Start_1_label")).toEqual({
+            x: labelBefore.x + 40,
+            y: labelBefore.y + 200,
+        });
+    });
+
+    it("moves a resized event's label once, keeping it centred below the event", async () => {
+        const { registry, format } = await openLabelledEvents();
+        const label = registry.get("End_1_label");
+        const event = registry.get("End_1");
+        const gapBefore = label.y - (event.y + event.height);
+        const centreOffsetBefore = label.x + label.width / 2 - (event.x + event.width / 2);
+
+        format({ shapes: [{ id: "End_1", x: 440, y: 303, width: 36, height: 36 }] });
+
+        expect(label.y - (event.y + event.height)).toBe(gapBefore);
+        expect(label.x + label.width / 2 - (event.x + event.width / 2)).toBe(centreOffsetBefore);
     });
 });
 
