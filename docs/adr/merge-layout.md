@@ -136,8 +136,10 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   and a growing pool the pool beside it instead of covering them; the strip moves only what lies
   across from it, as the frame already lay beside the rest. Room below grows the lane; the lanes
   under it shift down across the pool, and another pool that ended level with it grows as far
-  when that lands on nothing. A stacked branch then stays clear of what lies right of it; what
-  lies right of the shape above it stays, as only introduced spots are repaired. Every place a
+  when that lands on nothing. A stacked branch and the shape above it then give way as one
+  column along the flow: what the stacked shape comes within 15 px of gives way, and so does
+  what overlaps the shape above or its label, as in the column the two branches take one place;
+  what lies merely near the shape above stays, as only introduced spots are repaired. Every place a
   room tries, the slot after and up to 50 px further along the flow, or each step below, must
   leave the moved shape 15 px clear of foreign labels and of foreign flows beside it once the
   room is made; a flow running through it is a spot the flow repair re-routes. The flows between shifted and staying shapes stretch
@@ -161,7 +163,8 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   merges that reached making room now stack the moved shape below instead of in line and grow
   the lane instead of widening the pool, so the lanes under it shift across their full width;
   pushing before the other shape moves the other shape of the pair and what follows it, which
-  the old room never did; a cramped spot both sides drew beside a stacked column stays; on the
+  the old room never did; a cramped spot both sides drew beside a stacked column stays, while a
+  shape both sides drew on the shape above it shifts with what follows it in line; on the
   harvest, a fuzz result (seed 74) now moves a gateway instead of an end event, whose re-routed
   flow runs on another, and one (seed 69) keeps a sub-process in its parent at the cost of a
   crossing; flows that do not run right keep the

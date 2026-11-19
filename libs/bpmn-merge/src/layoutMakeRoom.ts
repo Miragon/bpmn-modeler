@@ -1,7 +1,13 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
 import { type Axis, bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
-import { type LayoutModel, type NodeShape, isFrame, liesOnAnotherPool } from "./layoutModel";
+import {
+    type LayoutModel,
+    type NodeShape,
+    drawnPartsOf,
+    isFrame,
+    liesOnAnotherPool,
+} from "./layoutModel";
 import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP, leadAlong } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
 import { crampsNoFlow, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
@@ -126,7 +132,8 @@ export function slotOffsetsOf(
  * group lands on gives way along the flow, or downward for a stacked branch,
  * with what that lands on; the frames that no longer hold it grow, and the
  * flows between shifted and staying shapes stretch. A stacked branch then
- * stays clear of what lies right of it. The first of the slot's places where
+ * stays clear of what lies right of it, and what overlaps the shape above
+ * it gives way along the flow with it, as the column is one place. The first of the slot's places where
  * the group keeps clear of the flows that are not its own and their labels
  * once the room is made; undefined when there is none, when the other shape
  * would have to give way in the slot after or below it, or the room breaks
@@ -185,6 +192,7 @@ function roomAt(
         const column = trial.fork();
         const clear = pushIn(context, trial, column, "x", group, other.id, {
             box,
+            column: drawnPartsOf(trial.node(other.id)!),
             line: rightOf(other.bounds) + 1,
             floor: leadAlong("x", other),
             exclude,

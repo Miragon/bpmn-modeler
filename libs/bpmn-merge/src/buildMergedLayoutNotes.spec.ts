@@ -260,17 +260,17 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "incoming",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_X"),
+                        stacked(["Task_Y", "Task_X"], "Task_X", ["Task_C", "End_Done"]),
                         moved("flowThroughShape", "Flow_X", "Task_Y"),
-                        moved("flowEndOffShape", "Flow_X", "Task_X"),
+                        moved("flowEndOffShape", "Flow_X", "Task_X", "Task_C"),
                     ],
                 },
                 {
                     conflictsTo: "current",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_Y"),
+                        stacked(["Task_Y", "Task_X"], "Task_Y", ["Task_C", "End_Done"]),
                         moved("flowThroughShape", "Flow_Y", "Task_X"),
-                        moved("flowEndOffShape", "Flow_Y", "Task_Y"),
+                        moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
                     ],
                 },
             ] as const
@@ -456,6 +456,8 @@ describe("buildMerged's layout notes", () => {
                 if (edge.source !== movedId && edge.target !== movedId) continue;
                 expect(edge.waypoints.length, edge.id).toBeLessThanOrEqual(3);
             }
+            expect(keepsClearOf(other!, ship!, 0)).toBe(true);
+            expect(keepsClearOf(movedTask!, ship!, 0)).toBe(true);
             expect(shipped!.x - (ship!.x + ship!.width)).toBeGreaterThanOrEqual(ROOM_GAP);
             for (const edge of layout.edges.values()) {
                 if (edge.source === movedId || edge.target === movedId) continue;

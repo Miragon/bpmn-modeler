@@ -497,6 +497,36 @@ describe("planShapeMoves", () => {
                 expect(plan.layout.shapes.get("Task_N")).toBe(neighbour);
             });
 
+            it("shifts a shape the other shape lies on along the flow when room is made below, as the stacked column gives way as one", () => {
+                const underOther = node("Task_N", box(590, 90));
+                const join = node("Task_J", box(800, 90));
+                const toJoin = [
+                    flow("Flow_1", "Task_1", "Task_J", [at(600, 130), at(800, 130)]),
+                    flow("Flow_Y", "Task_Y", "Task_J", [at(610, 130), at(800, 130)]),
+                ];
+                const shapes = [branches[0]!, branches[1]!, underOther, join];
+                const result = layoutOf([...shapes, node("Task_Y", box(490, 90))], toJoin, frames);
+                const current = layoutOf(shapes, toJoin.slice(0, 1), frames);
+                const introduced = overlapsOf(result).filter(
+                    (spot) => spot.kind === "shapesOverlap" && spot.shapes.includes("Task_Y"),
+                );
+
+                const plan = planShapeMoves(result, introduced, [current, current]);
+
+                expect(plan.repairs).toEqual([
+                    {
+                        kind: "madeRoom",
+                        shapes: ["Task_1", "Task_Y"],
+                        moved: "Task_Y",
+                        shifted: ["Task_N"],
+                        grown: ["Pool_1", "Lane_1"],
+                    },
+                ]);
+                expect(boundsIn(plan, "Task_Y")).toEqual(box(500, 210));
+                expect(boundsIn(plan, "Task_N")).toEqual(box(650, 90));
+                expect(plan.layout.shapes.get("Task_J")).toBe(join);
+            });
+
             it("is stacked under the host and its boundary events when it lay on a boundary event of a parallel branch", () => {
                 const tall = [{ ...POOL, bounds: box(0, 0, 1200, 400) }, lane(70, 300)];
                 const timer = node("Timer_1", box(532, 152, 36, 36), {

@@ -45,6 +45,12 @@ export interface RoomRequest {
     readonly box: DiagramBounds;
     /** Only what lies at or past it along the axis gives way; a frame by its near side, a node by its center. */
     readonly line: number;
+    /**
+     * The parts of the shape a stacked group lies under, which give way as
+     * one with the box: what overlaps them gives way too, with no clearance,
+     * as both sides drew what lies merely near them.
+     */
+    readonly column?: readonly DiagramBounds[];
     /** How far back the line may move to take in what the box lands on before it. */
     readonly floor?: number;
     /** What never gives way nor stands in the way: the moved group, or a frame that grows. */
@@ -253,8 +259,9 @@ export class RoomPush {
     }
 
     /**
-     * What gives way to the box: each unit at or past the line it lands on,
-     * then each it lands on in turn and each in line after it that its flows
+     * What gives way to the box: each unit at or past the line it lands on
+     * or that overlaps the column, past the far side of what it met, then
+     * each it lands on in turn and each in line after it that its flows
      * lead to and that would come nearer than the room gap, all by one shift.
      * Undefined when a unit before the line lies where the box goes, or where
      * a unit that gives way goes.
@@ -263,13 +270,19 @@ export class RoomPush {
         units: readonly Unit[],
         request: FrameRequest,
     ): { readonly units: Unit[]; readonly by: number } | undefined {
-        const { box, floor, frameGrowth } = request;
+        const { box, floor, frameGrowth, column = [] } = request;
         const lands = (on: DiagramBounds, unit: Unit) =>
             !keepsClearOf(on, unit.bounds, SHAPE_CLEARANCE);
         const reachesBox = (unit: Unit) =>
             frameGrowth === undefined
                 ? lands(box, unit)
                 : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
+        const columnUnder = (unit: Unit) =>
+            column.filter((part) => !keepsClearOf(part, unit.bounds, 0));
+        const partsLandedOn = (unit: Unit) => [
+            ...(reachesBox(unit) ? [box] : []),
+            ...columnUnder(unit),
+        ];
         let line = request.line;
         let blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
         while (blocking.length > 0) {
@@ -278,10 +291,18 @@ export class RoomPush {
             blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
         }
         const past = units.filter((unit) => unit.lead >= line);
-        const hit = past.filter(reachesBox);
+        const hit = past.filter((unit) => partsLandedOn(unit).length > 0);
         const by =
             frameGrowth ??
-            Math.max(0, ...hit.map((unit) => this.far(box) + this.gap - this.near(unit.bounds)));
+            Math.max(
+                0,
+                ...hit.map(
+                    (unit) =>
+                        Math.max(...partsLandedOn(unit).map((on) => this.far(on))) +
+                        this.gap -
+                        this.near(unit.bounds),
+                ),
+            );
         if (hit.length === 0 || by <= 0) return { units: [], by: 0 };
         const pushed = new Set(hit);
         const queue = [...hit];
