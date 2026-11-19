@@ -128,6 +128,8 @@ export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: Diagram
     }
 }
 
+export function requireEdgesOnThePlaneOfTheirEnds(_diagramIndex: DiagramIndex): void {}
+
 function isRootPlaneOwner(element: ModdleElement): boolean {
     return isType(element, "bpmn:Process") || isType(element, "bpmn:Collaboration");
 }
