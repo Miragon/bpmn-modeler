@@ -43,26 +43,29 @@ and what it tells the reviewer (#2565).
   others, within a budget per harvested case (`buildMergedRepairLocality.spec.ts`, on 24
   copied fuzz inputs, which also keeps a result with no broken flow byte-equal); every build
   plans the repair (`layoutFlowRepairTime.spec.ts`).
-- *The build moves the shape it placed off a shape from the other side, and makes room only as
-  a last resort.* For each overlap the detector names as introduced, it moves the shape no
-  side draws where the result does, never a boundary event, which goes with its host; it
-  carries the shape's label, boundary events and, drawn open, its contents. The shape goes
-  first to where the other side draws it, else to the nearest place within 250 px that keeps
-  every moved shape in the pool, lanes and sub-processes it lies in, 15 px clear of other
-  shapes and off every flow that is not its own. Only when neither exists does it make room
-  as the modeler's space tool does: the shapes of its pool (or plane) past a line right of
-  the other shape shift right, the frames across the line widen, and the flows between them
-  stretch by vertical runs so their segments keep their direction. A room that adds any shape
-  spot (an overlap, a shape outside its frame, an event off its host) is dropped and the
-  overlap noted as not repaired. The flow repair then runs on the moved drawing, so it
-  re-routes the moved shapes' flows and names a flow a move broke. The note names the moved
+- *The build moves the shape it placed off a shape from the other side, and makes room only
+  as a last resort.* For each overlap the detector names as introduced, it moves a shape that
+  not both sides draw where the result does (one side moved it, or only one side has it), so
+  one side's own drawing may move off the other side's shape; never a boundary event, which
+  goes with its host. It carries the shape's label, boundary events and, drawn open, its
+  contents. The shape goes first to where the other side draws it, else to the nearest place
+  within 250 px that keeps every moved shape in the pool, lanes and sub-processes it lies in,
+  15 px clear of other shapes and off every flow that is not its own. Only when neither
+  exists does it make room as the modeler's space tool does: the shapes of its pool (or
+  plane) past a line right of the other shape shift right, the frames across the line widen,
+  and the flows between them stretch by vertical runs so their segments keep their direction.
+  A room that adds any shape spot (an overlap, a shape outside its frame, an event off its
+  host) is dropped and the overlap noted as not repaired. The flow repair then runs on the
+  moved drawing, so it re-routes the moved shapes' flows and names a flow a move broke; a
+  spot a move mended, other than the overlap itself, gets no note. The note names the moved
   shape and, for a room, every outermost shape it shifted (the user's choice on #2565: make
-  room, but say what moved). Rejected: making room first, which shifts shapes beyond the two
-  that meet when a free place lies near; leaving both shapes for the user, which keeps tasks
-  hidden behind others and their flows running through them. Cost: room goes only right; a placement checks only shapes and flows near it, through the
-  detector's grid, but each room finds the spots of the whole drawing twice
-  (`layoutFlowRepairTime.spec.ts`); a result with no introduced overlap stays byte-equal to
-  the flow repair alone (`buildMergedRepairLocality.spec.ts`).
+  room, but say what moved); an overlap an earlier move resolved names the shape of the two
+  that moved. Rejected: making room first, which shifts shapes beyond the two that meet when
+  a free place lies near; leaving both shapes for the user, which keeps tasks hidden behind
+  others and their flows running through them. Cost: room goes only right; a placement checks
+  only shapes and flows near it, through the detector's grid, but each room finds the spots
+  of the whole drawing once (`layoutFlowRepairTime.spec.ts`); a result with no introduced
+  overlap stays byte-equal to the flow repair alone (`buildMergedRepairLocality.spec.ts`).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
