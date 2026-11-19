@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { seededRandom } from "./__fixtures__/randomMergeVersions";
-import { buildMerged, buildMergedWith } from "./buildMerged";
+import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
-import type { LayoutModel } from "./layoutModel";
+import { liesWithin, sameBounds } from "./layoutGeometry";
+import { type LayoutModel, isFrame, nodeShapeIn, placedByBuild } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsCross, segmentsOf } from "./layoutPolyline";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -36,6 +37,11 @@ const FLOW_REPAIRS_ONLY: LayoutRepairPlanners = {
     stackLanes: NO_REPAIRS.stackLanes,
     moveIntoContainers: NO_REPAIRS.moveIntoContainers,
     moveShapes: NO_REPAIRS.moveShapes,
+};
+
+const CONTAINER_REPAIRS_ONLY: LayoutRepairPlanners = {
+    ...NO_REPAIRS,
+    moveIntoContainers: BUILD_LAYOUT_REPAIRS.moveIntoContainers,
 };
 
 const WITHOUT_CONTAINER_REPAIRS: LayoutRepairPlanners = {
@@ -96,6 +102,16 @@ interface HarvestCase {
     /** The shapes left outside a container, whose notes say the build could not repair them. */
     readonly leftOutside?: readonly string[];
 }
+
+/** The shapes both sides draw where they lie, outside the lane the other side's lanes give them. */
+const LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT = [
+    "Start_Order",
+    "Task_Check",
+    "Gateway_Ok",
+    "Sub_Ship",
+    "End_Done",
+    "Boundary_Timeout",
+];
 
 /**
  * The harvest results the design prototype changed although no spot was introduced, four the
@@ -175,8 +191,6 @@ const CASES: readonly HarvestCase[] = [
             [112, "conflictsToCurrent", 2, []],
             [112, "conflictsToIncoming", 1, ["Boundary_Timeout"]],
             [153, "conflictsAtRandom", 0, []],
-            [159, "conflictsToIncoming", 0, []],
-            [159, "conflictsAtRandom", 0, []],
             [21, "conflictsToIncoming", 0, ["Boundary_Timeout"]],
             [38, "conflictsToCurrent", 0, ["Boundary_Timeout", "Boundary_N2"]],
             [47, "conflictsToIncoming", 2, []],
@@ -189,6 +203,13 @@ const CASES: readonly HarvestCase[] = [
         repairs: "shapes" as const,
         crossingBudget,
         leftOutside,
+    })),
+    ...(["conflictsToIncoming", "conflictsAtRandom"] as const).map((strategy) => ({
+        seed: 159,
+        strategy,
+        repairs: "none" as const,
+        crossingBudget: 0,
+        leftOutside: LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT,
     })),
 ];
 
@@ -220,6 +241,17 @@ describe("the layout repair on harvested merges", () => {
             if (!hasSpot("lanesOverlap")) expect(repaired.xml).toBe(withoutStacking.xml);
             const framesHeld = !hasSpot("lanesOverlap") && !hasSpot("shapeOutsideContainer");
             if (framesHeld) expect(repaired.xml).toBe(withoutContainers.xml);
+            if (hasSpot("shapeOutsideContainer")) {
+                const containersRepaired = await buildWith(CONTAINER_REPAIRS_ONLY);
+                expect(
+                    unaccountedContainerMoves(
+                        unrepairedLayout,
+                        await layoutOf(containersRepaired.xml),
+                        containersRepaired.notes,
+                        sides,
+                    ),
+                ).toEqual([]);
+            }
             if (framesHeld && !hasSpot("shapesOverlap")) {
                 expect(repaired.xml).toBe(flowsRepaired.xml);
             }
@@ -257,6 +289,56 @@ describe("the layout repair on harvested merges", () => {
 function repairsOf(unrepaired: string, flowsRepaired: string, repaired: string): Repairs {
     if (repaired === unrepaired) return "none";
     return repaired === flowsRepaired ? "flows" : "shapes";
+}
+
+/**
+ * The shapes the container step changed that no container note accounts for, and the shapes it
+ * moved into a container although both sides draw them where they lay. A note accounts for the
+ * shape it moved, with its boundary events and contents, the containers it grew and the shapes it
+ * shifted; a growth may widen the frames around.
+ */
+function unaccountedContainerMoves(
+    before: LayoutModel,
+    after: LayoutModel,
+    notes: readonly BuildNote[],
+    sides: readonly LayoutModel[],
+): string[] {
+    const repaired = notes.flatMap((note) =>
+        note.kind === "shapeOutsideContainer" && note.repair !== "notRepaired" ? [note] : [],
+    );
+    const accounted = new Set(
+        repaired.flatMap((note) => [
+            note.id,
+            ...(note.repair === "movedIntoContainer" ? [] : note.shapes),
+            ...(note.repair === "grewContainerAndShifted" ? note.shifted : []),
+        ]),
+    );
+    const grew = repaired.some(({ repair }) => repair !== "movedIntoContainer");
+    const changed = [...before.shapes.values()].flatMap((shape) => {
+        const now = after.shapes.get(shape.id);
+        return now === undefined || sameBounds(now.bounds, shape.bounds) ? [] : [{ shape, now }];
+    });
+    const goesWithANote = ({ shape, now }: (typeof changed)[number]) =>
+        accounted.has(shape.id) ||
+        (shape.kind === "node" &&
+            [shape.host, ...shape.subProcesses].some(
+                (id) => id !== undefined && accounted.has(id),
+            )) ||
+        (grew && isFrame(shape) && liesWithin(shape.bounds, now.bounds));
+    const drawnThereByBoth = repaired.flatMap((note) => {
+        const node =
+            note.repair === "movedIntoContainer" ? nodeShapeIn(before, note.id) : undefined;
+        const carried = [node?.host, ...(node?.subProcesses ?? [])].some(
+            (id) => id !== undefined && accounted.has(id),
+        );
+        return node === undefined || carried || placedByBuild(node, sides)
+            ? []
+            : [`${note.id} drawn there by both sides`];
+    });
+    return [
+        ...changed.filter((change) => !goesWithANote(change)).map(({ shape }) => shape.id),
+        ...drawnThereByBoth,
+    ];
 }
 
 function kindsOf(spots: readonly LayoutSpot[]): LayoutSpot["kind"][] {

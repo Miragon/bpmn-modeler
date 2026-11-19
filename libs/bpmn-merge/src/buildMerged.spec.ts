@@ -112,9 +112,10 @@ function redrawnByTheBuild(notes: readonly BuildNote[]): ReadonlySet<string> {
                         ? [note.moved, ...note.shifted]
                         : [note.moved];
                 case "shapeOutsideContainer":
-                    return note.repair === "grewContainer"
-                        ? [note.id, ...note.shapes, ...note.shifted]
-                        : [note.id];
+                    if (note.repair === "grewContainerAndShifted") {
+                        return [note.id, ...note.shapes, ...note.shifted];
+                    }
+                    return note.repair === "grewContainer" ? [note.id, ...note.shapes] : [note.id];
                 default:
                     return [note.id];
             }

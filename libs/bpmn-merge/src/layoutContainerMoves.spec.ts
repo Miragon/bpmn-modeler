@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
-import type { DiagramBounds, Point } from "./layoutGeometry";
+import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
+import { innerBoundsOf } from "./layoutShapePlacement";
 import type { LayoutSpot } from "./layoutSpots";
 
 const PLANE = "Collaboration_1";
@@ -117,6 +118,51 @@ describe("planContainerMoves", () => {
         expect(boundsIn(plan, "Start_In")).toEqual(box(640, 122, 36, 36));
     });
 
+    it("follows a side only to a place off the container's border, as the nearest place inside keeps", () => {
+        const sub = node("Sub_1", box(600, 40, 300, 200), { expanded: true });
+        const sibling = node("Task_A", box(661, 100), IN_SUB);
+        const start = node("Start_In", box(40, 122, 36, 36), { ...IN_SUB, outline: "circle" });
+        const result = layoutOf([sub, sibling, start]);
+        const current = layoutOf([sub, sibling]);
+        const onItsPlane = { plane: "Sub_1" };
+        const incoming = layoutOf([
+            { ...sub, bounds: box(600, 40, 100, 80), expanded: false },
+            { ...sibling, ...onItsPlane, bounds: box(100, 100) },
+            { ...start, ...onItsPlane },
+        ]);
+
+        const plan = planOf(result, [current, incoming]);
+
+        expect(plan.repairs).toEqual([
+            { kind: "movedIntoContainer", shape: "Start_In", container: "Sub_1" },
+        ]);
+        expect(liesWithin(boundsIn(plan, "Start_In")!, innerBoundsOf(sub))).toBe(true);
+    });
+
+    it("leaves a shape both sides draw where it lies outside its container, as the build did not place it", () => {
+        const upper = lane("Lane_1", box(30, 0, 1170, 150));
+        const lower = lane("Lane_2", box(30, 150, 1170, 150));
+        const task = node("Task_M", box(300, 180));
+        const result = layoutOf([task], [], [pool(), upper, lower]);
+        const current = layoutOf([{ ...task, lanes: ["Lane_2"] }], [], [pool(), upper, lower]);
+        const incoming = layoutOf(
+            [task],
+            [],
+            [
+                pool(),
+                { ...upper, bounds: box(30, 0, 1170, 270) },
+                { ...lower, bounds: box(30, 270, 1170, 30) },
+            ],
+        );
+
+        const plan = planOf(result, [current, incoming]);
+
+        expect(plan.repairs).toEqual([
+            { kind: "notRepaired", shape: "Task_M", container: "Lane_1" },
+        ]);
+        expect(plan.layout).toBe(result);
+    });
+
     it("moves a shape to the nearest free place inside its sub-process when no move of a side fits", () => {
         const sub = node("Sub_1", box(400, 40, 300, 200), { expanded: true });
         const sibling = node("Task_A", box(450, 100), IN_SUB);
@@ -152,6 +198,20 @@ describe("planContainerMoves", () => {
             ]);
             expect(boundsIn(plan, "Task_M")).toEqual(box(300, 60));
             expect(boundsIn(plan, "Lane_1")).toEqual(upper.bounds);
+        });
+
+        it("brings a shape both sides draw where it lies into a lane the build stacked below the others", () => {
+            const member = node("Task_M", box(300, 40), { lanes: ["Lane_2"] });
+            const result = layoutOf([member], [], twoLanes);
+            const current = layoutOf([member], [], [pool(), upper]);
+            const incoming = layoutOf([member], [], [pool(), { ...lower, bounds: upper.bounds }]);
+
+            const plan = planOf(result, [current, incoming]);
+
+            expect(plan.repairs).toEqual([
+                { kind: "movedIntoContainer", shape: "Task_M", container: "Lane_2" },
+            ]);
+            expect(boundsIn(plan, "Task_M")).toEqual(box(300, 190));
         });
 
         it("brings a shape into its sub-process in another lane, as the sub-process stands for its contents there", () => {
@@ -208,8 +268,8 @@ describe("planContainerMoves", () => {
             const plan = planOf(result, [current, incoming]);
 
             expect(plan.repairs).toEqual([
-                { kind: "grewContainer", shape: "Task_Z", container: "Pool_1", shifted: [] },
-                { kind: "grewContainer", shape: "Task_Z", container: "Lane_1", shifted: [] },
+                { kind: "grewContainer", shape: "Task_Z", container: "Pool_1" },
+                { kind: "grewContainer", shape: "Task_Z", container: "Lane_1" },
             ]);
             expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 670, 200));
             expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 0, 640, 200));
@@ -237,7 +297,7 @@ describe("planContainerMoves", () => {
 
             expect(plan.repairs).toEqual([
                 {
-                    kind: "grewContainer",
+                    kind: "grewContainerAndShifted",
                     shape: "Task_Z",
                     container: "Sub_1",
                     shifted: ["Task_After"],
@@ -252,6 +312,69 @@ describe("planContainerMoves", () => {
                 at(650, 150),
             ]);
             expect(boundsIn(plan, "Task_Z")).toEqual(added.bounds);
+        });
+
+        it("moves the sub-process's boundary events with the border it grows, leaving the others", () => {
+            const sub = node("Sub_1", box(200, 50, 300, 200), { expanded: true });
+            const contents = [
+                node("Task_1", box(220, 70, 100, 160), IN_SUB),
+                node("Task_2", box(360, 70, 100, 160), IN_SUB),
+            ];
+            const onRight = node("Timer_R", box(482, 62, 36, 36), {
+                host: "Sub_1",
+                outline: "circle",
+            });
+            const onLeft = node("Timer_L", box(182, 62, 36, 36), {
+                host: "Sub_1",
+                outline: "circle",
+            });
+            const after = node("Task_After", box(560, 110));
+            const added = node("Task_Z", box(480, 110), IN_SUB);
+            const result = layoutOf([sub, ...contents, onRight, onLeft, after, added]);
+            const current = layoutOf([sub, ...contents, onRight, onLeft, after]);
+            const incoming = layoutOf([
+                { ...sub, bounds: box(200, 50, 400, 200) },
+                ...contents,
+                onRight,
+                onLeft,
+                added,
+            ]);
+
+            const plan = planOf(result, [current, incoming]);
+
+            expect(plan.repairs).toEqual([
+                {
+                    kind: "grewContainerAndShifted",
+                    shape: "Task_Z",
+                    container: "Sub_1",
+                    shifted: ["Task_After"],
+                },
+            ]);
+            expect(boundsIn(plan, "Sub_1")).toEqual(box(200, 50, 390, 200));
+            expect(boundsIn(plan, "Timer_R")).toEqual(box(572, 62, 36, 36));
+            expect(boundsIn(plan, "Timer_L")).toEqual(onLeft.bounds);
+        });
+
+        it("grows no pool over the pool beside it", () => {
+            const narrowFrames = [pool(box(0, 0, 600, 200)), lane("Lane_1", box(30, 0, 570, 200))];
+            const beside: LayoutShape = { ...pool(box(662, 0, 600, 200)), id: "Pool_2" };
+            const row = [60, 180, 300, 420].map((x, index) => node(`Task_${index}`, box(x, 60)));
+            const added = node("Task_Z", box(560, 60));
+            const result = layoutOf([...row, added], [], [...narrowFrames, beside]);
+            const current = layoutOf(row, [], [...narrowFrames, beside]);
+            const incoming = layoutOf(
+                [...row, added],
+                [],
+                [pool(box(0, 0, 800, 200)), lane("Lane_1", box(30, 0, 770, 200)), beside],
+            );
+
+            const plan = planOf(result, [current, incoming]);
+
+            expect(plan.repairs).toEqual([
+                { kind: "notRepaired", shape: "Task_Z", container: "Pool_1" },
+                { kind: "notRepaired", shape: "Task_Z", container: "Lane_1" },
+            ]);
+            expect(plan.layout).toBe(result);
         });
 
         it("leaves the shape outside when growing its sub-process would cover another shape", () => {

@@ -33,7 +33,8 @@ export type MergePaneBuildNote =
           readonly shapes: readonly string[];
       } & (
           | { readonly repair: "movedIntoContainer" }
-          | { readonly repair: "grewContainer"; readonly shifted: readonly string[] }
+          | { readonly repair: "grewContainer" }
+          | { readonly repair: "grewContainerAndShifted"; readonly shifted: readonly string[] }
           | { readonly repair: "notRepaired" }
       ))
     | ({

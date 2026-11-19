@@ -14,8 +14,12 @@ import {
     frameIdsOf,
     framesAroundOf,
     isFrame,
+    lanesOf,
+    liesOnAnotherPool,
     otherEndOf,
     placeOf,
+    placedByBuild,
+    placedByBuildOutside,
     sharedFrameOf,
 } from "./layoutModel";
 
@@ -281,5 +285,119 @@ describe("frameIdsOf", () => {
         },
     ])("names $label", ({ relations, frames }) => {
         expect(frameIdsOf(node("Task_1", relations))).toEqual(frames);
+    });
+});
+
+describe("lanesOf", () => {
+    const lane = (id: string, bounds: DiagramBounds, plane = PLANE): LayoutShape => ({
+        kind: "lane",
+        id,
+        plane,
+        bounds,
+        outline: "rectangle",
+        parent: "Process_1",
+    });
+
+    it("lists the lanes drawn inside the pool on its plane, in document order", () => {
+        const own = [
+            lane("Lane_1", { x: 30, y: 0, width: 870, height: 150 }),
+            lane("Lane_2", { x: 30, y: 150, width: 870, height: 150 }),
+        ];
+        const layout = layoutOf([
+            pool("Pool_1"),
+            ...own,
+            pool("Pool_2", { x: 0, y: 400, width: 900, height: 200 }),
+            lane("Lane_Other", { x: 30, y: 400, width: 870, height: 200 }),
+            lane("Lane_Elsewhere", { x: 30, y: 0, width: 870, height: 150 }, "Sub_1"),
+        ]);
+
+        expect(lanesOf(layout, layout.shapes.get("Pool_1")!)).toEqual(own);
+    });
+});
+
+describe("placedByBuild", () => {
+    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+    const elsewhere = { ...task, bounds: { ...task.bounds, x: 300 } };
+
+    it.each([
+        { label: "both sides draw it where it lies", sides: [[task], [task]], placed: false },
+        { label: "one side draws it elsewhere", sides: [[task], [elsewhere]], placed: true },
+        { label: "one side lacks it", sides: [[task], []], placed: true },
+        {
+            label: "one side draws it on another plane",
+            sides: [[task], [{ ...task, plane: "Sub_1" }]],
+            placed: true,
+        },
+    ])("is $placed when $label", ({ sides, placed }) => {
+        expect(placedByBuild(task, sides.map(layoutOf))).toBe(placed);
+    });
+
+    it("is false for a boundary event, which goes with its host", () => {
+        const timer = node("Timer_1", { host: "Task_1" });
+
+        expect(placedByBuild(timer, [layoutOf([]), layoutOf([])])).toBe(false);
+    });
+});
+
+describe("liesOnAnotherPool", () => {
+    const own = pool("Pool_1", { x: 0, y: 0, width: 670, height: 200 });
+
+    it.each([
+        {
+            label: "a pool it covers on its plane",
+            other: pool("Pool_2", { x: 662, y: 0, width: 600, height: 200 }),
+            lies: true,
+        },
+        {
+            label: "a pool it only touches",
+            other: pool("Pool_2", { x: 670, y: 0, width: 600, height: 200 }),
+            lies: false,
+        },
+        {
+            label: "a pool on another plane",
+            other: { ...pool("Pool_2", { x: 662, y: 0, width: 600, height: 200 }), plane: "Sub_1" },
+            lies: false,
+        },
+    ])("is $lies for $label", ({ other, lies }) => {
+        expect(liesOnAnotherPool(layoutOf([own, other]), own)).toBe(lies);
+    });
+});
+
+describe("placedByBuildOutside", () => {
+    const lane: LayoutShape = {
+        kind: "lane",
+        id: "Lane_1",
+        plane: PLANE,
+        outline: "rectangle",
+        parent: "Process_1",
+        bounds: { x: 30, y: 300, width: 870, height: 200 },
+    };
+    const sideLane = { ...lane, bounds: { ...lane.bounds, y: 100 } };
+    const member = node("Task_1", { bounds: { x: 100, y: 120, width: 100, height: 80 } });
+
+    it.each([
+        {
+            label: "the build moved the frame, though both sides draw the shape where it lies",
+            sides: [[member, sideLane], [member]],
+            placed: true,
+        },
+        {
+            label: "a side draws the frame where it lies and both draw the shape where it lies",
+            sides: [
+                [member, lane],
+                [member, sideLane],
+            ],
+            placed: false,
+        },
+        {
+            label: "the build placed the shape",
+            sides: [
+                [member, lane],
+                [{ ...member, bounds: { ...member.bounds, x: 400 } }, lane],
+            ],
+            placed: true,
+        },
+    ])("is $placed when $label", ({ sides, placed }) => {
+        expect(placedByBuildOutside(member, [lane], sides.map(layoutOf))).toBe(placed);
     });
 });

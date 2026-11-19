@@ -147,7 +147,7 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
 
 function containerNoteOf(id: string, repair: ContainerRepair): BuildNote {
     const note = { kind: "shapeOutsideContainer", id, shapes: [repair.container] } as const;
-    return repair.kind === "grewContainer"
+    return repair.kind === "grewContainerAndShifted"
         ? { ...note, repair: repair.kind, shifted: repair.shifted }
         : { ...note, repair: repair.kind };
 }

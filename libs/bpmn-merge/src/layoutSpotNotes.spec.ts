@@ -150,7 +150,12 @@ describe("layoutSpotNotes", () => {
         const containerRepairs: ContainerRepair[] = [
             { kind: "movedIntoContainer", shape: "Task_A", container: "Pool_1" },
             { kind: "movedIntoContainer", shape: "Task_A", container: "Lane_1" },
-            { kind: "grewContainer", shape: "Task_B", container: "Sub_1", shifted: ["Task_X"] },
+            {
+                kind: "grewContainerAndShifted",
+                shape: "Task_B",
+                container: "Sub_1",
+                shifted: ["Task_X"],
+            },
             { kind: "notRepaired", shape: "Task_C", container: "Lane_2" },
         ];
 
@@ -180,7 +185,7 @@ describe("layoutSpotNotes", () => {
                 kind: "shapeOutsideContainer",
                 id: "Task_B",
                 shapes: ["Sub_1"],
-                repair: "grewContainer",
+                repair: "grewContainerAndShifted",
                 shifted: ["Task_X"],
             },
             {
