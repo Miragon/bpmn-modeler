@@ -381,7 +381,10 @@ const dictionary: Record<string, string> = {
     "{element} lies outside {shapes}; the build could not repair it":
         "{element} ligt buiten {shapes}; bij het samenstellen kon dit niet worden hersteld",
     "{element} is not on the border of {host}": "{element} ligt niet op de rand van {host}",
-    "{first} and {second} overlap": "{first} en {second} overlappen elkaar",
+    "The build moved {element} below the other lanes and grew {pool} to hold it":
+        "Bij het samenstellen is {element} onder de andere lanes geplaatst en is {pool} vergroot om deze te bevatten",
+    "{first} and {second} overlap; the build could not repair it":
+        "{first} en {second} overlappen elkaar; bij het samenstellen kon dit niet worden hersteld",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is behouden zonder de flows die de andere kant ermee verwijderde: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

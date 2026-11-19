@@ -6,6 +6,7 @@ import {
     type MergeSide,
     type SideInResult,
     chosenVersionOf,
+    combinedLayoutOf,
     otherSide,
     sameLanes,
 } from "./mergeResult";
@@ -18,6 +19,8 @@ const PREFERRED_LAYOUT_SIDE: Record<LayoutState, MergeSide> = {
     bothChanged: "current",
     takenFromIncoming: "incoming",
 };
+
+const LANE_TYPE = "bpmn:Lane";
 
 /** References whose targets fix where an element is drawn: an edge's ends, a boundary event's host. */
 function isPlacingReference(reference: ElementReference): boolean {
@@ -32,38 +35,110 @@ interface LayoutChoice {
     readonly preferred: MergeSide;
 }
 
+export interface ResultLayout {
+    /** Every drawn element of the result with the side whose DI it takes. */
+    readonly sides: Record<string, MergeSide>;
+    /** The lanes drawn from another side than the rest of their pool's lanes, in the result's order. */
+    readonly appendedLanes: readonly string[];
+}
+
+/** A pool and the lanes of its process, which prefer one side together. */
+interface LaneBlock {
+    readonly pool: string;
+    readonly lanes: readonly string[];
+    readonly side: MergeSide;
+}
+
 /**
- * The side whose DI each drawn element of the result takes. Containers settle first: an element follows the side of
- * its host, parent (or the pool drawing its process) or lane when that side moved the container, or draws the element
- * on another plane, and draws the element in place. A flow whose end had to leave its preferred side is drawn from its
- * ends' side when they agree, so its waypoints meet their shapes.
+ * The side whose DI each drawn element of the result takes. A pool and its lanes prefer one side together, so the
+ * lanes stay stacked as that side drew them; a lane that side does not draw in place is appended. Containers settle
+ * first: an element follows the side of its host, parent (or the pool drawing its process) or lane when that side
+ * moved the container, or draws the element on another plane, and draws the element in place. A flow whose end had
+ * to leave its preferred side is drawn from its ends' side when they agree, so its waypoints meet their shapes.
  */
 export function layoutSidesOf(
     elements: readonly MergeElement[],
     sideInResult: SideInResult,
-): Record<string, MergeSide> {
+): ResultLayout {
     const elementsById = new Map(elements.map((element) => [element.id, element]));
     const poolOfProcess = poolsByProcess(elements, sideInResult);
+    const blocks = laneBlocksOf(elementsById, sideInResult, poolOfProcess);
+    const blockSides = new Map(
+        blocks.flatMap(({ pool, lanes, side }) =>
+            [pool, ...lanes].map((id) => [id, side] as const),
+        ),
+    );
     const choices = new Map<string, LayoutChoice>();
     for (const element of elements) {
         const side = sideInResult(element.id);
+        const preferred = blockSides.get(element.id) ?? PREFERRED_LAYOUT_SIDE[element.layout];
         const choice =
             side === undefined
                 ? undefined
-                : layoutChoiceOf(element, side, poolOfProcess.has(element.id));
+                : layoutChoiceOf(element, side, preferred, poolOfProcess.has(element.id));
         if (choice !== undefined) {
             choices.set(element.id, choice);
         }
     }
     const settled = settleContainersFirst(elementsById, choices, sideInResult, poolOfProcess);
-    const layout: Record<string, MergeSide> = {};
+    const sides: Record<string, MergeSide> = {};
     for (const element of elements) {
         const side = settled.get(element.id);
         if (side !== undefined) {
-            layout[element.id] = edgeSideFromEnds(element, sideInResult, choices, settled) ?? side;
+            sides[element.id] = edgeSideFromEnds(element, sideInResult, choices, settled) ?? side;
         }
     }
-    return layout;
+    const appended = new Set(
+        blocks.flatMap(({ lanes, side }) => lanes.filter((id) => sides[id] !== side)),
+    );
+    return { sides, appendedLanes: elements.map(({ id }) => id).filter((id) => appended.has(id)) };
+}
+
+/**
+ * The lanes of each process a pool of the result draws, with the side they prefer together: current's, unless only
+ * incoming changed the pool or one of its lanes, as for a single element.
+ */
+function laneBlocksOf(
+    elementsById: ReadonlyMap<string, MergeElement>,
+    sideInResult: SideInResult,
+    poolOfProcess: ReadonlyMap<string, string>,
+): LaneBlock[] {
+    const lanesByPool = new Map<string, MergeElement[]>();
+    for (const element of elementsById.values()) {
+        if (element.type !== LANE_TYPE || chosenVersionOf(element, sideInResult) === undefined) {
+            continue;
+        }
+        const root = laneSetOwnerOf(element, elementsById, sideInResult);
+        const pool = root === undefined ? undefined : poolOfProcess.get(root);
+        if (pool !== undefined) lanesByPool.set(pool, [...(lanesByPool.get(pool) ?? []), element]);
+    }
+    return [...lanesByPool].map(([pool, lanes]) => {
+        const poolElement = elementsById.get(pool);
+        const members = poolElement === undefined ? lanes : [poolElement, ...lanes];
+        return {
+            pool,
+            lanes: lanes.map(({ id }) => id),
+            side: PREFERRED_LAYOUT_SIDE[combinedLayoutOf(members.map(({ layout }) => layout))],
+        };
+    });
+}
+
+/** The process or sub-process whose lane set holds the lane, through its parent lanes. */
+function laneSetOwnerOf(
+    lane: MergeElement,
+    elementsById: ReadonlyMap<string, MergeElement>,
+    sideInResult: SideInResult,
+): string | undefined {
+    const seen = new Set<string>();
+    let element: MergeElement | undefined = lane;
+    while (element?.type === LANE_TYPE && !seen.has(element.id)) {
+        seen.add(element.id);
+        const parent = chosenVersionOf(element, sideInResult)?.parent;
+        if (parent === undefined) return undefined;
+        element = elementsById.get(parent);
+        if (element?.type !== LANE_TYPE) return parent;
+    }
+    return undefined;
 }
 
 /**
@@ -74,9 +149,9 @@ export function layoutSidesOf(
 function layoutChoiceOf(
     element: MergeElement,
     elementSide: MergeSide,
+    preferred: MergeSide,
     drawnByAPoolOfTheResult: boolean,
 ): LayoutChoice | undefined {
-    const preferred = PREFERRED_LAYOUT_SIDE[element.layout];
     const contentVersion = element.versions[elementSide];
     const candidates = drawnByAPoolOfTheResult
         ? [preferred, elementSide]

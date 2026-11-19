@@ -51,7 +51,9 @@ function shapeOf(
     if (relations.pools.has(id)) return { ...drawn, kind: "pool", outline: rectangle };
     const laneParent = relations.laneParents.get(id);
     if (laneParent !== undefined) {
-        return { ...drawn, kind: "lane", outline: rectangle, parent: laneParent };
+        const lane = { ...drawn, kind: "lane", outline: rectangle, parent: laneParent } as const;
+        const pool = relations.lanePools.get(id);
+        return pool === undefined ? lane : { ...lane, pool };
     }
     const node = relations.nodes.get(id);
     if (node === undefined) return undefined;

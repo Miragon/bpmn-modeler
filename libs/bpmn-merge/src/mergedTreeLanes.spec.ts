@@ -29,6 +29,7 @@ describe("laneMembersOf", () => {
                 Task_Kept: "current",
             },
             layout: {},
+            appendedLanes: [],
         };
 
         expect(membersAsArrays(laneMembersOf(result, resolution))).toEqual({
@@ -52,6 +53,7 @@ describe("laneMembersOf", () => {
                 Task_Kept: "current",
             },
             layout: {},
+            appendedLanes: [],
         };
 
         expect(membersAsArrays(laneMembersOf(result, resolution))).toEqual({
@@ -61,7 +63,11 @@ describe("laneMembersOf", () => {
 
     it("gives a lane without nodes an empty membership", () => {
         const result = mergeResult(mergeElement("Lane_Empty", "addedByIncoming", LANE));
-        const resolution: MergeResolution = { elements: { Lane_Empty: "incoming" }, layout: {} };
+        const resolution: MergeResolution = {
+            elements: { Lane_Empty: "incoming" },
+            layout: {},
+            appendedLanes: [],
+        };
 
         expect(membersAsArrays(laneMembersOf(result, resolution))).toEqual({ Lane_Empty: [] });
     });

@@ -337,7 +337,10 @@ const dictionary: Record<string, string> = {
     "{element} lies outside {shapes}; the build could not repair it":
         "{element} 位于 {shapes} 之外；生成时无法修复",
     "{element} is not on the border of {host}": "{element} 不在 {host} 的边框上",
-    "{first} and {second} overlap": "{first} 和 {second} 相互重叠",
+    "The build moved {element} below the other lanes and grew {pool} to hold it":
+        "生成时已将 {element} 移到其他泳道下方，并扩大 {pool} 以容纳它",
+    "{first} and {second} overlap; the build could not repair it":
+        "{first} 和 {second} 相互重叠；生成时无法修复",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} 被保留，但不含另一侧随其删除的流：{connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

@@ -341,7 +341,15 @@ describe("buildMerged's layout notes", () => {
                     for (const node of model.nodes) node.lane = "Lane_Sales";
                 },
             ),
-            notes: [{ kind: "lanesOverlap", ids: ["Lane_Sales", "Lane_Back"] }],
+            notes: [
+                {
+                    kind: "lanesOverlap",
+                    ids: ["Lane_Back", "Lane_Sales"],
+                    repair: "movedByBuild",
+                    moved: "Lane_Back",
+                    pool: "Participant_Order",
+                },
+            ],
         },
         {
             name: "11 a task added in room the other side took away",
@@ -423,6 +431,75 @@ describe("buildMerged's layout notes", () => {
         expect(distanceToPolyline(builtFlow.waypoints, centerOf(builtFlow.label!))).toBeCloseTo(
             distanceToPolyline(sideFlow.waypoints, centerOf(sideFlow.label!)),
             0,
+        );
+    });
+
+    describe("a pool's lanes", () => {
+        const boundsOf = async (xml: string, ids: readonly string[]) => {
+            const layout = await layoutOfXml(xml);
+            return ids.map((id) => layout.shapes.get(id)?.bounds);
+        };
+        const POOL_AND_LANES = ["Participant_Order", "Lane_Sales", "Lane_Back"];
+        const growBackOffice = (model: BpmnFixtureModel) => {
+            model.lanes[1]!.height = 200;
+            model.pools[0]!.height = 360;
+        };
+        const growSales = (model: BpmnFixtureModel) => {
+            model.lanes[0]!.height = 200;
+            model.lanes[1]!.y = 260;
+            model.pools[0]!.height = 360;
+            dragNodes(model, ["Task_R", "End_Rejected"], 0, 40);
+        };
+        const shrinkBackOffice = (model: BpmnFixtureModel) => {
+            model.lanes[1]!.height = 120;
+            model.pools[0]!.height = 280;
+        };
+        const renameCheck = (model: BpmnFixtureModel) => {
+            nodeById(model, "Task_A").name = "Check the order";
+        };
+
+        it.each([
+            { side: "current", versions: dockedVersions("c7", growBackOffice, renameCheck) },
+            { side: "incoming", versions: dockedVersions("c7", renameCheck, growBackOffice) },
+        ] as const)(
+            "draws a pool whose lanes only $side changed exactly as $side drew it",
+            async ({ side, versions }) => {
+                const { xml } = await builtOf(versions);
+
+                expect(await boundsOf(xml, POOL_AND_LANES)).toEqual(
+                    await boundsOf(versions[side], POOL_AND_LANES),
+                );
+            },
+        );
+
+        it("draws every lane from current when both sides changed lanes", async () => {
+            const versions = dockedVersions("c7", shrinkBackOffice, growSales);
+
+            const { xml, notes } = await builtOf(versions);
+
+            expect(await boundsOf(xml, POOL_AND_LANES)).toEqual(
+                await boundsOf(versions.current, POOL_AND_LANES),
+            );
+            expect(notes.filter(({ kind }) => kind === "lanesOverlap")).toEqual([]);
+        });
+
+        it.each(["current", "incoming"] as const)(
+            "rule: lane, conflicts to %s: no lanes overlap and each lane holds its members, unless a note names one",
+            async (side) => {
+                const scenario = MERGE_SCENARIOS.find(({ name }) => name === "rule: lane")!;
+
+                const { xml, notes } = await builtOf(scenario, side);
+
+                const spots = detectLayoutSpots(await layoutOfXml(xml));
+                expect(spots.filter(({ kind }) => kind === "lanesOverlap")).toEqual([]);
+                const lanesNotHolding = spots.filter(
+                    (spot) =>
+                        spot.kind === "shapeOutsideContainer" && spot.container.startsWith("Lane"),
+                );
+                for (const spot of lanesNotHolding) {
+                    expect(namedByNote(spot, notes), JSON.stringify(spot)).toBe(true);
+                }
+            },
         );
     });
 

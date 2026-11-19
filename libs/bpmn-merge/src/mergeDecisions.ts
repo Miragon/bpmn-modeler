@@ -57,6 +57,8 @@ export interface MergeResolution {
     readonly elements: Readonly<Record<string, MergeSide>>;
     /** Every element in the result that is drawn: the side whose DI is taken. */
     readonly layout: Readonly<Record<string, MergeSide>>;
+    /** The lanes drawn from another side than the rest of their pool's lanes, which the build stacks below them. */
+    readonly appendedLanes: readonly string[];
 }
 
 /**
@@ -302,10 +304,10 @@ export class MergeDecisions {
         for (const element of this.elements) {
             elements[element.id] = this.sides.decidedSideOf(element.id) as MergeSide;
         }
-        const layout = layoutSidesOf(this.elements, (id) =>
+        const { sides: layout, appendedLanes } = layoutSidesOf(this.elements, (id) =>
             this.sides.isPresent(id) ? elements[id] : undefined,
         );
-        return { elements, layout };
+        return { elements, layout, appendedLanes };
     }
 
     private get index(): ReferenceIndex {

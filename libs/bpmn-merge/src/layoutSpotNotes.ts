@@ -1,12 +1,15 @@
 import type { BuildNote } from "./buildNotes";
 import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepair, FlowRepairKind } from "./layoutFlowRepair";
+import type { LaneStacking } from "./layoutLaneStacking";
 import type { OverlapRepair } from "./layoutShapeMoves";
 import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
 
 /** What the repair found and did, for the notes. */
 export interface LayoutRepairOutcome {
-    /** The spots of the drawing as the build assembled it. */
+    /** The appended lanes moved below their pool's lanes, which ends the overlaps they lay in. */
+    readonly laneStackings: readonly LaneStacking[];
+    /** The spots of the drawing as the build assembled it, with its appended lanes stacked. */
     readonly spots: readonly LayoutSpot[];
     /** The spots after the shapes moved, which the flow repair worked on; `spots` when none moved. */
     readonly spotsAfterMoves: readonly LayoutSpot[];
@@ -27,7 +30,13 @@ export interface LayoutRepairOutcome {
  * the build brought into its container, whose note says so.
  */
 export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
-    const notes: BuildNote[] = [];
+    const notes: BuildNote[] = outcome.laneStackings.map(({ lane, pool, overlapped }) => ({
+        kind: "lanesOverlap",
+        ids: [lane, ...overlapped],
+        repair: "movedByBuild",
+        moved: lane,
+        pool,
+    }));
     const shapesByNote = new Map<string, string[]>();
     const repairs = new SpotRepairs(outcome);
     for (const spot of spotsToName(outcome, repairs)) {
@@ -87,7 +96,8 @@ class SpotRepairs {
 /**
  * The assembled drawing's overlaps and the shapes the build brought into
  * their containers, its other spots only while still broken after the moves,
- * then the flows a move broke.
+ * then the spots a move made, such as a flow it broke or a boundary event it
+ * carried with its host out of the event's own lane.
  */
 function spotsToName(
     { spots, spotsAfterMoves }: LayoutRepairOutcome,
@@ -104,9 +114,7 @@ function spotsToName(
         isFlowSpot(spot) ? brokenFlows.has(spot.flow) : repaired(spot) || stillThere(spot);
     return [
         ...spots.filter(stillNamed),
-        ...spotsAfterMoves.filter(
-            (spot) => isFlowSpot(spot) && !spots.some((known) => sameSpot(known, spot)),
-        ),
+        ...spotsAfterMoves.filter((spot) => !spots.some((known) => sameSpot(known, spot))),
     ];
 }
 
@@ -133,7 +141,7 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
         case "boundaryEventOffHost":
             return { kind: spot.kind, id: spot.boundaryEvent, host: spot.host };
         case "lanesOverlap":
-            return { kind: spot.kind, ids: [...spot.lanes] };
+            return { kind: spot.kind, ids: [...spot.lanes], repair: "notRepaired" };
     }
 }
 

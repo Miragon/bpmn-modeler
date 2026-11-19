@@ -9,7 +9,7 @@ The merge builds one file from two sides' drawings ([merge](merge.md#building-th
 element keeps its side's drawing, so the result can hold a spot neither side drew: a flow whose
 end one side moved, a task the other side placed on it, a block both sides moved apart. This
 record covers how the build finds those spots, which shapes it moves, which containers it grows,
-which flows it re-routes and what it tells the reviewer (#2565).
+which lanes it stacks, which flows it re-routes and what it tells the reviewer (#2565, #2567).
 
 ## Decision
 
@@ -43,8 +43,27 @@ which flows it re-routes and what it tells the reviewer (#2565).
   others, within a budget per harvested case (`buildMergedRepairLocality.spec.ts`, on 37
   copied fuzz inputs, which also keeps a result with no broken flow byte-equal); every build
   plans the repair (`layoutFlowRepairTime.spec.ts`).
+- *The build stacks a lane drawn apart from its pool's lanes below them.* The layout-side rule
+  draws a pool and its lanes from one side ([merge](merge.md#decisions-and-reference-rules)), so
+  only a lane that side does not draw in place, such as one only the other side has, comes from
+  the other side and may lie on the block. Each such lane the detector names in an overlap
+  moves first, in the result's order, at its own height below its siblings, as wide as they
+  are; the pool and its parent lanes grow to hold it, and what lies below the band on the
+  plane shifts down, the flows to it stretching, as the modeler's space tool does. Its members
+  stay where they lie, so the container step brings them into the band, following the side
+  that drew them in the lane. The note says the build moved the lane below the others and grew
+  the pool; a lane overlap left says the build could not repair it. Rejected: moving member
+  shapes between overlapping bands, which rewrites what each band holds and moves shapes
+  neither side moved (about two more days, decided against on #2565); each lane from its own
+  side, which overlapped 28 times on the harvest of 507 results. Cost: the pool grows taller
+  than either side drew it; a boundary event in another lane than its host lay in both while
+  they overlapped and is now noted outside its lane; lanes of a process no pool of the result
+  draws are not stacked; a result with no lane overlap stays byte-equal to the build without
+  this step (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
+  within a fraction of parsing an 800 KB file (`layoutFlowRepairTime.spec.ts`).
 - *The build brings a shape it placed outside its container back inside, and grows the
-  container only as a last resort.* Before any other move, each shape the detector names as
+  container only as a last resort.* Once the lanes are stacked and before any other move, each
+  shape the detector names as
   introduced outside its sub-process, pool or lane goes inside, with its label, boundary events
   and contents; never a boundary event on its own. It goes first as a side that draws it where it
   lies moved the container, or else a sibling in that container, nearest first, both read at
@@ -56,14 +75,14 @@ which flows it re-routes and what it tells the reviewer (#2565).
   grow the sub-process to every side, or the pool with its lanes sideways, to hold the shape
   where it lies; a sub-process grown right onto what lies beyond it shifts its pool's shapes past
   its old right side as making room does. A growth that adds any shape spot is dropped and the
-  shape noted as not repaired. A lane never grows: restacking lanes waits for lanes drawn from
-  one side (#2567), so a shape goes into its lane's band only where the band holds it. The note
+  shape noted as not repaired. A lane never grows to hold a shape, as lanes are stacked, so a
+  shape goes into its lane's band only where the band holds it. The note
   says the build moved the shape into its containers, or grew them and what it shifted; an
   overlap such a move resolved names the moved shape. Rejected: growing first, which widens a
   pool or sub-process where a free place lies inside; leaving the shape where it lies, which
   leaves a task drawn in another lane or outside the sub-process it belongs to. Cost: a lane
-  one side drew in another band takes in all its members where the band holds them, crammed
-  until lanes come from one side; growth shifts only right; each growth finds the spots of the
+  the side of its pool's lanes drew smaller takes in the members the other side placed in its
+  larger band only where the band holds them, crammed; growth shifts only right; each growth finds the spots of the
   whole drawing once (`layoutFlowRepairTime.spec.ts`); a result with no shape outside its
   container stays byte-equal to the build without this step (`buildMergedRepairLocality.spec.ts`).
 - *The build moves the shape it placed off a shape from the other side, and makes room only
@@ -99,7 +118,7 @@ which flows it re-routes and what it tells the reviewer (#2565).
 ## Consequences
 
 - Shapes keep their side's coordinates, and so does every flow the merge did not break, unless
-  the build moved a shape into its container or off another, or grew a container or made room;
-  a moved shape, a grown container, a shifted shape and a re-routed flow differ from both sides
-  and a note names them. A boundary event off its host and lanes that overlap are still named,
-  not moved.
+  the build stacked a lane, moved a shape into its container or off another, or grew a
+  container or made room; a stacked lane, a moved shape, a grown container, a shifted shape and
+  a re-routed flow differ from both sides and a note names them. A boundary event off its host
+  is still named, not moved, and so are lanes that overlap in a process without a pool.

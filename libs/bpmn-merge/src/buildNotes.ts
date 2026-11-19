@@ -59,7 +59,14 @@ export type BuildNote =
           readonly ids: readonly string[];
       } & OverlapNoteRepair)
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
-    | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
+    | ({
+          /** Lanes of one pool on top of each other, with the lane the build moved below the others and the pool it grew. */
+          readonly kind: "lanesOverlap";
+          readonly ids: readonly string[];
+      } & (
+          | { readonly repair: "movedByBuild"; readonly moved: string; readonly pool: string }
+          | { readonly repair: "notRepaired" }
+      ))
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;

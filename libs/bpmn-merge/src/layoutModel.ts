@@ -36,6 +36,8 @@ export interface LaneShape extends DrawnShape {
     readonly kind: "lane";
     /** The lane or the process whose lane set holds the lane: lanes with one parent are stacked. */
     readonly parent: string;
+    /** The pool drawing the lane's process. */
+    readonly pool?: string;
 }
 
 interface PoolShape extends DrawnShape {

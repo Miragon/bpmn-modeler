@@ -5,8 +5,10 @@ import {
     type ConflictState,
     type ElementState,
     type MergeSide,
+    type LayoutState,
     type ResolvedState,
     addedOnlyBy,
+    combinedLayoutOf,
     isConflictState,
 } from "./mergeResult";
 
@@ -55,5 +57,18 @@ describe("addedOnlyBy", () => {
         ["unchanged", "current", false],
     ])("counts a %s element as added only by %s: %s", (state, side, added) => {
         expect(addedOnlyBy(mergeElement("Task", state), side)).toBe(added);
+    });
+});
+
+describe("combinedLayoutOf", () => {
+    it.each<{ layouts: LayoutState[]; combined: LayoutState }>([
+        { layouts: [], combined: "unchanged" },
+        { layouts: ["unchanged", "unchanged"], combined: "unchanged" },
+        { layouts: ["unchanged", "takenFromIncoming"], combined: "takenFromIncoming" },
+        { layouts: ["takenFromCurrent", "unchanged"], combined: "takenFromCurrent" },
+        { layouts: ["takenFromCurrent", "takenFromIncoming"], combined: "bothChanged" },
+        { layouts: ["bothChanged", "unchanged"], combined: "bothChanged" },
+    ])("combines $layouts into $combined", ({ layouts, combined }) => {
+        expect(combinedLayoutOf(layouts)).toBe(combined);
     });
 });

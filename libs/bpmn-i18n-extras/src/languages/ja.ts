@@ -373,7 +373,10 @@ const dictionary: Record<string, string> = {
     "{element} lies outside {shapes}; the build could not repair it":
         "{element} が {shapes} の外側にあります。生成時に修正できませんでした",
     "{element} is not on the border of {host}": "{element} が {host} の境界線上にありません",
-    "{first} and {second} overlap": "{first} と {second} が重なっています",
+    "The build moved {element} below the other lanes and grew {pool} to hold it":
+        "生成時に {element} を他のレーンの下へ移動し、収まるよう {pool} を広げました",
+    "{first} and {second} overlap; the build could not repair it":
+        "{first} と {second} が重なっています。生成時に修正できませんでした",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} は、反対側が一緒に削除したフローなしで保持されています: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

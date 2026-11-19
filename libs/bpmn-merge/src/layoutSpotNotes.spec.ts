@@ -12,7 +12,11 @@ const NOT_REPAIRED: FlowRepair[] = [
     { kind: "notRepaired", flow: "Flow_Loop" },
 ];
 
-const NO_CONTAINER_REPAIRS = { containerRepairs: [], shapesMovedForContainers: [] } as const;
+const NO_FRAME_REPAIRS = {
+    laneStackings: [],
+    containerRepairs: [],
+    shapesMovedForContainers: [],
+} as const;
 
 describe("layoutSpotNotes", () => {
     it("gives one note per flow for its ends and for the shapes it runs through", () => {
@@ -151,6 +155,7 @@ describe("layoutSpotNotes", () => {
         ];
 
         const notes = layoutSpotNotes({
+            laneStackings: [],
             spots: [
                 outside("Task_A", "Pool_1"),
                 outside("Task_A", "Lane_1"),
@@ -189,6 +194,7 @@ describe("layoutSpotNotes", () => {
 
     it("says the build moved a shape off another when bringing it into its container did", () => {
         const notes = layoutSpotNotes({
+            laneStackings: [],
             spots: [
                 { kind: "shapesOverlap", shapes: ["Task_A", "Task_B"] },
                 { kind: "shapeOutsideContainer", shape: "Task_B", container: "Sub_1" },
@@ -231,7 +237,7 @@ describe("layoutSpotNotes", () => {
             { kind: "shapesOverlap", ids: ["Task_A", "Task_B"], repair: "notRepaired" },
             { kind: "shapesOverlap", ids: ["Task_A", "Task_C"], repair: "notRepaired" },
             { kind: "boundaryEventOffHost", id: "Boundary_1", host: "Task_A" },
-            { kind: "lanesOverlap", ids: ["Lane_A", "Lane_B"] },
+            { kind: "lanesOverlap", ids: ["Lane_A", "Lane_B"], repair: "notRepaired" },
         ]);
     });
 
@@ -288,7 +294,7 @@ describe("layoutSpotNotes", () => {
         const notes = layoutSpotNotes({
             spots: [overlap, throughMoved],
             spotsAfterMoves: [offMoved("Flow_In"), offMoved("Flow_Stuck")],
-            ...NO_CONTAINER_REPAIRS,
+            ...NO_FRAME_REPAIRS,
             overlapRepairs: [
                 { kind: "movedByBuild", shapes: ["Task_A", "Task_B"], moved: "Task_B" },
             ],
@@ -326,7 +332,7 @@ describe("layoutSpotNotes", () => {
 
         const notes = layoutSpotNotes({
             spots: [overlap, outsideLane, offHost],
-            ...NO_CONTAINER_REPAIRS,
+            ...NO_FRAME_REPAIRS,
             spotsAfterMoves: [{ kind: "boundaryEventOffHost", host: "H", boundaryEvent: "B" }],
             overlapRepairs: [
                 { kind: "movedByBuild", shapes: ["Task_T", "Task_X"], moved: "Task_T" },
@@ -344,6 +350,59 @@ describe("layoutSpotNotes", () => {
             { kind: "boundaryEventOffHost", id: "B", host: "H" },
         ]);
     });
+
+    it("names a shape a move carried out of its lane, as its host went into its own", () => {
+        const notes = layoutSpotNotes({
+            ...NO_FRAME_REPAIRS,
+            spots: [{ kind: "shapeOutsideContainer", shape: "Task_A", container: "Lane_A" }],
+            spotsAfterMoves: [
+                { kind: "shapeOutsideContainer", shape: "Boundary_1", container: "Lane_B" },
+            ],
+            containerRepairs: [
+                { kind: "movedIntoContainer", shape: "Task_A", container: "Lane_A" },
+            ],
+            shapesMovedForContainers: ["Task_A", "Boundary_1"],
+            overlapRepairs: [],
+            flowRepairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_A",
+                shapes: ["Lane_A"],
+                repair: "movedIntoContainer",
+            },
+            {
+                kind: "shapeOutsideContainer",
+                id: "Boundary_1",
+                shapes: ["Lane_B"],
+                repair: "notRepaired",
+            },
+        ]);
+    });
+
+    it("says the build moved a lane below its pool's lanes and grew the pool, before the spots it left", () => {
+        const notes = layoutSpotNotes({
+            ...NO_FRAME_REPAIRS,
+            laneStackings: [{ lane: "Lane_C", pool: "Pool_1", overlapped: ["Lane_A", "Lane_B"] }],
+            spots: [{ kind: "lanesOverlap", lanes: ["Lane_D", "Lane_E"] }],
+            spotsAfterMoves: [{ kind: "lanesOverlap", lanes: ["Lane_D", "Lane_E"] }],
+            overlapRepairs: [],
+            flowRepairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_C", "Lane_A", "Lane_B"],
+                repair: "movedByBuild",
+                moved: "Lane_C",
+                pool: "Pool_1",
+            },
+            { kind: "lanesOverlap", ids: ["Lane_D", "Lane_E"], repair: "notRepaired" },
+        ]);
+    });
 });
 
 /** The notes of spots no shape move changed. */
@@ -355,7 +414,7 @@ function notesOf(
     return layoutSpotNotes({
         spots,
         spotsAfterMoves: spots,
-        ...NO_CONTAINER_REPAIRS,
+        ...NO_FRAME_REPAIRS,
         overlapRepairs,
         flowRepairs,
     });

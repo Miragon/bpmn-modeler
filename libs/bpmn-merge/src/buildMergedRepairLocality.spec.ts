@@ -25,6 +25,7 @@ const HARVEST = import.meta.glob<string>("./__fixtures__/harvest/*.bpmn", {
 type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRandom";
 
 const NO_REPAIRS: LayoutRepairPlanners = {
+    stackLanes: (layout) => ({ layout, stacked: [] }),
     moveIntoContainers: (layout) => ({ layout, repairs: [], movedShapes: [] }),
     moveShapes: (layout) => ({ layout, repairs: [] }),
     repairFlows: () => [],
@@ -32,13 +33,20 @@ const NO_REPAIRS: LayoutRepairPlanners = {
 
 const FLOW_REPAIRS_ONLY: LayoutRepairPlanners = {
     ...BUILD_LAYOUT_REPAIRS,
+    stackLanes: NO_REPAIRS.stackLanes,
     moveIntoContainers: NO_REPAIRS.moveIntoContainers,
     moveShapes: NO_REPAIRS.moveShapes,
 };
 
 const WITHOUT_CONTAINER_REPAIRS: LayoutRepairPlanners = {
     ...BUILD_LAYOUT_REPAIRS,
+    stackLanes: NO_REPAIRS.stackLanes,
     moveIntoContainers: NO_REPAIRS.moveIntoContainers,
+};
+
+const WITHOUT_LANE_STACKING: LayoutRepairPlanners = {
+    ...BUILD_LAYOUT_REPAIRS,
+    stackLanes: NO_REPAIRS.stackLanes,
 };
 
 function versionsOf(seed: number): MergeVersions {
@@ -91,8 +99,8 @@ interface HarvestCase {
 
 /**
  * The harvest results the design prototype changed although no spot was introduced, four the
- * flow repair re-routes, those with shapes on top of each other, and those with shapes outside
- * their sub-process or lane (#2565).
+ * flow repair re-routes, those with shapes on top of each other, those with shapes outside
+ * their sub-process or lane (#2565), and those with lanes on top of each other (#2567).
  */
 const CASES: readonly HarvestCase[] = [
     ...(
@@ -149,7 +157,6 @@ const CASES: readonly HarvestCase[] = [
             [113, "conflictsToCurrent", 0],
             [135, "conflictsToCurrent", 0],
             [135, "conflictsToIncoming", 0],
-            [135, "conflictsAtRandom", 0],
             [153, "conflictsAtRandom", 0],
             [191, "conflictsToCurrent", 0],
         ] as const
@@ -170,6 +177,11 @@ const CASES: readonly HarvestCase[] = [
             [153, "conflictsAtRandom", 0, []],
             [159, "conflictsToIncoming", 0, []],
             [159, "conflictsAtRandom", 0, []],
+            [21, "conflictsToIncoming", 0, ["Boundary_Timeout"]],
+            [38, "conflictsToCurrent", 0, ["Boundary_Timeout", "Boundary_N2"]],
+            [47, "conflictsToIncoming", 2, []],
+            [47, "conflictsAtRandom", 0, []],
+            [135, "conflictsAtRandom", 0, ["Boundary_Timeout"]],
         ] as const
     ).map(([seed, strategy, crossingBudget, leftOutside]) => ({
         seed,
@@ -192,6 +204,7 @@ describe("the layout repair on harvested merges", () => {
             const unrepaired = await buildWith(NO_REPAIRS);
             const flowsRepaired = await buildWith(FLOW_REPAIRS_ONLY);
             const withoutContainers = await buildWith(WITHOUT_CONTAINER_REPAIRS);
+            const withoutStacking = await buildWith(WITHOUT_LANE_STACKING);
             const repaired = await buildMerged(
                 sources,
                 await decisionsOf(versions, seed, strategy),
@@ -204,16 +217,25 @@ describe("the layout repair on harvested merges", () => {
 
             if (before.length === 0) expect(repaired.xml).toBe(unrepaired.xml);
             const hasSpot = (kind: LayoutSpot["kind"]) => before.some((spot) => spot.kind === kind);
-            if (!hasSpot("shapeOutsideContainer")) expect(repaired.xml).toBe(withoutContainers.xml);
-            if (!hasSpot("shapeOutsideContainer") && !hasSpot("shapesOverlap")) {
+            if (!hasSpot("lanesOverlap")) expect(repaired.xml).toBe(withoutStacking.xml);
+            const framesHeld = !hasSpot("lanesOverlap") && !hasSpot("shapeOutsideContainer");
+            if (framesHeld) expect(repaired.xml).toBe(withoutContainers.xml);
+            if (framesHeld && !hasSpot("shapesOverlap")) {
                 expect(repaired.xml).toBe(flowsRepaired.xml);
             }
             expect(repairsOf(unrepaired.xml, flowsRepaired.xml, repaired.xml)).toBe(repairs);
-            expect(after.filter((spot) => !before.some((known) => sameSpot(known, spot)))).toEqual(
-                [],
-            );
-            expect(kindsOf(after).filter((kind) => !kindsOf(before).includes(kind))).toEqual([]);
-            expect(after.length).toBeLessThanOrEqual(before.length);
+            // A boundary event in another lane than its host lay in both while the lanes overlapped.
+            const carriedOutOfItsLane = (spot: LayoutSpot) =>
+                spot.kind === "shapeOutsideContainer" && leftOutside.includes(spot.shape);
+            const afterBeyondLanes = after.filter((spot) => !carriedOutOfItsLane(spot));
+            expect(
+                afterBeyondLanes.filter((spot) => !before.some((known) => sameSpot(known, spot))),
+            ).toEqual([]);
+            expect(
+                kindsOf(afterBeyondLanes).filter((kind) => !kindsOf(before).includes(kind)),
+            ).toEqual([]);
+            expect(afterBeyondLanes.length).toBeLessThanOrEqual(before.length);
+            expect(after.filter(({ kind }) => kind === "lanesOverlap")).toEqual([]);
             expect(crossingsOf(repairedLayout) - crossingsOf(unrepairedLayout)).toBeLessThanOrEqual(
                 crossingBudget,
             );

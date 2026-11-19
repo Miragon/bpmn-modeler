@@ -365,7 +365,10 @@ const dictionary: Record<string, string> = {
         "{element}이(가) {shapes} 밖에 있습니다. 생성 시 고칠 수 없었습니다",
     "{element} is not on the border of {host}":
         "{element}이(가) {host}의 테두리 위에 있지 않습니다",
-    "{first} and {second} overlap": "{first}와(과) {second}이(가) 겹칩니다",
+    "The build moved {element} below the other lanes and grew {pool} to hold it":
+        "생성 시 {element}을(를) 다른 레인 아래로 옮기고 들어가도록 {pool}을(를) 넓혔습니다",
+    "{first} and {second} overlap; the build could not repair it":
+        "{first}와(과) {second}이(가) 겹칩니다. 생성 시 고칠 수 없었습니다",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

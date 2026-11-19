@@ -60,6 +60,7 @@ describe("removedWith", () => {
                 ]),
             ),
             layout: {},
+            appendedLanes: [],
         });
 
         expect(restoredWithoutRemovedWithNotes(result, resolution(["Task", "Flow_In"]))).toEqual([

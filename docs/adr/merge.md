@@ -176,10 +176,17 @@ parser and asserts that the module still loads.
   parent, lane, host or between other ends, since bpmn-js reads lane membership and
   attachment from geometry, and from the other side when neither draws it in place: a
   process one side drew only through a pool the result drops takes the other side's
-  plane, unless a pool of the result draws it. Containers settle first: an element follows its host, parent,
-  pool or lane when that side moved the container, or when its own side draws it on
-  another plane (a collapsed sub-process), and a flow follows its ends when one of them had
-  to.
+  plane, unless a pool of the result draws it. A pool and the lanes of its process prefer one
+  side together, chosen as for one element from all their layouts: current's unless only
+  incoming changed the pool or one of its lanes. Lanes are stacked, and one side's lanes next
+  to the other's overlapped and drew a task in another lane's band (28 overlaps over the 507
+  results of the #2565 harvest). A lane that side does not draw in place keeps its own side,
+  and the build stacks it below the others ([merge layout](merge-layout.md)). Containers
+  settle first: an element follows its host, parent, pool or lane when that side moved the
+  container, or when its own side draws it on another plane (a collapsed sub-process), and a
+  flow follows its ends when one of them had to. Cost of the lanes' block: a lane only the
+  other side resized takes the block side's band, so a member that side moved may lie outside
+  it until the build brings it in.
 
 ### Versions merged by hand
 
