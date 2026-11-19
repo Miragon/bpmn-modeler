@@ -1,6 +1,3 @@
-import type { MergeContainerRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
-
-import type { RepairOf } from "./buildNotes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
@@ -10,24 +7,21 @@ import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./l
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
 import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
+import type { ContainerRepair, SpotRepair } from "./layoutSpotRepairs";
 import { type LayoutSpot, liesOutside } from "./layoutSpots";
-
-/** What the build did about one shape outside its containers. */
-type ShapeRepair = RepairOf<MergeContainerRepair>;
-
-/** What the build did about a shape outside its sub-process, pool or lane. */
-export type ContainerRepair = ShapeRepair & { readonly shape: string; readonly container: string };
 
 export interface ContainerMovePlan {
     /** The drawing with every repair applied; the input itself when nothing changed. */
     readonly layout: LayoutModel;
-    /** One per spot of a shape outside its container, in the spots' order. */
-    readonly repairs: readonly ContainerRepair[];
-    /** The shapes a repair moved or shifted, which may have left a shape they lay on. */
-    readonly movedShapes: readonly string[];
+    /**
+     * One per spot of a shape outside its container, in the spots' order, then
+     * one per overlap of the spots a repair moved or shifted a shape of, which
+     * may have left the shape it lay on.
+     */
+    readonly repairs: readonly SpotRepair[];
 }
 
-const NOT_REPAIRED: ShapeRepair = { kind: "notRepaired" };
+const NOT_REPAIRED: ContainerRepair = { kind: "notRepaired" };
 
 /**
  * Brings every shape the build placed outside its containers that the spots
@@ -47,9 +41,9 @@ export function planContainerMoves(
     sides: readonly LayoutModel[],
 ): ContainerMovePlan {
     const outside = spots.flatMap((spot) => (spot.kind === "shapeOutsideContainer" ? [spot] : []));
-    if (outside.length === 0) return { layout, repairs: [], movedShapes: [] };
+    if (outside.length === 0) return { layout, repairs: [] };
     const repairer = new ContainerRepairer(layout, sides);
-    const repairs = new Map<string, ShapeRepair>();
+    const repairs = new Map<string, ContainerRepair>();
     for (const id of outermostShapesFirst(
         layout,
         outside.map(({ shape }) => shape),
@@ -61,13 +55,23 @@ export function planContainerMoves(
     }
     return {
         layout: repairer.layout,
-        repairs: outside.map(({ shape, container }) => ({
-            ...(repairs.get(shape) ?? NOT_REPAIRED),
-            shape,
-            container,
-        })),
-        movedShapes: repairer.movedShapes,
+        repairs: [
+            ...outside.map((spot) => ({ spot, repair: repairs.get(spot.shape) ?? NOT_REPAIRED })),
+            ...overlapsMovedOff(spots, repairer.movedShapes),
+        ],
     };
+}
+
+/** The overlaps of the spots one of whose shapes a repair moved, named after the first such shape of the pair. */
+function overlapsMovedOff(
+    spots: readonly LayoutSpot[],
+    movedShapes: readonly string[],
+): SpotRepair[] {
+    return spots.flatMap((spot) => {
+        if (spot.kind !== "shapesOverlap") return [];
+        const moved = spot.shapes.find((id) => movedShapes.includes(id));
+        return moved === undefined ? [] : [{ spot, repair: { kind: "movedByBuild", moved } }];
+    });
 }
 
 /** Brings shapes into their containers one after another, on a draft of the drawing. */
@@ -76,7 +80,7 @@ class ContainerRepairer {
     private readonly room: RoomContext;
     private draft: DrawingDraft;
     /** The repair that changed each shape so far. */
-    private readonly changes = new Map<string, ShapeRepair>();
+    private readonly changes = new Map<string, ContainerRepair>();
     readonly movedShapes: string[] = [];
 
     constructor(
@@ -93,7 +97,7 @@ class ContainerRepairer {
     }
 
     /** Brings the shape inside those of the containers it still lies outside. */
-    repair(id: string, containers: readonly string[]): ShapeRepair {
+    repair(id: string, containers: readonly string[]): ContainerRepair {
         const { draft } = this;
         const node = draft.node(id);
         if (node === undefined) return NOT_REPAIRED;
@@ -108,14 +112,14 @@ class ContainerRepairer {
             sidesMove(draft, group, frames, this.sides) ?? nearestPlaceInside(draft, group, frames);
         if (move !== undefined) {
             draft.translate(group, move.dx, move.dy);
-            const repair: ShapeRepair = { kind: "movedIntoContainer" };
+            const repair: ContainerRepair = { kind: "movedIntoContainer" };
             for (const member of group.members) this.changes.set(member, repair);
             this.movedShapes.push(...group.members);
             return repair;
         }
         const grown = growFrameFor(draft, this.room, group, frames);
         if (grown === undefined) return NOT_REPAIRED;
-        const repair: ShapeRepair =
+        const repair: ContainerRepair =
             grown.shifted.length === 0
                 ? { kind: "grewContainer" }
                 : { kind: "grewContainerAndShifted", shifted: grown.shifted };
@@ -143,8 +147,8 @@ function outermostShapesFirst(layout: LayoutModel, ids: readonly string[]): stri
 function resolvedEarlier(
     id: string,
     containers: readonly string[],
-    changes: ReadonlyMap<string, ShapeRepair>,
-): ShapeRepair {
+    changes: ReadonlyMap<string, ContainerRepair>,
+): ContainerRepair {
     return (
         changes.get(id) ??
         containers

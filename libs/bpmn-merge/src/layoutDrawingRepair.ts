@@ -11,6 +11,7 @@ import { writeLayoutChanges } from "./layoutRepairWriter";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { layoutSpotNotes } from "./layoutSpotNotes";
+import { flowSpotRepairs } from "./layoutSpotRepairs";
 import type { LayoutSpot } from "./layoutSpots";
 
 /** How the build repairs the drawing the merge broke; the specs build with less to compare. */
@@ -75,10 +76,11 @@ export function planLayoutRepair(
             laneStackings: laneStacks.stacked,
             spots,
             spotsAfterMoves,
-            containerRepairs: containerMoves.repairs,
-            shapesMovedForContainers: containerMoves.movedShapes,
-            overlapRepairs: shapeMoves.repairs,
-            flowRepairs,
+            repairs: [
+                ...containerMoves.repairs,
+                ...shapeMoves.repairs,
+                ...flowSpotRepairs(spotsAfterMoves, flowRepairs),
+            ],
         }),
     };
 }

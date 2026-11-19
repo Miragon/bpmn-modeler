@@ -150,6 +150,13 @@ export function sameSpot(first: LayoutSpot, second: LayoutSpot): boolean {
     }
 }
 
+/** Whether one repair acts on both spots: a re-route on every spot of its flow, any other repair on its own spot alone. */
+export function repairedTogether(first: LayoutSpot, second: LayoutSpot): boolean {
+    return isFlowSpot(first) && isFlowSpot(second)
+        ? first.flow === second.flow
+        : sameSpot(first, second);
+}
+
 function samePair(first: readonly [string, string], second: readonly [string, string]): boolean {
     return (
         (first[0] === second[0] && first[1] === second[1]) ||

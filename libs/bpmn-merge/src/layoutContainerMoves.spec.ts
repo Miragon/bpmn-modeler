@@ -82,6 +82,14 @@ function planOf(result: LayoutModel, sides: readonly LayoutModel[]): ContainerMo
 
 const boundsIn = (plan: ContainerMovePlan, id: string) => plan.layout.shapes.get(id)?.bounds;
 
+/** Each repair of a shape outside its container, with the shape and the container. */
+const shapeRepairsOf = (plan: ContainerMovePlan) =>
+    plan.repairs.flatMap(({ spot, repair }) =>
+        spot.kind === "shapeOutsideContainer"
+            ? [{ ...repair, shape: spot.shape, container: spot.container }]
+            : [],
+    );
+
 const outsideOf = (layout: LayoutModel, sides: readonly LayoutModel[]): LayoutSpot[] =>
     introducedLayoutSpots(layout, sides).filter(({ kind }) => kind === "shapeOutsideContainer");
 
@@ -102,7 +110,7 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "movedIntoContainer", shape: "Task_In", container: "Sub_1" },
             { kind: "movedIntoContainer", shape: "Timer_1", container: "Sub_1" },
         ]);
@@ -129,7 +137,7 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "movedIntoContainer", shape: "Start_In", container: "Sub_1" },
         ]);
         expect(boundsIn(plan, "Start_In")).toEqual(box(640, 122, 36, 36));
@@ -150,7 +158,7 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "movedIntoContainer", shape: "Start_In", container: "Sub_1" },
         ]);
         expect(liesWithin(boundsIn(plan, "Start_In")!, innerBoundsOf(sub))).toBe(true);
@@ -174,7 +182,7 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "notRepaired", shape: "Task_M", container: "Lane_1" },
         ]);
         expect(plan.layout).toBe(result);
@@ -190,7 +198,7 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "movedIntoContainer", shape: "Task_N", container: "Sub_1" },
         ]);
         expect(boundsIn(plan, "Task_N")).toEqual(box(570, 100));
@@ -210,7 +218,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "movedIntoContainer", shape: "Task_M", container: "Lane_1" },
             ]);
             expect(boundsIn(plan, "Task_M")).toEqual(box(300, 60));
@@ -225,7 +233,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "movedIntoContainer", shape: "Task_M", container: "Lane_2" },
             ]);
             expect(boundsIn(plan, "Task_M")).toEqual(box(300, 190));
@@ -247,7 +255,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "movedIntoContainer", shape: "Task_N", container: "Sub_1" },
             ]);
             expect(boundsIn(plan, "Task_N")).toEqual(box(410, 200));
@@ -262,7 +270,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "notRepaired", shape: "Task_M", container: "Lane_1" },
             ]);
             expect(plan.layout).toBe(result);
@@ -284,7 +292,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "grewContainer", shape: "Task_Z", container: "Pool_1" },
                 { kind: "grewContainer", shape: "Task_Z", container: "Lane_1" },
             ]);
@@ -312,7 +320,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 {
                     kind: "grewContainerAndShifted",
                     shape: "Task_Z",
@@ -359,7 +367,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 {
                     kind: "grewContainerAndShifted",
                     shape: "Task_Z",
@@ -387,7 +395,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "notRepaired", shape: "Task_Z", container: "Pool_1" },
                 { kind: "notRepaired", shape: "Task_Z", container: "Lane_1" },
             ]);
@@ -413,7 +421,7 @@ describe("planContainerMoves", () => {
 
             const plan = planOf(result, [current, incoming]);
 
-            expect(plan.repairs).toEqual([
+            expect(shapeRepairsOf(plan)).toEqual([
                 { kind: "notRepaired", shape: "Task_Z", container: "Sub_1" },
             ]);
             expect(plan.layout).toBe(result);
@@ -434,10 +442,30 @@ describe("planContainerMoves", () => {
 
         const plan = planOf(result, [current, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(shapeRepairsOf(plan)).toEqual([
             { kind: "notRepaired", shape: "Timer_1", container: "Sub_1" },
         ]);
         expect(plan.layout).toBe(result);
+    });
+
+    it("names an overlap of the spots after the first shape of the pair it moved, and leaves the overlaps it moved no shape of", () => {
+        const movedSub = node("Sub_1", box(600, 40, 300, 200), { expanded: true });
+        const task = node("Task_In", box(340, 80), IN_SUB);
+        const result = layoutOf([movedSub, task]);
+        const current = layoutOf([{ ...movedSub, bounds: box(300, 40, 300, 200) }, task]);
+        const sides = [current, layoutOf([movedSub])];
+        const movedOff = { kind: "shapesOverlap", shapes: ["Task_Y", "Task_In"] } as const;
+        const untouched = { kind: "shapesOverlap", shapes: ["Task_Y", "Task_Z"] } as const;
+
+        const plan = planContainerMoves(
+            result,
+            [...introducedLayoutSpots(result, sides), movedOff, untouched],
+            sides,
+        );
+
+        expect(plan.repairs.filter(({ spot }) => spot.kind === "shapesOverlap")).toEqual([
+            { spot: movedOff, repair: { kind: "movedByBuild", moved: "Task_In" } },
+        ]);
     });
 
     it("returns the drawing itself when no shape lies outside its container", () => {
@@ -446,7 +474,6 @@ describe("planContainerMoves", () => {
         expect(planContainerMoves(result, [], [result, result])).toEqual({
             layout: result,
             repairs: [],
-            movedShapes: [],
         });
     });
 });

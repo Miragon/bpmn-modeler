@@ -77,6 +77,12 @@ const overlapsOf = (layout: LayoutModel): LayoutSpot[] =>
 
 const boundsIn = (plan: ShapeMovePlan, id: string) => plan.layout.shapes.get(id)?.bounds;
 
+/** Each overlap's repair with the pair it acted on. */
+const pairRepairsOf = (plan: ShapeMovePlan) =>
+    plan.repairs.flatMap(({ spot, repair }) =>
+        spot.kind === "shapesOverlap" ? [{ ...repair, shapes: spot.shapes }] : [],
+    );
+
 const TASK_X = node("Task_X", box(300, 110));
 
 describe("planShapeMoves", () => {
@@ -86,7 +92,7 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, overlapsOf(result), [result, incoming]);
 
-        expect(plan.repairs).toEqual([
+        expect(pairRepairsOf(plan)).toEqual([
             { kind: "movedByBuild", shapes: ["Task_X", "Task_R"], moved: "Task_R" },
         ]);
         expect(boundsIn(plan, "Task_R")).toEqual(box(560, 110));
@@ -100,7 +106,7 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-        expect(plan.repairs).toEqual([
+        expect(pairRepairsOf(plan)).toEqual([
             { kind: "movedByBuild", shapes: ["Task_X", "Task_Y"], moved: "Task_Y" },
         ]);
         expect(boundsIn(plan, "Task_Y")).toEqual(box(420, 110));
@@ -217,7 +223,7 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-        expect(plan.repairs).toEqual([
+        expect(pairRepairsOf(plan)).toEqual([
             { kind: "movedByBuild", shapes: ["Task_X", "Sub_1"], moved: "Sub_1" },
             { kind: "movedByBuild", shapes: ["Task_X", "Task_In"], moved: "Task_In" },
         ]);
@@ -251,7 +257,7 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-        expect(plan.repairs).toEqual([
+        expect(pairRepairsOf(plan)).toEqual([
             { kind: "movedByBuild", shapes: ["Timer_1", "Task_Y"], moved: "Task_Y" },
         ]);
         expect(boundsIn(plan, "Timer_1")).toEqual(timer.bounds);
@@ -268,7 +274,7 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-        expect(plan.repairs).toEqual([
+        expect(pairRepairsOf(plan)).toEqual([
             { kind: "movedByBuild", shapes: ["Task_X", "Task_Y"], moved: "Task_Y" },
             { kind: "movedByBuild", shapes: ["Task_Z", "Task_Y"], moved: "Task_Y" },
         ]);
@@ -299,7 +305,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_3", "Task_Y"],
@@ -338,7 +344,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_3", "Task_Y"],
@@ -362,7 +368,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_4", "Task_Y"],
@@ -402,7 +408,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     {
                         kind: "madeRoom",
                         shapes: ["Task_1", "Task_Y"],
@@ -436,7 +442,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     { kind: "movedByBuild", shapes: ["Task_1", "Task_Y"], moved: "Task_Y" },
                 ]);
                 expect(boundsIn(plan, "Task_Y")).toEqual(box(510, 210));
@@ -484,7 +490,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     {
                         kind: "madeRoom",
                         shapes: ["Task_1", "Task_Y"],
@@ -513,7 +519,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, introduced, [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     {
                         kind: "madeRoom",
                         shapes: ["Task_1", "Task_Y"],
@@ -545,7 +551,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     { kind: "movedByBuild", shapes: ["Timer_1", "Task_Y"], moved: "Task_Y" },
                 ]);
                 expect(boundsIn(plan, "Task_Y")).toEqual(box(500, 228));
@@ -562,7 +568,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs).toEqual([
+                expect(pairRepairsOf(plan)).toEqual([
                     { kind: "movedByBuild", shapes: ["Task_1", "Task_Y"], moved: "Task_Y" },
                 ]);
                 expect(boundsIn(plan, "Task_Y")).toEqual(box(500, 210));
@@ -577,7 +583,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_3", "Task_Y"],
@@ -599,7 +605,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 { kind: "movedByBuild", shapes: ["Task_0", "Task_Y"], moved: "Task_Y" },
             ]);
             expect(boundsIn(plan, "Task_Y")).toEqual(box(250, 90));
@@ -619,7 +625,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_3", "Task_Y"],
@@ -653,8 +659,8 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, spots, [current, current]);
 
-            expect(plan.repairs[0]).toMatchObject({ kind: "madeRoom", moved: "Task_Y" });
-            expect(plan.repairs[1]).toEqual({
+            expect(pairRepairsOf(plan)[0]).toMatchObject({ kind: "madeRoom", moved: "Task_Y" });
+            expect(pairRepairsOf(plan)[1]).toEqual({
                 kind: "movedByBuild",
                 shapes: ["Task_C", "Task_D"],
                 moved: "Task_C",
@@ -676,8 +682,8 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, spots, [current, current]);
 
-            expect(plan.repairs[0]).toMatchObject({ moved: "Task_A" });
-            expect(plan.repairs[1]).toMatchObject({
+            expect(pairRepairsOf(plan)[0]).toMatchObject({ moved: "Task_A" });
+            expect(pairRepairsOf(plan)[1]).toMatchObject({
                 kind: "movedByBuild",
                 shapes: ["Task_4", "Timer_1"],
                 moved: "Timer_1",
@@ -704,7 +710,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_3", "Task_Y"],
@@ -738,7 +744,7 @@ describe("planShapeMoves", () => {
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-                expect(plan.repairs[0]).toMatchObject({
+                expect(pairRepairsOf(plan)[0]).toMatchObject({
                     kind: "madeRoom",
                     grown: ["Pool_1", "Lane_1"],
                 });
@@ -764,7 +770,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_2", "Task_Y"],
@@ -806,7 +812,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_X", "Task_Y"],
@@ -850,7 +856,7 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
-            expect(plan.repairs).toEqual([
+            expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoom",
                     shapes: ["Task_X", "Task_Y"],
@@ -875,7 +881,9 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, [spot], [current, current]);
 
-            expect(plan.repairs).toEqual([{ kind: "notRepaired", shapes: ["Task_O", "Task_Y"] }]);
+            expect(pairRepairsOf(plan)).toEqual([
+                { kind: "notRepaired", shapes: ["Task_O", "Task_Y"] },
+            ]);
             expect(plan.layout).toBe(result);
         });
     });
@@ -886,7 +894,9 @@ describe("planShapeMoves", () => {
 
         const plan = planShapeMoves(result, [spot], [result, result]);
 
-        expect(plan.repairs).toEqual([{ kind: "notRepaired", shapes: ["Task_X", "Task_Y"] }]);
+        expect(pairRepairsOf(plan)).toEqual([
+            { kind: "notRepaired", shapes: ["Task_X", "Task_Y"] },
+        ]);
         expect(plan.layout).toBe(result);
     });
 

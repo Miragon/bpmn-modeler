@@ -1,11 +1,7 @@
-import type { MergeFlowRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
-
 import type { BuildNote, NoteRepairOf } from "./buildNotes";
-import type { ContainerRepair } from "./layoutContainerMoves";
-import type { FlowRepair } from "./layoutFlowRepair";
 import type { LaneStacking } from "./layoutLaneStacking";
-import type { OverlapRepair } from "./layoutShapeMoves";
-import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
+import { type SpotRepair, SpotRepairs } from "./layoutSpotRepairs";
+import { type LayoutSpot, repairedTogether, sameSpot } from "./layoutSpots";
 
 /** What the repair found and did, for the notes. */
 export interface LayoutRepairOutcome {
@@ -15,11 +11,8 @@ export interface LayoutRepairOutcome {
     readonly spots: readonly LayoutSpot[];
     /** The spots after the shapes moved, which the flow repair worked on; `spots` when none moved. */
     readonly spotsAfterMoves: readonly LayoutSpot[];
-    readonly containerRepairs: readonly ContainerRepair[];
-    /** The shapes moved or shifted to bring shapes into their containers, before any moved off another. */
-    readonly shapesMovedForContainers: readonly string[];
-    readonly overlapRepairs: readonly OverlapRepair[];
-    readonly flowRepairs: readonly FlowRepair[];
+    /** What each step did about the spots it acted on, in the order the steps ran. */
+    readonly repairs: readonly SpotRepair[];
 }
 
 /**
@@ -27,9 +20,8 @@ export interface LayoutRepairOutcome {
  * repair, with what the repair did to each shape and flow; one flow's or
  * shape's spots of one kind share a note. A flow is named as the flow
  * repair found it after the shapes moved: a flow a move broke is named too,
- * one a move mended is not, and neither is any other spot a move mended but
- * an overlap, whose note says the build moved a shape off it, and a shape
- * the build brought into its container, whose note says so.
+ * one a move mended is not, and neither is any other spot a move mended
+ * unless a step mended it on purpose, which its note says.
  */
 export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
     const notes: BuildNote[] = outcome.laneStackings.map(
@@ -43,7 +35,7 @@ export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
         }),
     );
     const shapesByNote = new Map<string, string[]>();
-    const repairs = new SpotRepairs(outcome);
+    const repairs = new SpotRepairs(outcome.repairs);
     for (const spot of spotsToName(outcome, repairs)) {
         const note = spotNoteOf(spot, repairs);
         if (!("shapes" in note)) {
@@ -63,65 +55,26 @@ export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
     return notes;
 }
 
-/** What the repair did about each spot, by the repairs of shapes and flows. */
-class SpotRepairs {
-    private readonly movedForContainers: ReadonlySet<string>;
-
-    constructor(private readonly outcome: LayoutRepairOutcome) {
-        this.movedForContainers = new Set(outcome.shapesMovedForContainers);
-    }
-
-    flow(flow: string): MergeFlowRepair {
-        return (
-            this.outcome.flowRepairs.find((repair) => repair.flow === flow)?.kind ?? "notRepaired"
-        );
-    }
-
-    /** An overlap's repair; one a container repair resolved before the shape moves names the shape it moved. */
-    overlap(shapes: readonly [string, string]): OverlapRepair {
-        const repair = this.outcome.overlapRepairs.find((candidate) =>
-            candidate.shapes.every((id, at) => shapes[at] === id),
-        );
-        if (repair !== undefined) return repair;
-        const moved = shapes.find((id) => this.movedForContainers.has(id));
-        return moved === undefined
-            ? { kind: "notRepaired", shapes }
-            : { kind: "movedByBuild", shapes, moved };
-    }
-
-    container(shape: string, container: string): ContainerRepair {
-        return (
-            this.outcome.containerRepairs.find(
-                (repair) => repair.shape === shape && repair.container === container,
-            ) ?? { kind: "notRepaired", shape, container }
-        );
-    }
-}
-
 /**
- * The assembled drawing's overlaps and the shapes the build brought into
- * their containers, its other spots only while still broken after the moves,
- * then the spots a move made, such as a flow it broke or a boundary event it
- * carried with its host out of the event's own lane.
+ * The assembled drawing's spots a step mended or still broken after the
+ * moves, then the spots a move made, such as a flow it broke or a boundary
+ * event it carried with its host out of the event's own lane.
  */
 function spotsToName(
     { spots, spotsAfterMoves }: LayoutRepairOutcome,
     repairs: SpotRepairs,
 ): LayoutSpot[] {
     if (spotsAfterMoves === spots) return [...spots];
-    const brokenFlows = new Set(spotsAfterMoves.filter(isFlowSpot).map(({ flow }) => flow));
-    const stillThere = (spot: LayoutSpot) => spotsAfterMoves.some((after) => sameSpot(after, spot));
-    const repaired = (spot: LayoutSpot) =>
-        spot.kind === "shapesOverlap" ||
-        (spot.kind === "shapeOutsideContainer" &&
-            repairs.container(spot.shape, spot.container).kind !== "notRepaired");
-    const stillNamed = (spot: LayoutSpot) =>
-        isFlowSpot(spot) ? brokenFlows.has(spot.flow) : repaired(spot) || stillThere(spot);
+    const stillBroken = (spot: LayoutSpot) =>
+        spotsAfterMoves.some((after) => repairedTogether(after, spot));
+    const stillNamed = (spot: LayoutSpot) => repairs.repaired(spot) || stillBroken(spot);
     return [
         ...spots.filter(stillNamed),
         ...spotsAfterMoves.filter((spot) => !spots.some((known) => sameSpot(known, spot))),
     ];
 }
+
+const NOT_REPAIRED = { kind: "notRepaired" } as const;
 
 function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
     switch (spot.kind) {
@@ -130,34 +83,33 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
                 kind: spot.kind,
                 id: spot.flow,
                 shapes: [spot.end],
-                repair: repairs.flow(spot.flow),
+                repair: repairs.of(spot)?.kind ?? "notRepaired",
             };
         case "flowThroughShape":
             return {
                 kind: spot.kind,
                 id: spot.flow,
                 shapes: [spot.shape],
-                repair: repairs.flow(spot.flow),
+                repair: repairs.of(spot)?.kind ?? "notRepaired",
             };
         case "shapeOutsideContainer":
-            return containerNoteOf(spot.shape, repairs.container(spot.shape, spot.container));
+            return {
+                kind: spot.kind,
+                id: spot.shape,
+                shapes: [spot.container],
+                ...noteRepairOf(repairs.of(spot) ?? NOT_REPAIRED),
+            };
         case "shapesOverlap":
-            return overlapNoteOf(spot.shapes, repairs.overlap(spot.shapes));
+            return {
+                kind: spot.kind,
+                ids: [...spot.shapes],
+                ...noteRepairOf(repairs.of(spot) ?? NOT_REPAIRED),
+            };
         case "boundaryEventOffHost":
             return { kind: spot.kind, id: spot.boundaryEvent, host: spot.host };
         case "lanesOverlap":
             return { kind: spot.kind, ids: [...spot.lanes], repair: "notRepaired" };
     }
-}
-
-function containerNoteOf(id: string, repair: ContainerRepair): BuildNote {
-    const { shape: _shape, container, ...rest } = repair;
-    return { kind: "shapeOutsideContainer", id, shapes: [container], ...noteRepairOf(rest) };
-}
-
-function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildNote {
-    const { shapes: _shapes, ...rest } = repair;
-    return { kind: "shapesOverlap", ids: [...shapes], ...noteRepairOf(rest) };
 }
 
 function noteRepairOf<Repair extends { readonly kind: string }>({
