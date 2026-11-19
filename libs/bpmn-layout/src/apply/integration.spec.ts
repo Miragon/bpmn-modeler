@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 import Modeler from "bpmn-js/lib/Modeler";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -7,13 +8,15 @@ import type { ModdleNode } from "../cleanup/rules";
 import { COLLAPSED_SUBPROCESS } from "../__fixtures__/collapsedSubprocess";
 import {
     LABELLED_EVENTS,
+    LABELLED_FLOW_WITH_REDUNDANT_BEND,
     MESSY_LANES_BOUNDARY_SUBPROCESS,
 } from "../__fixtures__/integrationDiagrams";
 import { installHeadlessDom } from "../__fixtures__/headlessDom";
 import { parseDefinitions } from "../__fixtures__/parseBpmn";
 import { createBpmnLayoutModule } from "../module";
-import { computeLayoutPlan, polylineMidpoint } from "../plan";
-import type { DiagramSnapshot, LayoutResult, Point } from "../types";
+import { polylineMidpoint } from "../plan";
+import type { LayoutEngine } from "../port";
+import type { LayoutResult, Point } from "../types";
 import { LAYOUT_APPLY_COMMAND } from "./Layouter";
 import type { LayoutOutcome } from "./Layouter";
 
@@ -125,13 +128,13 @@ async function digestOf(modeler: Modeler): Promise<string[]> {
     return semanticDigest(await parseDefinitions(xml as string));
 }
 
-async function openModeler(diagram: string) {
+async function openModeler(diagram: string, engine?: LayoutEngine) {
     const container = document.createElement("div");
     document.body.appendChild(container);
 
     const modeler = new Modeler({
         container,
-        additionalModules: [createBpmnLayoutModule()],
+        additionalModules: [createBpmnLayoutModule(engine)],
     });
     await modeler.importXML(diagram);
 
@@ -146,6 +149,7 @@ async function openModeler(diagram: string) {
         },
         format: () =>
             (modeler.get("bpmnLayouter") as { format(): Promise<LayoutOutcome> }).format(),
+        cleanup: () => (modeler.get("bpmnCleanup") as { apply(): CleanupOutcome }).apply(),
     };
 }
 
@@ -341,44 +345,31 @@ describe("applying a plan through the real command stack", () => {
     });
 });
 
+function positionOf(registry: Registry, id: string): Point {
+    const { x, y } = registry.get(id);
+    return { x, y };
+}
+
 /**
- * Labels, planned by `computeLayoutPlan` and applied through the real command
- * stack: each lands once, at the offset the user gave it from its flow or shape.
+ * Labels, formatted by `bpmnLayouter` against an engine that answers with a
+ * fixed target: each lands once, at the offset the user gave it from its flow
+ * or shape.
  */
 describe("moving labels through the real command stack", () => {
-    function positionOf(registry: Registry, id: string): Point {
-        const { x, y } = registry.get(id);
-        return { x, y };
-    }
-
     function shift(from: Point, to: Point): Point {
         return { x: to.x - from.x, y: to.y - from.y };
     }
 
     async function openLabelledEvents() {
-        const { modeler, commandStack } = await openModeler(LABELLED_EVENTS);
-        const registry = modeler.get("elementRegistry") as Registry;
-        const snapshot: DiagramSnapshot = registry.getAll().map((element) => ({
-            id: element.id,
-            type: element.type,
-            x: element.x ?? 0,
-            y: element.y ?? 0,
-            width: element.width ?? 0,
-            height: element.height ?? 0,
-            waypoints: element.waypoints?.map((point) => ({ x: point.x, y: point.y })),
-            labelTargetId: element.labelTarget?.id,
-        }));
+        let target: LayoutResult = { shapes: [], edges: [], diagnostics: [] };
+        const engine: LayoutEngine = { computeLayout: async () => target };
+        const { modeler, format } = await openModeler(LABELLED_EVENTS, engine);
         return {
-            registry,
-            format: (target: Partial<LayoutResult>) =>
-                commandStack.execute(LAYOUT_APPLY_COMMAND, {
-                    operations: computeLayoutPlan(snapshot, {
-                        shapes: [],
-                        edges: [],
-                        diagnostics: [],
-                        ...target,
-                    }),
-                }),
+            registry: modeler.get("elementRegistry") as Registry,
+            format: async (laidOut: Partial<LayoutResult>) => {
+                target = { ...target, ...laidOut };
+                expect((await format()).status).toBe("formatted");
+            },
         };
     }
 
@@ -394,7 +385,7 @@ describe("moving labels through the real command stack", () => {
             { x: 415, y: 133 },
         ];
 
-        format({ edges: [{ id: "Flow_1", waypoints }] });
+        await format({ edges: [{ id: "Flow_1", waypoints }] });
 
         const midpointShift = shift(midpointBefore, polylineMidpoint(waypoints));
         expect(positionOf(registry, "Flow_1_label")).toEqual({
@@ -407,7 +398,7 @@ describe("moving labels through the real command stack", () => {
         const { registry, format } = await openLabelledEvents();
         const labelBefore = positionOf(registry, "Start_1_label");
 
-        format({ shapes: [{ id: "Start_1", x: 140, y: 300, width: 36, height: 36 }] });
+        await format({ shapes: [{ id: "Start_1", x: 140, y: 300, width: 36, height: 36 }] });
 
         expect(positionOf(registry, "Start_1_label")).toEqual({
             x: labelBefore.x + 40,
@@ -422,10 +413,23 @@ describe("moving labels through the real command stack", () => {
         const gapBefore = label.y - (event.y + event.height);
         const centreOffsetBefore = label.x + label.width / 2 - (event.x + event.width / 2);
 
-        format({ shapes: [{ id: "End_1", x: 440, y: 303, width: 36, height: 36 }] });
+        await format({ shapes: [{ id: "End_1", x: 440, y: 303, width: 36, height: 36 }] });
 
         expect(label.y - (event.y + event.height)).toBe(gapBefore);
         expect(label.x + label.width / 2 - (event.x + event.width / 2)).toBe(centreOffsetBefore);
+    });
+});
+
+describe("tidying waypoints through the real command stack", () => {
+    it("leaves a flow's label in place when a redundant bend goes", async () => {
+        const { modeler, cleanup } = await openModeler(LABELLED_FLOW_WITH_REDUNDANT_BEND);
+        const registry = modeler.get("elementRegistry") as Registry;
+        const labelBefore = positionOf(registry, "Flow_1_label");
+
+        expect(cleanup().status).toBe("applied");
+
+        expect(registry.get("Flow_1").waypoints).toHaveLength(2);
+        expect(positionOf(registry, "Flow_1_label")).toEqual(labelBefore);
     });
 });
 

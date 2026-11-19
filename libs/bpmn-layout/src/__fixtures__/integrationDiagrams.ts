@@ -142,3 +142,26 @@ export const LABELLED_EVENTS = definitions(
        </bpmndi:BPMNPlane>
      </bpmndi:BPMNDiagram>`,
 );
+
+/** A labelled flow with a bend on the straight line between its neighbours. */
+export const LABELLED_FLOW_WITH_REDUNDANT_BEND = definitions(
+    `<bpmn:process id="Process_1" isExecutable="true">
+       <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+       <bpmn:endEvent id="End_1"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:endEvent>
+       <bpmn:sequenceFlow id="Flow_1" name="paid" sourceRef="Start_1" targetRef="End_1" />
+     </bpmn:process>
+     <bpmndi:BPMNDiagram id="Diagram_1">
+       <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+         <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+           <dc:Bounds x="100" y="100" width="36" height="36" />
+         </bpmndi:BPMNShape>
+         <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+           <dc:Bounds x="400" y="100" width="36" height="36" />
+         </bpmndi:BPMNShape>
+         <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+           <di:waypoint x="136" y="118" /><di:waypoint x="300" y="118" /><di:waypoint x="400" y="118" />
+           <bpmndi:BPMNLabel><dc:Bounds x="320" y="96" width="22" height="14" /></bpmndi:BPMNLabel>
+         </bpmndi:BPMNEdge>
+       </bpmndi:BPMNPlane>
+     </bpmndi:BPMNDiagram>`,
+);
