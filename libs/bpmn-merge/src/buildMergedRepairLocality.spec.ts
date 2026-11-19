@@ -11,7 +11,7 @@ import type { LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsCross, segmentsOf } from "./layoutPolyline";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
-import type { LayoutSpot } from "./layoutSpots";
+import { type LayoutSpot, sameSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 
@@ -200,10 +200,6 @@ function repairsOf(unrepaired: string, flowsRepaired: string, repaired: string):
 
 function kindsOf(spots: readonly LayoutSpot[]): LayoutSpot["kind"][] {
     return [...new Set(spots.map(({ kind }) => kind))];
-}
-
-function sameSpot(first: object, second: object): boolean {
-    return JSON.stringify(first) === JSON.stringify(second);
 }
 
 /** How often two flows of one plane cross. */

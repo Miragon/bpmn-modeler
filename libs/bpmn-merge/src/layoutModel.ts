@@ -112,6 +112,24 @@ export function endShapeOf(
     return shape?.plane === edge.plane ? shape : undefined;
 }
 
+/** The activity a boundary event sits on, as drawn on the event's own plane. */
+export function drawnHostOf(layout: LayoutModel, node: NodeShape): NodeShape | undefined {
+    const host = node.host === undefined ? undefined : nodeShapeIn(layout, node.host);
+    return host?.plane === node.plane ? host : undefined;
+}
+
+/** The pool drawn around the node on its plane; none for a data store's pool, as it may lie outside. */
+export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+    if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
+    const pool = layout.shapes.get(node.pool);
+    return isDrawnFrameOf(node, pool) ? pool : undefined;
+}
+
+/** A shape others lie inside: a pool, a lane or a sub-process drawn open. */
+export function isFrame(shape: LayoutShape): boolean {
+    return shape.kind !== "node" || shape.expanded;
+}
+
 /** Whether one shape encloses the other or one is attached to the other: they lie on each other by design. */
 export function belongTogether(first: NodeShape, second: NodeShape): boolean {
     return (
@@ -165,19 +183,16 @@ export function framesAroundOf(layout: LayoutModel, node: NodeShape): LayoutShap
     ];
 }
 
-/** The drawn frames around the node, innermost first; a data store's pool is not one, as it may lie outside. */
+/** The drawn frames around the node, innermost first. */
 function enclosingFramesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
-    const pool = node.pool === undefined || node.mayLieOutsidePool ? [] : [node.pool];
-    return [...node.subProcesses, ...pool].flatMap((id) => {
+    const pool = drawnPoolOf(layout, node);
+    const subProcesses = node.subProcesses.flatMap((id) => {
         const frame = layout.shapes.get(id);
         return isDrawnFrameOf(node, frame) ? [frame] : [];
     });
+    return pool === undefined ? subProcesses : [...subProcesses, pool];
 }
 
 function isDrawnFrameOf(node: NodeShape, frame: LayoutShape | undefined): frame is LayoutShape {
-    return (
-        frame !== undefined &&
-        frame.plane === node.plane &&
-        (frame.kind !== "node" || frame.expanded)
-    );
+    return frame !== undefined && frame.plane === node.plane && isFrame(frame);
 }

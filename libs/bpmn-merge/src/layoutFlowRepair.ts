@@ -23,6 +23,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    drawnHostOf,
     endShapeOf,
     nodeShapeIn,
     otherEndOf,
@@ -220,11 +221,8 @@ function fitsItsShapes(layout: LayoutModel, edge: LayoutEdge, bounds: RouteBound
 function hostsOfEnds(layout: LayoutModel, ends: FlowEnds): DiagramBounds[] {
     return FLOW_ENDS.flatMap((end) => {
         const node = nodeShapeIn(layout, ends[end].id);
-        const host = node?.host === undefined ? undefined : layout.shapes.get(node.host);
-        const otherEnd = ends[otherEndOf(end)];
-        return host === undefined || host.id === otherEnd.id || host.plane !== node?.plane
-            ? []
-            : [host.bounds];
+        const host = node === undefined ? undefined : drawnHostOf(layout, node);
+        return host === undefined || host.id === ends[otherEndOf(end)].id ? [] : [host.bounds];
     });
 }
 

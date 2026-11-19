@@ -16,6 +16,7 @@ import {
     type LayoutShape,
     type NodeShape,
     belongTogether,
+    drawnHostOf,
     endShapeOf,
     framesOf,
     nodeShapeIn,
@@ -99,9 +100,8 @@ export function liesOutside(node: NodeShape, frame: LayoutShape): boolean {
 }
 
 export function isOffItsHost(layout: LayoutModel, boundaryEvent: NodeShape): boolean {
-    const host =
-        boundaryEvent.host === undefined ? undefined : layout.shapes.get(boundaryEvent.host);
-    if (host === undefined || host.plane !== boundaryEvent.plane) return false;
+    const host = drawnHostOf(layout, boundaryEvent);
+    if (host === undefined) return false;
     return outlineMissOf(centerOf(boundaryEvent.bounds), host.bounds, "rectangle") !== undefined;
 }
 
@@ -111,6 +111,49 @@ export function lanesOverlap(first: LaneShape, second: LaneShape): boolean {
         first.plane === second.plane &&
         first.parent === second.parent &&
         overlapsBeyondTolerance(first.bounds, second.bounds)
+    );
+}
+
+/** Whether two spots name the same thing broken, whichever order they list a pair in. */
+export function sameSpot(first: LayoutSpot, second: LayoutSpot): boolean {
+    switch (first.kind) {
+        case "flowEndOffShape":
+            return (
+                second.kind === first.kind &&
+                second.flow === first.flow &&
+                second.end === first.end &&
+                second.at === first.at &&
+                second.lies === first.lies
+            );
+        case "shapesOverlap":
+            return second.kind === first.kind && samePair(first.shapes, second.shapes);
+        case "flowThroughShape":
+            return (
+                second.kind === first.kind &&
+                second.flow === first.flow &&
+                second.shape === first.shape
+            );
+        case "shapeOutsideContainer":
+            return (
+                second.kind === first.kind &&
+                second.shape === first.shape &&
+                second.container === first.container
+            );
+        case "boundaryEventOffHost":
+            return (
+                second.kind === first.kind &&
+                second.boundaryEvent === first.boundaryEvent &&
+                second.host === first.host
+            );
+        case "lanesOverlap":
+            return second.kind === first.kind && samePair(first.lanes, second.lanes);
+    }
+}
+
+function samePair(first: readonly [string, string], second: readonly [string, string]): boolean {
+    return (
+        (first[0] === second[0] && first[1] === second[1]) ||
+        (first[0] === second[1] && first[1] === second[0])
     );
 }
 

@@ -6,8 +6,11 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    drawnHostOf,
+    drawnPoolOf,
     drawsAt,
     framesAroundOf,
+    isFrame,
     otherEndOf,
     placeOf,
     sharedFrameOf,
@@ -120,6 +123,67 @@ describe("framesAroundOf", () => {
         expect(
             framesAroundOf(layout, layout.shapes.get("A") as NodeShape).map(({ id }) => id),
         ).toEqual(["Sub_Open", "Pool_1", "Lane_1"]);
+    });
+});
+
+describe("drawnHostOf", () => {
+    it.each([
+        ["the host drawn on the event's plane", [node("Task_H")], "Task_H"],
+        ["no host drawn on another plane", [node("Task_H", { plane: "Sub_1" })], undefined],
+        ["no host it does not draw", [], undefined],
+    ])("is %s", (_, shapes, host) => {
+        const timer = node("Timer_1", { host: "Task_H" });
+
+        expect(drawnHostOf(layoutOf([...shapes, timer]), timer)?.id).toBe(host);
+    });
+
+    it("is none for a node attached to nothing", () => {
+        const task = node("Task_A");
+
+        expect(drawnHostOf(layoutOf([node("Task_H"), task]), task)).toBeUndefined();
+    });
+});
+
+describe("drawnPoolOf", () => {
+    it.each([
+        ["the pool drawn on the node's plane", pool("Pool_1"), {}, "Pool_1"],
+        [
+            "none for a pool drawn on another plane",
+            { ...pool("Pool_1"), plane: "Other" },
+            {},
+            undefined,
+        ],
+        [
+            "none for a data store, which may lie outside it",
+            pool("Pool_1"),
+            { mayLieOutsidePool: true },
+            undefined,
+        ],
+        ["none for a node outside every pool", pool("Pool_1"), { pool: undefined }, undefined],
+    ])("is %s", (_, drawnPool, relations, expected) => {
+        const task = node("Task_A", { pool: "Pool_1", ...relations });
+
+        expect(drawnPoolOf(layoutOf([drawnPool, task]), task)?.id).toBe(expected);
+    });
+});
+
+describe("isFrame", () => {
+    const lane = {
+        kind: "lane",
+        id: "Lane_1",
+        plane: PLANE,
+        parent: "Process_1",
+        outline: "rectangle",
+        bounds: { x: 30, y: 0, width: 870, height: 300 },
+    } as const;
+
+    it.each<[string, LayoutShape, boolean]>([
+        ["a pool", pool("Pool_1"), true],
+        ["a lane", lane, true],
+        ["a sub-process drawn open", node("Sub_1", { expanded: true }), true],
+        ["a collapsed sub-process or task", node("Task_A"), false],
+    ])("tells whether %s holds other shapes", (_, shape, frame) => {
+        expect(isFrame(shape)).toBe(frame);
     });
 });
 
