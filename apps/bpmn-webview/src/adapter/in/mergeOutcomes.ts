@@ -18,9 +18,9 @@ import {
     mergeMenuRows,
     rowOutcomeText,
 } from "../../domain/mergeMenuRows";
+import type { MergeCardAction } from "../../domain/mergeCardContent";
+import { handMergeElementOf, handMergeFactsOf } from "../../domain/mergeHandMergeCard";
 import {
-    handMergeFactsOf,
-    type MergeCardAction,
     mergeOutcomeCardContent,
     type MergeRememberedOutcome,
 } from "../../domain/mergeOutcomeCard";
@@ -145,7 +145,10 @@ export class MergeOutcomes {
         const { nameOf, select, translate } = this.context;
         const content = mergeOutcomeCardContent(remembered, {
             restoreOffer: this.states.restoreOffer,
-            handMerge: handMergeFactsOf(this.states, this.offers, remembered.outcome.elementId),
+            handMerge: handMergeFactsOf(
+                handMergeElementOf(this.states, remembered.outcome.elementId),
+                this.offers,
+            ),
             nameOf,
             translate,
         });

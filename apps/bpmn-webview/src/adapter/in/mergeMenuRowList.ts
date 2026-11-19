@@ -1,7 +1,7 @@
 import { createButton, createElement, MERGE_MARKER_CLASSES } from "@miragon/bpmn-modeler-types";
 
 import type { MergeMenuRowContent } from "../../domain/mergeMenuRows";
-import type { MergeCardAction } from "../../domain/mergeOutcomeCard";
+import type { MergeCardAction } from "../../domain/mergeCardContent";
 import {
     keepsEverythingInside,
     type MergePadDecision,

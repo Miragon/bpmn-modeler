@@ -9,13 +9,9 @@ import type {
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
-import {
-    cardToneOf,
-    handMergeFactsOf,
-    type MergeHandMergeFacts,
-    mergeOutcomeCardContent,
-    type MergeRememberedOutcome,
-} from "./mergeOutcomeCard";
+import { cardToneOf } from "./mergeCardContent";
+import type { MergeHandMergeFacts } from "./mergeHandMergeCard";
+import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
@@ -466,50 +462,6 @@ describe("the card of a merge by hand", () => {
                 },
                 { action: "dismiss", text: "Keep my XML" },
             ]);
-        },
-    );
-});
-
-describe("handMergeFactsOf", () => {
-    const states = {
-        pickable: [
-            { id: "Task_Remind", undo: "element", handMergeable: true },
-            { id: "Task_Cancel", undo: "element" },
-        ],
-        badges: [
-            {
-                id: "Task_Remind",
-                kind: "keptHere",
-                keptSide: "current",
-                scope: "element",
-                mergedByHand: true,
-            },
-        ],
-        picksNotDrawn: [{ id: "Task_Cancel", keptSide: "incoming", scope: "element" }],
-        shapelessRows: [
-            {
-                id: "Message_1",
-                type: "bpmn:Message",
-                marker: "takenFromOtherSide",
-                pick: { keptSide: "incoming", scope: "element" },
-                handMergeable: true,
-                differences: [],
-            },
-        ],
-    } as const;
-
-    it.each<[string, boolean, MergeHandMergeFacts]>([
-        ["Task_Remind", true, { keptSide: "current", mergedByHand: true, canEditAgain: true }],
-        ["Task_Remind", false, { keptSide: "current", mergedByHand: true, canEditAgain: false }],
-        ["Task_Cancel", true, { keptSide: "incoming", mergedByHand: false, canEditAgain: false }],
-        ["Message_1", true, { keptSide: "incoming", mergedByHand: false, canEditAgain: true }],
-        ["Task_Gone", true, { mergedByHand: false, canEditAgain: false }],
-    ])(
-        "reads %s's pick and whether it can be merged again, the host offering it: %s",
-        (id, offered, expected) => {
-            expect(handMergeFactsOf(states, { elementXmlMerge: offered }, id)).toStrictEqual(
-                expected,
-            );
         },
     );
 });

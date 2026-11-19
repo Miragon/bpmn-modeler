@@ -16,6 +16,7 @@ import {
     type MergeRowDecision,
     mergeRowDecisions,
     type MergeRowStates,
+    offersMergeXml,
 } from "./mergePadDecisions";
 
 const states = (overrides: Partial<MergePadStates> = {}): MergePadStates => ({
@@ -39,6 +40,8 @@ const OFFER: MergePaneRestoreOffer = {
 };
 
 const OFFERS_XML_MERGE = { elementXmlMerge: true } as const;
+
+const NO_XML_MERGE = { elementXmlMerge: false } as const;
 
 const named = (decision: MergePadDecision) => {
     switch (decision.kind) {
@@ -160,7 +163,7 @@ describe("mergePadDecisions", () => {
     });
 
     it("offers nothing on an element the host does not let the user pick", () => {
-        expect(mergePadDecisions(states(), "Task_2")).toStrictEqual([]);
+        expect(mergePadDecisions(states(), "Task_2", NO_XML_MERGE)).toStrictEqual([]);
     });
 
     it.each([
@@ -173,6 +176,7 @@ describe("mergePadDecisions", () => {
                 pickable: [{ id: "Task_1", container: "contents", otherSideLacks: "missing" }],
             }),
             "Task_1",
+            NO_XML_MERGE,
         );
 
         expect(decisions).toStrictEqual([
@@ -188,6 +192,7 @@ describe("mergePadDecisions", () => {
             const decisions = mergePadDecisions(
                 states({ pickable: [{ id: "Task_1", container: reach }] }),
                 "Task_1",
+                NO_XML_MERGE,
             );
 
             expect(decisions.find(keepsEverythingInside)?.reach).toBe(reach);
@@ -200,6 +205,7 @@ describe("mergePadDecisions", () => {
             const decisions = mergePadDecisions(
                 states({ caption: { side: paneSide, role: "unknown" }, restoreOffer: OFFER }),
                 "Task_1",
+                NO_XML_MERGE,
             );
 
             expect(decisions.at(-1)).toStrictEqual({
@@ -255,7 +261,6 @@ describe("mergePadDecisions", () => {
         });
 
         expect(kinds(handMergeable, { elementXmlMerge: false })).toStrictEqual(["undo"]);
-        expect(mergePadDecisions(handMergeable, "Task_1").map(named)).toStrictEqual(["undo"]);
     });
 });
 
@@ -376,7 +381,9 @@ describe("mergeRowDecisions", () => {
             ["keep current", "keep incoming"],
         ],
     ])("%s", (_case, rowOverrides, rowStates, expected) => {
-        expect(mergeRowDecisions(rowStates, row(rowOverrides)).map(named)).toStrictEqual(expected);
+        expect(
+            mergeRowDecisions(rowStates, row(rowOverrides), NO_XML_MERGE).map(named),
+        ).toStrictEqual(expected);
     });
 
     it.each<[string, Partial<MergePaneShapelessRow>, string[]]>([
@@ -411,7 +418,7 @@ describe("mergeRowDecisions", () => {
             handMergeable: true,
         });
 
-        expect(mergeRowDecisions({}, picked).map(named)).toStrictEqual([
+        expect(mergeRowDecisions({}, picked, NO_XML_MERGE).map(named)).toStrictEqual([
             "keep incoming",
             "undo element",
         ]);
@@ -421,6 +428,7 @@ describe("mergeRowDecisions", () => {
         const decisions = mergeRowDecisions(
             {},
             row({ type: "bpmn:Collaboration", container: "poolProcesses" }),
+            NO_XML_MERGE,
         );
 
         expect(decisions.filter(keepsEverythingInside)).toStrictEqual([
@@ -454,7 +462,11 @@ describe("mergeRowDecisions", () => {
 
     it("words a leave-out with why the side lacks the element, as the pad does", () => {
         expect(
-            mergeRowDecisions({}, row({ lackingSide: { side: "current", lack: "removed" } })),
+            mergeRowDecisions(
+                {},
+                row({ lackingSide: { side: "current", lack: "removed" } }),
+                NO_XML_MERGE,
+            ),
         ).toStrictEqual([
             { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
             { kind: "keep", scope: "element", side: "incoming" },
@@ -468,5 +480,16 @@ describe("decidesInMenu", () => {
         [false, false],
     ])("a step without a shape %s → decided in the menu %s", (shapeless, expected) => {
         expect(decidesInMenu({ shapeless })).toBe(expected);
+    });
+});
+
+describe("offersMergeXml", () => {
+    it.each([
+        [{ handMergeable: true } as const, true, true],
+        [{ handMergeable: true } as const, false, false],
+        [{}, true, false],
+        [{}, false, false],
+    ])("an element %o, the host offering a merge editor: %s → %s", (element, offered, expected) => {
+        expect(offersMergeXml(element, { elementXmlMerge: offered })).toBe(expected);
     });
 });

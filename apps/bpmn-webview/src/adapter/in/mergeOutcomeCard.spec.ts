@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MergeOutcomeCardContent } from "../../domain/mergeOutcomeCard";
+import type { MergeOutcomeCardContent } from "../../domain/mergeCardContent";
 import {
     createMergeOutcomeCardModule,
     MERGE_BLOCKER_MARKER,

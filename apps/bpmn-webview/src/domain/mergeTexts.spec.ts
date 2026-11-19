@@ -5,7 +5,17 @@ import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergePadDecision } from "./mergePadDecisions";
 
-import { compareWithText, comparisonPaneText, comparisonText, keepSideText, MERGE_BUILD_TEXTS, mergeSideText, padDecisionText, pickBadgeText, restoreOfferText } from "./mergeTexts";
+import {
+    compareWithText,
+    comparisonPaneText,
+    comparisonText,
+    keepSideText,
+    MERGE_BUILD_TEXTS,
+    mergeSideText,
+    padDecisionText,
+    pickBadgeText,
+    restoreOfferText,
+} from "./mergeTexts";
 import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>

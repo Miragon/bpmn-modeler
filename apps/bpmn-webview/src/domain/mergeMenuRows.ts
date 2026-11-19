@@ -6,12 +6,9 @@ import type {
 import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
-import {
-    handMergeFactsOf,
-    type MergeCardChoice,
-    mergeOutcomeCardContent,
-    type MergeRememberedOutcome,
-} from "./mergeOutcomeCard";
+import type { MergeCardChoice } from "./mergeCardContent";
+import { handMergeFactsOf } from "./mergeHandMergeCard";
+import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTranslate";
 
@@ -101,12 +98,11 @@ function rowOutcomeContent(
         readonly offers: MergeHostOffers;
     },
 ) {
-    // A row's element has no shape, so only the rows hold its pick.
-    const shapeless = { pickable: [], badges: [], picksNotDrawn: [], ...states };
+    const row = states.shapelessRows.find(({ id }) => id === outcome.outcome.elementId);
     return mergeOutcomeCardContent(outcome, {
         ...words,
         restoreOffer: states.restoreOffer,
-        handMerge: handMergeFactsOf(shapeless, offers, outcome.outcome.elementId),
+        handMerge: handMergeFactsOf(row ?? {}, offers),
     });
 }
 

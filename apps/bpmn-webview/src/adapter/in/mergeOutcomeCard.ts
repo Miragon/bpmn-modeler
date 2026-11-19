@@ -7,7 +7,7 @@ import {
     type MergeCardAction,
     type MergeCardChoice,
     type MergeOutcomeCardContent,
-} from "../../domain/mergeOutcomeCard";
+} from "../../domain/mergeCardContent";
 import {
     type DiagramBox,
     type DiagramPoint,

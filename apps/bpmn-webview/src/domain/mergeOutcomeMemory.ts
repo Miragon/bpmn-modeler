@@ -12,11 +12,8 @@ import {
     type MergeDecisionOutcome,
     type MergeRefusal,
 } from "./mergeDecisionOutcome";
-import {
-    isRememberedHandMerge,
-    type MergeCardAction,
-    type MergeRememberedOutcome,
-} from "./mergeOutcomeCard";
+import type { MergeCardAction } from "./mergeCardContent";
+import { isRememberedHandMerge, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
 export type MergeOutcomeStates = Pick<

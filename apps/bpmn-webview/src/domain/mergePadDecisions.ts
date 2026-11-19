@@ -1,12 +1,11 @@
-import {
-    type MergeHostOffers,
-    type MergePaneContainerReach,
-    type MergePaneOtherSideLack,
-    type MergePaneRestoreOffer,
-    type MergePaneShapelessRow,
-    type MergePaneStates,
-    type MergePickScope,
-    NO_MERGE_HOST_OFFERS,
+import type {
+    MergeHostOffers,
+    MergePaneContainerReach,
+    MergePaneOtherSideLack,
+    MergePaneRestoreOffer,
+    MergePaneShapelessRow,
+    MergePaneStates,
+    MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
@@ -69,7 +68,7 @@ export type MergePadStates = Pick<
 export function mergePadDecisions(
     states: MergePadStates,
     elementId: string,
-    offers: MergePadOffers = NO_MERGE_HOST_OFFERS,
+    offers: MergePadOffers,
 ): readonly MergePadDecision[] {
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
@@ -124,7 +123,7 @@ export function keepsEverythingInside<Decision extends MergePadDecision>(
 export function mergeRowDecisions(
     states: MergeRowStates,
     row: MergePaneShapelessRow,
-    offers: MergePadOffers = NO_MERGE_HOST_OFFERS,
+    offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
     const facts: SidePickFacts = {
         pickedSide: row.pick?.keptSide,
@@ -168,13 +167,21 @@ export function keepRemovedWith(
         : undefined;
 }
 
+/** Merge XML can be offered on the element: its pick allows a merge by hand and the host has a merge editor. */
+export function offersMergeXml(
+    element: { readonly handMergeable?: true },
+    offers: MergePadOffers,
+): boolean {
+    return element.handMergeable === true && offers.elementXmlMerge;
+}
+
 /** Merging the XML by hand, where the host can and the pick allows it; editing it once merged. */
 function mergeXml(
     element: { readonly handMergeable?: true },
     pick: { readonly mergedByHand?: true } | undefined,
     offers: MergePadOffers,
 ): MergeXmlDecision | undefined {
-    if (element.handMergeable !== true || !offers.elementXmlMerge) return undefined;
+    if (!offersMergeXml(element, offers)) return undefined;
     return { kind: "mergeXml", mode: pick?.mergedByHand ? "edit" : "open" };
 }
 
