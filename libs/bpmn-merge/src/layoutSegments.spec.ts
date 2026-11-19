@@ -4,6 +4,7 @@ import type { DiagramBounds } from "./layoutGeometry";
 import {
     nearestOnSegment,
     outlinePointOn,
+    pointAlong,
     segmentBounds,
     segmentEntersBounds,
     segmentEntersOutline,
@@ -406,5 +407,23 @@ describe("nearestOnSegment", () => {
             point: { x: 5, y: 5 },
             distance: 5,
         });
+    });
+});
+
+describe("pointAlong", () => {
+    it.each([
+        { share: 0, point: { x: 10, y: 20 } },
+        { share: 0.25, point: { x: 20, y: 15 } },
+        { share: 1, point: { x: 50, y: 0 } },
+    ])("at share $share is $point", ({ share, point }) => {
+        expect(
+            pointAlong(
+                [
+                    { x: 10, y: 20 },
+                    { x: 50, y: 0 },
+                ],
+                share,
+            ),
+        ).toEqual(point);
     });
 });
