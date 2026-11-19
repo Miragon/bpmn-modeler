@@ -1,7 +1,8 @@
 import type { MergeResultComparison } from "@miragon/bpmn-modeler-shared";
 import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
-import { compareWithText, comparisonText, type MergeTranslate } from "../../domain/mergeTexts";
+import { compareWithText, comparisonText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 
 /**
  * The part of a diff pane's bar that a built merge result compared with one

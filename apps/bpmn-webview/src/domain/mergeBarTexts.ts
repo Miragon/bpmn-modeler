@@ -1,6 +1,7 @@
 import type { MergeCaptionRole, MergeMarker, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
-import { mergeSideText, type MergeTranslate } from "./mergeTexts";
+import { mergeSideText } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 // The words of a merge pane's bar and its "…" menu beside its rows' (`mergeRowTexts`); each is a translation key.
 const MERGE_ROLE_TEXTS: Record<MergeCaptionRole, string | undefined> = {

@@ -94,10 +94,12 @@ const fakes = vi.hoisted(() => {
         reasons: readonly string[];
         blockers: readonly string[];
         offer?: { elementId: string; text: string };
+        choices?: readonly { action: string; text: string }[];
     }
     interface CardActions {
         onSelect(id: string): void;
         onKeepRemovedWith(id: string): void;
+        onChoose(action: string): void;
         closeLabel: string;
     }
     /** The card shows only at an element the pane's canvas draws, as the real one. */
@@ -241,14 +243,15 @@ const STATES: MergePaneStates = {
 };
 
 /** The right pane's states, which carry the stepper, the menu and Build. */
-function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
+function mergeStates(
+    states: Partial<MergePaneStates> = {},
+    elementXmlChanges = false,
+    elementXmlMerge = false,
+) {
     return new ApplyMergeStatesQuery(
         "after",
         { ...STATES, ...states },
-        {
-            elementXmlChanges,
-            elementXmlMerge: false,
-        },
+        { elementXmlChanges, elementXmlMerge },
     );
 }
 
@@ -1506,6 +1509,189 @@ describe("MergeMode", () => {
         });
     });
 
+    describe("merging an element's XML by hand", () => {
+        const pad = () => fakes.pickPad.config!;
+        const opensPosted = () =>
+            posted()
+                .filter((message) => message.type === "OpenElementXmlMergeCommand")
+                .map((message) => ({ ...message }));
+        const picksPosted = () =>
+            posted()
+                .filter(
+                    (message) =>
+                        message.type === "PickMergeSideCommand" ||
+                        message.type === "UnpickMergeCommand",
+                )
+                .map((message) => ({ ...message }));
+        const keptPack = {
+            id: "Task_Pack",
+            kind: "keptHere",
+            keptSide: "incoming",
+            scope: "element",
+        } as const;
+        const HAND_MERGEABLE: Partial<MergePaneStates> = {
+            pickable: [{ id: "Task_Pack", undo: "element", handMergeable: true }],
+            badges: [keptPack],
+        };
+        const offered = (states: Partial<MergePaneStates> = {}) =>
+            mergeStates({ ...HAND_MERGEABLE, ...states }, false, true);
+        const refusal = {
+            applied: false,
+            action: "mergeByHand",
+            elementId: "Task_Pack",
+            blockedBy: [],
+            handMergeRefusal: { kind: "conflictMarkersLeft" },
+        } as const;
+
+        it("offers Merge XML on the pad only where the host has the merge editor, and opens it without a pick", async () => {
+            await startMergePane();
+            dispatch(mergeStates(HAND_MERGEABLE));
+            expect(pad().decisionsOf("Task_Pack")).toEqual([{ kind: "undo", scope: "element" }]);
+
+            dispatch(offered());
+            const mergeXml = pad()
+                .decisionsOf("Task_Pack")
+                .find((decision) => (decision as MergePadDecision).kind === "mergeXml");
+            pad().decide("Task_Pack", mergeXml);
+
+            expect(mergeXml).toEqual({ kind: "mergeXml", mode: "open" });
+            expect(opensPosted()).toEqual([
+                expect.objectContaining({
+                    type: "OpenElementXmlMergeCommand",
+                    elementId: "Task_Pack",
+                }),
+            ]);
+            expect(opensPosted()[0]).not.toHaveProperty("resume");
+            expect(picksPosted()).toEqual([]);
+        });
+
+        it("offers editing the merged XML once the element is merged by hand", async () => {
+            await startMergePane();
+
+            dispatch(offered({ badges: [{ ...keptPack, mergedByHand: true }] }));
+
+            expect(pad().decisionsOf("Task_Pack")).toContainEqual({
+                kind: "mergeXml",
+                mode: "edit",
+            });
+        });
+
+        it("names a badge merged by hand with its word", async () => {
+            await startMergePane();
+            const merged = { ...keptPack, mergedByHand: true } as const;
+
+            dispatch(offered({ badges: [merged] }));
+
+            const [, labels] = fakes.marks.paint.mock.lastCall!;
+            expect(labels.badge(merged)).toEqual({
+                side: "Incoming",
+                label: "Kept from incoming and merged by hand, your pick",
+                byHand: "by hand",
+            });
+        });
+
+        it("shows the finished merge on the card of the pane that asked, and Edit again reopens the refused text", async () => {
+            await startMergePane();
+            dispatch(offered());
+            next();
+            pad().decide("Task_Pack", { kind: "mergeXml", mode: "open" });
+
+            dispatch(offered({ lastOutcome: refusal }));
+            const [content] = card().show.mock.lastCall!;
+            card().lastActions!.onChoose("editAgain");
+
+            expect(content.headline).toBe("The XML of Pack parcel still holds conflict markers");
+            expect(content.choices).toEqual([
+                { action: "editAgain", text: "Edit again", primary: true },
+                { action: "dismiss", text: "Keep incoming's version" },
+            ]);
+            expect(opensPosted().at(-1)).toMatchObject({ elementId: "Task_Pack", resume: true });
+        });
+
+        it("closes the card on Keep the version, and does not show it again", async () => {
+            await startMergePane();
+            dispatch(offered());
+            next();
+            pad().decide("Task_Pack", { kind: "mergeXml", mode: "open" });
+            dispatch(offered({ lastOutcome: refusal }));
+
+            card().lastActions!.onChoose("dismiss");
+            viewer().userSelects(undefined);
+            viewer().userSelects("Task_Pack");
+
+            expect(card().close).toHaveBeenCalled();
+            expect(card().show).toHaveBeenCalledOnce();
+        });
+
+        it("asks before a pick drops the XML merged by hand, and Drop it resends the pick with consent", async () => {
+            await startMergePane();
+            dispatch(offered({ badges: [{ ...keptPack, mergedByHand: true }] }));
+            next();
+            pad().decide("Task_Pack", { kind: "keep", scope: "element", side: "current" });
+
+            dispatch(
+                offered({
+                    badges: [{ ...keptPack, mergedByHand: true }],
+                    lastOutcome: {
+                        applied: false,
+                        action: "pick",
+                        elementId: "Task_Pack",
+                        blockedBy: [],
+                        handMergesAtStake: ["Task_Pack"],
+                    },
+                }),
+            );
+            const [content] = card().show.mock.lastCall!;
+            card().lastActions!.onChoose("dropHandMerges");
+
+            expect(content.headline).toBe("This drops the XML you merged by hand for Pack parcel");
+            expect(picksPosted()).toEqual([
+                expect.objectContaining({ elementId: "Task_Pack", side: "current" }),
+                expect.objectContaining({
+                    elementId: "Task_Pack",
+                    side: "current",
+                    dropsHandMerges: true,
+                }),
+            ]);
+            expect(picksPosted()[0]).not.toHaveProperty("dropsHandMerges");
+        });
+
+        it("merges a shape-less element's XML from its menu row and answers in the row", async () => {
+            await startMergePane();
+            const picked = {
+                ...STATES.shapelessRows[0],
+                marker: "takenFromThisSide",
+                takenSide: "incoming",
+                pick: { keptSide: "incoming", scope: "element" },
+                handMergeable: true,
+            } as const;
+            dispatch(mergeStates({ shapelessRows: [picked] }, false, true));
+            openMenu();
+
+            rowButton("Process_1", "Merge XML").click();
+            dispatch(
+                mergeStates(
+                    {
+                        shapelessRows: [picked],
+                        lastOutcome: { ...refusal, elementId: "Process_1" },
+                    },
+                    false,
+                    true,
+                ),
+            );
+            rowButton("Process_1", "Edit again").click();
+
+            expect(opensPosted()).toEqual([
+                expect.objectContaining({ elementId: "Process_1" }),
+                expect.objectContaining({ elementId: "Process_1", resume: true }),
+            ]);
+            expect(
+                rowOf("Process_1")?.querySelector(".merge-menu__outcome")?.textContent,
+            ).toContain("still holds conflict markers");
+            expect(card().show).not.toHaveBeenCalled();
+        });
+    });
+
     describe("keyboard commands", () => {
         const commandsPosted = () =>
             posted()
@@ -1602,6 +1788,42 @@ describe("MergeMode", () => {
                 expect(byKeyboard).toEqual(byPad);
             },
         );
+
+        it("opens the selected element's XML merge with mergeXml, as the pad's entry does", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates(
+                    {
+                        pickable: [{ id: "Task_Pack", undo: "element", handMergeable: true }],
+                        badges: [
+                            {
+                                id: "Task_Pack",
+                                kind: "keptHere",
+                                keptSide: "incoming",
+                                scope: "element",
+                            },
+                        ],
+                    },
+                    false,
+                    true,
+                ),
+            );
+            selectOnCanvas("Task_Pack");
+
+            run("mergeXml");
+
+            expect(commandsPosted().at(-1)).toEqual([
+                "mergeXml",
+                "undo",
+                "next",
+                "previous",
+                "build",
+            ]);
+            expect(
+                posted().filter((message) => message.type === "OpenElementXmlMergeCommand"),
+            ).toEqual([expect.objectContaining({ elementId: "Task_Pack" })]);
+            expect(decisionsPosted()).toEqual([]);
+        });
 
         it("picks nothing with nothing selected or where the pad does not offer the decision", async () => {
             await startMergePane();

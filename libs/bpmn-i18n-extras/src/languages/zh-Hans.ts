@@ -448,6 +448,71 @@ const dictionary: Record<string, string> = {
         "两侧都更改了 {elements} 的布局；保留当前的布局",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "两侧都更改了 {elements} 的布局；保留传入的布局",
+    "by hand": "手动",
+    "Edit again": "再次编辑",
+    "Keep my XML": "保留我的 XML",
+    "Keep the XML merged before": "保留之前合并的 XML",
+    "Merge XML": "合并 XML",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "在合并编辑器中手动合并双方对其 XML 的更改",
+    "Edit merged XML": "编辑已合并的 XML",
+    "Change the XML you merged by hand": "更改您手动合并的 XML",
+    "Keep current's version": "保留当前的版本",
+    "Keep incoming's version": "保留传入的版本",
+    "Drop it and pick": "丢弃并选择",
+    "Drop it and leave out": "丢弃并排除",
+    "Drop it and undo": "丢弃并撤销",
+    "Kept from current and merged by hand, your pick": "从当前保留并手动合并，您的选择",
+    "Kept from incoming and merged by hand, your pick": "从传入保留并手动合并，您的选择",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "从当前连同其中全部内容保留并手动合并，您的选择",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "从传入连同其中全部内容保留并手动合并，您的选择",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "从当前连同随其删除的内容保留并手动合并，您的选择",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "从传入连同随其删除的内容保留并手动合并，您的选择",
+    "Merged by hand: {element}": "已手动合并：{element}",
+    "Closed without saving: {element} is unchanged": "未保存即关闭：{element} 未更改",
+    "This drops the XML you merged by hand for {elements}":
+        "这会丢弃您为 {elements} 手动合并的 XML",
+    "The XML of {element} still holds conflict markers": "{element} 的 XML 仍包含冲突标记",
+    "The XML of {element} doesn't parse": "无法解析 {element} 的 XML",
+    "The XML of {element} must hold one element": "{element} 的 XML 必须只包含一个元素",
+    "The XML of {element} changes its type": "{element} 的 XML 更改了其类型",
+    "The XML of {element} changes its ID": "{element} 的 XML 更改了其 ID",
+    "The XML of {element} holds elements of their own": "{element} 的 XML 包含独立的元素",
+    "The XML of {element} goes beyond its own content": "{element} 的 XML 超出了其自身内容",
+    "The XML of {element} names an element of the wrong type":
+        "{element} 的 XML 指定了类型错误的元素",
+    "The XML of {element} uses an unknown namespace": "{element} 的 XML 使用了未知的命名空间",
+    "The engine doesn't take the XML of {element}": "引擎不接受 {element} 的 XML",
+    "The XML of {element} changes what follows the pick": "{element} 的 XML 更改了随选择而定的内容",
+    "The XML of {element} names an element no version has":
+        "{element} 的 XML 指定了任何版本都没有的元素",
+    "The XML of {element} names an element the result leaves out":
+        "{element} 的 XML 指定了结果中排除的元素",
+    "The XML of {element} would change other decisions": "{element} 的 XML 会更改其他决定",
+    "The pick of {element} changed while you merged it": "在您合并时 {element} 的选择已更改",
+    "Resolve each conflict and remove its markers, then save.":
+        "请解决每个冲突并删除其标记，然后保存。",
+    "The parser says: {detail}": "解析器提示：{detail}",
+    "It holds {count} elements at its top level.": "其顶层包含 {count} 个元素。",
+    "It is a {found} now; keep it a {expected}.": "它现在是 {found}；请保持为 {expected}。",
+    "Its ID is {found} now; keep {expected}.": "其 ID 现在是 {found}；请保持 {expected}。",
+    "It has no ID now; keep {expected}.": "它现在没有 ID；请保持 {expected}。",
+    "Merge these on their own, with a pick: {elements}": "请通过选择单独合并这些元素：{elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "此处只合并其属性、文档和扩展元素，不包括 {properties}。",
+    "{target} as {property}, which takes a {expected}": "{target} 作为 {property}，需要 {expected}",
+    "No version declares {namespaces}.": "没有任何版本声明 {namespaces}。",
+    "The engine says: {detail}": "引擎提示：{detail}",
+    "{properties} follow the side you picked.": "{properties} 跟随您选择的一方。",
+    "No version has {elements}.": "没有任何版本包含 {elements}。",
+    "The result leaves out {elements}.": "结果排除了 {elements}。",
+    "It would change the decisions on {elements}.": "这会更改对 {elements} 的决定。",
+    "It is no longer picked on the side you merged it for.":
+        "它已不再在您合并时所针对的一方被选择。",
 };
 
 export default dictionary;

@@ -14,7 +14,7 @@ describe("VsCodeMergePaneCommandKeys", () => {
         new VsCodeMergePaneCommandKeys().show({
             focused: true,
             targeted: true,
-            available: ["keep", "undo", "next", "previous", "build"],
+            available: ["keep", "mergeXml", "undo", "next", "previous", "build"],
         });
 
         expect(commandCalls.every(([command]) => command === "setContext")).toBe(true);
@@ -25,6 +25,7 @@ describe("VsCodeMergePaneCommandKeys", () => {
             "bpmn-modeler.mergePane.canKeepInside": false,
             "bpmn-modeler.mergePane.canLeaveOut": false,
             "bpmn-modeler.mergePane.canKeepRemovedFlows": false,
+            "bpmn-modeler.mergePane.canMergeXml": true,
             "bpmn-modeler.mergePane.canUndo": true,
             "bpmn-modeler.mergePane.canStep": true,
             "bpmn-modeler.mergePane.offersBuild": true,
@@ -53,6 +54,6 @@ describe("VsCodeMergePaneCommandKeys", () => {
         keys.show({ focused: false, targeted: false, available: [] });
 
         expect(Object.values(contextOf()).every((value) => value === false)).toBe(true);
-        expect(Object.keys(contextOf())).toHaveLength(9);
+        expect(Object.keys(contextOf())).toHaveLength(10);
     });
 });

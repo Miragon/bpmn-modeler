@@ -1,7 +1,7 @@
 import type { MergePaneOtherSideLack, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
-import type { MergePadDecision } from "./mergePadDecisions";
+import type { MergePadDecision, MergePickDecision } from "./mergePadDecisions";
 
 /** Where the user decided: on the canvas (the pad or the outcome card), or in a menu row. */
 export type MergeDecisionOrigin = "canvas" | "menu";
@@ -34,14 +34,49 @@ export type MergeActedDecision =
           readonly origin: MergeDecisionOrigin;
       };
 
+/**
+ * A request to open an element's XML in the host's merge editor, remembered
+ * so the pane that asked can show what the finished merge did.
+ */
+export interface MergeXmlRequest {
+    readonly kind: "mergeXml";
+    readonly elementId: string;
+    readonly origin: MergeDecisionOrigin;
+    /** Edit again: the editor starts from the text the merge refused last. */
+    readonly resume?: true;
+}
+
+/** What a pane sends: a pick or undo, or a request to merge an element's XML by hand. */
+export type MergePaneRequest = MergeActedDecision | MergeXmlRequest;
+
 /** The decision a pad entry sends for `elementId`. */
-export function actedOnPad(elementId: string, decision: MergePadDecision): MergeActedDecision {
+export function actedOnPad(elementId: string, decision: MergePickDecision): MergeActedDecision {
     return acted(elementId, decision, "canvas");
 }
 
-/** The decision a menu row sends for its shape-less element, which the row says it did. */
-export function actedInMenu(elementId: string, decision: MergePadDecision): MergeActedDecision {
-    return acted(elementId, decision, "menu");
+/** What a pad entry sends for `elementId`: its decision, or the request to merge the XML. */
+export function requestOnPad(elementId: string, decision: MergePadDecision): MergePaneRequest {
+    return request(elementId, decision, "canvas");
+}
+
+/** What a menu row's button sends for its shape-less element. */
+export function requestInMenu(elementId: string, decision: MergePadDecision): MergePaneRequest {
+    return request(elementId, decision, "menu");
+}
+
+/** Edit again: opens the merge editor on the text the merge refused. */
+export function editAgainRequest(elementId: string, origin: MergeDecisionOrigin): MergeXmlRequest {
+    return { kind: "mergeXml", elementId, origin, resume: true };
+}
+
+function request(
+    elementId: string,
+    decision: MergePadDecision,
+    origin: MergeDecisionOrigin,
+): MergePaneRequest {
+    return decision.kind === "mergeXml"
+        ? { kind: "mergeXml", elementId, origin }
+        : acted(elementId, decision, origin);
 }
 
 /** Keeping what the other side removed with the element keeps the element from `side` with it, from the pad or the card. */
@@ -55,7 +90,7 @@ export function keepRemovedWithDecision(
 
 function acted(
     elementId: string,
-    decision: MergePadDecision,
+    decision: MergePickDecision,
     origin: MergeDecisionOrigin,
 ): MergeActedDecision {
     switch (decision.kind) {
@@ -76,25 +111,48 @@ function acted(
     }
 }
 
-/** What a remembered decision sends to the host. */
+/** What a remembered request sends to the host. */
 export type MergeDecisionCommand =
     | {
           readonly kind: "pick";
           readonly elementId: string;
           readonly scope: MergePickScope;
           readonly side: MergeSide;
+          readonly dropsHandMerges?: true;
       }
-    | { readonly kind: "unpick"; readonly elementId: string; readonly scope: MergePickScope };
+    | {
+          readonly kind: "unpick";
+          readonly elementId: string;
+          readonly scope: MergePickScope;
+          readonly dropsHandMerges?: true;
+      }
+    | { readonly kind: "openXmlMerge"; readonly elementId: string; readonly resume?: true };
 
-/** A leave-out is a pick of the side that lacks the element. */
-export function mergeDecisionCommandOf(acted: MergeActedDecision): MergeDecisionCommand {
-    const { elementId } = acted;
-    switch (acted.kind) {
+/**
+ * A leave-out is a pick of the side that lacks the element. A pick or undo
+ * resent after the user agreed drops the versions merged by hand it moves
+ * off their side.
+ */
+export function mergeDecisionCommandOf(
+    request: MergePaneRequest,
+    { dropsHandMerges = false }: { readonly dropsHandMerges?: boolean } = {},
+): MergeDecisionCommand {
+    const { elementId } = request;
+    const dropping = dropsHandMerges ? { dropsHandMerges: true as const } : {};
+    switch (request.kind) {
         case "keep":
-            return { kind: "pick", elementId, scope: acted.scope, side: acted.side };
+            return {
+                kind: "pick",
+                elementId,
+                scope: request.scope,
+                side: request.side,
+                ...dropping,
+            };
         case "leaveOut":
-            return { kind: "pick", elementId, scope: "element", side: acted.side };
+            return { kind: "pick", elementId, scope: "element", side: request.side, ...dropping };
         case "undo":
-            return { kind: "unpick", elementId, scope: acted.scope };
+            return { kind: "unpick", elementId, scope: request.scope, ...dropping };
+        case "mergeXml":
+            return { kind: "openXmlMerge", elementId, ...(request.resume ? { resume: true } : {}) };
     }
 }

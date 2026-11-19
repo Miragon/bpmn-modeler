@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import type {
     MergePaneBlock,
+    MergePaneOutcome,
     MergePanePickAction,
     MergePaneRestoreOffer,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
+import { cardToneOf } from "./mergeCardContent";
+import type { MergeHandMergeFacts } from "./mergeHandMergeCard";
 import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);
@@ -309,5 +312,166 @@ describe("mergeOutcomeCardContent", () => {
         expect(
             card({ outcome: applied("unpick", "Flow_1"), acted: undo("Flow_1") }).unblocked,
         ).toBeUndefined();
+    });
+});
+
+describe("the card of a merge by hand", () => {
+    const mergeXml = { kind: "mergeXml", elementId: "Task_Remind", origin: "canvas" } as const;
+    const handMerge = (
+        outcome: Partial<MergePaneOutcome> & { applied: boolean },
+    ): MergeRememberedOutcome =>
+        ({
+            outcome: {
+                action: "mergeByHand",
+                elementId: "Task_Remind",
+                ...(outcome.applied
+                    ? { pulledIn: [], dropped: [], reopened: [] }
+                    : { blockedBy: [] }),
+                ...outcome,
+            },
+            acted: mergeXml,
+        }) as MergeRememberedOutcome;
+    const facts: MergeHandMergeFacts = {
+        keptSide: "incoming",
+        mergedByHand: false,
+        canEditAgain: true,
+    };
+    const handCard = (remembered: MergeRememberedOutcome, handMergeFacts = facts) =>
+        mergeOutcomeCardContent(remembered, {
+            nameOf,
+            translate: untranslated,
+            handMerge: handMergeFacts,
+        });
+
+    it("says the XML merged by hand was taken", () => {
+        expect(handCard(handMerge({ applied: true }))).toMatchObject({
+            applied: true,
+            headline: "Merged by hand: Send invoice",
+            rows: [],
+            reasons: [],
+            blockers: [],
+        });
+    });
+
+    it("notes, not refuses, a merge closed without a save", () => {
+        const content = handCard(handMerge({ applied: false, discarded: true }));
+
+        expect(content).toMatchObject({
+            applied: false,
+            notice: true,
+            headline: "Closed without saving: Send invoice is unchanged",
+            reasons: [],
+        });
+        expect(content.choices).toBeUndefined();
+    });
+
+    it("heads a refusal by its kind, details it from its data, and offers Edit again and the kept side's version", () => {
+        const content = handCard(
+            handMerge({
+                applied: false,
+                handMergeRefusal: {
+                    kind: "typeChanged",
+                    expected: "bpmn:Task",
+                    found: "bpmn:UserTask",
+                },
+            }),
+        );
+
+        expect(content).toMatchObject({
+            applied: false,
+            headline: "The XML of Send invoice changes its type",
+            reasons: ["It is a bpmn:UserTask now; keep it a bpmn:Task."],
+            announcement: [
+                "The XML of Send invoice changes its type",
+                "It is a bpmn:UserTask now; keep it a bpmn:Task.",
+            ],
+        });
+        expect(content.notice).toBeUndefined();
+        expect(content.choices).toStrictEqual([
+            { action: "editAgain", text: "Edit again", primary: true },
+            { action: "dismiss", text: "Keep incoming's version" },
+        ]);
+    });
+
+    it("names the elements a refusal holds by the pane's names", () => {
+        const content = handCard(
+            handMerge({
+                applied: false,
+                handMergeRefusal: { kind: "namesLeftOutElement", ids: ["Task_Cancel", "Data_9"] },
+            }),
+        );
+
+        expect(content.reasons).toStrictEqual(["The result leaves out Cancel order, Data_9."]);
+    });
+
+    it("keeps the version merged before where the element was merged by hand already", () => {
+        const content = handCard(
+            handMerge({ applied: false, handMergeRefusal: { kind: "conflictMarkersLeft" } }),
+            { ...facts, mergedByHand: true },
+        );
+
+        expect(content.choices?.at(-1)).toStrictEqual({
+            action: "dismiss",
+            text: "Keep the XML merged before",
+        });
+    });
+
+    it("offers no Edit again once the pick changed, and no kept version without a pick", () => {
+        const content = handCard(
+            handMerge({ applied: false, handMergeRefusal: { kind: "notHandMergeable" } }),
+            { mergedByHand: false, canEditAgain: false },
+        );
+
+        expect(content.headline).toBe("The pick of Send invoice changed while you merged it");
+        expect(content.choices).toStrictEqual([]);
+    });
+
+    it.each(["pick", "leaveOut", "unpick"] as const)(
+        "asks before a %s drops the XML merged by hand, and offers to drop it and send again",
+        (action) => {
+            const acted =
+                action === "unpick"
+                    ? undo("Task_Remind")
+                    : action === "pick"
+                      ? keep("Task_Remind")
+                      : leaveOut("Task_Remind");
+            const content = card({
+                outcome: {
+                    ...refused(action, "Task_Remind", []),
+                    handMergesAtStake: ["Task_Remind", "Task_Cancel"],
+                },
+                acted,
+            });
+
+            expect(content).toMatchObject({
+                applied: false,
+                notice: true,
+                headline: "This drops the XML you merged by hand for Send invoice, Cancel order",
+                reasons: [],
+                blockers: [],
+            });
+            expect(content.choices).toStrictEqual([
+                {
+                    action: "dropHandMerges",
+                    text: {
+                        pick: "Drop it and pick",
+                        leaveOut: "Drop it and leave out",
+                        unpick: "Drop it and undo",
+                    }[action],
+                    primary: true,
+                },
+                { action: "dismiss", text: "Keep my XML" },
+            ]);
+        },
+    );
+});
+
+describe("cardToneOf", () => {
+    it.each([
+        [{ applied: true }, "applied"],
+        [{ applied: false }, "refused"],
+        [{ applied: false, notice: true }, "notice"],
+    ] as const)("reads %o as %s", (content, tone) => {
+        expect(cardToneOf(content)).toBe(tone);
     });
 });

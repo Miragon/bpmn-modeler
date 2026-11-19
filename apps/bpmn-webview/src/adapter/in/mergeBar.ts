@@ -26,7 +26,7 @@ import {
     openShapelessConflictsText,
 } from "../../domain/mergeBarTexts";
 import type { MergeMenuRowContent } from "../../domain/mergeMenuRows";
-import type { MergeTranslate } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MergeBuildButton } from "./mergeBuildButton";
 import { type MergeMenuActions, MergeMenu } from "./mergeMenu";
 import { MergeNotesPopover } from "./mergeNotesPopover";

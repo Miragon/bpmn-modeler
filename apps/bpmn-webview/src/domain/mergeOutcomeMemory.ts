@@ -1,12 +1,19 @@
 import type { MergePaneStates } from "@miragon/bpmn-modeler-shared";
 
-import type { MergeActedDecision } from "./mergeActedDecision";
+import {
+    editAgainRequest,
+    type MergeActedDecision,
+    type MergePaneRequest,
+    type MergeXmlRequest,
+} from "./mergeActedDecision";
 import {
     isDecisionOutcome,
+    isHandMergeOutcome,
     type MergeDecisionOutcome,
     type MergeRefusal,
 } from "./mergeDecisionOutcome";
-import type { MergeRememberedOutcome } from "./mergeOutcomeCard";
+import type { MergeCardAction } from "./mergeCardContent";
+import { isRememberedHandMerge, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
 export type MergeOutcomeStates = Pick<
@@ -16,12 +23,14 @@ export type MergeOutcomeStates = Pick<
 
 /**
  * What a merge pane remembers of the decisions it sent, until it reloads:
- * the one awaiting the host's answer, the latest outcome of its own, the
- * last refusal an undo may free, and what the last states said of the
- * outcome and the picks ({@link decisionsSeen}).
+ * the one awaiting the host's answer, the merges by hand it asked for whose
+ * editors may still be open, the latest outcome of its own, the last
+ * refusal an undo may free, and what the last states said of the outcome
+ * and the picks ({@link decisionsSeen}).
  */
 export interface MergeOutcomeMemory {
     readonly sent?: MergeActedDecision;
+    readonly handMergesSent?: readonly MergeXmlRequest[];
     readonly latest?: MergeRememberedOutcome;
     readonly refused?: MergeRefusal;
     readonly seen?: string;
@@ -38,44 +47,105 @@ export interface MergeCardChange {
 
 export const EMPTY_OUTCOME_MEMORY: MergeOutcomeMemory = {};
 
+/**
+ * A pick or undo awaits the host's next states; a merge by hand awaits its
+ * editor's finish, however many states come before it, one per element.
+ */
 export function rememberSent(
     memory: MergeOutcomeMemory,
-    acted: MergeActedDecision,
+    request: MergePaneRequest,
 ): MergeOutcomeMemory {
-    return { ...memory, sent: acted };
+    if (request.kind !== "mergeXml") return { ...memory, sent: request };
+    return {
+        ...memory,
+        handMergesSent: [...withoutHandMerge(memory, request.elementId), request],
+    };
 }
 
 /**
  * Reads the host's latest outcome: the answer to the decision this pane
- * sent becomes its latest outcome; any other outcome the pane has not seen
- * is the partner's, newer than this pane's, which the pane forgets.
+ * sent, or a newly seen finish of a merge by hand it asked for, becomes its
+ * latest outcome; any other outcome the pane has not seen is the partner's,
+ * newer than this pane's, which the pane forgets.
  */
-export function answerStates(
+export function answerStates(memory: MergeOutcomeMemory, states: MergeOutcomeStates): Answered {
+    const seen = decisionsSeen(states);
+    const ownDecision = answerOwnDecision(memory, states, seen);
+    if (ownDecision !== undefined) return ownDecision;
+    if (seen === memory.seen) return { memory, answer: "keep" };
+    return answerOwnHandMerge(memory, states, seen) ?? forgetForPartner(memory, seen);
+}
+
+/** What the pane remembers and what new states mean for its card. */
+interface Answered {
+    readonly memory: MergeOutcomeMemory;
+    readonly answer: MergeOutcomeAnswer;
+}
+
+/** The outcome that answers the pick or undo this pane sent, however often the states repeat it. */
+function answerOwnDecision(
     memory: MergeOutcomeMemory,
     states: MergeOutcomeStates,
-): { readonly memory: MergeOutcomeMemory; readonly answer: MergeOutcomeAnswer } {
+    seen: string,
+): Answered | undefined {
     const outcome = states.lastOutcome;
     const { sent } = memory;
-    if (
-        outcome !== undefined &&
-        sent !== undefined &&
-        isDecisionOutcome(outcome) &&
-        answers(outcome, sent)
-    ) {
-        const lifted = liftedRefusal(memory.refused, outcome, states);
-        const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
-        return {
-            memory: {
-                latest: { outcome, acted: sent, ...(lifted ? { lifted } : {}) },
-                ...(refused ? { refused } : {}),
-                seen: decisionsSeen(states),
-            },
-            answer: "show",
-        };
-    }
-    const seen = decisionsSeen(states);
-    if (seen === memory.seen) return { memory, answer: "keep" };
-    return { memory: { ...(sent ? { sent } : {}), seen }, answer: "forget" };
+    if (outcome === undefined || sent === undefined) return undefined;
+    if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
+    const lifted = liftedRefusal(memory.refused, outcome, states);
+    const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
+    return {
+        memory: {
+            ...pendingHandMerges(memory),
+            latest: { outcome, acted: sent, ...(lifted ? { lifted } : {}) },
+            ...(refused ? { refused } : {}),
+            seen,
+        },
+        answer: "show",
+    };
+}
+
+/** A newly seen finish of a merge by hand this pane asked for. */
+function answerOwnHandMerge(
+    memory: MergeOutcomeMemory,
+    states: MergeOutcomeStates,
+    seen: string,
+): Answered | undefined {
+    const outcome = states.lastOutcome;
+    if (outcome === undefined || !isHandMergeOutcome(outcome)) return undefined;
+    const request = memory.handMergesSent?.find(({ elementId }) => elementId === outcome.elementId);
+    if (request === undefined) return undefined;
+    const { sent, refused } = memory;
+    return {
+        memory: {
+            ...(sent ? { sent } : {}),
+            handMergesSent: withoutHandMerge(memory, outcome.elementId),
+            latest: { outcome, acted: request },
+            ...(refused ? { refused } : {}),
+            seen,
+        },
+        answer: "show",
+    };
+}
+
+/** Any other newly seen outcome is the partner's, newer than this pane's, which the pane forgets. */
+function forgetForPartner(memory: MergeOutcomeMemory, seen: string): Answered {
+    const { sent } = memory;
+    return {
+        memory: { ...(sent ? { sent } : {}), ...pendingHandMerges(memory), seen },
+        answer: "forget",
+    };
+}
+
+function pendingHandMerges(memory: MergeOutcomeMemory): Pick<MergeOutcomeMemory, "handMergesSent"> {
+    return memory.handMergesSent ? { handMergesSent: memory.handMergesSent } : {};
+}
+
+function withoutHandMerge(
+    memory: MergeOutcomeMemory,
+    elementId: string,
+): readonly MergeXmlRequest[] {
+    return (memory.handMergesSent ?? []).filter((sent) => sent.elementId !== elementId);
 }
 
 /**
@@ -118,6 +188,42 @@ export function outcomeToShowAt(
         : undefined;
 }
 
+/**
+ * What a choice on the card or in a row does: Edit again reopens the merge
+ * editor on the refused text, dropping resends the decision that asked
+ * with the user's consent, and a dismiss forgets the outcome and closes it.
+ */
+export function chooseOn(
+    memory: MergeOutcomeMemory,
+    action: MergeCardAction,
+): {
+    readonly memory: MergeOutcomeMemory;
+    readonly send?: { readonly request: MergePaneRequest; readonly dropsHandMerges: boolean };
+    readonly close: boolean;
+} {
+    const { latest } = memory;
+    if (latest === undefined) return { memory, close: false };
+    switch (action) {
+        case "dismiss": {
+            const { latest: _dismissed, ...rest } = memory;
+            return { memory: rest, close: true };
+        }
+        case "editAgain":
+            return {
+                memory,
+                send: {
+                    request: editAgainRequest(latest.outcome.elementId, latest.acted.origin),
+                    dropsHandMerges: false,
+                },
+                close: false,
+            };
+        case "dropHandMerges":
+            return isRememberedHandMerge(latest)
+                ? { memory, close: false }
+                : { memory, send: { request: latest.acted, dropsHandMerges: true }, close: false };
+    }
+}
+
 /** What a decision from a menu row did, which that row says, on the pane that sent it. */
 export function rowOutcome(memory: MergeOutcomeMemory): MergeRememberedOutcome | undefined {
     return memory.latest?.acted.origin === "menu" ? memory.latest : undefined;
@@ -130,10 +236,11 @@ export function rowOutcome(memory: MergeOutcomeMemory): MergeRememberedOutcome |
  */
 function decisionsSeen(states: MergeOutcomeStates): string {
     const { lastOutcome, badges, picksNotDrawn, restoreOffer } = states;
-    const picks = [...badges, ...picksNotDrawn].map(({ id, keptSide, scope }) => [
+    const picks = [...badges, ...picksNotDrawn].map(({ id, keptSide, scope, mergedByHand }) => [
         id,
         keptSide,
         scope,
+        mergedByHand === true,
     ]);
     return JSON.stringify([lastOutcome ?? null, picks, restoreOffer ?? null]);
 }

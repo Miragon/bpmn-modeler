@@ -7,6 +7,11 @@
  *
  * Recorded by hand, so the webview preview needs no private merge library:
  * keep them in step with what `mergePaneView` and `mergePaneSteps` produce.
+ *
+ * `&mergeXml=accept` or `&mergeXml=refuse` starts both panes with
+ * `ServiceTask_1` kept from incoming and offers Merge XML on it; the preview
+ * host answers the pad's Merge XML as the merge would, taking the text or
+ * refusing a changed type.
  */
 import {
     ApplyMergeStatesQuery,
@@ -110,8 +115,100 @@ const INCOMING: MergePaneStates = {
 
 const PREVIEW_OFFERS = { elementXmlChanges: true, elementXmlMerge: false } as const;
 
+const PANE_STATES: Readonly<Record<DiffSide, MergePaneStates>> = {
+    before: CURRENT,
+    after: INCOMING,
+};
+
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */
 export const MOCK_MERGE_STATES: Readonly<Record<DiffSide, ApplyMergeStatesQuery>> = {
     before: new ApplyMergeStatesQuery("before", CURRENT, PREVIEW_OFFERS),
     after: new ApplyMergeStatesQuery("after", INCOMING, PREVIEW_OFFERS),
 };
+
+/** How the preview answers Merge XML on `ServiceTask_1`: it takes the text, or refuses a changed type. */
+export type MockMergeXmlAnswer = "accept" | "refuse";
+
+export function mockMergeXmlAnswerOf(value: string | null): MockMergeXmlAnswer | undefined {
+    return value === "accept" || value === "refuse" ? value : undefined;
+}
+
+const MERGE_XML_OFFERS = { elementXmlChanges: true, elementXmlMerge: true } as const;
+
+/** `ServiceTask_1` kept from incoming by the user, so its XML can be merged by hand. */
+function withServiceTaskKept(
+    side: DiffSide,
+    { mergedByHand }: { readonly mergedByHand: boolean },
+): MergePaneStates {
+    const states = PANE_STATES[side];
+    const badge = {
+        id: "ServiceTask_1",
+        kind: side === "after" ? "keptHere" : "replacedHere",
+        keptSide: "incoming",
+        scope: "element",
+        ...(mergedByHand ? { mergedByHand: true as const } : {}),
+    } as const;
+    const marked = side === "after" ? "takenFromThisSide" : "takenFromOtherSide";
+    return {
+        ...states,
+        marks: {
+            ...states.marks,
+            conflict: [],
+            [marked]: [...states.marks[marked], "ServiceTask_1"],
+        },
+        openConflictSteps: states.openConflictSteps.filter(({ id }) => id !== "ServiceTask_1"),
+        openConflicts: 1,
+        badges: [badge],
+        pickable: states.pickable.map((pickable) =>
+            pickable.id === "ServiceTask_1"
+                ? {
+                      id: "ServiceTask_1",
+                      takenSide: "incoming",
+                      undo: "element",
+                      handMergeable: true,
+                  }
+                : pickable,
+        ),
+        build: { ...states.build, openConflicts: 1 },
+    };
+}
+
+/** The preview's states with Merge XML offered on `ServiceTask_1`. */
+export function mockMergeXmlStates(side: DiffSide): ApplyMergeStatesQuery {
+    return new ApplyMergeStatesQuery(
+        side,
+        withServiceTaskKept(side, { mergedByHand: false }),
+        MERGE_XML_OFFERS,
+    );
+}
+
+/** The states after the merge editor closed with a save: taken, or refused for a changed type. */
+export function mockMergeXmlFinished(
+    side: DiffSide,
+    answer: MockMergeXmlAnswer,
+): ApplyMergeStatesQuery {
+    const accepted = answer === "accept";
+    const states = withServiceTaskKept(side, { mergedByHand: accepted });
+    const action = "mergeByHand";
+    const elementId = "ServiceTask_1";
+    return new ApplyMergeStatesQuery(
+        side,
+        {
+            ...states,
+            lastOutcome: accepted
+                ? { applied: true, action, elementId, pulledIn: [], dropped: [], reopened: [] }
+                : {
+                      applied: false,
+                      action,
+                      elementId,
+                      blockedBy: [],
+                      handMergeRefusal: {
+                          kind: "typeChanged",
+                          expected: "bpmn:ServiceTask",
+                          found: "bpmn:UserTask",
+                      },
+                  },
+        },
+        MERGE_XML_OFFERS,
+    );
+}

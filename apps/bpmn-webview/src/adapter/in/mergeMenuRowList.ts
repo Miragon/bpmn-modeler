@@ -1,6 +1,7 @@
 import { createButton, createElement, MERGE_MARKER_CLASSES } from "@miragon/bpmn-modeler-types";
 
 import type { MergeMenuRowContent } from "../../domain/mergeMenuRows";
+import type { MergeCardAction } from "../../domain/mergeCardContent";
 import {
     keepsEverythingInside,
     type MergePadDecision,
@@ -13,7 +14,8 @@ import {
     shapelessEntryText,
     shapelessValueLines,
 } from "../../domain/mergeRowTexts";
-import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import { padDecisionText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
 import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
@@ -24,6 +26,8 @@ export interface MergeMenuRowActions {
     readonly onDecide: (elementId: string, decision: MergePadDecision) => void;
     /** Opens a shape-less element's XML changes from its row, as the pad does for a drawn one. */
     readonly onXmlChanges: (elementId: string) => void;
+    /** A choice the row's outcome offers, as the card's do. */
+    readonly onChoose: (action: MergeCardAction) => void;
 }
 
 interface FocusedRowButton {
@@ -117,6 +121,21 @@ export class MergeMenuRowList {
         const outcome = createElement("div", "merge-menu__outcome");
         outcome.hidden = row.outcome === undefined;
         outcome.append(...(row.outcome ?? []).map((line) => createElement("span", "", line)));
+        if (row.choices !== undefined && row.choices.length > 0) {
+            const choices = createElement("div", "merge-menu__row-picks");
+            choices.append(
+                ...row.choices.map(({ action, text }) => {
+                    const choice = createButton(
+                        "merge-menu__mini",
+                        () => this.actions.onChoose(action),
+                        text,
+                    );
+                    choice.dataset.focusKey = `choice:${action}`;
+                    return choice;
+                }),
+            );
+            outcome.append(choices);
+        }
         item.append(stepButton, values, decisions, outcome);
         return item;
     }

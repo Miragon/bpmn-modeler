@@ -7,7 +7,8 @@ import type { MergePadEntry } from "@miragon/bpmn-modeler-shared";
 
 import { padEntryOf } from "../../domain/mergePaneCommands";
 import type { MergePadDecision } from "../../domain/mergePadDecisions";
-import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import { padDecisionText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
@@ -55,14 +56,15 @@ const ENTRY_IDS: Record<MergePadEntry, string> = {
     keepInside: "merge-keep-inside",
     leaveOut: "merge-leave-out",
     keepRemovedWith: "merge-keep-removed-with",
+    mergeXml: "merge-xml",
     undo: "merge-undo",
 };
 
 /**
  * The merge pane's decisions beside "Show XML changes", as icons at
  * diagram-js's place for the pad: keep the element from this pane's side,
- * with everything inside, leave it out, keep what was removed with it and
- * undo the pick. The pane decides which apply. Each icon names its side in
+ * with everything inside, leave it out, keep what was removed with it,
+ * merge its XML by hand and undo the pick. The pane decides which apply. Each icon names its side in
  * its label and shows the merge chrome's styled tooltip, never a native
  * `title`, which would show a second one.
  */

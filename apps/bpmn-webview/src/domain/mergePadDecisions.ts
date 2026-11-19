@@ -1,4 +1,5 @@
 import type {
+    MergeHostOffers,
     MergePaneContainerReach,
     MergePaneOtherSideLack,
     MergePaneRestoreOffer,
@@ -32,7 +33,23 @@ export type MergePadDecision =
           readonly side: MergeSide;
           readonly offer: MergePaneRestoreOffer;
       }
+    | MergeXmlDecision
     | { readonly kind: "undo"; readonly scope: MergePickScope };
+
+/**
+ * Opens the picked element's XML in the host's merge editor: the conflict
+ * to merge by hand, or the version merged by hand before, to edit.
+ */
+export interface MergeXmlDecision {
+    readonly kind: "mergeXml";
+    readonly mode: "open" | "edit";
+}
+
+/** A decision that picks or takes a pick back, which the host decides in the merge. */
+export type MergePickDecision = Exclude<MergePadDecision, MergeXmlDecision>;
+
+/** What the decisions read of what the host offers besides them. */
+export type MergePadOffers = Pick<MergeHostOffers, "elementXmlMerge">;
 
 /** What the pad reads of the host's states. */
 export type MergePadStates = Pick<
@@ -43,13 +60,15 @@ export type MergePadStates = Pick<
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
  * the pane's side, keep a container with everything inside, leave it out
- * where the other side lacks it, keep what the host offers with it,
- * undo the user's pick. An entry whose outcome the result already has is
- * left out, so every entry changes something.
+ * where the other side lacks it, keep what the host offers with it, merge
+ * its XML by hand where the host has a merge editor, undo the user's pick.
+ * An entry whose outcome the result already has is left out, so every
+ * entry changes something.
  */
 export function mergePadDecisions(
     states: MergePadStates,
     elementId: string,
+    offers: MergePadOffers,
 ): readonly MergePadDecision[] {
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
@@ -71,6 +90,7 @@ export function mergePadDecisions(
             : undefined,
         facts.lacking === undefined ? undefined : sidePick(facts, facts.lacking.side),
         keepRemovedWith(states, elementId),
+        mergeXml(pickable, badge, offers),
         pickable.undo === undefined ? undefined : { kind: "undo", scope: pickable.undo },
     ];
     return decisions.filter((decision) => decision !== undefined);
@@ -103,6 +123,7 @@ export function keepsEverythingInside<Decision extends MergePadDecision>(
 export function mergeRowDecisions(
     states: MergeRowStates,
     row: MergePaneShapelessRow,
+    offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
     const facts: SidePickFacts = {
         pickedSide: row.pick?.keptSide,
@@ -124,6 +145,7 @@ export function mergeRowDecisions(
     const decisions: (MergeRowDecision | undefined)[] = [
         ...MERGE_SIDES.flatMap((side) => [sidePick(facts, side), withContents(side)]),
         keepRemovedWith(states, row.id),
+        mergeXml(row, row.pick, offers),
         row.pick === undefined ? undefined : { kind: "undo", scope: row.pick.scope },
     ];
     return decisions.filter((decision) => decision !== undefined);
@@ -138,11 +160,29 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
 export function keepRemovedWith(
     states: MergeRowStates,
     elementId: string,
-): MergePadDecision | undefined {
+): Extract<MergePadDecision, { kind: "keepRemovedWith" }> | undefined {
     const offer = states.restoreOffer;
     return offer?.elementId === elementId
         ? { kind: "keepRemovedWith", side: otherSide(offer.removedBy), offer }
         : undefined;
+}
+
+/** Merge XML can be offered on the element: its pick allows a merge by hand and the host has a merge editor. */
+export function offersMergeXml(
+    element: { readonly handMergeable?: true },
+    offers: MergePadOffers,
+): boolean {
+    return element.handMergeable === true && offers.elementXmlMerge;
+}
+
+/** Merging the XML by hand, where the host can and the pick allows it; editing it once merged. */
+function mergeXml(
+    element: { readonly handMergeable?: true },
+    pick: { readonly mergedByHand?: true } | undefined,
+    offers: MergePadOffers,
+): MergeXmlDecision | undefined {
+    if (!offersMergeXml(element, offers)) return undefined;
+    return { kind: "mergeXml", mode: pick?.mergedByHand ? "edit" : "open" };
 }
 
 /** What tells whether a pick of a side changes anything. */

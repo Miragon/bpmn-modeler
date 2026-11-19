@@ -14,6 +14,7 @@ export const MERGE_PANE_COMMAND_KEYS: Readonly<Record<MergePaneCommand, string>>
     leaveOut: "bpmn-modeler.mergePane.canLeaveOut",
     // Kept with its command id (MergeKeyboardController.ts): users' `when` clauses name it.
     keepRemovedWith: "bpmn-modeler.mergePane.canKeepRemovedFlows",
+    mergeXml: "bpmn-modeler.mergePane.canMergeXml",
     undo: "bpmn-modeler.mergePane.canUndo",
     next: "bpmn-modeler.mergePane.canStep",
     previous: "bpmn-modeler.mergePane.canStep",

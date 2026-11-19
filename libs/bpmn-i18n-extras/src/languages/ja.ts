@@ -490,6 +490,83 @@ const dictionary: Record<string, string> = {
         "両側が {elements} のレイアウトを変更しました。現在のレイアウトを保持します",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "両側が {elements} のレイアウトを変更しました。入力側のレイアウトを保持します",
+    "by hand": "手動",
+    "Edit again": "もう一度編集",
+    "Keep my XML": "自分の XML を保持",
+    "Keep the XML merged before": "以前マージした XML を保持",
+    "Merge XML": "XML をマージ",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "両側の XML の変更をマージ エディターで手動でマージします",
+    "Edit merged XML": "マージした XML を編集",
+    "Change the XML you merged by hand": "手動でマージした XML を変更します",
+    "Keep current's version": "現在のバージョンを保持",
+    "Keep incoming's version": "入力側のバージョンを保持",
+    "Drop it and pick": "破棄して選択",
+    "Drop it and leave out": "破棄して除外",
+    "Drop it and undo": "破棄して取り消す",
+    "Kept from current and merged by hand, your pick": "現在から保持し手動でマージ (自分の選択)",
+    "Kept from incoming and merged by hand, your pick": "入力側から保持し手動でマージ (自分の選択)",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "現在から内部ごと保持し手動でマージ (自分の選択)",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "入力側から内部ごと保持し手動でマージ (自分の選択)",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "現在から一緒に削除されたものごと保持し手動でマージ (自分の選択)",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "入力側から一緒に削除されたものごと保持し手動でマージ (自分の選択)",
+    "Merged by hand: {element}": "手動でマージ: {element}",
+    "Closed without saving: {element} is unchanged":
+        "保存せずに閉じました: {element} は変更されていません",
+    "This drops the XML you merged by hand for {elements}":
+        "{elements} の手動でマージした XML が破棄されます",
+    "The XML of {element} still holds conflict markers":
+        "{element} の XML にまだ競合マーカーがあります",
+    "The XML of {element} doesn't parse": "{element} の XML を解析できません",
+    "The XML of {element} must hold one element":
+        "{element} の XML には要素を 1 つだけ含める必要があります",
+    "The XML of {element} changes its type": "{element} の XML が型を変更しています",
+    "The XML of {element} changes its ID": "{element} の XML が ID を変更しています",
+    "The XML of {element} holds elements of their own":
+        "{element} の XML に独立した要素が含まれています",
+    "The XML of {element} goes beyond its own content":
+        "{element} の XML が自身の内容を超えています",
+    "The XML of {element} names an element of the wrong type":
+        "{element} の XML が誤った型の要素を指定しています",
+    "The XML of {element} uses an unknown namespace":
+        "{element} の XML が不明な名前空間を使用しています",
+    "The engine doesn't take the XML of {element}": "エンジンが {element} の XML を受け付けません",
+    "The XML of {element} changes what follows the pick":
+        "{element} の XML が選択に従う内容を変更しています",
+    "The XML of {element} names an element no version has":
+        "{element} の XML がどのバージョンにもない要素を指定しています",
+    "The XML of {element} names an element the result leaves out":
+        "{element} の XML が結果から除外される要素を指定しています",
+    "The XML of {element} would change other decisions": "{element} の XML は他の決定を変更します",
+    "The pick of {element} changed while you merged it":
+        "マージ中に {element} の選択が変更されました",
+    "Resolve each conflict and remove its markers, then save.":
+        "各競合を解決してマーカーを削除してから保存してください。",
+    "The parser says: {detail}": "パーサーのメッセージ: {detail}",
+    "It holds {count} elements at its top level.": "最上位に {count} 個の要素があります。",
+    "It is a {found} now; keep it a {expected}.":
+        "現在は {found} です。{expected} のままにしてください。",
+    "Its ID is {found} now; keep {expected}.":
+        "ID が {found} になっています。{expected} のままにしてください。",
+    "It has no ID now; keep {expected}.": "ID がありません。{expected} のままにしてください。",
+    "Merge these on their own, with a pick: {elements}":
+        "これらは選択で個別にマージしてください: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "ここでマージできるのは属性、ドキュメント、拡張要素だけです。{properties} は対象外です。",
+    "{target} as {property}, which takes a {expected}":
+        "{property} としての {target} ({expected} が必要)",
+    "No version declares {namespaces}.": "{namespaces} を宣言しているバージョンはありません。",
+    "The engine says: {detail}": "エンジンのメッセージ: {detail}",
+    "{properties} follow the side you picked.": "{properties} は選択した側に従います。",
+    "No version has {elements}.": "{elements} を持つバージョンはありません。",
+    "The result leaves out {elements}.": "結果は {elements} を除外します。",
+    "It would change the decisions on {elements}.": "{elements} の決定が変わります。",
+    "It is no longer picked on the side you merged it for.":
+        "マージした側ではもう選択されていません。",
 };
 
 export default dictionary;

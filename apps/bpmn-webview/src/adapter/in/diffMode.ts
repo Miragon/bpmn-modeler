@@ -20,7 +20,8 @@ import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";
 
 import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import { changesOnlyThisSideHas, diffStepSelection } from "../../domain/diffStepSelection";
-import { comparisonPaneText, type MergeTranslate } from "../../domain/mergeTexts";
+import { comparisonPaneText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
 import { ResultComparisonSwitch } from "./resultComparisonSwitch";

@@ -4,6 +4,7 @@ import type { MergePaneBadge, MergePickScope } from "@miragon/bpmn-modeler-share
 import { MERGE_MARKER_CLASSES, MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import { flowBadgePlace, type FlowWaypoint } from "../../domain/mergeFlowBadgePlace";
+import { PEN_PATHS } from "./mergeDecisionIcons";
 
 import "./mergeMarks.css";
 
@@ -44,10 +45,17 @@ export interface MergeMarksView {
     readonly consequences: readonly string[];
 }
 
+/** A badge's words: the kept side, its full words, and the word of a version merged by hand, given only for one. */
+interface MergeBadgeText {
+    readonly side: string;
+    readonly label: string;
+    readonly byHand?: string;
+}
+
 /** The words the canvas shows, in the pane's language. */
 export interface MergeMarksLabels {
     readonly conflict: string;
-    badge(badge: MergePaneBadge): { readonly side: string; readonly label: string };
+    badge(badge: MergePaneBadge): MergeBadgeText;
 }
 
 const CONFLICT_BADGE = "merge-conflict-badge";
@@ -75,6 +83,9 @@ const CHECK_ONLY_BADGE_MAX_ZOOM = largestDoubleBelow(WORDED_BADGE_MIN_ZOOM);
 
 const SHAPE_BADGE_GAP = 3;
 
+// A pen beside the check: a version merged by hand replaces the kept side's own.
+const PEN_MARK = `<svg class="merge-pick-badge__pen" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${PEN_PATHS}</svg>`;
+
 const CHECK_MARK = `<svg class="merge-pick-badge__check" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`;
 
 // The hatch of "taken from the other side", its non-colour cue; mergeMarks.css fills shapes with it.
@@ -87,7 +98,8 @@ const HATCH_PATTERN = `<defs><pattern id="merge-hatch" class="merge-hatch" patte
  * taken from this side); a badge on each element the user picked, naming
  * the kept side ("✓ Incoming") above a shape's top edge, clear of its type
  * icon, as a check alone at small zoom and on a flow, where a word would hide
- * the shapes it joins; and a dotted outline on what a pick pulled in or
+ * the shapes it joins, with a pen and "by hand" on a version merged by hand;
+ * and a dotted outline on what a pick pulled in or
  * dropped. Each paint replaces the last one; it decides nothing, the host
  * sent which element gets what.
  */
@@ -131,14 +143,18 @@ export class MergeMarks {
         });
     }
 
-    private addPickBadge(
-        badge: MergePaneBadge,
-        text: { readonly side: string; readonly label: string },
-    ): void {
+    private addPickBadge(badge: MergePaneBadge, text: MergeBadgeText): void {
         const label = escapeHTML(text.label);
-        const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.scope]}`;
+        const mergedByHand = text.byHand !== undefined;
+        const byHand = mergedByHand ? " merge-pick-badge--by-hand" : "";
+        const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.scope]}${byHand}`;
+        const pen = mergedByHand ? PEN_MARK : "";
+        const sideWord = `<span class="merge-pick-badge__side">${escapeHTML(text.side)}</span>`;
+        const byHandWord = mergedByHand
+            ? `<span class="merge-pick-badge__by-hand">${escapeHTML(text.byHand)}</span>`
+            : "";
         const badgeHtml = (modifier: string, content: string) =>
-            `<div class="${classes} ${modifier}" role="img" aria-label="${label}">${CHECK_MARK}${content}</div>`;
+            `<div class="${classes} ${modifier}" role="img" aria-label="${label}">${content}</div>`;
         const waypoints = this.registry.get(badge.id)?.waypoints;
         if (waypoints !== undefined) {
             const place = flowBadgePlace(waypoints);
@@ -147,7 +163,8 @@ export class MergeMarks {
             this.overlays.add(badge.id, PICK_BADGE, {
                 position: place,
                 scale: { max: 1.5 },
-                html: badgeHtml("merge-pick-badge--on-flow", ""),
+                // Its round badge holds one glyph, so a version merged by hand shows the pen alone.
+                html: badgeHtml("merge-pick-badge--on-flow", pen || CHECK_MARK),
             });
             return;
         }
@@ -158,14 +175,14 @@ export class MergeMarks {
             show: { minZoom: WORDED_BADGE_MIN_ZOOM },
             html: badgeHtml(
                 "merge-pick-badge--on-shape",
-                `<span class="merge-pick-badge__side">${escapeHTML(text.side)}</span>`,
+                `${CHECK_MARK}${sideWord}${pen}${byHandWord}`,
             ),
         });
         this.overlays.add(badge.id, PICK_BADGE, {
             position,
             scale: { min: 0.6, max: 1.5 },
             show: { maxZoom: CHECK_ONLY_BADGE_MAX_ZOOM },
-            html: badgeHtml("merge-pick-badge--on-shape", ""),
+            html: badgeHtml("merge-pick-badge--on-shape", `${CHECK_MARK}${pen}`),
         });
     }
 

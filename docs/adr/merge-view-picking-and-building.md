@@ -1,7 +1,7 @@
 # Merge view picking and building
 
 - Status: accepted
-- Last reviewed: 2026-11-18
+- Last reviewed: 2026-11-19
 
 ## Context
 
@@ -40,11 +40,13 @@ open XML diff follows the step; a step without a shape posts none, since the par
 its process's root. A click on a pickable step makes it the step on both panes and keeps the
 click's own selection, which the pane reported already, since selecting it again would rebuild its
 pad. The pad's icons sit at diagram-js's place: "Show XML changes", keep
-this pane's side, keep everything inside, "Leave out" (`otherSideLacks`), "Also keep its removed
-flows" and "Undo pick", each left out where the result has its outcome (`mergePadDecisions`, the
-rule's one home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, with
+this pane's side, keep everything inside, "Leave out" (`otherSideLacks`), "Also keep what was
+removed with it", "Merge XML" (`handMergeable` and the host's `elementXmlMerge` offer; "Edit merged
+XML" once merged by hand, see [Merge XML editor](merge-xml-editor.md)) and "Undo pick", each left
+out where the result has its outcome (`mergePadDecisions`, the rule's one home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, with
 no native `title`. A menu row offers the same rule's decisions for both sides (`mergeRowDecisions`):
-keep where a side holds the element, leave out where it lacks it, Undo while the user's pick holds;
+keep where a side holds the element, leave out where it lacks it, Merge XML as on the pad, Undo
+while the user's pick holds;
 a shape-less container adds the pad's keep-inside icon beside each Keep, pressed and inert, so only
 Undo takes it back, while the pick keeps that side with everything inside; the library's `container`
 reach words its tooltip (a collaboration's: every pool with its process). A pick names the side it
@@ -69,7 +71,9 @@ on `mergePaneTargeted`, so the palette, which takes the focus, still reaches the
 the terminal or a side bar while the merge tab shows in the active group, wider than #2514's "while
 a merge pane has the focus". Each also needs its own key, set from what the target allows. Keys:
 Alt+F5 and Shift+Alt+F5, the compare editor's; Ctrl+K (Cmd+K) with K, Shift+K, L, Shift+F, Backspace
-or B, unused by VS Code 1.146's defaults; no plain Alt+letter, which types on macOS. Rejected:
+or B, unused by VS Code 1.146's defaults, and X for Merge XML, unbound in the macOS and Linux default keybindings
+of 1.76.0 and 1.146.0 (read from Open Default Keyboard Shortcuts; M, the obvious letter, is Change
+Language Mode); no plain Alt+letter, which types on macOS. Rejected:
 commands always on, which answer nothing; the palette on `mergePaneFocused`, which the palette
 itself clears; a `resourceScheme` clause, which the result comparison shares; a `resource` clause
 (its query names the side), not shown to name the focused side of a custom-editor diff and silent on
@@ -79,7 +83,9 @@ what the selection allows. Cost: a message per selection change.
 edge, clear of the type icon and of a collapsed sub-process's drilldown button: a check mark and
 the kept side's word as the caption has it ("✓ Incoming"), its full words as `aria-label`,
 filled on the side that kept it and outlined on the side whose version it replaced; a container
-kept with everything inside adds a nested box. A flow gets the check alone (`flowBadgePlace`).
+kept with everything inside adds a nested box; a version merged by hand adds a pen and "by hand",
+and a flow's round badge shows the pen in place of the check. A flow gets the check alone
+(`flowBadgePlace`).
 diagram-js's overlays throw on an id the canvas lacks, so a pane badges only ids its registry
 holds, and a pick it cannot draw (removed on its side, or shape-less) is undone in the pad of
 the pane that draws it, or in its menu row. Consequences get a dotted outline and no badge;
@@ -98,7 +104,10 @@ events and the pad; a flow's goes below its label or middle, away from the pad
 (`mergeOutcomeCardPlace`). It closes on the next step, another selection, × or the partner's
 newer decision, told by the outcome with the picks, since it names no side; it shows again on
 reselection and announces each outcome once, through live regions that exist before their text.
-The partner shows none; a row says its own. Rejected: the outcome in the header, far from the
+The partner shows none; a row says its own. A pick or undo that would move a version merged by
+hand off its side is refused with `handMergesAtStake`, and the card asks before it resends the
+decision with `dropsHandMerges` ("Drop it and pick", "Keep my XML"), so no path drops the XML
+silently, another element's pick included. Rejected: the outcome in the header, far from the
 element and uneven in height; the acting pane in `lastOutcome`; a scored placement, which jumped
 from pick to pick. Cost: a reload or tab switch loses the card; the badge and the pad's restore
 offer stay, as the core projects them.
