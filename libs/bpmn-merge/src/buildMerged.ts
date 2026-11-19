@@ -4,7 +4,8 @@ import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
 import { type BuildNote, buildNotesOf } from "./buildNotes";
 import { diagramIndexOf } from "./diagramIndex";
-import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
+import { assembleDiagrams } from "./diagramMerge";
+import { drawingSidesOf, drawnByShape } from "./drawingSides";
 import type { MergeModdle } from "./engineModdle";
 import type { HandMergedVersion } from "./handMerge";
 import { spliceHandMergedText } from "./handMergeSplice";
@@ -79,13 +80,7 @@ export async function buildMergedWith(
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
-    const undrawnEdges = assembleDiagrams(
-        current,
-        diagramIndexes,
-        resolution,
-        drawingSides,
-        resultUnits,
-    );
+    const undrawnEdges = assembleDiagrams(current, diagramIndexes, drawingSides, resultUnits);
     const layoutSpotNotes = repairIntroducedSpots(
         current,
         sideLayouts,
