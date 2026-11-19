@@ -10,6 +10,8 @@ import {
     addedOnlyBy,
     combinedLayoutOf,
     isConflictState,
+    isLane,
+    preferredLayoutSideOf,
 } from "./mergeResult";
 
 const CONFLICTS: readonly ConflictState[] = [
@@ -70,5 +72,27 @@ describe("combinedLayoutOf", () => {
         { layouts: ["bothChanged", "unchanged"], combined: "bothChanged" },
     ])("combines $layouts into $combined", ({ layouts, combined }) => {
         expect(combinedLayoutOf(layouts)).toBe(combined);
+    });
+});
+
+describe("isLane", () => {
+    it.each([
+        ["bpmn:Lane", true],
+        ["bpmn:LaneSet", false],
+        ["bpmn:Participant", false],
+        ["bpmn:Task", false],
+    ])("counts a %s as a lane: %s", (type, lane) => {
+        expect(isLane(mergeElement("Element_1", "unchanged", { type }))).toBe(lane);
+    });
+});
+
+describe("preferredLayoutSideOf", () => {
+    it.each<[LayoutState, MergeSide]>([
+        ["unchanged", "current"],
+        ["takenFromCurrent", "current"],
+        ["bothChanged", "current"],
+        ["takenFromIncoming", "incoming"],
+    ])("prefers the layout of %s from %s", (layout, side) => {
+        expect(preferredLayoutSideOf(layout)).toBe(side);
     });
 });

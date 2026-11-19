@@ -1,27 +1,16 @@
 import {
     type ElementReference,
     type ElementVersion,
-    type LayoutState,
     type MergeElement,
     type MergeSide,
     type SideInResult,
-    MERGE_SIDES,
     chosenVersionOf,
-    combinedLayoutOf,
     otherSide,
+    preferredLayoutSideOf,
     sameLanes,
 } from "./mergeResult";
+import { laneBlocksOf } from "./mergeDecisionsLaneBlocks";
 import { isEdgeEnd, isHostReference, isProcessReference } from "./referenceRules";
-
-/** Current's layout unless only incoming changed it. */
-const PREFERRED_LAYOUT_SIDE: Record<LayoutState, MergeSide> = {
-    unchanged: "current",
-    takenFromCurrent: "current",
-    bothChanged: "current",
-    takenFromIncoming: "incoming",
-};
-
-const LANE_TYPE = "bpmn:Lane";
 
 /** References whose targets fix where an element is drawn: an edge's ends, a boundary event's host. */
 function isPlacingReference(reference: ElementReference): boolean {
@@ -41,13 +30,6 @@ export interface ResultLayout {
     readonly sides: Record<string, MergeSide>;
     /** The lanes drawn from another side than the rest of their pool's lanes, in the result's order. */
     readonly appendedLanes: readonly string[];
-}
-
-/** A pool and the lanes of its process, which prefer one side together. */
-interface LaneBlock {
-    readonly pool: string;
-    readonly lanes: readonly string[];
-    readonly side: MergeSide;
 }
 
 /**
@@ -73,7 +55,7 @@ export function layoutSidesOf(
     const choices = new Map<string, LayoutChoice>();
     for (const element of elements) {
         const side = sideInResult(element.id);
-        const preferred = blockSides.get(element.id) ?? PREFERRED_LAYOUT_SIDE[element.layout];
+        const preferred = blockSides.get(element.id) ?? preferredLayoutSideOf(element.layout);
         const choice =
             side === undefined
                 ? undefined
@@ -100,68 +82,6 @@ export function layoutSidesOf(
         blocks.flatMap(({ lanes, side }) => lanes.filter((id) => sides[id] !== side)),
     );
     return { sides, appendedLanes: elements.map(({ id }) => id).filter((id) => appended.has(id)) };
-}
-
-/**
- * The lanes of each process a pool of the result draws, with the side they prefer together: current's, unless only
- * incoming changed the pool or one of its lanes, as for a single element. A side that draws a lane of the process the
- * result leaves out would leave its band empty, so the other side draws them when it draws none.
- */
-function laneBlocksOf(
-    elementsById: ReadonlyMap<string, MergeElement>,
-    sideInResult: SideInResult,
-    poolOfProcess: ReadonlyMap<string, string>,
-): LaneBlock[] {
-    const lanesByPool = new Map<string, MergeElement[]>();
-    const leftOut = new Set<string>();
-    for (const element of elementsById.values()) {
-        if (element.type !== LANE_TYPE) continue;
-        const inResult = chosenVersionOf(element, sideInResult);
-        if (inResult === undefined) {
-            for (const side of MERGE_SIDES) {
-                const owner = laneSetOwnerOf(element, elementsById, (lane) => lane.versions[side]);
-                if (element.versions[side]?.drawn && owner !== undefined)
-                    leftOut.add(`${side} ${owner}`);
-            }
-            continue;
-        }
-        const owner = laneSetOwnerOf(element, elementsById, (lane) =>
-            chosenVersionOf(lane, sideInResult),
-        );
-        const pool = owner === undefined ? undefined : poolOfProcess.get(owner);
-        if (pool !== undefined) lanesByPool.set(pool, [...(lanesByPool.get(pool) ?? []), element]);
-    }
-    const processOf = new Map([...poolOfProcess].map(([process, pool]) => [pool, process]));
-    return [...lanesByPool].map(([pool, lanes]) => {
-        const poolElement = elementsById.get(pool);
-        const members = poolElement === undefined ? lanes : [poolElement, ...lanes];
-        const preferred =
-            PREFERRED_LAYOUT_SIDE[combinedLayoutOf(members.map(({ layout }) => layout))];
-        const leavesOut = (side: MergeSide) => leftOut.has(`${side} ${processOf.get(pool)}`);
-        const side =
-            leavesOut(preferred) && !leavesOut(otherSide(preferred))
-                ? otherSide(preferred)
-                : preferred;
-        return { pool, lanes: lanes.map(({ id }) => id), side };
-    });
-}
-
-/** The process or sub-process whose lane set holds the lane in the versions given, through its parent lanes. */
-function laneSetOwnerOf(
-    lane: MergeElement,
-    elementsById: ReadonlyMap<string, MergeElement>,
-    versionOf: (lane: MergeElement) => ElementVersion | undefined,
-): string | undefined {
-    const seen = new Set<string>();
-    let element: MergeElement | undefined = lane;
-    while (element?.type === LANE_TYPE && !seen.has(element.id)) {
-        seen.add(element.id);
-        const parent = versionOf(element)?.parent;
-        if (parent === undefined) return undefined;
-        element = elementsById.get(parent);
-        if (element?.type !== LANE_TYPE) return parent;
-    }
-    return undefined;
 }
 
 /**
