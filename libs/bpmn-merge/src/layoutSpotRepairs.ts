@@ -14,35 +14,41 @@ export type ContainerRepair = RepairOf<MergeContainerRepair>;
 /** What the build did about two shapes on top of each other. */
 export type OverlapRepair = RepairOf<MergeOverlapRepair>;
 
+type SpotOf<Kind extends LayoutSpot["kind"]> = Extract<LayoutSpot, { readonly kind: Kind }>;
+
 interface FlowSpotRepair {
-    readonly kind: MergeFlowRepair;
+    readonly spot: FlowSpot;
+    readonly repair: { readonly kind: MergeFlowRepair };
 }
 
+/** Each kind of spot a step repairs, with the repair its note carries; a re-route serves every spot of its flow. */
 interface RepairsBySpotKind {
-    readonly shapeOutsideContainer: ContainerRepair;
-    readonly shapesOverlap: OverlapRepair;
+    readonly shapeOutsideContainer: {
+        readonly spot: SpotOf<"shapeOutsideContainer">;
+        readonly repair: ContainerRepair;
+    };
+    readonly shapesOverlap: {
+        readonly spot: SpotOf<"shapesOverlap">;
+        readonly repair: OverlapRepair;
+    };
     readonly flowEndOffShape: FlowSpotRepair;
     readonly flowThroughShape: FlowSpotRepair;
 }
 
 type RepairedSpotKind = keyof RepairsBySpotKind;
 
-type SpotOf<Kind extends RepairedSpotKind> = Extract<LayoutSpot, { readonly kind: Kind }>;
-
 /** What a repair step did about one broken spot, as the spot's note carries it. */
-export type SpotRepair =
-    | { readonly spot: SpotOf<"shapeOutsideContainer">; readonly repair: ContainerRepair }
-    | { readonly spot: SpotOf<"shapesOverlap">; readonly repair: OverlapRepair }
-    | { readonly spot: FlowSpot; readonly repair: FlowSpotRepair };
+export type SpotRepair = RepairsBySpotKind[RepairedSpotKind];
 
-/** Each flow's repair keyed by every spot of the flow, as a re-route acts on the whole flow. */
+/** Each flow's repair keyed by the flow's first spot, which `repairedTogether` extends to its other spots. */
 export function flowSpotRepairs(
     spots: readonly LayoutSpot[],
     flowRepairs: readonly FlowRepair[],
 ): SpotRepair[] {
-    return spots.filter(isFlowSpot).flatMap((spot) => {
-        const repair = flowRepairs.find(({ flow }) => flow === spot.flow);
-        return repair === undefined ? [] : [{ spot, repair: { kind: repair.kind } }];
+    const flowSpots = spots.filter(isFlowSpot);
+    return flowRepairs.flatMap(({ flow, kind }) => {
+        const spot = flowSpots.find((candidate) => candidate.flow === flow);
+        return spot === undefined ? [] : [{ spot, repair: { kind } }];
     });
 }
 
@@ -53,8 +59,8 @@ export class SpotRepairs {
     constructor(private readonly repairs: readonly SpotRepair[]) {}
 
     /** The repair of the last step that acted on the spot; not repaired when none did. */
-    of<Kind extends RepairedSpotKind>(spot: SpotOf<Kind>): RepairsBySpotKind[Kind] {
-        return this.lastActedOn(spot) as RepairsBySpotKind[Kind];
+    of<Kind extends RepairedSpotKind>(spot: SpotOf<Kind>): RepairsBySpotKind[Kind]["repair"] {
+        return this.lastActedOn(spot) as RepairsBySpotKind[Kind]["repair"];
     }
 
     /** Whether a step mended the spot, which its note then says though the spot is gone. */

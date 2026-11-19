@@ -67,7 +67,7 @@ describe("SpotRepairs", () => {
 });
 
 describe("flowSpotRepairs", () => {
-    it("keys each flow's repair by every spot of the flow, and leaves the other spots", () => {
+    it("keys each flow's repair by the first spot of the flow, which answers for its other spots", () => {
         const through = { kind: "flowThroughShape", flow: "Flow_1", shape: "Task_C" } as const;
         const stuck = { kind: "flowThroughShape", flow: "Flow_2", shape: "Task_C" } as const;
 
@@ -81,7 +81,6 @@ describe("flowSpotRepairs", () => {
             ),
         ).toEqual([
             { spot: endOff, repair: { kind: "movedByBuild" } },
-            { spot: through, repair: { kind: "movedByBuild" } },
             { spot: stuck, repair: { kind: "notRepaired" } },
         ]);
     });
