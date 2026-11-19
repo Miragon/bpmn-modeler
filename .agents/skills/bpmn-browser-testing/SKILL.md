@@ -50,7 +50,7 @@ plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
 starts a merge pane with Merge XML offered. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
 decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
-preview serves `apps/add-ons-webview/src/adapter/out/mockCatalog.ts`;
+preview serves `apps/add-ons-webview/src/adapter/out/browserPreview/mockCatalog.ts`;
 `?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
 `?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after
 any reveal), `?stale=1` (the first allow is refused as

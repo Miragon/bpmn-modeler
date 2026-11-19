@@ -44,7 +44,8 @@ corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview dev    # browser p
 corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview test
 ```
 
-The preview answers from `src/adapter/out/mockCatalog.ts`. Query flags:
+The preview answers from `src/adapter/out/browserPreview/mockCatalog.ts`, as the table in
+`browserPreview/previewCommands.ts` routes each command: a new command needs a row there. Query flags:
 `?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
-`?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after any reveal), `?stale=1` (the first allow is refused as stale) and
-`?theme=dark|hc`.
+`?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after any reveal), `?stale=1` (the first allow is refused as stale),
+`?theme=dark|hc`, `?page=listWithTab|detail` (which page a host serves) and `?show=<add-on id or name>` (a detail page's add-on).
