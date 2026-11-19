@@ -154,6 +154,24 @@ export function keepsClearOf(
     );
 }
 
+export type Border = "left" | "right" | "top" | "bottom";
+
+/** The borders of the bounds the point lies on, give or take the tolerance; two at a corner. */
+export function bordersAt(point: Point, bounds: DiagramBounds): Border[] {
+    const near = (value: number, line: number) => Math.abs(value - line) <= LAYOUT_TOLERANCE;
+    const alongX =
+        point.x >= bounds.x - LAYOUT_TOLERANCE && point.x <= rightOf(bounds) + LAYOUT_TOLERANCE;
+    const alongY =
+        point.y >= bounds.y - LAYOUT_TOLERANCE && point.y <= bottomOf(bounds) + LAYOUT_TOLERANCE;
+    const borders: [Border, boolean][] = [
+        ["left", alongY && near(point.x, bounds.x)],
+        ["right", alongY && near(point.x, rightOf(bounds))],
+        ["top", alongX && near(point.y, bounds.y)],
+        ["bottom", alongX && near(point.y, bottomOf(bounds))],
+    ];
+    return borders.flatMap(([border, on]) => (on ? [border] : []));
+}
+
 /** The smallest bounds holding all of them. */
 export function boundsAround(all: readonly DiagramBounds[]): DiagramBounds {
     const left = Math.min(...all.map(({ x }) => x));

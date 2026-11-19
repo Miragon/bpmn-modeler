@@ -5,8 +5,11 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
     switch (note.kind) {
         case "flowEndOffShape":
         case "flowThroughShape":
-        case "shapeOutsideContainer":
             return [note.id, ...note.shapes];
+        case "shapeOutsideContainer":
+            return note.repair === "grewContainerAndShifted"
+                ? [note.id, ...note.shapes, ...note.shifted]
+                : [note.id, ...note.shapes];
         case "shapesOverlap":
             return note.repair === "madeRoom" ? [...note.ids, ...note.shifted] : note.ids;
         case "lanesOverlap":

@@ -353,6 +353,20 @@ describe("planShapeMoves", () => {
             });
         });
 
+        it("makes no room that widens the pool over the pool beside it", () => {
+            const beside: LayoutShape = { ...POOL, id: "Pool_2", bounds: box(1262, 0, 600, 300) };
+            const result = layoutOf([...row, node("Task_Y", box(470, 90))], rowFlows, [
+                ...frames,
+                beside,
+            ]);
+            const current = layoutOf(row, rowFlows, [...frames, beside]);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(plan.repairs).toEqual([{ kind: "notRepaired", shapes: ["Task_3", "Task_Y"] }]);
+            expect(plan.layout).toBe(result);
+        });
+
         it("leaves the overlap when making room would move the shape out of its sub-process", () => {
             const sub = node("Sub_1", box(380, 75, 140, 110), { expanded: true });
             const other = node("Task_O", box(450, 90));

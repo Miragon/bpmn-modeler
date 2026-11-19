@@ -356,7 +356,13 @@ const dictionary: Record<string, string> = {
         "생성 시 {element}을(를) {shapes}을(를) 피해 옮겼습니다",
     "{element} runs through {shapes}; the build could not repair it":
         "{element}이(가) {shapes}을(를) 통과합니다. 생성 시 고칠 수 없었습니다",
-    "{element} lies outside {shapes}": "{element}이(가) {shapes} 밖에 있습니다",
+    "The build moved {element} into {shapes}": "생성 시 {element}을(를) {shapes} 안으로 옮겼습니다",
+    "The build grew {shapes} to hold {element}":
+        "생성 시 {element}이(가) 들어가도록 {shapes}을(를) 넓혔습니다",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "생성 시 {element}이(가) 들어가도록 {shapes}을(를) 넓히고 {shifted}을(를) 밀었습니다",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "{element}이(가) {shapes} 밖에 있습니다. 생성 시 고칠 수 없었습니다",
     "{element} is not on the border of {host}":
         "{element}이(가) {host}의 테두리 위에 있지 않습니다",
     "{first} and {second} overlap": "{first}와(과) {second}이(가) 겹칩니다",

@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { seededRandom } from "./__fixtures__/randomMergeVersions";
-import { buildMerged, buildMergedWith } from "./buildMerged";
+import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
-import type { LayoutModel } from "./layoutModel";
+import { liesWithin, sameBounds } from "./layoutGeometry";
+import { type LayoutModel, isFrame, nodeShapeIn, placedByBuild } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsCross, segmentsOf } from "./layoutPolyline";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -25,13 +26,25 @@ const HARVEST = import.meta.glob<string>("./__fixtures__/harvest/*.bpmn", {
 type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRandom";
 
 const NO_REPAIRS: LayoutRepairPlanners = {
+    moveIntoContainers: (layout) => ({ layout, repairs: [], movedShapes: [] }),
     moveShapes: (layout) => ({ layout, repairs: [] }),
     repairFlows: () => [],
 };
 
 const FLOW_REPAIRS_ONLY: LayoutRepairPlanners = {
     ...BUILD_LAYOUT_REPAIRS,
+    moveIntoContainers: NO_REPAIRS.moveIntoContainers,
     moveShapes: NO_REPAIRS.moveShapes,
+};
+
+const CONTAINER_REPAIRS_ONLY: LayoutRepairPlanners = {
+    ...NO_REPAIRS,
+    moveIntoContainers: BUILD_LAYOUT_REPAIRS.moveIntoContainers,
+};
+
+const WITHOUT_CONTAINER_REPAIRS: LayoutRepairPlanners = {
+    ...BUILD_LAYOUT_REPAIRS,
+    moveIntoContainers: NO_REPAIRS.moveIntoContainers,
 };
 
 function versionsOf(seed: number): MergeVersions {
@@ -78,11 +91,24 @@ interface HarvestCase {
     readonly repairs: Repairs;
     /** How many crossings between flows the repair may add. */
     readonly crossingBudget: number;
+    /** The shapes left outside a container, whose notes say the build could not repair them. */
+    readonly leftOutside?: readonly string[];
 }
+
+/** The shapes both sides draw where they lie, outside the lane the other side's lanes give them. */
+const LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT = [
+    "Start_Order",
+    "Task_Check",
+    "Gateway_Ok",
+    "Sub_Ship",
+    "End_Done",
+    "Boundary_Timeout",
+];
 
 /**
  * The harvest results the design prototype changed although no spot was introduced, four the
- * flow repair re-routes, and those with shapes on top of each other (#2565).
+ * flow repair re-routes, those with shapes on top of each other, and those with shapes outside
+ * their sub-process or lane (#2565).
  */
 const CASES: readonly HarvestCase[] = [
     ...(
@@ -149,19 +175,44 @@ const CASES: readonly HarvestCase[] = [
         repairs: "shapes" as const,
         crossingBudget,
     })),
+    ...(
+        [
+            [6, "conflictsToIncoming", 1, []],
+            [32, "conflictsToCurrent", 0, []],
+            [32, "conflictsToIncoming", 0, []],
+            [75, "conflictsAtRandom", 0, ["Task_Reject"]],
+            [112, "conflictsToCurrent", 2, []],
+            [112, "conflictsToIncoming", 1, ["Boundary_Timeout"]],
+            [153, "conflictsAtRandom", 0, []],
+        ] as const
+    ).map(([seed, strategy, crossingBudget, leftOutside]) => ({
+        seed,
+        strategy,
+        repairs: "shapes" as const,
+        crossingBudget,
+        leftOutside,
+    })),
+    ...(["conflictsToIncoming", "conflictsAtRandom"] as const).map((strategy) => ({
+        seed: 159,
+        strategy,
+        repairs: "none" as const,
+        crossingBudget: 0,
+        leftOutside: LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT,
+    })),
 ];
 
 describe("the layout repair on harvested merges", () => {
     it.each(CASES)(
         "seed $seed, $strategy: repairs $repairs, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
-        async ({ seed, strategy, repairs, crossingBudget }) => {
+        async ({ seed, strategy, repairs, crossingBudget, leftOutside = [] }) => {
             const versions = versionsOf(seed);
             const sources = await prepareMergeSources(versions);
             const buildWith = async (planners: LayoutRepairPlanners) =>
                 buildMergedWith(sources, await decisionsOf(versions, seed, strategy), planners);
             const unrepaired = await buildWith(NO_REPAIRS);
             const flowsRepaired = await buildWith(FLOW_REPAIRS_ONLY);
+            const withoutContainers = await buildWith(WITHOUT_CONTAINER_REPAIRS);
             const repaired = await buildMerged(
                 sources,
                 await decisionsOf(versions, seed, strategy),
@@ -173,7 +224,20 @@ describe("the layout repair on harvested merges", () => {
             const after = introducedLayoutSpots(repairedLayout, sides);
 
             if (before.length === 0) expect(repaired.xml).toBe(unrepaired.xml);
-            if (!before.some(({ kind }) => kind === "shapesOverlap")) {
+            const hasSpot = (kind: LayoutSpot["kind"]) => before.some((spot) => spot.kind === kind);
+            if (!hasSpot("shapeOutsideContainer")) expect(repaired.xml).toBe(withoutContainers.xml);
+            else {
+                const containersRepaired = await buildWith(CONTAINER_REPAIRS_ONLY);
+                expect(
+                    unaccountedContainerMoves(
+                        unrepairedLayout,
+                        await layoutOf(containersRepaired.xml),
+                        containersRepaired.notes,
+                        sides,
+                    ),
+                ).toEqual([]);
+            }
+            if (!hasSpot("shapeOutsideContainer") && !hasSpot("shapesOverlap")) {
                 expect(repaired.xml).toBe(flowsRepaired.xml);
             }
             expect(repairsOf(unrepaired.xml, flowsRepaired.xml, repaired.xml)).toBe(repairs);
@@ -187,8 +251,15 @@ describe("the layout repair on harvested merges", () => {
             );
             expect(after.filter(({ kind }) => kind === "shapesOverlap")).toEqual([]);
             expect(
-                repaired.notes.filter((note) => "repair" in note && note.repair === "notRepaired"),
-            ).toEqual([]);
+                repaired.notes.flatMap((note) =>
+                    "repair" in note && note.repair === "notRepaired" ? [note.kind] : [],
+                ),
+            ).toEqual(leftOutside.map(() => "shapeOutsideContainer"));
+            expect(
+                after.flatMap((spot) =>
+                    spot.kind === "shapeOutsideContainer" ? [spot.shape] : [],
+                ),
+            ).toEqual(leftOutside);
         },
     );
 });
@@ -196,6 +267,56 @@ describe("the layout repair on harvested merges", () => {
 function repairsOf(unrepaired: string, flowsRepaired: string, repaired: string): Repairs {
     if (repaired === unrepaired) return "none";
     return repaired === flowsRepaired ? "flows" : "shapes";
+}
+
+/**
+ * The shapes the container step changed that no container note accounts for, and the shapes it
+ * moved into a container although both sides draw them where they lay. A note accounts for the
+ * shape it moved, with its boundary events and contents, the containers it grew and the shapes it
+ * shifted; a growth may widen the frames around.
+ */
+function unaccountedContainerMoves(
+    before: LayoutModel,
+    after: LayoutModel,
+    notes: readonly BuildNote[],
+    sides: readonly LayoutModel[],
+): string[] {
+    const repaired = notes.flatMap((note) =>
+        note.kind === "shapeOutsideContainer" && note.repair !== "notRepaired" ? [note] : [],
+    );
+    const accounted = new Set(
+        repaired.flatMap((note) => [
+            note.id,
+            ...(note.repair === "movedIntoContainer" ? [] : note.shapes),
+            ...(note.repair === "grewContainerAndShifted" ? note.shifted : []),
+        ]),
+    );
+    const grew = repaired.some(({ repair }) => repair !== "movedIntoContainer");
+    const changed = [...before.shapes.values()].flatMap((shape) => {
+        const now = after.shapes.get(shape.id);
+        return now === undefined || sameBounds(now.bounds, shape.bounds) ? [] : [{ shape, now }];
+    });
+    const goesWithANote = ({ shape, now }: (typeof changed)[number]) =>
+        accounted.has(shape.id) ||
+        (shape.kind === "node" &&
+            [shape.host, ...shape.subProcesses].some(
+                (id) => id !== undefined && accounted.has(id),
+            )) ||
+        (grew && isFrame(shape) && liesWithin(shape.bounds, now.bounds));
+    const drawnThereByBoth = repaired.flatMap((note) => {
+        const node =
+            note.repair === "movedIntoContainer" ? nodeShapeIn(before, note.id) : undefined;
+        const carried = [node?.host, ...(node?.subProcesses ?? [])].some(
+            (id) => id !== undefined && accounted.has(id),
+        );
+        return node === undefined || carried || placedByBuild(node, sides)
+            ? []
+            : [`${note.id} drawn there by both sides`];
+    });
+    return [
+        ...changed.filter((change) => !goesWithANote(change)).map(({ shape }) => shape.id),
+        ...drawnThereByBoth,
+    ];
 }
 
 function kindsOf(spots: readonly LayoutSpot[]): LayoutSpot["kind"][] {

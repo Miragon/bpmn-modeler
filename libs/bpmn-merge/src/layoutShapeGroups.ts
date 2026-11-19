@@ -65,6 +65,16 @@ export function groupBoundsIn(layout: LayoutModel, group: ShapeGroup): DiagramBo
     );
 }
 
+/** The members' shapes as the layout draws them, without their labels. */
+export function groupShapesBoundsIn(layout: LayoutModel, group: ShapeGroup): DiagramBounds {
+    return boundsAround(
+        group.members.flatMap((id) => {
+            const member = nodeShapeIn(layout, id);
+            return member === undefined ? [] : [member.bounds];
+        }),
+    );
+}
+
 function listUnder(lists: Map<string, string[]>, key: string, id: string): void {
     const list = lists.get(key);
     if (list === undefined) lists.set(key, [id]);

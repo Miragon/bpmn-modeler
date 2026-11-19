@@ -330,7 +330,12 @@ const dictionary: Record<string, string> = {
     "The build moved {element} around {shapes}": "生成时已移动 {element}，使其绕开 {shapes}",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} 穿过 {shapes}；生成时无法修复",
-    "{element} lies outside {shapes}": "{element} 位于 {shapes} 之外",
+    "The build moved {element} into {shapes}": "生成时已将 {element} 移入 {shapes}",
+    "The build grew {shapes} to hold {element}": "生成时已扩大 {shapes} 以容纳 {element}",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "生成时已扩大 {shapes} 以容纳 {element}，并移动了 {shifted}",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "{element} 位于 {shapes} 之外；生成时无法修复",
     "{element} is not on the border of {host}": "{element} 不在 {host} 的边框上",
     "{first} and {second} overlap": "{first} 和 {second} 相互重叠",
     "{element} is kept without the flows the other side removed with it: {connections}":

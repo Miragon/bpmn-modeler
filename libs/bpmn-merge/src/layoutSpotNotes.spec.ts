@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepair } from "./layoutFlowRepair";
 import type { OverlapRepair } from "./layoutShapeMoves";
 import { layoutSpotNotes } from "./layoutSpotNotes";
@@ -10,6 +11,8 @@ const NOT_REPAIRED: FlowRepair[] = [
     { kind: "notRepaired", flow: "Flow_2" },
     { kind: "notRepaired", flow: "Flow_Loop" },
 ];
+
+const NO_CONTAINER_REPAIRS = { containerRepairs: [], shapesMovedForContainers: [] } as const;
 
 describe("layoutSpotNotes", () => {
     it("gives one note per flow for its ends and for the shapes it runs through", () => {
@@ -123,7 +126,99 @@ describe("layoutSpotNotes", () => {
                 ],
                 [],
             ),
-        ).toEqual([{ kind: "shapeOutsideContainer", id: "Task_A", shapes: ["Pool_1", "Lane_A"] }]);
+        ).toEqual([
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_A",
+                shapes: ["Pool_1", "Lane_A"],
+                repair: "notRepaired",
+            },
+        ]);
+    });
+
+    it("says the build moved a shape into its containers or grew one to hold it, and keeps naming one it could not", () => {
+        const outside = (shape: string, container: string): LayoutSpot => ({
+            kind: "shapeOutsideContainer",
+            shape,
+            container,
+        });
+        const stuck = outside("Task_C", "Lane_2");
+        const containerRepairs: ContainerRepair[] = [
+            { kind: "movedIntoContainer", shape: "Task_A", container: "Pool_1" },
+            { kind: "movedIntoContainer", shape: "Task_A", container: "Lane_1" },
+            {
+                kind: "grewContainerAndShifted",
+                shape: "Task_B",
+                container: "Sub_1",
+                shifted: ["Task_X"],
+            },
+            { kind: "notRepaired", shape: "Task_C", container: "Lane_2" },
+        ];
+
+        const notes = layoutSpotNotes({
+            spots: [
+                outside("Task_A", "Pool_1"),
+                outside("Task_A", "Lane_1"),
+                outside("Task_B", "Sub_1"),
+                stuck,
+            ],
+            spotsAfterMoves: [stuck],
+            containerRepairs,
+            shapesMovedForContainers: ["Task_A"],
+            overlapRepairs: [],
+            flowRepairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_A",
+                shapes: ["Pool_1", "Lane_1"],
+                repair: "movedIntoContainer",
+            },
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_B",
+                shapes: ["Sub_1"],
+                repair: "grewContainerAndShifted",
+                shifted: ["Task_X"],
+            },
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_C",
+                shapes: ["Lane_2"],
+                repair: "notRepaired",
+            },
+        ]);
+    });
+
+    it("says the build moved a shape off another when bringing it into its container did", () => {
+        const notes = layoutSpotNotes({
+            spots: [
+                { kind: "shapesOverlap", shapes: ["Task_A", "Task_B"] },
+                { kind: "shapeOutsideContainer", shape: "Task_B", container: "Sub_1" },
+            ],
+            spotsAfterMoves: [],
+            containerRepairs: [{ kind: "movedIntoContainer", shape: "Task_B", container: "Sub_1" }],
+            shapesMovedForContainers: ["Task_B"],
+            overlapRepairs: [],
+            flowRepairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_A", "Task_B"],
+                repair: "movedByBuild",
+                moved: "Task_B",
+            },
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_B",
+                shapes: ["Sub_1"],
+                repair: "movedIntoContainer",
+            },
+        ]);
     });
 
     it("gives one note per overlap, boundary event and pair of lanes", () => {
@@ -198,6 +293,7 @@ describe("layoutSpotNotes", () => {
         const notes = layoutSpotNotes({
             spots: [overlap, throughMoved],
             spotsAfterMoves: [offMoved("Flow_In"), offMoved("Flow_Stuck")],
+            ...NO_CONTAINER_REPAIRS,
             overlapRepairs: [
                 { kind: "movedByBuild", shapes: ["Task_A", "Task_B"], moved: "Task_B" },
             ],
@@ -235,6 +331,7 @@ describe("layoutSpotNotes", () => {
 
         const notes = layoutSpotNotes({
             spots: [overlap, outsideLane, offHost],
+            ...NO_CONTAINER_REPAIRS,
             spotsAfterMoves: [{ kind: "boundaryEventOffHost", host: "H", boundaryEvent: "B" }],
             overlapRepairs: [
                 { kind: "movedByBuild", shapes: ["Task_T", "Task_X"], moved: "Task_T" },
@@ -260,5 +357,11 @@ function notesOf(
     flowRepairs: readonly FlowRepair[],
     overlapRepairs: readonly OverlapRepair[] = [],
 ) {
-    return layoutSpotNotes({ spots, spotsAfterMoves: spots, overlapRepairs, flowRepairs });
+    return layoutSpotNotes({
+        spots,
+        spotsAfterMoves: spots,
+        ...NO_CONTAINER_REPAIRS,
+        overlapRepairs,
+        flowRepairs,
+    });
 }

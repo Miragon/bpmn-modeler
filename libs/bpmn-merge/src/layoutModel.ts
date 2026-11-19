@@ -2,6 +2,8 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    liesWithin,
+    overlapsBeyondTolerance,
     sameBounds,
     translated,
 } from "./layoutGeometry";
@@ -76,18 +78,42 @@ export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefi
 
 /** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
 export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
-    const drawn = nodeShapeIn(layout, node.id);
-    const sameSize =
-        drawn !== undefined &&
-        drawn.bounds.width === node.bounds.width &&
-        drawn.bounds.height === node.bounds.height;
-    return sameSize && drawn.plane === node.plane ? drawn.bounds : undefined;
+    const drawn = drawingOfSameSize(layout, node);
+    return drawn?.kind === "node" && drawn.plane === node.plane ? drawn.bounds : undefined;
 }
 
 /** Whether the layout draws the node's element just where the node lies. */
 export function drawsAt(layout: LayoutModel, node: NodeShape): boolean {
     const place = placeOf(layout, node);
     return place !== undefined && sameBounds(place, node.bounds);
+}
+
+/**
+ * The layout's drawing of the shape's element at the shape's size, on any
+ * plane: a layout that draws a sub-process collapsed draws its contents on
+ * the sub-process's own plane.
+ */
+export function drawingOfSameSize(
+    layout: LayoutModel,
+    shape: LayoutShape,
+): LayoutShape | undefined {
+    const drawn = layout.shapes.get(shape.id);
+    const sameSize =
+        drawn !== undefined &&
+        drawn.bounds.width === shape.bounds.width &&
+        drawn.bounds.height === shape.bounds.height;
+    return sameSize ? drawn : undefined;
+}
+
+/** Whether the layout draws the node's element just where the node lies, on any plane. */
+export function drawsWhereItLies(layout: LayoutModel, node: NodeShape): boolean {
+    const drawn = drawingOfSameSize(layout, node);
+    return drawn !== undefined && sameBounds(drawn.bounds, node.bounds);
+}
+
+/** A shape the build placed: not both sides draw it just where the result does; a boundary event goes with its host. */
+export function placedByBuild(node: NodeShape, sides: readonly LayoutModel[]): boolean {
+    return node.host === undefined && !sides.every((side) => drawsAt(side, node));
 }
 
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
@@ -125,6 +151,27 @@ export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape |
     return isDrawnFrameOf(node, pool) ? pool : undefined;
 }
 
+/** The lanes drawn inside the pool on its plane, in document order. */
+export function lanesOf(layout: LayoutModel, pool: LayoutShape): LayoutShape[] {
+    return [...layout.shapes.values()].filter(
+        (shape) =>
+            shape.kind === "lane" &&
+            shape.plane === pool.plane &&
+            liesWithin(shape.bounds, pool.bounds),
+    );
+}
+
+/** Whether the pool covers another pool on its plane by more than the tolerance. */
+export function liesOnAnotherPool(layout: LayoutModel, pool: LayoutShape): boolean {
+    return [...layout.shapes.values()].some(
+        (shape) =>
+            shape.kind === "pool" &&
+            shape.id !== pool.id &&
+            shape.plane === pool.plane &&
+            overlapsBeyondTolerance(shape.bounds, pool.bounds),
+    );
+}
+
 /** A shape others lie inside: a pool, a lane or a sub-process drawn open. */
 export function isFrame(shape: LayoutShape): boolean {
     return shape.kind !== "node" || shape.expanded;
@@ -146,17 +193,18 @@ export function belongTogether(first: NodeShape, second: NodeShape): boolean {
  * lanes, otherwise its pool and lanes.
  */
 export function framesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
-    const subProcess = node.subProcesses[0];
-    const candidates =
-        subProcess !== undefined
-            ? [subProcess]
-            : node.mayLieOutsidePool
-              ? []
-              : [...(node.pool === undefined ? [] : [node.pool]), ...node.lanes];
-    return candidates.flatMap((id) => {
+    return frameIdsOf(node).flatMap((id) => {
         const frame = layout.shapes.get(id);
         return isDrawnFrameOf(node, frame) ? [frame] : [];
     });
+}
+
+/** The frames the node must lie inside by its relations, drawn or not, as `framesOf` picks them. */
+export function frameIdsOf(node: NodeShape): string[] {
+    const subProcess = node.subProcesses[0];
+    if (subProcess !== undefined) return [subProcess];
+    if (node.mayLieOutsidePool) return [];
+    return [...(node.pool === undefined ? [] : [node.pool]), ...node.lanes];
 }
 
 /**

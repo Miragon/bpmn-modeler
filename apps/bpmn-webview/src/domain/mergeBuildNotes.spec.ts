@@ -30,8 +30,14 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         ["Flow_1", "Task_C"],
     ],
     shapeOutsideContainer: [
-        { kind: "shapeOutsideContainer", id: "Task_A", shapes: ["Sub_1", "Lane_1"] },
-        ["Task_A", "Sub_1", "Lane_1"],
+        {
+            kind: "shapeOutsideContainer",
+            id: "Task_A",
+            shapes: ["Sub_1"],
+            repair: "grewContainerAndShifted",
+            shifted: ["Task_C", "End_1"],
+        },
+        ["Task_A", "Sub_1", "Task_C", "End_1"],
     ],
     boundaryEventOffHost: [
         { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_A" },
@@ -87,6 +93,19 @@ describe("buildNoteElementIds", () => {
         expect(
             buildNoteElementIds({ kind: "shapesOverlap", ids, repair: "notRepaired" }),
         ).toStrictEqual(ids);
+    });
+
+    it("names only the shape and its containers when the build moved it inside or left it", () => {
+        for (const repair of ["movedIntoContainer", "notRepaired"] as const) {
+            expect(
+                buildNoteElementIds({
+                    kind: "shapeOutsideContainer",
+                    id: "Task_A",
+                    shapes: ["Pool_1", "Lane_1"],
+                    repair,
+                }),
+            ).toStrictEqual(["Task_A", "Pool_1", "Lane_1"]);
+        }
     });
 
     it("names only the end a flow left out of the drawing has", () => {

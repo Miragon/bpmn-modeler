@@ -1,4 +1,5 @@
 import type { UndrawnEdge } from "./connectionEnds";
+import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepairKind } from "./layoutFlowRepair";
 import type { OverlapRepair } from "./layoutShapeMoves";
 import type { FlowSpot } from "./layoutSpots";
@@ -21,12 +22,19 @@ import {
 } from "./removedWith";
 
 /** Which of two shapes on top of each other the build moved, and what it shifted to make room. */
-type OverlapNoteRepair = NoteRepairOf<OverlapRepair>;
+type OverlapNoteRepair = NoteRepairOf<OverlapRepair, "shapes">;
 
-type NoteRepairOf<Repair> = Repair extends OverlapRepair
+/** Whether the build brought a shape into its containers or grew one, and what it shifted to make room. */
+type ContainerNoteRepair = NoteRepairOf<ContainerRepair, "shape" | "container">;
+
+/** A repair as its note carries it: its kind as `repair`, without the ids the note names itself. */
+type NoteRepairOf<
+    Repair extends { readonly kind: string },
+    Subject extends keyof Repair,
+> = Repair extends unknown
     ? {
           readonly [
-              Key in Exclude<keyof Repair, "kind" | "shapes"> | "repair"
+              Key in Exclude<keyof Repair, "kind" | Subject> | "repair"
           ]: Key extends keyof Repair ? Repair[Key] : Repair["kind"];
       }
     : never;
@@ -39,12 +47,12 @@ export type BuildNote =
           readonly shapes: readonly string[];
           readonly repair: FlowRepairKind;
       }
-    | {
-          /** A shape and the containers it lies outside. */
+    | ({
+          /** A shape and the containers it lies outside, with what the build did about it. */
           readonly kind: "shapeOutsideContainer";
           readonly id: string;
           readonly shapes: readonly string[];
-      }
+      } & ContainerNoteRepair)
     | ({
           /** Two shapes on top of each other, with what the build did about them. */
           readonly kind: "shapesOverlap";

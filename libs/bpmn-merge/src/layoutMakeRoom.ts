@@ -20,6 +20,8 @@ import {
     drawnPoolOf,
     framesAroundOf,
     isFrame,
+    lanesOf,
+    liesOnAnotherPool,
     translatedNode,
 } from "./layoutModel";
 import { type ShapeGroup, groupBoundsIn } from "./layoutShapeGroups";
@@ -74,16 +76,22 @@ export function makeRoom(
     ) {
         return undefined;
     }
-    const shiftingIds = new Set(shifting.map(({ id }) => id));
-    const outermost = shifting.filter(
-        (shape) =>
-            !(shape.host !== undefined && shiftingIds.has(shape.host)) &&
-            !shape.subProcesses.some((id) => shiftingIds.has(id)),
-    );
-    return { draft: trial, shifted: outermost.map(({ id }) => id) };
+    return { draft: trial, shifted: outermostOf(shifting) };
 }
 
-interface Shift {
+/** The ids of the shapes that shift on their own, not with their host or sub-process, in their order. */
+export function outermostOf(shifting: readonly NodeShape[]): string[] {
+    const shiftingIds = new Set(shifting.map(({ id }) => id));
+    return shifting
+        .filter(
+            (shape) =>
+                !(shape.host !== undefined && shiftingIds.has(shape.host)) &&
+                !shape.subProcesses.some((id) => shiftingIds.has(id)),
+        )
+        .map(({ id }) => id);
+}
+
+export interface Shift {
     readonly group: ShapeGroup;
     /** The nodes of the group's region outside it. */
     readonly outside: readonly NodeShape[];
@@ -93,7 +101,7 @@ interface Shift {
 }
 
 /** Shifts the shapes past the line, grows the frames across it and stretches the flows between both. */
-function shiftPast(draft: DrawingDraft, trial: DrawingDraft, shift: Shift): void {
+export function shiftPast(draft: DrawingDraft, trial: DrawingDraft, shift: Shift): void {
     const { group, outside, shifting, line, space } = shift;
     const { node } = group;
     for (const shape of shifting) trial.replaceShape(translatedNode(shape, space, 0));
@@ -116,7 +124,7 @@ function shiftPast(draft: DrawingDraft, trial: DrawingDraft, shift: Shift): void
 }
 
 /** The nodes of the node's pool, or of its plane outside a pool, in document order. */
-function regionOf(draft: DrawingDraft, node: NodeShape): NodeShape[] {
+export function regionOf(draft: DrawingDraft, node: NodeShape): NodeShape[] {
     const pool = drawnPoolOf(draft, node);
     return draft
         .nodesOn(node.plane)
@@ -126,14 +134,9 @@ function regionOf(draft: DrawingDraft, node: NodeShape): NodeShape[] {
 /** The pool around the region and its lanes, or the lanes on a plane without a pool. */
 function poolFramesOf(draft: DrawingDraft, node: NodeShape): LayoutShape[] {
     const pool = drawnPoolOf(draft, node);
+    if (pool !== undefined) return [pool, ...lanesOf(draft, pool)];
     return [...draft.shapes.values()].filter(
-        (shape) =>
-            shape.plane === node.plane &&
-            shape.kind !== "node" &&
-            (pool === undefined
-                ? shape.kind === "lane"
-                : shape.id === pool.id ||
-                  (shape.kind === "lane" && liesWithin(shape.bounds, pool.bounds))),
+        (shape) => shape.plane === node.plane && shape.kind === "lane",
     );
 }
 
@@ -175,7 +178,7 @@ function shiftLineOf(draft: DrawingDraft, shape: NodeShape): number {
  * lies wholly past it, another node when its center does, and a boundary
  * event with its host, or by its center on a host that grows.
  */
-function shiftsPast(draft: DrawingDraft, shape: NodeShape, line: number): boolean {
+export function shiftsPast(draft: DrawingDraft, shape: NodeShape, line: number): boolean {
     const host = drawnHostOf(draft, shape);
     if (host !== undefined) {
         return (
@@ -270,7 +273,16 @@ function verticalRunsOf(
     return runs;
 }
 
-/** Whether the trial has no shape spot the draft lacks: no new overlap, shape outside its frame or event off its host. */
-function breaksNothing(draft: LayoutModel, trial: LayoutModel): boolean {
-    return introducedLayoutSpots(trial, [draft]).every(isFlowSpot);
+/**
+ * Whether the trial has no shape spot the draft lacks: no new overlap, shape
+ * outside its frame or event off its host, and no pool widened onto another.
+ */
+export function breaksNothing(draft: LayoutModel, trial: LayoutModel): boolean {
+    const widenedPools = [...trial.shapes.values()].filter(
+        (shape) => shape.kind === "pool" && shape !== draft.shapes.get(shape.id),
+    );
+    return (
+        introducedLayoutSpots(trial, [draft]).every(isFlowSpot) &&
+        !widenedPools.some((pool) => liesOnAnotherPool(trial, pool))
+    );
 }

@@ -361,7 +361,14 @@ const dictionary: Record<string, string> = {
         "При сборке элемент {element} проложен в обход {shapes}",
     "{element} runs through {shapes}; the build could not repair it":
         "Элемент {element} проходит через {shapes}; при сборке исправить не удалось",
-    "{element} lies outside {shapes}": "Элемент {element} находится за пределами {shapes}",
+    "The build moved {element} into {shapes}":
+        "При сборке элемент {element} перемещён внутрь {shapes}",
+    "The build grew {shapes} to hold {element}":
+        "При сборке {shapes} увеличен, чтобы вместить {element}",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "При сборке {shapes} увеличен, чтобы вместить {element}, и сдвинуты {shifted}",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "Элемент {element} находится за пределами {shapes}; при сборке исправить не удалось",
     "{element} is not on the border of {host}": "Элемент {element} не находится на границе {host}",
     "{first} and {second} overlap": "Элементы {first} и {second} перекрываются",
     "{element} is kept without the flows the other side removed with it: {connections}":

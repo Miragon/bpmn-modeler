@@ -8,11 +8,17 @@ import {
     type NodeShape,
     drawnHostOf,
     drawnPoolOf,
+    drawingOfSameSize,
     drawsAt,
+    drawsWhereItLies,
+    frameIdsOf,
     framesAroundOf,
     isFrame,
+    lanesOf,
+    liesOnAnotherPool,
     otherEndOf,
     placeOf,
+    placedByBuild,
     sharedFrameOf,
 } from "./layoutModel";
 
@@ -220,5 +226,138 @@ describe("placeOf and drawsAt", () => {
     it("has no place for a node it does not draw", () => {
         expect(placeOf(layoutOf([]), task)).toBeUndefined();
         expect(drawsAt(layoutOf([]), task)).toBe(false);
+    });
+});
+
+describe("drawingOfSameSize and drawsWhereItLies", () => {
+    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+
+    it.each([
+        { label: "where the node lies", drawn: task, found: true, there: true },
+        {
+            label: "where the node lies on another plane",
+            drawn: { ...task, plane: "Sub_1" },
+            found: true,
+            there: true,
+        },
+        {
+            label: "elsewhere at the node's size",
+            drawn: { ...task, bounds: { ...task.bounds, x: 300 } },
+            found: true,
+            there: false,
+        },
+        {
+            label: "at another size",
+            drawn: { ...task, bounds: { ...task.bounds, width: 200 } },
+            found: false,
+            there: false,
+        },
+    ])("a layout drawing the node $label", ({ drawn, found, there }) => {
+        const layout = layoutOf([drawn]);
+
+        expect(drawingOfSameSize(layout, task)).toBe(found ? drawn : undefined);
+        expect(drawsWhereItLies(layout, task)).toBe(there);
+    });
+
+    it("finds no drawing of a node the layout does not draw", () => {
+        expect(drawingOfSameSize(layoutOf([]), task)).toBeUndefined();
+        expect(drawsWhereItLies(layoutOf([]), task)).toBe(false);
+    });
+});
+
+describe("frameIdsOf", () => {
+    it.each([
+        {
+            label: "its innermost sub-process, which stands for its pool and lanes",
+            relations: { subProcesses: ["Sub_1", "Sub_0"], pool: "Pool_1", lanes: ["Lane_1"] },
+            frames: ["Sub_1"],
+        },
+        {
+            label: "its pool and lanes outside a sub-process",
+            relations: { pool: "Pool_1", lanes: ["Lane_1", "Lane_2"] },
+            frames: ["Pool_1", "Lane_1", "Lane_2"],
+        },
+        {
+            label: "nothing for a data store, which may lie outside its pool",
+            relations: { pool: "Pool_1", lanes: ["Lane_1"], mayLieOutsidePool: true },
+            frames: [],
+        },
+    ])("names $label", ({ relations, frames }) => {
+        expect(frameIdsOf(node("Task_1", relations))).toEqual(frames);
+    });
+});
+
+describe("lanesOf", () => {
+    const lane = (id: string, bounds: DiagramBounds, plane = PLANE): LayoutShape => ({
+        kind: "lane",
+        id,
+        plane,
+        bounds,
+        outline: "rectangle",
+        parent: "Process_1",
+    });
+
+    it("lists the lanes drawn inside the pool on its plane, in document order", () => {
+        const own = [
+            lane("Lane_1", { x: 30, y: 0, width: 870, height: 150 }),
+            lane("Lane_2", { x: 30, y: 150, width: 870, height: 150 }),
+        ];
+        const layout = layoutOf([
+            pool("Pool_1"),
+            ...own,
+            pool("Pool_2", { x: 0, y: 400, width: 900, height: 200 }),
+            lane("Lane_Other", { x: 30, y: 400, width: 870, height: 200 }),
+            lane("Lane_Elsewhere", { x: 30, y: 0, width: 870, height: 150 }, "Sub_1"),
+        ]);
+
+        expect(lanesOf(layout, layout.shapes.get("Pool_1")!)).toEqual(own);
+    });
+});
+
+describe("placedByBuild", () => {
+    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+    const elsewhere = { ...task, bounds: { ...task.bounds, x: 300 } };
+
+    it.each([
+        { label: "both sides draw it where it lies", sides: [[task], [task]], placed: false },
+        { label: "one side draws it elsewhere", sides: [[task], [elsewhere]], placed: true },
+        { label: "one side lacks it", sides: [[task], []], placed: true },
+        {
+            label: "one side draws it on another plane",
+            sides: [[task], [{ ...task, plane: "Sub_1" }]],
+            placed: true,
+        },
+    ])("is $placed when $label", ({ sides, placed }) => {
+        expect(placedByBuild(task, sides.map(layoutOf))).toBe(placed);
+    });
+
+    it("is false for a boundary event, which goes with its host", () => {
+        const timer = node("Timer_1", { host: "Task_1" });
+
+        expect(placedByBuild(timer, [layoutOf([]), layoutOf([])])).toBe(false);
+    });
+});
+
+describe("liesOnAnotherPool", () => {
+    const own = pool("Pool_1", { x: 0, y: 0, width: 670, height: 200 });
+
+    it.each([
+        {
+            label: "a pool it covers on its plane",
+            other: pool("Pool_2", { x: 662, y: 0, width: 600, height: 200 }),
+            lies: true,
+        },
+        {
+            label: "a pool it only touches",
+            other: pool("Pool_2", { x: 670, y: 0, width: 600, height: 200 }),
+            lies: false,
+        },
+        {
+            label: "a pool on another plane",
+            other: { ...pool("Pool_2", { x: 662, y: 0, width: 600, height: 200 }), plane: "Sub_1" },
+            lies: false,
+        },
+    ])("is $lies for $label", ({ other, lies }) => {
+        expect(liesOnAnotherPool(layoutOf([own, other]), own)).toBe(lies);
     });
 });
