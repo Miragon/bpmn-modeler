@@ -37,4 +37,12 @@ describe("i18n extras carry only keys the modeler requests", () => {
             "these overlay keys are never requested at runtime — remove them from src/languages/* (or add to SOURCE_ONLY if the harvest structurally can't reach them)",
         ).toEqual([]);
     });
+
+    it("lists in SOURCE_ONLY no key a harvest records", () => {
+        const harvested = [...SOURCE_ONLY].filter((key) => harvestedByNorm.has(normalizeKey(key)));
+
+        expect(harvested, "a harvest records these keys — remove them from SOURCE_ONLY").toEqual(
+            [],
+        );
+    });
 });

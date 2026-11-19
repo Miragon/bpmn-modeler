@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-// One file per harvest driver: the C7 modeler, the dmn-js views and the element
-// template editor request mostly disjoint strings, and all of them are needed.
+// One file per harvest: the C7 modeler, the dmn-js views, the element template
+// editor and the merge view request mostly disjoint strings, and all of them are needed.
 const HARVEST_FILES = [
     "harvested.json",
     "harvested-dmn.json",
     "harvested-template-editor.json",
+    "harvested-merge.json",
 ] as const;
 
 const TOOLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");

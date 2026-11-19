@@ -414,6 +414,20 @@ function mergeTextKeys(): Set<string> {
     return keys;
 }
 
+// The overlay keeps a merge text because this record names it; no browser harvest opens a merge pane.
+const MERGE_HARVEST = "../../../../libs/bpmn-i18n-extras/tools/harvested-merge.json";
+const MERGE_HARVEST_NOTE =
+    "Templates the merge view's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts, which asks every merge text once. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`. Feeds the needed-key set alongside the browser harvests.";
+
+describe("the merge view's harvest", () => {
+    it("records every key the merge texts pass to translate", async () => {
+        const keys = [...mergeTextKeys()].sort();
+        const harvest = { note: MERGE_HARVEST_NOTE, count: keys.length, keys };
+
+        await expect(`${JSON.stringify(harvest, null, 4)}\n`).toMatchFileSnapshot(MERGE_HARVEST);
+    });
+});
+
 const locales = Object.keys(extras) as (keyof typeof extras)[];
 
 function translateIn(locale: keyof typeof extras) {
