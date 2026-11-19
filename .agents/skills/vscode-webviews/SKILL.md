@@ -288,6 +288,8 @@ IntelliJ, or a plain browser. Two implementations back it:
   standalone in a browser via `vite serve`. It routes each command from the
   table in `browserPreview/previewCommands.ts`: a new webview command needs a
   row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
+  The deployment-webview's `PreviewHost` follows the same shape in its own
+  `adapter/out/browserPreview/`.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts
