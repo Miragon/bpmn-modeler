@@ -1,5 +1,5 @@
 diff --git a/lib/TransactionBoundaries.js b/lib/TransactionBoundaries.js
-index d2e4c5cf464382d1059b74531c85fac164b9f81b..3a242b4b89d87a35ab42e32a2e4c9a273396e76d 100644
+index c61948d9c2e4b071b9b7d19f9ac5f78366b7d600..d602c9ff4ce8123cf1a962fa721fe30c9917e4c4 100644
 --- a/lib/TransactionBoundaries.js
 +++ b/lib/TransactionBoundaries.js
 @@ -8,25 +8,41 @@ import { getOrientation } from './Util';
@@ -66,12 +66,12 @@ index d2e4c5cf464382d1059b74531c85fac164b9f81b..3a242b4b89d87a35ab42e32a2e4c9a27
    var orientation = getOrientation(waypoint, shape, -7);
  
 @@ -191,77 +209,159 @@ TransactionBoundaries.prototype._addOverlay = function(shape, waypoint) {
-     position.left = waypoint.x - shape.x - defaultLength/2;
+     position.left = waypoint.x - shape.x - defaultLength / 2;
    }
  
 -  this._overlays.add(shape, 'transaction-boundaries', {
 -    position: position,
--    html: '<div style="width: '+ width +'px; height: '+ height +'px; background: #ee0000; "> </div>'
+-    html: '<div class="transaction-boundary bio-theme-parent" style="width: ' + width + 'px; height: ' + height + 'px;"> </div>'
 +  return { position: position, width: width, height: height };
 +};
 +
@@ -88,7 +88,7 @@ index d2e4c5cf464382d1059b74531c85fac164b9f81b..3a242b4b89d87a35ab42e32a2e4c9a27
 +
 +  return this._overlays.add(shape, 'transaction-boundaries', {
 +    position: mark.position,
-+    html: '<div style="width: '+ mark.width +'px; height: '+ mark.height +'px; background: #ee0000; "> </div>'
++    html: '<div class="transaction-boundary bio-theme-parent" style="width: ' + mark.width + 'px; height: ' + mark.height + 'px;"> </div>'
    });
  };
  

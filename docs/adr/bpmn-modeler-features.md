@@ -95,7 +95,7 @@ Enforced by the [service](../../libs/modeler-core/src/navigation/service/FormPre
 ### Transaction boundaries
 
 C7 surfaces render `camunda-transaction-boundaries` as HTML overlays, on by default
-through `showTransactionBoundaries`. Upstream 1.1.2 does not make `show()` idempotent:
+through `showTransactionBoundaries`. Upstream 2.0.0 does not make `show()` idempotent:
 its `elements.changed` handler (an anonymous closure no wrapper can replace) runs
 `hide()` + `show()`, so every edit removes and re-adds the overlay of every boundary in
 the diagram. Debouncing would still rebuild every overlay once per edit, and an
@@ -112,6 +112,11 @@ reconnected flows.
   whose marks or plane changed (a plane change re-adds its overlays, since Overlays
   re-checks plane visibility only on add, `root.set` and viewbox changes).
   Classification, placement and HTML stay as upstream ships them.
+- The marks keep the upstream 2.0 geometry but are Miragon blue (`--cd-ui-interaktion`:
+  #335DE5 light, #6B8AFF dark), set through `--transaction-boundary-background-color` in
+  `engineModeler.css` and the dark theme. Red read as an error, and the same colour now
+  renders in bpmn-modeler, diagit, slidev-addon-diagram-js and the bpmnlint-rules docs.
+  The package has no `--cd-ui-*` tokens, so the two hex values are duplicated here.
 - The patch covers only hosts built here. `camunda-transaction-boundaries` is external
   in `@miragon/bpmn-modeler`, so npm consumers keep the per-edit rebuild until upstream
   fixes it. The patched-version constraint in `yarn.config.cjs` fails a bump until the
