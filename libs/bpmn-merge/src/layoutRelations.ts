@@ -8,6 +8,7 @@ import {
 
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
+import type { EdgeKind } from "./layoutModel";
 
 interface NodeRelations {
     readonly outline: Outline;
@@ -26,6 +27,7 @@ export interface LayoutRelations {
     readonly lanePools: ReadonlyMap<string, string>;
     readonly lanesByNode: ReadonlyMap<string, readonly string[]>;
     readonly connections: ReadonlyMap<string, ConnectionEnds>;
+    readonly connectionKinds: ReadonlyMap<string, EdgeKind>;
 }
 
 interface Scope {
@@ -44,11 +46,14 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const lanePools = new Map<string, string>();
     const lanesByNode = new Map<string, string[]>();
     const connections = new Map<string, ConnectionEnds>();
+    const connectionKinds = new Map<string, EdgeKind>();
     const poolsByProcess = new Map<string, string>();
 
     const connect = (connection: ModdleElement, holder?: ModdleElement) => {
         const ends = connectionEndsOf(connection, holder);
-        if (connection.id !== undefined && ends !== undefined) connections.set(connection.id, ends);
+        if (connection.id === undefined || ends === undefined) return;
+        connections.set(connection.id, ends);
+        connectionKinds.set(connection.id, edgeKindOf(connection));
     };
     const visitLanes = (laneSets: unknown, parent: string, pool?: string) => {
         for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
@@ -120,7 +125,12 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             pool === undefined ? { subProcesses: [] } : { subProcesses: [], pool },
         );
     }
-    return { nodes, pools, laneParents, lanePools, lanesByNode, connections };
+    return { nodes, pools, laneParents, lanePools, lanesByNode, connections, connectionKinds };
+}
+
+function edgeKindOf(connection: ModdleElement): EdgeKind {
+    if (isType(connection, "bpmn:SequenceFlow")) return "sequenceFlow";
+    return isType(connection, "bpmn:MessageFlow") ? "messageFlow" : "association";
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

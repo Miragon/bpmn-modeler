@@ -22,7 +22,8 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
         if (ends !== undefined && flowDrawing !== undefined) {
             const { element, planeOwner: plane } = flowDrawing;
             const label = labelBoundsOf(element);
-            const edge = { id, plane, waypoints: waypointsOf(element), ...ends };
+            const kind = relations.connectionKinds.get(id);
+            const edge = { id, plane, waypoints: waypointsOf(element), ...ends, kind };
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }

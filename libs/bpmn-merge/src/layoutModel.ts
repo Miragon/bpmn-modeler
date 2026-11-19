@@ -52,8 +52,17 @@ export interface LayoutEdge {
     readonly waypoints: readonly Point[];
     readonly source?: string;
     readonly target?: string;
+    /** What the edge connects; the reader always names it, a spec may leave a sequence flow without. */
+    readonly kind?: EdgeKind;
     /** Where the flow's name is drawn. */
     readonly label?: DiagramBounds;
+}
+
+export type EdgeKind = "sequenceFlow" | "messageFlow" | "association";
+
+/** Whether the edge is a sequence flow, which orders the nodes it joins. */
+export function carriesSequence(edge: LayoutEdge): boolean {
+    return edge.kind === undefined || edge.kind === "sequenceFlow";
 }
 
 export const FLOW_ENDS = ["source", "target"] as const;
