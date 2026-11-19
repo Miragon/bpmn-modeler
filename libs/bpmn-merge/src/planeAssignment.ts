@@ -139,9 +139,7 @@ export class PlaneAssignment {
 
     /** An end that is itself an edge is resolved first; an edge no slot draws both ends of stays out. */
     private placeEdges(): UndrawnEdge[] {
-        const edgesById = new Map(
-            this.pendingEdges.map((edge) => [edge.elementId, edge] as const),
-        );
+        const edgesById = new Map(this.pendingEdges.map((edge) => [edge.elementId, edge] as const));
         const resolving = new Set<string>();
         const slotOfEnd = (id: string): string | undefined => {
             const edge = edgesById.get(id);
