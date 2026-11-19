@@ -104,9 +104,9 @@ describe("routeOrthogonal", () => {
         })!;
 
         expect(isOrthogonal(route)).toBe(true);
-        expect(
-            segmentsOf(route).some(([from, to]) => segmentEntersBounds(from, to, obstacle)),
-        ).toBe(false);
+        expect(segmentsOf(route).some((segment) => segmentEntersBounds(segment, obstacle))).toBe(
+            false,
+        );
     });
 
     it("prefers a route that crosses no other flow when one is as short", () => {

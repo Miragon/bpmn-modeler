@@ -4,6 +4,7 @@ import type { DiagramBounds } from "./layoutGeometry";
 import {
     nearestOnSegment,
     outlinePointOn,
+    pointAlong,
     segmentBounds,
     segmentEntersBounds,
     segmentEntersOutline,
@@ -20,7 +21,12 @@ const GATEWAY: DiagramBounds = { x: 0, y: 0, width: 50, height: 50 };
 
 describe("segmentBounds", () => {
     it("is the segment's bounding box, whichever way it runs", () => {
-        expect(segmentBounds({ x: 10, y: 50 }, { x: 4, y: 20 })).toEqual({
+        expect(
+            segmentBounds([
+                { x: 10, y: 50 },
+                { x: 4, y: 20 },
+            ]),
+        ).toEqual({
             x: 4,
             y: 20,
             width: 6,
@@ -42,19 +48,43 @@ describe("segmentEntersBounds", () => {
         },
         { label: "passing beside", from: { x: 50, y: 50 }, to: { x: 90, y: 250 }, enters: false },
     ])("a segment $label: $enters", ({ from, to, enters }) => {
-        expect(segmentEntersBounds(from, to, TASK)).toBe(enters);
+        expect(segmentEntersBounds([from, to], TASK)).toBe(enters);
     });
 
     it("never enters bounds without an inside", () => {
         const line: DiagramBounds = { x: 5, y: 0, width: 0, height: 10 };
-        expect(segmentEntersBounds({ x: 0, y: 5 }, { x: 20, y: 5 }, line)).toBe(false);
+        expect(
+            segmentEntersBounds(
+                [
+                    { x: 0, y: 5 },
+                    { x: 20, y: 5 },
+                ],
+                line,
+            ),
+        ).toBe(false);
     });
 });
 
 describe("segmentEntersShape", () => {
     it("lets a segment run inside the outline within the tolerance", () => {
-        expect(segmentEntersShape({ x: 50, y: 102 }, { x: 250, y: 102 }, TASK)).toBe(false);
-        expect(segmentEntersShape({ x: 50, y: 104 }, { x: 250, y: 104 }, TASK)).toBe(true);
+        expect(
+            segmentEntersShape(
+                [
+                    { x: 50, y: 102 },
+                    { x: 250, y: 102 },
+                ],
+                TASK,
+            ),
+        ).toBe(false);
+        expect(
+            segmentEntersShape(
+                [
+                    { x: 50, y: 104 },
+                    { x: 250, y: 104 },
+                ],
+                TASK,
+            ),
+        ).toBe(true);
     });
 });
 
@@ -133,30 +163,65 @@ describe("sideOfCenter", () => {
 
 describe("segmentEntersOutline", () => {
     it("is false for a segment leaving the outline outwards", () => {
-        expect(segmentEntersOutline({ x: 336, y: 158 }, { x: 400, y: 158 }, EVENT, "circle")).toBe(
-            false,
-        );
+        expect(
+            segmentEntersOutline(
+                [
+                    { x: 336, y: 158 },
+                    { x: 400, y: 158 },
+                ],
+                EVENT,
+                "circle",
+            ),
+        ).toBe(false);
     });
 
     it("is true for a segment leaving the outline back across the shape", () => {
-        expect(segmentEntersOutline({ x: 336, y: 158 }, { x: 250, y: 158 }, EVENT, "circle")).toBe(
-            true,
-        );
+        expect(
+            segmentEntersOutline(
+                [
+                    { x: 336, y: 158 },
+                    { x: 250, y: 158 },
+                ],
+                EVENT,
+                "circle",
+            ),
+        ).toBe(true);
     });
 
     it("follows the outline, not the bounds, past a circle's corner", () => {
-        expect(segmentEntersOutline({ x: 298, y: 146 }, { x: 306, y: 146 }, EVENT, "circle")).toBe(
-            false,
-        );
         expect(
-            segmentEntersOutline({ x: 298, y: 146 }, { x: 306, y: 146 }, EVENT, "rectangle"),
+            segmentEntersOutline(
+                [
+                    { x: 298, y: 146 },
+                    { x: 306, y: 146 },
+                ],
+                EVENT,
+                "circle",
+            ),
+        ).toBe(false);
+        expect(
+            segmentEntersOutline(
+                [
+                    { x: 298, y: 146 },
+                    { x: 306, y: 146 },
+                ],
+                EVENT,
+                "rectangle",
+            ),
         ).toBe(true);
     });
 
     it("lets a segment run along the outline within the tolerance", () => {
-        expect(segmentEntersOutline({ x: 102, y: 60 }, { x: 102, y: 250 }, TASK, "rectangle")).toBe(
-            false,
-        );
+        expect(
+            segmentEntersOutline(
+                [
+                    { x: 102, y: 60 },
+                    { x: 102, y: 250 },
+                ],
+                TASK,
+                "rectangle",
+            ),
+        ).toBe(false);
     });
 });
 
@@ -342,5 +407,23 @@ describe("nearestOnSegment", () => {
             point: { x: 5, y: 5 },
             distance: 5,
         });
+    });
+});
+
+describe("pointAlong", () => {
+    it.each([
+        { share: 0, point: { x: 10, y: 20 } },
+        { share: 0.25, point: { x: 20, y: 15 } },
+        { share: 1, point: { x: 50, y: 0 } },
+    ])("at share $share is $point", ({ share, point }) => {
+        expect(
+            pointAlong(
+                [
+                    { x: 10, y: 20 },
+                    { x: 50, y: 0 },
+                ],
+                share,
+            ),
+        ).toEqual(point);
     });
 });
