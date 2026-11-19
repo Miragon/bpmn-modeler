@@ -68,51 +68,77 @@ export function rememberSent(
  * latest outcome; any other outcome the pane has not seen is the partner's,
  * newer than this pane's, which the pane forgets.
  */
-export function answerStates(
+export function answerStates(memory: MergeOutcomeMemory, states: MergeOutcomeStates): Answered {
+    const seen = decisionsSeen(states);
+    const ownDecision = answerOwnDecision(memory, states, seen);
+    if (ownDecision !== undefined) return ownDecision;
+    if (seen === memory.seen) return { memory, answer: "keep" };
+    return answerOwnHandMerge(memory, states, seen) ?? forgetForPartner(memory, seen);
+}
+
+/** What the pane remembers and what new states mean for its card. */
+interface Answered {
+    readonly memory: MergeOutcomeMemory;
+    readonly answer: MergeOutcomeAnswer;
+}
+
+/** The outcome that answers the pick or undo this pane sent, however often the states repeat it. */
+function answerOwnDecision(
     memory: MergeOutcomeMemory,
     states: MergeOutcomeStates,
-): { readonly memory: MergeOutcomeMemory; readonly answer: MergeOutcomeAnswer } {
+    seen: string,
+): Answered | undefined {
     const outcome = states.lastOutcome;
     const { sent } = memory;
-    const pending = memory.handMergesSent ? { handMergesSent: memory.handMergesSent } : {};
-    if (
-        outcome !== undefined &&
-        sent !== undefined &&
-        isDecisionOutcome(outcome) &&
-        answers(outcome, sent)
-    ) {
-        const lifted = liftedRefusal(memory.refused, outcome, states);
-        const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
-        return {
-            memory: {
-                ...pending,
-                latest: { outcome, acted: sent, ...(lifted ? { lifted } : {}) },
-                ...(refused ? { refused } : {}),
-                seen: decisionsSeen(states),
-            },
-            answer: "show",
-        };
-    }
-    const seen = decisionsSeen(states);
-    if (seen === memory.seen) return { memory, answer: "keep" };
-    const handMerge =
-        outcome !== undefined && isHandMergeOutcome(outcome)
-            ? memory.handMergesSent?.find(({ elementId }) => elementId === outcome.elementId)
-            : undefined;
-    if (outcome !== undefined && isHandMergeOutcome(outcome) && handMerge !== undefined) {
-        const { refused } = memory;
-        return {
-            memory: {
-                ...(sent ? { sent } : {}),
-                handMergesSent: withoutHandMerge(memory, outcome.elementId),
-                latest: { outcome, acted: handMerge },
-                ...(refused ? { refused } : {}),
-                seen,
-            },
-            answer: "show",
-        };
-    }
-    return { memory: { ...(sent ? { sent } : {}), ...pending, seen }, answer: "forget" };
+    if (outcome === undefined || sent === undefined) return undefined;
+    if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
+    const lifted = liftedRefusal(memory.refused, outcome, states);
+    const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
+    return {
+        memory: {
+            ...pendingHandMerges(memory),
+            latest: { outcome, acted: sent, ...(lifted ? { lifted } : {}) },
+            ...(refused ? { refused } : {}),
+            seen,
+        },
+        answer: "show",
+    };
+}
+
+/** A newly seen finish of a merge by hand this pane asked for. */
+function answerOwnHandMerge(
+    memory: MergeOutcomeMemory,
+    states: MergeOutcomeStates,
+    seen: string,
+): Answered | undefined {
+    const outcome = states.lastOutcome;
+    if (outcome === undefined || !isHandMergeOutcome(outcome)) return undefined;
+    const request = memory.handMergesSent?.find(({ elementId }) => elementId === outcome.elementId);
+    if (request === undefined) return undefined;
+    const { sent, refused } = memory;
+    return {
+        memory: {
+            ...(sent ? { sent } : {}),
+            handMergesSent: withoutHandMerge(memory, outcome.elementId),
+            latest: { outcome, acted: request },
+            ...(refused ? { refused } : {}),
+            seen,
+        },
+        answer: "show",
+    };
+}
+
+/** Any other newly seen outcome is the partner's, newer than this pane's, which the pane forgets. */
+function forgetForPartner(memory: MergeOutcomeMemory, seen: string): Answered {
+    const { sent } = memory;
+    return {
+        memory: { ...(sent ? { sent } : {}), ...pendingHandMerges(memory), seen },
+        answer: "forget",
+    };
+}
+
+function pendingHandMerges(memory: MergeOutcomeMemory): Pick<MergeOutcomeMemory, "handMergesSent"> {
+    return memory.handMergesSent ? { handMergesSent: memory.handMergesSent } : {};
 }
 
 function withoutHandMerge(
