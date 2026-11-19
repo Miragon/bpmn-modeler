@@ -89,6 +89,7 @@ describe("MergeBar", () => {
         parent = document.createElement("div");
         document.body.append(parent);
         actions = {
+            onChoose: vi.fn(),
             onPrevious: vi.fn(),
             onNext: vi.fn(),
             onBuild: vi.fn(),

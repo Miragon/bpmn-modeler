@@ -259,6 +259,48 @@ describe("MergeMarks", () => {
         expect(overlays).toEqual([]);
     });
 
+    it("marks a version merged by hand with a pen and its word, beside the kept side, at every zoom and on a flow", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack", "Flow_1"]);
+        const byHand = (badge: MergePaneBadge) => ({
+            side: "Incoming",
+            label: `${badge.keptSide} merged by hand`,
+            byHand: "by hand",
+        });
+
+        marks().paint(
+            view(NO_MARKS, {
+                badges: [
+                    { ...PICKED, mergedByHand: true },
+                    { ...PICKED, id: "Flow_1", kind: "replacedHere", mergedByHand: true },
+                ],
+                consequences: [],
+            }),
+            { conflict: "Conflict", badge: byHand },
+        );
+
+        const [worded, checkOnly, onFlow] = overlays;
+        expect(worded.html).toContain("merge-pick-badge--by-hand");
+        expect(worded.html).toContain("merge-pick-badge__pen");
+        expect(worded.html).toContain(">Incoming<");
+        expect(worded.html).toContain(">by hand<");
+        expect(worded.html).toContain('aria-label="incoming merged by hand"');
+        expect(checkOnly.html).toContain("merge-pick-badge__pen");
+        expect(checkOnly.html).not.toContain("by hand<");
+        // A flow's round badge holds one glyph: the pen stands for the pick too.
+        expect(onFlow.html).toContain("merge-pick-badge__pen");
+        expect(onFlow.html).not.toContain("merge-pick-badge__check");
+        expect(onFlow.html).toContain("merge-pick-badge--by-hand");
+    });
+
+    it("draws no pen on a plain pick", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+
+        marks().paint(view(NO_MARKS, { badges: [PICKED], consequences: [] }), labels("Conflict"));
+
+        expect(overlays.some(({ html }) => html.includes("merge-pick-badge__pen"))).toBe(false);
+        expect(overlays.some(({ html }) => html.includes("--by-hand"))).toBe(false);
+    });
+
     it("skips a picked id missing on this canvas", () => {
         const { marks, overlays } = fakeCanvas(["Task_Check"]);
 

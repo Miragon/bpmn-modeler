@@ -9,6 +9,7 @@ export const MERGE_PANE_COMMAND_IDS: Readonly<Record<MergePaneCommand, string>> 
     leaveOut: "bpmn-modeler.mergeLeaveOut",
     // The id shipped before the offer kept boundary events too; renaming it would drop users' keybindings.
     keepRemovedWith: "bpmn-modeler.mergeKeepRemovedFlows",
+    mergeXml: "bpmn-modeler.mergeXml",
     undo: "bpmn-modeler.mergeUndoPick",
     next: "bpmn-modeler.mergeNextConflict",
     previous: "bpmn-modeler.mergePreviousConflict",

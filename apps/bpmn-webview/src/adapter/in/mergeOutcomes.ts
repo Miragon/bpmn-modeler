@@ -1,13 +1,17 @@
 import {
+    type MergeHostOffers,
     type MergePaneStates,
+    NO_MERGE_HOST_OFFERS,
+    OpenElementXmlMergeCommand,
     PickMergeSideCommand,
     UnpickMergeCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import {
     actedOnPad,
-    type MergeActedDecision,
+    type MergeDecisionCommand,
     mergeDecisionCommandOf,
+    type MergePaneRequest,
 } from "../../domain/mergeActedDecision";
 import {
     type MergeMenuRowContent,
@@ -15,6 +19,8 @@ import {
     rowOutcomeText,
 } from "../../domain/mergeMenuRows";
 import {
+    handMergeFactsOf,
+    type MergeCardAction,
     mergeOutcomeCardContent,
     type MergeRememberedOutcome,
 } from "../../domain/mergeOutcomeCard";
@@ -22,6 +28,7 @@ import {
     answerStates,
     cardOnAnswer,
     cardOnSelection,
+    chooseOn,
     EMPTY_OUTCOME_MEMORY,
     type MergeOutcomeAnswer,
     type MergeOutcomeMemory,
@@ -34,7 +41,9 @@ import { MERGE_CARD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
 import type { MergeOutcomeCard } from "./mergeOutcomeCard";
 
 export interface MergeOutcomesContext {
-    readonly post: (command: PickMergeSideCommand | UnpickMergeCommand) => void;
+    readonly post: (
+        command: PickMergeSideCommand | UnpickMergeCommand | OpenElementXmlMergeCommand,
+    ) => void;
     readonly nameOf: (elementId: string) => string;
     /** Shows an element the card names, leaving the card open. */
     readonly select: (elementId: string) => void;
@@ -42,15 +51,17 @@ export interface MergeOutcomesContext {
 }
 
 /**
- * What a merge pane's own decisions did: it sends them, remembers them
- * until the pane reloads ({@link MergeOutcomeMemory}), and says the host's
- * answer on the {@link MergeOutcomeCard} below a drawn element, which
- * follows the selection, or in the menu's row of a shape-less one.
+ * What a merge pane's own decisions and merges by hand did: it sends them,
+ * remembers them until the pane reloads ({@link MergeOutcomeMemory}), and
+ * says the host's answer on the {@link MergeOutcomeCard} below a drawn
+ * element, which follows the selection, or in the menu's row of a
+ * shape-less one, with the answer's choices.
  */
 export class MergeOutcomes {
     private memory: MergeOutcomeMemory = EMPTY_OUTCOME_MEMORY;
     private card: MergeOutcomeCard | undefined;
     private states: MergePaneStates | undefined;
+    private offers: MergeHostOffers = NO_MERGE_HOST_OFFERS;
 
     constructor(private readonly context: MergeOutcomesContext) {}
 
@@ -58,20 +69,24 @@ export class MergeOutcomes {
         this.card = card;
     }
 
-    /** Sends a decision and remembers it, so the card can name what the outcome does not. */
-    send(acted: MergeActedDecision): void {
-        this.memory = rememberSent(this.memory, acted);
-        const command = mergeDecisionCommandOf(acted);
-        this.context.post(
-            command.kind === "pick"
-                ? new PickMergeSideCommand(command.elementId, command.scope, command.side)
-                : new UnpickMergeCommand(command.elementId, command.scope),
-        );
+    /** Sends a decision or a merge by hand and remembers it, so the card can name what the outcome does not. */
+    send(request: MergePaneRequest, { dropsHandMerges = false } = {}): void {
+        this.memory = rememberSent(this.memory, request);
+        this.context.post(protocolCommandOf(mergeDecisionCommandOf(request, { dropsHandMerges })));
+    }
+
+    /** A choice on the card or in a row: sends what it asks and closes a dismissed card. */
+    choose(action: MergeCardAction): void {
+        const { memory, send, close } = chooseOn(this.memory, action);
+        this.memory = memory;
+        if (close) this.card?.close();
+        if (send) this.send(send.request, { dropsHandMerges: send.dropsHandMerges });
     }
 
     /** Reads the host's new states before the pane repaints; {@link settle} then shows the answer. */
-    receive(states: MergePaneStates): MergeOutcomeAnswer {
+    receive(states: MergePaneStates, offers: MergeHostOffers): MergeOutcomeAnswer {
         this.states = states;
+        this.offers = offers;
         const { memory, answer } = answerStates(this.memory, states);
         this.memory = memory;
         return answer;
@@ -94,17 +109,17 @@ export class MergeOutcomes {
         const fromRow = rowOutcome(this.memory);
         if (answer !== "show" || fromRow === undefined || !this.states) return undefined;
         const { nameOf, translate } = this.context;
-        return rowOutcomeText(this.states, fromRow, { nameOf, translate });
+        return rowOutcomeText(this.states, fromRow, { nameOf, translate, offers: this.offers });
     }
 
     /** The menu's rows, the row a decision was sent from saying what it did. */
-    menuRows(elementXmlChanges: boolean): readonly MergeMenuRowContent[] {
+    menuRows(): readonly MergeMenuRowContent[] {
         if (!this.states) return [];
         const { nameOf, translate } = this.context;
         return mergeMenuRows(this.states, rowOutcome(this.memory), {
             nameOf,
             translate,
-            elementXmlChanges,
+            offers: this.offers,
         });
     }
 
@@ -129,6 +144,7 @@ export class MergeOutcomes {
         const { nameOf, select, translate } = this.context;
         const content = mergeOutcomeCardContent(remembered, {
             restoreOffer: this.states.restoreOffer,
+            handMerge: handMergeFactsOf(this.states, this.offers, remembered.outcome.elementId),
             nameOf,
             translate,
         });
@@ -140,9 +156,32 @@ export class MergeOutcomes {
                     const decision = this.states && keepRemovedWith(this.states, id);
                     if (decision) this.send(actedOnPad(id, decision));
                 },
+                onChoose: (action) => this.choose(action),
                 closeLabel: translate(MERGE_CARD_TEXTS.close),
             },
             { announce },
         );
+    }
+}
+
+function protocolCommandOf(
+    command: MergeDecisionCommand,
+): PickMergeSideCommand | UnpickMergeCommand | OpenElementXmlMergeCommand {
+    switch (command.kind) {
+        case "pick":
+            return new PickMergeSideCommand(
+                command.elementId,
+                command.scope,
+                command.side,
+                command.dropsHandMerges,
+            );
+        case "unpick":
+            return new UnpickMergeCommand(
+                command.elementId,
+                command.scope,
+                command.dropsHandMerges,
+            );
+        case "openXmlMerge":
+            return new OpenElementXmlMergeCommand(command.elementId, command.resume);
     }
 }

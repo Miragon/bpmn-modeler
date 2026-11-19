@@ -468,6 +468,7 @@ export const MERGE_PAD_ENTRIES = [
     "keepInside",
     "leaveOut",
     "keepRemovedWith",
+    "mergeXml",
     "undo",
 ] as const;
 

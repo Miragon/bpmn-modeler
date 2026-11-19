@@ -14,7 +14,7 @@ import {
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { type DiffStepLanding, diffStepSelection } from "../../domain/diffStepSelection";
-import { actedInMenu, actedOnPad } from "../../domain/mergeActedDecision";
+import { requestInMenu, requestOnPad } from "../../domain/mergeActedDecision";
 import { openShapelessConflicts } from "../../domain/mergeMenuRows";
 import {
     decidesInMenu,
@@ -70,6 +70,9 @@ type MergeStepLanding = "stepped" | "clicked" | "followed";
  *     panes their states again, so the pane shows a pick only once the host
  *     made it. The pane that sent it shows what it did
  *     ({@link MergeOutcomes}); the partner shows none.
+ *   - Outgoing {@link OpenElementXmlMergeCommand} from Merge XML, where the
+ *     host offers its merge editor; the pane that asked shows the finished
+ *     merge's answer when the host sends it, with Edit again.
  *   - Outgoing {@link ViewportChangedCommand} after a step only this pane
  *     draws, so the partner shows the same part of the diagram.
  *   - Outgoing {@link BuildMergeResultCommand} and
@@ -125,14 +128,14 @@ export class MergeMode {
             step: (direction) => this.step(direction),
             build: () => host.postMessage(new BuildMergeResultCommand()),
             selectedPad: () => this.selectedPad(),
-            decide: (id, decision) => this.outcomes.send(actedOnPad(id, decision)),
+            decide: (id, decision) => this.outcomes.send(requestOnPad(id, decision)),
         });
         this.pane = new DiffPanePlumbing(canvas, host, [
             createMergeMarksModule({ attach: (marks) => (this.marks = marks) }),
             createMergeElementNamesModule({ attach: (names) => (this.names = names) }),
             createMergePickModule({
                 decisionsOf: (id) => this.padDecisionsOf(id),
-                decide: (id, decision) => this.outcomes.send(actedOnPad(id, decision)),
+                decide: (id, decision) => this.outcomes.send(requestOnPad(id, decision)),
                 attach: (pad) => (this.pickPad = pad),
                 selectionChanged: () => this.reportCommands(),
             }),
@@ -146,7 +149,11 @@ export class MergeMode {
                 onShowAll: () => this.showAll(),
                 onStepList: (list) => this.switchStepList(list),
                 onShapeless: (id) => this.stepTo(id),
-                onDecide: (id, decision) => this.outcomes.send(actedInMenu(id, decision)),
+                onDecide: (id, decision) => this.outcomes.send(requestInMenu(id, decision)),
+                onChoose: (action) => {
+                    this.outcomes.choose(action);
+                    this.updateBar();
+                },
                 onSelect: (id) => this.select(id),
                 onBuild: () => this.host.postMessage(new BuildMergeResultCommand()),
                 onCompare: (against) =>
@@ -201,7 +208,7 @@ export class MergeMode {
     }
 
     private padDecisionsOf(id: string): readonly MergePadDecision[] {
-        return this.states ? mergePadDecisions(this.states.states, id) : [];
+        return this.states ? mergePadDecisions(this.states.states, id, this.states.offers) : [];
     }
 
     private paint(query: ApplyMergeStatesQuery): void {
@@ -211,7 +218,7 @@ export class MergeMode {
         this.pane.offerElementXmlChanges(query.offers.elementXmlChanges);
         this.paintMarks();
         this.pickPad?.refresh();
-        const answer = this.outcomes.receive(query.states);
+        const answer = this.outcomes.receive(query.states, query.offers);
         const kept = query.states.stepping.cursor;
         // A pane that reloaded has no step of its own; the host kept the tab's, without opening the menu.
         if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
@@ -420,10 +427,7 @@ export class MergeMode {
         this.bar.update({
             caption,
             counts,
-            controls: this.controls(
-                states,
-                this.outcomes.menuRows(this.states.offers.elementXmlChanges),
-            ),
+            controls: this.controls(states, this.outcomes.menuRows()),
         });
     }
 

@@ -500,6 +500,86 @@ const dictionary: Record<string, string> = {
         "Beide kanten wijzigden de lay-out van {elements}; die van Huidig blijft behouden",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "Beide kanten wijzigden de lay-out van {elements}; die van Inkomend blijft behouden",
+    "by hand": "met de hand",
+    "Edit again": "Opnieuw bewerken",
+    "Keep my XML": "Mijn XML behouden",
+    "Keep the XML merged before": "De eerder samengevoegde XML behouden",
+    "Merge XML": "XML samenvoegen",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "De wijzigingen van beide kanten aan de XML met de hand samenvoegen in een merge-editor",
+    "Edit merged XML": "Samengevoegde XML bewerken",
+    "Change the XML you merged by hand": "De met de hand samengevoegde XML wijzigen",
+    "Keep current's version": "Versie van Huidig behouden",
+    "Keep incoming's version": "Versie van Inkomend behouden",
+    "Drop it and pick": "Verwerpen en kiezen",
+    "Drop it and leave out": "Verwerpen en weglaten",
+    "Drop it and undo": "Verwerpen en terugnemen",
+    "Kept from current and merged by hand, your pick":
+        "Behouden van Huidig en met de hand samengevoegd, jouw keuze",
+    "Kept from incoming and merged by hand, your pick":
+        "Behouden van Inkomend en met de hand samengevoegd, jouw keuze",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "Behouden van Huidig met alles erin en met de hand samengevoegd, jouw keuze",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "Behouden van Inkomend met alles erin en met de hand samengevoegd, jouw keuze",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "Behouden van Huidig met wat ermee verwijderd werd en met de hand samengevoegd, jouw keuze",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "Behouden van Inkomend met wat ermee verwijderd werd en met de hand samengevoegd, jouw keuze",
+    "Merged by hand: {element}": "Met de hand samengevoegd: {element}",
+    "Closed without saving: {element} is unchanged":
+        "Gesloten zonder opslaan: {element} is ongewijzigd",
+    "This drops the XML you merged by hand for {elements}":
+        "Hiermee verwerp je de met de hand samengevoegde XML van {elements}",
+    "The XML of {element} still holds conflict markers":
+        "De XML van {element} bevat nog conflictmarkeringen",
+    "The XML of {element} doesn't parse": "De XML van {element} is niet te parsen",
+    "The XML of {element} must hold one element": "De XML van {element} moet één element bevatten",
+    "The XML of {element} changes its type": "De XML van {element} wijzigt het type",
+    "The XML of {element} changes its ID": "De XML van {element} wijzigt de ID",
+    "The XML of {element} holds elements of their own":
+        "De XML van {element} bevat zelfstandige elementen",
+    "The XML of {element} goes beyond its own content":
+        "De XML van {element} gaat verder dan de eigen inhoud",
+    "The XML of {element} names an element of the wrong type":
+        "De XML van {element} noemt een element van het verkeerde type",
+    "The XML of {element} uses an unknown namespace":
+        "De XML van {element} gebruikt een onbekende namespace",
+    "The engine doesn't take the XML of {element}":
+        "De engine accepteert de XML van {element} niet",
+    "The XML of {element} changes what follows the pick":
+        "De XML van {element} wijzigt wat de keuze volgt",
+    "The XML of {element} names an element no version has":
+        "De XML van {element} noemt een element dat geen versie heeft",
+    "The XML of {element} names an element the result leaves out":
+        "De XML van {element} noemt een element dat het resultaat weglaat",
+    "The XML of {element} would change other decisions":
+        "De XML van {element} zou andere beslissingen wijzigen",
+    "The pick of {element} changed while you merged it":
+        "De keuze voor {element} is gewijzigd terwijl je het samenvoegde",
+    "Resolve each conflict and remove its markers, then save.":
+        "Los elk conflict op, verwijder de markeringen en sla daarna op.",
+    "The parser says: {detail}": "De parser meldt: {detail}",
+    "It holds {count} elements at its top level.":
+        "Het bevat {count} elementen op het hoogste niveau.",
+    "It is a {found} now; keep it a {expected}.": "Het is nu een {found}; houd het een {expected}.",
+    "Its ID is {found} now; keep {expected}.": "De ID is nu {found}; behoud {expected}.",
+    "It has no ID now; keep {expected}.": "Het heeft nu geen ID; behoud {expected}.",
+    "Merge these on their own, with a pick: {elements}":
+        "Voeg deze apart samen, met een keuze: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "Hier worden alleen de attributen, documentatie en extensie-elementen samengevoegd, niet {properties}.",
+    "{target} as {property}, which takes a {expected}":
+        "{target} als {property}, dat een {expected} verwacht",
+    "No version declares {namespaces}.": "Geen versie declareert {namespaces}.",
+    "The engine says: {detail}": "De engine meldt: {detail}",
+    "{properties} follow the side you picked.": "{properties} volgen de gekozen kant.",
+    "No version has {elements}.": "Geen versie heeft {elements}.",
+    "The result leaves out {elements}.": "Het resultaat laat {elements} weg.",
+    "It would change the decisions on {elements}.":
+        "Het zou de beslissingen over {elements} wijzigen.",
+    "It is no longer picked on the side you merged it for.":
+        "Het is niet meer gekozen aan de kant waarvoor je het samenvoegde.",
 };
 
 export default dictionary;

@@ -184,6 +184,25 @@
     border-radius: 1px;
 }
 
+/* Merged by hand: a pen, its word in italics and a dashed edge, none of them a colour. */
+.merge-pick-badge--by-hand {
+    border-style: dashed;
+}
+
+.merge-pick-badge__pen {
+    flex: none;
+    stroke: currentColor;
+}
+
+.merge-pick-badge__by-hand {
+    font-style: italic;
+    font-weight: 400;
+}
+
+[data-bpmn-theme="dark"] .merge-pick-badge--by-hand {
+    border-style: dashed;
+}
+
 [data-bpmn-theme="dark"] .merge-pick-badge {
     border-color: #e8e8e8;
 }

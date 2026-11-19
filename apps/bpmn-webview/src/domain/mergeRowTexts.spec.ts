@@ -31,6 +31,8 @@ describe("decisionButtonText", () => {
             "Also keep what was removed with it",
         ],
         [{ kind: "undo", scope: "element" }, "Undo pick"],
+        [{ kind: "mergeXml", mode: "open" }, "Merge XML"],
+        [{ kind: "mergeXml", mode: "edit" }, "Edit merged XML"],
     ])("words a row's button for %o", (decision, expected) => {
         expect(decisionButtonText(decision, untranslated)).toBe(expected);
     });

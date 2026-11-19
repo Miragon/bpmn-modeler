@@ -9,7 +9,9 @@ import type {
 import {
     decidesInMenu,
     keepsEverythingInside,
+    type MergePadDecision,
     mergePadDecisions,
+    type MergePadOffers,
     type MergePadStates,
     type MergeRowDecision,
     mergeRowDecisions,
@@ -36,10 +38,21 @@ const OFFER: MergePaneRestoreOffer = {
     removedBy: "current",
 };
 
-const kinds = (paneStates: MergePadStates) =>
-    mergePadDecisions(paneStates, "Task_1").map((decision) =>
-        decision.kind === "keep" ? `keep ${decision.scope}` : decision.kind,
-    );
+const OFFERS_XML_MERGE = { elementXmlMerge: true } as const;
+
+const named = (decision: MergePadDecision) => {
+    switch (decision.kind) {
+        case "keep":
+            return `keep ${decision.scope}`;
+        case "mergeXml":
+            return `mergeXml ${decision.mode}`;
+        default:
+            return decision.kind;
+    }
+};
+
+const kinds = (paneStates: MergePadStates, offers: MergePadOffers = OFFERS_XML_MERGE) =>
+    mergePadDecisions(paneStates, "Task_1", offers).map(named);
 
 describe("mergePadDecisions", () => {
     it.each<[string, Partial<MergePadStates>, string[]]>([
@@ -196,6 +209,54 @@ describe("mergePadDecisions", () => {
             });
         },
     );
+
+    it.each<[string, Partial<MergePadStates>, string[]]>([
+        [
+            "a picked element whose three texts differ: merge its XML, before undo",
+            {
+                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                badges: [keptHere("element")],
+            },
+            ["mergeXml open", "undo"],
+        ],
+        [
+            "an element merged by hand: edit the merged XML",
+            {
+                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                badges: [{ ...keptHere("element"), mergedByHand: true }],
+            },
+            ["mergeXml edit", "undo"],
+        ],
+        [
+            "the pane of the side the pick replaced: keep this side's, merge the XML, undo",
+            {
+                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
+            },
+            ["keep element", "mergeXml open", "undo"],
+        ],
+        [
+            "the restore offer comes before the XML merge",
+            {
+                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                badges: [keptHere("element")],
+                restoreOffer: OFFER,
+            },
+            ["keepRemovedWith", "mergeXml open", "undo"],
+        ],
+    ])("%s", (_case, overrides, expected) => {
+        expect(kinds(states(overrides))).toStrictEqual(expected);
+    });
+
+    it("offers no XML merge where the host has no merge editor", () => {
+        const handMergeable = states({
+            pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+            badges: [keptHere("element")],
+        });
+
+        expect(kinds(handMergeable, { elementXmlMerge: false })).toStrictEqual(["undo"]);
+        expect(mergePadDecisions(handMergeable, "Task_1").map(named)).toStrictEqual(["undo"]);
+    });
 });
 
 describe("mergeRowDecisions", () => {
@@ -217,6 +278,8 @@ describe("mergeRowDecisions", () => {
                 return `${decision.kind} ${decision.side}`;
             case "undo":
                 return `undo ${decision.scope}`;
+            case "mergeXml":
+                return `mergeXml ${decision.mode}`;
         }
     };
 
@@ -314,6 +377,44 @@ describe("mergeRowDecisions", () => {
         ],
     ])("%s", (_case, rowOverrides, rowStates, expected) => {
         expect(mergeRowDecisions(rowStates, row(rowOverrides)).map(named)).toStrictEqual(expected);
+    });
+
+    it.each<[string, Partial<MergePaneShapelessRow>, string[]]>([
+        [
+            "a picked row whose three texts differ: merge its XML, before undo",
+            {
+                takenSide: "current",
+                pick: { keptSide: "current", scope: "element" },
+                handMergeable: true,
+            },
+            ["keep incoming", "mergeXml open", "undo element"],
+        ],
+        [
+            "a row merged by hand: edit the merged XML",
+            {
+                takenSide: "current",
+                pick: { keptSide: "current", scope: "element", mergedByHand: true },
+                handMergeable: true,
+            },
+            ["keep incoming", "mergeXml edit", "undo element"],
+        ],
+    ])("%s", (_case, rowOverrides, expected) => {
+        expect(
+            mergeRowDecisions({}, row(rowOverrides), { elementXmlMerge: true }).map(named),
+        ).toStrictEqual(expected);
+    });
+
+    it("offers a row no XML merge where the host has no merge editor", () => {
+        const picked = row({
+            takenSide: "current",
+            pick: { keptSide: "current", scope: "element" },
+            handMergeable: true,
+        });
+
+        expect(mergeRowDecisions({}, picked).map(named)).toStrictEqual([
+            "keep incoming",
+            "undo element",
+        ]);
     });
 
     it("carries a collaboration's reach, every pool with its process, on both sides' keep with everything inside", () => {

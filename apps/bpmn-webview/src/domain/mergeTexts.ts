@@ -12,6 +12,7 @@ import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
+import { byHandBadgeLabel, MERGE_XML_TEXTS, mergeXmlDecisionText } from "./mergeHandMergeTexts";
 import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
@@ -80,15 +81,27 @@ const RESTORE_OFFER_TEXTS: Record<
     },
 };
 
-/** A pick's badge: the kept side's word as the pane captions name it, and its full words for screen readers. */
+/**
+ * A pick's badge: the kept side's word as the pane captions name it, and its
+ * full words for screen readers; a version merged by hand adds its word.
+ */
 export function pickBadgeText(
-    badge: { readonly keptSide: MergeSide; readonly scope: MergePickScope },
+    badge: {
+        readonly keptSide: MergeSide;
+        readonly scope: MergePickScope;
+        readonly mergedByHand?: true;
+    },
     translate: MergeTranslate,
-): { side: string; label: string } {
-    return {
-        side: translate(MERGE_SIDE_TEXTS[badge.keptSide]),
-        label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]),
-    };
+): { side: string; label: string; byHand?: string } {
+    const side = translate(MERGE_SIDE_TEXTS[badge.keptSide]);
+    if (badge.mergedByHand) {
+        return {
+            side,
+            label: byHandBadgeLabel(badge.scope, badge.keptSide, translate),
+            byHand: translate(MERGE_XML_TEXTS.byHand),
+        };
+    }
+    return { side, label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]) };
 }
 
 /** The action that keeps an element from `side`. */
@@ -177,6 +190,8 @@ export function padDecisionText(
             );
         case "undo":
             return withTip(translate(MERGE_PICK_TEXTS.undo), translate(MERGE_PAD_TEXTS.undoTip));
+        case "mergeXml":
+            return mergeXmlDecisionText(decision, translate);
     }
 }
 

@@ -7,6 +7,7 @@ import type {
     MergePaneBlock,
     MergePaneBuildNote,
     MergePaneContainerReach,
+    MergePaneHandMergeRefusal,
     MergePaneOtherSideLack,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
@@ -41,6 +42,15 @@ import {
     shapelessValueLines,
 } from "./mergeRowTexts";
 import { buildNoteText } from "./mergeBuildNoteTexts";
+import {
+    dropAndResendText,
+    handMergeHeadline,
+    handMergeRefusalDetail,
+    handMergeRefusalHeadline,
+    handMergesAtStakeText,
+    keepVersionText,
+    MERGE_XML_TEXTS,
+} from "./mergeHandMergeTexts";
 import {
     cardBlockText,
     compareWithText,
@@ -100,6 +110,36 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
 };
 
+/** Every refusal of a merge by hand, each detail's variants included. */
+const HAND_MERGE_REFUSALS: Record<
+    MergePaneHandMergeRefusal["kind"],
+    readonly MergePaneHandMergeRefusal[]
+> = {
+    conflictMarkersLeft: [{ kind: "conflictMarkersLeft" }],
+    unparsable: [{ kind: "unparsable", detail: "x" }],
+    notOneElement: [{ kind: "notOneElement", found: 2 }],
+    typeChanged: [{ kind: "typeChanged", expected: "bpmn:Task", found: "bpmn:UserTask" }],
+    idChanged: [
+        { kind: "idChanged", expected: "a", found: "b" },
+        { kind: "idChanged", expected: "a" },
+    ],
+    holdsElementsOfTheirOwn: [{ kind: "holdsElementsOfTheirOwn", ids: ["a"] }],
+    beyondOwnAttributes: [{ kind: "beyondOwnAttributes", properties: ["bpmn:flowElements"] }],
+    namesWrongType: [
+        {
+            kind: "namesWrongType",
+            references: [{ property: "bpmn:messageRef", target: "a", expected: "bpmn:Message" }],
+        },
+    ],
+    unknownNamespace: [{ kind: "unknownNamespace", namespaces: ["urn:x"] }],
+    rejectedByEngine: [{ kind: "rejectedByEngine", detail: "x" }],
+    changesStructure: [{ kind: "changesStructure", properties: ["bpmn:sourceRef"] }],
+    namesMissingElement: [{ kind: "namesMissingElement", ids: ["a"] }],
+    namesLeftOutElement: [{ kind: "namesLeftOutElement", ids: ["a"] }],
+    changesOtherDecisions: [{ kind: "changesOtherDecisions", ids: ["a"] }],
+    notHandMergeable: [{ kind: "notHandMergeable" }],
+};
+
 // Every root element type, and the data object, which no canvas draws.
 const SHAPELESS_TYPES = [
     "bpmn:Process",
@@ -152,6 +192,10 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
             offer: { elementId: "a", ...offered, removedBy: side },
         })),
     undo: () => keysOf(PICK_SCOPES).map((scope) => ({ kind: "undo", scope })),
+    mergeXml: () => [
+        { kind: "mergeXml", mode: "open" },
+        { kind: "mergeXml", mode: "edit" },
+    ],
 };
 
 /** Every decision the outcome card can head, for `side`. */
@@ -206,6 +250,7 @@ function mergeTextKeys(): Set<string> {
         ...Object.values(MERGE_CARD_TEXTS),
         ...Object.values(MERGE_BUILD_TEXTS),
         ...Object.values(MERGE_MENU_TEXTS),
+        ...Object.values(MERGE_XML_TEXTS),
     ]);
     const translate = (key: string) => {
         keys.add(key);
@@ -216,9 +261,12 @@ function mergeTextKeys(): Set<string> {
         for (const role of MERGE_CAPTION_ROLES) {
             mergeCaptionText({ side, role, ref: "main", shortHash: "1a2b3c4" }, translate);
         }
-        for (const scope of keysOf(PICK_SCOPES))
+        for (const scope of keysOf(PICK_SCOPES)) {
             pickBadgeText({ keptSide: side, scope }, translate);
+            pickBadgeText({ keptSide: side, scope, mergedByHand: true }, translate);
+        }
         keepSideText(side, translate);
+        keepVersionText(side, translate);
         compareWithText(side, translate);
         comparisonText(side, translate);
         comparisonPaneText("before", side, translate);
@@ -262,7 +310,17 @@ function mergeTextKeys(): Set<string> {
         };
         outcomeCardHeadline(refusal, ACTED_DECISIONS.undo("current")[0]!, nameOf, translate);
         unblockedText(action, "a", translate);
+        dropAndResendText(action, translate);
     }
+    for (const refusals of Object.values(HAND_MERGE_REFUSALS)) {
+        for (const refusal of refusals) {
+            handMergeRefusalHeadline(refusal, "a", translate);
+            handMergeRefusalDetail(refusal, nameOf, translate);
+        }
+    }
+    handMergeHeadline("accepted", "a", translate);
+    handMergeHeadline("discarded", "a", translate);
+    handMergesAtStakeText(["a"], nameOf, translate);
     for (const obstacle of keysOf(OBSTACLES)) {
         for (const block of blocksOf(obstacle)) {
             for (const cardElementId of [block.elementId, block.targetId]) {
@@ -363,9 +421,11 @@ describe("the merge view's translations", () => {
                 compareWithText(side, translate),
                 comparisonText(side, translate),
                 comparisonPaneText("before", side, translate),
-                ...keysOf(PICK_SCOPES).map(
-                    (scope) => pickBadgeText({ keptSide: side, scope }, translate).label,
-                ),
+                ...keysOf(PICK_SCOPES).flatMap((scope) => [
+                    pickBadgeText({ keptSide: side, scope }, translate).label,
+                    pickBadgeText({ keptSide: side, scope, mergedByHand: true }, translate).label,
+                ]),
+                keepVersionText(side, translate),
                 ...OFFERED.map((offered) =>
                     restoreOfferText({ elementId: "a", ...offered, removedBy: side }, translate),
                 ),
