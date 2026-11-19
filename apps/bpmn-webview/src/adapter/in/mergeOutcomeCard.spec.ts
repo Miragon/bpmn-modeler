@@ -115,7 +115,7 @@ function build({
     );
     const actions: MergeOutcomeCardActions = {
         onSelect: vi.fn(),
-        onKeepRemovedFlows: vi.fn(),
+        onKeepRemovedWith: vi.fn(),
         closeLabel: "Close",
     };
     const fire = (event: string) => {
@@ -163,7 +163,7 @@ describe("MergeOutcomeCard", () => {
         buttonNamed(html, "Flow from Order received to Send invoice").click();
         buttonNamed(html, "Also keep the 2 flows current removed with it").click();
         expect(actions.onSelect).toHaveBeenCalledWith("Flow_1");
-        expect(actions.onKeepRemovedFlows).toHaveBeenCalledWith("Task_Remind");
+        expect(actions.onKeepRemovedWith).toHaveBeenCalledWith("Task_Remind");
         expect(card.shownAt).toBe("Task_Remind");
     });
 

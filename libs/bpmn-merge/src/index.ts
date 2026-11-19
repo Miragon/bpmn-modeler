@@ -5,10 +5,21 @@ export { mergeElementNames } from "./mergeElementNames";
 export type {
     BlockedPick,
     DecisionOrigin,
+    HandMergeOptions,
     OpenConflict,
     PickOutcome,
     MergeResolution,
 } from "./mergeDecisions";
+export { acceptHandMerge } from "./acceptHandMerge";
+export { describeHandMergeRefusal } from "./handMerge";
+export type {
+    HandMergedVersion,
+    HandMergeOutcome,
+    HandMergeRefusal,
+    HandMergeScope,
+} from "./handMerge";
+export { handMergeableSide } from "./handMergeEligibility";
+export type { HandMergeTexts } from "./handMergeEligibility";
 export type { Requirement } from "./referenceRules";
 export { describeUnmetRequirement } from "./unmetRequirement";
 export type { RequirementObstacle, UnmetRequirement } from "./unmetRequirement";

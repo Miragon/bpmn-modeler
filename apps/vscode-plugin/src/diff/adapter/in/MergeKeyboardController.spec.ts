@@ -100,7 +100,7 @@ describe("MergeKeyboardController", () => {
         ["bpmn-modeler.mergeKeepThisSide", "keep"],
         ["bpmn-modeler.mergeKeepWithEverythingInside", "keepInside"],
         ["bpmn-modeler.mergeLeaveOut", "leaveOut"],
-        ["bpmn-modeler.mergeKeepRemovedFlows", "keepRemovedFlows"],
+        ["bpmn-modeler.mergeKeepRemovedFlows", "keepRemovedWith"],
         ["bpmn-modeler.mergeUndoPick", "undo"],
         ["bpmn-modeler.mergeNextConflict", "next"],
         ["bpmn-modeler.mergePreviousConflict", "previous"],

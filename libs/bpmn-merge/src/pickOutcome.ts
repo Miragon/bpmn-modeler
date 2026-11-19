@@ -7,7 +7,7 @@ export interface RemovedWithLeftOut {
 }
 
 /** How far a pick reaches, and so what Undo takes back with it. */
-export type PickScope = "element" | "withContents" | "withConnections";
+export type PickScope = "element" | "withContents" | "withRemoved";
 
 export interface BlockedPick {
     /** The element the rule would need this pick to change. */
@@ -15,16 +15,32 @@ export interface BlockedPick {
     readonly reason: UnmetRequirement;
 }
 
-export type PickOutcome =
+/** Whether a pick or an unpick may drop the versions merged by hand of the elements it moves off their side. */
+export interface HandMergeOptions {
+    readonly dropHandMerges?: boolean;
+}
+
+/** What closing the picks gives: applied, or blocked by the elements it would have to change. */
+export type ClosedPickOutcome =
     | {
           readonly applied: true;
           readonly pulledIn: readonly string[];
           readonly dropped: readonly string[];
-          /** Set on a pick, each only when not empty: what `removedWithLeftOut` names, which `pickWithConnections` keeps too. */
+          /** Set on a pick, each only when not empty: what `removedWithLeftOut` names, which `pickWithRemoved` keeps too. */
           readonly connectionsLeftOut?: readonly string[];
           readonly boundaryEventsLeftOut?: readonly string[];
+          /** The elements whose hand-merged version the call dropped, when any. */
+          readonly droppedHandMerges?: readonly string[];
       }
     | {
           readonly applied: false;
           readonly blockedBy: readonly BlockedPick[];
+      };
+
+export type PickOutcome =
+    | ClosedPickOutcome
+    | {
+          readonly applied: false;
+          /** The elements merged by hand the call would move off their side; it changed nothing. */
+          readonly handMergesAtStake: readonly string[];
       };

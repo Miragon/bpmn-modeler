@@ -31,6 +31,11 @@ const PICK_CONTAINER_TYPES: ReadonlySet<string> = new Set([
     "bpmn:Collaboration",
 ]);
 
+/** A sub-process, pool, lane, process or collaboration: a pick can keep it with everything inside. */
+export function isPickContainerType(type: string): boolean {
+    return PICK_CONTAINER_TYPES.has(type);
+}
+
 /**
  * How far keeping a container with everything inside reaches: its contents,
  * or every pool with its process, as a collaboration's pools draw processes.
@@ -49,7 +54,7 @@ export function containersOf(
         contentsOf(id).some((content) => typeOf.get(content) === "bpmn:Process");
     return new Map(
         elements
-            .filter(({ id, type }) => PICK_CONTAINER_TYPES.has(type) && contents.has(id))
+            .filter(({ id, type }) => isPickContainerType(type) && contents.has(id))
             .map(({ id }): [string, ContainerReach] => [
                 id,
                 contentsOf(id).some(isPoolWithProcess) ? "poolProcesses" : "contents",

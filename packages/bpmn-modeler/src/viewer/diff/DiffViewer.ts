@@ -25,7 +25,7 @@ import { centreOf, type PositionedElement, viewboxCentredOn } from "../../elemen
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
 import { bpmnElementIdOf, singleSelectedElementId, type BpmnDiagramElement } from "./diffSelection";
-import { armKeepUserSelectionVisible, UserChangeGuard } from "./selectionPolicy";
+import { armKeepSelectionVisible, UserChangeGuard } from "./selectionPolicy";
 
 /**
  * How a pane names the plane it opened on, so a process on one side and a
@@ -114,7 +114,7 @@ export class DiffViewer {
         this.store.add(() => this.sizeObserver.dispose());
         this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
         this.store.add(
-            ...armKeepUserSelectionVisible(
+            ...armKeepSelectionVisible(
                 {
                     eventBus: this.getViewer().get<EventBus>("eventBus"),
                     canvas: this.getCanvas(),
@@ -377,13 +377,40 @@ export class DiffViewer {
         if (elementId !== undefined && singleSelectedElementId(selection.get()) === elementId) {
             return true;
         }
+        return this.selectOnShownPlane(elementId, (select) =>
+            this.changes.selectProgrammatically(select),
+        );
+    }
+
+    /**
+     * Selects the element a step landed on, by BPMN id, or nothing for
+     * `undefined`, without telling {@link onSelectedElementChanged} listeners;
+     * call it after {@link focusElement}, which enters the element's plane.
+     * With `keepInView`, a resize keeps it in view as it keeps the user's own
+     * selection; pass it on one pane only, or both panes scroll. Selects again
+     * an element selected already, so the step decides which pane keeps it.
+     * Returns `false`, clearing the selection, as {@link mirrorSelection} does.
+     */
+    selectStep(elementId: string | undefined, { keepInView }: { keepInView: boolean }): boolean {
+        return this.selectOnShownPlane(elementId, (select) =>
+            keepInView
+                ? this.changes.selectForUser(select)
+                : this.changes.selectProgrammatically(select),
+        );
+    }
+
+    private selectOnShownPlane(
+        elementId: string | undefined,
+        runSelection: (select: () => void) => void,
+    ): boolean {
+        const selection = this.getViewer().get<Selection>("selection");
         const element =
             elementId === undefined
                 ? undefined
                 : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
         const canvas = this.getCanvas();
         const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
-        this.changes.selectProgrammatically(() => selection.select(shown ? element : null));
+        runSelection(() => selection.select(shown ? element : null));
         return shown || elementId === undefined;
     }
 
@@ -391,9 +418,10 @@ export class DiffViewer {
      * Subscribes to the user changing the selection: the selected element's
      * BPMN id (a label as the element it labels), or `undefined` when the
      * selection is empty or holds several elements. Not reported are
-     * {@link mirrorSelection}, the selection an {@link importXML} drops and a
-     * selection the pane drops by entering a plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports every
-     * selection as diagram element ids, it names one BPMN element, so two
+     * {@link mirrorSelection}, {@link selectStep}, the selection an
+     * {@link importXML} drops and a selection the pane drops by entering a
+     * plane itself. Unlike `SelectionManager.onSelectionChanged`, which reports
+     * every selection as diagram element ids, it names one BPMN element, so two
      * versions of a diagram can share it. Returns a disposer that unsubscribes.
      */
     onSelectedElementChanged(listener: (elementId: string | undefined) => void): () => void {

@@ -15,7 +15,7 @@ import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
 import { mergePaneView } from "./mergePaneView";
-import { idsRemovedWith } from "./removedConnections";
+import { idsRemovedWith } from "./removedWith";
 
 const FIRST_SEED = 1;
 const SEED_COUNT = 200;
@@ -32,7 +32,9 @@ const MIN_CONNECTIONS_KEPT = 20;
 const MIN_BOUNDARY_EVENTS_KEPT = 5;
 /** Fewer would mean the walks no longer keep a flow that was its source's default. */
 const MIN_DEFAULTS_RESTORED = 3;
-/** About 25 s on a developer machine; CI runners are slower. */
+/** The range runs in chunks, each with its own timeout: 200 seeds in one test took 175 s of 180 s on CI. */
+const SEEDS_PER_CHUNK = 50;
+/** About 7 s per chunk on a developer machine; CI runners are slower. */
 const FUZZ_TIMEOUT_MS = 180_000;
 
 type Pick =
@@ -42,7 +44,7 @@ type Pick =
           readonly side: MergeSide;
       }
     | {
-          readonly kind: "pickWithConnections";
+          readonly kind: "pickWithRemoved";
           readonly id: string;
           readonly side: MergeSide;
           /** Captured before the step, since what qualifies depends on the state. */
@@ -50,14 +52,14 @@ type Pick =
           readonly boundaryEvents: readonly string[];
       }
     | {
-          readonly kind: "unpick" | "unpickWithContents" | "unpickWithConnections";
+          readonly kind: "unpick" | "unpickWithContents" | "unpickWithRemoved";
           readonly id: string;
       };
 
 const UNPICK_OF_SCOPE = {
     element: "unpick",
     withContents: "unpickWithContents",
-    withConnections: "unpickWithConnections",
+    withRemoved: "unpickWithRemoved",
 } as const;
 
 function stateOf(decisions: MergeDecisions) {
@@ -76,7 +78,7 @@ function apply(decisions: MergeDecisions, pick: Pick) {
     switch (pick.kind) {
         case "unpick":
         case "unpickWithContents":
-        case "unpickWithConnections":
+        case "unpickWithRemoved":
             return decisions[pick.kind](pick.id);
         default:
             return decisions[pick.kind](pick.id, pick.side);
@@ -110,7 +112,7 @@ function picksLeftBy(result: MergeResult, picks: readonly Pick[]): Map<string, M
                 }
                 break;
             }
-            case "unpickWithConnections": {
+            case "unpickWithRemoved": {
                 const side = sides.get(pick.id);
                 if (side === undefined) break;
                 sides.delete(pick.id);
@@ -128,7 +130,7 @@ function picksLeftBy(result: MergeResult, picks: readonly Pick[]): Map<string, M
                     set(id, pick.side);
                 }
                 break;
-            case "pickWithConnections":
+            case "pickWithRemoved":
                 for (const id of offeredWith(pick)) set(id, pick.side);
                 break;
         }
@@ -178,7 +180,7 @@ function expectContracts(
 }
 
 /** The element of a pick with connections and everything it offered. */
-function offeredWith(pick: Extract<Pick, { kind: "pickWithConnections" }>): readonly string[] {
+function offeredWith(pick: Extract<Pick, { kind: "pickWithRemoved" }>): readonly string[] {
     return [pick.id, ...pick.boundaryEvents, ...pick.connections];
 }
 
@@ -319,7 +321,7 @@ function randomPick(random: Random, decisions: MergeDecisions, picked: readonly 
         const kept = removedByOneSide(random, decisions);
         if (kept !== undefined) {
             const offered = decisions.removedWithLeftOut(kept.id, kept.side);
-            return { kind: "pickWithConnections", ...kept, ...offered };
+            return { kind: "pickWithRemoved", ...kept, ...offered };
         }
     }
     if (roll < 0.45 && open.length > 0) {
@@ -332,7 +334,7 @@ function randomPick(random: Random, decisions: MergeDecisions, picked: readonly 
             unpickRoll < 0.2
                 ? "unpickWithContents"
                 : unpickRoll < 0.4
-                  ? "unpickWithConnections"
+                  ? "unpickWithRemoved"
                   : "unpick",
         id:
             (picked.length > 0 && random() < 0.8 ? randomItem(random, picked) : undefined) ??
@@ -348,7 +350,7 @@ function randomPick(random: Random, decisions: MergeDecisions, picked: readonly 
 function expectConnectionsKeptAsPicks(
     result: MergeResult,
     prefix: readonly Pick[],
-    pick: Extract<Pick, { kind: "pickWithConnections" }>,
+    pick: Extract<Pick, { kind: "pickWithRemoved" }>,
     decisions: MergeDecisions,
     before: ReturnType<typeof stateOf>,
     label: string,
@@ -363,7 +365,7 @@ function expectConnectionsKeptAsPicks(
     const takenBack = idsRemovedWith(result.elements, element, pick.side);
     if ([pick.id, ...takenBack].every((id) => !picksBefore.has(id))) {
         const undone = replayed(result, [...prefix, pick]);
-        if (undone.unpickWithConnections(pick.id).applied) {
+        if (undone.unpickWithRemoved(pick.id).applied) {
             expect(stateOf(undone), `${label} unpicked with connections`).toEqual(before);
         }
     }
@@ -379,10 +381,10 @@ function expectNoRestoredConnectionNoted(
     const pickedOn = (id: string, side: MergeSide) =>
         decisions.originOf(id) === "picked" && decisions.sideOf(id) === side;
     for (const pick of picks) {
-        if (pick.kind !== "pickWithConnections" || !pickedOn(pick.id, pick.side)) continue;
+        if (pick.kind !== "pickWithRemoved" || !pickedOn(pick.id, pick.side)) continue;
         const kept = offeredWith(pick).filter((id) => pickedOn(id, pick.side));
         const noted = notes.flatMap((note) =>
-            note.kind === "restoredWithoutConnections" && note.id === pick.id
+            note.kind === "restoredWithoutRemovedWith" && note.id === pick.id
                 ? [...note.connections, ...(note.boundaryEvents ?? [])].filter((id) =>
                       kept.includes(id),
                   )
@@ -470,7 +472,7 @@ async function expectPathIndependentWalks(
             picks.push(pick);
             expectContracts(result, picks, decisions, label);
             expectPanesShowEveryPick(result, sources, picks, decisions, label);
-            if (pick.kind === "pickWithConnections") {
+            if (pick.kind === "pickWithRemoved") {
                 if (pick.connections.length > 0) connectionsKept += 1;
                 expectConnectionsKeptAsPicks(
                     result,
@@ -552,7 +554,7 @@ async function expectBoundaryEventOffersKept(
             const decisions = MergeDecisions.from(result);
             const offered = decisions.removedWithLeftOut(id, side);
             if (offered.boundaryEvents.length === 0) continue;
-            const pick: Pick = { kind: "pickWithConnections", id, side, ...offered };
+            const pick: Pick = { kind: "pickWithRemoved", id, side, ...offered };
             const label = `seed ${seed}: ${JSON.stringify(pick)}`;
             const before = stateOf(decisions);
             expect(apply(decisions, pick).applied, label).toBe(true);
@@ -590,27 +592,37 @@ async function expectMergesSoundly(seed: number): Promise<SeedCounts> {
 }
 
 describe("random versions of the order process", () => {
-    it(
-        `merge soundly for seeds ${FIRST_SEED} to ${FIRST_SEED + SEED_COUNT - 1}`,
-        async () => {
-            let connectionsKept = 0;
-            let defaultsRestored = 0;
-            for (let seed = FIRST_SEED; seed < FIRST_SEED + SEED_COUNT; seed++) {
-                const counts = await expectMergesSoundly(seed);
-                connectionsKept += counts.connectionsKept;
-                defaultsRestored += counts.defaultsRestored;
-            }
-            expect(
-                connectionsKept,
-                "walks that kept an element with its connections",
-            ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
-            expect(
-                defaultsRestored,
-                "builds that put a kept flow back as its source's default",
-            ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
-        },
-        FUZZ_TIMEOUT_MS,
-    );
+    let connectionsKept = 0;
+    let defaultsRestored = 0;
+    for (
+        let chunkStart = FIRST_SEED;
+        chunkStart < FIRST_SEED + SEED_COUNT;
+        chunkStart += SEEDS_PER_CHUNK
+    ) {
+        const chunkEnd = Math.min(chunkStart + SEEDS_PER_CHUNK, FIRST_SEED + SEED_COUNT) - 1;
+        it(
+            `merge soundly for seeds ${chunkStart} to ${chunkEnd}`,
+            async () => {
+                for (let seed = chunkStart; seed <= chunkEnd; seed++) {
+                    const counts = await expectMergesSoundly(seed);
+                    connectionsKept += counts.connectionsKept;
+                    defaultsRestored += counts.defaultsRestored;
+                }
+            },
+            FUZZ_TIMEOUT_MS,
+        );
+    }
+
+    it(`reach kept connections and restored defaults over seeds ${FIRST_SEED} to ${FIRST_SEED + SEED_COUNT - 1}`, () => {
+        expect(
+            connectionsKept,
+            "walks that kept an element with its connections",
+        ).toBeGreaterThanOrEqual(MIN_CONNECTIONS_KEPT);
+        expect(
+            defaultsRestored,
+            "builds that put a kept flow back as its source's default",
+        ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
+    });
 
     it(`merge soundly for the seeds ${PINNED_SEEDS.join(", ")}`, async () => {
         for (const seed of PINNED_SEEDS) await expectMergesSoundly(seed);

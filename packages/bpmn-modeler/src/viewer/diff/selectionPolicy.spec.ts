@@ -2,18 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { UserChangeGuard } from "./selectionPolicy";
 
-type Observed = { positioning: boolean; selection: boolean };
+type Observed = { positioning: boolean; selection: boolean; keptInView: boolean };
 
 function observe(guard: UserChangeGuard): Observed {
     return {
         positioning: guard.isUserPositioning(),
         selection: guard.isUserSelectionChange(),
+        keptInView: guard.keepsSelectionInView(),
     };
 }
 
 describe("UserChangeGuard", () => {
     it("takes changes outside the pane's own actions as the user's", () => {
-        expect(observe(new UserChangeGuard())).toEqual({ positioning: true, selection: true });
+        expect(observe(new UserChangeGuard())).toEqual({
+            positioning: true,
+            selection: true,
+            keptInView: true,
+        });
     });
 
     it.each<
@@ -22,12 +27,12 @@ describe("UserChangeGuard", () => {
         [
             "a selection the pane makes itself",
             (guard, record) => guard.selectProgrammatically(record),
-            { positioning: true, selection: false },
+            { positioning: true, selection: false, keptInView: false },
         ],
         [
             "a selection dropped while the pane positions itself",
             (guard, record) => guard.positionProgrammatically(record),
-            { positioning: false, selection: false },
+            { positioning: false, selection: false, keptInView: false },
         ],
         [
             "a selection an import drops before it settles",
@@ -36,7 +41,7 @@ describe("UserChangeGuard", () => {
                     await Promise.resolve();
                     record();
                 }),
-            { positioning: true, selection: false },
+            { positioning: true, selection: false, keptInView: false },
         ],
         [
             "an action nested in another",
@@ -45,7 +50,12 @@ describe("UserChangeGuard", () => {
                     guard.positionProgrammatically(() => undefined);
                     record();
                 }),
-            { positioning: false, selection: false },
+            { positioning: false, selection: false, keptInView: false },
+        ],
+        [
+            "a step's selection the pane makes for the user inside its positioning",
+            (guard, record) => guard.positionProgrammatically(() => guard.selectForUser(record)),
+            { positioning: false, selection: false, keptInView: false },
         ],
     ])("does not take %s as the user's", async (_case, act, expected) => {
         const guard = new UserChangeGuard();
@@ -56,7 +66,19 @@ describe("UserChangeGuard", () => {
         });
 
         expect(observed).toEqual(expected);
-        expect(observe(guard)).toEqual({ positioning: true, selection: true });
+        expect(observe(guard)).toEqual({ positioning: true, selection: true, keptInView: true });
+    });
+
+    it("keeps a selection the pane makes for the user in view, without reporting it", () => {
+        const guard = new UserChangeGuard();
+        let observed: Observed | undefined;
+
+        guard.selectForUser(() => {
+            observed = observe(guard);
+        });
+
+        expect(observed).toEqual({ positioning: true, selection: false, keptInView: true });
+        expect(observe(guard)).toEqual({ positioning: true, selection: true, keptInView: true });
     });
 
     it.each<[string, (guard: UserChangeGuard) => Promise<void> | void]>([
@@ -75,6 +97,13 @@ describe("UserChangeGuard", () => {
                 }),
         ],
         [
+            "selecting for the user",
+            (guard) =>
+                guard.selectForUser(() => {
+                    throw new Error("boom");
+                }),
+        ],
+        [
             "an import",
             (guard) =>
                 guard.selectProgrammaticallyUntilDone(() => Promise.reject(new Error("boom"))),
@@ -84,6 +113,6 @@ describe("UserChangeGuard", () => {
 
         await expect(async () => act(guard)).rejects.toThrow("boom");
 
-        expect(observe(guard)).toEqual({ positioning: true, selection: true });
+        expect(observe(guard)).toEqual({ positioning: true, selection: true, keptInView: true });
     });
 });

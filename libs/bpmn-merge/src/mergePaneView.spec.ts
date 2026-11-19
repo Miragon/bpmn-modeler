@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { containersChangedByBoth, handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { scenarioNamed } from "./__fixtures__/mergeScenarios";
 import {
     mergeElement,
@@ -8,6 +9,8 @@ import {
     NO_SOURCES,
     refersTo,
 } from "./__fixtures__/mergeResultBuilder";
+import { acceptHandMerge } from "./acceptHandMerge";
+import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { mergePaneView } from "./mergePaneView";
@@ -478,14 +481,14 @@ describe("mergePaneView", () => {
                 ),
             );
 
-            decisions.pickWithConnections("Task_Reject", "incoming");
+            decisions.pickWithRemoved("Task_Reject", "incoming");
 
             expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toEqual([
                 {
                     id: "Task_Reject",
                     kind: "keptHere",
                     keptSide: "incoming",
-                    scope: "withConnections",
+                    scope: "withRemoved",
                 },
                 { id: "Flow_No", kind: "keptHere", keptSide: "incoming", scope: "element" },
             ]);
@@ -608,7 +611,7 @@ describe("mergePaneView", () => {
             ).toBe("withContents");
         });
 
-        it("badges an element with its flows only once no flow a pick could keep with it is left out", () => {
+        it("badges an element with what was removed with it only once no flow a pick could keep with it is left out", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -631,10 +634,10 @@ describe("mergePaneView", () => {
 
             decisions.pick("Flow_Rejected", "incoming");
 
-            expect(scopeOfTask()).toBe("withConnections");
+            expect(scopeOfTask()).toBe("withRemoved");
         });
 
-        it("badges an element with its flows only once no boundary event a pick could keep with it is left out", () => {
+        it("badges an element with what was removed with it only once no boundary event a pick could keep with it is left out", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -660,7 +663,7 @@ describe("mergePaneView", () => {
 
             decisions.pick("Timer_Pay", "incoming");
 
-            expect(scopeOfTask()).toBe("withConnections");
+            expect(scopeOfTask()).toBe("withRemoved");
         });
 
         it("offers no everything inside for a task that holds a data input association", () => {
@@ -729,6 +732,81 @@ describe("mergePaneView", () => {
             };
             expect(takenSides("current")).toStrictEqual(expected);
             expect(takenSides("incoming")).toStrictEqual(expected);
+        });
+    });
+
+    describe("hand merges", () => {
+        async function opened(versions: ReturnType<typeof handMergeVersions>) {
+            const [result, sources] = await Promise.all([
+                computeMerge(versions),
+                prepareMergeSources(versions),
+            ]);
+            return { decisions: MergeDecisions.from(result), sources };
+        }
+
+        it("offers a hand merge on both panes only for a picked element with three differing texts", async () => {
+            const { decisions, sources } = await opened(handMergeVersions());
+            decisions.pick("Task_Check", "current");
+            decisions.pick("Task_Reject", "incoming");
+
+            for (const side of ["current", "incoming"] as const) {
+                const offered = mergePaneView(decisions, side, sources)
+                    .pickable.filter(({ handMergeable }) => handMergeable)
+                    .map(({ id }) => id);
+                expect(offered).toEqual(["Task_Check"]);
+            }
+        });
+
+        it("badges an element merged by hand on both panes", async () => {
+            const { decisions, sources } = await opened(handMergeVersions());
+            decisions.pick("Task_Pack", "current");
+            const renamed = sources.handMergeTexts
+                .get("Task_Pack")!
+                .current.replace('name="Pack parcel"', 'name="Pack it"');
+            await acceptHandMerge(sources, decisions, "Task_Pack", "current", renamed);
+
+            const badgeOf = (side: "current" | "incoming") =>
+                mergePaneView(decisions, side, sources).badges.find(({ id }) => id === "Task_Pack");
+            expect(badgeOf("current")).toEqual({
+                id: "Task_Pack",
+                kind: "keptHere",
+                keptSide: "current",
+                scope: "element",
+                mergedByHand: true,
+            });
+            expect(badgeOf("incoming")).toMatchObject({ kind: "replacedHere", mergedByHand: true });
+        });
+
+        it("lists a shape-less element merged by hand with its hand-merged values", async () => {
+            const { decisions, sources } = await opened(containersChangedByBoth());
+            decisions.pick("Process_1", "current");
+            const changed = sources.handMergeTexts
+                .get("Process_1")!
+                .current.replace(
+                    'camunda:historyTimeToLive="30"',
+                    'camunda:historyTimeToLive="60"',
+                );
+            expect(
+                await acceptHandMerge(sources, decisions, "Process_1", "current", changed),
+            ).toEqual({
+                applied: true,
+            });
+
+            const view = mergePaneView(decisions, "incoming", sources);
+
+            expect(view.picksNotDrawn).toContainEqual({
+                id: "Process_1",
+                keptSide: "current",
+                scope: "element",
+                mergedByHand: true,
+            });
+            expect(view.shapelessRows.find(({ id }) => id === "Process_1")).toMatchObject({
+                pick: { keptSide: "current", mergedByHand: true },
+                handMergeable: true,
+                differences: [
+                    { attribute: "camunda:historyTimeToLive", current: "60", incoming: "90" },
+                ],
+            });
         });
     });
 });

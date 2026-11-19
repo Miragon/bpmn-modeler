@@ -1,6 +1,6 @@
 import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import type { RestoredFlowDefault } from "./removedConnections";
+import type { RestoredFlowDefault } from "./removedWith";
 
 /**
  * Sets each restored default on the result's source and returns the flow set

@@ -30,6 +30,7 @@ export async function moddleFor(
     return {
         moddle: prefixedModdle.moddle,
         declarationsFor: prefixedModdle.declarationsFor,
+        knowsNamespace: prefixedModdle.knowsNamespace,
         prefixSources,
         ...(engine === undefined ? {} : { engine }),
     };

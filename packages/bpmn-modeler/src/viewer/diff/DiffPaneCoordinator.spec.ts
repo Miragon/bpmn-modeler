@@ -121,6 +121,27 @@ describe("DiffPaneCoordinator", () => {
         expect(after.calls.focus.at(-1)).toBe("S2");
     });
 
+    it("names the change a step lands on and which side drew it, so a step can select it", () => {
+        const before = stubViewer(["S1", "U", "S2"]);
+        const after = stubViewer(["S1", "G", "S2"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        coord.apply(RESULT);
+        const landing = () => [
+            coord.currentChangeId,
+            coord.drawsCurrentChange("before"),
+            coord.drawsCurrentChange("after"),
+        ];
+        const beforeAnyStep = landing();
+
+        coord.next();
+        const onBoth = landing();
+        coord.next();
+
+        expect(beforeAnyStep).toEqual([undefined, false, false]);
+        expect(onBoth).toEqual(["S1", true, true]);
+        expect(landing()).toEqual(["U", true, false]);
+    });
+
     it("starts backward navigation at the last change (#1498)", () => {
         const before = stubViewer(["S1", "U", "G", "S2"]);
         const after = stubViewer(["S1", "U", "G", "S2"]);

@@ -582,6 +582,51 @@ describe("DiffViewer selection", () => {
     );
 });
 
+describe("DiffViewer step selection", () => {
+    it("selects the element a step lands on without reporting it", async () => {
+        const { viewer, selection } = await openSelectablePane();
+        const onSelectedElementChanged = vi.fn();
+        viewer.onSelectedElementChanged(onSelectedElementChanged);
+
+        expect(viewer.selectStep("Top_Task", { keepInView: true })).toBe(true);
+
+        expect(selectedIds(selection)).toEqual(["Top_Task"]);
+        expect(onSelectedElementChanged).not.toHaveBeenCalled();
+    });
+
+    it("selects the element on the sub-process plane the step's focus entered", async () => {
+        const { viewer, selection } = await openSelectablePane();
+
+        viewer.focusElement("Inner_Task");
+
+        expect(viewer.selectStep("Inner_Task", { keepInView: false })).toBe(true);
+        expect(selectedIds(selection)).toEqual(["Inner_Task"]);
+    });
+
+    it("drops the selection without reporting it for a step it does not draw", async () => {
+        const { viewer, selection, registry } = await openSelectablePane();
+        selection.select(registry.get("Top_Task"));
+        const onSelectedElementChanged = vi.fn();
+        viewer.onSelectedElementChanged(onSelectedElementChanged);
+
+        expect(viewer.selectStep(undefined, { keepInView: false })).toBe(true);
+
+        expect(selectedIds(selection)).toEqual([]);
+        expect(onSelectedElementChanged).not.toHaveBeenCalled();
+    });
+
+    it("opens the context pad on the element a step lands on", async () => {
+        container = mountCanvas(800, 600);
+        diff = new DiffViewer(container, { additionalModules: [ContextPadModule] });
+        await diff.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        const contextPad = getDiService<{ isOpen(target?: unknown): boolean }>(diff, "contextPad");
+
+        diff.selectStep("Top_Task", { keepInView: true });
+
+        expect(contextPad.isOpen(getServices(diff).registry.get("Top_Task"))).toBe(true);
+    });
+});
+
 describe("DiffViewer resize", () => {
     function centreOfViewport(viewer: DiffViewer): { x: number; y: number } {
         const viewport = viewer.getViewport();
@@ -716,6 +761,72 @@ describe("DiffViewer resize", () => {
         expect(viewer.getViewport().x).toBeCloseTo(SYNC.x, 0);
         expect(viewer.getViewport().y).toBeCloseTo(SYNC.y, 0);
         expect(onViewportChanged).not.toHaveBeenCalled();
+    });
+
+    it("centres the element a step kept in view when the shrink cuts it off, and tells the partner", async () => {
+        const { viewer, registry } = await openSelectablePane();
+        await settleObserver();
+        viewer.focusElement("Top_Task");
+        viewer.selectStep("Top_Task", { keepInView: true });
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        container!.style.height = "200px";
+        await settleObserver();
+        await waitForViewportNotification();
+
+        const centre = centreOf(registry.get("Top_Task") as PositionedElement)!;
+        expect(centreOfViewport(viewer).x).toBeCloseTo(centre.x, 0);
+        expect(centreOfViewport(viewer).y).toBeCloseTo(centre.y, 0);
+        expect(onViewportChanged).toHaveBeenCalledExactlyOnceWith(viewer.getViewport());
+    });
+
+    it.each<
+        [
+            string,
+            (
+                viewer: DiffViewer,
+                selection: SelectionService,
+                registry: ElementRegistryService,
+            ) => void,
+        ]
+    >([
+        ["the partner keeps in view", () => undefined],
+        [
+            "the user had selected before the step",
+            (_viewer, selection, registry) => selection.select(registry.get("Top_Task")),
+        ],
+    ])("leaves a stepped element %s where it is when the pane shrinks", async (_case, before) => {
+        const { viewer, selection, registry } = await openSelectablePane();
+        await settleObserver();
+        viewer.focusElement("Top_Task");
+        before(viewer, selection, registry);
+        viewer.selectStep("Top_Task", { keepInView: false });
+        const viewportBefore = viewer.getViewport();
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        container!.style.height = "200px";
+        await settleObserver();
+        await waitForViewportNotification();
+
+        expect(viewer.getViewport().x).toBeCloseTo(viewportBefore.x, 0);
+        expect(viewer.getViewport().y).toBeCloseTo(viewportBefore.y, 0);
+        expect(onViewportChanged).not.toHaveBeenCalled();
+    });
+
+    it("keeps an element in view that a step selects after the partner's selection mirrored it", async () => {
+        const { viewer, registry } = await openSelectablePane();
+        await settleObserver();
+        viewer.focusElement("Top_Task");
+        viewer.mirrorSelection("Top_Task");
+        viewer.selectStep("Top_Task", { keepInView: true });
+
+        container!.style.height = "200px";
+        await settleObserver();
+
+        const centre = centreOf(registry.get("Top_Task") as PositionedElement)!;
+        expect(centreOfViewport(viewer).y).toBeCloseTo(centre.y, 0);
     });
 
     it("leaves the viewport alone on a resize without a selection", async () => {

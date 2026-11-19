@@ -16,7 +16,7 @@ import {
     connectionsOn,
     keptAgainstRemoval,
     removedWith,
-} from "./removedConnections";
+} from "./removedWith";
 
 export type BuildNote =
     | {
@@ -31,7 +31,7 @@ export type BuildNote =
           readonly containers: readonly string[];
       }
     | {
-          readonly kind: "restoredWithoutConnections";
+          readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
           readonly connections: readonly string[];
           /** The boundary events the other side removed with the element that the result leaves out. */
@@ -138,9 +138,9 @@ export function drawnApartFromContainerNotes(
  * An element kept against the other side's removal, while the boundary events
  * the other side removed with it, or flows that connect it or them on its own
  * side, stay out: each is decided on its own, so what was removed with the
- * element stays removed unless kept with it (`pickWithConnections`).
+ * element stays removed unless kept with it (`pickWithRemoved`).
  */
-export function restoredWithoutConnectionsNotes(
+export function restoredWithoutRemovedWithNotes(
     result: MergeResult,
     resolution: MergeResolution,
 ): BuildNote[] {
@@ -155,7 +155,7 @@ export function restoredWithoutConnectionsNotes(
         );
         const connections = leftOut([...new Set(connected)]).map(({ id }) => id);
         if (connections.length === 0 && boundaryEvents.length === 0) return [];
-        const note = { kind: "restoredWithoutConnections", id: element.id, connections } as const;
+        const note = { kind: "restoredWithoutRemovedWith", id: element.id, connections } as const;
         return [
             boundaryEvents.length === 0
                 ? note

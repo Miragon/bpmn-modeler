@@ -320,9 +320,10 @@ const dictionary: Record<string, string> = {
         "Mantido de Atual com todo o conteúdo, sua escolha",
     "Kept from incoming with everything inside, your pick":
         "Mantido de Entrada com todo o conteúdo, sua escolha",
-    "Kept from current with its flows, your pick": "Mantido de Atual com seus fluxos, sua escolha",
-    "Kept from incoming with its flows, your pick":
-        "Mantido de Entrada com seus fluxos, sua escolha",
+    "Kept from current with what was removed with it, your pick":
+        "Mantido de Atual com o que foi removido com ele, sua escolha",
+    "Kept from incoming with what was removed with it, your pick":
+        "Mantido de Entrada com o que foi removido com ele, sua escolha",
     "Kept from current: {element}": "Mantido de Atual: {element}",
     "Kept from incoming: {element}": "Mantido de Entrada: {element}",
     "This pick brings in {element}, which needs {target}":
@@ -390,7 +391,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "Manter Atual com todo o conteúdo",
     "Keep incoming with everything inside": "Manter Entrada com todo o conteúdo",
     "Leave out": "Deixar de fora",
-    "Also keep its removed flows": "Manter também seus fluxos removidos",
+    "Also keep what was removed with it": "Manter também o que foi removido com ele",
     "Keep it as current has it": "Manter como Atual o tem",
     "Keep it as incoming has it": "Manter como Entrada o tem",
     "Keep it and everything inside as current has them":
@@ -416,8 +417,10 @@ const dictionary: Record<string, string> = {
         "Mantido de Atual com todo o conteúdo: {element}",
     "Kept from incoming with everything inside: {element}":
         "Mantido de Entrada com todo o conteúdo: {element}",
-    "Kept from current with its flows: {element}": "Mantido de Atual com seus fluxos: {element}",
-    "Kept from incoming with its flows: {element}": "Mantido de Entrada com seus fluxos: {element}",
+    "Kept from current with what was removed with it: {element}":
+        "Mantido de Atual com o que foi removido com ele: {element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "Mantido de Entrada com o que foi removido com ele: {element}",
     "Left out: {element}, as current removed it":
         "Deixado de fora: {element}, pois Atual o removeu",
     "Left out: {element}, as current doesn't have it":

@@ -18,8 +18,8 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         { kind: "drawnApartFromContainer", id: "Task_A", containers: ["Sub_1"] },
         ["Task_A", "Sub_1"],
     ],
-    restoredWithoutConnections: [
-        { kind: "restoredWithoutConnections", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
+    restoredWithoutRemovedWith: [
+        { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
         ["Task_A", "Flow_1", "Flow_2"],
     ],
     defaultFlowNotRestored: [
@@ -41,7 +41,7 @@ describe("buildNoteElementIds", () => {
     it("names the boundary events a kept element is noted without", () => {
         expect(
             buildNoteElementIds({
-                kind: "restoredWithoutConnections",
+                kind: "restoredWithoutRemovedWith",
                 id: "Task_A",
                 connections: ["Flow_1"],
                 boundaryEvents: ["Timer_1"],

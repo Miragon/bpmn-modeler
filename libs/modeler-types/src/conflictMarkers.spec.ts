@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import conflictMarkersSource from "./conflictMarkers.ts?raw";
+
 import {
     ConflictMarkerReading,
     readConflictMarkers,
@@ -101,6 +103,11 @@ describe("readConflictMarkers", () => {
             { hasMarkers: false },
         ],
         ["an empty file", "", { hasMarkers: false }],
+        [
+            "a Markdown underline of seven equals signs",
+            lines("<bpmn:documentation>Payment", "=======", "By card</bpmn:documentation>"),
+            { hasMarkers: false },
+        ],
     ])("%s", (_case, text, expected) => {
         expect(readConflictMarkers(text)).toStrictEqual(expected);
     });
@@ -143,5 +150,13 @@ describe("writeConflictMarkers", () => {
             currentLabel: "Current",
             incomingLabel: "Incoming",
         });
+    });
+});
+
+describe("conflictMarkers.ts", () => {
+    it("imports nothing at runtime, so a DOM-free workspace can load it alone", () => {
+        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
+
+        expect(conflictMarkersSource).not.toMatch(runtimeImport);
     });
 });

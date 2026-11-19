@@ -12,7 +12,7 @@ import {
     drawnApartFromContainerNotes,
     flowEndsNotes,
     layoutChangedByBothNotes,
-    restoredWithoutConnectionsNotes,
+    restoredWithoutRemovedWithNotes,
 } from "./buildNotes";
 import type { DiagramBounds } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
@@ -290,7 +290,7 @@ describe("drawnApartFromContainerNotes", () => {
     });
 });
 
-describe("restoredWithoutConnectionsNotes", () => {
+describe("restoredWithoutRemovedWithNotes", () => {
     const flowInto = (target: string) => [
         refersTo("bpmn:SequenceFlow#sourceRef", "Gateway"),
         refersTo("bpmn:SequenceFlow#targetRef", target),
@@ -323,8 +323,8 @@ describe("restoredWithoutConnectionsNotes", () => {
             layout: {},
         };
 
-        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([
-            { kind: "restoredWithoutConnections", id: "Task_Reject", connections: ["Flow_No"] },
+        expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([
+            { kind: "restoredWithoutRemovedWith", id: "Task_Reject", connections: ["Flow_No"] },
         ]);
     });
 
@@ -342,8 +342,8 @@ describe("restoredWithoutConnectionsNotes", () => {
             layout: {},
         };
 
-        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([
-            { kind: "restoredWithoutConnections", id: "Task_Check", connections: ["Flow_In"] },
+        expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([
+            { kind: "restoredWithoutRemovedWith", id: "Task_Check", connections: ["Flow_In"] },
         ]);
     });
 
@@ -366,7 +366,7 @@ describe("restoredWithoutConnectionsNotes", () => {
             }),
         );
 
-        expect(restoredWithoutConnectionsNotes(result, { elements, layout: {} })).toEqual([]);
+        expect(restoredWithoutRemovedWithNotes(result, { elements, layout: {} })).toEqual([]);
     });
 
     describe("with a boundary event the other side removed with the element", () => {
@@ -398,10 +398,10 @@ describe("restoredWithoutConnectionsNotes", () => {
 
         it("names the boundary event left out and its flow", () => {
             expect(
-                restoredWithoutConnectionsNotes(removedWithItsTimer, keeping(["Task_Pay"])),
+                restoredWithoutRemovedWithNotes(removedWithItsTimer, keeping(["Task_Pay"])),
             ).toEqual([
                 {
-                    kind: "restoredWithoutConnections",
+                    kind: "restoredWithoutRemovedWith",
                     id: "Task_Pay",
                     connections: ["Flow_Timeout"],
                     boundaryEvents: ["Timer_Pay"],
@@ -411,13 +411,13 @@ describe("restoredWithoutConnectionsNotes", () => {
 
         it("leaves the flow of a kept boundary event to the event's own note", () => {
             expect(
-                restoredWithoutConnectionsNotes(
+                restoredWithoutRemovedWithNotes(
                     removedWithItsTimer,
                     keeping(["Task_Pay", "Timer_Pay"]),
                 ),
             ).toEqual([
                 {
-                    kind: "restoredWithoutConnections",
+                    kind: "restoredWithoutRemovedWith",
                     id: "Timer_Pay",
                     connections: ["Flow_Timeout"],
                 },
@@ -426,7 +426,7 @@ describe("restoredWithoutConnectionsNotes", () => {
 
         it("names nothing once the boundary event and its flow are kept", () => {
             expect(
-                restoredWithoutConnectionsNotes(
+                restoredWithoutRemovedWithNotes(
                     removedWithItsTimer,
                     keeping(["Task_Pay", "Timer_Pay", "Flow_Timeout"]),
                 ),
@@ -448,7 +448,7 @@ describe("restoredWithoutConnectionsNotes", () => {
             layout: {},
         };
 
-        expect(restoredWithoutConnectionsNotes(result, resolution)).toEqual([]);
+        expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([]);
     });
 });
 

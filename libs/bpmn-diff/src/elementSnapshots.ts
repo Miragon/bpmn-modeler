@@ -1,18 +1,14 @@
-import { type ModdleParseResult, skippedContentWarning } from "./bpmnModdleFactory";
-import { diagramLayouts } from "./diagramLayout";
-import { createDocumentModdle } from "./documentModdle";
 import {
-    type UnitRule,
-    isDiffUnit,
-    isNameableElement,
-    prefixSourcesWith,
-    serialiseSnippet,
-    snippetRootsOf,
-    stripUnits,
-    unitRuleRequiringId,
-} from "./elementSnippets";
-import { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
+    type ModdleParseResult,
+    parseWarningMessages,
+    skippedContentWarning,
+} from "./bpmnModdleFactory";
+import { diagramLayouts } from "./diagramLayout";
+import { type UnitRule, isDiffUnit, serialiseSnippet, snippetRootsOf } from "./elementSnippets";
+import { ownAttributeEntries } from "./moddleContainment";
 import { type ModdleElement, isModdleElement, isType } from "./moddleElement";
+import { parsedUnitsOf, stripEveryUnit, unitContentOf } from "./parsedUnits";
+import { type SnapshotReference, unitParts, unitReferences } from "./unitStructure";
 
 export interface ElementSnapshotOptions {
     /** Declarations that fix one prefix per namespace (default: the document itself), as for elementXml. */
@@ -27,14 +23,7 @@ export interface ElementSnapshotOptions {
     readonly rejectWarnings?: boolean;
 }
 
-export interface SnapshotReference {
-    /** The referring element's type and property, for example `bpmn:SequenceFlow#sourceRef`. */
-    readonly property: string;
-    /** The unit that holds the referenced element. */
-    readonly target: string;
-    /** The referenced element's own id when it lies inside `target`. */
-    readonly targetPart?: string;
-}
+export type { SnapshotReference } from "./unitStructure";
 
 export interface ElementSnapshot {
     readonly id: string;
@@ -61,13 +50,6 @@ export interface ElementSnapshot {
     readonly plane?: string;
 }
 
-const DERIVED_REFERENCES = new Set([
-    "bpmn:incoming",
-    "bpmn:outgoing",
-    "bpmn:flowNodeRef",
-    "bpmn:boundaryEventRefs",
-]);
-
 /**
  * Parses `xml` once and returns a snapshot of every unit with an id, in
  * document order: its XML as `elementXml` writes it with the children that
@@ -84,20 +66,11 @@ export async function elementSnapshots(
         rejectWarnings = false,
     }: ElementSnapshotOptions = {},
 ): Promise<ReadonlyMap<string, ElementSnapshot>> {
-    const prefixedModdle = await createDocumentModdle(prefixSourcesWith(prefixSources, xml));
-    const parsed = await prefixedModdle.moddle.fromXML(xml);
-    const rejection = rejectionOf(parsed, rejectWarnings);
-    if (rejection) throw new Error(`Failed to parse BPMN: ${rejection}`);
-    const definitions = parsed.rootElement;
-
-    const everyElement: ModdleElement[] = [];
-    walkContainment(definitions, (element) => everyElement.push(element));
-    const unitSet = new Set(everyElement.filter(unitRuleRequiringId(isUnit)));
-    const isKnownUnit = (element: ModdleElement) => unitSet.has(element);
-    const units = Object.values(parsed.elementsById).filter(
-        (element): element is ModdleElement & { id: string } =>
-            element !== undefined && unitSet.has(element),
+    const parsedUnits = await parsedUnitsOf(xml, prefixSources, isUnit, (parsed) =>
+        rejectionOf(parsed, rejectWarnings),
     );
+    const { prefixedModdle, parsed, everyElement, units, isKnownUnit } = parsedUnits;
+    const definitions = parsed.rootElement;
     const rootsByUnit = new Map(units.map((unit) => [unit, snippetRootsOf(unit, isKnownUnit)]));
     const unitBySnippetRoot = new Map<ModdleElement, ModdleElement>();
     for (const [unit, roots] of rootsByUnit)
@@ -119,11 +92,11 @@ export async function elementSnapshots(
                             ? holder.id
                             : undefined,
                     lanes: lanesByNode.get(unit) ?? [],
-                    references: referencesOf(
+                    references: unitReferences(
                         unit,
                         rootsByUnit.get(unit)!,
                         isKnownUnit,
-                        owningUnitOf,
+                        (target) => owningUnitOf(target)?.id,
                     ),
                     layout: layouts.get(unit),
                 },
@@ -131,18 +104,14 @@ export async function elementSnapshots(
         }),
     );
 
-    stripUnits(
-        everyElement.filter((element) => element !== definitions),
-        isKnownUnit,
-    );
+    stripEveryUnit(parsedUnits);
 
     const snapshots = new Map<string, ElementSnapshot>();
     for (const unit of units) {
         const roots = rootsByUnit.get(unit)!;
-        const parts = partsOf(unit, roots);
+        const parts = unitParts(unit, roots);
         const unitXml = await serialiseSnippet(prefixedModdle, roots, unit.id);
-        for (const root of roots) walkContainment(root, deleteDerivedReferences);
-        const content = await serialiseSnippet(prefixedModdle, roots, unit.id);
+        const content = await unitContentOf(prefixedModdle, roots, unit.id);
         const { parent, container, lanes, references, layout } = structure.get(unit)!;
         snapshots.set(unit.id, {
             id: unit.id,
@@ -190,62 +159,8 @@ function lanesByFlowNode(elements: readonly ModdleElement[]): Map<ModdleElement,
     return lanesByNode;
 }
 
-function referencesOf(
-    unit: ModdleElement,
-    roots: readonly ModdleElement[],
-    isUnit: UnitRule,
-    owningUnitOf: (element: ModdleElement) => ModdleElement | undefined,
-): SnapshotReference[] {
-    const references: SnapshotReference[] = [];
-    const visit = (element: ModdleElement): void => {
-        for (const property of element.$descriptor.properties ?? []) {
-            if (!property.isReference || property.isVirtual || isDerived(property.ns?.name))
-                continue;
-            const value = element[property.name];
-            for (const target of (Array.isArray(value) ? value : [value]).filter(isModdleElement)) {
-                const targetUnit = owningUnitOf(target);
-                if (!targetUnit?.id || targetUnit === unit) continue;
-                references.push({
-                    property: `${element.$type}#${property.name}`,
-                    target: targetUnit.id,
-                    ...(target === targetUnit || !target.id ? {} : { targetPart: target.id }),
-                });
-            }
-        }
-        for (const name of containmentProperties(element)) {
-            const value = element[name];
-            for (const child of (Array.isArray(value) ? value : [value]).filter(isModdleElement)) {
-                if (!isUnit(child)) visit(child);
-            }
-        }
-    };
-    for (const root of roots) visit(root);
-    return references;
-}
-
 function rejectionOf(parsed: ModdleParseResult, rejectWarnings: boolean): string | undefined {
     if (!rejectWarnings) return skippedContentWarning(parsed);
-    const messages = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
+    const messages = parseWarningMessages(parsed.warnings);
     return messages.length > 0 ? messages.join("; ") : undefined;
-}
-
-/** Called once the units are stripped, so the walk stays inside the unit. */
-function partsOf(unit: ModdleElement, roots: readonly ModdleElement[]): string[] {
-    const parts: string[] = [];
-    for (const root of roots) {
-        walkContainment(root, (element) => {
-            if (element !== unit && isNameableElement(element)) parts.push(element.id);
-        });
-    }
-    return parts;
-}
-
-function isDerived(qualifiedName: string | undefined): boolean {
-    return qualifiedName !== undefined && DERIVED_REFERENCES.has(qualifiedName);
-}
-
-function deleteDerivedReferences(element: ModdleElement): void {
-    for (const property of element.$descriptor.properties ?? []) {
-        if (isDerived(property.ns?.name)) delete element[property.name];
-    }
 }

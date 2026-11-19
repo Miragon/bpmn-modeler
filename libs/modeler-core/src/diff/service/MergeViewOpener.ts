@@ -1,7 +1,6 @@
 import { mergeRefusalOf } from "@miragon/bpmn-modeler-merge";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import { type MergeSide, readConflictMarkers } from "@miragon/bpmn-modeler-types";
 
-import { readConflictMarkers } from "../../kernel/domain/conflictMarkers";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { NotifierPort } from "../../kernel/port/hostPorts";
 import { conflictReadingOf, isMergeViewCandidate } from "../domain/conflictReading";

@@ -6,6 +6,7 @@ import {
     isType,
     loadExecutionPackage,
     moddleElements,
+    parseWarningMessages,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
 import { detectEngineWithNamespaceFallback } from "@miragon/bpmn-modeler-types/engine";
@@ -84,7 +85,7 @@ async function cleanlyParsed(
     } catch (error) {
         throw parseFailure(name, error);
     }
-    const warnings = (parsed.warnings ?? []).map(({ message }) => message ?? "unnamed warning");
+    const warnings = parseWarningMessages(parsed.warnings);
     if (warnings.length > 0) {
         throw mergeRefusal({
             kind: "parsesWithWarnings",

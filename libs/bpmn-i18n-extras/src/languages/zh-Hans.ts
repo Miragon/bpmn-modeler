@@ -291,8 +291,10 @@ const dictionary: Record<string, string> = {
     "Kept from incoming, your pick": "从传入保留，您的选择",
     "Kept from current with everything inside, your pick": "从当前连同其中全部内容保留，您的选择",
     "Kept from incoming with everything inside, your pick": "从传入连同其中全部内容保留，您的选择",
-    "Kept from current with its flows, your pick": "从当前连同其流保留，您的选择",
-    "Kept from incoming with its flows, your pick": "从传入连同其流保留，您的选择",
+    "Kept from current with what was removed with it, your pick":
+        "从当前连同随其删除的内容保留，您的选择",
+    "Kept from incoming with what was removed with it, your pick":
+        "从传入连同随其删除的内容保留，您的选择",
     "Kept from current: {element}": "从当前保留：{element}",
     "Kept from incoming: {element}": "从传入保留：{element}",
     "This pick brings in {element}, which needs {target}":
@@ -351,7 +353,7 @@ const dictionary: Record<string, string> = {
     "Keep current with everything inside": "保留当前及其中全部内容",
     "Keep incoming with everything inside": "保留传入及其中全部内容",
     "Leave out": "排除",
-    "Also keep its removed flows": "同时保留其已删除的流",
+    "Also keep what was removed with it": "同时保留随其删除的内容",
     "Keep it as current has it": "按当前中的样子保留",
     "Keep it as incoming has it": "按传入中的样子保留",
     "Keep it and everything inside as current has them": "按当前中的样子保留它及其中全部内容",
@@ -373,8 +375,10 @@ const dictionary: Record<string, string> = {
     "Not in incoming": "不在传入中",
     "Kept from current with everything inside: {element}": "从当前连同其中全部内容保留：{element}",
     "Kept from incoming with everything inside: {element}": "从传入连同其中全部内容保留：{element}",
-    "Kept from current with its flows: {element}": "从当前连同其流保留：{element}",
-    "Kept from incoming with its flows: {element}": "从传入连同其流保留：{element}",
+    "Kept from current with what was removed with it: {element}":
+        "从当前连同随其删除的内容保留：{element}",
+    "Kept from incoming with what was removed with it: {element}":
+        "从传入连同随其删除的内容保留：{element}",
     "Left out: {element}, as current removed it": "已排除：{element}，因为当前已将其删除",
     "Left out: {element}, as current doesn't have it": "已排除：{element}，因为当前没有它",
     "Left out: {element}, as incoming removed it": "已排除：{element}，因为传入已将其删除",

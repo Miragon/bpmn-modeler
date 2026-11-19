@@ -34,11 +34,11 @@ decisions.originOf("Task_1"); // "automatic", "picked", "consequence", or undefi
 
 // Keeping an element the other side removed: the flows and boundary events removed with it come back only on request.
 const kept = decisions.pick("Task_Reject", "incoming"); // kept.connectionsLeftOut: ["Flow_No", …], kept.boundaryEventsLeftOut
-decisions.pickWithConnections("Task_Reject", "incoming"); // the element and those flows and boundary events, as one pick
-decisions.unpickWithConnections("Task_Reject"); // takes them back with it
+decisions.pickWithRemoved("Task_Reject", "incoming"); // the element and those flows and boundary events, as one pick
+decisions.unpickWithRemoved("Task_Reject"); // takes them back with it
 decisions.pickWithContents("SubProcess_1", "current");
 decisions.unpickWithContents("SubProcess_1"); // and everything inside picked on the same side
-decisions.pickScoped("SubProcess_1", "current", "withContents"); // a view's reach: element, withContents, withConnections
+decisions.pickScoped("SubProcess_1", "current", "withContents"); // a view's reach: element, withContents, withRemoved
 decisions.holds("Task_Reject", "current"); // false: a pick of current leaves it out
 
 const sources = await prepareMergeSources(versions); // once per merge; keep it for every build

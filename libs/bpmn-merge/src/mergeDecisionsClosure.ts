@@ -1,4 +1,4 @@
-import type { BlockedPick, PickOutcome } from "./pickOutcome";
+import type { BlockedPick, ClosedPickOutcome } from "./pickOutcome";
 import { findClashes, rivalCollaborationsOf } from "./mergeDecisionsClashes";
 import type { DecidedSides } from "./mergeDecisionsSides";
 import { MERGE_SIDES, type MergeElement, type MergeSide, otherSide } from "./mergeResult";
@@ -11,7 +11,7 @@ import {
 import type { RequirementObstacle } from "./unmetRequirement";
 
 export interface ClosedDecisions {
-    readonly outcome: PickOutcome;
+    readonly outcome: ClosedPickOutcome;
     readonly after: DecidedSides;
 }
 
@@ -41,17 +41,6 @@ export function closePicks(
         },
         after: closure.sides,
     };
-}
-
-/** The picks without `ids`, closed as `closePicks` does. */
-export function closeUnpick(
-    index: ReferenceIndex,
-    before: DecidedSides,
-    ids: readonly string[],
-): ClosedDecisions {
-    const picks = new Map(before.picks);
-    ids.forEach((id) => picks.delete(id));
-    return closePicks(index, before, picks);
 }
 
 /** Each queued element remembers whether it stems from a pick this call makes or changes, or from an earlier one. */

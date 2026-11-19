@@ -29,7 +29,7 @@ import {
     rememberSent,
     rowOutcome,
 } from "../../domain/mergeOutcomeMemory";
-import { keepRemovedFlows } from "../../domain/mergePadDecisions";
+import { keepRemovedWith } from "../../domain/mergePadDecisions";
 import { MERGE_CARD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
 import type { MergeOutcomeCard } from "./mergeOutcomeCard";
 
@@ -136,8 +136,8 @@ export class MergeOutcomes {
             content,
             {
                 onSelect: (id) => select(id),
-                onKeepRemovedFlows: (id) => {
-                    const decision = this.states && keepRemovedFlows(this.states, id);
+                onKeepRemovedWith: (id) => {
+                    const decision = this.states && keepRemovedWith(this.states, id);
                     if (decision) this.send(actedOnPad(id, decision));
                 },
                 closeLabel: translate(MERGE_CARD_TEXTS.close),

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
 import { MERGE_SCENARIOS } from "./__fixtures__/mergeScenarios";
+import { acceptHandMerge } from "./acceptHandMerge";
+import { buildMerged } from "./buildMerged";
+import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge } from "./computeMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import { descendantsOf } from "./mergeDecisionsContainment";
 import { MERGE_SIDES, type MergeResult, type MergeSide, otherSide } from "./mergeResult";
-import { restoredFlowDefaultsOf } from "./removedConnections";
+import { restoredFlowDefaultsOf } from "./removedWith";
 
 function stateOf(decisions: MergeDecisions) {
     return {
@@ -350,7 +354,7 @@ describe("MergeDecisions path independence", () => {
                         ...offered.map((offeredId) => oneByOne.pick(offeredId, side)),
                     ].every((outcome) => outcome.applied);
 
-                    expect(together.pickWithConnections(id, side).applied, label).toBe(applied);
+                    expect(together.pickWithRemoved(id, side).applied, label).toBe(applied);
                     if (applied) expect(stateOf(together), label).toEqual(stateOf(oneByOne));
                     defaultsRestored += flowDefaultsOf(together).filter(
                         ({ kind }) => kind === "restored",
@@ -408,4 +412,40 @@ describe("MergeDecisions path independence", () => {
             }
         }
     }, 120_000);
+
+    it("agrees with the plain picks once each hand merge is taken back by its side's own text, and builds the same file", async () => {
+        const versions = handMergeVersions();
+        const [result, sources] = await Promise.all([
+            computeMerge(versions),
+            prepareMergeSources(versions),
+        ]);
+        const plain = MergeDecisions.from(result);
+        const handMerged = MergeDecisions.from(result);
+        for (const id of sources.handMergeTexts.keys()) {
+            plain.pick(id, "incoming");
+            handMerged.pick(id, "incoming");
+        }
+        const renamed = sources.handMergeTexts
+            .get("Task_Pack")!
+            .incoming.replace('name="Pack box"', 'name="Pack it"');
+        expect(
+            await acceptHandMerge(sources, handMerged, "Task_Pack", "incoming", renamed),
+        ).toEqual({
+            applied: true,
+        });
+        expect(stateOf(handMerged)).toEqual(stateOf(plain));
+
+        for (const [id, { incoming }] of sources.handMergeTexts) {
+            expect(await acceptHandMerge(sources, handMerged, id, "incoming", incoming)).toEqual({
+                applied: true,
+            });
+        }
+
+        expect(handMerged.handMergedVersions).toEqual([]);
+        expect(handMerged.result).toBe(plain.result);
+        expect(stateOf(handMerged)).toEqual(stateOf(plain));
+        expect((await buildMerged(sources, handMerged)).xml).toBe(
+            (await buildMerged(sources, plain)).xml,
+        );
+    });
 });

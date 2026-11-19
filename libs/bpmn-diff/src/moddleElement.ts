@@ -5,6 +5,8 @@ export interface ModdlePropertyDescriptor {
     isMany?: boolean;
     isReference?: boolean;
     isVirtual?: boolean;
+    /** Qualified, for example `bpmn:Message`. */
+    type?: string;
     default?: unknown;
     /** `name` is the qualified one, for example `bpmn:incoming`. */
     ns?: { name?: string; prefix?: string; localName?: string };

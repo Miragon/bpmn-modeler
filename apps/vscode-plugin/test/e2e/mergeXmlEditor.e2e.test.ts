@@ -61,7 +61,7 @@ const MERGED_BY_EDITOR = BASE.replace('type="check"', 'type="check-v2"').replace
     'target="order"',
     'target="incomingOrder"',
 );
-// The shape `writeConflictMarkers` writes; libs/modeler-core's conflictMarkers.spec.ts pins it to this one.
+// The shape `writeConflictMarkers` writes; libs/modeler-types' conflictMarkers.spec.ts pins it to this one.
 const MARKER_TEXT = `<<<<<<< Current\n${CURRENT}=======\n${INCOMING}>>>>>>> Incoming\n`;
 
 const TIMEOUT = Symbol("timeout");

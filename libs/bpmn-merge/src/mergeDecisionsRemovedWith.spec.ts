@@ -8,7 +8,7 @@ import {
 } from "./__fixtures__/mergeResultBuilder";
 import { MergeDecisions } from "./mergeDecisions";
 import type { ElementState, MergeElement, MergeResult, MergeSide } from "./mergeResult";
-import { restoredFlowDefaultsOf } from "./removedConnections";
+import { restoredFlowDefaultsOf } from "./removedWith";
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });
 
@@ -50,7 +50,7 @@ function stateOf(decisions: MergeDecisions) {
     ]);
 }
 
-describe("MergeDecisions.pickWithConnections", () => {
+describe("MergeDecisions.pickWithRemoved", () => {
     it("offers the flows the other side removed with the element in the outcome of a plain pick", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
 
@@ -60,7 +60,7 @@ describe("MergeDecisions.pickWithConnections", () => {
             dropped: [],
             connectionsLeftOut: ["Flow_No", "Flow_Rejected"],
         });
-        expect(decisions.connectionsLeftOut("Task_Reject", "incoming")).toEqual([
+        expect(decisions.removedWithLeftOut("Task_Reject", "incoming").connections).toEqual([
             "Flow_No",
             "Flow_Rejected",
         ]);
@@ -69,7 +69,7 @@ describe("MergeDecisions.pickWithConnections", () => {
     it("keeps the element and those flows as picks on its side in one step", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
 
-        expect(decisions.pickWithConnections("Task_Reject", "incoming")).toEqual({
+        expect(decisions.pickWithRemoved("Task_Reject", "incoming")).toEqual({
             applied: true,
             pulledIn: [],
             dropped: [],
@@ -80,14 +80,16 @@ describe("MergeDecisions.pickWithConnections", () => {
             expect(decisions.isInResult(id)).toBe(true);
             expect(decisions.originOf(id)).toBe("picked");
         }
-        expect(decisions.connectionsLeftOut("Task_Reject", "incoming")).toEqual([]);
+        expect(decisions.removedWithLeftOut("Task_Reject", "incoming").connections).toEqual([]);
     });
 
     it("leaves out a flow whose other end the result does not hold", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows("removedByCurrent"));
 
-        expect(decisions.connectionsLeftOut("Task_Reject", "incoming")).toEqual(["Flow_No"]);
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        expect(decisions.removedWithLeftOut("Task_Reject", "incoming").connections).toEqual([
+            "Flow_No",
+        ]);
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         expect(decisions.isInResult("End")).toBe(false);
         expect(decisions.isInResult("Flow_Rejected")).toBe(false);
@@ -120,7 +122,7 @@ describe("MergeDecisions.pickWithConnections", () => {
             expect(decisions.removedWithLeftOut("Task_Send", "incoming").connections).toEqual(
                 offered,
             );
-            decisions.pickWithConnections("Task_Send", "incoming");
+            decisions.pickWithRemoved("Task_Send", "incoming");
 
             expect(decisions.isInResult("Message_Order")).toBe(messageState === "unchanged");
         },
@@ -130,7 +132,7 @@ describe("MergeDecisions.pickWithConnections", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
         decisions.pick("Flow_No", "current");
 
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         expect(decisions.sideOf("Flow_No")).toBe("current");
         expect(decisions.isInResult("Flow_No")).toBe(false);
@@ -146,11 +148,11 @@ describe("MergeDecisions.pickWithConnections", () => {
             ),
         );
 
-        expect(decisions.connectionsLeftOut("Task_Reject", "incoming")).toEqual([
+        expect(decisions.removedWithLeftOut("Task_Reject", "incoming").connections).toEqual([
             "Flow_No",
             "Flow_Rejected",
         ]);
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         expect(decisions.isInResult("Flow_Escalate")).toBe(true);
         expect(decisions.originOf("Flow_Escalate")).toBe("automatic");
@@ -183,7 +185,7 @@ describe("MergeDecisions.pickWithConnections", () => {
     ])("offers nothing for %s", (_name, result, id, side) => {
         const decisions = MergeDecisions.from(result);
 
-        expect(decisions.connectionsLeftOut(id, side)).toEqual([]);
+        expect(decisions.removedWithLeftOut(id, side).connections).toEqual([]);
         expect(decisions.pick(id, side)).not.toHaveProperty("connectionsLeftOut");
     });
 
@@ -202,28 +204,28 @@ describe("MergeDecisions.pickWithConnections", () => {
         expect(withPart.pick("X", "current").applied).toBe(true);
         const before = stateOf(withPart);
 
-        const outcome = withPart.pickWithConnections("Task_Reject", "incoming");
+        const outcome = withPart.pickWithRemoved("Task_Reject", "incoming");
 
         expect(outcome.applied).toBe(false);
-        expect(outcome.applied === false && outcome.blockedBy[0]?.reason.obstacle.kind).toBe(
+        expect("blockedBy" in outcome && outcome.blockedBy[0]?.reason.obstacle.kind).toBe(
             "idHeldByAnother",
         );
         expect(stateOf(withPart)).toEqual(before);
     });
 
-    it("unpickWithConnections returns the element and its flows to their automatic resolution", () => {
+    it("unpickWithRemoved returns the element and its flows to their automatic resolution", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
         const before = stateOf(decisions);
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
-        expect(decisions.unpickWithConnections("Task_Reject").applied).toBe(true);
+        expect(decisions.unpickWithRemoved("Task_Reject").applied).toBe(true);
 
         expect(stateOf(decisions)).toEqual(before);
     });
 
     it("unpick of the element alone keeps it as a consequence of its picked flows", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         decisions.unpick("Task_Reject");
 
@@ -231,12 +233,12 @@ describe("MergeDecisions.pickWithConnections", () => {
         expect(decisions.originOf("Task_Reject")).toBe("consequence");
     });
 
-    it("unpickWithConnections keeps a flow the user picked to the other side", () => {
+    it("unpickWithRemoved keeps a flow the user picked to the other side", () => {
         const decisions = MergeDecisions.from(removedWithItsFlows());
         decisions.pick("Task_Reject", "incoming");
         decisions.pick("Flow_No", "current");
 
-        decisions.unpickWithConnections("Task_Reject");
+        decisions.unpickWithRemoved("Task_Reject");
 
         expect(decisions.originOf("Flow_No")).toBe("picked");
         expect(decisions.sideOf("Task_Reject")).toBe("current");
@@ -298,7 +300,7 @@ describe("the boundary events the other side removed with a kept activity", () =
     it("keeps the timer and its flow as picks on the task's side in one step", () => {
         const decisions = MergeDecisions.from(removedWithItsTimer());
 
-        expect(decisions.pickWithConnections("Task_Pay", "incoming").applied).toBe(true);
+        expect(decisions.pickWithRemoved("Task_Pay", "incoming").applied).toBe(true);
 
         for (const id of ["Task_Pay", "Flow_In", "Flow_Out", "Timer_Pay", "Flow_Timeout"]) {
             expect([id, decisions.sideOf(id), decisions.originOf(id)]).toEqual([
@@ -323,7 +325,7 @@ describe("the boundary events the other side removed with a kept activity", () =
             connections: ["Flow_In", "Flow_Out"],
             boundaryEvents: ["Timer_Pay"],
         });
-        decisions.pickWithConnections("Task_Pay", "incoming");
+        decisions.pickWithRemoved("Task_Pay", "incoming");
 
         expect(decisions.isInResult("Timer_Pay")).toBe(true);
         expect(decisions.isInResult("Flow_Timeout")).toBe(false);
@@ -345,7 +347,7 @@ describe("the boundary events the other side removed with a kept activity", () =
             connections: ["Flow_In", "Flow_Out", "Flow_Timeout"],
             boundaryEvents: ["Timer_Pay"],
         });
-        decisions.pickWithConnections("Task_Pay", "incoming");
+        decisions.pickWithRemoved("Task_Pay", "incoming");
 
         for (const id of ["Error_Declined", "Error_Pay", "Flow_Declined"]) {
             expect(decisions.isInResult(id)).toBe(false);
@@ -398,22 +400,22 @@ describe("the boundary events the other side removed with a kept activity", () =
         });
     });
 
-    it("unpickWithConnections returns the timer and its flow to their automatic resolution", () => {
+    it("unpickWithRemoved returns the timer and its flow to their automatic resolution", () => {
         const decisions = MergeDecisions.from(removedWithItsTimer());
         const before = stateOf(decisions);
-        decisions.pickWithConnections("Task_Pay", "incoming");
+        decisions.pickWithRemoved("Task_Pay", "incoming");
 
-        expect(decisions.unpickWithConnections("Task_Pay").applied).toBe(true);
+        expect(decisions.unpickWithRemoved("Task_Pay").applied).toBe(true);
 
         expect(stateOf(decisions)).toEqual(before);
     });
 
-    it("unpickWithConnections keeps a timer the user picked to the other side", () => {
+    it("unpickWithRemoved keeps a timer the user picked to the other side", () => {
         const decisions = MergeDecisions.from(removedWithItsTimer());
         decisions.pick("Task_Pay", "incoming");
         decisions.pick("Timer_Pay", "current");
 
-        decisions.unpickWithConnections("Task_Pay");
+        decisions.unpickWithRemoved("Task_Pay");
 
         expect(decisions.originOf("Timer_Pay")).toBe("picked");
         expect(decisions.sideOf("Task_Pay")).toBe("current");
@@ -464,7 +466,7 @@ describe("the default a kept flow was of its source", () => {
             removedWithTheDefaultFlow({ defaultProperty: property }),
         );
 
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         expect(decisions.sideOf("Source")).toBe("current");
         expect(flowDefaultsOf(decisions)).toEqual([
@@ -488,7 +490,7 @@ describe("the default a kept flow was of its source", () => {
             removedWithTheDefaultFlow({ currentDefault: "Flow_Yes" }),
         );
 
-        decisions.pickWithConnections("Task_Reject", "incoming");
+        decisions.pickWithRemoved("Task_Reject", "incoming");
 
         expect(flowDefaultsOf(decisions)).toEqual([
             {
@@ -506,7 +508,7 @@ describe("the default a kept flow was of its source", () => {
             "the source is taken from the side that names the flow",
             (decisions) => {
                 decisions.pick("Source", "incoming");
-                decisions.pickWithConnections("Task_Reject", "incoming");
+                decisions.pickWithRemoved("Task_Reject", "incoming");
             },
         ],
         ["nothing is picked", () => undefined],

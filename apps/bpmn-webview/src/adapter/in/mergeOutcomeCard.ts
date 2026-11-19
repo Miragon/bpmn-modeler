@@ -23,8 +23,8 @@ export interface MergeOutcomeCardConfig {
 export interface MergeOutcomeCardActions {
     /** Shows an element the card names. */
     readonly onSelect: (elementId: string) => void;
-    /** Keeps the flows the other side removed with the element, as the host offered. */
-    readonly onKeepRemovedFlows: (elementId: string) => void;
+    /** Keeps what the other side removed with the element, as the host offered. */
+    readonly onKeepRemovedWith: (elementId: string) => void;
     readonly closeLabel: string;
 }
 
@@ -83,7 +83,7 @@ const CHECK_MARK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
  * The outcome of a decision this pane sent, as a card below the element it
  * concerns ({@link mergeOutcomeCardPlace}), at a fixed size whatever the
  * zoom: what it pulled in, dropped or opened again, or why it was refused
- * with the blockers marked on the canvas, and the offer to keep the flows
+ * with the blockers marked on the canvas, and the offer to keep what was
  * removed with the element. It announces each outcome once, through live
  * regions that exist before their text changes, so a screen reader reads
  * them; a card shown again announces nothing.
@@ -258,7 +258,7 @@ export class MergeOutcomeCard {
             row.append(
                 createButton(
                     "merge-outcome-card__offer",
-                    () => actions.onKeepRemovedFlows(offer.elementId),
+                    () => actions.onKeepRemovedWith(offer.elementId),
                     offer.text,
                 ),
             );

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultBuilder";
-import { restoredWithoutConnectionsNotes } from "./buildNotes";
+import { restoredWithoutRemovedWithNotes } from "./buildNotes";
 import type { MergeResolution } from "./mergeDecisions";
 import type { ElementState, MergeSide } from "./mergeResult";
-import { connectionsRemovedWith, keptAgainstRemoval } from "./removedConnections";
+import { connectionsRemovedWith, keptAgainstRemoval } from "./removedWith";
 
 const process = mergeElement("Process", "unchanged", { type: "bpmn:Process" });
 
@@ -31,7 +31,7 @@ const result = mergeResult(
 );
 const task = result.elements.find(({ id }) => id === "Task")!;
 
-describe("removedConnections", () => {
+describe("removedWith", () => {
     it.each<[ElementState, MergeSide, boolean]>([
         ["removedByCurrent", "incoming", true],
         ["removedByCurrent", "current", false],
@@ -51,7 +51,7 @@ describe("removedConnections", () => {
         expect(connectionsRemovedWith(result.elements, task, "current")).toEqual([]);
     });
 
-    it("names only the connections pickWithConnections left out", () => {
+    it("names only the connections pickWithRemoved left out", () => {
         const resolution = (kept: readonly string[]): MergeResolution => ({
             elements: Object.fromEntries(
                 result.elements.map(({ id, state }) => [
@@ -62,11 +62,11 @@ describe("removedConnections", () => {
             layout: {},
         });
 
-        expect(restoredWithoutConnectionsNotes(result, resolution(["Task", "Flow_In"]))).toEqual([
-            { kind: "restoredWithoutConnections", id: "Task", connections: ["Flow_Out"] },
+        expect(restoredWithoutRemovedWithNotes(result, resolution(["Task", "Flow_In"]))).toEqual([
+            { kind: "restoredWithoutRemovedWith", id: "Task", connections: ["Flow_Out"] },
         ]);
         expect(
-            restoredWithoutConnectionsNotes(result, resolution(["Task", "Flow_In", "Flow_Out"])),
+            restoredWithoutRemovedWithNotes(result, resolution(["Task", "Flow_In", "Flow_Out"])),
         ).toEqual([]);
     });
 });

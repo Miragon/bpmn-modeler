@@ -755,13 +755,13 @@ describe("the BPMN merge view", () => {
             );
             expect(await current.getByRole("button", { name: offer }).count()).toBe(0);
             expect(await outcomeCard(current).count()).toBe(0);
-            await padEntry(incoming, "Also keep its removed flows").hover();
+            await padEntry(incoming, "Also keep what was removed with it").hover();
             await expect
                 .poll(() => tooltipText(incoming))
-                .toBe(`Also keep its removed flows: ${offer}`);
+                .toBe(`Also keep what was removed with it: ${offer}`);
             await shot("pick-restore-offer");
 
-            await decideInPad(incoming, "Also keep its removed flows");
+            await decideInPad(incoming, "Also keep what was removed with it");
 
             await expect.poll(() => badgeLabels(incoming).then((labels) => labels.length)).toBe(3);
             // The current pane lacks what incoming kept, so it draws no badge for it and lists none.
@@ -772,7 +772,7 @@ describe("the BPMN merge view", () => {
         it("names the flows that block leaving out the task main removed, and shows the reason and the pad's icons again once the task is selected again", async () => {
             const { current, incoming } = await openMergeView(removalFile());
             await keepIncoming(incoming);
-            await decideInPad(incoming, "Also keep its removed flows");
+            await decideInPad(incoming, "Also keep what was removed with it");
             await expect.poll(() => badgeLabels(incoming).then((labels) => labels.length)).toBe(3);
             const task = incoming.locator('.djs-element[data-element-id="Task_Check"]').first();
             const entries = incoming.locator(".djs-context-pad .merge-pick-action");
