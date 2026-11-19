@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ApplyMergeStatesQuery, MergePaneOutcome } from "@miragon/bpmn-modeler-shared";
 import { readConflictMarkers } from "@miragon/bpmn-modeler-types";
@@ -295,15 +295,17 @@ describe("ElementXmlMergeService", () => {
         });
     });
 
-    it("closes its editors when the merge view ends, and answers nothing", async () => {
+    it("closes its editors when the merge view ends, answers nothing, and tells its listeners", async () => {
         const host = await xmlMergeHost();
+        const finished: [string, string | undefined][] = [];
+        host.xmlMerge.onFinished((elementId, written) => finished.push([elementId, written]));
         await host.pick("Task_Pack", "current");
         await host.openMerge("Task_Pack");
         const postedBefore = host.current.posted.length;
 
         host.store.detach(host.current);
         host.store.detach(host.incoming);
-        await host.finishing();
+        await vi.waitFor(() => expect(finished).toStrictEqual([["Task_Pack", undefined]]));
 
         expect(host.editor.shownResults()).toStrictEqual({});
         expect(host.current.posted).toHaveLength(postedBefore);

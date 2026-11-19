@@ -82,12 +82,15 @@ export class ElementXmlMergeService {
             } else {
                 merges.answered(finish, await this.decisions.mergeByHand(session, finish));
             }
-            for (const listener of this.finishedListeners) listener(finish.elementId, written);
+            this.tellFinished(finish.elementId, written);
             return;
         }
     }
 
-    /** Calls `listener` with the element and the text of each finished merge, once the panes show the answer. */
+    /**
+     * Calls `listener` with the element and the text of each finished merge,
+     * once the panes show the answer; a merge whose view ended has no text.
+     */
     onFinished(listener: ElementXmlMergeFinishListener): EditorSubscription {
         this.finishedListeners.add(listener);
         return { dispose: () => this.finishedListeners.delete(listener) };
@@ -113,11 +116,17 @@ export class ElementXmlMergeService {
         if (!merges) return;
         this.mergesBySession.delete(session);
         for (const key of merges.openKeys) {
+            const finish = merges.finish(key);
             try {
                 await this.editor.close(key);
             } catch (error) {
                 this.logger.logError(error as Error);
             }
+            if (finish) this.tellFinished(finish.elementId, undefined);
         }
+    }
+
+    private tellFinished(elementId: string, written: string | undefined): void {
+        for (const listener of this.finishedListeners) listener(elementId, written);
     }
 }
