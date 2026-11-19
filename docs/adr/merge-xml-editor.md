@@ -98,8 +98,12 @@ changed different parts to a whole pick.
   refusal's data, with Edit again while the pick still allows a merge by hand. It
   remembers each open request apart from its last decision, since the answer comes only
   when the editor closes, and takes a newly seen outcome of that element for the answer.
-  Rejected: wording the refusal in the core, which knows no language; the answer on every
-  pane, which would show twice.
+  The core counts the finishes in a row on the outcome (`finish`), so a finish that repeats
+  the last one word for word is newly seen too, and no request waits on into the partner's
+  next finish. Rejected: wording the refusal in the core, which knows no language; the
+  answer on every pane, which would show twice; taking a repeated outcome for the answer in
+  the webview, which cannot tell it from states the host sends again while the editor is
+  still open.
 
 Rejected besides an own view: conflict markers in a virtual document get no CodeLens (the
 merge-conflict extension serves `file`, `vscode-vfs`, `untitled` and `vscode-userdata`
@@ -120,9 +124,8 @@ side's change from a conflict.
 - The title button (`bpmn-modeler.acceptElementXmlMerge`) shows where `resourceScheme` is
   `bpmn-merge-result`: VS Code sets that key for a merge editor from its result, which the
   `merge-xml` smoke suite clicks on 1.78.2 and stable.
-- A refusal repeated word for word reads as the state the pane has seen, so a second save
-  of the same refused text shows no new card; the card from the first one is still there
-  unless the user closed it.
+- The outcome carries one field only merges by hand set, `finish`; it counts from one again
+  after a pick or an undo, whose outcome already differs from the last finish.
 - `merge-xml.smoke.test.ts` runs the pad, the key, the merge editor below the diagrams,
   accepting, Don't Save, a refusal with Edit again, the question before a pick drops a
   merge, and an XML diff that follows a step beside an open merge editor.

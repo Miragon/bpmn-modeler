@@ -419,6 +419,27 @@ describe("a merge by hand this pane asked for", () => {
         expect(memory.latest).toStrictEqual(shown.latest);
     });
 
+    it("answers a finish that repeats the last one word for word by its count, so it claims no later finish of the partner", () => {
+        const shown = answerStates(
+            opened,
+            states({ lastOutcome: { ...accepted, finish: 1 }, badges: [mergedBadge] }),
+        ).memory;
+        const editing = rememberSent(shown, mergeXml);
+
+        const repeated = answerStates(
+            editing,
+            states({ lastOutcome: { ...accepted, finish: 2 }, badges: [mergedBadge] }),
+        );
+        const partners = answerStates(
+            repeated.memory,
+            states({ lastOutcome: { ...refusedText, finish: 3 }, badges: [mergedBadge] }),
+        );
+
+        expect(repeated.answer).toBe("show");
+        expect(repeated.memory.handMergesSent).toStrictEqual([]);
+        expect(partners.answer).toBe("forget");
+    });
+
     it("leaves a merge it did not ask for to the pane that did", () => {
         expect(answerStates(EMPTY_OUTCOME_MEMORY, states({ lastOutcome: accepted })).answer).toBe(
             "forget",
