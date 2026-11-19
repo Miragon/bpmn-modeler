@@ -1,19 +1,27 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import type { BpmnViewerMode, DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../../__fixtures__/mock-diff";
-import type { PreviewMode } from "./previewMode";
+import { paneOf, type PreviewMode, type PreviewPane } from "./previewMode";
 
-const DOCUMENTS: Readonly<Record<PreviewMode, () => BpmnFileQuery>> = {
-    modeler: () => new BpmnFileQuery(MOCK_BPMN_XML, "c7"),
-    // Untagged model: no engine, so the webview opens it in Design.
-    neutral: () => new BpmnFileQuery(MOCK_NEUTRAL_BPMN_XML, undefined),
-    "diff-before": () => new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "viewer"),
-    "diff-after": () => new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "viewer"),
-    "merge-current": () => new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "merge"),
-    "merge-incoming": () => new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "merge"),
+const PANE_XML: Readonly<Record<DiffSide, string>> = {
+    before: MOCK_DIFF_BEFORE_XML,
+    after: MOCK_DIFF_AFTER_XML,
+};
+
+const PANE_VIEWER_MODE: Readonly<Record<PreviewPane["kind"], BpmnViewerMode>> = {
+    diff: "viewer",
+    merge: "merge",
 };
 
 export function previewDocument(mode: PreviewMode): BpmnFileQuery {
-    return DOCUMENTS[mode]();
+    const pane = paneOf(mode);
+    if (pane) {
+        return new BpmnFileQuery(PANE_XML[pane.side], "c7", PANE_VIEWER_MODE[pane.kind]);
+    }
+    // Untagged model: no engine, so the webview opens it in Design.
+    return mode === "neutral"
+        ? new BpmnFileQuery(MOCK_NEUTRAL_BPMN_XML, undefined)
+        : new BpmnFileQuery(MOCK_BPMN_XML, "c7");
 }
