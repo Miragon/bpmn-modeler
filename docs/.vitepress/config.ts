@@ -1,4 +1,4 @@
-import { miragonDocs } from "./miragon/config";
+import { miragonDocs } from "@miragon/docs-starter";
 
 export default miragonDocs({
     repo: "Miragon/bpmn-modeler",

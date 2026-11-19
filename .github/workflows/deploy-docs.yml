@@ -1,7 +1,7 @@
 name: Deploy Docs
 
 # The docs (docs/) as a VitePress site on GitHub Pages: https://miragon.github.io/bpmn-modeler/.
-# A pull request that touches docs/ checks the vendored Miragon docs kit and builds the site
+# A pull request that touches docs/ builds the site with the Miragon docs kit (@miragon/docs-starter)
 # (VitePress fails the build on a dead link). A push to main also deploys it.
 
 on:
@@ -36,9 +36,6 @@ jobs:
           node-version: 22
           cache: yarn
       - run: corepack yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-docs
-      # The kit in docs/.vitepress/miragon/ and the logos in docs/public/logo/ come unchanged
-      # from Miragon/corporate-identity. Fails when someone edited them in this repo.
-      - run: corepack yarn workspace @miragon/bpmn-modeler-docs check:kit
       - run: corepack yarn docs:test
       - run: corepack yarn docs:build
         env:

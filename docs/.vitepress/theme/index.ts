@@ -1,4 +1,4 @@
-import MiragonTheme from "../miragon/theme";
+import MiragonTheme from "@miragon/docs-starter/theme";
 import DownloadPage from "./components/DownloadPage.vue";
 import HomeLanding from "./components/HomeLanding.vue";
 import "./custom.css";
