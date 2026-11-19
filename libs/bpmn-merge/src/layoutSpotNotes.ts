@@ -160,10 +160,9 @@ function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildN
     return { kind: "shapesOverlap", ids: [...shapes], ...noteRepairOf(rest) };
 }
 
-/** The repair with its kind as `repair`, every other field as it is. */
 function noteRepairOf<Repair extends { readonly kind: string }>({
     kind,
     ...rest
-}: Repair): NoteRepairOf<Repair, never> {
-    return { ...rest, repair: kind } as NoteRepairOf<Repair, never>;
+}: Repair): NoteRepairOf<Repair> {
+    return { ...rest, repair: kind } as NoteRepairOf<Repair>;
 }

@@ -1,7 +1,8 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { type BuildNote, prepareMergeSources } from "@miragon/bpmn-modeler-merge";
+import { prepareMergeSources } from "@miragon/bpmn-modeler-merge";
 import type { ApplyDiffHighlightsQuery, ApplyMergeStatesQuery } from "@miragon/bpmn-modeler-shared";
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
 
 import {
     createTestHost,
@@ -306,7 +307,7 @@ describe("MergeBuildService", () => {
     it("sends the notes to both panes before it opens the file", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.pickMergeSide(mergeView.incoming, "Task_Pack", "element");
-        let notesWhenOpened: readonly BuildNote[] | undefined;
+        let notesWhenOpened: readonly MergeBuildNote[] | undefined;
         vi.spyOn(mergeView.notifier, "openDocument").mockImplementation(async () => {
             notesWhenOpened = lastStatesOf(mergeView.current).states.build.notes;
         });

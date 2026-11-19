@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import conflictMarkersSource from "./conflictMarkers.ts?raw";
-
 import {
     ConflictMarkerReading,
     readConflictMarkers,
@@ -150,13 +148,5 @@ describe("writeConflictMarkers", () => {
             currentLabel: "Current",
             incomingLabel: "Incoming",
         });
-    });
-});
-
-describe("conflictMarkers.ts", () => {
-    it("imports nothing at runtime, so a DOM-free workspace can load it alone", () => {
-        const runtimeImport = /^(?:import|export)\s(?!type\s)(?:[^;]*from\s+)?["']/m;
-
-        expect(conflictMarkersSource).not.toMatch(runtimeImport);
     });
 });

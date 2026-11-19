@@ -21,15 +21,12 @@ import {
 
 export type BuildNote = MergeBuildNote;
 
-/** A repair as its note carries it: its kind as `repair`, without the ids the note names itself. */
-export type NoteRepairOf<
-    Repair extends { readonly kind: string },
-    Subject extends keyof Repair,
-> = Repair extends unknown
+/** A repair as its note carries it: its `kind` as `repair`, every other field as it is. */
+export type NoteRepairOf<Repair extends { readonly kind: string }> = Repair extends unknown
     ? {
-          readonly [
-              Key in Exclude<keyof Repair, "kind" | Subject> | "repair"
-          ]: Key extends keyof Repair ? Repair[Key] : Repair["kind"];
+          readonly [Key in Exclude<keyof Repair, "kind"> | "repair"]: Key extends keyof Repair
+              ? Repair[Key]
+              : Repair["kind"];
       }
     : never;
 
