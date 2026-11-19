@@ -370,8 +370,10 @@ const dictionary: Record<string, string> = {
     "{element} lies outside {shapes}; the build could not repair it":
         "Элемент {element} находится за пределами {shapes}; при сборке исправить не удалось",
     "{element} is not on the border of {host}": "Элемент {element} не находится на границе {host}",
-    "The build moved {element} below the other lanes and grew {pool} to hold it":
-        "При сборке дорожка {element} перемещена под остальные дорожки, а {pool} увеличен, чтобы вместить её",
+    "The build moved {element} below the other lanes and grew {grown} to hold it":
+        "При сборке дорожка {element} перемещена под остальные дорожки, а {grown} увеличен, чтобы вместить её",
+    "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}":
+        "При сборке дорожка {element} перемещена под остальные дорожки, {grown} увеличен, чтобы вместить её, и сдвинуты {shifted}",
     "{first} and {second} overlap; the build could not repair it":
         "Элементы {first} и {second} перекрываются; при сборке исправить не удалось",
     "{element} is kept without the flows the other side removed with it: {connections}":

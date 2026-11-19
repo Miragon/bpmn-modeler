@@ -7,7 +7,7 @@ import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
 
 /** What the repair found and did, for the notes. */
 export interface LayoutRepairOutcome {
-    /** The appended lanes moved below their pool's lanes, which ends the overlaps they lay in. */
+    /** The appended lanes moved below their pool's lanes, which ends the overlaps they lay in and brings them into their pool. */
     readonly laneStackings: readonly LaneStacking[];
     /** The spots of the drawing as the build assembled it, with its appended lanes stacked. */
     readonly spots: readonly LayoutSpot[];
@@ -30,13 +30,16 @@ export interface LayoutRepairOutcome {
  * the build brought into its container, whose note says so.
  */
 export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
-    const notes: BuildNote[] = outcome.laneStackings.map(({ lane, pool, overlapped }) => ({
-        kind: "lanesOverlap",
-        ids: [lane, ...overlapped],
-        repair: "movedByBuild",
-        moved: lane,
-        pool,
-    }));
+    const notes: BuildNote[] = outcome.laneStackings.map(
+        ({ lane, grown, overlapped, shifted }) => ({
+            kind: "lanesOverlap",
+            ids: [lane, ...overlapped],
+            repair: "movedByBuild",
+            moved: lane,
+            grown,
+            shifted,
+        }),
+    );
     const shapesByNote = new Map<string, string[]>();
     const repairs = new SpotRepairs(outcome);
     for (const spot of spotsToName(outcome, repairs)) {

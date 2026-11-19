@@ -65,11 +65,14 @@ const CONTAINER_NOTE_TEXTS: Record<ContainerNote["repair"], string> = {
     notRepaired: "{element} lies outside {shapes}; the build could not repair it",
 };
 
-/** Lanes of one pool on top of each other, by what the build did about them. */
+/** Lanes of one pool on top of each other, or a lane outside its pool, by what the build did about them. */
 const LANE_NOTE_TEXTS: Record<LaneNote["repair"], string> = {
-    movedByBuild: "The build moved {element} below the other lanes and grew {pool} to hold it",
+    movedByBuild: "The build moved {element} below the other lanes and grew {grown} to hold it",
     notRepaired: "{first} and {second} overlap; the build could not repair it",
 };
+
+const LANE_MOVED_AND_SHIFTED_TEXT =
+    "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}";
 
 const FLOW_WITHOUT_END_TEXT = "{element} is left out of the drawing: it lacks a source or a target";
 
@@ -103,7 +106,11 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
     if (note.kind === "shapesOverlap") return OVERLAP_NOTE_TEXTS[note.repair];
     if (note.kind === "shapeOutsideContainer") return CONTAINER_NOTE_TEXTS[note.repair];
-    if (note.kind === "lanesOverlap") return LANE_NOTE_TEXTS[note.repair];
+    if (note.kind === "lanesOverlap") {
+        return note.repair === "movedByBuild" && note.shifted.length > 0
+            ? LANE_MOVED_AND_SHIFTED_TEXT
+            : LANE_NOTE_TEXTS[note.repair];
+    }
     if ("repair" in note) return FLOW_NOTE_TEXTS[note.kind][note.repair];
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
@@ -169,9 +176,11 @@ function laneReplacements(
     nameOf: (id: string) => string,
     names: (ids: readonly string[]) => string,
 ): Record<string, string> {
-    return note.repair === "notRepaired"
-        ? { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) }
-        : { element: nameOf(note.moved), pool: nameOf(note.pool) };
+    if (note.repair === "notRepaired") {
+        return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
+    }
+    const moved = { element: nameOf(note.moved), grown: names(note.grown) };
+    return note.shifted.length > 0 ? { ...moved, shifted: names(note.shifted) } : moved;
 }
 
 function noteReplacements(

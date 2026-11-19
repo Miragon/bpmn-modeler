@@ -180,7 +180,8 @@ parser and asserts that the module still loads.
   chosen from all their layouts as for one element, or the other side when only that one
   draws no lane the result leaves out; lanes are stacked, and lanes from both sides overlapped
   (28 times on the #2565 harvest). A lane follows no container, and one that side does not
-  draw in place is stacked below the others ([merge layout](merge-layout.md)). Containers
+  draw in place is stacked below the others unless they already hold it
+  ([merge layout](merge-layout.md)). Containers
   settle first: an element follows its host, parent, pool or lane when that side moved the
   container, or when its own side draws it on another plane (a collapsed sub-process), and a
   flow follows its ends when one of them had to. Cost: a lane only the other side resized

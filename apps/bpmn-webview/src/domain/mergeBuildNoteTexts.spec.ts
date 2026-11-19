@@ -122,9 +122,21 @@ describe("buildNoteText", () => {
                 ids: ["Lane_2", "Lane_1"],
                 repair: "movedByBuild",
                 moved: "Lane_2",
-                pool: "Pool_1",
+                grown: ["Pool_1"],
+                shifted: [],
             },
             "The build moved Lane_2 below the other lanes and grew Pool_1 to hold it",
+        ],
+        [
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_2", "Lane_1"],
+                repair: "movedByBuild",
+                moved: "Lane_2",
+                grown: ["Pool_1", "Lane_0"],
+                shifted: ["Pool_2", "Task_3"],
+            },
+            "The build moved Lane_2 below the other lanes, grew Pool_1, Lane_0 to hold it and shifted Pool_2, Task_3",
         ],
         [
             {

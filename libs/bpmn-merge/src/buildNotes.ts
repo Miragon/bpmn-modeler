@@ -60,11 +60,19 @@ export type BuildNote =
       } & OverlapNoteRepair)
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
     | ({
-          /** Lanes of one pool on top of each other, with the lane the build moved below the others and the pool it grew. */
+          /**
+           * Lanes of one pool on top of each other, or a lane the build moved into its pool, with the lane it moved
+           * below the others, the pool and parent lanes it grew and the shapes it shifted down.
+           */
           readonly kind: "lanesOverlap";
           readonly ids: readonly string[];
       } & (
-          | { readonly repair: "movedByBuild"; readonly moved: string; readonly pool: string }
+          | {
+                readonly repair: "movedByBuild";
+                readonly moved: string;
+                readonly grown: readonly string[];
+                readonly shifted: readonly string[];
+            }
           | { readonly repair: "notRepaired" }
       ))
     | {

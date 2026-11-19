@@ -46,20 +46,27 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
 - *The build stacks a lane drawn apart from its pool's lanes below them.* The layout-side rule
   draws a pool and its lanes from one side ([merge](merge.md#decisions-and-reference-rules)), so
   only a lane that side does not draw in place, such as one only the other side has, comes from
-  the other side and may lie on the block. Each such lane the detector names in an overlap
-  moves first, in the result's order, at its own height below its siblings, as wide as they
-  are; the pool and its parent lanes grow to hold it, and what lies below the band on the
-  plane shifts down, the flows to it stretching, as the modeler's space tool does. Its members
-  stay where they lie, so the container step brings them into the band, following the side
-  that drew them in the lane. The note says the build moved the lane below the others and grew
-  the pool; a lane overlap left says the build could not repair it. Rejected: moving member
+  the other side and may lie on the block or outside its pool. Each such lane that lies on a
+  sibling or outside its parent lane or pool moves first, in the result's order, at its own
+  height below its siblings, as wide as they are, its child lanes with it; the pool and its
+  parent lanes grow to hold it, and what lies below the band on the plane shifts down, the
+  flows to it stretching, as the modeler's space tool does, while another pool across the band
+  keeps its place and contents. Its members stay where they lie, so the container step brings
+  them into the band, following the side that drew them in the lane. The step needs no guard
+  of its own: it only opens a band, the spots it could make involve the members it leaves for
+  the container step, which guards each move, and the notes are read after it, so any spot left
+  is named. The note names the lane, the pool and parent lanes it grew and the shapes it
+  shifted; a lane overlap left says the build could not repair it. Rejected: moving member
   shapes between overlapping bands, which rewrites what each band holds and moves shapes
   neither side moved (about two more days, decided against on #2565); each lane from its own
-  side, which overlapped 28 times on the harvest of 507 results. Cost: the pool grows taller
-  than either side drew it; a boundary event in another lane than its host lay in both while
-  they overlapped and is now noted outside its lane; lanes of a process no pool of the result
-  draws are not stacked; a result with no lane overlap stays byte-equal to the build without
-  this step (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
+  side, which overlapped 28 times on the harvest of 507 results; stacking only a lane the
+  detector names in an overlap, which left a lane the other side added below its pool outside
+  the pool, unnamed. Cost: the pool grows taller than either side drew it; the band has its
+  own shift and stretch rules beside making room's until one space tool serves both (#2592);
+  a boundary event in another lane than its host lay in both while they overlapped and is now
+  noted outside its lane; lanes of a process no pool of the result draws are not stacked; on
+  the harvest, a result with no lane overlap stays byte-equal to the build without this step
+  (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
   within a fraction of parsing an 800 KB file (`layoutFlowRepairTime.spec.ts`).
 - *The build brings a shape it placed outside its container back inside, and grows the
   container only as a last resort.* Once the lanes are stacked and before any other move, each

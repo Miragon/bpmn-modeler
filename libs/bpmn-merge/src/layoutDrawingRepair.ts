@@ -15,11 +15,7 @@ import type { LayoutSpot } from "./layoutSpots";
 
 /** How the build repairs the drawing the merge broke; the specs build with less to compare. */
 export interface LayoutRepairPlanners {
-    readonly stackLanes: (
-        layout: LayoutModel,
-        spots: readonly LayoutSpot[],
-        appendedLanes: readonly string[],
-    ) => LaneStackPlan;
+    readonly stackLanes: (layout: LayoutModel, appendedLanes: readonly string[]) => LaneStackPlan;
     readonly moveIntoContainers: (
         layout: LayoutModel,
         spots: readonly LayoutSpot[],
@@ -49,7 +45,7 @@ export interface LayoutRepairPlan {
 
 /**
  * Finds the broken spots of the drawing that neither side drew, stacks the
- * appended lanes that lie on their pool's lanes below them, brings the
+ * appended lanes their pool's lanes do not hold below them, brings the
  * shapes the build placed outside their containers back inside, moves the
  * shapes it placed on another, then re-routes the flows still or newly
  * broken after that.
@@ -61,7 +57,7 @@ export function planLayoutRepair(
     appendedLanes: readonly string[],
 ): LayoutRepairPlan {
     const assembledSpots = introducedLayoutSpots(layout, sideLayouts);
-    const laneStacks = planners.stackLanes(layout, assembledSpots, appendedLanes);
+    const laneStacks = planners.stackLanes(layout, appendedLanes);
     const stacked = laneStacks.layout;
     const spots = stacked === layout ? assembledSpots : introducedLayoutSpots(stacked, sideLayouts);
     const containerMoves = planners.moveIntoContainers(stacked, spots, sideLayouts);

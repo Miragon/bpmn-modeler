@@ -276,9 +276,33 @@ describe("the layout repair on harvested merges", () => {
                     spot.kind === "shapeOutsideContainer" ? [spot.shape] : [],
                 ),
             ).toEqual(leftOutside);
+            for (const spot of after.filter((spot) => liesOutsideALane(spot, repairedLayout))) {
+                expect(namesLaneMember(repaired.notes, spot), JSON.stringify(spot)).toBe(true);
+            }
         },
     );
 });
+
+/** A lane member drawn outside its lane's band. */
+function liesOutsideALane(spot: LayoutSpot, layout: LayoutModel): boolean {
+    return (
+        spot.kind === "shapeOutsideContainer" && layout.shapes.get(spot.container)?.kind === "lane"
+    );
+}
+
+/** Whether a note names the member and its lane as left outside. */
+function namesLaneMember(notes: readonly BuildNote[], spot: LayoutSpot): boolean {
+    return (
+        spot.kind === "shapeOutsideContainer" &&
+        notes.some(
+            (note) =>
+                note.kind === "shapeOutsideContainer" &&
+                note.id === spot.shape &&
+                note.shapes.includes(spot.container) &&
+                note.repair === "notRepaired",
+        )
+    );
+}
 
 function repairsOf(unrepaired: string, flowsRepaired: string, repaired: string): Repairs {
     if (repaired === unrepaired) return "none";

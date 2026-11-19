@@ -49,9 +49,10 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
             ids: ["Lane_2", "Lane_1"],
             repair: "movedByBuild",
             moved: "Lane_2",
-            pool: "Pool_1",
+            grown: ["Pool_1", "Lane_0"],
+            shifted: ["Pool_2"],
         },
-        ["Lane_2", "Lane_1", "Pool_1"],
+        ["Lane_2", "Lane_1", "Pool_1", "Lane_0", "Pool_2"],
     ],
     restoredWithoutRemovedWith: [
         { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1", "Flow_2"] },

@@ -52,8 +52,9 @@ export function laneBlocksOf(
     return [...lanesByPool].map(([pool, lanes]) => {
         const poolElement = elementsById.get(pool);
         const members = poolElement === undefined ? lanes : [poolElement, ...lanes];
-        const preferred =
-            preferredLayoutSideOf(combinedLayoutOf(members.map(({ layout }) => layout)));
+        const preferred = preferredLayoutSideOf(
+            combinedLayoutOf(members.map(({ layout }) => layout)),
+        );
         const leavesOut = (side: MergeSide) => leftOut[side].has(processOf.get(pool) ?? "");
         const side =
             leavesOut(preferred) && !leavesOut(otherSide(preferred))

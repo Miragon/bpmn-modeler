@@ -489,7 +489,8 @@ describe("lane stacking time", () => {
                     ids: ["Lane_C", "Lane_B"],
                     repair: "movedByBuild",
                     moved: "Lane_C",
-                    pool: "Pool_A",
+                    grown: ["Pool_A"],
+                    shifted: [],
                 },
             ]);
             expect(

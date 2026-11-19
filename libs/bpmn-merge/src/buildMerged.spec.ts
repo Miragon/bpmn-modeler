@@ -106,7 +106,7 @@ function redrawnByTheBuild(notes: readonly BuildNote[]): ReadonlySet<string> {
             if (!("repair" in note) || note.repair === "notRepaired") return [];
             switch (note.kind) {
                 case "lanesOverlap":
-                    return [note.moved, note.pool];
+                    return [note.moved, ...note.grown, ...note.shifted];
                 case "shapesOverlap":
                     return note.repair === "madeRoom"
                         ? [note.moved, ...note.shifted]

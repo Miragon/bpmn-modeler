@@ -387,10 +387,17 @@ describe("layoutSpotNotes", () => {
         ]);
     });
 
-    it("says the build moved a lane below its pool's lanes and grew the pool, before the spots it left", () => {
+    it("says the build moved a lane below its pool's lanes, grew the pool and shifted what lay below, before the spots it left", () => {
         const notes = layoutSpotNotes({
             ...NO_FRAME_REPAIRS,
-            laneStackings: [{ lane: "Lane_C", pool: "Pool_1", overlapped: ["Lane_A", "Lane_B"] }],
+            laneStackings: [
+                {
+                    lane: "Lane_C",
+                    grown: ["Pool_1"],
+                    overlapped: ["Lane_A", "Lane_B"],
+                    shifted: ["Pool_2"],
+                },
+            ],
             spots: [{ kind: "lanesOverlap", lanes: ["Lane_D", "Lane_E"] }],
             spotsAfterMoves: [{ kind: "lanesOverlap", lanes: ["Lane_D", "Lane_E"] }],
             overlapRepairs: [],
@@ -403,7 +410,8 @@ describe("layoutSpotNotes", () => {
                 ids: ["Lane_C", "Lane_A", "Lane_B"],
                 repair: "movedByBuild",
                 moved: "Lane_C",
-                pool: "Pool_1",
+                grown: ["Pool_1"],
+                shifted: ["Pool_2"],
             },
             { kind: "lanesOverlap", ids: ["Lane_D", "Lane_E"], repair: "notRepaired" },
         ]);

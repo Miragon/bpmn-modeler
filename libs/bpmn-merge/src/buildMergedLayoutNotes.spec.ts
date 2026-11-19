@@ -14,7 +14,7 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
-import { centerOf } from "./layoutGeometry";
+import { bottomOf, centerOf, liesWithin } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
 import { distanceToPolyline } from "./layoutPolyline";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
@@ -58,18 +58,38 @@ async function spotsLeftIn(xml: string, versions: MergeVersions): Promise<Layout
     return introducedLayoutSpots(await layoutOfXml(xml), sides);
 }
 
-/** Whether a note still names the spot: a flow or an overlap only as one the build could not repair. */
+/** Whether a note still names the spot by its ids, as one the build could not repair. */
 function namedByNote(spot: LayoutSpot, notes: readonly BuildNote[]): boolean {
-    const leftAsIs = (note: BuildNote) => "repair" in note && note.repair === "notRepaired";
     return notes.some((note) => {
         if (note.kind !== spot.kind) return false;
-        if (spot.kind === "flowEndOffShape" || spot.kind === "flowThroughShape") {
-            return "id" in note && note.id === spot.flow && leftAsIs(note);
+        switch (note.kind) {
+            case "flowEndOffShape":
+            case "flowThroughShape":
+                return "flow" in spot && note.id === spot.flow && note.repair === "notRepaired";
+            case "shapesOverlap":
+                return (
+                    spot.kind === "shapesOverlap" &&
+                    sameIds(note.ids, spot.shapes) &&
+                    note.repair === "notRepaired"
+                );
+            case "shapeOutsideContainer":
+                return (
+                    spot.kind === "shapeOutsideContainer" &&
+                    note.id === spot.shape &&
+                    note.shapes.includes(spot.container) &&
+                    note.repair === "notRepaired"
+                );
+            case "boundaryEventOffHost":
+                return spot.kind === "boundaryEventOffHost" && note.id === spot.boundaryEvent;
+            case "lanesOverlap":
+                return (
+                    spot.kind === "lanesOverlap" &&
+                    sameIds(note.ids, spot.lanes) &&
+                    note.repair === "notRepaired"
+                );
+            default:
+                return false;
         }
-        if (spot.kind === "shapesOverlap") {
-            return "ids" in note && sameIds(note.ids, spot.shapes) && leftAsIs(note);
-        }
-        return true;
     });
 }
 
@@ -347,7 +367,8 @@ describe("buildMerged's layout notes", () => {
                     ids: ["Lane_Back", "Lane_Sales"],
                     repair: "movedByBuild",
                     moved: "Lane_Back",
-                    pool: "Participant_Order",
+                    grown: ["Participant_Order"],
+                    shifted: [],
                 },
             ],
         },
@@ -482,6 +503,69 @@ describe("buildMerged's layout notes", () => {
             );
             expect(notes.filter(({ kind }) => kind === "lanesOverlap")).toEqual([]);
         });
+
+        const addLaneBelow = (model: BpmnFixtureModel) => {
+            model.lanes.push({
+                id: "Lane_New",
+                name: "New",
+                x: 150,
+                y: 380,
+                width: 970,
+                height: 120,
+            });
+            model.pools[0]!.height = 440;
+            model.nodes.push({
+                id: "Task_N",
+                type: "task",
+                name: "New",
+                x: 300,
+                y: 400,
+                lane: "Lane_New",
+            });
+        };
+        const widenPool = (model: BpmnFixtureModel) => {
+            model.pools[0]!.width = 1200;
+            for (const lane of model.lanes) lane.width = 1170;
+        };
+
+        it.each([
+            { change: "moves a lane divider", edit: shrinkBackOffice, stackedAt: 340 },
+            { change: "widens the pool and its lanes", edit: widenPool, stackedAt: 380 },
+        ])(
+            "stacks a lane the other side adds at the bottom when this side $change, and names it",
+            async ({ edit, stackedAt }) => {
+                const versions = dockedVersions("c7", edit, addLaneBelow);
+
+                const { xml, notes } = await builtOf(versions);
+
+                const layout = await layoutOfXml(xml);
+                const [pool, back, added, task] = [
+                    "Participant_Order",
+                    "Lane_Back",
+                    "Lane_New",
+                    "Task_N",
+                ].map((id) => layout.shapes.get(id)!.bounds);
+                expect(added).toEqual({
+                    x: back!.x,
+                    y: stackedAt,
+                    width: back!.width,
+                    height: 120,
+                });
+                expect(bottomOf(pool!)).toBe(stackedAt + 120);
+                expect(liesWithin(task!, added!)).toBe(true);
+                expect(notes).toContainEqual({
+                    kind: "lanesOverlap",
+                    ids: ["Lane_New"],
+                    repair: "movedByBuild",
+                    moved: "Lane_New",
+                    grown: ["Participant_Order"],
+                    shifted: [],
+                });
+                for (const spot of await spotsLeftIn(xml, versions)) {
+                    expect(namedByNote(spot, notes), JSON.stringify(spot)).toBe(true);
+                }
+            },
+        );
 
         it.each(["current", "incoming"] as const)(
             "rule: lane, conflicts to %s: no lanes overlap and each lane holds its members, unless a note names one",

@@ -113,7 +113,8 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
         ids: ["a", "b"],
         repair: "movedByBuild",
         moved: "a",
-        pool: "c",
+        grown: ["c"],
+        shifted: [],
     },
     restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
@@ -389,6 +390,9 @@ function mergeTextKeys(): Set<string> {
                 nameOf,
                 translate,
             );
+            if (note.repair === "movedByBuild") {
+                buildNoteText({ ...note, shifted: ["d"] }, nameOf, translate);
+            }
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
