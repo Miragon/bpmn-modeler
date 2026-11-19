@@ -147,60 +147,30 @@ const BOTH_INSERTED = {
         "c8",
         (model) => {
             dragNodes(model, ["Task_C", "End_Done"], 150);
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_X", 530, 100, "Lane_Sales"),
-                "Flow_X",
-            );
+            insertIntoFlow(model, "Flow_Yes", task("Task_X", 530, 100, "Lane_Sales"), "Flow_X");
         },
         (model) => {
             dragNodes(model, ["Task_C", "End_Done"], 150);
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_Y", 530, 100, "Lane_Sales"),
-                "Flow_Y",
-            );
+            insertIntoFlow(model, "Flow_Yes", task("Task_Y", 530, 100, "Lane_Sales"), "Flow_Y");
         },
     ),
     DIFFERENT_ROOM: dockedVersions(
         "c7",
         (model) => {
             dragNodes(model, ["Task_C", "End_Done"], 140);
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_X", 520, 100, "Lane_Sales"),
-                "Flow_X",
-            );
+            insertIntoFlow(model, "Flow_Yes", task("Task_X", 520, 100, "Lane_Sales"), "Flow_X");
         },
         (model) => {
             dragNodes(model, ["Task_C", "End_Done"], 170);
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_Y", 540, 100, "Lane_Sales"),
-                "Flow_Y",
-            );
+            insertIntoFlow(model, "Flow_Yes", task("Task_Y", 540, 100, "Lane_Sales"), "Flow_Y");
         },
     ),
     NO_ROOM: dockedVersions(
         "c8",
         (model) =>
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_X", 470, 100, "Lane_Sales"),
-                "Flow_X",
-            ),
+            insertIntoFlow(model, "Flow_Yes", task("Task_X", 470, 100, "Lane_Sales"), "Flow_X"),
         (model) =>
-            insertIntoFlow(
-                model,
-                "Flow_Yes",
-                task("Task_Y", 480, 100, "Lane_Sales"),
-                "Flow_Y",
-            ),
+            insertIntoFlow(model, "Flow_Yes", task("Task_Y", 480, 100, "Lane_Sales"), "Flow_Y"),
     ),
 };
 
@@ -480,7 +450,9 @@ describe("buildMerged's layout notes", () => {
                     expect(segmentEntersBounds(from, to, clear), edge.id).toBe(false);
                 }
                 if (edge.label !== undefined) {
-                    expect(keepsClearOf(movedTask!, edge.label, SHAPE_CLEARANCE), edge.id).toBe(true);
+                    expect(keepsClearOf(movedTask!, edge.label, SHAPE_CLEARANCE), edge.id).toBe(
+                        true,
+                    );
                 }
             }
         },

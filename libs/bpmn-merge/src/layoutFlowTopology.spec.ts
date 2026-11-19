@@ -113,8 +113,7 @@ describe("FlowTopology", () => {
     });
 
     it("reads each connection's kind from the document", async () => {
-        const definitions = (await parseWithoutWarnings(renderBpmn(baseModel("c7"))))
-            .rootElement;
+        const definitions = (await parseWithoutWarnings(renderBpmn(baseModel("c7")))).rootElement;
 
         const kinds = [...layoutModelOf(definitions).edges.values()].map(({ id, kind }) => [
             id,

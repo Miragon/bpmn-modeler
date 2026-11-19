@@ -86,8 +86,10 @@ export function planShapeMoves(
             .map((node) => groups.of(draft, node));
         const pair = [first, second] as const;
         const placed = otherSidesPlace(draft, movable, sides);
-        const stacked = placed === undefined ? stackedBranch(draft, context, movable, pair) : undefined;
-        const move = placed ?? (stacked === undefined ? nearestFreePlace(draft, movable) : undefined);
+        const stacked =
+            placed === undefined ? stackedBranch(draft, context, movable, pair) : undefined;
+        const move =
+            placed ?? (stacked === undefined ? nearestFreePlace(draft, movable) : undefined);
         if (move !== undefined) {
             draft.translate(move.group, move.dx, move.dy);
             const repair = { kind: "movedByBuild", shapes, moved: move.group.node.id } as const;
@@ -143,7 +145,9 @@ function otherSidesPlace(
             const place = placeOf(side, group.node);
             if (place === undefined || sameBounds(place, group.node.bounds)) return [];
             const offset = offsetBetween(group.node.bounds, place);
-            return Placement.fitsAt(draft, group, offset, OFF_A_SHAPE) ? [{ group, ...offset }] : [];
+            return Placement.fitsAt(draft, group, offset, OFF_A_SHAPE)
+                ? [{ group, ...offset }]
+                : [];
         }),
     );
     return shortestOf(moves);

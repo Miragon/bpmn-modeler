@@ -299,8 +299,9 @@ function densePool(rows: number, dx: number): LayoutModel {
 }
 
 // Measured against parsing the 800 KB file once (42 ms), best of five each, as the build parses
-// a large result anyway: 1.6 to 2.0 for room made for five tasks among 1,000 (80 ms), as each
-// room is checked by finding the spots of the whole drawing once.
+// a large result anyway: 0.6 to 0.7 for room made for five tasks among 1,000 (28 ms), each task
+// keeping its place and pushing the rest of its row on, as each room is checked by finding the
+// spots of the whole drawing once.
 const MAX_ROOM_PER_PARSE = 10;
 
 describe("shape move time in a pool without a free place", () => {

@@ -147,10 +147,18 @@ export class RoomPush {
         if (lane === undefined && container === undefined) return true;
         const pool = container && this.trial.shapes.get(container.id)!;
         const lanes = this.lanesWith(pool, lane);
-        const before = boundsAround([...(pool ? [pool] : []), ...lanes].map(({ bounds }) => bounds));
+        const before = boundsAround(
+            [...(pool ? [pool] : []), ...lanes].map(({ bounds }) => bounds),
+        );
         const growth =
             this.axis === "y" && lane !== undefined
-                ? this.growLane(pool, this.trial.shapes.get(lane.id) as LaneShape, lanes, extent, units)
+                ? this.growLane(
+                      pool,
+                      this.trial.shapes.get(lane.id) as LaneShape,
+                      lanes,
+                      extent,
+                      units,
+                  )
                 : this.growFrame(pool ?? lane!, lanes, extent);
         if (growth <= 0) return true;
         return this.roomIn({
@@ -186,9 +194,7 @@ export class RoomPush {
         if (pool !== undefined) return lanesOf(this.trial, pool);
         return [...this.trial.shapes.values()].filter(
             (shape): shape is LaneShape =>
-                shape.kind === "lane" &&
-                shape.plane === lane?.plane &&
-                shape.pool === undefined,
+                shape.kind === "lane" && shape.plane === lane?.plane && shape.pool === undefined,
         );
     }
 
@@ -266,11 +272,19 @@ export class RoomPush {
             .map((node): Unit => {
                 const group = this.groups.of(trial, node);
                 const bounds = groupBoundsIn(trial, group);
-                return { id: node.id, bounds, lead: this.leadOf(node), nodes: group.members, frames: [] };
+                return {
+                    id: node.id,
+                    bounds,
+                    lead: this.leadOf(node),
+                    nodes: group.members,
+                    frames: [],
+                };
             });
         if (container !== undefined) return nodes;
         const pools = [...trial.shapes.values()]
-            .filter((shape) => shape.kind === "pool" && shape.plane === plane && !exclude.has(shape.id))
+            .filter(
+                (shape) => shape.kind === "pool" && shape.plane === plane && !exclude.has(shape.id),
+            )
             .map((pool): Unit => ({
                 id: pool.id,
                 bounds: pool.bounds,
@@ -349,7 +363,8 @@ export class RoomPush {
         }
         for (const other of lanes) {
             if (other.bounds.y >= line) this.moveShape(other, growth);
-            else if (bottomOf(other.bounds) >= line) this.trial.replaceShape(this.grown(other, growth));
+            else if (bottomOf(other.bounds) >= line)
+                this.trial.replaceShape(this.grown(other, growth));
         }
         if (pool !== undefined) this.trial.replaceShape(this.grown(pool, growth));
         return growth;
@@ -397,7 +412,9 @@ export class RoomPush {
         }
         if (edge.label === undefined) return { ...edge, waypoints };
         const nearest = nearestIndexTo(points, centerOf(edge.label));
-        const by = this.along(waypoints[Math.min(nearest, waypoints.length - 1)]!) - this.along(points[nearest]!);
+        const by =
+            this.along(waypoints[Math.min(nearest, waypoints.length - 1)]!) -
+            this.along(points[nearest]!);
         return { ...edge, waypoints, label: this.boundsShifted(edge.label, by) };
     }
 
@@ -451,7 +468,9 @@ export class RoomPush {
     }
 
     private pointMoved(point: Point, by: number): Point {
-        return this.axis === "x" ? { x: point.x + by, y: point.y } : { x: point.x, y: point.y + by };
+        return this.axis === "x"
+            ? { x: point.x + by, y: point.y }
+            : { x: point.x, y: point.y + by };
     }
 
     private boundsShifted(bounds: DiagramBounds, by: number): DiagramBounds {
@@ -483,7 +502,10 @@ function nearestIndexTo(points: readonly Point[], target: Point): number {
     let nearest = 0;
     points.forEach((point, at) => {
         const best = points[nearest]!;
-        if (Math.hypot(point.x - target.x, point.y - target.y) < Math.hypot(best.x - target.x, best.y - target.y)) {
+        if (
+            Math.hypot(point.x - target.x, point.y - target.y) <
+            Math.hypot(best.x - target.x, best.y - target.y)
+        ) {
             nearest = at;
         }
     });

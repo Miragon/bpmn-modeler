@@ -157,7 +157,11 @@ describe("planShapeMoves", () => {
 
         it("of a flow that is not the moved shape's own", () => {
             const other = flow("Flow_Other", "Task_A", "Task_B", [at(530, -100), at(530, 400)]);
-            const shapes = [...sideBySide, node("Task_A", box(480, -200)), node("Task_B", box(480, 420))];
+            const shapes = [
+                ...sideBySide,
+                node("Task_A", box(480, -200)),
+                node("Task_B", box(480, 420)),
+            ];
             const result = layoutOf(shapes, [other], frames);
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
@@ -170,7 +174,11 @@ describe("planShapeMoves", () => {
                 ...flow("Flow_Other", "Task_A", "Task_B", [at(560, 230), at(700, 230)]),
                 label: box(525, 120, 20, 14),
             };
-            const shapes = [...sideBySide, node("Task_A", box(460, 210, 100, 40)), node("Task_B", box(700, 210, 100, 40))];
+            const shapes = [
+                ...sideBySide,
+                node("Task_A", box(460, 210, 100, 40)),
+                node("Task_B", box(700, 210, 100, 40)),
+            ];
             const result = layoutOf(shapes, [labelled], [POOL, lane(70, 200)]);
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
@@ -283,7 +291,10 @@ describe("planShapeMoves", () => {
             );
 
         it("makes room beyond the other shape, shifts what it lands on, grows the pool and lane by their shortfall, and lists both", () => {
-            const result = layoutOf([...row, node("Task_Y", box(470, 90))], rowFlows, frames);
+            const labelled = rowFlows.map((edge) =>
+                edge.id === "Flow_3" ? { ...edge, label: box(572, 110, 10, 14) } : edge,
+            );
+            const result = layoutOf([...row, node("Task_Y", box(470, 90))], labelled, frames);
             const current = layoutOf(row, rowFlows, frames);
 
             const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
@@ -306,6 +317,7 @@ describe("planShapeMoves", () => {
                 at(560, 130),
                 at(760, 130),
             ]);
+            expect(plan.layout.edges.get("Flow_3")?.label).toEqual(box(752, 110, 10, 14));
             expect(plan.layout.edges.get("Flow_4")?.waypoints).toEqual([
                 at(860, 130),
                 at(880, 130),
@@ -432,7 +444,11 @@ describe("planShapeMoves", () => {
 
             it("goes to the free place under the other shape without making room", () => {
                 const tall = [POOL, lane(70, 240)];
-                const result = layoutOf([...branches, node("Task_Y", box(510, 90))], intoJoin, tall);
+                const result = layoutOf(
+                    [...branches, node("Task_Y", box(510, 90))],
+                    intoJoin,
+                    tall,
+                );
                 const current = layoutOf(branches, intoJoin.slice(0, 1), tall);
 
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
@@ -561,8 +577,15 @@ describe("planShapeMoves", () => {
 
         it("shifts the pool beside it instead of growing the pool over it", () => {
             const beside: LayoutShape = { ...POOL, id: "Pool_2", bounds: box(1210, 0, 300, 300) };
-            const inBeside = node("Task_P", box(1300, 90), { pool: "Pool_2", lanes: [] });
-            const withBeside = [...frames, beside];
+            const inBeside = node("Task_P", box(1300, 90), { pool: "Pool_2", lanes: ["Lane_P"] });
+            const besideLane: LaneShape = {
+                ...lane(0, 300, 270),
+                id: "Lane_P",
+                parent: "Process_2",
+                pool: "Pool_2",
+                bounds: box(1240, 0, 270, 300),
+            };
+            const withBeside = [...frames, beside, besideLane];
             const result = layoutOf(
                 [...row, inBeside, node("Task_Y", box(470, 90))],
                 rowFlows,
@@ -584,6 +607,7 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1230, 300));
             expect(boundsIn(plan, "Pool_2")).toEqual(box(1240, 0, 300, 300));
             expect(boundsIn(plan, "Task_P")).toEqual(box(1330, 90));
+            expect(boundsIn(plan, "Lane_P")).toEqual(box(1270, 0, 270, 300));
         });
 
         it("keeps the gap from a shifted shape to the shape it flows into", () => {
@@ -627,8 +651,16 @@ describe("planShapeMoves", () => {
                 node("Task_A", box(130, 95), inSub),
                 node("Task_X", box(270, 95), inSub),
             ];
-            const flows = [flow("Flow_A", "Task_A", "Task_X", [at(230, 135), at(270, 135)])];
-            const shapes = [sub, first, prior, outside];
+            const timer = node("Timer_1", box(462, 176, 36, 36), {
+                host: "Sub_1",
+                outline: "circle",
+            });
+            const below = node("Task_Below", box(500, 215, 100, 40));
+            const flows = [
+                flow("Flow_A", "Task_A", "Task_X", [at(230, 135), at(270, 135)]),
+                flow("Flow_Down", "Task_K", "Task_Below", [at(550, 170), at(550, 215)]),
+            ];
+            const shapes = [sub, first, prior, outside, timer, below];
             const result = layoutOf(
                 [...shapes, node("Task_Y", box(280, 95), inSub)],
                 flows,
@@ -650,6 +682,14 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Task_Y")).toEqual(box(420, 95));
             expect(boundsIn(plan, "Sub_1")).toEqual(box(100, 75, 430, 120));
             expect(boundsIn(plan, "Task_K")).toEqual(box(550, 90));
+            expect(boundsIn(plan, "Timer_1")).toEqual(box(512, 176, 36, 36));
+            expect(boundsIn(plan, "Task_Below")).toEqual(below.bounds);
+            expect(plan.layout.edges.get("Flow_Down")?.waypoints).toEqual([
+                at(600, 170),
+                at(600, 192.5),
+                at(550, 192.5),
+                at(550, 215),
+            ]);
             expect(plan.layout.shapes.get("Pool_1")).toBe(POOL);
         });
 
