@@ -54,11 +54,6 @@ export function actedOnPad(elementId: string, decision: MergePickDecision): Merg
     return acted(elementId, decision, "canvas");
 }
 
-/** The decision a menu row sends for its shape-less element, which the row says it did. */
-export function actedInMenu(elementId: string, decision: MergePickDecision): MergeActedDecision {
-    return acted(elementId, decision, "menu");
-}
-
 /** What a pad entry sends for `elementId`: its decision, or the request to merge the XML. */
 export function requestOnPad(elementId: string, decision: MergePadDecision): MergePaneRequest {
     return request(elementId, decision, "canvas");

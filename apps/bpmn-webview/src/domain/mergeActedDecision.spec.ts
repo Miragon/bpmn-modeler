@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 
 import {
-    actedInMenu,
     actedOnPad,
     editAgainRequest,
     keepRemovedWithDecision,
@@ -73,14 +72,14 @@ describe("actedOnPad", () => {
     });
 });
 
-describe("actedInMenu", () => {
+describe("requestInMenu", () => {
     it.each<MergePickDecision>([
         { kind: "keep", scope: "element", side: "current" },
         { kind: "leaveOut", side: "incoming", otherSideLacks: "removed" },
         { kind: "keepRemovedWith", side: "incoming", offer: OFFER },
         { kind: "undo", scope: "element" },
     ])("remembers a row's %o as the pad's, decided in the menu", (decision) => {
-        expect(actedInMenu("Message_1", decision)).toStrictEqual({
+        expect(requestInMenu("Message_1", decision)).toStrictEqual({
             ...actedOnPad("Message_1", decision),
             origin: "menu",
         });
@@ -178,7 +177,13 @@ describe("merging an element's XML by hand", () => {
         const keep: MergePadDecision = { kind: "keep", scope: "element", side: "current" };
 
         expect(requestOnPad("Task_1", keep)).toStrictEqual(actedOnPad("Task_1", keep));
-        expect(requestInMenu("Task_1", keep)).toStrictEqual(actedInMenu("Task_1", keep));
+        expect(requestInMenu("Task_1", keep)).toStrictEqual({
+            kind: "keep",
+            elementId: "Task_1",
+            scope: "element",
+            side: "current",
+            origin: "menu",
+        });
     });
 
     it.each<[MergeActedDecision, MergeDecisionCommand]>([
