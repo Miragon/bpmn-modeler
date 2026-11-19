@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { mergeElement } from "./__fixtures__/mergeResultBuilder";
-import { hasNoShape } from "./mergeElementShape";
+import { hasNoShape, onOnePlane } from "./mergeElementShape";
 import type { MergeElement } from "./mergeResult";
 
 describe("hasNoShape", () => {
@@ -50,5 +50,34 @@ describe("hasNoShape", () => {
         ],
     ])("%s → %s", (_name, element, expected) => {
         expect(hasNoShape(element)).toBe(expected);
+    });
+});
+
+describe("onOnePlane", () => {
+    const typesInResult: Record<string, string> = {
+        Collaboration_1: "bpmn:Collaboration",
+        Process_1: "bpmn:Process",
+        Sub_1: "bpmn:SubProcess",
+        Sub_2: "bpmn:SubProcess",
+    };
+    const typeInResult = (id: string): string | undefined => typesInResult[id];
+
+    it.each([
+        ["the same root plane", "Process_1", "Process_1", true],
+        ["a collaboration's and a process's root plane", "Collaboration_1", "Process_1", true],
+        [
+            "a process's root plane and a collaboration the result drops",
+            "Process_1",
+            "Collab_X",
+            false,
+        ],
+        ["the same sub-process plane", "Sub_1", "Sub_1", true],
+        ["two sub-process planes", "Sub_1", "Sub_2", false],
+        ["a root plane and a sub-process plane", "Process_1", "Sub_1", false],
+        ["a plane and none", "Process_1", undefined, false],
+        ["no plane on either side", undefined, undefined, true],
+    ])("%s → %s", (_name, first, second, expected) => {
+        expect(onOnePlane(first, second, typeInResult)).toBe(expected);
+        expect(onOnePlane(second, first, typeInResult)).toBe(expected);
     });
 });

@@ -25,5 +25,24 @@ export function subProcessPlaneOf(
     )?.plane;
     if (plane === undefined) return undefined;
     const ownerType = typeOf(plane);
-    return ownerType === undefined || PLANE_OWNER_TYPES.has(ownerType) ? undefined : plane;
+    return ownerType === undefined || ownsRootPlane(ownerType) ? undefined : plane;
+}
+
+/**
+ * Whether two sides draw an element on one plane of the result: the same
+ * plane, or two root planes the result keeps, which one side names after its
+ * collaboration and the other after its process when only one wraps the
+ * process in a pool. `typeInResult` knows no element the result drops.
+ */
+export function onOnePlane(
+    first: string | undefined,
+    second: string | undefined,
+    typeInResult: (id: string) => string | undefined,
+): boolean {
+    if (first === undefined || second === undefined || first === second) return first === second;
+    return ownsRootPlane(typeInResult(first)) && ownsRootPlane(typeInResult(second));
+}
+
+function ownsRootPlane(type: string | undefined): boolean {
+    return type !== undefined && PLANE_OWNER_TYPES.has(type);
 }

@@ -183,7 +183,8 @@ parser and asserts that the module still loads.
   draw in place is stacked below the others unless they already hold it
   ([merge layout](merge-layout.md)). Containers
   settle first: an element follows its host, parent, pool or lane when that side moved the
-  container, or when its own side draws it on another plane (a collapsed sub-process), and a
+  container, or when its own side draws it on another plane (a collapsed sub-process, or the
+  root plane of a collaboration the result drops; two root planes it keeps are one), and a
   flow follows its ends when one of them had to. Cost: a lane only the other side resized
   takes the block side's band, so a member that side moved may lie outside it until the build
   brings it in.

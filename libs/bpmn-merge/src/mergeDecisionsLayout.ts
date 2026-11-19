@@ -10,6 +10,7 @@ import {
     sameLanes,
 } from "./mergeResult";
 import { laneBlocksOf } from "./mergeDecisionsLaneBlocks";
+import { onOnePlane } from "./mergeElementShape";
 import { isEdgeEnd, isHostReference, isProcessReference } from "./referenceRules";
 
 /** References whose targets fix where an element is drawn: an edge's ends, a boundary event's host. */
@@ -114,6 +115,8 @@ function settleContainersFirst(
 ): ReadonlyMap<string, MergeSide> {
     const settled = new Map<string, MergeSide>();
     const visiting = new Set<string>();
+    const typeInResult = (id: string) =>
+        sideInResult(id) === undefined ? undefined : elementsById.get(id)?.type;
 
     const settle = (id: string): MergeSide | undefined => {
         const known = settled.get(id);
@@ -141,6 +144,7 @@ function settleContainersFirst(
                 followsContainer(
                     { element, side, contentVersion },
                     { container, side: containerSide, kind },
+                    typeInResult,
                 )
             ) {
                 side = containerSide;
@@ -161,7 +165,8 @@ function settleContainersFirst(
 /**
  * Any move of a host counts. A parent, pool or lane moved by one side moved its contents with it there, which then
  * changed on both sides; a container the other side only resized leaves a child's own move alone. A parent whose side
- * draws the child on another plane, as a collapsed sub-process does, always counts.
+ * draws the child on another plane, as a collapsed sub-process or a pool the result drops does, always counts; two
+ * root planes the result keeps are one plane.
  */
 function followsContainer(
     drawn: {
@@ -174,13 +179,17 @@ function followsContainer(
         readonly side: MergeSide;
         readonly kind: ContainerKind;
     },
+    typeInResult: (id: string) => string | undefined,
 ): boolean {
     const { element, side, contentVersion } = drawn;
     const containerSideVersion = element.versions[by.side];
     if (!drawsInPlace(containerSideVersion, contentVersion)) {
         return false;
     }
-    if (by.kind === "parent" && element.versions[side]?.plane !== containerSideVersion?.plane) {
+    if (
+        by.kind === "parent" &&
+        !onOnePlane(element.versions[side]?.plane, containerSideVersion?.plane, typeInResult)
+    ) {
         return true;
     }
     const containerMoved = by.container.layout !== "unchanged";
