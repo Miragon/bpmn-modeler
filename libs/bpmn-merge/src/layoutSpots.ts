@@ -5,7 +5,6 @@ import {
     outlineMissOf,
     overlapsBeyondTolerance,
     pointBounds,
-    segmentEntersShape,
 } from "./layoutGeometry";
 import {
     FLOW_ENDS,
@@ -21,6 +20,7 @@ import {
     framesOf,
     nodeShapeIn,
 } from "./layoutModel";
+import { segmentEntersShape } from "./layoutSegments";
 
 /** A broken spot in a drawing, by the ids it concerns; two-shape spots list their shapes in document order. */
 export type LayoutSpot =

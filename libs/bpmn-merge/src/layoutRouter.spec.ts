@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    type DiagramBounds,
-    type Outline,
-    outlineMissOf,
-    segmentEntersBounds,
-} from "./layoutGeometry";
+import { type DiagramBounds, type Outline, outlineMissOf } from "./layoutGeometry";
 import { segmentsOf } from "./layoutPolyline";
 import { type RouteEnd, routeOrthogonal } from "./layoutRouter";
+import { segmentEntersBounds } from "./layoutSegments";
 
 const task = (x: number, y: number): RouteEnd => ({
     bounds: { x, y, width: 100, height: 80 },

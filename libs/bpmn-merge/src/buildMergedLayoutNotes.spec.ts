@@ -14,17 +14,11 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
-import {
-    bottomOf,
-    centerOf,
-    inflated,
-    keepsClearOf,
-    liesWithin,
-    segmentEntersBounds,
-} from "./layoutGeometry";
+import { bottomOf, centerOf, inflated, keepsClearOf, liesWithin } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
 import { distanceToPolyline, segmentsOf } from "./layoutPolyline";
 import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
+import { segmentEntersBounds } from "./layoutSegments";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 import type { LayoutSpot } from "./layoutSpots";
