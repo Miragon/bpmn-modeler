@@ -2,12 +2,11 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     type BlockedPick,
-    describeHandMergeRefusal,
     type HandMergeRefusal,
     type PickOutcome,
     type RequirementObstacle,
 } from "@miragon/bpmn-modeler-merge";
-import type { MergePaneBlock, MergePaneHandMergeRefusalKind } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneBlock, MergePaneHandMergeRefusal } from "@miragon/bpmn-modeler-shared";
 
 import { handMergeFeedback, idsNamedInWords, mergePickFeedback } from "./mergePickFeedback";
 
@@ -178,8 +177,8 @@ describe("mergePickFeedback", () => {
 });
 
 describe("handMergeFeedback", () => {
-    it("pins the refusal kinds of the protocol to the merge's", () => {
-        expectTypeOf<MergePaneHandMergeRefusalKind>().toEqualTypeOf<HandMergeRefusal["kind"]>();
+    it("pins the refusals of the protocol to the merge's, data and all", () => {
+        expectTypeOf<MergePaneHandMergeRefusal>().toEqualTypeOf<HandMergeRefusal>();
     });
 
     it("shows an accepted text as an applied merge by hand that changed no other decision", () => {
@@ -199,16 +198,38 @@ describe("handMergeFeedback", () => {
         ["markers left", { kind: "conflictMarkersLeft" }],
         ["a changed type", { kind: "typeChanged", expected: "bpmn:Task", found: "bpmn:UserTask" }],
         ["a missing element", { kind: "namesMissingElement", ids: ["Message_9"] }],
-    ])("shows a refused text with %s by its kind and the merge's detail", (_case, refusal) => {
+    ])("shows a refused text with %s as the refusal's data, which the pane words", (_case, refusal) => {
         expect(handMergeFeedback("Task_Pack", { applied: false, refusal })).toStrictEqual({
             outcome: {
                 applied: false,
                 action: "mergeByHand",
                 elementId: "Task_Pack",
                 blockedBy: [],
-                handMergeRefusal: { kind: refusal.kind, detail: describeHandMergeRefusal(refusal) },
+                handMergeRefusal: refusal,
             },
         });
+    });
+
+    it.each<[string, HandMergeRefusal, readonly string[]]>([
+        ["its own elements", { kind: "holdsElementsOfTheirOwn", ids: ["Task_In"] }, ["Task_In"]],
+        [
+            "references of the wrong type",
+            {
+                kind: "namesWrongType",
+                references: [
+                    { property: "bpmn:messageRef", target: "Signal_1", expected: "bpmn:Message" },
+                ],
+            },
+            ["Signal_1"],
+        ],
+        ["missing elements", { kind: "namesMissingElement", ids: ["Message_9"] }, ["Message_9"]],
+        ["left-out elements", { kind: "namesLeftOutElement", ids: ["Flow_3"] }, ["Flow_3"]],
+        ["other decisions", { kind: "changesOtherDecisions", ids: ["Task_B"] }, ["Task_B"]],
+        ["no element", { kind: "conflictMarkersLeft" }, []],
+    ])("names the elements a refusal for %s names", (_case, refusal, ids) => {
+        const { outcome } = handMergeFeedback("Task_Pack", { applied: false, refusal });
+
+        expect(idsNamedInWords([], outcome)).toStrictEqual(new Set(["Task_Pack", ...ids]));
     });
 
     it("shows a merge closed without saving as discarded", () => {

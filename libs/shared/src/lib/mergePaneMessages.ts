@@ -163,29 +163,35 @@ export type MergePanePickAction = "pick" | "leaveOut" | "unpick";
 /** What the user did: a decision on a pane, or a picked element's XML merged by hand. */
 export type MergePaneAction = MergePanePickAction | "mergeByHand";
 
-/** Every kind of {@link MergePaneHandMergeRefusal}, as the merge names it. */
-export type MergePaneHandMergeRefusalKind =
-    | "conflictMarkersLeft"
-    | "unparsable"
-    | "notOneElement"
-    | "typeChanged"
-    | "idChanged"
-    | "holdsElementsOfTheirOwn"
-    | "beyondOwnAttributes"
-    | "namesWrongType"
-    | "unknownNamespace"
-    | "rejectedByEngine"
-    | "changesStructure"
-    | "namesMissingElement"
-    | "namesLeftOutElement"
-    | "changesOtherDecisions"
-    | "notHandMergeable";
-
-/** Why the merge did not take a hand-merged text: its kind, and the merge's English detail. */
-export interface MergePaneHandMergeRefusal {
-    readonly kind: MergePaneHandMergeRefusalKind;
-    readonly detail: string;
+/** A reference whose target is not of the type its property takes. */
+export interface MergePaneWrongTypeReference {
+    /** Qualified, for example `bpmn:messageRef`. */
+    readonly property: string;
+    readonly target: string;
+    readonly expected: string;
 }
+
+/** Why the merge did not take a hand-merged text, as the merge's `HandMergeRefusal` holds it; the pane words it. */
+export type MergePaneHandMergeRefusal =
+    | { readonly kind: "conflictMarkersLeft" }
+    | { readonly kind: "unparsable"; readonly detail: string }
+    | { readonly kind: "notOneElement"; readonly found: number }
+    | { readonly kind: "typeChanged"; readonly expected: string; readonly found: string }
+    | { readonly kind: "idChanged"; readonly expected: string; readonly found?: string }
+    /** Each by its id, or by its type when it has none. */
+    | { readonly kind: "holdsElementsOfTheirOwn"; readonly ids: readonly string[] }
+    | { readonly kind: "beyondOwnAttributes"; readonly properties: readonly string[] }
+    | {
+          readonly kind: "namesWrongType";
+          readonly references: readonly MergePaneWrongTypeReference[];
+      }
+    | { readonly kind: "unknownNamespace"; readonly namespaces: readonly string[] }
+    | { readonly kind: "rejectedByEngine"; readonly detail: string }
+    | { readonly kind: "changesStructure"; readonly properties: readonly string[] }
+    | { readonly kind: "namesMissingElement"; readonly ids: readonly string[] }
+    | { readonly kind: "namesLeftOutElement"; readonly ids: readonly string[] }
+    | { readonly kind: "changesOtherDecisions"; readonly ids: readonly string[] }
+    | { readonly kind: "notHandMergeable" };
 
 /** What the user's last pick or undo did, on both panes of the merge view. */
 export type MergePaneOutcome =

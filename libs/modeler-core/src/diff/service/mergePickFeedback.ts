@@ -1,12 +1,8 @@
-import {
-    type BlockedPick,
-    describeHandMergeRefusal,
-    type HandMergeOutcome,
-    type PickOutcome,
-} from "@miragon/bpmn-modeler-merge";
+import type { BlockedPick, HandMergeOutcome, PickOutcome } from "@miragon/bpmn-modeler-merge";
 import type {
     MergePaneAction,
     MergePaneBlock,
+    MergePaneHandMergeRefusal,
     MergePaneOutcome,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
@@ -81,14 +77,13 @@ export function handMergeFeedback(
         };
     }
     if (!finish.applied) {
-        const { refusal } = finish;
         return {
             outcome: {
                 applied: false,
                 action,
                 elementId,
                 blockedBy: [],
-                handMergeRefusal: { kind: refusal.kind, detail: describeHandMergeRefusal(refusal) },
+                handMergeRefusal: finish.refusal,
             },
         };
     }
@@ -117,7 +112,22 @@ export function idsNamedInWords(
         : [
               ...outcome.blockedBy.flatMap(({ elementId, targetId }) => [elementId, targetId]),
               ...(outcome.handMergesAtStake ?? []),
+              ...idsNamedByRefusal(outcome.handMergeRefusal),
           ];
     outcomeIds.forEach((id) => named.add(id));
     return named;
+}
+
+function idsNamedByRefusal(refusal: MergePaneHandMergeRefusal | undefined): readonly string[] {
+    switch (refusal?.kind) {
+        case "holdsElementsOfTheirOwn":
+        case "namesMissingElement":
+        case "namesLeftOutElement":
+        case "changesOtherDecisions":
+            return refusal.ids;
+        case "namesWrongType":
+            return refusal.references.map(({ target }) => target);
+        default:
+            return [];
+    }
 }

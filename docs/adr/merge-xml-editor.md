@@ -42,7 +42,10 @@ changed different parts to a whole pick.
   `ElementXmlMergeService` opens the render-only port `ElementXmlMergeEditor` only for an
   element the library's `handMergeableSide` names, takes a saved text through
   `acceptHandMerge` for the side the editor was opened for (so a pick changed meanwhile
-  is refused as `notHandMergeable`), and shows the answer on every tab of the view. It
+  is refused as `notHandMergeable`), and shows the answer on every tab of the view. A
+  refusal crosses the protocol as the library's data (`MergePaneHandMergeRefusal`, pinned
+  to `HandMergeRefusal`), never its English sentence, so the pane names the elements and
+  words it in the user's language. It
   closes its editors when the merge view ends and answers nothing for them. The editor
   reports a finish through a constructor callback, which the host routes through
   `BpmnDiffService` so the answer carries the panes' offers;
