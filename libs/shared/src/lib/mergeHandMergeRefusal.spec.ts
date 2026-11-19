@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { handMergeRefusalNamedIds, type MergePaneHandMergeRefusal } from "./mergePaneMessages";
+import { handMergeRefusalNamedIds } from "./mergeHandMergeRefusal";
+import type { MergePaneHandMergeRefusal } from "./mergePaneMessages";
 
 describe("handMergeRefusalNamedIds", () => {
     it.each<[MergePaneHandMergeRefusal, readonly string[]]>([
