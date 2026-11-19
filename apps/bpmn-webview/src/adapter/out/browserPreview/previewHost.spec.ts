@@ -152,6 +152,27 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     MergePaneCommandsChangedCommand: new MergePaneCommandsChangedCommand(["build"]),
 };
 
+const WEBVIEW_COMMANDS: readonly BpmnWebviewCommand[] = Object.values({
+    ...BPMN_EDITOR_COMMANDS,
+    ...DIFF_PANE_COMMANDS,
+});
+
+const ANSWERED_TYPES: ReadonlySet<string> = new Set([
+    "GetBpmnFileCommand",
+    "GetBpmnPluginsCommand",
+    "GetElementTemplatesCommand",
+    "GetBpmnModelerSettingCommand",
+    "GetPropertiesPanelStateCommand",
+    "RequestFocusCommand",
+    "GetClipboardCommand",
+    "GetTextClipboardCommand",
+    "GetBpmnlintConfigCommand",
+    "GetFormPreviewCommand",
+    "SearchWorkspaceDefinitionsCommand",
+    "DiffReadyCommand",
+    "OpenElementXmlMergeCommand",
+]);
+
 describe("PreviewHost", () => {
     let replies: Reply[];
     const collectReply = (event: MessageEvent<Reply>) => replies.push(event.data);
@@ -405,7 +426,7 @@ describe("PreviewHost", () => {
         });
     });
 
-    it.each<BpmnWebviewCommand>(Object.values({ ...BPMN_EDITOR_COMMANDS, ...DIFF_PANE_COMMANDS }))(
+    it.each<BpmnWebviewCommand>(WEBVIEW_COMMANDS)(
         "takes a $type from the webview without throwing",
         (command) => {
             vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -413,6 +434,37 @@ describe("PreviewHost", () => {
             const host = previewHost();
 
             expect(() => host.postMessage(command)).not.toThrow();
+        },
+    );
+
+    // A merge pane that offers Merge XML answers the most commands, so a reply any other mode sends shows here too.
+    it.each(WEBVIEW_COMMANDS.filter((command) => !ANSWERED_TYPES.has(command.type)))(
+        "sends nothing back for a $type",
+        (command) => {
+            vi.spyOn(console, "warn").mockImplementation(() => undefined);
+            vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+            previewHost("?mode=merge-incoming&mergeXml=accept").postMessage(command);
+
+            expect(replies).toEqual([]);
+        },
+    );
+
+    it("shows an info message in the console", () => {
+        const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new ShowInfoCommand("saved"));
+
+        expect(info).toHaveBeenCalledWith(expect.any(String), "saved");
+    });
+
+    it.each(["toString", "constructor", "hasOwnProperty"])(
+        "rejects a message whose type names the inherited %s",
+        (type) => {
+            const host = previewHost();
+
+            // @ts-expect-error No command has this type.
+            expect(() => host.postMessage({ type })).toThrow(`Unknown message type: ${type}`);
         },
     );
 
