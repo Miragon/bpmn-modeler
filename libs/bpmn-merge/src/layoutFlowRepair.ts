@@ -107,7 +107,8 @@ function repairOf(
     const hosts = hostsOfEnds(layout, ends);
     const fits = (points: readonly Point[] | undefined): points is Point[] =>
         points !== undefined && fitsItsShapes(layout, { ...edge, waypoints: points }, plane, hosts);
-    const kept = keptRoute(layout, edge, ends);
+    const ownBends = keptRoute(layout, edge, ends);
+    const kept = fits(ownBends) && isOrthogonal(ownBends) ? ownBends : undefined;
     for (const margin of OBSTACLE_WINDOW_MARGINS) {
         const window = inflated(
             boundsAround([source.bounds, target.bounds, polylineBounds(edge.waypoints)]),
@@ -120,10 +121,9 @@ function repairOf(
             obstacles: [...obstaclesNear(layout, edge, plane, window), ...hosts],
             otherSegments,
         });
-        const keptFits = fits(kept) && isOrthogonal(kept);
         const routedFits = fits(routed);
         const keepsOwnBends =
-            keptFits &&
+            kept !== undefined &&
             (!routedFits ||
                 routeCost(kept, otherSegments) <=
                     routeCost(routed, otherSegments) + KEPT_ROUTE_ALLOWANCE);
