@@ -1,3 +1,5 @@
+import type { FlowRepairKind } from "./layoutFlowRepair";
+import type { FlowSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
 import {
@@ -18,8 +20,15 @@ import {
 
 export type BuildNote =
     | {
-          /** A flow and the shapes it misses at its ends or runs through, or a shape and the containers it lies outside. */
-          readonly kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer";
+          /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
+          readonly kind: FlowSpot["kind"];
+          readonly id: string;
+          readonly shapes: readonly string[];
+          readonly repair: FlowRepairKind;
+      }
+    | {
+          /** A shape and the containers it lies outside. */
+          readonly kind: "shapeOutsideContainer";
           readonly id: string;
           readonly shapes: readonly string[];
       }

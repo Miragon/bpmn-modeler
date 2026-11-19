@@ -350,10 +350,16 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "結果と入力側の比較",
     "Result": "結果",
     "Review notes ({count})": "注意事項を確認 ({count})",
-    "{element} does not meet {shapes}": "{element} が {shapes} に接していません",
+    "The build moved {element} to meet {shapes}":
+        "生成時に {element} を {shapes} に接するよう移動しました",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "{element} が {shapes} に接していません。生成時に修正できませんでした",
     "{first} and {second} lie on top of each other":
         "{first} と {second} が重なって配置されています",
-    "{element} runs through {shapes}": "{element} が {shapes} を通過しています",
+    "The build moved {element} around {shapes}":
+        "生成時に {element} を {shapes} を避けるよう移動しました",
+    "{element} runs through {shapes}; the build could not repair it":
+        "{element} が {shapes} を通過しています。生成時に修正できませんでした",
     "{element} lies outside {shapes}": "{element} が {shapes} の外側にあります",
     "{element} is not on the border of {host}": "{element} が {host} の境界線上にありません",
     "{first} and {second} overlap": "{first} と {second} が重なっています",

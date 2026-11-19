@@ -7,12 +7,17 @@ import { buildNoteElementIds } from "./mergeBuildNotes";
 // A record, so the compiler names a note kind the merge adds and this spec misses.
 const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly string[]]> = {
     flowEndOffShape: [
-        { kind: "flowEndOffShape", id: "Flow_1", shapes: ["Task_A", "Task_B"] },
+        {
+            kind: "flowEndOffShape",
+            id: "Flow_1",
+            shapes: ["Task_A", "Task_B"],
+            repair: "movedByBuild",
+        },
         ["Flow_1", "Task_A", "Task_B"],
     ],
     shapesOverlap: [{ kind: "shapesOverlap", ids: ["Task_A", "Task_B"] }, ["Task_A", "Task_B"]],
     flowThroughShape: [
-        { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"] },
+        { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"], repair: "notRepaired" },
         ["Flow_1", "Task_C"],
     ],
     shapeOutsideContainer: [

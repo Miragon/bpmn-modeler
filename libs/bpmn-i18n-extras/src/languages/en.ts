@@ -343,10 +343,14 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Result against incoming",
     "Result": "Result",
     "Review notes ({count})": "Review notes ({count})",
-    "{element} does not meet {shapes}": "{element} does not meet {shapes}",
+    "The build moved {element} to meet {shapes}": "The build moved {element} to meet {shapes}",
+    "{element} does not meet {shapes}; the build could not repair it":
+        "{element} does not meet {shapes}; the build could not repair it",
     "{first} and {second} lie on top of each other":
         "{first} and {second} lie on top of each other",
-    "{element} runs through {shapes}": "{element} runs through {shapes}",
+    "The build moved {element} around {shapes}": "The build moved {element} around {shapes}",
+    "{element} runs through {shapes}; the build could not repair it":
+        "{element} runs through {shapes}; the build could not repair it",
     "{element} lies outside {shapes}": "{element} lies outside {shapes}",
     "{element} is not on the border of {host}": "{element} is not on the border of {host}",
     "{first} and {second} overlap": "{first} and {second} overlap",

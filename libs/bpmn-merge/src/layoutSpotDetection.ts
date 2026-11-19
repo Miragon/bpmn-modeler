@@ -1,5 +1,4 @@
 import { segmentBounds } from "./layoutGeometry";
-import { ShapeGrid } from "./layoutGrid";
 import {
     type LaneShape,
     type LayoutEdge,
@@ -7,6 +6,7 @@ import {
     type NodeShape,
     framesOf,
 } from "./layoutModel";
+import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
 import {
     type LayoutSpot,
     endsOffShape,
@@ -17,12 +17,6 @@ import {
     runsThrough,
     shapesOverlap,
 } from "./layoutSpots";
-
-/** The nodes drawn on one plane, in document order, with a grid over their bounds. */
-interface PlaneNodes {
-    readonly nodes: readonly NodeShape[];
-    readonly grid: ShapeGrid;
-}
 
 /** Every broken spot of the drawing, by kind, each kind in document order. */
 export function detectLayoutSpots(layout: LayoutModel): LayoutSpot[] {
@@ -70,22 +64,7 @@ export function introducedLayoutSpots(
     return detectLayoutSpots(result).filter((spot) => !sides.some((side) => hasSpot(side, spot)));
 }
 
-function planeNodesOf(nodes: readonly NodeShape[]): Map<string, PlaneNodes> {
-    const byPlane = new Map<string, NodeShape[]>();
-    for (const node of nodes) {
-        const onPlane = byPlane.get(node.plane);
-        if (onPlane === undefined) byPlane.set(node.plane, [node]);
-        else onPlane.push(node);
-    }
-    return new Map(
-        [...byPlane].map(([plane, onPlane]) => [
-            plane,
-            { nodes: onPlane, grid: new ShapeGrid(onPlane.map(({ bounds }) => bounds)) },
-        ]),
-    );
-}
-
-function overlapSpotsOn({ nodes, grid }: PlaneNodes): LayoutSpot[] {
+function overlapSpotsOn({ items: nodes, grid }: PlaneNodes): LayoutSpot[] {
     return nodes.flatMap((node, index) =>
         grid
             .indicesNear(node.bounds)
@@ -102,6 +81,19 @@ function throughSpotsOf(
     edge: LayoutEdge,
     plane: PlaneNodes | undefined,
 ): LayoutSpot[] {
+    return shapesRunThrough(layout, edge, plane).map((shape): LayoutSpot => ({
+        kind: "flowThroughShape",
+        flow: edge.id,
+        shape: shape.id,
+    }));
+}
+
+/** The nodes of the edge's plane it runs through, in document order. */
+export function shapesRunThrough(
+    layout: LayoutModel,
+    edge: LayoutEdge,
+    plane: PlaneNodes | undefined,
+): NodeShape[] {
     if (plane === undefined) return [];
     const candidates = new Set<number>();
     edge.waypoints.forEach((from, index) => {
@@ -111,9 +103,8 @@ function throughSpotsOf(
     });
     return [...candidates]
         .sort((first, second) => first - second)
-        .map((index) => plane.nodes[index]!)
-        .filter((shape) => runsThrough(layout, edge, shape))
-        .map((shape): LayoutSpot => ({ kind: "flowThroughShape", flow: edge.id, shape: shape.id }));
+        .map((index) => plane.items[index]!)
+        .filter((shape) => runsThrough(layout, edge, shape));
 }
 
 function laneOverlapSpots(lanes: readonly LaneShape[]): LayoutSpot[] {
