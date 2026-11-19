@@ -131,3 +131,60 @@ export function webviewImportBudget(options: { entry: string }): Plugin {
         },
     };
 }
+
+/** A chunk of a build's output: its file and how much code it renders of each module. */
+export interface RenderedChunk {
+    readonly fileName: string;
+    readonly modules: Readonly<Record<string, { readonly renderedLength: number }>>;
+}
+
+/** A fixture module a chunk renders code of. */
+export interface BundledFixture {
+    readonly chunk: string;
+    readonly fixture: string;
+}
+
+const UNDER_A_FIXTURES_FOLDER = /[\\/]__fixtures__[\\/]/;
+
+/** The modules under a `__fixtures__` folder whose code the chunks render. */
+export function bundledFixtures(chunks: readonly RenderedChunk[]): BundledFixture[] {
+    return chunks.flatMap((chunk) =>
+        Object.entries(chunk.modules)
+            .filter(
+                ([id, { renderedLength }]) =>
+                    renderedLength > 0 && UNDER_A_FIXTURES_FOLDER.test(id),
+            )
+            .map(([fixture]) => ({ chunk: chunk.fileName, fixture })),
+    );
+}
+
+/**
+ * Fails a production build that renders code of a `__fixtures__` module. The
+ * preview host is dead-code-eliminated, but a fixture's module-level value
+ * that Rollup cannot prove free of side effects stays in the bundle.
+ */
+export function noFixturesInProductionBundle(): Plugin {
+    let isProduction = false;
+    return {
+        name: "no-fixtures-in-production-bundle",
+        apply: "build",
+        configResolved(config) {
+            isProduction = config.isProduction;
+        },
+        generateBundle(_outputOptions, bundle) {
+            if (!isProduction) return;
+            const chunks = Object.values(bundle).flatMap((output) =>
+                output.type === "chunk" ? [output] : [],
+            );
+            const bundled = bundledFixtures(chunks);
+            if (bundled.length === 0) return;
+            const listed = bundled
+                .map(({ chunk, fixture }) => `${chunk} renders ${fixture}`)
+                .join("; ");
+            this.error(
+                `${listed}. Fixtures serve specs and the browser preview only: build a fixture's ` +
+                    `values inside a function rather than at module level, so tree-shaking drops them.`,
+            );
+        },
+    };
+}

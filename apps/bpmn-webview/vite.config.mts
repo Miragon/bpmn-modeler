@@ -3,7 +3,11 @@ import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
-import { modelerBundlePreset, webviewImportBudget } from "../../vite.shared";
+import {
+    modelerBundlePreset,
+    noFixturesInProductionBundle,
+    webviewImportBudget,
+} from "../../vite.shared";
 
 const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
 // Helpers of a few KB that every surface imports, which would each be a chunk of their own.
@@ -45,7 +49,12 @@ export default defineConfig({
     // import. Relative deps resolve against import.meta.url in every host.
     base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-    plugins: [tsconfigPaths(), lazySvgToImage(), webviewImportBudget({ entry: "index.js" })],
+    plugins: [
+        tsconfigPaths(),
+        lazySvgToImage(),
+        webviewImportBudget({ entry: "index.js" }),
+        noFixturesInProductionBundle(),
+    ],
     ...modelerBundlePreset,
     optimizeDeps: {
         include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],

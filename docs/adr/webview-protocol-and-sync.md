@@ -136,6 +136,13 @@ past the limit, and webviews closed one after another while they load can still 
 slots until VS Code frees them
 ([microsoft/vscode#349058](https://github.com/microsoft/vscode/issues/349058)).
 
+The production build drops the browser preview host, and `noFixturesInProductionBundle`
+(`vite.shared.ts`) fails it when a chunk still renders code of a `__fixtures__` module.
+Tree-shaking had dropped the host but kept about 3 KB of the entry: fixture values built at
+module level that Rolldown could not prove free of side effects
+([#2604](https://github.com/Miragon/bpmn-modeler/issues/2604)). Cost: a fixture the preview
+imports builds its values inside functions.
+
 Every BPMN, DMN, form, deployment and add-ons shell sends a CSP with `default-src 'none'`, so
 injected markup cannot run script with the host message channel; each allows only what its
 bundle needs:
