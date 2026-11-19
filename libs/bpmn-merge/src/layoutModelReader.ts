@@ -5,10 +5,18 @@ import {
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
-import { type Drawing, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import {
+    type DiagramIndex,
+    type Drawing,
+    diagramIndexOf,
+    flowDrawingOf,
+    planeKindOf,
+} from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
+
+type ShapePlane = Pick<LayoutShape, "plane" | "planeKind">;
 
 /** The document's drawing as plain values; numbers are copied, so later changes to the tree do not reach it. */
 export function layoutModelOf(definitions: ModdleElement): LayoutModel {
@@ -27,10 +35,14 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
             continue;
         }
         const drawing = shapeDrawingOf(drawings);
-        const shape = drawing && shapeOf(relations, id, drawing.planeOwner, drawing.element);
+        const shape = drawing && shapeOf(relations, id, planeOf(index, drawing), drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
     }
     return { shapes, edges };
+}
+
+function planeOf(index: DiagramIndex, { planeOwner }: Drawing): ShapePlane {
+    return { plane: planeOwner, planeKind: planeKindOf(planeOwner, index) };
 }
 
 /** The element's shape drawing the layout reads: the first with bounds. */
@@ -43,10 +55,10 @@ export function shapeDrawingOf(drawings: readonly Drawing[]): Drawing | undefine
 function shapeOf(
     relations: LayoutRelations,
     id: string,
-    plane: string,
+    plane: ShapePlane,
     drawing: ModdleElement,
 ): LayoutShape | undefined {
-    const drawn = { id, plane, bounds: boundsOf(drawing.bounds as ModdleElement) };
+    const drawn = { id, ...plane, bounds: boundsOf(drawing.bounds as ModdleElement) };
     const rectangle: Outline = "rectangle";
     if (relations.pools.has(id)) return { ...drawn, kind: "pool", outline: rectangle };
     const laneParent = relations.laneParents.get(id);

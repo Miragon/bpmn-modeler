@@ -17,6 +17,7 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
         kind: "node",
         id,
         plane: PLANE,
+        planeKind: "root",
         bounds: { x: 0, y: 0, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -25,6 +26,11 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
         mayLieOutsidePool: false,
         ...relations,
     };
+}
+
+/** The node as a layout draws its element on a collapsed sub-process's plane. */
+function onSubProcessPlane(shape: NodeShape): NodeShape {
+    return { ...shape, plane: "Sub_1", planeKind: "subProcess" };
 }
 
 function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
@@ -49,16 +55,35 @@ describe("placeOf and drawsAt", () => {
             at: false,
         },
         {
-            label: "on another plane",
-            drawn: { ...task, plane: "Sub_1" },
+            label: "on a sub-process's plane",
+            drawn: onSubProcessPlane(task),
             place: undefined,
             at: false,
         },
-    ])("a layout drawing the node $label", ({ drawn, place, at }) => {
+        {
+            label: "where the node lies on the same sub-process's plane",
+            node: onSubProcessPlane(task),
+            drawn: onSubProcessPlane(task),
+            place: task.bounds,
+            at: true,
+        },
+        {
+            label: "where the node lies on a root plane named after the process, not the collaboration",
+            drawn: { ...task, plane: "Process_1" },
+            place: task.bounds,
+            at: true,
+        },
+        {
+            label: "elsewhere on a root plane named after the process, not the collaboration",
+            drawn: { ...task, plane: "Process_1", bounds: { ...task.bounds, x: 300 } },
+            place: { ...task.bounds, x: 300 },
+            at: false,
+        },
+    ])("a layout drawing the node $label", ({ node: onPlane = task, drawn, place, at }) => {
         const layout = layoutOf([drawn]);
 
-        expect(placeOf(layout, task)).toEqual(place);
-        expect(drawsAt(layout, task)).toBe(at);
+        expect(placeOf(layout, onPlane)).toEqual(place);
+        expect(drawsAt(layout, onPlane)).toBe(at);
     });
 
     it("has no place for a node it does not draw", () => {
@@ -74,7 +99,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
         { label: "where the node lies", drawn: task, found: true, there: true },
         {
             label: "where the node lies on another plane",
-            drawn: { ...task, plane: "Sub_1" },
+            drawn: onSubProcessPlane(task),
             found: true,
             there: true,
         },
@@ -102,6 +127,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
             kind: "lane",
             id: "Lane_1",
             plane: PLANE,
+            planeKind: "root",
             outline: "rectangle",
             parent: "Process_1",
             bounds: { x: 30, y: 0, width: 870, height: 200 },
@@ -127,12 +153,23 @@ describe("placedByBuild", () => {
         { label: "one side draws it elsewhere", sides: [[task], [elsewhere]], placed: true },
         { label: "one side lacks it", sides: [[task], []], placed: true },
         {
-            label: "one side draws it on another plane",
-            sides: [[task], [{ ...task, plane: "Sub_1" }]],
+            label: "one side draws it on a sub-process's plane",
+            sides: [[task], [onSubProcessPlane(task)]],
             placed: true,
         },
-    ])("is $placed when $label", ({ sides, placed }) => {
-        expect(placedByBuild(task, sides.map(layoutOf))).toBe(placed);
+        {
+            label: "one side draws it where it lies on a root plane named after the process",
+            sides: [[task], [{ ...task, plane: "Process_1" }]],
+            placed: false,
+        },
+        {
+            label: "both sides draw it where it lies on the same sub-process's plane",
+            node: onSubProcessPlane(task),
+            sides: [[onSubProcessPlane(task)], [onSubProcessPlane(task)]],
+            placed: false,
+        },
+    ])("is $placed when $label", ({ node: onPlane = task, sides, placed }) => {
+        expect(placedByBuild(onPlane, sides.map(layoutOf))).toBe(placed);
     });
 
     it("is false for a boundary event, which goes with its host", () => {
@@ -147,6 +184,7 @@ describe("placedByBuildOutside", () => {
         kind: "lane",
         id: "Lane_1",
         plane: PLANE,
+        planeKind: "root",
         outline: "rectangle",
         parent: "Process_1",
         bounds: { x: 30, y: 300, width: 870, height: 200 },

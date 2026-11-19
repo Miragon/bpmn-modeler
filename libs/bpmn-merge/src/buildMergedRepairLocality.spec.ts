@@ -110,6 +110,14 @@ interface HarvestCase {
  * flow repair re-routes, those with shapes on top of each other, those with shapes outside
  * their sub-process or lane (#2565), and those with lanes on top of each other (#2567).
  */
+const ROOT_PLANE_MEMBERS = [
+    "Start_Order",
+    "Task_Check",
+    "Sub_Ship",
+    "End_Done",
+    "Boundary_Timeout",
+] as const;
+
 const CASES: readonly HarvestCase[] = [
     ...(
         [
@@ -177,11 +185,6 @@ const CASES: readonly HarvestCase[] = [
     ...(
         [
             [6, "conflictsToIncoming", 1, []],
-            [32, "conflictsToCurrent", 0, []],
-            [32, "conflictsToIncoming", 0, []],
-            [75, "conflictsAtRandom", 0, ["Task_Reject"]],
-            [112, "conflictsToCurrent", 2, []],
-            [112, "conflictsToIncoming", 1, ["Boundary_Timeout"]],
             [153, "conflictsAtRandom", 0, []],
             [21, "conflictsToIncoming", 0, ["Boundary_Timeout"]],
             [38, "conflictsToCurrent", 0, ["Boundary_Timeout", "Boundary_N2"]],
@@ -194,6 +197,39 @@ const CASES: readonly HarvestCase[] = [
         strategy,
         repairs: "shapes" as const,
         crossingBudget,
+        leftOutside,
+    })),
+    // Both sides draw the lane members at one place, on a collaboration's plane and a process's.
+    ...(
+        [
+            [32, "conflictsToCurrent", "shapes", ROOT_PLANE_MEMBERS],
+            [32, "conflictsToIncoming", "none", ROOT_PLANE_MEMBERS],
+            [75, "conflictsAtRandom", "none", ["Task_Reject", "End_Rejected", "DataRef_Order"]],
+            [
+                112,
+                "conflictsToCurrent",
+                "none",
+                [
+                    "Start_Order",
+                    "Task_Check",
+                    "Gateway_Ok",
+                    "Sub_Ship",
+                    "End_Done",
+                    "Boundary_Timeout",
+                ],
+            ],
+            [
+                112,
+                "conflictsToIncoming",
+                "none",
+                ["Start_Order", "Gateway_Ok", "Sub_Ship", "End_Done", "Boundary_Timeout"],
+            ],
+        ] as const
+    ).map(([seed, strategy, repairs, leftOutside]) => ({
+        seed,
+        strategy,
+        repairs,
+        crossingBudget: 0,
         leftOutside,
     })),
     // One side dropped a lane the other draws: the lanes come from the side without it.
@@ -278,6 +314,45 @@ describe("the layout repair on harvested merges", () => {
             ).toEqual(leftOutside);
             for (const spot of after.filter((spot) => liesOutsideALane(spot, repairedLayout))) {
                 expect(namesLaneMember(repaired.notes, spot), JSON.stringify(spot)).toBe(true);
+            }
+        },
+    );
+});
+
+describe("the layout repair on sides that name the root plane differently", () => {
+    it.each([
+        {
+            seed: 32,
+            strategy: "conflictsToCurrent",
+            shapes: ROOT_PLANE_MEMBERS,
+        },
+        { seed: 75, strategy: "conflictsAtRandom", shapes: ["End_Rejected", "DataRef_Order"] },
+    ] as const)(
+        "seed $seed, $strategy: leaves the shapes both sides draw at one place where they lie, noted",
+        { timeout: 20_000 },
+        async ({ seed, strategy, shapes }) => {
+            const versions = versionsOf(seed);
+            const repaired = await buildMerged(
+                await prepareMergeSources(versions),
+                await decisionsOf(versions, seed, strategy),
+            );
+            const sides = await Promise.all([versions.current, versions.incoming].map(layoutOf));
+            const repairedLayout = await layoutOf(repaired.xml);
+            const boundsIn = (layout: LayoutModel, id: string) => layout.shapes.get(id)?.bounds;
+
+            for (const id of shapes) {
+                expect(new Set(sides.map((side) => side.shapes.get(id)?.plane)).size, id).toBe(2);
+                expect(boundsIn(sides[1]!, id), id).toEqual(boundsIn(sides[0]!, id));
+                expect(boundsIn(repairedLayout, id), id).toEqual(boundsIn(sides[0]!, id));
+                expect(
+                    repaired.notes.some(
+                        (note) =>
+                            note.kind === "shapeOutsideContainer" &&
+                            note.id === id &&
+                            note.repair === "notRepaired",
+                    ),
+                    id,
+                ).toBe(true);
             }
         },
     );

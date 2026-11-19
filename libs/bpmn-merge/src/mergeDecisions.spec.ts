@@ -2591,6 +2591,30 @@ describe("MergeDecisions", () => {
             expect(layout.T).toBe("incoming");
         });
 
+        it("keeps a child's own move when the other side draws it on the root plane of a pool it added", () => {
+            const { layout } = MergeDecisions.from(
+                mergeResult(
+                    mergeElement("Collaboration_1", "addedByIncoming", {
+                        type: "bpmn:Collaboration",
+                    }),
+                    mergeElement("Process_1", "unchanged", { type: "bpmn:Process" }),
+                    mergeElement("Pool_1", "addedByIncoming", {
+                        type: "bpmn:Participant",
+                        plane: "Collaboration_1",
+                        references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                    }),
+                    mergeElement("T", "unchanged", {
+                        parent: "Process_1",
+                        layout: "takenFromCurrent",
+                        current: { plane: "Process_1" },
+                        incoming: { plane: "Collaboration_1" },
+                    }),
+                ),
+            ).resolution();
+
+            expect(layout).toMatchObject({ Pool_1: "incoming", T: "current" });
+        });
+
         it("keeps a collapsed sub-process's child on its plane although its lane is drawn from the other side", () => {
             const { layout } = MergeDecisions.from(
                 mergeResult(

@@ -68,11 +68,19 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the harvest, a result with no lane overlap stays byte-equal to the build without this step
   (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
   within a fraction of parsing an 800 KB file (`layoutFlowRepairTime.spec.ts`).
+- *Two root planes are one place in the placed-by-build test.* The container step and the
+  overlap step below move only a shape the build placed: one that not both sides draw where the
+  result does. There a collaboration's plane and a process's count as one place, as one side
+  may wrap the process in a pool and the other not, while a collapsed sub-process's plane counts
+  as elsewhere (#2589). Rejected: comparing plane ids, which moved a whole lane's members both
+  sides draw at one place under two root plane ids. Cost: any two root planes count as one,
+  though the result joins a collaboration only with the processes its participants name, so a
+  shape that changed process between two process diagrams counts as drawn in place (#2597).
 - *The build brings a shape it placed outside its container back inside, and grows the
   container only as a last resort.* Once the lanes are stacked and before any other move, each
   shape the detector names as
   introduced outside its sub-process, pool or lane goes inside when the build placed it there: by the
-  overlap step's test (not both sides draw it where the result does), or as it lies in a frame
+  placed-by-build test, or as it lies in a frame
   no side draws where it lies, such as a lane the build stacked; with its label, boundary
   events and contents; never a boundary event on its own. A shape both sides draw where it lies in
   a frame a side draws there stays, noted as not repaired: its spot comes from one side's lane bounds and the other's lane
@@ -95,10 +103,8 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   which leaves a task the build placed in another lane or outside its sub-process; moving a shape
   both sides draw where it lies, which crams a whole lane's members into the band one side drew.
   Cost: such a shape stays outside, noted, where the lanes' side still draws its lane apart
-  from where both sides draw the shape; a side drawing on another root
-  plane id (one side has a collaboration, the other not) counts as drawing elsewhere, so its
-  shapes still move (#2589); growth shifts only right; each growth finds the spots of the whole
-  drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a
+  from where both sides draw the shape; growth shifts only right; each growth finds the spots
+  of the whole drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a
   result with no shape outside its container byte-equal to the build without this step, and
   checks that the step changes only what a note names, with what goes with it.
 - *The build moves the shape it placed off a shape from the other side, and makes room only as a

@@ -24,6 +24,7 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
         kind: "node",
         id,
         plane: PLANE,
+        planeKind: "root",
         bounds: { x: 0, y: 0, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -35,7 +36,14 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
 }
 
 function pool(id: string, bounds: DiagramBounds = { x: 0, y: 0, width: 900, height: 300 }) {
-    return { kind: "pool", id, plane: PLANE, bounds, outline: "rectangle" } as const;
+    return {
+        kind: "pool",
+        id,
+        plane: PLANE,
+        planeKind: "root",
+        bounds,
+        outline: "rectangle",
+    } as const;
 }
 
 function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
@@ -105,6 +113,7 @@ describe("framesAroundOf", () => {
             kind: "lane",
             id: "Lane_1",
             plane: PLANE,
+            planeKind: "root",
             parent: "Process_1",
             outline: "rectangle",
             bounds: { x: 30, y: 0, width: 870, height: 300 },
@@ -130,7 +139,11 @@ describe("framesAroundOf", () => {
 describe("drawnHostOf", () => {
     it.each([
         ["the host drawn on the event's plane", [node("Task_H")], "Task_H"],
-        ["no host drawn on another plane", [node("Task_H", { plane: "Sub_1" })], undefined],
+        [
+            "no host drawn on another plane",
+            [node("Task_H", { plane: "Sub_1", planeKind: "subProcess" })],
+            undefined,
+        ],
         ["no host it does not draw", [], undefined],
     ])("is %s", (_, shapes, host) => {
         const timer = node("Timer_1", { host: "Task_H" });
@@ -173,6 +186,7 @@ describe("isFrame", () => {
         kind: "lane",
         id: "Lane_1",
         plane: PLANE,
+        planeKind: "root",
         parent: "Process_1",
         outline: "rectangle",
         bounds: { x: 30, y: 0, width: 870, height: 300 },
@@ -220,6 +234,7 @@ describe("lanesOf", () => {
         kind: "lane",
         id,
         plane,
+        planeKind: "root",
         bounds,
         outline: "rectangle",
         parent: "Process_1",
