@@ -78,8 +78,6 @@ interface HarvestCase {
     readonly repairs: Repairs;
     /** How many crossings between flows the repair may add. */
     readonly crossingBudget: number;
-    /** The overlaps the build names as left as is. */
-    readonly overlapsLeft?: number;
 }
 
 /**
@@ -131,6 +129,7 @@ const CASES: readonly HarvestCase[] = [
     })),
     ...(
         [
+            [28, "conflictsToCurrent", 0],
             [33, "conflictsToCurrent", 2],
             [36, "conflictsToCurrent", 0],
             [36, "conflictsToIncoming", 0],
@@ -150,20 +149,13 @@ const CASES: readonly HarvestCase[] = [
         repairs: "shapes" as const,
         crossingBudget,
     })),
-    {
-        seed: 28,
-        strategy: "conflictsToCurrent",
-        repairs: "flows",
-        crossingBudget: 0,
-        overlapsLeft: 2,
-    },
 ];
 
 describe("the layout repair on harvested merges", () => {
     it.each(CASES)(
         "seed $seed, $strategy: repairs $repairs, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
-        async ({ seed, strategy, repairs, crossingBudget, overlapsLeft = 0 }) => {
+        async ({ seed, strategy, repairs, crossingBudget }) => {
             const versions = versionsOf(seed);
             const sources = await prepareMergeSources(versions);
             const buildWith = async (planners: LayoutRepairPlanners) =>
@@ -193,11 +185,10 @@ describe("the layout repair on harvested merges", () => {
             expect(crossingsOf(repairedLayout) - crossingsOf(unrepairedLayout)).toBeLessThanOrEqual(
                 crossingBudget,
             );
-            const overlapsLeftAsIs = repaired.notes.filter(
-                (note) => note.kind === "shapesOverlap" && note.repair === "notRepaired",
-            );
-            expect(overlapsLeftAsIs).toHaveLength(overlapsLeft);
-            expect(after.filter(({ kind }) => kind === "shapesOverlap")).toHaveLength(overlapsLeft);
+            expect(after.filter(({ kind }) => kind === "shapesOverlap")).toEqual([]);
+            expect(
+                repaired.notes.filter((note) => "repair" in note && note.repair === "notRepaired"),
+            ).toEqual([]);
         },
     );
 });

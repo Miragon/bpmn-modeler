@@ -259,7 +259,7 @@ each of those.
 - *Diagrams by what they draw.* One root diagram for the collaboration and the processes
   its participants name, a collaboration's only while the result keeps one of its pools,
   and one per collapsed sub-process. Drawings take their layout side's DI unchanged, but for
-  the flows the build re-routes ([merge layout](merge-layout.md)), and go on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
+  the shapes the build moves and the flows it re-routes ([merge layout](merge-layout.md)), and go on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
   and its shape is not expanded); the build and the check share that one rule.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
@@ -284,7 +284,7 @@ each of those.
   source's default, elements the base and both sides draw differently, and every frame
   difference the result does not carry.
 - *The drawing's broken spots are found, noted and partly repaired by geometry.* Which spots
-  count, which flows the build re-routes and the layout notes are in
+  count, which shapes the build moves and which flows it re-routes, and the layout notes are in
   [merge layout](merge-layout.md).
 
 ## Consequences
