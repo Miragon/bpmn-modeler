@@ -261,7 +261,8 @@ each of those.
   sub-process lies beside the sub-process's shape, not inside it. An edge whose ends no
   plane draws together (one side moved a task into a sub-process the other collapsed) is
   left out of the drawing with a note rather than written where bpmn-js cannot draw it; its
-  element stays in the model. The build and the check share both rules.
+  element stays in the model, where the modeler cannot show it, so the user removes or
+  reconnects it in the XML. The build and the check share both rules.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
   from, and is not drawn when neither draws it or the chosen version does not hold it.
