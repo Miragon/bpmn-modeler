@@ -283,7 +283,7 @@ IntelliJ, or a plain browser. Two implementations back it:
 - **`HostApiImpl`**: wraps the real `acquireVsCodeApi()` singleton for
   production use. VS Code, IntelliJ and the desktop app inject the same shim.
 - **`MockHostApi`**: abstract base for development mocks. The bpmn-webview
-  defines `MockHost` (in `apps/bpmn-webview/src/adapter/out/host.ts`) which extends
+  defines `PreviewHost` (in `apps/bpmn-webview/src/adapter/out/preview/`) which extends
   `MockHostApi` and dispatches synthetic responses so the webview can run
   standalone in a browser via `vite serve`.
 
@@ -291,7 +291,7 @@ IntelliJ, or a plain browser. Two implementations back it:
 // apps/bpmn-webview/src/adapter/out/host.ts
 export function getHostApi(): BpmnWebviewHost {
   if (process.env.NODE_ENV === "development") {
-    return new MockHost();               // standalone browser
+    return new PreviewHost();            // standalone browser
   }
   return new HostApiImpl<WebviewState, BpmnWebviewCommand>();  // VS Code
 }
@@ -387,5 +387,5 @@ See `apps/vscode-plugin/src/shared/adapter/out/WebviewHtml.ts`.
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`; DMN diff panes: `libs/shared/src/lib/dmnDiffMessages.ts`
 - **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`
-- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/adapter/out/host.ts`
+- **Webview host wrapper + mock** (`getHostApi`/`PreviewHost`): `apps/bpmn-webview/src/adapter/out/host.ts`, `apps/bpmn-webview/src/adapter/out/preview/previewHost.ts`
 - **Resolver utilities**: `libs/shared/src/lib/utils.ts` (`createResolver`, `createReplyRegistry`, `HOST_REPLY_TIMEOUT_MS`)

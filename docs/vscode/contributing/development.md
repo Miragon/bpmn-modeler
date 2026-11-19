@@ -473,7 +473,7 @@ yarn perf:webview --json results.json              # also write raw samples
 
 The bench serves the production bundle from
 `dist/webview-staging/bpmn-webview/` and opens it in headless Chromium. It uses
-its own host shim, because the dev `MockHost` is compiled out of production
+its own host shim, because the dev `PreviewHost` is compiled out of production
 builds. Like the real host, it answers each request asynchronously and sends
 `LanguageQuery` right after the settings. The file reply (carrying the initial
 locale) waits for the model fetch, so the settings, panel-state, template and
