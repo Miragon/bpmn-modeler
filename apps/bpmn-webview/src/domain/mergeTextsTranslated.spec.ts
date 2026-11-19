@@ -366,8 +366,14 @@ function mergeTextKeys(): Set<string> {
         if (note.kind === "shapesOverlap") {
             const { ids } = note;
             buildNoteText({ kind: note.kind, ids, repair: "notRepaired" }, nameOf, translate);
-            const madeRoom = { repair: "madeRoom", moved: "b", shifted: ["c"] } as const;
-            buildNoteText({ kind: note.kind, ids, ...madeRoom }, nameOf, translate);
+            for (const [shifted, grown] of [
+                [["c"], []],
+                [[], ["d"]],
+                [["c"], ["d"]],
+            ]) {
+                const madeRoom = { repair: "madeRoom", moved: "b", shifted, grown } as const;
+                buildNoteText({ kind: note.kind, ids, ...madeRoom }, nameOf, translate);
+            }
         }
         if (note.kind === "shapeOutsideContainer") {
             const { id, shapes } = note;

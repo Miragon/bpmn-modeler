@@ -1,15 +1,16 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,
+    areaOutside,
+    bottomOf,
     boundsAround,
     inflated,
     keepsClearOf,
     liesWithin,
-    segmentEntersBounds,
     translated,
 } from "./layoutGeometry";
-import { type LayoutShape, framesAroundOf, framesOf } from "./layoutModel";
-import { type Segment, segmentsOf } from "./layoutPolyline";
+import { type ForeignFlows, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
+import { type LayoutShape, drawnPartsOf, framesAroundOf, framesOf } from "./layoutModel";
 import { type ShapeGroup, groupBoundsIn, groupShapesBoundsIn } from "./layoutShapeGroups";
 
 /** How far, in pixels, a moved shape keeps from other shapes; nearer counts as cramped. */
@@ -18,7 +19,7 @@ export const SHAPE_CLEARANCE = 15;
 /** How far a moved shape keeps inside the frames it lies in. */
 export const FRAME_PADDING = 10;
 
-/** The band at a pool's or lane's start that holds its name. */
+/** The band at a pool's or lane's start, or at a sub-process's top, that holds its name. */
 const FRAME_HEADER = 30;
 
 /** How far, in pixels, the nearest free place is looked for in each direction, and in which steps. */
@@ -53,20 +54,36 @@ const SEARCH_OFFSETS: readonly Offset[] = (() => {
     );
 })();
 
-/** The part of a frame a node may lie in: off its border, and for a pool or lane off its name band. */
+/** The part of a frame a node may lie in: off its border and off its name band. */
 export function innerBoundsOf(frame: LayoutShape): DiagramBounds {
     const inner = inflated(frame.bounds, -FRAME_PADDING);
-    if (frame.kind === "node") return inner;
+    if (frame.kind === "node") {
+        const top = frame.bounds.y + FRAME_HEADER;
+        return { ...inner, y: top, height: bottomOf(inner) - top };
+    }
     const { width, height } = frame.bounds;
     return width >= height
         ? { ...inner, x: inner.x + FRAME_HEADER, width: inner.width - FRAME_HEADER }
         : { ...inner, y: inner.y + FRAME_HEADER, height: inner.height - FRAME_HEADER };
 }
 
-/** A member of a moving group and a frame outside the group it must stay inside. */
+/** What a placement keeps to beside the other shapes. */
+export interface PlacementTerms {
+    /** The frames the group is to be brought into. */
+    readonly into?: readonly LayoutShape[];
+    /** How far it keeps from the flows that are not the group's own and their labels; none keeps it off them. */
+    readonly flowClearance?: number;
+}
+
+/** A shape moved off another keeps the shape clearance from flows as from shapes. */
+export const OFF_A_SHAPE: PlacementTerms = { flowClearance: SHAPE_CLEARANCE };
+
+/** A member of a moving group and a frame outside the group it must stay inside, or come no further out of than it lies now. */
 interface KeptInside {
     readonly member: DiagramBounds;
     readonly frame: DiagramBounds;
+    /** How much of the member lies outside the frame now; zero when it lies inside. */
+    readonly outside: number;
 }
 
 /**
@@ -76,7 +93,7 @@ interface KeptInside {
  * shapes inside the frames the node is to be brought into, off their border
  * and name band, the node then kept only inside the frames it must lie in;
  * clear of every other shape and its label, and off every flow that is not
- * the group's own.
+ * the group's own and its label, or clear of them by the terms' clearance.
  */
 export class Placement {
     private readonly groupBounds: DiagramBounds;
@@ -85,19 +102,20 @@ export class Placement {
     private readonly into: readonly DiagramBounds[];
     private readonly keptInside: readonly KeptInside[];
     private readonly obstacles: readonly DiagramBounds[];
-    private readonly otherSegments: readonly Segment[];
+    private readonly flows: ForeignFlows;
+    private readonly flowClearance: number;
 
     constructor(
         draft: DrawingDraft,
         group: ShapeGroup,
         window: DiagramBounds,
-        intoFrames: readonly LayoutShape[] = [],
+        { into: intoFrames = [], flowClearance = 0 }: PlacementTerms = {},
     ) {
         const { node } = group;
+        this.flowClearance = flowClearance;
         this.into = intoFrames.map(innerBoundsOf);
         const members = new Set(group.members);
         this.shapeBounds = groupShapesBoundsIn(draft, group);
-        const ownEdges = new Set([...group.innerEdges, ...group.attachedEdges]);
         this.groupBounds = groupBoundsIn(draft, group);
         this.keptInside = group.members.flatMap((id) => {
             const member = draft.node(id);
@@ -109,24 +127,27 @@ export class Placement {
                     : framesAroundOf(draft, member);
             return frames
                 .filter(
-                    (frame) => !members.has(frame.id) && liesWithin(member.bounds, frame.bounds),
+                    (frame) =>
+                        !members.has(frame.id) &&
+                        (frame.kind === "node" || liesWithin(member.bounds, frame.bounds)),
                 )
                 .map((frame) => {
+                    const outside = areaOutside(member.bounds, frame.bounds);
+                    if (outside > 0) return { member: member.bounds, frame: frame.bounds, outside };
                     const inner = innerBoundsOf(frame);
                     const keptOff = liesWithin(member.bounds, inner);
-                    return { member: member.bounds, frame: keptOff ? inner : frame.bounds };
+                    return {
+                        member: member.bounds,
+                        frame: keptOff ? inner : frame.bounds,
+                        outside,
+                    };
                 });
         });
         this.obstacles = draft
             .nodesNear(node.plane, window)
             .filter(({ id }) => !members.has(id) && !node.subProcesses.includes(id))
-            .flatMap((other) =>
-                other.label === undefined ? [other.bounds] : [other.bounds, other.label],
-            );
-        this.otherSegments = draft
-            .edgesNear(node.plane, window)
-            .filter(({ id }) => !ownEdges.has(id))
-            .flatMap(({ waypoints }) => segmentsOf(waypoints));
+            .flatMap(drawnPartsOf);
+        this.flows = foreignFlowsNear(draft, group, window);
     }
 
     /** The search window for a placement anywhere within the search radius. */
@@ -134,15 +155,15 @@ export class Placement {
         return windowAround(draft, group, { dx: 0, dy: 0 }, SEARCH_RADIUS + SHAPE_CLEARANCE);
     }
 
-    /** Whether the group fits moved by the offset, into the frames when it is to be brought into them. */
+    /** Whether the group fits moved by the offset, on the terms. */
     static fitsAt(
         draft: DrawingDraft,
         group: ShapeGroup,
         offset: Offset,
-        intoFrames: readonly LayoutShape[] = [],
+        terms: PlacementTerms = {},
     ): boolean {
         const window = windowAround(draft, group, offset, SHAPE_CLEARANCE);
-        return new Placement(draft, group, window, intoFrames).fits(offset);
+        return new Placement(draft, group, window, terms).fits(offset);
     }
 
     fits({ dx, dy }: Offset): boolean {
@@ -150,11 +171,13 @@ export class Placement {
         const movedShapes = translated(this.shapeBounds, dx, dy);
         return (
             this.into.every((frame) => liesWithin(movedShapes, frame)) &&
-            this.keptInside.every(({ member, frame }) =>
-                liesWithin(translated(member, dx, dy), frame),
+            this.keptInside.every(({ member, frame, outside }) =>
+                outside === 0
+                    ? liesWithin(translated(member, dx, dy), frame)
+                    : areaOutside(translated(member, dx, dy), frame) <= outside,
             ) &&
             this.obstacles.every((obstacle) => keepsClearOf(box, obstacle, SHAPE_CLEARANCE)) &&
-            !this.otherSegments.some(([from, to]) => segmentEntersBounds(from, to, box))
+            keepsClearOfFlows(box, this.flows, this.flowClearance)
         );
     }
 

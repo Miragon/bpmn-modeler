@@ -181,6 +181,83 @@ export function boundsAround(all: readonly DiagramBounds[]): DiagramBounds {
     return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+/** A direction through the diagram: along x room is made to the right, along y downward. */
+export type Axis = "x" | "y";
+
+export const along = (axis: Axis, point: Point): number => (axis === "x" ? point.x : point.y);
+
+export const across = (axis: Axis, point: Point): number => (axis === "x" ? point.y : point.x);
+
+/** The point moved across the axis to `at`. */
+export function atAcross(axis: Axis, point: Point, at: number): Point {
+    return axis === "x" ? { x: point.x, y: at } : { x: at, y: point.y };
+}
+
+/** Where the bounds start along the axis. */
+export const nearSideOf = (axis: Axis, bounds: DiagramBounds): number =>
+    axis === "x" ? bounds.x : bounds.y;
+
+/** Where the bounds end along the axis. */
+export const farSideOf = (axis: Axis, bounds: DiagramBounds): number =>
+    axis === "x" ? rightOf(bounds) : bottomOf(bounds);
+
+export function pointShifted(axis: Axis, point: Point, by: number): Point {
+    return axis === "x" ? { x: point.x + by, y: point.y } : { x: point.x, y: point.y + by };
+}
+
+export function boundsShifted(axis: Axis, bounds: DiagramBounds, by: number): DiagramBounds {
+    return axis === "x" ? translated(bounds, by, 0) : translated(bounds, 0, by);
+}
+
+/** The bounds grown at their far side along the axis. */
+export function grownAlong(axis: Axis, bounds: DiagramBounds, by: number): DiagramBounds {
+    return axis === "x"
+        ? { ...bounds, width: bounds.width + by }
+        : { ...bounds, height: bounds.height + by };
+}
+
+/**
+ * Whether the other lies across from the bounds along the axis, overlapping
+ * their span across it, and reaches into them or starts less than the
+ * clearance past their far side.
+ */
+export function liesAheadWithin(
+    axis: Axis,
+    bounds: DiagramBounds,
+    other: DiagramBounds,
+    clearance: number,
+): boolean {
+    const crossAxis: Axis = axis === "x" ? "y" : "x";
+    const overlapsAcross =
+        nearSideOf(crossAxis, other) < farSideOf(crossAxis, bounds) &&
+        nearSideOf(crossAxis, bounds) < farSideOf(crossAxis, other);
+    return (
+        overlapsAcross &&
+        nearSideOf(axis, other) < farSideOf(axis, bounds) + clearance &&
+        nearSideOf(axis, bounds) < farSideOf(axis, other)
+    );
+}
+
+/** The part bounds grown by `growth` along the axis gain past their far side. */
+export function stripPast(axis: Axis, bounds: DiagramBounds, growth: number): DiagramBounds {
+    return axis === "x"
+        ? { ...bounds, x: rightOf(bounds), width: growth }
+        : { ...bounds, y: bottomOf(bounds), height: growth };
+}
+
+/** How much of the bounds' area lies outside the frame. */
+export function areaOutside(bounds: DiagramBounds, frame: DiagramBounds): number {
+    const width = Math.max(
+        0,
+        Math.min(rightOf(bounds), rightOf(frame)) - Math.max(bounds.x, frame.x),
+    );
+    const height = Math.max(
+        0,
+        Math.min(bottomOf(bounds), bottomOf(frame)) - Math.max(bounds.y, frame.y),
+    );
+    return bounds.width * bounds.height - width * height;
+}
+
 /** Whether the point lies strictly inside the bounds. */
 export function liesInside(point: Point, bounds: DiagramBounds): boolean {
     return (
@@ -193,7 +270,7 @@ export function liesInside(point: Point, bounds: DiagramBounds): boolean {
 
 /** A horizontal (`y`) or vertical (`x`) line through the diagram. */
 export interface AxisLine {
-    readonly axis: "x" | "y";
+    readonly axis: Axis;
     readonly at: number;
 }
 
@@ -243,7 +320,7 @@ export function spansAlong(bounds: DiagramBounds, line: AxisLine, margin: number
 }
 
 /** Which side of the bounds' center the point lies on along the axis, as `outlinePointOn` takes `towards`. */
-export function sideOfCenter(bounds: DiagramBounds, point: Point, axis: AxisLine["axis"]): 1 | -1 {
+export function sideOfCenter(bounds: DiagramBounds, point: Point, axis: Axis): 1 | -1 {
     return point[axis] > centerOf(bounds)[axis] ? 1 : -1;
 }
 

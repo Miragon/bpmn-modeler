@@ -22,8 +22,9 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
             repair: "madeRoom",
             moved: "Task_B",
             shifted: ["Task_C", "End_1"],
+            grown: ["Lane_1"],
         },
-        ["Task_A", "Task_B", "Task_C", "End_1"],
+        ["Task_A", "Task_B", "Task_C", "End_1", "Lane_1"],
     ],
     flowThroughShape: [
         { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"], repair: "notRepaired" },

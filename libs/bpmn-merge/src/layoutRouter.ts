@@ -1,4 +1,5 @@
 import {
+    type Axis,
     type AxisLine,
     type DiagramBounds,
     type Outline,
@@ -108,7 +109,7 @@ function portsOf(end: RouteEnd, towards: Point): Port[] {
         const known = ports.some((port) => port.point.x === point?.x && port.point.y === point.y);
         if (point !== undefined && !known) ports.push({ point, outward });
     };
-    const throughCenter = (axis: AxisLine["axis"]): AxisLine => ({
+    const throughCenter = (axis: Axis): AxisLine => ({
         axis,
         at: Math.round(center[axis]),
     });

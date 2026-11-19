@@ -350,6 +350,10 @@ const dictionary: Record<string, string> = {
         "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮겼습니다",
     "The build moved {element} off {shapes} and made room by shifting {shifted}":
         "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮기고 {shifted}을(를) 밀어 자리를 만들었습니다",
+    "The build moved {element} off {shapes} and grew {grown} to hold it":
+        "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮기고 들어가도록 {grown}을(를) 넓혔습니다",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}":
+        "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮기고 들어가도록 {grown}을(를) 넓히고 {shifted}을(를) 밀었습니다",
     "{first} and {second} lie on top of each other; the build could not repair it":
         "{first}와(과) {second}이(가) 서로 겹쳐 놓여 있습니다. 생성 시 고칠 수 없었습니다",
     "The build moved {element} around {shapes}":

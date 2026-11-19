@@ -45,6 +45,7 @@ function flow(waypoints: readonly Point[], label?: DiagramBounds): LayoutEdge {
     return {
         id: "Flow_1",
         plane: PLANE,
+        kind: "sequenceFlow",
         source: "Task_A",
         target: "Task_B",
         waypoints,
@@ -169,6 +170,7 @@ describe("planFlowRepairs", () => {
                 {
                     id: "Flow_1",
                     plane: PLANE,
+                    kind: "sequenceFlow",
                     source: "Boundary_1",
                     target: "Task_B",
                     waypoints: [at(150, 198), at(150, 260)],

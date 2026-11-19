@@ -109,7 +109,7 @@ function redrawnByTheBuild(notes: readonly BuildNote[]): ReadonlySet<string> {
                     return [note.moved, ...note.grown, ...note.shifted];
                 case "shapesOverlap":
                     return note.repair === "madeRoom"
-                        ? [note.moved, ...note.shifted]
+                        ? [note.moved, ...note.shifted, ...note.grown]
                         : [note.moved];
                 case "shapeOutsideContainer":
                     if (note.repair === "grewContainerAndShifted") {

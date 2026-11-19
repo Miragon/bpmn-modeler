@@ -1,7 +1,8 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
+import { FlowTopology } from "./layoutFlowTopology";
 import { growFrameFor } from "./layoutGrowFrame";
-import { outermostOf } from "./layoutMakeRoom";
+import type { RoomContext } from "./layoutMakeRoom";
 import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./layoutModel";
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
@@ -77,6 +78,7 @@ export function planContainerMoves(
 /** Brings shapes into their containers one after another, on a draft of the drawing. */
 class ContainerRepairer {
     private readonly groups: ShapeGroups;
+    private readonly room: RoomContext;
     private draft: DrawingDraft;
     /** The repair that changed each shape so far. */
     private readonly changes = new Map<string, ShapeRepair>();
@@ -87,6 +89,7 @@ class ContainerRepairer {
         private readonly sides: readonly LayoutModel[],
     ) {
         this.groups = new ShapeGroups(original);
+        this.room = { groups: this.groups, topology: new FlowTopology(original) };
         this.draft = DrawingDraft.of(original);
     }
 
@@ -115,16 +118,16 @@ class ContainerRepairer {
             this.movedShapes.push(...group.members);
             return repair;
         }
-        const grown = growFrameFor(draft, group, frames);
+        const grown = growFrameFor(draft, this.room, group, frames);
         if (grown === undefined) return NOT_REPAIRED;
         const repair: ShapeRepair =
-            grown.shifting.length === 0
+            grown.shifted.length === 0
                 ? { kind: "grewContainer" }
-                : { kind: "grewContainerAndShifted", shifted: outermostOf(grown.shifting) };
+                : { kind: "grewContainerAndShifted", shifted: grown.shifted };
         for (const [changed, shape] of grown.draft.shapes) {
             if (draft.shapes.get(changed) !== shape) this.changes.set(changed, repair);
         }
-        this.movedShapes.push(...grown.shifting.map((shape) => shape.id));
+        this.movedShapes.push(...grown.moved);
         this.draft = grown.draft;
         return repair;
     }
@@ -183,7 +186,7 @@ function sidesMove(
         if (offset.dx === 0 && offset.dy === 0) return false;
         if (tried.has(key)) return false;
         tried.add(key);
-        return Placement.fitsAt(draft, group, offset, frames);
+        return Placement.fitsAt(draft, group, offset, { into: frames });
     });
 }
 
@@ -231,7 +234,7 @@ function nearestPlaceInside(
     const base = offsetInto(groupShapesBoundsIn(draft, group), frames.map(innerBoundsOf));
     if (base === undefined) return undefined;
     const window = Placement.searchWindowFrom(draft, group, base);
-    return new Placement(draft, group, window, frames).nearestFitFrom(base);
+    return new Placement(draft, group, window, { into: frames }).nearestFitFrom(base);
 }
 
 /** The shortest offset that brings the bounds inside all frames; undefined when they leave no room for it. */

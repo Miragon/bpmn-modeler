@@ -1,10 +1,24 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
+import { FlowTopology } from "./layoutFlowTopology";
 import { sameBounds } from "./layoutGeometry";
-import { type RoomMade, makeRoom } from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape } from "./layoutModel";
+import {
+    type RoomContext,
+    type RoomMade,
+    type RoomSlots,
+    makeRoom,
+    slotOffsetsOf,
+    slotsFor,
+} from "./layoutMakeRoom";
+import { type LayoutModel, type NodeShape, drawnHostOf } from "./layoutModel";
 import { placeOf, placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
-import { type Offset, Placement, offsetBetween, offsetLength } from "./layoutShapePlacement";
+import {
+    OFF_A_SHAPE,
+    type Offset,
+    Placement,
+    offsetBetween,
+    offsetLength,
+} from "./layoutShapePlacement";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
 /** What the build did about two shapes on top of each other. */
@@ -20,6 +34,8 @@ export type OverlapRepair =
           readonly moved: string;
           /** The outermost shapes shifted to make the room, in document order. */
           readonly shifted: readonly string[];
+          /** The sub-processes, lanes and pools that grew to hold it, in document order. */
+          readonly grown: readonly string[];
       }
     | { readonly kind: "notRepaired"; readonly shapes: readonly [string, string] };
 
@@ -59,30 +75,36 @@ export function planShapeMoves(
     const overlaps = spots.flatMap((spot) => (spot.kind === "shapesOverlap" ? [spot] : []));
     if (overlaps.length === 0) return { layout, repairs: [] };
     const groups = new ShapeGroups(layout);
+    const context: RoomContext = { groups, topology: new FlowTopology(layout) };
     let draft = DrawingDraft.of(layout);
     const changes = new Map<string, ShapeChange>();
     const repairs = overlaps.map(({ shapes }): OverlapRepair => {
-        const pair = shapes.map((id) => draft.node(id));
-        const [first, second] = pair;
+        const [first, second] = shapes.map((id) => draft.node(id));
         if (first === undefined || second === undefined) return { kind: "notRepaired", shapes };
         if (!shapesOverlap(first, second)) return resolvedEarlier(shapes, changes);
         const movable = [first, second]
             .filter((node) => placedByBuild(node, sides))
             .map((node) => groups.of(draft, node));
-        const move = otherSidesPlace(draft, movable, sides) ?? nearestFreePlace(draft, movable);
+        const pair = [first, second] as const;
+        const placed = otherSidesPlace(draft, movable, sides);
+        const stacked =
+            placed === undefined ? stackedBranch(draft, context, movable, pair) : undefined;
+        const move =
+            placed ?? (stacked === undefined ? nearestFreePlace(draft, movable) : undefined);
         if (move !== undefined) {
             draft.translate(move.group, move.dx, move.dy);
             const repair = { kind: "movedByBuild", shapes, moved: move.group.node.id } as const;
             for (const id of move.group.members) changes.set(id, { repair, withMovedGroup: true });
             return repair;
         }
-        const room = roomFor(draft, movable, [first, second]);
+        const room = stacked ?? roomInLine(draft, context, movable, pair);
         if (room === undefined) return { kind: "notRepaired", shapes };
         const moved = room.group.node.id;
+        const { shifted, grown } = room;
         const repair: MoveRepair =
-            room.shifted.length === 0
+            shifted.length === 0 && grown.length === 0
                 ? { kind: "movedByBuild", shapes, moved }
-                : { kind: "madeRoom", shapes, moved, shifted: room.shifted };
+                : { kind: "madeRoom", shapes, moved, shifted, grown };
         for (const [id, shape] of room.draft.shapes) {
             const withMovedGroup = room.group.members.includes(id);
             if (draft.shapes.get(id) !== shape) changes.set(id, { repair, withMovedGroup });
@@ -124,7 +146,9 @@ function otherSidesPlace(
             const place = placeOf(side, group.node);
             if (place === undefined || sameBounds(place, group.node.bounds)) return [];
             const offset = offsetBetween(group.node.bounds, place);
-            return Placement.fitsAt(draft, group, offset) ? [{ group, ...offset }] : [];
+            return Placement.fitsAt(draft, group, offset, OFF_A_SHAPE)
+                ? [{ group, ...offset }]
+                : [];
         }),
     );
     return shortestOf(moves);
@@ -134,27 +158,91 @@ function nearestFreePlace(draft: DrawingDraft, movable: readonly ShapeGroup[]): 
     return shortestOf(
         movable.flatMap((group) => {
             const window = Placement.searchWindowOf(draft, group);
-            const offset = new Placement(draft, group, window).nearestFit();
+            const offset = new Placement(draft, group, window, OFF_A_SHAPE).nearestFit();
             return offset === undefined ? [] : [{ group, ...offset }];
         }),
     );
 }
 
-function roomFor(
+type GroupRoom = RoomMade & { readonly group: ShapeGroup };
+
+/**
+ * A movable shape of the pair stacked below the other, or below the host of
+ * a boundary event it lay on, where its slots say so: at the free place in
+ * that column, else with room made there.
+ */
+function stackedBranch(
     draft: DrawingDraft,
+    context: RoomContext,
     movable: readonly ShapeGroup[],
-    pair: readonly NodeShape[],
-): (RoomMade & { readonly group: ShapeGroup }) | undefined {
-    const made = movable.flatMap((group) => {
-        const other = pair.find(({ id }) => id !== group.node.id)!;
-        const room = makeRoom(draft, group, other);
-        return room === undefined ? [] : [{ ...room, group }];
-    });
-    return made.reduce<(typeof made)[number] | undefined>(
-        (fewest, room) =>
-            fewest === undefined || room.shifted.length < fewest.shifted.length ? room : fewest,
-        undefined,
+    pair: readonly [NodeShape, NodeShape],
+): GroupRoom | undefined {
+    return leastOf(
+        movable.flatMap((group) => {
+            const other = otherOf(pair, group);
+            if (!slotsOf(draft, context, group, other).stacked) return [];
+            const column = drawnHostOf(draft, other) ?? other;
+            const free = slotOffsetsOf(draft, context.groups, group, column, "below").find(
+                (offset) => Placement.fitsAt(draft, group, offset, OFF_A_SHAPE),
+            );
+            if (free !== undefined) {
+                const trial = draft.fork();
+                trial.translate(group, free.dx, free.dy);
+                return [{ draft: trial, shifted: [], grown: [], growth: 0, group }];
+            }
+            const room = makeRoom(draft, context, group, column, "below");
+            return room === undefined ? [] : [{ ...room, group }];
+        }),
     );
+}
+
+/** Room for a movable shape of the pair in line with the other, in the first of its slots in line that has room. */
+function roomInLine(
+    draft: DrawingDraft,
+    context: RoomContext,
+    movable: readonly ShapeGroup[],
+    pair: readonly [NodeShape, NodeShape],
+): GroupRoom | undefined {
+    return leastOf(
+        movable.flatMap((group) => {
+            const other = otherOf(pair, group);
+            for (const slot of slotsOf(draft, context, group, other).inLine) {
+                const room = makeRoom(draft, context, group, other, slot);
+                if (room !== undefined) return [{ ...room, group }];
+            }
+            return [];
+        }),
+    );
+}
+
+/** The slots for the group against the other shape, by how the flows join them and run where the draft draws them. */
+function slotsOf(
+    draft: DrawingDraft,
+    { topology }: RoomContext,
+    group: ShapeGroup,
+    other: NodeShape,
+): RoomSlots {
+    const pair = [group.node.id, other.id];
+    return slotsFor(
+        topology.relationOf(group.node.id, other.id),
+        topology.flowsRightAt(draft, pair),
+    );
+}
+
+function otherOf(pair: readonly [NodeShape, NodeShape], group: ShapeGroup): NodeShape {
+    return pair[0].id === group.node.id ? pair[1] : pair[0];
+}
+
+/** The room that shifts the fewest shapes, then grows the frames least, then moves the shape with the fewest flows; the first of equal ones. */
+function leastOf(rooms: readonly GroupRoom[]): GroupRoom | undefined {
+    const cost = ({ shifted, growth, group }: GroupRoom) =>
+        [shifted.length, growth, group.attachedEdges.length] as const;
+    return rooms.reduce<GroupRoom | undefined>((least, room) => {
+        if (least === undefined) return room;
+        const [mine, theirs] = [cost(room), cost(least)];
+        const at = mine.findIndex((value, index) => value !== theirs[index]);
+        return at !== -1 && mine[at]! < theirs[at]! ? room : least;
+    }, undefined);
 }
 
 /** The shortest of the moves, the first of equally short ones. */

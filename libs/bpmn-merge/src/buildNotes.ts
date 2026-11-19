@@ -28,7 +28,7 @@ type OverlapNoteRepair = NoteRepairOf<OverlapRepair, "shapes">;
 type ContainerNoteRepair = NoteRepairOf<ContainerRepair, "shape" | "container">;
 
 /** A repair as its note carries it: its kind as `repair`, without the ids the note names itself. */
-type NoteRepairOf<
+export type NoteRepairOf<
     Repair extends { readonly kind: string },
     Subject extends keyof Repair,
 > = Repair extends unknown

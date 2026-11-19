@@ -8,8 +8,12 @@ import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
-import { liesWithin, sameBounds } from "./layoutGeometry";
-import { type LayoutModel, isFrame, nodeShapeIn } from "./layoutModel";
+import { DrawingDraft } from "./layoutDrawingDraft";
+import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
+import { areaOutside, inflated, liesWithin, sameBounds } from "./layoutGeometry";
+import { type LayoutModel, framesOf, isFrame, nodeShapeIn } from "./layoutModel";
+import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
+import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { placedByBuild } from "./sideDrawings";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsCross, segmentsOf } from "./layoutPolyline";
@@ -167,7 +171,8 @@ const CASES: readonly HarvestCase[] = [
             [33, "conflictsToCurrent", 2],
             [36, "conflictsToCurrent", 0],
             [36, "conflictsToIncoming", 0],
-            [69, "conflictsToIncoming", 0],
+            // Room is made inside Ship instead of carrying Sub_N1 out of it, and Reject's flows cross once more.
+            [69, "conflictsToIncoming", 1],
             [74, "conflictsToCurrent", 0],
             [74, "conflictsToIncoming", 0],
             [113, "conflictsToCurrent", 0],
@@ -175,6 +180,8 @@ const CASES: readonly HarvestCase[] = [
             [135, "conflictsToIncoming", 0],
             [153, "conflictsAtRandom", 0],
             [191, "conflictsToCurrent", 0],
+            // Nothing lies past the line, so only the lanes and the pool grow (#2594).
+            [198, "conflictsToCurrent", 0],
         ] as const
     ).map(([seed, strategy, crossingBudget]) => ({
         seed,
@@ -314,6 +321,49 @@ describe("the layout repair on harvested merges", () => {
             ).toEqual(leftOutside);
             for (const spot of after.filter((spot) => liesOutsideALane(spot, repairedLayout))) {
                 expect(namesLaneMember(repaired.notes, spot), JSON.stringify(spot)).toBe(true);
+            }
+        },
+    );
+});
+
+describe("the shapes the layout repair moves off another", () => {
+    it.each([
+        [33, "conflictsToCurrent"],
+        [69, "conflictsToIncoming"],
+        [74, "conflictsToCurrent"],
+        [74, "conflictsToIncoming"],
+    ] as const)(
+        "seed %i, %s: come no further out of their sub-process, and no flow beside them nor label comes within the shape clearance",
+        { timeout: 20_000 },
+        async (seed, strategy) => {
+            const versions = versionsOf(seed);
+            const sources = await prepareMergeSources(versions);
+            const decide = () => decisionsOf(versions, seed, strategy);
+            const unrepaired = await layoutOf(
+                (await buildMergedWith(sources, await decide(), NO_REPAIRS)).xml,
+            );
+            const repaired = await buildMerged(sources, await decide());
+            const layout = await layoutOf(repaired.xml);
+            const groups = new ShapeGroups(layout);
+            const movedIds = repaired.notes.flatMap((note) =>
+                note.kind === "shapesOverlap" && "moved" in note ? [note.moved] : [],
+            );
+
+            expect(movedIds).not.toEqual([]);
+            for (const id of movedIds) {
+                const moved = nodeShapeIn(layout, id)!;
+                const before = nodeShapeIn(unrepaired, id)!;
+                for (const frame of framesOf(layout, moved).filter(({ kind }) => kind === "node")) {
+                    const frameBefore = unrepaired.shapes.get(frame.id)!;
+                    expect(areaOutside(moved.bounds, frame.bounds), id).toBeLessThanOrEqual(
+                        areaOutside(before.bounds, frameBefore.bounds),
+                    );
+                }
+                const draft = DrawingDraft.of(layout);
+                const group = groups.of(layout, moved);
+                const box = groupBoundsIn(layout, group);
+                const flows = foreignFlowsNear(draft, group, inflated(box, SHAPE_CLEARANCE));
+                expect(crampsNoFlow(box, flows, SHAPE_CLEARANCE), id).toBe(true);
             }
         },
     );

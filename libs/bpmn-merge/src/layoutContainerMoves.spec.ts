@@ -62,7 +62,7 @@ function lane(id: string, bounds: DiagramBounds): LaneShape {
 const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
 
 function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints };
+    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
 }
 
 function layoutOf(
@@ -250,7 +250,7 @@ describe("planContainerMoves", () => {
             expect(plan.repairs).toEqual([
                 { kind: "movedIntoContainer", shape: "Task_N", container: "Sub_1" },
             ]);
-            expect(boundsIn(plan, "Task_N")).toEqual(box(410, 180));
+            expect(boundsIn(plan, "Task_N")).toEqual(box(410, 200));
         });
 
         it("leaves a shape outside its lane, and grows no lane, when the band cannot hold it", () => {
@@ -293,7 +293,7 @@ describe("planContainerMoves", () => {
             expect(boundsIn(plan, "Task_Z")).toEqual(added.bounds);
         });
 
-        it("grows an expanded sub-process and shifts what lies beyond it, listing what it shifted", () => {
+        it("grows an expanded sub-process and shifts what it lands on, listing what it shifted, the pool only as far as needed", () => {
             const sub = node("Sub_1", box(200, 50, 300, 200), { expanded: true });
             const contents = [
                 node("Task_1", box(220, 70, 100, 160), IN_SUB),
@@ -322,8 +322,8 @@ describe("planContainerMoves", () => {
             ]);
             expect(boundsIn(plan, "Sub_1")).toEqual(box(200, 50, 390, 200));
             expect(boundsIn(plan, "Task_After")).toEqual(box(650, 110));
-            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1290, 300));
-            expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 0, 1260, 300));
+            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1200, 300));
+            expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 0, 1170, 300));
             expect(plan.layout.edges.get("Flow_Out")?.waypoints).toEqual([
                 at(500, 150),
                 at(650, 150),

@@ -8,6 +8,7 @@ import {
 
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
+import type { EdgeKind } from "./layoutModel";
 
 interface NodeRelations {
     readonly outline: Outline;
@@ -15,6 +16,11 @@ interface NodeRelations {
     readonly pool?: string;
     readonly host?: string;
     readonly mayLieOutsidePool: boolean;
+}
+
+/** A flow, association or message flow: its ends and what it connects. */
+interface Connection extends ConnectionEnds {
+    readonly kind: EdgeKind;
 }
 
 /** What decides where an element's drawing may lie, read from the semantic tree. */
@@ -25,7 +31,7 @@ export interface LayoutRelations {
     /** The pool drawing each lane's process. */
     readonly lanePools: ReadonlyMap<string, string>;
     readonly lanesByNode: ReadonlyMap<string, readonly string[]>;
-    readonly connections: ReadonlyMap<string, ConnectionEnds>;
+    readonly connections: ReadonlyMap<string, Connection>;
 }
 
 interface Scope {
@@ -43,12 +49,13 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const laneParents = new Map<string, string>();
     const lanePools = new Map<string, string>();
     const lanesByNode = new Map<string, string[]>();
-    const connections = new Map<string, ConnectionEnds>();
+    const connections = new Map<string, Connection>();
     const poolsByProcess = new Map<string, string>();
 
-    const connect = (connection: ModdleElement, holder?: ModdleElement) => {
+    const connect = (kind: EdgeKind, connection: ModdleElement, holder?: ModdleElement) => {
         const ends = connectionEndsOf(connection, holder);
-        if (connection.id !== undefined && ends !== undefined) connections.set(connection.id, ends);
+        if (connection.id === undefined || ends === undefined) return;
+        connections.set(connection.id, { ...ends, kind });
     };
     const visitLanes = (laneSets: unknown, parent: string, pool?: string) => {
         for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
@@ -67,7 +74,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const visitArtifacts = (artifacts: unknown, scope: Scope) => {
         for (const artifact of moddleElements(artifacts)) {
             if (isType(artifact, "bpmn:Association")) {
-                connect(artifact);
+                connect("association", artifact);
             } else if (isType(artifact, "bpmn:TextAnnotation") && artifact.id !== undefined) {
                 nodes.set(artifact.id, nodeRelationsOf(artifact, scope));
             }
@@ -76,16 +83,16 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const visitFlowElements = (container: ModdleElement, scope: Scope) => {
         for (const element of moddleElements(container.flowElements)) {
             if (isType(element, "bpmn:SequenceFlow")) {
-                connect(element);
+                connect("sequenceFlow", element);
                 continue;
             }
             if (element.id === undefined) continue;
             nodes.set(element.id, nodeRelationsOf(element, scope));
             for (const association of moddleElements(element.dataInputAssociations)) {
-                connect(association, element);
+                connect("association", association, element);
             }
             for (const association of moddleElements(element.dataOutputAssociations)) {
-                connect(association, element);
+                connect("association", association, element);
             }
             if (isType(element, "bpmn:SubProcess")) {
                 visitLanes(element.laneSets, element.id);
@@ -107,7 +114,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             if (process !== undefined) poolsByProcess.set(process, participant.id);
         }
         for (const messageFlow of moddleElements(collaboration.messageFlows)) {
-            connect(messageFlow);
+            connect("messageFlow", messageFlow);
         }
         visitArtifacts(collaboration.artifacts, { subProcesses: [] });
     }

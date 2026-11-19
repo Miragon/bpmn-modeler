@@ -355,6 +355,10 @@ const dictionary: Record<string, string> = {
     "The build moved {element} off {shapes}": "При сборке элемент {element} отодвинут от {shapes}",
     "The build moved {element} off {shapes} and made room by shifting {shifted}":
         "При сборке элемент {element} отодвинут от {shapes}, а для места сдвинуты {shifted}",
+    "The build moved {element} off {shapes} and grew {grown} to hold it":
+        "При сборке элемент {element} отодвинут от {shapes}, а {grown} увеличен, чтобы вместить его",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}":
+        "При сборке элемент {element} отодвинут от {shapes}, {grown} увеличен, чтобы вместить его, и сдвинуты {shifted}",
     "{first} and {second} lie on top of each other; the build could not repair it":
         "Элементы {first} и {second} лежат друг на друге; при сборке исправить не удалось",
     "The build moved {element} around {shapes}":
