@@ -7,6 +7,7 @@ import {
     handMergeFactsOf,
     type MergeHandMergeFacts,
 } from "./mergeHandMergeCard";
+import { mergePadDecisions } from "./mergePadDecisions";
 
 const MESSAGE_ROW: MergePaneShapelessRow = {
     id: "Message_1",
@@ -58,4 +59,41 @@ describe("handMergeFactsOf", () => {
             handMergeFactsOf(handMergeElementOf(STATES, "Message_1"), offers),
         );
     });
+});
+
+describe("the pad and the card read one pick", () => {
+    const PANE = {
+        ...STATES,
+        caption: { side: "current", role: "branch" },
+        pickable: [
+            ...STATES.pickable,
+            { id: "Task_Open", handMergeable: true },
+            { id: "Task_Kept", undo: "element", handMergeable: true },
+        ],
+        badges: [
+            ...STATES.badges,
+            { id: "Task_Kept", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+        ],
+    } as const;
+
+    it.each([
+        ["Task_Remind", true],
+        ["Task_Remind", false],
+        ["Task_Open", true],
+        ["Task_Kept", true],
+        ["Task_Kept", false],
+    ])(
+        "the pad's Merge XML on drawn %s and the card's Edit again agree, the host offering it: %s",
+        (id, offered) => {
+            const offers = { elementXmlMerge: offered };
+            const card = handMergeFactsOf(handMergeElementOf(PANE, id), offers);
+            const mergeXml = mergePadDecisions(PANE, id, offers).find(
+                (decision) => decision.kind === "mergeXml",
+            );
+
+            expect(mergeXml === undefined ? undefined : mergeXml.mode).toBe(
+                card.canEditAgain ? (card.mergedByHand ? "edit" : "open") : undefined,
+            );
+        },
+    );
 });
