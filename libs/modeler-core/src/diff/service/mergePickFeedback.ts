@@ -1,9 +1,9 @@
 import type { BlockedPick, HandMergeOutcome, PickOutcome } from "@miragon/bpmn-modeler-merge";
-import type {
-    MergePaneAction,
-    MergePaneBlock,
-    MergePaneHandMergeRefusal,
-    MergePaneOutcome,
+import {
+    handMergeRefusalNamedIds,
+    type MergePaneAction,
+    type MergePaneBlock,
+    type MergePaneOutcome,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
@@ -68,14 +68,18 @@ export function mergePickFeedback({
 /**
  * What the finish of an element's merge editor did, as the panes show it:
  * taken, refused, or closed without a save. No finish changes a pick, so the
- * restore offer of the last pick stays.
+ * restore offer of the last pick stays. Each finish counts on from the last
+ * one's, so a finish that repeats it word for word still reads as new.
  */
 export function handMergeFeedback(
     elementId: string,
     finish: HandMergeOutcome | "discarded",
     last?: MergePickFeedback,
 ): MergePickFeedback {
-    const outcome = handMergeOutcome(elementId, finish);
+    const outcome = {
+        ...handMergeOutcome(elementId, finish),
+        finish: (last?.outcome.finish ?? 0) + 1,
+    };
     return last?.offer === undefined ? { outcome } : { outcome, offer: last.offer };
 }
 
@@ -119,22 +123,10 @@ export function idsNamedInWords(
         : [
               ...outcome.blockedBy.flatMap(({ elementId, targetId }) => [elementId, targetId]),
               ...(outcome.handMergesAtStake ?? []),
-              ...idsNamedByRefusal(outcome.handMergeRefusal),
+              ...(outcome.handMergeRefusal === undefined
+                  ? []
+                  : handMergeRefusalNamedIds(outcome.handMergeRefusal)),
           ];
     outcomeIds.forEach((id) => named.add(id));
     return named;
-}
-
-function idsNamedByRefusal(refusal: MergePaneHandMergeRefusal | undefined): readonly string[] {
-    switch (refusal?.kind) {
-        case "holdsElementsOfTheirOwn":
-        case "namesMissingElement":
-        case "namesLeftOutElement":
-        case "changesOtherDecisions":
-            return refusal.ids;
-        case "namesWrongType":
-            return refusal.references.map(({ target }) => target);
-        default:
-            return [];
-    }
 }

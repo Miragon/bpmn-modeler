@@ -2,7 +2,12 @@ import ContextPadModule from "diagram-js/lib/features/context-pad";
 import OverlaysModule from "diagram-js/lib/features/overlays";
 import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
-import type { MergeOutcomeCardContent } from "../../domain/mergeOutcomeCard";
+import {
+    cardToneOf,
+    type MergeCardAction,
+    type MergeCardChoice,
+    type MergeOutcomeCardContent,
+} from "../../domain/mergeCardContent";
 import {
     type DiagramBox,
     type DiagramPoint,
@@ -25,6 +30,8 @@ export interface MergeOutcomeCardActions {
     readonly onSelect: (elementId: string) => void;
     /** Keeps what the other side removed with the element, as the host offered. */
     readonly onKeepRemovedWith: (elementId: string) => void;
+    /** A choice the card offers, such as Edit again. */
+    readonly onChoose: (action: MergeCardAction) => void;
     readonly closeLabel: string;
 }
 
@@ -213,7 +220,7 @@ export class MergeOutcomeCard {
 
     private announce(content: MergeOutcomeCardContent): void {
         // A new node is announced even where the text repeats the last outcome's.
-        const region = content.applied ? this.status : this.alert;
+        const region = cardToneOf(content) === "refused" ? this.alert : this.status;
         region.replaceChildren(...content.announcement.map((line) => createElement("p", "", line)));
     }
 
@@ -221,8 +228,10 @@ export class MergeOutcomeCard {
         content: MergeOutcomeCardContent,
         actions: MergeOutcomeCardActions,
     ): HTMLElement {
-        const tone = content.applied ? "applied" : "refused";
-        const card = createElement("div", `merge-outcome-card merge-outcome-card--${tone}`);
+        const card = createElement(
+            "div",
+            `merge-outcome-card merge-outcome-card--${cardToneOf(content)}`,
+        );
         const title = createElement("span", "merge-outcome-card__title");
         if (content.applied) title.insertAdjacentHTML("afterbegin", CHECK_MARK);
         title.append(createElement("span", "merge-outcome-card__headline", content.headline));
@@ -264,8 +273,20 @@ export class MergeOutcomeCard {
             );
             card.append(row);
         }
+        if (content.choices !== undefined && content.choices.length > 0) {
+            const row = createElement("div", "merge-outcome-card__actions");
+            row.append(...content.choices.map((choice) => choiceButton(choice, actions)));
+            card.append(row);
+        }
         return card;
     }
+}
+
+function choiceButton(choice: MergeCardChoice, actions: MergeOutcomeCardActions) {
+    const kind = choice.primary ? "merge-outcome-card__offer" : "merge-outcome-card__choice";
+    const button = createButton(kind, () => actions.onChoose(choice.action), choice.text);
+    button.dataset.choice = choice.action;
+    return button;
 }
 
 function link(text: string, onClick: () => void): HTMLButtonElement {

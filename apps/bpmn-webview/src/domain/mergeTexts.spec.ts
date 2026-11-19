@@ -12,11 +12,11 @@ import {
     keepSideText,
     MERGE_BUILD_TEXTS,
     mergeSideText,
-    MergeTranslate,
     padDecisionText,
     pickBadgeText,
     restoreOfferText,
 } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);
@@ -219,5 +219,60 @@ describe("build words", () => {
         ["after", "incoming", "Result"],
     ])("labels the %s pane of a result compared with %s", (side, against, label) => {
         expect(comparisonPaneText(side, against, untranslated)).toBe(label);
+    });
+});
+
+describe("the words of a merge by hand", () => {
+    it.each<[MergePaneBadge, { side: string; label: string; byHand?: string }]>([
+        [
+            {
+                id: "Task_1",
+                kind: "keptHere",
+                keptSide: "current",
+                scope: "element",
+                mergedByHand: true,
+            },
+            {
+                side: "Current",
+                label: "Kept from current and merged by hand, your pick",
+                byHand: "by hand",
+            },
+        ],
+        [
+            {
+                id: "Task_1",
+                kind: "replacedHere",
+                keptSide: "incoming",
+                scope: "withContents",
+                mergedByHand: true,
+            },
+            {
+                side: "Incoming",
+                label: "Kept from incoming with everything inside and merged by hand, your pick",
+                byHand: "by hand",
+            },
+        ],
+    ])("adds the word and repeats the side on a badge merged by hand: %o", (badge, expected) => {
+        expect(pickBadgeText(badge, untranslated)).toStrictEqual(expected);
+    });
+
+    it.each<[MergePadDecision, { label: string; tooltip: string }]>([
+        [
+            { kind: "mergeXml", mode: "open" },
+            {
+                label: "Merge XML",
+                tooltip:
+                    "Merge XML: Merge both sides' changes to its XML by hand in a merge editor",
+            },
+        ],
+        [
+            { kind: "mergeXml", mode: "edit" },
+            {
+                label: "Edit merged XML",
+                tooltip: "Edit merged XML: Change the XML you merged by hand",
+            },
+        ],
+    ])("words the pad's %o", (decision, expected) => {
+        expect(padDecisionText(decision, untranslated)).toStrictEqual(expected);
     });
 });

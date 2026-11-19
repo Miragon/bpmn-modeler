@@ -1,4 +1,5 @@
-import { flowNameText, type MergeTranslate } from "./mergeTexts";
+import { flowNameText } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 /** What a pane knows to name an element: its name, and a flow's ends. */
 export interface MergeElementNaming {

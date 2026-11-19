@@ -506,6 +506,85 @@ const dictionary: Record<string, string> = {
         "Ambos lados cambiaron la disposición de {elements}; se conserva la de Actual",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "Ambos lados cambiaron la disposición de {elements}; se conserva la de Entrante",
+    "by hand": "a mano",
+    "Edit again": "Editar de nuevo",
+    "Keep my XML": "Conservar mi XML",
+    "Keep the XML merged before": "Conservar el XML combinado antes",
+    "Merge XML": "Combinar XML",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "Combinar a mano los cambios de ambos lados en su XML en un editor de combinación",
+    "Edit merged XML": "Editar el XML combinado",
+    "Change the XML you merged by hand": "Cambiar el XML que combinó a mano",
+    "Keep current's version": "Conservar la versión de Actual",
+    "Keep incoming's version": "Conservar la versión de Entrante",
+    "Drop it and pick": "Descartarlo y elegir",
+    "Drop it and leave out": "Descartarlo y dejar fuera",
+    "Drop it and undo": "Descartarlo y retirar",
+    "Kept from current and merged by hand, your pick":
+        "Conservado de Actual y combinado a mano, su elección",
+    "Kept from incoming and merged by hand, your pick":
+        "Conservado de Entrante y combinado a mano, su elección",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "Conservado de Actual con todo su contenido y combinado a mano, su elección",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "Conservado de Entrante con todo su contenido y combinado a mano, su elección",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "Conservado de Actual con lo que se eliminó con él y combinado a mano, su elección",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "Conservado de Entrante con lo que se eliminó con él y combinado a mano, su elección",
+    "Merged by hand: {element}": "Combinado a mano: {element}",
+    "Closed without saving: {element} is unchanged": "Cerrado sin guardar: {element} no cambia",
+    "This drops the XML you merged by hand for {elements}":
+        "Esto descarta el XML que combinó a mano para {elements}",
+    "The XML of {element} still holds conflict markers":
+        "El XML de {element} aún contiene marcadores de conflicto",
+    "The XML of {element} doesn't parse": "El XML de {element} no se puede analizar",
+    "The XML of {element} must hold one element":
+        "El XML de {element} debe contener un solo elemento",
+    "The XML of {element} changes its type": "El XML de {element} cambia su tipo",
+    "The XML of {element} changes its ID": "El XML de {element} cambia su ID",
+    "The XML of {element} holds elements of their own":
+        "El XML de {element} contiene elementos propios",
+    "The XML of {element} goes beyond its own content":
+        "El XML de {element} va más allá de su propio contenido",
+    "The XML of {element} names an element of the wrong type":
+        "El XML de {element} nombra un elemento del tipo incorrecto",
+    "The XML of {element} uses an unknown namespace":
+        "El XML de {element} usa un espacio de nombres desconocido",
+    "The engine doesn't take the XML of {element}": "El motor no acepta el XML de {element}",
+    "The XML of {element} changes what follows the pick":
+        "El XML de {element} cambia lo que sigue a la elección",
+    "The XML of {element} names an element no version has":
+        "El XML de {element} nombra un elemento que ninguna versión tiene",
+    "The XML of {element} names an element the result leaves out":
+        "El XML de {element} nombra un elemento que el resultado deja fuera",
+    "The XML of {element} would change other decisions":
+        "El XML de {element} cambiaría otras decisiones",
+    "The pick of {element} changed while you merged it":
+        "La elección de {element} cambió mientras lo combinaba",
+    "Resolve each conflict and remove its markers, then save.":
+        "Resuelva cada conflicto y quite sus marcadores; luego guarde.",
+    "The parser says: {detail}": "El analizador dice: {detail}",
+    "It holds {count} elements at its top level.":
+        "Contiene {count} elementos en su nivel superior.",
+    "It is a {found} now; keep it a {expected}.":
+        "Ahora es un {found}; manténgalo como {expected}.",
+    "Its ID is {found} now; keep {expected}.": "Su ID ahora es {found}; mantenga {expected}.",
+    "It has no ID now; keep {expected}.": "Ahora no tiene ID; mantenga {expected}.",
+    "Merge these on their own, with a pick: {elements}":
+        "Combine estos por separado, con una elección: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "Aquí solo se combinan sus atributos, documentación y elementos de extensión, no {properties}.",
+    "{target} as {property}, which takes a {expected}":
+        "{target} como {property}, que admite un {expected}",
+    "No version declares {namespaces}.": "Ninguna versión declara {namespaces}.",
+    "The engine says: {detail}": "El motor dice: {detail}",
+    "{properties} follow the side you picked.": "{properties} siguen al lado que eligió.",
+    "No version has {elements}.": "Ninguna versión tiene {elements}.",
+    "The result leaves out {elements}.": "El resultado deja fuera {elements}.",
+    "It would change the decisions on {elements}.": "Cambiaría las decisiones sobre {elements}.",
+    "It is no longer picked on the side you merged it for.":
+        "Ya no está elegido en el lado para el que lo combinó.",
 };
 
 export default dictionary;

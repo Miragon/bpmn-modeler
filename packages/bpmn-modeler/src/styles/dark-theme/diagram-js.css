@@ -243,3 +243,7 @@
 [data-bpmn-theme="dark"] .bjs-powered-by {
     color: var(--dt-surface-a60) !important;
 }
+
+[data-bpmn-theme="dark"] .djs-overlay .transaction-boundary {
+    --transaction-boundary-background-color: #6b8aff;
+}

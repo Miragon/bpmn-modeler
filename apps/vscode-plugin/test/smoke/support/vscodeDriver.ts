@@ -27,6 +27,18 @@ interface DriverOperations {
     revertAndCloseAllEditors: { payload?: undefined; result: void };
     windowState: { payload?: undefined; result: WindowState };
     unmergedFiles: { payload?: undefined; result: string[] };
+    documentTexts: { payload: { scheme: string }; result: OpenDocumentText[] };
+    replaceInDocuments: {
+        payload: { scheme: string; search: string; replacement: string };
+        result: boolean;
+    };
+}
+
+/** An open text document as edited, saved or not. */
+export interface OpenDocumentText {
+    path: string;
+    text: string;
+    isDirty: boolean;
 }
 
 /** A file's URI as a command argument, which the driver turns into a `vscode.Uri`. */
@@ -48,7 +60,8 @@ function isConnectionRefused(error: unknown): boolean {
 /**
  * Asks the companion extension in `./driver` to act on its window through
  * the VS Code API: run a command by its id, change a setting, close tabs,
- * report the window's state and what Git lists as unmerged.
+ * report the window's state and what Git lists as unmerged, and read or
+ * edit the text of open documents of a scheme.
  */
 export class VsCodeDriver {
     private constructor(

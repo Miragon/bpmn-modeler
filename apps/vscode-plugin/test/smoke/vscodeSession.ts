@@ -14,7 +14,7 @@ import {
     type Page,
 } from "playwright-core";
 
-import { VsCodeDriver, fileUri } from "./support/vscodeDriver";
+import { type OpenDocumentText, VsCodeDriver, fileUri } from "./support/vscodeDriver";
 
 const runFile = promisify(execFile);
 const delay = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
@@ -320,6 +320,27 @@ export class VsCodeSession {
     /** The files Git lists as unmerged; none until it has scanned their repositories. */
     unmergedFiles(): Promise<string[]> {
         return this.driver.call("unmergedFiles");
+    }
+
+    /** The open text documents of a scheme, with their text as edited, saved or not. */
+    documentTexts(scheme: string): Promise<OpenDocumentText[]> {
+        return this.driver.call("documentTexts", { scheme });
+    }
+
+    /**
+     * Replaces text in the open documents of a scheme and saves nothing, as a
+     * user's typing would. Test plumbing: what the user does with the text is
+     * under test, not the keystrokes.
+     */
+    async replaceInDocuments(scheme: string, search: string, replacement: string): Promise<void> {
+        if (!(await this.driver.call("replaceInDocuments", { scheme, search, replacement }))) {
+            throw new Error(`no open ${scheme} document took the edit`);
+        }
+    }
+
+    /** The tabs of each editor group, by label, as the window holds them. */
+    async tabsByGroup(): Promise<{ label: string; isDirty: boolean }[][]> {
+        return (await this.driver.call("windowState")).tabs;
     }
 
     /**

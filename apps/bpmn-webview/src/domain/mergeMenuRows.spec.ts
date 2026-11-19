@@ -58,7 +58,7 @@ const keptError: MergeRememberedOutcome = {
 const context = {
     nameOf: (id: string) => NAMES[id] ?? id,
     translate,
-    elementXmlChanges: false,
+    offers: { elementXmlChanges: false, elementXmlMerge: false },
 };
 
 describe("mergeMenuRows", () => {
@@ -126,7 +126,10 @@ describe("mergeMenuRows", () => {
     ])(
         "offers the XML changes of every row, one side's element included, where the host shows them: %s",
         (elementXmlChanges, expected) => {
-            const offered = mergeMenuRows(STATES, undefined, { ...context, elementXmlChanges });
+            const offered = mergeMenuRows(STATES, undefined, {
+                ...context,
+                offers: { elementXmlChanges, elementXmlMerge: false },
+            });
 
             expect(offered.map(({ id, xmlChanges }) => [id, xmlChanges])).toStrictEqual([
                 ["Message_1", expected],
@@ -142,6 +145,49 @@ describe("mergeMenuRows", () => {
             "Kept from incoming: Error_1",
         ]);
         expect(rows.find(({ id }) => id === "Message_1")?.outcome).toBeUndefined();
+    });
+
+    it("offers a row merging its XML by hand where the host has the editor", () => {
+        const handMergeable = { ...ROWS[1], handMergeable: true } as const;
+
+        const [offered] = mergeMenuRows({ shapelessRows: [handMergeable] }, undefined, {
+            ...context,
+            offers: { elementXmlChanges: false, elementXmlMerge: true },
+        });
+
+        expect(offered?.decisions).toStrictEqual([
+            { kind: "leaveOut", side: "current", otherSideLacks: "missing" },
+            { kind: "mergeXml", mode: "open" },
+            { kind: "undo", scope: "element" },
+        ]);
+    });
+
+    it("gives the row of a refused merge by hand the card's choices", () => {
+        const handMergeable = { ...ROWS[1], handMergeable: true } as const;
+        const refused: MergeRememberedOutcome = {
+            outcome: {
+                applied: false,
+                action: "mergeByHand",
+                elementId: "Error_1",
+                blockedBy: [],
+                handMergeRefusal: { kind: "conflictMarkersLeft" },
+            },
+            acted: { kind: "mergeXml", elementId: "Error_1", origin: "menu" },
+        };
+
+        const [row] = mergeMenuRows({ shapelessRows: [handMergeable] }, refused, {
+            ...context,
+            offers: { elementXmlChanges: false, elementXmlMerge: true },
+        });
+
+        expect(row?.outcome).toStrictEqual([
+            "The XML of Error_1 still holds conflict markers",
+            "Resolve each conflict and remove its markers, then save.",
+        ]);
+        expect(row?.choices).toStrictEqual([
+            { action: "editAgain", text: "Edit again", primary: true },
+            { action: "dismiss", text: "Keep incoming's version" },
+        ]);
     });
 });
 

@@ -1,6 +1,8 @@
 import type { Connection, Element, Shape } from "bpmn-js/lib/model/Types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import "./styles/themes.css";
+
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
 import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
@@ -22,6 +24,7 @@ interface RenderedOverlay {
 }
 
 const TRANSACTION_BOUNDARY_OVERLAY = "transaction-boundaries";
+const MIRAGON_BLUE = { light: "rgb(51, 93, 229)", dark: "rgb(107, 138, 255)" };
 
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.24.0">
@@ -109,6 +112,15 @@ function renderedMarks(handle: BpmnModeler): string[] {
         .sort();
 }
 
+function markColors(handle: BpmnModeler): string[] {
+    const overlays = [handle.getService("overlays").get({ type: TRANSACTION_BOUNDARY_OVERLAY })]
+        .flat()
+        .filter((overlay) => overlay !== null) as unknown as RenderedOverlay[];
+    return overlays.map(
+        (overlay) => getComputedStyle(overlay.htmlContainer!.firstElementChild!).backgroundColor,
+    );
+}
+
 function transactionBoundaries(handle: BpmnModeler): TransactionBoundariesService {
     return handle.getService<TransactionBoundariesService>("transactionBoundaries");
 }
@@ -171,6 +183,18 @@ describe("transaction boundaries", () => {
             expect(renderedMarks(handle), label).toEqual(renderedMarks(reference));
         }
     });
+
+    it.each(["light", "dark"] as const)(
+        "paints the marks in Miragon blue in the %s theme",
+        async (theme) => {
+            const handle = await openModeler();
+            await handle.loadDiagram(FIXTURE_XML);
+
+            handle.setTheme(theme);
+
+            expect(markColors(handle)).toEqual(Array(FIXTURE_MARK_COUNT).fill(MIRAGON_BLUE[theme]));
+        },
+    );
 
     it("keeps one overlay per mark when settings arrive repeatedly", async () => {
         const handle = await openModeler();

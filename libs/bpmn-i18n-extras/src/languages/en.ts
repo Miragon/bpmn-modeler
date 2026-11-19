@@ -483,6 +483,83 @@ const dictionary: Record<string, string> = {
         "Both sides changed the layout of {elements}; current's is kept",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "Both sides changed the layout of {elements}; incoming's is kept",
+    "by hand": "by hand",
+    "Edit again": "Edit again",
+    "Keep my XML": "Keep my XML",
+    "Keep the XML merged before": "Keep the XML merged before",
+    "Merge XML": "Merge XML",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "Merge both sides' changes to its XML by hand in a merge editor",
+    "Edit merged XML": "Edit merged XML",
+    "Change the XML you merged by hand": "Change the XML you merged by hand",
+    "Keep current's version": "Keep current's version",
+    "Keep incoming's version": "Keep incoming's version",
+    "Drop it and pick": "Drop it and pick",
+    "Drop it and leave out": "Drop it and leave out",
+    "Drop it and undo": "Drop it and undo",
+    "Kept from current and merged by hand, your pick":
+        "Kept from current and merged by hand, your pick",
+    "Kept from incoming and merged by hand, your pick":
+        "Kept from incoming and merged by hand, your pick",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "Kept from current with everything inside and merged by hand, your pick",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "Kept from incoming with everything inside and merged by hand, your pick",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "Kept from current with what was removed with it and merged by hand, your pick",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "Kept from incoming with what was removed with it and merged by hand, your pick",
+    "Merged by hand: {element}": "Merged by hand: {element}",
+    "Closed without saving: {element} is unchanged":
+        "Closed without saving: {element} is unchanged",
+    "This drops the XML you merged by hand for {elements}":
+        "This drops the XML you merged by hand for {elements}",
+    "The XML of {element} still holds conflict markers":
+        "The XML of {element} still holds conflict markers",
+    "The XML of {element} doesn't parse": "The XML of {element} doesn't parse",
+    "The XML of {element} must hold one element": "The XML of {element} must hold one element",
+    "The XML of {element} changes its type": "The XML of {element} changes its type",
+    "The XML of {element} changes its ID": "The XML of {element} changes its ID",
+    "The XML of {element} holds elements of their own":
+        "The XML of {element} holds elements of their own",
+    "The XML of {element} goes beyond its own content":
+        "The XML of {element} goes beyond its own content",
+    "The XML of {element} names an element of the wrong type":
+        "The XML of {element} names an element of the wrong type",
+    "The XML of {element} uses an unknown namespace":
+        "The XML of {element} uses an unknown namespace",
+    "The engine doesn't take the XML of {element}": "The engine doesn't take the XML of {element}",
+    "The XML of {element} changes what follows the pick":
+        "The XML of {element} changes what follows the pick",
+    "The XML of {element} names an element no version has":
+        "The XML of {element} names an element no version has",
+    "The XML of {element} names an element the result leaves out":
+        "The XML of {element} names an element the result leaves out",
+    "The XML of {element} would change other decisions":
+        "The XML of {element} would change other decisions",
+    "The pick of {element} changed while you merged it":
+        "The pick of {element} changed while you merged it",
+    "Resolve each conflict and remove its markers, then save.":
+        "Resolve each conflict and remove its markers, then save.",
+    "The parser says: {detail}": "The parser says: {detail}",
+    "It holds {count} elements at its top level.": "It holds {count} elements at its top level.",
+    "It is a {found} now; keep it a {expected}.": "It is a {found} now; keep it a {expected}.",
+    "Its ID is {found} now; keep {expected}.": "Its ID is {found} now; keep {expected}.",
+    "It has no ID now; keep {expected}.": "It has no ID now; keep {expected}.",
+    "Merge these on their own, with a pick: {elements}":
+        "Merge these on their own, with a pick: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "Only its attributes, documentation and extension elements merge here, not {properties}.",
+    "{target} as {property}, which takes a {expected}":
+        "{target} as {property}, which takes a {expected}",
+    "No version declares {namespaces}.": "No version declares {namespaces}.",
+    "The engine says: {detail}": "The engine says: {detail}",
+    "{properties} follow the side you picked.": "{properties} follow the side you picked.",
+    "No version has {elements}.": "No version has {elements}.",
+    "The result leaves out {elements}.": "The result leaves out {elements}.",
+    "It would change the decisions on {elements}.": "It would change the decisions on {elements}.",
+    "It is no longer picked on the side you merged it for.":
+        "It is no longer picked on the side you merged it for.",
 };
 
 export default dictionary;

@@ -1,7 +1,7 @@
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 
 import { mergeElementLabel, type MergeElementNaming } from "../../domain/mergeElementLabel";
-import type { MergeTranslate } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 
 /** How a merge pane reaches the names its canvas knows, once diagram-js built them. */
 export interface MergeElementNamesConfig {

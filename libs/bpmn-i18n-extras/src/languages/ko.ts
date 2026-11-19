@@ -482,6 +482,78 @@ const dictionary: Record<string, string> = {
         "양쪽이 {elements}의 레이아웃을 변경했습니다. 현재의 레이아웃이 유지됩니다",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "양쪽이 {elements}의 레이아웃을 변경했습니다. 수신의 레이아웃이 유지됩니다",
+    "by hand": "수동",
+    "Edit again": "다시 편집",
+    "Keep my XML": "내 XML 유지",
+    "Keep the XML merged before": "이전에 병합한 XML 유지",
+    "Merge XML": "XML 병합",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "양쪽의 XML 변경 사항을 병합 편집기에서 수동으로 병합합니다",
+    "Edit merged XML": "병합한 XML 편집",
+    "Change the XML you merged by hand": "수동으로 병합한 XML을 변경합니다",
+    "Keep current's version": "현재 버전 유지",
+    "Keep incoming's version": "수신 버전 유지",
+    "Drop it and pick": "버리고 선택",
+    "Drop it and leave out": "버리고 제외",
+    "Drop it and undo": "버리고 취소",
+    "Kept from current and merged by hand, your pick": "현재에서 유지하고 수동으로 병합, 내 선택",
+    "Kept from incoming and merged by hand, your pick": "수신에서 유지하고 수동으로 병합, 내 선택",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "현재에서 내부 전체와 함께 유지하고 수동으로 병합, 내 선택",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "수신에서 내부 전체와 함께 유지하고 수동으로 병합, 내 선택",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "현재에서 함께 제거된 항목과 함께 유지하고 수동으로 병합, 내 선택",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "수신에서 함께 제거된 항목과 함께 유지하고 수동으로 병합, 내 선택",
+    "Merged by hand: {element}": "수동으로 병합됨: {element}",
+    "Closed without saving: {element} is unchanged":
+        "저장하지 않고 닫음: {element}은(는) 변경되지 않음",
+    "This drops the XML you merged by hand for {elements}":
+        "{elements}에 대해 수동으로 병합한 XML이 버려집니다",
+    "The XML of {element} still holds conflict markers": "{element}의 XML에 아직 충돌 표시가 있음",
+    "The XML of {element} doesn't parse": "{element}의 XML을 구문 분석할 수 없음",
+    "The XML of {element} must hold one element": "{element}의 XML에는 요소가 하나만 있어야 함",
+    "The XML of {element} changes its type": "{element}의 XML이 형식을 변경함",
+    "The XML of {element} changes its ID": "{element}의 XML이 ID를 변경함",
+    "The XML of {element} holds elements of their own": "{element}의 XML에 독립된 요소가 있음",
+    "The XML of {element} goes beyond its own content": "{element}의 XML이 자체 내용을 벗어남",
+    "The XML of {element} names an element of the wrong type":
+        "{element}의 XML이 잘못된 형식의 요소를 지정함",
+    "The XML of {element} uses an unknown namespace":
+        "{element}의 XML이 알 수 없는 네임스페이스를 사용함",
+    "The engine doesn't take the XML of {element}": "엔진이 {element}의 XML을 받아들이지 않음",
+    "The XML of {element} changes what follows the pick":
+        "{element}의 XML이 선택을 따르는 항목을 변경함",
+    "The XML of {element} names an element no version has":
+        "{element}의 XML이 어떤 버전에도 없는 요소를 지정함",
+    "The XML of {element} names an element the result leaves out":
+        "{element}의 XML이 결과에서 제외되는 요소를 지정함",
+    "The XML of {element} would change other decisions": "{element}의 XML이 다른 결정을 변경함",
+    "The pick of {element} changed while you merged it": "병합하는 동안 {element}의 선택이 변경됨",
+    "Resolve each conflict and remove its markers, then save.":
+        "각 충돌을 해결하고 표시를 제거한 다음 저장하세요.",
+    "The parser says: {detail}": "파서 메시지: {detail}",
+    "It holds {count} elements at its top level.": "최상위에 요소가 {count}개 있습니다.",
+    "It is a {found} now; keep it a {expected}.":
+        "지금은 {found}입니다. {expected}(으)로 유지하세요.",
+    "Its ID is {found} now; keep {expected}.":
+        "ID가 지금은 {found}입니다. {expected}을(를) 유지하세요.",
+    "It has no ID now; keep {expected}.": "지금은 ID가 없습니다. {expected}을(를) 유지하세요.",
+    "Merge these on their own, with a pick: {elements}":
+        "이 항목은 선택으로 따로 병합하세요: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "여기서는 특성, 문서, 확장 요소만 병합되며 {properties}은(는) 병합되지 않습니다.",
+    "{target} as {property}, which takes a {expected}":
+        "{property}(으)로서의 {target}, {expected}이(가) 필요함",
+    "No version declares {namespaces}.": "{namespaces}을(를) 선언하는 버전이 없습니다.",
+    "The engine says: {detail}": "엔진 메시지: {detail}",
+    "{properties} follow the side you picked.": "{properties}은(는) 선택한 쪽을 따릅니다.",
+    "No version has {elements}.": "{elements}이(가) 있는 버전이 없습니다.",
+    "The result leaves out {elements}.": "결과에서 {elements}이(가) 제외됩니다.",
+    "It would change the decisions on {elements}.": "{elements}에 대한 결정이 변경됩니다.",
+    "It is no longer picked on the side you merged it for.":
+        "병합한 쪽에서 더 이상 선택되어 있지 않습니다.",
 };
 
 export default dictionary;

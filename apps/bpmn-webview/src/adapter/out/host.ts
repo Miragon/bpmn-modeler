@@ -28,7 +28,12 @@ import c7Samples from "../../__fixtures__/c7-samples.json";
 import c8Samples from "../../__fixtures__/c8-samples.json";
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../__fixtures__/mock-diff";
-import { MOCK_MERGE_STATES } from "../../__fixtures__/mock-merge";
+import {
+    MOCK_MERGE_STATES,
+    mockMergeXmlAnswerOf,
+    mockMergeXmlFinished,
+    mockMergeXmlStates,
+} from "../../__fixtures__/mock-merge";
 import { MOCK_WORKSPACE_DEFINITIONS } from "../../__fixtures__/mock-workspace-definitions";
 import { mockPluginAssets } from "../../__fixtures__/mock-plugins";
 import type { BpmnWebviewCommand, BpmnWebviewHost } from "../../port/hostChannel";
@@ -277,8 +282,13 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 break;
             }
             case "OpenElementXmlMergeCommand": {
-                // No merge editor to open an element's XML in.
+                // No merge editor: with `&mergeXml=`, the preview answers as a finished merge would.
                 console.debug("[DEBUG] OpenElementXmlMergeCommand", command.elementId);
+                const answer = mockMergeXmlAnswerOf(
+                    new URLSearchParams(window.location.search).get("mergeXml"),
+                );
+                const side = this.diffSide();
+                if (answer && side) dispatch(mockMergeXmlFinished(side, answer));
                 break;
             }
             case "GetBpmnlintConfigCommand": {
@@ -406,19 +416,23 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
         }
     }
 
+    private diffSide(): DiffSide | undefined {
+        if (this.devMode === "diff-before" || this.devMode === "merge-current") return "before";
+        if (this.devMode === "diff-after" || this.devMode === "merge-incoming") return "after";
+        return undefined;
+    }
+
     private async handleDiffReady(): Promise<void> {
-        const side: DiffSide | undefined =
-            this.devMode === "diff-before" || this.devMode === "merge-current"
-                ? "before"
-                : this.devMode === "diff-after" || this.devMode === "merge-incoming"
-                  ? "after"
-                  : undefined;
+        const side = this.diffSide();
         if (!side) {
             // DiffReadyCommand arrived in modeler mode — ignore.
             return;
         }
         if (isMergeMode(this.devMode)) {
-            dispatch(MOCK_MERGE_STATES[side]);
+            const mergeXml = new URLSearchParams(window.location.search).get("mergeXml");
+            dispatch(
+                mockMergeXmlAnswerOf(mergeXml) ? mockMergeXmlStates(side) : MOCK_MERGE_STATES[side],
+            );
             return;
         }
 

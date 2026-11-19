@@ -3735,7 +3735,7 @@ __metadata:
     bpmnlint: "npm:12.0.0"
     camunda-bpmn-js-behaviors: "npm:1.18.0"
     camunda-bpmn-moddle: "npm:8.0.2"
-    camunda-transaction-boundaries: "npm:1.1.2"
+    camunda-transaction-boundaries: "npm:2.0.0"
     diagram-js: "npm:15.28.1"
     diagram-js-grid: "npm:2.1.0"
     diagram-js-minimap: "npm:5.6.0"
@@ -9929,21 +9929,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"camunda-transaction-boundaries@npm:1.1.2":
-  version: 1.1.2
-  resolution: "camunda-transaction-boundaries@npm:1.1.2"
+"camunda-transaction-boundaries@npm:2.0.0":
+  version: 2.0.0
+  resolution: "camunda-transaction-boundaries@npm:2.0.0"
   dependencies:
-    min-dash: "npm:^3.5.2"
-  checksum: 10c0/57367199c8ba90701623c3ce8d496dee0e6d64bb25b6580e677bc7c029406f6f304f54d0051467c2bbaebad48b00ca56236a5764c41b99e440856c2238e94d3d
+    min-dash: "npm:^5.1.0"
+  checksum: 10c0/a9f23a50b8f3a048e2f15d21fe613d320630789c006dc51850a142acfb2187aa67ca2b3c37934140a24f180e38837c40b96c7aa5cd0d45ddba661ff784bf8baf
   languageName: node
   linkType: hard
 
-"camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch":
-  version: 1.1.2
-  resolution: "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch::version=1.1.2&hash=05e449"
+"camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A2.0.0#~/.yarn/patches/camunda-transaction-boundaries-npm-2.0.0-303f6c20db.patch":
+  version: 2.0.0
+  resolution: "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A2.0.0#~/.yarn/patches/camunda-transaction-boundaries-npm-2.0.0-303f6c20db.patch::version=2.0.0&hash=902694"
   dependencies:
-    min-dash: "npm:^3.5.2"
-  checksum: 10c0/0f594bf9b5d68848d51fcca64bc1510b9e821415c5da7d555a2ccf7d9d16ba5bfebddccd8e49a61afa2ac38c4117a2efbdee14ebc9dfa8ab24113e1702c8be55
+    min-dash: "npm:^5.1.0"
+  checksum: 10c0/27a3466288a07bab709457234edc2bc4bc9f0d19e66a43264d72165d5951418d590d026ae6f2e7f783ea0c9ff9d91d6482214a1a0eb64197da2b55d89eb7e4f9
   languageName: node
   linkType: hard
 
@@ -16085,13 +16085,6 @@ __metadata:
   version: 5.1.0
   resolution: "min-dash@npm:5.1.0"
   checksum: 10c0/44d977d9a8dc45526e3b1badc903adb9d511937d7c895643d252947a7c6371970b89ac48f205a7207eed2f1426d6e538a1d95511d9e815ea48d23d35ef7c0ba5
-  languageName: node
-  linkType: hard
-
-"min-dash@npm:^3.5.2":
-  version: 3.8.1
-  resolution: "min-dash@npm:3.8.1"
-  checksum: 10c0/30eff7c7936496de022dc64a541aa0ce1db9eadf45425e3d7dc96e0f076677482b66f2888ef191b951558b079a0c0610d48b9e91e667c1ea6a745d730aeb3360
   languageName: node
   linkType: hard
 

@@ -448,6 +448,71 @@ const dictionary: Record<string, string> = {
         "兩側都變更了 {elements} 的版面配置；保留目前的版面配置",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "兩側都變更了 {elements} 的版面配置；保留傳入的版面配置",
+    "by hand": "手動",
+    "Edit again": "再次編輯",
+    "Keep my XML": "保留我的 XML",
+    "Keep the XML merged before": "保留之前合併的 XML",
+    "Merge XML": "合併 XML",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "在合併編輯器中手動合併雙方對其 XML 的變更",
+    "Edit merged XML": "編輯已合併的 XML",
+    "Change the XML you merged by hand": "變更您手動合併的 XML",
+    "Keep current's version": "保留目前的版本",
+    "Keep incoming's version": "保留傳入的版本",
+    "Drop it and pick": "捨棄並選擇",
+    "Drop it and leave out": "捨棄並排除",
+    "Drop it and undo": "捨棄並復原",
+    "Kept from current and merged by hand, your pick": "從目前保留並手動合併，您的選擇",
+    "Kept from incoming and merged by hand, your pick": "從傳入保留並手動合併，您的選擇",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "從目前連同其中全部內容保留並手動合併，您的選擇",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "從傳入連同其中全部內容保留並手動合併，您的選擇",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "從目前連同隨其刪除的內容保留並手動合併，您的選擇",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "從傳入連同隨其刪除的內容保留並手動合併，您的選擇",
+    "Merged by hand: {element}": "已手動合併：{element}",
+    "Closed without saving: {element} is unchanged": "未儲存即關閉：{element} 未變更",
+    "This drops the XML you merged by hand for {elements}":
+        "這會捨棄您為 {elements} 手動合併的 XML",
+    "The XML of {element} still holds conflict markers": "{element} 的 XML 仍包含衝突標記",
+    "The XML of {element} doesn't parse": "無法剖析 {element} 的 XML",
+    "The XML of {element} must hold one element": "{element} 的 XML 必須只包含一個元素",
+    "The XML of {element} changes its type": "{element} 的 XML 變更了其類型",
+    "The XML of {element} changes its ID": "{element} 的 XML 變更了其 ID",
+    "The XML of {element} holds elements of their own": "{element} 的 XML 包含獨立的元素",
+    "The XML of {element} goes beyond its own content": "{element} 的 XML 超出了其本身內容",
+    "The XML of {element} names an element of the wrong type":
+        "{element} 的 XML 指定了類型錯誤的元素",
+    "The XML of {element} uses an unknown namespace": "{element} 的 XML 使用了未知的命名空間",
+    "The engine doesn't take the XML of {element}": "引擎不接受 {element} 的 XML",
+    "The XML of {element} changes what follows the pick": "{element} 的 XML 變更了隨選擇而定的內容",
+    "The XML of {element} names an element no version has":
+        "{element} 的 XML 指定了任何版本都沒有的元素",
+    "The XML of {element} names an element the result leaves out":
+        "{element} 的 XML 指定了結果中排除的元素",
+    "The XML of {element} would change other decisions": "{element} 的 XML 會變更其他決定",
+    "The pick of {element} changed while you merged it": "在您合併時 {element} 的選擇已變更",
+    "Resolve each conflict and remove its markers, then save.":
+        "請解決每個衝突並移除其標記，然後儲存。",
+    "The parser says: {detail}": "剖析器提示：{detail}",
+    "It holds {count} elements at its top level.": "其最上層包含 {count} 個元素。",
+    "It is a {found} now; keep it a {expected}.": "它現在是 {found}；請保持為 {expected}。",
+    "Its ID is {found} now; keep {expected}.": "其 ID 現在是 {found}；請保持 {expected}。",
+    "It has no ID now; keep {expected}.": "它現在沒有 ID；請保持 {expected}。",
+    "Merge these on their own, with a pick: {elements}": "請透過選擇個別合併這些元素：{elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "此處只合併其屬性、文件和擴充元素，不包括 {properties}。",
+    "{target} as {property}, which takes a {expected}": "{target} 作為 {property}，需要 {expected}",
+    "No version declares {namespaces}.": "沒有任何版本宣告 {namespaces}。",
+    "The engine says: {detail}": "引擎提示：{detail}",
+    "{properties} follow the side you picked.": "{properties} 跟隨您選擇的一方。",
+    "No version has {elements}.": "沒有任何版本包含 {elements}。",
+    "The result leaves out {elements}.": "結果排除了 {elements}。",
+    "It would change the decisions on {elements}.": "這會變更對 {elements} 的決定。",
+    "It is no longer picked on the side you merged it for.":
+        "它已不再在您合併時所針對的一方被選擇。",
 };
 
 export default dictionary;

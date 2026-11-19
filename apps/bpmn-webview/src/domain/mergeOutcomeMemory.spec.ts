@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { MergePaneBlock, MergePaneOutcome } from "@miragon/bpmn-modeler-shared";
 
-import type { MergeActedDecision } from "./mergeActedDecision";
+import type { MergeActedDecision, MergeXmlRequest } from "./mergeActedDecision";
 import {
     answerStates,
     cardOnAnswer,
     cardOnSelection,
+    chooseOn,
     EMPTY_OUTCOME_MEMORY,
     type MergeOutcomeMemory,
     type MergeOutcomeStates,
@@ -348,5 +349,181 @@ describe("rowOutcome", () => {
         ],
     ])("says nothing for %s", (_case, memory) => {
         expect(rowOutcome(memory)).toBeUndefined();
+    });
+});
+
+describe("a merge by hand this pane asked for", () => {
+    const mergeXml: MergeXmlRequest = {
+        kind: "mergeXml",
+        elementId: "Task_Remind",
+        origin: "canvas",
+    };
+    const accepted = applied("mergeByHand", "Task_Remind");
+    const refusedText: MergePaneOutcome = {
+        applied: false,
+        action: "mergeByHand",
+        elementId: "Task_Remind",
+        blockedBy: [],
+        handMergeRefusal: { kind: "conflictMarkersLeft" },
+    };
+    const mergedBadge = { ...badge("Task_Remind"), mergedByHand: true } as const;
+    const opened = answerStates(
+        rememberSent(EMPTY_OUTCOME_MEMORY, mergeXml),
+        states({ badges: [badge("Task_Remind")] }),
+    ).memory;
+
+    it("shows the finished merge as the answer, with the request", () => {
+        const { memory, answer } = answerStates(
+            opened,
+            states({ lastOutcome: accepted, badges: [mergedBadge] }),
+        );
+
+        expect(answer).toBe("show");
+        expect(memory.latest).toStrictEqual({ outcome: accepted, acted: mergeXml });
+        expect(memory.handMergesSent).toStrictEqual([]);
+    });
+
+    it("still shows it after picks this pane sent while the editor was open", () => {
+        const picked = sendAndAnswer(opened, keepTask, applied("pick", "Task_Other"));
+        const answeredPick = sendAndAnswer(
+            picked.memory,
+            { ...keepTask, elementId: "Task_Other" },
+            applied("pick", "Task_Other"),
+        );
+
+        const { answer, memory } = answerStates(
+            answeredPick.memory,
+            states({ lastOutcome: refusedText }),
+        );
+
+        expect(answer).toBe("show");
+        expect(memory.latest?.acted).toStrictEqual(mergeXml);
+    });
+
+    it("keeps the merges it asked for through the partner's newer outcome", () => {
+        const { memory } = answerStates(
+            opened,
+            states({ lastOutcome: applied("pick", "Task_Other") }),
+        );
+
+        expect(memory.handMergesSent).toStrictEqual([mergeXml]);
+    });
+
+    it("takes no repeat of the last outcome for the answer, as when Edit again sends no state", () => {
+        const shown = answerStates(opened, states({ lastOutcome: refusedText })).memory;
+        const editAgain = rememberSent(shown, { ...mergeXml, resume: true });
+
+        const { answer, memory } = answerStates(editAgain, states({ lastOutcome: refusedText }));
+
+        expect(answer).toBe("keep");
+        expect(memory.latest).toStrictEqual(shown.latest);
+    });
+
+    it("answers a finish that repeats the last one word for word by its count, so it claims no later finish of the partner", () => {
+        const shown = answerStates(
+            opened,
+            states({ lastOutcome: { ...accepted, finish: 1 }, badges: [mergedBadge] }),
+        ).memory;
+        const editing = rememberSent(shown, mergeXml);
+
+        const repeated = answerStates(
+            editing,
+            states({ lastOutcome: { ...accepted, finish: 2 }, badges: [mergedBadge] }),
+        );
+        const partners = answerStates(
+            repeated.memory,
+            states({ lastOutcome: { ...refusedText, finish: 3 }, badges: [mergedBadge] }),
+        );
+
+        expect(repeated.answer).toBe("show");
+        expect(repeated.memory.handMergesSent).toStrictEqual([]);
+        expect(partners.answer).toBe("forget");
+    });
+
+    it("leaves a merge it did not ask for to the pane that did", () => {
+        expect(answerStates(EMPTY_OUTCOME_MEMORY, states({ lastOutcome: accepted })).answer).toBe(
+            "forget",
+        );
+    });
+
+    it("tells a merge by hand from the plain pick by the badge's flag", () => {
+        const shown = answerStates(opened, states({ lastOutcome: accepted })).memory;
+
+        expect(
+            answerStates(shown, states({ lastOutcome: accepted, badges: [mergedBadge] })).answer,
+        ).toBe("forget");
+    });
+
+    it("shows a merge asked for in a menu row in that row, not on the card", () => {
+        const fromRow = answerStates(
+            rememberSent(EMPTY_OUTCOME_MEMORY, { ...mergeXml, origin: "menu" }),
+            states(),
+        ).memory;
+
+        const { memory } = answerStates(fromRow, states({ lastOutcome: accepted }));
+
+        expect(rowOutcome(memory)?.outcome).toStrictEqual(accepted);
+        expect(outcomeToShowAt(memory, "Task_Remind")).toBeUndefined();
+    });
+});
+
+describe("chooseOn", () => {
+    const atStake: MergePaneOutcome = {
+        applied: false,
+        action: "pick",
+        elementId: "Task_Remind",
+        blockedBy: [],
+        handMergesAtStake: ["Task_Remind"],
+    };
+    const asked = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, atStake).memory;
+    const refusedHandMerge = answerStates(
+        answerStates(
+            rememberSent(EMPTY_OUTCOME_MEMORY, {
+                kind: "mergeXml",
+                elementId: "Task_Remind",
+                origin: "menu",
+            }),
+            states(),
+        ).memory,
+        states({
+            lastOutcome: {
+                applied: false,
+                action: "mergeByHand",
+                elementId: "Task_Remind",
+                blockedBy: [],
+                handMergeRefusal: { kind: "conflictMarkersLeft" },
+            },
+        }),
+    ).memory;
+
+    it("resends the decision that asked, agreeing to drop the XML merged by hand", () => {
+        expect(chooseOn(asked, "dropHandMerges")).toStrictEqual({
+            memory: asked,
+            send: { request: keepTask, dropsHandMerges: true },
+            close: false,
+        });
+    });
+
+    it("reopens the merge editor on the refused text from where it was asked for", () => {
+        expect(chooseOn(refusedHandMerge, "editAgain").send).toStrictEqual({
+            request: { kind: "mergeXml", elementId: "Task_Remind", origin: "menu", resume: true },
+            dropsHandMerges: false,
+        });
+    });
+
+    it("forgets the outcome and closes the card on a dismiss, so it does not show again", () => {
+        const { memory, send, close } = chooseOn(asked, "dismiss");
+
+        expect(close).toBe(true);
+        expect(send).toBeUndefined();
+        expect(outcomeToShowAt(memory, "Task_Remind")).toBeUndefined();
+    });
+
+    it("sends nothing it has no outcome for", () => {
+        expect(chooseOn(EMPTY_OUTCOME_MEMORY, "editAgain")).toStrictEqual({
+            memory: EMPTY_OUTCOME_MEMORY,
+            close: false,
+        });
+        expect(chooseOn(refusedHandMerge, "dropHandMerges").send).toBeUndefined();
     });
 });

@@ -190,6 +190,7 @@ describe("handMergeFeedback", () => {
                 pulledIn: [],
                 dropped: [],
                 reopened: [],
+                finish: 1,
             },
         });
     });
@@ -208,6 +209,7 @@ describe("handMergeFeedback", () => {
                     elementId: "Task_Pack",
                     blockedBy: [],
                     handMergeRefusal: refusal,
+                    finish: 1,
                 },
             });
         },
@@ -248,6 +250,32 @@ describe("handMergeFeedback", () => {
         }
     });
 
+    it("counts the finishes in a row, so one that repeats the last word for word reads as new", () => {
+        const first = handMergeFeedback("Task_Pack", { applied: true });
+        const second = handMergeFeedback("Task_Pack", { applied: true }, first);
+        const third = handMergeFeedback("Task_Pack", "discarded", second);
+        const fourth = handMergeFeedback("Task_Pack", "discarded", third);
+
+        expect([first, second, third, fourth].map(({ outcome }) => outcome.finish)).toStrictEqual([
+            1, 2, 3, 4,
+        ]);
+        expect(second.outcome).not.toStrictEqual(first.outcome);
+    });
+
+    it("counts from one again after a pick, whose outcome tells the finishes apart", () => {
+        const pick = mergePickFeedback({
+            action: "pick",
+            elementId: "Task_Pack",
+            keptSide: "current",
+            outcome: { applied: true, pulledIn: [], dropped: [] },
+            openBefore: [],
+            openAfter: [],
+        });
+
+        expect(pick.outcome.finish).toBeUndefined();
+        expect(handMergeFeedback("Task_Pack", { applied: true }, pick).outcome.finish).toBe(1);
+    });
+
     it("shows a merge closed without saving as discarded", () => {
         expect(handMergeFeedback("Task_Pack", "discarded")).toStrictEqual({
             outcome: {
@@ -256,6 +284,7 @@ describe("handMergeFeedback", () => {
                 elementId: "Task_Pack",
                 blockedBy: [],
                 discarded: true,
+                finish: 1,
             },
         });
     });
