@@ -1,39 +1,54 @@
 import type {
     MergeHostOffers,
-    MergePaneRestoreOffer,
     MergePaneShapelessRow,
     MergePaneStates,
 } from "@miragon/bpmn-modeler-shared";
-import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
 /** The user's pick of one element and whether its XML can be merged by hand, as the panes show it. */
 export type MergeElementPick = Pick<MergePaneShapelessRow, "pick" | "handMergeable">;
 
-/** What {@link elementPickOf} reads of the host's states. */
-export type MergeElementPickStates = Pick<
+/** What {@link panePicks} reads of the host's states. */
+export type MergePanePickStates = Pick<
     MergePaneStates,
-    "pickable" | "badges" | "picksNotDrawn" | "shapelessRows"
+    "badges" | "picksNotDrawn" | "shapelessRows"
 >;
+
+/** What {@link elementPickOf} reads of the host's states. */
+export type MergeElementPickStates = MergePanePickStates & Pick<MergePaneStates, "pickable">;
+
+/** One element the user's picks decide on a pane, with its pick. */
+export interface MergePickedElement {
+    readonly id: string;
+    readonly pick: MergePickFields;
+}
 
 /** What the decisions read of what the host offers besides them. */
 export type MergePadOffers = Pick<MergeHostOffers, "elementXmlMerge">;
 
-/** Picks the element again with the flows and boundary events `offer` names. */
-export interface MergeKeepRemovedWith {
-    readonly kind: "keepRemovedWith";
-    readonly side: MergeSide;
-    readonly offer: MergePaneRestoreOffer;
-}
-
 /** `elementId` on a pane: drawn with a badge, picked but drawn by the partner alone, or a menu row. */
 export function elementPickOf(states: MergeElementPickStates, elementId: string): MergeElementPick {
     const isIt = ({ id }: { readonly id: string }) => id === elementId;
-    const row = rowPickOf(states.shapelessRows.find(isIt));
-    const panePick = states.badges.find(isIt) ?? states.picksNotDrawn.find(isIt);
     return elementPick(
-        panePick === undefined ? row.pick : pickOf(panePick),
-        states.pickable.find(isIt)?.handMergeable ?? row.handMergeable,
+        panePicks(states).find(isIt)?.pick,
+        states.pickable.find(isIt)?.handMergeable ?? states.shapelessRows.find(isIt)?.handMergeable,
     );
+}
+
+/**
+ * Every element the user's picks decide on a pane, once each: drawn with a
+ * badge, picked but drawn by the partner alone, then a menu row the pane
+ * lists in neither.
+ */
+export function panePicks(states: MergePanePickStates): readonly MergePickedElement[] {
+    const picks = new Map<string, MergePickFields>();
+    for (const { id, pick } of [
+        ...states.badges.map((badge) => ({ id: badge.id, pick: badge })),
+        ...states.picksNotDrawn.map((notDrawn) => ({ id: notDrawn.id, pick: notDrawn })),
+        ...states.shapelessRows,
+    ]) {
+        if (pick !== undefined && !picks.has(id)) picks.set(id, pickOf(pick));
+    }
+    return [...picks].map(([id, pick]) => ({ id, pick }));
 }
 
 /** A menu row's own pick, as {@link elementPickOf} finds it; nothing where there is no row. */
@@ -47,17 +62,6 @@ export function offersMergeXml(
     offers: MergePadOffers,
 ): boolean {
     return element.handMergeable === true && offers.elementXmlMerge;
-}
-
-/** The host's offer of what was removed with `elementId`, kept from the side that kept the element. */
-export function keepRemovedWith(
-    states: Pick<MergePaneStates, "restoreOffer">,
-    elementId: string,
-): MergeKeepRemovedWith | undefined {
-    const offer = states.restoreOffer;
-    return offer?.elementId === elementId
-        ? { kind: "keepRemovedWith", side: otherSide(offer.removedBy), offer }
-        : undefined;
 }
 
 type MergePickFields = NonNullable<MergeElementPick["pick"]>;

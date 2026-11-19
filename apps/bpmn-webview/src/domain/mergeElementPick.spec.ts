@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneRestoreOffer, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 
 import {
     elementPickOf,
-    keepRemovedWith,
     type MergeElementPick,
     offersMergeXml,
+    panePicks,
     rowPickOf,
 } from "./mergeElementPick";
 
@@ -80,6 +80,34 @@ describe("elementPickOf", () => {
     });
 });
 
+describe("panePicks", () => {
+    it("lists each picked element once with its pick: badges, then picks not drawn, then menu rows", () => {
+        expect(panePicks(STATES)).toStrictEqual([
+            {
+                id: "Task_Remind",
+                pick: { keptSide: "current", scope: "withContents", mergedByHand: true },
+            },
+            { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
+            { id: "Message_1", pick: { keptSide: "incoming", scope: "element" } },
+            { id: "Message_Unlisted", pick: { keptSide: "incoming", scope: "element" } },
+        ]);
+    });
+
+    it("leaves out a menu row without a pick", () => {
+        const { pick: _open, ...openRow } = MESSAGE_ROW;
+
+        expect(
+            panePicks({ badges: [], picksNotDrawn: [], shapelessRows: [openRow] }),
+        ).toStrictEqual([]);
+    });
+
+    it("reads the pick elementPickOf reads for every element", () => {
+        for (const { id, pick } of panePicks(STATES)) {
+            expect(elementPickOf(STATES, id).pick).toStrictEqual(pick);
+        }
+    });
+});
+
 describe("offersMergeXml", () => {
     it.each([
         [{ handMergeable: true } as const, true, true],
@@ -88,28 +116,5 @@ describe("offersMergeXml", () => {
         [{}, false, false],
     ])("an element %o, the host offering a merge editor: %s → %s", (element, offered, expected) => {
         expect(offersMergeXml(element, { elementXmlMerge: offered })).toBe(expected);
-    });
-});
-
-describe("keepRemovedWith", () => {
-    const OFFER: MergePaneRestoreOffer = {
-        elementId: "Task_1",
-        connections: ["Flow_1"],
-        removedBy: "current",
-    };
-
-    it.each([
-        [
-            "the offered element",
-            "Task_1",
-            { kind: "keepRemovedWith", side: "incoming", offer: OFFER },
-        ],
-        ["another element", "Task_2", undefined],
-    ])("keeps what was removed with %s from the side that kept it", (_case, id, expected) => {
-        expect(keepRemovedWith({ restoreOffer: OFFER }, id)).toStrictEqual(expected);
-    });
-
-    it("offers nothing without an offer", () => {
-        expect(keepRemovedWith({}, "Task_1")).toBeUndefined();
     });
 });

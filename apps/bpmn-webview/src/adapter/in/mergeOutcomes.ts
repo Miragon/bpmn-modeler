@@ -36,7 +36,8 @@ import {
     rememberSent,
     rowOutcome,
 } from "../../domain/mergeOutcomeMemory";
-import { elementPickOf, keepRemovedWith } from "../../domain/mergeElementPick";
+import { elementPickOf } from "../../domain/mergeElementPick";
+import { keepRemovedWith } from "../../domain/mergeKeepRemovedWith";
 import { MERGE_CARD_TEXTS } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
 import type { MergeOutcomeCard } from "./mergeOutcomeCard";

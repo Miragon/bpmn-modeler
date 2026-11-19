@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 
-import { elementPickOf, rowPickOf } from "./mergeElementPick";
+import { elementPickOf } from "./mergeElementPick";
 import { handMergeFactsOf, type MergeHandMergeFacts } from "./mergeHandMergeCard";
 import { mergePadDecisions } from "./mergePadDecisions";
 
@@ -52,7 +52,7 @@ describe("handMergeFactsOf", () => {
     it("reads a menu row's own pick, as the pane finds it", () => {
         const offers = { elementXmlMerge: true };
 
-        expect(handMergeFactsOf(rowPickOf(MESSAGE_ROW), offers)).toStrictEqual(
+        expect(handMergeFactsOf(MESSAGE_ROW, offers)).toStrictEqual(
             handMergeFactsOf(elementPickOf(STATES, "Message_1"), offers),
         );
     });

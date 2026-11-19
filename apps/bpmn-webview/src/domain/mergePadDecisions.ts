@@ -10,12 +10,11 @@ import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-ty
 import {
     elementPickOf,
     type MergeElementPickStates,
-    type MergeKeepRemovedWith,
     type MergePadOffers,
-    keepRemovedWith,
     offersMergeXml,
     rowPickOf,
 } from "./mergeElementPick";
+import { keepRemovedWith, type MergeKeepRemovedWith } from "./mergeKeepRemovedWith";
 
 /** Keeps a container from `side` with everything inside, as far as the library says it reaches. */
 export interface MergeKeepInside {
