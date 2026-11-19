@@ -1,3 +1,5 @@
+import { polylineMidpoint } from "@miragon/bpmn-modeler-types";
+
 import type {
     Bounds,
     DiagramSnapshot,
@@ -32,37 +34,7 @@ function isAssociation(type: string): boolean {
     return type.includes("Association");
 }
 
-/**
- * The point half way along a polyline, measured by accumulated length.
- *
- * Used only to derive how far a connection's label should travel, so the
- * user's manual label offset survives a reroute instead of being snapped to a
- * computed position.
- */
-export function polylineMidpoint(waypoints: Point[]): Point {
-    if (waypoints.length === 0) return { x: 0, y: 0 };
-    if (waypoints.length === 1) return { ...waypoints[0] };
-
-    const segments = waypoints.slice(1).map((point, i) => {
-        const previous = waypoints[i];
-        return Math.hypot(point.x - previous.x, point.y - previous.y);
-    });
-    const total = segments.reduce((sum, length) => sum + length, 0);
-    if (total === 0) return { ...waypoints[0] };
-
-    let travelled = 0;
-    for (let i = 0; i < segments.length; i++) {
-        const length = segments[i];
-        if (travelled + length >= total / 2) {
-            const ratio = length === 0 ? 0 : (total / 2 - travelled) / length;
-            const from = waypoints[i];
-            const to = waypoints[i + 1];
-            return { x: from.x + (to.x - from.x) * ratio, y: from.y + (to.y - from.y) * ratio };
-        }
-        travelled += length;
-    }
-    return { ...waypoints[waypoints.length - 1] };
-}
+export { polylineMidpoint };
 
 /**
  * Turns absolute target geometry into the ordered list of changes to apply.
@@ -145,6 +117,7 @@ function planEdges(byId: Map<string, ElementSnapshot>, edges: EdgeGeometry[]): P
         if (!current?.waypoints) continue;
         if (sameWaypoints(current.waypoints, edge.waypoints)) continue;
 
+        // The label moves as far as the flow's middle, so a manual label offset survives a reroute.
         const before = polylineMidpoint(current.waypoints);
         const after = polylineMidpoint(edge.waypoints);
         labelFollow.set(edge.id, { x: after.x - before.x, y: after.y - before.y });

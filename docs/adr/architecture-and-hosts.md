@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-14
+- Last reviewed: 2026-11-20
 
 ## Context
 
@@ -52,10 +52,12 @@ and is either a surface worth publishing (portable mode types, disposable primit
 engine versions, canvas utilities) or a pure rule that both browser code and the core
 apply (script-surface addressing, the XML comment/CDATA scan, process-variable
 extraction, element-template folder rules). Browser code cannot import the core, whose
-barrel exports Node-only modules, so such a rule has no other common home. A rule only
-the core applies stays in the core's `domain/`. The package is private and inlined, and
-its modules have no top-level side effects so a bundle that does not use one leaves it
-out. `libs/shared` also holds the editor page chrome and the VS Code body-class theme
+barrel exports Node-only modules, so such a rule has no other common home. The same holds
+for a pure rule two browser workspaces apply where neither should depend on the other,
+such as the polyline midpoint that bpmn-layout's label follow and the BPMN webview's
+merge card both place by. A rule only the core applies stays in the core's `domain/`.
+The package is private and inlined, and its modules have no top-level side effects so
+a bundle that does not use one leaves it out. `libs/shared` also holds the editor page chrome and the VS Code body-class theme
 adapter, deliberately mixing private browser chrome with the protocol to avoid a
 workspace for a few helpers. `mountPanelChrome` builds the canvas, the divider and the
 properties panel into an empty root, and every editor page mounts it (the BPMN and DMN

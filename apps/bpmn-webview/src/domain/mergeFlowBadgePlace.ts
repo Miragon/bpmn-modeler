@@ -1,3 +1,5 @@
+import { longestSegment, pointAlongSegment } from "@miragon/bpmn-modeler-types";
+
 export interface FlowWaypoint {
     readonly x: number;
     readonly y: number;
@@ -22,18 +24,10 @@ const SHORTEST_BADGE_SEGMENT = 48;
 export function flowBadgePlace(
     waypoints: readonly FlowWaypoint[],
 ): { readonly left: number; readonly top: number } | undefined {
-    let longest: { from: FlowWaypoint; to: FlowWaypoint; length: number } | undefined;
-    for (let index = 1; index < waypoints.length; index += 1) {
-        const from = waypoints[index - 1];
-        const to = waypoints[index];
-        const length = Math.hypot(to.x - from.x, to.y - from.y);
-        if (longest === undefined || length > longest.length) longest = { from, to, length };
-    }
+    const longest = longestSegment(waypoints);
     if (longest === undefined || longest.length < SHORTEST_BADGE_SEGMENT) return undefined;
+    const middle = pointAlongSegment(longest, 0.5);
     const boxLeft = Math.min(...waypoints.map(({ x }) => x));
     const boxTop = Math.min(...waypoints.map(({ y }) => y));
-    return {
-        left: (longest.from.x + longest.to.x) / 2 - boxLeft,
-        top: (longest.from.y + longest.to.y) / 2 - boxTop,
-    };
+    return { left: middle.x - boxLeft, top: middle.y - boxTop };
 }

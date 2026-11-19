@@ -3,8 +3,8 @@
 The publishable half of the shared code: model types (engine, lint, settings, scripting, implementation,
 diff), browser utilities (canvas resize, the text-editing predicate, the flushable input debounce) and
 pure rules that browser code and `@miragon/bpmn-modeler-core` both apply (`scriptSurface.ts`,
-`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`). Nearly every workspace imports it;
-both npm packages inline it.
+`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`) or that two browser workspaces apply
+(`polyline.ts`). Nearly every workspace imports it; both npm packages inline it.
 
 Internal workspace, not published on its own.
 

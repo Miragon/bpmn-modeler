@@ -1,3 +1,5 @@
+import { polylineMidpoint } from "@miragon/bpmn-modeler-types";
+
 /** A box in diagram units. */
 export interface DiagramBox {
     readonly x: number;
@@ -113,7 +115,7 @@ function belowFlow(
     const { x: originX, y: originY } = mergeCardAnchor(target);
     const anchor =
         label === undefined
-            ? middleOf(waypoints)
+            ? polylineMidpoint(waypoints)
             : { x: label.x + label.width / 2, y: label.y + label.height };
     const centre = (anchor.x - originX) * scale;
     const top = (anchor.y - originY) * scale + GAP_PX;
@@ -135,23 +137,6 @@ function belowFlow(
         }
     }
     return { left, top, arrowLeft: arrowAt(centre - left, card.width) };
-}
-
-/** The point halfway along a flow. */
-function middleOf(waypoints: readonly DiagramPoint[]): DiagramPoint {
-    const segments = waypoints.slice(1).map((to, index) => {
-        const from = waypoints[index];
-        return { from, to, length: Math.hypot(to.x - from.x, to.y - from.y) };
-    });
-    let rest = segments.reduce((sum, { length }) => sum + length, 0) / 2;
-    for (const { from, to, length } of segments) {
-        if (rest <= length && length > 0) {
-            const share = rest / length;
-            return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
-        }
-        rest -= length;
-    }
-    return waypoints[0] ?? { x: 0, y: 0 };
 }
 
 function arrowAt(along: number, cardWidth: number): number {
