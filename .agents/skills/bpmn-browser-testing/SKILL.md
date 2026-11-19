@@ -164,10 +164,11 @@ definition / Job type** fields exist in the default C7 preview.
   Rejected-template warnings for the C8 samples on the C7 fixture are expected.
 - Browser previews use native clipboard behavior. PreviewHost logs document sync
   and several capability commands; it does not save files or perform IDE
-  navigation. It throws `Unknown message type` for any command without a case, so
-  a new webview command needs a log-only case there. Save flushing, external
-  edits, host clipboard, and editor lifecycle
-  need host integration checks; consult
+  navigation. It routes each command from the table in
+  `browserPreview/previewCommands.ts`: a new webview command needs a row there,
+  an answer or `{ ignored: reason }`, or the webview fails to compile. Save
+  flushing, external edits, host clipboard, and editor lifecycle need host
+  integration checks; consult
   [custom editors](../vscode-custom-editors/SKILL.md),
   [webviews](../vscode-webviews/SKILL.md), or
   [IntelliJ](../intellij-plugin/SKILL.md).
