@@ -17,6 +17,7 @@ import { computeMerge, type MergeVersions } from "./computeMerge";
 import { bottomOf, centerOf, liesWithin } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
 import { distanceToPolyline } from "./layoutPolyline";
+import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 import type { LayoutSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
@@ -109,15 +110,18 @@ function movedOff(ids: [string, string], shape: string): BuildNote {
     return { kind: "shapesOverlap", ids, repair: "movedByBuild", moved: shape };
 }
 
-/** No free place lies near the inserted tasks, so the room shifts what follows them in the lane, which still holds them. */
-function roomMade(ids: [string, string], shape: string): BuildNote {
+/**
+ * No free place lies near the inserted tasks, which are parallel branches into Ship: one is
+ * stacked under the other, its lane grows and the lane below shifts down with what it holds.
+ */
+function stacked(ids: [string, string], shape: string, shifted: string[] = []): BuildNote {
     return {
         kind: "shapesOverlap",
         ids,
         repair: "madeRoom",
         moved: shape,
-        shifted: ["Task_C", "End_Done"],
-        grown: [],
+        shifted: [...shifted, "Task_R", "End_Rejected"],
+        grown: ["Participant_Order", "Lane_Sales"],
     };
 }
 
@@ -128,6 +132,69 @@ function flow(model: BpmnFixtureModel, id: string) {
 function task(id: string, x: number, y: number, lane: string) {
     return { id, type: "task" as const, x, y, lane };
 }
+
+/** Both sides inserted a task between the gateway and Ship: in the same room, in room of different widths, or without room. */
+const BOTH_INSERTED = {
+    SAME_ROOM: dockedVersions(
+        "c8",
+        (model) => {
+            dragNodes(model, ["Task_C", "End_Done"], 150);
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_X", 530, 100, "Lane_Sales"),
+                "Flow_X",
+            );
+        },
+        (model) => {
+            dragNodes(model, ["Task_C", "End_Done"], 150);
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_Y", 530, 100, "Lane_Sales"),
+                "Flow_Y",
+            );
+        },
+    ),
+    DIFFERENT_ROOM: dockedVersions(
+        "c7",
+        (model) => {
+            dragNodes(model, ["Task_C", "End_Done"], 140);
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_X", 520, 100, "Lane_Sales"),
+                "Flow_X",
+            );
+        },
+        (model) => {
+            dragNodes(model, ["Task_C", "End_Done"], 170);
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_Y", 540, 100, "Lane_Sales"),
+                "Flow_Y",
+            );
+        },
+    ),
+    NO_ROOM: dockedVersions(
+        "c8",
+        (model) =>
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_X", 470, 100, "Lane_Sales"),
+                "Flow_X",
+            ),
+        (model) =>
+            insertIntoFlow(
+                model,
+                "Flow_Yes",
+                task("Task_Y", 480, 100, "Lane_Sales"),
+                "Flow_Y",
+            ),
+    ),
+};
 
 describe("buildMerged's layout notes", () => {
     it.each<{
@@ -184,63 +251,21 @@ describe("buildMerged's layout notes", () => {
         },
         {
             name: "04 both made the same room and inserted a task there",
-            versions: dockedVersions(
-                "c8",
-                (model) => {
-                    dragNodes(model, ["Task_C", "End_Done"], 150);
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_X", 530, 100, "Lane_Sales"),
-                        "Flow_X",
-                    );
-                },
-                (model) => {
-                    dragNodes(model, ["Task_C", "End_Done"], 150);
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_Y", 530, 100, "Lane_Sales"),
-                        "Flow_Y",
-                    );
-                },
-            ),
+            versions: BOTH_INSERTED.SAME_ROOM,
             notes: [
-                roomMade(["Task_Y", "Task_X"], "Task_Y"),
-                moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
-                moved("flowThroughShape", "Flow_X", "Task_Y"),
+                stacked(["Task_Y", "Task_X"], "Task_Y"),
+                moved("flowEndOffShape", "Flow_Y", "Task_Y"),
             ],
         },
         {
             name: "05 both made room of different widths and inserted a task there",
-            versions: dockedVersions(
-                "c7",
-                (model) => {
-                    dragNodes(model, ["Task_C", "End_Done"], 140);
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_X", 520, 100, "Lane_Sales"),
-                        "Flow_X",
-                    );
-                },
-                (model) => {
-                    dragNodes(model, ["Task_C", "End_Done"], 170);
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_Y", 540, 100, "Lane_Sales"),
-                        "Flow_Y",
-                    );
-                },
-            ),
+            versions: BOTH_INSERTED.DIFFERENT_ROOM,
             conflictsTo: "incoming",
             notes: [
-                moved("flowEndOffShape", "Flow_Y", "Task_C", "Task_Y"),
-                roomMade(["Task_Y", "Task_X"], "Task_Y"),
-                moved("flowThroughShape", "Flow_Yes", "Task_X"),
+                moved("flowEndOffShape", "Flow_Y", "Task_C"),
+                stacked(["Task_Y", "Task_X"], "Task_X"),
                 moved("flowThroughShape", "Flow_X", "Task_Y"),
-                moved("flowEndOffShape", "Flow_Yes", "Task_Y"),
+                moved("flowEndOffShape", "Flow_X", "Task_X"),
             ],
         },
         ...(
@@ -248,43 +273,23 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "incoming",
                     notes: [
-                        roomMade(["Task_Y", "Task_X"], "Task_Y"),
-                        moved("flowThroughShape", "Flow_Yes", "Task_X"),
-                        moved("flowThroughShape", "Flow_Y", "Task_X"),
+                        stacked(["Task_Y", "Task_X"], "Task_X", ["Task_C", "End_Done"]),
                         moved("flowThroughShape", "Flow_X", "Task_Y"),
-                        moved("flowEndOffShape", "Flow_Yes", "Task_Y"),
-                        moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
+                        moved("flowEndOffShape", "Flow_X", "Task_X", "Task_C"),
                     ],
                 },
                 {
                     conflictsTo: "current",
                     notes: [
-                        roomMade(["Task_Y", "Task_X"], "Task_Y"),
+                        stacked(["Task_Y", "Task_X"], "Task_Y", ["Task_C", "End_Done"]),
                         moved("flowThroughShape", "Flow_Y", "Task_X"),
-                        moved("flowThroughShape", "Flow_X", "Task_Y"),
                         moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
                     ],
                 },
             ] as const
         ).map(({ conflictsTo, notes }) => ({
             name: `06 both inserted a task into one flow without making room, its conflicts decided for ${conflictsTo}`,
-            versions: dockedVersions(
-                "c8",
-                (model) =>
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_X", 470, 100, "Lane_Sales"),
-                        "Flow_X",
-                    ),
-                (model) =>
-                    insertIntoFlow(
-                        model,
-                        "Flow_Yes",
-                        task("Task_Y", 480, 100, "Lane_Sales"),
-                        "Flow_Y",
-                    ),
-            ),
+            versions: BOTH_INSERTED.NO_ROOM,
             conflictsTo,
             notes: [...notes],
         })),
@@ -427,6 +432,41 @@ describe("buildMerged's layout notes", () => {
             expect(namedByNote(spot, built.notes), JSON.stringify(spot)).toBe(true);
         }
     });
+
+    it.each(
+        (["SAME_ROOM", "DIFFERENT_ROOM", "NO_ROOM"] as const).flatMap((fixture) =>
+            (["current", "incoming"] as const).map((conflictsTo) => ({ fixture, conflictsTo })),
+        ),
+    )(
+        "$fixture, conflicts to $conflictsTo: stacks the moved task under the other with no flow routed around it",
+        async ({ fixture, conflictsTo }) => {
+            const versions = BOTH_INSERTED[fixture];
+
+            const { xml, notes } = await builtOf(versions, conflictsTo);
+
+            const room = notes.find((note) => note.kind === "shapesOverlap");
+            expect(room).toMatchObject({ repair: "madeRoom" });
+            const movedId = room?.kind === "shapesOverlap" && "moved" in room ? room.moved : "";
+            const otherId = movedId === "Task_X" ? "Task_Y" : "Task_X";
+            const layout = await layoutOfXml(xml);
+            const [movedTask, other, ship, shipped] = [movedId, otherId, "Task_C", "End_Done"].map(
+                (id) => layout.shapes.get(id)!.bounds,
+            );
+            expect(movedTask!.y).toBeGreaterThanOrEqual(bottomOf(other!) + STACK_GAP);
+            expect(movedTask!.x).toBeLessThan(other!.x + other!.width);
+            expect(other!.x).toBeLessThan(movedTask!.x + movedTask!.width);
+            expect(
+                notes.filter(
+                    (note) => note.kind === "flowThroughShape" && note.shapes.includes(movedId),
+                ),
+            ).toEqual([]);
+            for (const edge of layout.edges.values()) {
+                if (edge.source !== movedId && edge.target !== movedId) continue;
+                expect(edge.waypoints.length, edge.id).toBeLessThanOrEqual(3);
+            }
+            expect(shipped!.x - (ship!.x + ship!.width)).toBeGreaterThanOrEqual(ROOM_GAP);
+        },
+    );
 
     it("moves a flow's label with the flow it re-routes", async () => {
         const labelled = (model: BpmnFixtureModel) => {
