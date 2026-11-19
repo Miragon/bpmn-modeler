@@ -97,31 +97,111 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     targetPickedWithout: true,
     sideLacksTarget: true,
 };
-const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
-    flowEndOffShape: { kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
-    shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
-    flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
+type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = MergePaneBuildNote extends infer Note
+    ? Note extends { kind: infer NoteKind }
+        ? Kind extends NoteKind
+            ? Note & { kind: Kind }
+            : never
+        : never
+    : never;
+
+type RepairedKind = Extract<MergePaneBuildNote, { repair: string }>["kind"];
+
+type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
+
+/**
+ * Every build note, a repaired note's variants keyed by its repair, so the compiler names a kind or a repair the
+ * merge adds and this spec misses.
+ */
+const NOTES: {
+    [Kind in MergePaneBuildNote["kind"]]: Kind extends RepairedKind
+        ? Record<RepairOf<NoteOfKind<Kind>>, readonly NoteOfKind<Kind>[]>
+        : readonly NoteOfKind<Kind>[];
+} = {
+    flowEndOffShape: {
+        movedByBuild: [{ kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" }],
+        notRepaired: [{ kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "notRepaired" }],
+    },
+    shapesOverlap: {
+        movedByBuild: [
+            { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
+        ],
+        madeRoom: [
+            { shifted: ["c"], grown: [] },
+            { shifted: [], grown: ["d"] },
+            { shifted: ["c"], grown: ["d"] },
+        ].map((room) => ({
+            kind: "shapesOverlap",
+            ids: ["a", "b"],
+            repair: "madeRoom",
+            moved: "b",
+            ...room,
+        })),
+        notRepaired: [{ kind: "shapesOverlap", ids: ["a", "b"], repair: "notRepaired" }],
+    },
+    flowThroughShape: {
+        movedByBuild: [
+            { kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
+        ],
+        notRepaired: [{ kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "notRepaired" }],
+    },
     shapeOutsideContainer: {
-        kind: "shapeOutsideContainer",
-        id: "a",
-        shapes: ["b"],
-        repair: "movedIntoContainer",
+        movedIntoContainer: [
+            { kind: "shapeOutsideContainer", id: "a", shapes: ["b"], repair: "movedIntoContainer" },
+        ],
+        grewContainer: [
+            { kind: "shapeOutsideContainer", id: "a", shapes: ["b"], repair: "grewContainer" },
+        ],
+        grewContainerAndShifted: [
+            {
+                kind: "shapeOutsideContainer",
+                id: "a",
+                shapes: ["b"],
+                repair: "grewContainerAndShifted",
+                shifted: ["c"],
+            },
+        ],
+        notRepaired: [
+            { kind: "shapeOutsideContainer", id: "a", shapes: ["b"], repair: "notRepaired" },
+        ],
     },
-    boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
+    boundaryEventOffHost: [{ kind: "boundaryEventOffHost", id: "a", host: "b" }],
     lanesOverlap: {
-        kind: "lanesOverlap",
-        ids: ["a", "b"],
-        repair: "movedByBuild",
-        moved: "a",
-        grown: ["c"],
-        shifted: [],
+        movedByBuild: [[], ["d"]].map((shifted) => ({
+            kind: "lanesOverlap",
+            ids: ["a", "b"],
+            repair: "movedByBuild",
+            moved: "a",
+            grown: ["c"],
+            shifted,
+        })),
+        notRepaired: [{ kind: "lanesOverlap", ids: ["a", "b"], repair: "notRepaired" }],
     },
-    restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
-    defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
-    layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
-    frameDiffers: { kind: "frameDiffers", attribute: "exporter" },
-    flowNotDrawn: { kind: "flowNotDrawn", id: "a", source: "b", target: "c" },
+    restoredWithoutRemovedWith: [
+        { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
+        { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"], boundaryEvents: ["c"] },
+        { kind: "restoredWithoutRemovedWith", id: "a", connections: [], boundaryEvents: ["c"] },
+    ],
+    defaultFlowNotRestored: [
+        { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
+        { kind: "defaultFlowNotRestored", id: "a", flow: "b", keptDefault: "c" },
+    ],
+    layoutChangedByBoth: MERGE_SIDES.map((keptSide) => ({
+        kind: "layoutChangedByBoth",
+        ids: ["a"],
+        keptSide,
+    })),
+    frameDiffers: [{ kind: "frameDiffers", attribute: "exporter" }],
+    flowNotDrawn: [
+        { kind: "flowNotDrawn", id: "a", source: "b", target: "c" },
+        { kind: "flowNotDrawn", id: "a", target: "c" },
+    ],
 };
+
+const noteVariants = (): MergePaneBuildNote[] =>
+    Object.values<readonly MergePaneBuildNote[] | Record<string, readonly MergePaneBuildNote[]>>(
+        NOTES,
+    ).flatMap((variants) => (Array.isArray(variants) ? variants : Object.values(variants).flat()));
 
 /** Every refusal of a merge by hand, each detail's variants included. */
 const HAND_MERGE_REFUSALS: Record<
@@ -355,62 +435,7 @@ function mergeTextKeys(): Set<string> {
         openShapelessConflictsText(count, translate);
         for (const marker of MERGE_MARKERS) markerCountTip(marker, count, translate);
     }
-    for (const note of Object.values(NOTES)) {
-        buildNoteText(note, nameOf, translate);
-        if (note.kind === "layoutChangedByBoth") {
-            buildNoteText({ ...note, keptSide: "incoming" }, nameOf, translate);
-        }
-        if (note.kind === "flowEndOffShape" || note.kind === "flowThroughShape") {
-            buildNoteText({ ...note, repair: "notRepaired" }, nameOf, translate);
-        }
-        if (note.kind === "shapesOverlap") {
-            const { ids } = note;
-            buildNoteText({ kind: note.kind, ids, repair: "notRepaired" }, nameOf, translate);
-            for (const [shifted, grown] of [
-                [["c"], []],
-                [[], ["d"]],
-                [["c"], ["d"]],
-            ]) {
-                const madeRoom = { repair: "madeRoom", moved: "b", shifted, grown } as const;
-                buildNoteText({ kind: note.kind, ids, ...madeRoom }, nameOf, translate);
-            }
-        }
-        if (note.kind === "shapeOutsideContainer") {
-            const { id, shapes } = note;
-            buildNoteText(
-                { kind: note.kind, id, shapes, repair: "notRepaired" },
-                nameOf,
-                translate,
-            );
-            buildNoteText(
-                { kind: note.kind, id, shapes, repair: "grewContainer" },
-                nameOf,
-                translate,
-            );
-            const shifted = { repair: "grewContainerAndShifted", shifted: ["c"] } as const;
-            buildNoteText({ kind: note.kind, id, shapes, ...shifted }, nameOf, translate);
-        }
-        if (note.kind === "lanesOverlap") {
-            buildNoteText(
-                { kind: note.kind, ids: note.ids, repair: "notRepaired" },
-                nameOf,
-                translate,
-            );
-            if (note.repair === "movedByBuild") {
-                buildNoteText({ ...note, shifted: ["d"] }, nameOf, translate);
-            }
-        }
-        if (note.kind === "defaultFlowNotRestored") {
-            buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);
-        }
-        if (note.kind === "restoredWithoutRemovedWith") {
-            buildNoteText({ ...note, boundaryEvents: ["c"] }, nameOf, translate);
-            buildNoteText({ ...note, connections: [], boundaryEvents: ["c"] }, nameOf, translate);
-        }
-        if (note.kind === "flowNotDrawn") {
-            buildNoteText({ kind: note.kind, id: note.id, target: "c" }, nameOf, translate);
-        }
-    }
+    for (const note of noteVariants()) buildNoteText(note, nameOf, translate);
     return keys;
 }
 
@@ -532,7 +557,7 @@ describe("the merge view's translations", () => {
 
             expect({ side, missing }).toEqual({ side, missing: [] });
         }
-        const keptFromCurrent = buildNoteText(NOTES.frameDiffers, (id) => id, translate);
+        const keptFromCurrent = buildNoteText(NOTES.frameDiffers[0]!, (id) => id, translate);
         expect(keptFromCurrent.toLowerCase()).toContain(
             mergeCaptionText({ side: "current", role: "unknown" }, translate).toLowerCase(),
         );

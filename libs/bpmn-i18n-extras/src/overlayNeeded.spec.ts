@@ -9,11 +9,13 @@
  *
  * Runtime truth is the union of the harvests (`readHarvestedKeys` in
  * harvestedKeys.ts): every template the harvested pages passed to translate(),
- * captured by the harvest drivers (see tools/README.md). A key is legitimate iff a
- * harvest recorded it (exact or normalized) — or it is on the SOURCE_ONLY
- * allowlist in sourceOnlyKeys.ts, shared with tools/build-overlay.mjs: strings
- * our own webview passes to translate() from a feature the harvest driver does
- * not exercise, so they cannot appear in the harvest yet are genuinely needed.
+ * captured by the harvest drivers and, for the merge view, by
+ * apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts (see tools/README.md).
+ * A key is legitimate iff a harvest recorded it (exact or normalized) — or it is
+ * on the SOURCE_ONLY allowlist in sourceOnlyKeys.ts, shared with
+ * tools/build-overlay.mjs: strings our own webview passes to translate() from a
+ * call site no harvest reaches, so they cannot appear in a harvest yet are
+ * genuinely needed.
  */
 import { describe, expect, it } from "vitest";
 
@@ -34,15 +36,7 @@ describe("i18n extras carry only keys the modeler requests", () => {
 
         expect(
             unrequested,
-            "these overlay keys are never requested at runtime — remove them from src/languages/* (or add to SOURCE_ONLY if the harvest structurally can't reach them)",
+            "these overlay keys are never requested at runtime — remove them from src/languages/*. A merge view text: ask it in apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts and rerecord tools/harvested-merge.json. Any other text no harvest driver can reach: add it to SOURCE_ONLY",
         ).toEqual([]);
-    });
-
-    it("lists in SOURCE_ONLY no key a harvest records", () => {
-        const harvested = [...SOURCE_ONLY].filter((key) => harvestedByNorm.has(normalizeKey(key)));
-
-        expect(harvested, "a harvest records these keys — remove them from SOURCE_ONLY").toEqual(
-            [],
-        );
     });
 });

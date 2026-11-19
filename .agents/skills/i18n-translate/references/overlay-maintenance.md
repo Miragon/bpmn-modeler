@@ -65,8 +65,9 @@ the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). Thes
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
 in `src/sourceOnlyKeys.ts`, the one set that both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`
 import. If you add a genuinely needed modeler-internal string the harvest can't reach, add it there and
-nowhere else. `overlayNeeded.spec.ts` fails for a `SOURCE_ONLY` key a harvest records, so a key leaves
-the list once a harvest reaches it.
+nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead. A key stays listed
+while another view's harvest records it, since that harvest does not reach its own call site: the template
+chooser's `Close` and the merge bar's `Close` are one key.
 
 ## The overlay is temporary debt
 

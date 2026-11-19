@@ -1,6 +1,7 @@
-// Strings our own code passes to translate() that the harvest driver never
-// reaches, so they are absent from harvested.json but genuinely needed and
-// absent from the shared library. Keep them until upstreamed.
+// Strings our own code passes to translate() at a call site no harvest reaches
+// (neither a harvest driver nor, for the merge view, mergeTextsTranslated.spec.ts),
+// genuinely needed and absent from the shared library. Keep them until upstreamed.
+// A key stays while another view's harvest records it: that harvest does not reach this call site.
 export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
     "Preview linked form",
@@ -55,6 +56,8 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     // elementTemplates.select), and none of these are conditional on search /
     // hover / selection states it could reach, so they cannot be harvested.
     "Apply Template",
+    "Clear search",
+    "Close",
     "Collapse",
     "Delegate",
     "Element Templates",
@@ -69,7 +72,9 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "Task Type",
     "Try a different search term",
     "Unnamed",
+    "optional",
     "read-only",
+    "required",
     "{count} properties",
     "{count} property",
     // Popup-menu annotations: the harvest snapshot predates them, and the
