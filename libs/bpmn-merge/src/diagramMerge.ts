@@ -13,7 +13,14 @@ import {
     edgePlaneOf,
 } from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
-import { type DiagramIndex, type Drawing, drawingKeyOf, planeOwnerOf } from "./diagramIndex";
+import {
+    type DiagramIndex,
+    type Drawing,
+    ROOT_PLANE,
+    drawingKeyOf,
+    planeKindOf,
+    planeOwnerOf,
+} from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
 import { type ItemKey, orderMembers } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
@@ -77,13 +84,8 @@ export function drawnByShape(
  */
 class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
-    private readonly subProcesses: ReadonlySet<string>;
 
-    constructor(indexes: Readonly<Record<MergeSide, DiagramIndex>>) {
-        this.subProcesses = new Set([
-            ...indexes.current.subProcessPlaneOwners,
-            ...indexes.incoming.subProcessPlaneOwners,
-        ]);
+    constructor(private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>) {
         for (const [collaboration, process] of [
             ...indexes.current.collaborationProcesses,
             ...indexes.incoming.collaborationProcesses,
@@ -95,13 +97,12 @@ class PlaneSlots {
     }
 
     slotOf(planeOwner: string): string {
-        return this.subProcesses.has(planeOwner)
-            ? `subProcess:${planeOwner}`
-            : `root:${this.root(planeOwner)}`;
+        const kind = planeKindOf(planeOwner, this.indexes.current, this.indexes.incoming);
+        return `${kind}:${kind === ROOT_PLANE ? this.root(planeOwner) : planeOwner}`;
     }
 
     isRoot(slot: string): boolean {
-        return slot.startsWith("root:");
+        return slot.startsWith(`${ROOT_PLANE}:`);
     }
 
     private root(owner: string): string {

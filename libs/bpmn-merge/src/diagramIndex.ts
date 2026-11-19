@@ -77,6 +77,21 @@ export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
     };
 }
 
+/**
+ * A root plane draws a process or a collaboration, the canvas no shape names;
+ * a sub-process plane draws a collapsed sub-process's contents.
+ */
+export type PlaneKind = "root" | "subProcess";
+
+export const ROOT_PLANE: PlaneKind = "root";
+
+/** The plane's kind: a sub-process plane in any of the indexes is one. */
+export function planeKindOf(planeOwner: string, ...indexes: readonly DiagramIndex[]): PlaneKind {
+    return indexes.some((index) => index.subProcessPlaneOwners.has(planeOwner))
+        ? "subProcess"
+        : ROOT_PLANE;
+}
+
 /** The plane owner whose plane holds the sub-process's contents in this document. */
 export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string | undefined {
     return contentsPlaneOf(

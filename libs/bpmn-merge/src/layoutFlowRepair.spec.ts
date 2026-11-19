@@ -13,12 +13,15 @@ function node(
     id: string,
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
-    relations: Partial<Pick<NodeShape, "host" | "plane" | "subProcesses" | "expanded">> = {},
+    relations: Partial<
+        Pick<NodeShape, "host" | "plane" | "planeKind" | "subProcesses" | "expanded">
+    > = {},
 ): NodeShape {
     return {
         kind: "node",
         id,
         plane: PLANE,
+        planeKind: "root",
         bounds,
         outline,
         expanded: false,
@@ -286,6 +289,7 @@ describe("planFlowRepairs", () => {
                 TASK_A,
                 node("Task_B", { x: 300, y: 300, width: 100, height: 80 }, "rectangle", {
                     plane: "Sub_1",
+                    planeKind: "subProcess",
                 }),
             ],
             [flow([at(200, 140), at(350, 140), at(350, 250)])],

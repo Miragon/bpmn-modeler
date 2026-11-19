@@ -5,11 +5,13 @@ import {
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
+import type { PlaneKind } from "./diagramIndex";
 
 interface DrawnShape {
     readonly id: string;
     /** The element whose plane draws the shape; "" for a plane that names none. */
     readonly plane: string;
+    readonly planeKind: PlaneKind;
     readonly bounds: DiagramBounds;
     readonly outline: Outline;
 }
