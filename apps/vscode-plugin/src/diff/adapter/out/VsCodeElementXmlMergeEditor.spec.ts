@@ -69,6 +69,17 @@ describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished
     return {
         editor: contracted,
         shown: () => mergeResultTexts(),
+        inputs: (elementId) => {
+            const tab = mergeTabs().find(({ input }) => input.result.path === `/${elementId}.xml`);
+            if (!tab?.titles) return undefined;
+            const served = (uri: Uri) =>
+                new TextDecoder().decode(inputs.readFile(Uri.parse(uri.toString())));
+            return {
+                base: served(tab.input.base),
+                current: { label: tab.titles.input1, text: served(tab.input.input1) },
+                incoming: { label: tab.titles.input2, text: served(tab.input.input2) },
+            };
+        },
         focused: () => {
             const result = activeMergeTab()?.input.result;
             return result?.path.split("/").pop()?.replace(/\.xml$/, "");

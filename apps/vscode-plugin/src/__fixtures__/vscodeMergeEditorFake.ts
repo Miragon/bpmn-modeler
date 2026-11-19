@@ -41,6 +41,8 @@ export interface FakeMergeTab {
     readonly label: string;
     readonly input: MergeTabInput;
     readonly group: FakeTabGroup;
+    /** The titles the editor shows above input1 and input2, which VS Code's tab API does not report; none on a restored tab. */
+    readonly titles?: { readonly input1: string; readonly input2: string };
 }
 
 export interface FakeTabGroup {
@@ -382,6 +384,7 @@ function openMergeEditor(args: MergeEditorArgs): void {
             input2: args.input2.uri,
             result: args.output,
         },
+        titles: { input1: args.input1.title, input2: args.input2.title },
     });
 }
 

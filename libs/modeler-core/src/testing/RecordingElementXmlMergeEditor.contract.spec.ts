@@ -11,6 +11,16 @@ describeElementXmlMergeEditorContract("RecordingElementXmlMergeEditor", (onFinis
     return {
         editor,
         shown: () => editor.shownResults(),
+        inputs: (elementId) => {
+            const request = editor.openFor(elementId);
+            return (
+                request && {
+                    base: request.base,
+                    current: { label: request.labels.current, text: request.current },
+                    incoming: { label: request.labels.incoming, text: request.incoming },
+                }
+            );
+        },
         focused: () => editor.focused?.elementId,
         save: (elementId, text) => editor.save(keyOf(elementId), text),
         closeByUser: (elementId) => editor.closeByUser(keyOf(elementId)),

@@ -6,11 +6,26 @@ import {
     ElementXmlMergeRequest,
 } from "../diff/port/ElementXmlMergeEditor";
 
+/** One side of a merge as the editor shows it: its text under its label. */
+interface ShownSide {
+    readonly label: string;
+    readonly text: string;
+}
+
+/** What an open merge shows beside its result. */
+export interface ElementXmlMergeInputs {
+    readonly base: string;
+    readonly current: ShownSide;
+    readonly incoming: ShownSide;
+}
+
 /** One {@link ElementXmlMergeEditor} adapter under the {@link describeElementXmlMergeEditorContract} scenarios. */
 export interface ElementXmlMergeEditorContractFixture {
     readonly editor: ElementXmlMergeEditor;
     /** The result each open merge shows, by element. */
     shown(): Readonly<Record<string, string>>;
+    /** The base and both sides the open merge of `elementId` shows, if it is open. */
+    inputs(elementId: string): ElementXmlMergeInputs | undefined;
     /** The element of the merge in front, if any. */
     focused(): string | undefined;
     /** The user saves `text` into the result of the merge of `elementId`. */
@@ -56,6 +71,18 @@ export function describeElementXmlMergeEditorContract(
 
             expect(shown()).toStrictEqual({ Task_Pack: PACK.start });
             expect(focused()).toBe("Task_Pack");
+        });
+
+        it("shows the base, and each side's text under its own label", async () => {
+            const { editor, inputs } = fixtureReportingFinishes();
+
+            await editor.open(PACK);
+
+            expect(inputs("Task_Pack")).toStrictEqual({
+                base: PACK.base,
+                current: { label: "main", text: PACK.current },
+                incoming: { label: "feature", text: PACK.incoming },
+            });
         });
 
         it("finishes a merge closed without a save without a text", async () => {
