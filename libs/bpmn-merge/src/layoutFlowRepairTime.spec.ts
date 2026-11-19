@@ -110,7 +110,7 @@ async function layoutRepairPerParseOf(resultXml: string, sideXml: string) {
     const parsing = await fastestMillisecondsOf(() => parse(resultXml));
     const result = layoutModelOf((await parse(resultXml)).rootElement);
     const side = layoutModelOf((await parse(sideXml)).rootElement);
-    const plan = () => planLayoutRepair(result, [side, side], BUILD_LAYOUT_REPAIRS);
+    const plan = () => planLayoutRepair(result, [side, side], BUILD_LAYOUT_REPAIRS, []);
     return { notes: plan().notes, perParse: (await fastestMillisecondsOf(plan)) / parsing };
 }
 
@@ -410,4 +410,97 @@ describe("container repair time", () => {
         expect(plan.repairs.map(({ kind }) => kind)).toEqual(example.kinds);
         expect(planning / parsing).toBeLessThan(MAX_CONTAINER_REPAIR_PER_PARSE);
     });
+});
+
+function laneIn(id: string, y: number, width: number): LayoutShape {
+    return {
+        kind: "lane",
+        id,
+        plane: COLLABORATION,
+        outline: "rectangle",
+        parent: "Process_A",
+        pool: "Pool_A",
+        bounds: { x: 30, y, width: width - 30, height: 600 },
+    };
+}
+
+/** A pool of two lanes 600 px tall, `Lane_A` and `second`, each with four rows of 50 tasks. */
+function poolOfTwoLanes(second: string): LayoutShape[] {
+    const width = 50 * 160 + 40;
+    const pool: LayoutShape = {
+        kind: "pool",
+        id: "Pool_A",
+        plane: COLLABORATION,
+        outline: "rectangle",
+        bounds: { x: 0, y: 0, width, height: 1200 },
+    };
+    const tasksOf = (lane: string, top: number) =>
+        Array.from({ length: 200 }, (_, index) => ({
+            ...taskIn(
+                "Pool_A",
+                `${lane}_Task_${index}`,
+                60 + (index % 50) * 160,
+                top + 40 + Math.floor(index / 50) * 140,
+            ),
+            lanes: [lane],
+        }));
+    return [
+        pool,
+        laneIn("Lane_A", 0, width),
+        laneIn(second, 600, width),
+        ...tasksOf("Lane_A", 0),
+        ...tasksOf(second, 600),
+    ];
+}
+
+const layoutOfShapes = (shapes: readonly LayoutShape[]): LayoutModel => ({
+    shapes: new Map(shapes.map((shape) => [shape.id, shape])),
+    edges: new Map(),
+});
+
+// Measured against parsing the 800 KB file once (43 to 48 ms), best of five each, with and without
+// coverage: 0.36 to 0.39 (16 to 17 ms) to stack the lane and bring its 200 tasks after it, as each
+// follows the lane its side drew it in.
+const MAX_LANE_REPAIR_PER_PARSE = 1;
+
+describe("lane stacking time", () => {
+    it(
+        "stacks a lane the other side added and brings its 200 tasks into it in a fraction of parsing an 800 KB file",
+        { timeout: 60_000 },
+        async () => {
+            const moddle = (await loadBpmnModdle())();
+            const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
+            const current = layoutOfShapes(poolOfTwoLanes("Lane_B"));
+            const incoming = layoutOfShapes(poolOfTwoLanes("Lane_C"));
+            const result = layoutOfShapes([
+                ...current.shapes.values(),
+                ...[...incoming.shapes.values()].filter(({ id }) => id.startsWith("Lane_C")),
+            ]);
+            const plan = () =>
+                planLayoutRepair(result, [current, incoming], BUILD_LAYOUT_REPAIRS, ["Lane_C"]);
+
+            const { notes } = plan();
+            const parsing = await fastestMillisecondsOf(() => moddle.fromXML(xml));
+            const planning = await fastestMillisecondsOf(plan);
+
+            expect(notes.filter(({ kind }) => kind === "lanesOverlap")).toEqual([
+                {
+                    kind: "lanesOverlap",
+                    ids: ["Lane_C", "Lane_B"],
+                    repair: "movedByBuild",
+                    moved: "Lane_C",
+                    grown: ["Pool_A"],
+                    shifted: [],
+                },
+            ]);
+            expect(
+                notes.filter(
+                    (note) =>
+                        note.kind === "shapeOutsideContainer" &&
+                        note.repair === "movedIntoContainer",
+                ),
+            ).toHaveLength(200);
+            expect(planning / parsing).toBeLessThan(MAX_LANE_REPAIR_PER_PARSE);
+        },
+    );
 });

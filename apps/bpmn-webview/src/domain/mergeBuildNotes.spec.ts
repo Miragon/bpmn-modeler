@@ -43,7 +43,17 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_A" },
         ["Timer_1", "Task_A"],
     ],
-    lanesOverlap: [{ kind: "lanesOverlap", ids: ["Lane_1", "Lane_2"] }, ["Lane_1", "Lane_2"]],
+    lanesOverlap: [
+        {
+            kind: "lanesOverlap",
+            ids: ["Lane_2", "Lane_1"],
+            repair: "movedByBuild",
+            moved: "Lane_2",
+            grown: ["Pool_1", "Lane_0"],
+            shifted: ["Pool_2"],
+        },
+        ["Lane_2", "Lane_1", "Pool_1", "Lane_0", "Pool_2"],
+    ],
     restoredWithoutRemovedWith: [
         { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
         ["Task_A", "Flow_1", "Flow_2"],

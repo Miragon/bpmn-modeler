@@ -13,6 +13,9 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
         case "shapesOverlap":
             return note.repair === "madeRoom" ? [...note.ids, ...note.shifted] : note.ids;
         case "lanesOverlap":
+            return note.repair === "movedByBuild"
+                ? [...note.ids, ...note.grown, ...note.shifted]
+                : note.ids;
         case "layoutChangedByBoth":
             return note.ids;
         case "boundaryEventOffHost":

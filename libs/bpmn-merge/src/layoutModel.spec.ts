@@ -8,17 +8,12 @@ import {
     type NodeShape,
     drawnHostOf,
     drawnPoolOf,
-    drawingOfSameSize,
-    drawsAt,
-    drawsWhereItLies,
     frameIdsOf,
     framesAroundOf,
     isFrame,
     lanesOf,
     liesOnAnotherPool,
     otherEndOf,
-    placeOf,
-    placedByBuild,
     sharedFrameOf,
 } from "./layoutModel";
 
@@ -193,78 +188,6 @@ describe("isFrame", () => {
     });
 });
 
-describe("placeOf and drawsAt", () => {
-    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
-
-    it.each([
-        { label: "where the node lies", drawn: task, place: task.bounds, at: true },
-        {
-            label: "elsewhere at the node's size",
-            drawn: { ...task, bounds: { ...task.bounds, x: 300 } },
-            place: { ...task.bounds, x: 300 },
-            at: false,
-        },
-        {
-            label: "at another size",
-            drawn: { ...task, bounds: { ...task.bounds, width: 200 } },
-            place: undefined,
-            at: false,
-        },
-        {
-            label: "on another plane",
-            drawn: { ...task, plane: "Sub_1" },
-            place: undefined,
-            at: false,
-        },
-    ])("a layout drawing the node $label", ({ drawn, place, at }) => {
-        const layout = layoutOf([drawn]);
-
-        expect(placeOf(layout, task)).toEqual(place);
-        expect(drawsAt(layout, task)).toBe(at);
-    });
-
-    it("has no place for a node it does not draw", () => {
-        expect(placeOf(layoutOf([]), task)).toBeUndefined();
-        expect(drawsAt(layoutOf([]), task)).toBe(false);
-    });
-});
-
-describe("drawingOfSameSize and drawsWhereItLies", () => {
-    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
-
-    it.each([
-        { label: "where the node lies", drawn: task, found: true, there: true },
-        {
-            label: "where the node lies on another plane",
-            drawn: { ...task, plane: "Sub_1" },
-            found: true,
-            there: true,
-        },
-        {
-            label: "elsewhere at the node's size",
-            drawn: { ...task, bounds: { ...task.bounds, x: 300 } },
-            found: true,
-            there: false,
-        },
-        {
-            label: "at another size",
-            drawn: { ...task, bounds: { ...task.bounds, width: 200 } },
-            found: false,
-            there: false,
-        },
-    ])("a layout drawing the node $label", ({ drawn, found, there }) => {
-        const layout = layoutOf([drawn]);
-
-        expect(drawingOfSameSize(layout, task)).toBe(found ? drawn : undefined);
-        expect(drawsWhereItLies(layout, task)).toBe(there);
-    });
-
-    it("finds no drawing of a node the layout does not draw", () => {
-        expect(drawingOfSameSize(layoutOf([]), task)).toBeUndefined();
-        expect(drawsWhereItLies(layoutOf([]), task)).toBe(false);
-    });
-});
-
 describe("frameIdsOf", () => {
     it.each([
         {
@@ -288,13 +211,19 @@ describe("frameIdsOf", () => {
 });
 
 describe("lanesOf", () => {
-    const lane = (id: string, bounds: DiagramBounds, plane = PLANE): LayoutShape => ({
+    const lane = (
+        id: string,
+        bounds: DiagramBounds,
+        plane = PLANE,
+        inPool: string | undefined = "Pool_1",
+    ): LayoutShape => ({
         kind: "lane",
         id,
         plane,
         bounds,
         outline: "rectangle",
         parent: "Process_1",
+        ...(inPool === undefined ? {} : { pool: inPool }),
     });
 
     it("lists the lanes drawn inside the pool on its plane, in document order", () => {
@@ -306,35 +235,26 @@ describe("lanesOf", () => {
             pool("Pool_1"),
             ...own,
             pool("Pool_2", { x: 0, y: 400, width: 900, height: 200 }),
-            lane("Lane_Other", { x: 30, y: 400, width: 870, height: 200 }),
+            lane("Lane_Other", { x: 30, y: 400, width: 870, height: 200 }, PLANE, "Pool_2"),
             lane("Lane_Elsewhere", { x: 30, y: 0, width: 870, height: 150 }, "Sub_1"),
         ]);
 
         expect(lanesOf(layout, layout.shapes.get("Pool_1")!)).toEqual(own);
     });
-});
 
-describe("placedByBuild", () => {
-    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
-    const elsewhere = { ...task, bounds: { ...task.bounds, x: 300 } };
+    it("lists a lane of the pool's process drawn outside the pool, and no other pool's lane drawn inside it", () => {
+        const below = lane("Lane_Below", { x: 30, y: 300, width: 870, height: 120 });
+        const layout = layoutOf([
+            pool("Pool_1"),
+            lane("Lane_1", { x: 30, y: 0, width: 870, height: 300 }),
+            below,
+            lane("Lane_Stray", { x: 30, y: 100, width: 870, height: 100 }, PLANE, "Pool_2"),
+        ]);
 
-    it.each([
-        { label: "both sides draw it where it lies", sides: [[task], [task]], placed: false },
-        { label: "one side draws it elsewhere", sides: [[task], [elsewhere]], placed: true },
-        { label: "one side lacks it", sides: [[task], []], placed: true },
-        {
-            label: "one side draws it on another plane",
-            sides: [[task], [{ ...task, plane: "Sub_1" }]],
-            placed: true,
-        },
-    ])("is $placed when $label", ({ sides, placed }) => {
-        expect(placedByBuild(task, sides.map(layoutOf))).toBe(placed);
-    });
-
-    it("is false for a boundary event, which goes with its host", () => {
-        const timer = node("Timer_1", { host: "Task_1" });
-
-        expect(placedByBuild(timer, [layoutOf([]), layoutOf([])])).toBe(false);
+        expect(lanesOf(layout, layout.shapes.get("Pool_1")!).map(({ id }) => id)).toEqual([
+            "Lane_1",
+            "Lane_Below",
+        ]);
     });
 });
 

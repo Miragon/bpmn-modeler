@@ -22,6 +22,8 @@ export interface LayoutRelations {
     readonly nodes: ReadonlyMap<string, NodeRelations>;
     readonly pools: ReadonlySet<string>;
     readonly laneParents: ReadonlyMap<string, string>;
+    /** The pool drawing each lane's process. */
+    readonly lanePools: ReadonlyMap<string, string>;
     readonly lanesByNode: ReadonlyMap<string, readonly string[]>;
     readonly connections: ReadonlyMap<string, ConnectionEnds>;
 }
@@ -39,6 +41,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const nodes = new Map<string, NodeRelations>();
     const pools = new Set<string>();
     const laneParents = new Map<string, string>();
+    const lanePools = new Map<string, string>();
     const lanesByNode = new Map<string, string[]>();
     const connections = new Map<string, ConnectionEnds>();
     const poolsByProcess = new Map<string, string>();
@@ -47,17 +50,18 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
         const ends = connectionEndsOf(connection, holder);
         if (connection.id !== undefined && ends !== undefined) connections.set(connection.id, ends);
     };
-    const visitLanes = (laneSets: unknown, parent: string) => {
+    const visitLanes = (laneSets: unknown, parent: string, pool?: string) => {
         for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
             if (lane.id === undefined) continue;
             laneParents.set(lane.id, parent);
+            if (pool !== undefined) lanePools.set(lane.id, pool);
             for (const node of moddleElements(lane.flowNodeRef)) {
                 if (node.id === undefined) continue;
                 const lanes = lanesByNode.get(node.id);
                 if (lanes === undefined) lanesByNode.set(node.id, [lane.id]);
                 else lanes.push(lane.id);
             }
-            if (isModdleElement(lane.childLaneSet)) visitLanes([lane.childLaneSet], lane.id);
+            if (isModdleElement(lane.childLaneSet)) visitLanes([lane.childLaneSet], lane.id, pool);
         }
     };
     const visitArtifacts = (artifacts: unknown, scope: Scope) => {
@@ -109,14 +113,14 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     }
     for (const process of roots.filter((root) => isType(root, "bpmn:Process"))) {
         if (process.id === undefined) continue;
-        visitLanes(process.laneSets, process.id);
         const pool = poolsByProcess.get(process.id);
+        visitLanes(process.laneSets, process.id, pool);
         visitFlowElements(
             process,
             pool === undefined ? { subProcesses: [] } : { subProcesses: [], pool },
         );
     }
-    return { nodes, pools, laneParents, lanesByNode, connections };
+    return { nodes, pools, laneParents, lanePools, lanesByNode, connections };
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

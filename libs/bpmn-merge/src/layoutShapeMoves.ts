@@ -1,7 +1,8 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { sameBounds } from "./layoutGeometry";
 import { type RoomMade, makeRoom } from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape, placeOf, placedByBuild } from "./layoutModel";
+import { type LayoutModel, type NodeShape } from "./layoutModel";
+import { placeOf, placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
 import { type Offset, Placement, offsetBetween, offsetLength } from "./layoutShapePlacement";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";

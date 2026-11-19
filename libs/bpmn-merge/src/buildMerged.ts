@@ -86,8 +86,12 @@ export async function buildMergedWith(
         drawingSides,
         resultUnits,
     );
-    const layoutSpotNotes = repairIntroducedSpots(current, sideLayouts, planners, (point) =>
-        mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
+    const layoutSpotNotes = repairIntroducedSpots(
+        current,
+        sideLayouts,
+        planners,
+        resolution.appendedLanes,
+        (point) => mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
     );
     const { xml } = await mergeModdle.moddle.toXML(current, { format: true });
 

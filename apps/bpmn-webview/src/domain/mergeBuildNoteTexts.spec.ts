@@ -112,7 +112,32 @@ describe("buildNoteText", () => {
             { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_Pack" },
             "Timer_1 is not on the border of Pack box",
         ],
-        [{ kind: "lanesOverlap", ids: ["Lane_1", "Lane_2"] }, "Lane_1 and Lane_2 overlap"],
+        [
+            { kind: "lanesOverlap", ids: ["Lane_1", "Lane_2"], repair: "notRepaired" },
+            "Lane_1 and Lane_2 overlap; the build could not repair it",
+        ],
+        [
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_2", "Lane_1"],
+                repair: "movedByBuild",
+                moved: "Lane_2",
+                grown: ["Pool_1"],
+                shifted: [],
+            },
+            "The build moved Lane_2 below the other lanes and grew Pool_1 to hold it",
+        ],
+        [
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_2", "Lane_1"],
+                repair: "movedByBuild",
+                moved: "Lane_2",
+                grown: ["Pool_1", "Lane_0"],
+                shifted: ["Pool_2", "Task_3"],
+            },
+            "The build moved Lane_2 below the other lanes, grew Pool_1, Lane_0 to hold it and shifted Pool_2, Task_3",
+        ],
         [
             {
                 kind: "restoredWithoutRemovedWith",

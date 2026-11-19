@@ -9,7 +9,9 @@ import type { MergeSide } from "@miragon/bpmn-modeler-types";
  * a broken flow says whether the build re-routed it, two shapes on top of
  * each other which one the build moved and what it shifted to make room, a
  * shape outside its containers whether the build moved it inside or grew
- * one to hold it, and what it shifted then.
+ * one to hold it, and what it shifted then, and overlapping lanes, or a lane
+ * outside its pool, which lane the build moved below the others, which pool
+ * and parent lanes it grew and what it shifted down.
  * Or an element kept without the boundary events or flows removed with it, a
  * kept flow its source no longer names as its default (with the default it
  * keeps, if any), elements whose layout both sides changed differently with
@@ -50,7 +52,22 @@ export type MergePaneBuildNote =
           | { readonly repair: "notRepaired" }
       ))
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
-    | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
+    | ({
+          /**
+           * Lanes of one pool on top of each other, or a lane the build moved into its pool, with the lane it moved
+           * below the others, the pool and parent lanes it grew and the shapes it shifted down.
+           */
+          readonly kind: "lanesOverlap";
+          readonly ids: readonly string[];
+      } & (
+          | {
+                readonly repair: "movedByBuild";
+                readonly moved: string;
+                readonly grown: readonly string[];
+                readonly shifted: readonly string[];
+            }
+          | { readonly repair: "notRepaired" }
+      ))
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;

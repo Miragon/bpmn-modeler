@@ -26,6 +26,7 @@ function resolutionWithLayout(layout: Record<string, MergeSide>): MergeResolutio
     return {
         elements: Object.fromEntries(Object.keys(layout).map((id) => [id, "current"])),
         layout,
+        appendedLanes: [],
     };
 }
 
@@ -60,6 +61,7 @@ describe("restoredWithoutRemovedWithNotes", () => {
                 Flow_Escalate: "incoming",
             },
             layout: {},
+            appendedLanes: [],
         };
 
         expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([
@@ -79,6 +81,7 @@ describe("restoredWithoutRemovedWithNotes", () => {
         const resolution: MergeResolution = {
             elements: { Gateway: "current", Task_Check: "current", Flow_In: "incoming" },
             layout: {},
+            appendedLanes: [],
         };
 
         expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([
@@ -105,7 +108,9 @@ describe("restoredWithoutRemovedWithNotes", () => {
             }),
         );
 
-        expect(restoredWithoutRemovedWithNotes(result, { elements, layout: {} })).toEqual([]);
+        expect(
+            restoredWithoutRemovedWithNotes(result, { elements, layout: {}, appendedLanes: [] }),
+        ).toEqual([]);
     });
 
     describe("with a boundary event the other side removed with the element", () => {
@@ -133,6 +138,7 @@ describe("restoredWithoutRemovedWithNotes", () => {
                 ]),
             ),
             layout: {},
+            appendedLanes: [],
         });
 
         it("names the boundary event left out and its flow", () => {
@@ -185,6 +191,7 @@ describe("restoredWithoutRemovedWithNotes", () => {
         const resolution: MergeResolution = {
             elements: { Gateway: "current", Task_A: "incoming", Flow_A: "current" },
             layout: {},
+            appendedLanes: [],
         };
 
         expect(restoredWithoutRemovedWithNotes(result, resolution)).toEqual([]);
@@ -250,7 +257,7 @@ describe("layoutChangedByBothNotes", () => {
         expect(
             layoutChangedByBothNotes(
                 mergeResult(moved("Task_A")),
-                { elements: { Task_A: "current" }, layout: {} },
+                { elements: { Task_A: "current" }, layout: {}, appendedLanes: [] },
                 drawnApartBySide,
             ),
         ).toEqual([]);

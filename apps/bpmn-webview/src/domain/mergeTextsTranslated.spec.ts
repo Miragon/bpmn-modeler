@@ -108,7 +108,14 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
         repair: "movedIntoContainer",
     },
     boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
-    lanesOverlap: { kind: "lanesOverlap", ids: ["a", "b"] },
+    lanesOverlap: {
+        kind: "lanesOverlap",
+        ids: ["a", "b"],
+        repair: "movedByBuild",
+        moved: "a",
+        grown: ["c"],
+        shifted: [],
+    },
     restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },
@@ -376,6 +383,16 @@ function mergeTextKeys(): Set<string> {
             );
             const shifted = { repair: "grewContainerAndShifted", shifted: ["c"] } as const;
             buildNoteText({ kind: note.kind, id, shapes, ...shifted }, nameOf, translate);
+        }
+        if (note.kind === "lanesOverlap") {
+            buildNoteText(
+                { kind: note.kind, ids: note.ids, repair: "notRepaired" },
+                nameOf,
+                translate,
+            );
+            if (note.repair === "movedByBuild") {
+                buildNoteText({ ...note, shifted: ["d"] }, nameOf, translate);
+            }
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);

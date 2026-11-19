@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type ElementSpec,
     mergeElement,
     mergeResult,
     mergeResultWithoutBase,
@@ -10,6 +11,7 @@ import { MergeDecisions } from "./mergeDecisions";
 import type {
     ConflictState,
     ElementState,
+    LayoutState,
     MergeElement,
     MergeSide,
     ResolvedState,
@@ -1259,6 +1261,7 @@ describe("MergeDecisions", () => {
             expect(decisions.resolution()).toEqual({
                 elements: { Process: "current", A: "current", B: "incoming", F: "current" },
                 layout: { Process: "current", B: "incoming" },
+                appendedLanes: [],
             });
         });
 
@@ -1449,6 +1452,186 @@ describe("MergeDecisions", () => {
             const { layout } = MergeDecisions.from(mergeResult(laneA, task)).resolution();
 
             expect(layout.A).toBe("incoming");
+        });
+
+        describe("a pool's lanes", () => {
+            const process = mergeElement("Process_1", "unchanged", {
+                type: "bpmn:Process",
+                drawn: false,
+            });
+            const pool = (layout: LayoutState = "unchanged") =>
+                mergeElement("Pool", "unchanged", {
+                    type: "bpmn:Participant",
+                    layout,
+                    references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                });
+            const lane = (id: string, layout: LayoutState, spec: ElementSpec = {}) =>
+                mergeElement(id, "unchanged", {
+                    type: "bpmn:Lane",
+                    parent: "Process_1",
+                    layout,
+                    ...spec,
+                });
+            const layoutOf = (...elements: MergeElement[]) =>
+                MergeDecisions.from(mergeResult(process, ...elements)).resolution().layout;
+
+            it("draws every lane and the pool from current when both sides changed lanes", () => {
+                const layout = layoutOf(
+                    pool(),
+                    lane("Lane_A", "takenFromCurrent"),
+                    lane("Lane_B", "takenFromIncoming"),
+                );
+
+                expect(layout).toMatchObject({
+                    Pool: "current",
+                    Lane_A: "current",
+                    Lane_B: "current",
+                });
+            });
+
+            it("draws every lane and the pool from incoming when only incoming changed them", () => {
+                const layout = layoutOf(
+                    pool("takenFromIncoming"),
+                    lane("Lane_A", "takenFromIncoming"),
+                    lane("Lane_B", "unchanged"),
+                );
+
+                expect(layout).toMatchObject({
+                    Pool: "incoming",
+                    Lane_A: "incoming",
+                    Lane_B: "incoming",
+                });
+            });
+
+            it("counts a child lane in its pool's lanes", () => {
+                const layout = layoutOf(
+                    pool(),
+                    lane("Lane_A", "unchanged"),
+                    lane("Lane_A1", "takenFromIncoming", { parent: "Lane_A" }),
+                    lane("Lane_B", "bothChanged"),
+                );
+
+                expect(layout).toMatchObject({ Lane_A: "current", Lane_A1: "current" });
+            });
+
+            it("draws a lane the side of the lanes does not have from the other side", () => {
+                const added = mergeElement("Lane_C", "addedByIncoming", {
+                    type: "bpmn:Lane",
+                    parent: "Process_1",
+                });
+
+                const layout = layoutOf(pool(), lane("Lane_A", "takenFromCurrent"), added);
+
+                expect(layout).toMatchObject({ Lane_A: "current", Lane_C: "incoming" });
+            });
+
+            it("draws the lanes from the other side when the preferred one draws a lane the result leaves out", () => {
+                const removed = mergeElement("Lane_Gone", "removedByIncoming", {
+                    type: "bpmn:Lane",
+                    parent: "Process_1",
+                });
+
+                const layout = layoutOf(pool(), lane("Lane_A", "bothChanged"), removed);
+
+                expect(layout).toMatchObject({ Pool: "incoming", Lane_A: "incoming" });
+            });
+
+            it("keeps the preferred side when both draw a lane the result leaves out", () => {
+                const removedByEach = ["Lane_Gone", "Lane_Away"].map((id, at) =>
+                    mergeElement(id, at === 0 ? "removedByIncoming" : "removedByCurrent", {
+                        type: "bpmn:Lane",
+                        parent: "Process_1",
+                    }),
+                );
+
+                const layout = layoutOf(pool(), lane("Lane_A", "bothChanged"), ...removedByEach);
+
+                expect(layout).toMatchObject({ Pool: "current", Lane_A: "current" });
+            });
+
+            it("keeps the lanes on their side when the other side draws the process on a plane of its own", () => {
+                const ownPlane = mergeElement("Process_1", "unchanged", {
+                    type: "bpmn:Process",
+                    current: { plane: "Process_1" },
+                    incoming: { drawn: false },
+                });
+                const addedPool = mergeElement("Pool", "addedByIncoming", {
+                    type: "bpmn:Participant",
+                    plane: "Collaboration_1",
+                    references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                });
+                const laneA = lane("Lane_A", "takenFromIncoming", {
+                    current: { plane: "Process_1" },
+                    incoming: { plane: "Collaboration_1" },
+                });
+
+                const { layout } = MergeDecisions.from(
+                    mergeResult(ownPlane, addedPool, laneA),
+                ).resolution();
+
+                expect(layout).toMatchObject({ Pool: "incoming", Lane_A: "incoming" });
+            });
+
+            it("keeps each lane of a process without a pool on its own side", () => {
+                const layout = layoutOf(
+                    lane("Lane_A", "takenFromCurrent"),
+                    lane("Lane_B", "takenFromIncoming"),
+                );
+
+                expect(layout).toMatchObject({ Lane_A: "current", Lane_B: "incoming" });
+            });
+        });
+
+        describe("lanes stacked below their pool's lanes", () => {
+            const process = mergeElement("Process_1", "unchanged", {
+                type: "bpmn:Process",
+                drawn: false,
+            });
+            const pool = mergeElement("Pool", "unchanged", {
+                type: "bpmn:Participant",
+                references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+            });
+
+            it("are the lanes drawn from another side than the rest of their pool's lanes", () => {
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        process,
+                        pool,
+                        mergeElement("Lane_A", "unchanged", {
+                            type: "bpmn:Lane",
+                            parent: "Process_1",
+                            layout: "takenFromCurrent",
+                        }),
+                        mergeElement("Lane_C", "addedByIncoming", {
+                            type: "bpmn:Lane",
+                            parent: "Process_1",
+                        }),
+                    ),
+                );
+
+                expect(decisions.resolution().appendedLanes).toEqual(["Lane_C"]);
+            });
+
+            it("are none when one side draws all of them", () => {
+                const decisions = MergeDecisions.from(
+                    mergeResult(
+                        process,
+                        pool,
+                        mergeElement("Lane_A", "unchanged", {
+                            type: "bpmn:Lane",
+                            parent: "Process_1",
+                            layout: "takenFromCurrent",
+                        }),
+                        mergeElement("Lane_B", "unchanged", {
+                            type: "bpmn:Lane",
+                            parent: "Process_1",
+                            layout: "takenFromIncoming",
+                        }),
+                    ),
+                );
+
+                expect(decisions.resolution().appendedLanes).toEqual([]);
+            });
         });
     });
 

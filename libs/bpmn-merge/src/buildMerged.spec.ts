@@ -17,7 +17,7 @@ import {
 import { handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { acceptHandMerge } from "./acceptHandMerge";
-import { buildMerged } from "./buildMerged";
+import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
@@ -99,16 +99,42 @@ function drawnApartFromParent(
     );
 }
 
+/** The elements whose drawing the build's layout repair changed, as its notes name them. */
+function redrawnByTheBuild(notes: readonly BuildNote[]): ReadonlySet<string> {
+    return new Set(
+        notes.flatMap((note) => {
+            if (!("repair" in note) || note.repair === "notRepaired") return [];
+            switch (note.kind) {
+                case "lanesOverlap":
+                    return [note.moved, ...note.grown, ...note.shifted];
+                case "shapesOverlap":
+                    return note.repair === "madeRoom"
+                        ? [note.moved, ...note.shifted]
+                        : [note.moved];
+                case "shapeOutsideContainer":
+                    if (note.repair === "grewContainerAndShifted") {
+                        return [note.id, ...note.shapes, ...note.shifted];
+                    }
+                    return note.repair === "grewContainer" ? [note.id, ...note.shapes] : [note.id];
+                default:
+                    return [note.id];
+            }
+        }),
+    );
+}
+
 /**
  * Each element's content, parent and lanes as `side` wrote them, its drawing
  * from the side the layout rule names: a layout only the other side changed,
- * or both changed, is not an element decision.
+ * or both changed, is not an element decision. What the layout repair
+ * redrew is checked by its own specs.
  */
 async function expectEveryElementFrom(
     side: MergeSide,
     xml: string,
     scenario: MergeVersions & { readonly name: string },
     resolution: MergeResolution,
+    notes: readonly BuildNote[],
 ) {
     const [merged, current, incoming] = await Promise.all([
         snapshotsOf(xml, scenario),
@@ -117,13 +143,14 @@ async function expectEveryElementFrom(
     ]);
     const sides = { current, incoming };
     const drawnApart = drawnApartFromParent(side, sides, resolution);
+    const redrawn = redrawnByTheBuild(notes);
     expect([...merged.keys()].sort()).toEqual([...sides[side].keys()].sort());
     for (const [id, snapshot] of sides[side]) {
         const actual = merged.get(id)!;
         const layoutSide = ROOT_PLANE_OWNER_TYPES.has(snapshot.type)
             ? side
             : (resolution.layout[id] ?? side);
-        const expectedLayout = sides[layoutSide].get(id)?.layout;
+        const expectedLayout = redrawn.has(id) ? actual.layout : sides[layoutSide].get(id)?.layout;
         expect(
             drawnApart.has(id)
                 ? { ...comparable(actual), layout: withoutPlane(actual.layout) }
@@ -144,7 +171,7 @@ async function expectEveryElementFrom(
                 : [],
     });
     const drawnFromTheOtherSide = Object.keys(resolution.layout).filter(
-        (id) => resolution.layout[id] !== side,
+        (id) => resolution.layout[id] !== side || redrawn.has(id),
     );
     expect(drawnFromTheOtherSide).toEqual(expect.arrayContaining([...layoutChanged]));
 }
@@ -179,7 +206,7 @@ describe("buildMerged", () => {
         it.each(scenarios)("$name: every element from current gives current", async (scenario) => {
             const { xml, notes, resolution } = await everyElementFrom(scenario, "current");
 
-            await expectEveryElementFrom("current", xml, scenario, resolution);
+            await expectEveryElementFrom("current", xml, scenario, resolution, notes);
             if (Object.values(resolution.layout).every((side) => side === "current")) {
                 expect(xml).toBe(scenario.current);
             }
@@ -193,10 +220,10 @@ describe("buildMerged", () => {
         it.each(scenarios)(
             "$name: every element from incoming gives incoming",
             async (scenario) => {
-                const { xml, resolution } = await everyElementFrom(scenario, "incoming");
+                const { xml, notes, resolution } = await everyElementFrom(scenario, "incoming");
 
                 await parseWithoutWarnings(xml);
-                await expectEveryElementFrom("incoming", xml, scenario, resolution);
+                await expectEveryElementFrom("incoming", xml, scenario, resolution, notes);
             },
         );
     });
@@ -397,10 +424,10 @@ describe("buildMerged", () => {
                     },
                 }),
             };
-            const { xml, resolution } = await everyElementFrom(versions, "incoming");
+            const { xml, notes, resolution } = await everyElementFrom(versions, "incoming");
 
             expect(xml).not.toContain(ENGINE_NAMESPACE.c7.uri);
-            await expectEveryElementFrom("incoming", xml, versions, resolution);
+            await expectEveryElementFrom("incoming", xml, versions, resolution, notes);
         });
     });
 

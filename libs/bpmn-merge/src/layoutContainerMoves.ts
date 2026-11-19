@@ -2,15 +2,8 @@ import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { growFrameFor } from "./layoutGrowFrame";
 import { outermostOf } from "./layoutMakeRoom";
-import {
-    type LayoutModel,
-    type LayoutShape,
-    drawingOfSameSize,
-    drawsWhereItLies,
-    frameIdsOf,
-    nodeShapeIn,
-    placedByBuild,
-} from "./layoutModel";
+import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./layoutModel";
+import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
 import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
 import { type LayoutSpot, liesOutside } from "./layoutSpots";
@@ -41,9 +34,11 @@ export interface ContainerMovePlan {
 const NOT_REPAIRED: ShapeRepair = { kind: "notRepaired" };
 
 /**
- * Brings every shape the build placed that the spots name outside its
- * containers back inside, with its label, boundary events and contents; never
- * a shape both sides draw where it lies, nor a boundary event on its own,
+ * Brings every shape the build placed outside its containers that the spots
+ * name back inside, with its label, boundary events and contents: a shape it
+ * placed, or one in a frame no side draws where it lies, such as a lane it
+ * stacked. Never a shape both sides draw where it lies in a frame a side draws
+ * there, nor a boundary event on its own,
  * which stays on its host. It moves the shape as the side that drew
  * it moved the container, or a sibling in that container, when the place is
  * free; else to the nearest free place inside; else grows the sub-process or
@@ -109,7 +104,7 @@ class ContainerRepairer {
             return frame !== undefined && liesOutside(node, frame) ? [frame] : [];
         });
         if (frames.length === 0) return resolvedEarlier(id, containers, this.changes);
-        if (!placedByBuild(node, this.sides)) return NOT_REPAIRED;
+        if (!placedByBuildOutside(node, frames, this.sides)) return NOT_REPAIRED;
         const group = this.groups.of(draft, node);
         const move =
             sidesMove(draft, group, frames, this.sides) ?? nearestPlaceInside(draft, group, frames);

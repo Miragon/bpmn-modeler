@@ -1,5 +1,5 @@
 import type { MergeResolution } from "./mergeDecisions";
-import { type ElementVersion, type MergeResult, chosenVersionOf } from "./mergeResult";
+import { type ElementVersion, type MergeResult, chosenVersionOf, isLane } from "./mergeResult";
 
 /** Every lane of the result with the nodes its `flowNodeRef` must list: lane membership is each node's decision. */
 export function laneMembersOf(
@@ -13,7 +13,7 @@ export function laneMembersOf(
     }
     const members = new Map<string, Set<string>>();
     for (const element of result.elements) {
-        if (element.type === "bpmn:Lane" && chosenVersions.has(element.id)) {
+        if (isLane(element) && chosenVersions.has(element.id)) {
             members.set(element.id, new Set());
         }
     }

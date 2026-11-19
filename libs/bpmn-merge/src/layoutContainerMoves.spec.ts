@@ -39,7 +39,8 @@ function pool(bounds: DiagramBounds = box(0, 0, 1200, 300)): LayoutShape {
 }
 
 function lane(id: string, bounds: DiagramBounds): LaneShape {
-    return { kind: "lane", id, plane: PLANE, outline: "rectangle", parent: "Process_1", bounds };
+    const relations = { parent: "Process_1", pool: "Pool_1" };
+    return { kind: "lane", id, plane: PLANE, outline: "rectangle", ...relations, bounds };
 }
 
 const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
@@ -198,6 +199,20 @@ describe("planContainerMoves", () => {
             ]);
             expect(boundsIn(plan, "Task_M")).toEqual(box(300, 60));
             expect(boundsIn(plan, "Lane_1")).toEqual(upper.bounds);
+        });
+
+        it("brings a shape both sides draw where it lies into a lane the build stacked below the others", () => {
+            const member = node("Task_M", box(300, 40), { lanes: ["Lane_2"] });
+            const result = layoutOf([member], [], twoLanes);
+            const current = layoutOf([member], [], [pool(), upper]);
+            const incoming = layoutOf([member], [], [pool(), { ...lower, bounds: upper.bounds }]);
+
+            const plan = planOf(result, [current, incoming]);
+
+            expect(plan.repairs).toEqual([
+                { kind: "movedIntoContainer", shape: "Task_M", container: "Lane_2" },
+            ]);
+            expect(boundsIn(plan, "Task_M")).toEqual(box(300, 190));
         });
 
         it("brings a shape into its sub-process in another lane, as the sub-process stands for its contents there", () => {

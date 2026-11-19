@@ -379,7 +379,12 @@ const dictionary: Record<string, string> = {
     "{element} lies outside {shapes}; the build could not repair it":
         "{element} se trouve hors de {shapes} ; la génération n'a pas pu le réparer",
     "{element} is not on the border of {host}": "{element} n'est pas sur le bord de {host}",
-    "{first} and {second} overlap": "{first} et {second} se chevauchent",
+    "The build moved {element} below the other lanes and grew {grown} to hold it":
+        "La génération a déplacé {element} sous les autres couloirs et agrandi {grown} pour le contenir",
+    "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}":
+        "La génération a déplacé {element} sous les autres couloirs, agrandi {grown} pour le contenir et décalé {shifted}",
+    "{first} and {second} overlap; the build could not repair it":
+        "{first} et {second} se chevauchent ; la génération n'a pas pu le réparer",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} est conservé sans les flux que l'autre côté a supprimés avec lui : {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

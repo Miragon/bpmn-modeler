@@ -37,6 +37,22 @@ export type ElementState = ResolvedState | ConflictState;
 /** Bounds, waypoints, labels and DI attributes, classified apart from the content. */
 export type LayoutState = "unchanged" | "takenFromCurrent" | "takenFromIncoming" | "bothChanged";
 
+/** How the sides changed the layout of several elements together. */
+export function combinedLayoutOf(layouts: readonly LayoutState[]): LayoutState {
+    const changedBy = (side: LayoutState) =>
+        layouts.some((layout) => layout === side || layout === "bothChanged");
+    const byCurrent = changedBy("takenFromCurrent");
+    const byIncoming = changedBy("takenFromIncoming");
+    if (byCurrent && byIncoming) return "bothChanged";
+    if (byCurrent) return "takenFromCurrent";
+    return byIncoming ? "takenFromIncoming" : "unchanged";
+}
+
+/** Current's layout unless only incoming changed it. */
+export function preferredLayoutSideOf(layout: LayoutState): MergeSide {
+    return layout === "takenFromIncoming" ? "incoming" : "current";
+}
+
 export interface ElementReference {
     /** Owning type and property, for example `bpmn:SequenceFlow#sourceRef`. */
     readonly property: string;
@@ -112,6 +128,10 @@ export function chosenVersionOf(
 ): ElementVersion | undefined {
     const side = sideInResult(element.id);
     return side === undefined ? undefined : element.versions[side];
+}
+
+export function isLane(element: MergeElement): boolean {
+    return element.type === "bpmn:Lane";
 }
 
 export interface MergeResult {
