@@ -1,5 +1,4 @@
 import type {
-    MergePaneBuildNote,
     MergePaneContainerReach,
     MergeObstacleKind,
     MergeObstacleWithMissing,
@@ -359,38 +358,6 @@ const COMPARISON_TEXTS: Record<MergeSide, string> = {
     incoming: "Result against incoming",
 };
 
-/** What each build note asks the user to check, with the canvas's names of its elements. */
-const BUILD_NOTE_TEXTS: Record<
-    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth">,
-    string
-> = {
-    flowEndsFromDifferentSides:
-        "{element} connects shapes drawn by different sides; check where it meets {ends}",
-    addedAtSamePlace: "{first} and {second} were added at the same place",
-    drawnApartFromContainer:
-        "{element} is drawn by another side than {containers}; check that it still sits inside",
-    restoredWithoutRemovedWith:
-        "{element} is kept without the flows the other side removed with it: {connections}",
-    defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
-    frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
-};
-
-const OTHER_DEFAULT_KEPT_TEXT =
-    "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
-
-/** `restoredWithoutRemovedWith` once it names a boundary event, counted as the restore offer counts. */
-const RESTORED_WITHOUT_ELEMENTS_TEXTS = {
-    boundaryEvent:
-        "{element} is kept without the boundary event the other side removed with it: {elements}",
-    elements:
-        "{element} is kept without the {count} elements the other side removed with it: {elements}",
-};
-
-const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
-    current: "Both sides changed the layout of {elements}; current's is kept",
-    incoming: "Both sides changed the layout of {elements}; incoming's is kept",
-};
-
 /** The menu's action that compares the built result with `side`. */
 export function compareWithText(side: MergeSide, translate: MergeTranslate): string {
     return translate(COMPARE_WITH_TEXTS[side]);
@@ -410,78 +377,4 @@ export function comparisonPaneText(
     translate: MergeTranslate,
 ): string {
     return translate(paneSide === "before" ? MERGE_SIDE_TEXTS[against] : RESULT_TEXT);
-}
-
-/** One note of the last build, in one line. */
-export function buildNoteText(
-    note: MergePaneBuildNote,
-    nameOf: (id: string) => string,
-    translate: MergeTranslate,
-): string {
-    const names = (ids: readonly string[]) => ids.map(nameOf).join(", ");
-    return translate(buildNoteTemplate(note), noteReplacements(note, nameOf, names));
-}
-
-function buildNoteTemplate(note: MergePaneBuildNote): string {
-    if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
-    if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
-        return OTHER_DEFAULT_KEPT_TEXT;
-    }
-    if (note.kind === "restoredWithoutRemovedWith" && note.boundaryEvents !== undefined) {
-        return restoredWithoutElementsOf(note).length === 1
-            ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
-            : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
-    }
-    return BUILD_NOTE_TEXTS[note.kind];
-}
-
-function restoredWithoutElementsOf(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
-): readonly string[] {
-    return [...(note.boundaryEvents ?? []), ...note.connections];
-}
-
-function restoredWithoutReplacements(
-    note: Extract<MergePaneBuildNote, { kind: "restoredWithoutRemovedWith" }>,
-    nameOf: (id: string) => string,
-    names: (ids: readonly string[]) => string,
-): Record<string, string> {
-    if (note.boundaryEvents === undefined) {
-        return { element: nameOf(note.id), connections: names(note.connections) };
-    }
-    const elements = restoredWithoutElementsOf(note);
-    return { element: nameOf(note.id), count: String(elements.length), elements: names(elements) };
-}
-
-function defaultFlowNoteReplacements(
-    note: Extract<MergePaneBuildNote, { kind: "defaultFlowNotRestored" }>,
-    nameOf: (id: string) => string,
-): Record<string, string> {
-    const replacements = { element: nameOf(note.id), flow: nameOf(note.flow) };
-    return note.keptDefault === undefined
-        ? replacements
-        : { ...replacements, keptDefault: nameOf(note.keptDefault) };
-}
-
-function noteReplacements(
-    note: MergePaneBuildNote,
-    nameOf: (id: string) => string,
-    names: (ids: readonly string[]) => string,
-): Record<string, string> {
-    switch (note.kind) {
-        case "flowEndsFromDifferentSides":
-            return { element: nameOf(note.id), ends: names(note.ends) };
-        case "addedAtSamePlace":
-            return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
-        case "drawnApartFromContainer":
-            return { element: nameOf(note.id), containers: names(note.containers) };
-        case "restoredWithoutRemovedWith":
-            return restoredWithoutReplacements(note, nameOf, names);
-        case "defaultFlowNotRestored":
-            return defaultFlowNoteReplacements(note, nameOf);
-        case "layoutChangedByBoth":
-            return { elements: names(note.ids) };
-        case "frameDiffers":
-            return { attribute: note.attribute };
-    }
 }

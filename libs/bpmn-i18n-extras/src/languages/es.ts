@@ -359,12 +359,12 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Resultado frente a Entrante",
     "Result": "Resultado",
     "Review notes ({count})": "Revisar notas ({count})",
-    "{element} connects shapes drawn by different sides; check where it meets {ends}":
-        "{element} conecta formas dibujadas por lados distintos; compruebe dónde se une a {ends}",
-    "{first} and {second} were added at the same place":
-        "{first} y {second} se añadieron en el mismo lugar",
-    "{element} is drawn by another side than {containers}; check that it still sits inside":
-        "{element} está dibujado por otro lado que {containers}; compruebe que sigue dentro",
+    "{element} does not meet {shapes}": "{element} no llega a {shapes}",
+    "{first} and {second} lie on top of each other": "{first} y {second} están uno encima del otro",
+    "{element} runs through {shapes}": "{element} pasa por {shapes}",
+    "{element} lies outside {shapes}": "{element} está fuera de {shapes}",
+    "{element} is not on the border of {host}": "{element} no está en el borde de {host}",
+    "{first} and {second} overlap": "{first} y {second} se superponen",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} se conserva sin los flujos que el otro lado eliminó con él: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

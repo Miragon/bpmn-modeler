@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-18
+- Last reviewed: 2026-11-19
 
 ## Context
 
@@ -277,18 +277,27 @@ each of those.
   every element's compared text, parent and lanes must equal its source side's (its
   hand-merged text where it has one), which catches dropped attributes and namespace swaps.
   Lanes are listed outermost first, so every comparison takes them in order.
-- *Notes for the reviewer:* a flow drawn from another side than its ends, an element drawn
-  from another side than its container, elements both sides added at the same place, an
-  element kept against a removal whose boundary events or flows removed with it stay out
+- *Notes for the reviewer:* each broken spot of the drawing, an element kept against a
+  removal whose boundary events or flows removed with it stay out
   (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
   source's default, elements the base and both sides draw differently, and every frame
   difference the result does not carry.
+- *Broken spots are found by geometry, not by sides.* A pure detector reads the written
+  drawing, with 3 px of tolerance for the modeler's rounding. A spot counts only when neither
+  side's own drawing has it with that side's own relations (`introducedLayoutSpots`): what a
+  side drew stays its business, its shape in a lane the other side gave it does not. A flow's
+  end misses its shape outside or inside its outline, and the two count apart, so a shape
+  moved onto its flow is named and a side that draws flows into shape centers still has an
+  end moved away named. Rejected: notes from the sides an element and its ends or container are drawn from, which
+  named flows that still met their shapes and missed hidden tasks and flows through shapes
+  (#2565); bpmn-js in the webview, which ties the build to an open pane. Cost: every build
+  reads three drawings; a grid keeps it linear (`layoutSpotDetectionTime.spec.ts`).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
-  another side than one of its ends gets only the flow-ends note, so two people moving its
-  two ends do not note it twice. Without a base there is none, as every element the sides
-  draw differently would get one.
+  another side than one of its ends is left out, as each side only moved an end; the spot
+  notes name it if it no longer meets one. Without a base there is none, as every element the
+  sides draw differently would get one.
 
 ## Consequences
 
@@ -301,7 +310,7 @@ each of those.
   the picks, not their order, decide. The fixtures equal a moddle round trip, so "what the
   save writes" is testable.
 - An element drawn from another side than its container keeps that side's coordinates; the
-  build notes it but does not move it.
+  build names it where it leaves the container's frame but moves nothing.
 - bpmn-js rewrites the diagram's plane order on every save; the build keeps current's
   order, so opening and saving a merged file can reorder `bpmndi` without changing the
   model.

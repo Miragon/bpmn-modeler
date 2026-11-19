@@ -228,27 +228,26 @@ export interface MergePaneRestoreOffer {
 
 /**
  * Something the last build asks the user to look at, as the merge library's
- * `BuildNote` names it: a flow whose ends are drawn from different sides, two
- * elements the sides added at the same place, an element drawn apart from its
- * container, an element kept without the boundary events or flows removed
- * with it, a kept flow its source no longer names as its default (with the
- * default it keeps, if any), elements whose layout both sides changed
- * differently with the side the result keeps, or a part of the file's
- * `definitions` that differs between the sides, of which the result keeps
- * current's.
+ * `BuildNote` names it. A broken spot in the drawing that neither side drew:
+ * a flow that does not meet the shapes at its ends, two shapes on top of each
+ * other, a flow running through shapes, a shape outside its sub-process, pool
+ * or lane, a boundary event off its host's border, or two overlapping lanes.
+ * Or an element kept without the boundary events or flows removed with it, a
+ * kept flow its source no longer names as its default (with the default it
+ * keeps, if any), elements whose layout both sides changed differently with
+ * the side the result keeps, or a part of the file's `definitions` that
+ * differs between the sides, of which the result keeps current's.
  */
 export type MergePaneBuildNote =
     | {
-          readonly kind: "flowEndsFromDifferentSides";
+          /** A flow and the shapes it misses at its ends or runs through, or a shape and the containers it lies outside. */
+          readonly kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer";
           readonly id: string;
-          readonly ends: readonly string[];
+          readonly shapes: readonly string[];
       }
-    | { readonly kind: "addedAtSamePlace"; readonly ids: readonly string[] }
-    | {
-          readonly kind: "drawnApartFromContainer";
-          readonly id: string;
-          readonly containers: readonly string[];
-      }
+    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
+    | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
+    | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
