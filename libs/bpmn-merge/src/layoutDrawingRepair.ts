@@ -9,8 +9,10 @@ import type { LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { writeLayoutChanges } from "./layoutRepairWriter";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
+import type { PlaneSlots } from "./planeSlots";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { layoutSpotNotes } from "./layoutSpotNotes";
+import { flowSpotRepairs } from "./layoutSpotRepairs";
 import type { LayoutSpot } from "./layoutSpots";
 
 /** How the build repairs the drawing the merge broke; the specs build with less to compare. */
@@ -56,18 +58,18 @@ export function planLayoutRepair(
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
 ): LayoutRepairPlan {
+    const spotsAfter = (step: LayoutModel, before: LayoutModel, spotsBefore: LayoutSpot[]) =>
+        step === before ? spotsBefore : introducedLayoutSpots(step, sideLayouts);
     const assembledSpots = introducedLayoutSpots(layout, sideLayouts);
     const laneStacks = planners.stackLanes(layout, appendedLanes);
     const stacked = laneStacks.layout;
-    const spots = stacked === layout ? assembledSpots : introducedLayoutSpots(stacked, sideLayouts);
+    const spots = spotsAfter(stacked, layout, assembledSpots);
     const containerMoves = planners.moveIntoContainers(stacked, spots, sideLayouts);
     const inContainers = containerMoves.layout;
-    const spotsInContainers =
-        inContainers === stacked ? spots : introducedLayoutSpots(inContainers, sideLayouts);
+    const spotsInContainers = spotsAfter(inContainers, stacked, spots);
     const shapeMoves = planners.moveShapes(inContainers, spotsInContainers, sideLayouts);
     const moved = shapeMoves.layout;
-    const spotsAfterMoves =
-        moved === inContainers ? spotsInContainers : introducedLayoutSpots(moved, sideLayouts);
+    const spotsAfterMoves = spotsAfter(moved, inContainers, spotsInContainers);
     const flowRepairs = planners.repairFlows(moved, spotsAfterMoves);
     return {
         repaired: withFlowRepairs(moved, flowRepairs),
@@ -75,23 +77,25 @@ export function planLayoutRepair(
             laneStackings: laneStacks.stacked,
             spots,
             spotsAfterMoves,
-            containerRepairs: containerMoves.repairs,
-            shapesMovedForContainers: containerMoves.movedShapes,
-            overlapRepairs: shapeMoves.repairs,
-            flowRepairs,
+            repairs: [
+                ...containerMoves.repairs,
+                ...shapeMoves.repairs,
+                ...flowSpotRepairs(spotsAfterMoves, flowRepairs),
+            ],
         }),
     };
 }
 
-/** Plans the repair of the assembled drawing, writes it into the drawing and returns its notes. */
+/** Plans the repair of the assembled drawing, read in the sides' plane slots, writes it into the drawing and returns its notes. */
 export function repairIntroducedSpots(
     definitions: ModdleElement,
     sideLayouts: readonly LayoutModel[],
+    slots: PlaneSlots,
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
 ): BuildNoteContent[] {
-    const layout = layoutModelOf(definitions);
+    const layout = layoutModelOf(definitions, slots);
     const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
     writeLayoutChanges(definitions, layout, repaired, createPoint);
     return notes;

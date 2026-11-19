@@ -285,7 +285,9 @@ IntelliJ, or a plain browser. Two implementations back it:
 - **`MockHostApi`**: abstract base for development mocks. The bpmn-webview
   defines `PreviewHost` (in `apps/bpmn-webview/src/adapter/out/browserPreview/`) which extends
   `MockHostApi` and dispatches synthetic responses so the webview can run
-  standalone in a browser via `vite serve`.
+  standalone in a browser via `vite serve`. It routes each command from the
+  table in `browserPreview/previewCommands.ts`: a new webview command needs a
+  row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts

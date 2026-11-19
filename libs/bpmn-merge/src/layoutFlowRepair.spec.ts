@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import { type DiagramBounds, type Outline, type Point, centerOf } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
@@ -14,14 +15,13 @@ function node(
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
     relations: Partial<
-        Pick<NodeShape, "host" | "plane" | "planeKind" | "subProcesses" | "expanded">
+        Pick<NodeShape, "host" | "plane" | "slot" | "subProcesses" | "expanded">
     > = {},
 ): NodeShape {
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline,
         expanded: false,
@@ -290,8 +290,7 @@ describe("planFlowRepairs", () => {
             [
                 TASK_A,
                 node("Task_B", { x: 300, y: 300, width: 100, height: 80 }, "rectangle", {
-                    plane: "Sub_1",
-                    planeKind: "subProcess",
+                    ...subProcessPlane("Sub_1"),
                 }),
             ],
             [flow([at(200, 140), at(350, 140), at(350, 250)])],

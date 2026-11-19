@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import { withShiftedTasks } from "./__fixtures__/shiftedTasks";
 import { perParseOf } from "./__fixtures__/timeAgainstParsing";
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { BuildNoteContent } from "./buildNotes";
 import { planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
@@ -103,8 +104,7 @@ function taskIn(pool: string, id: string, x: number, y: number): NodeShape {
     return {
         kind: "node",
         id,
-        plane: COLLABORATION,
-        planeKind: "root",
+        ...rootPlane(COLLABORATION),
         bounds: { x, y, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -128,16 +128,14 @@ function messageFlowIntoLargePool(count: number, blocked: boolean): LayoutModel 
         {
             kind: "pool",
             id: "Pool_A",
-            plane: COLLABORATION,
-            planeKind: "root",
+            ...rootPlane(COLLABORATION),
             outline: "rectangle",
             bounds: { x: 0, y: 0, width, height: 300 },
         },
         {
             kind: "pool",
             id: "Pool_B",
-            plane: COLLABORATION,
-            planeKind: "root",
+            ...rootPlane(COLLABORATION),
             outline: "rectangle",
             bounds: { x: 0, y: 420, width, height: rows * 120 + 40 },
         },
@@ -214,8 +212,7 @@ function densePool(rows: number, dx: number): LayoutModel {
     const pool: LayoutShape = {
         kind: "pool",
         id: "Pool_A",
-        plane: COLLABORATION,
-        planeKind: "root",
+        ...rootPlane(COLLABORATION),
         outline: "rectangle",
         bounds: { x: 0, y: 0, width: perRow * 110 + 100, height: rows * 140 + 40 },
     };
@@ -277,7 +274,7 @@ describe("shape move time in a pool without a free place", () => {
                 planShapeMoves(result, spots, [side, side]),
             );
 
-            expect(plan.repairs.map(({ kind }) => kind)).toEqual(
+            expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual(
                 Array.from({ length: 5 }, () => "madeRoom"),
             );
             expect(perParse).toBeLessThan(MAX_ROOM_PER_PARSE);
@@ -301,8 +298,7 @@ function poolWithAddedTasks(
     const pool: LayoutShape = {
         kind: "pool",
         id: "Pool_A",
-        plane: COLLABORATION,
-        planeKind: "root",
+        ...rootPlane(COLLABORATION),
         outline: "rectangle",
         bounds: { x, y: 0, width, height: 20 * 140 + 40 },
     };
@@ -365,7 +361,7 @@ describe("container repair time", () => {
             planContainerMoves(example.result, spots, sides),
         );
 
-        expect(plan.repairs.map(({ kind }) => kind)).toEqual(example.kinds);
+        expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual(example.kinds);
         expect(perParse).toBeLessThan(MAX_CONTAINER_REPAIR_PER_PARSE);
     });
 });
@@ -374,8 +370,7 @@ function laneIn(id: string, y: number, width: number): LayoutShape {
     return {
         kind: "lane",
         id,
-        plane: COLLABORATION,
-        planeKind: "root",
+        ...rootPlane(COLLABORATION),
         outline: "rectangle",
         parent: "Process_A",
         pool: "Pool_A",
@@ -389,8 +384,7 @@ function poolOfTwoLanes(second: string): LayoutShape[] {
     const pool: LayoutShape = {
         kind: "pool",
         id: "Pool_A",
-        plane: COLLABORATION,
-        planeKind: "root",
+        ...rootPlane(COLLABORATION),
         outline: "rectangle",
         bounds: { x: 0, y: 0, width, height: 1200 },
     };

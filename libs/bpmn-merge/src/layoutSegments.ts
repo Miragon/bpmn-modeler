@@ -5,9 +5,11 @@ import {
     type Point,
     LAYOUT_TOLERANCE,
     bottomOf,
+    boundsAround,
     centerOf,
     inflated,
     outlineDistance,
+    pointBounds,
     rightOf,
 } from "./layoutGeometry";
 
@@ -44,7 +46,8 @@ export interface NearestPoint {
     readonly distance: number;
 }
 
-export function nearestOnSegment([from, to]: Segment, point: Point): NearestPoint {
+export function nearestOnSegment(segment: Segment, point: Point): NearestPoint {
+    const [from, to] = segment;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const lengthSquared = dx * dx + dy * dy;
@@ -55,27 +58,29 @@ export function nearestOnSegment([from, to]: Segment, point: Point): NearestPoin
                   0,
                   Math.min(1, ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared),
               );
-    const nearest = { x: from.x + along * dx, y: from.y + along * dy };
+    const nearest = pointAlong(segment, along);
     return { point: nearest, distance: Math.hypot(point.x - nearest.x, point.y - nearest.y) };
 }
 
-/** The segment's bounding box. */
-export function segmentBounds(from: Point, to: Point): DiagramBounds {
-    const x = Math.min(from.x, to.x);
-    const y = Math.min(from.y, to.y);
-    return { x, y, width: Math.abs(to.x - from.x), height: Math.abs(to.y - from.y) };
+/** The point `share` of the way from the segment's start to its end. */
+export function pointAlong([from, to]: Segment, share: number): Point {
+    return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
+}
+
+export function segmentBounds([from, to]: Segment): DiagramBounds {
+    return boundsAround([pointBounds(from), pointBounds(to)]);
 }
 
 /**
  * Whether the segment enters the shape deeper than the tolerance, so a flow
  * running along the outline does not count.
  */
-export function segmentEntersShape(from: Point, to: Point, bounds: DiagramBounds): boolean {
-    return segmentEntersBounds(from, to, inflated(bounds, -LAYOUT_TOLERANCE));
+export function segmentEntersShape(segment: Segment, bounds: DiagramBounds): boolean {
+    return segmentEntersBounds(segment, inflated(bounds, -LAYOUT_TOLERANCE));
 }
 
 /** Whether the segment enters the open inside of the bounds (Liang-Barsky clipping). */
-export function segmentEntersBounds(from: Point, to: Point, bounds: DiagramBounds): boolean {
+export function segmentEntersBounds([from, to]: Segment, bounds: DiagramBounds): boolean {
     if (bounds.width <= 0 || bounds.height <= 0) return false;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -108,17 +113,12 @@ const DEEPEST_POINT_STEPS = 40;
  * Every outline is convex, so the distance along the segment has one minimum.
  */
 export function segmentEntersOutline(
-    from: Point,
-    to: Point,
+    segment: Segment,
     bounds: DiagramBounds,
     outline: Outline,
 ): boolean {
     const distanceAt = (share: number) =>
-        outlineDistance(
-            { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share },
-            bounds,
-            outline,
-        );
+        outlineDistance(pointAlong(segment, share), bounds, outline);
     let low = 0;
     let high = 1;
     for (let step = 0; step < DEEPEST_POINT_STEPS; step++) {

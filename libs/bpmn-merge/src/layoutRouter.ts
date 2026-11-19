@@ -257,11 +257,11 @@ class RouteGrid {
             }
             const candidate = row * this.xs.length + column;
             const to = this.pointOf(candidate);
-            if (this.hitsShape(from, to)) return undefined;
+            if (this.hitsShape([from, to])) return undefined;
             const toTargetPort = this.targetPorts.has(candidate);
             if (
                 this.isUsable(candidate) &&
-                !this.entersClearance(from, to, fromSourcePort, toTargetPort)
+                !this.entersClearance([from, to], fromSourcePort, toTargetPort)
             ) {
                 return candidate;
             }
@@ -285,7 +285,7 @@ class RouteGrid {
                     return false;
                 }
                 const candidate = row * this.xs.length + column;
-                if (this.hitsShape(from, this.pointOf(candidate))) return false;
+                if (this.hitsShape([from, this.pointOf(candidate)])) return false;
                 if (this.isUsable(candidate)) return true;
             }
         });
@@ -301,20 +301,15 @@ class RouteGrid {
         );
     }
 
-    private hitsShape(from: Point, to: Point): boolean {
+    private hitsShape(segment: Segment): boolean {
         const { source, target } = this.request;
-        const enters = (bounds: DiagramBounds) => segmentEntersBounds(from, to, bounds);
+        const enters = (bounds: DiagramBounds) => segmentEntersBounds(segment, bounds);
         return this.blockers.some(enters) || enters(source.bounds) || enters(target.bounds);
     }
 
     /** A run may leave the source's clearance only from its port, and enter the target's only to its port. */
-    private entersClearance(
-        from: Point,
-        to: Point,
-        fromSourcePort: boolean,
-        toTargetPort: boolean,
-    ) {
-        const enters = (bounds: DiagramBounds) => segmentEntersBounds(from, to, bounds);
+    private entersClearance(segment: Segment, fromSourcePort: boolean, toTargetPort: boolean) {
+        const enters = (bounds: DiagramBounds) => segmentEntersBounds(segment, bounds);
         return (
             (!fromSourcePort && enters(this.sourceZone)) ||
             (!toTargetPort && enters(this.targetZone))

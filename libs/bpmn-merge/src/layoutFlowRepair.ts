@@ -199,11 +199,11 @@ function movedByBuild(edge: LayoutEdge, waypoints: Point[]): FlowRepair {
 function fitsItsShapes(layout: LayoutModel, edge: LayoutEdge, bounds: RouteBounds): boolean {
     const { hosts, endsNotToCross, frame, plane } = bounds;
     const segments = segmentsOf(edge.waypoints);
-    const throughHost = segments.some(([from, to]) =>
-        hosts.some((host) => segmentEntersShape(from, to, host)),
+    const throughHost = segments.some((segment) =>
+        hosts.some((host) => segmentEntersShape(segment, host)),
     );
-    const throughEnd = segments.some(([from, to]) =>
-        endsNotToCross.some((end) => segmentEntersOutline(from, to, end.bounds, end.outline)),
+    const throughEnd = segments.some((segment) =>
+        endsNotToCross.some((end) => segmentEntersOutline(segment, end.bounds, end.outline)),
     );
     const outsideFrame =
         frame !== undefined &&

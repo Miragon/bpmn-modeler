@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { baseModel } from "./__fixtures__/baseModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
 import type { EdgeKind, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
@@ -15,8 +16,7 @@ function task(id: string, x: number, y: number, relations: Partial<NodeShape> = 
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
         expanded: false,

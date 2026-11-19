@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import {
     drawingOfSameSize,
@@ -10,14 +11,13 @@ import {
     placedByBuildOutside,
 } from "./sideDrawings";
 
-const PLANE = "Collaboration_1";
+const PLANE = rootPlane("Collaboration_1");
 
 function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...PLANE,
         bounds: { x: 0, y: 0, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -30,7 +30,12 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
 
 /** The node as a layout draws its element on a collapsed sub-process's plane. */
 function onSubProcessPlane(shape: NodeShape): NodeShape {
-    return { ...shape, plane: "Sub_1", planeKind: "subProcess" };
+    return { ...shape, ...subProcessPlane("Sub_1") };
+}
+
+/** The node as a layout draws its element on a process's root plane, in the slot the merge gives that plane. */
+function onProcessPlane(shape: NodeShape, process: string, slotOwner = process): NodeShape {
+    return { ...shape, ...rootPlane(process, slotOwner) };
 }
 
 function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
@@ -69,15 +74,39 @@ describe("placeOf and drawsAt", () => {
         },
         {
             label: "where the node lies on a root plane named after the process, not the collaboration",
-            drawn: { ...task, plane: "Process_1" },
+            drawn: onProcessPlane(task, "Process_1", "Collaboration_1"),
             place: task.bounds,
             at: true,
         },
         {
             label: "elsewhere on a root plane named after the process, not the collaboration",
-            drawn: { ...task, plane: "Process_1", bounds: { ...task.bounds, x: 300 } },
+            drawn: {
+                ...onProcessPlane(task, "Process_1", "Collaboration_1"),
+                bounds: { ...task.bounds, x: 300 },
+            },
             place: { ...task.bounds, x: 300 },
             at: false,
+        },
+        {
+            label: "where the node lies on another process's root plane",
+            node: onProcessPlane(task, "Process_B"),
+            drawn: onProcessPlane(task, "Process_A"),
+            place: undefined,
+            at: false,
+        },
+        {
+            label: "where the node lies on a collaboration's plane the merge joins with the node's",
+            node: onProcessPlane(task, "Process_B", "Collaboration_1"),
+            drawn: task,
+            place: task.bounds,
+            at: true,
+        },
+        {
+            label: "where the node lies on another process's plane the merge joins with the node's",
+            node: onProcessPlane(task, "Process_B", "Collaboration_1"),
+            drawn: onProcessPlane(task, "Process_A", "Collaboration_1"),
+            place: task.bounds,
+            at: true,
         },
     ])("a layout drawing the node $label", ({ node: onPlane = task, drawn, place, at }) => {
         const layout = layoutOf([drawn]);
@@ -126,8 +155,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
         const lane: LayoutShape = {
             kind: "lane",
             id: "Lane_1",
-            plane: PLANE,
-            planeKind: "root",
+            ...PLANE,
             outline: "rectangle",
             parent: "Process_1",
             bounds: { x: 30, y: 0, width: 870, height: 200 },
@@ -159,7 +187,22 @@ describe("placedByBuild", () => {
         },
         {
             label: "one side draws it where it lies on a root plane named after the process",
-            sides: [[task], [{ ...task, plane: "Process_1" }]],
+            sides: [[task], [onProcessPlane(task, "Process_1", "Collaboration_1")]],
+            placed: false,
+        },
+        {
+            label: "one side draws it where it lies on another process's root plane",
+            node: onProcessPlane(task, "Process_B"),
+            sides: [[onProcessPlane(task, "Process_B")], [onProcessPlane(task, "Process_A")]],
+            placed: true,
+        },
+        {
+            label: "one side draws it where it lies on another process's plane the merge joins with its own",
+            node: onProcessPlane(task, "Process_A", "Collaboration_1"),
+            sides: [
+                [onProcessPlane(task, "Process_A", "Collaboration_1")],
+                [onProcessPlane(task, "Process_B", "Collaboration_1")],
+            ],
             placed: false,
         },
         {
@@ -183,8 +226,7 @@ describe("placedByBuildOutside", () => {
     const lane: LayoutShape = {
         kind: "lane",
         id: "Lane_1",
-        plane: PLANE,
-        planeKind: "root",
+        ...PLANE,
         outline: "rectangle",
         parent: "Process_1",
         bounds: { x: 30, y: 300, width: 870, height: 200 },
