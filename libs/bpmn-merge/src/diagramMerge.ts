@@ -12,7 +12,7 @@ import type { DrawingSides } from "./drawingSides";
 import { orderMembers } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
-import { PlaneSlots } from "./planeSlots";
+import type { PlaneSlots } from "./planeSlots";
 
 interface KeptDiagram {
     readonly diagram: ModdleElement;
@@ -32,10 +32,10 @@ interface KeptDiagram {
 export function assembleDiagrams(
     definitions: ModdleElement,
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
+    slots: PlaneSlots,
     drawingSides: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
 ): readonly UndrawnEdge[] {
-    const slots = new PlaneSlots(indexes);
     const kept = keptDiagramsOf(indexes, slots, drawingSides, resultUnits);
     const slotOrder = (side: MergeSide) => [
         ...new Set(indexes[side].diagrams.map((diagram) => slots.slotOf(planeOwnerOf(diagram)))),

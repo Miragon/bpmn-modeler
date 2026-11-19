@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { dockedModel } from "./__fixtures__/dockedModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds, Point } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
@@ -25,9 +26,7 @@ function pool(id: string, bounds: DiagramBounds): LayoutShape {
     return {
         kind: "pool",
         id,
-        plane: PLANE,
-        planeKind: "root",
-        planeProcesses: ["Process_1"],
+        ...rootPlane(PLANE),
         outline: "rectangle",
         bounds,
     };
@@ -42,9 +41,7 @@ function lane(
     return {
         kind: "lane",
         id,
-        plane: PLANE,
-        planeKind: "root",
-        planeProcesses: ["Process_1"],
+        ...rootPlane(PLANE),
         outline: "rectangle",
         parent,
         pool: inPool,
@@ -56,9 +53,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
-        planeProcesses: ["Process_1"],
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
         expanded: false,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds, Point } from "./layoutGeometry";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
@@ -19,9 +20,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
-        planeProcesses: ["Process_1"],
+        ...rootPlane(PLANE),
         bounds,
         outline: "rectangle",
         expanded: false,
@@ -36,9 +35,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
 const POOL: LayoutShape = {
     kind: "pool",
     id: "Pool_1",
-    plane: PLANE,
-    planeKind: "root",
-    planeProcesses: ["Process_1"],
+    ...rootPlane(PLANE),
     outline: "rectangle",
     bounds: box(0, 0, 1200, 300),
 };
@@ -48,9 +45,7 @@ function lane(y: number, height: number, width = 1170): LaneShape {
     return {
         kind: "lane",
         id: "Lane_1",
-        plane: PLANE,
-        planeKind: "root",
-        planeProcesses: ["Process_1"],
+        ...rootPlane(PLANE),
         outline: "rectangle",
         parent: "Process_1",
         pool: "Pool_1",

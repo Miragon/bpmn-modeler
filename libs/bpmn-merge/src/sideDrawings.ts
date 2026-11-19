@@ -1,30 +1,14 @@
-import { ROOT_PLANE } from "./diagramIndex";
 import { type DiagramBounds, sameBounds } from "./layoutGeometry";
 import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 
 /**
- * Whether two layouts draw the shapes on one plane: the same plane, or two root
- * planes that draw a common process, as one layout may name its root plane after
- * its collaboration and the other after its process.
+ * Where the layout draws the node's element in the node's plane slot, at the node's size;
+ * undefined when it draws it elsewhere or not at all. One layout may name its root plane after
+ * its collaboration and the other after its process, and the result draws both in one slot.
  */
-function onOnePlaneAcrossLayouts(first: LayoutShape, second: LayoutShape): boolean {
-    return first.plane === second.plane || onRootPlanesOfOneProcess(first, second);
-}
-
-function onRootPlanesOfOneProcess(first: LayoutShape, second: LayoutShape): boolean {
-    return (
-        first.planeKind === ROOT_PLANE &&
-        second.planeKind === ROOT_PLANE &&
-        first.planeProcesses.some((process) => second.planeProcesses.includes(process))
-    );
-}
-
-/** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
 export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
     const drawn = drawingOfSameSize(layout, node);
-    return drawn?.kind === "node" && onOnePlaneAcrossLayouts(drawn, node)
-        ? drawn.bounds
-        : undefined;
+    return drawn?.kind === "node" && drawn.slot === node.slot ? drawn.bounds : undefined;
 }
 
 /** Whether the layout draws the node's element just where the node lies. */

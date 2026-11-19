@@ -16,6 +16,7 @@ import {
     repairIntroducedSpots,
 } from "./layoutDrawingRepair";
 import { layoutModelOf } from "./layoutModelReader";
+import { PlaneSlots } from "./planeSlots";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
@@ -69,7 +70,8 @@ export async function buildMergedWith(
     const current = parsed.current.rootElement;
     const incoming = parsed.incoming.rootElement;
     const diagramIndexes = { current: diagramIndexOf(current), incoming: diagramIndexOf(incoming) };
-    const sideLayouts = [layoutModelOf(current), layoutModelOf(incoming)];
+    const slots = new PlaneSlots(diagramIndexes);
+    const sideLayouts = [layoutModelOf(current, slots), layoutModelOf(incoming, slots)];
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };
 
@@ -80,10 +82,17 @@ export async function buildMergedWith(
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
-    const undrawnEdges = assembleDiagrams(current, diagramIndexes, drawingSides, resultUnits);
+    const undrawnEdges = assembleDiagrams(
+        current,
+        diagramIndexes,
+        slots,
+        drawingSides,
+        resultUnits,
+    );
     const layoutSpotNotes = repairIntroducedSpots(
         current,
         sideLayouts,
+        slots,
         planners,
         resolution.appendedLanes,
         (point) => mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
