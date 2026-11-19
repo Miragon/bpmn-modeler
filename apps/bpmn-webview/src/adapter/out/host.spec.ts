@@ -255,10 +255,24 @@ describe("development preview host", () => {
         [new GetClipboardCommand(), "ClipboardQuery"],
         [new GetTextClipboardCommand(), "TextClipboardQuery"],
         [new GetBpmnlintConfigCommand(), "BpmnlintResultsQuery"],
+        [new GetFormPreviewCommand(1, "Form_1", true), "FormPreviewQuery"],
     ])("answers %o with a %s", (request, replyType) => {
         previewHost().postMessage(request);
 
         expect(replies.map((reply) => reply.type)).toEqual([replyType]);
+    });
+
+    it.each<[LogDebugCommand | LogInfoCommand | LogWarningCommand | LogErrorCommand, "debug" | "info" | "warn" | "error"]>([
+        [new LogDebugCommand("debug text"), "debug"],
+        [new LogInfoCommand("info text"), "info"],
+        [new LogWarningCommand("warning text"), "warn"],
+        [new LogErrorCommand("error text"), "error"],
+    ])("writes a %o to the console's %s", (command, level) => {
+        const write = vi.spyOn(console, level).mockImplementation(() => undefined);
+
+        previewHost().postMessage(command);
+
+        expect(write).toHaveBeenCalledWith(command.message);
     });
 
     it("seeds the state on the first update and merges later ones", () => {
@@ -299,6 +313,62 @@ describe("development preview host", () => {
                         }),
                     }),
                 ]);
+            },
+        );
+
+        it.each([
+            ["?mode=merge-current&mergeXml=accept", "before"],
+            ["?mode=merge-incoming&mergeXml=refuse", "after"],
+        ])("offers Merge XML once the pane of %j is ready", (search, side) => {
+            previewHost(search).postMessage(new DiffReadyCommand());
+
+            expect(repliesOfType("ApplyMergeStatesQuery")).toEqual([
+                expect.objectContaining({
+                    side,
+                    offers: { elementXmlChanges: true, elementXmlMerge: true },
+                }),
+            ]);
+        });
+
+        it.each(["?mode=merge-incoming", "?mode=merge-incoming&mergeXml=bogus"])(
+            "offers only Show XML changes for %j",
+            (search) => {
+                previewHost(search).postMessage(new DiffReadyCommand());
+
+                expect(repliesOfType("ApplyMergeStatesQuery")).toEqual([
+                    expect.objectContaining({
+                        offers: { elementXmlChanges: true, elementXmlMerge: false },
+                    }),
+                ]);
+            },
+        );
+
+        it.each([
+            ["?mode=merge-incoming&mergeXml=accept", "after", true],
+            ["?mode=merge-current&mergeXml=refuse", "before", false],
+            ["?mode=diff-before&mergeXml=accept", "before", true],
+        ])("answers Merge XML for %j as a finished merge", (search, side, applied) => {
+            previewHost(search).postMessage(new OpenElementXmlMergeCommand("ServiceTask_1"));
+
+            expect(repliesOfType("ApplyMergeStatesQuery")).toEqual([
+                expect.objectContaining({
+                    side,
+                    states: expect.objectContaining({
+                        lastOutcome: expect.objectContaining({
+                            applied,
+                            elementId: "ServiceTask_1",
+                        }),
+                    }),
+                }),
+            ]);
+        });
+
+        it.each(["?mode=merge-incoming", "?mode=merge-incoming&mergeXml=bogus", "?mergeXml=accept"])(
+            "leaves Merge XML unanswered for %j",
+            (search) => {
+                previewHost(search).postMessage(new OpenElementXmlMergeCommand("ServiceTask_1"));
+
+                expect(replies).toEqual([]);
             },
         );
     });
