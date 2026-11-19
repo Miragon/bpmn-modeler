@@ -6,18 +6,24 @@ import { buildNoteElementIds } from "./mergeBuildNotes";
 
 // A record, so the compiler names a note kind the merge adds and this spec misses.
 const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly string[]]> = {
-    flowEndsFromDifferentSides: [
-        { kind: "flowEndsFromDifferentSides", id: "Flow_1", ends: ["Task_A", "Task_B"] },
+    flowEndOffShape: [
+        { kind: "flowEndOffShape", id: "Flow_1", ends: ["Task_A", "Task_B"] },
         ["Flow_1", "Task_A", "Task_B"],
     ],
-    addedAtSamePlace: [
-        { kind: "addedAtSamePlace", ids: ["Task_A", "Task_B"] },
-        ["Task_A", "Task_B"],
+    shapesOverlap: [{ kind: "shapesOverlap", ids: ["Task_A", "Task_B"] }, ["Task_A", "Task_B"]],
+    flowThroughShape: [
+        { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"] },
+        ["Flow_1", "Task_C"],
     ],
-    drawnApartFromContainer: [
-        { kind: "drawnApartFromContainer", id: "Task_A", containers: ["Sub_1"] },
-        ["Task_A", "Sub_1"],
+    shapeOutsideContainer: [
+        { kind: "shapeOutsideContainer", id: "Task_A", containers: ["Sub_1", "Lane_1"] },
+        ["Task_A", "Sub_1", "Lane_1"],
     ],
+    boundaryEventOffHost: [
+        { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_A" },
+        ["Timer_1", "Task_A"],
+    ],
+    lanesOverlap: [{ kind: "lanesOverlap", ids: ["Lane_1", "Lane_2"] }, ["Lane_1", "Lane_2"]],
     restoredWithoutRemovedWith: [
         { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
         ["Task_A", "Flow_1", "Flow_2"],

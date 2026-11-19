@@ -3,7 +3,8 @@ import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
 import { buildNoteElementIds } from "../../domain/mergeBuildNotes";
 import { MERGE_MENU_TEXTS } from "../../domain/mergeBarTexts";
-import { buildNoteText, MERGE_BUILD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
+import { buildNoteText } from "../../domain/mergeBuildNoteTexts";
+import { MERGE_BUILD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
 import { closeMergePopupOnDismiss } from "./mergePopupDismissal";
 
 /** What the notes popover lists: the notes of the last build and the names of their elements. */

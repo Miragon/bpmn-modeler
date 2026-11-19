@@ -17,7 +17,7 @@ import {
 import { handMergeVersions } from "./__fixtures__/handMergeVersions";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { acceptHandMerge } from "./acceptHandMerge";
-import { type BuildNote, buildMerged } from "./buildMerged";
+import { buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
@@ -79,8 +79,25 @@ const RENAMED_PREFIX_ELEMENTS: Readonly<Record<string, readonly string[]>> = {
     "prefix collision": ["Task_Reject"],
 };
 
-/** The layout text without the plane, which a drawing named apart from its container takes from that container. */
+/** The layout text without the plane, which a drawing apart from its container takes from that container. */
 const withoutPlane = (layout: string | undefined) => layout?.replace(/"plane":"[^"]*",?/g, "");
+
+/** Elements drawn from another side than their parent, which the sides draw differently: the parent's drawing decides their plane. */
+function drawnApartFromParent(
+    side: MergeSide,
+    sides: Readonly<Record<MergeSide, ReadonlyMap<string, ElementSnapshot>>>,
+    resolution: MergeResolution,
+): ReadonlySet<string> {
+    const layoutSide = (id: string) => resolution.layout[id] ?? side;
+    return new Set(
+        [...sides[side]].flatMap(([id, { parent }]) => {
+            if (parent === undefined) return [];
+            const drawnAlike =
+                sides.current.get(parent)?.layout === sides.incoming.get(parent)?.layout;
+            return drawnAlike || layoutSide(id) === layoutSide(parent) ? [] : [id];
+        }),
+    );
+}
 
 /**
  * Each element's content, parent and lanes as `side` wrote them, its drawing
@@ -92,17 +109,14 @@ async function expectEveryElementFrom(
     xml: string,
     scenario: MergeVersions & { readonly name: string },
     resolution: MergeResolution,
-    notes: readonly BuildNote[],
 ) {
-    const drawnApart = new Set(
-        notes.flatMap((note) => (note.kind === "drawnApartFromContainer" ? [note.id] : [])),
-    );
     const [merged, current, incoming] = await Promise.all([
         snapshotsOf(xml, scenario),
         snapshotsOf(scenario.current, scenario),
         snapshotsOf(scenario.incoming, scenario),
     ]);
     const sides = { current, incoming };
+    const drawnApart = drawnApartFromParent(side, sides, resolution);
     expect([...merged.keys()].sort()).toEqual([...sides[side].keys()].sort());
     for (const [id, snapshot] of sides[side]) {
         const actual = merged.get(id)!;
@@ -165,16 +179,13 @@ describe("buildMerged", () => {
         it.each(scenarios)("$name: every element from current gives current", async (scenario) => {
             const { xml, notes, resolution } = await everyElementFrom(scenario, "current");
 
-            await expectEveryElementFrom("current", xml, scenario, resolution, notes);
+            await expectEveryElementFrom("current", xml, scenario, resolution);
             if (Object.values(resolution.layout).every((side) => side === "current")) {
                 expect(xml).toBe(scenario.current);
             }
             expect(
                 notes.filter(
-                    (note) =>
-                        note.kind !== "frameDiffers" &&
-                        note.kind !== "drawnApartFromContainer" &&
-                        note.kind !== "layoutChangedByBoth",
+                    (note) => note.kind !== "frameDiffers" && note.kind !== "layoutChangedByBoth",
                 ),
             ).toEqual([]);
         });
@@ -182,10 +193,10 @@ describe("buildMerged", () => {
         it.each(scenarios)(
             "$name: every element from incoming gives incoming",
             async (scenario) => {
-                const { xml, notes, resolution } = await everyElementFrom(scenario, "incoming");
+                const { xml, resolution } = await everyElementFrom(scenario, "incoming");
 
                 await parseWithoutWarnings(xml);
-                await expectEveryElementFrom("incoming", xml, scenario, resolution, notes);
+                await expectEveryElementFrom("incoming", xml, scenario, resolution);
             },
         );
     });
@@ -386,10 +397,10 @@ describe("buildMerged", () => {
                     },
                 }),
             };
-            const { xml, notes, resolution } = await everyElementFrom(versions, "incoming");
+            const { xml, resolution } = await everyElementFrom(versions, "incoming");
 
             expect(xml).not.toContain(ENGINE_NAMESPACE.c7.uri);
-            await expectEveryElementFrom("incoming", xml, versions, resolution, notes);
+            await expectEveryElementFrom("incoming", xml, versions, resolution);
         });
     });
 
@@ -804,21 +815,16 @@ describe("buildMerged", () => {
         });
 
         describe("collapsed sub-processes", () => {
-            it("draws a task current added inside a sub-process incoming collapsed on the sub-process's own plane, and names it", async () => {
+            it("draws a task current added inside a sub-process incoming collapsed on the sub-process's own plane", async () => {
                 const scenario = scenarioNamed(
                     "collapse: current adds a task inside a sub-process incoming collapses",
                 );
-                const { xml, notes } = await automaticMerge(scenario);
+                const { xml } = await automaticMerge(scenario);
                 const diagrams = await diagramsOf(xml);
 
                 expect(diagrams.map(({ owner }) => owner)).toEqual(["Collaboration_1", "Sub_Ship"]);
                 expect(diagrams[1]!.drawn).toContain("Task_Label");
                 expect(diagrams[0]!.drawn).not.toContain("Task_Label");
-                expect(notes).toContainEqual({
-                    kind: "drawnApartFromContainer",
-                    id: "Task_Label",
-                    containers: ["Sub_Ship"],
-                });
             });
 
             it("draws the contents of a sub-process that stays expanded on its plane", async () => {
@@ -931,7 +937,7 @@ ${
     });
 
     describe("notes", () => {
-        it("names a flow whose ends are drawn from different sides", async () => {
+        it("names a flow whose end the other side moved away from it", async () => {
             const versions = fixtureTriple({
                 current: (model) => {
                     nodeById(model, "Task_Check").y += 30;
@@ -942,11 +948,9 @@ ${
             });
             const { notes } = await automaticMerge(versions);
 
-            expect(notes).toContainEqual({
-                kind: "flowEndsFromDifferentSides",
-                id: "Flow_Checked",
-                ends: ["Task_Check", "Gateway_Ok"],
-            });
+            expect(notes).toEqual([
+                { kind: "flowEndOffShape", id: "Flow_Checked", ends: ["Gateway_Ok"] },
+            ]);
         });
 
         it("names a task kept against current's removal whose flows current removed with it stay out", async () => {
@@ -1055,7 +1059,7 @@ ${
             });
         });
 
-        it("names elements both sides added at the same place", async () => {
+        it("names shapes both sides added at the same place", async () => {
             const addTask = (id: string, x: number) => (model: BpmnFixtureModel) => {
                 model.nodes.push({ id, type: "task", name: id, x, y: 320, lane: "Lane_Manager" });
             };
@@ -1065,7 +1069,7 @@ ${
             });
             const { notes } = await automaticMerge(versions);
 
-            expect(notes).toEqual([{ kind: "addedAtSamePlace", ids: ["Task_Here", "Task_There"] }]);
+            expect(notes).toEqual([{ kind: "shapesOverlap", ids: ["Task_There", "Task_Here"] }]);
         });
 
         it("names an element both sides moved differently and the side whose layout it keeps", async () => {

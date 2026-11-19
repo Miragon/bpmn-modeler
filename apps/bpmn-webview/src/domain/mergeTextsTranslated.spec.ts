@@ -40,8 +40,8 @@ import {
     shapelessHeadingText,
     shapelessValueLines,
 } from "./mergeRowTexts";
+import { buildNoteText } from "./mergeBuildNoteTexts";
 import {
-    buildNoteText,
     cardBlockText,
     compareWithText,
     comparisonPaneText,
@@ -88,9 +88,12 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     sideLacksTarget: true,
 };
 const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
-    flowEndsFromDifferentSides: { kind: "flowEndsFromDifferentSides", id: "a", ends: ["b"] },
-    addedAtSamePlace: { kind: "addedAtSamePlace", ids: ["a", "b"] },
-    drawnApartFromContainer: { kind: "drawnApartFromContainer", id: "a", containers: ["b"] },
+    flowEndOffShape: { kind: "flowEndOffShape", id: "a", ends: ["b"] },
+    shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"] },
+    flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"] },
+    shapeOutsideContainer: { kind: "shapeOutsideContainer", id: "a", containers: ["b"] },
+    boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
+    lanesOverlap: { kind: "lanesOverlap", ids: ["a", "b"] },
     restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
     defaultFlowNotRestored: { kind: "defaultFlowNotRestored", id: "a", flow: "b" },
     layoutChangedByBoth: { kind: "layoutChangedByBoth", ids: ["a"], keptSide: "current" },

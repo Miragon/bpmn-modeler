@@ -321,11 +321,12 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "結果與傳入對比",
     "Result": "結果",
     "Review notes ({count})": "查看說明（{count}）",
-    "{element} connects shapes drawn by different sides; check where it meets {ends}":
-        "{element} 連接了由不同側繪製的形狀；請檢查它與 {ends} 的連接處",
-    "{first} and {second} were added at the same place": "{first} 和 {second} 被新增在同一位置",
-    "{element} is drawn by another side than {containers}; check that it still sits inside":
-        "{element} 與 {containers} 由不同側繪製；請檢查它是否仍位於其中",
+    "{element} does not meet {ends}": "{element} 未連接到 {ends}",
+    "{first} and {second} lie on top of each other": "{first} 和 {second} 疊放在一起",
+    "{element} runs through {shapes}": "{element} 穿過 {shapes}",
+    "{element} lies outside {containers}": "{element} 位於 {containers} 之外",
+    "{element} is not on the border of {host}": "{element} 不在 {host} 的邊框上",
+    "{first} and {second} overlap": "{first} 和 {second} 相互重疊",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} 被保留，但不含另一側隨其刪除的流：{connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

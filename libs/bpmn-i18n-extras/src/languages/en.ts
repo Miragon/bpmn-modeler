@@ -343,12 +343,13 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Result against incoming",
     "Result": "Result",
     "Review notes ({count})": "Review notes ({count})",
-    "{element} connects shapes drawn by different sides; check where it meets {ends}":
-        "{element} connects shapes drawn by different sides; check where it meets {ends}",
-    "{first} and {second} were added at the same place":
-        "{first} and {second} were added at the same place",
-    "{element} is drawn by another side than {containers}; check that it still sits inside":
-        "{element} is drawn by another side than {containers}; check that it still sits inside",
+    "{element} does not meet {ends}": "{element} does not meet {ends}",
+    "{first} and {second} lie on top of each other":
+        "{first} and {second} lie on top of each other",
+    "{element} runs through {shapes}": "{element} runs through {shapes}",
+    "{element} lies outside {containers}": "{element} lies outside {containers}",
+    "{element} is not on the border of {host}": "{element} is not on the border of {host}",
+    "{first} and {second} overlap": "{first} and {second} overlap",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element} is kept without the flows the other side removed with it: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

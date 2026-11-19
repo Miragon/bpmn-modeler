@@ -1,4 +1,4 @@
-import type { DiagramBounds } from "./diagramIndex";
+import type { LayoutSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
 import {
@@ -7,7 +7,6 @@ import {
     type MergeElement,
     type MergeResult,
     type MergeSide,
-    addedOnlyBy,
     chosenVersionOf,
 } from "./mergeResult";
 import { isEdgeEnd } from "./referenceRules";
@@ -19,17 +18,20 @@ import {
 } from "./removedWith";
 
 export type BuildNote =
+    | { readonly kind: "flowEndOffShape"; readonly id: string; readonly ends: readonly string[] }
+    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
     | {
-          readonly kind: "flowEndsFromDifferentSides";
+          readonly kind: "flowThroughShape";
           readonly id: string;
-          readonly ends: readonly string[];
+          readonly shapes: readonly string[];
       }
-    | { readonly kind: "addedAtSamePlace"; readonly ids: readonly string[] }
     | {
-          readonly kind: "drawnApartFromContainer";
+          readonly kind: "shapeOutsideContainer";
           readonly id: string;
           readonly containers: readonly string[];
       }
+    | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
+    | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
@@ -51,20 +53,70 @@ export type BuildNote =
       }
     | { readonly kind: "frameDiffers"; readonly attribute: string };
 
-/**
- * A drawn flow whose waypoints were drawn on one side while an end's shape
- * comes from the other: its waypoints may no longer meet that shape. A layout
- * both sides share counts for neither.
- */
-export function flowEndsNotes(result: MergeResult, resolution: MergeResolution): BuildNote[] {
-    const drawnFrom = drawnFromOf(result, resolution);
-    return result.elements.flatMap((element): BuildNote[] => {
-        const ends = endsDrawnApartOf(element, resolution, drawnFrom);
-        return ends ? [{ kind: "flowEndsFromDifferentSides", id: element.id, ends }] : [];
-    });
+type GroupedSpotNote = Extract<
+    BuildNote,
+    { kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer" }
+>;
+
+/** The broken spots the merge introduced into the drawing; one flow's or shape's spots of one kind share a note. */
+export function layoutSpotNotes(spots: readonly LayoutSpot[]): BuildNote[] {
+    const notes: BuildNote[] = [];
+    const grouped = new Map<string, string[]>();
+    const addTo = (kind: GroupedSpotNote["kind"], id: string, named: string) => {
+        const key = `${kind} ${id}`;
+        const list = grouped.get(key);
+        if (list === undefined) {
+            const created = [named];
+            grouped.set(key, created);
+            notes.push(groupedNote(kind, id, created));
+        } else if (!list.includes(named)) {
+            list.push(named);
+        }
+    };
+    for (const spot of spots) {
+        switch (spot.kind) {
+            case "flowEndOffShape":
+                addTo(spot.kind, spot.flow, spot.end);
+                break;
+            case "flowThroughShape":
+                addTo(spot.kind, spot.flow, spot.shape);
+                break;
+            case "shapeOutsideContainer":
+                addTo(spot.kind, spot.shape, spot.container);
+                break;
+            case "shapesOverlap":
+                notes.push({ kind: spot.kind, ids: [...spot.shapes] });
+                break;
+            case "boundaryEventOffHost":
+                notes.push({ kind: spot.kind, id: spot.boundaryEvent, host: spot.host });
+                break;
+            case "lanesOverlap":
+                notes.push({ kind: spot.kind, ids: [...spot.lanes] });
+                break;
+        }
+    }
+    return notes;
 }
 
-/** A drawn flow's ends, when the flow and its ends are drawn from both sides together. */
+function groupedNote(
+    kind: GroupedSpotNote["kind"],
+    id: string,
+    named: readonly string[],
+): GroupedSpotNote {
+    switch (kind) {
+        case "flowEndOffShape":
+            return { kind, id, ends: named };
+        case "flowThroughShape":
+            return { kind, id, shapes: named };
+        case "shapeOutsideContainer":
+            return { kind, id, containers: named };
+    }
+}
+
+/**
+ * A drawn flow's ends, when the flow and its ends are drawn from both sides
+ * together: each side may have moved one end without routing the flow.
+ */
 function endsDrawnApartOf(
     element: MergeElement,
     resolution: MergeResolution,
@@ -75,63 +127,6 @@ function endsDrawnApartOf(
     const ends = [...new Set(version.references.filter(isEdgeEnd).map(({ target }) => target))];
     const sides = new Set([element.id, ...ends].map(drawnFrom));
     return MERGE_SIDES.every((side) => sides.has(side)) ? ends : undefined;
-}
-
-/** Elements only one side has, one from each side, whose shapes overlap. */
-export function addedAtSamePlaceNotes(
-    result: MergeResult,
-    resolution: MergeResolution,
-    boundsOf: (id: string, side: MergeSide) => DiagramBounds | undefined,
-): BuildNote[] {
-    const addedBounds = (side: MergeSide) =>
-        result.elements.flatMap((element) => {
-            const onlyThisSide =
-                addedOnlyBy(element, side) && resolution.elements[element.id] === side;
-            const bounds = onlyThisSide ? boundsOf(element.id, side) : undefined;
-            return bounds ? [{ id: element.id, bounds }] : [];
-        });
-    const addedByIncoming = addedBounds("incoming");
-    return addedBounds("current").flatMap((current) =>
-        addedByIncoming
-            .filter((incoming) => overlap(current.bounds, incoming.bounds))
-            .map((incoming): BuildNote => ({
-                kind: "addedAtSamePlace",
-                ids: [current.id, incoming.id],
-            })),
-    );
-}
-
-/**
- * An element drawn from another side than a container that encloses it, a
- * sub-process or a lane: its shape may lie outside that container's, or on
- * another plane than its siblings. A layout both sides share counts for
- * neither.
- */
-export function drawnApartFromContainerNotes(
-    result: MergeResult,
-    resolution: MergeResolution,
-    isEnclosingContainer: (id: string) => boolean,
-): BuildNote[] {
-    const drawnFrom = drawnFromOf(result, resolution);
-    return result.elements.flatMap((element): BuildNote[] => {
-        const version = chosenVersionOf(element, (id) => resolution.elements[id]);
-        const side = drawnFrom(element.id);
-        if (!version || side === undefined) return [];
-        const containers = [
-            ...(version.parent === undefined ? [] : [version.parent]),
-            ...version.lanes,
-        ].filter((container) => {
-            const containerSide = drawnFrom(container);
-            return (
-                isEnclosingContainer(container) &&
-                containerSide !== undefined &&
-                containerSide !== side
-            );
-        });
-        return containers.length === 0
-            ? []
-            : [{ kind: "drawnApartFromContainer", id: element.id, containers }];
-    });
 }
 
 /**
@@ -191,9 +186,10 @@ export function defaultFlowNotRestoredNotes(
  * result keeps one side's drawing. Members linked through a host, a parent, the pool drawing a
  * parent process or a flow's end form one group, split by the side the result draws them from.
  * A note lists only a part's outermost members, as a container stands for its contents and an
- * end for its flows. A flow drawn from another side than one of its ends is left to
- * `flowEndsNotes`, which already names it: when each side moved one end, its waypoints differ on
- * both sides without either side routing it. Lanes link nothing: one can hold most of a diagram.
+ * end for its flows. A flow drawn from another side than one of its ends is left out: when each
+ * side moved one end, its waypoints differ on both sides without either side routing it, and
+ * `layoutSpotNotes` names it if it no longer meets an end. Lanes link nothing: one can hold most
+ * of a diagram.
  * Without a base nothing is noted, as every element the sides draw differently counts as
  * changed by both.
  */
@@ -292,13 +288,4 @@ function drawnFromOf(
         result.elements.map(({ id, layout }) => [id, layout]),
     );
     return (id) => (layoutsById.get(id) === "unchanged" ? undefined : resolution.layout[id]);
-}
-
-function overlap(first: DiagramBounds, second: DiagramBounds): boolean {
-    return (
-        first.x < second.x + second.width &&
-        second.x < first.x + first.width &&
-        first.y < second.y + second.height &&
-        second.y < first.y + first.height
-    );
 }

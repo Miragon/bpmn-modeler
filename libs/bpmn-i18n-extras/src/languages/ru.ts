@@ -348,12 +348,13 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Результат и сторона «Входящее»",
     "Result": "Результат",
     "Review notes ({count})": "Просмотреть примечания ({count})",
-    "{element} connects shapes drawn by different sides; check where it meets {ends}":
-        "Элемент {element} соединяет фигуры, нарисованные разными сторонами; проверьте, где он соединяется с {ends}",
-    "{first} and {second} were added at the same place":
-        "Элементы {first} и {second} добавлены в одно и то же место",
-    "{element} is drawn by another side than {containers}; check that it still sits inside":
-        "Элемент {element} нарисован другой стороной, чем {containers}; проверьте, что он всё ещё внутри",
+    "{element} does not meet {ends}": "Элемент {element} не доходит до {ends}",
+    "{first} and {second} lie on top of each other":
+        "Элементы {first} и {second} лежат друг на друге",
+    "{element} runs through {shapes}": "Элемент {element} проходит через {shapes}",
+    "{element} lies outside {containers}": "Элемент {element} находится за пределами {containers}",
+    "{element} is not on the border of {host}": "Элемент {element} не находится на границе {host}",
+    "{first} and {second} overlap": "Элементы {first} и {second} перекрываются",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "Элемент {element} оставлен без потоков, которые другая сторона удалила вместе с ним: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

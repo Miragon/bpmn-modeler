@@ -1,0 +1,149 @@
+import {
+    type ModdleElement,
+    idOf,
+    isModdleElement,
+    isType,
+    moddleElements,
+} from "@miragon/bpmn-modeler-diff";
+
+import type { Outline } from "./layoutGeometry";
+
+interface NodeRelations {
+    readonly outline: Outline;
+    readonly subProcesses: readonly string[];
+    readonly pool?: string;
+    readonly host?: string;
+    readonly mayLieOutsidePool: boolean;
+}
+
+interface ConnectionEnds {
+    readonly source?: string;
+    readonly target?: string;
+}
+
+/** What decides where an element's drawing may lie, read from the semantic tree. */
+export interface LayoutRelations {
+    readonly nodes: ReadonlyMap<string, NodeRelations>;
+    readonly pools: ReadonlySet<string>;
+    readonly laneParents: ReadonlyMap<string, string>;
+    readonly lanesByNode: ReadonlyMap<string, readonly string[]>;
+    readonly connections: ReadonlyMap<string, ConnectionEnds>;
+}
+
+interface Scope {
+    readonly subProcesses: readonly string[];
+    readonly pool?: string;
+}
+
+/**
+ * Walks the tree from the definitions down, never up through `$parent`: an
+ * element the build moved between the sides' trees keeps its side's parent.
+ */
+export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
+    const nodes = new Map<string, NodeRelations>();
+    const pools = new Set<string>();
+    const laneParents = new Map<string, string>();
+    const lanesByNode = new Map<string, string[]>();
+    const connections = new Map<string, ConnectionEnds>();
+    const poolsByProcess = new Map<string, string>();
+
+    const connect = (id: string | undefined, source: unknown, target: unknown) => {
+        if (id !== undefined) connections.set(id, endsOf(source, target));
+    };
+    const visitLanes = (laneSets: unknown, parent: string) => {
+        for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
+            if (lane.id === undefined) continue;
+            laneParents.set(lane.id, parent);
+            for (const node of moddleElements(lane.flowNodeRef)) {
+                if (node.id === undefined) continue;
+                const lanes = lanesByNode.get(node.id);
+                if (lanes === undefined) lanesByNode.set(node.id, [lane.id]);
+                else lanes.push(lane.id);
+            }
+            if (isModdleElement(lane.childLaneSet)) visitLanes([lane.childLaneSet], lane.id);
+        }
+    };
+    const visitArtifacts = (artifacts: unknown, scope: Scope) => {
+        for (const artifact of moddleElements(artifacts)) {
+            if (isType(artifact, "bpmn:Association")) {
+                connect(artifact.id, artifact.sourceRef, artifact.targetRef);
+            } else if (isType(artifact, "bpmn:TextAnnotation") && artifact.id !== undefined) {
+                nodes.set(artifact.id, nodeRelationsOf(artifact, scope));
+            }
+        }
+    };
+    const visitFlowElements = (container: ModdleElement, scope: Scope) => {
+        for (const element of moddleElements(container.flowElements)) {
+            if (isType(element, "bpmn:SequenceFlow")) {
+                connect(element.id, element.sourceRef, element.targetRef);
+                continue;
+            }
+            if (element.id === undefined) continue;
+            nodes.set(element.id, nodeRelationsOf(element, scope));
+            for (const association of moddleElements(element.dataInputAssociations)) {
+                connect(association.id, moddleElements(association.sourceRef)[0], element);
+            }
+            for (const association of moddleElements(element.dataOutputAssociations)) {
+                connect(association.id, element, association.targetRef);
+            }
+            if (isType(element, "bpmn:SubProcess")) {
+                visitLanes(element.laneSets, element.id);
+                visitFlowElements(element, {
+                    ...scope,
+                    subProcesses: [element.id, ...scope.subProcesses],
+                });
+            }
+        }
+        visitArtifacts(container.artifacts, scope);
+    };
+
+    const roots = moddleElements(definitions.rootElements);
+    for (const collaboration of roots.filter((root) => isType(root, "bpmn:Collaboration"))) {
+        for (const participant of moddleElements(collaboration.participants)) {
+            if (participant.id === undefined) continue;
+            pools.add(participant.id);
+            const process = idOf(participant.processRef);
+            if (process !== undefined) poolsByProcess.set(process, participant.id);
+        }
+        for (const messageFlow of moddleElements(collaboration.messageFlows)) {
+            connect(messageFlow.id, messageFlow.sourceRef, messageFlow.targetRef);
+        }
+        visitArtifacts(collaboration.artifacts, { subProcesses: [] });
+    }
+    for (const process of roots.filter((root) => isType(root, "bpmn:Process"))) {
+        if (process.id === undefined) continue;
+        visitLanes(process.laneSets, process.id);
+        const pool = poolsByProcess.get(process.id);
+        visitFlowElements(
+            process,
+            pool === undefined ? { subProcesses: [] } : { subProcesses: [], pool },
+        );
+    }
+    return { nodes, pools, laneParents, lanesByNode, connections };
+}
+
+function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {
+    const host = idOf(element.attachedToRef);
+    return {
+        outline: outlineOf(element),
+        subProcesses: scope.subProcesses,
+        ...(scope.pool === undefined ? {} : { pool: scope.pool }),
+        ...(host === undefined ? {} : { host }),
+        mayLieOutsidePool: isType(element, "bpmn:DataStoreReference"),
+    };
+}
+
+function outlineOf(element: ModdleElement): Outline {
+    if (isType(element, "bpmn:Event")) return "circle";
+    if (isType(element, "bpmn:Gateway")) return "diamond";
+    return "rectangle";
+}
+
+function endsOf(source: unknown, target: unknown): ConnectionEnds {
+    const sourceId = idOf(source);
+    const targetId = idOf(target);
+    return {
+        ...(sourceId === undefined ? {} : { source: sourceId }),
+        ...(targetId === undefined ? {} : { target: targetId }),
+    };
+}

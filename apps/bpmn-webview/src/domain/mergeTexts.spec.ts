@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBadge, MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneBadge } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergePadDecision } from "./mergePadDecisions";
 
 import {
-    buildNoteText,
     compareWithText,
     comparisonPaneText,
     comparisonText,
@@ -220,81 +219,5 @@ describe("build words", () => {
         ["after", "incoming", "Result"],
     ])("labels the %s pane of a result compared with %s", (side, against, label) => {
         expect(comparisonPaneText(side, against, untranslated)).toBe(label);
-    });
-});
-
-describe("buildNoteText", () => {
-    const nameOf = (id: string) => ({ Flow_2: "to packing", Task_Pack: "Pack box" })[id] ?? id;
-
-    it.each<[MergePaneBuildNote, string]>([
-        [
-            { kind: "flowEndsFromDifferentSides", id: "Flow_2", ends: ["Task_Check", "Task_Pack"] },
-            "to packing connects shapes drawn by different sides; check where it meets Task_Check, Pack box",
-        ],
-        [
-            { kind: "addedAtSamePlace", ids: ["Task_A", "Task_B"] },
-            "Task_A and Task_B were added at the same place",
-        ],
-        [
-            { kind: "drawnApartFromContainer", id: "Task_Pack", containers: ["Lane_1"] },
-            "Pack box is drawn by another side than Lane_1; check that it still sits inside",
-        ],
-        [
-            {
-                kind: "restoredWithoutRemovedWith",
-                id: "Task_Pack",
-                connections: ["Flow_2", "Flow_3"],
-            },
-            "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
-        ],
-        [
-            {
-                kind: "restoredWithoutRemovedWith",
-                id: "Task_Pack",
-                connections: ["Flow_2"],
-                boundaryEvents: ["Timer_1"],
-            },
-            "Pack box is kept without the 2 elements the other side removed with it: Timer_1, to packing",
-        ],
-        [
-            {
-                kind: "restoredWithoutRemovedWith",
-                id: "Task_Pack",
-                connections: [],
-                boundaryEvents: ["Timer_1"],
-            },
-            "Pack box is kept without the boundary event the other side removed with it: Timer_1",
-        ],
-        [
-            {
-                kind: "defaultFlowNotRestored",
-                id: "Task_Pack",
-                flow: "Flow_2",
-                keptDefault: "Flow_3",
-            },
-            "to packing is kept, but Pack box keeps Flow_3 as its default flow",
-        ],
-        [
-            { kind: "defaultFlowNotRestored", id: "Task_Pack", flow: "Flow_2" },
-            "to packing is kept but is no longer the default flow of Pack box",
-        ],
-        [
-            { kind: "layoutChangedByBoth", ids: ["Task_Pack", "Flow_2"], keptSide: "current" },
-            "Both sides changed the layout of Pack box, to packing; current's is kept",
-        ],
-        [
-            { kind: "layoutChangedByBoth", ids: ["Task_Pack"], keptSide: "incoming" },
-            "Both sides changed the layout of Pack box; incoming's is kept",
-        ],
-        [
-            { kind: "frameDiffers", attribute: "exporterVersion" },
-            "The file's exporterVersion differs between the sides; current's is kept",
-        ],
-        [
-            { kind: "frameDiffers", attribute: "extensionElements" },
-            "The file's extensionElements differs between the sides; current's is kept",
-        ],
-    ])("words a %o note with the canvas's names", (note, text) => {
-        expect(buildNoteText(note, nameOf, untranslated)).toBe(text);
     });
 });

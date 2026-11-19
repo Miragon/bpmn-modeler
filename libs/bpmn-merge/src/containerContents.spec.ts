@@ -1,7 +1,7 @@
 import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
-import { enclosingSubProcessOf, isEnclosingContainer } from "./containerContents";
+import { enclosingSubProcessOf } from "./containerContents";
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -25,20 +25,6 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 async function elementsById() {
     return (await (await loadBpmnModdle())().fromXML(XML)).elementsById;
 }
-
-describe("isEnclosingContainer", () => {
-    it.each([
-        ["Sub_1", true],
-        ["Transaction_1", true],
-        ["AdHoc_1", true],
-        ["Lane_1", true],
-        ["Process_1", false],
-        ["Participant_1", false],
-        ["Task_Top", false],
-    ])("tells whether %s draws its contents inside its shape", async (id, expected) => {
-        expect(isEnclosingContainer((await elementsById())[id])).toBe(expected);
-    });
-});
 
 describe("enclosingSubProcessOf", () => {
     it.each([
