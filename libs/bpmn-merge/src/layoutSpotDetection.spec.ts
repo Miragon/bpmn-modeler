@@ -83,15 +83,32 @@ describe("detectLayoutSpots", () => {
             ]);
         });
 
-        it("accepts an end a few pixels off and an end inside its shape", async () => {
+        it("accepts an end a few pixels off or inside its shape's outline", async () => {
             const spots = await spotsOf((model) => {
                 model.flows.find(({ id }) => id === "Flow_1")!.waypoints = [
                     [220, 140],
-                    [300, 140],
+                    [262, 140],
+                ];
+                model.flows.find(({ id }) => id === "Flow_2")!.waypoints = [
+                    [358, 140],
+                    [417, 140],
                 ];
             });
 
             expect(spots).toEqual([]);
+        });
+
+        it("names an end that lies deep inside its shape", async () => {
+            const spots = await spotsOf((model) => {
+                model.flows.find(({ id }) => id === "Flow_1")!.waypoints = [
+                    [218, 140],
+                    [310, 140],
+                ];
+            });
+
+            expect(spots).toEqual([
+                { kind: "flowEndOffShape", flow: "Flow_1", end: "Task_A", at: "target" },
+            ]);
         });
     });
 

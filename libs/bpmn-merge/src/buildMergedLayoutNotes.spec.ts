@@ -294,6 +294,16 @@ describe("buildMerged's layout notes", () => {
                 },
             ],
         },
+        ...(["current", "incoming"] as const).map((conflictsTo) => ({
+            name: `12 a flow's end moved onto the flow, its conflicts decided for ${conflictsTo}`,
+            versions: dockedVersions(
+                "c8",
+                (model) => dragNodes(model, ["Gateway_Ok"], -20),
+                (model) => dragNodes(model, ["Task_C"], -50),
+            ),
+            conflictsTo,
+            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", ends: ["Task_C"] } as const],
+        })),
     ])("$name", async ({ versions, conflictsTo, notes }) => {
         expect(await layoutNotesOf(versions, conflictsTo)).toEqual(notes);
     });
