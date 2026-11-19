@@ -1,5 +1,4 @@
 import {
-    type AxisLine,
     type DiagramBounds,
     type Outline,
     type Point,
@@ -8,13 +7,8 @@ import {
     gapBetween,
     inflated,
     liesWithin,
-    outlinePointOn,
     overlapsBeyondTolerance,
     pointBounds,
-    segmentEntersOutline,
-    segmentEntersShape,
-    sideOfCenter,
-    spansAlong,
 } from "./layoutGeometry";
 import {
     FLOW_ENDS,
@@ -39,6 +33,14 @@ import {
     withoutRedundantPoints,
 } from "./layoutPolyline";
 import { routeCost, routeOrthogonal } from "./layoutRouter";
+import {
+    type AxisLine,
+    outlinePointOn,
+    segmentEntersOutline,
+    segmentEntersShape,
+    sideOfCenter,
+    spansAlong,
+} from "./layoutSegments";
 import { shapesRunThrough } from "./layoutSpotDetection";
 import { type LayoutSpot, endsOffShape, isDrawnWithAnEnd, isFlowSpot } from "./layoutSpots";
 

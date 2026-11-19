@@ -9,7 +9,7 @@ import {
     segmentEntersShape,
     sideOfCenter,
     spansAlong,
-} from "./layoutGeometry";
+} from "./layoutSegments";
 
 const TASK: DiagramBounds = { x: 100, y: 100, width: 100, height: 80 };
 const EVENT: DiagramBounds = { x: 300, y: 140, width: 36, height: 36 };

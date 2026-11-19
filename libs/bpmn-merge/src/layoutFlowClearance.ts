@@ -1,6 +1,7 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
-import { type DiagramBounds, inflated, keepsClearOf, segmentEntersBounds } from "./layoutGeometry";
+import { type DiagramBounds, inflated, keepsClearOf } from "./layoutGeometry";
 import { type Segment, segmentsOf } from "./layoutPolyline";
+import { segmentEntersBounds } from "./layoutSegments";
 import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
 
 /** The flows near a placement that are not the moved group's own, by their segments and labels. */

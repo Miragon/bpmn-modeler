@@ -1,15 +1,11 @@
 import {
     type Axis,
-    type AxisLine,
     type DiagramBounds,
     type Outline,
     type Point,
     centerOf,
     inflated,
     liesInside,
-    outlinePointOn,
-    segmentEntersBounds,
-    spansAlong,
 } from "./layoutGeometry";
 import {
     type Segment,
@@ -18,6 +14,7 @@ import {
     sharedRunLength,
     withoutRedundantPoints,
 } from "./layoutPolyline";
+import { type AxisLine, outlinePointOn, segmentEntersBounds, spansAlong } from "./layoutSegments";
 
 export interface RouteEnd {
     readonly bounds: DiagramBounds;
