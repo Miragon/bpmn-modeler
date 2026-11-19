@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
+import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -89,6 +90,44 @@ const shapeRepairsOf = (plan: ContainerMovePlan) =>
             ? [{ ...repair, shape: spot.shape, container: spot.container }]
             : [],
     );
+
+/** Each repair of an overlap, with the pair sorted. */
+const overlapRepairsOf = (plan: ContainerMovePlan) =>
+    plan.repairs.flatMap(({ spot, repair }) =>
+        spot.kind === "shapesOverlap" ? [{ ...repair, shapes: [...spot.shapes].sort() }] : [],
+    );
+
+/**
+ * A sub-process its contents fill, with a boundary event on its bottom border
+ * lying on a task inside, and a task the build placed below it that only
+ * growing the sub-process in place brings inside.
+ */
+function overlapEndedByGrowth(): [LayoutModel, LayoutModel[]] {
+    const tall = [pool(box(0, 0, 1200, 400)), lane("Lane_1", box(30, 0, 1170, 400))];
+    const sub = node("Sub_1", box(200, 50, 300, 200), { expanded: true });
+    const tallTask = node("Task_1", box(220, 80, 100, 160), IN_SUB);
+    const beside = node("Task_2", box(340, 80, 140, 160), IN_SUB);
+    const timer = node("Timer_B", box(252, 232, 36, 36), { host: "Sub_1", outline: "circle" });
+    const added = node("Task_Z", box(380, 250, 100, 80), IN_SUB);
+    const result = layoutOf([sub, tallTask, beside, timer, added], [], tall);
+    const current = layoutOf(
+        [sub, { ...tallTask, bounds: box(220, 80, 100, 140) }, beside, timer],
+        [],
+        tall,
+    );
+    const incoming = layoutOf(
+        [
+            { ...sub, bounds: box(200, 50, 300, 300) },
+            tallTask,
+            beside,
+            { ...timer, bounds: box(252, 332, 36, 36) },
+            added,
+        ],
+        [],
+        tall,
+    );
+    return [result, [current, incoming]];
+}
 
 const outsideOf = (layout: LayoutModel, sides: readonly LayoutModel[]): LayoutSpot[] =>
     introducedLayoutSpots(layout, sides).filter(({ kind }) => kind === "shapeOutsideContainer");
@@ -380,6 +419,18 @@ describe("planContainerMoves", () => {
             expect(boundsIn(plan, "Timer_L")).toEqual(onLeft.bounds);
         });
 
+        it("names an overlap it ended by moving a boundary event with the border it grew after the event", () => {
+            const plan = planOf(...overlapEndedByGrowth());
+
+            expect(shapeRepairsOf(plan)).toEqual([
+                { kind: "grewContainer", shape: "Task_Z", container: "Sub_1" },
+            ]);
+            expect(boundsIn(plan, "Timer_B")).toEqual(box(252, 322, 36, 36));
+            expect(overlapRepairsOf(plan)).toEqual([
+                { kind: "movedByBuild", moved: "Timer_B", shapes: ["Task_1", "Timer_B"] },
+            ]);
+        });
+
         it("grows no pool over the pool beside it", () => {
             const narrowFrames = [pool(box(0, 0, 600, 200)), lane("Lane_1", box(30, 0, 570, 200))];
             const beside: LayoutShape = { ...pool(box(662, 0, 600, 200)), id: "Pool_2" };
@@ -475,5 +526,28 @@ describe("planContainerMoves", () => {
             layout: result,
             repairs: [],
         });
+    });
+});
+
+describe("the build's notes of a container repair", () => {
+    it("says the build moved the boundary event the grown border carried off the task it lay on", () => {
+        const [result, sides] = overlapEndedByGrowth();
+
+        const { notes } = planLayoutRepair(result, sides, BUILD_LAYOUT_REPAIRS, []);
+
+        expect(notes).toEqual([
+            {
+                kind: "shapesOverlap",
+                ids: expect.arrayContaining(["Task_1", "Timer_B"]),
+                repair: "movedByBuild",
+                moved: "Timer_B",
+            },
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_Z",
+                shapes: ["Sub_1"],
+                repair: "grewContainer",
+            },
+        ]);
     });
 });
