@@ -21,7 +21,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
-import type { MergeDecisionOutcome } from "./mergeOutcomeCard";
+import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import {
     buildBlockedText,
     MERGE_MARKER_LABELS,

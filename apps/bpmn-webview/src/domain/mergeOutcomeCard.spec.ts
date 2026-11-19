@@ -7,12 +7,8 @@ import type {
 } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
-import {
-    type MergeDecisionOutcome,
-    mergeOutcomeCardContent,
-    type MergeRefusal,
-    type MergeRememberedOutcome,
-} from "./mergeOutcomeCard";
+import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
+import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import type { MergeTranslate } from "./mergeTexts";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>

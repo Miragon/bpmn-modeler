@@ -6,13 +6,13 @@ import type {
     MergePanePickAction,
     MergePaneBlock,
     MergePaneOtherSideLack,
-    MergePaneOutcome,
     MergePaneRestoreOffer,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
+import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
@@ -287,7 +287,7 @@ export const MERGE_CARD_TEXTS = {
  * not be done.
  */
 export function outcomeCardHeadline(
-    outcome: MergePaneOutcome & { readonly action: MergePanePickAction },
+    outcome: MergeDecisionOutcome,
     acted: MergeActedDecision,
     nameOf: (id: string) => string,
     translate: MergeTranslate,

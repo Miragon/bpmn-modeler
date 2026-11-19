@@ -1,10 +1,7 @@
-import type {
-    MergePaneOutcome,
-    MergePanePickAction,
-    MergePaneRestoreOffer,
-} from "@miragon/bpmn-modeler-shared";
+import type { MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
+import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
 import {
     cardBlockText,
     MERGE_PICK_TEXTS,
@@ -14,17 +11,6 @@ import {
     restoreOfferText,
     unblockedText,
 } from "./mergeTexts";
-
-/** The host's outcome of a pick, a leave-out or an undo, which a pane sends. */
-export type MergeDecisionOutcome = MergePaneOutcome & { readonly action: MergePanePickAction };
-
-/** A decision the host refused, with what blocked it. */
-export type MergeRefusal = Extract<MergeDecisionOutcome, { applied: false }>;
-
-/** Whether the outcome is of a decision a pane sends; a merge by hand is none. */
-export function isDecisionOutcome(outcome: MergePaneOutcome): outcome is MergeDecisionOutcome {
-    return outcome.action !== "mergeByHand";
-}
 
 /** The host's outcome of a decision this pane sent, kept with that decision. */
 export interface MergeRememberedOutcome {
