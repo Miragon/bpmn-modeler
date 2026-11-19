@@ -283,6 +283,52 @@ describe("the layout repair on harvested merges", () => {
     );
 });
 
+describe("the layout repair on sides that name the root plane differently", () => {
+    it.each([
+        {
+            seed: 32,
+            strategy: "conflictsToCurrent",
+            shapes: [
+                "Start_Order",
+                "Task_Check",
+                "Gateway_Ok",
+                "Sub_Ship",
+                "End_Done",
+                "Boundary_Timeout",
+            ],
+        },
+        { seed: 75, strategy: "conflictsAtRandom", shapes: ["End_Rejected", "DataRef_Order"] },
+    ] as const)(
+        "seed $seed, $strategy: leaves the shapes both sides draw at one place where they lie, noted",
+        { timeout: 20_000 },
+        async ({ seed, strategy, shapes }) => {
+            const versions = versionsOf(seed);
+            const repaired = await buildMerged(
+                await prepareMergeSources(versions),
+                await decisionsOf(versions, seed, strategy),
+            );
+            const sides = await Promise.all([versions.current, versions.incoming].map(layoutOf));
+            const repairedLayout = await layoutOf(repaired.xml);
+            const boundsIn = (layout: LayoutModel, id: string) => layout.shapes.get(id)?.bounds;
+
+            for (const id of shapes) {
+                expect(new Set(sides.map((side) => side.shapes.get(id)?.plane)).size, id).toBe(2);
+                expect(boundsIn(sides[1]!, id), id).toEqual(boundsIn(sides[0]!, id));
+                expect(boundsIn(repairedLayout, id), id).toEqual(boundsIn(sides[0]!, id));
+                expect(
+                    repaired.notes.some(
+                        (note) =>
+                            note.kind === "shapeOutsideContainer" &&
+                            note.id === id &&
+                            note.repair === "notRepaired",
+                    ),
+                    id,
+                ).toBe(true);
+            }
+        },
+    );
+});
+
 /** A lane member drawn outside its lane's band. */
 function liesOutsideALane(spot: LayoutSpot, layout: LayoutModel): boolean {
     return (
