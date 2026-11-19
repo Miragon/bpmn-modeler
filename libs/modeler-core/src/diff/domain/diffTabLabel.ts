@@ -13,14 +13,17 @@ export const MERGE_TITLE_INFIX = " (Merge: ";
 // The host renders the tab title, so it is the core's English; the panes translate their captions.
 const MERGE_SIDE_WORDS: Record<MergeSide, string> = { current: "Current", incoming: "Incoming" };
 
+/** A side as the host names it: its branch, its commit or its position. */
+export function mergeSideName(caption: MergeSideCaption): string {
+    return caption.ref ?? caption.shortHash ?? MERGE_SIDE_WORDS[caption.side];
+}
+
 /** A merge tab's title: the working file and each side's branch, commit or position. */
 export function mergeTabLabel(
     fileName: string,
     captions: Record<MergeSide, MergeSideCaption>,
 ): string {
-    const sideName = (caption: MergeSideCaption) =>
-        caption.ref ?? caption.shortHash ?? MERGE_SIDE_WORDS[caption.side];
-    return `${fileName}${MERGE_TITLE_INFIX}${inPaneOrder(captions).map(sideName).join(COMPARE_SEPARATOR)})`;
+    return `${fileName}${MERGE_TITLE_INFIX}${inPaneOrder(captions).map(mergeSideName).join(COMPARE_SEPARATOR)})`;
 }
 
 /**

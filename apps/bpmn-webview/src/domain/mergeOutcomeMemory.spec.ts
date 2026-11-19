@@ -113,6 +113,18 @@ describe("answerStates", () => {
             undo("Task_Remind"),
             applied("pick", "Task_Remind", { pulledIn: ["Flow_1"] }),
         ],
+        ["a merge by hand for a pick", keepTask, applied("mergeByHand", "Task_Remind")],
+        [
+            "a discarded merge by hand for a pick",
+            keepTask,
+            {
+                applied: false,
+                action: "mergeByHand",
+                elementId: "Task_Remind",
+                blockedBy: [],
+                discarded: true,
+            },
+        ],
     ])("takes an outcome of %s for the partner's and forgets its own", (_case, acted, outcome) => {
         const shown = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, applied("pick", "Task_Remind"));
 

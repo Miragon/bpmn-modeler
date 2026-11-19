@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import type {
     MergePaneBlock,
-    MergePaneOutcome,
+    MergePanePickAction,
     MergePaneRestoreOffer,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
-import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
+import {
+    type MergeDecisionOutcome,
+    mergeOutcomeCardContent,
+    type MergeRefusal,
+    type MergeRememberedOutcome,
+} from "./mergeOutcomeCard";
 import type { MergeTranslate } from "./mergeTexts";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
@@ -21,10 +26,10 @@ const NAMES: Record<string, string> = {
 const nameOf = (id: string) => NAMES[id] ?? id;
 
 const applied = (
-    action: MergePaneOutcome["action"],
+    action: MergePanePickAction,
     elementId: string,
     lists: Partial<Record<"pulledIn" | "dropped" | "reopened", string[]>> = {},
-): MergePaneOutcome => ({
+): MergeDecisionOutcome => ({
     applied: true,
     action,
     elementId,
@@ -35,10 +40,10 @@ const applied = (
 });
 
 const refused = (
-    action: MergePaneOutcome["action"],
+    action: MergePanePickAction,
     elementId: string,
     blockedBy: MergePaneBlock[],
-): Extract<MergePaneOutcome, { applied: false }> => ({
+): MergeRefusal => ({
     applied: false,
     action,
     elementId,

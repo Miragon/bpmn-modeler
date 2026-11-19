@@ -59,6 +59,7 @@ describe("protocol messages", () => {
                 "MergeStepListChangedCommand",
                 "PickMergeSideCommand",
                 "UnpickMergeCommand",
+                "OpenElementXmlMergeCommand",
                 "BuildMergeResultCommand",
                 "CompareMergeResultCommand",
                 "SwitchMergeComparisonCommand",

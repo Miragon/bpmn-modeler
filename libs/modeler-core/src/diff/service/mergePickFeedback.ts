@@ -1,4 +1,9 @@
-import type { BlockedPick, PickOutcome } from "@miragon/bpmn-modeler-merge";
+import {
+    type BlockedPick,
+    describeHandMergeRefusal,
+    type HandMergeOutcome,
+    type PickOutcome,
+} from "@miragon/bpmn-modeler-merge";
 import type {
     MergePaneAction,
     MergePaneBlock,
@@ -62,6 +67,34 @@ export function mergePickFeedback({
             ? { elementId, connections, keptSide }
             : { elementId, connections, boundaryEvents: boundaryEventsLeftOut, keptSide };
     return { ...shown, offer };
+}
+
+/** What the finish of an element's merge editor did, as the panes show it: taken, refused, or closed without a save. */
+export function handMergeFeedback(
+    elementId: string,
+    finish: HandMergeOutcome | "discarded",
+): MergePickFeedback {
+    const action = "mergeByHand";
+    if (finish === "discarded") {
+        return {
+            outcome: { applied: false, action, elementId, blockedBy: [], discarded: true },
+        };
+    }
+    if (!finish.applied) {
+        const { refusal } = finish;
+        return {
+            outcome: {
+                applied: false,
+                action,
+                elementId,
+                blockedBy: [],
+                handMergeRefusal: { kind: refusal.kind, detail: describeHandMergeRefusal(refusal) },
+            },
+        };
+    }
+    return {
+        outcome: { applied: true, action, elementId, pulledIn: [], dropped: [], reopened: [] },
+    };
 }
 
 function blockOf({ reason: { element, requirement, obstacle } }: BlockedPick): MergePaneBlock {

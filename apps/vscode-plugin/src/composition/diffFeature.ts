@@ -76,8 +76,8 @@ export function register(
         dmnDiffStore,
         mergeSessions: merge.sessions,
         conflictMarkers: merge.conflictMarkers,
-        buildMerge: (fileUri) =>
-            merge.build.buildFile(fileUri, bpmnDiffService.showsElementXmlChanges),
+        buildMerge: async (fileUri) =>
+            merge.build.buildFile(fileUri, await bpmnDiffService.mergeHostOffers()),
     };
 }
 

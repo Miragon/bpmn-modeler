@@ -208,7 +208,7 @@ export class MergeMode {
         this.states = query;
         this.stepList = query.states.stepping.list;
         this.pane.tagSide(query.side);
-        this.pane.offerElementXmlChanges(query.elementXmlChanges);
+        this.pane.offerElementXmlChanges(query.offers.elementXmlChanges);
         this.paintMarks();
         this.pickPad?.refresh();
         const answer = this.outcomes.receive(query.states);
@@ -420,7 +420,10 @@ export class MergeMode {
         this.bar.update({
             caption,
             counts,
-            controls: this.controls(states, this.outcomes.menuRows(this.states.elementXmlChanges)),
+            controls: this.controls(
+                states,
+                this.outcomes.menuRows(this.states.offers.elementXmlChanges),
+            ),
         });
     }
 

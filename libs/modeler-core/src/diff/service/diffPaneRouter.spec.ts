@@ -24,6 +24,7 @@ import {
     FakeDiffPaneHandle,
     FakeMergeWorkingFile,
     RecordingElementXmlDiffView,
+    RecordingElementXmlMergeEditor,
     RecordingMergeSidesView,
     RecordingNotifier,
     ScriptedPicker,
@@ -37,6 +38,7 @@ import {
 import { DmnDiffService } from "./DmnDiffService";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { ElementXmlMergeService } from "./ElementXmlMergeService";
 import { MergeBuildService } from "./MergeBuildService";
 import { MergeDecisionService } from "./MergeDecisionService";
 import { MergeSessionStore } from "./MergeSessionStore";
@@ -96,6 +98,7 @@ describe("createDiffPaneRouter", () => {
                 MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
+                OpenElementXmlMergeCommand: "ignored",
                 BuildMergeResultCommand: "ignored",
                 CompareMergeResultCommand: "ignored",
                 SwitchMergeComparisonCommand: "ignored",
@@ -121,6 +124,7 @@ describe("createDiffPaneRouter", () => {
                 MergeStepListChangedCommand: "ignored",
                 PickMergeSideCommand: "ignored",
                 UnpickMergeCommand: "ignored",
+                OpenElementXmlMergeCommand: "ignored",
                 BuildMergeResultCommand: "ignored",
                 CompareMergeResultCommand: "ignored",
                 SwitchMergeComparisonCommand: "ignored",
@@ -167,6 +171,35 @@ describe("createDiffPaneRouter", () => {
                 reason: "the host opens no merge view",
             });
         }
+    });
+
+    it("routes opening an element's XML merge only where the host has a merge editor", () => {
+        const { notifier, settings } = createTestHost();
+        const store = new DiffPaneStore();
+        const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
+        const merge = new MergeDecisionService(sessions, notifier);
+        const xmlMerge = new ElementXmlMergeService(
+            sessions,
+            merge,
+            new RecordingElementXmlMergeEditor(),
+            { ready: Promise.resolve(true) },
+            notifier,
+        );
+
+        const withEditor = createDiffPaneRouter(
+            new BpmnDiffService(notifier, settings, store, undefined, merge, undefined, xmlMerge),
+            {},
+        );
+        const without = createDiffPaneRouter(
+            new BpmnDiffService(notifier, settings, store, undefined, merge),
+            {},
+        );
+
+        expect(withEditor.routeOf("OpenElementXmlMergeCommand").kind).toBe("handled");
+        expect(without.routeOf("OpenElementXmlMergeCommand")).toStrictEqual({
+            kind: "ignored",
+            reason: "the host offers no XML merge editor",
+        });
     });
 
     it("routes building and comparing a merge result only where the diff service builds them", () => {

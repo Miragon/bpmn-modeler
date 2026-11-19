@@ -1,0 +1,108 @@
+import { handMergeableSide } from "@miragon/bpmn-modeler-merge";
+import type { MergeHostOffers } from "@miragon/bpmn-modeler-shared";
+
+import { LoggerPort } from "../../kernel/port/hostPorts";
+import { ElementXmlMerges } from "../domain/elementXmlMerge";
+import { ElementXmlMergeEditor } from "../port/ElementXmlMergeEditor";
+import { MergeEditorAvailability } from "../port/MergeEditorAvailability";
+import { DiffSession } from "./DiffSession";
+import { MergeDecisionService } from "./MergeDecisionService";
+import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
+
+/**
+ * Opens a picked element's XML in the host's merge editor and takes what the
+ * user saved there as the element's version. Each merge view has its own
+ * editors, which close with it.
+ */
+export class ElementXmlMergeService {
+    private readonly mergesBySession = new Map<MergeSession, ElementXmlMerges>();
+
+    private sessionCount = 0;
+
+    constructor(
+        private readonly sessions: Pick<MergeSessionStore, "ofDiffSession" | "onSessionEnded">,
+        private readonly decisions: Pick<
+            MergeDecisionService,
+            "mergeByHand" | "discardHandMerge" | "onDecided"
+        >,
+        private readonly editor: ElementXmlMergeEditor,
+        private readonly availability: MergeEditorAvailability,
+        private readonly logger: LoggerPort,
+    ) {
+        sessions.onSessionEnded((session) => void this.sessionEnded(session));
+        decisions.onDecided((session) => this.mergesBySession.get(session)?.forgetRefusals());
+    }
+
+    /** Whether the host opens its merge editor. */
+    offered(): Promise<boolean> {
+        return this.availability.ready;
+    }
+
+    /**
+     * Opens the editor on an element whose pick a hand merge may replace, or
+     * brings its open one to the front. `resume` starts from the text the
+     * merge refused last.
+     */
+    async open(diffSession: DiffSession, elementId: string, resume = false): Promise<void> {
+        const session = this.sessions.ofDiffSession(diffSession);
+        if (!session || !(await this.offered())) return;
+        const { decisions, sources } = session;
+        const side = handMergeableSide(decisions, sources.handMergeTexts, elementId);
+        const texts = sources.handMergeTexts.get(elementId);
+        if (side === undefined || texts === undefined) return;
+        const opening = this.mergesOf(session).open({
+            elementId,
+            side,
+            texts,
+            captions: session.captions,
+            resume,
+            handMergedText: decisions.handMergeOf(elementId)?.shownText,
+        });
+        try {
+            if (opening.kind === "focus") await this.editor.focus(opening.key);
+            else await this.editor.open(opening.request);
+        } catch (error) {
+            this.logger.logError(error as Error);
+        }
+    }
+
+    /** Takes what the user saved in the editor `key`, or shows that they saved nothing. */
+    async finish(key: string, written: string | undefined, offers: MergeHostOffers): Promise<void> {
+        for (const [session, merges] of this.mergesBySession) {
+            const finish = merges.finish(key, written);
+            if (finish === undefined) continue;
+            if (finish.kind === "discarded") {
+                await this.decisions.discardHandMerge(session, finish.elementId, offers);
+                return;
+            }
+            const outcome = await this.decisions.mergeByHand(session, finish, offers);
+            if (outcome.applied) merges.accepted(finish.elementId);
+            else merges.refused(finish.elementId, finish.side, finish.text);
+            return;
+        }
+    }
+
+    private mergesOf(session: MergeSession): ElementXmlMerges {
+        let merges = this.mergesBySession.get(session);
+        if (!merges) {
+            this.sessionCount += 1;
+            merges = new ElementXmlMerges(`element-xml-merge-${this.sessionCount}`);
+            this.mergesBySession.set(session, merges);
+        }
+        return merges;
+    }
+
+    // Forgotten before the editors close, so their finishes answer no ended merge view.
+    private async sessionEnded(session: MergeSession): Promise<void> {
+        const merges = this.mergesBySession.get(session);
+        if (!merges) return;
+        this.mergesBySession.delete(session);
+        for (const key of merges.openKeys) {
+            try {
+                await this.editor.close(key);
+            } catch (error) {
+                this.logger.logError(error as Error);
+            }
+        }
+    }
+}

@@ -276,6 +276,11 @@ class MockHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
                 console.debug("[DEBUG] ShowElementXmlChangesCommand", command.elementId);
                 break;
             }
+            case "OpenElementXmlMergeCommand": {
+                // No merge editor to open an element's XML in.
+                console.debug("[DEBUG] OpenElementXmlMergeCommand", command.elementId);
+                break;
+            }
             case "GetBpmnlintConfigCommand": {
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;

@@ -1,7 +1,12 @@
-import type { MergePaneOutcome, MergePaneStates } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneStates } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
-import type { MergeRefusal, MergeRememberedOutcome } from "./mergeOutcomeCard";
+import {
+    isDecisionOutcome,
+    type MergeDecisionOutcome,
+    type MergeRefusal,
+    type MergeRememberedOutcome,
+} from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
 export type MergeOutcomeStates = Pick<
@@ -51,7 +56,12 @@ export function answerStates(
 ): { readonly memory: MergeOutcomeMemory; readonly answer: MergeOutcomeAnswer } {
     const outcome = states.lastOutcome;
     const { sent } = memory;
-    if (outcome !== undefined && sent !== undefined && answers(outcome, sent)) {
+    if (
+        outcome !== undefined &&
+        sent !== undefined &&
+        isDecisionOutcome(outcome) &&
+        answers(outcome, sent)
+    ) {
         const lifted = liftedRefusal(memory.refused, outcome, states);
         const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
         return {
@@ -129,7 +139,7 @@ function decisionsSeen(states: MergeOutcomeStates): string {
 }
 
 /** An outcome answers a decision of its element, an undo by an undo, a pick or leave-out by either. */
-function answers(outcome: MergePaneOutcome, sent: MergeActedDecision): boolean {
+function answers(outcome: MergeDecisionOutcome, sent: MergeActedDecision): boolean {
     return (
         outcome.elementId === sent.elementId &&
         (outcome.action === "unpick") === (sent.kind === "undo")
@@ -142,7 +152,7 @@ function answers(outcome: MergePaneOutcome, sent: MergeActedDecision): boolean {
  */
 function liftedRefusal(
     refused: MergeRefusal | undefined,
-    outcome: MergePaneOutcome,
+    outcome: MergeDecisionOutcome,
     states: MergeOutcomeStates,
 ): MergeRefusal | undefined {
     if (refused === undefined || !outcome.applied || outcome.action !== "unpick") return undefined;
