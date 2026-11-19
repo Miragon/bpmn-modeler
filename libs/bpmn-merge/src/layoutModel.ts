@@ -2,6 +2,8 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    liesWithin,
+    overlapsBeyondTolerance,
     sameBounds,
     translated,
 } from "./layoutGeometry";
@@ -76,12 +78,8 @@ export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefi
 
 /** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
 export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
-    const drawn = nodeShapeIn(layout, node.id);
-    const sameSize =
-        drawn !== undefined &&
-        drawn.bounds.width === node.bounds.width &&
-        drawn.bounds.height === node.bounds.height;
-    return sameSize && drawn.plane === node.plane ? drawn.bounds : undefined;
+    const drawn = drawingOfSameSize(layout, node);
+    return drawn?.kind === "node" && drawn.plane === node.plane ? drawn.bounds : undefined;
 }
 
 /** Whether the layout draws the node's element just where the node lies. */
@@ -111,6 +109,11 @@ export function drawingOfSameSize(
 export function drawsWhereItLies(layout: LayoutModel, node: NodeShape): boolean {
     const drawn = drawingOfSameSize(layout, node);
     return drawn !== undefined && sameBounds(drawn.bounds, node.bounds);
+}
+
+/** A shape the build placed: not both sides draw it just where the result does; a boundary event goes with its host. */
+export function placedByBuild(node: NodeShape, sides: readonly LayoutModel[]): boolean {
+    return node.host === undefined && !sides.every((side) => drawsAt(side, node));
 }
 
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
@@ -146,6 +149,27 @@ export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape |
     if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
     const pool = layout.shapes.get(node.pool);
     return isDrawnFrameOf(node, pool) ? pool : undefined;
+}
+
+/** The lanes drawn inside the pool on its plane, in document order. */
+export function lanesOf(layout: LayoutModel, pool: LayoutShape): LayoutShape[] {
+    return [...layout.shapes.values()].filter(
+        (shape) =>
+            shape.kind === "lane" &&
+            shape.plane === pool.plane &&
+            liesWithin(shape.bounds, pool.bounds),
+    );
+}
+
+/** Whether the pool covers another pool on its plane by more than the tolerance. */
+export function liesOnAnotherPool(layout: LayoutModel, pool: LayoutShape): boolean {
+    return [...layout.shapes.values()].some(
+        (shape) =>
+            shape.kind === "pool" &&
+            shape.id !== pool.id &&
+            shape.plane === pool.plane &&
+            overlapsBeyondTolerance(shape.bounds, pool.bounds),
+    );
 }
 
 /** A shape others lie inside: a pool, a lane or a sub-process drawn open. */

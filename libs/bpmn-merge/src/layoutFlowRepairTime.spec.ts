@@ -363,6 +363,12 @@ function poolWithAddedTasks(
     };
 }
 
+/** The drawing as the side that added no task draws it. */
+function withoutAddedTasks(layout: LayoutModel): LayoutModel {
+    const shapes = [...layout.shapes].filter(([id]) => !id.startsWith("Task_Added_"));
+    return { shapes: new Map(shapes), edges: layout.edges };
+}
+
 // Measured against parsing the 800 KB file once (35 to 44 ms), best of five each, with and without
 // coverage: 0.04 to bring five tasks among 750 into the pool as the side moved it (2 ms), 0.13 to
 // 0.16 to grow the pool twice among 1,000 tasks and move three into the room (6 ms), as each
@@ -392,7 +398,7 @@ describe("container repair time", () => {
     ])("$label in a few times parsing an 800 KB file", { timeout: 60_000 }, async (example) => {
         const moddle = (await loadBpmnModdle())();
         const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
-        const sides = [example.side, example.side];
+        const sides = [example.side, withoutAddedTasks(example.side)];
         const spots = introducedLayoutSpots(example.result, sides);
 
         const plan = planContainerMoves(example.result, spots, sides);

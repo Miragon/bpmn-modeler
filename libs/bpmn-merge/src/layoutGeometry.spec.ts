@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     type DiagramBounds,
+    bordersAt,
     gapBetween,
     keepsClearOf,
     segmentEntersOutline,
@@ -35,6 +36,27 @@ describe("sideOfCenter", () => {
         expect(sideOfCenter(TASK, { x: 197, y: 140 }, "x")).toBe(1);
         expect(sideOfCenter(TASK, { x: 150, y: 103 }, "y")).toBe(-1);
         expect(sideOfCenter(TASK, { x: 150, y: 400 }, "y")).toBe(1);
+    });
+});
+
+describe("bordersAt", () => {
+    it.each([
+        { label: "the right border", point: { x: 200, y: 140 }, borders: ["right"] },
+        {
+            label: "the left border, give or take the tolerance",
+            point: { x: 98, y: 120 },
+            borders: ["left"],
+        },
+        { label: "the top border", point: { x: 150, y: 100 }, borders: ["top"] },
+        {
+            label: "two borders at a corner",
+            point: { x: 200, y: 180 },
+            borders: ["right", "bottom"],
+        },
+        { label: "no border inside the bounds", point: { x: 150, y: 140 }, borders: [] },
+        { label: "no border beyond its end", point: { x: 200, y: 240 }, borders: [] },
+    ] as const)("finds $label", ({ point, borders }) => {
+        expect(bordersAt(point, TASK)).toEqual(borders);
     });
 });
 

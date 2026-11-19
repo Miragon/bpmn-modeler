@@ -20,6 +20,8 @@ import {
     drawnPoolOf,
     framesAroundOf,
     isFrame,
+    lanesOf,
+    liesOnAnotherPool,
     translatedNode,
 } from "./layoutModel";
 import { type ShapeGroup, groupBoundsIn } from "./layoutShapeGroups";
@@ -132,14 +134,9 @@ export function regionOf(draft: DrawingDraft, node: NodeShape): NodeShape[] {
 /** The pool around the region and its lanes, or the lanes on a plane without a pool. */
 function poolFramesOf(draft: DrawingDraft, node: NodeShape): LayoutShape[] {
     const pool = drawnPoolOf(draft, node);
+    if (pool !== undefined) return [pool, ...lanesOf(draft, pool)];
     return [...draft.shapes.values()].filter(
-        (shape) =>
-            shape.plane === node.plane &&
-            shape.kind !== "node" &&
-            (pool === undefined
-                ? shape.kind === "lane"
-                : shape.id === pool.id ||
-                  (shape.kind === "lane" && liesWithin(shape.bounds, pool.bounds))),
+        (shape) => shape.plane === node.plane && shape.kind === "lane",
     );
 }
 
@@ -276,7 +273,16 @@ function verticalRunsOf(
     return runs;
 }
 
-/** Whether the trial has no shape spot the draft lacks: no new overlap, shape outside its frame or event off its host. */
+/**
+ * Whether the trial has no shape spot the draft lacks: no new overlap, shape
+ * outside its frame or event off its host, and no pool widened onto another.
+ */
 export function breaksNothing(draft: LayoutModel, trial: LayoutModel): boolean {
-    return introducedLayoutSpots(trial, [draft]).every(isFlowSpot);
+    const widenedPools = [...trial.shapes.values()].filter(
+        (shape) => shape.kind === "pool" && shape !== draft.shapes.get(shape.id),
+    );
+    return (
+        introducedLayoutSpots(trial, [draft]).every(isFlowSpot) &&
+        !widenedPools.some((pool) => liesOnAnotherPool(trial, pool))
+    );
 }

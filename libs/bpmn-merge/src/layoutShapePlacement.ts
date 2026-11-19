@@ -32,6 +32,10 @@ export interface Offset {
 
 export const offsetLength = ({ dx, dy }: Offset): number => Math.abs(dx) + Math.abs(dy);
 
+export function offsetBetween(from: DiagramBounds, to: DiagramBounds): Offset {
+    return { dx: to.x - from.x, dy: to.y - from.y };
+}
+
 /** Every offset within the radius, nearest first; of equally near ones, the flatter, then the one further right. */
 const SEARCH_OFFSETS: readonly Offset[] = (() => {
     const offsets: Offset[] = [];
@@ -69,14 +73,16 @@ interface KeptInside {
  * Where a node and its group may go in the draft: every member, but a
  * boundary event on its host, inside each frame outside the group it lies in
  * now, off the frame's border where it keeps off it now, and the group's
- * shapes inside the bounds the node is to be brought into, the node then kept
- * only inside the frames it must lie in; clear of every other shape and its
- * label, and off every flow that is not the group's own.
+ * shapes inside the frames the node is to be brought into, off their border
+ * and name band, the node then kept only inside the frames it must lie in;
+ * clear of every other shape and its label, and off every flow that is not
+ * the group's own.
  */
 export class Placement {
     private readonly groupBounds: DiagramBounds;
     /** The members' shapes without their labels, which must lie inside `into`. */
     private readonly shapeBounds: DiagramBounds;
+    private readonly into: readonly DiagramBounds[];
     private readonly keptInside: readonly KeptInside[];
     private readonly obstacles: readonly DiagramBounds[];
     private readonly otherSegments: readonly Segment[];
@@ -85,9 +91,10 @@ export class Placement {
         draft: DrawingDraft,
         group: ShapeGroup,
         window: DiagramBounds,
-        private readonly into: readonly DiagramBounds[] = [],
+        intoFrames: readonly LayoutShape[] = [],
     ) {
         const { node } = group;
+        this.into = intoFrames.map(innerBoundsOf);
         const members = new Set(group.members);
         this.shapeBounds = groupShapesBoundsIn(draft, group);
         const ownEdges = new Set([...group.innerEdges, ...group.attachedEdges]);
@@ -97,7 +104,7 @@ export class Placement {
             if (member === undefined || member.host !== undefined) return [];
             // A node brought into its sub-process leaves the lane it lies in now, which the sub-process stands for.
             const frames =
-                id === node.id && into.length > 0
+                id === node.id && intoFrames.length > 0
                     ? framesOf(draft, member)
                     : framesAroundOf(draft, member);
             return frames
@@ -124,7 +131,18 @@ export class Placement {
 
     /** The search window for a placement anywhere within the search radius. */
     static searchWindowOf(draft: DrawingDraft, group: ShapeGroup): DiagramBounds {
-        return inflated(groupBoundsIn(draft, group), SEARCH_RADIUS + SHAPE_CLEARANCE);
+        return windowAround(draft, group, { dx: 0, dy: 0 }, SEARCH_RADIUS + SHAPE_CLEARANCE);
+    }
+
+    /** Whether the group fits moved by the offset, into the frames when it is to be brought into them. */
+    static fitsAt(
+        draft: DrawingDraft,
+        group: ShapeGroup,
+        offset: Offset,
+        intoFrames: readonly LayoutShape[] = [],
+    ): boolean {
+        const window = windowAround(draft, group, offset, SHAPE_CLEARANCE);
+        return new Placement(draft, group, window, intoFrames).fits(offset);
     }
 
     fits({ dx, dy }: Offset): boolean {
@@ -147,11 +165,7 @@ export class Placement {
 
     /** The search window for a placement within the search radius of the group moved by the offset. */
     static searchWindowFrom(draft: DrawingDraft, group: ShapeGroup, base: Offset): DiagramBounds {
-        const bounds = groupBoundsIn(draft, group);
-        return inflated(
-            boundsAround([bounds, translated(bounds, base.dx, base.dy)]),
-            SEARCH_RADIUS + SHAPE_CLEARANCE,
-        );
+        return windowAround(draft, group, base, SEARCH_RADIUS + SHAPE_CLEARANCE);
     }
 
     /** The offset that fits nearest to `base`, within the search radius around it. */
@@ -160,4 +174,15 @@ export class Placement {
             .map(({ dx, dy }) => ({ dx: base.dx + dx, dy: base.dy + dy }))
             .find((offset) => this.fits(offset));
     }
+}
+
+/** The group where it lies and moved by the offset, grown by the margin: what a move there may meet. */
+function windowAround(
+    draft: DrawingDraft,
+    group: ShapeGroup,
+    { dx, dy }: Offset,
+    margin: number,
+): DiagramBounds {
+    const bounds = groupBoundsIn(draft, group);
+    return inflated(boundsAround([bounds, translated(bounds, dx, dy)]), margin);
 }

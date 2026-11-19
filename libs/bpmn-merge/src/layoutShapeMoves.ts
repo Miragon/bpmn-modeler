@@ -1,9 +1,9 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
-import { boundsAround, inflated, sameBounds, translated } from "./layoutGeometry";
+import { sameBounds } from "./layoutGeometry";
 import { type RoomMade, makeRoom } from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape, drawsAt, placeOf } from "./layoutModel";
-import { type ShapeGroup, ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
-import { type Offset, Placement, SHAPE_CLEARANCE, offsetLength } from "./layoutShapePlacement";
+import { type LayoutModel, type NodeShape, placeOf, placedByBuild } from "./layoutModel";
+import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
+import { type Offset, Placement, offsetBetween, offsetLength } from "./layoutShapePlacement";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
 /** What the build did about two shapes on top of each other. */
@@ -112,11 +112,6 @@ function resolvedEarlier(
         : { kind: "movedByBuild", shapes, moved: named.id };
 }
 
-/** A shape the build placed: not both sides draw it just where the result does; a boundary event goes with its host. */
-function placedByBuild(node: NodeShape, sides: readonly LayoutModel[]): boolean {
-    return node.host === undefined && !sides.every((side) => drawsAt(side, node));
-}
-
 /** The shortest move of a group to where a side draws its node, when the group fits there. */
 function otherSidesPlace(
     draft: DrawingDraft,
@@ -127,13 +122,8 @@ function otherSidesPlace(
         sides.flatMap((side): Move[] => {
             const place = placeOf(side, group.node);
             if (place === undefined || sameBounds(place, group.node.bounds)) return [];
-            const offset = { dx: place.x - group.node.bounds.x, dy: place.y - group.node.bounds.y };
-            const bounds = groupBoundsIn(draft, group);
-            const window = inflated(
-                boundsAround([bounds, translated(bounds, offset.dx, offset.dy)]),
-                SHAPE_CLEARANCE,
-            );
-            return new Placement(draft, group, window).fits(offset) ? [{ group, ...offset }] : [];
+            const offset = offsetBetween(group.node.bounds, place);
+            return Placement.fitsAt(draft, group, offset) ? [{ group, ...offset }] : [];
         }),
     );
     return shortestOf(moves);

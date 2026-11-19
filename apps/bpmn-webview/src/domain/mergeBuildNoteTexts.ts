@@ -53,7 +53,7 @@ const OVERLAP_NOTE_TEXTS: Record<OverlapNote["repair"], string> = {
 };
 
 /** A shape outside its containers, by what the build did about it. */
-const CONTAINER_NOTE_TEXTS = {
+const CONTAINER_NOTE_TEXTS: Record<ContainerNote["repair"], string> = {
     movedIntoContainer: "The build moved {element} into {shapes}",
     grewContainer: "The build grew {shapes} to hold {element}",
     grewContainerAndShifted: "The build grew {shapes} to hold {element} and shifted {shifted}",
@@ -91,7 +91,7 @@ export function buildNoteText(
 function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
     if (note.kind === "shapesOverlap") return OVERLAP_NOTE_TEXTS[note.repair];
-    if (note.kind === "shapeOutsideContainer") return containerNoteTemplate(note);
+    if (note.kind === "shapeOutsideContainer") return CONTAINER_NOTE_TEXTS[note.repair];
     if ("repair" in note) return FLOW_NOTE_TEXTS[note.kind][note.repair];
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
@@ -103,13 +103,6 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
     }
     return BUILD_NOTE_TEXTS[note.kind];
-}
-
-function containerNoteTemplate(note: ContainerNote): string {
-    if (note.repair !== "grewContainer") return CONTAINER_NOTE_TEXTS[note.repair];
-    return note.shifted.length === 0
-        ? CONTAINER_NOTE_TEXTS.grewContainer
-        : CONTAINER_NOTE_TEXTS.grewContainerAndShifted;
 }
 
 function lacksAnEnd({ source, target }: NoteOfKind<"flowNotDrawn">): boolean {
@@ -172,7 +165,9 @@ function noteReplacements(
             return {
                 element: nameOf(note.id),
                 shapes: names(note.shapes),
-                ...(note.repair === "grewContainer" ? { shifted: names(note.shifted) } : {}),
+                ...(note.repair === "grewContainerAndShifted"
+                    ? { shifted: names(note.shifted) }
+                    : {}),
             };
         case "shapesOverlap":
             return overlapReplacements(note, nameOf, names);

@@ -369,10 +369,13 @@ function mergeTextKeys(): Set<string> {
                 nameOf,
                 translate,
             );
-            for (const shifted of [[], ["c"]]) {
-                const grew = { repair: "grewContainer", shifted } as const;
-                buildNoteText({ kind: note.kind, id, shapes, ...grew }, nameOf, translate);
-            }
+            buildNoteText(
+                { kind: note.kind, id, shapes, repair: "grewContainer" },
+                nameOf,
+                translate,
+            );
+            const shifted = { repair: "grewContainerAndShifted", shifted: ["c"] } as const;
+            buildNoteText({ kind: note.kind, id, shapes, ...shifted }, nameOf, translate);
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);

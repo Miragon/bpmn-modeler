@@ -34,7 +34,7 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
             kind: "shapeOutsideContainer",
             id: "Task_A",
             shapes: ["Sub_1"],
-            repair: "grewContainer",
+            repair: "grewContainerAndShifted",
             shifted: ["Task_C", "End_1"],
         },
         ["Task_A", "Sub_1", "Task_C", "End_1"],
