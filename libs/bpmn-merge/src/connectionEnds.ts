@@ -5,6 +5,12 @@ export interface ConnectionEnds {
     readonly target?: string;
 }
 
+/** An edge no plane draws both ends of, which the build leaves out of the drawing. */
+export interface UndrawnEdge {
+    readonly id: string;
+    readonly ends: ConnectionEnds;
+}
+
 const SOURCE_TO_TARGET_TYPES = ["bpmn:SequenceFlow", "bpmn:MessageFlow", "bpmn:Association"];
 
 /**

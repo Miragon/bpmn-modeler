@@ -385,6 +385,8 @@ const dictionary: Record<string, string> = {
         "El atributo {attribute} del archivo difiere entre los lados; se conserva el de Actual",
     "{element} is left out of the drawing: no diagram shows both {source} and {target}":
         "{element} queda fuera del dibujo: ningún diagrama muestra a la vez {source} y {target}",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} queda fuera del dibujo: le falta un origen o un destino",
     "1 conflict left": "1 conflicto pendiente",
     "{count} conflicts left": "{count} conflictos pendientes",
     "Elements of this version the result keeps as they are here.":

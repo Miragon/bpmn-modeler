@@ -368,6 +368,8 @@ const dictionary: Record<string, string> = {
         "The file's {attribute} differs between the sides; current's is kept",
     "{element} is left out of the drawing: no diagram shows both {source} and {target}":
         "{element} is left out of the drawing: no diagram shows both {source} and {target}",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} is left out of the drawing: it lacks a source or a target",
     "1 conflict left": "1 conflict left",
     "{count} conflicts left": "{count} conflicts left",
     "Elements of this version the result keeps as they are here.":

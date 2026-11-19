@@ -40,6 +40,8 @@ const FLOW_NOTE_TEXTS: Record<FlowNote["kind"], Record<FlowNote["repair"], strin
     },
 };
 
+const FLOW_WITHOUT_END_TEXT = "{element} is left out of the drawing: it lacks a source or a target";
+
 const OTHER_DEFAULT_KEPT_TEXT =
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
 
@@ -72,12 +74,17 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }
+    if (note.kind === "flowNotDrawn" && lacksAnEnd(note)) return FLOW_WITHOUT_END_TEXT;
     if (note.kind === "restoredWithoutRemovedWith" && note.boundaryEvents !== undefined) {
         return restoredWithoutElementsOf(note).length === 1
             ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
     }
     return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function lacksAnEnd({ source, target }: NoteOfKind<"flowNotDrawn">): boolean {
+    return source === undefined || target === undefined;
 }
 
 function restoredWithoutElementsOf(
@@ -132,10 +139,12 @@ function noteReplacements(
         case "frameDiffers":
             return { attribute: note.attribute };
         case "flowNotDrawn":
-            return {
-                element: nameOf(note.id),
-                source: nameOf(note.ends[0] ?? ""),
-                target: names(note.ends.slice(1)),
-            };
+            return lacksAnEnd(note)
+                ? { element: nameOf(note.id) }
+                : {
+                      element: nameOf(note.id),
+                      source: nameOf(note.source ?? ""),
+                      target: nameOf(note.target ?? ""),
+                  };
     }
 }

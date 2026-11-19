@@ -2,12 +2,7 @@ import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon
 
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
-import {
-    type BuildNote,
-    defaultFlowNotRestoredNotes,
-    layoutChangedByBothNotes,
-    restoredWithoutRemovedWithNotes,
-} from "./buildNotes";
+import { type BuildNote, buildNotesOf } from "./buildNotes";
 import { diagramIndexOf } from "./diagramIndex";
 import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
@@ -80,7 +75,7 @@ export async function buildMergedWith(
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
-    const flowsNotDrawn = assembleDiagrams(
+    const undrawnEdges = assembleDiagrams(
         current,
         diagramIndexes,
         resolution,
@@ -96,7 +91,7 @@ export async function buildMergedWith(
         xml,
         {
             sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements, decisions),
-            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides, flowsNotDrawn),
+            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides, undrawnEdges),
             laneMembers,
             restoredDefaults,
         },
@@ -104,18 +99,16 @@ export async function buildMergedWith(
     );
     return {
         xml,
-        notes: [
-            ...flowsNotDrawn,
-            ...layoutSpotNotes,
-            ...restoredWithoutRemovedWithNotes(result, resolution),
-            ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
-            ...layoutChangedByBothNotes(
-                result,
-                resolution,
-                (id, side) => sources.snapshots[side].get(id)?.layout,
-            ),
-            ...frame.notes,
-        ],
+        notes: buildNotesOf({
+            result,
+            resolution,
+            undrawnEdges,
+            layoutSpotNotes,
+            flowDefaults,
+            restoredDefaults,
+            layoutOf: (id, side) => sources.snapshots[side].get(id)?.layout,
+            frameNotes: frame.notes,
+        }),
     };
 }
 

@@ -22,7 +22,7 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
                 ...(note.keptDefault === undefined ? [] : [note.keptDefault]),
             ];
         case "flowNotDrawn":
-            return [note.id, ...note.ends];
+            return [note.id, note.source, note.target].filter((id) => id !== undefined);
         case "frameDiffers":
             return [];
     }

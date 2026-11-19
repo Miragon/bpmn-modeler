@@ -280,10 +280,11 @@ export type MergePaneBuildNote =
       }
     | { readonly kind: "frameDiffers"; readonly attribute: string }
     | {
-          /** A flow left out of the drawing, since no plane draws both its ends, with those ends. */
+          /** A flow left out of the drawing, since no plane draws both its ends, with the ends it has. */
           readonly kind: "flowNotDrawn";
           readonly id: string;
-          readonly ends: readonly string[];
+          readonly source?: string;
+          readonly target?: string;
       };
 
 /** Whether the merge view can build its result into the working file, and what the last build noted. */

@@ -375,6 +375,8 @@ const dictionary: Record<string, string> = {
         "Атрибут {attribute} файла различается между сторонами; сохраняется значение стороны «Текущее»",
     "{element} is left out of the drawing: no diagram shows both {source} and {target}":
         "{element} не нарисован: ни одна диаграмма не показывает одновременно {source} и {target}",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} не нарисован: у него нет источника или цели",
     "1 conflict left": "Остался 1 конфликт",
     "{count} conflicts left": "Осталось конфликтов: {count}",
     "Elements of this version the result keeps as they are here.":

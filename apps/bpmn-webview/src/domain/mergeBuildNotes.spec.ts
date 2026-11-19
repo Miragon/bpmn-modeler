@@ -43,7 +43,7 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
     ],
     frameDiffers: [{ kind: "frameDiffers", attribute: "exporter" }, []],
     flowNotDrawn: [
-        { kind: "flowNotDrawn", id: "Flow_1", ends: ["Task_A", "Task_B"] },
+        { kind: "flowNotDrawn", id: "Flow_1", source: "Task_A", target: "Task_B" },
         ["Flow_1", "Task_A", "Task_B"],
     ],
 };
@@ -62,6 +62,12 @@ describe("buildNoteElementIds", () => {
                 boundaryEvents: ["Timer_1"],
             }),
         ).toStrictEqual(["Task_A", "Timer_1", "Flow_1"]);
+    });
+
+    it("names only the end a flow left out of the drawing has", () => {
+        expect(
+            buildNoteElementIds({ kind: "flowNotDrawn", id: "Flow_1", target: "Task_B" }),
+        ).toStrictEqual(["Flow_1", "Task_B"]);
     });
 
     it("names no kept default for a source that keeps none", () => {

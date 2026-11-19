@@ -6,8 +6,12 @@ import {
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
 
-import type { FlowNotDrawnNote } from "./buildNotes";
-import { type ConnectionEnds, connectionEndsOf, edgePlaneOf } from "./connectionEnds";
+import {
+    type ConnectionEnds,
+    type UndrawnEdge,
+    connectionEndsOf,
+    edgePlaneOf,
+} from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
 import { type DiagramIndex, type Drawing, drawingKeyOf, planeOwnerOf } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
@@ -55,9 +59,9 @@ export function drawingSidesOf(
 export function drawnByShape(
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
     drawingSides: Readonly<Record<string, MergeSide>>,
-    flowsNotDrawn: readonly FlowNotDrawnNote[],
+    undrawnEdges: readonly UndrawnEdge[],
 ): Set<string> {
-    const leftOut = new Set(flowsNotDrawn.map(({ id }) => id));
+    const leftOut = new Set(undrawnEdges.map(({ id }) => id));
     return new Set(
         Object.entries(drawingSides)
             .filter(([id, side]) => (indexes[side].drawingsByElement.get(id)?.length ?? 0) > 0)
@@ -120,7 +124,7 @@ interface KeptDiagram {
  * in the result implies (`contentsPlaneOf`), an edge onto the plane that draws both its ends
  * (`edgePlaneOf`). Drawings of no decided element and no part stay current's. Incoming's DI
  * keeps its ids unless the result already uses one, and brings the label styles its drawings
- * use. Returns the flows no plane draws both ends of, which stay out of the drawing.
+ * use. Returns the edges no plane draws both ends of, which stay out of the drawing.
  */
 export function assembleDiagrams(
     definitions: ModdleElement,
@@ -128,7 +132,7 @@ export function assembleDiagrams(
     resolution: MergeResolution,
     { sides: drawingSides, parts }: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
-): FlowNotDrawnNote[] {
+): UndrawnEdge[] {
     const decidedIds = new Set(Object.keys(resolution.elements));
     const slots = new PlaneSlots(indexes);
     const kept = keptDiagramsOf(indexes, slots, drawingSides, decidedIds, resultUnits);
@@ -209,7 +213,7 @@ export function assembleDiagrams(
             }
         }
     }
-    const flowsNotDrawn = placeEdges(edges, slotsOfDrawn, addMember);
+    const undrawnEdges = placeEdges(edges, slotsOfDrawn, addMember);
     const slotPlaneOrder = (side: MergeSide, slot: string) =>
         [...indexes[side].orderByPlaneOwner].flatMap(([planeOwner, order]) =>
             slots.slotOf(planeOwner) === slot ? order : [],
@@ -232,7 +236,7 @@ export function assembleDiagrams(
     }
     repointEdgeEnds(placed);
     giveIncomingDrawingsUnusedIds(definitions, indexes.incoming);
-    return flowsNotDrawn;
+    return undrawnEdges;
 }
 
 interface PendingEdge {
@@ -249,7 +253,7 @@ function placeEdges(
     edges: readonly PendingEdge[],
     slotsOfDrawn: Map<string, string>,
     addMember: (drawing: Drawing, slot: string) => void,
-): FlowNotDrawnNote[] {
+): UndrawnEdge[] {
     const edgesById = new Map(edges.map((edge) => [edge.elementId, edge] as const));
     const resolving = new Set<string>();
     const slotOfEnd = (id: string): string | undefined => {
@@ -262,14 +266,11 @@ function placeEdges(
         if (slot !== undefined) slotsOfDrawn.set(id, slot);
         return slot;
     };
-    return edges.flatMap(({ elementId, drawing, ends }): FlowNotDrawnNote[] => {
+    return edges.flatMap(({ elementId, drawing, ends }): UndrawnEdge[] => {
         const slot = slotOfEnd(elementId);
-        if (slot !== undefined) {
-            addMember(drawing, slot);
-            return [];
-        }
-        const endIds = [ends.source, ends.target].filter((end) => end !== undefined);
-        return [{ kind: "flowNotDrawn", id: elementId, ends: endIds }];
+        if (slot === undefined) return [{ id: elementId, ends }];
+        addMember(drawing, slot);
+        return [];
     });
 }
 

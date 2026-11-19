@@ -345,6 +345,8 @@ const dictionary: Record<string, string> = {
         "檔案的 {attribute} 在兩側不同；保留目前的值",
     "{element} is left out of the drawing: no diagram shows both {source} and {target}":
         "{element} 未繪製：沒有圖表同時顯示 {source} 和 {target}",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} 未繪製：它缺少來源或目標",
     "1 conflict left": "剩餘 1 個衝突",
     "{count} conflicts left": "剩餘 {count} 個衝突",
     "Elements of this version the result keeps as they are here.":
