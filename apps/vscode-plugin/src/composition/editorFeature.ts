@@ -37,7 +37,9 @@ import {
 } from "../modeler/form/adapter/in/webview-handlers/formMessageHandlers";
 import { DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 import { DiffController } from "../diff/adapter/in/DiffController";
+import { inMemoryViewUris } from "../shared/adapter/out/inMemoryViewUris";
 import { InMemoryFileSystemProvider } from "../shared/adapter/out/InMemoryFileSystemProvider";
+import { closeUnservedTabs } from "../shared/adapter/out/unservedTabs";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -76,8 +78,10 @@ export function register(
         output: InMemoryFileSystemProvider.registered(context, FORM_OUTPUT_VALUES_SCHEME, {
             readOnly: true,
         }),
+        viewUris: inMemoryViewUris,
     });
     formValues.register(context);
+    closeUnservedTabs(context, (tab) => formValues.isUnservedTab(tab));
     const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
         deps.editorStore,
         deps.vsSettings,

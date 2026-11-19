@@ -166,6 +166,7 @@ vi.mock("vscode", () => ({
 import { TabInputText } from "vscode";
 
 import { registeredFormValueFiles } from "../../../../__fixtures__/formValueFiles";
+import { closeUnservedTabs } from "../../../../shared/adapter/out/unservedTabs";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -264,6 +265,23 @@ describe("FormValuesController", () => {
             "default",
             -2,
         );
+    });
+
+    it("names both values after the form under one authority, a fresh one for every session", async () => {
+        const { controller } = setup();
+        vscodeMocks.openTextDocument.mockImplementation(async (uri: TestUri) => ({ uri }));
+        await controller.toggleInputValues();
+        await controller.toggleOutputValues();
+        controller.registerSession(EDITOR_ID);
+        await controller.toggleInputValues();
+
+        const [input, output, nextInput] = vscodeMocks.openTextDocument.mock.calls.map(
+            ([uri]) => uri as TestUri,
+        );
+        expect([input.path, output.path]).toEqual(["/order.input.json", "/order.output.json"]);
+        expect(output.scheme).toBe(FORM_OUTPUT_VALUES_SCHEME);
+        expect(output.authority).toBe(input.authority);
+        expect(nextInput.authority).not.toBe(input.authority);
     });
 
     it("applies each valid input object to the active form and saves only in memory", async () => {
@@ -389,24 +407,53 @@ describe("FormValuesController", () => {
         expect(vscodeMocks.openTextDocument).toHaveBeenCalledOnce();
     });
 
-    it("closes restored values tabs that no longer belong to a form session", async () => {
-        const uri = vscodeMocks.TestUri.from({
-            scheme: FORM_INPUT_VALUES_SCHEME,
-            authority: "old-session",
-            path: "/order.input.json",
-        });
-        const tab = { input: new TabInputText(uri as never) };
+    it("tells the values tab of a session that is gone, as a reload restores it, from a served one", async () => {
+        const { controller } = setup();
+        vscodeMocks.openTextDocument.mockImplementation(async (uri: TestUri) => ({ uri }));
+        await controller.toggleInputValues();
+        const served = vscodeMocks.openTextDocument.mock.calls[0][0] as TestUri;
+        const tabOf = (uri: TestUri) => ({ input: new TabInputText(uri as never) }) as never;
+
+        expect(controller.isUnservedTab(tabOf(restoredInputUri()))).toBe(true);
+        expect(controller.isUnservedTab(tabOf(served))).toBe(false);
+        expect(controller.isUnservedTab(tabOf(vscodeMocks.TestUri.parse(EDITOR_ID)))).toBe(false);
+    });
+
+    // A reload brings the tab back clean, and VS Code closes an unread one without asking.
+    it("closes a restored values tab with the shared sweep and serves nothing for it", async () => {
+        const restored = restoredInputUri();
+        const tab = { input: new TabInputText(restored as never) };
         vscodeMocks.openTabGroups = [{ tabs: [tab] }];
-        const host = createTestHost();
-        const controller = new FormValuesController(
-            host.store,
-            host.notifier,
-            registeredFormValueFiles(),
-        );
+        const { controller, context } = setup();
 
-        controller.register({ subscriptions: [] } as never);
-        await Promise.resolve();
+        closeUnservedTabs(context as never, (candidate) => controller.isUnservedTab(candidate));
 
-        expect(vscodeMocks.closeTab).toHaveBeenCalledWith([tab]);
+        expect(vscodeMocks.closeTab).toHaveBeenCalledWith([tab], true);
+        expect(() => registeredProvider(0).readFile(restored)).toThrow("File not found");
+    });
+
+    it("drops a file the editor wrote for a values tab of a gone session once that tab closes", () => {
+        setup();
+        const restored = restoredInputUri();
+        registeredProvider(0).writeFile(restored, new TextEncoder().encode("{}"), {
+            create: true,
+            overwrite: true,
+        });
+
+        vscodeMocks.tabChangeListener?.({
+            opened: [],
+            closed: [{ input: new TabInputText(restored as never) }],
+            changed: [],
+        });
+
+        expect(() => registeredProvider(0).readFile(restored)).toThrow("File not found");
     });
 });
+
+function restoredInputUri(): TestUri {
+    return vscodeMocks.TestUri.from({
+        scheme: FORM_INPUT_VALUES_SCHEME,
+        authority: "old-session",
+        path: "/order.input.json",
+    });
+}

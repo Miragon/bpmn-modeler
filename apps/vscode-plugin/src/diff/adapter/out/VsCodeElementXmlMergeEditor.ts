@@ -15,12 +15,12 @@ import {
     ElementXmlMergeRequest,
 } from "@miragon/bpmn-modeler-core";
 
+import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
+import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
 import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
 import { groupBelowActive } from "./editorGroupBelow";
-import { elementXmlUris } from "./elementXmlUris";
-import { closeUnservedTabs } from "./unservedTabs";
 
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
@@ -135,7 +135,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     }
 
     private serve(request: ElementXmlMergeRequest): OpenMerge {
-        const uriOf = elementXmlUris(request.elementId);
+        const uriOf = inMemoryViewUris(request.elementId, "xml");
         const merge: OpenMerge = {
             request,
             base: uriOf(MERGE_XML_SCHEME, "base"),

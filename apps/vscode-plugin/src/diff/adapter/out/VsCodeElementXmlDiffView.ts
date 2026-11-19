@@ -11,9 +11,10 @@ import {
 
 import { ElementXmlDiff, ElementXmlDiffView } from "@miragon/bpmn-modeler-core";
 
+import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
+import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
+
 import { groupBelowActive } from "./editorGroupBelow";
-import { elementXmlUris } from "./elementXmlUris";
-import { closeUnservedTabs } from "./unservedTabs";
 
 export const ELEMENT_XML_SCHEME = "bpmn-element-xml";
 
@@ -121,7 +122,7 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     }
 
     private serve(diff: ElementXmlDiff): ShownElementXml {
-        const uriOf = elementXmlUris(diff.elementId);
+        const uriOf = inMemoryViewUris(diff.elementId, "xml");
         const shown = {
             beforeUri: uriOf(ELEMENT_XML_SCHEME, "before"),
             afterUri: uriOf(ELEMENT_XML_SCHEME, "after"),

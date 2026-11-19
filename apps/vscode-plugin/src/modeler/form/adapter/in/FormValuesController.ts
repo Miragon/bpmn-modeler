@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 
 import {
@@ -46,11 +45,17 @@ interface VirtualDocumentOwner {
 export interface FormValueFiles {
     readonly input: ServedTextFiles<Uri>;
     readonly output: ServedTextFiles<Uri>;
+    /** The URIs of one session's values, named after the form and with an extension. */
+    readonly viewUris: (
+        name: string,
+        extension: string,
+    ) => (scheme: string, version: string) => Uri;
 }
 
 export class FormValuesController {
     private readonly inputFiles: ServedTextFiles<Uri>;
     private readonly outputFiles: ServedTextFiles<Uri>;
+    private readonly viewUris: FormValueFiles["viewUris"];
     private readonly sessions = new Map<string, FormValuesSession>();
     // Preserve backing data when VS Code refuses to close a dirty companion tab.
     private readonly retiredSessions = new Set<FormValuesSession>();
@@ -65,6 +70,7 @@ export class FormValuesController {
     ) {
         this.inputFiles = files.input;
         this.outputFiles = files.output;
+        this.viewUris = files.viewUris;
     }
 
     register(context: ExtensionContext): void {
@@ -84,25 +90,21 @@ export class FormValuesController {
                 },
             },
         );
-        this.closeStaleTabs(window.tabGroups.all.flatMap((group) => group.tabs));
+    }
+
+    /** Whether the tab shows values of a session that is gone, such as one a reload restored. */
+    isUnservedTab(tab: Tab): boolean {
+        const uri = virtualTabUri(tab);
+        return uri !== undefined && !this.owners.has(uri.toString());
     }
 
     registerSession(editorId: string): void {
         const existing = this.sessions.get(editorId);
         if (existing) void this.retireSession(existing);
 
-        const sourceName = formName(editorId);
-        const authority = randomUUID();
-        const inputUri = Uri.from({
-            scheme: FORM_INPUT_VALUES_SCHEME,
-            authority,
-            path: `/${sourceName}.input.json`,
-        });
-        const outputUri = Uri.from({
-            scheme: FORM_OUTPUT_VALUES_SCHEME,
-            authority,
-            path: `/${sourceName}.output.json`,
-        });
+        const uriOf = this.viewUris(formName(editorId), "json");
+        const inputUri = uriOf(FORM_INPUT_VALUES_SCHEME, "input");
+        const outputUri = uriOf(FORM_OUTPUT_VALUES_SCHEME, "output");
         const inputContent = serialize({});
         const session = { editorId, inputUri, outputUri, inputContent, disposed: false };
 
@@ -276,28 +278,6 @@ export class FormValuesController {
                 this.removeSession(session);
             }
         }
-        this.closeStaleTabs(event.opened);
-    }
-
-    private closeStaleTabs(tabs: readonly Tab[]): void {
-        // Restored tabs cannot be reattached after their extension-host session is gone.
-        const stale = tabs.filter((tab) => {
-            const uri = virtualTabUri(tab);
-            return uri !== undefined && !this.owners.has(uri.toString());
-        });
-        if (stale.length === 0) return;
-
-        for (const tab of stale) {
-            const uri = virtualTabUri(tab)!;
-            this.providerFor(uri).setContent(uri, serialize({}));
-        }
-        void window.tabGroups.close(stale).then(
-            (closed) => {
-                if (!closed) return;
-                for (const tab of stale) this.deleteStaleFile(virtualTabUri(tab)!);
-            },
-            (error: unknown) => this.logError(error),
-        );
     }
 
     private removeSession(session: FormValuesSession): void {

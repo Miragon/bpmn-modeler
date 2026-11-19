@@ -206,7 +206,7 @@ export function executedCommands(): readonly string[] {
     return [...executed];
 }
 
-/** Restores a merge tab from the last session, whose result the extension does not serve. */
+/** Restores a merge tab from the last session, whose result the extension does not serve: clean and unread, as VS Code brings it back. */
 export function restoreMergeTabFromLastSession(result: Uri): void {
     addTab(activeGroup, {
         label: `Merging: ${result.path.split("/").pop() ?? ""}`,
