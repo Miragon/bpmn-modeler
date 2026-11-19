@@ -73,27 +73,27 @@ export function mergePadDecisions(
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
     const paneSide = states.caption.side;
-    const badge = states.badges.find(({ id }) => id === elementId);
-    const facts: SidePickFacts = {
-        pickedSide: badge?.keptSide,
+    const lacking =
+        pickable.otherSideLacks === undefined
+            ? undefined
+            : { side: otherSide(paneSide), lack: pickable.otherSideLacks };
+    const facts: MergeDecisionFacts = {
+        pick: states.badges.find(({ id }) => id === elementId),
         takenSide: pickable.takenSide,
-        lacking:
-            pickable.otherSideLacks === undefined
-                ? undefined
-                : { side: otherSide(paneSide), lack: pickable.otherSideLacks },
+        lacking,
+        container: pickable.container,
+        handMergeable: pickable.handMergeable,
+        undo: pickable.undo,
+        restoreOffer: keepRemovedWith(states, elementId),
     };
-    const keptHere = badge?.keptSide === paneSide ? badge.scope : undefined;
-    const decisions: (MergePadDecision | undefined)[] = [
-        sidePick(facts, paneSide),
-        pickable.container !== undefined && keptHere !== "withContents"
-            ? { kind: "keep", scope: "withContents", side: paneSide, reach: pickable.container }
-            : undefined,
-        facts.lacking === undefined ? undefined : sidePick(facts, facts.lacking.side),
-        keepRemovedWith(states, elementId),
-        mergeXml(pickable, badge, offers),
-        pickable.undo === undefined ? undefined : { kind: "undo", scope: pickable.undo },
-    ];
-    return decisions.filter((decision) => decision !== undefined);
+    return decisionsOn(
+        facts,
+        {
+            sides: lacking === undefined ? [paneSide] : [paneSide, lacking.side],
+            heldKeepInside: "leftOut",
+        },
+        offers,
+    );
 }
 
 /** What a menu row reads of the host's states. */
@@ -125,30 +125,16 @@ export function mergeRowDecisions(
     row: MergePaneShapelessRow,
     offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
-    const facts: SidePickFacts = {
-        pickedSide: row.pick?.keptSide,
+    const facts: MergeDecisionFacts = {
+        pick: row.pick,
         takenSide: row.takenSide,
         lacking: row.lackingSide,
+        container: row.container,
+        handMergeable: row.handMergeable,
+        undo: row.pick?.scope,
+        restoreOffer: keepRemovedWith(states, row.id),
     };
-    const keptWithContentsFrom = row.pick?.scope === "withContents" ? row.pick.keptSide : undefined;
-    const reach = row.container;
-    const withContents = (side: MergeSide): MergeRowKeepInside | undefined =>
-        reach !== undefined && row.lackingSide?.side !== side
-            ? {
-                  kind: "keep",
-                  scope: "withContents",
-                  side,
-                  reach,
-                  ...(keptWithContentsFrom === side ? { pressed: true } : {}),
-              }
-            : undefined;
-    const decisions: (MergeRowDecision | undefined)[] = [
-        ...MERGE_SIDES.flatMap((side) => [sidePick(facts, side), withContents(side)]),
-        keepRemovedWith(states, row.id),
-        mergeXml(row, row.pick, offers),
-        row.pick === undefined ? undefined : { kind: "undo", scope: row.pick.scope },
-    ];
-    return decisions.filter((decision) => decision !== undefined);
+    return decisionsOn(facts, { sides: MERGE_SIDES, heldKeepInside: "pressed" }, offers);
 }
 
 /** The menu decides only a step the pad cannot reach, one no canvas draws. */
@@ -160,7 +146,7 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
 export function keepRemovedWith(
     states: MergeRowStates,
     elementId: string,
-): Extract<MergePadDecision, { kind: "keepRemovedWith" }> | undefined {
+): MergeKeepRemovedWith | undefined {
     const offer = states.restoreOffer;
     return offer?.elementId === elementId
         ? { kind: "keepRemovedWith", side: otherSide(offer.removedBy), offer }
@@ -175,23 +161,55 @@ export function offersMergeXml(
     return element.handMergeable === true && offers.elementXmlMerge;
 }
 
-/** Merging the XML by hand, where the host can and the pick allows it; editing it once merged. */
-function mergeXml(
-    element: { readonly handMergeable?: true },
-    pick: { readonly mergedByHand?: true } | undefined,
-    offers: MergePadOffers,
-): MergeXmlDecision | undefined {
-    if (!offersMergeXml(element, offers)) return undefined;
-    return { kind: "mergeXml", mode: pick?.mergedByHand ? "edit" : "open" };
-}
+type MergeKeepRemovedWith = Extract<MergePadDecision, { kind: "keepRemovedWith" }>;
 
-/** What tells whether a pick of a side changes anything. */
-interface SidePickFacts {
-    /** The side the user's pick keeps the element from. */
-    readonly pickedSide?: MergeSide;
+/** What decides the entries offered on one element, read from the pad's states or from a menu row. */
+interface MergeDecisionFacts {
+    /** The user's pick: the side it keeps the element from, how far, and whether a version merged by hand replaces it. */
+    readonly pick?: {
+        readonly keptSide: MergeSide;
+        readonly scope: MergePickScope;
+        readonly mergedByHand?: true;
+    };
     /** The side the result takes the element from, picked or not. */
     readonly takenSide?: MergeSide;
     readonly lacking?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
+    readonly container?: MergePaneContainerReach;
+    readonly handMergeable?: true;
+    /** What Undo takes back, set while the user's pick decides the element. */
+    readonly undo?: MergePickScope;
+    readonly restoreOffer?: MergeKeepRemovedWith;
+}
+
+/** Where the entries show: the sides offered for a pick, and what becomes of a keep with everything inside that the user's pick holds. */
+interface MergeDecisionSurface {
+    readonly sides: readonly MergeSide[];
+    /** The pad leaves it out, as it changes nothing; the row keeps it pressed to show which reach the pick has. */
+    readonly heldKeepInside: "leftOut" | "pressed";
+}
+
+/** The one ordered list of entries the pad and the menu row offer; each builder leaves out an entry that would change nothing. */
+function decisionsOn(
+    facts: MergeDecisionFacts,
+    surface: MergeDecisionSurface,
+    offers: MergePadOffers,
+): readonly MergeRowDecision[] {
+    const decisions: (MergeRowDecision | undefined)[] = [
+        ...surface.sides.flatMap((side) => [
+            sidePick(facts, side),
+            keepInside(facts, side, surface),
+        ]),
+        facts.restoreOffer,
+        mergeXml(facts, offers),
+        facts.undo === undefined ? undefined : { kind: "undo", scope: facts.undo },
+    ];
+    return decisions.filter((decision) => decision !== undefined);
+}
+
+/** Merging the XML by hand, where the host can and the pick allows it; editing it once merged. */
+function mergeXml(facts: MergeDecisionFacts, offers: MergePadOffers): MergeXmlDecision | undefined {
+    if (!offersMergeXml(facts, offers)) return undefined;
+    return { kind: "mergeXml", mode: facts.pick?.mergedByHand ? "edit" : "open" };
 }
 
 /**
@@ -199,11 +217,29 @@ interface SidePickFacts {
  * user's pick keeps it from there already; leave it out where the side lacks
  * it, unless the result leaves it out already.
  */
-function sidePick(facts: SidePickFacts, side: MergeSide): MergePadDecision | undefined {
+function sidePick(facts: MergeDecisionFacts, side: MergeSide): MergePadDecision | undefined {
     if (facts.lacking?.side === side) {
         return facts.takenSide === side
             ? undefined
             : { kind: "leaveOut", side, otherSideLacks: facts.lacking.lack };
     }
-    return facts.pickedSide === side ? undefined : { kind: "keep", scope: "element", side };
+    return facts.pick?.keptSide === side ? undefined : { kind: "keep", scope: "element", side };
+}
+
+/** Keeping a container from `side` with everything inside, where the side holds it; once the user's pick holds it, as the surface shows that. */
+function keepInside(
+    facts: MergeDecisionFacts,
+    side: MergeSide,
+    surface: MergeDecisionSurface,
+): MergeRowKeepInside | undefined {
+    if (facts.container === undefined || facts.lacking?.side === side) return undefined;
+    const keep: MergeKeepInside = {
+        kind: "keep",
+        scope: "withContents",
+        side,
+        reach: facts.container,
+    };
+    const held = facts.pick?.keptSide === side && facts.pick.scope === "withContents";
+    if (!held) return keep;
+    return surface.heldKeepInside === "pressed" ? { ...keep, pressed: true } : undefined;
 }
