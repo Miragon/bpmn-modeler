@@ -1,6 +1,14 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
-import { type DiagramBounds, bottomOf, boundsAround, centerOf, rightOf } from "./layoutGeometry";
+import {
+    type DiagramBounds,
+    bottomOf,
+    boundsAround,
+    centerOf,
+    inflated,
+    rightOf,
+    translated,
+} from "./layoutGeometry";
 import { type LayoutModel, type NodeShape, isFrame, liesOnAnotherPool } from "./layoutModel";
 import {
     type Axis,
@@ -11,7 +19,12 @@ import {
     leadAlong,
 } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
-import type { Offset } from "./layoutShapePlacement";
+import {
+    type Offset,
+    SHAPE_CLEARANCE,
+    foreignFlowsNear,
+    keepsClearOfFlows,
+} from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot, shapesOverlap } from "./layoutSpots";
 
@@ -43,9 +56,16 @@ export function inLineSlotFor(relation: FlowRelation): RoomSlot {
     return relation === "precedes" ? "before" : "after";
 }
 
-/** How far the group moves to lie in the slot against the other shape. */
+/** How far along the flow a stacked branch is looked for from under the other shape, in which steps. */
+const STACK_STEP = 10;
+
+/**
+ * How far the group moves to lie in the slot against the other shape; below
+ * it, as far along the flow as keeps the group clear of the flows that are
+ * not its own and their labels, while it stays under the other shape.
+ */
 export function slotOffsetOf(
-    layout: LayoutModel,
+    draft: DrawingDraft,
     group: ShapeGroup,
     other: NodeShape,
     slot: RoomSlot,
@@ -54,11 +74,23 @@ export function slotOffsetOf(
     switch (slot) {
         case "after":
             return { dx: rightOf(other.bounds) + ROOM_GAP - node.bounds.x, dy: 0 };
-        case "below":
-            return {
+        case "below": {
+            const groupBounds = groupBoundsIn(draft, group);
+            const under = {
                 dx: centerOf(other.bounds).x - centerOf(node.bounds).x,
-                dy: bottomOf(withLabelOf(other)) + STACK_GAP - groupBoundsIn(layout, group).y,
+                dy: bottomOf(withLabelOf(other)) + STACK_GAP - groupBounds.y,
             };
+            const steps = Math.floor(other.bounds.width / 2 / STACK_STEP);
+            const clear = Array.from({ length: steps + 1 }, (_, step) => ({
+                ...under,
+                dx: under.dx + step * STACK_STEP,
+            })).find(({ dx, dy }) => {
+                const box = translated(groupBounds, dx, dy);
+                const flows = foreignFlowsNear(draft, group, inflated(box, SHAPE_CLEARANCE));
+                return keepsClearOfFlows(box, flows, SHAPE_CLEARANCE);
+            });
+            return clear ?? under;
+        }
         case "before":
             return {
                 dx: Math.min(0, other.bounds.x - node.bounds.x),

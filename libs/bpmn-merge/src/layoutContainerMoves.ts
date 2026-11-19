@@ -186,7 +186,7 @@ function sidesMove(
         if (offset.dx === 0 && offset.dy === 0) return false;
         if (tried.has(key)) return false;
         tried.add(key);
-        return Placement.fitsAt(draft, group, offset, frames);
+        return Placement.fitsAt(draft, group, offset, { into: frames });
     });
 }
 
@@ -234,7 +234,7 @@ function nearestPlaceInside(
     const base = offsetInto(groupShapesBoundsIn(draft, group), frames.map(innerBoundsOf));
     if (base === undefined) return undefined;
     const window = Placement.searchWindowFrom(draft, group, base);
-    return new Placement(draft, group, window, frames).nearestFitFrom(base);
+    return new Placement(draft, group, window, { into: frames }).nearestFitFrom(base);
 }
 
 /** The shortest offset that brings the bounds inside all frames; undefined when they leave no room for it. */

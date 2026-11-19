@@ -147,6 +147,48 @@ describe("planShapeMoves", () => {
         expect(boundsIn(plan, "Task_Y")).toEqual(box(180, 110));
     });
 
+    describe("keeps 15 px clear", () => {
+        const frames = [POOL, lane(70, 160)];
+        const current = layoutOf([TASK_X], [], frames);
+        const sideBySide = [TASK_X, node("Task_Y", box(310, 110))];
+
+        it("of a flow that is not the moved shape's own", () => {
+            const other = flow("Flow_Other", "Task_A", "Task_B", [at(530, -100), at(530, 400)]);
+            const shapes = [...sideBySide, node("Task_A", box(480, -200)), node("Task_B", box(480, 420))];
+            const result = layoutOf(shapes, [other], frames);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(180, 110));
+        });
+
+        it("of the label of a flow that is not the moved shape's own", () => {
+            const labelled = {
+                ...flow("Flow_Other", "Task_A", "Task_B", [at(560, 230), at(700, 230)]),
+                label: box(525, 120, 20, 14),
+            };
+            const shapes = [...sideBySide, node("Task_A", box(460, 210, 100, 40)), node("Task_B", box(700, 210, 100, 40))];
+            const result = layoutOf(shapes, [labelled], [POOL, lane(70, 200)]);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(180, 110));
+        });
+    });
+
+    it("keeps a moved shape off the name band of its sub-process", () => {
+        const sub = node("Sub_1", box(100, 75, 400, 260), { expanded: true, lanes: [] });
+        const inSub = { subProcesses: ["Sub_1"], lanes: [] };
+        const prior = node("Task_A", box(130, 190), inSub);
+        const tall = [{ ...POOL, bounds: box(0, 0, 1200, 400) }, lane(0, 400)];
+        const result = layoutOf([sub, prior, node("Task_Y", box(140, 195), inSub)], [], tall);
+        const current = layoutOf([sub, prior], [], tall);
+
+        const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+        expect(boundsIn(plan, "Task_Y")).toEqual(box(250, 195));
+    });
+
     it("carries a sub-process's contents, boundary events, label and inner flows with it, naming the content it moved off a shape", () => {
         const sub = node("Sub_1", box(320, 60, 300, 180), { expanded: true });
         const inner = { subProcesses: ["Sub_1"] };
@@ -360,6 +402,29 @@ describe("planShapeMoves", () => {
                 expect(boundsIn(plan, "Task_L")).toEqual(box(800, 310));
                 expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1200, 410));
                 expect(boundsIn(plan, "Task_2")).toEqual(branches[2]!.bounds);
+            });
+
+            it("moves along the flow from under the other shape until it keeps clear of a flow's label", () => {
+                const tall = [POOL, lane(70, 240)];
+                const gateway = node("Gateway_1", box(445, 15, 50, 50), { outline: "diamond" });
+                const down = {
+                    ...flow("Flow_Down", "Gateway_1", "Task_D", [at(470, 65), at(470, 400)]),
+                    label: box(478, 225, 14, 14),
+                };
+                const shapes = [...branches, gateway, node("Task_D", box(420, 400))];
+                const result = layoutOf(
+                    [...shapes, node("Task_Y", box(510, 90))],
+                    [...intoJoin, down],
+                    tall,
+                );
+                const current = layoutOf(shapes, [intoJoin[0]!, down], tall);
+
+                const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+                expect(plan.repairs).toEqual([
+                    { kind: "movedByBuild", shapes: ["Task_1", "Task_Y"], moved: "Task_Y" },
+                ]);
+                expect(boundsIn(plan, "Task_Y")).toEqual(box(510, 210));
             });
 
             it("goes to the free place under the other shape without making room", () => {

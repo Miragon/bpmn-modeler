@@ -14,10 +14,18 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
-import { bottomOf, centerOf, liesWithin } from "./layoutGeometry";
+import {
+    bottomOf,
+    centerOf,
+    inflated,
+    keepsClearOf,
+    liesWithin,
+    segmentEntersBounds,
+} from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
-import { distanceToPolyline } from "./layoutPolyline";
+import { distanceToPolyline, segmentsOf } from "./layoutPolyline";
 import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
+import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 import type { LayoutSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
@@ -465,6 +473,16 @@ describe("buildMerged's layout notes", () => {
                 expect(edge.waypoints.length, edge.id).toBeLessThanOrEqual(3);
             }
             expect(shipped!.x - (ship!.x + ship!.width)).toBeGreaterThanOrEqual(ROOM_GAP);
+            for (const edge of layout.edges.values()) {
+                if (edge.source === movedId || edge.target === movedId) continue;
+                const clear = inflated(movedTask!, SHAPE_CLEARANCE);
+                for (const [from, to] of segmentsOf(edge.waypoints)) {
+                    expect(segmentEntersBounds(from, to, clear), edge.id).toBe(false);
+                }
+                if (edge.label !== undefined) {
+                    expect(keepsClearOf(movedTask!, edge.label, SHAPE_CLEARANCE), edge.id).toBe(true);
+                }
+            }
         },
     );
 

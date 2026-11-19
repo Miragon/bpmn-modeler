@@ -234,7 +234,7 @@ describe("planContainerMoves", () => {
             expect(plan.repairs).toEqual([
                 { kind: "movedIntoContainer", shape: "Task_N", container: "Sub_1" },
             ]);
-            expect(boundsIn(plan, "Task_N")).toEqual(box(410, 180));
+            expect(boundsIn(plan, "Task_N")).toEqual(box(410, 200));
         });
 
         it("leaves a shape outside its lane, and grows no lane, when the band cannot hold it", () => {

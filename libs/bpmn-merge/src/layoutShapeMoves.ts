@@ -11,7 +11,13 @@ import {
 import { type LayoutModel, type NodeShape } from "./layoutModel";
 import { placeOf, placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
-import { type Offset, Placement, offsetBetween, offsetLength } from "./layoutShapePlacement";
+import {
+    OFF_A_SHAPE,
+    type Offset,
+    Placement,
+    offsetBetween,
+    offsetLength,
+} from "./layoutShapePlacement";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
 /** What the build did about two shapes on top of each other. */
@@ -137,7 +143,7 @@ function otherSidesPlace(
             const place = placeOf(side, group.node);
             if (place === undefined || sameBounds(place, group.node.bounds)) return [];
             const offset = offsetBetween(group.node.bounds, place);
-            return Placement.fitsAt(draft, group, offset) ? [{ group, ...offset }] : [];
+            return Placement.fitsAt(draft, group, offset, OFF_A_SHAPE) ? [{ group, ...offset }] : [];
         }),
     );
     return shortestOf(moves);
@@ -147,7 +153,7 @@ function nearestFreePlace(draft: DrawingDraft, movable: readonly ShapeGroup[]): 
     return shortestOf(
         movable.flatMap((group) => {
             const window = Placement.searchWindowOf(draft, group);
-            const offset = new Placement(draft, group, window).nearestFit();
+            const offset = new Placement(draft, group, window, OFF_A_SHAPE).nearestFit();
             return offset === undefined ? [] : [{ group, ...offset }];
         }),
     );
@@ -175,7 +181,7 @@ function stackedBranch(
                 topology.flowsRightAt([group.node.id, other.id]);
             if (!branches) return [];
             const offset = slotOffsetOf(draft, group, other, "below");
-            if (Placement.fitsAt(draft, group, offset)) {
+            if (Placement.fitsAt(draft, group, offset, OFF_A_SHAPE)) {
                 const trial = draft.fork();
                 trial.translate(group, offset.dx, offset.dy);
                 return [{ draft: trial, shifted: [], grown: [], growth: 0, group }];
