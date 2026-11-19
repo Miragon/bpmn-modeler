@@ -8,63 +8,11 @@ import {
 
 import type { UndrawnEdge } from "./connectionEnds";
 import { type DiagramIndex, planeOwnerOf } from "./diagramIndex";
-import type { MergeResolution } from "./mergeDecisions";
+import type { DrawingSides } from "./drawingSides";
 import { orderMembers } from "./mergedTreeOrder";
-import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
 import { PlaneSlots } from "./planeSlots";
-
-export interface DrawingSides {
-    /** Each drawn element and drawn part of the result with the side whose drawing it takes. */
-    readonly sides: Readonly<Record<string, MergeSide>>;
-    /** Every part either side holds: one without a side here is not drawn at all. */
-    readonly parts: ReadonlySet<string>;
-}
-
-/**
- * The layout sides, and for each drawn part of the result (a process's data
- * input, say) the layout side of the element holding it, else the side that
- * element is taken from, whichever draws the part first.
- */
-export function drawingSidesOf(
-    result: MergeResult,
-    resolution: MergeResolution,
-    indexes: Readonly<Record<MergeSide, DiagramIndex>>,
-): DrawingSides {
-    const sides: Record<string, MergeSide> = { ...resolution.layout };
-    const parts = new Set<string>();
-    for (const element of result.elements) {
-        for (const side of MERGE_SIDES) {
-            for (const part of element.versions[side]?.parts ?? []) parts.add(part);
-        }
-        const side = resolution.elements[element.id];
-        const version = side === undefined ? undefined : element.versions[side];
-        const candidates = [resolution.layout[element.id], side];
-        for (const part of version?.parts ?? []) {
-            const drawingSide = candidates.find(
-                (candidate) =>
-                    candidate !== undefined && indexes[candidate].drawingsByElement.has(part),
-            );
-            if (drawingSide !== undefined) sides[part] = drawingSide;
-        }
-    }
-    return { sides, parts };
-}
-
-/** Elements and parts whose drawing side draws them with a shape or an edge, not only with a plane, less the flows left out. */
-export function drawnByShape(
-    indexes: Readonly<Record<MergeSide, DiagramIndex>>,
-    drawingSides: Readonly<Record<string, MergeSide>>,
-    undrawnEdges: readonly UndrawnEdge[],
-): Set<string> {
-    const leftOut = new Set(undrawnEdges.map(({ id }) => id));
-    return new Set(
-        Object.entries(drawingSides)
-            .filter(([id, side]) => (indexes[side].drawingsByElement.get(id)?.length ?? 0) > 0)
-            .map(([id]) => id)
-            .filter((id) => !leftOut.has(id)),
-    );
-}
 
 interface KeptDiagram {
     readonly diagram: ModdleElement;
@@ -72,25 +20,23 @@ interface KeptDiagram {
 }
 
 /**
- * Gives current's definitions the result's diagrams: one per plane slot, the
- * plane of a decided owner from that owner's layout side (the root slot
+ * Gives current's definitions the result's diagrams: one per plane slot, each
+ * plane from the side `DrawingSides` takes its owner's DI from (the root slot
  * preferring a collaboration that holds a pool, under current's root diagram
- * id), and each element's or part's shapes and edges from its drawing side,
- * translated only by taking that side's DI, on the slot `PlaneAssignment` gives it. Drawings
- * of no decided element and no part stay current's. Incoming's DI keeps its ids unless the
- * result already uses one, and brings the label styles its drawings use. Returns the edges no
- * plane draws both ends of, which stay out of the drawing.
+ * id), and each element's or part's shapes and edges from that side,
+ * translated only by taking that side's DI, on the slot `PlaneAssignment` gives it.
+ * Incoming's DI keeps its ids unless the result already uses one, and brings the label
+ * styles its drawings use. Returns the edges no plane draws both ends of, which stay out
+ * of the drawing.
  */
 export function assembleDiagrams(
     definitions: ModdleElement,
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
-    resolution: MergeResolution,
-    { sides: drawingSides, parts }: DrawingSides,
+    drawingSides: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
 ): readonly UndrawnEdge[] {
-    const decidedIds = new Set(Object.keys(resolution.elements));
     const slots = new PlaneSlots(indexes);
-    const kept = keptDiagramsOf(indexes, slots, drawingSides, decidedIds, resultUnits);
+    const kept = keptDiagramsOf(indexes, slots, drawingSides, resultUnits);
     const slotOrder = (side: MergeSide) => [
         ...new Set(indexes[side].diagrams.map((diagram) => slots.slotOf(planeOwnerOf(diagram)))),
     ];
@@ -104,8 +50,6 @@ export function assembleDiagrams(
     const assignment = PlaneAssignment.of({
         indexes,
         drawingSides,
-        parts,
-        decidedIds,
         resultUnits,
         slots,
         keptSlots: orderedSlots,
@@ -201,18 +145,14 @@ function unusedIdFor(element: ModdleElement, takenIds: ReadonlySet<string>): str
 function keptDiagramsOf(
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
     slots: PlaneSlots,
-    layoutSides: Readonly<Record<string, MergeSide>>,
-    decidedIds: ReadonlySet<string>,
+    drawingSides: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
 ): Map<string, KeptDiagram> {
     const candidates = new Map<string, { owner: string; side: MergeSide }[]>();
     for (const side of MERGE_SIDES) {
         for (const diagram of indexes[side].diagrams) {
             const owner = planeOwnerOf(diagram);
-            const eligible = decidedIds.has(owner)
-                ? layoutSides[owner] === side
-                : side === "current";
-            if (!eligible) continue;
+            if (drawingSides.takenSideOf(owner) !== side) continue;
             const slot = slots.slotOf(owner);
             candidates.set(slot, [...(candidates.get(slot) ?? []), { owner, side }]);
         }

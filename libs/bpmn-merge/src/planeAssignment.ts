@@ -8,16 +8,14 @@ import {
 } from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
 import { type DiagramIndex, type Drawing, drawingKeyOf } from "./diagramIndex";
+import type { DrawingSides } from "./drawingSides";
 import type { ItemKey } from "./mergedTreeOrder";
-import type { MergeSide } from "./mergeResult";
+import { MERGE_SIDES, type MergeSide } from "./mergeResult";
 import type { PlaneSlots } from "./planeSlots";
 
 export interface PlaneAssignmentSources {
     readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>;
-    /** Each drawn element and drawn part of the result with the side whose drawing it takes. */
-    readonly drawingSides: Readonly<Record<string, MergeSide>>;
-    readonly parts: ReadonlySet<string>;
-    readonly decidedIds: ReadonlySet<string>;
+    readonly drawingSides: DrawingSides;
     readonly resultUnits: ReadonlyMap<string, ModdleElement>;
     readonly slots: PlaneSlots;
     /** The result's slots in order: a drawing whose own root slot the result lacks goes on the first root one. */
@@ -64,33 +62,18 @@ export class PlaneAssignment {
 
     private placeTakenDrawings(): void {
         const { indexes, drawingSides, slots } = this.sources;
-        for (const [elementId, drawings] of indexes.current.drawingsByElement) {
-            if (this.staysWhereCurrentDraws(elementId)) {
+        for (const side of MERGE_SIDES) {
+            for (const [elementId, drawings] of indexes[side].drawingsByElement) {
+                if (drawingSides.takenSideOf(elementId) !== side) continue;
+                const staysPut = drawingSides.staysWhereCurrentDraws(elementId);
                 for (const drawing of drawings) {
-                    this.place(elementId, drawing, slots.slotOf(drawing.planeOwner));
-                }
-            } else if (drawingSides[elementId] === "current") {
-                for (const drawing of drawings) {
-                    this.place(elementId, drawing, this.slotOfElement(elementId, drawing));
-                }
-            }
-        }
-        for (const [elementId, drawings] of indexes.incoming.drawingsByElement) {
-            if (drawingSides[elementId] === "incoming") {
-                for (const drawing of drawings) {
-                    this.place(elementId, drawing, this.slotOfElement(elementId, drawing));
+                    const slot = staysPut
+                        ? slots.slotOf(drawing.planeOwner)
+                        : this.slotOfElement(elementId, drawing);
+                    this.place(elementId, drawing, slot);
                 }
             }
         }
-    }
-
-    private staysWhereCurrentDraws(elementId: string): boolean {
-        const { drawingSides, decidedIds, parts } = this.sources;
-        return (
-            drawingSides[elementId] === undefined &&
-            !decidedIds.has(elementId) &&
-            !parts.has(elementId)
-        );
     }
 
     private place(elementId: string, drawing: Drawing, slot: string | undefined): void {
@@ -105,9 +88,9 @@ export class PlaneAssignment {
     }
 
     private slotOfElement(elementId: string, drawing: Drawing): string | undefined {
-        const { parts, resultUnits, slots } = this.sources;
+        const { drawingSides, resultUnits, slots } = this.sources;
         const subProcess = enclosingSubProcessOf(
-            parts.has(elementId)
+            drawingSides.isPart(elementId)
                 ? (drawing.element.bpmnElement as ModdleElement)
                 : resultUnits.get(elementId),
         );
@@ -120,7 +103,7 @@ export class PlaneAssignment {
         if (!this.contentsSlots.has(subProcess)) {
             const { indexes, drawingSides, slots } = this.sources;
             const ownSlot = slots.slotOf(subProcess);
-            const side = drawingSides[subProcess];
+            const side = drawingSides.sides[subProcess];
             const shape =
                 side === undefined
                     ? undefined

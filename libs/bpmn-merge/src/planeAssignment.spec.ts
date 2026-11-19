@@ -2,16 +2,23 @@ import { type ModdleElement, isModdleElement, loadBpmnModdle } from "@miragon/bp
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
+import { DrawingSides } from "./drawingSides";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
 import { PlaneSlots } from "./planeSlots";
 
 const SEMANTIC = `
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_1" processRef="Process_1" />
+  </bpmn:collaboration>
   <bpmn:process id="Process_1">
     <bpmn:startEvent id="Start_1" />
     <bpmn:task id="Task_A" />
     <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_A" />
     <bpmn:subProcess id="Sub_1">
+      <bpmn:ioSpecification id="Io_Sub_1">
+        <bpmn:dataInput id="Input_Sub" />
+      </bpmn:ioSpecification>
       <bpmn:task id="Task_In" />
       <bpmn:task id="Task_In2" />
       <bpmn:task id="Task_Gone" />
@@ -19,11 +26,15 @@ const SEMANTIC = `
     </bpmn:subProcess>
     <bpmn:subProcess id="Sub_2">
       <bpmn:task id="Task_Ex" />
+      <bpmn:task id="Task_Dropped" />
     </bpmn:subProcess>
     <bpmn:textAnnotation id="Note_1" />
     <bpmn:association id="Association_ToFlow" sourceRef="Flow_1" targetRef="Note_1" />
     <bpmn:association id="Association_Across" sourceRef="Note_1" targetRef="Task_In" />
     <bpmn:association id="Association_Loose" sourceRef="Task_A" />
+  </bpmn:process>
+  <bpmn:process id="Process_2">
+    <bpmn:task id="Task_Other" />
   </bpmn:process>`;
 
 const shape = (element: string, extra = "") =>
@@ -52,25 +63,36 @@ const ROOT_DRAWINGS = [
     edge("Association_Loose"),
 ];
 const SUB_1_PLANE = plane("Sub_1", [
+    shape("Input_Sub"),
     shape("Task_In"),
     shape("Task_In2"),
     shape("Task_Gone"),
     edge("Flow_In"),
 ]);
 
-/** Current draws both sub-processes collapsed; incoming draws Sub_2 expanded on the root plane. */
+/**
+ * Current draws both sub-processes collapsed on the process's root plane. Incoming draws Sub_2
+ * expanded on the collaboration's root plane, and Process_2 on a root plane of its own.
+ */
 const CURRENT = document([
     plane("Process_1", [...ROOT_DRAWINGS, shape("Sub_2")]),
     SUB_1_PLANE,
-    plane("Sub_2", [shape("Task_Ex")]),
+    plane("Sub_2", [shape("Task_Ex"), shape("Task_Dropped")]),
 ]);
 const INCOMING = document([
-    plane("Process_1", [...ROOT_DRAWINGS, shape("Sub_2", ' isExpanded="true"'), shape("Task_Ex")]),
+    plane("Collab_1", [
+        shape("Pool_1"),
+        ...ROOT_DRAWINGS,
+        shape("Sub_2", ' isExpanded="true"'),
+        shape("Task_Ex"),
+    ]),
     SUB_1_PLANE,
+    plane("Process_2", [shape("Task_Other")]),
 ]);
 
-const FROM_INCOMING = new Set(["Sub_2", "Task_Ex"]);
-const UNDECIDED = new Set(["Task_Gone"]);
+const FROM_INCOMING = new Set(["Pool_1", "Sub_2", "Task_Ex", "Task_Other"]);
+const UNDECIDED = new Set(["Task_Gone", "Task_Dropped"]);
+const PARTS = new Set(["Input_Sub"]);
 
 let assignment: PlaneAssignment;
 let slots: PlaneSlots;
@@ -86,21 +108,22 @@ beforeAll(async () => {
     };
     const resultUnits = new Map(
         Object.entries(current.elementsById).flatMap(([id, element]) =>
-            isModdleElement(element) && !UNDECIDED.has(id)
+            isModdleElement(element) && !UNDECIDED.has(id) && !PARTS.has(id)
                 ? [[id, element as ModdleElement] as const]
                 : [],
         ),
     );
-    const drawingSides = Object.fromEntries(
-        [...resultUnits.keys()].map((id) => [id, FROM_INCOMING.has(id) ? "incoming" : "current"]),
+    const sides = Object.fromEntries(
+        [...resultUnits.keys(), ...PARTS].map((id) => [
+            id,
+            FROM_INCOMING.has(id) ? "incoming" : "current",
+        ]),
     ) as Record<string, MergeSide>;
     slots = new PlaneSlots(indexes);
-    keptSlots = ["Process_1", "Sub_1", "Sub_2"].map((owner) => slots.slotOf(owner));
+    keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
     assignment = PlaneAssignment.of({
         indexes,
-        drawingSides,
-        parts: new Set(),
-        decidedIds: new Set(resultUnits.keys()),
+        drawingSides: new DrawingSides(sides, PARTS, new Set(resultUnits.keys())),
         resultUnits,
         slots,
         keptSlots,
@@ -113,9 +136,21 @@ const slotDrawing = (elementId: string) =>
 describe("PlaneAssignment", () => {
     it.each<[string, string, string | undefined]>([
         ["a shape inside a collapsed sub-process", "Task_In", "Sub_1"],
+        ["a part inside a collapsed sub-process", "Input_Sub", "Sub_1"],
         ["a shape inside a sub-process its drawing side expands", "Task_Ex", "Process_1"],
         ["a shape of a process", "Task_A", "Process_1"],
+        [
+            "a shape on a collaboration's plane, which shares its process's root slot",
+            "Pool_1",
+            "Process_1",
+        ],
+        [
+            "a shape whose own root slot the result lacks, on the first root slot",
+            "Task_Other",
+            "Process_1",
+        ],
         ["a shape of no decided element, where current draws it", "Task_Gone", "Sub_1"],
+        ["a shape of no decided element on a plane the result drops", "Task_Dropped", undefined],
         ["an edge whose ends share a slot", "Flow_In", "Sub_1"],
         ["an edge to an edge", "Association_ToFlow", "Process_1"],
         ["an edge whose ends lie on different slots", "Association_Across", undefined],
@@ -134,6 +169,6 @@ describe("PlaneAssignment", () => {
     });
 
     it("gives a slot no drawing goes on no members", () => {
-        expect(assignment.membersOf(slots.slotOf("Sub_Unknown")).size).toBe(0);
+        expect(assignment.membersOf(slots.slotOf("Sub_2")).size).toBe(0);
     });
 });
