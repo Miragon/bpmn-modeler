@@ -53,14 +53,16 @@ function documentTexts({ scheme }) {
         }));
 }
 
-/** Replaces text in the open documents of a scheme, as a user's typing would; it saves nothing. */
+/** Replaces text in the open documents of a scheme, as a user's typing would; it saves nothing. False when no document holds the text. */
 async function replaceInDocuments({ scheme, search, replacement }) {
     const edit = new vscode.WorkspaceEdit();
+    let replaced = 0;
     for (const document of vscode.workspace.textDocuments) {
         if (document.uri.scheme !== String(scheme)) continue;
         const text = document.getText();
         const at = text.indexOf(String(search));
         if (at < 0) continue;
+        replaced += 1;
         edit.replace(
             document.uri,
             new vscode.Range(
@@ -70,7 +72,8 @@ async function replaceInDocuments({ scheme, search, replacement }) {
             String(replacement),
         );
     }
-    return vscode.workspace.applyEdit(edit);
+    // An empty edit applies as a success, which would hide a search text gone stale.
+    return replaced > 0 && (await vscode.workspace.applyEdit(edit));
 }
 
 function windowState() {
