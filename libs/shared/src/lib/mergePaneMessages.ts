@@ -202,18 +202,13 @@ export interface MergePaneRestoreOffer {
  * differs between the sides, of which the result keeps current's.
  */
 export type MergePaneBuildNote =
-    | { readonly kind: "flowEndOffShape"; readonly id: string; readonly ends: readonly string[] }
-    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
     | {
-          readonly kind: "flowThroughShape";
+          /** A flow and the shapes it misses at its ends or runs through, or a shape and the containers it lies outside. */
+          readonly kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer";
           readonly id: string;
           readonly shapes: readonly string[];
       }
-    | {
-          readonly kind: "shapeOutsideContainer";
-          readonly id: string;
-          readonly containers: readonly string[];
-      }
+    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
     | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
     | {

@@ -13,7 +13,7 @@ describe("buildNoteText", () => {
 
     it.each<[MergePaneBuildNote, string]>([
         [
-            { kind: "flowEndOffShape", id: "Flow_2", ends: ["Task_Check", "Task_Pack"] },
+            { kind: "flowEndOffShape", id: "Flow_2", shapes: ["Task_Check", "Task_Pack"] },
             "to packing does not meet Task_Check, Pack box",
         ],
         [
@@ -25,7 +25,7 @@ describe("buildNoteText", () => {
             "to packing runs through Pack box, Task_B",
         ],
         [
-            { kind: "shapeOutsideContainer", id: "Task_Pack", containers: ["Pool_1", "Lane_1"] },
+            { kind: "shapeOutsideContainer", id: "Task_Pack", shapes: ["Pool_1", "Lane_1"] },
             "Pack box lies outside Pool_1, Lane_1",
         ],
         [

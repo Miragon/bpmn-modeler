@@ -6,7 +6,6 @@ import {
     type BuildNote,
     defaultFlowNotRestoredNotes,
     layoutChangedByBothNotes,
-    layoutSpotNotes,
     restoredWithoutRemovedWithNotes,
 } from "./buildNotes";
 import { diagramIndexOf } from "./diagramIndex";
@@ -17,6 +16,7 @@ import { spliceHandMergedText } from "./handMergeSplice";
 import { isMergeUnit, parseElementText } from "./handMergeText";
 import { layoutModelOf } from "./layoutModelReader";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
+import { layoutSpotNotes } from "./layoutSpotNotes";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 import { assembleSemanticTree, versionTreeOf } from "./mergedTree";

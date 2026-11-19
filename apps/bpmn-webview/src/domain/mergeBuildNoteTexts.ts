@@ -13,10 +13,10 @@ const BUILD_NOTE_TEXTS: Record<
     Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth">,
     string
 > = {
-    flowEndOffShape: "{element} does not meet {ends}",
+    flowEndOffShape: "{element} does not meet {shapes}",
     shapesOverlap: "{first} and {second} lie on top of each other",
     flowThroughShape: "{element} runs through {shapes}",
-    shapeOutsideContainer: "{element} lies outside {containers}",
+    shapeOutsideContainer: "{element} lies outside {shapes}",
     boundaryEventOffHost: "{element} is not on the border of {host}",
     lanesOverlap: "{first} and {second} overlap",
     restoredWithoutRemovedWith:
@@ -99,14 +99,12 @@ function noteReplacements(
 ): Record<string, string> {
     switch (note.kind) {
         case "flowEndOffShape":
-            return { element: nameOf(note.id), ends: names(note.ends) };
+        case "flowThroughShape":
+        case "shapeOutsideContainer":
+            return { element: nameOf(note.id), shapes: names(note.shapes) };
         case "shapesOverlap":
         case "lanesOverlap":
             return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
-        case "flowThroughShape":
-            return { element: nameOf(note.id), shapes: names(note.shapes) };
-        case "shapeOutsideContainer":
-            return { element: nameOf(note.id), containers: names(note.containers) };
         case "boundaryEventOffHost":
             return { element: nameOf(note.id), host: nameOf(note.host) };
         case "restoredWithoutRemovedWith":

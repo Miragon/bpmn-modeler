@@ -342,11 +342,11 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "결과 대 수신",
     "Result": "결과",
     "Review notes ({count})": "참고 사항 검토 ({count})",
-    "{element} does not meet {ends}": "{element}이(가) {ends}에 닿지 않습니다",
+    "{element} does not meet {shapes}": "{element}이(가) {shapes}에 닿지 않습니다",
     "{first} and {second} lie on top of each other":
         "{first}와(과) {second}이(가) 서로 겹쳐 놓여 있습니다",
     "{element} runs through {shapes}": "{element}이(가) {shapes}을(를) 통과합니다",
-    "{element} lies outside {containers}": "{element}이(가) {containers} 밖에 있습니다",
+    "{element} lies outside {shapes}": "{element}이(가) {shapes} 밖에 있습니다",
     "{element} is not on the border of {host}":
         "{element}이(가) {host}의 테두리 위에 있지 않습니다",
     "{first} and {second} overlap": "{first}와(과) {second}이(가) 겹칩니다",

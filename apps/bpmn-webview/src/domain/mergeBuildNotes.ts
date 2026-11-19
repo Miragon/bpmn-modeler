@@ -4,15 +4,13 @@ import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
 export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[] {
     switch (note.kind) {
         case "flowEndOffShape":
-            return [note.id, ...note.ends];
+        case "flowThroughShape":
+        case "shapeOutsideContainer":
+            return [note.id, ...note.shapes];
         case "shapesOverlap":
         case "lanesOverlap":
         case "layoutChangedByBoth":
             return note.ids;
-        case "flowThroughShape":
-            return [note.id, ...note.shapes];
-        case "shapeOutsideContainer":
-            return [note.id, ...note.containers];
         case "boundaryEventOffHost":
             return [note.id, note.host];
         case "restoredWithoutRemovedWith":

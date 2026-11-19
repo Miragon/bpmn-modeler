@@ -70,7 +70,7 @@ describe("buildMerged's layout notes", () => {
                     ),
             ),
             notes: [
-                { kind: "flowEndOffShape", id: "Flow_6", ends: ["Task_R"] },
+                { kind: "flowEndOffShape", id: "Flow_6", shapes: ["Task_R"] },
                 { kind: "shapesOverlap", ids: ["Task_R", "Task_N"] },
             ],
         },
@@ -91,7 +91,7 @@ describe("buildMerged's layout notes", () => {
                     });
                 },
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Retry", ends: ["Task_C"] }],
+            notes: [{ kind: "flowEndOffShape", id: "Flow_Retry", shapes: ["Task_C"] }],
         },
         {
             name: "03 each side moved one end of a flow",
@@ -100,7 +100,7 @@ describe("buildMerged's layout notes", () => {
                 (model) => dragNodes(model, ["Task_C", "End_Done"], 0, 30),
                 (model) => dragNodes(model, ["Gateway_Ok"], 0, -40),
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", ends: ["Gateway_Ok"] }],
+            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", shapes: ["Gateway_Ok"] }],
         },
         {
             name: "04 both made the same room and inserted a task there",
@@ -152,7 +152,7 @@ describe("buildMerged's layout notes", () => {
             ),
             conflictsTo: "incoming",
             notes: [
-                { kind: "flowEndOffShape", id: "Flow_Y", ends: ["Task_C"] },
+                { kind: "flowEndOffShape", id: "Flow_Y", shapes: ["Task_C"] },
                 { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
                 { kind: "flowThroughShape", id: "Flow_Yes", shapes: ["Task_X"] },
                 { kind: "flowThroughShape", id: "Flow_X", shapes: ["Task_Y"] },
@@ -197,7 +197,7 @@ describe("buildMerged's layout notes", () => {
                     moveNode(model, "End_Done", 60, 50);
                 },
             ),
-            notes: [{ kind: "flowEndOffShape", id: "Flow_4", ends: ["End_Done"] }],
+            notes: [{ kind: "flowEndOffShape", id: "Flow_4", shapes: ["End_Done"] }],
         },
         {
             name: "08 a flow re-routed through a task the other side added",
@@ -291,7 +291,7 @@ describe("buildMerged's layout notes", () => {
                 {
                     kind: "shapeOutsideContainer",
                     id: "Task_Archive",
-                    containers: ["Participant_Order", "Lane_Back"],
+                    shapes: ["Participant_Order", "Lane_Back"],
                 },
             ],
         },
@@ -303,7 +303,7 @@ describe("buildMerged's layout notes", () => {
                 (model) => dragNodes(model, ["Task_C"], -50),
             ),
             conflictsTo,
-            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", ends: ["Task_C"] } as const],
+            notes: [{ kind: "flowEndOffShape", id: "Flow_Yes", shapes: ["Task_C"] } as const],
         })),
     ])("$name", async ({ versions, conflictsTo, notes }) => {
         expect(await layoutNotesOf(versions, conflictsTo)).toEqual(notes);

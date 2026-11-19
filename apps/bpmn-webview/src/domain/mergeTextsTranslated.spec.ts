@@ -88,10 +88,10 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     sideLacksTarget: true,
 };
 const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
-    flowEndOffShape: { kind: "flowEndOffShape", id: "a", ends: ["b"] },
+    flowEndOffShape: { kind: "flowEndOffShape", id: "a", shapes: ["b"] },
     shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"] },
     flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"] },
-    shapeOutsideContainer: { kind: "shapeOutsideContainer", id: "a", containers: ["b"] },
+    shapeOutsideContainer: { kind: "shapeOutsideContainer", id: "a", shapes: ["b"] },
     boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
     lanesOverlap: { kind: "lanesOverlap", ids: ["a", "b"] },
     restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },

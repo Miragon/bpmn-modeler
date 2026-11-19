@@ -358,10 +358,10 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Resultaat tegenover Inkomend",
     "Result": "Resultaat",
     "Review notes ({count})": "Opmerkingen bekijken ({count})",
-    "{element} does not meet {ends}": "{element} sluit niet aan op {ends}",
+    "{element} does not meet {shapes}": "{element} sluit niet aan op {shapes}",
     "{first} and {second} lie on top of each other": "{first} en {second} liggen op elkaar",
     "{element} runs through {shapes}": "{element} loopt door {shapes}",
-    "{element} lies outside {containers}": "{element} ligt buiten {containers}",
+    "{element} lies outside {shapes}": "{element} ligt buiten {shapes}",
     "{element} is not on the border of {host}": "{element} ligt niet op de rand van {host}",
     "{first} and {second} overlap": "{first} en {second} overlappen elkaar",
     "{element} is kept without the flows the other side removed with it: {connections}":

@@ -1,4 +1,3 @@
-import type { LayoutSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
 import {
@@ -18,18 +17,13 @@ import {
 } from "./removedWith";
 
 export type BuildNote =
-    | { readonly kind: "flowEndOffShape"; readonly id: string; readonly ends: readonly string[] }
-    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
     | {
-          readonly kind: "flowThroughShape";
+          /** A flow and the shapes it misses at its ends or runs through, or a shape and the containers it lies outside. */
+          readonly kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer";
           readonly id: string;
           readonly shapes: readonly string[];
       }
-    | {
-          readonly kind: "shapeOutsideContainer";
-          readonly id: string;
-          readonly containers: readonly string[];
-      }
+    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
     | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
     | {
@@ -52,66 +46,6 @@ export type BuildNote =
           readonly keptSide: MergeSide;
       }
     | { readonly kind: "frameDiffers"; readonly attribute: string };
-
-type GroupedSpotNote = Extract<
-    BuildNote,
-    { kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer" }
->;
-
-/** The broken spots the merge introduced into the drawing; one flow's or shape's spots of one kind share a note. */
-export function layoutSpotNotes(spots: readonly LayoutSpot[]): BuildNote[] {
-    const notes: BuildNote[] = [];
-    const grouped = new Map<string, string[]>();
-    const addTo = (kind: GroupedSpotNote["kind"], id: string, named: string) => {
-        const key = `${kind} ${id}`;
-        const list = grouped.get(key);
-        if (list === undefined) {
-            const created = [named];
-            grouped.set(key, created);
-            notes.push(groupedNote(kind, id, created));
-        } else if (!list.includes(named)) {
-            list.push(named);
-        }
-    };
-    for (const spot of spots) {
-        switch (spot.kind) {
-            case "flowEndOffShape":
-                addTo(spot.kind, spot.flow, spot.end);
-                break;
-            case "flowThroughShape":
-                addTo(spot.kind, spot.flow, spot.shape);
-                break;
-            case "shapeOutsideContainer":
-                addTo(spot.kind, spot.shape, spot.container);
-                break;
-            case "shapesOverlap":
-                notes.push({ kind: spot.kind, ids: [...spot.shapes] });
-                break;
-            case "boundaryEventOffHost":
-                notes.push({ kind: spot.kind, id: spot.boundaryEvent, host: spot.host });
-                break;
-            case "lanesOverlap":
-                notes.push({ kind: spot.kind, ids: [...spot.lanes] });
-                break;
-        }
-    }
-    return notes;
-}
-
-function groupedNote(
-    kind: GroupedSpotNote["kind"],
-    id: string,
-    named: readonly string[],
-): GroupedSpotNote {
-    switch (kind) {
-        case "flowEndOffShape":
-            return { kind, id, ends: named };
-        case "flowThroughShape":
-            return { kind, id, shapes: named };
-        case "shapeOutsideContainer":
-            return { kind, id, containers: named };
-    }
-}
 
 /**
  * A drawn flow's ends, when the flow and its ends are drawn from both sides

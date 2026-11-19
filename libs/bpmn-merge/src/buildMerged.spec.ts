@@ -949,7 +949,7 @@ ${
             const { notes } = await automaticMerge(versions);
 
             expect(notes).toEqual([
-                { kind: "flowEndOffShape", id: "Flow_Checked", ends: ["Gateway_Ok"] },
+                { kind: "flowEndOffShape", id: "Flow_Checked", shapes: ["Gateway_Ok"] },
             ]);
         });
 

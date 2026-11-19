@@ -348,11 +348,11 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "Результат и сторона «Входящее»",
     "Result": "Результат",
     "Review notes ({count})": "Просмотреть примечания ({count})",
-    "{element} does not meet {ends}": "Элемент {element} не доходит до {ends}",
+    "{element} does not meet {shapes}": "Элемент {element} не доходит до {shapes}",
     "{first} and {second} lie on top of each other":
         "Элементы {first} и {second} лежат друг на друге",
     "{element} runs through {shapes}": "Элемент {element} проходит через {shapes}",
-    "{element} lies outside {containers}": "Элемент {element} находится за пределами {containers}",
+    "{element} lies outside {shapes}": "Элемент {element} находится за пределами {shapes}",
     "{element} is not on the border of {host}": "Элемент {element} не находится на границе {host}",
     "{first} and {second} overlap": "Элементы {first} и {second} перекрываются",
     "{element} is kept without the flows the other side removed with it: {connections}":
