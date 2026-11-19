@@ -161,6 +161,9 @@ class RouteGrid {
     }
 
     cheapestRoute(): Point[] | undefined {
+        if (!this.hasOpenPort(this.sourcePorts) || !this.hasOpenPort(this.targetPorts)) {
+            return undefined;
+        }
         const stateCount = this.xs.length * this.ys.length * DIRECTIONS.length;
         const best = new Float64Array(stateCount).fill(Number.POSITIVE_INFINITY);
         const previous = new Int32Array(stateCount).fill(-1);
@@ -247,6 +250,29 @@ class RouteGrid {
                 return candidate;
             }
         }
+    }
+
+    /**
+     * Whether a run can leave one of the ports outward: an end whose every
+     * port a shape covers has no route, and the search would only learn that
+     * after reading the whole grid.
+     */
+    private hasOpenPort(ports: ReadonlyMap<number, Port>): boolean {
+        return [...ports].some(([index, port]) => {
+            const from = this.pointOf(index);
+            let column = index % this.xs.length;
+            let row = Math.floor(index / this.xs.length);
+            for (;;) {
+                column += STEPS[port.outward]!.x;
+                row += STEPS[port.outward]!.y;
+                if (column < 0 || row < 0 || column >= this.xs.length || row >= this.ys.length) {
+                    return false;
+                }
+                const candidate = row * this.xs.length + column;
+                if (this.hitsShape(from, this.pointOf(candidate))) return false;
+                if (this.isUsable(candidate)) return true;
+            }
+        });
     }
 
     private isUsable(index: number): boolean {

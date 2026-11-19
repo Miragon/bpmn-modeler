@@ -123,6 +123,17 @@ describe("routeOrthogonal", () => {
         expect(routeOrthogonal(request)).toEqual(routeOrthogonal(request));
     });
 
+    it("finds no route from a shape another one covers", () => {
+        expect(
+            routeOrthogonal({
+                source: task(100, 100),
+                target: task(400, 100),
+                obstacles: [{ x: 100, y: 100, width: 100, height: 80 }],
+                otherSegments: [],
+            }),
+        ).toBeUndefined();
+    });
+
     it("finds no route to a shape walled in by others", () => {
         const target = task(400, 100);
         const walls = [

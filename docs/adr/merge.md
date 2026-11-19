@@ -257,8 +257,8 @@ each of those.
   `bpmn:Definitions` (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
 - *Diagrams by what they draw.* One root diagram for the collaboration and the processes
   its participants name, a collaboration's only while the result keeps one of its pools,
-  and one per collapsed sub-process. Drawings take their layout side's DI unchanged and go
-  on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
+  and one per collapsed sub-process. Drawings take their layout side's DI unchanged, but for
+  the flows the build re-routes (below), and go on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
   and its shape is not expanded); the build and the check share that one rule.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
@@ -292,6 +292,22 @@ each of those.
   named flows that still met their shapes and missed hidden tasks and flows through shapes
   (#2565); bpmn-js in the webview, which ties the build to an open pane. Cost: every build
   reads three drawings; a grid keeps it linear (`layoutSpotDetectionTime.spec.ts`).
+- *The build re-routes the flows it broke, with its own code.* After the diagrams are
+  assembled and before the result is written and checked, each flow the detector names as
+  introduced (an end off its shape, outside or deep inside, or a run through a shape) is docked
+  on its shapes' outlines again (circle, diamond, rectangle), keeping its own bends where they
+  still fit, else routed orthogonally around the shapes in a window around its ends, found
+  through the detector's grid. Its label keeps its offset from the route. A route must meet
+  both shapes and run through none, else the flow stays as drawn; the notes read the drawing
+  before the repair and say which flows the build moved and which it could not repair.
+  Rejected: a slim bpmn-cli entry (+70 KB gzip on the hosts, built on internals restructured
+  twice in three weeks, Node 24 upstream, a tidy that is not local), bpmn-js modeling in the
+  webview (the build would wait on an open pane, with a protocol pair in four hosts, and its
+  save rewrote lanes), diagram-js's `ManhattanLayout` (no obstacles, and the library's first
+  outside dependency). Cost: geometry and a router to maintain here; re-routed flows may cross
+  others (1 to 15 crossings over a harvest of 507 results); every build plans the repair
+  (`layoutFlowRepairTime.spec.ts`), and a result with no broken flow stays byte-equal
+  (`buildMergedRepairLocality.spec.ts`, on 24 copied fuzz inputs).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
@@ -309,8 +325,9 @@ each of those.
   pick sits on its side, every open conflict has a choice, a refused pick changes nothing and
   the picks, not their order, decide. The fixtures equal a moddle round trip, so "what the
   save writes" is testable.
-- An element drawn from another side than its container keeps that side's coordinates; the
-  build names it where it leaves the container's frame but moves nothing.
+- Shapes keep their side's coordinates, and so does every flow the merge did not break; a flow
+  the build re-routed differs from both sides and carries a note. A shape on another, outside
+  its container or off its host is still named, not moved.
 - bpmn-js rewrites the diagram's plane order on every save; the build keeps current's
   order, so opening and saving a merged file can reorder `bpmndi` without changing the
   model.
