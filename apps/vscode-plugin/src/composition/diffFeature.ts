@@ -3,6 +3,7 @@ import { ExtensionContext } from "vscode";
 import {
     BpmnDiffService,
     ConflictMarkerParticipant,
+    ElementXmlMergeService,
     createDiffPaneRouter,
     createDmnDiffPaneRouter,
     DiffPaneStore,
@@ -13,6 +14,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
+import { VsCodeMergeEditorAvailability } from "../diff/adapter/out/VsCodeMergeEditorAvailability";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import * as elementXmlMergeFeature from "./elementXmlMergeFeature";
 import * as mergeViewFeature from "./mergeViewFeature";
@@ -25,7 +27,8 @@ import { SharedDeps } from "./sharedDeps";
  * delegate-resolve, `compare`) dispatch into them — the one diff collaborator
  * with cross-feature reach. The BPMN merge view registers on the BPMN pane
  * store, since its panes are BPMN diff panes, and its element XML merge editor
- * on the merge view.
+ * on the merge view. Whether the host shows an element's XML diff and runs the
+ * merge editor is read once here, for the routes and the panes' offers alike.
  */
 export function register(
     context: ExtensionContext,
@@ -39,26 +42,29 @@ export function register(
     conflictMarkers: ConflictMarkerParticipant;
     /** Builds the newest merge view of a working file, as its Build button does. */
     buildMerge: (fileUri: string) => Promise<void>;
-    mergeXml: elementXmlMergeFeature.ElementXmlMergeProbe;
+    elementXmlMerge: ElementXmlMergeService;
 } {
     const diffStore = new DiffPaneStore();
     const dmnDiffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore, dmnDiffStore);
-    const merge = mergeViewFeature.register(context, diffStore, deps);
-    let finishing: BpmnDiffService | undefined = undefined;
-    const xmlMerge = elementXmlMergeFeature.register(context, deps, merge, async (key, written) =>
-        finishing?.finishElementXmlMerge(key, written),
-    );
+    const showsElementXmlChanges = VsCodeElementXmlDiffView.isSupportedByHost();
+    const mergeEditor = new VsCodeMergeEditorAvailability();
+    const merge = mergeViewFeature.register(context, diffStore, deps, async () => ({
+        elementXmlChanges: showsElementXmlChanges,
+        elementXmlMerge: await mergeEditor.ready,
+    }));
+    const elementXmlMerge = elementXmlMergeFeature.register(context, deps, merge, mergeEditor);
     const bpmnDiffService = new BpmnDiffService(
         deps.notifier,
         deps.vsSettings,
         diffStore,
-        elementXmlDiffs(context, diffStore, deps, merge.sessions),
+        showsElementXmlChanges
+            ? elementXmlDiffs(context, diffStore, deps, merge.sessions)
+            : undefined,
         merge.decisions,
         merge.build,
-        xmlMerge.service,
+        elementXmlMerge,
     );
-    finishing = bpmnDiffService;
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
@@ -85,22 +91,18 @@ export function register(
         dmnDiffStore,
         mergeSessions: merge.sessions,
         conflictMarkers: merge.conflictMarkers,
-        buildMerge: async (fileUri) =>
-            merge.build.buildFile(fileUri, await bpmnDiffService.mergeHostOffers()),
-        mergeXml: xmlMerge.probe,
+        buildMerge: (fileUri) => merge.build.buildFile(fileUri),
+        elementXmlMerge,
     };
 }
 
-/** The element XML diffs below the diagram diffs, or `undefined` where the host cannot show them. */
+/** The element XML diffs below the diagram diffs. */
 function elementXmlDiffs(
     context: ExtensionContext,
     diffStore: DiffPaneStore,
     deps: SharedDeps,
     merges: MergeSessionStore,
-): ElementXmlDiffService | undefined {
-    if (!VsCodeElementXmlDiffView.isSupportedByHost()) {
-        return undefined;
-    }
+): ElementXmlDiffService {
     let service: ElementXmlDiffService | undefined = undefined;
     const view = new VsCodeElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
     view.register(context);

@@ -47,7 +47,7 @@ export function activate(context: ExtensionContext): TestApi {
         mergeSessions,
         conflictMarkers,
         buildMerge,
-        mergeXml,
+        elementXmlMerge,
     } = diffFeature.register(context, deps);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
@@ -92,6 +92,6 @@ export function activate(context: ExtensionContext): TestApi {
         dmnDiffStore,
         mergeSessions,
         buildMerge,
-        mergeXml,
+        elementXmlMerge,
     });
 }

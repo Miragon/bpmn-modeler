@@ -1,7 +1,6 @@
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
-    type MergeHostOffers,
     type MergePaneStepList,
     type MergePickScope,
     SyncCursorQuery,
@@ -100,7 +99,7 @@ export class BpmnDiffService {
         const armed = await this.relay.markReady(handle);
         if (!armed) return;
         if (this.merge?.shows(armed.session)) {
-            await this.merge.broadcast(armed, await this.mergeHostOffers());
+            await this.merge.broadcast(armed);
         } else {
             await this.computeAndBroadcast(armed.session, armed.before, armed.after);
         }
@@ -145,7 +144,7 @@ export class BpmnDiffService {
     async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.chooseStepList(armed, list, await this.mergeHostOffers());
+            await this.merge.chooseStepList(armed, list);
         }
     }
 
@@ -163,12 +162,7 @@ export class BpmnDiffService {
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.pick(
-                armed,
-                handle,
-                { elementId, scope, side, dropsHandMerges },
-                await this.mergeHostOffers(),
-            );
+            await this.merge.pick(armed, handle, { elementId, scope, side, dropsHandMerges });
         }
     }
 
@@ -181,11 +175,7 @@ export class BpmnDiffService {
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.unpick(
-                armed,
-                { elementId, scope, dropsHandMerges },
-                await this.mergeHostOffers(),
-            );
+            await this.merge.unpick(armed, { elementId, scope, dropsHandMerges });
         }
     }
 
@@ -204,19 +194,6 @@ export class BpmnDiffService {
         if (session) await this.elementXmlMerge?.open(session, elementId, resume);
     }
 
-    /** Takes what the user saved in the merge editor `key`, or nothing, and shows the answer on the panes. */
-    async finishElementXmlMerge(key: string, written: string | undefined): Promise<void> {
-        await this.elementXmlMerge?.finish(key, written, await this.mergeHostOffers());
-    }
-
-    /** What the host offers merge panes besides their decisions. */
-    async mergeHostOffers(): Promise<MergeHostOffers> {
-        return {
-            elementXmlChanges: this.showsElementXmlChanges,
-            elementXmlMerge: (await this.elementXmlMerge?.offered()) ?? false,
-        };
-    }
-
     /** Whether the host builds a merge view's result into its working file and compares it. */
     get buildsMergeResults(): boolean {
         return this.build !== undefined;
@@ -225,7 +202,7 @@ export class BpmnDiffService {
     /** Builds the result of the merge view whose pane asked into its working file. */
     async buildMergeResult(handle: DiffPaneHandle): Promise<void> {
         const session = this.store.sessionOf(handle);
-        if (session) await this.build?.build(session, await this.mergeHostOffers());
+        if (session) await this.build?.build(session);
     }
 
     /** Opens a diff of the built result against `against`'s stage. */

@@ -210,8 +210,10 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   where the API has `TabInputTextDiff` (not every Theia does); the bridge always passes
   it. A merge pane gets the same answer, and whether the host merges a picked element's
   XML by hand ([merge XML editor](merge-xml-editor.md)), as one `MergeHostOffers` value
-  on `ApplyMergeStatesQuery`, which `BpmnDiffService.mergeHostOffers` builds for every
-  post, so a new offer adds a field rather than another positional flag.
+  on `ApplyMergeStatesQuery`, so a new offer adds a field rather than another positional
+  flag. `MergeDecisionService` is built with the source of that value and asks it on every
+  post; VS Code's composition reads the XML diff's support once, for the handler and the
+  source alike.
 - *The core decides.* The core computes both texts and the title behind the render-only
   port `ElementXmlDiffView`. The rules for requests live in the domain object
   `ElementXmlRequests`: only the latest renders, the same element twice renders once, a

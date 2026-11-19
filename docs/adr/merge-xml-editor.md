@@ -47,10 +47,10 @@ changed different parts to a whole pick.
   to `HandMergeRefusal`), never its English sentence, so the pane names the elements and
   words it in the user's language. It
   closes its editors when the merge view ends and answers nothing for them. The editor
-  reports a finish through a constructor callback, which the host routes through
-  `BpmnDiffService` so the answer carries the panes' offers;
-  `describeElementXmlMergeEditorContract` holds the VS Code adapter and the test kit's
-  fake.
+  reports a finish through a constructor callback straight to
+  `ElementXmlMergeService.finish`; the panes' offers come from the source
+  `MergeDecisionService` is built with. `describeElementXmlMergeEditorContract` holds the
+  VS Code adapter and the test kit's fake.
 - *Only for an element the base holds.* Without a base, 1.76 does not open, and from 1.99
   the whole element is one conflict block, which is no more than the whole pick. An
   element both sides added is picked whole.
@@ -81,8 +81,10 @@ changed different parts to a whole pick.
   rules out `env.appName` equal to the standalone app's `applicationName` (Theia 1.76's
   plugin host reports that value; a spec reads it from `apps/standalone/package.json`) and
   `env.uriScheme` `theia`, Theia's default, which the standalone app keeps. The panes are
-  told through `MergeHostOffers.elementXmlMerge` once that answer is known; the bridge has
-  no editor, so its router ignores `OpenElementXmlMergeCommand`.
+  told through `MergeHostOffers.elementXmlMerge` once that answer is known. The router
+  routes `OpenElementXmlMergeCommand` wherever an editor is wired, and an open the host
+  cannot run, or of an element no hand merge may replace, is logged and ignored; the
+  bridge has no editor, so its router ignores the command.
 
 Rejected besides an own view: conflict markers in a virtual document get no CodeLens (the
 merge-conflict extension serves `file`, `vscode-vfs`, `untitled` and `vscode-userdata`

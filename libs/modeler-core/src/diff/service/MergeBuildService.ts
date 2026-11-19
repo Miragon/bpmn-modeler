@@ -1,5 +1,5 @@
 import { buildMerged, type MergedDocument } from "@miragon/bpmn-modeler-merge";
-import type { MergeHostOffers, MergeResultComparison } from "@miragon/bpmn-modeler-shared";
+import type { MergeResultComparison } from "@miragon/bpmn-modeler-shared";
 import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
@@ -75,15 +75,15 @@ export class MergeBuildService implements EditorSubscription {
     }
 
     /** Builds the result of the merge view a tab shows into its working file. */
-    async build(diffSession: DiffSession, offers: MergeHostOffers): Promise<void> {
+    async build(diffSession: DiffSession): Promise<void> {
         const session = this.sessions.ofDiffSession(diffSession);
-        if (session) await this.buildSession(session, offers);
+        if (session) await this.buildSession(session);
     }
 
     /** Builds the result of the newest merge view of `fileUri`, if one is open. */
-    async buildFile(fileUri: string, offers: MergeHostOffers): Promise<void> {
+    async buildFile(fileUri: string): Promise<void> {
         const session = this.sessions.of(fileUri);
-        if (session) await this.buildSession(session, offers);
+        if (session) await this.buildSession(session);
     }
 
     /** Opens a diff of `against`'s stage and the built result, once a result was built. */
@@ -115,17 +115,17 @@ export class MergeBuildService implements EditorSubscription {
         for (const subscription of this.subscriptions) subscription.dispose();
     }
 
-    private async buildSession(session: MergeSession, offers: MergeHostOffers): Promise<void> {
+    private async buildSession(session: MergeSession): Promise<void> {
         if (this.building.has(session)) return;
         this.building.add(session);
         try {
-            await this.buildOnce(session, offers);
+            await this.buildOnce(session);
         } finally {
             this.building.delete(session);
         }
     }
 
-    private async buildOnce(session: MergeSession, offers: MergeHostOffers): Promise<void> {
+    private async buildOnce(session: MergeSession): Promise<void> {
         const { decisions, fileName, fileUri } = session;
         if (!decisions.canBuild) {
             this.notifier.showInfo(buildRefusalText(fileName, decisions.openConflicts.length));
@@ -149,7 +149,7 @@ export class MergeBuildService implements EditorSubscription {
         if (!merged || saved === undefined) return;
         session.lastBuild = { xml: saved, notes: merged.notes };
         // Before the file opens and hides the merge tab, so its panes hold the notes when shown again.
-        await this.decisions.broadcastSession(session, offers);
+        await this.decisions.broadcastSession(session);
         this.notifier.showInfo(buildDoneNotice(fileName, merged.notes.length));
         await this.notifier
             .openDocument(filePathOfUri(fileUri))

@@ -22,6 +22,7 @@ import {
     type MergePaneShapelessRow,
     type MergePaneStep,
     type MergePaneValueDifference,
+    type MergeHostOffers,
     type MergePickScope,
     NO_MERGE_HOST_OFFERS,
     PickMergeSideCommand,
@@ -41,7 +42,7 @@ import {
     RecordingMergeSidesView,
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
-import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { BpmnDiffService } from "./BpmnDiffService";
 import { createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeDecisionService } from "./MergeDecisionService";
@@ -58,20 +59,20 @@ const CAPTIONS = {
 } as const;
 
 /** The services of one host, which a merge view of the same file opened again shares. */
-function mergeHost(elementXml?: ElementXmlChanges) {
+function mergeHost(offers?: () => Promise<MergeHostOffers>) {
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
     const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
-    const decisions = new MergeDecisionService(sessions, notifier);
-    const diffService = new BpmnDiffService(notifier, settings, store, elementXml, decisions);
+    const decisions = new MergeDecisionService(sessions, notifier, offers);
+    const diffService = new BpmnDiffService(notifier, settings, store, undefined, decisions);
     return { store, sessions, decisions, diffService };
 }
 
 /** A merge view of `stages` whose two panes are attached but not yet ready. */
 async function openMergeView(
     stages: ResolvableStages = ORDER_MERGE_STAGES,
-    elementXml?: ElementXmlChanges,
-    host = mergeHost(elementXml),
+    offers?: () => Promise<MergeHostOffers>,
+    host = mergeHost(offers),
 ) {
     const { store, sessions, diffService } = host;
     const diffSession = store.registerMerge(URIS);
@@ -274,18 +275,27 @@ describe("MergeDecisionService", () => {
         expect(lastStatesOf(current).states.stepping).toStrictEqual({ list: "openConflicts" });
     });
 
-    it("tells the panes whether the host shows an element's XML changes", async () => {
-        const { current, bothReady } = await openMergeView(ORDER_MERGE_STAGES, {
-            show: async () => undefined,
-            follow: async () => undefined,
-        });
+    it("tells the panes what the host offers, asked again for every post", async () => {
+        let offers: MergeHostOffers = { elementXmlChanges: true, elementXmlMerge: false };
+        const { current, bothReady, pick } = await openMergeView(
+            ORDER_MERGE_STAGES,
+            async () => offers,
+        );
+
+        await bothReady();
+        expect(lastStatesOf(current).offers).toStrictEqual(offers);
+
+        offers = { elementXmlChanges: true, elementXmlMerge: true };
+        await pick(current, "Task_Pack", "element", "current");
+        expect(lastStatesOf(current).offers).toStrictEqual(offers);
+    });
+
+    it("offers the panes nothing on a host that names no offers", async () => {
+        const { current, bothReady } = await openMergeView();
 
         await bothReady();
 
-        expect(lastStatesOf(current).offers).toStrictEqual({
-            elementXmlChanges: true,
-            elementXmlMerge: false,
-        });
+        expect(lastStatesOf(current).offers).toStrictEqual(NO_MERGE_HOST_OFFERS);
     });
 
     describe("a version merged by hand", () => {
@@ -300,7 +310,6 @@ describe("MergeDecisionService", () => {
             const outcome = await view.host.decisions.mergeByHand(
                 session,
                 { elementId: "Task_Pack", side: "current", text },
-                NO_MERGE_HOST_OFFERS,
             );
             expect(outcome).toStrictEqual({ applied: true });
             return { ...view, session };
@@ -535,12 +544,11 @@ describe("MergeDecisionService", () => {
             if (!session) throw new Error("no merge view");
 
             if (finish === "discarded") {
-                await host.decisions.discardHandMerge(session, "Task_Pack", NO_MERGE_HOST_OFFERS);
+                await host.decisions.discardHandMerge(session, "Task_Pack");
             } else {
                 await host.decisions.mergeByHand(
                     session,
                     { elementId: "Task_Pack", side: "incoming", text: "<<<<<<< current" },
-                    NO_MERGE_HOST_OFFERS,
                 );
             }
 

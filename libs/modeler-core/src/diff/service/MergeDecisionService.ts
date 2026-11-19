@@ -10,6 +10,7 @@ import {
 import {
     ApplyMergeStatesQuery,
     type MergeHostOffers,
+    NO_MERGE_HOST_OFFERS,
     type MergePaneAction,
     type MergePaneStepList,
     type MergePaneStepping,
@@ -48,9 +49,11 @@ export class MergeDecisionService {
 
     private readonly decidedListeners = new Set<(session: MergeSession) => void>();
 
+    /** @param offers What the host offers the panes besides their decisions, asked on every post. */
     constructor(
         private readonly sessions: Pick<MergeSessionStore, "ofDiffSession" | "diffSessionsOf">,
         private readonly logger: LoggerPort,
+        private readonly offers: () => Promise<MergeHostOffers> = async () => NO_MERGE_HOST_OFFERS,
     ) {}
 
     /** Whether the diff session is a tab of a live merge view. */
@@ -68,13 +71,12 @@ export class MergeDecisionService {
         armed: ArmedDiff,
         pane: DiffPaneHandle,
         { elementId, scope, side: namedSide, dropsHandMerges }: MergePickRequest,
-        offers: MergeHostOffers,
     ): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
         const paneSide = armed.session.sideFor(pane.uri);
         if (!session || !paneSide) return;
         const side = namedSide ?? mergeSideOfPane(paneSide);
-        await this.decide(session, elementId, offers, (decisions) => ({
+        await this.decide(session, elementId, (decisions) => ({
             action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
             outcome: decisions.pickScoped(elementId, side, scope, {
                 dropHandMerges: dropsHandMerges === true,
@@ -87,11 +89,10 @@ export class MergeDecisionService {
     async unpick(
         armed: ArmedDiff,
         { elementId, scope, dropsHandMerges }: MergeUnpickRequest,
-        offers: MergeHostOffers,
     ): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
         if (!session) return;
-        await this.decide(session, elementId, offers, (decisions) =>
+        await this.decide(session, elementId, (decisions) =>
             decisions.originOf(elementId) === "picked"
                 ? {
                       action: "unpick",
@@ -111,7 +112,6 @@ export class MergeDecisionService {
     async mergeByHand(
         session: MergeSession,
         hand: { readonly elementId: string; readonly side: MergeSide; readonly text: string },
-        offers: MergeHostOffers,
     ): Promise<HandMergeOutcome> {
         const outcome = await acceptHandMerge(
             session.sources,
@@ -124,21 +124,17 @@ export class MergeDecisionService {
             session,
             handMergeFeedback(hand.elementId, outcome, this.feedback.get(session)),
         );
-        await this.broadcastSession(session, offers);
+        await this.broadcastSession(session);
         return outcome;
     }
 
     /** Shows every pane of the view that the user closed the element's merge editor without saving. */
-    async discardHandMerge(
-        session: MergeSession,
-        elementId: string,
-        offers: MergeHostOffers,
-    ): Promise<void> {
+    async discardHandMerge(session: MergeSession, elementId: string): Promise<void> {
         this.feedback.set(
             session,
             handMergeFeedback(elementId, "discarded", this.feedback.get(session)),
         );
-        await this.broadcastSession(session, offers);
+        await this.broadcastSession(session);
     }
 
     /** Calls `listener` with each merge view whose picks a pick or an undo changed. */
@@ -148,9 +144,10 @@ export class MergeDecisionService {
     }
 
     /** Sends both panes of a merge view's tab the full state of its decisions. */
-    async broadcast(armed: ArmedDiff, offers: MergeHostOffers): Promise<void> {
+    async broadcast(armed: ArmedDiff): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
         if (!session) return;
+        const offers = await this.offers();
         const stepping = this.steppingOf(armed.session);
         const feedback = this.feedback.get(session);
         await this.post(armed.before, statesFor(session, "before", stepping, feedback, offers));
@@ -158,13 +155,9 @@ export class MergeDecisionService {
     }
 
     /** Keeps the list a pane of the tab chose and sends both panes their states again. */
-    async chooseStepList(
-        armed: ArmedDiff,
-        list: MergePaneStepList,
-        offers: MergeHostOffers,
-    ): Promise<void> {
+    async chooseStepList(armed: ArmedDiff, list: MergePaneStepList): Promise<void> {
         this.stepping.set(armed.session, { ...this.steppingOf(armed.session), list });
-        await this.broadcast(armed, offers);
+        await this.broadcast(armed);
     }
 
     /** Keeps the step a pane of the tab moved to, by its index in every step, or none after Show all. */
@@ -181,7 +174,6 @@ export class MergeDecisionService {
     private async decide(
         session: MergeSession,
         elementId: string,
-        offers: MergeHostOffers,
         decide: (decisions: MergeDecisions) => DecidedPick | undefined,
     ): Promise<void> {
         const openBefore = openIds(session.decisions);
@@ -205,14 +197,14 @@ export class MergeDecisionService {
         if (decided.outcome.applied) {
             for (const listener of this.decidedListeners) listener(session);
         }
-        await this.broadcastSession(session, offers);
+        await this.broadcastSession(session);
     }
 
     /** Sends the panes of every tab of the merge view the full state of its decisions. */
-    async broadcastSession(session: MergeSession, offers: MergeHostOffers): Promise<void> {
+    async broadcastSession(session: MergeSession): Promise<void> {
         for (const tab of this.sessions.diffSessionsOf(session)) {
             const panes = tab.armedPanes();
-            if (panes) await this.broadcast({ session: tab, ...panes }, offers);
+            if (panes) await this.broadcast({ session: tab, ...panes });
         }
     }
 

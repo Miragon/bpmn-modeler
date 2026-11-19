@@ -36,9 +36,9 @@ async function xmlMergeHost({ available = true } = {}) {
     const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
     const decisions = new MergeDecisionService(sessions, notifier);
     let finishing: Promise<void> = Promise.resolve();
-    let diffService: BpmnDiffService | undefined = undefined;
+    let finishes: ElementXmlMergeService | undefined = undefined;
     const editor = new RecordingElementXmlMergeEditor((key, written) => {
-        finishing = diffService?.finishElementXmlMerge(key, written) ?? Promise.resolve();
+        finishing = finishes?.finish(key, written) ?? Promise.resolve();
     });
     const xmlMerge = new ElementXmlMergeService(
         sessions,
@@ -47,7 +47,8 @@ async function xmlMergeHost({ available = true } = {}) {
         { ready: Promise.resolve(available) },
         notifier,
     );
-    diffService = new BpmnDiffService(
+    finishes = xmlMerge;
+    const service = new BpmnDiffService(
         notifier,
         settings,
         store,
@@ -56,7 +57,6 @@ async function xmlMergeHost({ available = true } = {}) {
         undefined,
         xmlMerge,
     );
-    const service = diffService;
 
     const uris = urisOf(1);
     const diffSession = store.registerMerge(uris);
@@ -100,6 +100,8 @@ async function xmlMergeHost({ available = true } = {}) {
         return request;
     };
     return {
+        notifier,
+        xmlMerge,
         store,
         session,
         editor,
@@ -150,6 +152,9 @@ describe("ElementXmlMergeService", () => {
         await host.openMerge("Task_Check");
 
         expect(host.editor.openings).toStrictEqual([]);
+        expect(host.notifier.logged("info")).toContain(
+            "Merge XML of Task_Check not opened: it is not picked, or its base equals a side.",
+        );
     });
 
     it("brings the open editor of an element to the front instead of opening a second one", async () => {
@@ -304,15 +309,21 @@ describe("ElementXmlMergeService", () => {
         expect(host.current.posted).toHaveLength(postedBefore);
     });
 
-    it("offers the merge editor to the panes once the host has it", async () => {
-        const offered = await xmlMergeHost();
-        const notOffered = await xmlMergeHost({ available: false });
+    it("tells its listeners which element finished, once every pane shows the answer", async () => {
+        const host = await xmlMergeHost();
+        const finished: [string, string | undefined, MergePaneOutcome | undefined][] = [];
+        host.xmlMerge.onFinished((elementId, written) =>
+            finished.push([elementId, written, lastOutcomeOf(host.current)]),
+        );
+        await host.pick("Task_Pack", "current");
+        await host.openMerge("Task_Pack");
 
-        expect(lastStatesOf(offered.current).offers).toStrictEqual({
-            elementXmlChanges: false,
-            elementXmlMerge: true,
-        });
-        expect(lastStatesOf(notOffered.current).offers.elementXmlMerge).toBe(false);
+        host.editor.closeByUser(host.openRequest().key);
+        await host.finishing();
+
+        expect(finished).toStrictEqual([
+            ["Task_Pack", undefined, expect.objectContaining({ discarded: true })],
+        ]);
     });
 
     it("opens nothing on a host without the merge editor", async () => {
@@ -322,5 +333,8 @@ describe("ElementXmlMergeService", () => {
         await host.openMerge("Task_Pack");
 
         expect(host.editor.openings).toStrictEqual([]);
+        expect(host.notifier.logged("info")).toContain(
+            "Merge XML of Task_Pack not opened: the host offers no XML merge editor.",
+        );
     });
 });
