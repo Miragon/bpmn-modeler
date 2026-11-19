@@ -7,7 +7,7 @@ import {
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 /** What the e2e tests drive of the element XML merge, through the service as a pane would. */
-export interface ElementXmlMergeProbe {
+interface ElementXmlMergeProbe {
     /**
      * Opens the merge editor on a picked element of the newest merge view of
      * `fileUri`; `finished` resolves with the text the editor reported once
