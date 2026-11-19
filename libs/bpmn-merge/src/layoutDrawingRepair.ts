@@ -46,14 +46,13 @@ export function planLayoutRepair(
     const spots = introducedLayoutSpots(layout, sideLayouts);
     const shapeMoves = planners.moveShapes(layout, spots, sideLayouts);
     const moved = shapeMoves.layout;
-    const flowSpotsAfterMoves =
-        moved === layout ? spots : introducedLayoutSpots(moved, sideLayouts);
-    const flowRepairs = planners.repairFlows(moved, flowSpotsAfterMoves);
+    const spotsAfterMoves = moved === layout ? spots : introducedLayoutSpots(moved, sideLayouts);
+    const flowRepairs = planners.repairFlows(moved, spotsAfterMoves);
     return {
         repaired: withFlowRepairs(moved, flowRepairs),
         notes: layoutSpotNotes({
             spots,
-            flowSpotsAfterMoves,
+            spotsAfterMoves,
             overlapRepairs: shapeMoves.repairs,
             flowRepairs,
         }),

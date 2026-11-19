@@ -1,14 +1,14 @@
 import type { BuildNote } from "./buildNotes";
 import type { FlowRepair, FlowRepairKind } from "./layoutFlowRepair";
 import type { OverlapRepair } from "./layoutShapeMoves";
-import { type LayoutSpot, isFlowSpot } from "./layoutSpots";
+import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
 
 /** What the repair found and did, for the notes. */
 export interface LayoutRepairOutcome {
     /** The spots of the drawing as the build assembled it. */
     readonly spots: readonly LayoutSpot[];
-    /** The spots the flow repair worked on, after the shapes moved; `spots` when none moved. */
-    readonly flowSpotsAfterMoves: readonly LayoutSpot[];
+    /** The spots after the shapes moved, which the flow repair worked on; `spots` when none moved. */
+    readonly spotsAfterMoves: readonly LayoutSpot[];
     readonly overlapRepairs: readonly OverlapRepair[];
     readonly flowRepairs: readonly FlowRepair[];
 }
@@ -18,7 +18,8 @@ export interface LayoutRepairOutcome {
  * repair, with what the repair did to each shape and flow; one flow's or
  * shape's spots of one kind share a note. A flow is named as the flow
  * repair found it after the shapes moved: a flow a move broke is named too,
- * one a move mended is not.
+ * one a move mended is not, and neither is any other spot a move mended but
+ * an overlap, whose note says the build moved a shape off it.
  */
 export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
     const { flowRepairs, overlapRepairs } = outcome;
@@ -47,15 +48,19 @@ export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
     return notes;
 }
 
-/** The assembled drawing's spots, its flows only while still broken after the moves, then the flows a move broke. */
-function spotsToName({ spots, flowSpotsAfterMoves }: LayoutRepairOutcome): LayoutSpot[] {
-    if (flowSpotsAfterMoves === spots) return [...spots];
-    const brokenFlows = new Set(flowSpotsAfterMoves.filter(isFlowSpot).map(({ flow }) => flow));
-    const known = new Set(spots.map((spot) => JSON.stringify(spot)));
+/** The assembled drawing's overlaps, its other spots only while still broken after the moves, then the flows a move broke. */
+function spotsToName({ spots, spotsAfterMoves }: LayoutRepairOutcome): LayoutSpot[] {
+    if (spotsAfterMoves === spots) return [...spots];
+    const brokenFlows = new Set(spotsAfterMoves.filter(isFlowSpot).map(({ flow }) => flow));
+    const stillThere = (spot: LayoutSpot) => spotsAfterMoves.some((after) => sameSpot(after, spot));
+    const stillNamed = (spot: LayoutSpot) =>
+        isFlowSpot(spot)
+            ? brokenFlows.has(spot.flow)
+            : spot.kind === "shapesOverlap" || stillThere(spot);
     return [
-        ...spots.filter((spot) => !isFlowSpot(spot) || brokenFlows.has(spot.flow)),
-        ...flowSpotsAfterMoves.filter(
-            (spot) => isFlowSpot(spot) && !known.has(JSON.stringify(spot)),
+        ...spots.filter(stillNamed),
+        ...spotsAfterMoves.filter(
+            (spot) => isFlowSpot(spot) && !spots.some((known) => sameSpot(known, spot)),
         ),
     ];
 }
@@ -104,7 +109,8 @@ function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair | undefi
                 moved: repair.moved,
                 shifted: repair.shifted,
             };
-        default:
+        case "notRepaired":
+        case undefined:
             return { kind: "shapesOverlap", ids, repair: "notRepaired" };
     }
 }

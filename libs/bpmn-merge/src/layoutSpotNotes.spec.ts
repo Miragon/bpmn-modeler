@@ -197,7 +197,7 @@ describe("layoutSpotNotes", () => {
 
         const notes = layoutSpotNotes({
             spots: [overlap, throughMoved],
-            flowSpotsAfterMoves: [offMoved("Flow_In"), offMoved("Flow_Stuck")],
+            spotsAfterMoves: [offMoved("Flow_In"), offMoved("Flow_Stuck")],
             overlapRepairs: [
                 { kind: "movedByBuild", shapes: ["Task_A", "Task_B"], moved: "Task_B" },
             ],
@@ -223,6 +223,35 @@ describe("layoutSpotNotes", () => {
             },
         ]);
     });
+
+    it("drops a shape outside its container that a move put back inside, and keeps the shape spots still there", () => {
+        const overlap: LayoutSpot = { kind: "shapesOverlap", shapes: ["Task_T", "Task_X"] };
+        const outsideLane: LayoutSpot = {
+            kind: "shapeOutsideContainer",
+            shape: "Task_T",
+            container: "Lane_L",
+        };
+        const offHost: LayoutSpot = { kind: "boundaryEventOffHost", boundaryEvent: "B", host: "H" };
+
+        const notes = layoutSpotNotes({
+            spots: [overlap, outsideLane, offHost],
+            spotsAfterMoves: [{ kind: "boundaryEventOffHost", host: "H", boundaryEvent: "B" }],
+            overlapRepairs: [
+                { kind: "movedByBuild", shapes: ["Task_T", "Task_X"], moved: "Task_T" },
+            ],
+            flowRepairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_T", "Task_X"],
+                repair: "movedByBuild",
+                moved: "Task_T",
+            },
+            { kind: "boundaryEventOffHost", id: "B", host: "H" },
+        ]);
+    });
 });
 
 /** The notes of spots no shape move changed. */
@@ -231,5 +260,5 @@ function notesOf(
     flowRepairs: readonly FlowRepair[],
     overlapRepairs: readonly OverlapRepair[] = [],
 ) {
-    return layoutSpotNotes({ spots, flowSpotsAfterMoves: spots, overlapRepairs, flowRepairs });
+    return layoutSpotNotes({ spots, spotsAfterMoves: spots, overlapRepairs, flowRepairs });
 }

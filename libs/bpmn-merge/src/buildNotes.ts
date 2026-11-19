@@ -1,4 +1,5 @@
 import type { FlowRepairKind } from "./layoutFlowRepair";
+import type { OverlapRepair } from "./layoutShapeMoves";
 import type { FlowSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
@@ -19,10 +20,15 @@ import {
 } from "./removedWith";
 
 /** Which of two shapes on top of each other the build moved, and what it shifted to make room. */
-type OverlapNoteRepair =
-    | { readonly repair: "movedByBuild"; readonly moved: string }
-    | { readonly repair: "madeRoom"; readonly moved: string; readonly shifted: readonly string[] }
-    | { readonly repair: "notRepaired" };
+type OverlapNoteRepair = NoteRepairOf<OverlapRepair>;
+
+type NoteRepairOf<Repair> = Repair extends OverlapRepair
+    ? {
+          readonly [
+              Key in Exclude<keyof Repair, "kind" | "shapes"> | "repair"
+          ]: Key extends keyof Repair ? Repair[Key] : Repair["kind"];
+      }
+    : never;
 
 export type BuildNote =
     | {

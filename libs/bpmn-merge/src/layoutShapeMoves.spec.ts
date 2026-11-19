@@ -146,7 +146,7 @@ describe("planShapeMoves", () => {
         expect(boundsIn(plan, "Task_Y")).toEqual(box(180, 110));
     });
 
-    it("carries a sub-process's contents, boundary events, label and inner flows with it", () => {
+    it("carries a sub-process's contents, boundary events, label and inner flows with it, naming the content it moved off a shape", () => {
         const sub = node("Sub_1", box(320, 60, 300, 180), { expanded: true });
         const inner = { subProcesses: ["Sub_1"] };
         const child = node("Task_In", box(350, 100), inner);
@@ -165,7 +165,7 @@ describe("planShapeMoves", () => {
 
         expect(plan.repairs).toEqual([
             { kind: "movedByBuild", shapes: ["Task_X", "Sub_1"], moved: "Sub_1" },
-            { kind: "movedByBuild", shapes: ["Task_X", "Task_In"], moved: "Sub_1" },
+            { kind: "movedByBuild", shapes: ["Task_X", "Task_In"], moved: "Task_In" },
         ]);
         const dx = boundsIn(plan, "Sub_1")!.x - sub.bounds.x;
         const dy = boundsIn(plan, "Sub_1")!.y - sub.bounds.y;
@@ -284,6 +284,73 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Task_Y")).toEqual(box(610, 90));
             expect(boundsIn(plan, "Data_1")).toEqual(box(760, 175, 130, 40));
             expect(boundsIn(plan, "Task_3")).toEqual(row[3]!.bounds);
+        });
+
+        it("moves the shape without shifting anything when what lies past it is far enough away", () => {
+            const [first, far] = [node("Task_0", box(100, 90)), node("Task_1", box(500, 90))];
+            const along = flow("Flow_0", "Task_0", "Task_1", [at(200, 130), at(500, 130)]);
+            const result = layoutOf([first, far, node("Task_Y", box(110, 90))], [along], frames);
+            const current = layoutOf([first, far], [along], frames);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(plan.repairs).toEqual([
+                { kind: "movedByBuild", shapes: ["Task_0", "Task_Y"], moved: "Task_Y" },
+            ]);
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(250, 90));
+            expect(plan.layout.shapes.get("Task_1")).toBe(far);
+            expect(plan.layout.shapes.get("Lane_1")).toBe(frames[1]);
+        });
+
+        it("names the shape a room shifted off another as the one the build moved", () => {
+            const tallPool = { ...POOL, bounds: box(0, 0, 1200, 400) };
+            const lowerLane: LaneShape = { ...lane(190, 200), id: "Lane_2" };
+            const inLowerLane = { lanes: ["Lane_2"] };
+            const shifted = node("Task_C", box(560, 250), inLowerLane);
+            const staying = node("Task_D", box(470, 260), inLowerLane);
+            const twoLanes = [tallPool, lane(70, 120), lowerLane];
+            const result = layoutOf(
+                [...row, node("Task_Y", box(470, 90)), shifted, staying],
+                rowFlows,
+                twoLanes,
+            );
+            const current = layoutOf(row, rowFlows, twoLanes);
+            const spots: LayoutSpot[] = [
+                { kind: "shapesOverlap", shapes: ["Task_3", "Task_Y"] },
+                { kind: "shapesOverlap", shapes: ["Task_C", "Task_D"] },
+            ];
+
+            const plan = planShapeMoves(result, spots, [current, current]);
+
+            expect(plan.repairs[0]).toMatchObject({ kind: "madeRoom", moved: "Task_Y" });
+            expect(plan.repairs[1]).toEqual({
+                kind: "movedByBuild",
+                shapes: ["Task_C", "Task_D"],
+                moved: "Task_C",
+            });
+        });
+
+        it("names a boundary event that moved with its host off another shape as the one moved", () => {
+            const host = node("Task_A", box(470, 90));
+            const timer = node("Timer_1", box(552, 152, 36, 36), {
+                host: "Task_A",
+                outline: "circle",
+            });
+            const result = layoutOf([...row, host, timer], rowFlows, frames);
+            const current = layoutOf(row, rowFlows, frames);
+            const spots: LayoutSpot[] = [
+                { kind: "shapesOverlap", shapes: ["Task_3", "Task_A"] },
+                { kind: "shapesOverlap", shapes: ["Task_4", "Timer_1"] },
+            ];
+
+            const plan = planShapeMoves(result, spots, [current, current]);
+
+            expect(plan.repairs[0]).toMatchObject({ moved: "Task_A" });
+            expect(plan.repairs[1]).toMatchObject({
+                kind: "movedByBuild",
+                shapes: ["Task_4", "Timer_1"],
+                moved: "Timer_1",
+            });
         });
 
         it("leaves the overlap when making room would move the shape out of its sub-process", () => {

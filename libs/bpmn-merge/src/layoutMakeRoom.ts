@@ -16,12 +16,15 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    drawnHostOf,
+    drawnPoolOf,
     framesAroundOf,
+    isFrame,
     translatedNode,
 } from "./layoutModel";
 import { type ShapeGroup, groupBoundsIn } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
-import { detectLayoutSpots } from "./layoutSpotDetection";
+import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot, shapesOverlap } from "./layoutSpots";
 
 /** How far right of the shape it lay on a moved shape lands, and how far what comes after it then keeps. */
@@ -29,7 +32,7 @@ const ROOM_GAP = 50;
 
 export interface RoomMade {
     readonly draft: DrawingDraft;
-    /** The outermost shapes that shifted to make room, in document order. */
+    /** The outermost shapes that shifted to make room, in document order; none when the gap past the other shape already held the group. */
     readonly shifted: readonly string[];
 }
 
@@ -57,14 +60,46 @@ export function makeRoom(
     const line = lineBefore(draft, region, target, other);
     if (line === undefined) return undefined;
 
-    const shifting = region.filter((shape) => shiftsPast(draft, shape, line));
-    const space = spaceFor(draft, node, target, shifting, line, dx);
+    const past = region.filter((shape) => shiftsPast(draft, shape, line));
+    const space = spaceFor(draft, node, target, past, line, dx);
+    const shifting = space > 0 ? past : [];
     const trial = draft.fork();
+    if (shifting.length > 0) {
+        shiftPast(draft, trial, { group, outside, shifting, line, space });
+    }
+    trial.translate(group, dx, 0);
+    if (
+        !breaksNothing(draft, trial) ||
+        shapesOverlap(trial.node(node.id)!, trial.node(other.id)!)
+    ) {
+        return undefined;
+    }
+    const shiftingIds = new Set(shifting.map(({ id }) => id));
+    const outermost = shifting.filter(
+        (shape) =>
+            !(shape.host !== undefined && shiftingIds.has(shape.host)) &&
+            !shape.subProcesses.some((id) => shiftingIds.has(id)),
+    );
+    return { draft: trial, shifted: outermost.map(({ id }) => id) };
+}
+
+interface Shift {
+    readonly group: ShapeGroup;
+    /** The nodes of the group's region outside it. */
+    readonly outside: readonly NodeShape[];
+    readonly shifting: readonly NodeShape[];
+    readonly line: number;
+    readonly space: number;
+}
+
+/** Shifts the shapes past the line, grows the frames across it and stretches the flows between both. */
+function shiftPast(draft: DrawingDraft, trial: DrawingDraft, shift: Shift): void {
+    const { group, outside, shifting, line, space } = shift;
+    const { node } = group;
     for (const shape of shifting) trial.replaceShape(translatedNode(shape, space, 0));
     for (const frame of [...outside, ...poolFramesOf(draft, node)]) {
         if (spans(frame, line)) trial.replaceShape(widened(frame, space));
     }
-    trial.translate(group, dx, 0);
     const regionIds = new Set(outside.map(({ id }) => id));
     const shiftingIds = new Set(shifting.map(({ id }) => id));
     const ownEdges = new Set([...group.innerEdges, ...group.attachedEdges]);
@@ -78,37 +113,19 @@ export function makeRoom(
         const stretched = stretchedPast(edge, line, space, endShifts);
         if (stretched !== edge) trial.replaceEdge(stretched);
     }
-    if (
-        !breaksNothing(draft, trial) ||
-        shapesOverlap(trial.node(node.id)!, trial.node(other.id)!)
-    ) {
-        return undefined;
-    }
-    const outermost = shifting.filter(
-        (shape) =>
-            !(shape.host !== undefined && shiftingIds.has(shape.host)) &&
-            !shape.subProcesses.some((id) => shiftingIds.has(id)),
-    );
-    return { draft: trial, shifted: outermost.map(({ id }) => id) };
 }
 
 /** The nodes of the node's pool, or of its plane outside a pool, in document order. */
 function regionOf(draft: DrawingDraft, node: NodeShape): NodeShape[] {
-    const pool = poolOf(draft, node);
+    const pool = drawnPoolOf(draft, node);
     return draft
         .nodesOn(node.plane)
         .filter((shape) => pool === undefined || shape.pool === pool.id);
 }
 
-function poolOf(draft: DrawingDraft, node: NodeShape): LayoutShape | undefined {
-    const pool =
-        node.pool === undefined || node.mayLieOutsidePool ? undefined : draft.shapes.get(node.pool);
-    return pool?.plane === node.plane ? pool : undefined;
-}
-
 /** The pool around the region and its lanes, or the lanes on a plane without a pool. */
 function poolFramesOf(draft: DrawingDraft, node: NodeShape): LayoutShape[] {
-    const pool = poolOf(draft, node);
+    const pool = drawnPoolOf(draft, node);
     return [...draft.shapes.values()].filter(
         (shape) =>
             shape.plane === node.plane &&
@@ -148,7 +165,7 @@ function lineBefore(
 
 /** Where a line must lie for the shape to shift: a boundary event goes with its host, a sub-process by its left side. */
 function shiftLineOf(draft: DrawingDraft, shape: NodeShape): number {
-    const host = hostOf(draft, shape);
+    const host = drawnHostOf(draft, shape);
     if (host !== undefined) return shiftLineOf(draft, host);
     return shape.expanded ? shape.bounds.x : centerOf(shape.bounds).x;
 }
@@ -159,7 +176,7 @@ function shiftLineOf(draft: DrawingDraft, shape: NodeShape): number {
  * event with its host, or by its center on a host that grows.
  */
 function shiftsPast(draft: DrawingDraft, shape: NodeShape, line: number): boolean {
-    const host = hostOf(draft, shape);
+    const host = drawnHostOf(draft, shape);
     if (host !== undefined) {
         return (
             shiftsPast(draft, host, line) || (spans(host, line) && centerOf(shape.bounds).x >= line)
@@ -168,15 +185,9 @@ function shiftsPast(draft: DrawingDraft, shape: NodeShape, line: number): boolea
     return shape.expanded ? shape.bounds.x >= line : centerOf(shape.bounds).x >= line;
 }
 
-function hostOf(draft: DrawingDraft, shape: NodeShape): NodeShape | undefined {
-    const host = shape.host === undefined ? undefined : draft.node(shape.host);
-    return host?.plane === shape.plane ? host : undefined;
-}
-
 /** Whether a frame, a pool, lane or sub-process drawn open, lies across the line and so grows. */
 function spans(shape: LayoutShape, line: number): boolean {
-    const frame = shape.kind !== "node" || shape.expanded;
-    return frame && shape.bounds.x < line && line < rightOf(shape.bounds);
+    return isFrame(shape) && shape.bounds.x < line && line < rightOf(shape.bounds);
 }
 
 /**
@@ -261,10 +272,5 @@ function verticalRunsOf(
 
 /** Whether the trial has no shape spot the draft lacks: no new overlap, shape outside its frame or event off its host. */
 function breaksNothing(draft: LayoutModel, trial: LayoutModel): boolean {
-    const shapeSpotsOf = (layout: LayoutModel) =>
-        detectLayoutSpots(layout)
-            .filter((spot) => !isFlowSpot(spot))
-            .map((spot) => JSON.stringify(spot));
-    const known = new Set(shapeSpotsOf(draft));
-    return shapeSpotsOf(trial).every((spot) => known.has(spot));
+    return introducedLayoutSpots(trial, [draft]).every(isFlowSpot);
 }
