@@ -9,10 +9,11 @@
  *
  * Runtime truth is the union of the harvests (`readHarvestedKeys` in
  * harvestedKeys.ts): every template the harvested pages asked to translate,
- * captured by the harvest drivers. Every one of those must resolve via the shared library
- * (exact or normalized) or via the overlay. When this fails, the named keys are
- * genuine gaps — cover them upstream in the shared library, or add them to the
- * overlay (src/languages/*).
+ * captured by the harvest drivers and, for the merge view, by
+ * apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts. Every one of those
+ * must resolve via the shared library (exact or normalized) or via the overlay.
+ * When this fails, the named keys are genuine gaps — cover them upstream in the
+ * shared library, or add them to the overlay (src/languages/*).
  *
  * Caveat: this is only as complete as the harvest snapshots. It cannot see a UI
  * string no harvest has exercised yet — refresh the harvest when the modeler

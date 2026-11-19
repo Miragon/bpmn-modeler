@@ -23,7 +23,9 @@
  *
  * Kept: keys with no shared twin that the harvest recorded (genuine gaps), plus
  * the SOURCE_ONLY allowlist in src/sourceOnlyKeys.ts — strings our own webview
- * passes to translate() that the harvest driver structurally can't reach.
+ * passes to translate() from a call site no harvest reaches. The merge view's
+ * keys come from tools/harvested-merge.json, which
+ * apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts writes.
  *
  * The key normalization lives in src/normalizeKey.ts and the harvest union in
  * src/harvestedKeys.ts, shared with the guard specs.

@@ -12,6 +12,7 @@ and prune the overlay against it.
 | `harvest-drain-dmn.js` | Browser driver for every dmn-js view: DRD, decision table, literal and boxed expressions. |
 | `harvest-drain-template-editor.js` | Browser driver for the element template editor page; its header lists the page states to run it on. |
 | `harvested.json`, `harvested-dmn.json`, `harvested-template-editor.json` | The recorded keys of each driver. |
+| `harvested-merge.json` | The keys of the merge view's texts, recorded by `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`, which asks each merge text once. No browser driver opens a merge pane. |
 | `build-overlay.mjs` | Prunes every registered overlay dictionary against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
 
 The builder and the guard specs share one copy of each rule in `src/`: the key normalization in
@@ -31,6 +32,13 @@ production builds leave it out.
    `await window.__harvestDrain()`, `__harvestDrainDmn()` or `__harvestDrainTemplateEditor()`.
 3. Copy `JSON.stringify([...window.__harvested].sort())` into the matching `harvested*.json`, under its
    `{ note, count, keys }` wrapper. For the template editor, merge the sets of every page state.
+   The merge view's record has no driver: rewrite `harvested-merge.json` after changing a merge text,
+   since CI fails until it is current.
+
+   ```bash
+   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts
+   ```
+
 4. Prune, first as a dry run:
 
    ```bash
