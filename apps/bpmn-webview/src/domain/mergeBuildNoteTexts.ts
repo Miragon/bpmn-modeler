@@ -28,6 +28,8 @@ const BUILD_NOTE_TEXTS: Record<
         "{element} is kept without the flows the other side removed with it: {connections}",
     defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+    flowNotDrawn:
+        "{element} is left out of the drawing: no diagram shows both {source} and {target}",
 };
 
 /** A broken flow's note, by whether the build re-routed it. */
@@ -48,6 +50,8 @@ const OVERLAP_NOTE_TEXTS: Record<OverlapNote["repair"], string> = {
     madeRoom: "The build moved {element} off {shapes} and made room by shifting {shifted}",
     notRepaired: "{first} and {second} lie on top of each other; the build could not repair it",
 };
+
+const FLOW_WITHOUT_END_TEXT = "{element} is left out of the drawing: it lacks a source or a target";
 
 const OTHER_DEFAULT_KEPT_TEXT =
     "{flow} is kept, but {element} keeps {keptDefault} as its default flow";
@@ -82,12 +86,17 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }
+    if (note.kind === "flowNotDrawn" && lacksAnEnd(note)) return FLOW_WITHOUT_END_TEXT;
     if (note.kind === "restoredWithoutRemovedWith" && note.boundaryEvents !== undefined) {
         return restoredWithoutElementsOf(note).length === 1
             ? RESTORED_WITHOUT_ELEMENTS_TEXTS.boundaryEvent
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
     }
     return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function lacksAnEnd({ source, target }: NoteOfKind<"flowNotDrawn">): boolean {
+    return source === undefined || target === undefined;
 }
 
 function restoredWithoutElementsOf(
@@ -157,5 +166,13 @@ function noteReplacements(
             return { elements: names(note.ids) };
         case "frameDiffers":
             return { attribute: note.attribute };
+        case "flowNotDrawn":
+            return lacksAnEnd(note)
+                ? { element: nameOf(note.id) }
+                : {
+                      element: nameOf(note.id),
+                      source: nameOf(note.source ?? ""),
+                      target: nameOf(note.target ?? ""),
+                  };
     }
 }

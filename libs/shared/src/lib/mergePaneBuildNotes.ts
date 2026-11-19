@@ -11,8 +11,9 @@ import type { MergeSide } from "@miragon/bpmn-modeler-types";
  * Or an element kept without the boundary events or flows removed with it, a
  * kept flow its source no longer names as its default (with the default it
  * keeps, if any), elements whose layout both sides changed differently with
- * the side the result keeps, or a part of the file's `definitions` that
- * differs between the sides, of which the result keeps current's.
+ * the side the result keeps, a part of the file's `definitions` that
+ * differs between the sides, of which the result keeps current's, or a flow
+ * left out of the drawing since no diagram draws both its ends.
  */
 export type MergePaneBuildNote =
     | {
@@ -60,4 +61,11 @@ export type MergePaneBuildNote =
           readonly ids: readonly string[];
           readonly keptSide: MergeSide;
       }
-    | { readonly kind: "frameDiffers"; readonly attribute: string };
+    | { readonly kind: "frameDiffers"; readonly attribute: string }
+    | {
+          /** A flow left out of the drawing, since no plane draws both its ends, with the ends it has. */
+          readonly kind: "flowNotDrawn";
+          readonly id: string;
+          readonly source?: string;
+          readonly target?: string;
+      };

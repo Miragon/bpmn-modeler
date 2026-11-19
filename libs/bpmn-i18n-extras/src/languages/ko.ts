@@ -372,6 +372,10 @@ const dictionary: Record<string, string> = {
         "{flow}은(는) 유지되지만 {element}의 기본 흐름은 {keptDefault}(으)로 유지됩니다",
     "The file's {attribute} differs between the sides; current's is kept":
         "파일의 {attribute}이(가) 양쪽에서 다릅니다. 현재의 값이 유지됩니다",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element}은(는) 그려지지 않습니다. {source}와(과) {target}을(를) 함께 표시하는 다이어그램이 없습니다",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element}은(는) 그려지지 않습니다. 소스 또는 대상이 없습니다",
     "1 conflict left": "남은 충돌 1개",
     "{count} conflicts left": "남은 충돌 {count}개",
     "Elements of this version the result keeps as they are here.":

@@ -7,6 +7,7 @@ import {
     checkMergedXml,
     requireDrawingsOnTheirContainersPlane,
     requireDrawingsReachableFromTheirRootPlane,
+    requireEdgesOnThePlaneOfTheirEnds,
     requireNoParserWarnings,
     requireOneDrawingPerDrawnElement,
     requireRebuiltDerivedReferences,
@@ -414,6 +415,110 @@ ${content}
 
         expect(() => requireDrawingsOnTheirContainersPlane(diagramIndexOf(definitions))).toThrow(
             `drawings lie on another plane than their sub-process implies${refused}`,
+        );
+    });
+});
+
+describe("requireEdgesOnThePlaneOfTheirEnds", () => {
+    const definitionsWith = (rootPlane: string, subProcessPlane: string) =>
+        `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:dataObject id="DataObject_1" />
+    <bpmn:dataObjectReference id="DataRef_1" dataObjectRef="DataObject_1" />
+    <bpmn:subProcess id="Sub_1">
+      <bpmn:dataInputAssociation id="DataInput_Sub">
+        <bpmn:sourceRef>DataRef_1</bpmn:sourceRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:task id="Task_In" />
+      <bpmn:sequenceFlow id="Flow_Out" sourceRef="Task_In" targetRef="Task_Out" />
+    </bpmn:subProcess>
+    <bpmn:task id="Task_Out" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+${rootPlane}
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Sub_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_Sub_1" bpmnElement="Sub_1">
+${subProcessPlane}
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
+`;
+    const shape = (id: string) =>
+        `      <bpmndi:BPMNShape id="${id}_di" bpmnElement="${id}">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>`;
+    const edge = (id: string) =>
+        `      <bpmndi:BPMNEdge id="${id}_di" bpmnElement="${id}">
+        <di:waypoint x="100" y="100" />
+        <di:waypoint x="200" y="100" />
+      </bpmndi:BPMNEdge>`;
+    const rootShapes = [shape("DataRef_1"), shape("Sub_1"), shape("Task_Out")];
+
+    const planeChecksOf = async (xml: string) => {
+        const diagramIndex = diagramIndexOf((await parse(xml)).rootElement);
+        return () => {
+            requireEdgesOnThePlaneOfTheirEnds(diagramIndex);
+            requireDrawingsOnTheirContainersPlane(diagramIndex);
+        };
+    };
+
+    it("accepts a data input of a collapsed sub-process on the plane of the sub-process's shape", async () => {
+        const xml = definitionsWith(
+            [...rootShapes, edge("DataInput_Sub")].join("\n"),
+            shape("Task_In"),
+        );
+
+        expect(await planeChecksOf(xml)).not.toThrow();
+    });
+
+    it.each([
+        {
+            edge: "a data input of a collapsed sub-process on the sub-process's own plane",
+            xml: definitionsWith(
+                rootShapes.join("\n"),
+                [shape("Task_In"), edge("DataInput_Sub")].join("\n"),
+            ),
+            refused: "DataInput_Sub",
+        },
+        {
+            edge: "a flow whose source lies on another plane",
+            xml: definitionsWith([...rootShapes, edge("Flow_Out")].join("\n"), shape("Task_In")),
+            refused: "Flow_Out",
+        },
+        {
+            edge: "a flow whose target lies on another plane",
+            xml: definitionsWith(
+                rootShapes.join("\n"),
+                [shape("Task_In"), edge("Flow_Out")].join("\n"),
+            ),
+            refused: "Flow_Out",
+        },
+    ])("refuses $edge", async ({ xml, refused }) => {
+        expect(await planeChecksOf(xml)).toThrow(
+            `edges lie on a plane that does not draw both of their ends: ${refused}`,
+        );
+    });
+
+    it("makes checkMergedXml refuse a flow drawn on a plane without its ends", async () => {
+        const offItsEnds = valid.replace(
+            /(<bpmndi:BPMNEdge id="Flow_Ship_1_di"[\s\S]*?<\/bpmndi:BPMNEdge>)([\s\S]*?<\/bpmndi:BPMNDiagram>)/,
+            `$2
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Sub_Ship">
+    <bpmndi:BPMNPlane id="BPMNPlane_Sub_Ship" bpmnElement="Sub_Ship">
+      $1
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>`,
+        );
+
+        expect(offItsEnds).toContain('<bpmndi:BPMNPlane id="BPMNPlane_Sub_Ship"');
+        await expect(
+            checkMergedXml(offItsEnds, await expectationsFor(valid), await moddleFor([valid])),
+        ).rejects.toThrow(
+            "edges lie on a plane that does not draw both of their ends: Flow_Ship_1",
         );
     });
 });

@@ -7,7 +7,13 @@ import {
     mergeResultWithoutBase,
     refersTo,
 } from "./__fixtures__/mergeResultBuilder";
-import { layoutChangedByBothNotes, restoredWithoutRemovedWithNotes } from "./buildNotes";
+import {
+    type BuildNote,
+    flowNotDrawnNotes,
+    layoutChangedByBothNotes,
+    restoredWithoutRemovedWithNotes,
+} from "./buildNotes";
+import type { ConnectionEnds } from "./connectionEnds";
 import type { MergeResolution } from "./mergeDecisions";
 import { MERGE_SIDES, type MergeResult, type MergeSide } from "./mergeResult";
 
@@ -405,5 +411,18 @@ describe("layoutChangedByBothNotes", () => {
             { kind: "layoutChangedByBoth", ids: ["Sub_1"], keptSide: "current" },
             { kind: "layoutChangedByBoth", ids: ["Task_In", "Task_Next"], keptSide: "incoming" },
         ]);
+    });
+});
+
+describe("flowNotDrawnNotes", () => {
+    it.each<[ConnectionEnds, BuildNote]>([
+        [
+            { source: "Task_A", target: "Task_B" },
+            { kind: "flowNotDrawn", id: "Flow_1", source: "Task_A", target: "Task_B" },
+        ],
+        [{ target: "Task_B" }, { kind: "flowNotDrawn", id: "Flow_1", target: "Task_B" }],
+        [{ source: "Task_A" }, { kind: "flowNotDrawn", id: "Flow_1", source: "Task_A" }],
+    ])("names an edge left out of the drawing with its ends %o by role", (ends, note) => {
+        expect(flowNotDrawnNotes([{ id: "Flow_1", ends }])).toStrictEqual([note]);
     });
 });

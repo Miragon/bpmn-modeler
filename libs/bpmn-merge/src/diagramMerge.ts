@@ -6,6 +6,12 @@ import {
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
 
+import {
+    type ConnectionEnds,
+    type UndrawnEdge,
+    connectionEndsOf,
+    edgePlaneOf,
+} from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
 import { type DiagramIndex, type Drawing, drawingKeyOf, planeOwnerOf } from "./diagramIndex";
 import type { MergeResolution } from "./mergeDecisions";
@@ -49,15 +55,18 @@ export function drawingSidesOf(
     return { sides, parts };
 }
 
-/** Elements and parts whose drawing side draws them with a shape or an edge, not only with a plane. */
+/** Elements and parts whose drawing side draws them with a shape or an edge, not only with a plane, less the flows left out. */
 export function drawnByShape(
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
     drawingSides: Readonly<Record<string, MergeSide>>,
+    undrawnEdges: readonly UndrawnEdge[],
 ): Set<string> {
+    const leftOut = new Set(undrawnEdges.map(({ id }) => id));
     return new Set(
         Object.entries(drawingSides)
             .filter(([id, side]) => (indexes[side].drawingsByElement.get(id)?.length ?? 0) > 0)
-            .map(([id]) => id),
+            .map(([id]) => id)
+            .filter((id) => !leftOut.has(id)),
     );
 }
 
@@ -111,10 +120,11 @@ interface KeptDiagram {
  * plane of a decided owner from that owner's layout side (the root slot
  * preferring a collaboration that holds a pool, under current's root diagram
  * id), and each element's or part's shapes and edges from its drawing side,
- * translated only by taking that side's DI. A drawing goes onto the plane its sub-process's DI
- * in the result implies (`contentsPlaneOf`). Drawings of no decided element
- * and no part stay current's. Incoming's DI keeps its ids unless the result
- * already uses one, and brings the label styles its drawings use.
+ * translated only by taking that side's DI. A shape goes onto the plane its sub-process's DI
+ * in the result implies (`contentsPlaneOf`), an edge onto the plane that draws both its ends
+ * (`edgePlaneOf`). Drawings of no decided element and no part stay current's. Incoming's DI
+ * keeps its ids unless the result already uses one, and brings the label styles its drawings
+ * use. Returns the edges no plane draws both ends of, which stay out of the drawing.
  */
 export function assembleDiagrams(
     definitions: ModdleElement,
@@ -122,7 +132,7 @@ export function assembleDiagrams(
     resolution: MergeResolution,
     { sides: drawingSides, parts }: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
-): void {
+): UndrawnEdge[] {
     const decidedIds = new Set(Object.keys(resolution.elements));
     const slots = new PlaneSlots(indexes);
     const kept = keptDiagramsOf(indexes, slots, drawingSides, decidedIds, resultUnits);
@@ -167,25 +177,43 @@ export function assembleDiagrams(
     };
 
     const membersBySlot = new Map<string, Map<ItemKey, ModdleElement>>();
-    const place = (drawing: Drawing, slot: string | undefined) => {
-        if (slot === undefined || !kept.has(slot)) return;
+    const addMember = (drawing: Drawing, slot: string) => {
         const members = membersBySlot.get(slot) ?? new Map<ItemKey, ModdleElement>();
         members.set(drawingKeyOf(drawing.element), drawing.element);
         membersBySlot.set(slot, members);
     };
+    const slotsOfDrawn = new Map<string, string>();
+    const edges: PendingEdge[] = [];
+    const place = (elementId: string, drawing: Drawing, slot: string | undefined) => {
+        const drawn = drawing.element.bpmnElement;
+        const ends = isModdleElement(drawn) ? connectionEndsOf(drawn) : undefined;
+        if (ends !== undefined) {
+            edges.push({ elementId, drawing, ends });
+        } else if (slot !== undefined && kept.has(slot)) {
+            slotsOfDrawn.set(elementId, slot);
+            addMember(drawing, slot);
+        }
+    };
     for (const [elementId, drawings] of indexes.current.drawingsByElement) {
         const side = drawingSides[elementId];
         if (side === undefined && !decidedIds.has(elementId) && !parts.has(elementId)) {
-            for (const drawing of drawings) place(drawing, slots.slotOf(drawing.planeOwner));
+            for (const drawing of drawings) {
+                place(elementId, drawing, slots.slotOf(drawing.planeOwner));
+            }
         } else if (side === "current") {
-            for (const drawing of drawings) place(drawing, slotOfElement(elementId, drawing));
+            for (const drawing of drawings) {
+                place(elementId, drawing, slotOfElement(elementId, drawing));
+            }
         }
     }
     for (const [elementId, drawings] of indexes.incoming.drawingsByElement) {
         if (drawingSides[elementId] === "incoming") {
-            for (const drawing of drawings) place(drawing, slotOfElement(elementId, drawing));
+            for (const drawing of drawings) {
+                place(elementId, drawing, slotOfElement(elementId, drawing));
+            }
         }
     }
+    const undrawnEdges = placeEdges(edges, slotsOfDrawn, addMember);
     const slotPlaneOrder = (side: MergeSide, slot: string) =>
         [...indexes[side].orderByPlaneOwner].flatMap(([planeOwner, order]) =>
             slots.slotOf(planeOwner) === slot ? order : [],
@@ -208,6 +236,42 @@ export function assembleDiagrams(
     }
     repointEdgeEnds(placed);
     giveIncomingDrawingsUnusedIds(definitions, indexes.incoming);
+    return undrawnEdges;
+}
+
+interface PendingEdge {
+    readonly elementId: string;
+    readonly drawing: Drawing;
+    readonly ends: ConnectionEnds;
+}
+
+/**
+ * Puts each edge on the slot that draws both its ends (`edgePlaneOf`), an end that is itself
+ * an edge once that edge has its slot; an edge no slot draws both ends of stays out.
+ */
+function placeEdges(
+    edges: readonly PendingEdge[],
+    slotsOfDrawn: Map<string, string>,
+    addMember: (drawing: Drawing, slot: string) => void,
+): UndrawnEdge[] {
+    const edgesById = new Map(edges.map((edge) => [edge.elementId, edge] as const));
+    const resolving = new Set<string>();
+    const slotOfEnd = (id: string): string | undefined => {
+        const edge = edgesById.get(id);
+        if (slotsOfDrawn.has(id) || edge === undefined || resolving.has(id)) {
+            return slotsOfDrawn.get(id);
+        }
+        resolving.add(id);
+        const slot = edgePlaneOf(edge.ends, slotOfEnd);
+        if (slot !== undefined) slotsOfDrawn.set(id, slot);
+        return slot;
+    };
+    return edges.flatMap(({ elementId, drawing, ends }): UndrawnEdge[] => {
+        const slot = slotOfEnd(elementId);
+        if (slot === undefined) return [{ id: elementId, ends }];
+        addMember(drawing, slot);
+        return [];
+    });
 }
 
 /**

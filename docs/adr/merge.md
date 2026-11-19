@@ -181,11 +181,6 @@ parser and asserts that the module still loads.
   another plane (a collapsed sub-process), and a flow follows its ends when one of them had
   to.
 
-  to. Containers settle first: an element follows its host, parent,
-  pool or lane when that side moved the container, or when its own side draws it on
-  another plane (a collapsed sub-process), and a flow follows its ends when one of them had
-  to.
-
 ### Versions merged by hand
 
 A picked element that base, current and incoming hold as one type, with texts that all
@@ -258,9 +253,17 @@ each of those.
   `bpmn:Definitions` (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
 - *Diagrams by what they draw.* One root diagram for the collaboration and the processes
   its participants name, a collaboration's only while the result keeps one of its pools,
-  and one per collapsed sub-process. Drawings take their layout side's DI unchanged, but for
-  the shapes the build moves and the flows it re-routes ([merge layout](merge-layout.md)), and go on the plane their sub-process implies as bpmn-js reads it (its own plane when it has one
-  and its shape is not expanded); the build and the check share that one rule.
+  and one per collapsed sub-process. Drawings take their layout side's DI unchanged, but
+  for the shapes the build moves and the flows it re-routes ([merge
+  layout](merge-layout.md)). A shape goes on the plane its sub-process implies as bpmn-js
+  reads it (its own plane when it has one and its shape is not expanded); an edge goes on
+  the plane that draws both its ends, as bpmn-js joins them (a data association to the
+  activity holding it), so a data input of a collapsed sub-process lies beside the
+  sub-process's shape, not inside it. An edge whose ends no plane draws together (one side
+  moved a task into a sub-process the other collapsed) is left out of the drawing with a
+  note rather than written where bpmn-js cannot draw it; its element stays in the model,
+  where the modeler cannot show it, so the user removes or reconnects it in the XML. The
+  build and the check share both rules.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
   from, and is not drawn when neither draws it or the chosen version does not hold it.
@@ -272,8 +275,8 @@ each of those.
   shortened to the boundary events still attached, since bpmn-js never writes it. Stale
   ones parse without a warning, so nothing else would notice.
 - *Refused, not repaired.* Before it returns, a fresh parse of the result must give no
-  warning, every drawn element and part exactly one shape or edge on the plane its
-  container implies, every drawing on a root plane must be reachable from the plane's owner
+  warning, every drawn element and part exactly one shape or edge, each shape on the plane
+  its container implies and each edge on the plane of both its ends, every drawing on a root plane must be reachable from the plane's owner
   as bpmn-js walks it, the derived references must list the rebuilt ids, each as often, and
   every element's compared text, parent and lanes must equal its source side's (its
   hand-merged text where it has one), which catches dropped attributes and namespace swaps.
@@ -281,8 +284,9 @@ each of those.
 - *Notes for the reviewer:* each broken spot of the drawing, an element kept against a
   removal whose boundary events or flows removed with it stay out
   (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
-  source's default, elements the base and both sides draw differently, and every frame
-  difference the result does not carry.
+  source's default, elements the base and both sides draw differently, every frame
+  difference the result does not carry, and each flow left out of the drawing
+  (`flowNotDrawn`).
 - *The drawing's broken spots are found, noted and partly repaired by geometry.* Which spots
   count, which shapes the build moves and which flows it re-routes, and the layout notes are in
   [merge layout](merge-layout.md).
