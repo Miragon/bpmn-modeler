@@ -120,6 +120,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
             kind: "lane",
             id: "Lane_1",
             plane: PLANE,
+            planeKind: "root",
             outline: "rectangle",
             parent: "Process_1",
             bounds: { x: 30, y: 0, width: 870, height: 200 },

@@ -1,10 +1,17 @@
 import { type DiagramBounds, sameBounds } from "./layoutGeometry";
-import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import {
+    type LayoutModel,
+    type LayoutShape,
+    type NodeShape,
+    onOnePlaneAcrossLayouts,
+} from "./layoutModel";
 
 /** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
 export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
     const drawn = drawingOfSameSize(layout, node);
-    return drawn?.kind === "node" && drawn.plane === node.plane ? drawn.bounds : undefined;
+    return drawn?.kind === "node" && onOnePlaneAcrossLayouts(drawn, node)
+        ? drawn.bounds
+        : undefined;
 }
 
 /** Whether the layout draws the node's element just where the node lies. */

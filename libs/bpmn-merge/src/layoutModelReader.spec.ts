@@ -26,7 +26,11 @@ describe("layoutModelOf", () => {
             },
             plane: "Process_1",
         },
-        { label: "the plane a collapsed sub-process lies on", edit: collapseShipping, plane: "Collaboration_1" },
+        {
+            label: "the plane a collapsed sub-process lies on",
+            edit: collapseShipping,
+            plane: "Collaboration_1",
+        },
     ])("reads $label as a root plane", async ({ edit, plane }) => {
         const layout = await layoutOf(edit);
 

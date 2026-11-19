@@ -95,17 +95,19 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   which leaves a task the build placed in another lane or outside its sub-process; moving a shape
   both sides draw where it lies, which crams a whole lane's members into the band one side drew.
   Cost: such a shape stays outside, noted, where the lanes' side still draws its lane apart
-  from where both sides draw the shape; a side drawing on another root
-  plane id (one side has a collaboration, the other not) counts as drawing elsewhere, so its
-  shapes still move (#2589); growth shifts only right; each growth finds the spots of the whole
-  drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a
+  from where both sides draw the shape; growth shifts only right; each growth finds the spots
+  of the whole drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a
   result with no shape outside its container byte-equal to the build without this step, and
   checks that the step changes only what a note names, with what goes with it.
 - *The build moves the shape it placed off a shape from the other side, and makes room only as a
   last resort.* For each overlap the detector names as introduced, it moves a shape that not
   both sides draw where the result does (one side moved it, or only one side has it), so one
   side's own drawing may move off the other side's shape; never a boundary event, which goes
-  with its host. It carries the shape's label, boundary events and, drawn open, its contents.
+  with its host. Two root planes count as one place, a collaboration's and a process's, as one
+  side may wrap the process in a pool and the other not, while a collapsed sub-process's plane
+  counts as elsewhere (#2589); the container step's test follows. Rejected: comparing plane
+  ids, which moved a whole lane's members both sides draw at one place under two root plane
+  ids. It carries the shape's label, boundary events and, drawn open, its contents.
   The shape goes first to where the other side draws it, else to the nearest place within 250 px
   that keeps every moved shape in the pool, lanes and sub-processes it lies in, 15 px clear of
   other shapes and off every flow that is not its own. Only when neither exists does it make
