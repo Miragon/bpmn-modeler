@@ -18,7 +18,7 @@ portless, including its scheme, rather than Vite's internal localhost port.
 
 | Target | Command | What it exercises |
 |---|---|---|
-| BPMN webview preview | `corepack yarn dev:bpmn-webview` | Webview bootstrap, mode strip, panel chrome, and protocol adapters against `MockHost` |
+| BPMN webview preview | `corepack yarn dev:bpmn-webview` | Webview bootstrap, mode strip, panel chrome, and protocol adapters against `PreviewHost` |
 | DMN webview preview | `corepack yarn dev:dmn-webview` | DMN bootstrap and dmn-js views against a sample decision |
 | Form / deployment previews | `corepack yarn dev:form-webview`, `corepack yarn dev:deployment-webview` | Form editor/preview and the deployment sidebar against their mock hosts |
 | Add-ons view preview | `corepack yarn dev:add-ons-webview` | The add-ons list and detail, tabs, search and filter chips, the drill-down, reveal and results against a catalog with a row in every state |
@@ -26,7 +26,8 @@ portless, including its scheme, rather than Vite's internal localhost port.
 
 Each `dev` script runs Vite with live updates through the workspace's own
 `portless.json`. Every preview runs a development build whose `getHostApi()`
-returns a `MockHost`; production bundles never contain it.
+returns a mock host (`PreviewHost` in the BPMN webview); production bundles
+never contain it.
 
 For parallel sessions, check
 `corepack yarn workspace @miragon/bpmn-modeler-webview exec portless list` and
@@ -38,11 +39,15 @@ which takes over another process's route. If portless needs setup, inspect
 missing prerequisite.
 
 The BPMN preview opens at `/`. Its development host in
-`apps/bpmn-webview/src/adapter/out/host.ts` serves a C7 fixture with the C7 and C8 sample
-element templates. `?mode=neutral` opens an untagged model in Design with
-Implement greyed out; `?mode=diff-before` and `?mode=diff-after` each show one
-read-only diff pane with real `bpmn-js-differ` highlights. These panes have no
-partner for synchronized navigation. Workspace definition search answers from
+`apps/bpmn-webview/src/adapter/out/browserPreview/`, one module per feature's
+answers, serves a C7 fixture with the C7 and C8 sample element templates.
+`?mode=` picks another document or one pane of a diff or merge view;
+`PREVIEW_MODES` in `browserPreview/previewMode.ts` lists the modes and what
+each serves (an untagged model in Design, diff panes with real
+`bpmn-js-differ` highlights, merge panes with recorded merge states). A pane
+has no partner for synchronized navigation. `?plugins` loads the sample
+plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
+starts a merge pane with Merge XML offered. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
 decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
 preview serves `apps/add-ons-webview/src/adapter/out/mockCatalog.ts`;
@@ -58,9 +63,9 @@ exactly one `role=status` node.
 
 ### Not available in a browser preview
 
-- A C8 model: MockHost serves only the C7 and untagged fixtures, so C8
+- A C8 model: PreviewHost serves only the C7 and untagged fixtures, so C8
   Implement properties need a host or a browser spec.
-- Lint findings: MockHost answers the lint-config request with no config, so no
+- Lint findings: PreviewHost answers the lint-config request with no config, so no
   bpmnlint overlays or results appear.
 - Two-pane diff, synchronized diff navigation, and several modelers on one page:
   each preview hosts a single instance.
@@ -145,7 +150,7 @@ definition / Job type** fields exist in the default C7 preview.
   each meaningful action. For property edits, verify the displayed value and any
   affected label; wait for debounced updates before inspecting outbound sync.
 - Check `data-bpmn-theme` on the actual canvas/panel. The BPMN shell's
-  `?theme=dark` adds a body class, but MockHost sends `colorTheme: "light"`,
+  `?theme=dark` adds a body class, but PreviewHost sends `colorTheme: "light"`,
   which overrides it. To test dark mode, post a settings message after load and
   verify the effective theme:
   `window.postMessage({ type: "BpmnModelerSettingQuery", setting: { alignToOrigin: false, showTransactionBoundaries: true, colorTheme: "dark" } }, "*")`.
@@ -157,7 +162,7 @@ definition / Job type** fields exist in the default C7 preview.
   `resolve` without spreading `modelerBundlePreset.resolve`.
   Missing theme-link errors are not an expected baseline for current theming.
   Rejected-template warnings for the C8 samples on the C7 fixture are expected.
-- Browser previews use native clipboard behavior. MockHost logs document sync
+- Browser previews use native clipboard behavior. PreviewHost logs document sync
   and several capability commands; it does not save files or perform IDE
   navigation. It throws `Unknown message type` for any command without a case, so
   a new webview command needs a log-only case there. Save flushing, external
@@ -176,6 +181,6 @@ translation harvesting, follow [i18n](../i18n-translate/SKILL.md).
 Report the preview URL, fixture/engine, mode, actions, observed results, and any
 unverified host behavior. Keep screenshots in the ignored `.context/` directory
 when available. For deeper debugging, start at `apps/bpmn-webview/src/main.ts`,
-`src/composition/bootstrap.ts`, and `src/adapter/out/host.ts` within that
+`src/composition/bootstrap.ts`, and `src/adapter/out/browserPreview/previewHost.ts` within that
 app, or `packages/bpmn-modeler/src/index.ts` for package composition; consult
 [bpmn-js](../bpmn-js/SKILL.md) for interaction internals.
