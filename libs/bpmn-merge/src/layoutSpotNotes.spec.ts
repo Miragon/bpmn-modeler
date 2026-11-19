@@ -408,6 +408,40 @@ describe("layoutSpotNotes", () => {
         ]);
     });
 
+    it("drops an overlap that is gone after the moves when no step mended it", () => {
+        const overlap = overlapOf("Task_A", "Task_B");
+
+        const notes = layoutSpotNotes({
+            ...NO_LANES_STACKED,
+            spots: [overlap],
+            spotsAfterMoves: [],
+            repairs: [{ spot: overlap, repair: { kind: "notRepaired" } }],
+        });
+
+        expect(notes).toEqual([]);
+    });
+
+    it("names an overlap a move made as not repaired, though a container repair moved one of its shapes before", () => {
+        const notes = layoutSpotNotes({
+            ...NO_LANES_STACKED,
+            spots: [outsideOf("Task_B", "Sub_1")],
+            spotsAfterMoves: [overlapOf("Task_A", "Task_B")],
+            repairs: [
+                { spot: outsideOf("Task_B", "Sub_1"), repair: { kind: "movedIntoContainer" } },
+            ],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_B",
+                shapes: ["Sub_1"],
+                repair: "movedIntoContainer",
+            },
+            { kind: "shapesOverlap", ids: ["Task_A", "Task_B"], repair: "notRepaired" },
+        ]);
+    });
+
     it("names a shape a move carried out of its lane, as its host went into its own", () => {
         const notes = layoutSpotNotes({
             ...NO_LANES_STACKED,
