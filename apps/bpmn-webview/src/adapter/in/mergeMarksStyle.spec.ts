@@ -62,6 +62,18 @@ describe("mergeMarks.css", () => {
         );
     });
 
+    it("sets a badge merged by hand apart by a pen and a word, in both themes, not by colour alone", () => {
+        expect(declarationsFor(".merge-pick-badge__pen", false)).toMatch(/stroke:\s*currentColor/);
+        expect(declarationsFor(".merge-pick-badge__by-hand", false)).toMatch(
+            /font-style:\s*italic/,
+        );
+        for (const dark of [false, true]) {
+            expect(declarationsFor(".merge-pick-badge--by-hand", dark)).toMatch(
+                /border-style:\s*dashed/,
+            );
+        }
+    });
+
     it("keeps the hatch behind the label with a halo of its ground, in both themes", () => {
         const label = ".djs-shape.merge-taken-from-other-side .djs-visual text";
         const ground = declarationsFor(".merge-hatch__ground", false).match(/fill:\s*(#\w+)/)?.[1];

@@ -203,6 +203,8 @@ export type MergePaneOutcome =
           readonly dropped: readonly string[];
           /** Decided before, open again after it. */
           readonly reopened: readonly string[];
+          /** A merge by hand's count of the finishes in a row, as on a refused one. */
+          readonly finish?: number;
       }
     | {
           readonly applied: false;
@@ -215,6 +217,8 @@ export type MergePaneOutcome =
           readonly handMergeRefusal?: MergePaneHandMergeRefusal;
           /** Set when the user closed the element's merge editor without saving: nothing changed. */
           readonly discarded?: true;
+          /** A merge by hand's count of the finishes in a row: a finish that repeats the last one word for word differs from it here. */
+          readonly finish?: number;
       };
 
 /** The flows and boundary events the other side removed with an element the user kept, offered on the pane of the kept side. */
@@ -476,6 +480,7 @@ export const MERGE_PAD_ENTRIES = [
     "keepInside",
     "leaveOut",
     "keepRemovedWith",
+    "mergeXml",
     "undo",
 ] as const;
 

@@ -221,3 +221,44 @@ body.vscode-high-contrast .merge-outcome-card {
 .djs-overlays.merge-blocker > .djs-overlay-merge-conflict-badge {
     display: none;
 }
+
+/* ─── Merging an element's XML by hand ─────────────────────────────────── */
+
+/* A merge closed without a save, or a question: neither taken nor refused. */
+.merge-outcome-card--notice {
+    border-left: 3px solid #335de5;
+}
+
+.merge-outcome-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.merge-outcome-card__choice {
+    padding: 4px 9px;
+    font: inherit;
+    color: #335de5;
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid #335de5;
+    border-radius: 6px;
+}
+
+.merge-outcome-card__choice:hover {
+    background: #eef1fd;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card--notice {
+    border-left-color: #6b8aff;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card__choice {
+    color: #9cb1ff;
+    border-color: #6b8aff;
+}
+
+[data-bpmn-theme="dark"] .merge-outcome-card__choice:hover {
+    background: #26304d;
+}

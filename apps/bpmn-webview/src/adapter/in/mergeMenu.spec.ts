@@ -106,6 +106,7 @@ describe("MergeMenu", () => {
         opener = document.createElement("button");
         outside = document.createElement("button");
         actions = {
+            onChoose: vi.fn(),
             onStepList: vi.fn(),
             onShowAll: vi.fn(),
             onShapeless: vi.fn(),

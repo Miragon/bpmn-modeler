@@ -498,6 +498,83 @@ const dictionary: Record<string, string> = {
         "Обе стороны изменили расположение элементов {elements}; сохраняется расположение стороны «Текущее»",
     "Both sides changed the layout of {elements}; incoming's is kept":
         "Обе стороны изменили расположение элементов {elements}; сохраняется расположение стороны «Входящее»",
+    "by hand": "вручную",
+    "Edit again": "Изменить снова",
+    "Keep my XML": "Оставить мой XML",
+    "Keep the XML merged before": "Оставить ранее объединённый XML",
+    "Merge XML": "Объединить XML",
+    "Merge both sides' changes to its XML by hand in a merge editor":
+        "Объединить вручную изменения обеих сторон в его XML в редакторе слияния",
+    "Edit merged XML": "Изменить объединённый XML",
+    "Change the XML you merged by hand": "Изменить XML, объединённый вручную",
+    "Keep current's version": "Оставить версию «Текущее»",
+    "Keep incoming's version": "Оставить версию «Входящее»",
+    "Drop it and pick": "Отбросить и выбрать",
+    "Drop it and leave out": "Отбросить и исключить",
+    "Drop it and undo": "Отбросить и отменить",
+    "Kept from current and merged by hand, your pick":
+        "Оставлено со стороны «Текущее» и объединено вручную, ваш выбор",
+    "Kept from incoming and merged by hand, your pick":
+        "Оставлено со стороны «Входящее» и объединено вручную, ваш выбор",
+    "Kept from current with everything inside and merged by hand, your pick":
+        "Оставлено со стороны «Текущее» со всем содержимым и объединено вручную, ваш выбор",
+    "Kept from incoming with everything inside and merged by hand, your pick":
+        "Оставлено со стороны «Входящее» со всем содержимым и объединено вручную, ваш выбор",
+    "Kept from current with what was removed with it and merged by hand, your pick":
+        "Оставлено со стороны «Текущее» вместе с тем, что удалено с ним, и объединено вручную, ваш выбор",
+    "Kept from incoming with what was removed with it and merged by hand, your pick":
+        "Оставлено со стороны «Входящее» вместе с тем, что удалено с ним, и объединено вручную, ваш выбор",
+    "Merged by hand: {element}": "Объединено вручную: {element}",
+    "Closed without saving: {element} is unchanged": "Закрыто без сохранения: {element} не изменён",
+    "This drops the XML you merged by hand for {elements}":
+        "Это отбросит XML, объединённый вручную, для {elements}",
+    "The XML of {element} still holds conflict markers":
+        "XML элемента {element} всё ещё содержит маркеры конфликта",
+    "The XML of {element} doesn't parse": "XML элемента {element} не удаётся разобрать",
+    "The XML of {element} must hold one element":
+        "XML элемента {element} должен содержать один элемент",
+    "The XML of {element} changes its type": "XML элемента {element} меняет его тип",
+    "The XML of {element} changes its ID": "XML элемента {element} меняет его ID",
+    "The XML of {element} holds elements of their own":
+        "XML элемента {element} содержит самостоятельные элементы",
+    "The XML of {element} goes beyond its own content":
+        "XML элемента {element} выходит за пределы его собственного содержимого",
+    "The XML of {element} names an element of the wrong type":
+        "XML элемента {element} называет элемент неверного типа",
+    "The XML of {element} uses an unknown namespace":
+        "XML элемента {element} использует неизвестное пространство имён",
+    "The engine doesn't take the XML of {element}": "Движок не принимает XML элемента {element}",
+    "The XML of {element} changes what follows the pick":
+        "XML элемента {element} меняет то, что следует за выбором",
+    "The XML of {element} names an element no version has":
+        "XML элемента {element} называет элемент, которого нет ни в одной версии",
+    "The XML of {element} names an element the result leaves out":
+        "XML элемента {element} называет элемент, который результат исключает",
+    "The XML of {element} would change other decisions":
+        "XML элемента {element} изменил бы другие решения",
+    "The pick of {element} changed while you merged it":
+        "Выбор для {element} изменился, пока вы его объединяли",
+    "Resolve each conflict and remove its markers, then save.":
+        "Разрешите каждый конфликт, удалите его маркеры, затем сохраните.",
+    "The parser says: {detail}": "Сообщение парсера: {detail}",
+    "It holds {count} elements at its top level.": "На верхнем уровне в нём {count} элементов.",
+    "It is a {found} now; keep it a {expected}.": "Теперь это {found}; оставьте {expected}.",
+    "Its ID is {found} now; keep {expected}.": "Его ID теперь {found}; оставьте {expected}.",
+    "It has no ID now; keep {expected}.": "Теперь у него нет ID; оставьте {expected}.",
+    "Merge these on their own, with a pick: {elements}":
+        "Объедините их отдельно, выбором: {elements}",
+    "Only its attributes, documentation and extension elements merge here, not {properties}.":
+        "Здесь объединяются только его атрибуты, документация и элементы расширения, но не {properties}.",
+    "{target} as {property}, which takes a {expected}":
+        "{target} как {property}, где ожидается {expected}",
+    "No version declares {namespaces}.": "Ни одна версия не объявляет {namespaces}.",
+    "The engine says: {detail}": "Сообщение движка: {detail}",
+    "{properties} follow the side you picked.": "{properties} следуют выбранной стороне.",
+    "No version has {elements}.": "Ни в одной версии нет {elements}.",
+    "The result leaves out {elements}.": "Результат исключает {elements}.",
+    "It would change the decisions on {elements}.": "Это изменило бы решения по {elements}.",
+    "It is no longer picked on the side you merged it for.":
+        "Он больше не выбран на стороне, для которой вы его объединяли.",
 };
 
 export default dictionary;

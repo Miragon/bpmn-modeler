@@ -12,7 +12,8 @@
         "linked-form-preview": { "seconds": 32 },
         "add-ons": { "seconds": 22 },
         "allowance-playground": { "seconds": 150 },
-        "merge-view": { "seconds": 70 }
+        "merge-view": { "seconds": 70 },
+        "merge-xml": { "seconds": 60 }
     },
     "baseline": ["bpmn-editor"],
     "ignore": ["**/*.md", "**/*.spec.ts", "**/*.spec.tsx", "**/__fixtures__/**"],
@@ -35,7 +36,7 @@
                 "apps/bpmn-webview/src/adapter/in/merge*",
                 "apps/bpmn-webview/src/domain/merge*"
             ],
-            "suites": ["merge-view"]
+            "suites": ["merge-view", "merge-xml"]
         },
         {
             "paths": [
@@ -46,7 +47,7 @@
                 "packages/bpmn-modeler/src/viewer/diff/**",
                 "apps/bpmn-webview/src/adapter/in/diff*"
             ],
-            "suites": ["bpmn-diff", "dmn", "merge-view"]
+            "suites": ["bpmn-diff", "dmn", "merge-view", "merge-xml"]
         },
         {
             "paths": [
@@ -123,7 +124,8 @@
                 "element-templates",
                 "linked-form-preview",
                 "add-ons",
-                "merge-view"
+                "merge-view",
+                "merge-xml"
             ]
         }
     ]

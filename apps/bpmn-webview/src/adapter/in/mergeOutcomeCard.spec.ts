@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MergeOutcomeCardContent } from "../../domain/mergeOutcomeCard";
+import type { MergeOutcomeCardContent } from "../../domain/mergeCardContent";
 import {
     createMergeOutcomeCardModule,
     MERGE_BLOCKER_MARKER,
@@ -116,6 +116,7 @@ function build({
     const actions: MergeOutcomeCardActions = {
         onSelect: vi.fn(),
         onKeepRemovedWith: vi.fn(),
+        onChoose: vi.fn(),
         closeLabel: "Close",
     };
     const fire = (event: string) => {
@@ -165,6 +166,58 @@ describe("MergeOutcomeCard", () => {
         expect(actions.onSelect).toHaveBeenCalledWith("Flow_1");
         expect(actions.onKeepRemovedWith).toHaveBeenCalledWith("Task_Remind");
         expect(card.shownAt).toBe("Task_Remind");
+    });
+
+    it("offers a refused merge by hand's choices as buttons, the first one primary", () => {
+        const { card, overlays, actions } = build();
+
+        card.show(
+            {
+                ...REFUSED,
+                headline: "The XML of Send invoice still holds conflict markers",
+                reasons: ["Resolve each conflict and remove its markers, then save."],
+                blockers: [],
+                choices: [
+                    { action: "editAgain", text: "Edit again", primary: true },
+                    { action: "dismiss", text: "Keep incoming's version" },
+                ],
+            },
+            actions,
+            { announce: true },
+        );
+        const html = shownCard(overlays);
+        buttonNamed(html, "Edit again").click();
+        buttonNamed(html, "Keep incoming's version").click();
+
+        expect(buttonNamed(html, "Edit again").className).toBe("merge-outcome-card__offer");
+        expect(buttonNamed(html, "Keep incoming's version").className).toBe(
+            "merge-outcome-card__choice",
+        );
+        expect(actions.onChoose).toHaveBeenNthCalledWith(1, "editAgain");
+        expect(actions.onChoose).toHaveBeenNthCalledWith(2, "dismiss");
+    });
+
+    it("announces a notice as a status, neither taken nor refused", () => {
+        const { card, overlays, actions, container } = build();
+
+        card.show(
+            {
+                ...REFUSED,
+                notice: true,
+                headline: "Closed without saving: Send invoice is unchanged",
+                reasons: [],
+                blockers: [],
+                announcement: ["Closed without saving: Send invoice is unchanged"],
+            },
+            actions,
+            { announce: true },
+        );
+
+        expect(shownCard(overlays).className).toContain("merge-outcome-card--notice");
+        expect(container.querySelector('[role="status"]')?.textContent).toContain(
+            "Closed without saving",
+        );
+        expect(container.querySelector('[role="alert"]')?.textContent).toBe("");
     });
 
     it("announces an applied outcome as a status in a region that was there before", () => {

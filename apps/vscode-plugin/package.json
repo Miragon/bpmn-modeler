@@ -347,6 +347,11 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.mergeXml",
+                "title": "Merge View: Merge XML",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.mergeUndoPick",
                 "title": "Merge View: Undo Pick",
                 "category": "Miragon BPMN Modeler"
@@ -631,6 +636,12 @@
                 "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canKeepRemovedFlows"
             },
             {
+                "command": "bpmn-modeler.mergeXml",
+                "key": "ctrl+k x",
+                "mac": "cmd+k x",
+                "when": "bpmn-modeler.mergePaneFocused && bpmn-modeler.mergePane.canMergeXml"
+            },
+            {
                 "command": "bpmn-modeler.mergeUndoPick",
                 "key": "ctrl+k backspace",
                 "mac": "cmd+k backspace",
@@ -678,6 +689,10 @@
                 {
                     "command": "bpmn-modeler.mergeKeepRemovedFlows",
                     "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canKeepRemovedFlows"
+                },
+                {
+                    "command": "bpmn-modeler.mergeXml",
+                    "when": "bpmn-modeler.mergePaneTargeted && bpmn-modeler.mergePane.canMergeXml"
                 },
                 {
                     "command": "bpmn-modeler.mergeUndoPick",

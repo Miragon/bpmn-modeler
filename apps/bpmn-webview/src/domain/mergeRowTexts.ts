@@ -1,14 +1,10 @@
 import type { MergePaneOtherSideLack, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 import { elementTypeName, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
+import { mergeXmlDecisionText } from "./mergeHandMergeTexts";
 import type { MergeKeepInside, MergePadDecision } from "./mergePadDecisions";
-import {
-    keepSideText,
-    MERGE_PAD_TEXTS,
-    MERGE_PICK_TEXTS,
-    mergeSideText,
-    type MergeTranslate,
-} from "./mergeTexts";
+import { keepSideText, MERGE_PAD_TEXTS, MERGE_PICK_TEXTS, mergeSideText } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 // The words of the "…" menu's rows of shape-less elements; each is a translation key.
 
@@ -43,6 +39,8 @@ export function decisionButtonText(
             return translate(MERGE_PAD_TEXTS.keepRemovedWith);
         case "undo":
             return translate(MERGE_PICK_TEXTS.undo);
+        case "mergeXml":
+            return mergeXmlDecisionText(decision, translate).label;
     }
 }
 

@@ -26,9 +26,10 @@ const KEEP_REMOVED_WITH: MergePadDecision = {
     side: "incoming",
     offer: { elementId: "Task_A", connections: ["Flow_1"], removedBy: "current" },
 };
+const MERGE_XML: MergePadDecision = { kind: "mergeXml", mode: "open" };
 const UNDO: MergePadDecision = { kind: "undo", scope: "element" };
 
-const ALL = [KEEP, KEEP_INSIDE, LEAVE_OUT, KEEP_REMOVED_WITH, UNDO];
+const ALL = [KEEP, KEEP_INSIDE, LEAVE_OUT, KEEP_REMOVED_WITH, MERGE_XML, UNDO];
 
 describe("padEntryOf", () => {
     it.each<[MergePadDecision, MergePadEntry]>([
@@ -36,6 +37,8 @@ describe("padEntryOf", () => {
         [KEEP_INSIDE, "keepInside"],
         [LEAVE_OUT, "leaveOut"],
         [KEEP_REMOVED_WITH, "keepRemovedWith"],
+        [MERGE_XML, "mergeXml"],
+        [{ kind: "mergeXml", mode: "edit" }, "mergeXml"],
         [UNDO, "undo"],
     ])("names the pad entry of %o", (decision, entry) => {
         expect(padEntryOf(decision)).toBe(entry);
@@ -48,6 +51,7 @@ describe("padDecisionFor", () => {
         ["keepInside", KEEP_INSIDE],
         ["leaveOut", LEAVE_OUT],
         ["keepRemovedWith", KEEP_REMOVED_WITH],
+        ["mergeXml", MERGE_XML],
         ["undo", UNDO],
     ])("runs %s as the pad's entry for it, side and reach included", (entry, decision) => {
         expect(padDecisionFor(ALL, entry)).toBe(decision);
@@ -60,6 +64,7 @@ describe("padDecisionFor", () => {
         ["a leave-out where the other side holds it", [KEEP], "leaveOut"],
         ["what was removed with it without an offer", [KEEP, UNDO], "keepRemovedWith"],
         ["an undo without a pick", [KEEP], "undo"],
+        ["a merge by hand the host or the pick does not allow", [KEEP, UNDO], "mergeXml"],
     ])("decides nothing where the pad does not offer it: %s", (_case, decisions, entry) => {
         expect(padDecisionFor(decisions, entry)).toBeUndefined();
     });

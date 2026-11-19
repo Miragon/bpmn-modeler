@@ -2,7 +2,8 @@ import type { MergePaneBuild } from "@miragon/bpmn-modeler-shared";
 import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
 import { buildBlockedText } from "../../domain/mergeBarTexts";
-import { MERGE_BUILD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
+import { MERGE_BUILD_TEXTS } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 /**

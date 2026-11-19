@@ -1,10 +1,16 @@
-import type { MergePaneShapelessRow, MergePaneStates } from "@miragon/bpmn-modeler-shared";
+import type {
+    MergeHostOffers,
+    MergePaneShapelessRow,
+    MergePaneStates,
+} from "@miragon/bpmn-modeler-shared";
 import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
+import type { MergeCardChoice } from "./mergeCardContent";
+import { handMergeFactsOf } from "./mergeHandMergeCard";
 import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 /** What the menu's rows read of the host's states. */
 export type MergeMenuRowStates = MergeRowStates & Pick<MergePaneStates, "shapelessRows">;
@@ -20,6 +26,8 @@ export interface MergeMenuRowContent {
     readonly decisions: readonly MergeRowDecision[];
     /** What the row's last decision did, line by line, on the pane that sent it. */
     readonly outcome?: readonly string[];
+    /** What the row's outcome lets the user do next, as the card would. */
+    readonly choices?: readonly MergeCardChoice[];
     /** The row opens the element's XML changes, as the pad does; the host shows a side that lacks it as empty. */
     readonly xmlChanges: boolean;
 }
@@ -36,15 +44,15 @@ export function mergeMenuRows(
     context: {
         readonly nameOf: (id: string) => string;
         readonly translate: MergeTranslate;
-        /** The host shows an element's XML changes. */
-        readonly elementXmlChanges: boolean;
+        readonly offers: MergeHostOffers;
     },
 ): readonly MergeMenuRowContent[] {
+    const { offers } = context;
     return states.shapelessRows.map((row) => {
         const name = row.current?.name ?? row.incoming?.name;
         const said =
             outcome?.outcome.elementId === row.id
-                ? rowOutcomeText(states, outcome, context)
+                ? rowOutcomeContent(states, outcome, context)
                 : undefined;
         const { lackingSide, differences, moreDiffers } = row;
         return {
@@ -57,21 +65,45 @@ export function mergeMenuRows(
                 differences,
                 ...(moreDiffers === undefined ? {} : { moreDiffers }),
             },
-            decisions: mergeRowDecisions(states, row),
-            ...(said === undefined ? {} : { outcome: said }),
-            xmlChanges: context.elementXmlChanges,
+            decisions: mergeRowDecisions(states, row, offers),
+            ...(said === undefined ? {} : { outcome: said.announcement }),
+            ...(said?.choices === undefined ? {} : { choices: said.choices }),
+            xmlChanges: offers.elementXmlChanges,
         };
     });
 }
 
 /** What a row's last decision did, line by line, in the card's words. */
 export function rowOutcomeText(
-    states: MergeRowStates,
+    states: MergeMenuRowStates,
     outcome: MergeRememberedOutcome,
-    context: { readonly nameOf: (id: string) => string; readonly translate: MergeTranslate },
+    context: {
+        readonly nameOf: (id: string) => string;
+        readonly translate: MergeTranslate;
+        readonly offers: MergeHostOffers;
+    },
 ): readonly string[] {
-    return mergeOutcomeCardContent(outcome, { ...context, restoreOffer: states.restoreOffer })
-        .announcement;
+    return rowOutcomeContent(states, outcome, context).announcement;
+}
+
+function rowOutcomeContent(
+    states: MergeMenuRowStates,
+    outcome: MergeRememberedOutcome,
+    {
+        offers,
+        ...words
+    }: {
+        readonly nameOf: (id: string) => string;
+        readonly translate: MergeTranslate;
+        readonly offers: MergeHostOffers;
+    },
+) {
+    const row = states.shapelessRows.find(({ id }) => id === outcome.outcome.elementId);
+    return mergeOutcomeCardContent(outcome, {
+        ...words,
+        restoreOffer: states.restoreOffer,
+        handMerge: handMergeFactsOf(row ?? {}, offers),
+    });
 }
 
 /** The open conflicts the menu lists, which no canvas draws; the "…" button counts them. */

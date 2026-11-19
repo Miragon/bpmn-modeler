@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
 
 import { buildNoteText } from "./mergeBuildNoteTexts";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);

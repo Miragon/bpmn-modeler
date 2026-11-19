@@ -1,49 +1,39 @@
 import type { MergePaneRestoreOffer } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
+import { type MergeOutcomeCardContent, withAnnouncement } from "./mergeCardContent";
 import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
+import {
+    handMergeCardContent,
+    type MergeHandMergeFacts,
+    type MergeRememberedHandMerge,
+} from "./mergeHandMergeCard";
+import { dropAndResendText, handMergesAtStakeText, MERGE_XML_TEXTS } from "./mergeHandMergeTexts";
 import {
     cardBlockText,
     MERGE_PICK_TEXTS,
     moreReasonsText,
-    type MergeTranslate,
     outcomeCardHeadline,
     restoreOfferText,
     unblockedText,
 } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 /** The host's outcome of a decision this pane sent, kept with that decision. */
-export interface MergeRememberedOutcome {
+interface MergeRememberedDecision {
     readonly outcome: MergeDecisionOutcome;
     readonly acted: MergeActedDecision;
     /** The refusal an undo freed: nothing that blocked it is left. */
     readonly lifted?: MergeRefusal;
 }
 
-/** An element the card names, as a link that shows it. */
-interface MergeOutcomeCardLink {
-    readonly elementId: string;
-    readonly name: string;
-}
+/** What the card or a row says of the pane's own latest request. */
+export type MergeRememberedOutcome = MergeRememberedDecision | MergeRememberedHandMerge;
 
-/** What the outcome card at an element says; the adapter only renders it. */
-export interface MergeOutcomeCardContent {
-    readonly applied: boolean;
-    readonly elementId: string;
-    readonly headline: string;
-    /** What the decision pulled in, dropped and opened again. */
-    readonly rows: readonly {
-        readonly label: string;
-        readonly links: readonly MergeOutcomeCardLink[];
-    }[];
-    readonly reasons: readonly string[];
-    readonly moreReasons?: string;
-    /** What blocks a refusal, which the canvas marks while the card shows. */
-    readonly blockers: readonly string[];
-    readonly offer?: { readonly elementId: string; readonly text: string };
-    readonly unblocked?: { readonly elementId: string; readonly text: string };
-    /** The lines a screen reader announces once, when the outcome arrives. */
-    readonly announcement: readonly string[];
+export function isRememberedHandMerge(
+    remembered: MergeRememberedOutcome,
+): remembered is MergeRememberedHandMerge {
+    return remembered.acted.kind === "mergeXml";
 }
 
 const MAX_REASONS = 3;
@@ -57,19 +47,37 @@ const OUTCOME_ROWS = [
 /**
  * The card for a decision this pane sent: a headline naming the side, then
  * what it changed and the offer of what the other side removed with it, or
- * up to three short reasons it was refused, and what an undo freed.
+ * up to three short reasons it was refused, and what an undo freed. A
+ * decision that would drop versions merged by hand asks first; a merge by
+ * hand says whether its text was taken ({@link handMergeCardContent}).
  */
 export function mergeOutcomeCardContent(
     remembered: MergeRememberedOutcome,
-    context: {
-        readonly restoreOffer?: MergePaneRestoreOffer;
-        readonly nameOf: (id: string) => string;
-        readonly translate: MergeTranslate;
-    },
+    context: MergeOutcomeCardContext,
 ): MergeOutcomeCardContent {
+    if (isRememberedHandMerge(remembered)) return handMergeCardContent(remembered, context);
     const { outcome, acted, lifted } = remembered;
     const { restoreOffer, nameOf, translate } = context;
     const { elementId } = outcome;
+    if (!outcome.applied && outcome.handMergesAtStake !== undefined) {
+        return withAnnouncement({
+            applied: false,
+            notice: true,
+            elementId,
+            headline: handMergesAtStakeText(outcome.handMergesAtStake, nameOf, translate),
+            rows: [],
+            reasons: [],
+            blockers: [],
+            choices: [
+                {
+                    action: "dropHandMerges",
+                    text: dropAndResendText(outcome.action, translate),
+                    primary: true,
+                },
+                { action: "dismiss", text: translate(MERGE_XML_TEXTS.keepMine) },
+            ],
+        });
+    }
     const headline = outcomeCardHeadline(outcome, acted, nameOf, translate);
     const unblocked =
         lifted === undefined
@@ -115,6 +123,15 @@ export function mergeOutcomeCardContent(
     });
 }
 
+/** What the card's words read besides the outcome. */
+export interface MergeOutcomeCardContext {
+    readonly restoreOffer?: MergePaneRestoreOffer;
+    /** The pick of the element of a merge by hand, for its choices. */
+    readonly handMerge?: MergeHandMergeFacts;
+    readonly nameOf: (id: string) => string;
+    readonly translate: MergeTranslate;
+}
+
 /**
  * What stands in the way of each reason: the element that needs the
  * decided one, or what the decided element itself needs.
@@ -124,20 +141,4 @@ function blockersOf(refusal: MergeRefusal, elementId: string): readonly string[]
         block.elementId === elementId ? block.targetId : block.elementId,
     );
     return [...new Set(blockers.filter((id) => id !== elementId))];
-}
-
-/** The card says it all but the offer, which is a control, not news. */
-function withAnnouncement(
-    content: Omit<MergeOutcomeCardContent, "announcement">,
-): MergeOutcomeCardContent {
-    const announcement = [
-        content.headline,
-        ...content.rows.map(
-            ({ label, links }) => `${label} ${links.map(({ name }) => name).join(", ")}`,
-        ),
-        ...content.reasons,
-        content.moreReasons,
-        content.unblocked?.text,
-    ].filter((line): line is string => line !== undefined);
-    return { ...content, announcement };
 }

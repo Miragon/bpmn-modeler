@@ -42,6 +42,40 @@ async function revertAndCloseAllEditors() {
     }
 }
 
+/** The open text documents of a scheme, such as the merge editor's result, with their text as edited. */
+function documentTexts({ scheme }) {
+    return vscode.workspace.textDocuments
+        .filter((document) => document.uri.scheme === String(scheme))
+        .map((document) => ({
+            path: document.uri.path,
+            text: document.getText(),
+            isDirty: document.isDirty,
+        }));
+}
+
+/** Replaces text in the open documents of a scheme, as a user's typing would; it saves nothing. False when no document holds the text. */
+async function replaceInDocuments({ scheme, search, replacement }) {
+    const edit = new vscode.WorkspaceEdit();
+    let replaced = 0;
+    for (const document of vscode.workspace.textDocuments) {
+        if (document.uri.scheme !== String(scheme)) continue;
+        const text = document.getText();
+        const at = text.indexOf(String(search));
+        if (at < 0) continue;
+        replaced += 1;
+        edit.replace(
+            document.uri,
+            new vscode.Range(
+                document.positionAt(at),
+                document.positionAt(at + String(search).length),
+            ),
+            String(replacement),
+        );
+    }
+    // An empty edit applies as a success, which would hide a search text gone stale.
+    return replaced > 0 && (await vscode.workspace.applyEdit(edit));
+}
+
 function windowState() {
     return {
         windowFocused: vscode.window.state.focused,
@@ -77,6 +111,10 @@ function run(operation, payload) {
             return windowState();
         case "unmergedFiles":
             return unmergedFiles();
+        case "documentTexts":
+            return documentTexts(payload);
+        case "replaceInDocuments":
+            return replaceInDocuments(payload);
         default:
             throw new Error(`the smoke driver knows no operation ${JSON.stringify(operation)}`);
     }

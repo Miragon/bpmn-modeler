@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MergePaneBadge } from "@miragon/bpmn-modeler-shared";
 import { MERGE_MARKER_CLASSES, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
+import { MERGE_DECISION_ICONS, PEN_PATHS } from "./mergeDecisionIcons";
 import {
     createMergeMarksModule,
     MergeMarks,
@@ -257,6 +258,75 @@ describe("MergeMarks", () => {
         );
 
         expect(overlays).toEqual([]);
+    });
+
+    it("marks a version merged by hand with a pen and its word, beside the kept side, at every zoom and on a flow", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack", "Flow_1"]);
+        const byHand = (badge: MergePaneBadge) => ({
+            side: "Incoming",
+            label: `${badge.keptSide} merged by hand`,
+            byHand: "by hand",
+        });
+
+        marks().paint(
+            view(NO_MARKS, {
+                badges: [
+                    { ...PICKED, mergedByHand: true },
+                    { ...PICKED, id: "Flow_1", kind: "replacedHere", mergedByHand: true },
+                ],
+                consequences: [],
+            }),
+            { conflict: "Conflict", badge: byHand },
+        );
+
+        const [worded, checkOnly, onFlow] = overlays;
+        expect(worded.html).toContain("merge-pick-badge--by-hand");
+        expect(worded.html).toContain("merge-pick-badge__pen");
+        expect(worded.html).toContain(">Incoming<");
+        expect(worded.html).toContain(">by hand<");
+        expect(worded.html).toContain('aria-label="incoming merged by hand"');
+        expect(checkOnly.html).toContain("merge-pick-badge__pen");
+        expect(checkOnly.html).not.toContain("by hand<");
+        // A flow's round badge holds one glyph: the pen stands for the pick too.
+        expect(onFlow.html).toContain("merge-pick-badge__pen");
+        expect(onFlow.html).not.toContain("merge-pick-badge__check");
+        expect(onFlow.html).toContain("merge-pick-badge--by-hand");
+    });
+
+    it("draws the pen of the pad's Merge XML entry, so the badge looks like the entry that made it", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+
+        marks().paint(
+            view(NO_MARKS, { badges: [{ ...PICKED, mergedByHand: true }], consequences: [] }),
+            {
+                conflict: "Conflict",
+                badge: () => ({ side: "Incoming", label: "merged by hand", byHand: "by hand" }),
+            },
+        );
+
+        expect(overlays[0].html).toContain(PEN_PATHS);
+        expect(MERGE_DECISION_ICONS.mergeXml).toContain(PEN_PATHS);
+    });
+
+    it("takes the look of a merge by hand from its words alone, which the labels give only for one", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+
+        marks().paint(
+            view(NO_MARKS, { badges: [{ ...PICKED, mergedByHand: true }], consequences: [] }),
+            labels("Conflict"),
+        );
+
+        expect(overlays.some(({ html }) => html.includes("merge-pick-badge__pen"))).toBe(false);
+        expect(overlays.some(({ html }) => html.includes("--by-hand"))).toBe(false);
+    });
+
+    it("draws no pen on a plain pick", () => {
+        const { marks, overlays } = fakeCanvas(["Task_Pack"]);
+
+        marks().paint(view(NO_MARKS, { badges: [PICKED], consequences: [] }), labels("Conflict"));
+
+        expect(overlays.some(({ html }) => html.includes("merge-pick-badge__pen"))).toBe(false);
+        expect(overlays.some(({ html }) => html.includes("--by-hand"))).toBe(false);
     });
 
     it("skips a picked id missing on this canvas", () => {
