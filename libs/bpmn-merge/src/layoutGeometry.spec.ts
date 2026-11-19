@@ -2,11 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
     type DiagramBounds,
+    across,
+    along,
     areaOutside,
+    atAcross,
     bordersAt,
+    boundsShifted,
+    farSideOf,
     gapBetween,
+    grownAlong,
     keepsClearOf,
     liesAheadWithin,
+    nearSideOf,
+    pointShifted,
+    stripPast,
 } from "./layoutGeometry";
 
 const TASK: DiagramBounds = { x: 100, y: 100, width: 100, height: 80 };
@@ -36,6 +45,45 @@ describe("liesAheadWithin", () => {
         { other: { x: 100, y: 100, width: 50, height: 50 }, axis: "x", ahead: false },
     ] as const)("$other along $axis: $ahead", ({ other, axis, ahead }) => {
         expect(liesAheadWithin(axis, strip, other, 15)).toBe(ahead);
+    });
+});
+
+describe("the axis helpers", () => {
+    const point = { x: 10, y: 20 };
+
+    it.each([
+        { axis: "x", along: 10, across: 20, atAcross: { x: 10, y: 5 }, shifted: { x: 17, y: 20 } },
+        { axis: "y", along: 20, across: 10, atAcross: { x: 5, y: 20 }, shifted: { x: 10, y: 27 } },
+    ] as const)("read and move a point along $axis", ({ axis, ...expected }) => {
+        expect(along(axis, point)).toBe(expected.along);
+        expect(across(axis, point)).toBe(expected.across);
+        expect(atAcross(axis, point, 5)).toEqual(expected.atAcross);
+        expect(pointShifted(axis, point, 7)).toEqual(expected.shifted);
+    });
+
+    it.each([
+        {
+            axis: "x",
+            near: 100,
+            far: 200,
+            shifted: { x: 130, y: 100, width: 100, height: 80 },
+            grown: { x: 100, y: 100, width: 130, height: 80 },
+            strip: { x: 200, y: 100, width: 30, height: 80 },
+        },
+        {
+            axis: "y",
+            near: 100,
+            far: 180,
+            shifted: { x: 100, y: 130, width: 100, height: 80 },
+            grown: { x: 100, y: 100, width: 100, height: 110 },
+            strip: { x: 100, y: 180, width: 100, height: 30 },
+        },
+    ] as const)("read and move bounds along $axis", ({ axis, ...expected }) => {
+        expect(nearSideOf(axis, TASK)).toBe(expected.near);
+        expect(farSideOf(axis, TASK)).toBe(expected.far);
+        expect(boundsShifted(axis, TASK, 30)).toEqual(expected.shifted);
+        expect(grownAlong(axis, TASK, 30)).toEqual(expected.grown);
+        expect(stripPast(axis, TASK, 30)).toEqual(expected.strip);
     });
 });
 
