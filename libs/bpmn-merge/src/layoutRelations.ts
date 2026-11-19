@@ -6,6 +6,7 @@ import {
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
+import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
 
 interface NodeRelations {
@@ -14,11 +15,6 @@ interface NodeRelations {
     readonly pool?: string;
     readonly host?: string;
     readonly mayLieOutsidePool: boolean;
-}
-
-interface ConnectionEnds {
-    readonly source?: string;
-    readonly target?: string;
 }
 
 /** What decides where an element's drawing may lie, read from the semantic tree. */
@@ -47,8 +43,9 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const connections = new Map<string, ConnectionEnds>();
     const poolsByProcess = new Map<string, string>();
 
-    const connect = (id: string | undefined, source: unknown, target: unknown) => {
-        if (id !== undefined) connections.set(id, endsOf(source, target));
+    const connect = (connection: ModdleElement, holder?: ModdleElement) => {
+        const ends = connectionEndsOf(connection, holder);
+        if (connection.id !== undefined && ends !== undefined) connections.set(connection.id, ends);
     };
     const visitLanes = (laneSets: unknown, parent: string) => {
         for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
@@ -66,7 +63,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const visitArtifacts = (artifacts: unknown, scope: Scope) => {
         for (const artifact of moddleElements(artifacts)) {
             if (isType(artifact, "bpmn:Association")) {
-                connect(artifact.id, artifact.sourceRef, artifact.targetRef);
+                connect(artifact);
             } else if (isType(artifact, "bpmn:TextAnnotation") && artifact.id !== undefined) {
                 nodes.set(artifact.id, nodeRelationsOf(artifact, scope));
             }
@@ -75,16 +72,16 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const visitFlowElements = (container: ModdleElement, scope: Scope) => {
         for (const element of moddleElements(container.flowElements)) {
             if (isType(element, "bpmn:SequenceFlow")) {
-                connect(element.id, element.sourceRef, element.targetRef);
+                connect(element);
                 continue;
             }
             if (element.id === undefined) continue;
             nodes.set(element.id, nodeRelationsOf(element, scope));
             for (const association of moddleElements(element.dataInputAssociations)) {
-                connect(association.id, moddleElements(association.sourceRef)[0], element);
+                connect(association, element);
             }
             for (const association of moddleElements(element.dataOutputAssociations)) {
-                connect(association.id, element, association.targetRef);
+                connect(association, element);
             }
             if (isType(element, "bpmn:SubProcess")) {
                 visitLanes(element.laneSets, element.id);
@@ -106,7 +103,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             if (process !== undefined) poolsByProcess.set(process, participant.id);
         }
         for (const messageFlow of moddleElements(collaboration.messageFlows)) {
-            connect(messageFlow.id, messageFlow.sourceRef, messageFlow.targetRef);
+            connect(messageFlow);
         }
         visitArtifacts(collaboration.artifacts, { subProcesses: [] });
     }
@@ -137,13 +134,4 @@ function outlineOf(element: ModdleElement): Outline {
     if (isType(element, "bpmn:Event")) return "circle";
     if (isType(element, "bpmn:Gateway")) return "diamond";
     return "rectangle";
-}
-
-function endsOf(source: unknown, target: unknown): ConnectionEnds {
-    const sourceId = idOf(source);
-    const targetId = idOf(target);
-    return {
-        ...(sourceId === undefined ? {} : { source: sourceId }),
-        ...(targetId === undefined ? {} : { target: targetId }),
-    };
 }

@@ -1,3 +1,4 @@
+import type { UndrawnEdge } from "./connectionEnds";
 import type { FlowRepairKind } from "./layoutFlowRepair";
 import type { FlowSpot } from "./layoutSpots";
 import type { MergeResolution } from "./mergeDecisions";
@@ -54,7 +55,44 @@ export type BuildNote =
           readonly ids: readonly string[];
           readonly keptSide: MergeSide;
       }
-    | { readonly kind: "frameDiffers"; readonly attribute: string };
+    | { readonly kind: "frameDiffers"; readonly attribute: string }
+    | {
+          /** A flow left out of the drawing, since no plane draws both its ends, with the ends it has. */
+          readonly kind: "flowNotDrawn";
+          readonly id: string;
+          readonly source?: string;
+          readonly target?: string;
+      };
+
+/** What the build learnt while it wrote the result, from which `buildNotesOf` notes what to check. */
+export interface BuildFindings {
+    readonly result: MergeResult;
+    readonly resolution: MergeResolution;
+    readonly undrawnEdges: readonly UndrawnEdge[];
+    readonly layoutSpotNotes: readonly BuildNote[];
+    readonly flowDefaults: readonly RestoredFlowDefault[];
+    readonly restoredDefaults: ReadonlyMap<string, string>;
+    readonly layoutOf: (id: string, side: MergeSide) => string | undefined;
+    readonly frameNotes: readonly BuildNote[];
+}
+
+/** Every note of a build, in the order the merge view lists them. */
+export function buildNotesOf(findings: BuildFindings): BuildNote[] {
+    const { result, resolution } = findings;
+    return [
+        ...flowNotDrawnNotes(findings.undrawnEdges),
+        ...findings.layoutSpotNotes,
+        ...restoredWithoutRemovedWithNotes(result, resolution),
+        ...defaultFlowNotRestoredNotes(findings.flowDefaults, findings.restoredDefaults),
+        ...layoutChangedByBothNotes(result, resolution, findings.layoutOf),
+        ...findings.frameNotes,
+    ];
+}
+
+/** One note per edge the build leaves out of the drawing, naming its ends by role. */
+export function flowNotDrawnNotes(undrawn: readonly UndrawnEdge[]): BuildNote[] {
+    return undrawn.map(({ id, ends }) => ({ kind: "flowNotDrawn", id, ...ends }));
+}
 
 /**
  * A drawn flow's ends, when the flow and its ends are drawn from both sides
@@ -107,7 +145,7 @@ function isInResultOf(element: MergeElement, resolution: MergeResolution): boole
 }
 
 /** A flow kept against its removal that its source in the result does not name as its default. */
-export function defaultFlowNotRestoredNotes(
+function defaultFlowNotRestoredNotes(
     flowDefaults: readonly RestoredFlowDefault[],
     restored: ReadonlyMap<string, string>,
 ): BuildNote[] {

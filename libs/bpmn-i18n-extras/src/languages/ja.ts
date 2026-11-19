@@ -375,6 +375,10 @@ const dictionary: Record<string, string> = {
         "{flow} は保持されていますが、{element} のデフォルトフローは {keptDefault} のままです",
     "The file's {attribute} differs between the sides; current's is kept":
         "ファイルの {attribute} が側によって異なります。現在の値を保持します",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element} は描画されません。{source} と {target} の両方を表示するダイアグラムがありません",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} は描画されません。ソースまたはターゲットがありません",
     "1 conflict left": "残りの競合 1 件",
     "{count} conflicts left": "残りの競合 {count} 件",
     "Elements of this version the result keeps as they are here.":

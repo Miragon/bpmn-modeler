@@ -381,6 +381,10 @@ const dictionary: Record<string, string> = {
         "{flow} wird behalten, aber {element} behält {keptDefault} als Standardfluss",
     "The file's {attribute} differs between the sides; current's is kept":
         "Das Attribut {attribute} der Datei unterscheidet sich zwischen den Seiten; der Wert von Aktuell bleibt",
+    "{element} is left out of the drawing: no diagram shows both {source} and {target}":
+        "{element} wird nicht gezeichnet: kein Diagramm zeigt {source} und {target} zugleich",
+    "{element} is left out of the drawing: it lacks a source or a target":
+        "{element} wird nicht gezeichnet: ihm fehlt eine Quelle oder ein Ziel",
     "1 conflict left": "1 Konflikt übrig",
     "{count} conflicts left": "{count} Konflikte übrig",
     "Elements of this version the result keeps as they are here.":

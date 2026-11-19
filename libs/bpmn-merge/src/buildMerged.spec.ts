@@ -840,6 +840,166 @@ describe("buildMerged", () => {
                 );
             });
         });
+
+        describe("flows", () => {
+            /** As bpmn-js collapses `Sub_Ship`: a task-sized shape, its contents on a diagram of its own. */
+            const collapseSubShip = (model: BpmnFixtureModel) => {
+                Object.assign(nodeById(model, "Sub_Ship"), {
+                    collapsed: true,
+                    width: 100,
+                    height: 80,
+                });
+                for (const id of ["Sub_Ship_Start", "Task_Pack", "Sub_Ship_End"]) {
+                    nodeById(model, id).x -= 400;
+                }
+            };
+
+            /** Closes every open conflict for `side`, as a user taking that side would. */
+            async function conflictsClosedFor(versions: MergeVersions, side: MergeSide) {
+                const decisions = await decisionsFor(versions);
+                for (let [open] = decisions.openConflicts; open; [open] = decisions.openConflicts) {
+                    expect(decisions.pick(open.id, side).applied, open.id).toBe(true);
+                }
+                return buildMerged(await prepareMergeSources(versions), decisions);
+            }
+
+            interface Flow {
+                readonly $type: string;
+                readonly sourceRef?: { id: string } | { id: string }[];
+                readonly targetRef?: { id: string };
+                readonly $parent: { id: string };
+            }
+
+            /** A data association runs into or out of the activity holding it. */
+            const endsBpmnJsJoins = ({ $type, sourceRef, targetRef, $parent }: Flow) => {
+                if ($type === "bpmn:DataInputAssociation") {
+                    return [(sourceRef as { id: string }[])[0]?.id, $parent.id];
+                }
+                if ($type === "bpmn:DataOutputAssociation") return [$parent.id, targetRef?.id];
+                return [(sourceRef as { id: string }).id, targetRef?.id];
+            };
+
+            async function planeOfEachFlow(xml: string) {
+                const { rootElement } = await parseWithoutWarnings(xml);
+                const planes = new Map<string, { owner: string; drawn: Set<string> }>();
+                for (const { plane } of rootElement.diagrams as {
+                    plane: {
+                        bpmnElement: { id: string };
+                        planeElement?: { $type: string; bpmnElement: { id: string } }[];
+                    };
+                }[]) {
+                    const drawings = plane.planeElement ?? [];
+                    const drawn = new Set(drawings.map(({ bpmnElement }) => bpmnElement.id));
+                    for (const { $type, bpmnElement } of drawings) {
+                        if ($type === "bpmndi:BPMNEdge") {
+                            planes.set(bpmnElement.id, { owner: plane.bpmnElement.id, drawn });
+                        }
+                    }
+                }
+                return planes;
+            }
+
+            it("draws a data input one side adds to a sub-process the other collapses on the plane of its shape", async () => {
+                const versions = fixtureTriple({
+                    current: collapseSubShip,
+                    incoming: (model) => {
+                        model.flows.push({
+                            id: "DataInput_Ship",
+                            kind: "dataInput",
+                            source: "DataRef_Order",
+                            target: "Sub_Ship",
+                        });
+                    },
+                });
+                const { xml, notes } = await automaticMerge(versions);
+                const plane = (await planeOfEachFlow(xml)).get("DataInput_Ship");
+
+                expect(plane?.owner).toBe("Collaboration_1");
+                expect([...plane!.drawn]).toEqual(
+                    expect.arrayContaining(["DataRef_Order", "Sub_Ship"]),
+                );
+                expect(notes.filter(({ kind }) => kind === "flowNotDrawn")).toEqual([]);
+            });
+
+            it("draws an association to a flow on the plane of that flow", async () => {
+                const versions = fixtureTriple({
+                    current: collapseSubShip,
+                    incoming: (model) => {
+                        model.flows.push({
+                            id: "Association_Flow",
+                            kind: "association",
+                            source: "Note_Check",
+                            target: "Flow_Checked",
+                        });
+                    },
+                });
+                const { xml, notes } = await automaticMerge(versions);
+
+                expect((await planeOfEachFlow(xml)).get("Association_Flow")?.owner).toBe(
+                    "Collaboration_1",
+                );
+                expect(notes.filter(({ kind }) => kind === "flowNotDrawn")).toEqual([]);
+            });
+
+            describe("both sides add a task under one id, one of them inside a sub-process it collapses", () => {
+                const versions = fixtureTriple({
+                    current: (model) => {
+                        collapseSubShip(model);
+                        model.nodes.push({
+                            id: "Task_N2",
+                            type: "task",
+                            name: "New",
+                            x: 250,
+                            y: 242,
+                            parent: "Sub_Ship",
+                        });
+                        model.flows.push({
+                            id: "Flow_N3",
+                            source: "Sub_Ship_Start",
+                            target: "Task_N2",
+                        });
+                    },
+                    incoming: (model) => {
+                        model.nodes.push({
+                            id: "Task_N2",
+                            type: "task",
+                            name: "Between",
+                            x: 872,
+                            y: 232,
+                            lane: "Lane_Clerk",
+                        });
+                        model.flows.find(({ id }) => id === "Flow_Shipped")!.target = "Task_N2";
+                        model.flows.push({ id: "Flow_N1", source: "Task_N2", target: "End_Done" });
+                    },
+                });
+
+                it.each<[MergeSide, readonly string[]]>([
+                    ["current", ["Flow_Shipped", "Flow_N1"]],
+                    ["incoming", ["Flow_N3"]],
+                ])(
+                    "draws no flow on a plane without both its ends when the clash goes to %s, and names the flows it leaves out",
+                    async (side, leftOut) => {
+                        const { xml, notes } = await conflictsClosedFor(versions, side);
+                        const planes = await planeOfEachFlow(xml);
+                        const { elementsById } = await parseWithoutWarnings(xml);
+                        const endsOffPlane = [...planes]
+                            .filter(([id, { drawn }]) => {
+                                const ends = endsBpmnJsJoins(elementsById[id] as unknown as Flow);
+                                return ends.some((end) => !drawn.has(end ?? ""));
+                            })
+                            .map(([id]) => id);
+
+                        expect(endsOffPlane).toEqual([]);
+                        expect(leftOut.filter((id) => planes.has(id))).toEqual([]);
+                        expect(
+                            notes
+                                .filter(({ kind }) => kind === "flowNotDrawn")
+                                .map((note) => ("id" in note ? note.id : undefined)),
+                        ).toEqual(leftOut);
+                    },
+                );
+            });
+        });
     });
 
     describe("a task and the flow that ends at it", () => {

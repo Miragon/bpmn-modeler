@@ -21,6 +21,8 @@ export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[]
                 note.flow,
                 ...(note.keptDefault === undefined ? [] : [note.keptDefault]),
             ];
+        case "flowNotDrawn":
+            return [note.id, note.source, note.target].filter((id) => id !== undefined);
         case "frameDiffers":
             return [];
     }

@@ -10,6 +10,7 @@ import {
     parseWarningMessages,
 } from "@miragon/bpmn-modeler-diff";
 
+import { connectionEndsOf, edgePlaneOf } from "./connectionEnds";
 import { enclosingSubProcessOf } from "./containerContents";
 import { type DiagramIndex, contentsPlaneIn, diagramIndexOf } from "./diagramIndex";
 import type { MergeModdle } from "./engineModdle";
@@ -49,6 +50,7 @@ export async function checkMergedXml(
     const diagramIndex = diagramIndexOf(parsed.rootElement);
     requireOneDrawingPerDrawnElement(diagramIndex, expectations.drawnByShape);
     requireDrawingsOnTheirContainersPlane(diagramIndex);
+    requireEdgesOnThePlaneOfTheirEnds(diagramIndex);
     requireDrawingsReachableFromTheirRootPlane(diagramIndex);
     requireRebuiltDerivedReferences(parsed.rootElement, expectations.laneMembers);
     const resultSnapshots = await elementSnapshots(xml, { prefixSources, isUnit: isMergeElement });
@@ -77,14 +79,15 @@ export function requireOneDrawingPerDrawnElement(
     if (undrawn.length > 0) refuse("drawn elements have no shape or edge", undrawn);
 }
 
-/** Every drawing lies where `contentsPlaneOf` puts the contents of its sub-process. */
+/** Every drawing but an edge lies where `contentsPlaneOf` puts the contents of its sub-process. */
 export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex): void {
     const misplaced = [...diagramIndex.drawingsByElement]
         .filter(([id, drawings]) =>
             drawings.some(({ element, planeOwner }) => {
-                const subProcess = enclosingSubProcessOf(element.bpmnElement as ModdleElement);
+                const drawn = element.bpmnElement as ModdleElement;
+                const subProcess = enclosingSubProcessOf(drawn);
                 const expected =
-                    id === "" || subProcess === undefined
+                    id === "" || subProcess === undefined || connectionEndsOf(drawn) !== undefined
                         ? undefined
                         : contentsPlaneIn(diagramIndex, subProcess);
                 return expected !== undefined && expected !== planeOwner;
@@ -125,6 +128,23 @@ export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: Diagram
     });
     if (unreachable.length > 0) {
         refuse("drawings lie on a root plane that does not reach them", unreachable);
+    }
+}
+
+/** Every edge lies on the plane `edgePlaneOf` names, so bpmn-js finds both its ends there. */
+export function requireEdgesOnThePlaneOfTheirEnds(diagramIndex: DiagramIndex): void {
+    const planeOfEnd = (id: string) => diagramIndex.drawingsByElement.get(id)?.[0]?.planeOwner;
+    const misplaced = [...diagramIndex.drawingsByElement]
+        .filter(([id, drawings]) =>
+            drawings.some(({ element, planeOwner }) => {
+                const ends =
+                    id === "" ? undefined : connectionEndsOf(element.bpmnElement as ModdleElement);
+                return ends !== undefined && edgePlaneOf(ends, planeOfEnd) !== planeOwner;
+            }),
+        )
+        .map(([id]) => id);
+    if (misplaced.length > 0) {
+        refuse("edges lie on a plane that does not draw both of their ends", misplaced);
     }
 }
 

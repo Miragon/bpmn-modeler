@@ -2,12 +2,7 @@ import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon
 
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
-import {
-    type BuildNote,
-    defaultFlowNotRestoredNotes,
-    layoutChangedByBothNotes,
-    restoredWithoutRemovedWithNotes,
-} from "./buildNotes";
+import { type BuildNote, buildNotesOf } from "./buildNotes";
 import { diagramIndexOf } from "./diagramIndex";
 import { assembleDiagrams, drawingSidesOf, drawnByShape } from "./diagramMerge";
 import type { MergeModdle } from "./engineModdle";
@@ -42,7 +37,7 @@ export interface MergedDocument {
  * (`restoredFlowDefaultsOf`), serialised as the modeler saves. Throws on open conflicts and refuses a
  * result that fails its checks, naming the ids. Notes every broken spot of the drawing that
  * neither side drew itself, and re-routes the flows among them that end off their shapes or
- * run through one.
+ * run through one; a flow no diagram draws both ends of stays out of the drawing with a note.
  */
 export function buildMerged(
     sources: MergeSources,
@@ -80,7 +75,13 @@ export async function buildMergedWith(
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
     const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
-    assembleDiagrams(current, diagramIndexes, resolution, drawingSides, resultUnits);
+    const undrawnEdges = assembleDiagrams(
+        current,
+        diagramIndexes,
+        resolution,
+        drawingSides,
+        resultUnits,
+    );
     const layoutSpotNotes = repairIntroducedSpots(current, sideLayouts, planRepairs, (point) =>
         mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
     );
@@ -90,7 +91,7 @@ export async function buildMergedWith(
         xml,
         {
             sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements, decisions),
-            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides),
+            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides, undrawnEdges),
             laneMembers,
             restoredDefaults,
         },
@@ -98,17 +99,16 @@ export async function buildMergedWith(
     );
     return {
         xml,
-        notes: [
-            ...layoutSpotNotes,
-            ...restoredWithoutRemovedWithNotes(result, resolution),
-            ...defaultFlowNotRestoredNotes(flowDefaults, restoredDefaults),
-            ...layoutChangedByBothNotes(
-                result,
-                resolution,
-                (id, side) => sources.snapshots[side].get(id)?.layout,
-            ),
-            ...frame.notes,
-        ],
+        notes: buildNotesOf({
+            result,
+            resolution,
+            undrawnEdges,
+            layoutSpotNotes,
+            flowDefaults,
+            restoredDefaults,
+            layoutOf: (id, side) => sources.snapshots[side].get(id)?.layout,
+            frameNotes: frame.notes,
+        }),
     };
 }
 
