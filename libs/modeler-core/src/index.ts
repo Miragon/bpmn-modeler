@@ -177,11 +177,18 @@ export * from "./diff/domain/conflictReading";
 export * from "./diff/domain/diffTabLabel";
 export * from "./diff/domain/diffFileExtension";
 export * from "./diff/domain/DiffRevision";
+export * from "./diff/domain/mergeEditorHost";
 export * from "./diff/domain/mergeViewTexts";
 export type { ConflictVersionsSource } from "./diff/port/ConflictVersionsSource";
 export * from "./diff/port/DiffPaneHandle";
 export * from "./diff/port/ElementXmlDiffView";
+export type {
+    ElementXmlMergeEditor,
+    ElementXmlMergeFinished,
+    ElementXmlMergeRequest,
+} from "./diff/port/ElementXmlMergeEditor";
 export * from "./diff/port/MergeCommandAvailability";
+export type { MergeEditorAvailability } from "./diff/port/MergeEditorAvailability";
 export type {
     MergePaneCommandKeys,
     MergePaneCommandKeysState,
@@ -193,6 +200,7 @@ export * from "./diff/service/BpmnDiffService";
 export * from "./diff/service/DmnDiffService";
 export * from "./diff/service/DiffPaneStore";
 export * from "./diff/service/ElementXmlDiffService";
+export * from "./diff/service/ElementXmlMergeService";
 export * from "./diff/service/diffPaneRouter";
 export * from "./diff/service/ConflictMarkerParticipant";
 export * from "./diff/service/MergeBuildService";

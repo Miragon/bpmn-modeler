@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
     commands,
     ExtensionContext,
@@ -7,12 +5,15 @@ import {
     TabGroup,
     TabInputTextDiff,
     Uri,
-    ViewColumn,
     window,
     workspace,
 } from "vscode";
 
 import { ElementXmlDiff, ElementXmlDiffView } from "@miragon/bpmn-modeler-core";
+
+import { groupBelowActive } from "./editorGroupBelow";
+import { elementXmlUris } from "./elementXmlUris";
+import { closeUnservedTabs } from "./unservedTabs";
 
 export const ELEMENT_XML_SCHEME = "bpmn-element-xml";
 
@@ -53,22 +54,12 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
             workspace.registerTextDocumentContentProvider(ELEMENT_XML_SCHEME, {
                 provideTextDocumentContent: (uri) => this.textsByUri.get(uri.toString()) ?? "",
             }),
-            window.tabGroups.onDidChangeTabs((event) => {
-                this.forgetClosedTabs(event.closed);
-                // Reopen Closed Editor and the editor history bring a tab back after its texts were dropped.
-                this.closeUnserved(event.opened);
-            }),
+            window.tabGroups.onDidChangeTabs((event) => this.forgetClosedTabs(event.closed)),
         );
-        // A reload restores the tabs, but not the texts they showed.
-        this.closeUnserved(allTabs());
-    }
-
-    private closeUnserved(tabs: readonly Tab[]): void {
-        const unserved = tabs.filter((tab) => {
+        closeUnservedTabs(context, (tab) => {
             const uris = elementXmlUrisOf(tab);
             return uris !== undefined && !this.textsByUri.has(uris.modified.toString());
         });
-        if (unserved.length > 0) void window.tabGroups.close(unserved, true);
     }
 
     show(diff: ElementXmlDiff): Promise<void> {
@@ -130,14 +121,11 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     }
 
     private serve(diff: ElementXmlDiff): ShownElementXml {
-        const authority = randomUUID();
-        const uriFor = (side: string) =>
-            Uri.from({
-                scheme: ELEMENT_XML_SCHEME,
-                authority,
-                path: `/${diff.elementId}.${side}.xml`,
-            });
-        const shown = { beforeUri: uriFor("before"), afterUri: uriFor("after") };
+        const uriOf = elementXmlUris(diff.elementId);
+        const shown = {
+            beforeUri: uriOf(ELEMENT_XML_SCHEME, "before"),
+            afterUri: uriOf(ELEMENT_XML_SCHEME, "after"),
+        };
         this.textsByUri.set(shown.beforeUri.toString(), diff.before);
         this.textsByUri.set(shown.afterUri.toString(), diff.after);
         return shown;
@@ -169,19 +157,6 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     private dropTexts(shown: ShownElementXml): void {
         this.textsByUri.delete(shown.beforeUri.toString());
         this.textsByUri.delete(shown.afterUri.toString());
-    }
-}
-
-/**
- * Splits the active group, which shows the diagram diff because its pane just
- * posted. A host without the command, such as Theia, opens the diff beside it.
- */
-async function groupBelowActive(): Promise<{ viewColumn: ViewColumn; createdBelow: boolean }> {
-    try {
-        await commands.executeCommand("workbench.action.newGroupBelow");
-        return { viewColumn: window.tabGroups.activeTabGroup.viewColumn, createdBelow: true };
-    } catch {
-        return { viewColumn: ViewColumn.Beside, createdBelow: false };
     }
 }
 

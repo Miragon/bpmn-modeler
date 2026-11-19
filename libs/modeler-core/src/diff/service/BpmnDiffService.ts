@@ -20,6 +20,7 @@ import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
+import { ElementXmlMergeService } from "./ElementXmlMergeService";
 import { MergeBuildService } from "./MergeBuildService";
 import { MergeDecisionService } from "./MergeDecisionService";
 
@@ -53,6 +54,8 @@ export class BpmnDiffService {
      *   absent on a host that opens no merge view.
      * @param build Builds a merge view's result into the working file and
      *   compares it with either side; absent on a host that builds none.
+     * @param elementXmlMerge Merges a picked element's XML by hand in the
+     *   host's merge editor; absent on a host that has none.
      */
     constructor(
         private readonly notifier: NotifierPort,
@@ -61,6 +64,7 @@ export class BpmnDiffService {
         private readonly elementXmlChanges?: ElementXmlChanges,
         private readonly merge?: MergeDecisionService,
         private readonly build?: MergeBuildService,
+        private readonly elementXmlMerge?: ElementXmlMergeService,
     ) {
         this.relay = new DiffPaneRelay(notifier, vsSettings, store);
         build?.onComparisonChanged((session) => void this.rebroadcast(session));
@@ -95,7 +99,7 @@ export class BpmnDiffService {
         const armed = await this.relay.markReady(handle);
         if (!armed) return;
         if (this.merge?.shows(armed.session)) {
-            await this.merge.broadcast(armed, this.showsElementXmlChanges);
+            await this.merge.broadcast(armed);
         } else {
             await this.computeAndBroadcast(armed.session, armed.before, armed.after);
         }
@@ -140,25 +144,25 @@ export class BpmnDiffService {
     async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.chooseStepList(armed, list, this.showsElementXmlChanges);
+            await this.merge.chooseStepList(armed, list);
         }
     }
 
-    /** Keeps the element from `side`, or the merge pane's side when absent, as far as `scope` reaches. */
+    /**
+     * Keeps the element from `side`, or the merge pane's side when absent, as
+     * far as `scope` reaches; `dropsHandMerges` lets it drop the versions
+     * merged by hand it moves off their side.
+     */
     async pickMergeSide(
         handle: DiffPaneHandle,
         elementId: string,
         scope: MergePickScope,
         side?: MergeSide,
+        dropsHandMerges?: boolean,
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.pick(
-                armed,
-                handle,
-                { elementId, scope, side },
-                this.showsElementXmlChanges,
-            );
+            await this.merge.pick(armed, handle, { elementId, scope, side, dropsHandMerges });
         }
     }
 
@@ -167,11 +171,27 @@ export class BpmnDiffService {
         handle: DiffPaneHandle,
         elementId: string,
         scope: MergePickScope,
+        dropsHandMerges?: boolean,
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.unpick(armed, elementId, scope, this.showsElementXmlChanges);
+            await this.merge.unpick(armed, { elementId, scope, dropsHandMerges });
         }
+    }
+
+    /** Whether the host has a merge editor for an element's XML, which merge panes may then offer. */
+    get offersElementXmlMerge(): boolean {
+        return this.elementXmlMerge !== undefined;
+    }
+
+    /** Opens the merge editor on a picked element of the merge pane's view, or brings its open one to the front. */
+    async openElementXmlMerge(
+        handle: DiffPaneHandle,
+        elementId: string,
+        resume?: boolean,
+    ): Promise<void> {
+        const session = this.store.sessionOf(handle);
+        if (session) await this.elementXmlMerge?.open(session, elementId, resume);
     }
 
     /** Whether the host builds a merge view's result into its working file and compares it. */
@@ -182,7 +202,7 @@ export class BpmnDiffService {
     /** Builds the result of the merge view whose pane asked into its working file. */
     async buildMergeResult(handle: DiffPaneHandle): Promise<void> {
         const session = this.store.sessionOf(handle);
-        if (session) await this.build?.build(session, this.showsElementXmlChanges);
+        if (session) await this.build?.build(session);
     }
 
     /** Opens a diff of the built result against `against`'s stage. */

@@ -108,8 +108,10 @@ const INCOMING: MergePaneStates = {
     build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
 };
 
+const PREVIEW_OFFERS = { elementXmlChanges: true, elementXmlMerge: false } as const;
+
 /** What each pane of the preview gets once it reports ready; it offers Show XML changes. */
 export const MOCK_MERGE_STATES: Readonly<Record<DiffSide, ApplyMergeStatesQuery>> = {
-    before: new ApplyMergeStatesQuery("before", CURRENT, true),
-    after: new ApplyMergeStatesQuery("after", INCOMING, true),
+    before: new ApplyMergeStatesQuery("before", CURRENT, PREVIEW_OFFERS),
+    after: new ApplyMergeStatesQuery("after", INCOMING, PREVIEW_OFFERS),
 };

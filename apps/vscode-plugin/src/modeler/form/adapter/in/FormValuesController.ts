@@ -19,7 +19,7 @@ import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 import { FormInputValuesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { InMemoryJsonFileSystemProvider } from "./InMemoryJsonFileSystemProvider";
+import { ServedTextFiles } from "../../../../shared/port/ServedTextFiles";
 
 export const TOGGLE_FORM_INPUT_VALUES_CMD = "bpmn-modeler.toggleFormInputValues";
 export const TOGGLE_FORM_OUTPUT_VALUES_CMD = "bpmn-modeler.toggleFormOutputValues";
@@ -42,9 +42,15 @@ interface VirtualDocumentOwner {
     readonly kind: FormValueKind;
 }
 
+/** Where the form's values are served, one store per scheme: the input writable, the output read-only. */
+export interface FormValueFiles {
+    readonly input: ServedTextFiles<Uri>;
+    readonly output: ServedTextFiles<Uri>;
+}
+
 export class FormValuesController {
-    private readonly inputFiles = new InMemoryJsonFileSystemProvider();
-    private readonly outputFiles = new InMemoryJsonFileSystemProvider(true);
+    private readonly inputFiles: ServedTextFiles<Uri>;
+    private readonly outputFiles: ServedTextFiles<Uri>;
     private readonly sessions = new Map<string, FormValuesSession>();
     // Preserve backing data when VS Code refuses to close a dirty companion tab.
     private readonly retiredSessions = new Set<FormValuesSession>();
@@ -55,17 +61,14 @@ export class FormValuesController {
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly notifier: NotifierPort,
-    ) {}
+        files: FormValueFiles,
+    ) {
+        this.inputFiles = files.input;
+        this.outputFiles = files.output;
+    }
 
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            workspace.registerFileSystemProvider(FORM_INPUT_VALUES_SCHEME, this.inputFiles, {
-                isCaseSensitive: true,
-            }),
-            workspace.registerFileSystemProvider(FORM_OUTPUT_VALUES_SCHEME, this.outputFiles, {
-                isCaseSensitive: true,
-                isReadonly: true,
-            }),
             workspace.onDidChangeTextDocument((event) => this.handleDocumentChange(event)),
             window.tabGroups.onDidChangeTabs((event) => this.handleTabsChanged(event)),
             commands.registerCommand(TOGGLE_FORM_INPUT_VALUES_CMD, this.toggleInputValues, this),
@@ -73,8 +76,6 @@ export class FormValuesController {
             {
                 dispose: () => {
                     for (const timer of this.scheduledSaves.values()) clearTimeout(timer);
-                    this.inputFiles.dispose();
-                    this.outputFiles.dispose();
                     this.sessions.clear();
                     this.retiredSessions.clear();
                     this.owners.clear();
@@ -314,7 +315,7 @@ export class FormValuesController {
         this.providerFor(uri).deleteFile(uri);
     }
 
-    private providerFor(uri: Uri): InMemoryJsonFileSystemProvider {
+    private providerFor(uri: Uri): ServedTextFiles<Uri> {
         return uri.scheme === FORM_INPUT_VALUES_SCHEME ? this.inputFiles : this.outputFiles;
     }
 

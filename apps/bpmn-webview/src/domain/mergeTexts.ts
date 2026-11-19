@@ -2,16 +2,16 @@ import type {
     MergePaneContainerReach,
     MergeObstacleKind,
     MergeObstacleWithMissing,
-    MergePaneAction,
+    MergePanePickAction,
     MergePaneBlock,
     MergePaneOtherSideLack,
-    MergePaneOutcome,
     MergePaneRestoreOffer,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
+import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import type { MergePadDecision } from "./mergePadDecisions";
 
 /** `i18n.translate`, with the replacements its templates name. */
@@ -222,13 +222,13 @@ const LEFT_OUT_HEADLINES: Record<MergeSide, Record<MergePaneOtherSideLack, strin
 const REOPENED_HEADLINE = "Took back the pick. {element} is an open conflict again.";
 const UNPICKED_HEADLINE = "Took back the pick of {element}";
 
-const REFUSED_CARD_HEADLINES: Record<MergePaneAction, string> = {
+const REFUSED_CARD_HEADLINES: Record<MergePanePickAction, string> = {
     pick: "Can't keep {element}",
     leaveOut: "Can't leave out {element}",
     unpick: "Can't take back the pick of {element}",
 };
 
-const UNBLOCKED_TEXTS: Record<MergePaneAction, string> = {
+const UNBLOCKED_TEXTS: Record<MergePanePickAction, string> = {
     pick: "Nothing blocks keeping {element} now",
     leaveOut: "Nothing blocks leaving out {element} now",
     unpick: "Nothing blocks taking back the pick of {element} now",
@@ -286,7 +286,7 @@ export const MERGE_CARD_TEXTS = {
  * not be done.
  */
 export function outcomeCardHeadline(
-    outcome: MergePaneOutcome,
+    outcome: MergeDecisionOutcome,
     acted: MergeActedDecision,
     nameOf: (id: string) => string,
     translate: MergeTranslate,
@@ -330,7 +330,7 @@ export function moreReasonsText(count: number, translate: MergeTranslate): strin
 
 /** What an undo lifted: the refused decision of `elementId` is free to go now. */
 export function unblockedText(
-    action: MergePaneAction,
+    action: MergePanePickAction,
     name: string,
     translate: MergeTranslate,
 ): string {

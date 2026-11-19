@@ -258,7 +258,8 @@
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",
-                "scripts/perf/**"
+                "scripts/perf/**",
+                "apps/standalone/package.json"
             ],
             "typecheck": "typecheck"
         },

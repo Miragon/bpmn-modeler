@@ -10,6 +10,7 @@ import {
     MergeViewOpener,
     ResolvableConflictsService,
 } from "@miragon/bpmn-modeler-core";
+import type { MergeHostOffers } from "@miragon/bpmn-modeler-shared";
 import { MergeController } from "../diff/adapter/in/MergeController";
 import { MergeKeyboardController } from "../diff/adapter/in/MergeKeyboardController";
 import { VsCodeGitConflictVersions } from "../diff/adapter/out/VsCodeGitConflictVersions";
@@ -23,12 +24,14 @@ import { SharedDeps } from "./sharedDeps";
  * The BPMN merge view: Git through its extension's API, the panes under
  * `bpmn-merge:`, the command, the offer on conflict markers, the decisions
  * the panes show, their keyboard commands and the build into the working file. Its panes are
- * BPMN diff panes, so the diff feature registers it on its BPMN pane store.
+ * BPMN diff panes, so the diff feature registers it on its BPMN pane store and names what
+ * else the host offers them.
  */
 export function register(
     context: ExtensionContext,
     diffStore: DiffPaneStore,
     deps: SharedDeps,
+    offers: () => Promise<MergeHostOffers>,
 ): {
     sessions: MergeSessionStore;
     opener: MergeViewOpener;
@@ -48,7 +51,7 @@ export function register(
         new VsCodeMergeCommandAvailability(),
         deps.notifier,
     );
-    const decisions = new MergeDecisionService(sessions, deps.notifier);
+    const decisions = new MergeDecisionService(sessions, deps.notifier, offers);
     const build = new MergeBuildService(
         sessions,
         decisions,

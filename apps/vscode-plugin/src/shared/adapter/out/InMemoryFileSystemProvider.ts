@@ -1,6 +1,7 @@
 import {
     Disposable,
     EventEmitter,
+    ExtensionContext,
     FileChangeEvent,
     FileChangeType,
     FileStat,
@@ -8,7 +9,10 @@ import {
     FileSystemProvider,
     FileType,
     Uri,
+    workspace,
 } from "vscode";
+
+import { EditorWrittenTextFiles } from "../../port/ServedTextFiles";
 
 interface FileEntry {
     readonly ctime: number;
@@ -16,13 +20,45 @@ interface FileEntry {
     content: Uint8Array;
 }
 
-export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Disposable {
+export interface InMemoryFileSystemOptions {
+    readonly readOnly?: boolean;
+    /** False ignores an editor's write to a file the host does not serve, such as a save from a tab the host already dropped. */
+    readonly editorMayCreateFiles?: boolean;
+}
+
+export class InMemoryFileSystemProvider
+    implements FileSystemProvider, EditorWrittenTextFiles<Uri>, Disposable
+{
     private readonly files = new Map<string, FileEntry>();
+    private readonly editorWrites = new Map<string, string>();
     private readonly changes = new EventEmitter<FileChangeEvent[]>();
+    private readonly readOnly: boolean;
+    private readonly editorMayCreateFiles: boolean;
 
     readonly onDidChangeFile = this.changes.event;
 
-    constructor(private readonly readOnly: boolean = false) {}
+    /** A provider VS Code reads `scheme` from until `context` is disposed. */
+    static registered(
+        context: Pick<ExtensionContext, "subscriptions">,
+        scheme: string,
+        options: InMemoryFileSystemOptions = {},
+    ): InMemoryFileSystemProvider {
+        const provider = new InMemoryFileSystemProvider(options);
+        context.subscriptions.push(
+            provider,
+            workspace.registerFileSystemProvider(
+                scheme,
+                provider,
+                options.readOnly ? { isCaseSensitive: true, isReadonly: true } : { isCaseSensitive: true },
+            ),
+        );
+        return provider;
+    }
+
+    constructor(options: InMemoryFileSystemOptions = {}) {
+        this.readOnly = options.readOnly ?? false;
+        this.editorMayCreateFiles = options.editorMayCreateFiles ?? true;
+    }
 
     watch(): Disposable {
         return new Disposable(() => undefined);
@@ -68,10 +104,12 @@ export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Dispo
         options: { readonly create: boolean; readonly overwrite: boolean },
     ): void {
         if (this.readOnly) throw FileSystemError.NoPermissions(uri);
-
         const exists = this.files.has(uri.toString());
+        if (!exists && !this.editorMayCreateFiles) return;
         if (!exists && !options.create) throw FileSystemError.FileNotFound(uri);
         if (exists && !options.overwrite) throw FileSystemError.FileExists(uri);
+        // Before the identical-bytes skip: saving an unchanged text is still the user's answer.
+        this.editorWrites.set(uri.toString(), new TextDecoder().decode(content));
         this.setBytes(uri, content);
     }
 
@@ -83,17 +121,23 @@ export class InMemoryJsonFileSystemProvider implements FileSystemProvider, Dispo
         throw FileSystemError.NoPermissions(oldUri);
     }
 
+    lastEditorWriteOf(uri: Uri): string | undefined {
+        return this.editorWrites.get(uri.toString());
+    }
+
     setContent(uri: Uri, content: string): void {
         this.setBytes(uri, new TextEncoder().encode(content));
     }
 
     deleteFile(uri: Uri): void {
+        this.editorWrites.delete(uri.toString());
         if (!this.files.delete(uri.toString())) return;
         this.changes.fire([{ type: FileChangeType.Deleted, uri }]);
     }
 
     dispose(): void {
         this.files.clear();
+        this.editorWrites.clear();
         this.changes.dispose();
     }
 

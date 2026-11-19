@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 import type {
     MergeObstacleKind,
     MergeObstacleWithMissing,
-    MergePaneAction,
+    MergePanePickAction,
     MergePaneBlock,
     MergePaneBuildNote,
     MergePaneContainerReach,
     MergePaneOtherSideLack,
-    MergePaneOutcome,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
@@ -22,6 +21,7 @@ import {
 } from "@miragon/bpmn-modeler-types";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
+import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import {
     buildBlockedText,
     MERGE_MARKER_LABELS,
@@ -69,7 +69,7 @@ const PICK_SCOPES: Record<MergePickScope, true> = {
 };
 const REACHES: Record<MergePaneContainerReach, true> = { contents: true, poolProcesses: true };
 const LACKS: Record<MergePaneOtherSideLack, true> = { removed: true, missing: true };
-const ACTIONS: Record<MergePaneAction, true> = { pick: true, leaveOut: true, unpick: true };
+const ACTIONS: Record<MergePanePickAction, true> = { pick: true, leaveOut: true, unpick: true };
 const OBSTACLES: Record<MergeObstacleKind, true> = {
     targetInNoVersion: true,
     targetPickedWithout: true,
@@ -237,7 +237,7 @@ function mergeTextKeys(): Set<string> {
         for (const decisions of Object.values(ACTED_DECISIONS)) {
             for (const acted of decisions(side)) {
                 for (const reopened of [[], ["a"]]) {
-                    const outcome: MergePaneOutcome = {
+                    const outcome: MergeDecisionOutcome = {
                         applied: true,
                         action: "pick",
                         elementId: "a",
@@ -254,7 +254,7 @@ function mergeTextKeys(): Set<string> {
         }
     }
     for (const action of keysOf(ACTIONS)) {
-        const refusal: MergePaneOutcome = {
+        const refusal: MergeDecisionOutcome = {
             applied: false,
             action,
             elementId: "a",

@@ -26,7 +26,11 @@ export class EventEmitter<T> {
 /** Present, as in VS Code; Theia's API may lack it. */
 export class TabInputTextDiff {}
 
-export const env = { remoteName: undefined as string | undefined };
+export const env = {
+    remoteName: undefined as string | undefined,
+    appName: "Visual Studio Code",
+    uriScheme: "vscode",
+};
 
 /** A VS Code with checkbox trees, so the element ID review builds its panel. */
 export const version = "1.104.0";
@@ -45,6 +49,8 @@ export const workspace = {
     onDidChangeConfiguration: () => disposable,
     onDidChangeTextDocument: () => disposable,
     onWillSaveTextDocument: () => disposable,
+    onDidSaveTextDocument: () => disposable,
+    textDocuments: [],
     registerFileSystemProvider: () => disposable,
     registerTextDocumentContentProvider: () => disposable,
     createFileSystemWatcher: () => ({
@@ -91,7 +97,11 @@ export const window = {
     }),
 };
 
-export const commands = { ...windowFake.commands, registerCommand: () => disposable };
+export const commands = {
+    ...windowFake.commands,
+    registerCommand: () => disposable,
+    getCommands: () => Promise.resolve([]),
+};
 
 export const languages = {
     createDiagnosticCollection: () => ({

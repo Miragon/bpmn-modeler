@@ -67,6 +67,7 @@ const INTELLIJ_SURFACES: HostSurfaceCoverage = {
         MergeStepListChangedCommand: ignored("the host opens no merge view"),
         PickMergeSideCommand: ignored("the host opens no merge view"),
         UnpickMergeCommand: ignored("the host opens no merge view"),
+        OpenElementXmlMergeCommand: ignored("the host offers no XML merge editor"),
         BuildMergeResultCommand: ignored("the host builds no merge result"),
         CompareMergeResultCommand: ignored("the host builds no merge result"),
         SwitchMergeComparisonCommand: ignored("the host builds no merge result"),

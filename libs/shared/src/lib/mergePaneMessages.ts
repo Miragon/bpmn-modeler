@@ -157,8 +157,41 @@ export type MergePaneBlock =
           readonly obstacle: Exclude<MergeObstacleKind, MergeObstacleWithMissing>;
       };
 
-/** What the user did: kept an element, kept it out from a side that removed it, or took a pick back. */
-export type MergePaneAction = "pick" | "leaveOut" | "unpick";
+/** What the user decided on a pane: kept an element, kept it out from a side that removed it, or took a pick back. */
+export type MergePanePickAction = "pick" | "leaveOut" | "unpick";
+
+/** What the user did: a decision on a pane, or a picked element's XML merged by hand. */
+export type MergePaneAction = MergePanePickAction | "mergeByHand";
+
+/** A reference whose target is not of the type its property takes. */
+export interface MergePaneWrongTypeReference {
+    /** Qualified, for example `bpmn:messageRef`. */
+    readonly property: string;
+    readonly target: string;
+    readonly expected: string;
+}
+
+/** Why the merge did not take a hand-merged text, as the merge's `HandMergeRefusal` holds it; the pane words it. */
+export type MergePaneHandMergeRefusal =
+    | { readonly kind: "conflictMarkersLeft" }
+    | { readonly kind: "unparsable"; readonly detail: string }
+    | { readonly kind: "notOneElement"; readonly found: number }
+    | { readonly kind: "typeChanged"; readonly expected: string; readonly found: string }
+    | { readonly kind: "idChanged"; readonly expected: string; readonly found?: string }
+    /** Each by its id, or by its type when it has none. */
+    | { readonly kind: "holdsElementsOfTheirOwn"; readonly ids: readonly string[] }
+    | { readonly kind: "beyondOwnAttributes"; readonly properties: readonly string[] }
+    | {
+          readonly kind: "namesWrongType";
+          readonly references: readonly MergePaneWrongTypeReference[];
+      }
+    | { readonly kind: "unknownNamespace"; readonly namespaces: readonly string[] }
+    | { readonly kind: "rejectedByEngine"; readonly detail: string }
+    | { readonly kind: "changesStructure"; readonly properties: readonly string[] }
+    | { readonly kind: "namesMissingElement"; readonly ids: readonly string[] }
+    | { readonly kind: "namesLeftOutElement"; readonly ids: readonly string[] }
+    | { readonly kind: "changesOtherDecisions"; readonly ids: readonly string[] }
+    | { readonly kind: "notHandMergeable" };
 
 /** What the user's last pick or undo did, on both panes of the merge view. */
 export type MergePaneOutcome =
@@ -178,6 +211,10 @@ export type MergePaneOutcome =
           readonly blockedBy: readonly MergePaneBlock[];
           /** The elements merged by hand the call would move off their side, which it drops only when asked to. */
           readonly handMergesAtStake?: readonly string[];
+          /** Set when the merge refused a hand-merged text; the element keeps its version. */
+          readonly handMergeRefusal?: MergePaneHandMergeRefusal;
+          /** Set when the user closed the element's merge editor without saving: nothing changed. */
+          readonly discarded?: true;
       };
 
 /** The flows and boundary events the other side removed with an element the user kept, offered on the pane of the kept side. */
@@ -277,6 +314,19 @@ export interface MergePaneStates {
     readonly build: MergePaneBuild;
 }
 
+/** What the host offers a merge pane besides its decisions. */
+export interface MergeHostOffers {
+    /** It opens an element's XML changes, as on any BPMN diff pane. */
+    readonly elementXmlChanges: boolean;
+    /** It opens a picked element's XML in a merge editor, to merge it by hand. */
+    readonly elementXmlMerge: boolean;
+}
+
+export const NO_MERGE_HOST_OFFERS: MergeHostOffers = {
+    elementXmlChanges: false,
+    elementXmlMerge: false,
+};
+
 /**
  * Sent from the host to each merge pane once both are ready, and again
  * whenever either reports ready, with the full state of its merge view: a
@@ -288,14 +338,17 @@ export class ApplyMergeStatesQuery extends Query<"ApplyMergeStatesQuery"> {
 
     public readonly states: MergePaneStates;
 
-    /** Whether the host opens an element's XML changes, as on any BPMN diff pane. */
-    public readonly elementXmlChanges: boolean;
+    public readonly offers: MergeHostOffers;
 
-    constructor(side: DiffSide, states: MergePaneStates, elementXmlChanges = false) {
+    constructor(
+        side: DiffSide,
+        states: MergePaneStates,
+        offers: MergeHostOffers = NO_MERGE_HOST_OFFERS,
+    ) {
         super("ApplyMergeStatesQuery");
         this.side = side;
         this.states = states;
-        this.elementXmlChanges = elementXmlChanges;
+        this.offers = offers;
     }
 }
 
@@ -328,11 +381,20 @@ export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
      */
     public readonly side?: MergeSide;
 
-    constructor(elementId: string, scope: MergePickScope, side?: MergeSide) {
+    /** The user agreed to drop the versions merged by hand that the pick moves off their side. */
+    public readonly dropsHandMerges?: true;
+
+    constructor(
+        elementId: string,
+        scope: MergePickScope,
+        side?: MergeSide,
+        dropsHandMerges?: true,
+    ) {
         super("PickMergeSideCommand");
         this.elementId = elementId;
         this.scope = scope;
         if (side !== undefined) this.side = side;
+        if (dropsHandMerges) this.dropsHandMerges = dropsHandMerges;
     }
 }
 
@@ -345,10 +407,32 @@ export class UnpickMergeCommand extends Command<"UnpickMergeCommand"> {
 
     public readonly scope: MergePickScope;
 
-    constructor(elementId: string, scope: MergePickScope) {
+    /** As {@link PickMergeSideCommand.dropsHandMerges}. */
+    public readonly dropsHandMerges?: true;
+
+    constructor(elementId: string, scope: MergePickScope, dropsHandMerges?: true) {
         super("UnpickMergeCommand");
         this.elementId = elementId;
         this.scope = scope;
+        if (dropsHandMerges) this.dropsHandMerges = dropsHandMerges;
+    }
+}
+
+/**
+ * Sent from a merge pane when the user asks to merge a picked element's XML
+ * by hand. The host opens its merge editor on the element, or brings the open
+ * one to the front, and answers the finished merge with the panes' states.
+ */
+export class OpenElementXmlMergeCommand extends Command<"OpenElementXmlMergeCommand"> {
+    public readonly elementId: string;
+
+    /** Edit again: start from the text the merge refused last. */
+    public readonly resume?: true;
+
+    constructor(elementId = "", resume?: true) {
+        super("OpenElementXmlMergeCommand");
+        this.elementId = elementId;
+        if (resume) this.resume = resume;
     }
 }
 

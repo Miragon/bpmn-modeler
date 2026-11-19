@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { BlockedPick, PickOutcome, RequirementObstacle } from "@miragon/bpmn-modeler-merge";
-import type { MergePaneBlock } from "@miragon/bpmn-modeler-shared";
+import {
+    type BlockedPick,
+    type HandMergeRefusal,
+    type PickOutcome,
+    type RequirementObstacle,
+} from "@miragon/bpmn-modeler-merge";
+import type { MergePaneBlock, MergePaneHandMergeRefusal } from "@miragon/bpmn-modeler-shared";
 
-import { idsNamedInWords, mergePickFeedback } from "./mergePickFeedback";
+import { handMergeFeedback, idsNamedInWords, mergePickFeedback } from "./mergePickFeedback";
 
 const blocked = (obstacle: RequirementObstacle): BlockedPick => ({
     id: "Task_Pack",
@@ -168,5 +173,90 @@ describe("mergePickFeedback", () => {
             new Set(["Task_Check", "Task_Reject", "Flow_2", "Task_Pack"]),
         );
         expect(idsNamedInWords([], undefined)).toStrictEqual(new Set());
+    });
+});
+
+describe("handMergeFeedback", () => {
+    it("pins the refusals of the protocol to the merge's, data and all", () => {
+        expectTypeOf<MergePaneHandMergeRefusal>().toEqualTypeOf<HandMergeRefusal>();
+    });
+
+    it("shows an accepted text as an applied merge by hand that changed no other decision", () => {
+        expect(handMergeFeedback("Task_Pack", { applied: true })).toStrictEqual({
+            outcome: {
+                applied: true,
+                action: "mergeByHand",
+                elementId: "Task_Pack",
+                pulledIn: [],
+                dropped: [],
+                reopened: [],
+            },
+        });
+    });
+
+    it.each<[string, HandMergeRefusal]>([
+        ["markers left", { kind: "conflictMarkersLeft" }],
+        ["a changed type", { kind: "typeChanged", expected: "bpmn:Task", found: "bpmn:UserTask" }],
+        ["a missing element", { kind: "namesMissingElement", ids: ["Message_9"] }],
+    ])(
+        "shows a refused text with %s as the refusal's data, which the pane words",
+        (_case, refusal) => {
+            expect(handMergeFeedback("Task_Pack", { applied: false, refusal })).toStrictEqual({
+                outcome: {
+                    applied: false,
+                    action: "mergeByHand",
+                    elementId: "Task_Pack",
+                    blockedBy: [],
+                    handMergeRefusal: refusal,
+                },
+            });
+        },
+    );
+
+    it.each<[string, HandMergeRefusal, readonly string[]]>([
+        ["its own elements", { kind: "holdsElementsOfTheirOwn", ids: ["Task_In"] }, ["Task_In"]],
+        [
+            "references of the wrong type",
+            {
+                kind: "namesWrongType",
+                references: [
+                    { property: "bpmn:messageRef", target: "Signal_1", expected: "bpmn:Message" },
+                ],
+            },
+            ["Signal_1"],
+        ],
+        ["missing elements", { kind: "namesMissingElement", ids: ["Message_9"] }, ["Message_9"]],
+        ["left-out elements", { kind: "namesLeftOutElement", ids: ["Flow_3"] }, ["Flow_3"]],
+        ["other decisions", { kind: "changesOtherDecisions", ids: ["Task_B"] }, ["Task_B"]],
+        ["no element", { kind: "conflictMarkersLeft" }, []],
+    ])("names the elements a refusal for %s names", (_case, refusal, ids) => {
+        const { outcome } = handMergeFeedback("Task_Pack", { applied: false, refusal });
+
+        expect(idsNamedInWords([], outcome)).toStrictEqual(new Set(["Task_Pack", ...ids]));
+    });
+
+    it("keeps the last pick's restore offer, since no finish changes a pick", () => {
+        const offer = {
+            elementId: "Task_Pack",
+            connections: ["Flow_2"],
+            keptSide: "incoming",
+        } as const;
+        const last = { outcome: handMergeFeedback("Task_Pack", "discarded").outcome, offer };
+
+        for (const finish of ["discarded", { applied: true }] as const) {
+            expect(handMergeFeedback("Task_Pack", finish, last).offer).toBe(offer);
+        }
+    });
+
+    it("shows a merge closed without saving as discarded", () => {
+        expect(handMergeFeedback("Task_Pack", "discarded")).toStrictEqual({
+            outcome: {
+                applied: false,
+                action: "mergeByHand",
+                elementId: "Task_Pack",
+                blockedBy: [],
+                discarded: true,
+            },
+        });
     });
 });

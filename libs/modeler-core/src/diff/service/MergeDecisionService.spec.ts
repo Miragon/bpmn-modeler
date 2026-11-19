@@ -22,7 +22,9 @@ import {
     type MergePaneShapelessRow,
     type MergePaneStep,
     type MergePaneValueDifference,
+    type MergeHostOffers,
     type MergePickScope,
+    NO_MERGE_HOST_OFFERS,
     PickMergeSideCommand,
     SHOW_ALL_CURSOR,
 } from "@miragon/bpmn-modeler-shared";
@@ -40,7 +42,7 @@ import {
     RecordingMergeSidesView,
 } from "../../testing";
 import { ResolvableStages } from "../domain/conflictReading";
-import { BpmnDiffService, ElementXmlChanges } from "./BpmnDiffService";
+import { BpmnDiffService } from "./BpmnDiffService";
 import { createDiffPaneRouter } from "./diffPaneRouter";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeDecisionService } from "./MergeDecisionService";
@@ -57,20 +59,20 @@ const CAPTIONS = {
 } as const;
 
 /** The services of one host, which a merge view of the same file opened again shares. */
-function mergeHost(elementXml?: ElementXmlChanges) {
+function mergeHost(offers?: () => Promise<MergeHostOffers>) {
     const { notifier, settings } = createTestHost();
     const store = new DiffPaneStore();
     const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
-    const decisions = new MergeDecisionService(sessions, notifier);
-    const diffService = new BpmnDiffService(notifier, settings, store, elementXml, decisions);
-    return { store, sessions, diffService };
+    const decisions = new MergeDecisionService(sessions, notifier, offers);
+    const diffService = new BpmnDiffService(notifier, settings, store, undefined, decisions);
+    return { store, sessions, decisions, diffService };
 }
 
 /** A merge view of `stages` whose two panes are attached but not yet ready. */
 async function openMergeView(
     stages: ResolvableStages = ORDER_MERGE_STAGES,
-    elementXml?: ElementXmlChanges,
-    host = mergeHost(elementXml),
+    offers?: () => Promise<MergeHostOffers>,
+    host = mergeHost(offers),
 ) {
     const { store, sessions, diffService } = host;
     const diffSession = store.registerMerge(URIS);
@@ -273,15 +275,83 @@ describe("MergeDecisionService", () => {
         expect(lastStatesOf(current).states.stepping).toStrictEqual({ list: "openConflicts" });
     });
 
-    it("tells the panes whether the host shows an element's XML changes", async () => {
-        const { current, bothReady } = await openMergeView(ORDER_MERGE_STAGES, {
-            show: async () => undefined,
-            follow: async () => undefined,
-        });
+    it("tells the panes what the host offers, asked again for every post", async () => {
+        let offers: MergeHostOffers = { elementXmlChanges: true, elementXmlMerge: false };
+        const { current, bothReady, pick } = await openMergeView(
+            ORDER_MERGE_STAGES,
+            async () => offers,
+        );
+
+        await bothReady();
+        expect(lastStatesOf(current).offers).toStrictEqual(offers);
+
+        offers = { elementXmlChanges: true, elementXmlMerge: true };
+        await pick(current, "Task_Pack", "element", "current");
+        expect(lastStatesOf(current).offers).toStrictEqual(offers);
+    });
+
+    it("offers the panes nothing on a host that names no offers", async () => {
+        const { current, bothReady } = await openMergeView();
 
         await bothReady();
 
-        expect(lastStatesOf(current).elementXmlChanges).toBe(true);
+        expect(lastStatesOf(current).offers).toStrictEqual(NO_MERGE_HOST_OFFERS);
+    });
+
+    describe("a version merged by hand", () => {
+        async function mergedByHand() {
+            const view = await openMergeView();
+            await view.bothReady();
+            await view.pick(view.current, "Task_Pack", "element", "current");
+            const session = view.sessions.of("file:///repo/order.bpmn");
+            const texts = session?.sources.handMergeTexts.get("Task_Pack");
+            if (!session || !texts) throw new Error("Task_Pack has no hand-merge texts");
+            const text = texts.current.replace("Pack parcel", "Pack it");
+            const outcome = await view.host.decisions.mergeByHand(session, {
+                elementId: "Task_Pack",
+                side: "current",
+                text,
+            });
+            expect(outcome).toStrictEqual({ applied: true });
+            return { ...view, session };
+        }
+
+        it("refuses a pick that would move it off its side and changes nothing", async () => {
+            const { session, incoming, pick } = await mergedByHand();
+
+            await pick(incoming, "Task_Pack", "element", "incoming");
+
+            expect(session.decisions.sideOf("Task_Pack")).toBe("current");
+            expect(session.decisions.handMergeOf("Task_Pack")).toBeDefined();
+            expect(lastStatesOf(incoming).states.lastOutcome).toStrictEqual({
+                applied: false,
+                action: "pick",
+                elementId: "Task_Pack",
+                blockedBy: [],
+                handMergesAtStake: ["Task_Pack"],
+            });
+        });
+
+        it("drops it on a pick the user said may drop it", async () => {
+            const { session, incoming, diffService } = await mergedByHand();
+
+            await diffService.pickMergeSide(incoming, "Task_Pack", "element", "incoming", true);
+
+            expect(session.decisions.sideOf("Task_Pack")).toBe("incoming");
+            expect(session.decisions.handMergeOf("Task_Pack")).toBeUndefined();
+            expect(lastStatesOf(incoming).states.lastOutcome).toMatchObject({ applied: true });
+        });
+
+        it("keeps it through an undo that does not drop it, and drops it on one that does", async () => {
+            const { session, current, unpick, diffService } = await mergedByHand();
+
+            await unpick(current, "Task_Pack");
+            expect(session.decisions.handMergeOf("Task_Pack")).toBeDefined();
+
+            await diffService.unpickMerge(current, "Task_Pack", "element", true);
+            expect(session.decisions.handMergeOf("Task_Pack")).toBeUndefined();
+            expect(session.decisions.originOf("Task_Pack")).not.toBe("picked");
+        });
     });
 
     it("keeps the protocol's copies of the step and the shape-less row equal to the merge's", () => {
@@ -460,6 +530,37 @@ describe("MergeDecisionService", () => {
                 ["Flow_3", "element"],
             ]);
         });
+
+        it.each([
+            ["closed without a save", "discarded"],
+            ["refused", "refused"],
+        ] as const)(
+            "keeps a pick's restore offer through a hand merge %s",
+            async (_case, finish) => {
+                const { host, incoming, bothReady, pick, sessions } =
+                    await openMergeView(ORDER_REMOVAL_STAGES);
+                await bothReady();
+                await pick(incoming, "Task_Pack");
+                const offered = lastStatesOf(incoming).states.restoreOffer;
+                expect(offered).toBeDefined();
+                const session = sessions.of("file:///repo/order.bpmn");
+                if (!session) throw new Error("no merge view");
+
+                if (finish === "discarded") {
+                    await host.decisions.discardHandMerge(session, "Task_Pack");
+                } else {
+                    await host.decisions.mergeByHand(session, {
+                        elementId: "Task_Pack",
+                        side: "incoming",
+                        text: "<<<<<<< current",
+                    });
+                }
+
+                const { states } = lastStatesOf(incoming);
+                expect(states.lastOutcome).toMatchObject({ action: "mergeByHand", applied: false });
+                expect(states.restoreOffer).toStrictEqual(offered);
+            },
+        );
 
         it("takes back an element with the flows kept with it", async () => {
             const { current, incoming, bothReady, pick, unpick } =

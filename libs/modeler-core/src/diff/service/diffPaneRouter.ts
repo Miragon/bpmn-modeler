@@ -65,6 +65,12 @@ export function createDiffPaneRouter(
             ? [(command, pane) => diffService.showElementXmlChanges(pane, command.elementId)]
             : { ignored: "the host shows no element XML diff" },
         ...mergeRoutes(diffService),
+        OpenElementXmlMergeCommand: diffService.offersElementXmlMerge
+            ? [
+                  (command, pane) =>
+                      diffService.openElementXmlMerge(pane, command.elementId, command.resume),
+              ]
+            : { ignored: "the host offers no XML merge editor" },
         ...mergeResultRoutes(diffService),
         ...mergePaneCommandRoutes(extensions),
         ...hostRoutes(extensions),
@@ -91,10 +97,22 @@ function mergeRoutes(
         ],
         PickMergeSideCommand: [
             (command, pane) =>
-                diffService.pickMergeSide(pane, command.elementId, command.scope, command.side),
+                diffService.pickMergeSide(
+                    pane,
+                    command.elementId,
+                    command.scope,
+                    command.side,
+                    command.dropsHandMerges,
+                ),
         ],
         UnpickMergeCommand: [
-            (command, pane) => diffService.unpickMerge(pane, command.elementId, command.scope),
+            (command, pane) =>
+                diffService.unpickMerge(
+                    pane,
+                    command.elementId,
+                    command.scope,
+                    command.dropsHandMerges,
+                ),
         ],
     };
 }

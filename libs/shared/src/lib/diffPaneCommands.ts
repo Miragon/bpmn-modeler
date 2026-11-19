@@ -29,6 +29,7 @@ export const BPMN_DIFF_PANE_COMMAND_TYPES = [
     "MergeStepListChangedCommand",
     "PickMergeSideCommand",
     "UnpickMergeCommand",
+    "OpenElementXmlMergeCommand",
     "BuildMergeResultCommand",
     "CompareMergeResultCommand",
     "SwitchMergeComparisonCommand",

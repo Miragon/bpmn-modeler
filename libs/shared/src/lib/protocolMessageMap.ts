@@ -23,6 +23,7 @@ import type {
     CompareMergeResultCommand,
     MergePaneCommandsChangedCommand,
     MergeStepListChangedCommand,
+    OpenElementXmlMergeCommand,
     PickMergeSideCommand,
     RunMergePaneCommandQuery,
     SwitchMergeComparisonCommand,
@@ -269,6 +270,7 @@ export type ProtocolCommand =
     | MergeStepListChangedCommand
     | PickMergeSideCommand
     | UnpickMergeCommand
+    | OpenElementXmlMergeCommand
     | BuildMergeResultCommand
     | CompareMergeResultCommand
     | SwitchMergeComparisonCommand

@@ -13,27 +13,7 @@ import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
 import * as addOnsFeature from "./composition/addOnsFeature";
-
-/** Narrow API surface returned by `activate()` for e2e tests only. */
-export interface TestApi {
-    modeler: {
-        /** Whether the editable modeler of `uri` has opened its editor session. */
-        hasEditor(uri: string): boolean;
-    };
-    diff: {
-        sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
-        /** Diff panes that render `uri`, attached or waiting for a partner; 0 for the editable modeler. */
-        paneCountFor(uri: string): number;
-    };
-    merge: {
-        /** The merge view of a working file: its diff origin, open panes, tabs and captions. */
-        sessionFor(
-            fileUri: string,
-        ): { origin: string; paneCount: number; tabCount: number; captions: unknown } | undefined;
-        /** Builds the merge view's result into the working file, as its Build button does. */
-        build(fileUri: string): Promise<void>;
-    };
-}
+import { createTestApi, TestApi } from "./composition/testApi";
 
 /**
  * Activation is pure composition: build the shared collaborators once, then let
@@ -67,6 +47,7 @@ export function activate(context: ExtensionContext): TestApi {
         mergeSessions,
         conflictMarkers,
         buildMerge,
+        elementXmlMerge,
     } = diffFeature.register(context, deps);
     const script = scriptFeature.register(context, deps);
     // Service built before the BPMN editor (which merges its cache); commands
@@ -105,37 +86,12 @@ export function activate(context: ExtensionContext): TestApi {
         coreWriteRenderer: bpmnEditor,
     });
 
-    return {
-        modeler: {
-            hasEditor: (uri: string) => deps.editorStore.hasEditor(uri),
-        },
-        diff: {
-            sessionFor(uri: string) {
-                const session = diffStore.findByUri(uri) ?? dmnDiffStore.findByUri(uri);
-                if (!session) {
-                    return undefined;
-                }
-                return { origin: session.origin, paneCount: session.attachedPanes().length };
-            },
-            paneCountFor(uri: string) {
-                return diffStore.paneCountFor(uri) + dmnDiffStore.paneCountFor(uri);
-            },
-        },
-        merge: {
-            sessionFor(fileUri: string) {
-                const session = mergeSessions.of(fileUri);
-                if (!session) {
-                    return undefined;
-                }
-                const tabs = mergeSessions.diffSessionsOf(session);
-                return {
-                    origin: tabs[0]?.origin,
-                    paneCount: tabs.reduce((count, tab) => count + tab.attachedPanes().length, 0),
-                    tabCount: tabs.length,
-                    captions: session.captions,
-                };
-            },
-            build: buildMerge,
-        },
-    };
+    return createTestApi({
+        editorStore: deps.editorStore,
+        diffStore,
+        dmnDiffStore,
+        mergeSessions,
+        buildMerge,
+        elementXmlMerge,
+    });
 }

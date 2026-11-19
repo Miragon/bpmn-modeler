@@ -242,20 +242,23 @@ const STATES: MergePaneStates = {
 
 /** The right pane's states, which carry the stepper, the menu and Build. */
 function mergeStates(states: Partial<MergePaneStates> = {}, elementXmlChanges = false) {
-    return new ApplyMergeStatesQuery("after", { ...STATES, ...states }, elementXmlChanges);
+    return new ApplyMergeStatesQuery(
+        "after",
+        { ...STATES, ...states },
+        {
+            elementXmlChanges,
+            elementXmlMerge: false,
+        },
+    );
 }
 
 /** The left pane's states: the caption and the counts only. */
 function leftStates(states: Partial<MergePaneStates> = {}) {
-    return new ApplyMergeStatesQuery(
-        "before",
-        {
-            ...STATES,
-            caption: { side: "current", role: "branch", ref: "main", shortHash: "1111111" },
-            ...states,
-        },
-        false,
-    );
+    return new ApplyMergeStatesQuery("before", {
+        ...STATES,
+        caption: { side: "current", role: "branch", ref: "main", shortHash: "1111111" },
+        ...states,
+    });
 }
 
 function dispatch(data: unknown): void {

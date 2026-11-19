@@ -21,7 +21,11 @@ import { FormEngineStatusBarParticipant, JsonFormTextEdits } from "@miragon/bpmn
 import { ModelerEditorController } from "../modeler/editor-session/adapter/in/ModelerEditorController";
 import { DocumentSaveFlushController } from "../modeler/editor-session/adapter/in/DocumentSaveFlushController";
 import { FormValuesParticipant } from "../modeler/form/adapter/in/editor-participants/FormValuesParticipant";
-import { FormValuesController } from "../modeler/form/adapter/in/FormValuesController";
+import {
+    FORM_INPUT_VALUES_SCHEME,
+    FORM_OUTPUT_VALUES_SCHEME,
+    FormValuesController,
+} from "../modeler/form/adapter/in/FormValuesController";
 import {
     getPropertiesPanelStateHandler,
     setPropertiesPanelStateHandler,
@@ -33,6 +37,7 @@ import {
 } from "../modeler/form/adapter/in/webview-handlers/formMessageHandlers";
 import { DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 import { DiffController } from "../diff/adapter/in/DiffController";
+import { InMemoryFileSystemProvider } from "../shared/adapter/out/InMemoryFileSystemProvider";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -66,7 +71,12 @@ export function register(
         pendingEdits: deps.pendingEdits,
         textEdits: new JsonFormTextEdits(),
     });
-    const formValues = new FormValuesController(deps.editorStore, deps.notifier);
+    const formValues = new FormValuesController(deps.editorStore, deps.notifier, {
+        input: InMemoryFileSystemProvider.registered(context, FORM_INPUT_VALUES_SCHEME),
+        output: InMemoryFileSystemProvider.registered(context, FORM_OUTPUT_VALUES_SCHEME, {
+            readOnly: true,
+        }),
+    });
     formValues.register(context);
     const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
         deps.editorStore,

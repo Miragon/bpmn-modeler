@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import conflictMarkersSource from "./conflictMarkers.ts?raw";
 
-import { ConflictMarkerReading, readConflictMarkers } from "./conflictMarkers";
+import {
+    ConflictMarkerReading,
+    readConflictMarkers,
+    writeConflictMarkers,
+} from "./conflictMarkers";
 
 const lines = (...rows: string[]): string => rows.join("\n");
 
@@ -106,6 +110,46 @@ describe("readConflictMarkers", () => {
         ],
     ])("%s", (_case, text, expected) => {
         expect(readConflictMarkers(text)).toStrictEqual(expected);
+    });
+});
+
+describe("writeConflictMarkers", () => {
+    const labels = { current: "Current", incoming: "Incoming" };
+
+    // apps/vscode-plugin/test/e2e/mergeXmlEditor.e2e.test.ts runs VS Code's merge editor on this
+    // shape on the engines floor and on stable; a change here needs that gate run again.
+    it("writes the text the merge editor gate ran", () => {
+        const current = '<bpmn:serviceTask id="Task_Check" name="Check main order" />\n';
+        const incoming = '<bpmn:serviceTask id="Task_Check" name="Check feature order" />\n';
+
+        expect(writeConflictMarkers({ current, incoming }, labels)).toBe(
+            `<<<<<<< Current\n${current}=======\n${incoming}>>>>>>> Incoming\n`,
+        );
+    });
+
+    it.each([
+        ["both sides ending in a newline", "a\n", "b\n"],
+        ["neither side ending in a newline", "a", "b"],
+        ["an empty side", "", "b\n"],
+    ])("keeps every marker on a line of its own with %s", (_case, current, incoming) => {
+        const text = writeConflictMarkers({ current, incoming }, labels);
+
+        expect(text.split("\n").filter((line) => /^(<{7}|={7}|>{7})/.test(line))).toStrictEqual([
+            "<<<<<<< Current",
+            "=======",
+            ">>>>>>> Incoming",
+        ]);
+        expect(text.endsWith(">>>>>>> Incoming\n")).toBe(true);
+    });
+
+    it("writes a text that reads back with both labels", () => {
+        const text = writeConflictMarkers({ current: "a\n", incoming: "b\n" }, labels);
+
+        expect(readConflictMarkers(text)).toStrictEqual({
+            hasMarkers: true,
+            currentLabel: "Current",
+            incomingLabel: "Incoming",
+        });
     });
 });
 
