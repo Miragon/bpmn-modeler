@@ -1,5 +1,6 @@
 // Strings our own code passes to translate() at a call site no harvest reaches
-// (neither a harvest driver nor, for the merge view, mergeTextsTranslated.spec.ts),
+// (neither a harvest driver nor a recording spec: mergeTextsTranslated.spec.ts for
+// the merge view, the diffTextsHarvest.spec.ts files for the diff panes),
 // genuinely needed and absent from the shared library. Keep them until upstreamed.
 // A key stays while another view's harvest records it: that harvest does not reach this call site.
 export const SOURCE_ONLY: ReadonlySet<string> = new Set([
@@ -30,17 +31,6 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "Searching…",
     "thrown by {elements}",
     "caught by {elements}",
-    // The BPMN and DMN diff legends: the harvest driver opens no diff pane.
-    "Changes",
-    "No changes",
-    "Show all",
-    "Old version",
-    "New version",
-    "Not in this version",
-    "It was removed. The version on the left shows it.",
-    "It is new. The version on the right shows it.",
-    // The BPMN diff pane's context-pad entry, for the same reason.
-    "Show XML changes",
     // Mode-strip labels the webview emits before any surface exists, so the
     // harvest driver (which drives a live modeler) never records them.
     "View",

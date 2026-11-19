@@ -9,8 +9,8 @@
  *
  * Runtime truth is the union of the harvests (`readHarvestedKeys` in
  * harvestedKeys.ts): every template the harvested pages passed to translate(),
- * captured by the harvest drivers and, for the merge view, by
- * apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts (see tools/README.md).
+ * captured by the harvest drivers and, for the merge view and the diff panes, by
+ * the specs that record their texts (see tools/README.md).
  * A key is legitimate iff a harvest recorded it (exact or normalized) — or it is
  * on the SOURCE_ONLY allowlist in sourceOnlyKeys.ts, shared with
  * tools/build-overlay.mjs: strings our own webview passes to translate() from a
@@ -36,7 +36,7 @@ describe("i18n extras carry only keys the modeler requests", () => {
 
         expect(
             unrequested,
-            "these overlay keys are never requested at runtime — remove them from src/languages/*. A merge view text: ask it in apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts and rerecord tools/harvested-merge.json. Any other text no harvest driver can reach: add it to SOURCE_ONLY",
+            "these overlay keys are never requested at runtime — remove them from src/languages/*. A merge view text: ask it in apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts and rerecord tools/harvested-merge.json. A diff pane text: record it in apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts or apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts and rerecord tools/harvested-diff.json or tools/harvested-dmn-diff.json. Any other text no harvest driver can reach: add it to SOURCE_ONLY",
         ).toEqual([]);
     });
 });

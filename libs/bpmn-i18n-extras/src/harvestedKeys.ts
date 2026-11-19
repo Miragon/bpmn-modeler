@@ -3,12 +3,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 // One file per harvest: the C7 modeler, the dmn-js views, the element template
-// editor and the merge view request mostly disjoint strings, and all of them are needed.
+// editor, the merge view and the diff panes request mostly disjoint strings, and all of them are needed.
 const HARVEST_FILES = [
     "harvested.json",
     "harvested-dmn.json",
     "harvested-template-editor.json",
     "harvested-merge.json",
+    "harvested-diff.json",
+    "harvested-dmn-diff.json",
 ] as const;
 
 const TOOLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");

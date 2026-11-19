@@ -4,7 +4,8 @@ import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
 
-import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
+import { ELEMENT_XML_CHANGES_TITLE } from "../../domain/elementXmlTexts";
+import { CODE_ICON_SVG } from "./elementXmlEntry";
 
 import "./elementXmlContextPad.css";
 
