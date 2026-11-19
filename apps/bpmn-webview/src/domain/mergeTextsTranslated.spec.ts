@@ -5,7 +5,6 @@ import type {
     MergeObstacleWithMissing,
     MergePanePickAction,
     MergePaneBlock,
-    MergePaneBuildNote,
     MergePaneContainerReach,
     MergePaneHandMergeRefusal,
     MergePaneOtherSideLack,
@@ -17,6 +16,7 @@ import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKERS,
     MERGE_SIDES,
+    type MergeBuildNote,
     type MergeSide,
     otherSide,
 } from "@miragon/bpmn-modeler-types";
@@ -97,7 +97,7 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     targetPickedWithout: true,
     sideLacksTarget: true,
 };
-type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = MergePaneBuildNote extends infer Note
+type NoteOfKind<Kind extends MergeBuildNote["kind"]> = MergeBuildNote extends infer Note
     ? Note extends { kind: infer NoteKind }
         ? Kind extends NoteKind
             ? Note & { kind: Kind }
@@ -105,7 +105,7 @@ type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = MergePaneBuildNote ex
         : never
     : never;
 
-type RepairedKind = Extract<MergePaneBuildNote, { repair: string }>["kind"];
+type RepairedKind = Extract<MergeBuildNote, { repair: string }>["kind"];
 
 type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
 
@@ -114,7 +114,7 @@ type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Rep
  * merge adds and this spec misses.
  */
 const NOTES: {
-    [Kind in MergePaneBuildNote["kind"]]: Kind extends RepairedKind
+    [Kind in MergeBuildNote["kind"]]: Kind extends RepairedKind
         ? Record<RepairOf<NoteOfKind<Kind>>, readonly NoteOfKind<Kind>[]>
         : readonly NoteOfKind<Kind>[];
 } = {
@@ -198,8 +198,8 @@ const NOTES: {
     ],
 };
 
-const noteVariants = (): MergePaneBuildNote[] =>
-    Object.values<readonly MergePaneBuildNote[] | Record<string, readonly MergePaneBuildNote[]>>(
+const noteVariants = (): MergeBuildNote[] =>
+    Object.values<readonly MergeBuildNote[] | Record<string, readonly MergeBuildNote[]>>(
         NOTES,
     ).flatMap((variants) => (Array.isArray(variants) ? variants : Object.values(variants).flat()));
 

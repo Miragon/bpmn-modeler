@@ -23,6 +23,7 @@ verify details against source because older guides and ADRs may be outdated.
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
 | Form editing and deployment UI | `apps/form-webview`; `apps/deployment-webview`, whose markup lives in `src/adapter/in/formTemplate.ts`. |
 | Add-ons view UI | `apps/add-ons-webview`: the reducer `src/domain/viewState.ts` and the view's rules beside it (`listSections.ts`, `catalogFilter.ts`, `catalogSelection.ts`, `listContent.ts`), the view's own words in `src/domain/chromeTexts.ts`, the DOM in `src/adapter/in/addOnsView.ts` and its parts (`toolbar.ts`, `listView.ts`, `detailView.ts`, `emptyStates.ts`); the catalog, its texts and the protocol adapter (`AddOnViewMessages`) live in the core's `addOns/`. |
+| A webview's browser-preview host | Beside its `adapter/out/host.ts`, never in it: `host.ts` only picks the real or the preview host, and the preview host answers each feature from its own module in `adapter/out/browserPreview/`, as in `apps/bpmn-webview`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
 Decisions (rules, state transitions, validations) go into the owning feature's

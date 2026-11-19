@@ -1,15 +1,11 @@
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeBrokenFlowKind, MergeBuildNote, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeTranslate } from "./mergeTranslate";
 
-type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = Extract<
-    MergePaneBuildNote,
-    { kind: Kind }
->;
+type NoteOfKind<Kind extends MergeBuildNote["kind"]> = Extract<MergeBuildNote, { kind: Kind }>;
 
 /** A broken flow's note, which says whether the build re-routed the flow. */
-type FlowNote = NoteOfKind<"flowEndOffShape" | "flowThroughShape">;
+type FlowNote = NoteOfKind<MergeBrokenFlowKind>;
 
 type OverlapNote = NoteOfKind<"shapesOverlap">;
 
@@ -20,7 +16,7 @@ type LaneNote = NoteOfKind<"lanesOverlap">;
 /** What each build note asks the user to check, with the canvas's names of its elements; each is a translation key. */
 const BUILD_NOTE_TEXTS: Record<
     Exclude<
-        MergePaneBuildNote["kind"],
+        MergeBuildNote["kind"],
         | "layoutChangedByBoth"
         | FlowNote["kind"]
         | OverlapNote["kind"]
@@ -101,7 +97,7 @@ const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
 
 /** One note of the last build, in one line. */
 export function buildNoteText(
-    note: MergePaneBuildNote,
+    note: MergeBuildNote,
     nameOf: (id: string) => string,
     translate: MergeTranslate,
 ): string {
@@ -109,7 +105,7 @@ export function buildNoteText(
     return translate(buildNoteTemplate(note), noteReplacements(note, nameOf, names));
 }
 
-function buildNoteTemplate(note: MergePaneBuildNote): string {
+function buildNoteTemplate(note: MergeBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
     if (note.kind === "shapesOverlap") return overlapTemplate(note);
     if (note.kind === "shapeOutsideContainer") return CONTAINER_NOTE_TEXTS[note.repair];
@@ -199,7 +195,7 @@ function laneReplacements(
 }
 
 function noteReplacements(
-    note: MergePaneBuildNote,
+    note: MergeBuildNote,
     nameOf: (id: string) => string,
     names: (ids: readonly string[]) => string,
 ): Record<string, string> {

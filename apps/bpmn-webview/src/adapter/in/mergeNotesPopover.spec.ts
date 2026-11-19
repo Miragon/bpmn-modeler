@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
 
 import { MergeNotesPopover } from "./mergeNotesPopover";
 
 const translate = (key: string, replacements: Record<string, string> = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? name);
 
-const NOTES: readonly MergePaneBuildNote[] = [
+const NOTES: readonly MergeBuildNote[] = [
     { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1"] },
     { kind: "layoutChangedByBoth", ids: ["Task_A", "Gateway_1"], keptSide: "incoming" },
     { kind: "frameDiffers", attribute: "exporter" },

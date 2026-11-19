@@ -1,7 +1,7 @@
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
 
 /** The elements a build note names, which its entry offers to show. */
-export function buildNoteElementIds(note: MergePaneBuildNote): readonly string[] {
+export function buildNoteElementIds(note: MergeBuildNote): readonly string[] {
     switch (note.kind) {
         case "flowEndOffShape":
         case "flowThroughShape":

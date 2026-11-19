@@ -1,4 +1,3 @@
-import { segmentBounds } from "./layoutGeometry";
 import {
     type LaneShape,
     type LayoutEdge,
@@ -7,6 +6,7 @@ import {
     framesOf,
 } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
+import { segmentBounds } from "./layoutSegments";
 import {
     type LayoutSpot,
     endsOffShape,

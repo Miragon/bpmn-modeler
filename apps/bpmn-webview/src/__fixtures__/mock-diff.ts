@@ -1,9 +1,9 @@
 /**
  * Fixture BPMN XMLs for the dev-mode diff preview.
  *
- * Used exclusively by the `MockHost` in `host.ts` when the webview
- * is booted with `?mode=diff-before` or `?mode=diff-after`.  The two diagrams
- * differ in every category `bpmn-js-differ` reports:
+ * The browser preview host (`adapter/out/browserPreview/`) serves them as the
+ * panes of the diff modes (`?mode=diff-before|diff-after`) and the merge modes
+ * (`?mode=merge-current|merge-incoming`).  The two diagrams differ in every category `bpmn-js-differ` reports:
  *
  *   - `_changed`        — `ServiceTask_1` renames from "Fetch Data" to
  *                         "Fetch Customer Data" (attribute change).

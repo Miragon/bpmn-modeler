@@ -1,3 +1,6 @@
+import type { MergeOverlapRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
+import type { RepairOf } from "./buildNotes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
 import { sameBounds } from "./layoutGeometry";
@@ -22,22 +25,9 @@ import {
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
 /** What the build did about two shapes on top of each other. */
-export type OverlapRepair =
-    | {
-          readonly kind: "movedByBuild";
-          readonly shapes: readonly [string, string];
-          readonly moved: string;
-      }
-    | {
-          readonly kind: "madeRoom";
-          readonly shapes: readonly [string, string];
-          readonly moved: string;
-          /** The outermost shapes shifted to make the room, in document order. */
-          readonly shifted: readonly string[];
-          /** The sub-processes, lanes and pools that grew to hold it, in document order. */
-          readonly grown: readonly string[];
-      }
-    | { readonly kind: "notRepaired"; readonly shapes: readonly [string, string] };
+export type OverlapRepair = RepairOf<MergeOverlapRepair> & {
+    readonly shapes: readonly [string, string];
+};
 
 type MoveRepair = Exclude<OverlapRepair, { readonly kind: "notRepaired" }>;
 

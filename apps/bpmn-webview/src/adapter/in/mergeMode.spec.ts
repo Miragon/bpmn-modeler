@@ -1274,6 +1274,14 @@ describe("MergeMode", () => {
                             otherSideLacks: "removed",
                         },
                     ],
+                    badges: [
+                        {
+                            id: "Task_Pack",
+                            kind: "replacedHere",
+                            keptSide: "current",
+                            scope: "element",
+                        },
+                    ],
                     restoreOffer: {
                         elementId: "Task_Pack",
                         connections: ["Flow_1"],
@@ -1723,6 +1731,9 @@ describe("MergeMode", () => {
                     undo: "element",
                     otherSideLacks: "removed",
                 },
+            ],
+            badges: [
+                { id: "Task_Pack", kind: "replacedHere", keptSide: "current", scope: "element" },
             ],
             restoreOffer: { elementId: "Task_Pack", connections: ["Flow_1"], removedBy: "current" },
         };

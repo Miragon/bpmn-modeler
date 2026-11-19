@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
 
 import { buildNoteText } from "./mergeBuildNoteTexts";
 import type { MergeTranslate } from "./mergeTranslate";
@@ -11,7 +11,7 @@ const untranslated: MergeTranslate = (key, replacements = {}) =>
 describe("buildNoteText", () => {
     const nameOf = (id: string) => ({ Flow_2: "to packing", Task_Pack: "Pack box" })[id] ?? id;
 
-    it.each<[MergePaneBuildNote, string]>([
+    it.each<[MergeBuildNote, string]>([
         [
             {
                 kind: "flowEndOffShape",

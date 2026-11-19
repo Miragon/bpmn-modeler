@@ -1,5 +1,5 @@
-import type { BuildNote, MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
-import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type { MergeDecisions, MergeSources } from "@miragon/bpmn-modeler-merge";
+import type { MergeBuildNote, MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { MergeViewContent } from "../domain/mergeViewContent";
@@ -31,7 +31,7 @@ export interface MergeSession extends MergeViewContent {
 /** A merge result written to the working file, and what its build asks the user to review. */
 export interface MergeBuild {
     readonly xml: string;
-    readonly notes: readonly BuildNote[];
+    readonly notes: readonly MergeBuildNote[];
 }
 
 interface Entry {

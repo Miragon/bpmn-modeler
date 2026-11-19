@@ -24,7 +24,7 @@ export type { Requirement } from "./referenceRules";
 export { describeUnmetRequirement } from "./unmetRequirement";
 export type { RequirementObstacle, UnmetRequirement } from "./unmetRequirement";
 export { buildMerged } from "./buildMerged";
-export type { BuildNote, MergedDocument } from "./buildMerged";
+export type { MergedDocument } from "./buildMerged";
 export { prepareMergeSources } from "./buildMergedSources";
 export type { MergeSources } from "./buildMergedSources";
 export { isConflictState } from "./mergeResult";

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
+import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
 
 import { buildNoteElementIds } from "./mergeBuildNotes";
 
 // A record, so the compiler names a note kind the merge adds and this spec misses.
-const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly string[]]> = {
+const CASES: Record<MergeBuildNote["kind"], [MergeBuildNote, readonly string[]]> = {
     flowEndOffShape: [
         {
             kind: "flowEndOffShape",

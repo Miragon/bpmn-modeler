@@ -42,18 +42,24 @@ import {
 `@miragon/bpmn-modeler-types/engine` (a path in `tsconfig.base.json`) is `src/engine.ts` alone: the
 engine vocabulary and its detection. It exists because the barrel also exports DOM helpers (`dom.ts`,
 `canvasResize.ts`, …), which a workspace compiled without the DOM lib, such as the merge (#2450), cannot
-type-check. `engine.spec.ts` therefore fails on any runtime import in `engine.ts`; `import type` is
-erased and stays allowed.
+type-check. `domFreeEntries.spec.ts` therefore reads every `@miragon/bpmn-modeler-types/<entry>`
+path in `tsconfig.base.json` and fails on any runtime import in its file; `import type` is erased and
+stays allowed. A new entry point is checked once its path is there.
 
 ### The `/mergeVocabulary` entry point
 
 `@miragon/bpmn-modeler-types/mergeVocabulary` is `src/mergeVocabulary.ts` alone, for the same reason:
 the merge view's sides, markers, marker classes and caption roles, which `libs/bpmn-merge` reads without
-the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. `.github/release-lines.json`
+the DOM lib. `.github/release-lines.json`
 routes it like the rest of the library, to every line that ships it (`docs/adr/merge.md`).
+
+### The `/mergeBuildNotes` entry point
+
+`@miragon/bpmn-modeler-types/mergeBuildNotes` is `src/mergeBuildNotes.ts` alone: the notes a merge
+build returns, which `libs/bpmn-merge` builds and the merge view's protocol carries as they are.
 
 ### The `/conflictMarkers` entry point
 
 `@miragon/bpmn-modeler-types/conflictMarkers` is `src/conflictMarkers.ts` alone: Git's conflict-marker
 grammar, which the core reads files with and `libs/bpmn-merge` checks a hand-merged text with, so both
-read markers alike. `conflictMarkers.spec.ts` fails on a runtime import in it.
+read markers alike.
