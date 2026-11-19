@@ -68,7 +68,7 @@ describe("mergePadDecisions", () => {
         [
             "the user kept it from this side: no keep, and undo",
             {
-                pickable: [{ id: "Task_1", undo: "element" }],
+                pickable: [{ id: "Task_1" }],
                 badges: [keptHere("element")],
             },
             ["undo"],
@@ -76,7 +76,7 @@ describe("mergePadDecisions", () => {
         [
             "a container the user kept alone: keep everything inside, and undo",
             {
-                pickable: [{ id: "Task_1", container: "contents", undo: "element" }],
+                pickable: [{ id: "Task_1", container: "contents" }],
                 badges: [keptHere("element")],
             },
             ["keep withContents", "undo"],
@@ -84,7 +84,7 @@ describe("mergePadDecisions", () => {
         [
             "a container the user kept with everything inside: undo only",
             {
-                pickable: [{ id: "Task_1", container: "contents", undo: "withContents" }],
+                pickable: [{ id: "Task_1", container: "contents" }],
                 badges: [keptHere("withContents")],
             },
             ["undo"],
@@ -92,7 +92,7 @@ describe("mergePadDecisions", () => {
         [
             "the user kept it with what was removed with it from this side: undo only",
             {
-                pickable: [{ id: "Task_1", undo: "withRemoved" }],
+                pickable: [{ id: "Task_1" }],
                 badges: [keptHere("withRemoved")],
             },
             ["undo"],
@@ -100,7 +100,7 @@ describe("mergePadDecisions", () => {
         [
             "the user kept the other side's version: keep this side's, and undo",
             {
-                pickable: [{ id: "Task_1", undo: "element" }],
+                pickable: [{ id: "Task_1" }],
                 badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
             },
             ["keep element", "undo"],
@@ -131,7 +131,7 @@ describe("mergePadDecisions", () => {
         [
             "the host offers what was removed with it: keep that too",
             {
-                pickable: [{ id: "Task_1", undo: "element" }],
+                pickable: [{ id: "Task_1" }],
                 badges: [keptHere("element")],
                 restoreOffer: OFFER,
             },
@@ -149,7 +149,6 @@ describe("mergePadDecisions", () => {
                     {
                         id: "Task_1",
                         container: "contents",
-                        undo: "element",
                         otherSideLacks: "removed",
                     },
                 ],
@@ -220,7 +219,7 @@ describe("mergePadDecisions", () => {
         [
             "a picked element whose three texts differ: merge its XML, before undo",
             {
-                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                pickable: [{ id: "Task_1", handMergeable: true }],
                 badges: [keptHere("element")],
             },
             ["mergeXml open", "undo"],
@@ -228,7 +227,7 @@ describe("mergePadDecisions", () => {
         [
             "an element merged by hand: edit the merged XML",
             {
-                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                pickable: [{ id: "Task_1", handMergeable: true }],
                 badges: [{ ...keptHere("element"), mergedByHand: true }],
             },
             ["mergeXml edit", "undo"],
@@ -236,7 +235,7 @@ describe("mergePadDecisions", () => {
         [
             "the pane of the side the pick replaced: keep this side's, merge the XML, undo",
             {
-                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                pickable: [{ id: "Task_1", handMergeable: true }],
                 badges: [{ ...keptHere("element"), kind: "replacedHere", keptSide: "current" }],
             },
             ["keep element", "mergeXml open", "undo"],
@@ -244,7 +243,7 @@ describe("mergePadDecisions", () => {
         [
             "the restore offer comes before the XML merge",
             {
-                pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+                pickable: [{ id: "Task_1", handMergeable: true }],
                 badges: [keptHere("element")],
                 restoreOffer: OFFER,
             },
@@ -256,7 +255,7 @@ describe("mergePadDecisions", () => {
 
     it("offers no XML merge where the host has no merge editor", () => {
         const handMergeable = states({
-            pickable: [{ id: "Task_1", undo: "element", handMergeable: true }],
+            pickable: [{ id: "Task_1", handMergeable: true }],
             badges: [keptHere("element")],
         });
 
@@ -265,7 +264,7 @@ describe("mergePadDecisions", () => {
 
     it("offers a container the other side's pick keeps with everything inside this side's, alone and with everything inside", () => {
         const keptElsewhereWithContents = states({
-            pickable: [{ id: "Task_1", container: "contents", undo: "withContents" }],
+            pickable: [{ id: "Task_1", container: "contents" }],
             badges: [
                 {
                     ...keptHere("withContents"),
@@ -279,6 +278,17 @@ describe("mergePadDecisions", () => {
             "keep element",
             "keep withContents",
             "undo",
+        ]);
+    });
+
+    it("takes back the scope the user's pick holds, as its badge shows it", () => {
+        const keptWithContents = states({
+            pickable: [{ id: "Task_1", container: "contents" }],
+            badges: [keptHere("withContents")],
+        });
+
+        expect(mergePadDecisions(keptWithContents, "Task_1", NO_XML_MERGE)).toStrictEqual([
+            { kind: "undo", scope: "withContents" },
         ]);
     });
 });
