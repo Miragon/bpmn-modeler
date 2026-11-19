@@ -307,10 +307,11 @@ describe("MergeDecisionService", () => {
             const texts = session?.sources.handMergeTexts.get("Task_Pack");
             if (!session || !texts) throw new Error("Task_Pack has no hand-merge texts");
             const text = texts.current.replace("Pack parcel", "Pack it");
-            const outcome = await view.host.decisions.mergeByHand(
-                session,
-                { elementId: "Task_Pack", side: "current", text },
-            );
+            const outcome = await view.host.decisions.mergeByHand(session, {
+                elementId: "Task_Pack",
+                side: "current",
+                text,
+            });
             expect(outcome).toStrictEqual({ applied: true });
             return { ...view, session };
         }
@@ -533,29 +534,33 @@ describe("MergeDecisionService", () => {
         it.each([
             ["closed without a save", "discarded"],
             ["refused", "refused"],
-        ] as const)("keeps a pick's restore offer through a hand merge %s", async (_case, finish) => {
-            const { host, incoming, bothReady, pick, sessions } =
-                await openMergeView(ORDER_REMOVAL_STAGES);
-            await bothReady();
-            await pick(incoming, "Task_Pack");
-            const offered = lastStatesOf(incoming).states.restoreOffer;
-            expect(offered).toBeDefined();
-            const session = sessions.of("file:///repo/order.bpmn");
-            if (!session) throw new Error("no merge view");
+        ] as const)(
+            "keeps a pick's restore offer through a hand merge %s",
+            async (_case, finish) => {
+                const { host, incoming, bothReady, pick, sessions } =
+                    await openMergeView(ORDER_REMOVAL_STAGES);
+                await bothReady();
+                await pick(incoming, "Task_Pack");
+                const offered = lastStatesOf(incoming).states.restoreOffer;
+                expect(offered).toBeDefined();
+                const session = sessions.of("file:///repo/order.bpmn");
+                if (!session) throw new Error("no merge view");
 
-            if (finish === "discarded") {
-                await host.decisions.discardHandMerge(session, "Task_Pack");
-            } else {
-                await host.decisions.mergeByHand(
-                    session,
-                    { elementId: "Task_Pack", side: "incoming", text: "<<<<<<< current" },
-                );
-            }
+                if (finish === "discarded") {
+                    await host.decisions.discardHandMerge(session, "Task_Pack");
+                } else {
+                    await host.decisions.mergeByHand(session, {
+                        elementId: "Task_Pack",
+                        side: "incoming",
+                        text: "<<<<<<< current",
+                    });
+                }
 
-            const { states } = lastStatesOf(incoming);
-            expect(states.lastOutcome).toMatchObject({ action: "mergeByHand", applied: false });
-            expect(states.restoreOffer).toStrictEqual(offered);
-        });
+                const { states } = lastStatesOf(incoming);
+                expect(states.lastOutcome).toMatchObject({ action: "mergeByHand", applied: false });
+                expect(states.restoreOffer).toStrictEqual(offered);
+            },
+        );
 
         it("takes back an element with the flows kept with it", async () => {
             const { current, incoming, bothReady, pick, unpick } =

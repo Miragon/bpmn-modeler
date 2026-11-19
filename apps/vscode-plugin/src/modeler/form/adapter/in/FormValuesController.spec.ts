@@ -180,7 +180,11 @@ const EDITOR_ID = `file://${EDITOR_PATH}`;
 function setup() {
     const host = createTestHost();
     const editor = host.openEditor(EDITOR_PATH);
-    const controller = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
+    const controller = new FormValuesController(
+        host.store,
+        host.notifier,
+        registeredFormValueFiles(),
+    );
     const context = { subscriptions: [] as { dispose(): unknown }[] };
     controller.register(context as never);
     controller.registerSession(EDITOR_ID);
@@ -394,7 +398,11 @@ describe("FormValuesController", () => {
         const tab = { input: new TabInputText(uri as never) };
         vscodeMocks.openTabGroups = [{ tabs: [tab] }];
         const host = createTestHost();
-        const controller = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
+        const controller = new FormValuesController(
+            host.store,
+            host.notifier,
+            registeredFormValueFiles(),
+        );
 
         controller.register({ subscriptions: [] } as never);
         await Promise.resolve();

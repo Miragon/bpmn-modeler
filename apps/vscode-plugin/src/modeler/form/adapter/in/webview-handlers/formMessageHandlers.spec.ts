@@ -31,7 +31,11 @@ const extension: Pick<ExtensionContext, "subscriptions"> = { subscriptions: [] }
 
 function createFormEditors() {
     const host = createTestHost();
-    const formValues = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
+    const formValues = new FormValuesController(
+        host.store,
+        host.notifier,
+        registeredFormValueFiles(),
+    );
     formValues.register(extension as ExtensionContext);
     const router = new WebviewMessageRouter()
         .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))

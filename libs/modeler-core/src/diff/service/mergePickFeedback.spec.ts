@@ -198,17 +198,20 @@ describe("handMergeFeedback", () => {
         ["markers left", { kind: "conflictMarkersLeft" }],
         ["a changed type", { kind: "typeChanged", expected: "bpmn:Task", found: "bpmn:UserTask" }],
         ["a missing element", { kind: "namesMissingElement", ids: ["Message_9"] }],
-    ])("shows a refused text with %s as the refusal's data, which the pane words", (_case, refusal) => {
-        expect(handMergeFeedback("Task_Pack", { applied: false, refusal })).toStrictEqual({
-            outcome: {
-                applied: false,
-                action: "mergeByHand",
-                elementId: "Task_Pack",
-                blockedBy: [],
-                handMergeRefusal: refusal,
-            },
-        });
-    });
+    ])(
+        "shows a refused text with %s as the refusal's data, which the pane words",
+        (_case, refusal) => {
+            expect(handMergeFeedback("Task_Pack", { applied: false, refusal })).toStrictEqual({
+                outcome: {
+                    applied: false,
+                    action: "mergeByHand",
+                    elementId: "Task_Pack",
+                    blockedBy: [],
+                    handMergeRefusal: refusal,
+                },
+            });
+        },
+    );
 
     it.each<[string, HandMergeRefusal, readonly string[]]>([
         ["its own elements", { kind: "holdsElementsOfTheirOwn", ids: ["Task_In"] }, ["Task_In"]],
@@ -233,7 +236,11 @@ describe("handMergeFeedback", () => {
     });
 
     it("keeps the last pick's restore offer, since no finish changes a pick", () => {
-        const offer = { elementId: "Task_Pack", connections: ["Flow_2"], keptSide: "incoming" } as const;
+        const offer = {
+            elementId: "Task_Pack",
+            connections: ["Flow_2"],
+            keptSide: "incoming",
+        } as const;
         const last = { outcome: handMergeFeedback("Task_Pack", "discarded").outcome, offer };
 
         for (const finish of ["discarded", { applied: true }] as const) {

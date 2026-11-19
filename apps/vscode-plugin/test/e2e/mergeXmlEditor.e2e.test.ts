@@ -76,7 +76,9 @@ const INCOMING_TASK: TaskVersion = {
 
 function processXml(version: TaskVersion): string {
     const tasks = TASKS.map(
-        (id) => `    <bpmn:serviceTask id="${id}" name="${id === WITHOUT_TRUE_CONFLICT ? BASE_TASK.name : version.name}">
+        (
+            id,
+        ) => `    <bpmn:serviceTask id="${id}" name="${id === WITHOUT_TRUE_CONFLICT ? BASE_TASK.name : version.name}">
       <bpmn:documentation>Checks the order</bpmn:documentation>
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="${version.type}" />
