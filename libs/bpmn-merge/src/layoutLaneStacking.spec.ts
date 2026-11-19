@@ -22,7 +22,15 @@ const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => (
 const at = (x: number, y: number): Point => ({ x, y });
 
 function pool(id: string, bounds: DiagramBounds): LayoutShape {
-    return { kind: "pool", id, plane: PLANE, planeKind: "root", outline: "rectangle", bounds };
+    return {
+        kind: "pool",
+        id,
+        plane: PLANE,
+        planeKind: "root",
+        planeProcesses: ["Process_1"],
+        outline: "rectangle",
+        bounds,
+    };
 }
 
 function lane(
@@ -36,6 +44,7 @@ function lane(
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         outline: "rectangle",
         parent,
         pool: inPool,
@@ -49,6 +58,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         bounds,
         outline: "rectangle",
         expanded: false,

@@ -17,6 +17,7 @@ function task(id: string, x: number, y: number, relations: Partial<NodeShape> = 
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         bounds,
         outline: "rectangle",
         expanded: false,

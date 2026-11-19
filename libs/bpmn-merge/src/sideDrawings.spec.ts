@@ -18,6 +18,7 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         bounds: { x: 0, y: 0, width: 100, height: 80 },
         outline: "rectangle",
         expanded: false,
@@ -30,7 +31,12 @@ function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
 
 /** The node as a layout draws its element on a collapsed sub-process's plane. */
 function onSubProcessPlane(shape: NodeShape): NodeShape {
-    return { ...shape, plane: "Sub_1", planeKind: "subProcess" };
+    return { ...shape, plane: "Sub_1", planeKind: "subProcess", planeProcesses: [] };
+}
+
+/** The node as a layout draws its element on the root plane of a process of its own. */
+function onProcessPlane(shape: NodeShape, process: string): NodeShape {
+    return { ...shape, plane: process, planeKind: "root", planeProcesses: [process] };
 }
 
 function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
@@ -78,6 +84,20 @@ describe("placeOf and drawsAt", () => {
             drawn: { ...task, plane: "Process_1", bounds: { ...task.bounds, x: 300 } },
             place: { ...task.bounds, x: 300 },
             at: false,
+        },
+        {
+            label: "where the node lies on another process's root plane",
+            node: onProcessPlane(task, "Process_B"),
+            drawn: onProcessPlane(task, "Process_A"),
+            place: undefined,
+            at: false,
+        },
+        {
+            label: "where the node lies on a collaboration's plane that draws the node's process",
+            node: onProcessPlane(task, "Process_B"),
+            drawn: { ...task, planeProcesses: ["Process_A", "Process_B"] },
+            place: task.bounds,
+            at: true,
         },
     ])("a layout drawing the node $label", ({ node: onPlane = task, drawn, place, at }) => {
         const layout = layoutOf([drawn]);
@@ -128,6 +148,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
             id: "Lane_1",
             plane: PLANE,
             planeKind: "root",
+            planeProcesses: ["Process_1"],
             outline: "rectangle",
             parent: "Process_1",
             bounds: { x: 30, y: 0, width: 870, height: 200 },
@@ -163,6 +184,12 @@ describe("placedByBuild", () => {
             placed: false,
         },
         {
+            label: "one side draws it where it lies on another process's root plane",
+            node: onProcessPlane(task, "Process_B"),
+            sides: [[onProcessPlane(task, "Process_B")], [onProcessPlane(task, "Process_A")]],
+            placed: true,
+        },
+        {
             label: "both sides draw it where it lies on the same sub-process's plane",
             node: onSubProcessPlane(task),
             sides: [[onSubProcessPlane(task)], [onSubProcessPlane(task)]],
@@ -185,6 +212,7 @@ describe("placedByBuildOutside", () => {
         id: "Lane_1",
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         outline: "rectangle",
         parent: "Process_1",
         bounds: { x: 30, y: 300, width: 870, height: 200 },

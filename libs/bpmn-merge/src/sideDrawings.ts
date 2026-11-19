@@ -3,14 +3,19 @@ import { type DiagramBounds, sameBounds } from "./layoutGeometry";
 import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 
 /**
- * Whether two layouts draw the shapes on one plane: the same plane, or any two
- * root planes, as one layout may name its root plane after its collaboration
- * and the other after its process.
+ * Whether two layouts draw the shapes on one plane: the same plane, or two root
+ * planes that draw a common process, as one layout may name its root plane after
+ * its collaboration and the other after its process.
  */
 function onOnePlaneAcrossLayouts(first: LayoutShape, second: LayoutShape): boolean {
+    return first.plane === second.plane || onRootPlanesOfOneProcess(first, second);
+}
+
+function onRootPlanesOfOneProcess(first: LayoutShape, second: LayoutShape): boolean {
     return (
-        first.plane === second.plane ||
-        (first.planeKind === ROOT_PLANE && second.planeKind === ROOT_PLANE)
+        first.planeKind === ROOT_PLANE &&
+        second.planeKind === ROOT_PLANE &&
+        first.planeProcesses.some((process) => second.planeProcesses.includes(process))
     );
 }
 

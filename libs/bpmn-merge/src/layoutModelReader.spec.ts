@@ -43,6 +43,18 @@ describe("layoutModelOf", () => {
         expect(layout.shapes.get("Task_Pack")).toMatchObject({
             plane: "Sub_Ship",
             planeKind: "subProcess",
+            planeProcesses: [],
         });
+    });
+
+    it("reads the processes a shape's root plane draws", async () => {
+        const inPool = await layoutOf(() => {});
+        const onProcessPlane = await layoutOf((model) => {
+            model.pools = [];
+            model.flows = model.flows.filter((flow) => flow.kind !== "message");
+        });
+
+        expect(inPool.shapes.get("Sub_Ship")?.planeProcesses).toEqual(["Process_1"]);
+        expect(onProcessPlane.shapes.get("Sub_Ship")?.planeProcesses).toEqual(["Process_1"]);
     });
 });

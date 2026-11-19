@@ -11,12 +11,13 @@ import {
     diagramIndexOf,
     flowDrawingOf,
     planeKindOf,
+    rootPlaneProcessesOf,
 } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
 
-type ShapePlane = Pick<LayoutShape, "plane" | "planeKind">;
+type ShapePlane = Pick<LayoutShape, "plane" | "planeKind" | "planeProcesses">;
 
 /** The document's drawing as plain values; numbers are copied, so later changes to the tree do not reach it. */
 export function layoutModelOf(definitions: ModdleElement): LayoutModel {
@@ -42,7 +43,11 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
 }
 
 function planeOf(index: DiagramIndex, { planeOwner }: Drawing): ShapePlane {
-    return { plane: planeOwner, planeKind: planeKindOf(planeOwner, index) };
+    return {
+        plane: planeOwner,
+        planeKind: planeKindOf(planeOwner, index),
+        planeProcesses: rootPlaneProcessesOf(index, planeOwner),
+    };
 }
 
 /** The element's shape drawing the layout reads: the first with bounds. */

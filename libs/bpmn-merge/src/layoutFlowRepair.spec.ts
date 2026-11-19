@@ -14,7 +14,10 @@ function node(
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
     relations: Partial<
-        Pick<NodeShape, "host" | "plane" | "planeKind" | "subProcesses" | "expanded">
+        Pick<
+            NodeShape,
+            "host" | "plane" | "planeKind" | "planeProcesses" | "subProcesses" | "expanded"
+        >
     > = {},
 ): NodeShape {
     return {
@@ -22,6 +25,7 @@ function node(
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         bounds,
         outline,
         expanded: false,
@@ -292,6 +296,7 @@ describe("planFlowRepairs", () => {
                 node("Task_B", { x: 300, y: 300, width: 100, height: 80 }, "rectangle", {
                     plane: "Sub_1",
                     planeKind: "subProcess",
+                    planeProcesses: [],
                 }),
             ],
             [flow([at(200, 140), at(350, 140), at(350, 250)])],

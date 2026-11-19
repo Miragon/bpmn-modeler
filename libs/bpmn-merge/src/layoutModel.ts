@@ -12,6 +12,8 @@ interface DrawnShape {
     /** The element whose plane draws the shape; "" for a plane that names none. */
     readonly plane: string;
     readonly planeKind: PlaneKind;
+    /** The processes the shape's root plane draws; none on a sub-process's plane. */
+    readonly planeProcesses: readonly string[];
     readonly bounds: DiagramBounds;
     readonly outline: Outline;
 }

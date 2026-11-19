@@ -28,6 +28,8 @@ export interface DiagramIndex {
     readonly collaborationPlaneOwners: ReadonlySet<string>;
     /** Each collaboration with the processes its participants name: one root plane draws them. */
     readonly collaborationProcesses: readonly (readonly [string, string])[];
+    /** The processes each root plane draws, by its owner: see `rootPlaneProcessesOf`. */
+    readonly rootPlaneProcesses: ReadonlyMap<string, readonly string[]>;
 }
 
 export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
@@ -66,6 +68,16 @@ export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
                     : [[collaboration.id, processId] as const];
             }),
         );
+    const rootPlaneProcesses = new Map<string, readonly string[]>();
+    for (const planeOwner of planeOwners) {
+        if (planeOwner === "" || subProcessPlaneOwners.has(planeOwner)) continue;
+        const processes = collaborationPlaneOwners.has(planeOwner)
+            ? collaborationProcesses
+                  .filter(([collaboration]) => collaboration === planeOwner)
+                  .map(([, process]) => process)
+            : [planeOwner];
+        rootPlaneProcesses.set(planeOwner, processes);
+    }
     return {
         diagrams,
         planeOwners,
@@ -74,6 +86,7 @@ export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
         subProcessPlaneOwners,
         collaborationPlaneOwners,
         collaborationProcesses,
+        rootPlaneProcesses,
     };
 }
 
@@ -90,6 +103,15 @@ export function planeKindOf(planeOwner: string, ...indexes: readonly DiagramInde
     return indexes.some((index) => index.subProcessPlaneOwners.has(planeOwner))
         ? "subProcess"
         : ROOT_PLANE;
+}
+
+/**
+ * The processes a root plane of this document draws: a process's plane its process, a
+ * collaboration's plane the processes its participants name. A sub-process's plane, a plane
+ * that names nothing and a plane the document lacks draw none.
+ */
+export function rootPlaneProcessesOf(index: DiagramIndex, planeOwner: string): readonly string[] {
+    return index.rootPlaneProcesses.get(planeOwner) ?? [];
 }
 
 /** The plane owner whose plane holds the sub-process's contents in this document. */

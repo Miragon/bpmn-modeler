@@ -69,14 +69,17 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the harvest, a result with no lane overlap stays byte-equal to the build without this step
   (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
   within a fraction of parsing an 800 KB file (`layoutFlowRepairTime.spec.ts`).
-- *Two root planes are one place in the placed-by-build test.* The container step and the
-  overlap step below move only a shape the build placed: one that not both sides draw where the
-  result does. There a collaboration's plane and a process's count as one place, as one side
-  may wrap the process in a pool and the other not, while a collapsed sub-process's plane counts
-  as elsewhere (#2589). Rejected: comparing plane ids, which moved a whole lane's members both
-  sides draw at one place under two root plane ids. Cost: any two root planes count as one,
-  though the result joins a collaboration only with the processes its participants name, so a
-  shape that changed process between two process diagrams counts as drawn in place (#2597).
+- *Two root planes that draw a common process are one place in the placed-by-build test.* The
+  container step and the overlap step below move only a shape the build placed: one that not
+  both sides draw where the result does. There a collaboration's plane and the plane of a
+  process its participants name count as one place, as one side may wrap the process in a pool
+  and the other not; the root planes of two unrelated processes and a collapsed sub-process's
+  plane count as elsewhere (#2589, #2597). Rejected: comparing plane ids, which moved a whole
+  lane's members both sides draw at one place under two root plane ids; and counting any two
+  root planes as one, which took a shape that changed process between two process diagrams for
+  drawn in place. Cost: each layout shape carries the processes its root plane draws, read from
+  its own document, so two planes match pairwise, while the DI assembly joins planes over both
+  sides' collaborations in a chain; no harvest case tells the two apart.
 - *The build brings a shape it placed outside its container back inside, and grows the
   container only as a last resort.* Once the lanes are stacked and before any other move, each
   shape the detector names as

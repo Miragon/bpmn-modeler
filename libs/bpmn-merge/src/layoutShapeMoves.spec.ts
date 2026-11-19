@@ -21,6 +21,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
         id,
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         bounds,
         outline: "rectangle",
         expanded: false,
@@ -37,6 +38,7 @@ const POOL: LayoutShape = {
     id: "Pool_1",
     plane: PLANE,
     planeKind: "root",
+    planeProcesses: ["Process_1"],
     outline: "rectangle",
     bounds: box(0, 0, 1200, 300),
 };
@@ -48,6 +50,7 @@ function lane(y: number, height: number, width = 1170): LaneShape {
         id: "Lane_1",
         plane: PLANE,
         planeKind: "root",
+        planeProcesses: ["Process_1"],
         outline: "rectangle",
         parent: "Process_1",
         pool: "Pool_1",
