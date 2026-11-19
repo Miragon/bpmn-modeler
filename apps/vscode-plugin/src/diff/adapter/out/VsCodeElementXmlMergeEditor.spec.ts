@@ -27,7 +27,7 @@ import {
     TextDocumentSaveReason,
     typeIntoMergeResult,
 } from "../../../__fixtures__/vscodeMergeEditorFake";
-import { InMemoryFileSystemProvider } from "../../../shared/adapter/in/InMemoryFileSystemProvider";
+import { InMemoryFileSystemProvider } from "../../../shared/adapter/out/InMemoryFileSystemProvider";
 
 import {
     MERGE_RESULT_SCHEME,
@@ -72,7 +72,7 @@ describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished
         inputs: (elementId) => {
             const tab = mergeTabs().find(({ input }) => input.result.path === `/${elementId}.xml`);
             if (!tab?.titles) return undefined;
-            const served = (uri: Uri) =>
+            const served = (uri: { toString(): string }) =>
                 new TextDecoder().decode(inputs.readFile(Uri.parse(uri.toString())));
             return {
                 base: served(tab.input.base),
