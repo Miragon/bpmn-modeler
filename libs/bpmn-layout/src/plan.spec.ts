@@ -188,6 +188,25 @@ describe("computeLayoutPlan", () => {
         ]);
     });
 
+    it("leaves a resized shape's label to the resize, which carries it", () => {
+        const snapshot: DiagramSnapshot = [
+            shape("Event_1", 100, 100, { type: "bpmn:EndEvent", width: 30, height: 30 }),
+            shape("Event_1_label", 90, 137, {
+                type: "label",
+                width: 50,
+                height: 14,
+                labelTargetId: "Event_1",
+            }),
+        ];
+        const target = result({
+            shapes: [{ id: "Event_1", x: 300, y: 100, width: 36, height: 36 }],
+        });
+
+        expect(computeLayoutPlan(snapshot, target)).toEqual([
+            { kind: "resize", id: "Event_1", bounds: { x: 300, y: 100, width: 36, height: 36 } },
+        ]);
+    });
+
     it("moves a connection's label by how far the polyline midpoint travelled", () => {
         const snapshot: DiagramSnapshot = [
             connection("Flow_1", [

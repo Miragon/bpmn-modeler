@@ -1,10 +1,12 @@
 import type {
     Bounds,
     DiagramSnapshot,
+    EdgeGeometry,
     ElementSnapshot,
     LayoutOperation,
     LayoutResult,
     Point,
+    ShapeGeometry,
 } from "./types";
 
 /**
@@ -87,11 +89,30 @@ export function computeLayoutPlan(
 ): LayoutOperation[] {
     const byId = new Map<string, ElementSnapshot>(snapshot.map((element) => [element.id, element]));
 
-    const shapeOperations: LayoutOperation[] = [];
-    /** id → how far the shape moved, for the labels that follow it. */
-    const shapeDeltas = new Map<string, Point>();
+    const shapes = planShapes(byId, target.shapes);
+    const edges = planEdges(byId, target.edges);
+    const labelFollow: LabelFollow = new Map([...shapes.labelFollow, ...edges.labelFollow]);
 
-    for (const shape of target.shapes) {
+    return [...shapes.operations, ...edges.operations, ...planLabelMoves(snapshot, labelFollow)];
+}
+
+/** Element id → how far the external label of that element travels with it. */
+type LabelFollow = Map<string, Point>;
+
+interface PlannedPass {
+    operations: LayoutOperation[];
+    labelFollow: LabelFollow;
+}
+
+/**
+ * A resized shape gets no label-follow entry: bpmn-js's `LabelBehavior` moves
+ * its external label on `shape.resize` and takes no hint to stop that.
+ */
+function planShapes(byId: Map<string, ElementSnapshot>, shapes: ShapeGeometry[]): PlannedPass {
+    const operations: LayoutOperation[] = [];
+    const labelFollow: LabelFollow = new Map();
+
+    for (const shape of shapes) {
         const current = byId.get(shape.id);
         if (!current || current.waypoints) continue;
 
@@ -99,34 +120,34 @@ export function computeLayoutPlan(
         const resized = !sameSize(current, shape);
         if (!moved && !resized) continue;
 
-        shapeDeltas.set(shape.id, { x: shape.x - current.x, y: shape.y - current.y });
-
         if (resized) {
             // One resize carries position and size together; `ResizeShapeHandler`
             // assigns x/y/width/height in a single command.
-            shapeOperations.push({ kind: "resize", id: shape.id, bounds: clampSize(shape) });
+            operations.push({ kind: "resize", id: shape.id, bounds: clampSize(shape) });
         } else {
-            shapeOperations.push({
-                kind: "move",
-                id: shape.id,
-                delta: { x: shape.x - current.x, y: shape.y - current.y },
-            });
+            const delta = { x: shape.x - current.x, y: shape.y - current.y };
+            labelFollow.set(shape.id, delta);
+            operations.push({ kind: "move", id: shape.id, delta });
         }
     }
 
+    return { operations, labelFollow };
+}
+
+/** A connection's label follows its midpoint. */
+function planEdges(byId: Map<string, ElementSnapshot>, edges: EdgeGeometry[]): PlannedPass {
     const edgeOperations: LayoutOperation[] = [];
     const associationOperations: LayoutOperation[] = [];
-    /** id → midpoint travel, for the labels that follow a connection. */
-    const edgeDeltas = new Map<string, Point>();
+    const labelFollow: LabelFollow = new Map();
 
-    for (const edge of target.edges) {
+    for (const edge of edges) {
         const current = byId.get(edge.id);
         if (!current?.waypoints) continue;
         if (sameWaypoints(current.waypoints, edge.waypoints)) continue;
 
         const before = polylineMidpoint(current.waypoints);
         const after = polylineMidpoint(edge.waypoints);
-        edgeDeltas.set(edge.id, { x: after.x - before.x, y: after.y - before.y });
+        labelFollow.set(edge.id, { x: after.x - before.x, y: after.y - before.y });
 
         const operation: LayoutOperation = {
             kind: "waypoints",
@@ -137,16 +158,18 @@ export function computeLayoutPlan(
         else edgeOperations.push(operation);
     }
 
-    const labelOperations: LayoutOperation[] = [];
+    return { operations: [...edgeOperations, ...associationOperations], labelFollow };
+}
+
+function planLabelMoves(snapshot: DiagramSnapshot, labelFollow: LabelFollow): LayoutOperation[] {
+    const operations: LayoutOperation[] = [];
     for (const element of snapshot) {
         if (!element.labelTargetId) continue;
-        const delta =
-            shapeDeltas.get(element.labelTargetId) ?? edgeDeltas.get(element.labelTargetId);
+        const delta = labelFollow.get(element.labelTargetId);
         if (!delta || samePoint(delta, { x: 0, y: 0 })) continue;
-        labelOperations.push({ kind: "move-label", id: element.id, delta });
+        operations.push({ kind: "move-label", id: element.id, delta });
     }
-
-    return [...shapeOperations, ...edgeOperations, ...associationOperations, ...labelOperations];
+    return operations;
 }
 
 /**

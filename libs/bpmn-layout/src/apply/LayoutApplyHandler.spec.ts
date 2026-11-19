@@ -54,7 +54,7 @@ describe("LayoutApplyHandler", () => {
         expect(RESIZE_HINTS).toEqual({ layout: false, attachSupport: false });
     });
 
-    it("suppresses adaptive label positioning on every waypoint update", () => {
+    it("suppresses every label move on a waypoint update", () => {
         const { modeling, elementRegistry, element } = harness(["Flow_1"]);
         const handler = new LayoutApplyHandler(modeling, elementRegistry);
         const waypoints = [
@@ -69,7 +69,7 @@ describe("LayoutApplyHandler", () => {
             waypoints,
             WAYPOINT_HINTS,
         );
-        expect(WAYPOINT_HINTS).toEqual({ createElementsBehavior: false });
+        expect(WAYPOINT_HINTS).toEqual({ createElementsBehavior: false, labelBehavior: false });
     });
 
     it("never reaches for connection.layout — cropping would discard our waypoints", () => {

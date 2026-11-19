@@ -48,11 +48,15 @@ export const RESIZE_HINTS = { layout: false, attachSupport: false };
  * `postExecuted('connection.updateWaypoints')` and repositions the labels of
  * the connection's source and target.
  *
+ * `labelBehavior: false` — `LabelBehavior` hooks
+ * `postExecute('connection.updateWaypoints')` and moves the connection's own
+ * label, which the plan's `move-label` moves as well.
+ *
  * `connection.updateWaypoints` rather than `connection.layout` is deliberate:
  * `BpmnUpdater` registers `cropConnection` for `layout` and `create` only, so
  * the points set here reach the DI uncropped.
  */
-export const WAYPOINT_HINTS = { createElementsBehavior: false };
+export const WAYPOINT_HINTS = { createElementsBehavior: false, labelBehavior: false };
 
 /**
  * Applies a layout plan as a single undo step.
