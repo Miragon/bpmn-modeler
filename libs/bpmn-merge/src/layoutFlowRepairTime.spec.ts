@@ -274,7 +274,7 @@ describe("shape move time in a pool without a free place", () => {
                 planShapeMoves(result, spots, [side, side]),
             );
 
-            expect(plan.repairs.map(({ kind }) => kind)).toEqual(
+            expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual(
                 Array.from({ length: 5 }, () => "madeRoom"),
             );
             expect(perParse).toBeLessThan(MAX_ROOM_PER_PARSE);
@@ -361,7 +361,7 @@ describe("container repair time", () => {
             planContainerMoves(example.result, spots, sides),
         );
 
-        expect(plan.repairs.map(({ kind }) => kind)).toEqual(example.kinds);
+        expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual(example.kinds);
         expect(perParse).toBeLessThan(MAX_CONTAINER_REPAIR_PER_PARSE);
     });
 });

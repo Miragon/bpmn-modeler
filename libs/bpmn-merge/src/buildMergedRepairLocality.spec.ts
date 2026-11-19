@@ -34,7 +34,7 @@ type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRando
 
 const NO_REPAIRS: LayoutRepairPlanners = {
     stackLanes: (layout) => ({ layout, stacked: [] }),
-    moveIntoContainers: (layout) => ({ layout, repairs: [], movedShapes: [] }),
+    moveIntoContainers: (layout) => ({ layout, repairs: [] }),
     moveShapes: (layout) => ({ layout, repairs: [] }),
     repairFlows: () => [],
 };
