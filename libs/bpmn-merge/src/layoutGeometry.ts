@@ -14,7 +14,7 @@ export interface Point {
 export type Outline = "circle" | "diamond" | "rectangle";
 
 /** How far, in pixels, a drawing may miss an outline or a frame, as the modeler rounds its docking points. */
-export const LAYOUT_TOLERANCE = 3;
+const LAYOUT_TOLERANCE = 3;
 
 const rightOf = (bounds: DiagramBounds) => bounds.x + bounds.width;
 const bottomOf = (bounds: DiagramBounds) => bounds.y + bounds.height;
@@ -24,7 +24,7 @@ export function centerOf(bounds: DiagramBounds): Point {
 }
 
 /** The point's distance to the outline: negative inside, positive outside. */
-export function outlineDistance(point: Point, bounds: DiagramBounds, outline: Outline): number {
+function outlineDistance(point: Point, bounds: DiagramBounds, outline: Outline): number {
     const center = centerOf(bounds);
     const halfWidth = bounds.width / 2;
     const halfHeight = bounds.height / 2;
