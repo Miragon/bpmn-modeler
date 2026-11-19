@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiagramBounds } from "./layoutGeometry";
+import { segmentsCross, sharedRunLength } from "./layoutPolyline";
 import {
     outlinePointOn,
     segmentBounds,
@@ -154,5 +155,139 @@ describe("segmentEntersOutline", () => {
         expect(segmentEntersOutline({ x: 102, y: 60 }, { x: 102, y: 250 }, TASK, "rectangle")).toBe(
             false,
         );
+    });
+});
+
+describe("segmentsCross", () => {
+    it.each([
+        {
+            label: "crossing inside both",
+            other: [
+                { x: 50, y: 0 },
+                { x: 50, y: 100 },
+            ],
+            cross: true,
+        },
+        {
+            label: "touching at an end",
+            other: [
+                { x: 50, y: 50 },
+                { x: 50, y: 100 },
+            ],
+            cross: false,
+        },
+        {
+            label: "sharing an end",
+            other: [
+                { x: 100, y: 50 },
+                { x: 100, y: 0 },
+            ],
+            cross: false,
+        },
+        {
+            label: "running alongside",
+            other: [
+                { x: 0, y: 60 },
+                { x: 100, y: 60 },
+            ],
+            cross: false,
+        },
+        {
+            label: "on the same line",
+            other: [
+                { x: 20, y: 50 },
+                { x: 80, y: 50 },
+            ],
+            cross: false,
+        },
+    ] as const)("is $cross when $label", ({ other, cross }) => {
+        expect(
+            segmentsCross(
+                [
+                    { x: 0, y: 50 },
+                    { x: 100, y: 50 },
+                ],
+                other,
+            ),
+        ).toBe(cross);
+    });
+});
+
+describe("sharedRunLength", () => {
+    it.each([
+        {
+            label: "overlapping on one horizontal line",
+            first: [
+                { x: 0, y: 50 },
+                { x: 100, y: 50 },
+            ],
+            second: [
+                { x: 120, y: 50 },
+                { x: 60, y: 50 },
+            ],
+            length: 40,
+        },
+        {
+            label: "one pixel apart",
+            first: [
+                { x: 0, y: 50 },
+                { x: 100, y: 50 },
+            ],
+            second: [
+                { x: 60, y: 51 },
+                { x: 120, y: 51 },
+            ],
+            length: 40,
+        },
+        {
+            label: "two pixels apart",
+            first: [
+                { x: 0, y: 50 },
+                { x: 100, y: 50 },
+            ],
+            second: [
+                { x: 60, y: 52 },
+                { x: 120, y: 52 },
+            ],
+            length: 0,
+        },
+        {
+            label: "overlapping on one vertical line",
+            first: [
+                { x: 10, y: 0 },
+                { x: 10, y: 100 },
+            ],
+            second: [
+                { x: 10, y: 90 },
+                { x: 10, y: 30 },
+            ],
+            length: 60,
+        },
+        {
+            label: "on one line without overlap",
+            first: [
+                { x: 0, y: 50 },
+                { x: 100, y: 50 },
+            ],
+            second: [
+                { x: 110, y: 50 },
+                { x: 200, y: 50 },
+            ],
+            length: 0,
+        },
+        {
+            label: "crossing",
+            first: [
+                { x: 0, y: 50 },
+                { x: 100, y: 50 },
+            ],
+            second: [
+                { x: 50, y: 0 },
+                { x: 50, y: 100 },
+            ],
+            length: 0,
+        },
+    ] as const)("is $length when $label", ({ first, second, length }) => {
+        expect(sharedRunLength(first, second)).toBe(length);
     });
 });
