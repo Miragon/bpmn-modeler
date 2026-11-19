@@ -6,7 +6,10 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    drawsAt,
+    framesAroundOf,
     otherEndOf,
+    placeOf,
     sharedFrameOf,
 } from "./layoutModel";
 
@@ -89,5 +92,69 @@ describe("sharedFrameOf", () => {
         ]);
 
         expect(sharedFrameOf(layout, flow)).toBeUndefined();
+    });
+});
+
+describe("framesAroundOf", () => {
+    it("lists every frame drawn around the node: its open sub-processes, pool and lanes", () => {
+        const lane = {
+            kind: "lane",
+            id: "Lane_1",
+            plane: PLANE,
+            parent: "Process_1",
+            outline: "rectangle",
+            bounds: { x: 30, y: 0, width: 870, height: 300 },
+        } as const;
+        const layout = layoutOf([
+            pool("Pool_1"),
+            lane,
+            node("Sub_Open", { expanded: true, pool: "Pool_1" }),
+            node("Sub_Closed", { pool: "Pool_1" }),
+            node("A", {
+                pool: "Pool_1",
+                lanes: ["Lane_1"],
+                subProcesses: ["Sub_Open", "Sub_Closed"],
+            }),
+        ]);
+
+        expect(
+            framesAroundOf(layout, layout.shapes.get("A") as NodeShape).map(({ id }) => id),
+        ).toEqual(["Sub_Open", "Pool_1", "Lane_1"]);
+    });
+});
+
+describe("placeOf and drawsAt", () => {
+    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+
+    it.each([
+        { label: "where the node lies", drawn: task, place: task.bounds, at: true },
+        {
+            label: "elsewhere at the node's size",
+            drawn: { ...task, bounds: { ...task.bounds, x: 300 } },
+            place: { ...task.bounds, x: 300 },
+            at: false,
+        },
+        {
+            label: "at another size",
+            drawn: { ...task, bounds: { ...task.bounds, width: 200 } },
+            place: undefined,
+            at: false,
+        },
+        {
+            label: "on another plane",
+            drawn: { ...task, plane: "Sub_1" },
+            place: undefined,
+            at: false,
+        },
+    ])("a layout drawing the node $label", ({ drawn, place, at }) => {
+        const layout = layoutOf([drawn]);
+
+        expect(placeOf(layout, task)).toEqual(place);
+        expect(drawsAt(layout, task)).toBe(at);
+    });
+
+    it("has no place for a node it does not draw", () => {
+        expect(placeOf(layoutOf([]), task)).toBeUndefined();
+        expect(drawsAt(layoutOf([]), task)).toBe(false);
     });
 });

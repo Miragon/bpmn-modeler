@@ -58,31 +58,46 @@ async function spotsLeftIn(xml: string, versions: MergeVersions): Promise<Layout
     return introducedLayoutSpots(await layoutOfXml(xml), sides);
 }
 
-/** Whether a note still names the spot: a flow only as one the build could not repair. */
+/** Whether a note still names the spot: a flow or an overlap only as one the build could not repair. */
 function namedByNote(spot: LayoutSpot, notes: readonly BuildNote[]): boolean {
-    const subject =
-        spot.kind === "flowEndOffShape" || spot.kind === "flowThroughShape" ? spot.flow : undefined;
-    return notes.some(
-        (note) =>
-            note.kind === spot.kind &&
-            (subject === undefined ||
-                ("id" in note &&
-                    note.id === subject &&
-                    "repair" in note &&
-                    note.repair === "notRepaired")),
-    );
+    const leftAsIs = (note: BuildNote) => "repair" in note && note.repair === "notRepaired";
+    return notes.some((note) => {
+        if (note.kind !== spot.kind) return false;
+        if (spot.kind === "flowEndOffShape" || spot.kind === "flowThroughShape") {
+            return "id" in note && note.id === spot.flow && leftAsIs(note);
+        }
+        if (spot.kind === "shapesOverlap") {
+            return "ids" in note && sameIds(note.ids, spot.shapes) && leftAsIs(note);
+        }
+        return true;
+    });
 }
 
-function moved(kind: "flowEndOffShape" | "flowThroughShape", id: string, shape: string): BuildNote {
-    return { kind, id, shapes: [shape], repair: "movedByBuild" };
+function sameIds(first: readonly string[], second: readonly string[]): boolean {
+    return first.length === second.length && first.every((id) => second.includes(id));
 }
 
-function notRepaired(
+function moved(
     kind: "flowEndOffShape" | "flowThroughShape",
     id: string,
-    shape: string,
+    ...shapes: string[]
 ): BuildNote {
-    return { kind, id, shapes: [shape], repair: "notRepaired" };
+    return { kind, id, shapes, repair: "movedByBuild" };
+}
+
+function movedOff(ids: [string, string], shape: string): BuildNote {
+    return { kind: "shapesOverlap", ids, repair: "movedByBuild", moved: shape };
+}
+
+/** No free place lies near the inserted tasks, so the room shifts what follows them. */
+function roomMade(ids: [string, string], shape: string): BuildNote {
+    return {
+        kind: "shapesOverlap",
+        ids,
+        repair: "madeRoom",
+        moved: shape,
+        shifted: ["Task_C", "End_Done", "End_Rejected"],
+    };
 }
 
 function flow(model: BpmnFixtureModel, id: string) {
@@ -114,8 +129,8 @@ describe("buildMerged's layout notes", () => {
                     ),
             ),
             notes: [
-                moved("flowEndOffShape", "Flow_6", "Task_R"),
-                { kind: "shapesOverlap", ids: ["Task_R", "Task_N"] },
+                movedOff(["Task_R", "Task_N"], "Task_R"),
+                moved("flowEndOffShape", "Flow_No", "Task_R"),
             ],
         },
         {
@@ -169,7 +184,11 @@ describe("buildMerged's layout notes", () => {
                     );
                 },
             ),
-            notes: [{ kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] }],
+            notes: [
+                roomMade(["Task_Y", "Task_X"], "Task_Y"),
+                moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
+                moved("flowThroughShape", "Flow_X", "Task_Y"),
+            ],
         },
         {
             name: "05 both made room of different widths and inserted a task there",
@@ -196,14 +215,38 @@ describe("buildMerged's layout notes", () => {
             ),
             conflictsTo: "incoming",
             notes: [
-                moved("flowEndOffShape", "Flow_Y", "Task_C"),
-                { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
+                moved("flowEndOffShape", "Flow_Y", "Task_C", "Task_Y"),
+                roomMade(["Task_Y", "Task_X"], "Task_Y"),
                 moved("flowThroughShape", "Flow_Yes", "Task_X"),
                 moved("flowThroughShape", "Flow_X", "Task_Y"),
+                moved("flowEndOffShape", "Flow_Yes", "Task_Y"),
             ],
         },
-        {
-            name: "06 both inserted a task into one flow without making room",
+        ...(
+            [
+                {
+                    conflictsTo: "incoming",
+                    notes: [
+                        roomMade(["Task_Y", "Task_X"], "Task_Y"),
+                        moved("flowThroughShape", "Flow_Yes", "Task_X"),
+                        moved("flowThroughShape", "Flow_Y", "Task_X"),
+                        moved("flowThroughShape", "Flow_X", "Task_Y"),
+                        moved("flowEndOffShape", "Flow_Yes", "Task_Y"),
+                        moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
+                    ],
+                },
+                {
+                    conflictsTo: "current",
+                    notes: [
+                        roomMade(["Task_Y", "Task_X"], "Task_Y"),
+                        moved("flowThroughShape", "Flow_Y", "Task_X"),
+                        moved("flowThroughShape", "Flow_X", "Task_Y"),
+                        moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
+                    ],
+                },
+            ] as const
+        ).map(({ conflictsTo, notes }) => ({
+            name: `06 both inserted a task into one flow without making room, its conflicts decided for ${conflictsTo}`,
             versions: dockedVersions(
                 "c8",
                 (model) =>
@@ -221,14 +264,9 @@ describe("buildMerged's layout notes", () => {
                         "Flow_Y",
                     ),
             ),
-            conflictsTo: "incoming",
-            notes: [
-                { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
-                notRepaired("flowThroughShape", "Flow_Yes", "Task_X"),
-                notRepaired("flowThroughShape", "Flow_Y", "Task_X"),
-                moved("flowThroughShape", "Flow_X", "Task_Y"),
-            ],
-        },
+            conflictsTo,
+            notes: [...notes],
+        })),
         {
             name: "07 a flow kept against its removal while the remover moved its end",
             versions: dockedVersions(

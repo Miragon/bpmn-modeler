@@ -2,9 +2,12 @@ import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
+import type { BuildNote } from "./buildNotes";
+import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
+import { planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 
 // The library types no host globals; the specs run in Node, which has a sub-millisecond clock.
@@ -83,6 +86,63 @@ describe("flow repair time", () => {
 
             expect(kindsOf(repairs)).toEqual(Array.from({ length: 10 }, () => kind));
             expect(perParse).toBeLessThan(MAX_REPAIR_PER_PARSE);
+        },
+    );
+});
+
+/** Moves every 200th task by the offset, onto or beside its neighbours, its flows left where they were. */
+function withShiftedTasks(xml: string, dx: number, dy: number): string {
+    let ordinal = 0;
+    return xml.replace(
+        /(bpmnElement="(?:svc|user)_\d+_\d+"><dc:Bounds x=")(\d+)(" y=")(\d+)"/g,
+        (match, prefix: string, x: string, between: string, y: string) =>
+            ++ordinal % 200 === 0
+                ? `${prefix}${Number(x) + dx}${between}${Number(y) + dy}"`
+                : match,
+    );
+}
+
+/** The whole repair the build plans for the result against a side, per millisecond of parsing the result. */
+async function layoutRepairPerParseOf(resultXml: string, sideXml: string) {
+    const moddle = (await loadBpmnModdle())();
+    const parse = (xml: string) => moddle.fromXML(xml);
+    const parsing = await fastestMillisecondsOf(() => parse(resultXml));
+    const result = layoutModelOf((await parse(resultXml)).rootElement);
+    const side = layoutModelOf((await parse(sideXml)).rootElement);
+    const plan = () => planLayoutRepair(result, [side, side], BUILD_LAYOUT_REPAIRS);
+    return { notes: plan().notes, perParse: (await fastestMillisecondsOf(plan)) / parsing };
+}
+
+const overlapRepairsOf = (notes: readonly BuildNote[]) =>
+    notes.flatMap((note) => (note.kind === "shapesOverlap" ? [note.repair] : []));
+
+// Measured against parsing the result once, best of five each, on 800 KB (44 ms to parse), the
+// whole repair (finding the spots, moving the tasks, finding them again, re-routing their flows):
+// 0.14 with five tasks moved back to where the side draws them, 0.21 with five moved to the
+// nearest free place, as the side's place is taken too.
+const MAX_SHAPE_REPAIR_PER_PARSE = 1;
+
+describe("shape move time", () => {
+    it.each([
+        { label: "back to where the side draws them", result: 70, side: 0, axis: "y" },
+        { label: "to the nearest free place", result: 100, side: -100, axis: "x" },
+    ] as const)(
+        "moves five tasks $label in an 800 KB file in a fraction of parsing it",
+        { timeout: 60_000 },
+        async ({ result, side, axis }) => {
+            const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
+            const shifted = (by: number) =>
+                axis === "x" ? withShiftedTasks(xml, by, 0) : withShiftedTasks(xml, 0, by);
+
+            const { notes, perParse } = await layoutRepairPerParseOf(
+                shifted(result),
+                shifted(side),
+            );
+
+            expect(overlapRepairsOf(notes)).toEqual(
+                Array.from({ length: 5 }, () => "movedByBuild"),
+            );
+            expect(perParse).toBeLessThan(MAX_SHAPE_REPAIR_PER_PARSE);
         },
     );
 });
@@ -175,4 +235,92 @@ describe("flow repair time for a flow into a large pool", () => {
         expect(kindsOf(repairs)).toEqual(["movedByBuild"]);
         expect(planning / detecting).toBeLessThan(MAX_REPAIR_PER_DETECTION);
     });
+});
+
+/**
+ * Five tasks in rows 0, 4, 8, 12 and 16, each nine columns right of the one before, so the
+ * room made for one opens no place near the next.
+ */
+function isMovedInDensePool(index: number, perRow: number): boolean {
+    const row = Math.floor(index / perRow);
+    return row % 4 === 0 && row < 20 && index % perRow === 5 + (row / 4) * 9;
+}
+
+/**
+ * A pool of `rows` rows of 50 tasks 10 px apart, each row's tasks joined by flows, with five
+ * tasks moved `dx` along their row: no free place lies near any of them.
+ */
+function densePool(rows: number, dx: number): LayoutModel {
+    const perRow = 50;
+    const pool: LayoutShape = {
+        kind: "pool",
+        id: "Pool_A",
+        plane: COLLABORATION,
+        outline: "rectangle",
+        bounds: { x: 0, y: 0, width: perRow * 110 + 100, height: rows * 140 + 40 },
+    };
+    const tasks = Array.from({ length: rows * perRow }, (_, index) => {
+        const task = taskIn(
+            "Pool_A",
+            `Task_${index}`,
+            60 + (index % perRow) * 110,
+            40 + Math.floor(index / perRow) * 140,
+        );
+        return isMovedInDensePool(index, perRow)
+            ? { ...task, bounds: { ...task.bounds, x: task.bounds.x + dx } }
+            : task;
+    });
+    const flows = tasks.slice(1).flatMap((task, index): LayoutEdge[] => {
+        const source = tasks[index]!;
+        if ((index + 1) % perRow === 0) return [];
+        const y = source.bounds.y + 40;
+        return [
+            {
+                id: `Flow_${index}`,
+                plane: COLLABORATION,
+                source: source.id,
+                target: task.id,
+                waypoints: [
+                    { x: source.bounds.x + 100, y },
+                    { x: task.bounds.x, y },
+                ],
+            },
+        ];
+    });
+    return {
+        shapes: new Map([pool, ...tasks].map((shape) => [shape.id, shape])),
+        edges: new Map(flows.map((flow) => [flow.id, flow])),
+    };
+}
+
+// Measured against parsing the 800 KB file once (42 ms), best of five each, as the build parses
+// a large result anyway: 2.3 to 2.4 for room made for five tasks among 1,000 (100 ms), as each
+// room is checked by finding the spots of the whole drawing twice.
+const MAX_ROOM_PER_PARSE = 10;
+
+describe("shape move time in a pool without a free place", () => {
+    it(
+        "makes room for five tasks among 1,000 in a few times parsing an 800 KB file",
+        {
+            timeout: 60_000,
+        },
+        async () => {
+            const moddle = (await loadBpmnModdle())();
+            const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
+            const result = densePool(20, 60);
+            const side = densePool(20, -60);
+            const spots = introducedLayoutSpots(result, [side, side]);
+
+            const plan = planShapeMoves(result, spots, [side, side]);
+            const parsing = await fastestMillisecondsOf(() => moddle.fromXML(xml));
+            const planning = await fastestMillisecondsOf(() =>
+                planShapeMoves(result, spots, [side, side]),
+            );
+
+            expect(plan.repairs.map(({ kind }) => kind)).toEqual(
+                Array.from({ length: 5 }, () => "madeRoom"),
+            );
+            expect(planning / parsing).toBeLessThan(MAX_ROOM_PER_PARSE);
+        },
+    );
 });

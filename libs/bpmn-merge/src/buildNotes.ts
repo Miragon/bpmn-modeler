@@ -18,6 +18,12 @@ import {
     removedWith,
 } from "./removedWith";
 
+/** Which of two shapes on top of each other the build moved, and what it shifted to make room. */
+type OverlapNoteRepair =
+    | { readonly repair: "movedByBuild"; readonly moved: string }
+    | { readonly repair: "madeRoom"; readonly moved: string; readonly shifted: readonly string[] }
+    | { readonly repair: "notRepaired" };
+
 export type BuildNote =
     | {
           /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
@@ -32,7 +38,11 @@ export type BuildNote =
           readonly id: string;
           readonly shapes: readonly string[];
       }
-    | { readonly kind: "shapesOverlap"; readonly ids: readonly string[] }
+    | ({
+          /** Two shapes on top of each other, with what the build did about them. */
+          readonly kind: "shapesOverlap";
+          readonly ids: readonly string[];
+      } & OverlapNoteRepair)
     | { readonly kind: "boundaryEventOffHost"; readonly id: string; readonly host: string }
     | { readonly kind: "lanesOverlap"; readonly ids: readonly string[] }
     | {

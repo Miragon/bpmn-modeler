@@ -352,8 +352,11 @@ const dictionary: Record<string, string> = {
         "При сборке элемент {element} перемещён, чтобы доходить до {shapes}",
     "{element} does not meet {shapes}; the build could not repair it":
         "Элемент {element} не доходит до {shapes}; при сборке исправить не удалось",
-    "{first} and {second} lie on top of each other":
-        "Элементы {first} и {second} лежат друг на друге",
+    "The build moved {element} off {shapes}": "При сборке элемент {element} отодвинут от {shapes}",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "При сборке элемент {element} отодвинут от {shapes}, а для места сдвинуты {shifted}",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "Элементы {first} и {second} лежат друг на друге; при сборке исправить не удалось",
     "The build moved {element} around {shapes}":
         "При сборке элемент {element} проложен в обход {shapes}",
     "{element} runs through {shapes}; the build could not repair it":

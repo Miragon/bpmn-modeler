@@ -1,8 +1,9 @@
 import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
+import { type LayoutModel, type NodeShape, translatedNode } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
-import { writeFlowRepairs } from "./layoutRepairWriter";
+import { writeLayoutChanges } from "./layoutRepairWriter";
 
 const edge = (id: string, y: number) => `
       <bpmndi:BPMNEdge id="${id}" bpmnElement="Flow_1">
@@ -33,23 +34,64 @@ const TWO_PLANES = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-describe("writeFlowRepairs", () => {
+const LABELLED_EVENT = TWO_PLANES.replace(
+    '<bpmn:task id="Task_B" />',
+    '<bpmn:task id="Task_B" /><bpmn:endEvent id="End_1" />',
+).replace(
+    '<bpmndi:BPMNEdge id="Flow_1_first"',
+    `<bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="500" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="490" y="165" width="56" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_first"`,
+);
+
+async function writtenWith(xml: string, change: (layout: LayoutModel) => LayoutModel) {
+    const moddle = (await loadBpmnModdle())();
+    const { rootElement } = await moddle.fromXML(xml);
+    const before = layoutModelOf(rootElement);
+    writeLayoutChanges(rootElement, before, change(before), (point) =>
+        moddle.create("dc:Point", { x: point.x, y: point.y }),
+    );
+    return { layout: layoutModelOf(rootElement), xml: (await moddle.toXML(rootElement)).xml };
+}
+
+describe("writeLayoutChanges", () => {
     it("writes a flow drawn on two planes into the drawing the layout reads", async () => {
-        const moddle = (await loadBpmnModdle())();
-        const { rootElement } = await moddle.fromXML(TWO_PLANES);
         const waypoints = [
             { x: 200, y: 130 },
             { x: 300, y: 130 },
         ];
 
-        writeFlowRepairs(
-            rootElement,
-            [{ kind: "movedByBuild", flow: "Flow_1", waypoints }],
-            (point) => moddle.create("dc:Point", { x: point.x, y: point.y }),
-        );
+        const written = await writtenWith(TWO_PLANES, (layout) => ({
+            ...layout,
+            edges: new Map([["Flow_1", { ...layout.edges.get("Flow_1")!, waypoints }]]),
+        }));
 
-        expect(layoutModelOf(rootElement).edges.get("Flow_1")?.waypoints).toEqual(waypoints);
-        const { xml } = await moddle.toXML(rootElement);
-        expect(xml).toContain('<di:waypoint x="200" y="150" />');
+        expect(written.layout.edges.get("Flow_1")?.waypoints).toEqual(waypoints);
+        expect(written.xml).toContain('<di:waypoint x="200" y="150" />');
+    });
+
+    it("moves a shape's label with it and grows a shape in place", async () => {
+        const written = await writtenWith(LABELLED_EVENT, (layout) => {
+            const shapes = new Map(layout.shapes);
+            const end = layout.shapes.get("End_1") as NodeShape;
+            const task = layout.shapes.get("Task_A")!;
+            shapes.set("End_1", translatedNode(end, 40, -20));
+            shapes.set("Task_A", { ...task, bounds: { ...task.bounds, width: 160 } });
+            return { ...layout, shapes };
+        });
+
+        expect(written.xml).toContain('<dc:Bounds x="540" y="102" width="36" height="36" />');
+        expect(written.xml).toContain('<dc:Bounds x="530" y="145" width="56" height="14" />');
+        expect(written.xml).toContain('<dc:Bounds x="100" y="100" width="160" height="80" />');
+    });
+
+    it("leaves the file alone when nothing changed", async () => {
+        const moddle = (await loadBpmnModdle())();
+        const original = (await moddle.toXML((await moddle.fromXML(LABELLED_EVENT)).rootElement))
+            .xml;
+
+        expect((await writtenWith(LABELLED_EVENT, (layout) => layout)).xml).toBe(original);
     });
 });

@@ -94,6 +94,23 @@ export function planFlowRepairs(layout: LayoutModel, spots: readonly LayoutSpot[
     });
 }
 
+/** The layout with each re-routed flow's waypoints and label; the layout itself when no flow moved. */
+export function withFlowRepairs(layout: LayoutModel, repairs: readonly FlowRepair[]): LayoutModel {
+    const moved = repairs.flatMap((repair) => (repair.kind === "movedByBuild" ? [repair] : []));
+    if (moved.length === 0) return layout;
+    const edges = new Map(layout.edges);
+    for (const { flow, waypoints, label } of moved) {
+        const edge = edges.get(flow);
+        if (edge !== undefined) {
+            edges.set(
+                flow,
+                label === undefined ? { ...edge, waypoints } : { ...edge, waypoints, label },
+            );
+        }
+    }
+    return { shapes: layout.shapes, edges };
+}
+
 interface FlowEnds {
     readonly source: LayoutShape;
     readonly target: LayoutShape;

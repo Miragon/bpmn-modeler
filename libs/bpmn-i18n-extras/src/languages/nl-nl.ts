@@ -362,7 +362,12 @@ const dictionary: Record<string, string> = {
         "Bij het samenstellen is {element} verplaatst zodat het aansluit op {shapes}",
     "{element} does not meet {shapes}; the build could not repair it":
         "{element} sluit niet aan op {shapes}; bij het samenstellen kon dit niet worden hersteld",
-    "{first} and {second} lie on top of each other": "{first} en {second} liggen op elkaar",
+    "The build moved {element} off {shapes}":
+        "Bij het samenstellen is {element} van {shapes} af verplaatst",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "Bij het samenstellen is {element} van {shapes} af verplaatst en ruimte gemaakt door {shifted} op te schuiven",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "{first} en {second} liggen op elkaar; bij het samenstellen kon dit niet worden hersteld",
     "The build moved {element} around {shapes}":
         "Bij het samenstellen is {element} om {shapes} heen geleid",
     "{element} runs through {shapes}; the build could not repair it":

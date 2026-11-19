@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     type DiagramBounds,
     gapBetween,
+    keepsClearOf,
     segmentEntersOutline,
     sideOfCenter,
     spansAlong,
@@ -71,5 +72,17 @@ describe("segmentEntersOutline", () => {
         expect(segmentEntersOutline({ x: 102, y: 60 }, { x: 102, y: 250 }, TASK, "rectangle")).toBe(
             false,
         );
+    });
+});
+
+describe("keepsClearOf", () => {
+    it.each([
+        { label: "15 px to the right", other: { ...TASK, x: 215 }, clear: true },
+        { label: "14 px to the right", other: { ...TASK, x: 214 }, clear: false },
+        { label: "15 px below", other: { ...TASK, y: 195 }, clear: true },
+        { label: "10 px off each way", other: { ...TASK, x: 210, y: 190 }, clear: false },
+        { label: "on top", other: TASK, clear: false },
+    ])("a shape $label keeps 15 px clear: $clear", ({ other, clear }) => {
+        expect(keepsClearOf(TASK, other, 15)).toBe(clear);
     });
 });

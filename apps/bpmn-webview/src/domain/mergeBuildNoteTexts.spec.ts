@@ -31,8 +31,27 @@ describe("buildNoteText", () => {
             "to packing does not meet Pack box; the build could not repair it",
         ],
         [
-            { kind: "shapesOverlap", ids: ["Task_A", "Task_Pack"] },
-            "Task_A and Pack box lie on top of each other",
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_A", "Task_Pack"],
+                repair: "movedByBuild",
+                moved: "Task_Pack",
+            },
+            "The build moved Pack box off Task_A",
+        ],
+        [
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_Pack", "Task_A"],
+                repair: "madeRoom",
+                moved: "Task_Pack",
+                shifted: ["Task_B", "End_1"],
+            },
+            "The build moved Pack box off Task_A and made room by shifting Task_B, End_1",
+        ],
+        [
+            { kind: "shapesOverlap", ids: ["Task_A", "Task_Pack"], repair: "notRepaired" },
+            "Task_A and Pack box lie on top of each other; the build could not repair it",
         ],
         [
             {

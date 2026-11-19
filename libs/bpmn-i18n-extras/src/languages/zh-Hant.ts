@@ -324,7 +324,11 @@ const dictionary: Record<string, string> = {
     "The build moved {element} to meet {shapes}": "產生時已移動 {element}，使其連接到 {shapes}",
     "{element} does not meet {shapes}; the build could not repair it":
         "{element} 未連接到 {shapes}；產生時無法修復",
-    "{first} and {second} lie on top of each other": "{first} 和 {second} 疊放在一起",
+    "The build moved {element} off {shapes}": "產生時已將 {element} 從 {shapes} 上移開",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "產生時已將 {element} 從 {shapes} 上移開，並移動 {shifted} 騰出空間",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "{first} 和 {second} 疊放在一起；產生時無法修復",
     "The build moved {element} around {shapes}": "產生時已移動 {element}，使其繞開 {shapes}",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} 穿過 {shapes}；產生時無法修復",

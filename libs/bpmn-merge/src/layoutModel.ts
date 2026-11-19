@@ -1,4 +1,10 @@
-import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
+import {
+    type DiagramBounds,
+    type Outline,
+    type Point,
+    sameBounds,
+    translated,
+} from "./layoutGeometry";
 
 interface DrawnShape {
     readonly id: string;
@@ -22,6 +28,8 @@ export interface NodeShape extends DrawnShape {
     readonly host?: string;
     /** bpmn-js lets a data store lie outside its process's pool and lanes. */
     readonly mayLieOutsidePool: boolean;
+    /** Where the element's name is drawn, when apart from its shape. */
+    readonly label?: DiagramBounds;
 }
 
 export interface LaneShape extends DrawnShape {
@@ -64,6 +72,33 @@ export interface LayoutModel {
 export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefined {
     const shape = layout.shapes.get(id);
     return shape?.kind === "node" ? shape : undefined;
+}
+
+/** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
+export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
+    const drawn = nodeShapeIn(layout, node.id);
+    const sameSize =
+        drawn !== undefined &&
+        drawn.bounds.width === node.bounds.width &&
+        drawn.bounds.height === node.bounds.height;
+    return sameSize && drawn.plane === node.plane ? drawn.bounds : undefined;
+}
+
+/** Whether the layout draws the node's element just where the node lies. */
+export function drawsAt(layout: LayoutModel, node: NodeShape): boolean {
+    const place = placeOf(layout, node);
+    return place !== undefined && sameBounds(place, node.bounds);
+}
+
+export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
+    const moved = { ...node, bounds: translated(node.bounds, dx, dy) };
+    return node.label === undefined ? moved : { ...moved, label: translated(node.label, dx, dy) };
+}
+
+export function translatedEdge(edge: LayoutEdge, dx: number, dy: number): LayoutEdge {
+    const waypoints = edge.waypoints.map(({ x, y }) => ({ x: x + dx, y: y + dy }));
+    const moved = { ...edge, waypoints };
+    return edge.label === undefined ? moved : { ...moved, label: translated(edge.label, dx, dy) };
 }
 
 /** The shape of the flow's end on the flow's own plane. */
@@ -116,6 +151,18 @@ export function sharedFrameOf(layout: LayoutModel, edge: LayoutEdge): LayoutShap
         return shape?.kind === "node" ? enclosingFramesOf(layout, shape) : [];
     });
     return source!.find((frame) => target!.includes(frame));
+}
+
+/** Every drawn frame around the node: its sub-processes drawn open, innermost first, then its pool and lanes. */
+export function framesAroundOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
+    const lanes = node.mayLieOutsidePool ? [] : node.lanes;
+    return [
+        ...enclosingFramesOf(layout, node),
+        ...lanes.flatMap((id) => {
+            const lane = layout.shapes.get(id);
+            return isDrawnFrameOf(node, lane) ? [lane] : [];
+        }),
+    ];
 }
 
 /** The drawn frames around the node, innermost first; a data store's pool is not one, as it may lie outside. */
