@@ -250,6 +250,42 @@ describe("development preview host", () => {
         expect(replies).toEqual([expect.objectContaining(reply)]);
     });
 
+    it("logs the deployment and the instance start it pretends to send", () => {
+        const deploy = new DeployCommand({
+            deploymentName: "order",
+            tenantId: "",
+            endpoint: "https://dev.test",
+            engine: "c7",
+            mainFilePath: "order.bpmn",
+            additionalFilePaths: [],
+            auth: noAuth,
+            targetName: "",
+        });
+        const start = new StartInstanceCommand({
+            processDefinitionKey: "Process_0gjrx3e",
+            endpoint: "https://dev.test",
+            engine: "c7",
+            auth: noAuth,
+            payloadFilePath: "",
+            targetName: "",
+        });
+        const host = previewHost();
+
+        host.postMessage(deploy);
+        host.postMessage(start);
+
+        expect(console.debug).toHaveBeenCalledWith("[DEBUG] DeployCommand", deploy);
+        expect(console.debug).toHaveBeenCalledWith("[DEBUG] StartInstanceCommand", start);
+    });
+
+    it("keeps each preview host's targets to itself", () => {
+        previewHost().postMessage(new CreateTargetCommand(target("staging"), noAuth));
+
+        const [targets] = sendAndCollect(previewHost(), new SelectTargetCommand("dev"));
+
+        expect(targetNames(targets)).toEqual(["dev", "prod"]);
+    });
+
     it.each<[string, Command | { type: string }]>([
         ["opening the targets file", new OpenTargetsFileCommand()],
         ["an unknown message", { type: "NotAProtocolMessage" }],
