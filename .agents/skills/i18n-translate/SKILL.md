@@ -140,7 +140,8 @@ What each guard enforces (so a failure message tells you what to fix):
   normalized casing). A failure names keys to *delete* — the shared library caught up.
 - **`overlayNeeded.spec.ts`** — the overlay defines no key the runtime harvest never requested (except the
   `SOURCE_ONLY` allowlist for strings from a call site no harvest reaches, like script-lock). A failing
-  merge view text belongs in `mergeTextsTranslated.spec.ts`, not in `SOURCE_ONLY`.
+  merge view text belongs in `mergeTextsTranslated.spec.ts`, and a diff pane text in the webview's
+  `diffTextsHarvest.spec.ts`, not in `SOURCE_ONLY`.
 - **`coverage.spec.ts`** — no harvested string is left uncovered by both the shared library and the
   overlay (the no-gaps guard).
 

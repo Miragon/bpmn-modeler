@@ -21,6 +21,11 @@ and guarded.
   browser driver reaches. `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts` asks every merge
   text once and fails until the record is current; rewrite it with
   `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`.
+- `libs/bpmn-i18n-extras/tools/harvested-diff.json` and `harvested-dmn-diff.json` — the keys of the BPMN
+  and DMN diff panes' texts, recorded from their constants by
+  `apps/bpmn-webview/src/adapter/in/diffTextsHarvest.spec.ts` and
+  `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`, which fail until the records are current;
+  rewrite them with `-u` on those specs as for the merge record.
 - `libs/bpmn-i18n-extras/tools/harvest-drain.js` — the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.
@@ -65,7 +70,8 @@ the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). Thes
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
 in `src/sourceOnlyKeys.ts`, the one set that both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`
 import. If you add a genuinely needed modeler-internal string the harvest can't reach, add it there and
-nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead. A key stays listed
+nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead, and a diff pane text into the
+webview's `diffTextsHarvest.spec.ts`. A key stays listed
 while another view's harvest records it, since that harvest does not reach its own call site: the template
 chooser's `Close` and the merge bar's `Close` are one key.
 

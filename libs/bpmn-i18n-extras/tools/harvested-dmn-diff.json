@@ -1,0 +1,22 @@
+{
+    "note": "Templates the DMN diff pane's texts pass to translate(), recorded by apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project dmn-webview -u apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "count": 16,
+    "keys": [
+        "Added",
+        "Changed",
+        "Changes",
+        "It is new. The version on the right shows it.",
+        "It was removed. The version on the left shows it.",
+        "Moved",
+        "New version",
+        "Next change",
+        "No changes",
+        "Not in this version",
+        "Old version",
+        "Prev change",
+        "Removed",
+        "Show all",
+        "Swap sides",
+        "View DRD"
+    ]
+}
