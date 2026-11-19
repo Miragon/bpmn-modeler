@@ -120,7 +120,10 @@ export class MergeDecisionService {
             hand.side,
             hand.text,
         );
-        this.feedback.set(session, handMergeFeedback(hand.elementId, outcome));
+        this.feedback.set(
+            session,
+            handMergeFeedback(hand.elementId, outcome, this.feedback.get(session)),
+        );
         await this.broadcastSession(session, offers);
         return outcome;
     }
@@ -131,7 +134,10 @@ export class MergeDecisionService {
         elementId: string,
         offers: MergeHostOffers,
     ): Promise<void> {
-        this.feedback.set(session, handMergeFeedback(elementId, "discarded"));
+        this.feedback.set(
+            session,
+            handMergeFeedback(elementId, "discarded", this.feedback.get(session)),
+        );
         await this.broadcastSession(session, offers);
     }
 

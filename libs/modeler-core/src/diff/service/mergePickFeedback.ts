@@ -65,31 +65,38 @@ export function mergePickFeedback({
     return { ...shown, offer };
 }
 
-/** What the finish of an element's merge editor did, as the panes show it: taken, refused, or closed without a save. */
+/**
+ * What the finish of an element's merge editor did, as the panes show it:
+ * taken, refused, or closed without a save. No finish changes a pick, so the
+ * restore offer of the last pick stays.
+ */
 export function handMergeFeedback(
     elementId: string,
     finish: HandMergeOutcome | "discarded",
+    last?: MergePickFeedback,
 ): MergePickFeedback {
+    const outcome = handMergeOutcome(elementId, finish);
+    return last?.offer === undefined ? { outcome } : { outcome, offer: last.offer };
+}
+
+function handMergeOutcome(
+    elementId: string,
+    finish: HandMergeOutcome | "discarded",
+): MergePaneOutcome {
     const action = "mergeByHand";
     if (finish === "discarded") {
-        return {
-            outcome: { applied: false, action, elementId, blockedBy: [], discarded: true },
-        };
+        return { applied: false, action, elementId, blockedBy: [], discarded: true };
     }
     if (!finish.applied) {
         return {
-            outcome: {
-                applied: false,
-                action,
-                elementId,
-                blockedBy: [],
-                handMergeRefusal: finish.refusal,
-            },
+            applied: false,
+            action,
+            elementId,
+            blockedBy: [],
+            handMergeRefusal: finish.refusal,
         };
     }
-    return {
-        outcome: { applied: true, action, elementId, pulledIn: [], dropped: [], reopened: [] },
-    };
+    return { applied: true, action, elementId, pulledIn: [], dropped: [], reopened: [] };
 }
 
 function blockOf({ reason: { element, requirement, obstacle } }: BlockedPick): MergePaneBlock {

@@ -232,6 +232,15 @@ describe("handMergeFeedback", () => {
         expect(idsNamedInWords([], outcome)).toStrictEqual(new Set(["Task_Pack", ...ids]));
     });
 
+    it("keeps the last pick's restore offer, since no finish changes a pick", () => {
+        const offer = { elementId: "Task_Pack", connections: ["Flow_2"], keptSide: "incoming" } as const;
+        const last = { outcome: handMergeFeedback("Task_Pack", "discarded").outcome, offer };
+
+        for (const finish of ["discarded", { applied: true }] as const) {
+            expect(handMergeFeedback("Task_Pack", finish, last).offer).toBe(offer);
+        }
+    });
+
     it("shows a merge closed without saving as discarded", () => {
         expect(handMergeFeedback("Task_Pack", "discarded")).toStrictEqual({
             outcome: {
