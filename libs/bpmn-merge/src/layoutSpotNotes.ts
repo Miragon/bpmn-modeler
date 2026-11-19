@@ -167,6 +167,7 @@ function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildN
                 repair: repair.kind,
                 moved: repair.moved,
                 shifted: repair.shifted,
+                grown: repair.grown,
             };
         case "notRepaired":
             return { kind: "shapesOverlap", ids, repair: "notRepaired" };

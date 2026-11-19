@@ -249,6 +249,7 @@ describe("planShapeMoves", () => {
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7"],
+                    grown: ["Pool_1", "Lane_1"],
                 },
             ]);
             expect(boundsIn(plan, "Task_Y")).toEqual(box(610, 90));
@@ -280,6 +281,7 @@ describe("planShapeMoves", () => {
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7", "Data_1"],
+                    grown: ["Pool_1", "Lane_1"],
                 },
             ]);
             expect(boundsIn(plan, "Task_Y")).toEqual(box(610, 90));
@@ -301,6 +303,32 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Task_Y")).toEqual(box(250, 90));
             expect(plan.layout.shapes.get("Task_1")).toBe(far);
             expect(plan.layout.shapes.get("Lane_1")).toBe(frames[1]);
+        });
+
+        it("grows the pool and lane to hold the moved shape when nothing lies past the line", () => {
+            const narrow = [{ ...POOL, bounds: box(0, 0, 650, 300) }, lane(70, 120, 620)];
+            const short = row.slice(0, 4);
+            const result = layoutOf(
+                [...short, node("Task_Y", box(470, 90))],
+                rowFlows.slice(0, 3),
+                narrow,
+            );
+            const current = layoutOf(short, rowFlows.slice(0, 3), narrow);
+
+            const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
+
+            expect(plan.repairs).toEqual([
+                {
+                    kind: "madeRoom",
+                    shapes: ["Task_3", "Task_Y"],
+                    moved: "Task_Y",
+                    shifted: [],
+                    grown: ["Pool_1", "Lane_1"],
+                },
+            ]);
+            expect(boundsIn(plan, "Task_Y")).toEqual(box(610, 90));
+            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 720, 300));
+            expect(boundsIn(plan, "Lane_1")).toEqual(box(30, 70, 690, 120));
         });
 
         it("names the shape a room shifted off another as the one the build moved", () => {

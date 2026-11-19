@@ -7,7 +7,8 @@ import type { MergeSide } from "@miragon/bpmn-modeler-types";
  * other, a flow running through shapes, a shape outside its sub-process, pool
  * or lane, a boundary event off its host's border, or two overlapping lanes;
  * a broken flow says whether the build re-routed it, two shapes on top of
- * each other which one the build moved and what it shifted to make room, a
+ * each other which one the build moved, what it shifted and which frames it
+ * grew to make room, a
  * shape outside its containers whether the build moved it inside or grew
  * one to hold it, and what it shifted then, and overlapping lanes, or a lane
  * outside its pool, which lane the build moved below the others, which pool
@@ -39,7 +40,7 @@ export type MergePaneBuildNote =
           | { readonly repair: "notRepaired" }
       ))
     | ({
-          /** Two shapes on top of each other, with which the build moved and what it shifted to make room. */
+          /** Two shapes on top of each other, with which the build moved, what it shifted and which frames it grew to make room. */
           readonly kind: "shapesOverlap";
           readonly ids: readonly string[];
       } & (
@@ -48,6 +49,7 @@ export type MergePaneBuildNote =
                 readonly repair: "madeRoom";
                 readonly moved: string;
                 readonly shifted: readonly string[];
+                readonly grown: readonly string[];
             }
           | { readonly repair: "notRepaired" }
       ))

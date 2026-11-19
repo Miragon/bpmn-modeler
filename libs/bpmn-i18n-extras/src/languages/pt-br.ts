@@ -360,6 +360,10 @@ const dictionary: Record<string, string> = {
     "The build moved {element} off {shapes}": "Ao gerar, {element} foi afastado de {shapes}",
     "The build moved {element} off {shapes} and made room by shifting {shifted}":
         "Ao gerar, {element} foi afastado de {shapes} e foi aberto espaço deslocando {shifted}",
+    "The build moved {element} off {shapes} and grew {grown} to hold it":
+        "Ao gerar, {element} foi afastado de {shapes} e {grown} foi ampliado para contê-lo",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}":
+        "Ao gerar, {element} foi afastado de {shapes}, {grown} foi ampliado para contê-lo e {shifted} foi deslocado",
     "{first} and {second} lie on top of each other; the build could not repair it":
         "{first} e {second} estão um sobre o outro; ao gerar, não foi possível corrigi-lo",
     "The build moved {element} around {shapes}":

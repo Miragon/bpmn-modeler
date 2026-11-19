@@ -143,6 +143,8 @@ export const SOURCE_ONLY: ReadonlySet<string> = new Set([
     "{element} does not meet {shapes}; the build could not repair it",
     "The build moved {element} off {shapes}",
     "The build moved {element} off {shapes} and made room by shifting {shifted}",
+    "The build moved {element} off {shapes} and grew {grown} to hold it",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}",
     "{first} and {second} lie on top of each other; the build could not repair it",
     "The build moved {element} around {shapes}",
     "{element} runs through {shapes}; the build could not repair it",

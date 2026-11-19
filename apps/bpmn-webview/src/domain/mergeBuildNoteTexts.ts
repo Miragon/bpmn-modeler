@@ -57,6 +57,13 @@ const OVERLAP_NOTE_TEXTS: Record<OverlapNote["repair"], string> = {
     notRepaired: "{first} and {second} lie on top of each other; the build could not repair it",
 };
 
+/** Room made by growing frames, with or without shifting shapes, by what it shifted. */
+const ROOM_GROWN_TEXTS = {
+    grown: "The build moved {element} off {shapes} and grew {grown} to hold it",
+    grownAndShifted:
+        "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}",
+};
+
 /** A shape outside its containers, by what the build did about it. */
 const CONTAINER_NOTE_TEXTS: Record<ContainerNote["repair"], string> = {
     movedIntoContainer: "The build moved {element} into {shapes}",
@@ -104,7 +111,7 @@ export function buildNoteText(
 
 function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
-    if (note.kind === "shapesOverlap") return OVERLAP_NOTE_TEXTS[note.repair];
+    if (note.kind === "shapesOverlap") return overlapTemplate(note);
     if (note.kind === "shapeOutsideContainer") return CONTAINER_NOTE_TEXTS[note.repair];
     if (note.kind === "lanesOverlap") {
         return note.repair === "movedByBuild" && note.shifted.length > 0
@@ -122,6 +129,13 @@ function buildNoteTemplate(note: MergePaneBuildNote): string {
             : RESTORED_WITHOUT_ELEMENTS_TEXTS.elements;
     }
     return BUILD_NOTE_TEXTS[note.kind];
+}
+
+function overlapTemplate(note: OverlapNote): string {
+    if (note.repair !== "madeRoom" || note.grown.length === 0) {
+        return OVERLAP_NOTE_TEXTS[note.repair];
+    }
+    return note.shifted.length === 0 ? ROOM_GROWN_TEXTS.grown : ROOM_GROWN_TEXTS.grownAndShifted;
 }
 
 function lacksAnEnd({ source, target }: NoteOfKind<"flowNotDrawn">): boolean {
@@ -168,7 +182,8 @@ function overlapReplacements(
         element: nameOf(note.moved),
         shapes: names(note.ids.filter((id) => id !== note.moved)),
     };
-    return note.repair === "madeRoom" ? { ...moved, shifted: names(note.shifted) } : moved;
+    if (note.repair !== "madeRoom") return moved;
+    return { ...moved, shifted: names(note.shifted), grown: names(note.grown) };
 }
 
 function laneReplacements(

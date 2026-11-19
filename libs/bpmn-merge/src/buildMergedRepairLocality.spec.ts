@@ -167,6 +167,8 @@ const CASES: readonly HarvestCase[] = [
             [135, "conflictsToIncoming", 0],
             [153, "conflictsAtRandom", 0],
             [191, "conflictsToCurrent", 0],
+            // Nothing lies past the line, so only the lanes and the pool grow (#2594).
+            [198, "conflictsToCurrent", 0],
         ] as const
     ).map(([seed, strategy, crossingBudget]) => ({
         seed,

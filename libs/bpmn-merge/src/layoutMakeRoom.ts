@@ -36,6 +36,8 @@ export interface RoomMade {
     readonly draft: DrawingDraft;
     /** The outermost shapes that shifted to make room, in document order; none when the gap past the other shape already held the group. */
     readonly shifted: readonly string[];
+    /** The frames that grew to hold the group, in document order. */
+    readonly grown: readonly string[];
 }
 
 /**
@@ -66,9 +68,7 @@ export function makeRoom(
     const space = spaceFor(draft, node, target, past, line, dx);
     const shifting = space > 0 ? past : [];
     const trial = draft.fork();
-    if (shifting.length > 0) {
-        shiftPast(draft, trial, { group, outside, shifting, line, space });
-    }
+    if (space > 0) shiftPast(draft, trial, { group, outside, shifting, line, space });
     trial.translate(group, dx, 0);
     if (
         !breaksNothing(draft, trial) ||
@@ -76,7 +76,20 @@ export function makeRoom(
     ) {
         return undefined;
     }
-    return { draft: trial, shifted: outermostOf(shifting) };
+    return { draft: trial, shifted: outermostOf(shifting), grown: grownFrames(draft, trial) };
+}
+
+/** The frames the trial draws larger than the draft, in document order. */
+function grownFrames(draft: LayoutModel, trial: LayoutModel): string[] {
+    return [...trial.shapes.values()].flatMap((shape) => {
+        const before = draft.shapes.get(shape.id);
+        const grew =
+            before !== undefined &&
+            isFrame(shape) &&
+            (shape.bounds.width > before.bounds.width ||
+                shape.bounds.height > before.bounds.height);
+        return grew ? [shape.id] : [];
+    });
 }
 
 /** The ids of the shapes that shift on their own, not with their host or sub-process, in their order. */

@@ -246,7 +246,7 @@ describe("layoutSpotNotes", () => {
         ]);
     });
 
-    it("says which shape the build moved off another and what it shifted to make room", () => {
+    it("says which shape the build moved off another, what it shifted and which frames it grew to make room", () => {
         const spots: LayoutSpot[] = [
             { kind: "shapesOverlap", shapes: ["Task_A", "Task_B"] },
             { kind: "shapesOverlap", shapes: ["Task_C", "Task_D"] },
@@ -259,6 +259,7 @@ describe("layoutSpotNotes", () => {
                 shapes: ["Task_C", "Task_D"],
                 moved: "Task_C",
                 shifted: ["Task_G", "Task_H"],
+                grown: ["Lane_A"],
             },
             { kind: "notRepaired", shapes: ["Task_E", "Task_F"] },
         ];
@@ -276,6 +277,7 @@ describe("layoutSpotNotes", () => {
                 repair: "madeRoom",
                 moved: "Task_C",
                 shifted: ["Task_G", "Task_H"],
+                grown: ["Lane_A"],
             },
             { kind: "shapesOverlap", ids: ["Task_E", "Task_F"], repair: "notRepaired" },
         ]);

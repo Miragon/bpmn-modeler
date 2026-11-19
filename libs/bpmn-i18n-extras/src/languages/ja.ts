@@ -358,6 +358,10 @@ const dictionary: Record<string, string> = {
         "生成時に {element} を {shapes} と重ならない位置へ移動しました",
     "The build moved {element} off {shapes} and made room by shifting {shifted}":
         "生成時に {element} を {shapes} と重ならない位置へ移動し、{shifted} をずらして場所を空けました",
+    "The build moved {element} off {shapes} and grew {grown} to hold it":
+        "生成時に {element} を {shapes} と重ならない位置へ移動し、収まるよう {grown} を広げました",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}":
+        "生成時に {element} を {shapes} と重ならない位置へ移動し、収まるよう {grown} を広げ、{shifted} をずらしました",
     "{first} and {second} lie on top of each other; the build could not repair it":
         "{first} と {second} が重なって配置されています。生成時に修正できませんでした",
     "The build moved {element} around {shapes}":

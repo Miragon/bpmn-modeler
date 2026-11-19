@@ -20,6 +20,8 @@ export type OverlapRepair =
           readonly moved: string;
           /** The outermost shapes shifted to make the room, in document order. */
           readonly shifted: readonly string[];
+          /** The sub-processes, lanes and pools that grew to hold it, in document order. */
+          readonly grown: readonly string[];
       }
     | { readonly kind: "notRepaired"; readonly shapes: readonly [string, string] };
 
@@ -79,10 +81,11 @@ export function planShapeMoves(
         const room = roomFor(draft, movable, [first, second]);
         if (room === undefined) return { kind: "notRepaired", shapes };
         const moved = room.group.node.id;
+        const { shifted, grown } = room;
         const repair: MoveRepair =
-            room.shifted.length === 0
+            shifted.length === 0 && grown.length === 0
                 ? { kind: "movedByBuild", shapes, moved }
-                : { kind: "madeRoom", shapes, moved, shifted: room.shifted };
+                : { kind: "madeRoom", shapes, moved, shifted, grown };
         for (const [id, shape] of room.draft.shapes) {
             const withMovedGroup = room.group.members.includes(id);
             if (draft.shapes.get(id) !== shape) changes.set(id, { repair, withMovedGroup });

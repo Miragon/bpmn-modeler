@@ -365,6 +365,10 @@ const dictionary: Record<string, string> = {
         "Beim Erstellen wurde {element} von {shapes} weggeschoben",
     "The build moved {element} off {shapes} and made room by shifting {shifted}":
         "Beim Erstellen wurde {element} von {shapes} weggeschoben und Platz geschaffen; verschoben: {shifted}",
+    "The build moved {element} off {shapes} and grew {grown} to hold it":
+        "Beim Erstellen wurde {element} von {shapes} weggeschoben und {grown} vergrößert, um es aufzunehmen",
+    "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}":
+        "Beim Erstellen wurde {element} von {shapes} weggeschoben und {grown} vergrößert, um es aufzunehmen; verschoben: {shifted}",
     "{first} and {second} lie on top of each other; the build could not repair it":
         "{first} und {second} liegen übereinander; beim Erstellen ließ es sich nicht reparieren",
     "The build moved {element} around {shapes}":
@@ -381,9 +385,9 @@ const dictionary: Record<string, string> = {
         "{element} liegt außerhalb von {shapes}; beim Erstellen ließ es sich nicht reparieren",
     "{element} is not on the border of {host}": "{element} liegt nicht auf dem Rand von {host}",
     "The build moved {element} below the other lanes and grew {grown} to hold it":
-        "Beim Erstellen wurde {element} unter die anderen Lanes verschoben und {grown} vergrößert, damit es sie aufnimmt",
+        "Beim Erstellen wurde {element} unter die anderen Lanes verschoben und {grown} vergrößert, um es aufzunehmen",
     "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}":
-        "Beim Erstellen wurde {element} unter die anderen Lanes verschoben und {grown} vergrößert, damit es sie aufnimmt; verschoben: {shifted}",
+        "Beim Erstellen wurde {element} unter die anderen Lanes verschoben und {grown} vergrößert, um es aufzunehmen; verschoben: {shifted}",
     "{first} and {second} overlap; the build could not repair it":
         "{first} und {second} überlappen sich; beim Erstellen ließ es sich nicht reparieren",
     "{element} is kept without the flows the other side removed with it: {connections}":

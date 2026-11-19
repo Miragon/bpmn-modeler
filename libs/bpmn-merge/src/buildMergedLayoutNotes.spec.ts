@@ -109,7 +109,7 @@ function movedOff(ids: [string, string], shape: string): BuildNote {
     return { kind: "shapesOverlap", ids, repair: "movedByBuild", moved: shape };
 }
 
-/** No free place lies near the inserted tasks, so the room shifts what follows them. */
+/** No free place lies near the inserted tasks, so the room shifts what follows them and widens the pool and lanes. */
 function roomMade(ids: [string, string], shape: string): BuildNote {
     return {
         kind: "shapesOverlap",
@@ -117,6 +117,7 @@ function roomMade(ids: [string, string], shape: string): BuildNote {
         repair: "madeRoom",
         moved: shape,
         shifted: ["Task_C", "End_Done", "End_Rejected"],
+        grown: ["Participant_Order", "Lane_Sales", "Lane_Back"],
     };
 }
 
