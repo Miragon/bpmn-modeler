@@ -3314,8 +3314,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-docs@workspace:docs"
   dependencies:
     "@braintree/sanitize-url": "npm:7.1.2"
-    "@fontsource-variable/geist": "npm:5.3.0"
-    "@fontsource-variable/geist-mono": "npm:5.3.0"
+    "@miragon/docs-starter": "npm:1.0.0"
     cytoscape: "npm:3.34.4"
     cytoscape-cose-bilkent: "npm:4.1.0"
     dayjs: "npm:1.11.23"
@@ -3862,6 +3861,21 @@ __metadata:
     vitest: "npm:5.1.0"
   languageName: unknown
   linkType: soft
+
+"@miragon/docs-starter@npm:1.0.0":
+  version: 1.0.0
+  resolution: "@miragon/docs-starter@npm:1.0.0"
+  dependencies:
+    "@fontsource-variable/geist": "npm:5.3.0"
+    "@fontsource-variable/geist-mono": "npm:5.3.0"
+  peerDependencies:
+    mermaid: ^12.0.0
+    vitepress: ^1.6.4
+    vitepress-plugin-mermaid: ^2.0.17
+    vue: ^3.5.0
+  checksum: 10c0/82f2ec97815f580eb6ddd5954e021cf830f62f2c8052fa7ed74630e27712c13b26dc3d67aa3d2b49bad7d549d8033e58780d14645f6790f09698af0a59fed724
+  languageName: node
+  linkType: hard
 
 "@miragon/form-modeler-webview@workspace:apps/form-webview":
   version: 0.0.0-use.local
