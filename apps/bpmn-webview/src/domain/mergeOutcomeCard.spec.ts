@@ -10,6 +10,7 @@ import type {
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome, MergeRefusal } from "./mergeDecisionOutcome";
 import {
+    cardToneOf,
     handMergeFactsOf,
     type MergeHandMergeFacts,
     mergeOutcomeCardContent,
@@ -511,4 +512,14 @@ describe("handMergeFactsOf", () => {
             );
         },
     );
+});
+
+describe("cardToneOf", () => {
+    it.each([
+        [{ applied: true }, "applied"],
+        [{ applied: false }, "refused"],
+        [{ applied: false, notice: true }, "notice"],
+    ] as const)("reads %o as %s", (content, tone) => {
+        expect(cardToneOf(content)).toBe(tone);
+    });
 });

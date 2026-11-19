@@ -184,7 +184,7 @@
     border-radius: 1px;
 }
 
-/* Merged by hand: a pen, its word in italics and a dashed edge, none of them a colour. */
+/* Merged by hand: a pen and its word in italics, none of them a colour; an outlined badge also dashes its edge. */
 .merge-pick-badge--by-hand {
     border-style: dashed;
 }

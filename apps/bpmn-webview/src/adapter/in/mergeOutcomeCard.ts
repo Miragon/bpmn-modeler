@@ -2,10 +2,11 @@ import ContextPadModule from "diagram-js/lib/features/context-pad";
 import OverlaysModule from "diagram-js/lib/features/overlays";
 import { createButton, createElement } from "@miragon/bpmn-modeler-types";
 
-import type {
-    MergeCardAction,
-    MergeCardChoice,
-    MergeOutcomeCardContent,
+import {
+    cardToneOf,
+    type MergeCardAction,
+    type MergeCardChoice,
+    type MergeOutcomeCardContent,
 } from "../../domain/mergeOutcomeCard";
 import {
     type DiagramBox,
@@ -219,7 +220,7 @@ export class MergeOutcomeCard {
 
     private announce(content: MergeOutcomeCardContent): void {
         // A new node is announced even where the text repeats the last outcome's.
-        const region = content.applied || content.notice ? this.status : this.alert;
+        const region = cardToneOf(content) === "refused" ? this.alert : this.status;
         region.replaceChildren(...content.announcement.map((line) => createElement("p", "", line)));
     }
 
@@ -227,8 +228,10 @@ export class MergeOutcomeCard {
         content: MergeOutcomeCardContent,
         actions: MergeOutcomeCardActions,
     ): HTMLElement {
-        const tone = content.applied ? "applied" : content.notice ? "notice" : "refused";
-        const card = createElement("div", `merge-outcome-card merge-outcome-card--${tone}`);
+        const card = createElement(
+            "div",
+            `merge-outcome-card merge-outcome-card--${cardToneOf(content)}`,
+        );
         const title = createElement("span", "merge-outcome-card__title");
         if (content.applied) title.insertAdjacentHTML("afterbegin", CHECK_MARK);
         title.append(createElement("span", "merge-outcome-card__headline", content.headline));

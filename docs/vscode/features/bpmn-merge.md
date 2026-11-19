@@ -46,13 +46,41 @@ Step to an element with **‹** and **›**, or click it: the step selects it on
 - **Keep everything inside**: a sub-process, pool or lane with every element in it, from that side. A process, a collaboration or another container without a shape is kept with everything inside from its row in the **…** menu (see below); for a collaboration, everything inside is every pool and its process.
 - **Leave out**: on an element only this side has, leave it out, as the other side removed it or never had it.
 - **Also keep what was removed with it**: after keeping an element the other side removed, keep the flows and boundary events removed with it too.
+- **Merge XML** (pen): on an element you picked whose versions in the common ancestor, current and incoming all differ, merge its XML by hand in VS Code's merge editor; **Edit merged XML** once you did. See [Merge an element's XML](#merge-an-element-s-xml).
 - **Undo pick**: back to what the merge decided by itself.
 
-An element without a shape is decided in its row of the **…** menu, which a step onto it opens: **Keep current**, **Keep incoming**, **Leave out** where one side lacks it, and **Undo pick** while your pick decides it. A container such as the process also shows the pad's **Keep everything inside** icon next to each side's **Keep**; it shows pressed while your pick keeps that side with everything inside. To decide by keyboard, see [Keyboard](#keyboard). A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape its row says what the pick did. A pick a pane cannot draw is undone in the pad of the other pane, or in its row.
+An element without a shape is decided in its row of the **…** menu, which a step onto it opens: **Keep current**, **Keep incoming**, **Leave out** where one side lacks it, **Merge XML** where the pad would offer it, and **Undo pick** while your pick decides it. A container such as the process also shows the pad's **Keep everything inside** icon next to each side's **Keep**; it shows pressed while your pick keeps that side with everything inside. To decide by keyboard, see [Keyboard](#keyboard). A pick can pull in or drop other elements (a flow needs both of its ends). A card below the element, on the pane you decided on, says which side you kept or why the element was left out, and lists what the pick pulled in, dropped or opened again; a click on a name there shows that element. A refused pick names up to three reasons and marks the elements in the way. The card closes on the next step, when you select another element, or with **×**, and shows again when you select its element again, until the pane reloads. For an element without a shape its row says what the pick did. A pick a pane cannot draw is undone in the pad of the other pane, or in its row.
 
 <figure class="shot"><img src="./images/bm-restore-offer.png" alt="The incoming pane after keeping a task current removed: a ✓ Incoming badge, the pad's tooltip Also keep what was removed with it: Also keep the 2 flows current removed with it, and below the task a card reading Kept from incoming: Check feature order with the button Also keep the 2 flows current removed with it"><figcaption>Keeping a task the other side removed offers the flows removed with it.</figcaption></figure>
 
 Keeping an element the other side removed offers **Also keep the N flows … removed with it** on its card, and **Also keep what was removed with it** on its pad, or in its row for an element without a shape, whichever side you kept. The offer includes the boundary events the other side removed with a task, such as its timer, with the flows leaving them; the card then counts elements: **Also keep the N elements … removed with it**. A flow whose other end the other side removed too stays out, and so does a boundary event whose error, message or lane the other side removed too. Without the offer, the element is kept without them and the build notes what stays out: the boundary events removed with it and the flows of the element or of those events. A flow you keep that was the default flow of its gateway or task is its default again in the result, unless the other side made another flow the default; then that one stays and the build notes it.
+
+## Merge an element's XML
+
+When both sides changed one element in different places, for example current changed a service task's job type and incoming its input mapping, a pick keeps only one side's change. **Merge XML** opens the element's XML in VS Code's merge editor, so you keep both.
+
+<figure class="shot"><img src="./images/bm-merge-xml-pad.png" alt="Both panes after keeping incoming's Check order, each with its context pad open; on the incoming pane the pointer rests on the pen icon and its tooltip reads Merge XML: Merge both sides' changes to its XML by hand in a merge editor"><figcaption>Merge XML shows on the pad once your pick decides the element.</figcaption></figure>
+
+1. Pick the side the element starts from with **Keep current** or **Keep incoming**.
+2. Click **Merge XML** on the pad, on its row in the **…** menu for an element without a shape, or press <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>X</kbd>. The merge editor opens below the diagrams: current on the left, incoming on the right, the result below. VS Code takes the lines only one side changed by itself and leaves open only the lines both sides changed.
+3. Resolve each open conflict in the result, then click **Accept Element XML Merge** (✓) in the editor's title. Saving with <kbd>Ctrl</kbd>+<kbd>S</kbd> and closing the tab does the same.
+
+The merge view checks the text when the merge editor closes. If it takes the text, the badge on both panes reads **✓ Incoming ✎ by hand** (or Current), the card says **Merged by hand**, and the pad offers **Edit merged XML**, which opens the merge editor on the text you merged. Build writes that text for the element.
+
+<figure class="shot"><img src="./images/bm-merge-xml-badge.png" alt="Both panes with a badge reading ✓ Incoming, a pen and by hand above Check order, and below the incoming task a card reading Merged by hand: Check order"><figcaption>The badge names the side the text started from and that you merged it by hand.</figcaption></figure>
+
+**What the text covers.** The element's own XML: its attributes, its documentation and its extension elements, such as a task definition, input and output mappings or listeners. What follows the pick stays out of it: the shape, the lane, the flows in and out, a flow's ends, a boundary event's task, a pool's process. A sub-process, pool or lane shows only its own attributes, documentation and extension elements; what lies inside it is decided element by element. Merge XML is offered only where the common ancestor, current and incoming all differ: an element both sides added, one whose type differs between the versions, or one where the ancestor equals a side has nothing to merge line by line.
+
+**When the text is refused.** The element then keeps its version, and the card says why and what to change: the text still holds conflict markers, does not parse, holds more than one element, changes the element's type or ID, holds elements merged on their own (such as a task inside a sub-process), changes what follows the pick, names an element no version has or one the result leaves out, uses a namespace no version declares, is not taken by the engine's extension definitions, or would change the decision on another element. **Edit again** reopens the merge editor on the text you saved; **Keep incoming's version** (or current's, or the XML you merged before) closes the card.
+
+<figure class="shot"><img src="./images/bm-merge-xml-refused.png" alt="The incoming pane with a card below Check order reading The XML of Check order changes its type, It is a bpmn:UserTask now; keep it a bpmn:ServiceTask, with the buttons Edit again and Keep incoming's version"><figcaption>A refusal names its reason; Edit again starts from the text you saved.</figcaption></figure>
+
+Closing the merge editor without saving changes nothing; the card says so. A pick of the same side keeps the merged XML. A pick of the other side, **Undo pick**, or keeping a container from the other side with everything inside would drop it, so the card asks first: **This drops the XML you merged by hand for …**, with **Drop it and pick** (or **Drop it and undo**) and **Keep my XML**.
+
+Two traps:
+
+- **A save counts.** The text of your last save is taken when the merge editor closes, even if you then answer **Don't Save** to a later change. To leave without a change, close the tab without saving.
+- **Complete with Conflicts** in VS Code's dialog keeps the common ancestor's lines for every conflict still open. That text parses and passes the checks, so the merge view takes it; only VS Code's dialog warns. Resolve every conflict before you accept.
 
 ## Build the result
 
@@ -104,6 +132,7 @@ Each is also in the Command Palette as **Miragon BPMN Modeler: Merge View: …**
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Shift</kbd>+<kbd>K</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⇧</kbd><kbd>K</kbd> | **Keep with Everything Inside** |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>L</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>L</kbd> | **Leave Out** |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Shift</kbd>+<kbd>F</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⇧</kbd><kbd>F</kbd> | **Also Keep What Was Removed With It** |
+| <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>X</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>X</kbd> | **Merge XML**, also on an element merged by hand |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>Backspace</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>⌫</kbd> | **Undo Pick** |
 | <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>B</kbd> | <kbd>⌘</kbd><kbd>K</kbd> <kbd>B</kbd> | **Build Result**; with conflicts open, a message says how many are left |
 
@@ -114,6 +143,8 @@ A step selects its element, so the keyboard way is <kbd>Alt</kbd>+<kbd>F5</kbd>,
 - The merge view is in alpha: check the built file before you stage it, as the note at the top says.
 - Picks live while the merge view is open. Closing its tab or reloading the window loses them; a restored tab says the view has ended, and the command opens it again.
 - VS Code only: IntelliJ opens no merge view. The standalone app is untested.
+- Merge XML needs VS Code's merge editor: the standalone app and IntelliJ do not offer it. It also needs the element's version in the common ancestor.
+- A merge by hand lives in the merge view like a pick: closing its tab or reloading the window loses it.
 - For a `.bpmn` file under Git LFS or with a textconv driver, Git hands over text that is not BPMN, so the merge view refuses it.
 - The Source Control entry shows on every Merge Changes row while a BPMN conflict exists, as explained above.
 

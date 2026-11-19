@@ -1,6 +1,6 @@
 # Merge XML editor
 
-- Status: proposed
+- Status: accepted
 - Last reviewed: 2026-11-19
 
 ## Context
@@ -89,6 +89,18 @@ changed different parts to a whole pick.
   cannot run, or of an element no hand merge may replace, is logged and ignored; the
   bridge has no editor, so its router ignores the command.
 
+- *The panes offer it and word the answer.* The pad, a shape-less row and the keyboard
+  command `bpmn-modeler.mergeXml` (Ctrl+K X, `mergePane.canMergeXml`) offer Merge XML where
+  `handMergeable` and `MergeHostOffers.elementXmlMerge` both hold (`mergePadDecisions`);
+  the badge marks a version merged by hand with a pen and "by hand", a cue no colour
+  carries. The pane that asked words the finished merge on its card or row: one headline
+  and one detail per refusal kind, composed and translated in the webview from the
+  refusal's data, with Edit again while the pick still allows a merge by hand. It
+  remembers each open request apart from its last decision, since the answer comes only
+  when the editor closes, and takes a newly seen outcome of that element for the answer.
+  Rejected: wording the refusal in the core, which knows no language; the answer on every
+  pane, which would show twice.
+
 Rejected besides an own view: conflict markers in a virtual document get no CodeLens (the
 merge-conflict extension serves `file`, `vscode-vfs`, `untitled` and `vscode-userdata`
 only), and a two-way diff with an editable result has no base, so it cannot tell one
@@ -106,8 +118,14 @@ side's change from a conflict.
 - A Ctrl+S followed by a revert or by Don't Save still counts the saved text: the provider
   cannot tell it from a save followed by a close.
 - The title button (`bpmn-modeler.acceptElementXmlMerge`) shows where `resourceScheme` is
-  `bpmn-merge-result`. Whether VS Code sets that key for a merge editor is not run by any
-  test; the tab closing stays the only answer either way.
+  `bpmn-merge-result`: VS Code sets that key for a merge editor from its result, which the
+  `merge-xml` smoke suite clicks on 1.78.2 and stable.
+- A refusal repeated word for word reads as the state the pane has seen, so a second save
+  of the same refused text shows no new card; the card from the first one is still there
+  unless the user closed it.
+- `merge-xml.smoke.test.ts` runs the pad, the key, the merge editor below the diagrams,
+  accepting, Don't Save, a refusal with Edit again, the question before a pick drops a
+  merge, and an XML diff that follows a step beside an open merge editor.
 - `test/e2e/mergeXmlEditor.e2e.test.ts` runs the editor on 1.76.0 and stable through the
   core, on a picked element of a real merge view; the test API's `mergeXml` probe opens it
   through `ElementXmlMergeService` and reads the hand merge back.

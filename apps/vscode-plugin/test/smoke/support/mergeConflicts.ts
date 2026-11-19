@@ -134,3 +134,117 @@ export async function conflictedRepositories(
     }
     return conflicts;
 }
+
+/** The repository and file of the conflict whose service tasks a merge by hand merges. */
+export const HAND_MERGE_REPOSITORY = "hand-merge-repo";
+export const HAND_MERGE_FILE = "order.bpmn";
+
+interface ServiceTaskVersion {
+    readonly name: string;
+    readonly type: string;
+    readonly target: string;
+}
+
+const BASE_SERVICE_TASK: ServiceTaskVersion = {
+    name: "Check order",
+    type: "check",
+    target: "order",
+};
+
+/**
+ * The tasks of the hand-merge conflict, in flow order. In both, main changes
+ * the job type and feature the input's target, lines apart, so VS Code's
+ * merge editor takes both edits itself. On Task_Ship both sides also rename
+ * the task, a conflict the editor leaves to the user.
+ */
+const HAND_MERGE_TASKS = {
+    Task_Check: { base: BASE_SERVICE_TASK, renamedByBoth: false },
+    Task_Ship: { base: { ...BASE_SERVICE_TASK, name: "Ship order" }, renamedByBoth: true },
+} as const;
+
+export const MAIN_JOB_TYPE = "check-v2";
+export const FEATURE_INPUT_TARGET = "incomingOrder";
+
+type HandMergeSide = "base" | "main" | "feature";
+
+function serviceTaskVersion(id: keyof typeof HAND_MERGE_TASKS, side: HandMergeSide) {
+    const { base, renamedByBoth } = HAND_MERGE_TASKS[id];
+    if (side === "base") return base;
+    const name = renamedByBoth ? `${base.name} (${side})` : base.name;
+    return side === "main"
+        ? { ...base, name, type: MAIN_JOB_TYPE }
+        : { ...base, name, target: FEATURE_INPUT_TARGET };
+}
+
+/** The hand-merge process as one side of the conflict holds it, the two tasks joined by a flow. */
+function handMergeProcess(side: HandMergeSide): string {
+    const ids = Object.keys(HAND_MERGE_TASKS) as (keyof typeof HAND_MERGE_TASKS)[];
+    const tasks = ids
+        .map((id, index) => {
+            const version = serviceTaskVersion(id, side);
+            const flows =
+                index === 0
+                    ? "      <bpmn:outgoing>Flow_Ship</bpmn:outgoing>"
+                    : "      <bpmn:incoming>Flow_Ship</bpmn:incoming>";
+            return `    <bpmn:serviceTask id="${id}" name="${version.name}">
+      <bpmn:documentation>Checks the order</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="${version.type}" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=order" target="${version.target}" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+${flows}
+    </bpmn:serviceTask>`;
+        })
+        .join("\n");
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_HandMerge" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <bpmn:process id="Process_HandMerge" isExecutable="true">
+${tasks}
+    <bpmn:sequenceFlow id="Flow_Ship" sourceRef="Task_Check" targetRef="Task_Ship" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_HandMerge">
+    <bpmndi:BPMNPlane id="Plane_HandMerge" bpmnElement="Process_HandMerge">
+      <bpmndi:BPMNShape id="Task_Check_di" bpmnElement="Task_Check">
+        <dc:Bounds x="160" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Ship_di" bpmnElement="Task_Ship">
+        <dc:Bounds x="340" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Ship_di" bpmnElement="Flow_Ship">
+        <di:waypoint x="260" y="120" />
+        <di:waypoint x="340" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
+`;
+}
+
+/**
+ * A repository in `workspace` stopped at a merge of feature into main that
+ * conflicts on both service tasks of the hand-merge process.
+ */
+export async function handMergeRepository(workspace: string): Promise<string> {
+    const repository = join(workspace, HAND_MERGE_REPOSITORY);
+    const file = join(repository, HAND_MERGE_FILE);
+    const commitAll = (message: string) =>
+        runGit(repository, "commit", "-q", "-a", "--no-verify", "-m", message);
+    await mkdir(repository, { recursive: true });
+    await runGit(repository, "init", "-q");
+    await writeFile(file, handMergeProcess("base"));
+    await runGit(repository, "add", HAND_MERGE_FILE);
+    await runGit(repository, "commit", "-q", "--no-verify", "-m", "Add the order process");
+    await runGit(repository, "checkout", "-q", "-b", "feature");
+    await writeFile(file, handMergeProcess("feature"));
+    await commitAll("Map the input on feature");
+    await runGit(repository, "checkout", "-q", "main");
+    await writeFile(file, handMergeProcess("main"));
+    await commitAll("Change the job type on main");
+    await gitOutcome(repository, "merge", "feature", "--no-edit");
+    if (!(await unmergedStages(repository)).includes(HAND_MERGE_FILE)) {
+        throw new Error(`the merge left no conflict on ${HAND_MERGE_FILE}`);
+    }
+    return repository;
+}

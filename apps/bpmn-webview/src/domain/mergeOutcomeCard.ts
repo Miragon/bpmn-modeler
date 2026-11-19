@@ -28,7 +28,7 @@ import {
 } from "./mergeTexts";
 
 /** The host's outcome of a decision this pane sent, kept with that decision. */
-export interface MergeRememberedDecision {
+interface MergeRememberedDecision {
     readonly outcome: MergeDecisionOutcome;
     readonly acted: MergeActedDecision;
     /** The refusal an undo freed: nothing that blocked it is left. */
@@ -126,6 +126,16 @@ export interface MergeOutcomeCardContent {
     readonly choices?: readonly MergeCardChoice[];
     /** The lines a screen reader announces once, when the outcome arrives. */
     readonly announcement: readonly string[];
+}
+
+/** How the card reads: taken, refused, or neither, such as a question; only a refusal is an alert. */
+export type MergeCardTone = "applied" | "refused" | "notice";
+
+export function cardToneOf(
+    content: Pick<MergeOutcomeCardContent, "applied" | "notice">,
+): MergeCardTone {
+    if (content.applied) return "applied";
+    return content.notice ? "notice" : "refused";
 }
 
 const MAX_REASONS = 3;
