@@ -14,7 +14,8 @@ import {
     shapelessEntryText,
     shapelessValueLines,
 } from "../../domain/mergeRowTexts";
-import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import { padDecisionText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
 import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";

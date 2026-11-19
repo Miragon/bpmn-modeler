@@ -13,7 +13,7 @@ import {
     type MergeRememberedOutcome,
 } from "./mergeOutcomeCard";
 import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 /** What the menu's rows read of the host's states. */
 export type MergeMenuRowStates = MergeRowStates & Pick<MergePaneStates, "shapelessRows">;

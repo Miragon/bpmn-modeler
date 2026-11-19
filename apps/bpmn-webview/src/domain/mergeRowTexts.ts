@@ -3,13 +3,8 @@ import { elementTypeName, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-mode
 
 import { mergeXmlDecisionText } from "./mergeHandMergeTexts";
 import type { MergeKeepInside, MergePadDecision } from "./mergePadDecisions";
-import {
-    keepSideText,
-    MERGE_PAD_TEXTS,
-    MERGE_PICK_TEXTS,
-    mergeSideText,
-    type MergeTranslate,
-} from "./mergeTexts";
+import { keepSideText, MERGE_PAD_TEXTS, MERGE_PICK_TEXTS, mergeSideText } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 // The words of the "…" menu's rows of shape-less elements; each is a translation key.
 

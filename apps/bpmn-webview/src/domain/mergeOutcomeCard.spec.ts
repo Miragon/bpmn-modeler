@@ -16,7 +16,7 @@ import {
     mergeOutcomeCardContent,
     type MergeRememberedOutcome,
 } from "./mergeOutcomeCard";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 const untranslated: MergeTranslate = (key, replacements = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);

@@ -37,7 +37,8 @@ import {
     rowOutcome,
 } from "../../domain/mergeOutcomeMemory";
 import { keepRemovedWith } from "../../domain/mergePadDecisions";
-import { MERGE_CARD_TEXTS, type MergeTranslate } from "../../domain/mergeTexts";
+import { MERGE_CARD_TEXTS } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import type { MergeOutcomeCard } from "./mergeOutcomeCard";
 
 export interface MergeOutcomesContext {

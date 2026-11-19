@@ -17,15 +17,8 @@ import {
     MERGE_XML_TEXTS,
 } from "./mergeHandMergeTexts";
 import type { MergePadOffers } from "./mergePadDecisions";
-import {
-    cardBlockText,
-    MERGE_PICK_TEXTS,
-    moreReasonsText,
-    type MergeTranslate,
-    outcomeCardHeadline,
-    restoreOfferText,
-    unblockedText,
-} from "./mergeTexts";
+import { cardBlockText, MERGE_PICK_TEXTS, moreReasonsText, outcomeCardHeadline, restoreOfferText, unblockedText } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 /** The host's outcome of a decision this pane sent, kept with that decision. */
 interface MergeRememberedDecision {

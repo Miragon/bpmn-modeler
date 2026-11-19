@@ -22,7 +22,8 @@ import {
     mergePadDecisions,
 } from "../../domain/mergePadDecisions";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
-import { MERGE_MARK_TEXTS, type MergeTranslate, pickBadgeText } from "../../domain/mergeTexts";
+import { MERGE_MARK_TEXTS, pickBadgeText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import type { DiffPaneChannel } from "../../port/hostChannel";
 import { DiffPanePlumbing } from "./diffPanePlumbing";
 import { MergeBar, type MergeBarControls } from "./mergeBar";

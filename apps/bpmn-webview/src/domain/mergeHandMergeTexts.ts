@@ -6,7 +6,7 @@ import type {
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeXmlDecision } from "./mergePadDecisions";
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 // The words of merging an element's XML by hand: the pad entry, the badge and the card; each is a translation key.
 

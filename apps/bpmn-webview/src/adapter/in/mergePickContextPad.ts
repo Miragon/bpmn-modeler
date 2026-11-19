@@ -7,7 +7,8 @@ import type { MergePadEntry } from "@miragon/bpmn-modeler-shared";
 
 import { padEntryOf } from "../../domain/mergePaneCommands";
 import type { MergePadDecision } from "../../domain/mergePadDecisions";
-import { type MergeTranslate, padDecisionText } from "../../domain/mergeTexts";
+import { padDecisionText } from "../../domain/mergeTexts";
+import type { MergeTranslate } from "../../domain/mergeTranslate";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 

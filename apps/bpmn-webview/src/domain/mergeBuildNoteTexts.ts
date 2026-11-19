@@ -1,7 +1,7 @@
 import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
-import type { MergeTranslate } from "./mergeTexts";
+import type { MergeTranslate } from "./mergeTranslate";
 
 type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = Extract<
     MergePaneBuildNote,

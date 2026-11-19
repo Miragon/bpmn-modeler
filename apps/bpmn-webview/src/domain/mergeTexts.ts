@@ -14,9 +14,7 @@ import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import { byHandBadgeLabel, MERGE_XML_TEXTS, mergeXmlDecisionText } from "./mergeHandMergeTexts";
 import type { MergePadDecision } from "./mergePadDecisions";
-
-/** `i18n.translate`, with the replacements its templates name. */
-export type MergeTranslate = (key: string, replacements?: Record<string, string>) => string;
+import type { MergeTranslate } from "./mergeTranslate";
 
 // The merge words the webview renders beside the bar's and its menu's (`mergeBarTexts`); each is a translation key.
 const MERGE_SIDE_TEXTS: Record<MergeSide, string> = {
