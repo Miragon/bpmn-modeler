@@ -68,6 +68,7 @@ import { computeDiff } from "@miragon/bpmn-modeler/diff";
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../../__fixtures__/mock-diff";
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
+import { previewRouteOf } from "./previewCommands";
 import { PreviewHost } from "./previewHost";
 
 vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
@@ -449,6 +450,20 @@ describe("PreviewHost", () => {
             expect(replies).toEqual([]);
         },
     );
+
+    it.each(
+        WEBVIEW_COMMANDS.flatMap((command) => {
+            const route = previewRouteOf(command.type);
+            return "ignored" in route ? [{ command, reason: route.ignored }] : [];
+        }),
+    )("says why it drops a $command.type", ({ command, reason }) => {
+        const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+
+        previewHost().postMessage(command);
+
+        expect(reason.trim()).not.toBe("");
+        expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
+    });
 
     it("shows an info message in the console", () => {
         const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
