@@ -16,8 +16,9 @@ import {
 } from "../../domain/mergeRowTexts";
 import { padDecisionText } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
+import { ELEMENT_XML_CHANGES_TITLE } from "../../domain/elementXmlTexts";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
-import { CODE_ICON_SVG, ELEMENT_XML_CHANGES_TITLE } from "./elementXmlEntry";
+import { CODE_ICON_SVG } from "./elementXmlEntry";
 import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 export interface MergeMenuRowActions {

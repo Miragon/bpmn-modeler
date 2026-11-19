@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    DIFF_LEGEND_TEXTS,
-    DIFF_PLANE_MISSING_TEXT,
-    DIFF_SIDE_TEXTS,
-} from "@miragon/bpmn-modeler-types";
+import { DIFF_VIEW_KEYS } from "@miragon/bpmn-modeler-types";
 
 import { DMN_DIFF_TEXTS } from "./diffTexts";
 
@@ -15,14 +11,7 @@ const DMN_DIFF_HARVEST_NOTE =
 
 describe("the DMN diff pane's harvest", () => {
     it("records every key the diff pane's texts pass to translate", async () => {
-        const keys = [
-            ...new Set([
-                ...Object.values(DIFF_LEGEND_TEXTS),
-                ...Object.values(DIFF_SIDE_TEXTS),
-                DIFF_PLANE_MISSING_TEXT,
-                ...Object.values(DMN_DIFF_TEXTS),
-            ]),
-        ].sort();
+        const keys = [...new Set([...DIFF_VIEW_KEYS, ...Object.values(DMN_DIFF_TEXTS)])].sort();
         const harvest = { note: DMN_DIFF_HARVEST_NOTE, count: keys.length, keys };
 
         await expect(`${JSON.stringify(harvest, null, 4)}\n`).toMatchFileSnapshot(DMN_DIFF_HARVEST);

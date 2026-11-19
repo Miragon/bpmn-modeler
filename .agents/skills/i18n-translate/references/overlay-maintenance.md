@@ -22,10 +22,12 @@ and guarded.
   text once and fails until the record is current; rewrite it with
   `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`.
 - `libs/bpmn-i18n-extras/tools/harvested-diff.json` and `harvested-dmn-diff.json` — the keys of the BPMN
-  and DMN diff panes' texts, recorded from their constants by
-  `apps/bpmn-webview/src/adapter/in/diffTextsHarvest.spec.ts` and
+  and DMN diff panes' texts, recorded by
+  `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and
   `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`, which fail until the records are current;
-  rewrite them with `-u` on those specs as for the merge record.
+  rewrite them with `-u` on those specs as for the merge record. Both take the shared diff views' keys
+  from `DIFF_VIEW_KEYS` (`@miragon/bpmn-modeler-types`), which `diffVocabulary.spec.ts` checks against
+  what the legend and side label translate; a pane's own text is added to its record spec by hand.
 - `libs/bpmn-i18n-extras/tools/harvest-drain.js` — the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.

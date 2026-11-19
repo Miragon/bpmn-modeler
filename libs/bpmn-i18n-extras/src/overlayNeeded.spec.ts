@@ -36,7 +36,7 @@ describe("i18n extras carry only keys the modeler requests", () => {
 
         expect(
             unrequested,
-            "these overlay keys are never requested at runtime — remove them from src/languages/*. A merge view text: ask it in apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts and rerecord tools/harvested-merge.json. A diff pane text: record it in apps/bpmn-webview/src/adapter/in/diffTextsHarvest.spec.ts or apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts and rerecord tools/harvested-diff.json or tools/harvested-dmn-diff.json. Any other text no harvest driver can reach: add it to SOURCE_ONLY",
+            "these overlay keys are never requested at runtime — remove them from src/languages/*. A merge view text: ask it in apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts and rerecord tools/harvested-merge.json. A diff pane text: record it in apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts or apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts and rerecord tools/harvested-diff.json or tools/harvested-dmn-diff.json. Any other text no harvest driver can reach: add it to SOURCE_ONLY",
         ).toEqual([]);
     });
 });
