@@ -62,7 +62,7 @@ function lane(id: string, bounds: DiagramBounds): LaneShape {
 const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
 
 function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints };
+    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
 }
 
 function layoutOf(

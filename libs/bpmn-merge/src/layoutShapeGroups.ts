@@ -1,5 +1,11 @@
 import { type DiagramBounds, boundsAround } from "./layoutGeometry";
-import { FLOW_ENDS, type LayoutModel, type NodeShape, nodeShapeIn } from "./layoutModel";
+import {
+    FLOW_ENDS,
+    type LayoutModel,
+    type NodeShape,
+    drawnPartsOf,
+    nodeShapeIn,
+} from "./layoutModel";
 
 /** A node with everything that moves with it. */
 export interface ShapeGroup {
@@ -54,13 +60,17 @@ export class ShapeGroups {
     }
 }
 
+/** The group's own edges, which move with it or which the flow repair re-routes. */
+export function ownEdgesOf(group: ShapeGroup): ReadonlySet<string> {
+    return new Set([...group.innerEdges, ...group.attachedEdges]);
+}
+
 /** The members' shapes and labels as the layout draws them. */
 export function groupBoundsIn(layout: LayoutModel, group: ShapeGroup): DiagramBounds {
     return boundsAround(
         group.members.flatMap((id) => {
             const member = nodeShapeIn(layout, id);
-            if (member === undefined) return [];
-            return member.label === undefined ? [member.bounds] : [member.bounds, member.label];
+            return member === undefined ? [] : drawnPartsOf(member);
         }),
     );
 }

@@ -1,6 +1,7 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
 import {
+    type Axis,
     type DiagramBounds,
     bottomOf,
     boundsAround,
@@ -9,22 +10,17 @@ import {
     rightOf,
     translated,
 } from "./layoutGeometry";
-import { type LayoutModel, type NodeShape, isFrame, liesOnAnotherPool } from "./layoutModel";
 import {
-    type Axis,
-    ROOM_GAP,
-    RoomPush,
-    type RoomRequest,
-    STACK_GAP,
-    leadAlong,
-} from "./layoutRoomPush";
-import { type ShapeGroup, type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
-import {
-    type Offset,
-    SHAPE_CLEARANCE,
-    foreignFlowsNear,
-    keepsClearOfFlows,
-} from "./layoutShapePlacement";
+    type LayoutModel,
+    type NodeShape,
+    drawnPartsOf,
+    isFrame,
+    liesOnAnotherPool,
+} from "./layoutModel";
+import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP, leadAlong } from "./layoutRoomPush";
+import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
+import { foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
+import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot, shapesOverlap } from "./layoutSpots";
 
@@ -194,12 +190,7 @@ function pushIn(
 
 /** The shape's bounds with its label's. */
 function withLabelOf(node: NodeShape): DiagramBounds {
-    return node.label === undefined ? node.bounds : boundsAround([node.bounds, node.label]);
-}
-
-/** The group's own edges, which move with it or which the flow repair re-routes. */
-export function ownEdgesOf(group: ShapeGroup): ReadonlySet<string> {
-    return new Set([...group.innerEdges, ...group.attachedEdges]);
+    return boundsAround(drawnPartsOf(node));
 }
 
 /** The frames the trial draws larger than the draft, in document order, with how far each grew. */

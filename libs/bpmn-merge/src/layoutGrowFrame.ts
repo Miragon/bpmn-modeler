@@ -8,9 +8,9 @@ import {
     rightOf,
 } from "./layoutGeometry";
 import { type LayoutShape, lanesOf, translatedNode } from "./layoutModel";
-import { type RoomContext, breaksNothing, ownEdgesOf } from "./layoutMakeRoom";
+import { type RoomContext, breaksNothing } from "./layoutMakeRoom";
 import { RoomPush } from "./layoutRoomPush";
-import type { ShapeGroup } from "./layoutShapeGroups";
+import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
 import { type Offset, innerBoundsOf } from "./layoutShapePlacement";
 import { liesOutside } from "./layoutSpots";
 

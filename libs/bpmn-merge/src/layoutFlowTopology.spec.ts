@@ -27,9 +27,8 @@ function task(id: string, x: number, y: number, relations: Partial<NodeShape> = 
     };
 }
 
-function flow(source: string, target: string, kind?: EdgeKind): LayoutEdge {
-    const edge = { id: `${source}_${target}`, plane: PLANE, source, target, waypoints: [] };
-    return kind === undefined ? edge : { ...edge, kind };
+function flow(source: string, target: string, kind: EdgeKind = "sequenceFlow"): LayoutEdge {
+    return { id: `${source}_${target}`, plane: PLANE, source, target, waypoints: [], kind };
 }
 
 function topologyOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): FlowTopology {

@@ -1,4 +1,4 @@
-import type { BuildNote } from "./buildNotes";
+import type { BuildNote, NoteRepairOf } from "./buildNotes";
 import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepair, FlowRepairKind } from "./layoutFlowRepair";
 import type { LaneStacking } from "./layoutLaneStacking";
@@ -149,27 +149,19 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
 }
 
 function containerNoteOf(id: string, repair: ContainerRepair): BuildNote {
-    const note = { kind: "shapeOutsideContainer", id, shapes: [repair.container] } as const;
-    return repair.kind === "grewContainerAndShifted"
-        ? { ...note, repair: repair.kind, shifted: repair.shifted }
-        : { ...note, repair: repair.kind };
+    const { shape: _shape, container, ...rest } = repair;
+    return { kind: "shapeOutsideContainer", id, shapes: [container], ...noteRepairOf(rest) };
 }
 
 function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildNote {
-    const ids = [...shapes];
-    switch (repair.kind) {
-        case "movedByBuild":
-            return { kind: "shapesOverlap", ids, repair: repair.kind, moved: repair.moved };
-        case "madeRoom":
-            return {
-                kind: "shapesOverlap",
-                ids,
-                repair: repair.kind,
-                moved: repair.moved,
-                shifted: repair.shifted,
-                grown: repair.grown,
-            };
-        case "notRepaired":
-            return { kind: "shapesOverlap", ids, repair: "notRepaired" };
-    }
+    const { shapes: _shapes, ...rest } = repair;
+    return { kind: "shapesOverlap", ids: [...shapes], ...noteRepairOf(rest) };
+}
+
+/** The repair with its kind as `repair`, every other field as it is. */
+function noteRepairOf<Repair extends { readonly kind: string }>({
+    kind,
+    ...rest
+}: Repair): NoteRepairOf<Repair, never> {
+    return { ...rest, repair: kind } as NoteRepairOf<Repair, never>;
 }

@@ -58,7 +58,7 @@ function lane(y: number, height: number, width = 1170): LaneShape {
 const at = (x: number, y: number): Point => ({ x, y });
 
 function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints };
+    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
 }
 
 function layoutOf(

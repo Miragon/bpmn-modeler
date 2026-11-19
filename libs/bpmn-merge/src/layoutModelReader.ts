@@ -25,13 +25,12 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
     for (const [id, drawings] of index.drawingsByElement) {
-        const ends = relations.connections.get(id);
-        const flowDrawing = ends === undefined ? undefined : flowDrawingOf(index, id);
-        if (ends !== undefined && flowDrawing !== undefined) {
+        const connection = relations.connections.get(id);
+        const flowDrawing = connection === undefined ? undefined : flowDrawingOf(index, id);
+        if (connection !== undefined && flowDrawing !== undefined) {
             const { element, planeOwner: plane } = flowDrawing;
             const label = labelBoundsOf(element);
-            const kind = relations.connectionKinds.get(id);
-            const edge = { id, plane, waypoints: waypointsOf(element), ...ends, kind };
+            const edge = { id, plane, waypoints: waypointsOf(element), ...connection };
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }

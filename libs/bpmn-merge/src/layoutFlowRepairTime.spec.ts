@@ -206,6 +206,7 @@ function messageFlowIntoLargePool(count: number, blocked: boolean): LayoutModel 
     const flow: LayoutEdge = {
         id: "Message_1",
         plane: COLLABORATION,
+        kind: "messageFlow",
         source: "Task_Send",
         target: "Pool_B",
         waypoints: [
@@ -283,6 +284,7 @@ function densePool(rows: number, dx: number): LayoutModel {
             {
                 id: `Flow_${index}`,
                 plane: COLLABORATION,
+                kind: "sequenceFlow",
                 source: source.id,
                 target: task.id,
                 waypoints: [

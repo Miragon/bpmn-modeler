@@ -10,6 +10,8 @@ import {
     drawnPoolOf,
     frameIdsOf,
     framesAroundOf,
+    innermostFrameOf,
+    innermostLaneOf,
     isFrame,
     lanesOf,
     liesOnAnotherPool,
@@ -50,7 +52,14 @@ function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
     return { shapes: new Map(shapes.map((shape) => [shape.id, shape])), edges: new Map() };
 }
 
-const flow: LayoutEdge = { id: "Flow_1", plane: PLANE, source: "A", target: "B", waypoints: [] };
+const flow: LayoutEdge = {
+    id: "Flow_1",
+    plane: PLANE,
+    source: "A",
+    target: "B",
+    waypoints: [],
+    kind: "sequenceFlow",
+};
 
 describe("otherEndOf", () => {
     it("names a flow's other end", () => {
@@ -133,6 +142,45 @@ describe("framesAroundOf", () => {
         expect(
             framesAroundOf(layout, layout.shapes.get("A") as NodeShape).map(({ id }) => id),
         ).toEqual(["Sub_Open", "Pool_1", "Lane_1"]);
+    });
+});
+
+describe("innermostFrameOf and innermostLaneOf", () => {
+    const lane = (id: string, parent: string, height: number): LayoutShape => ({
+        kind: "lane",
+        id,
+        plane: PLANE,
+        planeKind: "root",
+        bounds: { x: 30, y: 0, width: 870, height },
+        outline: "rectangle",
+        parent,
+        pool: "Pool_1",
+    });
+
+    it("finds the lane no other lane of the node is nested in, even of the same height as its parent", () => {
+        const layout = layoutOf([
+            pool("Pool_1"),
+            lane("Lane_Parent", "Process_1", 300),
+            lane("Lane_Child", "Lane_Parent", 300),
+            node("A", { pool: "Pool_1", lanes: ["Lane_Parent", "Lane_Child"] }),
+        ]);
+        const inLanes = layout.shapes.get("A") as NodeShape;
+
+        expect(innermostLaneOf(layout, inLanes)?.id).toBe("Lane_Child");
+        expect(innermostFrameOf(layout, inLanes)?.id).toBe("Pool_1");
+    });
+
+    it("finds the open sub-process around the node and no lane", () => {
+        const layout = layoutOf([
+            pool("Pool_1"),
+            lane("Lane_1", "Process_1", 300),
+            node("Sub_1", { expanded: true, pool: "Pool_1", lanes: ["Lane_1"] }),
+            node("A", { pool: "Pool_1", lanes: ["Lane_1"], subProcesses: ["Sub_1"] }),
+        ]);
+        const inSub = layout.shapes.get("A") as NodeShape;
+
+        expect(innermostFrameOf(layout, inSub)?.id).toBe("Sub_1");
+        expect(innermostLaneOf(layout, inSub)).toBeUndefined();
     });
 });
 

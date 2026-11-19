@@ -61,7 +61,7 @@ function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> =
 }
 
 function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints };
+    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
 }
 
 function layoutOf(shapes: readonly LayoutShape[], edges: readonly LayoutEdge[] = []): LayoutModel {

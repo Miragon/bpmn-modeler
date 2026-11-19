@@ -1,33 +1,36 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowTopology } from "./layoutFlowTopology";
+import { stretchedEdge } from "./layoutEdgeStretch";
 import {
+    type Axis,
     type DiagramBounds,
-    type Point,
+    along,
     bordersAt,
     bottomOf,
     boundsAround,
+    boundsShifted,
     centerOf,
+    farSideOf,
+    grownAlong,
     keepsClearOf,
+    nearSideOf,
     rightOf,
+    stripPast,
     translated,
 } from "./layoutGeometry";
 import {
     type LaneShape,
-    type LayoutEdge,
-    type LayoutModel,
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
     drawnPoolOf,
-    framesAroundOf,
+    innermostFrameOf,
+    innermostLaneOf,
     lanesOf,
     translatedNode,
 } from "./layoutModel";
 import { type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
-
-/** Along x room is made to the right, along y downward. */
-export type Axis = "x" | "y";
 
 /** How far what a room pushes keeps from what pushed it: in line along x, stacked along y. */
 export const ROOM_GAP = 50;
@@ -122,7 +125,9 @@ export class RoomPush {
             const bySource = edge.source === undefined ? 0 : (this.shift.get(edge.source) ?? 0);
             const byTarget = edge.target === undefined ? 0 : (this.shift.get(edge.target) ?? 0);
             if (bySource !== 0 || byTarget !== 0) {
-                this.trial.replaceEdge(this.stretched(edge, bySource, byTarget));
+                this.trial.replaceEdge(
+                    stretchedEdge(this.before, edge, this.axis, bySource, byTarget),
+                );
             }
         }
     }
@@ -165,7 +170,7 @@ export class RoomPush {
             plane: request.plane,
             container: undefined,
             lane: undefined,
-            box: this.strip(before, growth),
+            box: stripPast(this.axis, before, growth),
             line: this.far(before),
             exclude: new Set([...request.exclude, ...(pool ? [pool.id] : [])]),
             by: growth,
@@ -182,7 +187,7 @@ export class RoomPush {
             plane: request.plane,
             container: innermostFrameOf(this.trial, grown),
             lane: innermostLaneOf(this.trial, grown),
-            box: this.strip(frame.bounds, growth),
+            box: stripPast(this.axis, frame.bounds, growth),
             line: this.far(frame.bounds),
             exclude: new Set([...request.exclude, frame.id]),
             by: growth,
@@ -229,7 +234,7 @@ export class RoomPush {
         const queue = [...hit];
         while (queue.length > 0) {
             const unit = queue.pop()!;
-            const landed = this.boundsShifted(unit.bounds, by);
+            const landed = boundsShifted(this.axis, unit.bounds, by);
             for (const next of past) {
                 if (pushed.has(next)) continue;
                 if (lands(landed, next) || this.keptInLineAfter(unit, next, by)) {
@@ -240,7 +245,7 @@ export class RoomPush {
         }
         const staying = units.filter((unit) => unit.lead < line);
         const landsOnStaying = [...pushed].some((unit) =>
-            staying.some((other) => lands(this.boundsShifted(unit.bounds, by), other)),
+            staying.some((other) => lands(boundsShifted(this.axis, unit.bounds, by), other)),
         );
         return landsOnStaying ? undefined : { units: [...pushed], by };
     }
@@ -371,72 +376,7 @@ export class RoomPush {
     }
 
     private grown<Shape extends LayoutShape>(shape: Shape, by: number): Shape {
-        const { bounds } = shape;
-        return this.axis === "x"
-            ? { ...shape, bounds: { ...bounds, width: bounds.width + by } }
-            : { ...shape, bounds: { ...bounds, height: bounds.height + by } };
-    }
-
-    private stretched(edge: LayoutEdge, bySource: number, byTarget: number): LayoutEdge {
-        const points = edge.waypoints;
-        const runs = this.runsAcross(points);
-        let waypoints: Point[];
-        if (bySource === byTarget) {
-            waypoints = points.map((point) => this.pointMoved(point, bySource));
-        } else if (runs.length === 1) {
-            const from = points[0]!;
-            const to = points[points.length - 1]!;
-            const middle = (this.across(from) + this.across(to)) / 2;
-            waypoints = [
-                this.pointMoved(from, bySource),
-                this.atAcross(this.pointMoved(from, bySource), middle),
-                this.atAcross(this.pointMoved(to, byTarget), middle),
-                this.pointMoved(to, byTarget),
-            ];
-        } else {
-            const farEnd = bySource >= byTarget ? edge.source : edge.target;
-            const farShape = farEnd === undefined ? undefined : this.before.shapes.get(farEnd);
-            const farLine = farShape === undefined ? Infinity : this.near(farShape.bounds);
-            const [larger, smaller] = [Math.max(bySource, byTarget), Math.min(bySource, byTarget)];
-            waypoints = runs.flatMap(({ from, to }, run) => {
-                const by =
-                    run === 0
-                        ? bySource
-                        : run === runs.length - 1
-                          ? byTarget
-                          : this.along(points[from]!) >= farLine
-                            ? larger
-                            : smaller;
-                return points.slice(from, to + 1).map((point) => this.pointMoved(point, by));
-            });
-        }
-        if (edge.label === undefined) return { ...edge, waypoints };
-        const nearest = nearestIndexTo(points, centerOf(edge.label));
-        const by =
-            this.along(waypoints[Math.min(nearest, waypoints.length - 1)]!) -
-            this.along(points[nearest]!);
-        return { ...edge, waypoints, label: this.boundsShifted(edge.label, by) };
-    }
-
-    /** The index ranges of consecutive waypoints on one line across the axis: vertical runs for room along x. */
-    private runsAcross(points: readonly Point[]): { from: number; to: number }[] {
-        const runs: { from: number; to: number }[] = [];
-        points.forEach((point, at) => {
-            const current = runs[runs.length - 1];
-            if (current !== undefined && this.along(points[current.to]!) === this.along(point)) {
-                current.to = at;
-            } else {
-                runs.push({ from: at, to: at });
-            }
-        });
-        return runs;
-    }
-
-    /** The part a frame grown by `growth` gains past its far side. */
-    private strip(before: DiagramBounds, growth: number): DiagramBounds {
-        return this.axis === "x"
-            ? { ...before, x: rightOf(before), width: growth }
-            : { ...before, y: bottomOf(before), height: growth };
+        return { ...shape, bounds: grownAlong(this.axis, shape.bounds, by) };
     }
 
     private get gap(): number {
@@ -444,70 +384,19 @@ export class RoomPush {
     }
 
     private leadOf(node: NodeShape): number {
-        return node.expanded ? this.near(node.bounds) : this.along(centerOf(node.bounds));
-    }
-
-    private along(point: Point): number {
-        return this.axis === "x" ? point.x : point.y;
-    }
-
-    private across(point: Point): number {
-        return this.axis === "x" ? point.y : point.x;
-    }
-
-    private atAcross(point: Point, at: number): Point {
-        return this.axis === "x" ? { x: point.x, y: at } : { x: at, y: point.y };
+        return leadAlong(this.axis, node);
     }
 
     private near(bounds: DiagramBounds): number {
-        return this.axis === "x" ? bounds.x : bounds.y;
+        return nearSideOf(this.axis, bounds);
     }
 
     private far(bounds: DiagramBounds): number {
-        return this.axis === "x" ? rightOf(bounds) : bottomOf(bounds);
-    }
-
-    private pointMoved(point: Point, by: number): Point {
-        return this.axis === "x"
-            ? { x: point.x + by, y: point.y }
-            : { x: point.x, y: point.y + by };
-    }
-
-    private boundsShifted(bounds: DiagramBounds, by: number): DiagramBounds {
-        return this.axis === "x" ? translated(bounds, by, 0) : translated(bounds, 0, by);
+        return farSideOf(this.axis, bounds);
     }
 }
 
 /** Where a node lies along the axis: a sub-process drawn open by its near side, another node by its center. */
 export function leadAlong(axis: Axis, node: NodeShape): number {
-    if (node.expanded) return axis === "x" ? node.bounds.x : node.bounds.y;
-    const center = centerOf(node.bounds);
-    return axis === "x" ? center.x : center.y;
-}
-
-/** The innermost sub-process drawn open or pool around the node on its plane. */
-function innermostFrameOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
-    return framesAroundOf(layout, node).find((frame) => frame.kind !== "lane");
-}
-
-/** The smallest drawn lane of the node, unless it lies in a sub-process. */
-function innermostLaneOf(layout: LayoutModel, node: NodeShape): LaneShape | undefined {
-    if (innermostFrameOf(layout, node)?.kind === "node") return undefined;
-    return framesAroundOf(layout, node)
-        .filter((frame): frame is LaneShape => frame.kind === "lane")
-        .sort((first, second) => first.bounds.height - second.bounds.height)[0];
-}
-
-function nearestIndexTo(points: readonly Point[], target: Point): number {
-    let nearest = 0;
-    points.forEach((point, at) => {
-        const best = points[nearest]!;
-        if (
-            Math.hypot(point.x - target.x, point.y - target.y) <
-            Math.hypot(best.x - target.x, best.y - target.y)
-        ) {
-            nearest = at;
-        }
-    });
-    return nearest;
+    return node.expanded ? nearSideOf(axis, node.bounds) : along(axis, centerOf(node.bounds));
 }

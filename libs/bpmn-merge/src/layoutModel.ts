@@ -54,8 +54,7 @@ export interface LayoutEdge {
     readonly waypoints: readonly Point[];
     readonly source?: string;
     readonly target?: string;
-    /** What the edge connects; the reader always names it, a spec may leave a sequence flow without. */
-    readonly kind?: EdgeKind;
+    readonly kind: EdgeKind;
     /** Where the flow's name is drawn. */
     readonly label?: DiagramBounds;
 }
@@ -64,7 +63,7 @@ export type EdgeKind = "sequenceFlow" | "messageFlow" | "association";
 
 /** Whether the edge is a sequence flow, which orders the nodes it joins. */
 export function carriesSequence(edge: LayoutEdge): boolean {
-    return edge.kind === undefined || edge.kind === "sequenceFlow";
+    return edge.kind === "sequenceFlow";
 }
 
 export const FLOW_ENDS = ["source", "target"] as const;
@@ -85,6 +84,11 @@ export interface LayoutModel {
 export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefined {
     const shape = layout.shapes.get(id);
     return shape?.kind === "node" ? shape : undefined;
+}
+
+/** The node's shape and, when drawn apart from it, its label. */
+export function drawnPartsOf(node: NodeShape): DiagramBounds[] {
+    return node.label === undefined ? [node.bounds] : [node.bounds, node.label];
 }
 
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
@@ -198,6 +202,20 @@ export function framesAroundOf(layout: LayoutModel, node: NodeShape): LayoutShap
             return isDrawnFrameOf(node, lane) ? [lane] : [];
         }),
     ];
+}
+
+/** The innermost sub-process drawn open or pool around the node on its plane. */
+export function innermostFrameOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+    return enclosingFramesOf(layout, node)[0];
+}
+
+/** The innermost drawn lane of the node, the one no other of its lanes is nested in, unless it lies in a sub-process. */
+export function innermostLaneOf(layout: LayoutModel, node: NodeShape): LaneShape | undefined {
+    if (innermostFrameOf(layout, node)?.kind === "node") return undefined;
+    const lanes = framesAroundOf(layout, node).filter(
+        (frame): frame is LaneShape => frame.kind === "lane",
+    );
+    return lanes.find((lane) => !lanes.some((other) => other.parent === lane.id));
 }
 
 /** The drawn frames around the node, innermost first. */
