@@ -1,6 +1,6 @@
 import type { MergeFlowRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
-import type { BuildNote, NoteRepairOf } from "./buildNotes";
+import type { BuildNoteContent, NoteRepairOf } from "./buildNotes";
 import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepair } from "./layoutFlowRepair";
 import type { LaneStacking } from "./layoutLaneStacking";
@@ -31,8 +31,8 @@ export interface LayoutRepairOutcome {
  * an overlap, whose note says the build moved a shape off it, and a shape
  * the build brought into its container, whose note says so.
  */
-export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
-    const notes: BuildNote[] = outcome.laneStackings.map(
+export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNoteContent[] {
+    const notes: BuildNoteContent[] = outcome.laneStackings.map(
         ({ lane, grown, overlapped, shifted }) => ({
             kind: "lanesOverlap",
             ids: [lane, ...overlapped],
@@ -123,7 +123,7 @@ function spotsToName(
     ];
 }
 
-function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
+function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNoteContent {
     switch (spot.kind) {
         case "flowEndOffShape":
             return {
@@ -150,12 +150,12 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
     }
 }
 
-function containerNoteOf(id: string, repair: ContainerRepair): BuildNote {
+function containerNoteOf(id: string, repair: ContainerRepair): BuildNoteContent {
     const { shape: _shape, container, ...rest } = repair;
     return { kind: "shapeOutsideContainer", id, shapes: [container], ...noteRepairOf(rest) };
 }
 
-function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildNote {
+function overlapNoteOf(shapes: readonly string[], repair: OverlapRepair): BuildNoteContent {
     const { shapes: _shapes, ...rest } = repair;
     return { kind: "shapesOverlap", ids: [...shapes], ...noteRepairOf(rest) };
 }

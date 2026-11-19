@@ -57,6 +57,7 @@ routes it like the rest of the library, to every line that ships it (`docs/adr/m
 
 `@miragon/bpmn-modeler-types/mergeBuildNotes` is `src/mergeBuildNotes.ts` alone: the notes a merge
 build returns, which `libs/bpmn-merge` builds and the merge view's protocol carries as they are.
+`MergeBuildNoteContent` is what a note says; `MergeBuildNote` adds the elements it names (`named`).
 
 ### The `/conflictMarkers` entry point
 

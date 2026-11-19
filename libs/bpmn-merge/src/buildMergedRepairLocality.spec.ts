@@ -6,6 +6,7 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { seededRandom } from "./__fixtures__/randomMergeVersions";
 import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
+import { elementsRedrawnBy } from "./buildNoteElements";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import { DrawingDraft } from "./layoutDrawingDraft";
@@ -450,13 +451,7 @@ function unaccountedContainerMoves(
     const repaired = notes.flatMap((note) =>
         note.kind === "shapeOutsideContainer" && note.repair !== "notRepaired" ? [note] : [],
     );
-    const accounted = new Set(
-        repaired.flatMap((note) => [
-            note.id,
-            ...(note.repair === "movedIntoContainer" ? [] : note.shapes),
-            ...(note.repair === "grewContainerAndShifted" ? note.shifted : []),
-        ]),
-    );
+    const accounted = new Set(repaired.flatMap(elementsRedrawnBy));
     const grew = repaired.some(({ repair }) => repair !== "movedIntoContainer");
     const changed = [...before.shapes.values()].flatMap((shape) => {
         const now = after.shapes.get(shape.id);

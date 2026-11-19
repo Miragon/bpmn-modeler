@@ -296,7 +296,9 @@ each of those.
   (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
   source's default, elements the base and both sides draw differently, every frame
   difference the result does not carry, and each flow left out of the drawing
-  (`flowNotDrawn`).
+  (`flowNotDrawn`). The library sets on each note the elements it names (`named`), in the order
+  the view offers them. Rejected: a switch over the note kinds in each reader, which drifted with
+  every repair's new field. Cost: a note carries its ids twice.
 - *The drawing's broken spots are found, noted and partly repaired by geometry.* Which spots
   count, which shapes the build moves, which containers it grows and which flows it re-routes,
   and the layout notes are in [merge layout](merge-layout.md).

@@ -8,9 +8,19 @@ const translate = (key: string, replacements: Record<string, string> = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? name);
 
 const NOTES: readonly MergeBuildNote[] = [
-    { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1"] },
-    { kind: "layoutChangedByBoth", ids: ["Task_A", "Gateway_1"], keptSide: "incoming" },
-    { kind: "frameDiffers", attribute: "exporter" },
+    {
+        kind: "restoredWithoutRemovedWith",
+        id: "Task_A",
+        connections: ["Flow_1"],
+        named: ["Task_A", "Flow_1"],
+    },
+    {
+        kind: "layoutChangedByBoth",
+        ids: ["Task_A", "Gateway_1"],
+        keptSide: "incoming",
+        named: ["Task_A", "Gateway_1"],
+    },
+    { kind: "frameDiffers", attribute: "exporter", named: [] },
 ];
 
 describe("MergeNotesPopover", () => {

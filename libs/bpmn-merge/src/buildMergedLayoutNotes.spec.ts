@@ -13,6 +13,7 @@ import { MERGE_SCENARIOS } from "./__fixtures__/mergeScenarios";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
+import type { BuildNoteContent } from "./buildNotes";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { bottomOf, centerOf, inflated, keepsClearOf, liesWithin } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
@@ -104,11 +105,11 @@ function moved(
     kind: "flowEndOffShape" | "flowThroughShape",
     id: string,
     ...shapes: string[]
-): BuildNote {
+): BuildNoteContent {
     return { kind, id, shapes, repair: "movedByBuild" };
 }
 
-function movedOff(ids: [string, string], shape: string): BuildNote {
+function movedOff(ids: [string, string], shape: string): BuildNoteContent {
     return { kind: "shapesOverlap", ids, repair: "movedByBuild", moved: shape };
 }
 
@@ -116,7 +117,7 @@ function movedOff(ids: [string, string], shape: string): BuildNote {
  * No free place lies near the inserted tasks, which are parallel branches into Ship: one is
  * stacked under the other, its lane grows and the lane below shifts down with what it holds.
  */
-function stacked(ids: [string, string], shape: string, shifted: string[] = []): BuildNote {
+function stacked(ids: [string, string], shape: string, shifted: string[] = []): BuildNoteContent {
     return {
         kind: "shapesOverlap",
         ids,
@@ -182,7 +183,7 @@ describe("buildMerged's layout notes", () => {
         name: string;
         versions: MergeVersions;
         conflictsTo?: MergeSide;
-        notes: BuildNote[];
+        notes: BuildNoteContent[];
     }>([
         {
             name: "01 a task moved onto one the other side added: hidden, its flow ends in the open",
@@ -408,7 +409,11 @@ describe("buildMerged's layout notes", () => {
     ])("$name", async ({ versions, conflictsTo, notes }) => {
         const built = await builtOf(versions, conflictsTo);
 
-        expect(built.notes.filter(({ kind }) => LAYOUT_NOTE_KINDS.has(kind))).toEqual(notes);
+        expect(
+            built.notes
+                .filter(({ kind }) => LAYOUT_NOTE_KINDS.has(kind))
+                .map(({ named: _named, ...content }) => content),
+        ).toEqual(notes);
         for (const spot of await spotsLeftIn(built.xml, versions)) {
             expect(namedByNote(spot, built.notes), JSON.stringify(spot)).toBe(true);
         }
@@ -601,6 +606,7 @@ describe("buildMerged's layout notes", () => {
                     moved: "Lane_New",
                     grown: ["Participant_Order"],
                     shifted: [],
+                    named: ["Lane_New", "Participant_Order"],
                 });
                 for (const spot of await spotsLeftIn(xml, versions)) {
                     expect(namedByNote(spot, notes), JSON.stringify(spot)).toBe(true);

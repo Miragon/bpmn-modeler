@@ -43,7 +43,7 @@ export type MergeOverlapRepair =
  * the result keeps current's, or a flow left out of the drawing since no
  * diagram draws both its ends.
  */
-export type MergeBuildNote =
+export type MergeBuildNoteContent =
     | {
           /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
           readonly kind: MergeBrokenFlowKind;
@@ -106,3 +106,6 @@ export type MergeBuildNote =
           readonly source?: string;
           readonly target?: string;
       };
+
+/** A build note with the elements it names, in the order its entry offers them. */
+export type MergeBuildNote = MergeBuildNoteContent & { readonly named: readonly string[] };
