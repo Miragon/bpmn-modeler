@@ -25,7 +25,13 @@ describe("SpotRepairs", () => {
             moved: "Task_B",
         });
         expect(repairs.of(outside)).toEqual({ kind: "grewContainer" });
-        expect(repairs.of({ ...outside, container: "Lane_2" })).toBeUndefined();
+    });
+
+    it("says no step repaired a spot none acted on", () => {
+        const repairs = new SpotRepairs([{ spot: outside, repair: { kind: "grewContainer" } }]);
+
+        expect(repairs.of({ ...outside, container: "Lane_2" })).toEqual({ kind: "notRepaired" });
+        expect(repairs.of(endOff)).toEqual({ kind: "notRepaired" });
     });
 
     it("takes the last step's repair of a spot two steps acted on", () => {

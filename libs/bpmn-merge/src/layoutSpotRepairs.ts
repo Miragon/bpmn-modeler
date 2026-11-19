@@ -46,25 +46,27 @@ export function flowSpotRepairs(
     });
 }
 
+const NOT_REPAIRED = { kind: "notRepaired" } as const;
+
 /** The repairs of the steps in the order they ran, looked up by the spot they acted on. */
 export class SpotRepairs {
     constructor(private readonly repairs: readonly SpotRepair[]) {}
 
-    /** The repair of the last step that acted on the spot. */
-    of<Kind extends RepairedSpotKind>(spot: SpotOf<Kind>): RepairsBySpotKind[Kind] | undefined {
-        return this.lastActedOn(spot)?.repair as RepairsBySpotKind[Kind] | undefined;
+    /** The repair of the last step that acted on the spot; not repaired when none did. */
+    of<Kind extends RepairedSpotKind>(spot: SpotOf<Kind>): RepairsBySpotKind[Kind] {
+        return this.lastActedOn(spot) as RepairsBySpotKind[Kind];
     }
 
     /** Whether a step mended the spot, which its note then says though the spot is gone. */
     repaired(spot: LayoutSpot): boolean {
-        return (this.lastActedOn(spot)?.repair.kind ?? "notRepaired") !== "notRepaired";
+        return this.lastActedOn(spot).kind !== "notRepaired";
     }
 
-    private lastActedOn(spot: LayoutSpot): SpotRepair | undefined {
+    private lastActedOn(spot: LayoutSpot): SpotRepair["repair"] {
         for (let index = this.repairs.length - 1; index >= 0; index--) {
             const repair = this.repairs[index];
-            if (repair !== undefined && repairedTogether(repair.spot, spot)) return repair;
+            if (repair !== undefined && repairedTogether(repair.spot, spot)) return repair.repair;
         }
-        return undefined;
+        return NOT_REPAIRED;
     }
 }

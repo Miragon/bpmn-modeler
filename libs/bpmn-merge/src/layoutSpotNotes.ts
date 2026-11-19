@@ -74,8 +74,6 @@ function spotsToName(
     ];
 }
 
-const NOT_REPAIRED = { kind: "notRepaired" } as const;
-
 function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
     switch (spot.kind) {
         case "flowEndOffShape":
@@ -83,27 +81,27 @@ function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
                 kind: spot.kind,
                 id: spot.flow,
                 shapes: [spot.end],
-                repair: repairs.of(spot)?.kind ?? "notRepaired",
+                repair: repairs.of(spot).kind,
             };
         case "flowThroughShape":
             return {
                 kind: spot.kind,
                 id: spot.flow,
                 shapes: [spot.shape],
-                repair: repairs.of(spot)?.kind ?? "notRepaired",
+                repair: repairs.of(spot).kind,
             };
         case "shapeOutsideContainer":
             return {
                 kind: spot.kind,
                 id: spot.shape,
                 shapes: [spot.container],
-                ...noteRepairOf(repairs.of(spot) ?? NOT_REPAIRED),
+                ...noteRepairOf(repairs.of(spot)),
             };
         case "shapesOverlap":
             return {
                 kind: spot.kind,
                 ids: [...spot.shapes],
-                ...noteRepairOf(repairs.of(spot) ?? NOT_REPAIRED),
+                ...noteRepairOf(repairs.of(spot)),
             };
         case "boundaryEventOffHost":
             return { kind: spot.kind, id: spot.boundaryEvent, host: spot.host };
