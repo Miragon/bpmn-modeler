@@ -29,14 +29,17 @@ export type ElementXmlMergeOpening =
     | { readonly kind: "focus"; readonly key: string }
     | { readonly kind: "open"; readonly request: ElementXmlMergeRequest };
 
+/** A merge the user finished with a text, which the merge takes or refuses. */
+export interface WrittenElementXmlMerge {
+    readonly kind: "written";
+    readonly elementId: string;
+    readonly side: MergeSide;
+    readonly text: string;
+}
+
 export type ElementXmlMergeFinish =
     | { readonly kind: "discarded"; readonly elementId: string; readonly side: MergeSide }
-    | {
-          readonly kind: "written";
-          readonly elementId: string;
-          readonly side: MergeSide;
-          readonly text: string;
-      };
+    | WrittenElementXmlMerge;
 
 export interface ElementXmlMergeOpen {
     readonly elementId: string;
@@ -103,12 +106,10 @@ export class ElementXmlMerges {
             : { kind: "written", ...editor, text: written };
     }
 
-    refused(elementId: string, side: MergeSide, text: string): void {
-        this.refusedByElement.set(elementId, { side, text });
-    }
-
-    accepted(elementId: string): void {
-        this.refusedByElement.delete(elementId);
+    /** The merge's answer to a written text: a refused one stays for Edit again, a taken one replaces it. */
+    answered(finish: WrittenElementXmlMerge, outcome: { readonly applied: boolean }): void {
+        if (outcome.applied) this.refusedByElement.delete(finish.elementId);
+        else this.refusedByElement.set(finish.elementId, { side: finish.side, text: finish.text });
     }
 
     /** A pick or an undo changed the decisions a refused text was checked against. */

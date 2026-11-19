@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readConflictMarkers } from "@miragon/bpmn-modeler-types";
+import { type MergeSide, readConflictMarkers } from "@miragon/bpmn-modeler-types";
 
 import { ElementXmlMerges, elementXmlMergeLabels } from "./elementXmlMerge";
 
@@ -27,6 +27,17 @@ function opened(merges: ElementXmlMerges, overrides: Parameters<typeof element>[
     const opening = merges.open(element(overrides));
     if (opening.kind !== "open") throw new Error(`expected an open, got ${opening.kind}`);
     return opening.request;
+}
+
+/** Opens the element's editor for `side`, finishes it with `text` and records the merge's answer. */
+function answer(
+    merges: ElementXmlMerges,
+    applied: boolean,
+    { side = "current", text = "<refused />" }: { side?: MergeSide; text?: string } = {},
+) {
+    const finish = merges.finish(opened(merges, { side }).key, text);
+    if (finish?.kind !== "written") throw new Error("expected a written finish");
+    merges.answered(finish, { applied });
 }
 
 describe("ElementXmlMerges", () => {
@@ -117,25 +128,27 @@ describe("ElementXmlMerges", () => {
     describe("a refused text", () => {
         it("starts Edit again from it", () => {
             const merges = new ElementXmlMerges("merge-1");
-            merges.finish(opened(merges).key, "<refused />");
-            merges.refused("Task_Pack", "current", "<refused />");
+            answer(merges, false);
 
             expect(opened(merges, { resume: true }).start).toBe("<refused />");
         });
 
         it("starts a plain reopen from the markers", () => {
             const merges = new ElementXmlMerges("merge-1");
-            merges.refused("Task_Pack", "current", "<refused />");
+            answer(merges, false);
 
             expect(readConflictMarkers(opened(merges).start).hasMarkers).toBe(true);
         });
 
         it.each([
             ["the next pick", (merges: ElementXmlMerges) => merges.forgetRefusals()],
-            ["an accept", (merges: ElementXmlMerges) => merges.accepted("Task_Pack")],
+            [
+                "a text the merge took",
+                (merges: ElementXmlMerges) => answer(merges, true, { text: "<taken />" }),
+            ],
         ])("is forgotten after %s", (_case, forget) => {
             const merges = new ElementXmlMerges("merge-1");
-            merges.refused("Task_Pack", "current", "<refused />");
+            answer(merges, false);
 
             forget(merges);
 
@@ -146,7 +159,7 @@ describe("ElementXmlMerges", () => {
 
         it("is not offered for the other side", () => {
             const merges = new ElementXmlMerges("merge-1");
-            merges.refused("Task_Pack", "current", "<refused />");
+            answer(merges, false);
 
             const request = opened(merges, { side: "incoming", resume: true });
 

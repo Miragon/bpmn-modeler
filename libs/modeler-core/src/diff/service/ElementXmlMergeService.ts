@@ -80,9 +80,7 @@ export class ElementXmlMergeService {
             if (finish.kind === "discarded") {
                 await this.decisions.discardHandMerge(session, finish.elementId);
             } else {
-                const outcome = await this.decisions.mergeByHand(session, finish);
-                if (outcome.applied) merges.accepted(finish.elementId);
-                else merges.refused(finish.elementId, finish.side, finish.text);
+                merges.answered(finish, await this.decisions.mergeByHand(session, finish));
             }
             for (const listener of this.finishedListeners) listener(finish.elementId, written);
             return;
