@@ -1,3 +1,6 @@
+import type { MergeContainerRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
+import type { RepairOf } from "./buildNotes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
@@ -10,15 +13,7 @@ import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutSh
 import { type LayoutSpot, liesOutside } from "./layoutSpots";
 
 /** What the build did about one shape outside its containers. */
-type ShapeRepair =
-    | { readonly kind: "movedIntoContainer" }
-    | { readonly kind: "grewContainer" }
-    | {
-          readonly kind: "grewContainerAndShifted";
-          /** The outermost shapes shifted to make room for the grown container, in document order. */
-          readonly shifted: readonly string[];
-      }
-    | { readonly kind: "notRepaired" };
+type ShapeRepair = RepairOf<MergeContainerRepair>;
 
 /** What the build did about a shape outside its sub-process, pool or lane. */
 export type ContainerRepair = ShapeRepair & { readonly shape: string; readonly container: string };

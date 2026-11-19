@@ -52,6 +52,12 @@ the merge view's sides, markers, marker classes and caption roles, which `libs/b
 the DOM lib. `mergeVocabulary.spec.ts` fails on a runtime import in it. `.github/release-lines.json`
 routes it like the rest of the library, to every line that ships it (`docs/adr/merge.md`).
 
+### The `/mergeBuildNotes` entry point
+
+`@miragon/bpmn-modeler-types/mergeBuildNotes` is `src/mergeBuildNotes.ts` alone: the notes a merge
+build returns, which `libs/bpmn-merge` builds and the merge view's protocol carries as they are.
+`mergeBuildNotes.spec.ts` fails on a runtime import in it.
+
 ### The `/conflictMarkers` entry point
 
 `@miragon/bpmn-modeler-types/conflictMarkers` is `src/conflictMarkers.ts` alone: Git's conflict-marker

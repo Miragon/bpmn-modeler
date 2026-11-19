@@ -1,11 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { type BuildNote, prepareMergeSources } from "@miragon/bpmn-modeler-merge";
-import type {
-    ApplyDiffHighlightsQuery,
-    ApplyMergeStatesQuery,
-    MergePaneBuildNote,
-} from "@miragon/bpmn-modeler-shared";
+import type { ApplyDiffHighlightsQuery, ApplyMergeStatesQuery } from "@miragon/bpmn-modeler-shared";
 
 import {
     createTestHost,
@@ -310,7 +306,7 @@ describe("MergeBuildService", () => {
     it("sends the notes to both panes before it opens the file", async () => {
         const mergeView = await openMergeView(ORDER_REMOVAL_STAGES);
         await mergeView.diffService.pickMergeSide(mergeView.incoming, "Task_Pack", "element");
-        let notesWhenOpened: readonly MergePaneBuildNote[] | undefined;
+        let notesWhenOpened: readonly BuildNote[] | undefined;
         vi.spyOn(mergeView.notifier, "openDocument").mockImplementation(async () => {
             notesWhenOpened = lastStatesOf(mergeView.current).states.build.notes;
         });
@@ -326,10 +322,6 @@ describe("MergeBuildService", () => {
         expect(mergeView.notifier.infos).toStrictEqual([
             buildDoneNotice("order.bpmn", notesWhenOpened?.length ?? 0),
         ]);
-    });
-
-    it("keeps the protocol's build notes the library's", () => {
-        expectTypeOf<MergePaneBuildNote>().toEqualTypeOf<BuildNote>();
     });
 
     it("compares the result with incoming and marks an element a pick dropped as a consequence", async () => {

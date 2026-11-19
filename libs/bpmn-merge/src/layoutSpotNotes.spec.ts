@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import type {
+    MergeBrokenFlowKind,
+    MergeFlowRepair,
+} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import type { ContainerRepair } from "./layoutContainerMoves";
 import type { FlowRepair } from "./layoutFlowRepair";
 import type { OverlapRepair } from "./layoutShapeMoves";
 import { layoutSpotNotes } from "./layoutSpotNotes";
-import type { LayoutSpot } from "./layoutSpots";
+import type { FlowSpot, LayoutSpot } from "./layoutSpots";
 
 const NOT_REPAIRED: FlowRepair[] = [
     { kind: "notRepaired", flow: "Flow_1" },
@@ -19,6 +24,11 @@ const NO_FRAME_REPAIRS = {
 } as const;
 
 describe("layoutSpotNotes", () => {
+    it("names the broken flows and their repairs as the notes do", () => {
+        expectTypeOf<FlowSpot["kind"]>().toEqualTypeOf<MergeBrokenFlowKind>();
+        expectTypeOf<FlowRepair["kind"]>().toEqualTypeOf<MergeFlowRepair>();
+    });
+
     it("gives one note per flow for its ends and for the shapes it runs through", () => {
         expect(
             notesOf(

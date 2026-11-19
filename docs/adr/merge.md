@@ -42,7 +42,12 @@ imports nothing at runtime; the library reaches it through the
 `@miragon/bpmn-modeler-types/mergeVocabulary` subpath, everything else through the barrel,
 whose exact specifier is the only one the core's `domain/` may import. Git's conflict-marker
 grammar sits beside it (`conflictMarkers.ts`, subpath `/conflictMarkers`), so the core's file
-check and the hand-merge check read markers alike; a second grammar had drifted.
+check and the hand-merge check read markers alike; a second grammar had drifted. The build's
+notes are declared once there too (`mergeBuildNotes.ts`, subpath `/mergeBuildNotes`): the
+library builds them and the protocol carries them as they are, and the library derives its
+container and overlap repairs from them and pins its broken flow and flow repair kinds to them.
+Rejected: a protocol copy pinned to the library's type, which cost two edits per note; and the
+protocol importing the library, which would make it depend on an unpublished package.
 
 `libs/modeler-types` and `libs/bpmn-i18n-extras` are inlined into the npm package, so the
 vocabulary file is excluded from the npm component by path like this library, and the merge

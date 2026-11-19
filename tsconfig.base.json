@@ -35,6 +35,9 @@
             "@miragon/bpmn-modeler-types/mergeVocabulary": [
                 "./libs/modeler-types/src/mergeVocabulary.ts"
             ],
+            "@miragon/bpmn-modeler-types/mergeBuildNotes": [
+                "./libs/modeler-types/src/mergeBuildNotes.ts"
+            ],
             "@miragon/bpmn-modeler-types/conflictMarkers": [
                 "./libs/modeler-types/src/conflictMarkers.ts"
             ],

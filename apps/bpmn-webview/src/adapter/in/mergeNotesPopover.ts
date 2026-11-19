@@ -1,5 +1,4 @@
-import type { MergePaneBuildNote } from "@miragon/bpmn-modeler-shared";
-import { createButton, createElement } from "@miragon/bpmn-modeler-types";
+import { type MergeBuildNote, createButton, createElement } from "@miragon/bpmn-modeler-types";
 
 import { buildNoteElementIds } from "../../domain/mergeBuildNotes";
 import { MERGE_MENU_TEXTS } from "../../domain/mergeBarTexts";
@@ -10,7 +9,7 @@ import { closeMergePopupOnDismiss } from "./mergePopupDismissal";
 
 /** What the notes popover lists: the notes of the last build and the names of their elements. */
 export interface MergeNotesState {
-    readonly notes: readonly MergePaneBuildNote[];
+    readonly notes: readonly MergeBuildNote[];
     readonly nameOf: (elementId: string) => string;
 }
 

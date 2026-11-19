@@ -1,11 +1,11 @@
 import type {
     DiffSide,
+    MergeBuildNote,
     MergeMarker,
     MergeSide,
     MergeSideCaption,
 } from "@miragon/bpmn-modeler-types";
 
-import type { MergePaneBuildNote } from "./mergePaneBuildNotes";
 import { Command, Query } from "./messages";
 
 /** One element a merge pane's stepper walks to. */
@@ -239,7 +239,7 @@ export interface MergePaneBuild {
     /** A result was built into the working file, so it can be compared with either side. */
     readonly built: boolean;
     /** The notes of the last build; empty before the first. */
-    readonly notes: readonly MergePaneBuildNote[];
+    readonly notes: readonly MergeBuildNote[];
 }
 
 /** Everything one merge pane shows of its merge view's decisions. */
