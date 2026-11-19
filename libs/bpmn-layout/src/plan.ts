@@ -88,7 +88,11 @@ export function computeLayoutPlan(
     const byId = new Map<string, ElementSnapshot>(snapshot.map((element) => [element.id, element]));
 
     const shapeOperations: LayoutOperation[] = [];
-    /** id → how far the shape moved, for the labels that follow it. */
+    /**
+     * id → how far the shape moved, for the labels that follow it. A resized
+     * shape has no entry: bpmn-js's `LabelBehavior` moves its external label
+     * on `shape.resize` and takes no hint to stop that.
+     */
     const shapeDeltas = new Map<string, Point>();
 
     for (const shape of target.shapes) {
@@ -99,18 +103,14 @@ export function computeLayoutPlan(
         const resized = !sameSize(current, shape);
         if (!moved && !resized) continue;
 
-        shapeDeltas.set(shape.id, { x: shape.x - current.x, y: shape.y - current.y });
-
         if (resized) {
             // One resize carries position and size together; `ResizeShapeHandler`
             // assigns x/y/width/height in a single command.
             shapeOperations.push({ kind: "resize", id: shape.id, bounds: clampSize(shape) });
         } else {
-            shapeOperations.push({
-                kind: "move",
-                id: shape.id,
-                delta: { x: shape.x - current.x, y: shape.y - current.y },
-            });
+            const delta = { x: shape.x - current.x, y: shape.y - current.y };
+            shapeDeltas.set(shape.id, delta);
+            shapeOperations.push({ kind: "move", id: shape.id, delta });
         }
     }
 
