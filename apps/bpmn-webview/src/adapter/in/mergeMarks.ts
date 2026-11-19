@@ -4,6 +4,7 @@ import type { MergePaneBadge, MergePickScope } from "@miragon/bpmn-modeler-share
 import { MERGE_MARKER_CLASSES, MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import { flowBadgePlace, type FlowWaypoint } from "../../domain/mergeFlowBadgePlace";
+import { PEN_PATHS } from "./mergeDecisionIcons";
 
 import "./mergeMarks.css";
 
@@ -44,7 +45,7 @@ export interface MergeMarksView {
     readonly consequences: readonly string[];
 }
 
-/** A badge's words: the kept side, its full words, and the word of a version merged by hand. */
+/** A badge's words: the kept side, its full words, and the word of a version merged by hand, given only for one. */
 interface MergeBadgeText {
     readonly side: string;
     readonly label: string;
@@ -83,7 +84,7 @@ const CHECK_ONLY_BADGE_MAX_ZOOM = largestDoubleBelow(WORDED_BADGE_MIN_ZOOM);
 const SHAPE_BADGE_GAP = 3;
 
 // A pen beside the check: a version merged by hand replaces the kept side's own.
-const PEN_MARK = `<svg class="merge-pick-badge__pen" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const PEN_MARK = `<svg class="merge-pick-badge__pen" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${PEN_PATHS}</svg>`;
 
 const CHECK_MARK = `<svg class="merge-pick-badge__check" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`;
 
@@ -144,14 +145,14 @@ export class MergeMarks {
 
     private addPickBadge(badge: MergePaneBadge, text: MergeBadgeText): void {
         const label = escapeHTML(text.label);
-        const byHand = badge.mergedByHand ? " merge-pick-badge--by-hand" : "";
+        const mergedByHand = text.byHand !== undefined;
+        const byHand = mergedByHand ? " merge-pick-badge--by-hand" : "";
         const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.scope]}${byHand}`;
-        const pen = badge.mergedByHand ? PEN_MARK : "";
+        const pen = mergedByHand ? PEN_MARK : "";
         const sideWord = `<span class="merge-pick-badge__side">${escapeHTML(text.side)}</span>`;
-        const byHandWord =
-            badge.mergedByHand && text.byHand !== undefined
-                ? `<span class="merge-pick-badge__by-hand">${escapeHTML(text.byHand)}</span>`
-                : "";
+        const byHandWord = mergedByHand
+            ? `<span class="merge-pick-badge__by-hand">${escapeHTML(text.byHand)}</span>`
+            : "";
         const badgeHtml = (modifier: string, content: string) =>
             `<div class="${classes} ${modifier}" role="img" aria-label="${label}">${content}</div>`;
         const waypoints = this.registry.get(badge.id)?.waypoints;
