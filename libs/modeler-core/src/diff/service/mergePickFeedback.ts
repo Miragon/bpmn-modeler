@@ -1,9 +1,9 @@
 import type { BlockedPick, HandMergeOutcome, PickOutcome } from "@miragon/bpmn-modeler-merge";
-import type {
-    MergePaneAction,
-    MergePaneBlock,
-    MergePaneHandMergeRefusal,
-    MergePaneOutcome,
+import {
+    handMergeRefusalNamedIds,
+    type MergePaneAction,
+    type MergePaneBlock,
+    type MergePaneOutcome,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
@@ -119,22 +119,10 @@ export function idsNamedInWords(
         : [
               ...outcome.blockedBy.flatMap(({ elementId, targetId }) => [elementId, targetId]),
               ...(outcome.handMergesAtStake ?? []),
-              ...idsNamedByRefusal(outcome.handMergeRefusal),
+              ...(outcome.handMergeRefusal === undefined
+                  ? []
+                  : handMergeRefusalNamedIds(outcome.handMergeRefusal)),
           ];
     outcomeIds.forEach((id) => named.add(id));
     return named;
-}
-
-function idsNamedByRefusal(refusal: MergePaneHandMergeRefusal | undefined): readonly string[] {
-    switch (refusal?.kind) {
-        case "holdsElementsOfTheirOwn":
-        case "namesMissingElement":
-        case "namesLeftOutElement":
-        case "changesOtherDecisions":
-            return refusal.ids;
-        case "namesWrongType":
-            return refusal.references.map(({ target }) => target);
-        default:
-            return [];
-    }
 }
