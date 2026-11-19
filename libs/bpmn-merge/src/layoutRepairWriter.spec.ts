@@ -87,6 +87,33 @@ describe("writeLayoutChanges", () => {
         expect(written.xml).toContain('<dc:Bounds x="100" y="100" width="160" height="80" />');
     });
 
+    it("writes a shape's label where the repaired layout puts it, apart from its bounds", async () => {
+        const written = await writtenWith(LABELLED_EVENT, (layout) => {
+            const shapes = new Map(layout.shapes);
+            const end = layout.shapes.get("End_1") as NodeShape;
+            const task = layout.shapes.get("Task_B") as NodeShape;
+            shapes.set("End_1", { ...end, label: { ...end.label!, x: 470, y: 180 } });
+            shapes.set("Task_B", translatedNode(task, 0, 60));
+            return { ...layout, shapes };
+        });
+
+        expect(written.xml).toContain('<dc:Bounds x="500" y="122" width="36" height="36" />');
+        expect(written.xml).toContain('<dc:Bounds x="470" y="180" width="56" height="14" />');
+        expect(written.xml).toContain('<dc:Bounds x="300" y="160" width="100" height="80" />');
+    });
+
+    it("keeps a shape's label in place when the repaired layout keeps it there", async () => {
+        const written = await writtenWith(LABELLED_EVENT, (layout) => {
+            const shapes = new Map(layout.shapes);
+            const end = layout.shapes.get("End_1") as NodeShape;
+            shapes.set("End_1", { ...translatedNode(end, 40, 0), label: end.label });
+            return { ...layout, shapes };
+        });
+
+        expect(written.xml).toContain('<dc:Bounds x="540" y="122" width="36" height="36" />');
+        expect(written.xml).toContain('<dc:Bounds x="490" y="165" width="56" height="14" />');
+    });
+
     it("leaves the file alone when nothing changed", async () => {
         const moddle = (await loadBpmnModdle())();
         const original = (await moddle.toXML((await moddle.fromXML(LABELLED_EVENT)).rootElement))

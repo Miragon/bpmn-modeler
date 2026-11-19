@@ -2,14 +2,13 @@ import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff"
 
 import { type DiagramIndex, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel } from "./layoutModel";
+import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { shapeDrawingOf } from "./layoutModelReader";
 
 /**
  * Writes what the repaired layout changed against the layout read from the
- * definitions into the drawings `layoutModelOf` reads: a shape's bounds with
- * its label moved alongside, an edge's waypoints and label. Nothing else of
- * the drawing changes.
+ * definitions into the drawings `layoutModelOf` reads: a shape's bounds and
+ * label, an edge's waypoints and label. Nothing else of the drawing changes.
  */
 export function writeLayoutChanges(
     definitions: ModdleElement,
@@ -22,9 +21,9 @@ export function writeLayoutChanges(
     const indexed = () => (index ??= diagramIndexOf(definitions));
     for (const [id, shape] of after.shapes) {
         const old = before.shapes.get(id);
-        if (old === undefined || old === shape || sameBounds(old.bounds, shape.bounds)) continue;
+        if (old === undefined || old === shape || sameDrawing(old, shape)) continue;
         const drawing = shapeDrawingOf(indexed().drawingsByElement.get(id) ?? [])?.element;
-        if (drawing !== undefined) writeShape(drawing, old.bounds, shape.bounds);
+        if (drawing !== undefined) writeShape(drawing, old, shape);
     }
     for (const [id, edge] of after.edges) {
         const old = before.edges.get(id);
@@ -34,13 +33,19 @@ export function writeLayoutChanges(
     }
 }
 
-function writeShape(drawing: ModdleElement, before: DiagramBounds, after: DiagramBounds): void {
-    Object.assign(drawing.bounds as ModdleElement, after);
-    const label = (drawing.label as ModdleElement | undefined)?.bounds;
-    if (isModdleElement(label)) {
-        label.x = Number(label.x) + after.x - before.x;
-        label.y = Number(label.y) + after.y - before.y;
+function sameDrawing(before: LayoutShape, after: LayoutShape): boolean {
+    return sameBounds(before.bounds, after.bounds) && sameLabel(labelOf(before), labelOf(after));
+}
+
+function labelOf(shape: LayoutShape): DiagramBounds | undefined {
+    return shape.kind === "node" ? shape.label : undefined;
+}
+
+function writeShape(drawing: ModdleElement, before: LayoutShape, after: LayoutShape): void {
+    if (!sameBounds(before.bounds, after.bounds)) {
+        Object.assign(drawing.bounds as ModdleElement, after.bounds);
     }
+    writeLabel(drawing, labelOf(before), labelOf(after));
 }
 
 function writeEdge(
@@ -56,14 +61,24 @@ function writeEdge(
             return waypoint;
         });
     }
+    writeLabel(drawing, before.label, after.label);
+}
+
+function writeLabel(
+    drawing: ModdleElement,
+    before: DiagramBounds | undefined,
+    after: DiagramBounds | undefined,
+): void {
     const label = (drawing.label as ModdleElement | undefined)?.bounds;
-    const labelMoved =
-        after.label !== undefined &&
-        (before.label === undefined || !sameBounds(before.label, after.label));
-    if (labelMoved && after.label !== undefined && isModdleElement(label)) {
-        label.x = after.label.x;
-        label.y = after.label.y;
-    }
+    if (after === undefined || sameLabel(before, after) || !isModdleElement(label)) return;
+    label.x = after.x;
+    label.y = after.y;
+}
+
+function sameLabel(first: DiagramBounds | undefined, second: DiagramBounds | undefined): boolean {
+    return first === undefined || second === undefined
+        ? first === second
+        : sameBounds(first, second);
 }
 
 function samePoints(first: readonly Point[], second: readonly Point[]): boolean {
