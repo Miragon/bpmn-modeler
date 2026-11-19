@@ -1,0 +1,35 @@
+html,
+body,
+#app {
+    height: 100%;
+    margin: 0;
+}
+
+/* One diff bar across both panes, as in Diagit, in a row of its own: a bar whose counts wrap pushes the panes down. */
+.orca-diff {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+}
+
+.orca-diff-bar {
+    position: relative;
+    grid-column: 1 / -1;
+    min-height: var(--diff-legend-height, 40px);
+}
+
+.orca-diff-bar > .diff-legend {
+    position: relative;
+}
+
+.orca-diff-pane {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--orca-border, #ddd);
+}
+
+.orca-diff-pane[data-side="before"] {
+    border-left: none;
+}
