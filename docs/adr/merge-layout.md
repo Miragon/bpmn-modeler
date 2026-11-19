@@ -87,7 +87,8 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   widens a pool or sub-process where a free place lies inside; leaving every shape where it lies,
   which leaves a task the build placed in another lane or outside its sub-process; moving a shape
   both sides draw where it lies, which crams a whole lane's members into the band one side drew.
-  Cost: such a lane's members stay outside, noted, where both sides changed the lanes; a side drawing on another root
+  Cost: such a shape stays outside, noted, where the lanes' side still draws its lane apart
+  from where both sides draw the shape; a side drawing on another root
   plane id (one side has a collaboration, the other not) counts as drawing elsewhere, so its
   shapes still move (#2589); growth shifts only right; each growth finds the spots of the whole
   drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a

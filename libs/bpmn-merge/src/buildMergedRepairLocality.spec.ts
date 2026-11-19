@@ -103,16 +103,6 @@ interface HarvestCase {
     readonly leftOutside?: readonly string[];
 }
 
-/** The shapes both sides draw where they lie, outside the lane the other side's lanes give them. */
-const LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT = [
-    "Start_Order",
-    "Task_Check",
-    "Gateway_Ok",
-    "Sub_Ship",
-    "End_Done",
-    "Boundary_Timeout",
-];
-
 /**
  * The harvest results the design prototype changed although no spot was introduced, four the
  * flow repair re-routes, those with shapes on top of each other, those with shapes outside
@@ -204,12 +194,12 @@ const CASES: readonly HarvestCase[] = [
         crossingBudget,
         leftOutside,
     })),
+    // One side dropped a lane the other draws: the lanes come from the side without it.
     ...(["conflictsToIncoming", "conflictsAtRandom"] as const).map((strategy) => ({
         seed: 159,
         strategy,
         repairs: "none" as const,
         crossingBudget: 0,
-        leftOutside: LANE_MANAGER_AS_BOTH_SIDES_DRAW_IT,
     })),
 ];
 

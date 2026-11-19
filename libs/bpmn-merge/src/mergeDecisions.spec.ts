@@ -1525,6 +1525,53 @@ describe("MergeDecisions", () => {
                 expect(layout).toMatchObject({ Lane_A: "current", Lane_C: "incoming" });
             });
 
+            it("draws the lanes from the other side when the preferred one draws a lane the result leaves out", () => {
+                const removed = mergeElement("Lane_Gone", "removedByIncoming", {
+                    type: "bpmn:Lane",
+                    parent: "Process_1",
+                });
+
+                const layout = layoutOf(pool(), lane("Lane_A", "bothChanged"), removed);
+
+                expect(layout).toMatchObject({ Pool: "incoming", Lane_A: "incoming" });
+            });
+
+            it("keeps the preferred side when both draw a lane the result leaves out", () => {
+                const removedByEach = ["Lane_Gone", "Lane_Away"].map((id, at) =>
+                    mergeElement(id, at === 0 ? "removedByIncoming" : "removedByCurrent", {
+                        type: "bpmn:Lane",
+                        parent: "Process_1",
+                    }),
+                );
+
+                const layout = layoutOf(pool(), lane("Lane_A", "bothChanged"), ...removedByEach);
+
+                expect(layout).toMatchObject({ Pool: "current", Lane_A: "current" });
+            });
+
+            it("keeps the lanes on their side when the other side draws the process on a plane of its own", () => {
+                const ownPlane = mergeElement("Process_1", "unchanged", {
+                    type: "bpmn:Process",
+                    current: { plane: "Process_1" },
+                    incoming: { drawn: false },
+                });
+                const addedPool = mergeElement("Pool", "addedByIncoming", {
+                    type: "bpmn:Participant",
+                    plane: "Collaboration_1",
+                    references: [refersTo("bpmn:Participant#processRef", "Process_1")],
+                });
+                const laneA = lane("Lane_A", "takenFromIncoming", {
+                    current: { plane: "Process_1" },
+                    incoming: { plane: "Collaboration_1" },
+                });
+
+                const { layout } = MergeDecisions.from(
+                    mergeResult(ownPlane, addedPool, laneA),
+                ).resolution();
+
+                expect(layout).toMatchObject({ Pool: "incoming", Lane_A: "incoming" });
+            });
+
             it("keeps each lane of a process without a pool on its own side", () => {
                 const layout = layoutOf(
                     lane("Lane_A", "takenFromCurrent"),

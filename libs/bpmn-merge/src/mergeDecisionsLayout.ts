@@ -5,6 +5,7 @@ import {
     type MergeElement,
     type MergeSide,
     type SideInResult,
+    MERGE_SIDES,
     chosenVersionOf,
     combinedLayoutOf,
     otherSide,
@@ -51,10 +52,11 @@ interface LaneBlock {
 
 /**
  * The side whose DI each drawn element of the result takes. A pool and its lanes prefer one side together, so the
- * lanes stay stacked as that side drew them; a lane that side does not draw in place is appended. Containers settle
- * first: an element follows the side of its host, parent (or the pool drawing its process) or lane when that side
- * moved the container, or draws the element on another plane, and draws the element in place. A flow whose end had
- * to leave its preferred side is drawn from its ends' side when they agree, so its waypoints meet their shapes.
+ * lanes stay stacked as that side drew them; a lane that side does not draw in place is appended, and a lane follows
+ * no container. Containers settle first: an element follows the side of its host, parent (or the pool drawing its
+ * process) or lane when that side moved the container, or draws the element on another plane, and draws the element
+ * in place. A flow whose end had to leave its preferred side is drawn from its ends' side when they agree, so its
+ * waypoints meet their shapes.
  */
 export function layoutSidesOf(
     elements: readonly MergeElement[],
@@ -80,7 +82,13 @@ export function layoutSidesOf(
             choices.set(element.id, choice);
         }
     }
-    const settled = settleContainersFirst(elementsById, choices, sideInResult, poolOfProcess);
+    const settled = settleContainersFirst(
+        elementsById,
+        choices,
+        sideInResult,
+        poolOfProcess,
+        new Set(blocks.flatMap(({ lanes }) => lanes)),
+    );
     const sides: Record<string, MergeSide> = {};
     for (const element of elements) {
         const side = settled.get(element.id);
@@ -96,7 +104,8 @@ export function layoutSidesOf(
 
 /**
  * The lanes of each process a pool of the result draws, with the side they prefer together: current's, unless only
- * incoming changed the pool or one of its lanes, as for a single element.
+ * incoming changed the pool or one of its lanes, as for a single element. A side that draws a lane of the process the
+ * result leaves out would leave its band empty, so the other side draws them when it draws none.
  */
 function laneBlocksOf(
     elementsById: ReadonlyMap<string, MergeElement>,
@@ -104,36 +113,50 @@ function laneBlocksOf(
     poolOfProcess: ReadonlyMap<string, string>,
 ): LaneBlock[] {
     const lanesByPool = new Map<string, MergeElement[]>();
+    const leftOut = new Set<string>();
     for (const element of elementsById.values()) {
-        if (element.type !== LANE_TYPE || chosenVersionOf(element, sideInResult) === undefined) {
+        if (element.type !== LANE_TYPE) continue;
+        const inResult = chosenVersionOf(element, sideInResult);
+        if (inResult === undefined) {
+            for (const side of MERGE_SIDES) {
+                const owner = laneSetOwnerOf(element, elementsById, (lane) => lane.versions[side]);
+                if (element.versions[side]?.drawn && owner !== undefined)
+                    leftOut.add(`${side} ${owner}`);
+            }
             continue;
         }
-        const root = laneSetOwnerOf(element, elementsById, sideInResult);
-        const pool = root === undefined ? undefined : poolOfProcess.get(root);
+        const owner = laneSetOwnerOf(element, elementsById, (lane) =>
+            chosenVersionOf(lane, sideInResult),
+        );
+        const pool = owner === undefined ? undefined : poolOfProcess.get(owner);
         if (pool !== undefined) lanesByPool.set(pool, [...(lanesByPool.get(pool) ?? []), element]);
     }
+    const processOf = new Map([...poolOfProcess].map(([process, pool]) => [pool, process]));
     return [...lanesByPool].map(([pool, lanes]) => {
         const poolElement = elementsById.get(pool);
         const members = poolElement === undefined ? lanes : [poolElement, ...lanes];
-        return {
-            pool,
-            lanes: lanes.map(({ id }) => id),
-            side: PREFERRED_LAYOUT_SIDE[combinedLayoutOf(members.map(({ layout }) => layout))],
-        };
+        const preferred =
+            PREFERRED_LAYOUT_SIDE[combinedLayoutOf(members.map(({ layout }) => layout))];
+        const leavesOut = (side: MergeSide) => leftOut.has(`${side} ${processOf.get(pool)}`);
+        const side =
+            leavesOut(preferred) && !leavesOut(otherSide(preferred))
+                ? otherSide(preferred)
+                : preferred;
+        return { pool, lanes: lanes.map(({ id }) => id), side };
     });
 }
 
-/** The process or sub-process whose lane set holds the lane, through its parent lanes. */
+/** The process or sub-process whose lane set holds the lane in the versions given, through its parent lanes. */
 function laneSetOwnerOf(
     lane: MergeElement,
     elementsById: ReadonlyMap<string, MergeElement>,
-    sideInResult: SideInResult,
+    versionOf: (lane: MergeElement) => ElementVersion | undefined,
 ): string | undefined {
     const seen = new Set<string>();
     let element: MergeElement | undefined = lane;
     while (element?.type === LANE_TYPE && !seen.has(element.id)) {
         seen.add(element.id);
-        const parent = chosenVersionOf(element, sideInResult)?.parent;
+        const parent = versionOf(element)?.parent;
         if (parent === undefined) return undefined;
         element = elementsById.get(parent);
         if (element?.type !== LANE_TYPE) return parent;
@@ -167,6 +190,7 @@ function settleContainersFirst(
     choices: ReadonlyMap<string, LayoutChoice>,
     sideInResult: SideInResult,
     poolOfProcess: ReadonlyMap<string, string>,
+    laneBlockMembers: ReadonlySet<string>,
 ): ReadonlyMap<string, MergeSide> {
     const settled = new Map<string, MergeSide>();
     const visiting = new Set<string>();
@@ -176,6 +200,10 @@ function settleContainersFirst(
         const choice = choices.get(id);
         if (known !== undefined || choice === undefined || visiting.has(id)) {
             return known ?? choice?.side;
+        }
+        if (laneBlockMembers.has(id)) {
+            settled.set(id, choice.side);
+            return choice.side;
         }
         visiting.add(id);
         const element = elementsById.get(id) as MergeElement;
