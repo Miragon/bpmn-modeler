@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -463,6 +465,13 @@ describe("PreviewHost", () => {
 
         expect(reason.trim()).not.toBe("");
         expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
+    });
+
+    // Rollup keeps a module-level statement holding an interpolated template literal, so the table would ship in production.
+    it("writes each drop reason as a plain string, which leaves the table out of the production bundle", () => {
+        const table = readFileSync(join(__dirname, "previewCommands.ts"), "utf8");
+
+        expect(table).not.toMatch(/ignored:\s*`/);
     });
 
     it("shows an info message in the console", () => {

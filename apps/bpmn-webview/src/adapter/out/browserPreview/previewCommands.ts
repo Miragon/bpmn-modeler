@@ -65,11 +65,15 @@ const PREVIEW_COMMANDS: PreviewCommandTable = {
     ShowInfoCommand: ({ message }) => console.info("[INFO] ShowInfoCommand", message),
     DiffReadyCommand: (_, preview) => void answerReadyPane(preview),
     ViewportChangedCommand: { ignored: NO_PARTNER_PANE },
-    CursorChangedCommand: { ignored: `${NO_PARTNER_PANE}; the stepper advances locally` },
+    CursorChangedCommand: {
+        ignored: "a single pane has no partner pane to follow it; the stepper advances locally",
+    },
     DiffPlaneChangedCommand: { ignored: NO_PARTNER_PANE },
     DiffSelectionChangedCommand: { ignored: NO_PARTNER_PANE },
     SwapCompareSidesCommand: { ignored: NO_PARTNER_PANE },
-    MergeStepListChangedCommand: { ignored: `${NO_PARTNER_PANE}; the list switches locally` },
+    MergeStepListChangedCommand: {
+        ignored: "a single pane has no partner pane to follow it; the list switches locally",
+    },
     PickMergeSideCommand: { ignored: NO_MERGE },
     UnpickMergeCommand: { ignored: NO_MERGE },
     MergePaneCommandsChangedCommand: { ignored: "a browser has no keyboard commands to offer" },
