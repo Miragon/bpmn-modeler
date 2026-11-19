@@ -232,13 +232,9 @@ function keepInside(
     side: MergeSide,
     surface: MergeDecisionSurface,
 ): MergeRowKeepInside | undefined {
-    if (facts.container === undefined || facts.lacking?.side === side) return undefined;
-    const keep: MergeKeepInside = {
-        kind: "keep",
-        scope: "withContents",
-        side,
-        reach: facts.container,
-    };
+    const reach = facts.container;
+    if (reach === undefined || facts.lacking?.side === side) return undefined;
+    const keep: MergeKeepInside = { kind: "keep", scope: "withContents", side, reach };
     const held = facts.pick?.keptSide === side && facts.pick.scope === "withContents";
     if (!held) return keep;
     return surface.heldKeepInside === "pressed" ? { ...keep, pressed: true } : undefined;
