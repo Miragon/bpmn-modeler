@@ -7,7 +7,7 @@ import { HostApiImpl } from "@miragon/bpmn-modeler-shared";
 
 import type { BpmnWebviewCommand, BpmnWebviewHost } from "../../port/hostChannel";
 import type { WebviewState } from "../../port/webviewState";
-import { PreviewHost } from "./preview/previewHost";
+import { PreviewHost } from "./browserPreview/previewHost";
 
 declare const process: { env: { NODE_ENV: string } };
 

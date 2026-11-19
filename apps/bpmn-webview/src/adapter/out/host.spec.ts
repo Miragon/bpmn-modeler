@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GetBpmnFileCommand, HostApiImpl } from "@miragon/bpmn-modeler-shared";
 
 import { getHostApi } from "./host";
-import { PreviewHost } from "./preview/previewHost";
+import { PreviewHost } from "./browserPreview/previewHost";
 
 describe("getHostApi", () => {
     afterEach(() => {

@@ -209,4 +209,4 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 - **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
 - **FEEL editor + Ctrl+A polyfill** (per-instance root registry + disposer): `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`
 - **Barrel exports**: `apps/bpmn-webview/src/index.ts`
-- **Host API wrapper + dev mock** (`getHostApi`/`PreviewHost`): `apps/bpmn-webview/src/adapter/out/host.ts`, `apps/bpmn-webview/src/adapter/out/preview/previewHost.ts`
+- **Host API wrapper + dev mock** (`getHostApi`/`PreviewHost`): `apps/bpmn-webview/src/adapter/out/host.ts`, `apps/bpmn-webview/src/adapter/out/browserPreview/previewHost.ts`
