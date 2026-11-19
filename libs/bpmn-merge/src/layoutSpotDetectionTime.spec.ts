@@ -1,4 +1,4 @@
-import { loadBpmnModdle, type ModdleElement } from "@miragon/bpmn-modeler-diff";
+import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
@@ -8,26 +8,29 @@ import { introducedLayoutSpots } from "./layoutSpotDetection";
 // The library types no host globals; the specs run in Node, which has a sub-millisecond clock.
 declare const performance: { now(): number };
 
-function fastestMillisecondsOf(run: () => unknown): number {
+async function fastestMillisecondsOf(run: () => unknown): Promise<number> {
     let fastest = Number.POSITIVE_INFINITY;
     for (let attempt = 0; attempt < 5; attempt++) {
         const started = performance.now();
-        run();
+        await run();
         fastest = Math.min(fastest, performance.now() - started);
     }
     return fastest;
 }
 
 /**
- * How long checking the result's spots against both sides takes, per millisecond spent reading
- * the three drawings: reading is linear, and both share the runner's load.
+ * How long checking the result's spots against both sides takes, per millisecond the build spends
+ * parsing the result: both share the runner's load, and parsing is long enough that one slow or
+ * fast round of either barely moves the ratio.
  */
-function detectionPerReadingOf(result: ModdleElement, sides: readonly ModdleElement[]): number {
-    const reading = fastestMillisecondsOf(() => [result, ...sides].map(layoutModelOf));
-    const resultLayout = layoutModelOf(result);
-    const sideLayouts = sides.map(layoutModelOf);
-    const detection = fastestMillisecondsOf(() => introducedLayoutSpots(resultLayout, sideLayouts));
-    return detection / reading;
+async function detectionPerParseOf(resultXml: string, sideXmls: readonly string[]) {
+    const moddle = (await loadBpmnModdle())();
+    const parse = async (xml: string) => (await moddle.fromXML(xml)).rootElement;
+    const parsing = await fastestMillisecondsOf(() => parse(resultXml));
+    const result = layoutModelOf(await parse(resultXml));
+    const sides = await Promise.all(sideXmls.map(async (xml) => layoutModelOf(await parse(xml))));
+    const detect = () => introducedLayoutSpots(result, sides);
+    return { spots: detect(), perParse: (await fastestMillisecondsOf(detect)) / parsing };
 }
 
 /** Moves every 200th task one row down, onto the task below it: five spots in a file of 1,400 nodes. */
@@ -40,53 +43,38 @@ function withMovedTasks(xml: string): string {
     );
 }
 
-// Measured on 1,400 and 2,000 nodes: detection takes 0.25 to 0.35 of the reading alone and up
-// to 0.55 under the coverage run of the whole suite. A detector comparing every pair took
-// 246 ms against 16 ms of reading, about 15, so the limit fails it and leaves room for noise.
-const MAX_DETECTION_PER_READING = 2;
+// Measured against parsing the result once, best of five each, on 800 KB and 1.1 MB (90 and
+// 125 ms to parse), with coverage: 0.06 to 0.07, and 0.013 to 0.09 in 75 runs beside the whole
+// suite. With the grid left out, so that every shape is checked against every other, 8.6 to 10.
+const MAX_DETECTION_PER_PARSE = 1;
 
 describe("layout spot detection time", () => {
     it.each([
         { label: "800 KB", rows: 28 },
         { label: "1.1 MB", rows: 40 },
     ])(
-        "checks a $label file with nothing broken in less time than reading it",
+        "checks a $label file with nothing broken in a fraction of parsing it",
         { timeout: 60_000 },
         async ({ rows }) => {
             const { xml } = generateLargeC7Model({ rows, perRow: 50 });
-            const moddle = (await loadBpmnModdle())();
-            const parse = async () => (await moddle.fromXML(xml)).rootElement;
-            const [result, current, incoming] = await Promise.all([parse(), parse(), parse()]);
 
-            expect(
-                introducedLayoutSpots(
-                    layoutModelOf(result),
-                    [current, incoming].map(layoutModelOf),
-                ),
-            ).toEqual([]);
-            expect(detectionPerReadingOf(result, [current, incoming])).toBeLessThan(
-                MAX_DETECTION_PER_READING,
-            );
+            const { spots, perParse } = await detectionPerParseOf(xml, [xml, xml]);
+
+            expect(spots).toEqual([]);
+            expect(perParse).toBeLessThan(MAX_DETECTION_PER_PARSE);
         },
     );
 
     it(
-        "checks an 800 KB file with moved tasks in less time than reading it",
+        "checks an 800 KB file with moved tasks in a fraction of parsing it",
         { timeout: 60_000 },
         async () => {
             const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
-            const moddle = (await loadBpmnModdle())();
-            const result = (await moddle.fromXML(withMovedTasks(xml))).rootElement;
-            const side = (await moddle.fromXML(xml)).rootElement;
 
-            const spots = introducedLayoutSpots(layoutModelOf(result), [
-                layoutModelOf(side),
-                layoutModelOf(side),
-            ]);
+            const { spots, perParse } = await detectionPerParseOf(withMovedTasks(xml), [xml, xml]);
+
             expect(spots.filter(({ kind }) => kind === "shapesOverlap")).toHaveLength(5);
-            expect(detectionPerReadingOf(result, [side, side])).toBeLessThan(
-                MAX_DETECTION_PER_READING,
-            );
+            expect(perParse).toBeLessThan(MAX_DETECTION_PER_PARSE);
         },
     );
 });
