@@ -1,7 +1,7 @@
 # Form editor
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-19
 
 ## Context
 
@@ -50,6 +50,16 @@ document write, so dirty tracking and undo work, and it is never an autosave.
   accepts plain JSON only, and the adapter does not repair invalid source.
 - Accepted cost: one small JSON editing dependency and a separate adapter, instead of importing the
   element-template builder's template-specific editing rules.
+
+### Input and output values
+
+The values a form takes and returns open as JSON beside it, on the extension's in-memory file
+systems: the input writable, the output read-only. They take their URIs and the sweep that closes a
+restored tab from the same `shared/adapter/out/` helpers as the element XML diff and merge editor
+([merge XML editor](merge-xml-editor.md)). A restored tab is closed unserved: VS Code 1.147 reopens
+it unread and closes it without asking. As for the merge result, a save to an input the extension no
+longer serves is ignored rather than created and deleted again. The cost: an active restored tab can show VS Code's "file
+not found" for the moment before it closes, where serving `{}` first would show an empty object.
 
 The contracts live in the specs under `libs/modeler-core/src/modeler/form/`; the form-js input
 harness and the VS Code smoke test cover re-import, visual editability and persistence.

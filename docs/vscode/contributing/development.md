@@ -284,7 +284,7 @@ its own VS Code window, profile and workspace:
 | `element-ids` | Generate IDs from Names with its review panel, and its undo |
 | `bpmn-diff` | Compare Selected (BPMN), the element XML diff, a Source Control diff |
 | `dmn` | The DMN editor and Compare Selected (DMN) down to a decision table |
-| `form` | The form editor and its engine platform and version |
+| `form` | The form editor, its engine platform and version, the input values tab a reload restored |
 | `element-templates` | New Element Template, the builder, the template chooser, schema trust, the editor offered on a template's JSON |
 | `linked-form-preview` | The preview of a user task's linked form in the BPMN editor |
 | `add-ons` | A workspace bpmn-js plugin from its notice to Allow and Revoke, Review Add-ons, the view's fonts |

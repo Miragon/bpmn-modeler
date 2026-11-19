@@ -11,7 +11,7 @@ import {
     renderedTabs,
     resetVscodeVirtualDocuments,
 } from "../../../../../__fixtures__/vscodeVirtualDocumentsFake";
-import { registeredFormValueFiles } from "../../../../../__fixtures__/formValueFiles";
+import { registeredFormValueFiles } from "../../../../../composition/formValuesFeature";
 import {
     FormValuesController,
     TOGGLE_FORM_INPUT_VALUES_CMD,

@@ -104,7 +104,10 @@ function elementXmlDiffs(
     merges: MergeSessionStore,
 ): ElementXmlDiffService {
     let service: ElementXmlDiffService | undefined = undefined;
-    const view = new VsCodeElementXmlDiffView((diffKey) => service?.closedByUser(diffKey));
+    const view = new VsCodeElementXmlDiffView(
+        (diffKey) => service?.closedByUser(diffKey),
+        deps.notifier,
+    );
     view.register(context);
     service = new ElementXmlDiffService(diffStore, view, deps.notifier, merges);
     return service;

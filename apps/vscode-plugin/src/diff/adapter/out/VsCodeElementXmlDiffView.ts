@@ -9,11 +9,12 @@ import {
     workspace,
 } from "vscode";
 
-import { ElementXmlDiff, ElementXmlDiffView } from "@miragon/bpmn-modeler-core";
+import { ElementXmlDiff, ElementXmlDiffView, LoggerPort } from "@miragon/bpmn-modeler-core";
+
+import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
+import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 
 import { groupBelowActive } from "./editorGroupBelow";
-import { elementXmlUris } from "./elementXmlUris";
-import { closeUnservedTabs } from "./unservedTabs";
 
 export const ELEMENT_XML_SCHEME = "bpmn-element-xml";
 
@@ -39,7 +40,10 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     private readonly openingDiffKeys = new Set<string>();
 
     /** @param onClosedByUser Told the diff key of an XML diff the user closed. */
-    constructor(private readonly onClosedByUser: (diffKey: string) => void) {}
+    constructor(
+        private readonly onClosedByUser: (diffKey: string) => void,
+        private readonly logger: Pick<LoggerPort, "logError">,
+    ) {}
 
     /**
      * Whether the host tells text diff tabs apart, which a Theia version may
@@ -56,10 +60,14 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
             }),
             window.tabGroups.onDidChangeTabs((event) => this.forgetClosedTabs(event.closed)),
         );
-        closeUnservedTabs(context, (tab) => {
-            const uris = elementXmlUrisOf(tab);
-            return uris !== undefined && !this.textsByUri.has(uris.modified.toString());
-        });
+        closeUnservedTabs(
+            context,
+            (tab) => {
+                const uris = elementXmlUrisOf(tab);
+                return uris !== undefined && !this.textsByUri.has(uris.modified.toString());
+            },
+            this.logger,
+        );
     }
 
     show(diff: ElementXmlDiff): Promise<void> {
@@ -121,7 +129,7 @@ export class VsCodeElementXmlDiffView implements ElementXmlDiffView {
     }
 
     private serve(diff: ElementXmlDiff): ShownElementXml {
-        const uriOf = elementXmlUris(diff.elementId);
+        const uriOf = inMemoryViewUris(diff.elementId, "xml");
         const shown = {
             beforeUri: uriOf(ELEMENT_XML_SCHEME, "before"),
             afterUri: uriOf(ELEMENT_XML_SCHEME, "after"),

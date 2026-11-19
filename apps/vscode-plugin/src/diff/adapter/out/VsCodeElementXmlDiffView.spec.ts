@@ -41,7 +41,7 @@ const xmlTab = (elementId: string) => ({
 function registeredView(
     onClosedByUser: (diffKey: string) => void = () => undefined,
 ): VsCodeElementXmlDiffView {
-    const view = new VsCodeElementXmlDiffView(onClosedByUser);
+    const view = new VsCodeElementXmlDiffView(onClosedByUser, { logError: vi.fn() });
     view.register({ subscriptions: [] } as unknown as ExtensionContext);
     return view;
 }

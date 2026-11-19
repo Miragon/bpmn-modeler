@@ -58,7 +58,9 @@ function registeredEditor(onFinished: ElementXmlMergeFinished): VsCodeElementXml
     results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
     workspace.registerFileSystemProvider(MERGE_XML_SCHEME, inputs);
     workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results);
-    const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished);
+    const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished, {
+        logError: vi.fn(),
+    });
     registered.register({ subscriptions: [] } as unknown as ExtensionContext);
     return registered;
 }

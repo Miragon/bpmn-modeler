@@ -13,14 +13,15 @@ import {
     ElementXmlMergeEditor,
     ElementXmlMergeFinished,
     ElementXmlMergeRequest,
+    LoggerPort,
 } from "@miragon/bpmn-modeler-core";
 
+import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
+import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
 import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
 import { groupBelowActive } from "./editorGroupBelow";
-import { elementXmlUris } from "./elementXmlUris";
-import { closeUnservedTabs } from "./unservedTabs";
 
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
@@ -61,6 +62,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
         private readonly inputs: ServedTextFiles<Uri>,
         private readonly results: EditorWrittenTextFiles<Uri>,
         private readonly onFinished: ElementXmlMergeFinished,
+        private readonly logger: Pick<LoggerPort, "logError">,
     ) {}
 
     register(context: ExtensionContext): void {
@@ -76,10 +78,14 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
                 merge?.answer.saved(this.results.lastEditorWriteOf(merge.result));
             }),
         );
-        closeUnservedTabs(context, (tab) => {
-            const result = mergeResultOf(tab);
-            return result?.scheme === MERGE_RESULT_SCHEME && !this.mergeOfResult(result);
-        });
+        closeUnservedTabs(
+            context,
+            (tab) => {
+                const result = mergeResultOf(tab);
+                return result?.scheme === MERGE_RESULT_SCHEME && !this.mergeOfResult(result);
+            },
+            this.logger,
+        );
     }
 
     async open(request: ElementXmlMergeRequest): Promise<void> {
@@ -135,7 +141,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     }
 
     private serve(request: ElementXmlMergeRequest): OpenMerge {
-        const uriOf = elementXmlUris(request.elementId);
+        const uriOf = inMemoryViewUris(request.elementId, "xml");
         const merge: OpenMerge = {
             request,
             base: uriOf(MERGE_XML_SCHEME, "base"),

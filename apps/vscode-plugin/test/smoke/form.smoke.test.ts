@@ -159,6 +159,20 @@ describe("the form editor of the packaged extension in a real VS Code", () => {
         await expect.poll(() => vscode().isActiveTabDirty()).toBe(false);
     });
 
+    it("closes the input values a window reload restored, without asking to save them", async () => {
+        const tabLabels = async () =>
+            (await vscode().tabsByGroup()).flat().map(({ label }) => label);
+        await suite.open(FORM_FILE, formRendered);
+        await vscode().executeCommand("bpmn-modeler.toggleFormInputValues");
+        await expect.poll(tabLabels).toContain("smoke.input.json");
+        await vscode().replaceInDocuments("bpmn-form-input-values", "{}", '{ "a": 1 }');
+
+        await vscode().reloadWindow();
+
+        await expect.poll(tabLabels).toEqual(["smoke.form"]);
+        expect(await vscode().page.locator(".monaco-dialog-box").isVisible()).toBe(false);
+    });
+
     it("names a platform it does not know and leaves its source untouched", async () => {
         const file = suite.file(FORM_FILE);
         await suite.open(FORM_FILE, formRendered);

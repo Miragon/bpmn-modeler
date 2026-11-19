@@ -34,11 +34,16 @@ export function register(
         editorMayCreateFiles: false,
     });
     let service: ElementXmlMergeService | undefined = undefined;
-    const editor = new VsCodeElementXmlMergeEditor(inputs, results, (key, written) => {
-        service
-            ?.finish(key, written)
-            .catch((error: unknown) => deps.notifier.logError(error as Error));
-    });
+    const editor = new VsCodeElementXmlMergeEditor(
+        inputs,
+        results,
+        (key, written) => {
+            service
+                ?.finish(key, written)
+                .catch((error: unknown) => deps.notifier.logError(error as Error));
+        },
+        deps.notifier,
+    );
     editor.register(context);
     new ElementXmlMergeController(() => editor.acceptingActiveMerge()).register(context);
     service = new ElementXmlMergeService(

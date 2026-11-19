@@ -23,7 +23,8 @@ import { COMMAND_KEY } from "./vscodeSession";
  * panes and the build holds both edits; closing without a save changes
  * nothing; a changed type is refused and Edit again reopens the refused
  * text; a pick that would drop the merge asks first; and an XML diff that
- * follows a step never takes the merge editor's place. The edit of the
+ * follows a step never takes the merge editor's place; a merge editor a
+ * reload restored closes without a prompt. The edit of the
  * result text goes through the driver: what the user does with the text is
  * under test, not the keystrokes.
  */
@@ -364,6 +365,18 @@ describe("Merge XML", () => {
         await expect
             .poll(() => badgeLabels(panes.current))
             .toEqual(["Kept from current, your pick"]);
+    });
+
+    // A reload brings the tab back clean and unread, so closing it unserved asks nothing.
+    it("closes a merge editor a window reload restored, without asking to save it", async () => {
+        const panes = await openMergeView();
+        await keepCheckFromIncoming(panes);
+        await openMergeXml(panes.incoming, "Task_Check");
+
+        await vscode().reloadWindow();
+
+        await expect.poll(() => mergeEditorTabs()).toEqual([]);
+        expect(await dialog().isVisible()).toBe(false);
     });
 
     it("moves an open XML diff with a step and leaves the merge editor where it is", async () => {
