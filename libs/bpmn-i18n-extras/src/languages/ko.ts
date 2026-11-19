@@ -346,8 +346,12 @@ const dictionary: Record<string, string> = {
         "생성 시 {element}을(를) {shapes}에 닿도록 옮겼습니다",
     "{element} does not meet {shapes}; the build could not repair it":
         "{element}이(가) {shapes}에 닿지 않습니다. 생성 시 고칠 수 없었습니다",
-    "{first} and {second} lie on top of each other":
-        "{first}와(과) {second}이(가) 서로 겹쳐 놓여 있습니다",
+    "The build moved {element} off {shapes}":
+        "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮겼습니다",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "생성 시 {element}을(를) {shapes}에서 떨어지도록 옮기고 {shifted}을(를) 밀어 자리를 만들었습니다",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "{first}와(과) {second}이(가) 서로 겹쳐 놓여 있습니다. 생성 시 고칠 수 없었습니다",
     "The build moved {element} around {shapes}":
         "생성 시 {element}을(를) {shapes}을(를) 피해 옮겼습니다",
     "{element} runs through {shapes}; the build could not repair it":

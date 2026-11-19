@@ -5,7 +5,7 @@ import {
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
-import { diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import { type Drawing, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -26,13 +26,18 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }
-        const shape = drawings
-            .filter(({ element }) => isType(element, "bpmndi:BPMNShape"))
-            .map(({ element, planeOwner }) => shapeOf(relations, id, planeOwner, element))
-            .find((drawn) => drawn !== undefined);
+        const drawing = shapeDrawingOf(drawings);
+        const shape = drawing && shapeOf(relations, id, drawing.planeOwner, drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
     }
     return { shapes, edges };
+}
+
+/** The element's shape drawing the layout reads: the first with bounds. */
+export function shapeDrawingOf(drawings: readonly Drawing[]): Drawing | undefined {
+    return drawings.find(
+        ({ element }) => isType(element, "bpmndi:BPMNShape") && isModdleElement(element.bounds),
+    );
 }
 
 function shapeOf(
@@ -41,8 +46,7 @@ function shapeOf(
     plane: string,
     drawing: ModdleElement,
 ): LayoutShape | undefined {
-    if (!isModdleElement(drawing.bounds)) return undefined;
-    const drawn = { id, plane, bounds: boundsOf(drawing.bounds) };
+    const drawn = { id, plane, bounds: boundsOf(drawing.bounds as ModdleElement) };
     const rectangle: Outline = "rectangle";
     if (relations.pools.has(id)) return { ...drawn, kind: "pool", outline: rectangle };
     const laneParent = relations.laneParents.get(id);
@@ -51,13 +55,15 @@ function shapeOf(
     }
     const node = relations.nodes.get(id);
     if (node === undefined) return undefined;
-    return {
+    const label = labelBoundsOf(drawing);
+    const shape = {
         ...drawn,
         ...node,
         kind: "node",
         expanded: drawing.isExpanded === true,
         lanes: relations.lanesByNode.get(id) ?? [],
-    };
+    } as const;
+    return label === undefined ? shape : { ...shape, label };
 }
 
 function boundsOf(bounds: ModdleElement): DiagramBounds {

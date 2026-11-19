@@ -8,15 +8,19 @@ type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = Extract<
     { kind: Kind }
 >;
 
-/** A broken flow's note: the only notes that say whether the build repaired them. */
-type FlowNote = Extract<MergePaneBuildNote, { repair: unknown }>;
+/** A broken flow's note, which says whether the build re-routed the flow. */
+type FlowNote = NoteOfKind<"flowEndOffShape" | "flowThroughShape">;
+
+type OverlapNote = NoteOfKind<"shapesOverlap">;
 
 /** What each build note asks the user to check, with the canvas's names of its elements; each is a translation key. */
 const BUILD_NOTE_TEXTS: Record<
-    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth" | FlowNote["kind"]>,
+    Exclude<
+        MergePaneBuildNote["kind"],
+        "layoutChangedByBoth" | FlowNote["kind"] | OverlapNote["kind"]
+    >,
     string
 > = {
-    shapesOverlap: "{first} and {second} lie on top of each other",
     shapeOutsideContainer: "{element} lies outside {shapes}",
     boundaryEventOffHost: "{element} is not on the border of {host}",
     lanesOverlap: "{first} and {second} overlap",
@@ -38,6 +42,13 @@ const FLOW_NOTE_TEXTS: Record<FlowNote["kind"], Record<FlowNote["repair"], strin
         movedByBuild: "The build moved {element} around {shapes}",
         notRepaired: "{element} runs through {shapes}; the build could not repair it",
     },
+};
+
+/** Two shapes on top of each other, by what the build did about them. */
+const OVERLAP_NOTE_TEXTS: Record<OverlapNote["repair"], string> = {
+    movedByBuild: "The build moved {element} off {shapes}",
+    madeRoom: "The build moved {element} off {shapes} and made room by shifting {shifted}",
+    notRepaired: "{first} and {second} lie on top of each other; the build could not repair it",
 };
 
 const FLOW_WITHOUT_END_TEXT = "{element} is left out of the drawing: it lacks a source or a target";
@@ -70,6 +81,7 @@ export function buildNoteText(
 
 function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
+    if (note.kind === "shapesOverlap") return OVERLAP_NOTE_TEXTS[note.repair];
     if ("repair" in note) return FLOW_NOTE_TEXTS[note.kind][note.repair];
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
@@ -115,6 +127,21 @@ function defaultFlowNoteReplacements(
         : { ...replacements, keptDefault: nameOf(note.keptDefault) };
 }
 
+function overlapReplacements(
+    note: OverlapNote,
+    nameOf: (id: string) => string,
+    names: (ids: readonly string[]) => string,
+): Record<string, string> {
+    if (note.repair === "notRepaired") {
+        return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
+    }
+    const moved = {
+        element: nameOf(note.moved),
+        shapes: names(note.ids.filter((id) => id !== note.moved)),
+    };
+    return note.repair === "madeRoom" ? { ...moved, shifted: names(note.shifted) } : moved;
+}
+
 function noteReplacements(
     note: MergePaneBuildNote,
     nameOf: (id: string) => string,
@@ -126,6 +153,7 @@ function noteReplacements(
         case "shapeOutsideContainer":
             return { element: nameOf(note.id), shapes: names(note.shapes) };
         case "shapesOverlap":
+            return overlapReplacements(note, nameOf, names);
         case "lanesOverlap":
             return { first: nameOf(note.ids[0] ?? ""), second: names(note.ids.slice(1)) };
         case "boundaryEventOffHost":

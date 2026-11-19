@@ -303,7 +303,13 @@ describe("MergeBar", () => {
                     canBuild: true,
                     openConflicts: 0,
                     built: true,
-                    notes: [{ kind: "shapesOverlap", ids: ["Task_A", "Task_B"] }],
+                    notes: [
+                        {
+                            kind: "shapesOverlap",
+                            ids: ["Task_A", "Task_B"],
+                            repair: "notRepaired",
+                        },
+                    ],
                 },
             });
             more().click();
@@ -312,7 +318,9 @@ describe("MergeBar", () => {
 
             expect(menu().hidden).toBe(true);
             expect(notes().hidden).toBe(false);
-            expect(notes().textContent).toContain("Task_A and Task_B lie on top of each other");
+            expect(notes().textContent).toContain(
+                "Task_A and Task_B lie on top of each other; the build could not repair it",
+            );
             button("Task_B").click();
             expect(actions.onSelect).toHaveBeenCalledWith("Task_B");
 

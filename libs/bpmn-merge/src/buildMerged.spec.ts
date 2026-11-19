@@ -1224,7 +1224,7 @@ ${
             });
         });
 
-        it("names shapes both sides added at the same place", async () => {
+        it("moves one of two shapes both sides added at the same place and names it", async () => {
             const addTask = (id: string, x: number) => (model: BpmnFixtureModel) => {
                 model.nodes.push({ id, type: "task", name: id, x, y: 320, lane: "Lane_Manager" });
             };
@@ -1234,7 +1234,14 @@ ${
             });
             const { notes } = await automaticMerge(versions);
 
-            expect(notes).toEqual([{ kind: "shapesOverlap", ids: ["Task_There", "Task_Here"] }]);
+            expect(notes).toEqual([
+                {
+                    kind: "shapesOverlap",
+                    ids: ["Task_There", "Task_Here"],
+                    repair: "movedByBuild",
+                    moved: "Task_Here",
+                },
+            ]);
         });
 
         it("names an element both sides moved differently and the side whose layout it keeps", async () => {

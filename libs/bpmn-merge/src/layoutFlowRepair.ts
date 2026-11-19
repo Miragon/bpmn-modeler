@@ -23,6 +23,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    drawnHostOf,
     endShapeOf,
     nodeShapeIn,
     otherEndOf,
@@ -92,6 +93,23 @@ export function planFlowRepairs(layout: LayoutModel, spots: readonly LayoutSpot[
         if (repair.kind === "movedByBuild") otherFlows.reroute(id, repair.waypoints);
         return repair;
     });
+}
+
+/** The layout with each re-routed flow's waypoints and label; the layout itself when no flow moved. */
+export function withFlowRepairs(layout: LayoutModel, repairs: readonly FlowRepair[]): LayoutModel {
+    const moved = repairs.flatMap((repair) => (repair.kind === "movedByBuild" ? [repair] : []));
+    if (moved.length === 0) return layout;
+    const edges = new Map(layout.edges);
+    for (const { flow, waypoints, label } of moved) {
+        const edge = edges.get(flow);
+        if (edge !== undefined) {
+            edges.set(
+                flow,
+                label === undefined ? { ...edge, waypoints } : { ...edge, waypoints, label },
+            );
+        }
+    }
+    return { shapes: layout.shapes, edges };
 }
 
 interface FlowEnds {
@@ -203,11 +221,8 @@ function fitsItsShapes(layout: LayoutModel, edge: LayoutEdge, bounds: RouteBound
 function hostsOfEnds(layout: LayoutModel, ends: FlowEnds): DiagramBounds[] {
     return FLOW_ENDS.flatMap((end) => {
         const node = nodeShapeIn(layout, ends[end].id);
-        const host = node?.host === undefined ? undefined : layout.shapes.get(node.host);
-        const otherEnd = ends[otherEndOf(end)];
-        return host === undefined || host.id === otherEnd.id || host.plane !== node?.plane
-            ? []
-            : [host.bounds];
+        const host = node === undefined ? undefined : drawnHostOf(layout, node);
+        return host === undefined || host.id === ends[otherEndOf(end)].id ? [] : [host.bounds];
     });
 }
 

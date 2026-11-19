@@ -16,8 +16,8 @@ export type Outline = "circle" | "diamond" | "rectangle";
 /** How far, in pixels, a drawing may miss an outline or a frame, as the modeler rounds its docking points. */
 const LAYOUT_TOLERANCE = 3;
 
-const rightOf = (bounds: DiagramBounds) => bounds.x + bounds.width;
-const bottomOf = (bounds: DiagramBounds) => bounds.y + bounds.height;
+export const rightOf = (bounds: DiagramBounds) => bounds.x + bounds.width;
+export const bottomOf = (bounds: DiagramBounds) => bounds.y + bounds.height;
 
 export function centerOf(bounds: DiagramBounds): Point {
     return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
@@ -125,6 +125,33 @@ export function inflated(bounds: DiagramBounds, by: number): DiagramBounds {
         width: bounds.width + 2 * by,
         height: bounds.height + 2 * by,
     };
+}
+
+export function translated(bounds: DiagramBounds, dx: number, dy: number): DiagramBounds {
+    return { ...bounds, x: bounds.x + dx, y: bounds.y + dy };
+}
+
+export function sameBounds(first: DiagramBounds, second: DiagramBounds): boolean {
+    return (
+        first.x === second.x &&
+        first.y === second.y &&
+        first.width === second.width &&
+        first.height === second.height
+    );
+}
+
+/** Whether the two lie at least `clearance` apart along one axis. */
+export function keepsClearOf(
+    first: DiagramBounds,
+    second: DiagramBounds,
+    clearance: number,
+): boolean {
+    return (
+        first.x >= rightOf(second) + clearance ||
+        second.x >= rightOf(first) + clearance ||
+        first.y >= bottomOf(second) + clearance ||
+        second.y >= bottomOf(first) + clearance
+    );
 }
 
 /** The smallest bounds holding all of them. */

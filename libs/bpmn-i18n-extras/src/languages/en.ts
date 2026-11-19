@@ -346,8 +346,11 @@ const dictionary: Record<string, string> = {
     "The build moved {element} to meet {shapes}": "The build moved {element} to meet {shapes}",
     "{element} does not meet {shapes}; the build could not repair it":
         "{element} does not meet {shapes}; the build could not repair it",
-    "{first} and {second} lie on top of each other":
-        "{first} and {second} lie on top of each other",
+    "The build moved {element} off {shapes}": "The build moved {element} off {shapes}",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "The build moved {element} off {shapes} and made room by shifting {shifted}",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "{first} and {second} lie on top of each other; the build could not repair it",
     "The build moved {element} around {shapes}": "The build moved {element} around {shapes}",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} runs through {shapes}; the build could not repair it",

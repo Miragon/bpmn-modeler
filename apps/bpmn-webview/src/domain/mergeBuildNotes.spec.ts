@@ -15,7 +15,16 @@ const CASES: Record<MergePaneBuildNote["kind"], [MergePaneBuildNote, readonly st
         },
         ["Flow_1", "Task_A", "Task_B"],
     ],
-    shapesOverlap: [{ kind: "shapesOverlap", ids: ["Task_A", "Task_B"] }, ["Task_A", "Task_B"]],
+    shapesOverlap: [
+        {
+            kind: "shapesOverlap",
+            ids: ["Task_A", "Task_B"],
+            repair: "madeRoom",
+            moved: "Task_B",
+            shifted: ["Task_C", "End_1"],
+        },
+        ["Task_A", "Task_B", "Task_C", "End_1"],
+    ],
     flowThroughShape: [
         { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"], repair: "notRepaired" },
         ["Flow_1", "Task_C"],
@@ -62,6 +71,22 @@ describe("buildNoteElementIds", () => {
                 boundaryEvents: ["Timer_1"],
             }),
         ).toStrictEqual(["Task_A", "Timer_1", "Flow_1"]);
+    });
+
+    it("names only the two shapes of an overlap the build moved one of or left as is", () => {
+        const ids = ["Task_A", "Task_B"];
+
+        expect(
+            buildNoteElementIds({
+                kind: "shapesOverlap",
+                ids,
+                repair: "movedByBuild",
+                moved: "Task_B",
+            }),
+        ).toStrictEqual(ids);
+        expect(
+            buildNoteElementIds({ kind: "shapesOverlap", ids, repair: "notRepaired" }),
+        ).toStrictEqual(ids);
     });
 
     it("names only the end a flow left out of the drawing has", () => {

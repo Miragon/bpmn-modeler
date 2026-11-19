@@ -361,7 +361,12 @@ const dictionary: Record<string, string> = {
         "La generazione ha spostato {element} per raggiungere {shapes}",
     "{element} does not meet {shapes}; the build could not repair it":
         "{element} non raggiunge {shapes}; la generazione non ha potuto ripararlo",
-    "{first} and {second} lie on top of each other": "{first} e {second} sono uno sopra l'altro",
+    "The build moved {element} off {shapes}":
+        "La generazione ha spostato {element} via da {shapes}",
+    "The build moved {element} off {shapes} and made room by shifting {shifted}":
+        "La generazione ha spostato {element} via da {shapes} e ha fatto spazio spostando {shifted}",
+    "{first} and {second} lie on top of each other; the build could not repair it":
+        "{first} e {second} sono uno sopra l'altro; la generazione non ha potuto ripararlo",
     "The build moved {element} around {shapes}":
         "La generazione ha spostato {element} attorno a {shapes}",
     "{element} runs through {shapes}; the build could not repair it":

@@ -99,7 +99,7 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
 };
 const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndOffShape: { kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
-    shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"] },
+    shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
     flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
     shapeOutsideContainer: { kind: "shapeOutsideContainer", id: "a", shapes: ["b"] },
     boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
@@ -350,6 +350,12 @@ function mergeTextKeys(): Set<string> {
         }
         if (note.kind === "flowEndOffShape" || note.kind === "flowThroughShape") {
             buildNoteText({ ...note, repair: "notRepaired" }, nameOf, translate);
+        }
+        if (note.kind === "shapesOverlap") {
+            const { ids } = note;
+            buildNoteText({ kind: note.kind, ids, repair: "notRepaired" }, nameOf, translate);
+            const madeRoom = { repair: "madeRoom", moved: "b", shifted: ["c"] } as const;
+            buildNoteText({ kind: note.kind, ids, ...madeRoom }, nameOf, translate);
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);

@@ -1,30 +1,89 @@
 import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import { diagramIndexOf, flowDrawingOf } from "./diagramIndex";
-import type { FlowRepair } from "./layoutFlowRepair";
-import type { Point } from "./layoutGeometry";
+import { type DiagramIndex, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
+import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
+import { shapeDrawingOf } from "./layoutModelReader";
 
-/** Writes each re-routed flow's waypoints and label into the edge `layoutModelOf` reads; nothing else of the drawing changes. */
-export function writeFlowRepairs(
+/**
+ * Writes what the repaired layout changed against the layout read from the
+ * definitions into the drawings `layoutModelOf` reads: a shape's bounds and
+ * label, an edge's waypoints and label. Nothing else of the drawing changes.
+ */
+export function writeLayoutChanges(
     definitions: ModdleElement,
-    repairs: readonly FlowRepair[],
+    before: LayoutModel,
+    after: LayoutModel,
     createPoint: (point: Point) => ModdleElement,
 ): void {
-    const moved = repairs.flatMap((repair) => (repair.kind === "movedByBuild" ? [repair] : []));
-    if (moved.length === 0) return;
-    const index = diagramIndexOf(definitions);
-    for (const repair of moved) {
-        const drawing = flowDrawingOf(index, repair.flow)?.element;
-        if (drawing === undefined) continue;
-        drawing.waypoint = repair.waypoints.map((point) => {
+    if (before === after) return;
+    let index: DiagramIndex | undefined;
+    const indexed = () => (index ??= diagramIndexOf(definitions));
+    for (const [id, shape] of after.shapes) {
+        const old = before.shapes.get(id);
+        if (old === undefined || old === shape || sameDrawing(old, shape)) continue;
+        const drawing = shapeDrawingOf(indexed().drawingsByElement.get(id) ?? [])?.element;
+        if (drawing !== undefined) writeShape(drawing, old, shape);
+    }
+    for (const [id, edge] of after.edges) {
+        const old = before.edges.get(id);
+        if (old === undefined || old === edge) continue;
+        const drawing = flowDrawingOf(indexed(), id)?.element;
+        if (drawing !== undefined) writeEdge(drawing, old, edge, createPoint);
+    }
+}
+
+function sameDrawing(before: LayoutShape, after: LayoutShape): boolean {
+    return sameBounds(before.bounds, after.bounds) && sameLabel(labelOf(before), labelOf(after));
+}
+
+function labelOf(shape: LayoutShape): DiagramBounds | undefined {
+    return shape.kind === "node" ? shape.label : undefined;
+}
+
+function writeShape(drawing: ModdleElement, before: LayoutShape, after: LayoutShape): void {
+    if (!sameBounds(before.bounds, after.bounds)) {
+        Object.assign(drawing.bounds as ModdleElement, after.bounds);
+    }
+    writeLabel(drawing, labelOf(before), labelOf(after));
+}
+
+function writeEdge(
+    drawing: ModdleElement,
+    before: LayoutEdge,
+    after: LayoutEdge,
+    createPoint: (point: Point) => ModdleElement,
+): void {
+    if (!samePoints(before.waypoints, after.waypoints)) {
+        drawing.waypoint = after.waypoints.map((point) => {
             const waypoint = createPoint(point);
             waypoint.$parent = drawing;
             return waypoint;
         });
-        const labelBounds = (drawing.label as ModdleElement | undefined)?.bounds;
-        if (repair.label !== undefined && isModdleElement(labelBounds)) {
-            labelBounds.x = repair.label.x;
-            labelBounds.y = repair.label.y;
-        }
     }
+    writeLabel(drawing, before.label, after.label);
+}
+
+function writeLabel(
+    drawing: ModdleElement,
+    before: DiagramBounds | undefined,
+    after: DiagramBounds | undefined,
+): void {
+    const label = (drawing.label as ModdleElement | undefined)?.bounds;
+    if (after === undefined || sameLabel(before, after) || !isModdleElement(label)) return;
+    label.x = after.x;
+    label.y = after.y;
+}
+
+function sameLabel(first: DiagramBounds | undefined, second: DiagramBounds | undefined): boolean {
+    return first === undefined || second === undefined
+        ? first === second
+        : sameBounds(first, second);
+}
+
+function samePoints(first: readonly Point[], second: readonly Point[]): boolean {
+    return (
+        first.length === second.length &&
+        first.every((point, at) => point.x === second[at]!.x && point.y === second[at]!.y)
+    );
 }

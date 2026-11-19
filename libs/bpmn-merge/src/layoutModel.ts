@@ -1,4 +1,10 @@
-import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
+import {
+    type DiagramBounds,
+    type Outline,
+    type Point,
+    sameBounds,
+    translated,
+} from "./layoutGeometry";
 
 interface DrawnShape {
     readonly id: string;
@@ -22,6 +28,8 @@ export interface NodeShape extends DrawnShape {
     readonly host?: string;
     /** bpmn-js lets a data store lie outside its process's pool and lanes. */
     readonly mayLieOutsidePool: boolean;
+    /** Where the element's name is drawn, when apart from its shape. */
+    readonly label?: DiagramBounds;
 }
 
 export interface LaneShape extends DrawnShape {
@@ -66,6 +74,33 @@ export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefi
     return shape?.kind === "node" ? shape : undefined;
 }
 
+/** Where the layout draws the node's element on the node's plane, at the node's size; undefined when it draws it elsewhere or not at all. */
+export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
+    const drawn = nodeShapeIn(layout, node.id);
+    const sameSize =
+        drawn !== undefined &&
+        drawn.bounds.width === node.bounds.width &&
+        drawn.bounds.height === node.bounds.height;
+    return sameSize && drawn.plane === node.plane ? drawn.bounds : undefined;
+}
+
+/** Whether the layout draws the node's element just where the node lies. */
+export function drawsAt(layout: LayoutModel, node: NodeShape): boolean {
+    const place = placeOf(layout, node);
+    return place !== undefined && sameBounds(place, node.bounds);
+}
+
+export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
+    const moved = { ...node, bounds: translated(node.bounds, dx, dy) };
+    return node.label === undefined ? moved : { ...moved, label: translated(node.label, dx, dy) };
+}
+
+export function translatedEdge(edge: LayoutEdge, dx: number, dy: number): LayoutEdge {
+    const waypoints = edge.waypoints.map(({ x, y }) => ({ x: x + dx, y: y + dy }));
+    const moved = { ...edge, waypoints };
+    return edge.label === undefined ? moved : { ...moved, label: translated(edge.label, dx, dy) };
+}
+
 /** The shape of the flow's end on the flow's own plane. */
 export function endShapeOf(
     layout: LayoutModel,
@@ -75,6 +110,24 @@ export function endShapeOf(
     const id = edge[end];
     const shape = id === undefined ? undefined : layout.shapes.get(id);
     return shape?.plane === edge.plane ? shape : undefined;
+}
+
+/** The activity a boundary event sits on, as drawn on the event's own plane. */
+export function drawnHostOf(layout: LayoutModel, node: NodeShape): NodeShape | undefined {
+    const host = node.host === undefined ? undefined : nodeShapeIn(layout, node.host);
+    return host?.plane === node.plane ? host : undefined;
+}
+
+/** The pool drawn around the node on its plane; none for a data store's pool, as it may lie outside. */
+export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+    if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
+    const pool = layout.shapes.get(node.pool);
+    return isDrawnFrameOf(node, pool) ? pool : undefined;
+}
+
+/** A shape others lie inside: a pool, a lane or a sub-process drawn open. */
+export function isFrame(shape: LayoutShape): boolean {
+    return shape.kind !== "node" || shape.expanded;
 }
 
 /** Whether one shape encloses the other or one is attached to the other: they lie on each other by design. */
@@ -118,19 +171,28 @@ export function sharedFrameOf(layout: LayoutModel, edge: LayoutEdge): LayoutShap
     return source!.find((frame) => target!.includes(frame));
 }
 
-/** The drawn frames around the node, innermost first; a data store's pool is not one, as it may lie outside. */
+/** Every drawn frame around the node: its sub-processes drawn open, innermost first, then its pool and lanes. */
+export function framesAroundOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
+    const lanes = node.mayLieOutsidePool ? [] : node.lanes;
+    return [
+        ...enclosingFramesOf(layout, node),
+        ...lanes.flatMap((id) => {
+            const lane = layout.shapes.get(id);
+            return isDrawnFrameOf(node, lane) ? [lane] : [];
+        }),
+    ];
+}
+
+/** The drawn frames around the node, innermost first. */
 function enclosingFramesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
-    const pool = node.pool === undefined || node.mayLieOutsidePool ? [] : [node.pool];
-    return [...node.subProcesses, ...pool].flatMap((id) => {
+    const pool = drawnPoolOf(layout, node);
+    const subProcesses = node.subProcesses.flatMap((id) => {
         const frame = layout.shapes.get(id);
         return isDrawnFrameOf(node, frame) ? [frame] : [];
     });
+    return pool === undefined ? subProcesses : [...subProcesses, pool];
 }
 
 function isDrawnFrameOf(node: NodeShape, frame: LayoutShape | undefined): frame is LayoutShape {
-    return (
-        frame !== undefined &&
-        frame.plane === node.plane &&
-        (frame.kind !== "node" || frame.expanded)
-    );
+    return frame !== undefined && frame.plane === node.plane && isFrame(frame);
 }

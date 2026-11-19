@@ -6,10 +6,12 @@ import { seededRandom } from "./__fixtures__/randomMergeVersions";
 import { buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
+import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import type { LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsCross, segmentsOf } from "./layoutPolyline";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
+import { type LayoutSpot, sameSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
 
@@ -21,6 +23,16 @@ const HARVEST = import.meta.glob<string>("./__fixtures__/harvest/*.bpmn", {
 });
 
 type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRandom";
+
+const NO_REPAIRS: LayoutRepairPlanners = {
+    moveShapes: (layout) => ({ layout, repairs: [] }),
+    repairFlows: () => [],
+};
+
+const FLOW_REPAIRS_ONLY: LayoutRepairPlanners = {
+    ...BUILD_LAYOUT_REPAIRS,
+    moveShapes: NO_REPAIRS.moveShapes,
+};
 
 function versionsOf(seed: number): MergeVersions {
     const version = (part: string) => HARVEST[`./__fixtures__/harvest/seed-${seed}.${part}.bpmn`];
@@ -57,16 +69,22 @@ async function layoutOf(xml: string) {
     return layoutModelOf((await parseWithoutWarnings(xml)).rootElement);
 }
 
+/** What the repair changes in a result: nothing, only flows, or shapes too. */
+type Repairs = "none" | "flows" | "shapes";
+
+interface HarvestCase {
+    readonly seed: number;
+    readonly strategy: Strategy;
+    readonly repairs: Repairs;
+    /** How many crossings between flows the repair may add. */
+    readonly crossingBudget: number;
+}
+
 /**
- * The harvest results the design prototype changed although no spot was introduced, and four
- * the repair re-routes, each with how many crossings between flows the repair may add (#2565).
+ * The harvest results the design prototype changed although no spot was introduced, four the
+ * flow repair re-routes, and those with shapes on top of each other (#2565).
  */
-const CASES: readonly {
-    seed: number;
-    strategy: Strategy;
-    repairs: boolean;
-    crossingBudget: number;
-}[] = [
+const CASES: readonly HarvestCase[] = [
     ...(
         [
             [1, "conflictsAtRandom"],
@@ -97,34 +115,53 @@ const CASES: readonly {
             [173, "conflictsToCurrent"],
             [192, "conflictsToCurrent"],
         ] as const
-    ).map(([seed, strategy]) => ({ seed, strategy, repairs: false, crossingBudget: 0 })),
+    ).map(([seed, strategy]) => ({ seed, strategy, repairs: "none", crossingBudget: 0 }) as const),
     ...(
         [
             [5, "conflictsToIncoming", 1],
-            [74, "conflictsToCurrent", 1],
-            [74, "conflictsToIncoming", 1],
             [89, "conflictsToIncoming", 0],
         ] as const
     ).map(([seed, strategy, crossingBudget]) => ({
         seed,
         strategy,
-        repairs: true,
+        repairs: "flows" as const,
+        crossingBudget,
+    })),
+    ...(
+        [
+            [28, "conflictsToCurrent", 0],
+            [33, "conflictsToCurrent", 2],
+            [36, "conflictsToCurrent", 0],
+            [36, "conflictsToIncoming", 0],
+            [69, "conflictsToIncoming", 0],
+            [74, "conflictsToCurrent", 0],
+            [74, "conflictsToIncoming", 0],
+            [113, "conflictsToCurrent", 0],
+            [135, "conflictsToCurrent", 0],
+            [135, "conflictsToIncoming", 0],
+            [135, "conflictsAtRandom", 0],
+            [153, "conflictsAtRandom", 0],
+            [191, "conflictsToCurrent", 0],
+        ] as const
+    ).map(([seed, strategy, crossingBudget]) => ({
+        seed,
+        strategy,
+        repairs: "shapes" as const,
         crossingBudget,
     })),
 ];
 
-describe("the flow repair on harvested merges", () => {
+describe("the layout repair on harvested merges", () => {
     it.each(CASES)(
-        "seed $seed, $strategy: changes only a result with a broken flow, breaks nothing new, adds at most $crossingBudget crossings",
+        "seed $seed, $strategy: repairs $repairs, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
         async ({ seed, strategy, repairs, crossingBudget }) => {
             const versions = versionsOf(seed);
             const sources = await prepareMergeSources(versions);
-            const unrepaired = await buildMergedWith(
-                sources,
-                await decisionsOf(versions, seed, strategy),
-                () => [],
-            );
+            const buildWith = async (planners: LayoutRepairPlanners) =>
+                buildMergedWith(sources, await decisionsOf(versions, seed, strategy), planners);
+            const unrepaired = await buildWith(NO_REPAIRS);
+            const flowsRepaired = await buildWith(FLOW_REPAIRS_ONLY);
             const repaired = await buildMerged(
                 sources,
                 await decisionsOf(versions, seed, strategy),
@@ -136,20 +173,33 @@ describe("the flow repair on harvested merges", () => {
             const after = introducedLayoutSpots(repairedLayout, sides);
 
             if (before.length === 0) expect(repaired.xml).toBe(unrepaired.xml);
-            expect(repaired.xml !== unrepaired.xml).toBe(repairs);
+            if (!before.some(({ kind }) => kind === "shapesOverlap")) {
+                expect(repaired.xml).toBe(flowsRepaired.xml);
+            }
+            expect(repairsOf(unrepaired.xml, flowsRepaired.xml, repaired.xml)).toBe(repairs);
             expect(after.filter((spot) => !before.some((known) => sameSpot(known, spot)))).toEqual(
                 [],
             );
+            expect(kindsOf(after).filter((kind) => !kindsOf(before).includes(kind))).toEqual([]);
             expect(after.length).toBeLessThanOrEqual(before.length);
             expect(crossingsOf(repairedLayout) - crossingsOf(unrepairedLayout)).toBeLessThanOrEqual(
                 crossingBudget,
             );
+            expect(after.filter(({ kind }) => kind === "shapesOverlap")).toEqual([]);
+            expect(
+                repaired.notes.filter((note) => "repair" in note && note.repair === "notRepaired"),
+            ).toEqual([]);
         },
     );
 });
 
-function sameSpot(first: object, second: object): boolean {
-    return JSON.stringify(first) === JSON.stringify(second);
+function repairsOf(unrepaired: string, flowsRepaired: string, repaired: string): Repairs {
+    if (repaired === unrepaired) return "none";
+    return repaired === flowsRepaired ? "flows" : "shapes";
+}
+
+function kindsOf(spots: readonly LayoutSpot[]): LayoutSpot["kind"][] {
+    return [...new Set(spots.map(({ kind }) => kind))];
 }
 
 /** How often two flows of one plane cross. */
