@@ -364,6 +364,7 @@
                 "libs/bpmn-merge/**",
                 "libs/bpmn-diff/src/**",
                 "libs/modeler-types/**",
+                "scripts/perf/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

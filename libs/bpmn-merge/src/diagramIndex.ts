@@ -9,13 +9,6 @@ import {
 import { contentsPlaneOf } from "./containerContents";
 import type { ItemKey } from "./mergedTreeOrder";
 
-export interface DiagramBounds {
-    readonly x: number;
-    readonly y: number;
-    readonly width: number;
-    readonly height: number;
-}
-
 export interface Drawing {
     readonly element: ModdleElement;
     /** The semantic element the drawing's plane draws; "" for a plane that names none. */
@@ -91,22 +84,6 @@ export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string
         index.drawingsByElement.get(subProcess)?.[0],
         (shape) => shape.planeOwner,
     );
-}
-
-/** The bounds of the shape that draws the element, if a shape does. */
-export function boundsIn(index: DiagramIndex, elementId: string): DiagramBounds | undefined {
-    const bounds = index.drawingsByElement
-        .get(elementId)
-        ?.map(({ element }) => element.bounds)
-        .find(isModdleElement);
-    return bounds
-        ? {
-              x: Number(bounds.x),
-              y: Number(bounds.y),
-              width: Number(bounds.width),
-              height: Number(bounds.height),
-          }
-        : undefined;
 }
 
 /** A drawing is known by the element it draws, not by its DI id, which the sides may give two different drawings. */

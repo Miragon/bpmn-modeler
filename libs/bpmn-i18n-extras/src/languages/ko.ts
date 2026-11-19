@@ -342,12 +342,14 @@ const dictionary: Record<string, string> = {
     "Result against incoming": "결과 대 수신",
     "Result": "결과",
     "Review notes ({count})": "참고 사항 검토 ({count})",
-    "{element} connects shapes drawn by different sides; check where it meets {ends}":
-        "{element}이(가) 서로 다른 쪽에서 그린 도형을 연결합니다. {ends}과(와) 만나는 위치를 확인하십시오",
-    "{first} and {second} were added at the same place":
-        "{first}와(과) {second}이(가) 같은 위치에 추가되었습니다",
-    "{element} is drawn by another side than {containers}; check that it still sits inside":
-        "{element}은(는) {containers}와(과) 다른 쪽에서 그렸습니다. 여전히 내부에 있는지 확인하십시오",
+    "{element} does not meet {shapes}": "{element}이(가) {shapes}에 닿지 않습니다",
+    "{first} and {second} lie on top of each other":
+        "{first}와(과) {second}이(가) 서로 겹쳐 놓여 있습니다",
+    "{element} runs through {shapes}": "{element}이(가) {shapes}을(를) 통과합니다",
+    "{element} lies outside {shapes}": "{element}이(가) {shapes} 밖에 있습니다",
+    "{element} is not on the border of {host}":
+        "{element}이(가) {host}의 테두리 위에 있지 않습니다",
+    "{first} and {second} overlap": "{first}와(과) {second}이(가) 겹칩니다",
     "{element} is kept without the flows the other side removed with it: {connections}":
         "{element}은(는) 다른 쪽이 함께 제거한 흐름 없이 유지됩니다: {connections}",
     "{element} is kept without the boundary event the other side removed with it: {elements}":

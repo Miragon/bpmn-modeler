@@ -302,7 +302,7 @@ describe("MergeBar", () => {
                     canBuild: true,
                     openConflicts: 0,
                     built: true,
-                    notes: [{ kind: "addedAtSamePlace", ids: ["Task_A", "Task_B"] }],
+                    notes: [{ kind: "shapesOverlap", ids: ["Task_A", "Task_B"] }],
                 },
             });
             more().click();
@@ -311,7 +311,7 @@ describe("MergeBar", () => {
 
             expect(menu().hidden).toBe(true);
             expect(notes().hidden).toBe(false);
-            expect(notes().textContent).toContain("Task_A and Task_B were added at the same place");
+            expect(notes().textContent).toContain("Task_A and Task_B lie on top of each other");
             button("Task_B").click();
             expect(actions.onSelect).toHaveBeenCalledWith("Task_B");
 
