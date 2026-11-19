@@ -285,8 +285,10 @@ each of those.
 - *Broken spots are found by geometry, not by sides.* A pure detector reads the written
   drawing, with 3 px of tolerance for the modeler's rounding. A spot counts only when neither
   side's own drawing has it with that side's own relations (`introducedLayoutSpots`): what a
-  side drew stays its business, its shape in a lane the other side gave it does not.
-  Rejected: notes from the sides an element and its ends or container are drawn from, which
+  side drew stays its business, its shape in a lane the other side gave it does not. A flow's
+  end misses its shape outside or inside its outline, and the two count apart, so a shape
+  moved onto its flow is named and a side that draws flows into shape centers still has an
+  end moved away named. Rejected: notes from the sides an element and its ends or container are drawn from, which
   named flows that still met their shapes and missed hidden tasks and flows through shapes
   (#2565); bpmn-js in the webview, which ties the build to an open pane. Cost: every build
   reads three drawings; a grid keeps it linear (`layoutSpotDetectionTime.spec.ts`).

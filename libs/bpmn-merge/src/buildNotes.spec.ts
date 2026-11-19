@@ -31,8 +31,20 @@ describe("layoutSpotNotes", () => {
     it("gives one note per flow for its ends and for the shapes it runs through", () => {
         expect(
             layoutSpotNotes([
-                { kind: "flowEndOffShape", flow: "Flow_1", end: "Task_A", at: "source" },
-                { kind: "flowEndOffShape", flow: "Flow_1", end: "Task_B", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_1",
+                    end: "Task_A",
+                    at: "source",
+                    lies: "outside",
+                },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_1",
+                    end: "Task_B",
+                    at: "target",
+                    lies: "outside",
+                },
                 { kind: "flowThroughShape", flow: "Flow_1", shape: "Task_C" },
                 { kind: "flowThroughShape", flow: "Flow_2", shape: "Task_C" },
                 { kind: "flowThroughShape", flow: "Flow_1", shape: "Task_D" },
@@ -47,8 +59,20 @@ describe("layoutSpotNotes", () => {
     it("names a flow's end once when both its ends lie on one shape", () => {
         expect(
             layoutSpotNotes([
-                { kind: "flowEndOffShape", flow: "Flow_Loop", end: "Task_A", at: "source" },
-                { kind: "flowEndOffShape", flow: "Flow_Loop", end: "Task_A", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_Loop",
+                    end: "Task_A",
+                    at: "source",
+                    lies: "outside",
+                },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_Loop",
+                    end: "Task_A",
+                    at: "target",
+                    lies: "outside",
+                },
             ]),
         ).toEqual([{ kind: "flowEndOffShape", id: "Flow_Loop", ends: ["Task_A"] }]);
     });

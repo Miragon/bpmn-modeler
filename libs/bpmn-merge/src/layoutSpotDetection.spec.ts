@@ -43,11 +43,24 @@ describe("detectLayoutSpots", () => {
     });
 
     describe("flow ends", () => {
-        it("names the end of a flow whose shape moved away", async () => {
+        it("names the ends of the flows whose shape moved away or onto them", async () => {
             const spots = await spotsOf((model) => moveNode(model, "Task_C", 60));
 
             expect(spots).toEqual([
-                { kind: "flowEndOffShape", flow: "Flow_Yes", end: "Task_C", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_Yes",
+                    end: "Task_C",
+                    at: "target",
+                    lies: "outside",
+                },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_4",
+                    end: "Task_C",
+                    at: "source",
+                    lies: "inside",
+                },
             ]);
         });
 
@@ -60,8 +73,20 @@ describe("detectLayoutSpots", () => {
             });
 
             expect(spots).toEqual([
-                { kind: "flowEndOffShape", flow: "Flow_4", end: "Task_C", at: "source" },
-                { kind: "flowEndOffShape", flow: "Flow_4", end: "End_Done", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_4",
+                    end: "Task_C",
+                    at: "source",
+                    lies: "outside",
+                },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_4",
+                    end: "End_Done",
+                    at: "target",
+                    lies: "outside",
+                },
             ]);
         });
 
@@ -78,8 +103,20 @@ describe("detectLayoutSpots", () => {
             });
 
             expect(spots).toEqual([
-                { kind: "flowEndOffShape", flow: "Flow_1", end: "Start_Order", at: "source" },
-                { kind: "flowEndOffShape", flow: "Flow_2", end: "Gateway_Ok", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_1",
+                    end: "Start_Order",
+                    at: "source",
+                    lies: "outside",
+                },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_2",
+                    end: "Gateway_Ok",
+                    at: "target",
+                    lies: "outside",
+                },
             ]);
         });
 
@@ -107,7 +144,13 @@ describe("detectLayoutSpots", () => {
             });
 
             expect(spots).toEqual([
-                { kind: "flowEndOffShape", flow: "Flow_1", end: "Task_A", at: "target" },
+                {
+                    kind: "flowEndOffShape",
+                    flow: "Flow_1",
+                    end: "Task_A",
+                    at: "target",
+                    lies: "inside",
+                },
             ]);
         });
     });
@@ -355,6 +398,36 @@ describe("introducedLayoutSpots", () => {
         expect(introducedLayoutSpots(result, [await layoutOf(ownLane), result])).toEqual([]);
         expect(introducedLayoutSpots(result, [await layoutOf(ownLane)])).toEqual([
             { kind: "shapeOutsideContainer", shape: "Task_R", container: "Lane_Sales" },
+        ]);
+    });
+
+    it("keeps an end moved off its shape on a flow a side drew into the shape's center", async () => {
+        const centerDocked = dockedModel("c8");
+        centerDocked.flows.find(({ id }) => id === "Flow_Yes")!.waypoints = [
+            [440, 140],
+            [610, 140],
+        ];
+        const moved = cloneModel(centerDocked);
+        moveNode(moved, "Task_C", 60);
+        const sideSpots = introducedLayoutSpots(await layoutOf(moved), [
+            await layoutOf(centerDocked),
+        ]);
+
+        expect(sideSpots.filter(({ kind }) => kind === "flowEndOffShape")).toEqual([
+            {
+                kind: "flowEndOffShape",
+                flow: "Flow_Yes",
+                end: "Task_C",
+                at: "target",
+                lies: "outside",
+            },
+            {
+                kind: "flowEndOffShape",
+                flow: "Flow_4",
+                end: "Task_C",
+                at: "source",
+                lies: "inside",
+            },
         ]);
     });
 

@@ -152,6 +152,7 @@ describe("buildMerged's layout notes", () => {
             ),
             conflictsTo: "incoming",
             notes: [
+                { kind: "flowEndOffShape", id: "Flow_Y", ends: ["Task_C"] },
                 { kind: "shapesOverlap", ids: ["Task_Y", "Task_X"] },
                 { kind: "flowThroughShape", id: "Flow_Yes", shapes: ["Task_X"] },
                 { kind: "flowThroughShape", id: "Flow_X", shapes: ["Task_Y"] },

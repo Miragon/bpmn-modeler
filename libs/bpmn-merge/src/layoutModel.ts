@@ -44,7 +44,9 @@ export interface LayoutEdge {
     readonly target?: string;
 }
 
-export type FlowEnd = "source" | "target";
+export const FLOW_ENDS = ["source", "target"] as const;
+
+export type FlowEnd = (typeof FLOW_ENDS)[number];
 
 /** One document's drawing as plain values: each element's shape or edge with what decides where it may lie. */
 export interface LayoutModel {

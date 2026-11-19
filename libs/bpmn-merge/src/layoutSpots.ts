@@ -1,13 +1,14 @@
 import {
-    LAYOUT_TOLERANCE,
+    type OutlineMiss,
     centerOf,
     liesWithin,
-    outlineDistance,
+    outlineMissOf,
     overlapsBeyondTolerance,
     pointBounds,
     segmentEntersShape,
 } from "./layoutGeometry";
 import {
+    FLOW_ENDS,
     type FlowEnd,
     type LaneShape,
     type LayoutEdge,
@@ -27,6 +28,8 @@ export type LayoutSpot =
           readonly flow: string;
           readonly end: string;
           readonly at: FlowEnd;
+          /** Kept apart, so an end moved off a flow that a side draws into its shapes' centers is still named. */
+          readonly lies: OutlineMiss;
       }
     | { readonly kind: "shapesOverlap"; readonly shapes: readonly [string, string] }
     | { readonly kind: "flowThroughShape"; readonly flow: string; readonly shape: string }
@@ -38,20 +41,21 @@ export type LayoutSpot =
       }
     | { readonly kind: "lanesOverlap"; readonly lanes: readonly [string, string] };
 
-const FLOW_ENDS: readonly FlowEnd[] = ["source", "target"];
+interface EndOffShape {
+    readonly at: FlowEnd;
+    readonly lies: OutlineMiss;
+}
 
 /** The ends of the edge whose first or last waypoint misses its shape's outline. */
-export function endsOffShape(layout: LayoutModel, edge: LayoutEdge): FlowEnd[] {
+export function endsOffShape(layout: LayoutModel, edge: LayoutEdge): EndOffShape[] {
     const first = edge.waypoints[0];
     const last = edge.waypoints[edge.waypoints.length - 1];
     if (first === undefined || last === undefined || edge.waypoints.length < 2) return [];
     const points = { source: first, target: last };
-    return FLOW_ENDS.filter((end) => {
-        const shape = endShapeOf(layout, edge, end);
-        return (
-            shape !== undefined &&
-            outlineDistance(points[end], shape.bounds, shape.outline) > LAYOUT_TOLERANCE
-        );
+    return FLOW_ENDS.flatMap((at) => {
+        const shape = endShapeOf(layout, edge, at);
+        const lies = shape && outlineMissOf(points[at], shape.bounds, shape.outline);
+        return lies === undefined ? [] : [{ at, lies }];
     });
 }
 
@@ -90,8 +94,7 @@ export function isOffItsHost(layout: LayoutModel, boundaryEvent: NodeShape): boo
     const host =
         boundaryEvent.host === undefined ? undefined : layout.shapes.get(boundaryEvent.host);
     if (host === undefined || host.plane !== boundaryEvent.plane) return false;
-    const distance = outlineDistance(centerOf(boundaryEvent.bounds), host.bounds, "rectangle");
-    return Math.abs(distance) > LAYOUT_TOLERANCE;
+    return outlineMissOf(centerOf(boundaryEvent.bounds), host.bounds, "rectangle") !== undefined;
 }
 
 /** Lanes of one parent are stacked, so any overlap between them is broken. */
@@ -108,7 +111,12 @@ export function hasSpot(layout: LayoutModel, spot: LayoutSpot): boolean {
     switch (spot.kind) {
         case "flowEndOffShape": {
             const edge = layout.edges.get(spot.flow);
-            return edge?.[spot.at] === spot.end && endsOffShape(layout, edge).includes(spot.at);
+            return (
+                edge?.[spot.at] === spot.end &&
+                endsOffShape(layout, edge).some(
+                    ({ at, lies }) => at === spot.at && lies === spot.lies,
+                )
+            );
         }
         case "shapesOverlap": {
             const [first, second] = spot.shapes.map((id) => nodeShapeIn(layout, id));

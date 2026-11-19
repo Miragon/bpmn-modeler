@@ -32,11 +32,12 @@ export function detectLayoutSpots(layout: LayoutModel): LayoutSpot[] {
     const edges = [...layout.edges.values()];
     return [
         ...edges.flatMap((edge) =>
-            endsOffShape(layout, edge).map((at): LayoutSpot => ({
+            endsOffShape(layout, edge).map(({ at, lies }): LayoutSpot => ({
                 kind: "flowEndOffShape",
                 flow: edge.id,
                 end: edge[at]!,
                 at,
+                lies,
             })),
         ),
         ...[...planes.values()].flatMap(overlapSpotsOn),

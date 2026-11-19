@@ -43,6 +43,19 @@ export function outlineDistance(point: Point, bounds: DiagramBounds, outline: Ou
     return Math.max(outsideX, outsideY);
 }
 
+/** Which side of the outline a point lies on when it misses it by more than the tolerance. */
+export type OutlineMiss = "inside" | "outside";
+
+export function outlineMissOf(
+    point: Point,
+    bounds: DiagramBounds,
+    outline: Outline,
+): OutlineMiss | undefined {
+    const distance = outlineDistance(point, bounds, outline);
+    if (Math.abs(distance) <= LAYOUT_TOLERANCE) return undefined;
+    return distance > 0 ? "outside" : "inside";
+}
+
 /** Whether the two overlap by more than the tolerance in both directions, not merely touch. */
 export function overlapsBeyondTolerance(first: DiagramBounds, second: DiagramBounds): boolean {
     const width = Math.min(rightOf(first), rightOf(second)) - Math.max(first.x, second.x);
