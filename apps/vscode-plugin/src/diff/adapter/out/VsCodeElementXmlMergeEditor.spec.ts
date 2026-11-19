@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeMergeEditorFake"));
 
-import { ExtensionContext, Uri, workspace } from "vscode";
+import { commands, ExtensionContext, Uri, workspace } from "vscode";
 
 import type { ElementXmlMergeFinished, ElementXmlMergeRequest } from "@miragon/bpmn-modeler-core";
 import { describeElementXmlMergeEditorContract } from "@miragon/bpmn-modeler-core/testing";
 
 import {
     activeMergeTab,
+    cancelNextAccept,
     closeMergeTabByUser,
     closeMergeTabsOfByUser,
     editorGroups,
@@ -163,6 +164,42 @@ describe("VsCodeElementXmlMergeEditor", () => {
         closeMergeTabByUser();
 
         expect(finished).toEqual([{ key: "merge-1", written: "resolved\n" }]);
+    });
+
+    it("takes an auto-saved result as the answer when the user accepts the merge", async () => {
+        await editor.open(REQUEST);
+        typeIntoMergeResult("resolved\n");
+        saveMergeResult(TextDocumentSaveReason.AfterDelay);
+
+        const accepted = editor.acceptingActiveMerge();
+        await commands.executeCommand("mergeEditor.acceptMerge");
+        accepted();
+
+        expect(finished).toEqual([{ key: "merge-1", written: "resolved\n" }]);
+    });
+
+    it("takes a dirty result as the answer through the save the accept runs", async () => {
+        await editor.open(REQUEST);
+        typeIntoMergeResult("resolved\n");
+
+        const accepted = editor.acceptingActiveMerge();
+        await commands.executeCommand("mergeEditor.acceptMerge");
+        accepted();
+
+        expect(finished).toEqual([{ key: "merge-1", written: "resolved\n" }]);
+    });
+
+    it("answers as before once the user cancelled the accept", async () => {
+        await editor.open(REQUEST);
+        saveMergeResult(TextDocumentSaveReason.AfterDelay);
+        cancelNextAccept();
+
+        const accepted = editor.acceptingActiveMerge();
+        await commands.executeCommand("mergeEditor.acceptMerge");
+        accepted();
+        closeMergeTabByUser();
+
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
     });
 
     it("finishes a split merge only when its last tab closes", async () => {

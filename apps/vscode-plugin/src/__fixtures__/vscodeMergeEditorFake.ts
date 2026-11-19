@@ -127,6 +127,7 @@ const didSaveListeners = new Set<Listener<FakeResultDocument>>();
 const executed: string[] = [];
 const registered = new Map<string, (...args: unknown[]) => unknown>();
 let acceptMergeFails = false;
+let nextAcceptCancelled = false;
 let nextOpen: "opens" | "fails" | "opensNoTab" = "opens";
 let mergeOf: (start: string) => string = (start) => start;
 let commandList: string[] = [];
@@ -145,6 +146,7 @@ export function resetVscodeMergeEditor(): void {
     executed.length = 0;
     registered.clear();
     acceptMergeFails = false;
+    nextAcceptCancelled = false;
     nextOpen = "opens";
     mergeOf = (start) => start;
     commandList = ["_open.mergeEditor", "mergeEditor.acceptMerge"];
@@ -183,6 +185,11 @@ export function failToSplitGroups(): void {
 /** `mergeEditor.acceptMerge` rejects, as when no merge editor has the focus. */
 export function failAcceptMerge(): void {
     acceptMergeFails = true;
+}
+
+/** The user answers Cancel when the next `mergeEditor.acceptMerge` asks to complete with conflicts. */
+export function cancelNextAccept(): void {
+    nextAcceptCancelled = true;
 }
 
 /** Runs a command the extension registered, as a title button or the palette does. */
@@ -340,6 +347,17 @@ function isShownIn(document: FakeResultDocument, tab: FakeMergeTab): boolean {
     return tab.input.result.toString() === document.uri.toString();
 }
 
+// As VS Code's accept: an unforced save, which writes nothing for a clean result, then the close.
+function acceptActiveMerge(): void {
+    const cancelled = nextAcceptCancelled;
+    nextAcceptCancelled = false;
+    const tab = activeGroup.activeTab;
+    if (cancelled || !tab) return;
+    const result = documents.find((document) => isShownIn(document, tab));
+    if (result?.isDirty) saveDocument(result, TextDocumentSaveReason.Manual);
+    removeTabs([tab]);
+}
+
 function openMergeEditor(args: MergeEditorArgs): void {
     const opening = nextOpen;
     nextOpen = "opens";
@@ -416,7 +434,8 @@ export const commands = {
         }
         if (command === "mergeEditor.acceptMerge") {
             if (acceptMergeFails) throw new Error("no merge editor is active");
-            return true;
+            acceptActiveMerge();
+            return undefined;
         }
         if (command === "workbench.action.newGroupBelow") {
             if (!groupsSplit) throw new Error(`command '${command}' not found`);

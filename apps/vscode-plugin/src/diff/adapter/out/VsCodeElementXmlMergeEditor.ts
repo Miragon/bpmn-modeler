@@ -16,6 +16,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
+import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
 import { groupBelowActive } from "./editorGroupBelow";
 import { elementXmlUris } from "./elementXmlUris";
@@ -43,9 +44,7 @@ interface OpenMerge {
     readonly current: Uri;
     readonly incoming: Uri;
     readonly result: Uri;
-    closingFromCode: boolean;
-    manualSaveUnderway: boolean;
-    answer: string | undefined;
+    readonly answer: MergeTabAnswer;
 }
 
 /**
@@ -53,8 +52,7 @@ interface OpenMerge {
  * read-only under `bpmn-merge-xml:`, the result writable under
  * `bpmn-merge-result:`, in a group below the diagrams or beside the merges
  * already open. The merge finishes when its last tab closes, with the text
- * the user's last manual save wrote, or none: an auto-save is no answer,
- * and a merge closed from code finishes with none.
+ * its {@link MergeTabAnswer} names.
  */
 export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     private readonly mergesByKey = new Map<string, OpenMerge>();
@@ -68,15 +66,14 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     register(context: ExtensionContext): void {
         context.subscriptions.push(
             window.tabGroups.onDidChangeTabs((event) => this.finishClosed(event.closed)),
-            workspace.onWillSaveTextDocument(({ document, reason }) => {
-                const merge = this.mergeOfResult(document.uri);
-                if (merge) merge.manualSaveUnderway = reason === TextDocumentSaveReason.Manual;
-            }),
+            workspace.onWillSaveTextDocument(({ document, reason }) =>
+                this.mergeOfResult(document.uri)?.answer.willSave(
+                    reason === TextDocumentSaveReason.Manual,
+                ),
+            ),
             workspace.onDidSaveTextDocument((document) => {
                 const merge = this.mergeOfResult(document.uri);
-                if (!merge?.manualSaveUnderway) return;
-                merge.answer = this.results.lastEditorWriteOf(merge.result);
-                merge.manualSaveUnderway = false;
+                merge?.answer.saved(this.results.lastEditorWriteOf(merge.result));
             }),
         );
         closeUnservedTabs(context, (tab) => {
@@ -109,6 +106,16 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
         await showMergeEditor(merge);
     }
 
+    /** Marks the merge of the active tab as being accepted until the returned call. */
+    acceptingActiveMerge(): () => void {
+        const tab = window.tabGroups.activeTabGroup.activeTab;
+        const result = tab && mergeResultOf(tab);
+        const merge = result && this.mergeOfResult(result);
+        if (!merge) return () => undefined;
+        merge.answer.accepting();
+        return () => merge.answer.acceptEnded();
+    }
+
     async close(key: string): Promise<void> {
         const merge = this.mergesByKey.get(key);
         if (!merge) return;
@@ -117,7 +124,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             this.finish(key, merge, undefined);
             return;
         }
-        merge.closingFromCode = true;
+        merge.answer.closingFromCode();
         // The result is dirty from the start, and closing a dirty result asks the user to save it.
         const result = workspace.textDocuments.find(
             (document) => document.uri.toString() === merge.result.toString(),
@@ -135,9 +142,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             current: uriOf(MERGE_XML_SCHEME, "current"),
             incoming: uriOf(MERGE_XML_SCHEME, "incoming"),
             result: uriOf(MERGE_RESULT_SCHEME),
-            closingFromCode: false,
-            manualSaveUnderway: false,
-            answer: undefined,
+            answer: new MergeTabAnswer(),
         };
         this.inputs.setContent(merge.base, request.base);
         this.inputs.setContent(merge.current, request.current);
@@ -166,7 +171,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
         for (const [key, merge] of this.mergesByKey) {
             if (!closedResults.has(merge.result.toString())) continue;
             if (tabsShowing(merge.result).length > 0) continue;
-            this.finish(key, merge, merge.closingFromCode ? undefined : merge.answer);
+            this.finish(key, merge, merge.answer.onClose(this.results.lastEditorWriteOf(merge.result)));
         }
     }
 

@@ -63,7 +63,10 @@ changed different parts to a whole pick.
   `onWillSaveTextDocument` reason is not `Manual` is no answer: the result is dirty from
   the start, so any `files.autoSave` mode would otherwise
   write the editor's own merge, base at every true conflict, before the user did anything.
-  The text then passes #2457's checks.
+  The accept's own save is unforced and writes nothing for a result an auto-save already
+  wrote, so the button marks the merge as accepted while the command runs, and a close
+  meanwhile answers with the last text written to the provider. The rule is the pure
+  value `MergeTabAnswer`. The text then passes #2457's checks.
 - *Placement.* The command takes no view column and opens in the active group, so the
   group below the diagrams is created and focused first, as for the
   [XML diff](diff.md#element-xml-diff) (`editorGroupBelow.ts`); a later merge opens beside
@@ -95,9 +98,11 @@ side's change from a conflict.
 
 - The line-wise XML merge rests on an internal VS Code command; a change to its arguments
   or its prefill rule hides the entry or breaks the merge without a compile error.
-- The marker text makes the result dirty from the start, so closing asks to save and
-  accepting always writes. "Complete with Conflicts" keeps the base's text for every open
-  conflict, which parses and passes the checks; only the editor's dialog warns.
+- The marker text makes the result dirty from the start, so closing asks to save. Accepting
+  writes only a dirty result; the accept mark covers a clean one, and holds only because
+  VS Code reports the tab closing before the command returns (e2e step 8). "Complete with
+  Conflicts" keeps the base's text for every open conflict, which parses and passes the
+  checks; only the editor's dialog warns.
 - A Ctrl+S followed by a revert or by Don't Save still counts the saved text: the provider
   cannot tell it from a save followed by a close.
 - The title button (`bpmn-modeler.acceptElementXmlMerge`) shows where `resourceScheme` is

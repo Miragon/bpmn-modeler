@@ -36,7 +36,7 @@ export function register(
             .catch((error: unknown) => deps.notifier.logError(error as Error));
     });
     editor.register(context);
-    new ElementXmlMergeController().register(context);
+    new ElementXmlMergeController(() => editor.acceptingActiveMerge()).register(context);
     context.subscriptions.push(
         inputs,
         results,

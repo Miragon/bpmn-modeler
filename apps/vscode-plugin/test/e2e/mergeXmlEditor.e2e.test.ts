@@ -18,6 +18,7 @@ import * as vscode from "vscode";
 const EXTENSION_ID = "miragon-gmbh.vs-code-bpmn-modeler";
 const OPEN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
 const OPEN_MERGE_EDITOR = "_open.mergeEditor";
+const ACCEPT_ELEMENT_XML_MERGE = "bpmn-modeler.acceptElementXmlMerge";
 const RESULT_SCHEME = "bpmn-merge-result";
 const FILE = "order.bpmn";
 
@@ -50,7 +51,12 @@ const TASKS = [
     "Task_AutoSave",
     "Task_Focus",
     "Task_CloseFromCode",
+    "Task_Accept",
 ];
+
+// Keeps the base's name on both sides, so the editor resolves every range and Complete
+// Merge asks nothing.
+const WITHOUT_TRUE_CONFLICT = "Task_Accept";
 
 interface TaskVersion {
     readonly name: string;
@@ -70,7 +76,7 @@ const INCOMING_TASK: TaskVersion = {
 
 function processXml(version: TaskVersion): string {
     const tasks = TASKS.map(
-        (id) => `    <bpmn:serviceTask id="${id}" name="${version.name}">
+        (id) => `    <bpmn:serviceTask id="${id}" name="${id === WITHOUT_TRUE_CONFLICT ? BASE_TASK.name : version.name}">
       <bpmn:documentation>Checks the order</bpmn:documentation>
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="${version.type}" />
@@ -455,6 +461,41 @@ suite("Element XML merge editor", () => {
         await vscode.commands.executeCommand("workbench.action.files.revert");
         await closeActiveEditor();
         await within(finished, 10_000);
+    });
+
+    test("8. the title button takes a result an auto-save already wrote", async function () {
+        if (!(await vscode.commands.getCommands(false)).includes("mergeEditor.acceptMerge")) {
+            report("8-accept-after-auto-save", { skipped: "no mergeEditor.acceptMerge" });
+            this.skip();
+        }
+        const files = vscode.workspace.getConfiguration("files");
+        await files.update("autoSaveDelay", 100, vscode.ConfigurationTarget.Global);
+        await files.update("autoSave", "afterDelay", vscode.ConfigurationTarget.Global);
+        try {
+            const { finished, result, base } = await openMerge(WITHOUT_TRUE_CONFLICT);
+            const autoSaved = await within(
+                waitFor(
+                    () => (result.isDirty ? undefined : true),
+                    () => "the result was never auto-saved",
+                ),
+                10_000,
+            );
+
+            await vscode.commands.executeCommand(ACCEPT_ELEMENT_XML_MERGE);
+            const written = await within(finished, 10_000);
+            const handMerged = api.mergeXml.handMergeOf(fileUri, WITHOUT_TRUE_CONFLICT);
+
+            report("8-accept-after-auto-save", {
+                autoSaved: autoSaved === TIMEOUT ? "never" : autoSaved,
+                written: written === TIMEOUT ? "never finished" : (written ?? null),
+                handMerged: handMerged ?? null,
+            });
+            assert.strictEqual(written, mergedByEditor(base));
+            assert.ok(handMerged, "the core did not take the accepted text");
+        } finally {
+            await files.update("autoSave", undefined, vscode.ConfigurationTarget.Global);
+            await files.update("autoSaveDelay", undefined, vscode.ConfigurationTarget.Global);
+        }
     });
 
     // Last: it ends the merge view. A refused save prompt rejects the close on 1.76 but is
