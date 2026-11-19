@@ -32,7 +32,7 @@ export function keepsClearOfFlows(
 ): boolean {
     const clear = inflated(box, clearance);
     return (
-        !flows.segments.some(([from, to]) => segmentEntersBounds(from, to, clear)) &&
+        !flows.segments.some((segment) => segmentEntersBounds(segment, clear)) &&
         flows.labels.every((label) => keepsClearOf(box, label, clearance))
     );
 }
@@ -43,6 +43,6 @@ export function keepsClearOfFlows(
  * re-routes, one that passes close by stays cramped.
  */
 export function crampsNoFlow(box: DiagramBounds, flows: ForeignFlows, clearance: number): boolean {
-    const beside = flows.segments.filter(([from, to]) => !segmentEntersBounds(from, to, box));
+    const beside = flows.segments.filter((segment) => !segmentEntersBounds(segment, box));
     return keepsClearOfFlows(box, { ...flows, segments: beside }, clearance);
 }

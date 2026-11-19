@@ -60,7 +60,7 @@ export function nearestOnSegment([from, to]: Segment, point: Point): NearestPoin
 }
 
 /** The segment's bounding box. */
-export function segmentBounds(from: Point, to: Point): DiagramBounds {
+export function segmentBounds([from, to]: Segment): DiagramBounds {
     const x = Math.min(from.x, to.x);
     const y = Math.min(from.y, to.y);
     return { x, y, width: Math.abs(to.x - from.x), height: Math.abs(to.y - from.y) };
@@ -70,12 +70,12 @@ export function segmentBounds(from: Point, to: Point): DiagramBounds {
  * Whether the segment enters the shape deeper than the tolerance, so a flow
  * running along the outline does not count.
  */
-export function segmentEntersShape(from: Point, to: Point, bounds: DiagramBounds): boolean {
-    return segmentEntersBounds(from, to, inflated(bounds, -LAYOUT_TOLERANCE));
+export function segmentEntersShape(segment: Segment, bounds: DiagramBounds): boolean {
+    return segmentEntersBounds(segment, inflated(bounds, -LAYOUT_TOLERANCE));
 }
 
 /** Whether the segment enters the open inside of the bounds (Liang-Barsky clipping). */
-export function segmentEntersBounds(from: Point, to: Point, bounds: DiagramBounds): boolean {
+export function segmentEntersBounds([from, to]: Segment, bounds: DiagramBounds): boolean {
     if (bounds.width <= 0 || bounds.height <= 0) return false;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -108,8 +108,7 @@ const DEEPEST_POINT_STEPS = 40;
  * Every outline is convex, so the distance along the segment has one minimum.
  */
 export function segmentEntersOutline(
-    from: Point,
-    to: Point,
+    [from, to]: Segment,
     bounds: DiagramBounds,
     outline: Outline,
 ): boolean {

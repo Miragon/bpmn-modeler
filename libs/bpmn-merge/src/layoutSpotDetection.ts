@@ -6,6 +6,7 @@ import {
     framesOf,
 } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
+import { segmentsOf } from "./layoutPolyline";
 import { segmentBounds } from "./layoutSegments";
 import {
     type LayoutSpot,
@@ -96,11 +97,9 @@ export function shapesRunThrough(
 ): NodeShape[] {
     if (plane === undefined) return [];
     const candidates = new Set<number>();
-    edge.waypoints.forEach((from, index) => {
-        const to = edge.waypoints[index + 1];
-        if (to === undefined) return;
-        for (const near of plane.grid.indicesNear(segmentBounds(from, to))) candidates.add(near);
-    });
+    for (const segment of segmentsOf(edge.waypoints)) {
+        for (const near of plane.grid.indicesNear(segmentBounds(segment))) candidates.add(near);
+    }
     return [...candidates]
         .sort((first, second) => first - second)
         .map((index) => plane.items[index]!)

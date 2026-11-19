@@ -456,8 +456,8 @@ describe("buildMerged's layout notes", () => {
             for (const edge of layout.edges.values()) {
                 if (edge.source === movedId || edge.target === movedId) continue;
                 const clear = inflated(movedTask!, SHAPE_CLEARANCE);
-                for (const [from, to] of segmentsOf(edge.waypoints)) {
-                    expect(segmentEntersBounds(from, to, clear), edge.id).toBe(false);
+                for (const segment of segmentsOf(edge.waypoints)) {
+                    expect(segmentEntersBounds(segment, clear), edge.id).toBe(false);
                 }
                 if (edge.label !== undefined) {
                     expect(keepsClearOf(movedTask!, edge.label, SHAPE_CLEARANCE), edge.id).toBe(
