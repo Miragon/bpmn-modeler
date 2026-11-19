@@ -1,9 +1,9 @@
-import type {
-    MergeBuildNote,
-    MergeBuildNoteContent,
+import {
+    type MergeBuildNote,
+    type MergeBuildNoteContent,
+    elementsNamedBy,
 } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
-import { elementsNamedBy } from "./buildNoteElements";
 import type { UndrawnEdge } from "./connectionEnds";
 import type { MergeResolution } from "./mergeDecisions";
 import { drawingContainersOf, poolsByProcess } from "./mergeDecisionsLayout";
