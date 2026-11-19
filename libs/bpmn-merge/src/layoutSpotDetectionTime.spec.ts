@@ -2,45 +2,19 @@ import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
+import { withShiftedTasks } from "./__fixtures__/shiftedTasks";
+import { perParseOf } from "./__fixtures__/timeAgainstParsing";
 import { layoutModelOf } from "./layoutModelReader";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 
-// The library types no host globals; the specs run in Node, which has a sub-millisecond clock.
-declare const performance: { now(): number };
-
-async function fastestMillisecondsOf(run: () => unknown): Promise<number> {
-    let fastest = Number.POSITIVE_INFINITY;
-    for (let attempt = 0; attempt < 5; attempt++) {
-        const started = performance.now();
-        await run();
-        fastest = Math.min(fastest, performance.now() - started);
-    }
-    return fastest;
-}
-
-/**
- * How long checking the result's spots against both sides takes, per millisecond the build spends
- * parsing the result: both share the runner's load, and parsing is long enough that one slow or
- * fast round of either barely moves the ratio.
- */
+/** The spots of the result against both sides, and how long finding them takes per millisecond of parsing the result. */
 async function detectionPerParseOf(resultXml: string, sideXmls: readonly string[]) {
     const moddle = (await loadBpmnModdle())();
-    const parse = async (xml: string) => (await moddle.fromXML(xml)).rootElement;
-    const parsing = await fastestMillisecondsOf(() => parse(resultXml));
-    const result = layoutModelOf(await parse(resultXml));
-    const sides = await Promise.all(sideXmls.map(async (xml) => layoutModelOf(await parse(xml))));
+    const layoutOf = async (xml: string) => layoutModelOf((await moddle.fromXML(xml)).rootElement);
+    const result = await layoutOf(resultXml);
+    const sides = await Promise.all(sideXmls.map(layoutOf));
     const detect = () => introducedLayoutSpots(result, sides);
-    return { spots: detect(), perParse: (await fastestMillisecondsOf(detect)) / parsing };
-}
-
-/** Moves every 200th task one row down, onto the task below it: five spots in a file of 1,400 nodes. */
-function withMovedTasks(xml: string): string {
-    let ordinal = 0;
-    return xml.replace(
-        /(bpmnElement="(?:svc|user)_\d+_\d+"><dc:Bounds x="\d+" y=")(\d+)"/g,
-        (match, prefix: string, y: string) =>
-            ++ordinal % 200 === 0 ? `${prefix}${Number(y) + 140}"` : match,
-    );
+    return { spots: detect(), perParse: await perParseOf(resultXml, detect) };
 }
 
 // Measured against parsing the result once, best of five each, on 800 KB and 1.1 MB (90 and
@@ -71,7 +45,10 @@ describe("layout spot detection time", () => {
         async () => {
             const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
 
-            const { spots, perParse } = await detectionPerParseOf(withMovedTasks(xml), [xml, xml]);
+            const { spots, perParse } = await detectionPerParseOf(withShiftedTasks(xml, 0, 140), [
+                xml,
+                xml,
+            ]);
 
             expect(spots.filter(({ kind }) => kind === "shapesOverlap")).toHaveLength(5);
             expect(perParse).toBeLessThan(MAX_DETECTION_PER_PARSE);
