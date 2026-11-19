@@ -366,7 +366,14 @@ const dictionary: Record<string, string> = {
         "Ao gerar, {element} foi movido para contornar {shapes}",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} passa por {shapes}; ao gerar, não foi possível corrigi-lo",
-    "{element} lies outside {shapes}": "{element} está fora de {shapes}",
+    "The build moved {element} into {shapes}":
+        "Ao gerar, {element} foi movido para dentro de {shapes}",
+    "The build grew {shapes} to hold {element}":
+        "Ao gerar, {shapes} foi ampliado para conter {element}",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "Ao gerar, {shapes} foi ampliado para conter {element} e {shifted} foi deslocado",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "{element} está fora de {shapes}; ao gerar, não foi possível corrigi-lo",
     "{element} is not on the border of {host}": "{element} não está na borda de {host}",
     "{first} and {second} overlap": "{first} e {second} se sobrepõem",
     "{element} is kept without the flows the other side removed with it: {connections}":

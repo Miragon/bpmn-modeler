@@ -101,7 +101,12 @@ const NOTES: Record<MergePaneBuildNote["kind"], MergePaneBuildNote> = {
     flowEndOffShape: { kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
     shapesOverlap: { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
     flowThroughShape: { kind: "flowThroughShape", id: "a", shapes: ["b"], repair: "movedByBuild" },
-    shapeOutsideContainer: { kind: "shapeOutsideContainer", id: "a", shapes: ["b"] },
+    shapeOutsideContainer: {
+        kind: "shapeOutsideContainer",
+        id: "a",
+        shapes: ["b"],
+        repair: "movedIntoContainer",
+    },
     boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "a", host: "b" },
     lanesOverlap: { kind: "lanesOverlap", ids: ["a", "b"] },
     restoredWithoutRemovedWith: { kind: "restoredWithoutRemovedWith", id: "a", connections: ["b"] },
@@ -356,6 +361,18 @@ function mergeTextKeys(): Set<string> {
             buildNoteText({ kind: note.kind, ids, repair: "notRepaired" }, nameOf, translate);
             const madeRoom = { repair: "madeRoom", moved: "b", shifted: ["c"] } as const;
             buildNoteText({ kind: note.kind, ids, ...madeRoom }, nameOf, translate);
+        }
+        if (note.kind === "shapeOutsideContainer") {
+            const { id, shapes } = note;
+            buildNoteText(
+                { kind: note.kind, id, shapes, repair: "notRepaired" },
+                nameOf,
+                translate,
+            );
+            for (const shifted of [[], ["c"]]) {
+                const grew = { repair: "grewContainer", shifted } as const;
+                buildNoteText({ kind: note.kind, id, shapes, ...grew }, nameOf, translate);
+            }
         }
         if (note.kind === "defaultFlowNotRestored") {
             buildNoteText({ ...note, keptDefault: "c" }, nameOf, translate);

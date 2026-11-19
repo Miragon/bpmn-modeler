@@ -8,8 +8,8 @@
 The merge builds one file from two sides' drawings ([merge](merge.md#building-the-file)). Each
 element keeps its side's drawing, so the result can hold a spot neither side drew: a flow whose
 end one side moved, a task the other side placed on it, a block both sides moved apart. This
-record covers how the build finds those spots, which shapes it moves, which flows it re-routes
-and what it tells the reviewer (#2565).
+record covers how the build finds those spots, which shapes it moves, which containers it grows,
+which flows it re-routes and what it tells the reviewer (#2565).
 
 ## Decision
 
@@ -40,9 +40,32 @@ and what it tells the reviewer (#2565).
   webview (the build would wait on an open pane, with a protocol pair in four hosts, and its
   save rewrote lanes), diagram-js's `ManhattanLayout` (no obstacles, and the library's first
   outside dependency). Cost: geometry and a router to maintain here; re-routed flows may cross
-  others, within a budget per harvested case (`buildMergedRepairLocality.spec.ts`, on 24
+  others, within a budget per harvested case (`buildMergedRepairLocality.spec.ts`, on 37
   copied fuzz inputs, which also keeps a result with no broken flow byte-equal); every build
   plans the repair (`layoutFlowRepairTime.spec.ts`).
+- *The build brings a shape it placed outside its container back inside, and grows the
+  container only as a last resort.* Before any other move, each shape the detector names as
+  introduced outside its sub-process, pool or lane goes inside, with its label, boundary events
+  and contents; never a boundary event on its own. It goes first as a side that draws it where it
+  lies moved the container, or else a sibling in that container, nearest first, both read at
+  their size on any plane, as a side that draws a sub-process collapsed draws its contents on the
+  sub-process's own plane; then to the nearest free place inside, searched from the nearest
+  place inside within 250 px, off the container's border and name band, 15 px clear of other
+  shapes and off every flow that is not its own, kept only inside the frames it must lie in (a
+  sub-process stands for its contents in the lanes). Only when neither exists does the build
+  grow the sub-process to every side, or the pool with its lanes sideways, to hold the shape
+  where it lies; a sub-process grown right onto what lies beyond it shifts its pool's shapes past
+  its old right side as making room does. A growth that adds any shape spot is dropped and the
+  shape noted as not repaired. A lane never grows: restacking lanes waits for lanes drawn from
+  one side (#2567), so a shape goes into its lane's band only where the band holds it. The note
+  says the build moved the shape into its containers, or grew them and what it shifted; an
+  overlap such a move resolved names the moved shape. Rejected: growing first, which widens a
+  pool or sub-process where a free place lies inside; leaving the shape where it lies, which
+  leaves a task drawn in another lane or outside the sub-process it belongs to. Cost: a lane
+  one side drew in another band takes in all its members where the band holds them, crammed
+  until lanes come from one side; growth shifts only right; each growth finds the spots of the
+  whole drawing once (`layoutFlowRepairTime.spec.ts`); a result with no shape outside its
+  container stays byte-equal to the build without this step (`buildMergedRepairLocality.spec.ts`).
 - *The build moves the shape it placed off a shape from the other side, and makes room only
   as a last resort.* For each overlap the detector names as introduced, it moves a shape that
   not both sides draw where the result does (one side moved it, or only one side has it), so
@@ -76,6 +99,7 @@ and what it tells the reviewer (#2565).
 ## Consequences
 
 - Shapes keep their side's coordinates, and so does every flow the merge did not break, unless
-  the build moved a shape off another or made room for it; a moved shape, a shifted one and a
-  re-routed flow differ from both sides and a note names them. A shape outside its container
-  or off its host is still named, not moved.
+  the build moved a shape into its container or off another, or grew a container or made room;
+  a moved shape, a grown container, a shifted shape and a re-routed flow differ from both sides
+  and a note names them. A boundary event off its host and lanes that overlap are still named,
+  not moved.

@@ -288,8 +288,8 @@ each of those.
   difference the result does not carry, and each flow left out of the drawing
   (`flowNotDrawn`).
 - *The drawing's broken spots are found, noted and partly repaired by geometry.* Which spots
-  count, which shapes the build moves and which flows it re-routes, and the layout notes are in
-  [merge layout](merge-layout.md).
+  count, which shapes the build moves, which containers it grows and which flows it re-routes,
+  and the layout notes are in [merge layout](merge-layout.md).
 
 ## Consequences
 

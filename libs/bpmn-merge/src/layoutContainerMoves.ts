@@ -1,0 +1,274 @@
+import { DrawingDraft } from "./layoutDrawingDraft";
+import {
+    type DiagramBounds,
+    boundsAround,
+    bottomOf,
+    centerOf,
+    inflated,
+    liesWithin,
+    rightOf,
+    translated,
+} from "./layoutGeometry";
+import { growFrameFor } from "./layoutGrowFrame";
+import { outermostOf } from "./layoutMakeRoom";
+import {
+    type LayoutModel,
+    type LayoutShape,
+    drawingOfSameSize,
+    drawsWhereItLies,
+    frameIdsOf,
+    nodeShapeIn,
+} from "./layoutModel";
+import {
+    type ShapeGroup,
+    ShapeGroups,
+    groupBoundsIn,
+    groupShapesBoundsIn,
+} from "./layoutShapeGroups";
+import { type Offset, Placement, SHAPE_CLEARANCE, innerBoundsOf } from "./layoutShapePlacement";
+import { type LayoutSpot, liesOutside } from "./layoutSpots";
+
+/** What the build did about one shape outside its containers. */
+type ShapeRepair =
+    | { readonly kind: "movedIntoContainer" }
+    | {
+          readonly kind: "grewContainer";
+          /** The outermost shapes shifted to make room for the grown container, in document order. */
+          readonly shifted: readonly string[];
+      }
+    | { readonly kind: "notRepaired" };
+
+/** What the build did about a shape outside its sub-process, pool or lane. */
+export type ContainerRepair = ShapeRepair & { readonly shape: string; readonly container: string };
+
+export interface ContainerMovePlan {
+    /** The drawing with every repair applied; the input itself when nothing changed. */
+    readonly layout: LayoutModel;
+    /** One per spot of a shape outside its container, in the spots' order. */
+    readonly repairs: readonly ContainerRepair[];
+    /** The shapes a repair moved or shifted, which may have left a shape they lay on. */
+    readonly movedShapes: readonly string[];
+}
+
+const NOT_REPAIRED: ShapeRepair = { kind: "notRepaired" };
+
+/**
+ * Brings every shape the spots name outside its containers back inside,
+ * with its label, boundary events and contents; never a boundary event on
+ * its own, which stays on its host. It moves the shape as the side that drew
+ * it moved the container, or a sibling in that container, when the place is
+ * free; else to the nearest free place inside; else grows the sub-process or
+ * pool to hold it where it lies. A lane is never grown: a shape goes into its
+ * lane's band only where the band holds it.
+ */
+export function planContainerMoves(
+    layout: LayoutModel,
+    spots: readonly LayoutSpot[],
+    sides: readonly LayoutModel[],
+): ContainerMovePlan {
+    const outside = spots.flatMap((spot) => (spot.kind === "shapeOutsideContainer" ? [spot] : []));
+    if (outside.length === 0) return { layout, repairs: [], movedShapes: [] };
+    const repairer = new ContainerRepairer(layout, sides);
+    const repairs = new Map<string, ShapeRepair>();
+    for (const id of outermostShapesFirst(
+        layout,
+        outside.map(({ shape }) => shape),
+    )) {
+        const containers = outside
+            .filter(({ shape }) => shape === id)
+            .map((spot) => spot.container);
+        repairs.set(id, repairer.repair(id, containers));
+    }
+    return {
+        layout: repairer.layout,
+        repairs: outside.map(({ shape, container }) => ({
+            ...(repairs.get(shape) ?? NOT_REPAIRED),
+            shape,
+            container,
+        })),
+        movedShapes: repairer.movedShapes,
+    };
+}
+
+/** Brings shapes into their containers one after another, on a draft of the drawing. */
+class ContainerRepairer {
+    private readonly groups: ShapeGroups;
+    private draft: DrawingDraft;
+    /** The repair that changed each shape so far. */
+    private readonly changes = new Map<string, ShapeRepair>();
+    readonly movedShapes: string[] = [];
+
+    constructor(
+        private readonly original: LayoutModel,
+        private readonly sides: readonly LayoutModel[],
+    ) {
+        this.groups = new ShapeGroups(original);
+        this.draft = DrawingDraft.of(original);
+    }
+
+    get layout(): LayoutModel {
+        return this.draft.changed ? this.draft : this.original;
+    }
+
+    /** Brings the shape inside those of the containers it still lies outside. */
+    repair(id: string, containers: readonly string[]): ShapeRepair {
+        const { draft } = this;
+        const node = draft.node(id);
+        if (node === undefined) return NOT_REPAIRED;
+        const frames = containers.flatMap((container) => {
+            const frame = draft.shapes.get(container);
+            return frame !== undefined && liesOutside(node, frame) ? [frame] : [];
+        });
+        if (frames.length === 0) return resolvedEarlier(id, containers, this.changes);
+        if (node.host !== undefined) return NOT_REPAIRED;
+        const group = this.groups.of(draft, node);
+        const move =
+            sidesMove(draft, group, frames, this.sides) ?? nearestPlaceInside(draft, group, frames);
+        if (move !== undefined) {
+            draft.translate(group, move.dx, move.dy);
+            const repair: ShapeRepair = { kind: "movedIntoContainer" };
+            for (const member of group.members) this.changes.set(member, repair);
+            this.movedShapes.push(...group.members);
+            return repair;
+        }
+        const grown = growFrameFor(draft, group, frames);
+        if (grown === undefined) return NOT_REPAIRED;
+        const repair: ShapeRepair = { kind: "grewContainer", shifted: outermostOf(grown.shifting) };
+        for (const [changed, shape] of grown.draft.shapes) {
+            if (draft.shapes.get(changed) !== shape) this.changes.set(changed, repair);
+        }
+        this.movedShapes.push(...grown.shifting.map((shape) => shape.id));
+        this.draft = grown.draft;
+        return repair;
+    }
+}
+
+/** The shapes, each once, those of fewer sub-processes first and a boundary event after its host, as moving one carries what it holds. */
+function outermostShapesFirst(layout: LayoutModel, ids: readonly string[]): string[] {
+    const depthOf = (id: string) => {
+        const node = nodeShapeIn(layout, id);
+        return node === undefined
+            ? 0
+            : node.subProcesses.length * 2 + (node.host === undefined ? 0 : 1);
+    };
+    return [...new Set(ids)].sort((first, second) => depthOf(first) - depthOf(second));
+}
+
+/** The repair that brought the shape inside on its way: one that moved it, else one that grew a container of it. */
+function resolvedEarlier(
+    id: string,
+    containers: readonly string[],
+    changes: ReadonlyMap<string, ShapeRepair>,
+): ShapeRepair {
+    return (
+        changes.get(id) ??
+        containers
+            .map((container) => changes.get(container))
+            .find((repair) => repair !== undefined) ??
+        NOT_REPAIRED
+    );
+}
+
+/**
+ * The first free place among the moves of the sides that draw the node where
+ * it lies: as such a side's drawing of a container lies from the result's,
+ * then as its drawing of a sibling in that container does, nearest sibling first.
+ */
+function sidesMove(
+    draft: DrawingDraft,
+    group: ShapeGroup,
+    frames: readonly LayoutShape[],
+    sides: readonly LayoutModel[],
+): Offset | undefined {
+    const { node } = group;
+    const members = new Set(group.members);
+    const offsets = sides.flatMap((side) => {
+        if (!drawsWhereItLies(side, node)) return [];
+        const own = drawingOfSameSize(side, node)!;
+        return frames.flatMap((frame) => [
+            ...containerOffsetOn(side, frame, own),
+            ...siblingOffsetsOn(draft, side, frame, own, members),
+        ]);
+    });
+    const tried = new Set<string>();
+    const into = frames.map(({ bounds }) => bounds);
+    return offsets.find((offset) => {
+        const key = `${offset.dx} ${offset.dy}`;
+        if (offset.dx === 0 && offset.dy === 0) return false;
+        if (tried.has(key)) return false;
+        tried.add(key);
+        const bounds = groupBoundsIn(draft, group);
+        const window = inflated(
+            boundsAround([bounds, translated(bounds, offset.dx, offset.dy)]),
+            SHAPE_CLEARANCE,
+        );
+        return new Placement(draft, group, window, into).fits(offset);
+    });
+}
+
+/** How far the result's container lies from where the side draws it, at its size, around the node. */
+function containerOffsetOn(side: LayoutModel, frame: LayoutShape, own: LayoutShape): Offset[] {
+    const drawn = drawingOfSameSize(side, frame);
+    return drawn?.plane === own.plane ? [offsetBetween(drawn.bounds, frame.bounds)] : [];
+}
+
+/** How far the result's siblings inside the container lie from where the side draws them beside the node, nearest first. */
+function siblingOffsetsOn(
+    draft: DrawingDraft,
+    side: LayoutModel,
+    frame: LayoutShape,
+    own: LayoutShape,
+    members: ReadonlySet<string>,
+): Offset[] {
+    const ownCenter = centerOf(own.bounds);
+    return draft
+        .nodesOn(frame.plane)
+        .filter(
+            (sibling) =>
+                !members.has(sibling.id) &&
+                sibling.host === undefined &&
+                frameIdsOf(sibling).includes(frame.id) &&
+                liesWithin(sibling.bounds, frame.bounds),
+        )
+        .flatMap((sibling) => {
+            const drawn = drawingOfSameSize(side, sibling);
+            if (drawn?.plane !== own.plane) return [];
+            const center = centerOf(drawn.bounds);
+            const distance = Math.hypot(center.x - ownCenter.x, center.y - ownCenter.y);
+            return [{ distance, offset: offsetBetween(drawn.bounds, sibling.bounds) }];
+        })
+        .sort((first, second) => first.distance - second.distance)
+        .map(({ offset }) => offset);
+}
+
+/** The nearest free place inside every frame, off their borders, searched from the nearest place inside. */
+function nearestPlaceInside(
+    draft: DrawingDraft,
+    group: ShapeGroup,
+    frames: readonly LayoutShape[],
+): Offset | undefined {
+    const inners = frames.map(innerBoundsOf);
+    const base = offsetInto(groupShapesBoundsIn(draft, group), inners);
+    if (base === undefined) return undefined;
+    const window = Placement.searchWindowFrom(draft, group, base);
+    return new Placement(draft, group, window, inners).nearestFitFrom(base);
+}
+
+/** The shortest offset that brings the bounds inside all frames; undefined when they leave no room for it. */
+function offsetInto(bounds: DiagramBounds, frames: readonly DiagramBounds[]): Offset | undefined {
+    const left = Math.max(...frames.map(({ x }) => x));
+    const top = Math.max(...frames.map(({ y }) => y));
+    const right = Math.min(...frames.map(rightOf));
+    const bottom = Math.min(...frames.map(bottomOf));
+    if (right - left < bounds.width || bottom - top < bounds.height) return undefined;
+    const shiftInto = (start: number, end: number, from: number, to: number) =>
+        start < from ? from - start : end > to ? to - end : 0;
+    return {
+        dx: shiftInto(bounds.x, rightOf(bounds), left, right),
+        dy: shiftInto(bounds.y, bottomOf(bounds), top, bottom),
+    };
+}
+
+function offsetBetween(from: DiagramBounds, to: DiagramBounds): Offset {
+    return { dx: to.x - from.x, dy: to.y - from.y };
+}

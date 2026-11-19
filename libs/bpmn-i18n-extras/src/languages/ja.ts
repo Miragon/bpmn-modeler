@@ -364,7 +364,14 @@ const dictionary: Record<string, string> = {
         "生成時に {element} を {shapes} を避けるよう移動しました",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} が {shapes} を通過しています。生成時に修正できませんでした",
-    "{element} lies outside {shapes}": "{element} が {shapes} の外側にあります",
+    "The build moved {element} into {shapes}":
+        "生成時に {element} を {shapes} の内側へ移動しました",
+    "The build grew {shapes} to hold {element}":
+        "生成時に {element} が収まるよう {shapes} を広げました",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "生成時に {element} が収まるよう {shapes} を広げ、{shifted} をずらしました",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "{element} が {shapes} の外側にあります。生成時に修正できませんでした",
     "{element} is not on the border of {host}": "{element} が {host} の境界線上にありません",
     "{first} and {second} overlap": "{first} と {second} が重なっています",
     "{element} is kept without the flows the other side removed with it: {connections}":

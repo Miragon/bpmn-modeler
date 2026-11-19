@@ -374,7 +374,9 @@ describe("buildMerged's layout notes", () => {
                     kind: "shapeOutsideContainer",
                     id: "Task_Archive",
                     shapes: ["Participant_Order", "Lane_Back"],
+                    repair: "movedIntoContainer",
                 },
+                moved("flowEndOffShape", "Flow_Archive", "Task_Archive"),
             ],
         },
         ...(["current", "incoming"] as const).map((conflictsTo) => ({

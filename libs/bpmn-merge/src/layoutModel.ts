@@ -90,6 +90,29 @@ export function drawsAt(layout: LayoutModel, node: NodeShape): boolean {
     return place !== undefined && sameBounds(place, node.bounds);
 }
 
+/**
+ * The layout's drawing of the shape's element at the shape's size, on any
+ * plane: a layout that draws a sub-process collapsed draws its contents on
+ * the sub-process's own plane.
+ */
+export function drawingOfSameSize(
+    layout: LayoutModel,
+    shape: LayoutShape,
+): LayoutShape | undefined {
+    const drawn = layout.shapes.get(shape.id);
+    const sameSize =
+        drawn !== undefined &&
+        drawn.bounds.width === shape.bounds.width &&
+        drawn.bounds.height === shape.bounds.height;
+    return sameSize ? drawn : undefined;
+}
+
+/** Whether the layout draws the node's element just where the node lies, on any plane. */
+export function drawsWhereItLies(layout: LayoutModel, node: NodeShape): boolean {
+    const drawn = drawingOfSameSize(layout, node);
+    return drawn !== undefined && sameBounds(drawn.bounds, node.bounds);
+}
+
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
     const moved = { ...node, bounds: translated(node.bounds, dx, dy) };
     return node.label === undefined ? moved : { ...moved, label: translated(node.label, dx, dy) };
@@ -146,17 +169,18 @@ export function belongTogether(first: NodeShape, second: NodeShape): boolean {
  * lanes, otherwise its pool and lanes.
  */
 export function framesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
-    const subProcess = node.subProcesses[0];
-    const candidates =
-        subProcess !== undefined
-            ? [subProcess]
-            : node.mayLieOutsidePool
-              ? []
-              : [...(node.pool === undefined ? [] : [node.pool]), ...node.lanes];
-    return candidates.flatMap((id) => {
+    return frameIdsOf(node).flatMap((id) => {
         const frame = layout.shapes.get(id);
         return isDrawnFrameOf(node, frame) ? [frame] : [];
     });
+}
+
+/** The frames the node must lie inside by its relations, drawn or not, as `framesOf` picks them. */
+export function frameIdsOf(node: NodeShape): string[] {
+    const subProcess = node.subProcesses[0];
+    if (subProcess !== undefined) return [subProcess];
+    if (node.mayLieOutsidePool) return [];
+    return [...(node.pool === undefined ? [] : [node.pool]), ...node.lanes];
 }
 
 /**

@@ -8,7 +8,10 @@ import {
     type NodeShape,
     drawnHostOf,
     drawnPoolOf,
+    drawingOfSameSize,
     drawsAt,
+    drawsWhereItLies,
+    frameIdsOf,
     framesAroundOf,
     isFrame,
     otherEndOf,
@@ -220,5 +223,63 @@ describe("placeOf and drawsAt", () => {
     it("has no place for a node it does not draw", () => {
         expect(placeOf(layoutOf([]), task)).toBeUndefined();
         expect(drawsAt(layoutOf([]), task)).toBe(false);
+    });
+});
+
+describe("drawingOfSameSize and drawsWhereItLies", () => {
+    const task = node("Task_1", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+
+    it.each([
+        { label: "where the node lies", drawn: task, found: true, there: true },
+        {
+            label: "where the node lies on another plane",
+            drawn: { ...task, plane: "Sub_1" },
+            found: true,
+            there: true,
+        },
+        {
+            label: "elsewhere at the node's size",
+            drawn: { ...task, bounds: { ...task.bounds, x: 300 } },
+            found: true,
+            there: false,
+        },
+        {
+            label: "at another size",
+            drawn: { ...task, bounds: { ...task.bounds, width: 200 } },
+            found: false,
+            there: false,
+        },
+    ])("a layout drawing the node $label", ({ drawn, found, there }) => {
+        const layout = layoutOf([drawn]);
+
+        expect(drawingOfSameSize(layout, task)).toBe(found ? drawn : undefined);
+        expect(drawsWhereItLies(layout, task)).toBe(there);
+    });
+
+    it("finds no drawing of a node the layout does not draw", () => {
+        expect(drawingOfSameSize(layoutOf([]), task)).toBeUndefined();
+        expect(drawsWhereItLies(layoutOf([]), task)).toBe(false);
+    });
+});
+
+describe("frameIdsOf", () => {
+    it.each([
+        {
+            label: "its innermost sub-process, which stands for its pool and lanes",
+            relations: { subProcesses: ["Sub_1", "Sub_0"], pool: "Pool_1", lanes: ["Lane_1"] },
+            frames: ["Sub_1"],
+        },
+        {
+            label: "its pool and lanes outside a sub-process",
+            relations: { pool: "Pool_1", lanes: ["Lane_1", "Lane_2"] },
+            frames: ["Pool_1", "Lane_1", "Lane_2"],
+        },
+        {
+            label: "nothing for a data store, which may lie outside its pool",
+            relations: { pool: "Pool_1", lanes: ["Lane_1"], mayLieOutsidePool: true },
+            frames: [],
+        },
+    ])("names $label", ({ relations, frames }) => {
+        expect(frameIdsOf(node("Task_1", relations))).toEqual(frames);
     });
 });

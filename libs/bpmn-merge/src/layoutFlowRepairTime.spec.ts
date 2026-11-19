@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import type { BuildNote } from "./buildNotes";
+import { planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
@@ -323,4 +324,84 @@ describe("shape move time in a pool without a free place", () => {
             expect(planning / parsing).toBeLessThan(MAX_ROOM_PER_PARSE);
         },
     );
+});
+
+/** The rows the other side added a task to. */
+const ADDED_ROWS = [0, 4, 8, 12, 16];
+
+/**
+ * A pool `width` wide at `x` of 20 rows of 50 tasks 10 px apart, the rows tasks are added to left
+ * empty when `withFreeRows`, and five tasks the other side added, the `index`th at `addedX(index)`.
+ */
+function poolWithAddedTasks(
+    x: number,
+    width: number,
+    withFreeRows: boolean,
+    addedX: (index: number) => number,
+): LayoutModel {
+    const pool: LayoutShape = {
+        kind: "pool",
+        id: "Pool_A",
+        plane: COLLABORATION,
+        outline: "rectangle",
+        bounds: { x, y: 0, width, height: 20 * 140 + 40 },
+    };
+    const rows = Array.from({ length: 20 }, (_, row) => row).filter(
+        (row) => !withFreeRows || !ADDED_ROWS.includes(row),
+    );
+    const tasks = rows.flatMap((row) =>
+        Array.from({ length: 50 }, (_, column) =>
+            taskIn("Pool_A", `Task_${row}_${column}`, 60 + column * 110, 40 + row * 140),
+        ),
+    );
+    const added = ADDED_ROWS.map((row, index) =>
+        taskIn("Pool_A", `Task_Added_${index}`, addedX(index), 40 + row * 140),
+    );
+    return {
+        shapes: new Map([pool, ...tasks, ...added].map((shape) => [shape.id, shape])),
+        edges: new Map(),
+    };
+}
+
+// Measured against parsing the 800 KB file once (35 to 44 ms), best of five each, with and without
+// coverage: 0.04 to bring five tasks among 750 into the pool as the side moved it (2 ms), 0.13 to
+// 0.16 to grow the pool twice among 1,000 tasks and move three into the room (6 ms), as each
+// growth is checked by finding the spots of the whole drawing once.
+const MAX_CONTAINER_REPAIR_PER_PARSE = 1;
+
+describe("container repair time", () => {
+    it.each([
+        {
+            label: "brings five tasks into a pool the side drew elsewhere",
+            result: poolWithAddedTasks(0, 5600, true, () => -200),
+            side: poolWithAddedTasks(-300, 5600, true, () => -200),
+            kinds: Array.from({ length: 5 }, () => "movedIntoContainer"),
+        },
+        {
+            label: "grows a pool without a free place twice, then moves three tasks into the room it made,",
+            result: poolWithAddedTasks(0, 5600, false, (index) => 5560 + index * 130),
+            side: poolWithAddedTasks(0, 6600, false, (index) => 5560 + index * 130),
+            kinds: [
+                "grewContainer",
+                "grewContainer",
+                "movedIntoContainer",
+                "movedIntoContainer",
+                "movedIntoContainer",
+            ],
+        },
+    ])("$label in a few times parsing an 800 KB file", { timeout: 60_000 }, async (example) => {
+        const moddle = (await loadBpmnModdle())();
+        const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
+        const sides = [example.side, example.side];
+        const spots = introducedLayoutSpots(example.result, sides);
+
+        const plan = planContainerMoves(example.result, spots, sides);
+        const parsing = await fastestMillisecondsOf(() => moddle.fromXML(xml));
+        const planning = await fastestMillisecondsOf(() =>
+            planContainerMoves(example.result, spots, sides),
+        );
+
+        expect(plan.repairs.map(({ kind }) => kind)).toEqual(example.kinds);
+        expect(planning / parsing).toBeLessThan(MAX_CONTAINER_REPAIR_PER_PARSE);
+    });
 });

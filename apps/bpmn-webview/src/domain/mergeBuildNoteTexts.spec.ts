@@ -72,8 +72,42 @@ describe("buildNoteText", () => {
             "to packing runs through Pack box; the build could not repair it",
         ],
         [
-            { kind: "shapeOutsideContainer", id: "Task_Pack", shapes: ["Pool_1", "Lane_1"] },
-            "Pack box lies outside Pool_1, Lane_1",
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_Pack",
+                shapes: ["Sub_1"],
+                repair: "movedIntoContainer",
+            },
+            "The build moved Pack box into Sub_1",
+        ],
+        [
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_Pack",
+                shapes: ["Pool_1", "Lane_1"],
+                repair: "grewContainer",
+                shifted: [],
+            },
+            "The build grew Pool_1, Lane_1 to hold Pack box",
+        ],
+        [
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_Pack",
+                shapes: ["Sub_1"],
+                repair: "grewContainer",
+                shifted: ["Task_B", "End_1"],
+            },
+            "The build grew Sub_1 to hold Pack box and shifted Task_B, End_1",
+        ],
+        [
+            {
+                kind: "shapeOutsideContainer",
+                id: "Task_Pack",
+                shapes: ["Pool_1", "Lane_1"],
+                repair: "notRepaired",
+            },
+            "Pack box lies outside Pool_1, Lane_1; the build could not repair it",
         ],
         [
             { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_Pack" },

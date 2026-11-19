@@ -25,13 +25,20 @@ const HARVEST = import.meta.glob<string>("./__fixtures__/harvest/*.bpmn", {
 type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRandom";
 
 const NO_REPAIRS: LayoutRepairPlanners = {
+    moveIntoContainers: (layout) => ({ layout, repairs: [], movedShapes: [] }),
     moveShapes: (layout) => ({ layout, repairs: [] }),
     repairFlows: () => [],
 };
 
 const FLOW_REPAIRS_ONLY: LayoutRepairPlanners = {
     ...BUILD_LAYOUT_REPAIRS,
+    moveIntoContainers: NO_REPAIRS.moveIntoContainers,
     moveShapes: NO_REPAIRS.moveShapes,
+};
+
+const WITHOUT_CONTAINER_REPAIRS: LayoutRepairPlanners = {
+    ...BUILD_LAYOUT_REPAIRS,
+    moveIntoContainers: NO_REPAIRS.moveIntoContainers,
 };
 
 function versionsOf(seed: number): MergeVersions {
@@ -78,11 +85,14 @@ interface HarvestCase {
     readonly repairs: Repairs;
     /** How many crossings between flows the repair may add. */
     readonly crossingBudget: number;
+    /** The shapes left outside a container, whose notes say the build could not repair them. */
+    readonly leftOutside?: readonly string[];
 }
 
 /**
  * The harvest results the design prototype changed although no spot was introduced, four the
- * flow repair re-routes, and those with shapes on top of each other (#2565).
+ * flow repair re-routes, those with shapes on top of each other, and those with shapes outside
+ * their sub-process or lane (#2565).
  */
 const CASES: readonly HarvestCase[] = [
     ...(
@@ -149,19 +159,39 @@ const CASES: readonly HarvestCase[] = [
         repairs: "shapes" as const,
         crossingBudget,
     })),
+    ...(
+        [
+            [6, "conflictsToIncoming", 1, []],
+            [32, "conflictsToCurrent", 0, []],
+            [32, "conflictsToIncoming", 0, []],
+            [75, "conflictsAtRandom", 0, ["Task_Reject"]],
+            [112, "conflictsToCurrent", 2, []],
+            [112, "conflictsToIncoming", 1, ["Boundary_Timeout"]],
+            [153, "conflictsAtRandom", 0, []],
+            [159, "conflictsToIncoming", 0, []],
+            [159, "conflictsAtRandom", 0, []],
+        ] as const
+    ).map(([seed, strategy, crossingBudget, leftOutside]) => ({
+        seed,
+        strategy,
+        repairs: "shapes" as const,
+        crossingBudget,
+        leftOutside,
+    })),
 ];
 
 describe("the layout repair on harvested merges", () => {
     it.each(CASES)(
         "seed $seed, $strategy: repairs $repairs, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
-        async ({ seed, strategy, repairs, crossingBudget }) => {
+        async ({ seed, strategy, repairs, crossingBudget, leftOutside = [] }) => {
             const versions = versionsOf(seed);
             const sources = await prepareMergeSources(versions);
             const buildWith = async (planners: LayoutRepairPlanners) =>
                 buildMergedWith(sources, await decisionsOf(versions, seed, strategy), planners);
             const unrepaired = await buildWith(NO_REPAIRS);
             const flowsRepaired = await buildWith(FLOW_REPAIRS_ONLY);
+            const withoutContainers = await buildWith(WITHOUT_CONTAINER_REPAIRS);
             const repaired = await buildMerged(
                 sources,
                 await decisionsOf(versions, seed, strategy),
@@ -173,7 +203,9 @@ describe("the layout repair on harvested merges", () => {
             const after = introducedLayoutSpots(repairedLayout, sides);
 
             if (before.length === 0) expect(repaired.xml).toBe(unrepaired.xml);
-            if (!before.some(({ kind }) => kind === "shapesOverlap")) {
+            const hasSpot = (kind: LayoutSpot["kind"]) => before.some((spot) => spot.kind === kind);
+            if (!hasSpot("shapeOutsideContainer")) expect(repaired.xml).toBe(withoutContainers.xml);
+            if (!hasSpot("shapeOutsideContainer") && !hasSpot("shapesOverlap")) {
                 expect(repaired.xml).toBe(flowsRepaired.xml);
             }
             expect(repairsOf(unrepaired.xml, flowsRepaired.xml, repaired.xml)).toBe(repairs);
@@ -187,8 +219,15 @@ describe("the layout repair on harvested merges", () => {
             );
             expect(after.filter(({ kind }) => kind === "shapesOverlap")).toEqual([]);
             expect(
-                repaired.notes.filter((note) => "repair" in note && note.repair === "notRepaired"),
-            ).toEqual([]);
+                repaired.notes.flatMap((note) =>
+                    "repair" in note && note.repair === "notRepaired" ? [note.kind] : [],
+                ),
+            ).toEqual(leftOutside.map(() => "shapeOutsideContainer"));
+            expect(
+                after.flatMap((spot) =>
+                    spot.kind === "shapeOutsideContainer" ? [spot.shape] : [],
+                ),
+            ).toEqual(leftOutside);
         },
     );
 });

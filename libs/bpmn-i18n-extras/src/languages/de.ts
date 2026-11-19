@@ -371,7 +371,14 @@ const dictionary: Record<string, string> = {
         "Beim Erstellen wurde {element} um {shapes} herumgeführt",
     "{element} runs through {shapes}; the build could not repair it":
         "{element} verläuft durch {shapes}; beim Erstellen ließ es sich nicht reparieren",
-    "{element} lies outside {shapes}": "{element} liegt außerhalb von {shapes}",
+    "The build moved {element} into {shapes}":
+        "Beim Erstellen wurde {element} in {shapes} verschoben",
+    "The build grew {shapes} to hold {element}":
+        "Beim Erstellen wurde {shapes} vergrößert, damit es {element} aufnimmt",
+    "The build grew {shapes} to hold {element} and shifted {shifted}":
+        "Beim Erstellen wurde {shapes} vergrößert, damit es {element} aufnimmt; verschoben: {shifted}",
+    "{element} lies outside {shapes}; the build could not repair it":
+        "{element} liegt außerhalb von {shapes}; beim Erstellen ließ es sich nicht reparieren",
     "{element} is not on the border of {host}": "{element} liegt nicht auf dem Rand von {host}",
     "{first} and {second} overlap": "{first} und {second} überlappen sich",
     "{element} is kept without the flows the other side removed with it: {connections}":

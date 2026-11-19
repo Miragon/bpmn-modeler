@@ -1,6 +1,7 @@
 import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
 import type { BuildNote } from "./buildNotes";
+import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
 import { type FlowRepair, planFlowRepairs, withFlowRepairs } from "./layoutFlowRepair";
 import type { Point } from "./layoutGeometry";
 import type { LayoutModel } from "./layoutModel";
@@ -13,6 +14,11 @@ import type { LayoutSpot } from "./layoutSpots";
 
 /** How the build repairs the drawing the merge broke; the specs build with less to compare. */
 export interface LayoutRepairPlanners {
+    readonly moveIntoContainers: (
+        layout: LayoutModel,
+        spots: readonly LayoutSpot[],
+        sides: readonly LayoutModel[],
+    ) => ContainerMovePlan;
     readonly moveShapes: (
         layout: LayoutModel,
         spots: readonly LayoutSpot[],
@@ -22,6 +28,7 @@ export interface LayoutRepairPlanners {
 }
 
 export const BUILD_LAYOUT_REPAIRS: LayoutRepairPlanners = {
+    moveIntoContainers: planContainerMoves,
     moveShapes: planShapeMoves,
     repairFlows: planFlowRepairs,
 };
@@ -34,9 +41,10 @@ export interface LayoutRepairPlan {
 }
 
 /**
- * Finds the broken spots of the drawing that neither side drew, moves the
- * shapes the build placed on another, then re-routes the flows still or
- * newly broken after that.
+ * Finds the broken spots of the drawing that neither side drew, brings the
+ * shapes the build placed outside their containers back inside, moves the
+ * shapes it placed on another, then re-routes the flows still or newly
+ * broken after that.
  */
 export function planLayoutRepair(
     layout: LayoutModel,
@@ -44,15 +52,22 @@ export function planLayoutRepair(
     planners: LayoutRepairPlanners,
 ): LayoutRepairPlan {
     const spots = introducedLayoutSpots(layout, sideLayouts);
-    const shapeMoves = planners.moveShapes(layout, spots, sideLayouts);
+    const containerMoves = planners.moveIntoContainers(layout, spots, sideLayouts);
+    const inContainers = containerMoves.layout;
+    const spotsInContainers =
+        inContainers === layout ? spots : introducedLayoutSpots(inContainers, sideLayouts);
+    const shapeMoves = planners.moveShapes(inContainers, spotsInContainers, sideLayouts);
     const moved = shapeMoves.layout;
-    const spotsAfterMoves = moved === layout ? spots : introducedLayoutSpots(moved, sideLayouts);
+    const spotsAfterMoves =
+        moved === inContainers ? spotsInContainers : introducedLayoutSpots(moved, sideLayouts);
     const flowRepairs = planners.repairFlows(moved, spotsAfterMoves);
     return {
         repaired: withFlowRepairs(moved, flowRepairs),
         notes: layoutSpotNotes({
             spots,
             spotsAfterMoves,
+            containerRepairs: containerMoves.repairs,
+            shapesMovedForContainers: containerMoves.movedShapes,
             overlapRepairs: shapeMoves.repairs,
             flowRepairs,
         }),
