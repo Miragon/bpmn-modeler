@@ -68,11 +68,19 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the harvest, a result with no lane overlap stays byte-equal to the build without this step
   (`buildMergedRepairLocality.spec.ts`), and stacking a lane with 200 members stays
   within a fraction of parsing an 800 KB file (`layoutFlowRepairTime.spec.ts`).
+- *Two root planes are one place in the placed-by-build test.* The container step and the
+  overlap step below move only a shape the build placed: one that not both sides draw where the
+  result does. There a collaboration's plane and a process's count as one place, as one side
+  may wrap the process in a pool and the other not, while a collapsed sub-process's plane counts
+  as elsewhere (#2589). Rejected: comparing plane ids, which moved a whole lane's members both
+  sides draw at one place under two root plane ids. Cost: any two root planes count as one,
+  though the result joins a collaboration only with the processes its participants name, so a
+  shape that changed process between two process diagrams counts as drawn in place (#2597).
 - *The build brings a shape it placed outside its container back inside, and grows the
   container only as a last resort.* Once the lanes are stacked and before any other move, each
   shape the detector names as
   introduced outside its sub-process, pool or lane goes inside when the build placed it there: by the
-  overlap step's test (not both sides draw it where the result does), or as it lies in a frame
+  placed-by-build test, or as it lies in a frame
   no side draws where it lies, such as a lane the build stacked; with its label, boundary
   events and contents; never a boundary event on its own. A shape both sides draw where it lies in
   a frame a side draws there stays, noted as not repaired: its spot comes from one side's lane bounds and the other's lane
@@ -103,11 +111,7 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   last resort.* For each overlap the detector names as introduced, it moves a shape that not
   both sides draw where the result does (one side moved it, or only one side has it), so one
   side's own drawing may move off the other side's shape; never a boundary event, which goes
-  with its host. Two root planes count as one place, a collaboration's and a process's, as one
-  side may wrap the process in a pool and the other not, while a collapsed sub-process's plane
-  counts as elsewhere (#2589); the container step's test follows. Rejected: comparing plane
-  ids, which moved a whole lane's members both sides draw at one place under two root plane
-  ids. It carries the shape's label, boundary events and, drawn open, its contents.
+  with its host. It carries the shape's label, boundary events and, drawn open, its contents.
   The shape goes first to where the other side draws it, else to the nearest place within 250 px
   that keeps every moved shape in the pool, lanes and sub-processes it lies in, 15 px clear of
   other shapes and off every flow that is not its own. Only when neither exists does it make

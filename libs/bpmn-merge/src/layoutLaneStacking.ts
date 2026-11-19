@@ -1,5 +1,6 @@
 import { type DiagramBounds, bottomOf, liesWithin, translated } from "./layoutGeometry";
 import {
+    type FlowEnd,
     type LaneShape,
     type LayoutEdge,
     type LayoutModel,
@@ -234,11 +235,7 @@ function grown(bounds: DiagramBounds, height: number): DiagramBounds {
  * runs across the line stretch; the point at the end that stays keeps its
  * place.
  */
-function stretched(
-    edge: LayoutEdge,
-    { line, height }: Band,
-    staying: "source" | "target",
-): LayoutEdge {
+function stretched(edge: LayoutEdge, { line, height }: Band, staying: FlowEnd): LayoutEdge {
     const kept = staying === "source" ? 0 : edge.waypoints.length - 1;
     const waypoints = edge.waypoints.map((point, at) =>
         point.y >= line && at !== kept ? { x: point.x, y: point.y + height } : point,

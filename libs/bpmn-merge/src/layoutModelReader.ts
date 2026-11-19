@@ -5,7 +5,13 @@ import {
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
-import { type DiagramIndex, type Drawing, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import {
+    type DiagramIndex,
+    type Drawing,
+    diagramIndexOf,
+    flowDrawingOf,
+    planeKindOf,
+} from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -36,8 +42,7 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
 }
 
 function planeOf(index: DiagramIndex, { planeOwner }: Drawing): ShapePlane {
-    const planeKind = index.subProcessPlaneOwners.has(planeOwner) ? "subProcess" : "root";
-    return { plane: planeOwner, planeKind };
+    return { plane: planeOwner, planeKind: planeKindOf(planeOwner, index) };
 }
 
 /** The element's shape drawing the layout reads: the first with bounds. */

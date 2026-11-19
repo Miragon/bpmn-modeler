@@ -5,12 +5,7 @@ import {
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
-
-/**
- * A root plane draws a process or a collaboration, the canvas no shape names;
- * a sub-process plane draws a collapsed sub-process's contents.
- */
-type PlaneKind = "root" | "subProcess";
+import type { PlaneKind } from "./diagramIndex";
 
 interface DrawnShape {
     readonly id: string;
@@ -19,17 +14,6 @@ interface DrawnShape {
     readonly planeKind: PlaneKind;
     readonly bounds: DiagramBounds;
     readonly outline: Outline;
-}
-
-/**
- * Whether two layouts draw the shapes on one plane: the same plane, or two
- * root planes, which one layout names after its collaboration and the other
- * after its process when only one has a collaboration.
- */
-export function onOnePlaneAcrossLayouts(first: LayoutShape, second: LayoutShape): boolean {
-    return (
-        first.plane === second.plane || (first.planeKind === "root" && second.planeKind === "root")
-    );
 }
 
 /** A flow node, data reference or annotation: anything drawn as a shape but a pool, a lane or a group. */
