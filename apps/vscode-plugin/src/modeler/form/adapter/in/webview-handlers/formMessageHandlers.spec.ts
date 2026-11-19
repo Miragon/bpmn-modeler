@@ -19,6 +19,7 @@ import {
     typeIntoTab,
 } from "../../../../../__fixtures__/vscodeVirtualDocumentsFake";
 import { FormValuesParticipant } from "../editor-participants/FormValuesParticipant";
+import { registeredFormValueFiles } from "../../../../../__fixtures__/formValueFiles";
 import {
     FormValuesController,
     TOGGLE_FORM_INPUT_VALUES_CMD,
@@ -30,7 +31,7 @@ const extension: Pick<ExtensionContext, "subscriptions"> = { subscriptions: [] }
 
 function createFormEditors() {
     const host = createTestHost();
-    const formValues = new FormValuesController(host.store, host.notifier);
+    const formValues = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
     formValues.register(extension as ExtensionContext);
     const router = new WebviewMessageRouter()
         .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))

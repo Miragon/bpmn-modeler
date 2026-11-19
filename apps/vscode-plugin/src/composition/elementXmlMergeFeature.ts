@@ -1,4 +1,4 @@
-import { ExtensionContext, workspace } from "vscode";
+import { ExtensionContext } from "vscode";
 
 import {
     ElementXmlMergeService,
@@ -12,7 +12,7 @@ import {
     MERGE_XML_SCHEME,
     VsCodeElementXmlMergeEditor,
 } from "../diff/adapter/out/VsCodeElementXmlMergeEditor";
-import { InMemoryFileSystemProvider } from "../shared/adapter/in/InMemoryFileSystemProvider";
+import { InMemoryFileSystemProvider } from "../shared/adapter/out/InMemoryFileSystemProvider";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -27,8 +27,12 @@ export function register(
     merge: { readonly sessions: MergeSessionStore; readonly decisions: MergeDecisionService },
     availability: MergeEditorAvailability,
 ): ElementXmlMergeService {
-    const inputs = new InMemoryFileSystemProvider({ readOnly: true });
-    const results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
+    const inputs = InMemoryFileSystemProvider.registered(context, MERGE_XML_SCHEME, {
+        readOnly: true,
+    });
+    const results = InMemoryFileSystemProvider.registered(context, MERGE_RESULT_SCHEME, {
+        editorMayCreateFiles: false,
+    });
     let service: ElementXmlMergeService | undefined = undefined;
     const editor = new VsCodeElementXmlMergeEditor(inputs, results, (key, written) => {
         service
@@ -37,17 +41,6 @@ export function register(
     });
     editor.register(context);
     new ElementXmlMergeController(() => editor.acceptingActiveMerge()).register(context);
-    context.subscriptions.push(
-        inputs,
-        results,
-        workspace.registerFileSystemProvider(MERGE_XML_SCHEME, inputs, {
-            isCaseSensitive: true,
-            isReadonly: true,
-        }),
-        workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results, {
-            isCaseSensitive: true,
-        }),
-    );
     service = new ElementXmlMergeService(
         merge.sessions,
         merge.decisions,

@@ -165,6 +165,7 @@ vi.mock("vscode", () => ({
 
 import { TabInputText } from "vscode";
 
+import { registeredFormValueFiles } from "../../../../__fixtures__/formValueFiles";
 import {
     FORM_INPUT_VALUES_SCHEME,
     FORM_OUTPUT_VALUES_SCHEME,
@@ -179,7 +180,7 @@ const EDITOR_ID = `file://${EDITOR_PATH}`;
 function setup() {
     const host = createTestHost();
     const editor = host.openEditor(EDITOR_PATH);
-    const controller = new FormValuesController(host.store, host.notifier);
+    const controller = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
     const context = { subscriptions: [] as { dispose(): unknown }[] };
     controller.register(context as never);
     controller.registerSession(EDITOR_ID);
@@ -205,21 +206,9 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("FormValuesController", () => {
-    it("registers writable input and read-only output virtual file systems", () => {
+    it("registers both toggle commands", () => {
         setup();
 
-        expect(vscodeMocks.registerFileSystemProvider).toHaveBeenNthCalledWith(
-            1,
-            FORM_INPUT_VALUES_SCHEME,
-            expect.any(Object),
-            { isCaseSensitive: true },
-        );
-        expect(vscodeMocks.registerFileSystemProvider).toHaveBeenNthCalledWith(
-            2,
-            FORM_OUTPUT_VALUES_SCHEME,
-            expect.any(Object),
-            { isCaseSensitive: true, isReadonly: true },
-        );
         expect(vscodeMocks.registerCommand).toHaveBeenCalledWith(
             TOGGLE_FORM_INPUT_VALUES_CMD,
             expect.any(Function),
@@ -405,7 +394,7 @@ describe("FormValuesController", () => {
         const tab = { input: new TabInputText(uri as never) };
         vscodeMocks.openTabGroups = [{ tabs: [tab] }];
         const host = createTestHost();
-        const controller = new FormValuesController(host.store, host.notifier);
+        const controller = new FormValuesController(host.store, host.notifier, registeredFormValueFiles());
 
         controller.register({ subscriptions: [] } as never);
         await Promise.resolve();

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("vscode", () => import("../../../__fixtures__/vscodeFileSystemFake"));
+const registerFileSystemProvider = vi.hoisted(() => vi.fn(() => ({ dispose: () => undefined })));
+
+vi.mock("vscode", async () => ({
+    ...(await import("../../../__fixtures__/vscodeFileSystemFake")),
+    workspace: { registerFileSystemProvider },
+}));
 
 import { FileChangeType, FileType, Uri } from "vscode";
 
@@ -27,6 +32,19 @@ afterEach(() => {
 });
 
 describe("InMemoryFileSystemProvider", () => {
+    it.each([
+        ["writable", {}, { isCaseSensitive: true }],
+        ["read-only", { readOnly: true }, { isCaseSensitive: true, isReadonly: true }],
+    ])("registers a %s provider under its scheme for the context's lifetime", (_case, options, registered) => {
+        const context = { subscriptions: [] as { dispose(): unknown }[] };
+
+        const provider = InMemoryFileSystemProvider.registered(context, "bpmn-test", options);
+
+        expect(registerFileSystemProvider).toHaveBeenLastCalledWith("bpmn-test", provider, registered);
+        expect(context.subscriptions).toContain(provider);
+        expect(context.subscriptions).toHaveLength(2);
+    });
+
     it("serves written content and stats it as a file", () => {
         const provider = new InMemoryFileSystemProvider();
 

@@ -1,6 +1,7 @@
 import {
     Disposable,
     EventEmitter,
+    ExtensionContext,
     FileChangeEvent,
     FileChangeType,
     FileStat,
@@ -8,6 +9,7 @@ import {
     FileSystemProvider,
     FileType,
     Uri,
+    workspace,
 } from "vscode";
 
 import { EditorWrittenTextFiles } from "../../port/ServedTextFiles";
@@ -34,6 +36,24 @@ export class InMemoryFileSystemProvider
     private readonly editorMayCreateFiles: boolean;
 
     readonly onDidChangeFile = this.changes.event;
+
+    /** A provider VS Code reads `scheme` from until `context` is disposed. */
+    static registered(
+        context: Pick<ExtensionContext, "subscriptions">,
+        scheme: string,
+        options: InMemoryFileSystemOptions = {},
+    ): InMemoryFileSystemProvider {
+        const provider = new InMemoryFileSystemProvider(options);
+        context.subscriptions.push(
+            provider,
+            workspace.registerFileSystemProvider(
+                scheme,
+                provider,
+                options.readOnly ? { isCaseSensitive: true, isReadonly: true } : { isCaseSensitive: true },
+            ),
+        );
+        return provider;
+    }
 
     constructor(options: InMemoryFileSystemOptions = {}) {
         this.readOnly = options.readOnly ?? false;
