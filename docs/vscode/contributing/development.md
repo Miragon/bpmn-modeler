@@ -226,19 +226,20 @@ yarn dev:bpmn-webview
 This launches a Vite dev server via [`portless`](#prerequisites); the URL is
 printed to stdout when the server starts.
 
-A URL query parameter selects what the mock serves:
+URL query parameters select what the mock serves. `?mode=` picks the
+document, a diff pane or a merge pane: `PREVIEW_MODES` in
+`apps/bpmn-webview/src/adapter/out/browserPreview/previewMode.ts` lists the
+modes and what each serves, and the browser console prints their URLs at
+startup. `?plugins` loads the sample plugins of
+`apps/bpmn-webview/src/__fixtures__/mock-plugins.ts` (`?plugins=broken` adds
+one that throws), and `&mergeXml=accept` or `&mergeXml=refuse` starts a merge
+pane with Merge XML offered (`__fixtures__/mock-merge.ts`).
 
-| URL                                      | What renders                                                                                 |
-|------------------------------------------|----------------------------------------------------------------------------------------------|
-| `/` (or `?mode=modeler`)                 | Full editable Camunda modeler with a hardcoded sample diagram — matches the production modeler experience. |
-| `/?mode=diff-before`                     | Readonly **before** (left) pane of a diff view, with highlights for removed / changed / moved elements.    |
-| `/?mode=diff-after`                      | Readonly **after** (right) pane, with highlights for added / changed / moved elements.                     |
-
-The diff modes run `bpmn-js-differ` against two fixture XMLs
-(`apps/bpmn-webview/src/__fixtures__/mock-diff.ts`) so highlights reflect
-the real differ's output. All mock code and its dependencies are gated on
-`NODE_ENV === "development"` and tree-shaken out of the production webview
-bundle.
+The diff and merge modes serve two fixture XMLs
+(`apps/bpmn-webview/src/__fixtures__/mock-diff.ts`), and the diff modes run
+`bpmn-js-differ` on them, so highlights reflect the real differ's output. The
+preview host is gated on `NODE_ENV === "development"` and dropped from the
+production webview bundle.
 
 ## Testing & Linting
 

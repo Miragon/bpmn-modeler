@@ -39,11 +39,15 @@ which takes over another process's route. If portless needs setup, inspect
 missing prerequisite.
 
 The BPMN preview opens at `/`. Its development host in
-`apps/bpmn-webview/src/adapter/out/preview/`, one module per feature's answers, serves a C7 fixture with the C7 and C8 sample
-element templates. `?mode=neutral` opens an untagged model in Design with
-Implement greyed out; `?mode=diff-before` and `?mode=diff-after` each show one
-read-only diff pane with real `bpmn-js-differ` highlights. These panes have no
-partner for synchronized navigation. Workspace definition search answers from
+`apps/bpmn-webview/src/adapter/out/browserPreview/`, one module per feature's
+answers, serves a C7 fixture with the C7 and C8 sample element templates.
+`?mode=` picks another document or one pane of a diff or merge view;
+`PREVIEW_MODES` in `browserPreview/previewMode.ts` lists the modes and what
+each serves (an untagged model in Design, diff panes with real
+`bpmn-js-differ` highlights, merge panes with recorded merge states). A pane
+has no partner for synchronized navigation. `?plugins` loads the sample
+plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
+starts a merge pane with Merge XML offered. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
 decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
 preview serves `apps/add-ons-webview/src/adapter/out/mockCatalog.ts`;
@@ -177,6 +181,6 @@ translation harvesting, follow [i18n](../i18n-translate/SKILL.md).
 Report the preview URL, fixture/engine, mode, actions, observed results, and any
 unverified host behavior. Keep screenshots in the ignored `.context/` directory
 when available. For deeper debugging, start at `apps/bpmn-webview/src/main.ts`,
-`src/composition/bootstrap.ts`, and `src/adapter/out/preview/previewHost.ts` within that
+`src/composition/bootstrap.ts`, and `src/adapter/out/browserPreview/previewHost.ts` within that
 app, or `packages/bpmn-modeler/src/index.ts` for package composition; consult
 [bpmn-js](../bpmn-js/SKILL.md) for interaction internals.
