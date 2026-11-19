@@ -8,8 +8,8 @@ import {
     CLEANUP_MODDLE_COMMAND,
     CleanupApplyHandler,
     CleanupModdleHandler,
+    TIDY_WAYPOINT_HINTS,
 } from "./CleanupHandlers";
-import { WAYPOINT_HINTS } from "./LayoutApplyHandler";
 
 function harness(knownIds: string[]) {
     const modeling = {
@@ -46,7 +46,7 @@ describe("CleanupApplyHandler", () => {
         ]);
     });
 
-    it("tidies waypoints through updateWaypoints with the label hint", () => {
+    it("tidies waypoints through updateWaypoints with the label hints", () => {
         const { handler, modeling, element } = harness(["Flow_1"]);
         const waypoints = [
             { x: 0, y: 0 },
@@ -58,8 +58,12 @@ describe("CleanupApplyHandler", () => {
         expect(modeling.updateWaypoints).toHaveBeenCalledWith(
             element("Flow_1"),
             waypoints,
-            WAYPOINT_HINTS,
+            TIDY_WAYPOINT_HINTS,
         );
+        expect(TIDY_WAYPOINT_HINTS).toEqual({
+            createElementsBehavior: false,
+            labelBehavior: false,
+        });
     });
 
     it("defers moddle-only actions to the nested raw command", () => {

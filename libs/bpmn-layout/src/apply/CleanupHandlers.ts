@@ -1,9 +1,18 @@
 import type { CleanupAction } from "../cleanup/rules";
 import type { ElementRegistryLike, ModelingLike } from "./LayoutApplyHandler";
-import { WAYPOINT_HINTS } from "./LayoutApplyHandler";
 
 export const CLEANUP_COMMAND = "layout.cleanup";
 export const CLEANUP_MODDLE_COMMAND = "layout.cleanupModdle";
+
+/**
+ * A tidied line runs where it ran before, so no label has a reason to move.
+ *
+ * `createElementsBehavior: false` stops `AdaptiveLabelPositioningBehavior`
+ * from repositioning the source's and target's labels; `labelBehavior: false`
+ * stops `LabelBehavior` from moving the flow's own label, which it does when a
+ * bend goes even though the line looks the same.
+ */
+export const TIDY_WAYPOINT_HINTS = { createElementsBehavior: false, labelBehavior: false };
 
 interface ModelingWithRemove extends ModelingLike {
     removeElements(elements: unknown[]): void;
@@ -44,7 +53,11 @@ export class CleanupApplyHandler {
                 case "set-waypoints": {
                     const element = this.elementRegistry.get(action.id);
                     if (element) {
-                        this.modeling.updateWaypoints(element, action.waypoints, WAYPOINT_HINTS);
+                        this.modeling.updateWaypoints(
+                            element,
+                            action.waypoints,
+                            TIDY_WAYPOINT_HINTS,
+                        );
                     }
                     break;
                 }
