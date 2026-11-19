@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 
-import {
-    handMergeElementOf,
-    handMergeFactsOf,
-    type MergeHandMergeFacts,
-} from "./mergeHandMergeCard";
+import { elementPickOf, rowPickOf } from "./mergeElementPick";
+import { handMergeFactsOf, type MergeHandMergeFacts } from "./mergeHandMergeCard";
 import { mergePadDecisions } from "./mergePadDecisions";
 
 const MESSAGE_ROW: MergePaneShapelessRow = {
@@ -47,7 +44,7 @@ describe("handMergeFactsOf", () => {
         "reads %s's pick on a pane and whether it can be merged again, the host offering it: %s",
         (id, offered, expected) => {
             expect(
-                handMergeFactsOf(handMergeElementOf(STATES, id), { elementXmlMerge: offered }),
+                handMergeFactsOf(elementPickOf(STATES, id), { elementXmlMerge: offered }),
             ).toStrictEqual(expected);
         },
     );
@@ -55,8 +52,8 @@ describe("handMergeFactsOf", () => {
     it("reads a menu row's own pick, as the pane finds it", () => {
         const offers = { elementXmlMerge: true };
 
-        expect(handMergeFactsOf(MESSAGE_ROW, offers)).toStrictEqual(
-            handMergeFactsOf(handMergeElementOf(STATES, "Message_1"), offers),
+        expect(handMergeFactsOf(rowPickOf(MESSAGE_ROW), offers)).toStrictEqual(
+            handMergeFactsOf(elementPickOf(STATES, "Message_1"), offers),
         );
     });
 });
@@ -86,7 +83,7 @@ describe("the pad and the card read one pick", () => {
         "the pad's Merge XML on drawn %s and the card's Edit again agree, the host offering it: %s",
         (id, offered) => {
             const offers = { elementXmlMerge: offered };
-            const card = handMergeFactsOf(handMergeElementOf(PANE, id), offers);
+            const card = handMergeFactsOf(elementPickOf(PANE, id), offers);
             const mergeXml = mergePadDecisions(PANE, id, offers).find(
                 (decision) => decision.kind === "mergeXml",
             );

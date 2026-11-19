@@ -7,6 +7,7 @@ import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
 import type { MergeCardChoice } from "./mergeCardContent";
+import { rowPickOf } from "./mergeElementPick";
 import { handMergeFactsOf } from "./mergeHandMergeCard";
 import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
@@ -102,7 +103,7 @@ function rowOutcomeContent(
     return mergeOutcomeCardContent(outcome, {
         ...words,
         restoreOffer: states.restoreOffer,
-        handMerge: handMergeFactsOf(row ?? {}, offers),
+        handMerge: handMergeFactsOf(rowPickOf(row), offers),
     });
 }
 
