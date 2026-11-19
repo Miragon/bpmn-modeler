@@ -937,7 +937,7 @@ ${
     });
 
     describe("notes", () => {
-        it("names a flow whose end the other side moved away from it", async () => {
+        it("names and re-routes a flow whose end the other side moved away from it", async () => {
             const versions = fixtureTriple({
                 current: (model) => {
                     nodeById(model, "Task_Check").y += 30;
@@ -949,7 +949,12 @@ ${
             const { notes } = await automaticMerge(versions);
 
             expect(notes).toEqual([
-                { kind: "flowEndOffShape", id: "Flow_Checked", shapes: ["Gateway_Ok"] },
+                {
+                    kind: "flowEndOffShape",
+                    id: "Flow_Checked",
+                    shapes: ["Gateway_Ok"],
+                    repair: "movedByBuild",
+                },
             ]);
         });
 

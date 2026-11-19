@@ -194,7 +194,8 @@ export interface MergePaneRestoreOffer {
  * `BuildNote` names it. A broken spot in the drawing that neither side drew:
  * a flow that does not meet the shapes at its ends, two shapes on top of each
  * other, a flow running through shapes, a shape outside its sub-process, pool
- * or lane, a boundary event off its host's border, or two overlapping lanes.
+ * or lane, a boundary event off its host's border, or two overlapping lanes;
+ * a broken flow says whether the build re-routed it.
  * Or an element kept without the boundary events or flows removed with it, a
  * kept flow its source no longer names as its default (with the default it
  * keeps, if any), elements whose layout both sides changed differently with
@@ -203,8 +204,15 @@ export interface MergePaneRestoreOffer {
  */
 export type MergePaneBuildNote =
     | {
-          /** A flow and the shapes it misses at its ends or runs through, or a shape and the containers it lies outside. */
-          readonly kind: "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer";
+          /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
+          readonly kind: "flowEndOffShape" | "flowThroughShape";
+          readonly id: string;
+          readonly shapes: readonly string[];
+          readonly repair: "movedByBuild" | "notRepaired";
+      }
+    | {
+          /** A shape and the containers it lies outside. */
+          readonly kind: "shapeOutsideContainer";
           readonly id: string;
           readonly shapes: readonly string[];
       }

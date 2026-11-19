@@ -8,14 +8,14 @@ type NoteOfKind<Kind extends MergePaneBuildNote["kind"]> = Extract<
     { kind: Kind }
 >;
 
+type FlowNote = NoteOfKind<"flowEndOffShape" | "flowThroughShape">;
+
 /** What each build note asks the user to check, with the canvas's names of its elements; each is a translation key. */
 const BUILD_NOTE_TEXTS: Record<
-    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth">,
+    Exclude<MergePaneBuildNote["kind"], "layoutChangedByBoth" | FlowNote["kind"]>,
     string
 > = {
-    flowEndOffShape: "{element} does not meet {shapes}",
     shapesOverlap: "{first} and {second} lie on top of each other",
-    flowThroughShape: "{element} runs through {shapes}",
     shapeOutsideContainer: "{element} lies outside {shapes}",
     boundaryEventOffHost: "{element} is not on the border of {host}",
     lanesOverlap: "{first} and {second} overlap",
@@ -23,6 +23,18 @@ const BUILD_NOTE_TEXTS: Record<
         "{element} is kept without the flows the other side removed with it: {connections}",
     defaultFlowNotRestored: "{flow} is kept but is no longer the default flow of {element}",
     frameDiffers: "The file's {attribute} differs between the sides; current's is kept",
+};
+
+/** A broken flow's note, by whether the build re-routed it. */
+const FLOW_NOTE_TEXTS: Record<FlowNote["kind"], Record<FlowNote["repair"], string>> = {
+    flowEndOffShape: {
+        movedByBuild: "The build moved {element} to meet {shapes}",
+        notRepaired: "{element} does not meet {shapes}; the build could not repair it",
+    },
+    flowThroughShape: {
+        movedByBuild: "The build moved {element} around {shapes}",
+        notRepaired: "{element} runs through {shapes}; the build could not repair it",
+    },
 };
 
 const OTHER_DEFAULT_KEPT_TEXT =
@@ -53,6 +65,9 @@ export function buildNoteText(
 
 function buildNoteTemplate(note: MergePaneBuildNote): string {
     if (note.kind === "layoutChangedByBoth") return LAYOUT_CHANGED_BY_BOTH_TEXTS[note.keptSide];
+    if (note.kind === "flowEndOffShape" || note.kind === "flowThroughShape") {
+        return FLOW_NOTE_TEXTS[note.kind][note.repair];
+    }
     if (note.kind === "defaultFlowNotRestored" && note.keptDefault !== undefined) {
         return OTHER_DEFAULT_KEPT_TEXT;
     }

@@ -7,7 +7,7 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import { planeOwnerOf } from "./diagramIndex";
-import type { Outline, Point } from "./layoutGeometry";
+import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
 
@@ -28,7 +28,9 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
             } else if (isType(drawing, "bpmndi:BPMNEdge")) {
                 const ends = relations.connections.get(id);
                 if (ends !== undefined) {
-                    edges.set(id, { id, plane, waypoints: waypointsOf(drawing), ...ends });
+                    const label = labelBoundsOf(drawing);
+                    const edge = { id, plane, waypoints: waypointsOf(drawing), ...ends };
+                    edges.set(id, label === undefined ? edge : { ...edge, label });
                 }
             }
         }
@@ -61,13 +63,18 @@ function shapeOf(
     };
 }
 
-function boundsOf(bounds: ModdleElement) {
+function boundsOf(bounds: ModdleElement): DiagramBounds {
     return {
         x: Number(bounds.x),
         y: Number(bounds.y),
         width: Number(bounds.width),
         height: Number(bounds.height),
     };
+}
+
+function labelBoundsOf(drawing: ModdleElement): DiagramBounds | undefined {
+    const label = drawing.label as ModdleElement | undefined;
+    return isModdleElement(label?.bounds) ? boundsOf(label.bounds) : undefined;
 }
 
 function waypointsOf(drawing: ModdleElement): Point[] {

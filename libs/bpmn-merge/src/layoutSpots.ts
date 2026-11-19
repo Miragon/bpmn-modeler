@@ -76,7 +76,8 @@ export function runsThrough(layout: LayoutModel, edge: LayoutEdge, shape: NodeSh
     });
 }
 
-function isDrawnWithAnEnd(layout: LayoutModel, edge: LayoutEdge, shape: NodeShape): boolean {
+/** Whether the shape is one of the edge's ends, or encloses, lies in or is attached to one. */
+export function isDrawnWithAnEnd(layout: LayoutModel, edge: LayoutEdge, shape: NodeShape): boolean {
     return FLOW_ENDS.some((end) => {
         const id = edge[end];
         const endNode = id === undefined ? undefined : nodeShapeIn(layout, id);

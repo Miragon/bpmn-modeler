@@ -42,6 +42,8 @@ export interface LayoutEdge {
     readonly waypoints: readonly Point[];
     readonly source?: string;
     readonly target?: string;
+    /** Where the flow's name is drawn. */
+    readonly label?: DiagramBounds;
 }
 
 export const FLOW_ENDS = ["source", "target"] as const;
