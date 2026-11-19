@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { computeDiff } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
@@ -205,7 +206,7 @@ const CASES: readonly HarvestCase[] = [
 
 describe("the layout repair on harvested merges", () => {
     it.each(CASES)(
-        "seed $seed, $strategy: repairs $repairs, breaks nothing new, adds at most $crossingBudget crossings",
+        "seed $seed, $strategy: repairs $repairs, changes only the layout, breaks nothing new, adds at most $crossingBudget crossings",
         { timeout: 20_000 },
         async ({ seed, strategy, repairs, crossingBudget, leftOutside = [] }) => {
             const versions = versionsOf(seed);
@@ -246,6 +247,8 @@ describe("the layout repair on harvested merges", () => {
                 expect(repaired.xml).toBe(flowsRepaired.xml);
             }
             expect(repairsOf(unrepaired.xml, flowsRepaired.xml, repaired.xml)).toBe(repairs);
+            const { added, removed, changed } = await computeDiff(unrepaired.xml, repaired.xml);
+            expect({ added, removed, changed }).toEqual({ added: [], removed: [], changed: [] });
             // A boundary event in another lane than its host lay in both while the lanes overlapped.
             const carriedOutOfItsLane = (spot: LayoutSpot) =>
                 spot.kind === "shapeOutsideContainer" && leftOutside.includes(spot.shape);
