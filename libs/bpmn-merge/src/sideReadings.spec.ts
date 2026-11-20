@@ -41,15 +41,24 @@ describe("SideReadings", () => {
         expect(readings.slots.slotOf("Process_A")).toBe(readings.slots.slotOf("Collab_1"));
     });
 
-    it("reads each side's layout, in side order, before its tree is taken apart", async () => {
+    it("reads each side's layout before its tree is taken apart", async () => {
         const readings = await readingsOf(TWO_PROCESS_DIAGRAMS, ONE_COLLABORATION);
 
-        const [currentLayout, incomingLayout] = readings.layouts;
-        expect(currentLayout?.shapes.has("Pool_A")).toBe(false);
-        expect(incomingLayout?.shapes.has("Pool_A")).toBe(true);
-        for (const layout of [currentLayout, incomingLayout]) {
-            expect(layout?.shapes.get("Task_A")?.slot).toBe(readings.slots.slotOf("Collab_1"));
+        expect(readings.layouts.current.shapes.has("Pool_A")).toBe(false);
+        expect(readings.layouts.incoming.shapes.has("Pool_A")).toBe(true);
+        for (const layout of [readings.layouts.current, readings.layouts.incoming]) {
+            expect(layout.shapes.get("Task_A")?.slot).toBe(readings.slots.slotOf("Collab_1"));
         }
+    });
+
+    it("hands the repair current's layout first, so current wins a tie", async () => {
+        const readings = await readingsOf(TWO_PROCESS_DIAGRAMS, ONE_COLLABORATION);
+
+        expect(readings.layoutsCurrentFirst).toEqual([
+            readings.layouts.current,
+            readings.layouts.incoming,
+        ]);
+        expect(readings.layoutsCurrentFirst[0]).toBe(readings.layouts.current);
     });
 
     it("takes each side's tree apart last, in current's definitions for the result", async () => {

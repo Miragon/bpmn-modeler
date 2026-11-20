@@ -7,7 +7,7 @@ import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
 import type { EdgeKind, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 
 const PLANE = "Process_1";
 

@@ -7,7 +7,7 @@ import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds, Point } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { liesWithin } from "./layoutGeometry";
 

@@ -5,7 +5,7 @@ import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuild
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { IndexedDocument } from "./indexedDocument";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { PlaneSlots } from "./planeSlots";
 
 async function layoutOf(edit: (model: BpmnFixtureModel) => void) {

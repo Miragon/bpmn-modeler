@@ -85,7 +85,7 @@ export async function buildMergedWith(
     );
     const layoutSpotNotes = repairIntroducedSpots(
         current,
-        sides.layouts,
+        sides.layoutsCurrentFirst,
         sides.slots,
         planners,
         resolution.appendedLanes,

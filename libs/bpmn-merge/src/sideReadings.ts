@@ -19,8 +19,7 @@ export class SideReadings {
     private constructor(
         private readonly documents: Readonly<Record<MergeSide, IndexedDocument>>,
         readonly slots: PlaneSlots,
-        /** Current's layout, then incoming's. */
-        readonly layouts: readonly LayoutModel[],
+        readonly layouts: Readonly<Record<MergeSide, LayoutModel>>,
         readonly trees: Readonly<Record<MergeSide, VersionTree>>,
     ) {
         this.indexes = { current: documents.current.index, incoming: documents.incoming.index };
@@ -32,15 +31,20 @@ export class SideReadings {
             incoming: IndexedDocument.of(parsed.incoming.rootElement),
         };
         const slots = PlaneSlots.ofSides(documents);
-        const layouts = [
-            layoutModelOfDocument(documents.current, slots),
-            layoutModelOfDocument(documents.incoming, slots),
-        ];
+        const layouts = {
+            current: layoutModelOfDocument(documents.current, slots),
+            incoming: layoutModelOfDocument(documents.incoming, slots),
+        };
         const trees = {
             current: versionTreeOf(documents.current.definitions),
             incoming: versionTreeOf(documents.incoming.definitions),
         };
         return new SideReadings(documents, slots, layouts, trees);
+    }
+
+    /** The repair keeps the first of two equally good moves, so this order lets current win a tie. */
+    get layoutsCurrentFirst(): readonly LayoutModel[] {
+        return [this.layouts.current, this.layouts.incoming];
     }
 
     /** The definitions the build turns into the result: current's. */
