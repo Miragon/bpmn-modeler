@@ -16,7 +16,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
-    carryingFrameIdsOf,
+    carrierIdsOf,
     drawnHostOf,
     holdingPoolOf,
     innermostFrameOf,
@@ -101,7 +101,7 @@ export class SpaceTool {
             }
         }
         for (const frame of shifting) {
-            if (!carryingFrameIdsOf(frame).some((id) => this.shift.has(id))) {
+            if (!carrierIdsOf(frame).some((id) => this.shift.has(id))) {
                 this.gaveWay.add(frame.id);
             }
         }

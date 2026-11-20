@@ -7,7 +7,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
-    carryingFrameIdsOf,
+    carrierIdsOf,
     drawnHostOf,
     drawnPoolOf,
     frameIdsOf,
@@ -312,7 +312,7 @@ describe("frameIdsOf", () => {
     });
 });
 
-describe("carryingFrameIdsOf", () => {
+describe("carrierIdsOf", () => {
     const lane = (id: string, parent: string, poolId?: string): LayoutShape => ({
         kind: "lane",
         id,
@@ -341,7 +341,7 @@ describe("carryingFrameIdsOf", () => {
         ],
         ["nothing for a pool", pool("Pool_1"), []],
     ])("names %s", (_, frame, carriers) => {
-        expect(carryingFrameIdsOf(frame)).toEqual(carriers);
+        expect(carrierIdsOf(frame)).toEqual(carriers);
     });
 });
 

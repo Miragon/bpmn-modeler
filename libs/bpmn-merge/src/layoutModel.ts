@@ -171,7 +171,7 @@ export function lanesOf(layout: LayoutModel, pool: LayoutShape): LaneShape[] {
 }
 
 /** What a lane shifts with: its parent lane or the process whose lane set holds it, and its pool; nothing for a pool. */
-export function carryingFrameIdsOf(frame: LayoutShape): string[] {
+export function carrierIdsOf(frame: LayoutShape): string[] {
     if (frame.kind !== "lane") return [];
     return [frame.parent, ...(frame.pool === undefined ? [] : [frame.pool])];
 }
