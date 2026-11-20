@@ -4,6 +4,7 @@ import type { FlowTopology } from "./layoutFlowTopology";
 import { type DiagramBounds, bottomOf, keepsClearOf, rightOf } from "./layoutGeometry";
 import { type GrowingFrame, FrameGrowth, growingFrameOf } from "./layoutFrameGrowth";
 import { frameScopeOf } from "./layoutFrames";
+import { GroupFraming } from "./layoutGroupFraming";
 import type { NodeShape } from "./layoutModel";
 import type { FrameRequest, RoomRequest } from "./layoutRoomRequest";
 import type { ShapeGroups } from "./layoutShapeGroups";
@@ -28,7 +29,7 @@ export class RoomPush {
     private readonly growth: FrameGrowth;
 
     constructor(
-        before: DrawingDraft,
+        private readonly before: DrawingDraft,
         private readonly trial: DrawingDraft,
         groups: ShapeGroups,
         private readonly topology: FlowTopology,
@@ -38,9 +39,16 @@ export class RoomPush {
         this.growth = new FrameGrowth(before, trial, this.space, axis, this.gap);
     }
 
-    /** Makes room for the request in the frame `at` lies in; false when something before the line is in the way. */
+    /**
+     * Makes room for the request in the frame `at` lies in; false when
+     * something before the line is in the way. Each group then follows the
+     * shapes it enclosed before, but those the room places.
+     */
     push(at: NodeShape, request: RoomRequest): boolean {
-        return this.roomIn({ ...request, plane: at.plane, ...frameScopeOf(this.trial, at) });
+        const framing = GroupFraming.of(this.before, this.trial, at.plane, request.exclude);
+        const made = this.roomIn({ ...request, plane: at.plane, ...frameScopeOf(this.trial, at) });
+        if (made) framing.follow(this.trial, this.axis);
+        return made;
     }
 
     /** The outermost shapes that gave way, pools among them, in document order. */

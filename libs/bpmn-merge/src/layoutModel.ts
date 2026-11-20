@@ -47,7 +47,12 @@ export interface PoolShape extends DrawnShape {
     readonly kind: "pool";
 }
 
-export type LayoutShape = NodeShape | LaneShape | PoolShape;
+/** A `bpmn:Group`: it holds no element, so nothing lies inside it by design and it frames nothing. */
+export interface GroupShape extends DrawnShape {
+    readonly kind: "group";
+}
+
+export type LayoutShape = NodeShape | LaneShape | PoolShape | GroupShape;
 
 export interface LayoutEdge {
     readonly id: string;
@@ -117,7 +122,7 @@ export function translatedEdge(edge: LayoutEdge, dx: number, dy: number): Layout
     return edge.label === undefined ? moved : { ...moved, label: translated(edge.label, dx, dy) };
 }
 
-/** The shape of the flow's end on the flow's own plane. */
+/** The shape of the flow's end on the flow's own plane; never a group, whose associations the repair leaves as drawn. */
 export function endShapeOf(
     layout: LayoutModel,
     edge: LayoutEdge,
@@ -125,7 +130,7 @@ export function endShapeOf(
 ): LayoutShape | undefined {
     const id = edge[end];
     const shape = id === undefined ? undefined : layout.shapes.get(id);
-    return shape?.plane === edge.plane ? shape : undefined;
+    return shape?.plane === edge.plane && shape.kind !== "group" ? shape : undefined;
 }
 
 /** The activity a boundary event sits on, as drawn on the event's own plane. */
@@ -147,7 +152,7 @@ export function liesOnAnotherPool(layout: LayoutModel, pool: LayoutShape): boole
 
 /** A shape others lie inside: a pool, a lane or a sub-process drawn open. */
 export function isFrame(shape: LayoutShape): boolean {
-    return shape.kind !== "node" || shape.expanded;
+    return shape.kind === "node" ? shape.expanded : shape.kind !== "group";
 }
 
 /** Whether one shape encloses the other or one is attached to the other: they lie on each other by design. */

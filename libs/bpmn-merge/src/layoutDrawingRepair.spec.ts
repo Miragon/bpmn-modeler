@@ -1,10 +1,12 @@
 import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { GROUP_AROUND_PUSHED_CHAIN } from "./__fixtures__/groupAroundPushedChain";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { DiagramIndex } from "./diagramIndex";
 import { IndexedDocument } from "./indexedDocument";
 import { BUILD_LAYOUT_REPAIRS, repairIntroducedSpots } from "./layoutDrawingRepair";
-import { type NodeShape, translatedNode } from "./layoutModel";
+import { type LayoutModel, type NodeShape, translatedNode } from "./layoutModel";
 import { layoutModelOfDocument } from "./layoutModelReader";
 import { PlaneSlots } from "./planeSlots";
 
@@ -56,3 +58,33 @@ describe("repairIntroducedSpots", () => {
         );
     });
 });
+
+describe("repairIntroducedSpots with a group", () => {
+    const without = (layout: LayoutModel, id: string): LayoutModel => {
+        const shapes = new Map(layout.shapes);
+        shapes.delete(id);
+        return { shapes, edges: layout.edges };
+    };
+
+    it("shifts the group with the task and end event it frames when making room pushes both", async () => {
+        const moddle = (await loadBpmnModdle())();
+        const { rootElement } = await moddle.fromXML(GROUP_AROUND_PUSHED_CHAIN);
+        const document = IndexedDocument.of(rootElement);
+        const slots = PlaneSlots.ofDocument(document);
+        const assembled = layoutModelOfDocument(document, slots);
+        const sides = [without(assembled, "Task_Y"), without(assembled, "Task_X")];
+
+        repairIntroducedSpots(rootElement, sides, slots, BUILD_LAYOUT_REPAIRS, [], (point) =>
+            moddle.create("dc:Point", { x: point.x, y: point.y }),
+        );
+        const repaired = layoutModelOf(rootElement);
+
+        expect(repaired.shapes.get("Task_K")!.bounds).toEqual(box(960, 140, 100, 80));
+        expect(repaired.shapes.get("End_K")!.bounds).toEqual(box(1112, 162, 36, 36));
+        expect(repaired.shapes.get("Group_K")!.bounds).toEqual(box(940, 110, 230, 140));
+    });
+});
+
+function box(x: number, y: number, width: number, height: number) {
+    return { x, y, width, height };
+}

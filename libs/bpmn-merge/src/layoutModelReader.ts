@@ -48,6 +48,7 @@ function shapeOf(
     const drawn = { id, ...plane, bounds: boundsOf(drawing.bounds as ModdleElement) };
     const rectangle: Outline = "rectangle";
     if (relations.pools.has(id)) return { ...drawn, kind: "pool", outline: rectangle };
+    if (relations.groups.has(id)) return { ...drawn, kind: "group", outline: rectangle };
     const laneParent = relations.laneParents.get(id);
     if (laneParent !== undefined) {
         const lane = { ...drawn, kind: "lane", outline: rectangle, parent: laneParent } as const;

@@ -4,7 +4,9 @@ import { cloneModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { dock, dockedModel, moveNode } from "./__fixtures__/dockedModel";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import type { LayoutModel } from "./layoutModel";
+import { rootPlane } from "./__fixtures__/shapePlane";
+import { PLANE, node } from "./__fixtures__/layoutShapes";
+import type { GroupShape, LayoutModel } from "./layoutModel";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 
@@ -329,6 +331,35 @@ describe("detectLayoutSpots", () => {
 
             expect(spots.filter(({ kind }) => kind === "shapeOutsideContainer")).toEqual([]);
         });
+    });
+
+    it("finds no spot on a group: it frames nothing, and an association to it ends anywhere", () => {
+        const group: GroupShape = {
+            kind: "group",
+            id: "Group_1",
+            ...rootPlane(PLANE),
+            outline: "rectangle",
+            bounds: { x: 80, y: 80, width: 220, height: 120 },
+        };
+        const inside = node("Task_A", { bounds: { x: 100, y: 100, width: 100, height: 80 } });
+        const across = node("Task_B", { bounds: { x: 260, y: 100, width: 100, height: 80 } });
+        const association = {
+            id: "Association_1",
+            plane: PLANE,
+            source: "Task_A",
+            target: "Group_1",
+            waypoints: [
+                { x: 150, y: 180 },
+                { x: 150, y: 400 },
+            ],
+            kind: "association",
+        } as const;
+        const layout: LayoutModel = {
+            shapes: new Map([group, inside, across].map((shape) => [shape.id, shape])),
+            edges: new Map([[association.id, association]]),
+        };
+
+        expect(detectLayoutSpots(layout)).toEqual([]);
     });
 
     describe("boundary events", () => {
