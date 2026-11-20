@@ -260,13 +260,15 @@ export class RoomPush {
         const growth = this.space.growFrame(frame, [], extent + this.marginOf(subProcess, units));
         if (growth <= 0) return undefined;
         const scope = frameScopeOf(this.trial, this.trial.node(frame.id)!);
-        return { request: this.outerStrip(request, scope, frame.bounds, growth, frame) };
+        return { request: this.outerStrip(request, scope, frame.bounds, growth, [frame.id]) };
     }
 
     /**
      * Grows the lane down: what lies under it shifts down, the lanes across
      * its bottom grow with it and so does the pool, whose strip the plane is
-     * asked for and the pools level with it follow.
+     * asked for and the pools level with it follow. The strip passes over
+     * the units the band was held over, on a plane without a pool the
+     * plane's own shapes, so none of them shifts twice.
      */
     private growLaneDown(
         request: FrameRequest,
@@ -292,7 +294,10 @@ export class RoomPush {
             growing: new Set([...across, ...(pool ? [pool] : [])].map(({ id }) => id)),
         });
         return {
-            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool),
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, [
+                ...(pool ? [pool.id] : []),
+                ...units.map(({ id }) => id),
+            ]),
             levelWith: keepsPoolsLevel && pool ? { pool, before, growth } : undefined,
         };
     }
@@ -310,7 +315,7 @@ export class RoomPush {
         const growth = this.space.growFrame(pool, lanes, extent + this.marginOf(pool, units));
         if (growth <= 0) return undefined;
         return {
-            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool),
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, [pool.id]),
             levelWith: keepsPoolsLevel ? { pool, before, growth } : undefined,
         };
     }
@@ -325,23 +330,23 @@ export class RoomPush {
         const before = boundsAround(lanes.map(({ bounds }) => bounds));
         const growth = this.space.growFrame(lane, lanes, extent + this.marginOf(lane, units));
         if (growth <= 0) return undefined;
-        return { request: this.outerStrip(request, PLANE_SCOPE, before, growth, undefined) };
+        return { request: this.outerStrip(request, PLANE_SCOPE, before, growth, []) };
     }
 
-    /** The strip a frame gained past its bounds before, asked in the scope around it, the grown frame no longer giving way. */
+    /** The strip a frame gained past its bounds before, asked in the scope around it, what the growth already placed no longer giving way. */
     private outerStrip(
         request: FrameRequest,
         scope: FrameScope,
         before: DiagramBounds,
         growth: number,
-        grown: LayoutShape | undefined,
+        placedByGrowth: readonly string[],
     ): FrameRequest {
         return {
             plane: request.plane,
             ...scope,
             box: stripPast(this.axis, before, growth),
             line: this.far(before),
-            exclude: new Set([...request.exclude, ...(grown ? [grown.id] : [])]),
+            exclude: new Set([...request.exclude, ...placedByGrowth]),
             frameGrowth: growth,
         };
     }

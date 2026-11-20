@@ -6,6 +6,7 @@ import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
 import type { DiagramBounds } from "./layoutGeometry";
 import type { FrameScope } from "./layoutFrames";
+import { makeRoom } from "./layoutMakeRoom";
 import type { LaneShape, LayoutModel, NodeShape, PoolShape } from "./layoutModel";
 import { type GrowingFrame, RoomPush, growingFrameOf } from "./layoutRoomPush";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
@@ -123,7 +124,7 @@ describe("RoomPush below a shape in a lane on a plane without a pool", () => {
         edges: new Map(),
     };
 
-    it("grows the lane, shifts the lane below with what it holds, then shifts what that lane holds again by the strip the lanes gain", () => {
+    it("grows the lane and shifts the lane below with what it holds once, by the growth", () => {
         const draft = DrawingDraft.of(layout);
         const groups = new ShapeGroups(layout);
         const group = groups.of(draft, draft.node("Task_Y")!);
@@ -142,6 +143,27 @@ describe("RoomPush below a shape in a lane on a plane without a pool", () => {
         expect(push.shifted).toEqual(["Lane_2", "Task_L"]);
         expect(trial.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, 1170, 230));
         expect(trial.shapes.get("Lane_2")!.bounds).toEqual(box(30, 300, 1170, 110));
-        expect(trial.node("Task_L")!.bounds).toEqual(box(800, 420));
+        expect(trial.node("Task_L")!.bounds).toEqual(box(800, 310));
+    });
+
+    it("stacks the shape under the other as in a pool, the lane grown and the lane below shifted with what it holds", () => {
+        const draft = DrawingDraft.of(layout);
+        const groups = new ShapeGroups(layout);
+        const context = { groups, topology: new FlowTopology(layout) };
+
+        const room = makeRoom(
+            draft,
+            context,
+            groups.of(draft, draft.node("Task_Y")!),
+            draft.node("Task_A")!,
+            "below",
+        );
+
+        expect(room?.shifted).toEqual(["Lane_2", "Task_L"]);
+        expect(room?.grown).toEqual(["Lane_1"]);
+        expect(room?.draft.node("Task_Y")!.bounds).toEqual(box(500, 210));
+        expect(room?.draft.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, 1170, 230));
+        expect(room?.draft.shapes.get("Lane_2")!.bounds).toEqual(box(30, 300, 1170, 110));
+        expect(room?.draft.node("Task_L")!.bounds).toEqual(box(800, 310));
     });
 });
