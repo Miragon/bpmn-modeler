@@ -70,6 +70,12 @@ export const FLOW_ENDS = ["source", "target"] as const;
 
 export type FlowEnd = (typeof FLOW_ENDS)[number];
 
+/** The shapes a flow's ends are drawn on. */
+export interface FlowEnds {
+    readonly source: LayoutShape;
+    readonly target: LayoutShape;
+}
+
 export function otherEndOf(end: FlowEnd): FlowEnd {
     return end === "source" ? "target" : "source";
 }

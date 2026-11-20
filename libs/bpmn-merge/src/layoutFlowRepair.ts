@@ -1,7 +1,6 @@
-import { FlowSegments } from "./layoutFlowSegments";
+import { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,
-    type Outline,
     type Point,
     boundsAround,
     centerOf,
@@ -11,9 +10,10 @@ import {
     overlapsBeyondTolerance,
     pointBounds,
 } from "./layoutGeometry";
+import { keptRoute } from "./layoutKeptRoute";
 import {
     FLOW_ENDS,
-    type FlowEnd,
+    type FlowEnds,
     type LayoutEdge,
     type LayoutModel,
     type LayoutShape,
@@ -25,23 +25,9 @@ import {
     sharedFrameOf,
 } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
-import {
-    isOrthogonal,
-    nearestPointOn,
-    polylineBounds,
-    segmentsOf,
-    withoutRedundantPoints,
-} from "./layoutPolyline";
+import { isOrthogonal, nearestPointOn, polylineBounds, segmentsOf } from "./layoutPolyline";
 import { routeCost, routeOrthogonal } from "./layoutRouter";
-import {
-    type AxisLine,
-    type Segment,
-    outlinePointOn,
-    segmentEntersOutline,
-    segmentEntersShape,
-    sideOfCenter,
-    spansAlong,
-} from "./layoutSegments";
+import { type Segment, segmentEntersOutline, segmentEntersShape } from "./layoutSegments";
 import { shapesRunThrough } from "./layoutSpotDetection";
 import { type LayoutSpot, endsOffShape, isDrawnWithAnEnd, isFlowSpot } from "./layoutSpots";
 
@@ -63,13 +49,6 @@ const OBSTACLE_WINDOW_MARGINS = [120, 360] as const;
 const KEPT_ROUTE_ALLOWANCE = 40;
 
 /**
- * How far, in pixels, a waypoint must lie beside a shape, away from its
- * corners, for a straight segment to reach the shape from it. Narrower than
- * the router's own ports keep, as it keeps a bend the flow already had.
- */
-const BESIDE_MARGIN = 5;
-
-/**
  * The repair of every flow the spots name for its end off its shape or for a
  * shape it runs through, in the spots' order. A repaired flow meets both its
  * shapes, runs through none, nor back through an end, and stays inside the
@@ -84,14 +63,14 @@ export function planFlowRepairs(layout: LayoutModel, spots: readonly LayoutSpot[
         (shape): shape is NodeShape => shape.kind === "node",
     );
     const planes = planeNodesOf(nodes);
-    const otherFlows = new FlowSegments(layout);
-    return flows.map((id) => {
+    const repairedSoFar = DrawingDraft.of(layout);
+    return flows.map((id): FlowRepair => {
         const edge = layout.edges.get(id);
-        const repair: FlowRepair =
-            edge === undefined
-                ? { kind: "notRepaired", flow: id }
-                : repairOf(layout, edge, planes.get(edge.plane), otherFlows);
-        if (repair.kind === "movedByBuild") otherFlows.reroute(id, repair.waypoints);
+        if (edge === undefined) return { kind: "notRepaired", flow: id };
+        const repair = repairOf(layout, edge, planes.get(edge.plane), repairedSoFar);
+        if (repair.kind === "movedByBuild") {
+            repairedSoFar.replaceEdge({ ...edge, waypoints: repair.waypoints });
+        }
         return repair;
     });
 }
@@ -113,31 +92,20 @@ export function withFlowRepairs(layout: LayoutModel, repairs: readonly FlowRepai
     return { shapes: layout.shapes, edges };
 }
 
-interface FlowEnds {
-    readonly source: LayoutShape;
-    readonly target: LayoutShape;
-}
-
 function repairOf(
     layout: LayoutModel,
     edge: LayoutEdge,
     plane: PlaneNodes | undefined,
-    otherFlows: FlowSegments,
+    repairedSoFar: DrawingDraft,
 ): FlowRepair {
     const source = endShapeOf(layout, edge, "source");
     const target = endShapeOf(layout, edge, "target");
     if (source === undefined || target === undefined || edge.waypoints.length < 2) {
         return { kind: "notRepaired", flow: edge.id };
     }
-    const routes = new RepairRoutes(layout, edge, { source, target }, plane, otherFlows);
-    const ownBends = routes.ownBends();
-    const waypoints =
-        ownBends === undefined
-            ? routes.routedInWideningWindow()
-            : routes.ownBendsUnlessRoutedIsCheaper(ownBends);
-    return waypoints === undefined
-        ? { kind: "notRepaired", flow: edge.id }
-        : movedByBuild(edge, waypoints);
+    const ends = { source, target };
+    const route = new RepairRoutes(layout, edge, ends, plane, repairedSoFar).chosenRoute();
+    return route === undefined ? { kind: "notRepaired", flow: edge.id } : movedByBuild(edge, route);
 }
 
 /** Whether a flow keeps its own bends over another route: they may cost up to the allowance more. */
@@ -161,7 +129,8 @@ class RepairRoutes {
         private readonly edge: LayoutEdge,
         private readonly ends: FlowEnds,
         private readonly plane: PlaneNodes | undefined,
-        private readonly otherFlows: FlowSegments,
+        /** The drawing with the flows repaired before this one on their new routes. */
+        private readonly repairedSoFar: DrawingDraft,
     ) {
         const { source, target } = ends;
         const sharedFrame = sharedFrameOf(layout, edge);
@@ -174,16 +143,28 @@ class RepairRoutes {
             : [source, target];
     }
 
+    /**
+     * The flow's own bends where they fit, unless a fresh route in the nearest
+     * window costs more than the allowance less; else a fresh route from the
+     * nearest window that holds one.
+     */
+    chosenRoute(): Point[] | undefined {
+        const ownBends = this.ownBends();
+        return ownBends === undefined
+            ? this.routedInWideningWindow()
+            : this.ownBendsUnlessRoutedIsCheaper(ownBends);
+    }
+
     /** The flow's own bends with its ends docked again, when they fit and run orthogonally. */
-    ownBends(): Point[] | undefined {
+    private ownBends(): Point[] | undefined {
         const kept = keptRoute(this.layout, this.edge, this.ends);
         return this.fits(kept) && isOrthogonal(kept) ? kept : undefined;
     }
 
     /** The own bends, unless a fresh route in the nearest window fits and costs more than the allowance less. */
-    ownBendsUnlessRoutedIsCheaper(ownBends: Point[]): Point[] {
+    private ownBendsUnlessRoutedIsCheaper(ownBends: Point[]): Point[] {
         const window = this.windowOf(OBSTACLE_WINDOW_MARGINS[0]);
-        const otherSegments = this.otherFlows.segmentsNear(this.edge, window);
+        const otherSegments = this.otherSegmentsNear(window);
         const ownBendsCost = routeCost(ownBends, otherSegments);
         const { source, target } = this.ends;
         // No route is shorter than the gap between the ends, so none could beat the own bends.
@@ -195,10 +176,10 @@ class RepairRoutes {
     }
 
     /** A fresh route that fits, from the nearest window around the flow that holds one. */
-    routedInWideningWindow(): Point[] | undefined {
+    private routedInWideningWindow(): Point[] | undefined {
         for (const margin of OBSTACLE_WINDOW_MARGINS) {
             const window = this.windowOf(margin);
-            const routed = this.routedIn(window, this.otherFlows.segmentsNear(this.edge, window));
+            const routed = this.routedIn(window, this.otherSegmentsNear(window));
             if (routed !== undefined) return routed;
         }
         return undefined;
@@ -215,6 +196,14 @@ class RepairRoutes {
             ...(this.frame === undefined ? {} : { frame: this.frame }),
         });
         return this.fits(routed) ? routed : undefined;
+    }
+
+    /** The segments of the other flows on the plane, as repaired so far, whose drawing meets the window. */
+    private otherSegmentsNear(window: DiagramBounds): Segment[] {
+        return this.repairedSoFar
+            .edgesNear(this.edge.plane, window)
+            .filter(({ id }) => id !== this.edge.id)
+            .flatMap(({ waypoints }) => segmentsOf(waypoints));
     }
 
     private windowOf(margin: number): DiagramBounds {
@@ -286,60 +275,6 @@ function movedByBuild(edge: LayoutEdge, waypoints: Point[]): FlowRepair {
     return edge.label === undefined
         ? repair
         : { ...repair, label: followingLabel(edge.label, edge.waypoints, waypoints) };
-}
-
-/** The flow with its ends off their shapes docked again, its own bends kept; undefined when no straight segment reaches. */
-function keptRoute(layout: LayoutModel, edge: LayoutEdge, ends: FlowEnds): Point[] | undefined {
-    const off = new Set<FlowEnd>(endsOffShape(layout, edge).map(({ at }) => at));
-    const points = edge.waypoints;
-    const first = points[0]!;
-    const last = points[points.length - 1]!;
-    if (points.length === 2) return keptStraight(first, last, off, ends);
-    const start = off.has("source") ? redocked(ends.source, points[1]!) : first;
-    const end = off.has("target") ? redocked(ends.target, points[points.length - 2]!) : last;
-    if (start === undefined || end === undefined) return undefined;
-    return withoutRedundantPoints([start, ...points.slice(1, -1), end]);
-}
-
-/** A straight flow stays on its line where both shapes still meet it. */
-function keptStraight(
-    first: Point,
-    last: Point,
-    off: ReadonlySet<FlowEnd>,
-    ends: FlowEnds,
-): Point[] | undefined {
-    const axis = first.y === last.y ? "y" : first.x === last.x ? "x" : undefined;
-    if (axis === undefined) return undefined;
-    const along = axis === "y" ? "x" : "y";
-    const line = { axis, at: first[axis] } as const;
-    const dock = (end: FlowEnd, kept: Point) => {
-        if (!off.has(end)) return kept;
-        const shape = ends[end];
-        const towards = sideOfCenter(shape.bounds, centerOf(ends[otherEndOf(end)].bounds), along);
-        return outlinePointOn(line, shape.bounds, shape.outline, towards);
-    };
-    const start = dock("source", first);
-    const end = dock("target", last);
-    return start === undefined || end === undefined ? undefined : [start, end];
-}
-
-/** The outline point a straight segment from `from` reaches when `from` lies beside, above or below the shape. */
-function redocked(
-    shape: { readonly bounds: DiagramBounds; readonly outline: Outline },
-    from: Point,
-): Point | undefined {
-    const { bounds, outline } = shape;
-    const horizontal: AxisLine = { axis: "y", at: from.y };
-    const vertical: AxisLine = { axis: "x", at: from.x };
-    const besideX = spansAlong(bounds, vertical, BESIDE_MARGIN);
-    const besideY = spansAlong(bounds, horizontal, BESIDE_MARGIN);
-    if (besideY && !besideX) {
-        return outlinePointOn(horizontal, bounds, outline, sideOfCenter(bounds, from, "x"));
-    }
-    if (besideX && !besideY) {
-        return outlinePointOn(vertical, bounds, outline, sideOfCenter(bounds, from, "y"));
-    }
-    return undefined;
 }
 
 /** The label keeps its offset from the nearest point of the route, so a label beside a kept segment stays. */
