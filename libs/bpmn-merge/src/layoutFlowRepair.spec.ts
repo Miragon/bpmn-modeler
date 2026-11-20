@@ -297,6 +297,31 @@ describe("planFlowRepairs", () => {
         ]);
     });
 
+    it("routes a later flow clear of the route an earlier flow was just repaired onto", () => {
+        const throughBlocker = [at(200, 140), at(400, 140)];
+        const layout = layoutOf(
+            [
+                TASK_A,
+                node("Task_B", { x: 400, y: 100, width: 100, height: 80 }),
+                node("Blocker", { x: 260, y: 110, width: 80, height: 60 }),
+            ],
+            [flow(throughBlocker), { ...flow(throughBlocker), id: "Flow_2" }],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(150, 100), at(150, 85), at(450, 85), at(450, 100)],
+            },
+            {
+                kind: "movedByBuild",
+                flow: "Flow_2",
+                waypoints: [at(150, 180), at(150, 195), at(450, 195), at(450, 180)],
+            },
+        ]);
+    });
+
     it("re-routes only the flows its spots name, in their order", () => {
         const layout = layoutOf(
             [TASK_A, node("Task_B", { x: 300, y: 300, width: 100, height: 80 })],
