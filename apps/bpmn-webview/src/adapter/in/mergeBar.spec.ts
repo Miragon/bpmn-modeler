@@ -308,6 +308,7 @@ describe("MergeBar", () => {
                             kind: "shapesOverlap",
                             ids: ["Task_A", "Task_B"],
                             repair: "notRepaired",
+                            named: ["Task_A", "Task_B"],
                         },
                     ],
                 },
