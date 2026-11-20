@@ -5,6 +5,7 @@ import { DEFINITION_SEARCH_KEYS } from "@miragon/bpmn-modeler-definition-search"
 import { ID_FROM_NAME_KEYS } from "@miragon/bpmn-modeler-element-ids";
 import { CHOOSER_KEYS } from "@miragon/bpmn-modeler-element-template-chooser";
 import {
+    harvestNote,
     harvestRecord,
     harvestRecordPath,
     type HarvestFile,
@@ -18,8 +19,8 @@ import { BASE_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotations/baseAnnotati
 
 // The overlay keeps these texts because this record names them; the browser drivers open none of these features.
 const FEATURE_HARVEST_FILE: HarvestFile = "harvested-modeler-features.json";
-const FEATURE_HARVEST_NOTE =
-    "Templates the modeler package's own features pass to translate() where no browser driver reaches them: the mode strip, the popup-menu annotations of every surface, the element template chooser, the append menu, the ID-from-name links, the definition search and the linked form's context pad entry. Recorded by packages/bpmn-modeler/src/featureTextsHarvest.spec.ts; refresh it with `corepack yarn vitest run --project bpmn-modeler -u packages/bpmn-modeler/src/featureTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.";
+const FEATURE_HARVEST_SUBJECT =
+    "Templates the modeler package's own features pass to translate() where no browser driver reaches them (the mode strip, the popup-menu annotations of every surface, the element template chooser, the append menu, the ID-from-name links, the definition search and the linked form's context pad entry)";
 
 const DETECTED_ENGINES: readonly DetectedEngine[] = [...ENGINES, undefined];
 
@@ -50,7 +51,9 @@ function popupMenuAnnotationKeys(): string[] {
 }
 
 describe("the modeler features' harvest", () => {
-    it("records every key the features no browser driver reaches pass to translate", async () => {
+    it("records every key the features no browser driver reaches pass to translate", async ({
+        task,
+    }) => {
         const keys = [
             ...modeStripKeys(),
             ...popupMenuAnnotationKeys(),
@@ -61,8 +64,8 @@ describe("the modeler features' harvest", () => {
             ...MODEL_NAVIGATION_KEYS,
         ];
 
-        await expect(harvestRecord(FEATURE_HARVEST_NOTE, keys)).toMatchFileSnapshot(
-            harvestRecordPath(FEATURE_HARVEST_FILE),
-        );
+        await expect(
+            harvestRecord(harvestNote(FEATURE_HARVEST_SUBJECT, task), keys),
+        ).toMatchFileSnapshot(harvestRecordPath(FEATURE_HARVEST_FILE));
     });
 });

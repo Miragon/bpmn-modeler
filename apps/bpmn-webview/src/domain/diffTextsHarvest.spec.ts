@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    harvestNote,
     harvestRecord,
     harvestRecordPath,
     type HarvestFile,
@@ -11,15 +12,14 @@ import { ELEMENT_XML_CHANGES_TITLE } from "./elementXmlTexts";
 
 // The overlay keeps a diff text because this record names it; no browser harvest opens a diff pane.
 const DIFF_HARVEST_FILE: HarvestFile = "harvested-diff.json";
-const DIFF_HARVEST_NOTE =
-    "Templates the BPMN diff pane's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.";
+const DIFF_HARVEST_SUBJECT = "Templates the BPMN diff pane's texts pass to translate()";
 
 describe("the BPMN diff pane's harvest", () => {
-    it("records every key the diff pane's texts pass to translate", async () => {
+    it("records every key the diff pane's texts pass to translate", async ({ task }) => {
         const keys = [...DIFF_VIEW_KEYS, ELEMENT_XML_CHANGES_TITLE];
 
-        await expect(harvestRecord(DIFF_HARVEST_NOTE, keys)).toMatchFileSnapshot(
-            harvestRecordPath(DIFF_HARVEST_FILE),
-        );
+        await expect(
+            harvestRecord(harvestNote(DIFF_HARVEST_SUBJECT, task), keys),
+        ).toMatchFileSnapshot(harvestRecordPath(DIFF_HARVEST_FILE));
     });
 });
