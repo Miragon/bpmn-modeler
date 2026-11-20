@@ -20,6 +20,6 @@ export type {
     ImplementationDetail,
     BindingDirection,
 } from "./types";
-export { classifyBinding, extractImplementationDetail } from "./types";
+export { classifyBinding, extractImplementationDetail } from "./templateProperties";
 export { CHOOSER_KEYS } from "./chooserTexts";
 export type { TemplateOffer } from "./ElementTemplateChooser";

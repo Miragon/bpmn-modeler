@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { click, pressKey, typeInto } from "../__fixtures__/dom";
 import { template } from "../__fixtures__/templates";
-import { fallbackTranslate } from "../types";
+import { fallbackTranslate } from "../translate";
 import type { ElementTemplate } from "../types";
 import { ChooserOverlay } from "./ChooserOverlay";
 
@@ -235,6 +235,61 @@ describe("ChooserOverlay", () => {
             ),
         }));
         expect(sections).toEqual([{ title: "Input Parameters", labels: ["URL"] }]);
+    });
+
+    it("badges each previewed parameter as required, read-only and optional, in that order", () => {
+        const mailer = template({
+            id: "mailer",
+            name: "Mailer",
+            properties: [
+                {
+                    label: "Host",
+                    type: "String",
+                    value: "smtp",
+                    description: "SMTP host",
+                    editable: false,
+                    optional: true,
+                    constraints: { notEmpty: true },
+                    binding: { type: "zeebe:input", name: "host" },
+                },
+                {
+                    type: "String",
+                    editable: false,
+                    binding: { type: "zeebe:output", source: "=response" },
+                },
+            ],
+        });
+        renderOverlay([mailer]);
+
+        click(cards()[0]);
+
+        expect(container.querySelector(".etc-param-title")?.tagName).toBe("H4");
+        const items = [...container.querySelectorAll(".etc-param-item")].map((item) => ({
+            label: item.querySelector(".etc-param-label")?.textContent,
+            badges: [...item.querySelectorAll(".etc-param-badges > .etc-badge")].map(
+                (badge) => `${badge.className}: ${badge.textContent}`,
+            ),
+            description: item.querySelector(".etc-param-desc")?.textContent,
+            value: item.querySelector(".etc-param-value")?.textContent,
+        }));
+        expect(items).toEqual([
+            {
+                label: "Host",
+                badges: [
+                    "etc-badge etc-badge--required: required",
+                    "etc-badge etc-badge--readonly: read-only",
+                    "etc-badge etc-badge--optional: optional",
+                ],
+                description: "SMTP host",
+                value: "smtp",
+            },
+            {
+                label: "Unnamed",
+                badges: ["etc-badge etc-badge--readonly: read-only"],
+                description: undefined,
+                value: undefined,
+            },
+        ]);
     });
 
     it("applies a template on double-click", () => {

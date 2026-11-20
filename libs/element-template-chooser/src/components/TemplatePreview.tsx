@@ -2,14 +2,16 @@
  * Preview panel component that displays detailed information about a
  * selected element template, including its input/output parameters.
  */
-import type { ElementTemplate, TemplateProperty, Translate } from "../types";
-import {
-    extractImplementationDetail,
-    partitionVisibleProperties,
-    propertyDisplayLabel,
-    templatePropertyDisplayText,
-} from "../types";
+import type { ElementTemplate, Translate } from "../types";
+import { extractImplementationDetail, partitionVisibleProperties } from "../templateProperties";
 import { CHOOSER_TEXTS, TEMPLATE_DETAIL_TEXTS } from "../chooserTexts";
+import { ParameterSection, type ParameterSectionVariant } from "./ParameterSection";
+
+const PREVIEW_PARAMETERS: ParameterSectionVariant = {
+    classPrefix: "etc-param",
+    badgeClass: "etc-badge",
+    heading: "h4",
+};
 
 interface TemplatePreviewProps {
     template: ElementTemplate;
@@ -80,6 +82,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                             title={translate(TEMPLATE_DETAIL_TEXTS.properties)}
                             items={properties}
                             translate={translate}
+                            variant={PREVIEW_PARAMETERS}
                         />
                     )}
                     {inputs.length > 0 && (
@@ -87,6 +90,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                             title={translate(TEMPLATE_DETAIL_TEXTS.inputParameters)}
                             items={inputs}
                             translate={translate}
+                            variant={PREVIEW_PARAMETERS}
                         />
                     )}
                     {outputs.length > 0 && (
@@ -94,6 +98,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                             title={translate(TEMPLATE_DETAIL_TEXTS.outputParameters)}
                             items={outputs}
                             translate={translate}
+                            variant={PREVIEW_PARAMETERS}
                         />
                     )}
                     {properties.length === 0 && inputs.length === 0 && outputs.length === 0 && (
@@ -110,62 +115,6 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                     {translate(CHOOSER_TEXTS.apply)}
                 </button>
             </div>
-        </div>
-    );
-}
-
-/**
- * Renders a labelled section of template properties.
- *
- * @param props.title Section heading text.
- * @param props.items Property items to display.
- */
-function ParameterSection({
-    title,
-    items,
-    translate,
-}: {
-    title: string;
-    items: TemplateProperty[];
-    translate: Translate;
-}) {
-    return (
-        <div class="etc-param-section">
-            <h4 class="etc-param-title">{title}</h4>
-            <ul class="etc-param-list">
-                {items.map((p, i) => {
-                    const displayText = templatePropertyDisplayText(p);
-                    return (
-                        <li key={i} class="etc-param-item">
-                            <div class="etc-param-header">
-                                <span class="etc-param-label">
-                                    {propertyDisplayLabel(p) ??
-                                        translate(TEMPLATE_DETAIL_TEXTS.unnamedProperty)}
-                                </span>
-                                <div class="etc-param-badges">
-                                    {p.constraints?.notEmpty && (
-                                        <span class="etc-badge etc-badge--required">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.required)}
-                                        </span>
-                                    )}
-                                    {p.editable === false && (
-                                        <span class="etc-badge etc-badge--readonly">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.readOnly)}
-                                        </span>
-                                    )}
-                                    {p.optional && (
-                                        <span class="etc-badge etc-badge--optional">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.optional)}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            {p.description && <p class="etc-param-desc">{p.description}</p>}
-                            {displayText && <code class="etc-param-value">{displayText}</code>}
-                        </li>
-                    );
-                })}
-            </ul>
         </div>
     );
 }

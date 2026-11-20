@@ -11,14 +11,21 @@ import {
     applyTemplatePreset,
     extractImplementationDetail,
     partitionVisibleProperties,
-    propertyDisplayLabel,
-    templatePropertyDisplayText,
-    type TemplateProperty,
-} from "@miragon/bpmn-modeler-element-template-chooser/types";
+} from "@miragon/bpmn-modeler-element-template-chooser/templateProperties";
 import { TEMPLATE_DETAIL_TEXTS } from "@miragon/bpmn-modeler-element-template-chooser/chooserTexts";
+import {
+    ParameterSection,
+    type ParameterSectionVariant,
+} from "@miragon/bpmn-modeler-element-template-chooser/components/ParameterSection";
 import type { HoverCardPosition } from "../positioning";
 import type { EnrichedTemplateEntry, Translate } from "../types";
 import { HoverCard } from "./HoverCard";
+
+const HOVER_CARD_PARAMETERS: ParameterSectionVariant = {
+    classPrefix: "am-hover-param",
+    badgeClass: "am-badge",
+    heading: "h5",
+};
 
 interface TemplateHoverCardProps {
     enrichedEntry: EnrichedTemplateEntry;
@@ -98,6 +105,7 @@ export function TemplateHoverCard({
                         title={translate(TEMPLATE_DETAIL_TEXTS.properties)}
                         items={properties}
                         translate={translate}
+                        variant={HOVER_CARD_PARAMETERS}
                     />
                 )}
                 {inputs.length > 0 && (
@@ -105,6 +113,7 @@ export function TemplateHoverCard({
                         title={translate(TEMPLATE_DETAIL_TEXTS.inputParameters)}
                         items={inputs}
                         translate={translate}
+                        variant={HOVER_CARD_PARAMETERS}
                     />
                 )}
                 {outputs.length > 0 && (
@@ -112,6 +121,7 @@ export function TemplateHoverCard({
                         title={translate(TEMPLATE_DETAIL_TEXTS.outputParameters)}
                         items={outputs}
                         translate={translate}
+                        variant={HOVER_CARD_PARAMETERS}
                     />
                 )}
                 {properties.length === 0 && inputs.length === 0 && outputs.length === 0 && (
@@ -121,61 +131,5 @@ export function TemplateHoverCard({
                 )}
             </div>
         </HoverCard>
-    );
-}
-
-/**
- * Renders a labelled section of template properties inside the hover card.
- *
- * @param props.title Section heading text.
- * @param props.items Property items to display.
- */
-function ParameterSection({
-    title,
-    items,
-    translate,
-}: {
-    title: string;
-    items: TemplateProperty[];
-    translate: Translate;
-}) {
-    return (
-        <div class="am-hover-param-section">
-            <h5 class="am-hover-param-title">{title}</h5>
-            <ul class="am-hover-param-list">
-                {items.map((p, i) => {
-                    const displayText = templatePropertyDisplayText(p);
-                    return (
-                        <li key={i} class="am-hover-param-item">
-                            <div class="am-hover-param-header">
-                                <span class="am-hover-param-label">
-                                    {propertyDisplayLabel(p) ??
-                                        translate(TEMPLATE_DETAIL_TEXTS.unnamedProperty)}
-                                </span>
-                                <div class="am-hover-param-badges">
-                                    {p.constraints?.notEmpty && (
-                                        <span class="am-badge am-badge--required">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.required)}
-                                        </span>
-                                    )}
-                                    {p.editable === false && (
-                                        <span class="am-badge am-badge--readonly">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.readOnly)}
-                                        </span>
-                                    )}
-                                    {p.optional && (
-                                        <span class="am-badge am-badge--optional">
-                                            {translate(TEMPLATE_DETAIL_TEXTS.optional)}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            {p.description && <p class="am-hover-param-desc">{p.description}</p>}
-                            {displayText && <code class="am-hover-param-value">{displayText}</code>}
-                        </li>
-                    );
-                })}
-            </ul>
-        </div>
     );
 }
