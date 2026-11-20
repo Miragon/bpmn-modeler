@@ -12,6 +12,7 @@ import {
 } from "./layoutModel";
 import { FRAME_PADDING, type SideGrowth, growthToHold, holdsLevel } from "./layoutPlacementFrames";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
+import type { FrameRequest, RoomRequest } from "./layoutRoomRequest";
 import type { SpaceTool, SpaceUnit } from "./layoutSpaceTool";
 
 /** The frame that grows when what lies in it no longer fits, by how it grows, and whether the pools level with its pool follow. */
@@ -43,17 +44,8 @@ export function growingFrameOf({ container, lane }: FrameScope, axis: Axis): Gro
     return { kind: "plane" };
 }
 
-/**
- * The strip a frame gained past its far side, as room asked of what lies
- * around it: what lands on the strip shifts by the growth, and only what
- * lies across from it counts, as the frame lay beside the rest before.
- */
-export interface GainedStrip {
-    readonly box: DiagramBounds;
-    readonly line: number;
-    readonly exclude: ReadonlySet<string>;
-    readonly frameGrowth: number;
-}
+/** The strip a frame gained past its far side, as room asked of what lies around it. */
+export type GainedStrip = Required<Pick<RoomRequest, "box" | "line" | "exclude" | "frameGrowth">>;
 
 /** The strip bounds grown by `growth` along the axis gain; what is excluded neither gives way nor stands in the way. */
 export function stripGained(
@@ -82,7 +74,7 @@ export interface PushedFrame {
 
 /** The strip a frame gained, asked of the frame around it, and the pool whose growth the pools level with it follow once it is made. */
 export interface OuterRoom {
-    readonly request: GainedStrip & FrameScope & { readonly plane: string };
+    readonly request: FrameRequest & GainedStrip;
     readonly levelWith?: LevelGrowth;
 }
 
@@ -156,7 +148,7 @@ export class FrameGrowth {
             if (!landsOnSome) {
                 this.space.growFrame(
                     shape,
-                    lanesGrowingWith(this.trial, shape),
+                    lanesOf(this.trial, shape),
                     this.far(shape.bounds) + growth,
                 );
             }
@@ -170,11 +162,7 @@ export class FrameGrowth {
         { units, extent }: PushedFrame,
     ): OuterRoom | undefined {
         const frame = this.trial.shapes.get(subProcess.id)!;
-        const growth = this.space.growFrame(
-            frame,
-            lanesGrowingWith(this.trial, frame),
-            extent + this.marginOf(subProcess, units),
-        );
+        const growth = this.space.growFrame(frame, [], extent + this.marginOf(subProcess, units));
         if (growth <= 0) return undefined;
         const scope = frameScopeOf(this.trial, this.trial.node(frame.id)!);
         return { request: this.outerStrip(request, scope, frame.bounds, growth, frame.id) };
@@ -222,7 +210,7 @@ export class FrameGrowth {
         { units, extent }: PushedFrame,
     ): OuterRoom | undefined {
         const pool = this.trial.pool(container.id)!;
-        const lanes = lanesGrowingWith(this.trial, pool);
+        const lanes = lanesOf(this.trial, pool);
         const before = boundsAround([pool, ...lanes].map(({ bounds }) => bounds));
         const growth = this.space.growFrame(pool, lanes, extent + this.marginOf(pool, units));
         if (growth <= 0) return undefined;
@@ -297,6 +285,7 @@ export class FrameGrowth {
 
 /** How a frame of a kind grows to hold a shape placed past its border. */
 interface FrameKindGrowth {
+    readonly kind: LayoutShape["kind"];
     /** Whether it grows up and down as well as sideways. */
     readonly growsUpAndDown: boolean;
     /** Whether its lanes grow with it and must hold the shape too. */
@@ -306,20 +295,16 @@ interface FrameKindGrowth {
 }
 
 /**
- * A sub-process drawn open grows to every side and shifts what it lands on;
+ * The frame kinds that grow on their own, the first to grow first. A
+ * sub-process drawn open grows to every side and shifts what it lands on;
  * a pool grows with its lanes only sideways, as they are stacked across it,
  * and shifts nothing, as the pool beside it stays. A lane, stacked with the
- * others, never grows on its own. The sub-process is grown before the pool.
+ * others, never grows on its own.
  */
-const FRAME_KIND_GROWTH: Partial<Record<LayoutShape["kind"], FrameKindGrowth>> = {
-    node: { growsUpAndDown: true, growsWithItsLanes: false, shiftsWhatLiesBeyond: true },
-    pool: { growsUpAndDown: false, growsWithItsLanes: true, shiftsWhatLiesBeyond: false },
-};
-
-/** The lanes that grow with the frame: a pool's, none for any other frame. */
-function lanesGrowingWith(drawing: LayoutModel, frame: LayoutShape): LaneShape[] {
-    return FRAME_KIND_GROWTH[frame.kind]?.growsWithItsLanes ? lanesOf(drawing, frame) : [];
-}
+const FRAME_KINDS_IN_GROWTH_ORDER: readonly FrameKindGrowth[] = [
+    { kind: "node", growsUpAndDown: true, growsWithItsLanes: false, shiftsWhatLiesBeyond: true },
+    { kind: "pool", growsUpAndDown: false, growsWithItsLanes: true, shiftsWhatLiesBeyond: false },
+];
 
 /** The frame that grows to hold a shape placed past the borders of the frames it lies outside, as its kind lets it. */
 export class FrameToGrow {
@@ -333,9 +318,9 @@ export class FrameToGrow {
     /** The frame that grows among those the shape lies outside; undefined when none of them grows on its own. */
     static among(frames: readonly LayoutShape[]): FrameToGrow | undefined {
         const lanes = frames.filter(({ kind }) => kind === "lane");
-        for (const [kind, growth] of Object.entries(FRAME_KIND_GROWTH)) {
-            const frame = frames.find((candidate) => candidate.kind === kind);
-            if (frame !== undefined) return new FrameToGrow(frame, growth, lanes);
+        for (const kind of FRAME_KINDS_IN_GROWTH_ORDER) {
+            const frame = frames.find((candidate) => candidate.kind === kind.kind);
+            if (frame !== undefined) return new FrameToGrow(frame, kind, lanes);
         }
         return undefined;
     }
@@ -362,6 +347,6 @@ export class FrameToGrow {
 
     /** The lanes that grow sideways with the frame. */
     lanesGrowingWith(drawing: LayoutModel): LaneShape[] {
-        return lanesGrowingWith(drawing, this.frame);
+        return this.kind.growsWithItsLanes ? lanesOf(drawing, this.frame) : [];
     }
 }
