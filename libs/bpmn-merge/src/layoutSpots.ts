@@ -43,6 +43,10 @@ export type LayoutSpot =
       }
     | { readonly kind: "lanesOverlap"; readonly lanes: readonly [string, string] };
 
+type SpotKind = LayoutSpot["kind"];
+
+export type SpotOf<Kind extends SpotKind> = Extract<LayoutSpot, { readonly kind: Kind }>;
+
 /** A spot of one flow, which the build may re-route. */
 export type FlowSpot = Extract<LayoutSpot, { readonly flow: string }>;
 
@@ -113,9 +117,6 @@ export function lanesOverlap(first: LaneShape, second: LaneShape): boolean {
         overlapsBeyondTolerance(first.bounds, second.bounds)
     );
 }
-
-type SpotKind = LayoutSpot["kind"];
-type SpotOf<Kind extends SpotKind> = Extract<LayoutSpot, { readonly kind: Kind }>;
 
 /** What one spot kind knows of its spots. */
 interface SpotKindRules<Spot extends LayoutSpot> {

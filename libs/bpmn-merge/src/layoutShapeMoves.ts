@@ -16,11 +16,9 @@ import {
     stackedBranch,
 } from "./layoutShapeMoveAttempts";
 import type { OverlapRepair, SpotRepair } from "./layoutSpotRepairs";
-import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
+import { type LayoutSpot, type SpotOf, shapesOverlap } from "./layoutSpots";
 
 type MoveRepair = Exclude<OverlapRepair, { readonly kind: "notRepaired" }>;
-
-type OverlapSpot = Extract<LayoutSpot, { readonly kind: "shapesOverlap" }>;
 
 const NOT_REPAIRED: OverlapRepair = { kind: "notRepaired" };
 
@@ -52,7 +50,7 @@ export function planShapeMoves(
     sides: readonly LayoutModel[],
     repairFlows: FlowRepairPlanner,
 ): ShapeMovePlan {
-    const overlaps = spots.flatMap((spot): OverlapSpot[] =>
+    const overlaps = spots.flatMap((spot): SpotOf<"shapesOverlap">[] =>
         spot.kind === "shapesOverlap" ? [spot] : [],
     );
     if (overlaps.length === 0) return { layout, repairs: [] };
@@ -85,7 +83,7 @@ class OverlapRepairer {
     }
 
     /** Ends the overlap with the first attempt that can: the other side's place, a stacked branch, the nearest free place, room in line. */
-    repair({ shapes }: OverlapSpot): OverlapRepair {
+    repair({ shapes }: SpotOf<"shapesOverlap">): OverlapRepair {
         const { draft } = this;
         const [first, second] = shapes.map((id) => draft.node(id));
         if (first === undefined || second === undefined) return NOT_REPAIRED;
