@@ -20,8 +20,8 @@ The modeler's UI strings come from two sources, merged at webview startup:
    them is an *upstream* contribution to that separate repository.
 
 2. **The local overlay `libs/bpmn-i18n-extras/`** (this repo). A deliberately tiny dictionary that fills
-   *only* the modeler-internal strings the shared library does not ship in any spelling — today just the
-   script-lock badge labels the webview emits (e.g. `Read-only`, `Being edited in`, `Element actions`).
+   *only* the modeler-internal strings the shared library does not ship in any spelling, such as the merge
+   and diff views' texts, the element template chooser and the script-lock badge labels.
    The webviews merge it on with a consumer-wins `i18n.extend(extras)`, so the shared translation always
    wins for keys it covers and the overlay only fills the residual gap.
 
