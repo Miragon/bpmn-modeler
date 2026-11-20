@@ -325,6 +325,53 @@ describe("requireDrawingsReachableFromTheirRootPlane", () => {
             requireDrawingsReachableFromTheirRootPlane(DiagramIndex.of(parsed.rootElement)),
         ).not.toThrow();
     });
+
+    describe("a task of a process without lanes", () => {
+        const taskOnThePlaneOf = (
+            planeOwner: string,
+            participant: string,
+        ) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_1">${participant}</bpmn:collaboration>
+  <bpmn:process id="Process_A"><bpmn:task id="Task_A" /></bpmn:process>
+  <bpmn:process id="Process_B" />
+  <bpmndi:BPMNDiagram id="Diagram_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="${planeOwner}">
+      <bpmndi:BPMNShape id="Task_A_di" bpmnElement="Task_A">
+        <dc:Bounds x="100" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+        const check = async (xml: string) => {
+            const index = DiagramIndex.of((await parse(xml)).rootElement);
+            return () => requireDrawingsReachableFromTheirRootPlane(index);
+        };
+
+        it.each<[string, string, string]>([
+            ["its own process's plane", "Process_A", ""],
+            [
+                "the plane of a collaboration a participant without an id names it in",
+                "Collab_1",
+                '<bpmn:participant processRef="Process_A" />',
+            ],
+        ])("is accepted on %s", async (_case, planeOwner, participant) => {
+            expect(await check(taskOnThePlaneOf(planeOwner, participant))).not.toThrow();
+        });
+
+        it.each<[string, string, string]>([
+            ["another process's plane", "Process_B", ""],
+            [
+                "the plane of a collaboration that names only another process",
+                "Collab_1",
+                '<bpmn:participant id="Pool_B" processRef="Process_B" />',
+            ],
+        ])("is refused on %s", async (_case, planeOwner, participant) => {
+            expect(await check(taskOnThePlaneOf(planeOwner, participant))).toThrow(
+                "drawings lie on a root plane that does not reach them: Task_A",
+            );
+        });
+    });
 });
 
 describe("requireDrawingsOnTheirContainersPlane", () => {
