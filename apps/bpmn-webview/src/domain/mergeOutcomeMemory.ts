@@ -1,20 +1,15 @@
 import type { MergePaneStates } from "@miragon/bpmn-modeler-shared";
 
-import {
-    editAgainRequest,
-    type MergeActedDecision,
-    type MergePaneRequest,
-    type MergeXmlRequest,
-} from "./mergeActedDecision";
+import type { MergeActedDecision, MergePaneRequest, MergeXmlRequest } from "./mergeActedDecision";
 import {
     isDecisionOutcome,
     isHandMergeOutcome,
     type MergeDecisionOutcome,
     type MergeRefusal,
+    refusalFreedBy,
 } from "./mergeDecisionOutcome";
-import type { MergeCardAction } from "./mergeCardContent";
 import { type MergePanePickStates, panePicks } from "./mergeElementPick";
-import { isRememberedHandMerge, type MergeRememberedOutcome } from "./mergeOutcomeCard";
+import type { MergeRememberedOutcome } from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
 export type MergeOutcomeStates = Pick<
@@ -40,12 +35,6 @@ export interface MergeOutcomeMemory {
 
 /** What new states mean for the card: a new outcome of this pane, a newer one of the partner, or nothing new. */
 export type MergeOutcomeAnswer = "show" | "forget" | "keep";
-
-/** What the card does: close the one that shows, then show `show`, unless the change keeps it. */
-export interface MergeCardChange {
-    readonly close: boolean;
-    readonly show?: MergeRememberedOutcome;
-}
 
 export const EMPTY_OUTCOME_MEMORY: MergeOutcomeMemory = {};
 
@@ -94,7 +83,7 @@ function answerOwnDecision(
     const { sent } = memory;
     if (outcome === undefined || sent === undefined) return undefined;
     if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
-    const lifted = liftedRefusal(memory.refused, outcome, states);
+    const lifted = freedRefusal(memory.refused, outcome, states);
     const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
     return {
         memory: {
@@ -151,87 +140,6 @@ function withoutHandMerge(
 }
 
 /**
- * What new states do to the card: this pane's new outcome shows at its
- * element, unless it was decided in a menu row, which says it there; any
- * other new outcome closes the card.
- */
-export function cardOnAnswer(
-    memory: MergeOutcomeMemory,
-    answer: MergeOutcomeAnswer,
-): MergeCardChange {
-    if (answer === "keep") return { close: false };
-    const show =
-        answer === "show" ? outcomeToShowAt(memory, memory.latest?.outcome.elementId) : undefined;
-    return { close: true, ...(show ? { show } : {}) };
-}
-
-/**
- * The card follows the selection: it closes when another element or none
- * is selected, and shows again when its element is selected again.
- */
-export function cardOnSelection(
-    memory: MergeOutcomeMemory,
-    shownAt: string | undefined,
-    selectedId: string | undefined,
-): MergeCardChange {
-    if (shownAt === selectedId) return { close: false };
-    const show = outcomeToShowAt(memory, selectedId);
-    return { close: shownAt !== undefined, ...(show ? { show } : {}) };
-}
-
-/** The latest outcome of this pane, shown again when its element is selected again. */
-export function outcomeToShowAt(
-    memory: MergeOutcomeMemory,
-    elementId: string | undefined,
-): MergeRememberedOutcome | undefined {
-    const { latest } = memory;
-    return latest?.acted.origin === "canvas" && latest.outcome.elementId === elementId
-        ? latest
-        : undefined;
-}
-
-/**
- * What a choice on the card or in a row does: Edit again reopens the merge
- * editor on the refused text, dropping resends the decision that asked
- * with the user's consent, and a dismiss forgets the outcome and closes it.
- */
-export function chooseOn(
-    memory: MergeOutcomeMemory,
-    action: MergeCardAction,
-): {
-    readonly memory: MergeOutcomeMemory;
-    readonly send?: { readonly request: MergePaneRequest; readonly dropsHandMerges: boolean };
-    readonly close: boolean;
-} {
-    const { latest } = memory;
-    if (latest === undefined) return { memory, close: false };
-    switch (action) {
-        case "dismiss": {
-            const { latest: _dismissed, ...rest } = memory;
-            return { memory: rest, close: true };
-        }
-        case "editAgain":
-            return {
-                memory,
-                send: {
-                    request: editAgainRequest(latest.outcome.elementId, latest.acted.origin),
-                    dropsHandMerges: false,
-                },
-                close: false,
-            };
-        case "dropHandMerges":
-            return isRememberedHandMerge(latest)
-                ? { memory, close: false }
-                : { memory, send: { request: latest.acted, dropsHandMerges: true }, close: false };
-    }
-}
-
-/** What a decision from a menu row did, which that row says, on the pane that sent it. */
-export function rowOutcome(memory: MergeOutcomeMemory): MergeRememberedOutcome | undefined {
-    return memory.latest?.acted.origin === "menu" ? memory.latest : undefined;
-}
-
-/**
  * The outcome with the picks and the offer, which tell a partner's decision
  * from the last one where the outcome, which names no side, reads the same:
  * keeping the element again from the other side.
@@ -255,22 +163,12 @@ function answers(outcome: MergeDecisionOutcome, sent: MergeActedDecision): boole
     );
 }
 
-/**
- * The refusal an undo freed: it took back one of the picks that blocked it,
- * every reason was such a pick, and none of them is left.
- */
-function liftedRefusal(
+function freedRefusal(
     refused: MergeRefusal | undefined,
     outcome: MergeDecisionOutcome,
     states: MergeOutcomeStates,
 ): MergeRefusal | undefined {
-    if (refused === undefined || !outcome.applied || outcome.action !== "unpick") return undefined;
-    const { blockedBy } = refused;
-    if (!blockedBy.some((block) => block.elementId === outcome.elementId)) return undefined;
-    const picks = new Set(panePicks(states).map(({ id }) => id));
-    return blockedBy.every(
-        (block) => block.obstacle === "dependentPicked" && !picks.has(block.elementId),
-    )
-        ? refused
-        : undefined;
+    if (refused === undefined) return undefined;
+    const pickedIds = new Set(panePicks(states).map(({ id }) => id));
+    return refusalFreedBy(refused, outcome, pickedIds) ? refused : undefined;
 }

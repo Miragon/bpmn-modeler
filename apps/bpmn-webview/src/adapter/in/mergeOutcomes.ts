@@ -25,16 +25,18 @@ import {
     type MergeRememberedOutcome,
 } from "../../domain/mergeOutcomeCard";
 import {
-    answerStates,
     cardOnAnswer,
     cardOnSelection,
     chooseOn,
+    outcomeToShowAt,
+    rowOutcome,
+} from "../../domain/mergeOutcomeCardRules";
+import {
+    answerStates,
     EMPTY_OUTCOME_MEMORY,
     type MergeOutcomeAnswer,
     type MergeOutcomeMemory,
-    outcomeToShowAt,
     rememberSent,
-    rowOutcome,
 } from "../../domain/mergeOutcomeMemory";
 import { elementPickOf } from "../../domain/mergeElementPick";
 import { keepRemovedWith } from "../../domain/mergeKeepRemovedWith";

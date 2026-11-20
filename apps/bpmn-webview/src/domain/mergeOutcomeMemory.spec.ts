@@ -8,16 +8,18 @@ import type {
 
 import type { MergeActedDecision, MergeXmlRequest } from "./mergeActedDecision";
 import {
-    answerStates,
     cardOnAnswer,
     cardOnSelection,
     chooseOn,
+    outcomeToShowAt,
+    rowOutcome,
+} from "./mergeOutcomeCardRules";
+import {
+    answerStates,
     EMPTY_OUTCOME_MEMORY,
     type MergeOutcomeMemory,
     type MergeOutcomeStates,
-    outcomeToShowAt,
     rememberSent,
-    rowOutcome,
 } from "./mergeOutcomeMemory";
 
 const applied = (
