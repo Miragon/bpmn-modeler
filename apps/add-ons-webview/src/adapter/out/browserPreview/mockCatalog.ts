@@ -433,7 +433,7 @@ export class MockCatalog {
                 result: {
                     kind: "refused",
                     reason: "staleView",
-                    message: "The list changed since you looked at it. Check it again.",
+                    message: "The list changed since you looked at it. Check it again, then allow.",
                 },
                 changed: true,
             };
