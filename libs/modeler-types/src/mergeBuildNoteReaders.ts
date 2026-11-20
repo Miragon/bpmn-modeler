@@ -126,14 +126,21 @@ export function framesGrownBy(note: MergeOverlapNote): readonly string[] {
     return "grown" in note ? note.grown : [];
 }
 
-type AnyNoteElements = NoteElements<MergeBuildNoteContent>;
+/**
+ * A note's entry in a table keyed by kind and, for a repaired kind, by repair: the one place the variant of a note is
+ * picked, for every such table.
+ */
+export function noteVariantEntry<Entry>(
+    table: Readonly<Record<NoteKind, unknown>>,
+    note: MergeBuildNoteContent,
+): Entry {
+    // Each table's mapped type checks its entries by kind and repair; a lookup by both is beyond the compiler.
+    const entry = table[note.kind];
+    return "repair" in note ? (entry as Record<string, Entry>)[note.repair]! : (entry as Entry);
+}
 
-function elementsOf(note: MergeBuildNoteContent): AnyNoteElements {
-    // NoteElementTable checks each entry against its kind and repair; this lookup by both is beyond the compiler.
-    const entry = (NOTE_ELEMENTS as Record<NoteKind, unknown>)[note.kind];
-    return "repair" in note
-        ? (entry as Record<string, AnyNoteElements>)[note.repair]!
-        : (entry as AnyNoteElements);
+function elementsOf(note: MergeBuildNoteContent): NoteElements<MergeBuildNoteContent> {
+    return noteVariantEntry(NOTE_ELEMENTS, note);
 }
 
 /** A note the build left as drawn, whatever it names. */

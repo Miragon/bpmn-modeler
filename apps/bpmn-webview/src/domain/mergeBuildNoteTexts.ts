@@ -7,6 +7,7 @@ import {
     type MergeRepairedNoteKind,
     type MergeSide,
     framesGrownBy,
+    noteVariantEntry,
     shapesShiftedBy,
 } from "@miragon/bpmn-modeler-types";
 
@@ -141,14 +142,8 @@ export function buildNoteText(
     return translate(template, replacements);
 }
 
-type AnyWording = Wording<MergeBuildNoteContent>;
-
-function wordingOf(note: MergeBuildNoteContent): AnyWording {
-    // NoteWordings checks each entry against its kind and repair; this lookup by both is beyond the compiler.
-    const entry = (NOTE_WORDINGS as Record<NoteKind, unknown>)[note.kind];
-    return "repair" in note
-        ? (entry as Record<string, AnyWording>)[note.repair]!
-        : (entry as AnyWording);
+function wordingOf(note: MergeBuildNoteContent): Wording<MergeBuildNoteContent> {
+    return noteVariantEntry(NOTE_WORDINGS, note);
 }
 
 /** Variants of a note that differ only in their template. */
