@@ -6,6 +6,7 @@ import type { MergeActedDecision } from "./mergeActedDecision";
 import {
     cardOnSelection,
     chooseOn,
+    type MergeCardChange,
     type MergeSettle,
     outcomeToShowAt,
     rowOutcome,
@@ -117,7 +118,7 @@ describe("settleOn", () => {
             "closes the card and announces in its row the outcome of a decision made in the menu",
             inRow.memory,
             inRow.answer,
-            { card: { kind: "close" }, announce: inRow.memory.latest! },
+            { card: { kind: "close" }, rowOutcome: inRow.memory.latest! },
         ],
         [
             "closes the card for the partner's newer outcome, announcing no row",
@@ -157,17 +158,17 @@ describe("cardOnSelection", () => {
         applied("pick", "Task_Remind"),
     );
 
-    it.each<[string, string | undefined, string | undefined, ReturnType<typeof cardOnSelection>]>([
-        ["closes it on another element", "Task_Remind", "Task_Other", { close: true }],
-        ["closes it on no selection", "Task_Remind", undefined, { close: true }],
-        ["leaves it on its element", "Task_Remind", "Task_Remind", { close: false }],
+    it.each<[string, string | undefined, string | undefined, MergeCardChange]>([
+        ["closes it on another element", "Task_Remind", "Task_Other", { kind: "close" }],
+        ["closes it on no selection", "Task_Remind", undefined, { kind: "close" }],
+        ["leaves it on its element", "Task_Remind", "Task_Remind", { kind: "keep" }],
         [
             "shows it again on its element",
             undefined,
             "Task_Remind",
-            { close: false, show: memory.latest },
+            { kind: "show", outcome: memory.latest! },
         ],
-        ["does nothing where no card shows or belongs", undefined, "Task_Other", { close: false }],
+        ["does nothing where no card shows or belongs", undefined, "Task_Other", { kind: "keep" }],
     ])("%s", (_case, shownAt, selected, change) => {
         expect(cardOnSelection(memory, shownAt, selected)).toStrictEqual(change);
     });
@@ -239,7 +240,7 @@ describe("chooseOn", () => {
         expect(chooseOn(asked, "dropHandMerges")).toStrictEqual({
             memory: asked,
             send: { request: keepTask, dropsHandMerges: true },
-            close: false,
+            card: { kind: "keep" },
         });
     });
 
@@ -251,9 +252,9 @@ describe("chooseOn", () => {
     });
 
     it("forgets the outcome and closes the card on a dismiss, so it does not show again", () => {
-        const { memory, send, close } = chooseOn(asked, "dismiss");
+        const { memory, send, card } = chooseOn(asked, "dismiss");
 
-        expect(close).toBe(true);
+        expect(card).toStrictEqual({ kind: "close" });
         expect(send).toBeUndefined();
         expect(outcomeToShowAt(memory, "Task_Remind")).toBeUndefined();
     });
@@ -261,7 +262,7 @@ describe("chooseOn", () => {
     it("sends nothing it has no outcome for", () => {
         expect(chooseOn(EMPTY_OUTCOME_MEMORY, "editAgain")).toStrictEqual({
             memory: EMPTY_OUTCOME_MEMORY,
-            close: false,
+            card: { kind: "keep" },
         });
         expect(chooseOn(refusedHandMerge, "dropHandMerges").send).toBeUndefined();
     });

@@ -3,22 +3,19 @@ import type { MergeCardAction } from "./mergeCardContent";
 import { isRememberedHandMerge, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import type { MergeOutcomeAnswer, MergeOutcomeMemory } from "./mergeOutcomeMemory";
 
-/** What the card does: close the one that shows, then show `show`, unless the change keeps it. */
-export interface MergeCardChange {
-    readonly close: boolean;
-    readonly show?: MergeRememberedOutcome;
-}
-
-/** What settling new states does to the card; a shown card closes before another shows. */
-type MergeSettledCard =
+/** What a rule does to the card; a shown card closes before another shows. */
+export type MergeCardChange =
     | { readonly kind: "show"; readonly outcome: MergeRememberedOutcome }
     | { readonly kind: "close" }
-    | { readonly kind: "remark" };
+    | { readonly kind: "remark" }
+    | { readonly kind: "keep" };
+
+const KEEP_CARD: MergeCardChange = { kind: "keep" };
 
 /** What settling new states does: the card's change and the row outcome to announce once. */
 export interface MergeSettle {
-    readonly card: MergeSettledCard;
-    readonly announce?: MergeRememberedOutcome;
+    readonly card: MergeCardChange;
+    readonly rowOutcome?: MergeRememberedOutcome;
 }
 
 /**
@@ -32,8 +29,8 @@ export function settleOn(memory: MergeOutcomeMemory, answer: MergeOutcomeAnswer)
     if (answer === "forget") return { card: { kind: "close" } };
     const show = outcomeToShowAt(memory, memory.latest?.outcome.elementId);
     if (show !== undefined) return { card: { kind: "show", outcome: show } };
-    const announce = rowOutcome(memory);
-    return { card: { kind: "close" }, ...(announce ? { announce } : {}) };
+    const said = rowOutcome(memory);
+    return { card: { kind: "close" }, ...(said ? { rowOutcome: said } : {}) };
 }
 
 /**
@@ -45,9 +42,10 @@ export function cardOnSelection(
     shownAt: string | undefined,
     selectedId: string | undefined,
 ): MergeCardChange {
-    if (shownAt === selectedId) return { close: false };
+    if (shownAt === selectedId) return KEEP_CARD;
     const show = outcomeToShowAt(memory, selectedId);
-    return { close: shownAt !== undefined, ...(show ? { show } : {}) };
+    if (show !== undefined) return { kind: "show", outcome: show };
+    return shownAt === undefined ? KEEP_CARD : { kind: "close" };
 }
 
 /** The latest outcome of this pane, shown again when its element is selected again. */
@@ -72,14 +70,14 @@ export function chooseOn(
 ): {
     readonly memory: MergeOutcomeMemory;
     readonly send?: { readonly request: MergePaneRequest; readonly dropsHandMerges: boolean };
-    readonly close: boolean;
+    readonly card: MergeCardChange;
 } {
     const { latest } = memory;
-    if (latest === undefined) return { memory, close: false };
+    if (latest === undefined) return { memory, card: KEEP_CARD };
     switch (action) {
         case "dismiss": {
             const { latest: _dismissed, ...rest } = memory;
-            return { memory: rest, close: true };
+            return { memory: rest, card: { kind: "close" } };
         }
         case "editAgain":
             return {
@@ -88,12 +86,16 @@ export function chooseOn(
                     request: editAgainRequest(latest.outcome.elementId, latest.acted.origin),
                     dropsHandMerges: false,
                 },
-                close: false,
+                card: KEEP_CARD,
             };
         case "dropHandMerges":
             return isRememberedHandMerge(latest)
-                ? { memory, close: false }
-                : { memory, send: { request: latest.acted, dropsHandMerges: true }, close: false };
+                ? { memory, card: KEEP_CARD }
+                : {
+                      memory,
+                      send: { request: latest.acted, dropsHandMerges: true },
+                      card: KEEP_CARD,
+                  };
     }
 }
 
