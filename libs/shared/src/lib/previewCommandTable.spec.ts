@@ -63,7 +63,9 @@ describe("a browser preview's command table", () => {
         };
 
         expect(() =>
-            routePreviewCommand(table, new OpenAddOnDetailCommand("plugin:/work/x"), { handled: [] }),
+            routePreviewCommand(table, new OpenAddOnDetailCommand("plugin:/work/x"), {
+                handled: [],
+            }),
         ).toThrow("OpenAddOnDetailCommand needs a reason to be ignored");
     });
 
