@@ -1,5 +1,5 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { type LayoutEdge, type LayoutModel, sharesAnEndWith } from "./layoutModel";
-import { segmentsOf } from "./layoutPolyline";
 import { segmentsCross, sharedRunLength } from "./layoutSegments";
 
 /** How long, in pixels, two flows must run on one line to count as running on each other. */
@@ -44,7 +44,7 @@ export function runsOn(edge: LayoutEdge, other: LayoutEdge): boolean {
 }
 
 function segmentPairsOf(edge: LayoutEdge, other: LayoutEdge) {
-    return segmentsOf(edge.waypoints).flatMap((own) =>
-        segmentsOf(other.waypoints).map((theirs) => [own, theirs] as const),
+    return polylineSegments(edge.waypoints).flatMap((own) =>
+        polylineSegments(other.waypoints).map((theirs) => [own, theirs] as const),
     );
 }

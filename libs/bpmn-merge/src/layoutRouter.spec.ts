@@ -1,7 +1,7 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { describe, expect, it } from "vitest";
 
 import { type DiagramBounds, type Outline, outlineMissOf } from "./layoutGeometry";
-import { segmentsOf } from "./layoutPolyline";
 import { type RouteEnd, routeOrthogonal } from "./layoutRouter";
 import { segmentEntersBounds } from "./layoutSegments";
 
@@ -19,7 +19,7 @@ const gateway = (x: number, y: number): RouteEnd => ({
 });
 
 function isOrthogonal(points: readonly { x: number; y: number }[]): boolean {
-    return segmentsOf(points).every(([from, to]) => from.x === to.x || from.y === to.y);
+    return polylineSegments(points).every(({ from, to }) => from.x === to.x || from.y === to.y);
 }
 
 function meetsOutline(
@@ -81,10 +81,7 @@ describe("routeOrthogonal", () => {
                 target: task(560, 130),
                 obstacles: [],
                 otherSegments: [
-                    [
-                        { x: 440, y: 125 },
-                        { x: 440, y: 300 },
-                    ],
+                    { from: { x: 440, y: 125 }, to: { x: 440, y: 300 } },
                 ],
             }),
         ).toEqual([
@@ -104,7 +101,7 @@ describe("routeOrthogonal", () => {
         })!;
 
         expect(isOrthogonal(route)).toBe(true);
-        expect(segmentsOf(route).some((segment) => segmentEntersBounds(segment, obstacle))).toBe(
+        expect(polylineSegments(route).some((segment) => segmentEntersBounds(segment, obstacle))).toBe(
             false,
         );
     });
@@ -115,10 +112,7 @@ describe("routeOrthogonal", () => {
             target: task(400, 100),
             obstacles: [{ x: 240, y: 90, width: 40, height: 100 }],
             otherSegments: [
-                [
-                    { x: 260, y: 0 },
-                    { x: 260, y: 90 },
-                ],
+                { from: { x: 260, y: 0 }, to: { x: 260, y: 90 } },
             ],
         })!;
 

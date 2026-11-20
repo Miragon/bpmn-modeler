@@ -1,3 +1,4 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import {
     type OutlineMiss,
     centerOf,
@@ -20,7 +21,6 @@ import {
     framesOf,
     nodeShapeIn,
 } from "./layoutModel";
-import { segmentsOf } from "./layoutPolyline";
 import { segmentEntersShape } from "./layoutSegments";
 
 /** A broken spot in a drawing, by the ids it concerns; two-shape spots list their shapes in document order. */
@@ -79,7 +79,7 @@ export function shapesOverlap(first: NodeShape, second: NodeShape): boolean {
 /** Whether a segment of the edge crosses a shape that is neither an end nor drawn with one. */
 export function runsThrough(layout: LayoutModel, edge: LayoutEdge, shape: NodeShape): boolean {
     if (shape.plane !== edge.plane || isDrawnWithAnEnd(layout, edge, shape)) return false;
-    return segmentsOf(edge.waypoints).some((segment) => segmentEntersShape(segment, shape.bounds));
+    return polylineSegments(edge.waypoints).some((segment) => segmentEntersShape(segment, shape.bounds));
 }
 
 /** Whether the shape is one of the edge's ends, or encloses, lies in or is attached to one. */
