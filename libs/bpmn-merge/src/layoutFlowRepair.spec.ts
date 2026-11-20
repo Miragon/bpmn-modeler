@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
-import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
+import { type FlowRepair, planFlowRepairs, withFlowsRerouted } from "./layoutFlowRepair";
 import { type DiagramBounds, type Outline, type Point, centerOf } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { distanceToPolyline } from "./layoutPolyline";
@@ -298,5 +298,36 @@ describe("planFlowRepairs", () => {
         const spots: LayoutSpot[] = [{ kind: "flowThroughShape", flow: "Flow_1", shape: "Task_C" }];
 
         expect(planFlowRepairs(layout, spots)).toEqual([{ kind: "notRepaired", flow: "Flow_1" }]);
+    });
+});
+
+describe("withFlowsRerouted", () => {
+    const TASK_B = node("Task_B", { x: 300, y: 300, width: 100, height: 80 });
+    const broken = flow([at(200, 140), at(350, 140), at(350, 250)]);
+    const back: LayoutEdge = {
+        ...broken,
+        id: "Flow_2",
+        source: "Task_B",
+        target: "Task_A",
+        waypoints: [at(300, 340), at(150, 340), at(150, 200)],
+    };
+
+    it("re-routes the named flows the layout breaks where no side does, and leaves the others", () => {
+        const layout = layoutOf([TASK_A, TASK_B], [broken, back]);
+
+        const rerouted = withFlowsRerouted(layout, ["Flow_1"], [layoutOf([TASK_A], [])]);
+
+        expect(rerouted.edges.get("Flow_1")?.waypoints).toEqual([
+            at(200, 140),
+            at(350, 140),
+            at(350, 300),
+        ]);
+        expect(rerouted.edges.get("Flow_2")).toBe(back);
+    });
+
+    it("leaves a flow a side breaks the same way", () => {
+        const layout = layoutOf([TASK_A, TASK_B], [broken]);
+
+        expect(withFlowsRerouted(layout, ["Flow_1"], [layout])).toBe(layout);
     });
 });

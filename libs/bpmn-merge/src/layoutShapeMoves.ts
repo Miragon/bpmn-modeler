@@ -1,26 +1,18 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
-import { sameBounds } from "./layoutGeometry";
-import {
-    type RoomContext,
-    type RoomMade,
-    type RoomSlots,
-    freeRoom,
-    makeRoom,
-    onlyMoves,
-    slotOffsetsOf,
-    slotsFor,
-} from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape, drawnHostOf } from "./layoutModel";
-import { placeOf, placedByBuild } from "./sideDrawings";
+import { onlyMoves } from "./layoutMakeRoom";
+import type { LayoutModel, NodeShape } from "./layoutModel";
+import { placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
 import {
-    OFF_A_SHAPE,
-    type Offset,
-    Placement,
-    offsetBetween,
-    offsetLength,
-} from "./layoutShapePlacement";
+    type AttemptContext,
+    type GroupRoom,
+    type Move,
+    nearestFreePlace,
+    otherSidesPlace,
+    roomInLine,
+    stackedBranch,
+} from "./layoutShapeMoveAttempts";
 import type { OverlapRepair, SpotRepair } from "./layoutSpotRepairs";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
@@ -41,10 +33,6 @@ export interface ShapeMovePlan {
     readonly layout: LayoutModel;
     /** One per overlap spot, in the spots' order. */
     readonly repairs: readonly SpotRepair[];
-}
-
-interface Move extends Offset {
-    readonly group: ShapeGroup;
 }
 
 /**
@@ -72,17 +60,14 @@ export function planShapeMoves(
 /** Ends overlaps one after another, on a draft of the drawing. */
 class OverlapRepairer {
     private readonly groups: ShapeGroups;
-    private readonly room: RoomContext;
+    private readonly context: AttemptContext;
     private draft: DrawingDraft;
     /** What the repairs so far did to each shape they changed. */
     private readonly changes = new Map<string, ShapeChange>();
 
-    constructor(
-        original: LayoutModel,
-        private readonly sides: readonly LayoutModel[],
-    ) {
+    constructor(original: LayoutModel, sides: readonly LayoutModel[]) {
         this.groups = new ShapeGroups(original);
-        this.room = { groups: this.groups, topology: new FlowTopology(original) };
+        this.context = { groups: this.groups, topology: new FlowTopology(original), sides };
         this.draft = DrawingDraft.of(original);
     }
 
@@ -98,13 +83,13 @@ class OverlapRepairer {
         const pair = [first, second] as const;
         if (endedEarlier(pair)) return resolvedEarlier(shapes, this.changes);
         const movable = pair
-            .filter((node) => placedByBuild(node, this.sides))
+            .filter((node) => placedByBuild(node, this.context.sides))
             .map((node) => this.groups.of(draft, node));
         return (
-            this.moveOf(otherSidesPlace(draft, movable, this.sides)) ??
-            this.roomOf(stackedBranch(draft, this.room, movable, pair)) ??
+            this.moveOf(otherSidesPlace(draft, this.context, movable)) ??
+            this.roomOf(stackedBranch(draft, this.context, movable, pair)) ??
             this.moveOf(nearestFreePlace(draft, movable)) ??
-            this.roomOf(roomInLine(draft, this.room, movable, pair)) ??
+            this.roomOf(roomInLine(draft, this.context, movable, pair)) ??
             NOT_REPAIRED
         );
     }
@@ -166,123 +151,4 @@ function resolvedEarlier(
     return shapes.includes(named.repair.moved)
         ? named.repair
         : { kind: "movedByBuild", moved: named.id };
-}
-
-/** The shortest move of a group to where a side draws its node, when the group fits there. */
-function otherSidesPlace(
-    draft: DrawingDraft,
-    movable: readonly ShapeGroup[],
-    sides: readonly LayoutModel[],
-): Move | undefined {
-    const moves = movable.flatMap((group) =>
-        sides.flatMap((side): Move[] => {
-            const place = placeOf(side, group.node);
-            if (place === undefined || sameBounds(place, group.node.bounds)) return [];
-            const offset = offsetBetween(group.node.bounds, place);
-            return Placement.fitsAt(draft, group, offset, OFF_A_SHAPE)
-                ? [{ group, ...offset }]
-                : [];
-        }),
-    );
-    return shortestOf(moves);
-}
-
-function nearestFreePlace(draft: DrawingDraft, movable: readonly ShapeGroup[]): Move | undefined {
-    return shortestOf(
-        movable.flatMap((group) => {
-            const window = Placement.searchWindowOf(draft, group);
-            const offset = new Placement(draft, group, window, OFF_A_SHAPE).nearestFit();
-            return offset === undefined ? [] : [{ group, ...offset }];
-        }),
-    );
-}
-
-type GroupRoom = RoomMade & { readonly group: ShapeGroup };
-
-/**
- * A movable shape of the pair stacked below the other, or below the host of
- * a boundary event it lay on, where its slots say so: at the free place in
- * that column, else with room made there.
- */
-function stackedBranch(
-    draft: DrawingDraft,
-    context: RoomContext,
-    movable: readonly ShapeGroup[],
-    pair: readonly [NodeShape, NodeShape],
-): GroupRoom | undefined {
-    return leastOf(
-        movable.flatMap((group) => {
-            const other = otherOf(pair, group);
-            if (!slotsOf(draft, context, group, other).stacked) return [];
-            const column = drawnHostOf(draft, other) ?? other;
-            const free = slotOffsetsOf(draft, context.groups, group, column, "below").find(
-                (offset) => Placement.fitsAt(draft, group, offset, OFF_A_SHAPE),
-            );
-            if (free !== undefined) {
-                const trial = draft.fork();
-                trial.translate(group, free.dx, free.dy);
-                return [{ ...freeRoom(trial), group }];
-            }
-            const room = makeRoom(draft, context, group, column, "below");
-            return room === undefined ? [] : [{ ...room, group }];
-        }),
-    );
-}
-
-/** Room for a movable shape of the pair in line with the other, in the first of its slots in line that has room. */
-function roomInLine(
-    draft: DrawingDraft,
-    context: RoomContext,
-    movable: readonly ShapeGroup[],
-    pair: readonly [NodeShape, NodeShape],
-): GroupRoom | undefined {
-    return leastOf(
-        movable.flatMap((group) => {
-            const other = otherOf(pair, group);
-            for (const slot of slotsOf(draft, context, group, other).inLine) {
-                const room = makeRoom(draft, context, group, other, slot);
-                if (room !== undefined) return [{ ...room, group }];
-            }
-            return [];
-        }),
-    );
-}
-
-/** The slots for the group against the other shape, by how the flows join them and run where the draft draws them. */
-function slotsOf(
-    draft: DrawingDraft,
-    { topology }: RoomContext,
-    group: ShapeGroup,
-    other: NodeShape,
-): RoomSlots {
-    const pair = [group.node.id, other.id];
-    return slotsFor(
-        topology.relationOf(group.node.id, other.id),
-        topology.flowsRightAt(draft, pair),
-    );
-}
-
-function otherOf(pair: readonly [NodeShape, NodeShape], group: ShapeGroup): NodeShape {
-    return pair[0].id === group.node.id ? pair[1] : pair[0];
-}
-
-/** The room that shifts the fewest shapes, then grows the frames least, then moves the shape with the fewest flows; the first of equal ones. */
-function leastOf(rooms: readonly GroupRoom[]): GroupRoom | undefined {
-    const cost = ({ shifted, growth, group }: GroupRoom) =>
-        [shifted.length, growth, group.attachedEdges.length] as const;
-    return rooms.reduce<GroupRoom | undefined>((least, room) => {
-        if (least === undefined) return room;
-        const [mine, theirs] = [cost(room), cost(least)];
-        const at = mine.findIndex((value, index) => value !== theirs[index]);
-        return at !== -1 && mine[at]! < theirs[at]! ? room : least;
-    }, undefined);
-}
-
-/** The shortest of the moves, the first of equally short ones. */
-function shortestOf(moves: readonly Move[]): Move | undefined {
-    return moves.reduce<Move | undefined>(
-        (shortest, move) =>
-            shortest === undefined || offsetLength(move) < offsetLength(shortest) ? move : shortest,
-        undefined,
-    );
 }

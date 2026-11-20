@@ -48,23 +48,31 @@ export interface RoomContext {
  */
 export type RoomSlot = "after" | "below" | "before";
 
-/** Where a modeller draws the moved shape against the other: stacked below it or not, then the slots in line to try in turn. */
+/**
+ * Where a modeller draws the moved shape against the other: stacked below it
+ * or not, then the slots in line to try in turn, then the slots left for when
+ * the moved shape's flows would clash with other flows in line.
+ */
 export interface RoomSlots {
     readonly stacked: boolean;
     readonly inLine: readonly RoomSlot[];
+    readonly otherwise: readonly RoomSlot[];
 }
+
+const SLOTS: readonly RoomSlot[] = ["after", "before", "below"];
 
 /**
  * The slots for a moved shape that stands so to the other by the flows: a
  * parallel branch stacked below it, a shape that leads into it before it,
- * else after it. Where the flows do not run right, only after it.
+ * else after it. Where the flows do not run right, only after it. The
+ * slots it neither stacks in nor tries in line are left.
  */
 export function slotsFor(relation: FlowRelation, flowsRight: boolean): RoomSlots {
-    if (!flowsRight) return { stacked: false, inLine: ["after"] };
-    return {
-        stacked: relation === "parallel",
-        inLine: relation === "precedes" ? ["before", "after"] : ["after"],
-    };
+    const stacked = flowsRight && relation === "parallel";
+    const inLine: RoomSlot[] =
+        flowsRight && relation === "precedes" ? ["before", "after"] : ["after"];
+    const tried = stacked ? [...inLine, "below"] : inLine;
+    return { stacked, inLine, otherwise: SLOTS.filter((slot) => !tried.includes(slot)) };
 }
 
 /** How far along the flow the group is looked for past its slot, in which steps. */

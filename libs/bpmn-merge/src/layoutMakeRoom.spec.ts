@@ -6,14 +6,14 @@ import { type RoomMade, type RoomSlots, freeRoom, onlyMoves, slotsFor } from "./
 
 describe("slotsFor", () => {
     it.each<[FlowRelation, boolean, RoomSlots]>([
-        ["parallel", true, { stacked: true, inLine: ["after"] }],
-        ["precedes", true, { stacked: false, inLine: ["before", "after"] }],
-        ["follows", true, { stacked: false, inLine: ["after"] }],
-        ["unrelated", true, { stacked: false, inLine: ["after"] }],
-        ["parallel", false, { stacked: false, inLine: ["after"] }],
-        ["precedes", false, { stacked: false, inLine: ["after"] }],
-        ["follows", false, { stacked: false, inLine: ["after"] }],
-        ["unrelated", false, { stacked: false, inLine: ["after"] }],
+        ["parallel", true, { stacked: true, inLine: ["after"], otherwise: ["before"] }],
+        ["precedes", true, { stacked: false, inLine: ["before", "after"], otherwise: ["below"] }],
+        ["follows", true, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
+        ["unrelated", true, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
+        ["parallel", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
+        ["precedes", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
+        ["follows", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
+        ["unrelated", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
     ])(
         "draws a shape that %s the other, with flows running right %s, as %j",
         (relation, flowsRight, slots) => {
