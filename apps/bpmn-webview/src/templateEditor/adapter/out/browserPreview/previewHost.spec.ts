@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -17,11 +15,12 @@ import {
     SyncDocumentCommand,
     type TemplateEditorCommand,
     type TemplateEditorCommandType,
+    previewRouteOf,
 } from "@miragon/bpmn-modeler-shared";
 
 import c7Samples from "../../../../__fixtures__/c7-samples.json";
 import c8Samples from "../../../../__fixtures__/c8-samples.json";
-import { previewRouteOf } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 import { PreviewHost } from "./previewHost";
 
 // Keyed by the closed list, so a command added to it cannot skip the preview checks below.
@@ -127,7 +126,7 @@ describe("PreviewHost", () => {
 
     it.each(
         TEMPLATE_EDITOR_COMMANDS.flatMap((command) => {
-            const route = previewRouteOf(command.type);
+            const route = previewRouteOf(PREVIEW_COMMANDS, command.type);
             return "ignored" in route ? [{ command, reason: route.ignored }] : [];
         }),
     )("says why it drops a $command.type", ({ command, reason }) => {
@@ -152,11 +151,12 @@ describe("PreviewHost", () => {
         expect(log).toHaveBeenCalledWith(command.message);
     });
 
-    // Rollup keeps a module-level statement holding an interpolated template literal, so the table would ship in production.
-    it("writes each drop reason as a plain string, which leaves the table out of the production bundle", () => {
-        const table = readFileSync(join(__dirname, "previewCommands.ts"), "utf8");
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-        expect(table).not.toMatch(/ignored:\s*`/);
+        new PreviewHost().postMessage(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
+
+        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
     });
 
     it.each(["toString", "constructor", "hasOwnProperty"])(

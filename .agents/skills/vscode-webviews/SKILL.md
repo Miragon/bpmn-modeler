@@ -288,6 +288,10 @@ IntelliJ, or a plain browser. Two implementations back it:
   standalone in a browser via `vite serve`. It routes each command from the
   table in `browserPreview/previewCommands.ts`: a new webview command needs a
   row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
+  The table type, the router, the unknown-type policy and the reply dispatch
+  live once beside `MockHostApi` in `libs/shared/src/lib/previewCommandTable.ts`;
+  each preview (the Form editor's and the template editor's too) keeps only its
+  table, its session and its answers.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts

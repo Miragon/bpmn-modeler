@@ -1,9 +1,9 @@
-import { MockHostApi, type Query } from "@miragon/bpmn-modeler-shared";
+import { MockHostApi, replyFromPreview, routePreviewCommand } from "@miragon/bpmn-modeler-shared";
 
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
 import type { WebviewState } from "../../../port/webviewState";
 import { DiffPreview } from "./diffPreview";
-import { routePreviewCommand } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 import { PREVIEW_MODES, readPreviewMode } from "./previewMode";
 
 /**
@@ -27,17 +27,11 @@ export class PreviewHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
     }
 
     override postMessage(message: BpmnWebviewCommand): void {
-        routePreviewCommand(message, {
+        routePreviewCommand(PREVIEW_COMMANDS, message, {
             mode: this.mode,
             search: window.location.search,
             diffPreview: this.diffPreview,
-            reply,
+            reply: replyFromPreview,
         });
-    }
-}
-
-function reply(query: Query | undefined): void {
-    if (query) {
-        window.dispatchEvent(new MessageEvent("message", { data: query }));
     }
 }

@@ -1,6 +1,11 @@
-import { MockHostApi, type Query, type TemplateEditorCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    MockHostApi,
+    replyFromPreview,
+    routePreviewCommand,
+    type TemplateEditorCommand,
+} from "@miragon/bpmn-modeler-shared";
 
-import { routePreviewCommand } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 
 /**
  * The browser preview's host: answers the template editor's commands with
@@ -9,10 +14,9 @@ import { routePreviewCommand } from "./previewCommands";
  */
 export class PreviewHost extends MockHostApi<unknown, TemplateEditorCommand> {
     override postMessage(message: TemplateEditorCommand): void {
-        routePreviewCommand(message, { search: window.location.search, reply });
+        routePreviewCommand(PREVIEW_COMMANDS, message, {
+            search: window.location.search,
+            reply: replyFromPreview,
+        });
     }
-}
-
-function reply(query: Query): void {
-    window.dispatchEvent(new MessageEvent("message", { data: query }));
 }
