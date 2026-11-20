@@ -9,6 +9,7 @@ import {
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
 import type { EdgeKind } from "./layoutModel";
+import type { CollaborationProcess } from "./planeSlots";
 
 interface NodeRelations {
     readonly outline: Outline;
@@ -128,6 +129,22 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
         );
     }
     return { nodes, pools, laneParents, lanePools, lanesByNode, connections };
+}
+
+/** Each collaboration with the processes its participants name, in document order. */
+export function collaborationProcessesOf(
+    definitions: ModdleElement,
+): readonly CollaborationProcess[] {
+    return moddleElements(definitions.rootElements)
+        .filter((root) => isType(root, "bpmn:Collaboration"))
+        .flatMap((collaboration) =>
+            moddleElements(collaboration.participants).flatMap((participant) => {
+                const process = idOf(participant.processRef);
+                return collaboration.id === undefined || process === undefined
+                    ? []
+                    : [[collaboration.id, process] as const];
+            }),
+        );
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

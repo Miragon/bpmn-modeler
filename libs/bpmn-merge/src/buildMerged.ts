@@ -16,6 +16,7 @@ import {
     repairIntroducedSpots,
 } from "./layoutDrawingRepair";
 import { layoutModelOf } from "./layoutModelReader";
+import { collaborationProcessesOf } from "./layoutRelations";
 import { PlaneSlots } from "./planeSlots";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
@@ -73,7 +74,10 @@ export async function buildMergedWith(
         current: DiagramIndex.of(current),
         incoming: DiagramIndex.of(incoming),
     };
-    const slots = new PlaneSlots(diagramIndexes);
+    const slots = new PlaneSlots(diagramIndexes, [
+        ...collaborationProcessesOf(current),
+        ...collaborationProcessesOf(incoming),
+    ]);
     const sideLayouts = [layoutModelOf(current, slots), layoutModelOf(incoming, slots)];
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };

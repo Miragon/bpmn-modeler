@@ -1,6 +1,9 @@
 import { type DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
 import type { MergeSide } from "./mergeResult";
 
+/** A collaboration and a process one of its participants names: one root plane draws them. */
+export type CollaborationProcess = readonly [collaboration: string, process: string];
+
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */
 export class PlaneSlot {
     /** The value that defines the slot; a map across two `PlaneSlots` keys by it, not by the instance. */
@@ -33,11 +36,11 @@ export class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
     private readonly handedOut = new Map<string, PlaneSlot>();
 
-    constructor(private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>) {
-        for (const [collaboration, process] of [
-            ...indexes.current.collaborationProcesses,
-            ...indexes.incoming.collaborationProcesses,
-        ]) {
+    constructor(
+        private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>,
+        collaborationProcesses: readonly CollaborationProcess[],
+    ) {
+        for (const [collaboration, process] of collaborationProcesses) {
             const collaborationRoot = this.root(collaboration);
             const processRoot = this.root(process);
             if (collaborationRoot !== processRoot) this.rootOf.set(processRoot, collaborationRoot);
@@ -45,8 +48,11 @@ export class PlaneSlots {
     }
 
     /** One document's slots, as if it were merged with itself. */
-    static ofDocument(index: DiagramIndex): PlaneSlots {
-        return new PlaneSlots({ current: index, incoming: index });
+    static ofDocument(
+        index: DiagramIndex,
+        collaborationProcesses: readonly CollaborationProcess[],
+    ): PlaneSlots {
+        return new PlaneSlots({ current: index, incoming: index }, collaborationProcesses);
     }
 
     slotOf(planeOwner: string): PlaneSlot {
