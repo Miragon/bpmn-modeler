@@ -122,7 +122,7 @@ The BPMN webview ships one `index.js`, one `index.css` (CSS code
 splitting is off because host shells link a single stylesheet) and lazy `chunks/**` relative
 to the entry (`base: "./"`), so every host serves the whole directory.
 
-The BPMN page's first load and each of its dynamic imports fetch at most ten files at once
+A webview page's first load and each of its dynamic imports fetch at most ten files at once
 (`WEBVIEW_FILES_AT_ONCE`, which the merge-view smoke test checks too); `webviewImportBudget`
 (`vite.shared.ts`) fails the build above that, counting an import that several chains reach
 from the one that loaded the least of it, and two chunk groups put the small helpers and the
@@ -136,12 +136,18 @@ past the limit, and webviews closed one after another while they load can still 
 slots until VS Code frees them
 ([microsoft/vscode#349058](https://github.com/microsoft/vscode/issues/349058)).
 
-The production build drops the browser preview host, and `noFixturesInProductionBundle`
+A build that does not define `process.env.NODE_ENV` as `development`, the fact the preview's
+gate reads, drops the browser preview host, and `noFixturesInProductionBundle`
 (`vite.shared.ts`) fails it when a chunk still renders code of a `__fixtures__` module.
-Tree-shaking had dropped the host but kept about 3 KB of the entry: fixture values built at
-module level that Rolldown could not prove free of side effects
-([#2604](https://github.com/Miragon/bpmn-modeler/issues/2604)). Cost: a fixture the preview
-imports builds its values inside functions.
+Tree-shaking had dropped the hosts but kept about 3 KB of the BPMN entry and 2 KB of the
+template editor: fixture values built at module level that Rolldown could not prove free of
+side effects ([#2604](https://github.com/Miragon/bpmn-modeler/issues/2604)). Cost: preview
+data lives in `__fixtures__` and builds its values inside functions.
+
+Every webview a host embeds spreads both guards from `webviewBuildGuards` (`vite.shared.ts`)
+into its plugins, and `tools/repo-checks` requires that of each app whose build writes
+`dist/webview-staging`, so a guard cannot reach one webview and miss its sibling. Cost: a
+webview that needs one guard and not the other has to say so in `vite.shared.ts`.
 
 Every BPMN, DMN, form, deployment and add-ons shell sends a CSP with `default-src 'none'`, so
 injected markup cannot run script with the host message channel; each allows only what its

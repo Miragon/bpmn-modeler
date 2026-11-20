@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { bundledFixtures, type RenderedChunk } from "../../../vite.shared";
+import {
+    bundledFixtures,
+    compilesThePreviewIn,
+    type RenderedChunk,
+    webviewBuildGuards,
+} from "../../../vite.shared";
 
 function chunk(fileName: string, renderedLengths: Record<string, number>): RenderedChunk {
     return {
@@ -50,6 +55,35 @@ describe("the fixtures a production bundle carries", () => {
         expect(bundledFixtures(bundle).map(({ fixture }) => fixture)).toEqual([
             "C:\\repo\\apps\\web\\src\\__fixtures__\\mock.ts",
             "/repo/apps/web/src/__fixtures__/samples.json?import",
+        ]);
+    });
+});
+
+describe("a build that compiles the browser preview in", () => {
+    it.each([
+        ['"development"', true],
+        ['"production"', false],
+        ['"test"', false],
+    ])("is one that defines process.env.NODE_ENV as %s: %s", (defined, compiledIn) => {
+        expect(compilesThePreviewIn({ "process.env.NODE_ENV": defined }, "production")).toBe(
+            compiledIn,
+        );
+    });
+
+    it.each([
+        ["development", true],
+        ["test", false],
+    ])("is one run with NODE_ENV %s when its config defines none: %s", (nodeEnv, compiledIn) => {
+        expect(compilesThePreviewIn({}, nodeEnv)).toBe(compiledIn);
+        expect(compilesThePreviewIn(undefined, nodeEnv)).toBe(compiledIn);
+    });
+});
+
+describe("the build guards of a webview", () => {
+    it("hold its import budget and keep fixtures out of its bundle", () => {
+        expect(webviewBuildGuards({ entry: "index.js" }).map((guard) => guard.name)).toEqual([
+            "webview-import-budget",
+            "no-fixtures-in-production-bundle",
         ]);
     });
 });

@@ -104,7 +104,7 @@ export function importBursts(chunks: readonly BundleChunk[], entry: string): Imp
  * panes that fetch 16 files each fill it, and the next webview of the type
  * stays blank for those 30 s.
  */
-export function webviewImportBudget(options: { entry: string }): Plugin {
+function webviewImportBudget(options: { entry: string }): Plugin {
     return {
         name: "webview-import-budget",
         apply: "build",
@@ -159,20 +159,36 @@ export function bundledFixtures(chunks: readonly RenderedChunk[]): BundledFixtur
 }
 
 /**
- * Fails a production build that renders code of a `__fixtures__` module. The
- * preview host is dead-code-eliminated, but a fixture's module-level value
- * that Rollup cannot prove free of side effects stays in the bundle.
+ * Whether a build compiles the browser preview in: the preview's gate reads the
+ * `process.env.NODE_ENV` the build defines, or the process's own when it defines none.
  */
-export function noFixturesInProductionBundle(): Plugin {
-    let isProduction = false;
+export function compilesThePreviewIn(
+    define: Readonly<Record<string, unknown>> | undefined,
+    nodeEnv: string | undefined,
+): boolean {
+    const defined = define?.["process.env.NODE_ENV"] ?? JSON.stringify(nodeEnv);
+    return defined === JSON.stringify("development");
+}
+
+/**
+ * Fails a build without the browser preview that renders code of a
+ * `__fixtures__` module. The preview host is dead-code-eliminated, but a
+ * fixture's module-level value that Rolldown cannot prove free of side effects
+ * stays in the bundle.
+ */
+function noFixturesInProductionBundle(): Plugin {
+    let previewCompiledIn = false;
     return {
         name: "no-fixtures-in-production-bundle",
         apply: "build",
         configResolved(config) {
-            isProduction = config.isProduction;
+            previewCompiledIn = compilesThePreviewIn(
+                config.define,
+                process.env.NODE_ENV ?? config.mode,
+            );
         },
         generateBundle(_outputOptions, bundle) {
-            if (!isProduction) return;
+            if (previewCompiledIn) return;
             const chunks = Object.values(bundle).flatMap((output) =>
                 output.type === "chunk" ? [output] : [],
             );
@@ -187,4 +203,9 @@ export function noFixturesInProductionBundle(): Plugin {
             );
         },
     };
+}
+
+/** The guards every webview a host embeds spreads into its plugins; `entry` is the page's first load. */
+export function webviewBuildGuards(options: { entry: string }): Plugin[] {
+    return [webviewImportBudget(options), noFixturesInProductionBundle()];
 }
