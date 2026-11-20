@@ -11,7 +11,7 @@ import type {
     TemplateAddOnPayload,
 } from "@miragon/bpmn-modeler-shared";
 
-import { needsReview } from "../../domain/catalogFilter";
+import { needsReview } from "../../../domain/catalogFilter";
 
 /*
  * The preview's catalog: one row in every state a view can show. The texts
@@ -283,7 +283,7 @@ const PREVIEW_STATES = [
     "failed",
 ] as const;
 
-type PreviewState = (typeof PREVIEW_STATES)[number];
+export type PreviewState = (typeof PREVIEW_STATES)[number];
 
 /** The preview state a URL names; the full catalog for any other name. */
 export function previewStateOf(name: string | null): PreviewState {
@@ -377,7 +377,8 @@ export class MockCatalog {
         };
     }
 
-    idOf(nameOrId: string): string | undefined {
+    /** `undefined` for a name or id no row carries, or none at all. */
+    idOf(nameOrId: string | undefined): string | undefined {
         return this.rows().find((row) => row.id === nameOrId || row.name === nameOrId)?.id;
     }
 
@@ -432,7 +433,7 @@ export class MockCatalog {
                 result: {
                     kind: "refused",
                     reason: "staleView",
-                    message: "The list changed since you looked at it. Check it again.",
+                    message: "The list changed since you looked at it. Check it again, then allow.",
                 },
                 changed: true,
             };

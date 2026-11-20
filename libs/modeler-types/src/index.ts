@@ -48,3 +48,4 @@ export * from "./formRuntimeCompatibility";
 export * from "./blankDocument";
 export * from "./emptyDmn";
 export * from "./pluginLoadReport";
+export * from "./polyline";

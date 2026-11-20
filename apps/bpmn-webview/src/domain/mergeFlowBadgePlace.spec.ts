@@ -40,6 +40,14 @@ describe("flowBadgePlace", () => {
             ],
             undefined,
         ],
+        [
+            "halves the segment as the sum of its ends on fractional waypoints",
+            [
+                { x: 0.1, y: 0 },
+                { x: 100.7, y: 0 },
+            ],
+            { left: 50.3, top: 0 },
+        ],
         ["leaves it out on a flow without two waypoints", [{ x: 0, y: 0 }], undefined],
     ])("%s", (_case, waypoints, expected) => {
         expect(flowBadgePlace(waypoints)).toStrictEqual(expected);

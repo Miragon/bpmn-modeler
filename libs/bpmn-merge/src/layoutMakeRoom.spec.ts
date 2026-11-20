@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation } from "./layoutFlowTopology";
-import { type RoomSlots, slotsFor } from "./layoutMakeRoom";
+import { type RoomMade, type RoomSlots, freeRoom, onlyMoves, slotsFor } from "./layoutMakeRoom";
 
 describe("slotsFor", () => {
     it.each<[FlowRelation, boolean, RoomSlots]>([
@@ -19,4 +20,22 @@ describe("slotsFor", () => {
             expect(slotsFor(relation, flowsRight)).toEqual(slots);
         },
     );
+});
+
+describe("free rooms", () => {
+    const draft = DrawingDraft.of({ shapes: new Map(), edges: new Map() });
+
+    it("tells a room made at a free place as one that only moves the shape", () => {
+        expect(onlyMoves(freeRoom(draft))).toBe(true);
+        expect(freeRoom(draft).draft).toBe(draft);
+    });
+
+    it.each<[string, Pick<RoomMade, "shifted" | "grown">]>([
+        ["shifted a shape", { shifted: ["Task_B"], grown: [] }],
+        ["grew a frame", { shifted: [], grown: ["Sub_1"] }],
+    ])("does not tell a room that %s as one that only moves the shape", (_, made) => {
+        expect(onlyMoves({ ...freeRoom(draft), ...made, growth: made.grown.length * 20 })).toBe(
+            false,
+        );
+    });
 });

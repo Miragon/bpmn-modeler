@@ -11,9 +11,27 @@ import { type PlaneIndex, type PlaneNodes, byPlaneWithGrid, planeNodesOf } from 
 import { polylineBounds } from "./layoutPolyline";
 import type { ShapeGroup } from "./layoutShapeGroups";
 
-interface DraftIndex {
-    readonly nodes: ReadonlyMap<string, PlaneNodes>;
-    readonly edges: ReadonlyMap<string, PlaneIndex<LayoutEdge>>;
+/** The original drawing's nodes and drawn edges by plane; each grid is built on its first read. */
+class DraftIndex {
+    private nodeIndex: ReadonlyMap<string, PlaneNodes> | undefined;
+    private edgeIndex: ReadonlyMap<string, PlaneIndex<LayoutEdge>> | undefined;
+
+    constructor(
+        private readonly originalNodes: readonly NodeShape[],
+        private readonly drawnEdges: readonly LayoutEdge[],
+    ) {}
+
+    get nodes(): ReadonlyMap<string, PlaneNodes> {
+        this.nodeIndex ??= planeNodesOf(this.originalNodes);
+        return this.nodeIndex;
+    }
+
+    get edges(): ReadonlyMap<string, PlaneIndex<LayoutEdge>> {
+        this.edgeIndex ??= byPlaneWithGrid(this.drawnEdges, ({ waypoints }) =>
+            polylineBounds(waypoints),
+        );
+        return this.edgeIndex;
+    }
 }
 
 /**
@@ -23,6 +41,7 @@ interface DraftIndex {
  */
 export class DrawingDraft implements LayoutModel {
     private constructor(
+        private readonly original: LayoutModel,
         private readonly shapeMap: Map<string, LayoutShape>,
         private readonly edgeMap: Map<string, LayoutEdge>,
         private readonly changedShapes: Set<string>,
@@ -44,20 +63,19 @@ export class DrawingDraft implements LayoutModel {
         );
         const drawn = [...layout.edges.values()].filter(({ waypoints }) => waypoints.length > 0);
         return new DrawingDraft(
+            layout,
             new Map(layout.shapes),
             new Map(layout.edges),
             new Set(),
             new Set(),
-            {
-                nodes: planeNodesOf(nodes),
-                edges: byPlaneWithGrid(drawn, ({ waypoints }) => polylineBounds(waypoints)),
-            },
+            new DraftIndex(nodes, drawn),
         );
     }
 
     /** A copy to try changes on, which leaves this draft as it is. */
     fork(): DrawingDraft {
         return new DrawingDraft(
+            this.original,
             new Map(this.shapeMap),
             new Map(this.edgeMap),
             new Set(this.changedShapes),
@@ -68,6 +86,18 @@ export class DrawingDraft implements LayoutModel {
 
     get changed(): boolean {
         return this.changedShapes.size > 0 || this.changedEdges.size > 0;
+    }
+
+    /** This draft once it changed anything, else the drawing it was made of. */
+    get changedOrOriginal(): LayoutModel {
+        return this.changed ? this : this.original;
+    }
+
+    /** The shapes this draft draws other than the draft it was forked from does, in document order. */
+    shapesChangedFrom(base: DrawingDraft): string[] {
+        return [...this.shapes].flatMap(([id, shape]) =>
+            base.shapes.get(id) === shape ? [] : [id],
+        );
     }
 
     node(id: string): NodeShape | undefined {

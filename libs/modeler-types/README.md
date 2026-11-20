@@ -3,8 +3,8 @@
 The publishable half of the shared code: model types (engine, lint, settings, scripting, implementation,
 diff), browser utilities (canvas resize, the text-editing predicate, the flushable input debounce) and
 pure rules that browser code and `@miragon/bpmn-modeler-core` both apply (`scriptSurface.ts`,
-`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`). Nearly every workspace imports it;
-both npm packages inline it.
+`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`) or that two browser workspaces apply
+(`polyline.ts`). Nearly every workspace imports it; both npm packages inline it.
 
 Internal workspace, not published on its own.
 
@@ -66,3 +66,9 @@ a note's text names no other element.
 `@miragon/bpmn-modeler-types/conflictMarkers` is `src/conflictMarkers.ts` alone: Git's conflict-marker
 grammar, which the core reads files with and `libs/bpmn-merge` checks a hand-merged text with, so both
 read markers alike.
+
+### The `/polyline` entry point
+
+`@miragon/bpmn-modeler-types/polyline` is `src/polyline.ts` alone: a flow's segments, its midpoint and
+its longest segment, so a DOM-free workspace such as `libs/bpmn-merge` walks waypoints with the same
+arithmetic as the label follow and the merge view instead of keeping its own copy.

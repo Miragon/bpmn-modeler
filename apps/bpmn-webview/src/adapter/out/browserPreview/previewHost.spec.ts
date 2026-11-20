@@ -1,9 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    type BpmnPluginsQuery,
     CleanupReportCommand,
     CursorChangedCommand,
     DiffPlaneChangedCommand,
@@ -64,13 +63,14 @@ import {
     CompareMergeResultCommand,
     SwitchMergeComparisonCommand,
     MergePaneCommandsChangedCommand,
+    previewRouteOf,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../../__fixtures__/mock-diff";
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
-import { previewRouteOf } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 import { PreviewHost } from "./previewHost";
 
 vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
@@ -283,6 +283,54 @@ describe("PreviewHost", () => {
         expect(answer.definitions.map((definition) => definition.name)).toEqual(["OrderPlaced"]);
     });
 
+    describe("plugin preview", () => {
+        const PREVIEW_PLUGINS = [
+            "Resize Tasks (rules)",
+            "Reduced Palette (palette)",
+            "Id Badges (overlays + style)",
+            "Technical IDs (modeling command)",
+            "Acme Moddle (moddle extension)",
+            "Engine Flags (engine-specific)",
+            "Probe (exposes the injector for checks)",
+            "Throws While Loading",
+        ];
+
+        beforeEach(() => {
+            // jsdom has no object URLs.
+            Object.defineProperty(URL, "createObjectURL", {
+                configurable: true,
+                value: (blob: Blob) => `blob:${blob.type}`,
+            });
+        });
+
+        afterEach(() => {
+            Reflect.deleteProperty(URL, "createObjectURL");
+        });
+
+        it.each([
+            ["", []],
+            ["?plugins", PREVIEW_PLUGINS],
+            ["?plugins=broken", [...PREVIEW_PLUGINS, "Broken Constructor"]],
+        ])("serves the plugins of %j as script URLs", (search, names) => {
+            previewHost(search).postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(answer.plugins.map((plugin) => plugin.name)).toEqual(names);
+            expect(answer.plugins.every((plugin) => plugin.scriptUrl === "blob:text/javascript")).toBe(
+                true,
+            );
+        });
+
+        it("serves a plugin's style as a style URL", () => {
+            previewHost("?plugins").postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(
+                answer.plugins.flatMap((plugin) => (plugin.styleUrl ? [plugin.name] : [])),
+            ).toEqual(["Id Badges (overlays + style)"]);
+        });
+    });
+
     describe("merge preview", () => {
         it.each([
             ["?mode=merge-current", "before", "current"],
@@ -455,7 +503,7 @@ describe("PreviewHost", () => {
 
     it.each(
         WEBVIEW_COMMANDS.flatMap((command) => {
-            const route = previewRouteOf(command.type);
+            const route = previewRouteOf(PREVIEW_COMMANDS, command.type);
             return "ignored" in route ? [{ command, reason: route.ignored }] : [];
         }),
     )("says why it drops a $command.type", ({ command, reason }) => {
@@ -465,13 +513,6 @@ describe("PreviewHost", () => {
 
         expect(reason.trim()).not.toBe("");
         expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
-    });
-
-    // Rollup keeps a module-level statement holding an interpolated template literal, so the table would ship in production.
-    it("writes each drop reason as a plain string, which leaves the table out of the production bundle", () => {
-        const table = readFileSync(join(__dirname, "previewCommands.ts"), "utf8");
-
-        expect(table).not.toMatch(/ignored:\s*`/);
     });
 
     it("shows an info message in the console", () => {

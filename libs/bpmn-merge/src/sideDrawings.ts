@@ -8,7 +8,7 @@ import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
  */
 export function placeOf(layout: LayoutModel, node: NodeShape): DiagramBounds | undefined {
     const drawn = drawingOfSameSize(layout, node);
-    return drawn?.kind === "node" && drawn.slot === node.slot ? drawn.bounds : undefined;
+    return drawn?.kind === "node" && drawn.slot.equals(node.slot) ? drawn.bounds : undefined;
 }
 
 /** Whether the layout draws the node's element just where the node lies. */
