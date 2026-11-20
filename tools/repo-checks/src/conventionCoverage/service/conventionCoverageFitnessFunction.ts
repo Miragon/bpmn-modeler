@@ -58,7 +58,7 @@ export function createConventionCoverageFitnessFunction({
                 kind: "trial",
                 commit: "69ecc374",
                 outcome:
-                    "Version 2 against version 1: 0 findings both and the same files read; no hexagonal workspace holds a __tests__, test or tests folder under src/.",
+                    "Version 2 against version 1: 0 findings both and the same files read; no hexagonal workspace holds a __tests__, test or tests folder under src/. The blocking architecture spec's readSourceTree skips the same folders, so both read the same files.",
             },
         ],
         groups: CONVENTION_COVERAGE_GROUPS,

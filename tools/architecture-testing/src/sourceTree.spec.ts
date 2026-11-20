@@ -22,6 +22,9 @@ describe("readSourceTree", () => {
             "dist/index.ts",
             "coverage/report.ts",
             "__fixtures__/sample.ts",
+            "__tests__/case.ts",
+            "feature/test/helper.ts",
+            "tests/harness.ts",
             "lib/vendored.ts",
         ]) {
             mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -33,7 +36,7 @@ describe("readSourceTree", () => {
         rmSync(root, { recursive: true, force: true });
     });
 
-    it("lists sources as sorted POSIX paths with their text", () => {
+    it("lists sources as sorted POSIX paths with their text, without test folders", () => {
         expect(readSourceTree(root)).toEqual([
             { path: "feature/domain/model.ts", text: "// feature/domain/model.ts" },
             { path: "feature/view.tsx", text: "// feature/view.tsx" },
@@ -58,9 +61,11 @@ describe("readSourceTree", () => {
             readSourceTree(root, { skipDirs: ["lib", "feature", "dist"] }).map(({ path }) => path),
         ).toEqual([
             "__fixtures__/sample.ts",
+            "__tests__/case.ts",
             "coverage/report.ts",
             "index.ts",
             "node_modules/dep/index.ts",
+            "tests/harness.ts",
         ]);
     });
 

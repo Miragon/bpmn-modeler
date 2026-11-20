@@ -65,6 +65,12 @@ export type { Stability, WorkspaceDependency } from "./stability";
 export { readStringLiterals } from "./stringLiterals";
 export { readTextLiterals } from "./textLiterals";
 export type { CallSite, TextLiteral } from "./textLiterals";
+export {
+    DECLARATION_FILE,
+    isTestOrDeclarationFile,
+    SPEC_FILE,
+    TEST_FOLDERS,
+} from "./testFiles";
 export { findTypeEqualityPins } from "./typeEqualityPins";
 export type { TypeEqualityPin, TypeEqualityPinOptions } from "./typeEqualityPins";
 export { readTypeProgram } from "./typeProgram";

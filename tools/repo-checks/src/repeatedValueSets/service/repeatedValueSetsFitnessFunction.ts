@@ -28,6 +28,7 @@ export function createRepeatedValueSetsFitnessFunction({
             "Nested sets: a tuple of tuples, such as COUNT_KINDS of the DMN diff legend in PR 2359, whose kinds are a column, not one array of strings.",
             "A copy whose other occurrence is in a spec or a test folder, which are not read: SOURCE_ONLY in overlayNeeded.spec.ts and tools/build-overlay.mjs (PR 2359) gave no finding.",
             'Sets spelled inside one string, such as the braces of the glob `**/*.{bpmn,dmn}` in DeployFilesService.ts, which repeat the deployable extensions `[".bpmn", ".dmn"]` of DeployActiveDiagramService.ts.',
+            "Sets spelled in a regular expression literal, such as the alternation `(spec|test)` written in four spec patterns of tools/ before PR 2671, or `([mc]?ts|tsx)` beside the equal `(ts|tsx|mts|cts)`.",
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
             "A copy of a set whose home is a dependency, outside the tracked files, such as the 12 locales of @miragon/bpmn-modeler-i18n: one tracked copy is the set's only occurrence.",
         ],

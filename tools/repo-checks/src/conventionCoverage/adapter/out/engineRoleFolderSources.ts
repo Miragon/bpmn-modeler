@@ -1,6 +1,7 @@
 import {
     buildImportGraph,
     findImplementations,
+    isTestOrDeclarationFile,
     readPathAliases,
     readWorkspaces,
     type SourceFile,
@@ -9,7 +10,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { trackedFiles } from "../../../fitness/adapter/out/git";
-import { isTestOrDeclarationFile } from "../../../sourceFiles/domain/sourceFiles";
 import type { HexagonalWorkspaceSources } from "../../domain/hexagonalWorkspaceSources";
 import type { RoleFolderSources } from "../../port/RoleFolderSources";
 

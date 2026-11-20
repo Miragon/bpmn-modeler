@@ -42,6 +42,7 @@ describe("isScannedSource", () => {
         ["apps/vscode-plugin/src/__fixtures__/fakeWindow.ts", false],
         ["apps/vscode-plugin/src/__tests__/fakeWindow.ts", false],
         ["apps/vscode-plugin/src/test/fakeWindow.ts", false],
+        ["apps/vscode-plugin/src/ui/View.spec.data.ts", true],
         ["apps/vscode-plugin/test/smoke/support/driver.ts", false],
         ["apps/vscode-plugin/src/types/vscode.d.ts", false],
         ["apps/vscode-plugin/scripts/package.mjs", false],
