@@ -2,7 +2,7 @@ import type { DiagramBounds } from "../layoutGeometry";
 import type { LaneShape, LayoutModel, LayoutShape, NodeShape } from "../layoutModel";
 import { rootPlane } from "./shapePlane";
 
-export const PLANE = "Process_1";
+const PLANE = "Process_1";
 
 export const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
     x,
