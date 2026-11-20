@@ -1,11 +1,11 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import { foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
 import type { FlowRelation } from "./layoutFlowTopology";
-import { bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
+import { type Offset, bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
 import { type LayoutModel, type NodeShape, drawnHostOf } from "./layoutModel";
 import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
-import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
+import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 
 /** The slots in the order the slots left for when flows clash are tried. */
 const SLOTS = ["after", "before", "below"] as const;

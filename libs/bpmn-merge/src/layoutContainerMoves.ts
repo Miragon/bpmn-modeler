@@ -1,15 +1,16 @@
 import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 
 import { DrawingDraft } from "./layoutDrawingDraft";
-import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
+import { type Offset, centerOf, liesWithin, offsetBetween } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
 import { type FrameGrown, growFrameFor } from "./layoutGrowFrame";
 import type { RoomContext } from "./layoutMakeRoom";
 import { frameIdsOf } from "./layoutFrames";
 import { type LayoutModel, type LayoutShape, nodeShapeIn } from "./layoutModel";
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
-import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
-import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
+import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
+import { FrameFit } from "./layoutPlacementFrames";
+import { Placement } from "./layoutShapePlacement";
 import type { ContainerRepair, SpotRepair } from "./layoutSpotRepairs";
 import { type LayoutSpot, liesOutside } from "./layoutSpots";
 
@@ -244,23 +245,8 @@ function nearestPlaceInside(
     group: ShapeGroup,
     frames: readonly LayoutShape[],
 ): Offset | undefined {
-    const base = offsetInto(groupShapesBoundsIn(draft, group), frames.map(innerBoundsOf));
+    const base = new FrameFit(draft, group, frames).offsetInto();
     if (base === undefined) return undefined;
     const window = Placement.searchWindowFrom(draft, group, base);
     return new Placement(draft, group, window, { into: frames }).nearestFitFrom(base);
-}
-
-/** The shortest offset that brings the bounds inside all frames; undefined when they leave no room for it. */
-function offsetInto(bounds: DiagramBounds, frames: readonly DiagramBounds[]): Offset | undefined {
-    const left = Math.max(...frames.map(({ x }) => x));
-    const top = Math.max(...frames.map(({ y }) => y));
-    const right = Math.min(...frames.map(rightOf));
-    const bottom = Math.min(...frames.map(bottomOf));
-    if (right - left < bounds.width || bottom - top < bounds.height) return undefined;
-    const shiftInto = (start: number, end: number, from: number, to: number) =>
-        start < from ? from - start : end > to ? to - end : 0;
-    return {
-        dx: shiftInto(bounds.x, rightOf(bounds), left, right),
-        dy: shiftInto(bounds.y, bottomOf(bounds), top, bottom),
-    };
 }

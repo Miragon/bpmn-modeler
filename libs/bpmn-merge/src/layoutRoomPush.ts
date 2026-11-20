@@ -26,7 +26,8 @@ import {
     drawnPartsOf,
 } from "./layoutModel";
 import type { ShapeGroups } from "./layoutShapeGroups";
-import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
+import { FRAME_PADDING } from "./layoutPlacementFrames";
+import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";
 
 /** How far what a room pushes keeps from what pushed it: in line along x, stacked along y. */

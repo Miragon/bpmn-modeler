@@ -4,6 +4,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    nodeShapeIn,
     type PoolShape,
     translatedEdge,
     translatedNode,
@@ -102,8 +103,7 @@ export class DrawingDraft implements LayoutModel {
     }
 
     node(id: string): NodeShape | undefined {
-        const shape = this.shapes.get(id);
-        return shape?.kind === "node" ? shape : undefined;
+        return nodeShapeIn(this, id);
     }
 
     pool(id: string): PoolShape | undefined {
