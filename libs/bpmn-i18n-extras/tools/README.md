@@ -47,7 +47,7 @@ production builds leave it out.
    changing one of their texts, since CI fails until they are current. A key the shared diff views start
    translating fails modeler-types' `diffVocabulary.spec.ts` until `DIFF_VIEW_KEYS` lists it. Any other
    new text goes into its feature's texts constant, which its `*_KEYS` list reads; a text passed to
-   `translate()` inline reaches no record.
+   `translate()` inline reaches no record, and lint fails it in the features these specs record (`eslint.config.cjs`).
 
    ```bash
    corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts

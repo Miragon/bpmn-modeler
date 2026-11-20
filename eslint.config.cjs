@@ -344,6 +344,29 @@ module.exports = [
             ],
         },
     },
+    // These features' overlay keys come from the texts constants their harvest records
+    // read (libs/bpmn-i18n-extras/tools/README.md); an inline text reaches no record.
+    {
+        files: [
+            "libs/append-menu/src/**/*.{ts,tsx}",
+            "libs/definition-search/src/**/*.{ts,tsx}",
+            "libs/element-ids/src/**/*.{ts,tsx}",
+            "libs/element-template-chooser/src/**/*.{ts,tsx}",
+            "libs/model-navigation/src/**/*.{ts,tsx}",
+            "apps/bpmn-webview/src/adapter/out/formPreview.ts",
+        ],
+        ignores: ["**/*.spec.{ts,tsx}"],
+        rules: {
+            "no-restricted-syntax": [
+                "error",
+                ...["callee.name", "callee.property.name"].map((callee) => ({
+                    selector: `CallExpression[${callee}='translate'][arguments.0.type=/^(Literal|TemplateLiteral)$/]`,
+                    message:
+                        "Text passed to translate() inline. Add it to the feature's texts constant, which its harvest record reads.",
+                })),
+            ],
+        },
+    },
     // Must come last: turns off ESLint rules that would conflict with Prettier.
     eslintConfigPrettier,
 ];
