@@ -4,8 +4,12 @@
  * `_open.mergeEditor` over files the extension serves, the editor groups and
  * their merge tabs, the result document the editor merged, its saves with
  * their reasons and the tabs closing. As in VS Code, opening a result the
- * active group already shows brings that tab to the front. Call
- * {@link resetVscodeMergeEditor} before each test.
+ * active group already shows brings that tab to the front, and the command
+ * returns while the editor still loads: the tab and the start text show
+ * first, a save through the editor is dropped, and only on a later timer
+ * does the editor merge a start with conflict markers into a dirty result
+ * (see {@link holdMergeEditorLoading}). Call {@link resetVscodeMergeEditor}
+ * before each test.
  */
 import { Uri } from "./vscodeFileSystemFake";
 
@@ -43,6 +47,8 @@ export interface FakeMergeTab {
     readonly group: FakeTabGroup;
     /** The titles the editor shows above input1 and input2, which VS Code's tab API does not report; none on a restored tab. */
     readonly titles?: { readonly input1: string; readonly input2: string };
+    /** As VS Code's merge tab: false while the editor loads, then whether its result is dirty. */
+    readonly isDirty: boolean;
 }
 
 export interface FakeTabGroup {
@@ -79,13 +85,13 @@ type Listener<T> = (event: T) => void;
 
 export class FakeResultDocument {
     private text: string;
-    private dirty = true;
+    private dirty = false;
 
     constructor(
         readonly uri: Uri,
-        merged: string,
+        start: string,
     ) {
-        this.text = merged;
+        this.text = start;
     }
 
     get isDirty(): boolean {
@@ -134,6 +140,8 @@ let nextOpen: "opens" | "fails" | "opensNoTab" = "opens";
 let mergeOf: (start: string) => string = (start) => start;
 let commandList: string[] = [];
 let groupsSplit = true;
+const loadingResults = new Set<string>();
+let loadingHeld = false;
 
 export const env = { appName: "Visual Studio Code", uriScheme: "vscode" };
 
@@ -153,6 +161,8 @@ export function resetVscodeMergeEditor(): void {
     mergeOf = (start) => start;
     commandList = ["_open.mergeEditor", "mergeEditor.acceptMerge"];
     groupsSplit = true;
+    loadingResults.clear();
+    loadingHeld = false;
     env.appName = "Visual Studio Code";
     env.uriScheme = "vscode";
 }
@@ -162,6 +172,17 @@ resetVscodeMergeEditor();
 /** What the editor makes of the result's start text, as it merges the one-sided edits of a marker text. */
 export function editorMergesStartTextTo(merge: (start: string) => string): void {
     mergeOf = merge;
+}
+
+/** Merge editors opened from now on keep loading until {@link finishMergeEditorLoading}, as on a busy machine. */
+export function holdMergeEditorLoading(): void {
+    loadingHeld = true;
+}
+
+/** Every loading merge editor finishes: it merges a start with conflict markers, and a save reaches it. */
+export function finishMergeEditorLoading(): void {
+    loadingHeld = false;
+    for (const result of [...loadingResults]) finishLoading(result);
 }
 
 /** The next `_open.mergeEditor` rejects, as on a host without the command. */
@@ -243,8 +264,11 @@ export function typeIntoMergeResult(text: string, elementId?: string): void {
     resultOf(elementId).type(text);
 }
 
+/** A save through the merge editor, which VS Code drops while the editor loads. */
 export function saveMergeResult(reason: TextDocumentSaveReason, elementId?: string): void {
-    saveDocument(resultOf(elementId), reason);
+    const document = resultOf(elementId);
+    if (loadingResults.has(document.uri.toString())) return;
+    saveDocument(document, reason);
 }
 
 export function revertMergeResult(): void {
@@ -323,8 +347,18 @@ function addGroup(): FakeTabGroup {
     return group;
 }
 
-function addTab(group: FakeTabGroup, tab: Omit<FakeMergeTab, "group">): void {
-    const added: FakeMergeTab = { ...tab, group };
+function addTab(group: FakeTabGroup, tab: Omit<FakeMergeTab, "group" | "isDirty">): void {
+    const added: FakeMergeTab = {
+        ...tab,
+        group,
+        get isDirty() {
+            const result = tab.input.result.toString();
+            if (loadingResults.has(result)) return false;
+            return documents.some(
+                (document) => document.uri.toString() === result && document.isDirty,
+            );
+        },
+    };
     group.tabs.push(added);
     group.activeTab = added;
     tabChangeListeners.forEach((listener) =>
@@ -343,6 +377,17 @@ function removeTabs(closing: readonly FakeMergeTab[]): void {
     );
     documents.splice(0, documents.length, ...shown);
     tabChangeListeners.forEach((listener) => listener({ opened: [], closed, changed: [] }));
+}
+
+// As VS Code's `WorkspaceMergeEditorModeFactory`: a start with a line starting with `<<<<<<<` is
+// replaced by the editor's own merge, and the tab reports dirty only once the editor resolved.
+function finishLoading(result: string): void {
+    if (!loadingResults.delete(result)) return;
+    const document = documents.find((shown) => shown.uri.toString() === result);
+    if (!document) return;
+    if (/^<<<<<<</m.test(document.getText())) document.type(mergeOf(document.getText()));
+    const changed = mergeTabs().filter((tab) => tab.input.result.toString() === result);
+    tabChangeListeners.forEach((listener) => listener({ opened: [], closed: [], changed }));
 }
 
 function isShownIn(document: FakeResultDocument, tab: FakeMergeTab): boolean {
@@ -374,7 +419,11 @@ function openMergeEditor(args: MergeEditorArgs): void {
         return;
     }
     if (!documents.some((document) => document.uri.toString() === args.output.toString())) {
-        documents.push(new FakeResultDocument(args.output, mergeOf(readServedFile(args.output))));
+        documents.push(new FakeResultDocument(args.output, readServedFile(args.output)));
+        loadingResults.add(args.output.toString());
+        setTimeout(() => {
+            if (!loadingHeld) finishLoading(args.output.toString());
+        }, 0);
     }
     addTab(activeGroup, {
         label: `Merging: ${args.output.path.split("/").pop() ?? ""}`,

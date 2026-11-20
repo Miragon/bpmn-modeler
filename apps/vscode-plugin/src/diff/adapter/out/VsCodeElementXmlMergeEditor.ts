@@ -26,6 +26,7 @@ import { groupBelowActive } from "./editorGroupBelow";
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
 export const OPEN_MERGE_EDITOR = "_open.mergeEditor";
+export const MERGE_EDITOR_READY_TIMEOUT_MS = 10_000;
 
 // VS Code numbers its groups in grid order, as these commands count them.
 const FOCUS_GROUP_COMMANDS = [
