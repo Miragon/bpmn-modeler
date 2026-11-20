@@ -14,6 +14,7 @@ import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";
 import { byHandBadgeLabel, MERGE_XML_TEXTS, mergeXmlDecisionText } from "./mergeHandMergeTexts";
 import type { MergePadDecision } from "./mergePadDecisions";
+import { type MergeRemovedWithWording, removedWithElement } from "./mergeRemovedWith";
 import type { MergeTranslate } from "./mergeTranslate";
 
 // The merge words the webview renders beside the bar's and its menu's (`mergeBarTexts`); each is a translation key.
@@ -61,19 +62,16 @@ const PICK_BADGE_LABELS: Record<MergePickScope, Record<MergeSide, string>> = {
     },
 };
 
-const RESTORE_OFFER_TEXTS: Record<
-    MergeSide,
-    { one: string; many: string; boundaryEvent: string; elements: string }
-> = {
+const RESTORE_OFFER_TEXTS: Record<MergeSide, Record<MergeRemovedWithWording, string>> = {
     current: {
-        one: "Also keep the flow current removed with it",
-        many: "Also keep the {count} flows current removed with it",
+        oneFlow: "Also keep the flow current removed with it",
+        flows: "Also keep the {count} flows current removed with it",
         boundaryEvent: "Also keep the boundary event current removed with it",
         elements: "Also keep the {count} elements current removed with it",
     },
     incoming: {
-        one: "Also keep the flow incoming removed with it",
-        many: "Also keep the {count} flows incoming removed with it",
+        oneFlow: "Also keep the flow incoming removed with it",
+        flows: "Also keep the {count} flows incoming removed with it",
         boundaryEvent: "Also keep the boundary event incoming removed with it",
         elements: "Also keep the {count} elements incoming removed with it",
     },
@@ -195,15 +193,10 @@ export function padDecisionText(
 
 /** The offer to keep the flows and boundary events the other side removed with an element the user kept. */
 export function restoreOfferText(offer: MergePaneRestoreOffer, translate: MergeTranslate): string {
-    const texts = RESTORE_OFFER_TEXTS[offer.removedBy];
-    const boundaryEvents = offer.boundaryEvents?.length ?? 0;
-    const count = offer.connections.length + boundaryEvents;
-    if (boundaryEvents === 0) {
-        return count === 1 ? translate(texts.one) : translate(texts.many, { count: String(count) });
-    }
-    return count === 1
-        ? translate(texts.boundaryEvent)
-        : translate(texts.elements, { count: String(count) });
+    const { wording, elements } = removedWithElement(offer.connections, offer.boundaryEvents);
+    return translate(RESTORE_OFFER_TEXTS[offer.removedBy][wording], {
+        count: String(elements.length),
+    });
 }
 
 const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {

@@ -6,6 +6,7 @@ import type {
     MergeSide,
 } from "@miragon/bpmn-modeler-types";
 
+import { type MergeRemovedWithWording, removedWithElement } from "./mergeRemovedWith";
 import type { MergeTranslate } from "./mergeTranslate";
 
 type NoteKind = MergeBuildNoteContent["kind"];
@@ -219,26 +220,33 @@ function laneStackedWording(
     };
 }
 
-/** The flows left out, or once it names a boundary event, the elements left out, counted as the restore offer counts. */
+const RESTORED_WITHOUT_FLOWS_TEMPLATE =
+    "{element} is kept without the flows the other side removed with it: {connections}";
+
+const RESTORED_WITHOUT_TEMPLATES: Record<MergeRemovedWithWording, string> = {
+    oneFlow: RESTORED_WITHOUT_FLOWS_TEMPLATE,
+    flows: RESTORED_WITHOUT_FLOWS_TEMPLATE,
+    boundaryEvent:
+        "{element} is kept without the boundary event the other side removed with it: {elements}",
+    elements:
+        "{element} is kept without the {count} elements the other side removed with it: {elements}",
+};
+
+/** What the other side removed with the kept element, worded as its restore offer words it. */
 function restoredWithoutWording(
     note: MergeBuildNoteOfKind<"restoredWithoutRemovedWith">,
     names: CanvasNames,
 ): NoteWording {
-    const element = names.one(note.id);
-    if (note.boundaryEvents === undefined) {
-        return {
-            template:
-                "{element} is kept without the flows the other side removed with it: {connections}",
-            replacements: { element, connections: names.list(note.connections) },
-        };
-    }
-    const elements = [...note.boundaryEvents, ...note.connections];
+    const { wording, elements } = removedWithElement(note.connections, note.boundaryEvents);
+    const listed = names.list(elements);
     return {
-        template:
-            elements.length === 1
-                ? "{element} is kept without the boundary event the other side removed with it: {elements}"
-                : "{element} is kept without the {count} elements the other side removed with it: {elements}",
-        replacements: { element, count: String(elements.length), elements: names.list(elements) },
+        template: RESTORED_WITHOUT_TEMPLATES[wording],
+        replacements: {
+            element: names.one(note.id),
+            count: String(elements.length),
+            elements: listed,
+            connections: listed,
+        },
     };
 }
 

@@ -190,6 +190,12 @@ describe("restoreOfferText", () => {
             ["Timer_1", "Error_1"],
             "Also keep the 2 elements incoming removed with it",
         ],
+        [
+            "flows with an empty list of boundary events",
+            ["Flow_1", "Flow_2"],
+            [],
+            "Also keep the 2 flows incoming removed with it",
+        ],
     ])("counts elements for %s", (_name, connections, boundaryEvents, text) => {
         expect(
             restoreOfferText(
