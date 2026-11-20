@@ -1,6 +1,8 @@
 import type {
     MergePaneContainerReach,
+    MergePaneLackingSide,
     MergePaneOtherSideLack,
+    MergePanePickable,
     MergePaneShapelessRow,
     MergePaneStates,
     MergePickScope,
@@ -70,10 +72,7 @@ export function mergePadDecisions(
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
     const paneSide = states.caption.side;
-    const lackingSide =
-        pickable.otherSideLacks === undefined
-            ? undefined
-            : { side: otherSide(paneSide), lack: pickable.otherSideLacks };
+    const lackingSide = otherPanesLack(pickable, paneSide);
     const facts: MergeDecisionFacts = {
         ...elementPickOf(states, elementId),
         takenSide: pickable.takenSide,
@@ -85,6 +84,14 @@ export function mergePadDecisions(
     return decisionsOn(facts, sides, offers).filter(
         (decision): decision is MergePadDecision => decision.kind !== "heldKeepInside",
     );
+}
+
+/** The pad leaves an element out only by picking the other pane's side, where the element it draws is lacking. */
+function otherPanesLack(
+    pickable: MergePanePickable,
+    paneSide: MergeSide,
+): MergePaneLackingSide | undefined {
+    return pickable.lackingSide?.side === otherSide(paneSide) ? pickable.lackingSide : undefined;
 }
 
 /** What a menu row reads of the host's states. */

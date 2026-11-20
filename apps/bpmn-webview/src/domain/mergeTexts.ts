@@ -5,6 +5,7 @@ import type {
     MergePanePickAction,
     MergePaneBlock,
     MergePaneOtherSideLack,
+    MergePanePick,
     MergePaneRestoreOffer,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
@@ -82,22 +83,18 @@ const RESTORE_OFFER_TEXTS: Record<MergeSide, Record<MergeRemovedWithWording, str
  * full words for screen readers; a version merged by hand adds its word.
  */
 export function pickBadgeText(
-    badge: {
-        readonly keptSide: MergeSide;
-        readonly scope: MergePickScope;
-        readonly mergedByHand?: true;
-    },
+    pick: MergePanePick,
     translate: MergeTranslate,
 ): { side: string; label: string; byHand?: string } {
-    const side = translate(MERGE_SIDE_TEXTS[badge.keptSide]);
-    if (badge.mergedByHand) {
+    const side = translate(MERGE_SIDE_TEXTS[pick.keptSide]);
+    if (pick.mergedByHand) {
         return {
             side,
-            label: byHandBadgeLabel(badge.scope, badge.keptSide, translate),
+            label: byHandBadgeLabel(pick.scope, pick.keptSide, translate),
             byHand: translate(MERGE_XML_TEXTS.byHand),
         };
     }
-    return { side, label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]) };
+    return { side, label: translate(PICK_BADGE_LABELS[pick.scope][pick.keptSide]) };
 }
 
 /** The action that keeps an element from `side`. */

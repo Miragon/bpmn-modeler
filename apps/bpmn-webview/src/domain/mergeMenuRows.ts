@@ -1,4 +1,8 @@
-import type { MergeHostOffers, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
+import type {
+    MergeHostOffers,
+    MergePaneShapelessRow,
+    MergePaneStates,
+} from "@miragon/bpmn-modeler-shared";
 import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
@@ -10,7 +14,9 @@ import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from ".
 import type { MergeTranslate } from "./mergeTranslate";
 
 /** What the menu's rows read of the host's states. */
-export type MergeMenuRowStates = MergeRowStates & MergeElementPickStates;
+export type MergeMenuRowStates = MergeRowStates &
+    MergeElementPickStates &
+    Pick<MergePaneStates, "shapelessRows">;
 
 /** What the menu's rows say things with and what the host offers. */
 interface MergeMenuRowContext {

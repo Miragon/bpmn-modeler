@@ -152,7 +152,7 @@ export class MergeMarks {
         const label = escapeHTML(text.label);
         const mergedByHand = text.byHand !== undefined;
         const byHand = mergedByHand ? " merge-pick-badge--by-hand" : "";
-        const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.scope]}${byHand}`;
+        const classes = `merge-pick-badge ${BADGE_KIND_CLASSES[badge.kind]}${BADGE_SCOPE_CLASSES[badge.pick.scope]}${byHand}`;
         const pen = mergedByHand ? PEN_MARK : "";
         const sideWord = `<span class="merge-pick-badge__side">${escapeHTML(text.side)}</span>`;
         const byHandWord = mergedByHand

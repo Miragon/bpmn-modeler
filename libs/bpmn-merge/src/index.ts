@@ -37,6 +37,8 @@ export type { MergePaneSteps, MergeStep } from "./mergePaneSteps";
 export { mergePaneView } from "./mergePaneView";
 export type {
     ContainerReach,
+    ElementPick,
+    LackingSide,
     MergePaneView,
     PickableElement,
     PickBadge,

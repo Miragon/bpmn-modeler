@@ -36,9 +36,7 @@ const ROWS: readonly MergePaneShapelessRow[] = [
 ];
 
 const rowStates = (shapelessRows: readonly MergePaneShapelessRow[]): MergeMenuRowStates => ({
-    pickable: [],
-    badges: [],
-    picksNotDrawn: [],
+    pickable: shapelessRows,
     shapelessRows,
 });
 
@@ -203,12 +201,13 @@ describe("mergeMenuRows", () => {
 describe("a row's outcome and the pane's card", () => {
     it("read one pick of the element, as the pane finds it", () => {
         const offers = { elementXmlChanges: false, elementXmlMerge: true };
-        const states: MergeMenuRowStates = {
-            ...rowStates([{ ...ROWS[1], handMergeable: true }]),
-            picksNotDrawn: [
-                { id: "Error_1", keptSide: "incoming", scope: "element", mergedByHand: true },
-            ],
-        };
+        const states = rowStates([
+            {
+                ...ROWS[1],
+                pick: { keptSide: "incoming", scope: "element", mergedByHand: true },
+                handMergeable: true,
+            },
+        ]);
         const refused: MergeRememberedOutcome = {
             outcome: {
                 applied: false,

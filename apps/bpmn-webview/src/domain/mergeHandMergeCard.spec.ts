@@ -17,20 +17,14 @@ const MESSAGE_ROW: MergePaneShapelessRow = {
 
 const STATES = {
     pickable: [
-        { id: "Task_Remind", undo: "element", handMergeable: true },
-        { id: "Task_Cancel", undo: "element" },
-    ],
-    badges: [
         {
             id: "Task_Remind",
-            kind: "keptHere",
-            keptSide: "current",
-            scope: "element",
-            mergedByHand: true,
+            pick: { keptSide: "current", scope: "element", mergedByHand: true },
+            handMergeable: true,
         },
+        { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
+        { id: "Message_1", pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
     ],
-    picksNotDrawn: [{ id: "Task_Cancel", keptSide: "incoming", scope: "element" }],
-    shapelessRows: [MESSAGE_ROW],
 } as const;
 
 describe("handMergeFactsOf", () => {
@@ -65,11 +59,11 @@ describe("the pad and the card read one pick", () => {
         pickable: [
             ...STATES.pickable,
             { id: "Task_Open", handMergeable: true },
-            { id: "Task_Kept", undo: "element", handMergeable: true },
-        ],
-        badges: [
-            ...STATES.badges,
-            { id: "Task_Kept", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+            {
+                id: "Task_Kept",
+                pick: { keptSide: "incoming", scope: "element" },
+                handMergeable: true,
+            },
         ],
     } as const;
 

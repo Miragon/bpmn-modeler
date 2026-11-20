@@ -395,8 +395,9 @@ function expectNoRestoredConnectionNoted(
 }
 
 /**
- * Each pane badges or lists every user pick exactly once; a pick badged with
- * everything inside has every element inside picked on its side; and the
+ * Each pane badges or lists every user pick exactly once, with the pick its
+ * pickable entry and its menu row carry; a pick badged with everything
+ * inside has every element inside picked on its side; and the
  * Undo the panes offer for the element the step touched applies and takes
  * its pick back.
  */
@@ -419,34 +420,40 @@ function expectPanesShowEveryPick(
         expect(shown.map(({ id }) => id).sort(), `${label}: picks on ${side}'s pane`).toEqual(
             picked,
         );
+        expect(
+            view.pickable.flatMap(({ id, pick }) => (pick ? [id] : [])).sort(),
+            `${label}: pickable picks on ${side}'s pane`,
+        ).toEqual(picked);
         const notAllInside = shown
-            .filter(({ scope }) => scope === "withContents")
-            .filter(({ id, keptSide }) =>
+            .filter(({ pick }) => pick.scope === "withContents")
+            .filter(({ id, pick }) =>
                 descendantsOf(id, result.elements).some(
                     (inside) =>
                         decisions.originOf(inside) !== "picked" ||
-                        decisions.sideOf(inside) !== keptSide,
+                        decisions.sideOf(inside) !== pick.keptSide,
                 ),
             );
         expect(notAllInside, `${label}: with everything inside on ${side}'s pane`).toEqual([]);
         const pickableById = new Map(view.pickable.map((entry) => [entry.id, entry]));
-        for (const { id, scope } of shown) {
-            expect(pickableById.get(id)?.undo, `${label}: ${id}'s undo on ${side}'s pane`).toBe(
-                scope,
+        for (const { id, pick } of shown) {
+            expect(pickableById.get(id)?.pick, `${label}: ${id}'s pick on ${side}'s pane`).toEqual(
+                pick,
             );
         }
         for (const row of view.shapelessRows) {
-            const pickable = pickableById.get(row.id);
-            expect(row.pick?.scope, `${label}: ${row.id}'s row on ${side}'s pane`).toBe(
-                pickable?.undo,
-            );
-            expect(row.handMergeable, `${label}: ${row.id}'s row on ${side}'s pane`).toBe(
-                pickable?.handMergeable,
-            );
+            const { pick, handMergeable, lackingSide } = pickableById.get(row.id) ?? {};
+            expect(
+                { pick: row.pick, handMergeable: row.handMergeable, lackingSide: row.lackingSide },
+                `${label}: ${row.id}'s row on ${side}'s pane`,
+            ).toEqual({ pick, handMergeable, lackingSide });
         }
     }
+    const lackingSides = views.map(([, view]) =>
+        view.pickable.map(({ id, lackingSide }) => [id, lackingSide]),
+    );
+    expect(lackingSides[0], `${label}: the lacking sides on both panes`).toEqual(lackingSides[1]);
     const touched = picks[picks.length - 1]?.id;
-    const undo = views[0][1].pickable.find(({ id }) => id === touched)?.undo;
+    const undo = views[0][1].pickable.find(({ id }) => id === touched)?.pick?.scope;
     if (touched === undefined || undo === undefined) return;
     const undone = replayed(result, picks);
     expect(undone[UNPICK_OF_SCOPE[undo]](touched).applied, `${label}: undo ${touched}`).toBe(true);

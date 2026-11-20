@@ -30,34 +30,35 @@ interface ShapelessMark {
 export type { PickScope } from "./pickOutcome";
 export type { ContainerReach } from "./mergeDecisionsContainment";
 
-/** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
-export interface PickBadge {
-    readonly id: string;
-    readonly kind: "keptHere" | "replacedHere";
+/** The user's pick on an element: the side it keeps, and how far it reaches, which Undo takes back. */
+export interface ElementPick {
     readonly keptSide: MergeSide;
     readonly scope: PickScope;
     /** Set while a version merged by hand replaces the kept side's own. */
     readonly mergedByHand?: true;
 }
 
-/** A user's pick the pane cannot draw, which its legend lists instead. */
+/** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
+export interface PickBadge {
+    readonly id: string;
+    readonly kind: "keptHere" | "replacedHere";
+    readonly pick: ElementPick;
+}
+
+/** A user's pick the pane cannot draw. */
 export interface PickNotDrawn {
     readonly id: string;
-    readonly keptSide: MergeSide;
-    readonly scope: PickScope;
-    /** As {@link PickBadge.mergedByHand}. */
-    readonly mergedByHand?: true;
+    readonly pick: ElementPick;
 }
 
-/** The user's pick on an element, how far it reaches and whether a version merged by hand replaces its side's. */
-interface ElementPick {
-    readonly keptSide: MergeSide;
-    readonly scope: PickScope;
-    readonly mergedByHand?: true;
-}
+/** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
+type SideLack = "removed" | "missing";
 
-/** Why the other side lacks an element this side holds: it removed it from the base, or there is no base version. */
-type OtherSideLack = "removed" | "missing";
+/** The side that lacks an element the other holds, and why. */
+export interface LackingSide {
+    readonly side: MergeSide;
+    readonly lack: SideLack;
+}
 
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface PickableElement {
@@ -66,10 +67,10 @@ export interface PickableElement {
     readonly container?: ContainerReach;
     /** The side the result takes it from where the sides differ; a side that lacks it leaves it out. Absent while it is open. */
     readonly takenSide?: MergeSide;
-    /** Set while the user's pick decides it: what Undo takes back. */
-    readonly undo?: PickScope;
-    /** Set where this side holds the element and the other does not, so a pick of the other side leaves it out. */
-    readonly otherSideLacks?: OtherSideLack;
+    /** Set while the user's pick decides it. */
+    readonly pick?: ElementPick;
+    /** Set where one side lacks the element, the same on both panes; a pick of that side leaves it out. */
+    readonly lackingSide?: LackingSide;
     /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
     readonly handMergeable?: true;
 }
@@ -89,9 +90,9 @@ export interface ShapelessRow extends ShapelessValues {
     readonly container?: ContainerReach;
     /** As {@link PickableElement.takenSide}. */
     readonly takenSide?: MergeSide;
-    /** Set where one side lacks the element: that side, and why. */
-    readonly lackingSide?: { readonly side: MergeSide; readonly lack: OtherSideLack };
-    /** Set while the user's pick decides it. */
+    /** As {@link PickableElement.lackingSide}. */
+    readonly lackingSide?: LackingSide;
+    /** As {@link PickableElement.pick}. */
     readonly pick?: ElementPick;
     /** As {@link PickableElement.handMergeable}. */
     readonly handMergeable?: true;
@@ -183,23 +184,23 @@ function paneDecisions(
         if (pick !== undefined) {
             if (drawnHere) {
                 const kind = pick.keptSide === side ? "keptHere" : "replacedHere";
-                badges.push({ id: element.id, kind, ...pick });
+                badges.push({ id: element.id, kind, pick });
             } else {
-                picksNotDrawn.push({ id: element.id, ...pick });
+                picksNotDrawn.push({ id: element.id, pick });
             }
         }
         if (decisions.originOf(element.id) === "consequence" && drawnHere) {
             consequences.push(element.id);
         }
-        const lack = otherSideLacks(element, side);
+        const lacking = lackingSideOf(element);
         const takenSide = takenSideOf(decisions, element);
         const reach = containers.get(element.id);
         pickable.push({
             id: element.id,
             ...(reach === undefined ? {} : { container: reach }),
             ...(takenSide === undefined ? {} : { takenSide }),
-            ...(pick === undefined ? {} : { undo: pick.scope }),
-            ...(lack === undefined ? {} : { otherSideLacks: lack }),
+            ...(pick === undefined ? {} : { pick }),
+            ...(lacking === undefined ? {} : { lackingSide: lacking }),
             ...handMergeableFlag(decisions, handMergeTexts, element.id),
         });
     }
@@ -280,17 +281,17 @@ function scopeOf(
     return connections.length === 0 && boundaryEvents.length === 0 ? "withRemoved" : "element";
 }
 
-function lackingSideOf(element: MergeElement): ShapelessRow["lackingSide"] {
+function lackingSideOf(element: MergeElement): LackingSide | undefined {
     for (const side of MERGE_SIDES) {
-        const lack = otherSideLacks(element, otherSide(side));
+        const lack = whyOtherSideLacks(element, otherSide(side));
         if (lack !== undefined) return { side, lack };
     }
     return undefined;
 }
 
-function otherSideLacks(element: MergeElement, side: MergeSide): OtherSideLack | undefined {
-    if (keptAgainstRemoval(element, side)) return "removed";
-    return addedOnlyBy(element, side) ? "missing" : undefined;
+function whyOtherSideLacks(element: MergeElement, holdingSide: MergeSide): SideLack | undefined {
+    if (keptAgainstRemoval(element, holdingSide)) return "removed";
+    return addedOnlyBy(element, holdingSide) ? "missing" : undefined;
 }
 
 /** The marker an element gets on a pane of a side, or none; a pane marks only what its side holds. */

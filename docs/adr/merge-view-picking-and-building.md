@@ -22,9 +22,11 @@ pane's tab, to `MergeDecisionService`, which decides it on the session's `MergeD
 (`pickScoped`, `unpickScoped`) and sends every pane of every tab the full state again. An
 Undo of an element no longer picked, from a pad or menu not yet repainted, changes nothing.
 The webview shows a pick only once the core made it and holds no rule: what an element allows
-(`pickable`, with the reach Undo takes back, `otherSideLacks`: the other side removed it, or never had it, and
-`takenSide`, the side the result takes it from), the
+(`pickable`, with the user's `pick`, whose reach Undo takes back, `lackingSide`: the side that removed it
+or never had it, named alike on both panes, and `takenSide`, the side the result takes it from), the
 badges, the picks a pane cannot draw and the consequences all come from `mergePaneView`. The
+protocol declares the pick once (`MergePanePick`); the badge, the pick not drawn, the menu row and
+`pickable` each carry it whole, so the webview reads an element's pick from `pickable` alone. The
 picks end with the session, so a window reload loses them. Rejected: picks in the webview's
 `setState`, which keeps one pane only and would need the merge's rules to repaint. Picks take
 the same way in as the step list: the router asks `BpmnDiffService.opensMergeViews` and ignores
@@ -40,7 +42,7 @@ open XML diff follows the step; a step without a shape posts none, since the par
 its process's root. A click on a pickable step makes it the step on both panes and keeps the
 click's own selection, which the pane reported already, since selecting it again would rebuild its
 pad. The pad's icons sit at diagram-js's place: "Show XML changes", keep
-this pane's side, keep everything inside, "Leave out" (`otherSideLacks`), "Also keep what was
+this pane's side, keep everything inside, "Leave out" (where `lackingSide` names the other pane's side), "Also keep what was
 removed with it", "Merge XML" (`handMergeable` and the host's `elementXmlMerge` offer; "Edit merged
 XML" once merged by hand, see [Merge XML editor](merge-xml-editor.md)) and "Undo pick", each left
 out where the result has its outcome (`mergePadDecisions`, the rule's one home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, with
