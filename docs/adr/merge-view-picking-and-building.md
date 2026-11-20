@@ -8,8 +8,8 @@
 The [merge view](merge-view.md) opens a conflicted `.bpmn` file's two sides as diagrams and
 marks what the merge decided and what is open. This record covers how the user picks per
 element in those panes, by mouse and by keyboard, and how the result reaches the working
-file; the [merge](merge.md) record owns the library that decides each pick and builds the
-file (epic #2459).
+file; the [merge](merge.md) record owns the library that decides each pick, the
+[merge build](merge-build.md) record how it builds the file (epic #2459).
 
 ## Decision
 
