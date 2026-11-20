@@ -1,11 +1,6 @@
-import {
-    type ModdleElement,
-    isModdleElement,
-    isType,
-    moddleElements,
-} from "@miragon/bpmn-modeler-diff";
+import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bpmn-modeler-diff";
 
-import { type Drawing, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import { type Drawing, diagramIndexOf, flowDrawingOf, shapeDrawingOf } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -24,7 +19,7 @@ export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): L
     const planeSlots = slots ?? PlaneSlots.ofDocument(index);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
-    for (const [id, drawings] of index.drawingsByElement) {
+    for (const id of index.drawingsByElement.keys()) {
         const connection = relations.connections.get(id);
         const flowDrawing = connection === undefined ? undefined : flowDrawingOf(index, id);
         if (connection !== undefined && flowDrawing !== undefined) {
@@ -34,7 +29,7 @@ export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): L
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }
-        const drawing = shapeDrawingOf(drawings);
+        const drawing = shapeDrawingOf(index, id);
         const shape =
             drawing && shapeOf(relations, id, planeOf(planeSlots, drawing), drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
@@ -44,13 +39,6 @@ export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): L
 
 function planeOf(slots: PlaneSlots, { planeOwner }: Drawing): ShapePlane {
     return { plane: planeOwner, slot: slots.slotOf(planeOwner) };
-}
-
-/** The element's shape drawing the layout reads: the first with bounds. */
-export function shapeDrawingOf(drawings: readonly Drawing[]): Drawing | undefined {
-    return drawings.find(
-        ({ element }) => isType(element, "bpmndi:BPMNShape") && isModdleElement(element.bounds),
-    );
 }
 
 function shapeOf(

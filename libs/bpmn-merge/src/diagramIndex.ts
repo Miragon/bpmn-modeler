@@ -96,9 +96,19 @@ export function planeKindOf(planeOwner: string, ...indexes: readonly DiagramInde
 export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string | undefined {
     return contentsPlaneOf(
         index.planeOwners.has(subProcess) ? subProcess : undefined,
-        index.drawingsByElement.get(subProcess)?.[0],
+        shapeDrawingOf(index, subProcess),
         (shape) => shape.planeOwner,
     );
+}
+
+/** The shape drawing the element that the layout reads and a repair writes: its first with bounds, in diagram order. */
+export function shapeDrawingOf(index: DiagramIndex, element: string): Drawing | undefined {
+    return index.drawingsByElement
+        .get(element)
+        ?.find(
+            ({ element: drawing }) =>
+                isType(drawing, "bpmndi:BPMNShape") && isModdleElement(drawing.bounds),
+        );
 }
 
 /** The edge drawing the flow that the layout reads and a repair writes: its first, in diagram order. */
