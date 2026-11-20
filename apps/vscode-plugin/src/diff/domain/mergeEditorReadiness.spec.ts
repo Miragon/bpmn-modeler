@@ -42,6 +42,13 @@ describe("mergeEditorIsReady", () => {
             true,
         ],
     ])("%s", (_case, start, shownTabs, ready) => {
-        expect(mergeEditorIsReady(start, shownTabs)).toBe(ready);
+        expect(mergeEditorIsReady({ start, onWorkingCopy: false }, shownTabs)).toBe(ready);
+    });
+
+    it.each<[string, readonly { isDirty: boolean }[], boolean]>([
+        ["no tab shows the merge yet", [], false],
+        ["the tab shows, clean, since the editor merges into its copy", [{ isDirty: false }], true],
+    ])("on a working copy, a start with markers: %s", (_case, shownTabs, ready) => {
+        expect(mergeEditorIsReady({ start: MARKERS, onWorkingCopy: true }, shownTabs)).toBe(ready);
     });
 });

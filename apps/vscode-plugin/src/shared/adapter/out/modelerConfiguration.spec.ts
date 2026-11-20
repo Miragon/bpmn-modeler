@@ -26,6 +26,7 @@ import { DEFAULT_MODELER_SETTINGS, SettingChange } from "@miragon/bpmn-modeler-c
 import {
     lintingEnabled,
     formPreviewAutomatic,
+    mergeEditorUsesWorkingCopy,
     setFormPreviewAutomatic,
     onDidChangeModelerSetting,
     setLanguage,
@@ -101,4 +102,21 @@ describe("modelerConfiguration", () => {
         expect(received.map((change) => change.affects("scripting.spin"))).toEqual([true]);
         expect(received.map((change) => change.affects("language"))).toEqual([false]);
     });
+
+    it.each([
+        { stored: true, onWorkingCopy: true },
+        { stored: false, onWorkingCopy: false },
+        { stored: undefined, onWorkingCopy: false },
+        { stored: "true", onWorkingCopy: false },
+    ])(
+        "reads VS Code's hidden mergeEditor.useWorkingCopy strictly ($stored)",
+        ({ stored, onWorkingCopy }) => {
+            getMock.mockImplementation((key: string) =>
+                key === "useWorkingCopy" ? stored : undefined,
+            );
+
+            expect(mergeEditorUsesWorkingCopy()).toBe(onWorkingCopy);
+            expect(getConfigurationMock).toHaveBeenCalledWith("mergeEditor");
+        },
+    );
 });

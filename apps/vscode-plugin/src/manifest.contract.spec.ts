@@ -653,7 +653,8 @@ describe("package.json ↔ code contract", () => {
         .map((key) => key.slice(MODELER_SETTINGS_SECTION.length + 1));
 
     it("reads, writes and watches every VS Code setting only in modelerConfiguration.ts", () => {
-        // Its keys are typed `SettingKey`, so the manifest row below covers every key asked.
+        // Its keys are typed `SettingKey`, so the manifest row below covers every key asked;
+        // a VS Code setting it reads is named there in full.
         const modelerConfigurationFile = resolve(
             SRC_DIR,
             "shared/adapter/out/modelerConfiguration.ts",

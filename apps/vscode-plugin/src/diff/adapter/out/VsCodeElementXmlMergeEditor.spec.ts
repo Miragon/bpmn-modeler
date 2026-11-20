@@ -351,6 +351,19 @@ describe("VsCodeElementXmlMergeEditor", () => {
         expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
     });
 
+    it("finishes once without a text when the user closes the tab while the merge view's close waits for the load", async () => {
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+        await new Promise((done) => setTimeout(done, 0));
+        const closing = editor.close(REQUEST.key);
+
+        closeMergeTabByUser();
+
+        await expect(closing).resolves.toBeUndefined();
+        await opening;
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
+    });
+
     it("releases the files and finishes without a text when the editor fails to open", async () => {
         failNextMergeEditorOpen();
 

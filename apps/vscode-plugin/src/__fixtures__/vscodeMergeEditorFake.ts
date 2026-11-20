@@ -457,14 +457,10 @@ export const workspace = {
     get textDocuments(): readonly FakeResultDocument[] {
         return [...documents];
     },
-    getConfiguration(section: string) {
-        return {
-            get: <T>(key: string, defaultValue: T): T =>
-                section === "mergeEditor" && key === "useWorkingCopy"
-                    ? (workingCopy as T)
-                    : defaultValue,
-        };
-    },
+    getConfiguration: (section: string) => ({
+        get: (key: string): unknown =>
+            section === "mergeEditor" && key === "useWorkingCopy" ? workingCopy : undefined,
+    }),
     registerFileSystemProvider(scheme: string, provider: ServedFileSystem): Disposable {
         fileSystems.set(scheme, provider);
         return { dispose: () => fileSystems.delete(scheme) };
