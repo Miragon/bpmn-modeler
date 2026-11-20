@@ -1,4 +1,4 @@
-import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/types";
+import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/translate";
 import { render, type ComponentProps } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
