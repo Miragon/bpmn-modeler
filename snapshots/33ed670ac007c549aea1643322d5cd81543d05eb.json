@@ -1802,13 +1802,25 @@
       ]
     },
     "repeated-value-sets": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": ".claude/hooks/ships-in-check.mjs — [\"ignore\",\"pipe\"]",
           "path": ".claude/hooks/ships-in-check.mjs",
           "line": 244,
           "message": "`ignore` · `pipe`, also at `resources/allowance-playground/create-playground.mjs:221`"
+        },
+        {
+          "key": ".github/scripts/check-vitest-targets.mjs — [\"cjs\",\"cts\",\"js\",\"jsx\",\"mjs\",\"mts\",\"ts\",\"tsx\"]",
+          "path": ".github/scripts/check-vitest-targets.mjs",
+          "line": 19,
+          "message": "`cjs` · `cts` · `js` · `jsx` · `mjs` · `mts` · `ts` · `tsx`, also at `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:28`"
+        },
+        {
+          "key": ".github/scripts/check-vitest-targets.mjs — [\"spec\",\"test\"]",
+          "path": ".github/scripts/check-vitest-targets.mjs",
+          "line": 20,
+          "message": "`spec` · `test`, also at `tools/architecture-testing/src/testFiles.ts:7`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:31`"
         },
         {
           "key": "apps/bpmn-webview/src/adapter/in/mergeBuildButton.ts — [\"canBuild\",\"openConflicts\"]",
@@ -1845,6 +1857,12 @@
           "path": "libs/append-menu/src/AppendMenuOverride.ts",
           "line": 211,
           "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:50`, `libs/append-menu/src/templateTypeAction.ts:27`"
+        },
+        {
+          "key": "libs/append-menu/src/plainEntryCatalog.ts — [\"append\",\"create\"]",
+          "path": "libs/append-menu/src/plainEntryCatalog.ts",
+          "line": 37,
+          "message": "`append` · `create`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts:20`"
         },
         {
           "key": "libs/append-menu/src/templateTypeAction.ts — [\"bpmn-append\",\"bpmn-create\"]",
@@ -1961,6 +1979,12 @@
           "message": "`plugin` · `rulePackage`, also at `libs/shared/src/lib/addOnsView.ts:18`"
         },
         {
+          "key": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts",
+          "line": 138,
+          "message": "`JSON` · `S`, also at `libs/modeler-types/src/processVariables.ts:66`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
           "key": "libs/modeler-types/src/diffVocabulary.ts — [\"after\",\"before\"]",
           "path": "libs/modeler-types/src/diffVocabulary.ts",
           "line": 58,
@@ -1971,6 +1995,18 @@
           "path": "libs/modeler-types/src/engine.ts",
           "line": 173,
           "message": "`name` · `value`, also at `libs/element-template-builder/src/adapter/in/entries.tsx:75`, `libs/element-template-builder/src/adapter/in/settingEntries.ts:479`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 66,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 81,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:66`"
         },
         {
           "key": "libs/properties-panel/src/cmd/index.ts — [\"eventBus\",\"injector\"]",
@@ -2001,6 +2037,12 @@
           "path": "packages/bpmn-modeler/src/bpmnlint/LintIssuePopover.ts",
           "line": 73,
           "message": "` ` · `Enter`, also at `apps/deployment-webview/src/adapter/in/form.ts:378`, `libs/inline-scripting/src/scriptLockPropertiesProvider.ts:183`"
+        },
+        {
+          "key": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts — [\"append\",\"create\"]",
+          "path": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts",
+          "line": 20,
+          "message": "`append` · `create`, also at `libs/append-menu/src/plainEntryCatalog.ts:37`"
         },
         {
           "key": "packages/bpmn-modeler/src/viewState.ts — [\"eventBus\",\"injector\"]",
@@ -2039,6 +2081,12 @@
           "message": "`--short` · `HEAD` · `rev-parse`, also at `scripts/perf/bench-lint-rules.mjs:88`"
         },
         {
+          "key": "tools/architecture-testing/src/testFiles.ts — [\"spec\",\"test\"]",
+          "path": "tools/architecture-testing/src/testFiles.ts",
+          "line": 7,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:20`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:31`"
+        },
+        {
           "key": "tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts — [\"paths\",\"subject\"]",
           "path": "tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts",
           "line": 47,
@@ -2067,6 +2115,18 @@
           "path": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts",
           "line": 33,
           "message": "`--is-shallow-repository` · `rev-parse`, also at `tools/repo-checks/src/fitness/adapter/out/gitRepository.ts:29`"
+        },
+        {
+          "key": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts — [\"cjs\",\"cts\",\"js\",\"jsx\",\"mjs\",\"mts\",\"ts\",\"tsx\"]",
+          "path": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts",
+          "line": 28,
+          "message": "`cjs` · `cts` · `js` · `jsx` · `mjs` · `mts` · `ts` · `tsx`, also at `.github/scripts/check-vitest-targets.mjs:19`"
+        },
+        {
+          "key": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts",
+          "line": 31,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:20`, `tools/architecture-testing/src/testFiles.ts:7`"
         }
       ]
     },
