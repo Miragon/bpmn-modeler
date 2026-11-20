@@ -51,16 +51,13 @@ function processesDrawnWithoutAPool(byId: ReadonlyMap<string, ElementSnapshot>):
     );
     const drawn = new Set<string>();
     for (const snapshot of snapshots) {
-        const collaboration = snapshot.plane === undefined ? undefined : byId.get(snapshot.plane);
-        if (snapshot.layout === undefined || collaboration?.type !== "bpmn:Collaboration") continue;
+        const planeOwner = snapshot.plane === undefined ? undefined : byId.get(snapshot.plane);
+        if (planeOwner?.type !== "bpmn:Collaboration") continue;
         const process = rootOf(snapshot);
+        if (process.type !== "bpmn:Process") continue;
         const reached =
-            withLanes.has(process.id) || processesNamedBy(collaboration).includes(process.id);
-        if (
-            process.type === "bpmn:Process" &&
-            reached &&
-            !pooled.has(collaborationProcessKey(collaboration.id, process.id))
-        ) {
+            withLanes.has(process.id) || processesNamedBy(planeOwner).includes(process.id);
+        if (reached && !pooled.has(collaborationProcessKey(planeOwner.id, process.id))) {
             drawn.add(process.id);
         }
     }
