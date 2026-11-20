@@ -1,8 +1,9 @@
 import { type ModdleElement, isModdleElement, loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { DiagramIndex } from "./diagramIndex";
+import type { DiagramIndex } from "./diagramIndex";
 import { DrawingSides } from "./drawingSides";
+import { IndexedDocument } from "./indexedDocument";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
 import { type PlaneSlot, PlaneSlots } from "./planeSlots";
@@ -105,9 +106,13 @@ async function assignmentOf(currentXml: string, incomingXml: string): Promise<As
     const createModdle = await loadBpmnModdle();
     const current = await createModdle().fromXML(currentXml);
     const incoming = await createModdle().fromXML(incomingXml);
+    const documents = {
+        current: IndexedDocument.of(current.rootElement),
+        incoming: IndexedDocument.of(incoming.rootElement),
+    };
     const indexes: Record<MergeSide, DiagramIndex> = {
-        current: DiagramIndex.of(current.rootElement),
-        incoming: DiagramIndex.of(incoming.rootElement),
+        current: documents.current.index,
+        incoming: documents.incoming.index,
     };
     const resultUnits = new Map(
         Object.entries(current.elementsById).flatMap(([id, element]) =>
@@ -122,10 +127,7 @@ async function assignmentOf(currentXml: string, incomingXml: string): Promise<As
             FROM_INCOMING.has(id) ? "incoming" : "current",
         ]),
     ) as Record<string, MergeSide>;
-    const slots = PlaneSlots.ofSides({
-        current: current.rootElement,
-        incoming: incoming.rootElement,
-    });
+    const slots = PlaneSlots.ofSides(documents);
     const keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
     const assignment = PlaneAssignment.of({
         indexes,

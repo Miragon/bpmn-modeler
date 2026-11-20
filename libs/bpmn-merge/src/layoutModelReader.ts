@@ -1,6 +1,7 @@
 import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bpmn-modeler-diff";
 
-import { DiagramIndex, type Drawing } from "./diagramIndex";
+import type { Drawing } from "./diagramIndex";
+import { IndexedDocument } from "./indexedDocument";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -14,9 +15,16 @@ type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
  * document's own, whose slots match the merge's by `equals` only.
  */
 export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
+    return layoutModelOfDocument(IndexedDocument.of(definitions), slots);
+}
+
+/** `layoutModelOf` for a document whose diagrams are indexed already. */
+export function layoutModelOfDocument(
+    document: IndexedDocument,
+    slots: PlaneSlots = PlaneSlots.ofDocument(document),
+): LayoutModel {
+    const { definitions, index } = document;
     const relations = layoutRelationsOf(definitions);
-    const index = DiagramIndex.of(definitions);
-    const planeSlots = slots ?? PlaneSlots.ofDocument(definitions);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
     for (const id of index.drawnIds()) {
@@ -30,8 +38,7 @@ export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): L
             continue;
         }
         const drawing = index.shapeDrawingOf(id);
-        const shape =
-            drawing && shapeOf(relations, id, planeOf(planeSlots, drawing), drawing.element);
+        const shape = drawing && shapeOf(relations, id, planeOf(slots, drawing), drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
     }
     return { shapes, edges };
