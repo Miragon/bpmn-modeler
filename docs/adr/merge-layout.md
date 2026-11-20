@@ -57,7 +57,9 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   what it holds (its nodes wherever drawn, and the data stores and artifacts lying in it), and
   a flow stretches by its runs across the band, a run between its ends going with the shifted
   end once it lies past the line. The tool checks nothing; each caller decides: making room and
-  growing a container drop a result that breaks the drawing, stacking does not. Its members
+  growing a container drop a result that breaks the drawing, stacking does not. The tool alone
+  names the outermost shapes that gave way, in document order, a lane shifted below a grown
+  lane among them, so a note names the same shapes whichever step shifted them (#2667). Its members
   stay where they lie unless their host or sub-process shifts, so the container step brings
   them into the band, following the side that drew them in the lane. The step needs no guard
   of its own: it only opens a band, the spots it could make involve the members it leaves for
@@ -162,7 +164,8 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   moved shape's flows inside its trial with the build's own flow repair (#2600). Between the two shapes
   of a pair, the room whose re-routed flows clash with fewer other flows wins (a crossing each,
   and a flow run on for more than 10 px unless the two share an end), then the one that shifts
-  fewer shapes, then the one that grows the frames less, then the shape with fewer flows. When
+  fewer shapes (a lane shifted below a grown lane not counted, as the growth already weighs it),
+  then the one that grows the frames less, then the shape with fewer flows. When
   the room in line still clashes, the slots neither listed in line nor stacked in (before and below;
   before alone for a stacked branch, below alone for a shape that leads into the other) are tried too, and one wins only with fewer clashes,
   so the in-line order holds where every slot clashes alike and where no room in line exists;
