@@ -1,4 +1,8 @@
-import type { MergeBuildNote } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+import {
+    type MergeBuildNote,
+    type MergeBuildNoteContent,
+    elementsNamedBy,
+} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import type { UndrawnEdge } from "./connectionEnds";
 import type { MergeResolution } from "./mergeDecisions";
@@ -20,6 +24,9 @@ import {
 } from "./removedWith";
 
 export type BuildNote = MergeBuildNote;
+
+/** A note as the build finds it, before it names its elements. */
+export type BuildNoteContent = MergeBuildNoteContent;
 
 /** A repair as its note carries it: its `kind` as `repair`, every other field as it is. */
 export type NoteRepairOf<Repair extends { readonly kind: string }> = Repair extends unknown
@@ -44,14 +51,14 @@ export interface BuildFindings {
     readonly result: MergeResult;
     readonly resolution: MergeResolution;
     readonly undrawnEdges: readonly UndrawnEdge[];
-    readonly layoutSpotNotes: readonly BuildNote[];
+    readonly layoutSpotNotes: readonly BuildNoteContent[];
     readonly flowDefaults: readonly RestoredFlowDefault[];
     readonly restoredDefaults: ReadonlyMap<string, string>;
     readonly layoutOf: (id: string, side: MergeSide) => string | undefined;
-    readonly frameNotes: readonly BuildNote[];
+    readonly frameNotes: readonly BuildNoteContent[];
 }
 
-/** Every note of a build, in the order the merge view lists them. */
+/** Every note of a build, in the order the merge view lists them, each with the elements it names. */
 export function buildNotesOf(findings: BuildFindings): BuildNote[] {
     const { result, resolution } = findings;
     return [
@@ -61,11 +68,11 @@ export function buildNotesOf(findings: BuildFindings): BuildNote[] {
         ...defaultFlowNotRestoredNotes(findings.flowDefaults, findings.restoredDefaults),
         ...layoutChangedByBothNotes(result, resolution, findings.layoutOf),
         ...findings.frameNotes,
-    ];
+    ].map((note) => ({ ...note, named: elementsNamedBy(note) }));
 }
 
 /** One note per edge the build leaves out of the drawing, naming its ends by role. */
-export function flowNotDrawnNotes(undrawn: readonly UndrawnEdge[]): BuildNote[] {
+export function flowNotDrawnNotes(undrawn: readonly UndrawnEdge[]): BuildNoteContent[] {
     return undrawn.map(({ id, ends }) => ({ kind: "flowNotDrawn", id, ...ends }));
 }
 
@@ -94,10 +101,10 @@ function endsDrawnApartOf(
 export function restoredWithoutRemovedWithNotes(
     result: MergeResult,
     resolution: MergeResolution,
-): BuildNote[] {
+): BuildNoteContent[] {
     const leftOut = (candidates: readonly MergeElement[]) =>
         candidates.filter((candidate) => !isInResultOf(candidate, resolution));
-    return result.elements.flatMap((element): BuildNote[] => {
+    return result.elements.flatMap((element): BuildNoteContent[] => {
         const side = resolution.elements[element.id];
         if (side === undefined || !keptAgainstRemoval(element, side)) return [];
         const boundaryEvents = leftOut(removedWith(result.elements, element, side).boundaryEvents);
@@ -123,8 +130,8 @@ function isInResultOf(element: MergeElement, resolution: MergeResolution): boole
 function defaultFlowNotRestoredNotes(
     flowDefaults: readonly RestoredFlowDefault[],
     restored: ReadonlyMap<string, string>,
-): BuildNote[] {
-    return flowDefaults.flatMap((flowDefault): BuildNote[] => {
+): BuildNoteContent[] {
+    return flowDefaults.flatMap((flowDefault): BuildNoteContent[] => {
         const note = {
             kind: "defaultFlowNotRestored",
             id: flowDefault.source,
@@ -153,7 +160,7 @@ export function layoutChangedByBothNotes(
     result: MergeResult,
     resolution: MergeResolution,
     layoutOf: (id: string, side: MergeSide) => string | undefined,
-): BuildNote[] {
+): BuildNoteContent[] {
     const drawnFrom = drawnFromOf(result, resolution);
     const keptSides = new Map<string, MergeSide>();
     for (const element of result.elements) {
@@ -175,7 +182,7 @@ export function layoutChangedByBothNotes(
         part.ids.push(id);
         parts.set(key, part);
     }
-    return [...parts.values()].map(({ keptSide, ids }): BuildNote => {
+    return [...parts.values()].map(({ keptSide, ids }): BuildNoteContent => {
         const inPart = new Set(ids);
         const outermost = ids.filter((id) => !links.get(id)?.some((link) => inPart.has(link)));
         return { kind: "layoutChangedByBoth", ids: outermost, keptSide };
