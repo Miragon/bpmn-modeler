@@ -2,6 +2,7 @@ import type { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type Border,
     type DiagramBounds,
+    type Offset,
     bordersAt,
     bottomOf,
     centerOf,
@@ -13,7 +14,6 @@ import { type RoomContext, breaksNothing } from "./layoutMakeRoom";
 import { RoomPush } from "./layoutRoomPush";
 import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
 import { innerBoundsOf } from "./layoutPlacementFrames";
-import type { Offset } from "./layoutShapePlacement";
 import { liesOutside } from "./layoutSpots";
 
 export interface FrameGrown {

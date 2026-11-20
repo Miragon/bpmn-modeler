@@ -56,8 +56,8 @@ describe("FrameFit", () => {
         ]);
         const fit = frameFitOf(layout, "A");
 
-        expect(fit.fitsMovedBy(0, -80)).toBe(true);
-        expect(fit.fitsMovedBy(0, -95)).toBe(false);
+        expect(fit.fitsMovedBy({ dx: 0, dy: -80 })).toBe(true);
+        expect(fit.fitsMovedBy({ dx: 0, dy: -95 })).toBe(false);
     });
 
     it("lets a member on a frame's border move along it, but not out of the frame", () => {
@@ -67,8 +67,8 @@ describe("FrameFit", () => {
         ]);
         const fit = frameFitOf(layout, "A");
 
-        expect(fit.fitsMovedBy(10, 0)).toBe(true);
-        expect(fit.fitsMovedBy(0, -10)).toBe(false);
+        expect(fit.fitsMovedBy({ dx: 10, dy: 0 })).toBe(true);
+        expect(fit.fitsMovedBy({ dx: 0, dy: -10 })).toBe(false);
     });
 
     it("brings a member lying partly outside its sub-process no further out of it", () => {
@@ -79,9 +79,9 @@ describe("FrameFit", () => {
         ]);
         const fit = frameFitOf(layout, "A");
 
-        expect(fit.fitsMovedBy(0, 0)).toBe(true);
-        expect(fit.fitsMovedBy(-10, 0)).toBe(true);
-        expect(fit.fitsMovedBy(10, 0)).toBe(false);
+        expect(fit.fitsMovedBy({ dx: 0, dy: 0 })).toBe(true);
+        expect(fit.fitsMovedBy({ dx: -10, dy: 0 })).toBe(true);
+        expect(fit.fitsMovedBy({ dx: 10, dy: 0 })).toBe(false);
     });
 
     it("does not hold a member in a pool or lane it lies partly outside of now", () => {
@@ -90,7 +90,7 @@ describe("FrameFit", () => {
             node("A", { pool: "Pool_1", bounds: box(850, 100) }),
         ]);
 
-        expect(frameFitOf(layout, "A").fitsMovedBy(100, 0)).toBe(true);
+        expect(frameFitOf(layout, "A").fitsMovedBy({ dx: 100, dy: 0 })).toBe(true);
     });
 
     it("holds a boundary event on its host, not in the frames", () => {
@@ -100,7 +100,7 @@ describe("FrameFit", () => {
             node("Boundary_1", { pool: "Pool_1", host: "A", bounds: box(130, 262, 36, 36) }),
         ]);
 
-        expect(frameFitOf(layout, "A").fitsMovedBy(0, 8)).toBe(true);
+        expect(frameFitOf(layout, "A").fitsMovedBy({ dx: 0, dy: 8 })).toBe(true);
     });
 
     it("does not hold a member in a frame that moves with it", () => {
@@ -110,7 +110,7 @@ describe("FrameFit", () => {
             node("C", { pool: "Pool_1", subProcesses: ["Sub_1"], bounds: box(150, 100) }),
         ]);
 
-        expect(frameFitOf(layout, "Sub_1").fitsMovedBy(200, 0)).toBe(true);
+        expect(frameFitOf(layout, "Sub_1").fitsMovedBy({ dx: 200, dy: 0 })).toBe(true);
     });
 
     it("brings the group's shapes inside the frames it is brought into, off their border and name band", () => {
@@ -126,9 +126,54 @@ describe("FrameFit", () => {
         ]);
         const fit = frameFitOf(layout, "A", [subProcess]);
 
-        expect(fit.fitsMovedBy(0, 0)).toBe(false);
-        expect(fit.fitsMovedBy(220, 0)).toBe(true);
-        expect(fit.fitsMovedBy(220, -30)).toBe(false);
+        expect(fit.fitsMovedBy({ dx: 0, dy: 0 })).toBe(false);
+        expect(fit.fitsMovedBy({ dx: 220, dy: 0 })).toBe(true);
+        expect(fit.fitsMovedBy({ dx: 220, dy: -30 })).toBe(false);
+    });
+
+    it("finds the shortest offset that brings the group's shapes inside the frames it is brought into", () => {
+        const subProcess = node("Sub_1", {
+            expanded: true,
+            pool: "Pool_1",
+            bounds: box(300, 50, 300, 200),
+        });
+        const layout = layoutOf([
+            pool("Pool_1"),
+            subProcess,
+            node("A", { pool: "Pool_1", subProcesses: ["Sub_1"], bounds: box(100, 20) }),
+        ]);
+
+        expect(frameFitOf(layout, "A", [subProcess]).offsetInto()).toEqual({ dx: 210, dy: 60 });
+    });
+
+    it("keeps the group's shapes where they lie when they lie inside the frames already", () => {
+        const subProcess = node("Sub_1", {
+            expanded: true,
+            pool: "Pool_1",
+            bounds: box(300, 50, 300, 200),
+        });
+        const layout = layoutOf([
+            pool("Pool_1"),
+            subProcess,
+            node("A", { pool: "Pool_1", subProcesses: ["Sub_1"], bounds: box(350, 100) }),
+        ]);
+
+        expect(frameFitOf(layout, "A", [subProcess]).offsetInto()).toEqual({ dx: 0, dy: 0 });
+    });
+
+    it("finds no offset into frames that leave the group's shapes no room", () => {
+        const subProcess = node("Sub_1", {
+            expanded: true,
+            pool: "Pool_1",
+            bounds: box(300, 50, 110, 200),
+        });
+        const layout = layoutOf([
+            pool("Pool_1"),
+            subProcess,
+            node("A", { pool: "Pool_1", subProcesses: ["Sub_1"], bounds: box(100, 100) }),
+        ]);
+
+        expect(frameFitOf(layout, "A", [subProcess]).offsetInto()).toBeUndefined();
     });
 
     it("lets a node brought into its sub-process leave the lane it lies in now", () => {
@@ -151,7 +196,7 @@ describe("FrameFit", () => {
             }),
         ]);
 
-        expect(frameFitOf(layout, "A", [subProcess]).fitsMovedBy(220, 200)).toBe(true);
-        expect(frameFitOf(layout, "A").fitsMovedBy(220, 200)).toBe(false);
+        expect(frameFitOf(layout, "A", [subProcess]).fitsMovedBy({ dx: 220, dy: 200 })).toBe(true);
+        expect(frameFitOf(layout, "A").fitsMovedBy({ dx: 220, dy: 200 })).toBe(false);
     });
 });

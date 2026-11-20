@@ -1,10 +1,12 @@
 import { framesAroundOf, framesOf } from "./layoutFrames";
 import {
     type DiagramBounds,
+    type Offset,
     areaOutside,
     bottomOf,
     inflated,
     liesWithin,
+    rightOf,
     translated,
 } from "./layoutGeometry";
 import { type LayoutModel, type LayoutShape, type NodeShape, nodeShapeIn } from "./layoutModel";
@@ -48,7 +50,7 @@ class FrameHold {
         return new FrameHold(member, liesWithin(member, inner) ? inner : frame.bounds, 0);
     }
 
-    holdsMovedBy(dx: number, dy: number): boolean {
+    holdsMovedBy({ dx, dy }: Offset): boolean {
         const moved = translated(this.member, dx, dy);
         return this.outside === 0
             ? liesWithin(moved, this.frame)
@@ -82,12 +84,28 @@ export class FrameFit {
         });
     }
 
-    fitsMovedBy(dx: number, dy: number): boolean {
-        const movedShapes = translated(this.shapeBounds, dx, dy);
+    fitsMovedBy(offset: Offset): boolean {
+        const movedShapes = translated(this.shapeBounds, offset.dx, offset.dy);
         return (
             this.into.every((frame) => liesWithin(movedShapes, frame)) &&
-            this.holds.every((hold) => hold.holdsMovedBy(dx, dy))
+            this.holds.every((hold) => hold.holdsMovedBy(offset))
         );
+    }
+
+    /** The shortest offset that brings the group's shapes inside the frames it is brought into; undefined when they leave no room for it. */
+    offsetInto(): Offset | undefined {
+        const bounds = this.shapeBounds;
+        const left = Math.max(...this.into.map(({ x }) => x));
+        const top = Math.max(...this.into.map(({ y }) => y));
+        const right = Math.min(...this.into.map(rightOf));
+        const bottom = Math.min(...this.into.map(bottomOf));
+        if (right - left < bounds.width || bottom - top < bounds.height) return undefined;
+        const shiftInto = (start: number, end: number, from: number, to: number) =>
+            start < from ? from - start : end > to ? to - end : 0;
+        return {
+            dx: shiftInto(bounds.x, rightOf(bounds), left, right),
+            dy: shiftInto(bounds.y, bottomOf(bounds), top, bottom),
+        };
     }
 }
 

@@ -1,9 +1,11 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,
+    type Offset,
     boundsAround,
     inflated,
     keepsClearOf,
+    offsetLength,
     translated,
 } from "./layoutGeometry";
 import { type ForeignFlows, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
@@ -11,25 +13,12 @@ import { type LayoutShape, drawnPartsOf } from "./layoutModel";
 import { FrameFit } from "./layoutPlacementFrames";
 import { type ShapeGroup, groupBoundsIn } from "./layoutShapeGroups";
 
-export { FRAME_PADDING } from "./layoutPlacementFrames";
-
 /** How far, in pixels, a moved shape keeps from other shapes; nearer counts as cramped. */
 export const SHAPE_CLEARANCE = 15;
 
 /** How far, in pixels, the nearest free place is looked for in each direction, and in which steps. */
 const SEARCH_RADIUS = 250;
 const SEARCH_STEP = 10;
-
-export interface Offset {
-    readonly dx: number;
-    readonly dy: number;
-}
-
-export const offsetLength = ({ dx, dy }: Offset): number => Math.abs(dx) + Math.abs(dy);
-
-export function offsetBetween(from: DiagramBounds, to: DiagramBounds): Offset {
-    return { dx: to.x - from.x, dy: to.y - from.y };
-}
 
 /** Every offset within the radius, nearest first; of equally near ones, the flatter, then the one further right. */
 const SEARCH_OFFSETS: readonly Offset[] = (() => {
@@ -105,10 +94,10 @@ export class Placement {
         return new Placement(draft, group, window, terms).fits(offset);
     }
 
-    fits({ dx, dy }: Offset): boolean {
-        const box = translated(this.groupBounds, dx, dy);
+    fits(offset: Offset): boolean {
+        const box = translated(this.groupBounds, offset.dx, offset.dy);
         return (
-            this.frameFit.fitsMovedBy(dx, dy) &&
+            this.frameFit.fitsMovedBy(offset) &&
             this.obstacles.every((obstacle) => keepsClearOf(box, obstacle, SHAPE_CLEARANCE)) &&
             keepsClearOfFlows(box, this.flows, this.flowClearance)
         );
