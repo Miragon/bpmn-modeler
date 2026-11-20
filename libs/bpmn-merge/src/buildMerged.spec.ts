@@ -19,6 +19,7 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { acceptHandMerge } from "./acceptHandMerge";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
+import { elementsRedrawnBy } from "./buildNoteElements";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
 import { isMergeElement } from "./mergeElements";
@@ -99,30 +100,6 @@ function drawnApartFromParent(
     );
 }
 
-/** The elements whose drawing the build's layout repair changed, as its notes name them. */
-function redrawnByTheBuild(notes: readonly BuildNote[]): ReadonlySet<string> {
-    return new Set(
-        notes.flatMap((note) => {
-            if (!("repair" in note) || note.repair === "notRepaired") return [];
-            switch (note.kind) {
-                case "lanesOverlap":
-                    return [note.moved, ...note.grown, ...note.shifted];
-                case "shapesOverlap":
-                    return note.repair === "madeRoom"
-                        ? [note.moved, ...note.shifted, ...note.grown]
-                        : [note.moved];
-                case "shapeOutsideContainer":
-                    if (note.repair === "grewContainerAndShifted") {
-                        return [note.id, ...note.shapes, ...note.shifted];
-                    }
-                    return note.repair === "grewContainer" ? [note.id, ...note.shapes] : [note.id];
-                default:
-                    return [note.id];
-            }
-        }),
-    );
-}
-
 /**
  * Each element's content, parent and lanes as `side` wrote them, its drawing
  * from the side the layout rule names: a layout only the other side changed,
@@ -143,7 +120,7 @@ async function expectEveryElementFrom(
     ]);
     const sides = { current, incoming };
     const drawnApart = drawnApartFromParent(side, sides, resolution);
-    const redrawn = redrawnByTheBuild(notes);
+    const redrawn = new Set(notes.flatMap(elementsRedrawnBy));
     expect([...merged.keys()].sort()).toEqual([...sides[side].keys()].sort());
     for (const [id, snapshot] of sides[side]) {
         const actual = merged.get(id)!;
@@ -566,7 +543,9 @@ describe("buildMerged", () => {
             const { xml, notes } = await automaticMerge(versions);
 
             expect(xml).toBe(versions.current);
-            expect(notes).toEqual([{ kind: "frameDiffers", attribute: "exporterVersion" }]);
+            expect(notes).toEqual([
+                { kind: "frameDiffers", attribute: "exporterVersion", named: [] },
+            ]);
         });
 
         it("keeps current's definitions attributes without a base, naming those that differ", async () => {
@@ -578,8 +557,8 @@ describe("buildMerged", () => {
 
             expect(xml).toBe(versions.current);
             expect(notes).toEqual([
-                { kind: "frameDiffers", attribute: "exporterVersion" },
-                { kind: "frameDiffers", attribute: "custom:team" },
+                { kind: "frameDiffers", attribute: "exporterVersion", named: [] },
+                { kind: "frameDiffers", attribute: "custom:team", named: [] },
             ]);
         });
 
@@ -606,7 +585,7 @@ describe("buildMerged", () => {
             const { xml, notes } = await automaticMerge(versions);
 
             expect(xml).toBe(scenario.current);
-            expect(notes).toEqual([{ kind: "frameDiffers", attribute: part }]);
+            expect(notes).toEqual([{ kind: "frameDiffers", attribute: part, named: [] }]);
         });
     });
 
@@ -1141,6 +1120,7 @@ ${
                     id: "Flow_Checked",
                     shapes: ["Gateway_Ok"],
                     repair: "movedByBuild",
+                    named: ["Flow_Checked", "Gateway_Ok"],
                 },
             ]);
         });
@@ -1223,6 +1203,7 @@ ${
                 id: "Gateway_Ok",
                 flow: "Flow_No",
                 keptDefault: "Flow_Yes",
+                named: ["Gateway_Ok", "Flow_No", "Flow_Yes"],
             });
         });
 
@@ -1248,6 +1229,7 @@ ${
                 kind: "defaultFlowNotRestored",
                 id: "Gateway_Ok",
                 flow: "Flow_No",
+                named: ["Gateway_Ok", "Flow_No"],
             });
         });
 
@@ -1267,6 +1249,7 @@ ${
                     ids: ["Task_There", "Task_Here"],
                     repair: "movedByBuild",
                     moved: "Task_Here",
+                    named: ["Task_There", "Task_Here"],
                 },
             ]);
         });
@@ -1275,7 +1258,12 @@ ${
             const { notes } = await automaticMerge(scenarioNamed("both moved differently"));
 
             expect(notes).toEqual([
-                { kind: "layoutChangedByBoth", ids: ["Task_Reject"], keptSide: "current" },
+                {
+                    kind: "layoutChangedByBoth",
+                    ids: ["Task_Reject"],
+                    keptSide: "current",
+                    named: ["Task_Reject"],
+                },
             ]);
         });
 
@@ -1300,7 +1288,11 @@ ${
             const { xml, notes } = await automaticMerge(versions);
 
             expect(notes).toEqual([
-                { kind: "frameDiffers", attribute: "modeler:executionPlatformVersion" },
+                {
+                    kind: "frameDiffers",
+                    attribute: "modeler:executionPlatformVersion",
+                    named: [],
+                },
             ]);
             expect(xml).toBe(versions.current);
         });
