@@ -22,7 +22,7 @@ export interface Drawing {
 export class DiagramIndex {
     private constructor(
         readonly diagrams: readonly ModdleElement[],
-        private readonly planeOwners: ReadonlySet<string>,
+        private readonly diagramsByPlaneOwner: ReadonlyMap<string, ModdleElement>,
         /** Shapes and edges by the id of the element they draw ("" for none). */
         private readonly drawingsByElement: ReadonlyMap<string, readonly Drawing[]>,
         /** Each plane's drawings in document order, by `drawingKeyOf`. */
@@ -30,13 +30,11 @@ export class DiagramIndex {
         /** Plane owners that are sub-processes: each has a plane of its own in the result. */
         private readonly subProcessPlaneOwners: ReadonlySet<string>,
         readonly collaborationPlaneOwners: ReadonlySet<string>,
-        /** Each collaboration with the processes its participants name: one root plane draws them. */
-        readonly collaborationProcesses: readonly (readonly [string, string])[],
     ) {}
 
     static of(definitions: ModdleElement): DiagramIndex {
         const diagrams = moddleElements(definitions.diagrams);
-        const planeOwners = new Set<string>();
+        const diagramsByPlaneOwner = new Map<string, ModdleElement>();
         const subProcessPlaneOwners = new Set<string>();
         const collaborationPlaneOwners = new Set<string>();
         const drawingsByElement = new Map<string, Drawing[]>();
@@ -44,7 +42,9 @@ export class DiagramIndex {
         for (const diagram of diagrams) {
             const plane = diagram.plane as ModdleElement | undefined;
             const planeOwner = planeOwnerOf(diagram);
-            planeOwners.add(planeOwner);
+            if (!diagramsByPlaneOwner.has(planeOwner)) {
+                diagramsByPlaneOwner.set(planeOwner, diagram);
+            }
             if (isPlaneOwnerOfType(plane, "bpmn:SubProcess")) subProcessPlaneOwners.add(planeOwner);
             if (isPlaneOwnerOfType(plane, "bpmn:Collaboration")) {
                 collaborationPlaneOwners.add(planeOwner);
@@ -63,25 +63,24 @@ export class DiagramIndex {
                 ...order,
             ]);
         }
-        const collaborationProcesses = moddleElements(definitions.rootElements)
-            .filter((root) => isType(root, "bpmn:Collaboration"))
-            .flatMap((collaboration) =>
-                moddleElements(collaboration.participants).flatMap((participant) => {
-                    const processId = idOf(participant.processRef);
-                    return collaboration.id === undefined || processId === undefined
-                        ? []
-                        : [[collaboration.id, processId] as const];
-                }),
-            );
         return new DiagramIndex(
             diagrams,
-            planeOwners,
+            diagramsByPlaneOwner,
             drawingsByElement,
             orderByPlaneOwner,
             subProcessPlaneOwners,
             collaborationPlaneOwners,
-            collaborationProcesses,
         );
+    }
+
+    /** The diagram a result keeps for a plane owner: its first, in document order. */
+    diagramOf(planeOwner: string): ModdleElement | undefined {
+        return this.diagramsByPlaneOwner.get(planeOwner);
+    }
+
+    /** Each plane owner once, in the order of its first diagram. */
+    planeOwnersInDocumentOrder(): readonly string[] {
+        return [...this.diagramsByPlaneOwner.keys()];
     }
 
     /** Each id with drawings, in the order first drawn; "" stands for the drawings that name no element. */
@@ -120,7 +119,7 @@ export class DiagramIndex {
     /** The plane owner whose plane holds the sub-process's contents in this document. */
     subProcessContentsPlane(subProcess: string): string | undefined {
         return contentsPlaneOf(
-            this.planeOwners.has(subProcess) ? subProcess : undefined,
+            this.diagramsByPlaneOwner.has(subProcess) ? subProcess : undefined,
             this.placedShapeOf(subProcess),
             (shape) => shape.planeOwner,
         );
@@ -178,7 +177,7 @@ export function drawingKeyOf(drawing: ModdleElement): ItemKey {
     return idOf(drawing.bpmnElement) ?? drawing;
 }
 
-export function planeOwnerOf(diagram: ModdleElement): string {
+function planeOwnerOf(diagram: ModdleElement): string {
     return idOf((diagram.plane as ModdleElement | undefined)?.bpmnElement) ?? "";
 }
 

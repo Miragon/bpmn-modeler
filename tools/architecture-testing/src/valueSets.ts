@@ -1,10 +1,13 @@
 import * as ts from "typescript";
 
 import { parseSource } from "./parseSource";
+import { readAlternationValues } from "./regexAlternations";
 
 export interface ValueSetLiteral {
     readonly line: number;
     readonly values: readonly string[];
+    /** Read from a regular expression literal's alternation, whose values may be expanded. */
+    readonly inPattern: boolean;
 }
 
 function isPlainString(node: ts.Node): node is ts.StringLiteral | ts.NoSubstitutionTemplateLiteral {
@@ -93,15 +96,30 @@ function valuesOf(node: ts.Node, tree: ts.SourceFile): string[] | undefined {
     return isOrChain(node) ? chainValues(node, tree) : undefined;
 }
 
+function patternOf(literal: ts.RegularExpressionLiteral): string {
+    return literal.text.slice(1, literal.text.lastIndexOf("/"));
+}
+
+function setsOf(node: ts.Node, tree: ts.SourceFile): Omit<ValueSetLiteral, "line">[] {
+    if (ts.isRegularExpressionLiteral(node)) {
+        return readAlternationValues(patternOf(node)).map((values) => ({
+            values,
+            inPattern: true,
+        }));
+    }
+    const values = valuesOf(node, tree);
+    return values === undefined ? [] : [{ values, inPattern: false }];
+}
+
 /** Syntax only: a set is read where it is written, never through a type or a constant it names. */
 export function readValueSets(fileName: string, text: string): ValueSetLiteral[] {
     const tree = parseSource(fileName, text);
     const sets: ValueSetLiteral[] = [];
     const visit = (node: ts.Node): void => {
-        const values = valuesOf(node, tree);
-        if (values !== undefined) {
+        const found = setsOf(node, tree);
+        if (found.length > 0) {
             const { line } = tree.getLineAndCharacterOfPosition(node.getStart(tree));
-            sets.push({ line: line + 1, values });
+            sets.push(...found.map((set) => ({ line: line + 1, ...set })));
         }
         // Only the maximal chain is a set; the parse has no parent pointers to tell a nested one later.
         if (isOrChain(node)) {

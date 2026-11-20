@@ -73,7 +73,7 @@ export async function buildMergedWith(
         current: DiagramIndex.of(current),
         incoming: DiagramIndex.of(incoming),
     };
-    const slots = new PlaneSlots(diagramIndexes);
+    const slots = PlaneSlots.ofSides({ current, incoming });
     const sideLayouts = [layoutModelOf(current, slots), layoutModelOf(incoming, slots)];
     const frame = mergeFrames(sources.frames);
     const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };

@@ -17,15 +17,8 @@ import {
     liesWithin,
     rightOf,
 } from "./layoutGeometry";
-import {
-    type LaneShape,
-    type LayoutShape,
-    type NodeShape,
-    drawnPartsOf,
-    innermostFrameOf,
-    innermostLaneOf,
-    lanesOf,
-} from "./layoutModel";
+import { innermostFrameOf, innermostLaneOf, lanesOf, lanesWithoutPoolOn } from "./layoutFrames";
+import { type LaneShape, type LayoutShape, type NodeShape, drawnPartsOf } from "./layoutModel";
 import type { ShapeGroups } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";
@@ -295,7 +288,7 @@ export class RoomPush {
         { units, givingWay, extent }: PushedFrame,
     ): OuterRoom | undefined {
         const pool = container && this.trial.shapes.get(container.id)!;
-        const lanes = pool ? lanesOf(this.trial, pool) : this.lanesBeside(lane);
+        const lanes = pool ? lanesOf(this.trial, pool) : lanesWithoutPoolOn(this.trial, lane.plane);
         const before = boundsAround(
             [...(pool ? [pool] : []), ...lanes].map(({ bounds }) => bounds),
         );
@@ -342,7 +335,7 @@ export class RoomPush {
         lane: LaneShape,
         { units, extent }: PushedFrame,
     ): OuterRoom | undefined {
-        const lanes = this.lanesBeside(lane);
+        const lanes = lanesWithoutPoolOn(this.trial, lane.plane);
         const before = boundsAround(lanes.map(({ bounds }) => bounds));
         const growth = this.space.growFrame(lane, lanes, extent + this.marginOf(lane, units));
         if (growth <= 0) return undefined;
@@ -365,14 +358,6 @@ export class RoomPush {
             exclude: new Set([...request.exclude, ...(pool ? [pool.id] : [])]),
             frameGrowth: growth,
         };
-    }
-
-    /** The lanes on the lane's plane outside a pool, the lane among them. */
-    private lanesBeside(lane: LaneShape): LaneShape[] {
-        return [...this.trial.shapes.values()].filter(
-            (shape): shape is LaneShape =>
-                shape.kind === "lane" && shape.plane === lane.plane && shape.pool === undefined,
-        );
     }
 
     /**

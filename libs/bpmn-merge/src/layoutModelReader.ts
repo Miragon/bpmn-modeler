@@ -16,7 +16,7 @@ type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
 export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
     const relations = layoutRelationsOf(definitions);
     const index = DiagramIndex.of(definitions);
-    const planeSlots = slots ?? PlaneSlots.ofDocument(index);
+    const planeSlots = slots ?? PlaneSlots.ofDocument(definitions);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
     for (const id of index.drawnIds()) {

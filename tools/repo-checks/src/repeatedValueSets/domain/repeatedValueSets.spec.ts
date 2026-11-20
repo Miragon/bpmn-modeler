@@ -11,11 +11,13 @@ const AUTH_HOME: ValueSetOccurrence = {
     path: "a/domain/auth.ts",
     line: 1,
     values: ["none", "basic", "oauth2"],
+    inPattern: false,
 };
 const AUTH_COPY: ValueSetOccurrence = {
     path: "b/service/x.ts",
     line: 3,
     values: ["none", "basic", "oauth2"],
+    inPattern: false,
 };
 const AUTH_REORDERED: ValueSetOccurrence = {
     ...AUTH_COPY,
@@ -27,6 +29,7 @@ const AUTH_CHAIN: ValueSetOccurrence = {
     path: "c/adapter/in/check.ts",
     line: 7,
     values: ["none", "basic", "oauth2"],
+    inPattern: false,
 };
 const AUTH_KEY = '["basic","none","oauth2"]';
 
@@ -73,6 +76,20 @@ describe("the repeated value set findings", () => {
         ]);
     });
 
+    it("name no order for a set read from a regular expression, which no type pin can hold", () => {
+        const inPattern: ValueSetOccurrence = { ...AUTH_CHAIN, inPattern: true };
+
+        expect(
+            findingsOf([AUTH_HOME, AUTH_REORDERED, inPattern]).map(
+                ({ path, line, message }) => `${path}:${line} ${message}`,
+            ),
+        ).toEqual([
+            `a/domain/auth.ts:1 \`basic\` · \`none\` · \`oauth2\`, also at \`b/service/x.ts:3\`, \`c/adapter/in/check.ts:7\`; in another order at \`b/service/x.ts:3\`: ${TYPE_PIN_REMEDY}`,
+            `b/service/x.ts:3 \`basic\` · \`none\` · \`oauth2\`, also at \`a/domain/auth.ts:1\`, \`c/adapter/in/check.ts:7\`; in another order at \`a/domain/auth.ts:1\`: ${TYPE_PIN_REMEDY}`,
+            "c/adapter/in/check.ts:7 `basic` · `none` · `oauth2`, also at `a/domain/auth.ts:1`, `b/service/x.ts:3`",
+        ]);
+    });
+
     it("compare the order of first appearances, so a repeated value does not reorder a copy", () => {
         const withRepeat: ValueSetOccurrence = {
             ...AUTH_COPY,
@@ -104,8 +121,8 @@ describe("the repeated value set findings", () => {
         [
             "a set of one distinct value",
             [
-                { path: "a.ts", line: 1, values: ["none", "none"] },
-                { path: "b.ts", line: 1, values: ["none"] },
+                { path: "a.ts", line: 1, values: ["none", "none"], inPattern: false },
+                { path: "b.ts", line: 1, values: ["none"], inPattern: false },
             ],
         ],
         ["a set in one file only", [AUTH_HOME, { ...AUTH_HOME, line: 4 }]],
