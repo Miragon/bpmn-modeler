@@ -608,6 +608,26 @@ describe("MergeMode", () => {
             expect(counter()).toBe("1/3");
         });
 
+        it("keeps its own step when the host's states name another kept step", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Check" } }));
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+            expect(counter()).toBe("1/3");
+        });
+
+        it("takes back no kept step the steps no longer list", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Other" } }));
+
+            expect(viewer().focusElement).not.toHaveBeenCalled();
+            expect(counter()).toBe("–/3");
+        });
+
         it("keeps the step list's type equal to the protocol's", () => {
             expectTypeOf<MergeStepList>().toEqualTypeOf<MergePaneStepList>();
         });
@@ -2158,6 +2178,32 @@ describe("MergeMode", () => {
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             legendButton("Task_Check").click();
             expect(cursorsPosted().at(-1)).toBe(0);
+        });
+
+        it("only shows an element a note names that is no step, moving no step", async () => {
+            await startMergePane();
+            dispatch(
+                afterStates({
+                    canBuild: true,
+                    openConflicts: 0,
+                    built: true,
+                    notes: [
+                        {
+                            kind: "layoutChangedByBoth",
+                            ids: ["Task_Other"],
+                            keptSide: "incoming",
+                            named: ["Task_Other"],
+                        },
+                    ],
+                }),
+            );
+
+            legendButton("Review notes (1)").click();
+            legendButton("Task_Other").click();
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Other");
+            expect(cursorsPosted()).toEqual([]);
+            expect(counter()).toBe("–/3");
         });
 
         it("offers no notes before a build or after one with none", async () => {
