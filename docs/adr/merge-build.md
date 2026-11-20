@@ -79,10 +79,13 @@ extensions and imports). Building a fresh tree would have to copy each of those.
   difference the result does not carry, and each flow left out of the drawing
   (`flowNotDrawn`). Each note carries the elements it names (`named`, from `elementsNamedBy`
   beside the note type, which a webview spec holds the note's text to). The build specs read
-  `elementsRedrawnBy`, a subset of `named` that a spec checks and the one other place a
-  repair's new field goes.
+  `elementsRedrawnBy`, a subset of `named` that a spec checks. One table, keyed by kind and,
+  for a repaired kind, by repair, answers both for each variant, so a new kind or repair
+  compiles only once its entry names both.
   Rejected: a switch per reader, which had to change with every new field while nothing
-  checked that they agreed. Cost: a note carries its ids twice.
+  checked that they agreed; and one shape for every repair, which would let a moved lane
+  carry shifted shapes. Cost: a note carries its ids twice, and `modeler-types` holds what a
+  repair redrew, which only the build's specs read.
 
 ## Consequences
 
