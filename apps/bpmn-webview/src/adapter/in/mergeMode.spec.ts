@@ -499,6 +499,26 @@ describe("MergeMode", () => {
             expect(viewer().selectStep).toHaveBeenLastCalledWith(undefined, { keepInView: false });
         });
 
+        it("opens the menu at a shape-less step's row when the partner steps to it", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+
+            dispatch(new SyncCursorQuery(4));
+
+            expect(menu().hidden).toBe(false);
+            expect(rowStep("Process_1")?.getAttribute("aria-current")).toBe("true");
+        });
+
+        it("closes the menu a step opened once the partner lands on a drawn element", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            previous();
+
+            dispatch(new SyncCursorQuery(2));
+
+            expect(menu().hidden).toBe(true);
+        });
+
         it("steps to a shape-less element from its menu row", async () => {
             await startMergePane();
             dispatch(mergeStates());
@@ -586,6 +606,26 @@ describe("MergeMode", () => {
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             expect(cursorsPosted()).toEqual([]);
             expect(counter()).toBe("1/3");
+        });
+
+        it("keeps its own step when the host's states name another kept step", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            next();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Check" } }));
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
+            expect(counter()).toBe("1/3");
+        });
+
+        it("takes back no kept step the steps no longer list", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Other" } }));
+
+            expect(viewer().focusElement).not.toHaveBeenCalled();
+            expect(counter()).toBe("–/3");
         });
 
         it("keeps the step list's type equal to the protocol's", () => {
@@ -764,6 +804,14 @@ describe("MergeMode", () => {
             expect(selected()).toEqual(["Task_Pack"]);
         });
 
+        it("leaves keeping the step the host kept in view to the partner after a reload", async () => {
+            await startMergePane();
+
+            dispatch(mergeStates({ stepping: { list: "openConflicts", cursor: "Task_Pack" } }));
+
+            expect(keptInView()).toEqual([["Task_Pack", false]]);
+        });
+
         it("clears the selection and its pad on a step this pane does not draw", async () => {
             await startMergePane();
             dispatch(mergeStates());
@@ -868,6 +916,37 @@ describe("MergeMode", () => {
 
             expect(viewportsPosted()).toEqual([]);
         });
+
+        it("hands over no viewport on the step the host kept after a reload, but keeps it in view", async () => {
+            await startMergePane();
+
+            dispatch(
+                mergeStates({
+                    allSteps: ONLY_HERE,
+                    stepping: { list: "all", cursor: "Task_Check" },
+                }),
+            );
+
+            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", {
+                keepInView: true,
+            });
+            expect(viewportsPosted()).toEqual([]);
+        });
+
+        it("hands this pane's viewport to the partner after a click on it, once the cursor is posted", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: ONLY_HERE }));
+            host.postMessage.mockClear();
+
+            viewer().userSelects("Task_Check");
+
+            expect(
+                posted()
+                    .map(({ type }) => type)
+                    .slice(-2),
+            ).toEqual(["CursorChangedCommand", "ViewportChangedCommand"]);
+            expect(viewportsPosted()).toHaveLength(1);
+        });
     });
 
     describe("planes", () => {
@@ -911,6 +990,18 @@ describe("MergeMode", () => {
             dispatch(new SyncCursorQuery(3));
 
             expect(viewer().showPlane).toHaveBeenCalledWith("");
+        });
+
+        it("enters the plane of a step this version holds but its canvas cannot centre, and selects nothing", async () => {
+            await startMergePane();
+            dispatch(mergeStates({ allSteps: SUB_STEPS }));
+
+            dispatch(new SyncCursorQuery(6));
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Mine");
+            expect(viewer().clearSelectionMarker).toHaveBeenCalled();
+            expect(viewer().showPlane).toHaveBeenLastCalledWith("Sub_Ship");
+            expect(viewer().selectStep).toHaveBeenLastCalledWith(undefined, { keepInView: false });
         });
 
         it("leaves the plane alone for a step the partner draws on the plane this pane shows", async () => {
@@ -1474,6 +1565,32 @@ describe("MergeMode", () => {
 
             expect(cursorsPosted().at(-1)).toBe(0);
             expect(card().close).not.toHaveBeenCalled();
+        });
+
+        it("keeps the step a link on it lands on in view and reports it, as a step does", async () => {
+            await keepPackOnPad();
+
+            card().lastActions!.onSelect("Task_Check");
+
+            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", {
+                keepInView: true,
+            });
+            expect(posted().at(-1)).toEqual(
+                expect.objectContaining({
+                    type: "DiffSelectionChangedCommand",
+                    elementId: "Task_Check",
+                }),
+            );
+        });
+
+        it("shows again, unannounced, when the partner steps back to its element", async () => {
+            await keepPackOnPad();
+            next();
+
+            dispatch(new SyncCursorQuery(2));
+
+            expect(card().shownAt).toBe("Task_Pack");
+            expect(shown().at(-1)?.announce).toBe(false);
         });
 
         it("offers the flows the other side removed while the host offers them, and keeps them with the element", async () => {
@@ -2061,6 +2178,32 @@ describe("MergeMode", () => {
             expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Pack");
             legendButton("Task_Check").click();
             expect(cursorsPosted().at(-1)).toBe(0);
+        });
+
+        it("only shows an element a note names that is no step, moving no step", async () => {
+            await startMergePane();
+            dispatch(
+                afterStates({
+                    canBuild: true,
+                    openConflicts: 0,
+                    built: true,
+                    notes: [
+                        {
+                            kind: "layoutChangedByBoth",
+                            ids: ["Task_Other"],
+                            keptSide: "incoming",
+                            named: ["Task_Other"],
+                        },
+                    ],
+                }),
+            );
+
+            legendButton("Review notes (1)").click();
+            legendButton("Task_Other").click();
+
+            expect(viewer().focusElement).toHaveBeenLastCalledWith("Task_Other");
+            expect(cursorsPosted()).toEqual([]);
+            expect(counter()).toBe("–/3");
         });
 
         it("offers no notes before a build or after one with none", async () => {
