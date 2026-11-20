@@ -657,6 +657,25 @@ describe("buildMerged", () => {
                     [...nodeIds(scenario.incoming)].sort(),
                 );
             });
+
+            it("gives incoming's root diagram the ids of current's root diagram", async () => {
+                const renamed = {
+                    current: scenario.current
+                        .replace('id="BPMNDiagram_1"', 'id="Diagram_Current"')
+                        .replace('id="BPMNPlane_1"', 'id="Plane_Current"'),
+                    incoming: scenario.incoming
+                        .replace('id="BPMNDiagram_1"', 'id="Diagram_Incoming"')
+                        .replace('id="BPMNPlane_1"', 'id="Plane_Incoming"'),
+                };
+                const { xml } = await everyElementFrom(renamed, "incoming");
+
+                expect((await diagramsOf(xml)).map(({ id, owner }) => [id, owner])).toEqual([
+                    ["Diagram_Current", "Collaboration_1"],
+                ]);
+                expect(xml).toContain(
+                    '<bpmndi:BPMNPlane id="Plane_Current" bpmnElement="Collaboration_1">',
+                );
+            });
         });
 
         describe("drawn parts of an element", () => {
