@@ -1,6 +1,5 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
-import { elementVersionOf } from "./elementVersion";
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
 import { parseFailure } from "./mergeRefusal";
@@ -18,11 +17,11 @@ import {
     requireMergeableVersions,
 } from "./mergeVersions";
 import { versionKeysOf } from "./versionKey";
+import { VersionSnapshots } from "./versionSnapshots";
 
 export type { MergeVersions } from "./mergeVersions";
 
-type Snapshots = ReadonlyMap<string, ElementSnapshot>;
-type SnapshotsOfElement = Partial<Record<VersionName, ElementSnapshot>>;
+type SnapshotsOfVersions = Partial<Record<VersionName, VersionSnapshots>>;
 
 /**
  * Classifies every merge element of the three versions: its content, parent
@@ -39,12 +38,7 @@ export async function computeMerge(versions: MergeVersions): Promise<MergeResult
     ]);
     const hasBase = base !== undefined;
     const elements = [...typesInMergeOrder(current, incoming, base)].map(([id, type]) =>
-        mergeElementOf(
-            id,
-            type,
-            { base: base?.get(id), current: current.get(id), incoming: incoming.get(id) },
-            hasBase,
-        ),
+        mergeElementOf(id, type, { base, current, incoming }, hasBase),
     );
     return { hasBase, versionKeys: versionKeysOf(versions), elements };
 }
@@ -53,13 +47,15 @@ async function snapshotsOf(
     version: VersionName,
     xml: string,
     prefixSources: readonly string[],
-): Promise<Snapshots> {
+): Promise<VersionSnapshots> {
     try {
-        return await elementSnapshots(xml, {
-            prefixSources,
-            isUnit: isMergeElement,
-            rejectWarnings: true,
-        });
+        return VersionSnapshots.of(
+            await elementSnapshots(xml, {
+                prefixSources,
+                isUnit: isMergeElement,
+                rejectWarnings: true,
+            }),
+        );
     } catch (error) {
         throw parseFailure(version, error);
     }
@@ -67,11 +63,11 @@ async function snapshotsOf(
 
 /** Current's document order, then incoming's own elements, then base's; the type from the first version holding the element. */
 function typesInMergeOrder(
-    ...snapshotsByPrecedence: (Snapshots | undefined)[]
+    ...snapshotsByPrecedence: (VersionSnapshots | undefined)[]
 ): Map<string, string> {
     const types = new Map<string, string>();
     for (const snapshots of snapshotsByPrecedence) {
-        for (const [id, snapshot] of snapshots ?? []) {
+        for (const [id, snapshot] of snapshots?.byId ?? []) {
             if (!types.has(id)) types.set(id, snapshot.type);
         }
     }
@@ -81,18 +77,18 @@ function typesInMergeOrder(
 function mergeElementOf(
     id: string,
     type: string,
-    snapshots: SnapshotsOfElement,
+    snapshots: SnapshotsOfVersions,
     hasBase: boolean,
 ): MergeElement {
     const classified = {
-        base: classifiedVersionOf(snapshots.base),
-        current: classifiedVersionOf(snapshots.current),
-        incoming: classifiedVersionOf(snapshots.incoming),
+        base: classifiedVersionOf(snapshots.base?.byId.get(id)),
+        current: classifiedVersionOf(snapshots.current?.byId.get(id)),
+        incoming: classifiedVersionOf(snapshots.incoming?.byId.get(id)),
     };
     const versions: Partial<Record<VersionName, ElementVersion>> = {};
     for (const name of VERSION_NAMES) {
-        const snapshot = snapshots[name];
-        if (snapshot) versions[name] = elementVersionOf(snapshot);
+        const version = snapshots[name]?.versionOf(id);
+        if (version) versions[name] = version;
     }
     return {
         id,

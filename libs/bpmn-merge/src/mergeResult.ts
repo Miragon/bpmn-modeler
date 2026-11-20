@@ -72,6 +72,10 @@ export interface ElementVersion {
     readonly references: readonly ElementReference[];
     /** Ids inside the element that are no merge elements of their own: data inputs, properties, lane sets, event definitions. */
     readonly parts: readonly string[];
+    /**
+     * The version draws the element: with a shape, an edge or a plane of its own, or, for a process
+     * no pool names, with a drawing of something it holds on a collaboration's plane.
+     */
     readonly drawn: boolean;
     /** The element whose plane draws the element's shape or edge. */
     readonly plane?: string;
