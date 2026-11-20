@@ -1,5 +1,5 @@
 {
-    "note": "Templates the modeler package's own features pass to translate() where no browser driver reaches them: the mode strip, the popup-menu annotations of every surface, the element template chooser, the append menu, the ID-from-name links, the definition search and the linked form's context pad entry. Recorded by packages/bpmn-modeler/src/featureTextsHarvest.spec.ts; refresh it with `corepack yarn vitest run --project bpmn-modeler -u packages/bpmn-modeler/src/featureTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "note": "Templates the modeler package's own features pass to translate() where no browser driver reaches them (the mode strip, the popup-menu annotations of every surface, the element template chooser, the append menu, the ID-from-name links, the definition search and the linked form's context pad entry), recorded by packages/bpmn-modeler/src/featureTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-modeler packages/bpmn-modeler/src/featureTextsHarvest.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
     "count": 138,
     "keys": [
         "A participant shown as a black box",

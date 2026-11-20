@@ -17,7 +17,7 @@ export function polylineSegments(points: readonly PolylinePoint[]): PolylineSegm
     });
 }
 
-type SegmentEnds = Pick<PolylineSegment, "from" | "to">;
+export type SegmentEnds = Pick<PolylineSegment, "from" | "to">;
 
 /** The point `share` of the way from the segment's start to its end. */
 export function pointAlongSegment({ from, to }: SegmentEnds, share: number): PolylinePoint {

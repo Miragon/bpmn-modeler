@@ -6,7 +6,7 @@
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from "preact/hooks";
 import type { ElementTemplate, Translate } from "../types";
-import { extractImplementationDetail } from "../types";
+import { extractImplementationDetail } from "../templateProperties";
 import { TemplateSearchIndex } from "../search";
 import { CHOOSER_TEXTS, TEMPLATE_LIST_TEXTS } from "../chooserTexts";
 import { TemplatePreview } from "./TemplatePreview";

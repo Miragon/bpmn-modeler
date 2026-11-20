@@ -14,7 +14,7 @@ import { executeTemplateTypeAction } from "./templateTypeAction";
 import { getPopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 import type { PopupMenuEntryAction, Translate } from "./types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
-import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/types";
+import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/translate";
 
 interface MenuPosition {
     x: number;

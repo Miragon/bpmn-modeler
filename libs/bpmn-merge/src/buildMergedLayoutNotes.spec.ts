@@ -1,3 +1,4 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { describe, expect, it } from "vitest";
 
 import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
@@ -19,7 +20,7 @@ import type { BuildNoteContent } from "./buildNotes";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { bottomOf, centerOf, inflated, keepsClearOf, liesWithin } from "./layoutGeometry";
 import { layoutModelOf } from "./layoutModelReader";
-import { distanceToPolyline, segmentsOf } from "./layoutPolyline";
+import { distanceToPolyline } from "./layoutPolyline";
 import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
 import { segmentEntersBounds } from "./layoutSegments";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
@@ -478,7 +479,7 @@ describe("buildMerged's layout notes", () => {
             for (const edge of layout.edges.values()) {
                 if (edge.source === movedId || edge.target === movedId) continue;
                 const clear = inflated(movedTask!, SHAPE_CLEARANCE);
-                for (const segment of segmentsOf(edge.waypoints)) {
+                for (const segment of polylineSegments(edge.waypoints)) {
                     expect(segmentEntersBounds(segment, clear), edge.id).toBe(false);
                 }
                 if (edge.label !== undefined) {

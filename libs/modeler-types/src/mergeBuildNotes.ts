@@ -142,6 +142,11 @@ export type MergeBuildNoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
             : never
         : never;
 
+/** A flow and the shapes it misses or runs through, or a shape and the containers it lies outside. */
+export type MergeElementAndShapesNote = MergeBuildNoteOfKind<
+    "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer"
+>;
+
 /** Shapes or lanes on top of each other. */
 export type MergeOverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 

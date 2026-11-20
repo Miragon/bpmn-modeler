@@ -8,7 +8,8 @@
  */
 import { render, h } from "preact";
 import { ChooserOverlay } from "./components/ChooserOverlay";
-import { fallbackTranslate, type ElementTemplate, type Translate } from "./types";
+import { fallbackTranslate } from "./translate";
+import type { ElementTemplate, Translate } from "./types";
 import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
 import type { Element } from "bpmn-js/lib/model/Types";
 import type EventBus from "diagram-js/lib/core/EventBus";

@@ -1,11 +1,13 @@
 import {
     type MergeBuildNoteContent,
     type MergeBuildNoteOfKind,
+    type MergeElementAndShapesNote,
     type MergeNoteRepairOf,
     type MergeOverlapNote,
     type MergeRepairedNoteKind,
     type MergeSide,
     framesGrownBy,
+    noteVariantEntry,
     shapesShiftedBy,
 } from "@miragon/bpmn-modeler-types";
 
@@ -41,11 +43,6 @@ type NoteWordings = {
           }
         : Wording<MergeBuildNoteOfKind<Kind>>;
 };
-
-/** A flow and the shapes it misses or runs through, or a shape and the containers it lies outside. */
-type ElementAndShapesNote = MergeBuildNoteOfKind<
-    "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer"
->;
 
 /** A shape and the containers it lies outside. */
 type OutsideContainerNote = MergeBuildNoteOfKind<"shapeOutsideContainer">;
@@ -145,14 +142,8 @@ export function buildNoteText(
     return translate(template, replacements);
 }
 
-type AnyWording = Wording<MergeBuildNoteContent>;
-
-function wordingOf(note: MergeBuildNoteContent): AnyWording {
-    // NoteWordings checks each entry against its kind and repair; this lookup by both is beyond the compiler.
-    const entry = (NOTE_WORDINGS as Record<NoteKind, unknown>)[note.kind];
-    return "repair" in note
-        ? (entry as Record<string, AnyWording>)[note.repair]!
-        : (entry as AnyWording);
+function wordingOf(note: MergeBuildNoteContent): Wording<MergeBuildNoteContent> {
+    return noteVariantEntry(NOTE_WORDINGS, note);
 }
 
 /** Variants of a note that differ only in their template. */
@@ -168,7 +159,7 @@ function sharingNames<Note, Variant extends string>(
 }
 
 function elementAndShapesNames(
-    note: ElementAndShapesNote,
+    note: MergeElementAndShapesNote,
     names: CanvasNames,
 ): Record<string, string> {
     return { element: names.one(note.id), shapes: names.list(note.shapes) };

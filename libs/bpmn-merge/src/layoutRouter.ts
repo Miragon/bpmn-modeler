@@ -1,3 +1,4 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { type Axis, type AxisLine, outlinePointOn, spansAlong } from "./layoutAxis";
 import {
     type DiagramBounds,
@@ -7,7 +8,7 @@ import {
     inflated,
     liesInside,
 } from "./layoutGeometry";
-import { segmentsOf, withoutRedundantPoints } from "./layoutPolyline";
+import { withoutRedundantPoints } from "./layoutPolyline";
 import {
     type Segment,
     segmentEntersBounds,
@@ -74,7 +75,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
 
 /** The route's length with what its bends, crossings and shared runs cost. */
 export function routeCost(points: readonly Point[], otherSegments: readonly Segment[]): number {
-    return segmentsOf(points).reduce(
+    return polylineSegments(points).reduce(
         (cost, segment, index) =>
             cost +
             lengthOf(segment) +
@@ -84,7 +85,7 @@ export function routeCost(points: readonly Point[], otherSegments: readonly Segm
     );
 }
 
-function lengthOf([from, to]: Segment): number {
+function lengthOf({ from, to }: Segment): number {
     return Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
 }
 
@@ -227,7 +228,7 @@ class RouteGrid {
             const next = this.nextUsable(index, direction, sourcePort !== undefined);
             if (next === undefined) continue;
             const to = this.pointOf(next);
-            const segment = [from, to] as const;
+            const segment = { from, to };
             const step =
                 lengthOf(segment) +
                 (direction === heading ? 0 : ROUTE_COST.bend) +
@@ -254,11 +255,11 @@ class RouteGrid {
             }
             const candidate = row * this.xs.length + column;
             const to = this.pointOf(candidate);
-            if (this.hitsShape([from, to])) return undefined;
+            if (this.hitsShape({ from, to })) return undefined;
             const toTargetPort = this.targetPorts.has(candidate);
             if (
                 this.isUsable(candidate) &&
-                !this.entersClearance([from, to], fromSourcePort, toTargetPort)
+                !this.entersClearance({ from, to }, fromSourcePort, toTargetPort)
             ) {
                 return candidate;
             }
@@ -282,7 +283,7 @@ class RouteGrid {
                     return false;
                 }
                 const candidate = row * this.xs.length + column;
-                if (this.hitsShape([from, this.pointOf(candidate)])) return false;
+                if (this.hitsShape({ from, to: this.pointOf(candidate) })) return false;
                 if (this.isUsable(candidate)) return true;
             }
         });
