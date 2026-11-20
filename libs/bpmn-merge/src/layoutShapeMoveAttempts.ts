@@ -1,7 +1,7 @@
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import { flowClashesOf } from "./layoutFlowClashes";
 import { type FlowRepairPlanner, withFlowRepairs } from "./layoutFlowRepair";
-import { sameBounds } from "./layoutGeometry";
+import { type Offset, offsetBetween, offsetLength, sameBounds } from "./layoutGeometry";
 import {
     type RoomContext,
     type RoomMade,
@@ -12,13 +12,7 @@ import {
 import type { LayoutModel, NodeShape } from "./layoutModel";
 import { type RoomSlot, type RoomSlots, slotOffsetsOf, slotsFor } from "./layoutRoomSlots";
 import type { ShapeGroup } from "./layoutShapeGroups";
-import {
-    OFF_A_SHAPE,
-    type Offset,
-    Placement,
-    offsetBetween,
-    offsetLength,
-} from "./layoutShapePlacement";
+import { OFF_A_SHAPE, Placement } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot } from "./layoutSpots";
 import { placeOf } from "./sideDrawings";
