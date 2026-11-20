@@ -36,6 +36,9 @@ const RELOAD_PENDING_ATTRIBUTE = "data-smoke-reload-pending";
 /** The reset goes on after this long: a webview that never loads must not hold up the next test. */
 const WEBVIEW_LOAD_MS = 10_000;
 const WEBVIEW_PROBE_MS = 1_000;
+/** Playwright's text for the inspector's "Promise was collected". */
+const COLLECTED_PROMISE = "Resulting promise was garbage collected";
+const COLLECTED_PROMISE_ATTEMPTS = 10;
 
 /** Bypass Codium's Node CLI shim so Playwright attaches to the actual Electron process. */
 export async function flatpakVSCodium(rootDirectory: string): Promise<string> {
@@ -140,7 +143,7 @@ export class VsCodeSession {
     private readonly reportedCspViolations: string[] = [];
 
     private constructor(
-        readonly app: ElectronApplication,
+        private readonly app: ElectronApplication,
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
         private changingSettings: ChangingUserSettings,
@@ -205,9 +208,11 @@ export class VsCodeSession {
             const page = await app.firstWindow({ timeout: options.timeoutMs });
             page.setDefaultTimeout(options.timeoutMs);
             await page.waitForSelector(".monaco-workbench");
-            await app.evaluate(({ BrowserWindow }, { width, height }) => {
-                BrowserWindow.getAllWindows()[0]?.setContentSize(width, height);
-            }, WINDOW_SIZE);
+            await repeatWhileInspectorCollectsPromise(() =>
+                app.evaluate(({ BrowserWindow }, { width, height }) => {
+                    BrowserWindow.getAllWindows()[0]?.setContentSize(width, height);
+                }, WINDOW_SIZE),
+            );
             return new VsCodeSession(app, page, options, changingSettings, driver);
         } catch (error) {
             await closeApplication(app);
@@ -660,7 +665,9 @@ export class VsCodeSession {
     }
 
     clipboardText(): Promise<string> {
-        return this.app.evaluate(({ clipboard }) => clipboard.readText());
+        return repeatWhileInspectorCollectsPromise(() =>
+            this.app.evaluate(({ clipboard }) => clipboard.readText()),
+        );
     }
 
     isActiveTabDirty(): Promise<boolean> {
@@ -891,6 +898,23 @@ function environmentWithoutParentVsCode(): Record<string, string> {
                 entry[0] !== "ELECTRON_RUN_AS_NODE",
         ),
     );
+}
+
+/**
+ * V8 before 15.2 holds the promise of an evaluate only weakly: a garbage collection
+ * in Electron's main process before it settles rejects a call that already ran.
+ * Only for an evaluation that may run twice.
+ */
+async function repeatWhileInspectorCollectsPromise<T>(evaluate: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await evaluate();
+        } catch (error) {
+            const collected = error instanceof Error && error.message.includes(COLLECTED_PROMISE);
+            if (!collected || attempt === COLLECTED_PROMISE_ATTEMPTS) throw error;
+            console.log(`[vscode-smoke] ${COLLECTED_PROMISE}, attempt ${attempt + 1}`);
+        }
+    }
 }
 
 /**

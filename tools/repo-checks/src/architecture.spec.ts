@@ -119,7 +119,7 @@ describe("role folders", () => {
         ).toEqual([]);
     });
 
-    // Test fixtures stay out: they are inputs, not code with a role.
+    // Test folders stay out: they hold tests and their inputs, not code with a role.
     const workspacesWithRoles = workspacesWithSources.flatMap(({ dir, kind }) => {
         if (!isWorkspaceKind(kind)) {
             return [];

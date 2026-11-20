@@ -1,75 +1,72 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { GetAddOnCatalogCommand, OpenAddOnDetailCommand } from "./addOnsView";
 import { LogInfoCommand } from "./messages";
 import {
     type PreviewCommandTable,
+    type PreviewRoute,
     previewRouteOf,
     routePreviewCommand,
 } from "./previewCommandTable";
 
-type TestType = "LogInfoCommand" | "GetAddOnCatalogCommand" | "OpenAddOnDetailCommand";
+type TestCommand = LogInfoCommand | GetAddOnCatalogCommand | OpenAddOnDetailCommand;
 
 interface TestSession {
     readonly handled: string[];
 }
 
-const TABLE: PreviewCommandTable<TestType, TestSession> = {
+const TABLE: PreviewCommandTable<TestCommand, TestSession> = {
     LogInfoCommand: ({ message }, session) => session.handled.push(message),
     GetAddOnCatalogCommand: ({ type }, session) => session.handled.push(type),
     OpenAddOnDetailCommand: { ignored: "the test has no tab to open" },
 };
-
-const REPO_ROOT = join(__dirname, "../../../..");
-
-function previewCommandTableFiles(): string[] {
-    const appsDir = join(REPO_ROOT, "apps");
-    return readdirSync(appsDir).flatMap((app) => {
-        const previewDir = join(appsDir, app, "src/adapter/out/browserPreview");
-        let entries: string[];
-        try {
-            entries = readdirSync(previewDir);
-        } catch {
-            return [];
-        }
-        return entries
-            .filter((entry) => entry.endsWith(".ts") && !entry.endsWith(".spec.ts"))
-            .map((entry) => join(previewDir, entry))
-            .filter((file) => readFileSync(file, "utf8").includes("PreviewCommandTable<"));
-    });
-}
 
 describe("a browser preview's command table", () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
+    it("keys a row by each command of the surface, and hands the row that command", () => {
+        type Table = PreviewCommandTable<TestCommand, TestSession>;
+
+        expectTypeOf<keyof Table>().toEqualTypeOf<TestCommand["type"]>();
+        expectTypeOf<Table["OpenAddOnDetailCommand"]>().toEqualTypeOf<
+            PreviewRoute<OpenAddOnDetailCommand, TestSession>
+        >();
+    });
+
     it("hands a command to its row together with the session", () => {
         const session: TestSession = { handled: [] };
 
-        routePreviewCommand(TABLE, new LogInfoCommand("hello"), session, "[test preview]");
+        routePreviewCommand(TABLE, new LogInfoCommand("hello"), session);
 
         expect(session.handled).toEqual(["hello"]);
     });
 
-    it("drops a command whose row gives a reason, and logs the reason under the preview's prefix", () => {
+    it("drops a command whose row gives a reason, and logs the reason on one debug line", () => {
         const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
         const session: TestSession = { handled: [] };
         const command = new OpenAddOnDetailCommand("plugin:/work/x");
 
-        routePreviewCommand(TABLE, command, session, "[test preview]");
+        routePreviewCommand(TABLE, command, session);
 
         expect([session.handled, debug.mock.calls]).toEqual([
             [],
-            [
-                [
-                    "[test preview] OpenAddOnDetailCommand ignored: the test has no tab to open",
-                    command,
-                ],
-            ],
+            [["[DEBUG] OpenAddOnDetailCommand ignored: the test has no tab to open", command]],
         ]);
+    });
+
+    it.each(["", "  "])("refuses a row that drops its command without a reason: %j", (reason) => {
+        const table: PreviewCommandTable<TestCommand, TestSession> = {
+            ...TABLE,
+            OpenAddOnDetailCommand: { ignored: reason },
+        };
+
+        expect(() =>
+            routePreviewCommand(table, new OpenAddOnDetailCommand("plugin:/work/x"), {
+                handled: [],
+            }),
+        ).toThrow("OpenAddOnDetailCommand needs a reason to be ignored");
     });
 
     it("returns the row of a command type", () => {
@@ -81,27 +78,17 @@ describe("a browser preview's command table", () => {
     it.each(["SomeOtherCommand", "toString", "constructor", "hasOwnProperty"])(
         "rejects a command type without a row of its own: %s",
         (type) => {
-            expect(() =>
-                routePreviewCommand(TABLE, { type } as never, { handled: [] }, "[test preview]"),
-            ).toThrow(`Unknown message type: ${type}`);
+            expect(() => routePreviewCommand(TABLE, { type } as never, { handled: [] })).toThrow(
+                `Unknown message type: ${type}`,
+            );
         },
     );
 
     it("routes a command whose row reads it", () => {
         const session: TestSession = { handled: [] };
 
-        routePreviewCommand(TABLE, new GetAddOnCatalogCommand(), session, "[test preview]");
+        routePreviewCommand(TABLE, new GetAddOnCatalogCommand(), session);
 
         expect(session.handled).toEqual(["GetAddOnCatalogCommand"]);
-    });
-
-    // Rollup keeps a module-level statement holding an interpolated template literal, so a table would ship in production.
-    it("finds every webview's table written with plain-string drop reasons, which leaves it out of the production bundle", () => {
-        const tables = previewCommandTableFiles();
-
-        expect(tables).not.toEqual([]);
-        expect(tables.filter((file) => /ignored:\s*`/.test(readFileSync(file, "utf8")))).toEqual(
-            [],
-        );
     });
 });
