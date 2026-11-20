@@ -13,7 +13,7 @@ import {
     type MergeElementPickStates,
     type MergePadOffers,
     offersMergeXml,
-    rowPickOf,
+    ownPickOf,
 } from "./mergeElementPick";
 import { keepRemovedWith, type MergeKeepRemovedWith } from "./mergeKeepRemovedWith";
 
@@ -119,7 +119,7 @@ export function mergeRowDecisions(
     offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
     const facts: MergeDecisionFacts = {
-        ...rowPickOf(row),
+        ...ownPickOf(row),
         takenSide: row.takenSide,
         lackingSide: row.lackingSide,
         container: row.container,

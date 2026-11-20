@@ -24,10 +24,11 @@ Undo of an element no longer picked, from a pad or menu not yet repainted, chang
 The webview shows a pick only once the core made it and holds no rule: what an element allows
 (`pickable`, with the user's `pick`, whose reach Undo takes back, `lackingSide`: the side that removed it
 or never had it, named alike on both panes, and `takenSide`, the side the result takes it from), the
-badges, the picks a pane cannot draw and the consequences all come from `mergePaneView`. The
-protocol declares the pick once (`MergePanePick`); the badge, the pick not drawn, the menu row and
-`pickable` each carry it whole, so the webview reads an element's pick from `pickable` alone. The
-picks end with the session, so a window reload loses them. Rejected: picks in the webview's
+badges and the consequences all come from `mergePaneView`. The protocol declares the pick once
+(`MergePanePick`) and what an element allows once (`MergePanePickable`): `pickable` holds every
+element's entry, a menu row is a shape-less element's entry with what each side holds, and a badge
+carries the pick of an element the pane draws. `mergePaneView` builds all three from the one entry,
+so the pad, the menu and the cards read the same pick. The picks end with the session, so a window reload loses them. Rejected: picks in the webview's
 `setState`, which keeps one pane only and would need the merge's rules to repaint. Picks take
 the same way in as the step list: the router asks `BpmnDiffService.opensMergeViews` and ignores
 all three merge commands without it, so IntelliJ routes them as ignored with one reason.

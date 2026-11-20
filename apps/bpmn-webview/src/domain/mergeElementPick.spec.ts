@@ -8,7 +8,7 @@ import {
     type MergeElementPickStates,
     offersMergeXml,
     panePicks,
-    rowPickOf,
+    ownPickOf,
 } from "./mergeElementPick";
 
 const MESSAGE_ROW: MergePaneShapelessRow = {
@@ -51,11 +51,11 @@ describe("elementPickOf", () => {
     });
 
     it("reads a menu row's own pick, as the pane finds it", () => {
-        expect(rowPickOf(MESSAGE_ROW)).toStrictEqual(elementPickOf(STATES, "Message_1"));
+        expect(ownPickOf(MESSAGE_ROW)).toStrictEqual(elementPickOf(STATES, "Message_1"));
     });
 
     it("reads nothing of a row that is not there", () => {
-        expect(rowPickOf(undefined)).toStrictEqual({});
+        expect(ownPickOf(undefined)).toStrictEqual({});
     });
 });
 

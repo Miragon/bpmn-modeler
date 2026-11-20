@@ -22,7 +22,7 @@ export type MergePadOffers = Pick<MergeHostOffers, "elementXmlMerge">;
 
 /** `elementId` on a pane, drawn or listed in the menu. */
 export function elementPickOf(states: MergeElementPickStates, elementId: string): MergeElementPick {
-    return rowPickOf(states.pickable.find(({ id }) => id === elementId));
+    return ownPickOf(states.pickable.find(({ id }) => id === elementId));
 }
 
 /** Every element the user's picks decide on a pane, once each, in result order. */
@@ -30,8 +30,8 @@ export function panePicks(states: MergeElementPickStates): readonly MergePickedE
     return states.pickable.flatMap(({ id, pick }) => (pick === undefined ? [] : [{ id, pick }]));
 }
 
-/** A menu row's or pickable element's own pick; nothing where there is neither. */
-export function rowPickOf(element: MergeElementPick | undefined): MergeElementPick {
+/** The pick of a pickable entry, which a menu row is too; nothing where there is no entry. */
+export function ownPickOf(element: MergeElementPick | undefined): MergeElementPick {
     return {
         ...(element?.pick === undefined ? {} : { pick: element.pick }),
         ...(element?.handMergeable === undefined ? {} : { handMergeable: element.handMergeable }),
