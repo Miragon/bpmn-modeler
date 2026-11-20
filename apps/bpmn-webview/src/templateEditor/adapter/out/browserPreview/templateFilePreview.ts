@@ -58,17 +58,22 @@ const PROBLEMS = [
     },
 ];
 
-// Files for the editor's other states, picked with `?file=`.
-const FILES: Readonly<Record<string, string>> = {
-    empty: "",
-    noschema: `${JSON.stringify({ name: "Plain", id: "plain", appliesTo: ["bpmn:ServiceTask"], properties: [] }, null, 2)}\n`,
-    broken: '{\n  "name": "Broken",\n',
-    notemplate: "[]\n",
-    problems: `${JSON.stringify(PROBLEMS, null, 2)}\n`,
+// Files for the editor's other states, picked with `?file=`. Each is built on
+// demand: a module-level interpolation would keep the samples in production.
+const FILES: Readonly<Record<string, () => string>> = {
+    empty: () => "",
+    noschema: () => jsonFile({ name: "Plain", id: "plain", appliesTo: ["bpmn:ServiceTask"], properties: [] }),
+    broken: () => '{\n  "name": "Broken",\n',
+    notemplate: () => "[]\n",
+    problems: () => jsonFile(PROBLEMS),
     // Valid JSON the builder cannot edit in place, and a type the preview cannot show.
-    unshaped: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Unshaped", id: "unshaped", appliesTo: ["bpmn:ServiceTask"], elementType: "bpmn:ServiceTask", properties: [] }, null, 2)}\n`,
-    process: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Process", id: "process", appliesTo: ["bpmn:Process"], properties: [] }, null, 2)}\n`,
+    unshaped: () => jsonFile({ $schema: C8_SCHEMA, name: "Unshaped", id: "unshaped", appliesTo: ["bpmn:ServiceTask"], elementType: "bpmn:ServiceTask", properties: [] }),
+    process: () => jsonFile({ $schema: C8_SCHEMA, name: "Process", id: "process", appliesTo: ["bpmn:Process"], properties: [] }),
 };
+
+function jsonFile(content: unknown): string {
+    return `${JSON.stringify(content, null, 2)}\n`;
+}
 
 /**
  * The C8 sample templates, the C7 ones for `?engine=c7`, or one of
@@ -79,7 +84,7 @@ export function previewTemplateFile(search: string): Query[] {
     const params = new URLSearchParams(search);
     const engine = params.get("engine");
     const samples = SAMPLES[isEngine(engine) ? engine : "c8"];
-    const file = FILES[params.get("file") ?? ""] ?? `${JSON.stringify(samples, null, 2)}\n`;
+    const file = FILES[params.get("file") ?? ""]?.() ?? jsonFile(samples);
     const lang = params.get("lang");
     return lang
         ? [new ElementTemplateFileQuery(file), new LanguageQuery(lang)]

@@ -1,38 +1,39 @@
-import type { MessageOfType, ProtocolCommandType } from "./protocolMessageMap";
-
 /** What a browser preview does with a command, or why it drops it. */
-export type PreviewRoute<TType extends ProtocolCommandType, TSession> =
-    ((command: MessageOfType<TType>, session: TSession) => void) | { readonly ignored: string };
+export type PreviewRoute<TCommand, TSession> =
+    ((command: TCommand, session: TSession) => void) | { readonly ignored: string };
 
-/** A row per command a webview posts: a command without one fails to compile. */
-export type PreviewCommandTable<TType extends ProtocolCommandType, TSession> = {
-    readonly [Type in TType]: PreviewRoute<Type, TSession>;
+/**
+ * A row per command type of a surface: a command without one fails to compile.
+ * A reason is a plain string literal: an interpolated template literal keeps
+ * the module-level table in the production bundle.
+ */
+export type PreviewCommandTable<TCommand extends { readonly type: string }, TSession> = {
+    readonly [TType in TCommand["type"]]: PreviewRoute<
+        Extract<TCommand, { type: TType }>,
+        TSession
+    >;
 };
 
 /** The row of a command type; a type without one, an inherited object member's included, throws. */
-export function previewRouteOf<TType extends ProtocolCommandType, TSession>(
-    table: PreviewCommandTable<TType, TSession>,
+export function previewRouteOf<TCommand extends { readonly type: string }, TSession>(
+    table: PreviewCommandTable<TCommand, TSession>,
     type: string,
-): PreviewRoute<TType, TSession> {
+): PreviewRoute<TCommand, TSession> {
     if (!Object.prototype.hasOwnProperty.call(table, type)) {
         throw new Error(`Unknown message type: ${type}`);
     }
-    return table[type as TType] as PreviewRoute<TType, TSession>;
+    return table[type as TCommand["type"]] as PreviewRoute<TCommand, TSession>;
 }
 
-export function routePreviewCommand<TType extends ProtocolCommandType, TSession>(
-    table: PreviewCommandTable<TType, TSession>,
-    command: MessageOfType<TType>,
+export function routePreviewCommand<TCommand extends { readonly type: string }, TSession>(
+    table: PreviewCommandTable<TCommand, TSession>,
+    command: TCommand,
     session: TSession,
-    logPrefix: string,
 ): void {
-    // TypeScript cannot see the shared `type` through a still-generic Extract.
-    const { type } = command as { readonly type: TType };
-    const route = previewRouteOf(table, type);
+    const route = previewRouteOf(table, command.type);
     if ("ignored" in route) {
-        console.debug(`${logPrefix} ${type} ignored: ${route.ignored}`, command);
+        console.debug(`[DEBUG] ${command.type} ignored: ${route.ignored}`, command);
         return;
     }
-    // Sound because the table hands each row only commands of its own key's type.
-    (route as (command: MessageOfType<TType>, session: TSession) => void)(command, session);
+    route(command, session);
 }
