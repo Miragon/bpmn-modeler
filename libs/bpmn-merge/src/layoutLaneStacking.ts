@@ -2,7 +2,7 @@ import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNot
 
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, liesWithin } from "./layoutGeometry";
-import { lanesOf } from "./layoutFrames";
+import { descendantLanesOf, lanesOf, parentLanesOf, siblingLanesOf } from "./layoutFrames";
 import type { LaneShape, LayoutModel, LayoutShape } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
 import { SpaceTool } from "./layoutSpaceTool";
@@ -61,7 +61,7 @@ export function stackAppendedLanes(
         const lane = shapes.get(id);
         if (carried.has(id) || lane?.kind !== "lane" || lane.pool === undefined) continue;
         const pool = shapes.get(lane.pool);
-        const siblings = siblingsOf(drawing, lane).filter(({ id }) => !unstacked.has(id));
+        const siblings = siblingLanesOf(drawing, lane).filter(({ id }) => !unstacked.has(id));
         if (pool?.kind !== "pool" || pool.plane !== lane.plane || siblings.length === 0) continue;
         const overlapped = siblings.filter((sibling) => lanesOverlap(lane, sibling));
         const frame = shapes.get(lane.parent)?.kind === "lane" ? shapes.get(lane.parent)! : pool;
@@ -95,34 +95,6 @@ export function stackAppendedLanes(
         });
     }
     return stacked.length === 0 ? { layout, stacked } : { layout: drawing, stacked };
-}
-
-function siblingsOf(layout: LayoutModel, lane: LaneShape): LaneShape[] {
-    return [...layout.shapes.values()].filter(
-        (shape): shape is LaneShape =>
-            shape.kind === "lane" &&
-            shape.id !== lane.id &&
-            shape.plane === lane.plane &&
-            shape.parent === lane.parent,
-    );
-}
-
-function parentLanesOf(layout: LayoutModel, lane: LaneShape): string[] {
-    const parents: string[] = [];
-    for (let parent = layout.shapes.get(lane.parent); parent?.kind === "lane";) {
-        if (parents.includes(parent.id)) break;
-        parents.push(parent.id);
-        parent = layout.shapes.get(parent.parent);
-    }
-    return parents;
-}
-
-/** The lanes inside the lane at any depth, in document order. */
-function descendantLanesOf(layout: LayoutModel, lane: LaneShape): LaneShape[] {
-    const lanes = [...layout.shapes.values()].filter(
-        (shape): shape is LaneShape => shape.kind === "lane" && shape.plane === lane.plane,
-    );
-    return lanes.filter((candidate) => parentLanesOf(layout, candidate).includes(lane.id));
 }
 
 /** Where a child lane lies when its parent moves from `from` to `to`: at the same offset, as much wider as the parent. */

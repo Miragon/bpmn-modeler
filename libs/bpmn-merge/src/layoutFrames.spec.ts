@@ -4,6 +4,7 @@ import { PLANE, flow, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import {
     carrierIdsOf,
+    descendantLanesOf,
     drawnPoolOf,
     frameIdsOf,
     framesAroundOf,
@@ -11,10 +12,13 @@ import {
     innermostFrameOf,
     innermostLaneOf,
     lanesOf,
+    lanesWithoutPoolOn,
+    parentLanesOf,
     sharedFrameOf,
+    siblingLanesOf,
 } from "./layoutFrames";
 import type { DiagramBounds } from "./layoutGeometry";
-import type { LayoutShape, NodeShape } from "./layoutModel";
+import type { LaneShape, LayoutShape, NodeShape } from "./layoutModel";
 
 describe("sharedFrameOf", () => {
     it("is the innermost expanded sub-process both ends lie in", () => {
@@ -278,5 +282,62 @@ describe("lanesOf", () => {
             "Lane_1",
             "Lane_Below",
         ]);
+    });
+});
+
+describe("the lane tree", () => {
+    const lane = (
+        id: string,
+        parent: string,
+        { plane = PLANE, inPool = true } = {},
+    ): LaneShape => ({
+        kind: "lane",
+        id,
+        ...rootPlane(plane),
+        bounds: { x: 30, y: 0, width: 870, height: 100 },
+        outline: "rectangle",
+        parent,
+        ...(inPool ? { pool: "Pool_1" } : {}),
+    });
+    const top = lane("Lane_Top", "Process_1");
+    const beside = lane("Lane_Beside", "Process_1");
+    const child = lane("Lane_Child", "Lane_Top");
+    const grandchild = lane("Lane_Grandchild", "Lane_Child");
+    const elsewhere = lane("Lane_Elsewhere", "Process_1", { plane: "Sub_1" });
+    const layout = layoutOf([pool("Pool_1"), top, child, beside, grandchild, elsewhere]);
+
+    it("names a lane's parent lanes from the innermost, not its process", () => {
+        expect(parentLanesOf(layout, grandchild)).toEqual(["Lane_Child", "Lane_Top"]);
+        expect(parentLanesOf(layout, top)).toEqual([]);
+    });
+
+    it("stops at a parent cycle", () => {
+        const looped = layoutOf([lane("Lane_A", "Lane_B"), lane("Lane_B", "Lane_A")]);
+
+        expect(parentLanesOf(looped, looped.shapes.get("Lane_A") as LaneShape)).toEqual([
+            "Lane_B",
+            "Lane_A",
+        ]);
+    });
+
+    it("lists the lanes inside a lane at any depth on its plane, in document order", () => {
+        expect(descendantLanesOf(layout, top)).toEqual([child, grandchild]);
+        expect(descendantLanesOf(layout, grandchild)).toEqual([]);
+    });
+
+    it("lists the other lanes with the lane's parent on its plane", () => {
+        expect(siblingLanesOf(layout, top)).toEqual([beside]);
+        expect(siblingLanesOf(layout, child)).toEqual([]);
+    });
+
+    it("lists the lanes drawn without a pool on a plane", () => {
+        const loose = lane("Lane_Loose", "Process_2", { inPool: false });
+        const looseElsewhere = lane("Lane_Loose_Sub", "Process_2", {
+            plane: "Sub_1",
+            inPool: false,
+        });
+        const mixed = layoutOf([pool("Pool_1"), top, loose, looseElsewhere]);
+
+        expect(lanesWithoutPoolOn(mixed, PLANE)).toEqual([loose]);
     });
 });

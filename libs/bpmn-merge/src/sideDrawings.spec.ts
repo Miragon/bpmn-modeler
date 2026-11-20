@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { PLANE, layoutOf, node } from "./__fixtures__/layoutShapes";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
-import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import type { LayoutShape, NodeShape } from "./layoutModel";
 import {
     drawingOfSameSize,
     drawsAt,
@@ -11,23 +12,6 @@ import {
     placedByBuildOutside,
 } from "./sideDrawings";
 
-const PLANE = rootPlane("Collaboration_1");
-
-function node(id: string, relations: Partial<NodeShape> = {}): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...PLANE,
-        bounds: { x: 0, y: 0, width: 100, height: 80 },
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        lanes: [],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
 /** The node as a layout draws its element on a collapsed sub-process's plane. */
 function onSubProcessPlane(shape: NodeShape): NodeShape {
     return { ...shape, ...subProcessPlane("Sub_1") };
@@ -36,10 +20,6 @@ function onSubProcessPlane(shape: NodeShape): NodeShape {
 /** The node as a layout draws its element on a process's root plane, in the slot the merge gives that plane. */
 function onProcessPlane(shape: NodeShape, process: string, slotOwner = process): NodeShape {
     return { ...shape, ...rootPlane(process, slotOwner) };
-}
-
-function layoutOf(shapes: readonly LayoutShape[]): LayoutModel {
-    return { shapes: new Map(shapes.map((shape) => [shape.id, shape])), edges: new Map() };
 }
 
 describe("placeOf and drawsAt", () => {
@@ -155,7 +135,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
         const lane: LayoutShape = {
             kind: "lane",
             id: "Lane_1",
-            ...PLANE,
+            ...rootPlane(PLANE),
             outline: "rectangle",
             parent: "Process_1",
             bounds: { x: 30, y: 0, width: 870, height: 200 },
@@ -226,7 +206,7 @@ describe("placedByBuildOutside", () => {
     const lane: LayoutShape = {
         kind: "lane",
         id: "Lane_1",
-        ...PLANE,
+        ...rootPlane(PLANE),
         outline: "rectangle",
         parent: "Process_1",
         bounds: { x: 30, y: 300, width: 870, height: 200 },

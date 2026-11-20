@@ -45,6 +45,44 @@ export function lanesOf(layout: LayoutModel, pool: LayoutShape): LaneShape[] {
     );
 }
 
+/** The lanes drawn without a pool on the plane, in document order. */
+export function lanesWithoutPoolOn(layout: LayoutModel, plane: string): LaneShape[] {
+    return [...layout.shapes.values()].filter(
+        (shape): shape is LaneShape =>
+            shape.kind === "lane" && shape.plane === plane && shape.pool === undefined,
+    );
+}
+
+/** The other lanes with the lane's parent on its plane. */
+export function siblingLanesOf(layout: LayoutModel, lane: LaneShape): LaneShape[] {
+    return [...layout.shapes.values()].filter(
+        (shape): shape is LaneShape =>
+            shape.kind === "lane" &&
+            shape.id !== lane.id &&
+            shape.plane === lane.plane &&
+            shape.parent === lane.parent,
+    );
+}
+
+/** The lanes the lane is nested in, from the innermost. */
+export function parentLanesOf(layout: LayoutModel, lane: LaneShape): string[] {
+    const parents: string[] = [];
+    for (let parent = layout.shapes.get(lane.parent); parent?.kind === "lane";) {
+        if (parents.includes(parent.id)) break;
+        parents.push(parent.id);
+        parent = layout.shapes.get(parent.parent);
+    }
+    return parents;
+}
+
+/** The lanes inside the lane at any depth, in document order. */
+export function descendantLanesOf(layout: LayoutModel, lane: LaneShape): LaneShape[] {
+    const lanes = [...layout.shapes.values()].filter(
+        (shape): shape is LaneShape => shape.kind === "lane" && shape.plane === lane.plane,
+    );
+    return lanes.filter((candidate) => parentLanesOf(layout, candidate).includes(lane.id));
+}
+
 /** What a lane shifts with: its parent lane or the process whose lane set holds it, and its pool; nothing for a pool. */
 export function carrierIdsOf(frame: LayoutShape): string[] {
     if (frame.kind !== "lane") return [];
