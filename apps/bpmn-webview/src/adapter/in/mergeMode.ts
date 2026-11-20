@@ -17,10 +17,12 @@ import { requestInMenu, requestOnPad } from "../../domain/mergeActedDecision";
 import { openShapelessConflicts } from "../../domain/mergeMenuRows";
 import { type MergePadDecision, mergePadDecisions } from "../../domain/mergePadDecisions";
 import {
-    centresStep,
     landOnStep,
     type MergeLandingPlan,
     type MergeStepLanding,
+    stepClicked,
+    stepNamed,
+    stepTakenBack,
 } from "../../domain/mergeStepLanding";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
 import { MERGE_MARK_TEXTS, pickBadgeText } from "../../domain/mergeTexts";
@@ -147,7 +149,7 @@ export class MergeMode {
                 onNext: () => this.step(1),
                 onShowAll: () => this.showAll(),
                 onStepList: (list) => this.switchStepList(list),
-                onShapeless: (id) => this.goTo(id, "stepped"),
+                onShapeless: (id) => this.goToNamed(id, "stepped"),
                 onDecide: (id, decision) => this.outcomes.send(requestInMenu(id, decision)),
                 onChoose: (action) => {
                     this.outcomes.choose(action);
@@ -185,10 +187,8 @@ export class MergeMode {
                 if (query.index === SHOW_ALL_CURSOR) {
                     this.backToWholeDiagram();
                 } else {
-                    const id = this.states?.states.allSteps[query.index]?.id;
-                    if (id !== undefined) {
-                        this.goTo(id, "followed");
-                    }
+                    const step = this.states?.states.allSteps[query.index];
+                    if (step !== undefined) this.goTo(step, "followed");
                 }
                 break;
             case "RunMergePaneCommandQuery":
@@ -218,10 +218,9 @@ export class MergeMode {
         this.paintMarks();
         this.pickPad?.refresh();
         const answer = this.outcomes.receive(query.states, query.offers);
-        const kept = query.states.stepping.cursor;
-        // A pane that reloaded has no step of its own; the host kept the tab's.
-        if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
-            this.goTo(kept, "reloaded");
+        const takenBack = stepTakenBack(query.states, this.cursorId);
+        if (takenBack !== undefined) {
+            this.goTo(takenBack, "reloaded");
         } else {
             this.updateBar();
         }
@@ -245,15 +244,8 @@ export class MergeMode {
     /** A user's click on an element of the merge the user can pick makes it the step. */
     private onUserSelected(id: string | undefined): void {
         this.outcomes.follow(id);
-        const pickable = this.states?.states.pickable.some((entry) => entry.id === id);
-        if (
-            id !== undefined &&
-            id !== this.cursorId &&
-            pickable &&
-            this.allStepIds().includes(id)
-        ) {
-            this.goTo(id, "clicked");
-        }
+        const clicked = this.states && stepClicked(this.states.states, id, this.cursorId);
+        if (clicked) this.goTo(clicked, "clicked");
     }
 
     /**
@@ -262,8 +254,9 @@ export class MergeMode {
      * open.
      */
     private select(id: string, landing: "stepped" | "steppedFromCard" = "stepped"): void {
-        if (this.allStepIds().includes(id)) {
-            this.goTo(id, landing);
+        const step = this.stepNamed(id);
+        if (step) {
+            this.goTo(step, landing);
         } else {
             this.pane.viewer.focusElement(id);
         }
@@ -288,8 +281,15 @@ export class MergeMode {
     }
 
     private step(direction: 1 | -1): void {
-        const id = nextMergeStep(this.stepIds(), this.allStepIds(), this.cursorId, direction);
-        if (id !== undefined) this.goTo(id, "stepped");
+        this.goToNamed(
+            nextMergeStep(this.stepIds(), this.allStepIds(), this.cursorId, direction),
+            "stepped",
+        );
+    }
+
+    private goToNamed(id: string | undefined, landing: MergeStepLanding): void {
+        const step = this.stepNamed(id);
+        if (step) this.goTo(step, landing);
     }
 
     /**
@@ -299,14 +299,10 @@ export class MergeMode {
      * element's plane is entered first, since a selection holds only on the
      * plane shown. A user's step takes the partner pane along.
      */
-    private goTo(id: string, landing: MergeStepLanding): void {
+    private goTo(step: MergePaneStep, landing: MergeStepLanding): void {
+        const { id } = step;
         this.cursorId = id;
-        const step = this.stepOf(id);
-        const landed = landOnStep(
-            step,
-            landing,
-            centresStep(step) && this.pane.viewer.focusElement(id),
-        );
+        const landed = landOnStep(step, landing, () => this.pane.viewer.focusElement(id));
         this.showOnCanvas(landed.canvas);
         this.selectLanded(id, landed.selection);
         this.moveCard(id, landed.card);
@@ -379,8 +375,8 @@ export class MergeMode {
         }
     }
 
-    private stepOf(id: string): MergePaneStep | undefined {
-        return this.states?.states.allSteps.find((candidate) => candidate.id === id);
+    private stepNamed(id: string | undefined): MergePaneStep | undefined {
+        return this.states && stepNamed(this.states.states, id);
     }
 
     private switchStepList(list: MergeStepList): void {

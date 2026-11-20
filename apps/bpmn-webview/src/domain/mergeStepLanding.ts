@@ -1,4 +1,4 @@
-import type { MergePaneStep } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneStates, MergePaneStep } from "@miragon/bpmn-modeler-shared";
 
 import { type DiffStepSelection, diffStepSelection } from "./diffStepSelection";
 import { decidesInMenu } from "./mergePadDecisions";
@@ -24,7 +24,7 @@ export type MergeLandingStep = Pick<
     "shapeless" | "onThisPane" | "onOtherPane" | "plane"
 >;
 
-/** Everything landing on a step does on the pane and tells the host, once the pane tried to centre it. */
+/** Everything landing on a step does on the pane and tells the host. */
 export interface MergeLandingPlan {
     /**
      * A step the pane does not centre leaves it in place, since a neighbour
@@ -95,32 +95,48 @@ const TRAITS: Readonly<Record<MergeStepLanding, LandingTraits>> = {
     },
 };
 
-/** Whether the pane tries to centre the step's element: only one its own canvas draws. */
-export function centresStep(step: MergeLandingStep | undefined): boolean {
-    return step !== undefined && step.onThisPane && !step.shapeless;
+/** The step `id` names among all steps, or none for an element that is no step. */
+export function stepNamed(
+    states: Pick<MergePaneStates, "allSteps">,
+    id: string | undefined,
+): MergePaneStep | undefined {
+    return id === undefined ? undefined : states.allSteps.find((step) => step.id === id);
 }
 
-function onlyThisSideHas(step: MergeLandingStep | undefined): boolean {
-    return step !== undefined && step.onThisPane && !step.onOtherPane;
+/** The step a click on the canvas lands on: an element the user can pick, if it is a step the cursor is not on yet. */
+export function stepClicked(
+    states: Pick<MergePaneStates, "allSteps" | "pickable">,
+    clicked: string | undefined,
+    cursorId: string | undefined,
+): MergePaneStep | undefined {
+    if (clicked === cursorId || !states.pickable.some(({ id }) => id === clicked)) return undefined;
+    return stepNamed(states, clicked);
 }
 
-function hasShape(step: MergeLandingStep | undefined): step is MergeLandingStep {
-    return step !== undefined && !step.shapeless;
+/** The step the host kept for the tab, which a pane without a step of its own, as after a reload, takes back. */
+export function stepTakenBack(
+    states: Pick<MergePaneStates, "allSteps" | "stepping">,
+    cursorId: string | undefined,
+): MergePaneStep | undefined {
+    return cursorId === undefined ? stepNamed(states, states.stepping.cursor) : undefined;
 }
 
-function canvasOf(
-    step: MergeLandingStep | undefined,
-    centred: boolean,
-): MergeLandingPlan["canvas"] {
-    if (centred) return { kind: "centred", plane: step?.plane };
-    return hasShape(step) ? { kind: "followsPlane", plane: step.plane } : { kind: "staysInPlace" };
+/** Only an element its own canvas draws can be centred. */
+function centresStep(step: MergeLandingStep): boolean {
+    return step.onThisPane && !step.shapeless;
 }
 
-function menuOf(
-    step: MergeLandingStep | undefined,
-    traits: LandingTraits,
-): MergeLandingPlan["menu"] {
-    if (step === undefined || !decidesInMenu(step)) return "closeOpenedByStep";
+function onlyThisSideHas(step: MergeLandingStep): boolean {
+    return step.onThisPane && !step.onOtherPane;
+}
+
+function canvasOf(step: MergeLandingStep, centred: boolean): MergeLandingPlan["canvas"] {
+    if (centred) return { kind: "centred", plane: step.plane };
+    return step.shapeless ? { kind: "staysInPlace" } : { kind: "followsPlane", plane: step.plane };
+}
+
+function menuOf(step: MergeLandingStep, traits: LandingTraits): MergeLandingPlan["menu"] {
+    if (!decidesInMenu(step)) return "closeOpenedByStep";
     return traits.opensMenu ? "openAtRow" : "leave";
 }
 
@@ -130,18 +146,19 @@ function cardOf(traits: LandingTraits, centred: boolean): MergeLandingPlan["card
 }
 
 /**
- * Lands on a step, `centred` saying whether the canvas centred the element
- * {@link centresStep} asked it to. A step selects what the pane centred, as
- * {@link diffStepSelection} decides; a click's own selection stands. A
- * shape-less step opens the menu at its row, and a step onto anything else
- * closes the menu a step opened.
+ * Lands on a step, calling `tryCentre` only for a step its own canvas draws;
+ * it answers whether the canvas found the element and centred it. A step
+ * selects what the pane centred, as {@link diffStepSelection} decides; a
+ * click's own selection stands. A shape-less step opens the menu at its
+ * row, and a step onto anything else closes the menu a step opened.
  */
 export function landOnStep(
-    step: MergeLandingStep | undefined,
+    step: MergeLandingStep,
     landing: MergeStepLanding,
-    centred: boolean,
+    tryCentre: () => boolean,
 ): MergeLandingPlan {
     const traits = TRAITS[landing];
+    const centred = centresStep(step) && tryCentre();
     return {
         canvas: canvasOf(step, centred),
         selection: traits.selectsStep
@@ -155,8 +172,8 @@ export function landOnStep(
         menu: menuOf(step, traits),
         posts: {
             cursor: traits.ownStep,
-            selection: traits.ownStep && traits.selectsStep && hasShape(step),
-            viewport: traits.sharesViewport && onlyThisSideHas(step) && hasShape(step),
+            selection: traits.ownStep && traits.selectsStep && !step.shapeless,
+            viewport: traits.sharesViewport && onlyThisSideHas(step) && !step.shapeless,
         },
     };
 }
