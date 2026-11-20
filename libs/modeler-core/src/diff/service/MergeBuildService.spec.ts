@@ -318,6 +318,7 @@ describe("MergeBuildService", () => {
             kind: "restoredWithoutRemovedWith",
             id: "Task_Pack",
             connections: ["Flow_2", "Flow_3"],
+            named: ["Task_Pack", "Flow_2", "Flow_3"],
         });
         expect(lastStatesOf(mergeView.incoming).states.build.notes).toStrictEqual(notesWhenOpened);
         expect(mergeView.notifier.infos).toStrictEqual([

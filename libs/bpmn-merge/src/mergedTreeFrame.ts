@@ -4,7 +4,7 @@ import {
     ownAttributeEntries,
 } from "@miragon/bpmn-modeler-diff";
 
-import type { BuildNote } from "./buildNotes";
+import type { BuildNoteContent } from "./buildNotes";
 import type { MergeModdle } from "./engineModdle";
 
 /** What a file holds outside its elements: the definitions' attributes, extension elements and imports. */
@@ -18,7 +18,7 @@ export interface DocumentFrame {
 export interface FrameMerge {
     /** The attributes the result takes from incoming; undefined removes one. */
     readonly takenFromIncoming: Readonly<Record<string, string | undefined>>;
-    readonly notes: readonly BuildNote[];
+    readonly notes: readonly BuildNoteContent[];
 }
 
 const FRAME_CONTENTS = ["extensionElements", "imports"] as const;
@@ -36,7 +36,7 @@ export function mergeFrames(frames: {
 }): FrameMerge {
     const { base, current, incoming } = frames;
     const takenFromIncoming: Record<string, string | undefined> = {};
-    const notes: BuildNote[] = [];
+    const notes: BuildNoteContent[] = [];
     const names = new Set([
         ...Object.keys(current.attributes),
         ...Object.keys(incoming.attributes),
