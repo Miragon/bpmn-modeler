@@ -1,4 +1,7 @@
-import { type DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
+
+import { type CollaborationProcess, collaborationProcessesOf } from "./collaborationPools";
+import { DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
 import type { MergeSide } from "./mergeResult";
 
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */
@@ -33,20 +36,38 @@ export class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
     private readonly handedOut = new Map<string, PlaneSlot>();
 
-    constructor(private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>) {
-        for (const [collaboration, process] of [
-            ...indexes.current.collaborationProcesses,
-            ...indexes.incoming.collaborationProcesses,
-        ]) {
+    private constructor(
+        private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>,
+        collaborationProcesses: readonly CollaborationProcess[],
+    ) {
+        for (const [collaboration, process] of collaborationProcesses) {
             const collaborationRoot = this.root(collaboration);
             const processRoot = this.root(process);
             if (collaborationRoot !== processRoot) this.rootOf.set(processRoot, collaborationRoot);
         }
     }
 
+    /** The slots of a merge of the two sides' documents, read before the build changes them. */
+    static ofSides(definitions: Readonly<Record<MergeSide, ModdleElement>>): PlaneSlots {
+        return new PlaneSlots(
+            {
+                current: DiagramIndex.of(definitions.current),
+                incoming: DiagramIndex.of(definitions.incoming),
+            },
+            [
+                ...collaborationProcessesOf(definitions.current),
+                ...collaborationProcessesOf(definitions.incoming),
+            ],
+        );
+    }
+
     /** One document's slots, as if it were merged with itself. */
-    static ofDocument(index: DiagramIndex): PlaneSlots {
-        return new PlaneSlots({ current: index, incoming: index });
+    static ofDocument(definitions: ModdleElement): PlaneSlots {
+        const index = DiagramIndex.of(definitions);
+        return new PlaneSlots(
+            { current: index, incoming: index },
+            collaborationProcessesOf(definitions),
+        );
     }
 
     slotOf(planeOwner: string): PlaneSlot {

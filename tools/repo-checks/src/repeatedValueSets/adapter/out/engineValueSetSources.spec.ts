@@ -23,6 +23,7 @@ beforeEach(() => {
             '    return type === "none" || type === "basic";',
             "}",
         ].join("\n"),
+        "b/service/route.ts": "export const AUTH_PATH = /^\\/auth\\/(none|basic)$/;",
         "b/protocol/messages.ts": 'export type AuthPayload = "none" | "basic" | "oauth2";',
         "b/protocol/messages.spec.ts": [
             'import type { AuthType } from "@scope/auth";',
@@ -54,9 +55,20 @@ describe("the engine value set sources", () => {
     it("read the sets of the tracked script files and the type equality pins between them", () => {
         expect(new EngineValueSetSources().read(repository.root)).toEqual({
             occurrences: [
-                { path: "a/domain/auth.ts", line: 2, values: ["none", "basic", "oauth2"] },
-                { path: "b/protocol/messages.ts", line: 1, values: ["none", "basic", "oauth2"] },
-                { path: "b/service/check.mjs", line: 2, values: ["none", "basic"] },
+                {
+                    path: "a/domain/auth.ts",
+                    line: 2,
+                    values: ["none", "basic", "oauth2"],
+                    inPattern: false,
+                },
+                {
+                    path: "b/protocol/messages.ts",
+                    line: 1,
+                    values: ["none", "basic", "oauth2"],
+                    inPattern: false,
+                },
+                { path: "b/service/check.mjs", line: 2, values: ["none", "basic"], inPattern: false },
+                { path: "b/service/route.ts", line: 1, values: ["none", "basic"], inPattern: true },
             ],
             pins: [{ path: "b/protocol/messages.ts", pinnedPath: "a/domain/auth.ts" }],
         });

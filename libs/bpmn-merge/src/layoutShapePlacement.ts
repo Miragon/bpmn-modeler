@@ -10,7 +10,8 @@ import {
     translated,
 } from "./layoutGeometry";
 import { type ForeignFlows, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
-import { type LayoutShape, drawnPartsOf, framesAroundOf, framesOf } from "./layoutModel";
+import { framesAroundOf, framesOf } from "./layoutFrames";
+import { type LayoutShape, drawnPartsOf } from "./layoutModel";
 import { type ShapeGroup, groupBoundsIn, groupShapesBoundsIn } from "./layoutShapeGroups";
 
 /** How far, in pixels, a moved shape keeps from other shapes; nearer counts as cramped. */

@@ -1,7 +1,7 @@
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { DiagramIndex } from "./diagramIndex";
 import { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const plane = (owner: string) => `
@@ -9,12 +9,18 @@ const plane = (owner: string) => `
     <bpmndi:BPMNPlane id="Plane_${owner}" bpmnElement="${owner}" />
   </bpmndi:BPMNDiagram>`;
 
-async function indexOf(semantic: string, diagrams: readonly string[]): Promise<DiagramIndex> {
+async function documentOf(semantic: string, diagrams: readonly string[]): Promise<ModdleElement> {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${semantic}${diagrams.join("")}
 </bpmn:definitions>`;
-    return DiagramIndex.of((await parseWithoutWarnings(xml)).rootElement);
+    return (await parseWithoutWarnings(xml)).rootElement;
 }
+
+function slotsOf(current: ModdleElement, incoming: ModdleElement = current): PlaneSlots {
+    return PlaneSlots.ofSides({ current, incoming });
+}
+
+const documentSlotsOf = (definitions: ModdleElement) => PlaneSlots.ofDocument(definitions);
 
 const PROCESSES = `
   <bpmn:process id="Process_A"><bpmn:subProcess id="Sub_A" /></bpmn:process>
@@ -29,16 +35,16 @@ const COLLABORATION = `
 
 describe("PlaneSlots", () => {
     it("gives the root planes of two unrelated processes two slots", async () => {
-        const index = await indexOf(PROCESSES, [plane("Process_A"), plane("Process_B")]);
-        const slots = new PlaneSlots({ current: index, incoming: index });
+        const version = await documentOf(PROCESSES, [plane("Process_A"), plane("Process_B")]);
+        const slots = slotsOf(version);
 
         expect(slots.slotOf("Process_A")).not.toBe(slots.slotOf("Process_B"));
     });
 
     it("joins every process plane of one side that the other side's collaboration wraps", async () => {
-        const current = await indexOf(PROCESSES, [plane("Process_A"), plane("Process_B")]);
-        const incoming = await indexOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
-        const slots = new PlaneSlots({ current, incoming });
+        const current = await documentOf(PROCESSES, [plane("Process_A"), plane("Process_B")]);
+        const incoming = await documentOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
+        const slots = slotsOf(current, incoming);
 
         expect(slots.slotOf("Process_A")).toBe(slots.slotOf("Collab_1"));
         expect(slots.slotOf("Process_B")).toBe(slots.slotOf("Collab_1"));
@@ -47,28 +53,28 @@ describe("PlaneSlots", () => {
     });
 
     it("gives a sub-process's plane a slot of its own that is no root slot", async () => {
-        const index = await indexOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
-        const slots = new PlaneSlots({ current: index, incoming: index });
+        const version = await documentOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
+        const slots = slotsOf(version);
 
         expect(slots.slotOf("Sub_A")).not.toBe(slots.slotOf("Process_A"));
         expect(slots.slotOf("Sub_A").isRoot).toBe(false);
     });
 
     it("reads one document's slots as the document merged with itself", async () => {
-        const index = await indexOf(`${COLLABORATION}${PROCESSES}`, [
+        const version = await documentOf(`${COLLABORATION}${PROCESSES}`, [
             plane("Collab_1"),
             plane("Process_C"),
         ]);
-        const slots = PlaneSlots.ofDocument(index);
+        const slots = documentSlotsOf(version);
 
         expect(slots.slotOf("Process_A")).toBe(slots.slotOf("Collab_1"));
         expect(slots.slotOf("Process_C")).not.toBe(slots.slotOf("Collab_1"));
     });
 
     it("names a joined root slot after the collaboration that wraps its processes", async () => {
-        const current = await indexOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
-        const incoming = await indexOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
-        const slots = new PlaneSlots({ current, incoming });
+        const current = await documentOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
+        const incoming = await documentOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
+        const slots = slotsOf(current, incoming);
 
         expect(slots.slotOf("Process_A").equals(new PlaneSlot("root", "Collab_1"))).toBe(true);
         expect(slots.slotOf("Sub_A").equals(new PlaneSlot("subProcess", "Sub_A"))).toBe(true);
@@ -80,17 +86,17 @@ describe("PlaneSlots", () => {
         ["a process plane the collaboration does not wrap", "Process_C", false],
         ["a sub-process plane inside a wrapped process", "Sub_A", false],
     ])("tells whether the joined root slot holds %s (%s)", async (_case, planeOwner, holds) => {
-        const current = await indexOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
-        const incoming = await indexOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
-        const slots = new PlaneSlots({ current, incoming });
+        const current = await documentOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
+        const incoming = await documentOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
+        const slots = slotsOf(current, incoming);
 
         expect(slots.holds(slots.slotOf("Process_A"), planeOwner)).toBe(holds);
     });
 
     it("hands out one instance per place only within itself; slots of two are compared by value", async () => {
-        const index = await indexOf(PROCESSES, [plane("Process_A")]);
-        const first = PlaneSlots.ofDocument(index);
-        const second = PlaneSlots.ofDocument(index);
+        const version = await documentOf(PROCESSES, [plane("Process_A")]);
+        const first = documentSlotsOf(version);
+        const second = documentSlotsOf(version);
 
         expect(first.slotOf("Process_A")).not.toBe(second.slotOf("Process_A"));
         expect(first.slotOf("Process_A").equals(second.slotOf("Process_A"))).toBe(true);

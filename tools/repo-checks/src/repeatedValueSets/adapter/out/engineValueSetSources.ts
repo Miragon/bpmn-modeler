@@ -19,7 +19,7 @@ export class EngineValueSetSources implements ValueSetSources {
             occurrences: scripts
                 .filter(({ path }) => isValueSetSource(path))
                 .flatMap(({ path, text }) =>
-                    readValueSets(path, text).map(({ line, values }) => ({ path, line, values })),
+                    readValueSets(path, text).map((set) => ({ path, ...set })),
                 ),
             pins: findTypeEqualityPins(scripts, { aliases }).flatMap(
                 ({ actualFiles, expectedFiles }) =>
