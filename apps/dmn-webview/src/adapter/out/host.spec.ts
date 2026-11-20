@@ -17,7 +17,11 @@ import {
 import {
     CursorChangedCommand,
     DiffReadyCommand,
+    DmnDiffScrollChangedCommand,
+    DmnDiffViewChangedCommand,
     type DmnDiffPaneCommand,
+    SwapCompareSidesCommand,
+    ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { getDiffPaneHostApi, getHostApi, isDiffPane } from "./host";
@@ -232,6 +236,21 @@ describe("diff pane host", () => {
 
         expect(error).toHaveBeenCalledWith("import failed");
         expect(debug).toHaveBeenCalledWith("[dev] CursorChangedCommand");
+        expect(replies).toEqual([]);
+    });
+
+    it.each<[string, DmnDiffPaneCommand]>([
+        ["a viewport change", new ViewportChangedCommand({ x: 0, y: 0, width: 800, height: 600 })],
+        ["a cursor step", new CursorChangedCommand(2)],
+        ["a side swap", new SwapCompareSidesCommand()],
+        ["an opened decision view", new DmnDiffViewChangedCommand("Decision_Shipping")],
+        ["a table scroll", new DmnDiffScrollChangedCommand({ rule: "Rule_1", offset: 4, left: 0 })],
+    ])("takes %s without throwing or replying, having no partner pane", (_, command) => {
+        vi.stubEnv("NODE_ENV", "development");
+        vi.spyOn(console, "debug").mockImplementation(() => undefined);
+        const host = getDiffPaneHostApi();
+
+        expect(() => host.postMessage(command)).not.toThrow();
         expect(replies).toEqual([]);
     });
 });
