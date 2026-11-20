@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
 import { baseModel, cloneModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import {
@@ -117,13 +119,17 @@ function movedOff(ids: [string, string], shape: string): BuildNoteContent {
  * No free place lies near the inserted tasks, which are parallel branches into Ship: one is
  * stacked under the other, its lane grows and the lane below shifts down with what it holds.
  */
-function stacked(ids: [string, string], shape: string, shifted: string[] = []): BuildNoteContent {
+function stacked(
+    ids: [string, string],
+    shape: string,
+    shifted: MergeNonEmptyIds = ["Task_R", "End_Rejected"],
+): BuildNoteContent {
     return {
         kind: "shapesOverlap",
         ids,
-        repair: "madeRoom",
+        repair: "madeRoomByGrowingAndShifting",
         moved: shape,
-        shifted: [...shifted, "Task_R", "End_Rejected"],
+        shifted,
         grown: ["Participant_Order", "Lane_Sales"],
     };
 }
@@ -255,7 +261,12 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "incoming",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_X", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_X", [
+                            "Task_C",
+                            "End_Done",
+                            "Task_R",
+                            "End_Rejected",
+                        ]),
                         moved("flowThroughShape", "Flow_X", "Task_Y"),
                         moved("flowEndOffShape", "Flow_X", "Task_X", "Task_C"),
                     ],
@@ -263,7 +274,12 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "current",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_Y", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_Y", [
+                            "Task_C",
+                            "End_Done",
+                            "Task_R",
+                            "End_Rejected",
+                        ]),
                         moved("flowThroughShape", "Flow_Y", "Task_X"),
                         moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
                     ],
@@ -356,7 +372,6 @@ describe("buildMerged's layout notes", () => {
                     repair: "movedByBuild",
                     moved: "Lane_Back",
                     grown: ["Participant_Order"],
-                    shifted: [],
                 },
             ],
         },
@@ -431,7 +446,7 @@ describe("buildMerged's layout notes", () => {
             const { xml, notes } = await builtOf(versions, conflictsTo);
 
             const room = notes.find((note) => note.kind === "shapesOverlap");
-            expect(room).toMatchObject({ repair: "madeRoom" });
+            expect(room).toMatchObject({ repair: "madeRoomByGrowingAndShifting" });
             const movedId = room?.kind === "shapesOverlap" && "moved" in room ? room.moved : "";
             const otherId = movedId === "Task_X" ? "Task_Y" : "Task_X";
             const layout = await layoutOfXml(xml);
@@ -605,7 +620,6 @@ describe("buildMerged's layout notes", () => {
                     repair: "movedByBuild",
                     moved: "Lane_New",
                     grown: ["Participant_Order"],
-                    shifted: [],
                     named: ["Lane_New", "Participant_Order"],
                 });
                 for (const spot of await spotsLeftIn(xml, versions)) {

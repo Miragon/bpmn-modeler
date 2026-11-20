@@ -274,9 +274,10 @@ describe("shape move time in a pool without a free place", () => {
                 planShapeMoves(result, spots, [side, side], planFlowRepairs),
             );
 
-            expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual(
-                Array.from({ length: 5 }, () => "madeRoom"),
-            );
+            expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual([
+                "madeRoomByGrowingAndShifting",
+                ...Array.from({ length: 4 }, () => "madeRoomByShifting"),
+            ]);
             expect(perParse).toBeLessThan(MAX_ROOM_PER_PARSE);
         },
     );
@@ -442,7 +443,6 @@ describe("lane stacking time", () => {
                     repair: "movedByBuild",
                     moved: "Lane_C",
                     grown: ["Pool_A"],
-                    shifted: [],
                 },
             ]);
             expect(

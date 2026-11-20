@@ -56,10 +56,14 @@ routes it like the rest of the library, to every line that ships it (`docs/adr/m
 ### The `/mergeBuildNotes` entry point
 
 `@miragon/bpmn-modeler-types/mergeBuildNotes` is `src/mergeBuildNotes.ts` alone: the notes a merge
-build returns, which `libs/bpmn-merge` builds and the merge view's protocol carries as they are.
-`MergeBuildNoteContent` is what a note says; `MergeBuildNote` adds the elements it names (`named`),
-which `elementsNamedBy` gives: the merge sets `named` with it, and the webview's text spec checks that
-a note's text names no other element.
+build returns, which `libs/bpmn-merge` builds and the merge view's protocol carries as they are. It
+holds types only. `MergeBuildNoteContent` is what a note says; `MergeBuildNote` adds the elements it
+names (`named`). A repair named for shifting or growing carries its lists as `MergeNonEmptyIds`.
+
+`@miragon/bpmn-modeler-types/mergeBuildNoteReaders` is `src/mergeBuildNoteReaders.ts` alone: the
+functions over those notes. `elementsNamedBy` gives `named`: the merge sets it with it, and the
+webview's text spec checks that a note's text names no other element. `isNonEmpty` is the one check a
+producer narrows a list with before it picks a repair named for shifting or growing.
 
 ### The `/conflictMarkers` entry point
 

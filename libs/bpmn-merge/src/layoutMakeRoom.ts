@@ -33,10 +33,6 @@ export function freeRoom(draft: DrawingDraft): RoomMade {
     return { draft, shifted: [], grown: [], growth: 0 };
 }
 
-export function onlyMoves({ shifted, grown }: RoomMade): boolean {
-    return shifted.length === 0 && grown.length === 0;
-}
-
 /** What making room reads beside the drawing: what moves with a node and how the flows join the nodes. */
 export interface RoomContext {
     readonly groups: ShapeGroups;

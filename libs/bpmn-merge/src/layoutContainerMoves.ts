@@ -1,3 +1,5 @@
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
@@ -129,10 +131,9 @@ class ContainerRepairer {
     /** The repair that takes the draft the containers grew on. */
     private grownOf(grown: FrameGrown | undefined): ContainerRepair | undefined {
         if (grown === undefined) return undefined;
-        const repair: ContainerRepair =
-            grown.shifted.length === 0
-                ? { kind: "grewContainer" }
-                : { kind: "grewContainerAndShifted", shifted: grown.shifted };
+        const repair: ContainerRepair = isNonEmpty(grown.shifted)
+            ? { kind: "grewContainerAndShifted", shifted: grown.shifted }
+            : { kind: "grewContainer" };
         this.record(repair, grown.draft.shapesChangedFrom(this.draft));
         this.movedShapes.push(...grown.moved);
         this.draft = grown.draft;

@@ -264,7 +264,7 @@ describe("layoutSpotNotes", () => {
             {
                 spot: overlapOf("Task_C", "Task_D"),
                 repair: {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     moved: "Task_C",
                     shifted: ["Task_G", "Task_H"],
                     grown: ["Lane_A"],
@@ -283,7 +283,7 @@ describe("layoutSpotNotes", () => {
             {
                 kind: "shapesOverlap",
                 ids: ["Task_C", "Task_D"],
-                repair: "madeRoom",
+                repair: "madeRoomByGrowingAndShifting",
                 moved: "Task_C",
                 shifted: ["Task_G", "Task_H"],
                 grown: ["Lane_A"],
@@ -468,6 +468,32 @@ describe("layoutSpotNotes", () => {
         ]);
     });
 
+    it("says the build moved a lane below its pool's lanes and grew the pool, with no shifted shapes when none shifted", () => {
+        const notes = layoutSpotNotes({
+            laneStackings: [
+                {
+                    lane: "Lane_C",
+                    grown: ["Pool_1", "Lane_P"],
+                    overlapped: ["Lane_A"],
+                    shifted: [],
+                },
+            ],
+            spots: [],
+            spotsAfterMoves: [],
+            repairs: [],
+        });
+
+        expect(notes).toEqual([
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_C", "Lane_A"],
+                repair: "movedByBuild",
+                moved: "Lane_C",
+                grown: ["Pool_1", "Lane_P"],
+            },
+        ]);
+    });
+
     it("says the build moved a lane below its pool's lanes, grew the pool and shifted what lay below, before the spots it left", () => {
         const notes = layoutSpotNotes({
             laneStackings: [
@@ -487,7 +513,7 @@ describe("layoutSpotNotes", () => {
             {
                 kind: "lanesOverlap",
                 ids: ["Lane_C", "Lane_A", "Lane_B"],
-                repair: "movedByBuild",
+                repair: "movedByBuildAndShifted",
                 moved: "Lane_C",
                 grown: ["Pool_1"],
                 shifted: ["Pool_2"],

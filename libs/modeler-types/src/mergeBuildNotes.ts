@@ -3,6 +3,9 @@ import type { MergeSide } from "./mergeVocabulary";
 /** A flow the merge broke: one that misses a shape at its ends, or one that runs through a shape. */
 export type MergeBrokenFlowKind = "flowEndOffShape" | "flowThroughShape";
 
+/** Ids a repair promises at least one of, such as the shapes it shifted when it is named for shifting. */
+export type MergeNonEmptyIds = readonly [string, ...string[]];
+
 /** What the build did about a broken flow: re-routed it onto its shapes, or left it as drawn. */
 export type MergeFlowRepair = "movedByBuild" | "notRepaired";
 
@@ -13,20 +16,50 @@ export type MergeContainerRepair =
     | {
           readonly repair: "grewContainerAndShifted";
           /** The outermost shapes shifted to make room for the grown container, in document order. */
-          readonly shifted: readonly string[];
+          readonly shifted: MergeNonEmptyIds;
       }
     | { readonly repair: "notRepaired" };
 
-/** Which of two shapes on top of each other the build moved, and what it shifted and grew to make room. */
+/**
+ * Which of two shapes on top of each other the build moved, and whether it shifted shapes, grew frames or did both to
+ * make room. `shifted` lists the outermost shapes shifted, `grown` the sub-processes, lanes and pools grown to hold
+ * the moved shape, each in document order.
+ */
 export type MergeOverlapRepair =
     | { readonly repair: "movedByBuild"; readonly moved: string }
     | {
-          readonly repair: "madeRoom";
+          readonly repair: "madeRoomByShifting";
           readonly moved: string;
-          /** The outermost shapes shifted to make the room, in document order. */
-          readonly shifted: readonly string[];
-          /** The sub-processes, lanes and pools that grew to hold it, in document order. */
-          readonly grown: readonly string[];
+          readonly shifted: MergeNonEmptyIds;
+      }
+    | {
+          readonly repair: "madeRoomByGrowing";
+          readonly moved: string;
+          readonly grown: MergeNonEmptyIds;
+      }
+    | {
+          readonly repair: "madeRoomByGrowingAndShifting";
+          readonly moved: string;
+          readonly shifted: MergeNonEmptyIds;
+          readonly grown: MergeNonEmptyIds;
+      }
+    | { readonly repair: "notRepaired" };
+
+/**
+ * Whether the build moved a lane below the others, with the pool and parent lanes it grew to hold it, and whether it
+ * shifted shapes down.
+ */
+type MergeLaneRepair =
+    | {
+          readonly repair: "movedByBuild";
+          readonly moved: string;
+          readonly grown: MergeNonEmptyIds;
+      }
+    | {
+          readonly repair: "movedByBuildAndShifted";
+          readonly moved: string;
+          readonly grown: MergeNonEmptyIds;
+          readonly shifted: MergeNonEmptyIds;
       }
     | { readonly repair: "notRepaired" };
 
@@ -70,15 +103,7 @@ export type MergeBuildNoteContent =
            */
           readonly kind: "lanesOverlap";
           readonly ids: readonly string[];
-      } & (
-          | {
-                readonly repair: "movedByBuild";
-                readonly moved: string;
-                readonly grown: readonly string[];
-                readonly shifted: readonly string[];
-            }
-          | { readonly repair: "notRepaired" }
-      ))
+      } & MergeLaneRepair)
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
@@ -117,6 +142,9 @@ export type MergeBuildNoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
             : never
         : never;
 
+/** Shapes or lanes on top of each other. */
+export type MergeOverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
+
 /** The kinds of note that record what the build did about them. */
 export type MergeRepairedNoteKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
 
@@ -127,40 +155,3 @@ export type MergeNoteRepairOf<Note> = Note extends { readonly repair: infer Repa
 
 /** A build note with the elements it names, in the order its entry offers them. */
 export type MergeBuildNote = MergeBuildNoteContent & { readonly named: readonly string[] };
-
-/** The elements a note names, in the order its entry offers them. */
-export function elementsNamedBy(note: MergeBuildNoteContent): string[] {
-    switch (note.kind) {
-        case "flowEndOffShape":
-        case "flowThroughShape":
-            return [note.id, ...note.shapes];
-        case "shapeOutsideContainer":
-            return note.repair === "grewContainerAndShifted"
-                ? [note.id, ...note.shapes, ...note.shifted]
-                : [note.id, ...note.shapes];
-        case "shapesOverlap":
-            return note.repair === "madeRoom"
-                ? [...note.ids, ...note.shifted, ...note.grown]
-                : [...note.ids];
-        case "lanesOverlap":
-            return note.repair === "movedByBuild"
-                ? [...note.ids, ...note.grown, ...note.shifted]
-                : [...note.ids];
-        case "layoutChangedByBoth":
-            return [...note.ids];
-        case "boundaryEventOffHost":
-            return [note.id, note.host];
-        case "restoredWithoutRemovedWith":
-            return [note.id, ...(note.boundaryEvents ?? []), ...note.connections];
-        case "defaultFlowNotRestored":
-            return [
-                note.id,
-                note.flow,
-                ...(note.keptDefault === undefined ? [] : [note.keptDefault]),
-            ];
-        case "flowNotDrawn":
-            return [note.id, note.source, note.target].filter((id) => id !== undefined);
-        case "frameDiffers":
-            return [];
-    }
-}
