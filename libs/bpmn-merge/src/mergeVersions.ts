@@ -30,19 +30,24 @@ export function prefixSourcesOf(versions: MergeVersions): string[] {
 /**
  * Refuses, naming the version: sides for different engines, a version that
  * parses with any warning under the merge's engine descriptor, and a root
- * element or lane without an id.
+ * element or lane without an id. Answers each version's definitions as it checked them.
  */
-export async function requireMergeableVersions(versions: MergeVersions): Promise<void> {
+export async function requireMergeableVersions(
+    versions: MergeVersions,
+): Promise<Partial<Record<VersionName, ModdleElement>>> {
     requireOneEngine(versions);
     const engineName = executionEngineOf(versions.current) ?? executionEngineOf(versions.incoming);
     const engine = engineName === undefined ? undefined : await loadExecutionPackage(engineName);
     const { moddle } = await createDocumentModdle(prefixSourcesOf(versions), engine);
-    await Promise.all(
+    const checked = await Promise.all(
         VERSION_NAMES.map(async (name) => {
             const xml = versions[name];
-            if (xml !== undefined) await requireMergeableVersion(moddle, name, xml);
+            return xml === undefined
+                ? []
+                : [[name, await requireMergeableVersion(moddle, name, xml)] as const];
         }),
     );
+    return Object.fromEntries(checked.flat());
 }
 
 /** A side whose engine is not detected merges with either. */
@@ -62,7 +67,7 @@ async function requireMergeableVersion(
     moddle: BpmnModdle,
     name: VersionName,
     xml: string,
-): Promise<void> {
+): Promise<ModdleElement> {
     const definitions = await cleanlyParsed(moddle, name, xml);
     const withoutId = elementWithoutId(definitions);
     if (withoutId) {
@@ -72,6 +77,7 @@ async function requireMergeableVersion(
             elementType: withoutId.$type,
         });
     }
+    return definitions;
 }
 
 async function cleanlyParsed(

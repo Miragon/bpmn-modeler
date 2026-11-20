@@ -1,5 +1,6 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
+import { processesDrawnWithoutAPool } from "./collaborationPools";
 import { elementVersionOf } from "./elementVersion";
 import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
@@ -30,7 +31,7 @@ type SnapshotsOfElement = Partial<Record<VersionName, ElementSnapshot>>;
  * Rejects what `requireMergeableVersions` refuses.
  */
 export async function computeMerge(versions: MergeVersions): Promise<MergeResult> {
-    await requireMergeableVersions(versions);
+    const definitions = await requireMergeableVersions(versions);
     const prefixSources = prefixSourcesOf(versions);
     const [current, incoming, base] = await Promise.all([
         snapshotsOf("current", versions.current, prefixSources),
@@ -38,12 +39,24 @@ export async function computeMerge(versions: MergeVersions): Promise<MergeResult
         versions.base === undefined ? undefined : snapshotsOf("base", versions.base, prefixSources),
     ]);
     const hasBase = base !== undefined;
+    const drawnWithoutAPool = Object.fromEntries(
+        VERSION_NAMES.map((name) => {
+            const versionDefinitions = definitions[name];
+            return [
+                name,
+                versionDefinitions === undefined
+                    ? new Set<string>()
+                    : processesDrawnWithoutAPool(versionDefinitions),
+            ];
+        }),
+    ) as Record<VersionName, ReadonlySet<string>>;
     const elements = [...typesInMergeOrder(current, incoming, base)].map(([id, type]) =>
         mergeElementOf(
             id,
             type,
             { base: base?.get(id), current: current.get(id), incoming: incoming.get(id) },
             hasBase,
+            drawnWithoutAPool,
         ),
     );
     return { hasBase, versionKeys: versionKeysOf(versions), elements };
@@ -83,6 +96,7 @@ function mergeElementOf(
     type: string,
     snapshots: SnapshotsOfElement,
     hasBase: boolean,
+    drawnWithoutAPool: Readonly<Record<VersionName, ReadonlySet<string>>>,
 ): MergeElement {
     const classified = {
         base: classifiedVersionOf(snapshots.base),
@@ -92,7 +106,9 @@ function mergeElementOf(
     const versions: Partial<Record<VersionName, ElementVersion>> = {};
     for (const name of VERSION_NAMES) {
         const snapshot = snapshots[name];
-        if (snapshot) versions[name] = elementVersionOf(snapshot);
+        if (snapshot) {
+            versions[name] = elementVersionOf(snapshot, drawnWithoutAPool[name].has(id));
+        }
     }
     return {
         id,

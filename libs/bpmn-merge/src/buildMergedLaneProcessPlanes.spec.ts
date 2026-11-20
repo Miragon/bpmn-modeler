@@ -68,4 +68,23 @@ describe("buildMerged: a process with lanes that no pool names", () => {
 
         expect(xml).toBe(ON_ITS_OWN_DIAGRAM);
     });
+
+    it("takes incoming's move onto the collaboration's plane without keeping current's diagram empty", async () => {
+        const { xml } = await automaticMerge({
+            base: ON_ITS_OWN_DIAGRAM,
+            current: ON_ITS_OWN_DIAGRAM,
+            incoming: ON_THE_COLLABORATION_PLANE,
+        });
+
+        expect(xml).toBe(ON_THE_COLLABORATION_PLANE);
+    });
+
+    it("keeps current's drawing on the collaboration's plane when both sides drew it", async () => {
+        const { xml } = await automaticMerge({
+            current: ON_THE_COLLABORATION_PLANE,
+            incoming: ON_ITS_OWN_DIAGRAM,
+        });
+
+        expect(xml).toBe(ON_THE_COLLABORATION_PLANE);
+    });
 });
