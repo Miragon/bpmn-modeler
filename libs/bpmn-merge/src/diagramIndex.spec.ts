@@ -125,7 +125,7 @@ describe("placedDrawingsOf", () => {
     });
 });
 
-describe("contentsPlaneOf", () => {
+describe("subProcessContentsPlane", () => {
     it.each([
         ["its own plane under a collapsed shape", COLLAPSED, "Sub_1"],
         ["the plane its expanded shape lies on", EXPANDED, "Process_1"],
@@ -143,7 +143,7 @@ describe("contentsPlaneOf", () => {
     ])("puts a sub-process's contents on %s", async (_case, rootDrawings, planeOwner) => {
         const index = await indexOf(rootDrawings);
 
-        expect(index.contentsPlaneOf("Sub_1")).toBe(planeOwner);
+        expect(index.subProcessContentsPlane("Sub_1")).toBe(planeOwner);
     });
 });
 

@@ -77,7 +77,7 @@ export function requireOneDrawingPerDrawnElement(
     if (undrawn.length > 0) refuse("drawn elements have no shape or edge", undrawn);
 }
 
-/** Every drawing but an edge lies where `contentsPlaneOf` puts the contents of its sub-process. */
+/** Every drawing but an edge lies on the plane `DiagramIndex.subProcessContentsPlane` gives its sub-process. */
 export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex): void {
     const misplaced = diagramIndex.drawnElements().filter((id) =>
         diagramIndex.drawingsOf(id).some(({ element, planeOwner }) => {
@@ -86,7 +86,7 @@ export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex
             const expected =
                 subProcess === undefined || connectionEndsOf(drawn) !== undefined
                     ? undefined
-                    : diagramIndex.contentsPlaneOf(subProcess);
+                    : diagramIndex.subProcessContentsPlane(subProcess);
             return expected !== undefined && expected !== planeOwner;
         }),
     );

@@ -118,7 +118,7 @@ export class DiagramIndex {
     }
 
     /** The plane owner whose plane holds the sub-process's contents in this document. */
-    contentsPlaneOf(subProcess: string): string | undefined {
+    subProcessContentsPlane(subProcess: string): string | undefined {
         return contentsPlaneOf(
             this.planeOwners.has(subProcess) ? subProcess : undefined,
             this.placedShapeOf(subProcess),
