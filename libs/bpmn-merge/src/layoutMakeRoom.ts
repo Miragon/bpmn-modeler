@@ -9,8 +9,9 @@ import {
     isFrame,
     liesOnAnotherPool,
 } from "./layoutModel";
-import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP, leadAlong } from "./layoutRoomPush";
+import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
+import { leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
 import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";

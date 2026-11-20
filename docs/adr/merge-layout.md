@@ -49,9 +49,15 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the other side and may lie on the block or outside its pool. Each such lane that lies on a
   sibling or outside its parent lane or pool moves first, in the result's order, at its own
   height below its siblings, as wide as they are, its child lanes with it; the pool and its
-  parent lanes grow to hold it, and what lies below the band on the plane shifts down, the
-  flows to it stretching, as the modeler's space tool does, while another pool across the band
-  keeps its place and contents. Its members stay where they lie, so the container step brings
+  parent lanes grow to hold it, and what lies below the band on the plane shifts down, while
+  another pool across the band keeps its place and contents, as it starts above the line. The
+  band is opened by the one space tool that also makes room and grows a frame below
+  (`layoutSpaceTool.ts`, #2592), so a shape shifts by its center (a sub-process drawn open by
+  its near side, with its contents), a boundary event with its host, a pool with its lanes and
+  contents, and a flow stretches by its runs across the band, a run between its ends going
+  with the shifted end once it lies past the line. The tool checks nothing; each caller decides:
+  making room and growing a container drop a result that breaks the drawing, stacking does not.
+  Its members stay where they lie, so the container step brings
   them into the band, following the side that drew them in the lane. The step needs no guard
   of its own: it only opens a band, the spots it could make involve the members it leaves for
   the container step, which guards each move, and the notes are read after it, so any spot left
@@ -61,9 +67,10 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   neither side moved (about two more days, decided against on #2565); each lane from its own
   side, which overlapped 28 times on the harvest of 507 results; stacking only a lane the
   detector names in an overlap, which left a lane the other side added below its pool outside
-  the pool, unnamed. Cost: the pool grows taller than either side drew it; the band has its
-  own shift and stretch rules beside the push that makes room and grows a sub-process until one
-  space tool serves both (#2592);
+  the pool, unnamed; a band with its own rules (each shape by its top edge, a flow point by
+  point), which left a boundary event behind its host and bent a flow at an end that stays.
+  Cost: the pool grows taller than either side drew it; a shape hanging over the line shifts
+  with the band where its center lies past it;
   a boundary event in another lane than its host lay in both while they overlapped and is now
   noted outside its lane; lanes of a process no pool of the result draws are not stacked; on
   the harvest, a result with no lane overlap stays byte-equal to the build without this step
