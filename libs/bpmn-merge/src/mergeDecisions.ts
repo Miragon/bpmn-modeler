@@ -15,7 +15,13 @@ import {
 } from "./mergeDecisionsHandMerges";
 import { layoutSidesOf } from "./mergeDecisionsLayout";
 import { DecidedSides } from "./mergeDecisionsSides";
-import type { HandMergeOptions, PickOutcome, PickScope, RemovedWithLeftOut } from "./pickOutcome";
+import type {
+    HandMergeOptions,
+    PickOutcome,
+    PickScope,
+    RemovedWithLeftOut,
+    ScopedDecision,
+} from "./pickOutcome";
 import {
     isConflictState,
     type ConflictState,
@@ -34,6 +40,7 @@ export type {
     PickOutcome,
     PickScope,
     RemovedWithLeftOut,
+    ScopedDecision,
 } from "./pickOutcome";
 
 export type OpenConflict =
@@ -61,6 +68,14 @@ export interface MergeResolution {
     readonly appendedLanes: readonly string[];
 }
 
+/** What a merge's decisions hold besides the merge result, which a trial starts from. */
+interface DecidedState {
+    readonly handMerges: ReadonlyMap<string, HandMergedVersion>;
+    readonly effective: EffectiveElements;
+    readonly sides: DecidedSides;
+    readonly dangling: ReadonlyMap<string, DanglingConflict>;
+}
+
 /**
  * The decisions of one merge: automatic resolutions, the user's picks, the
  * versions merged by hand and what keeps the result free of dangling
@@ -73,7 +88,17 @@ export class MergeDecisions {
     private handMerges: ReadonlyMap<string, HandMergedVersion> = new Map();
     private effective: EffectiveElements;
 
-    private constructor(private readonly mergeResult: MergeResult) {
+    private constructor(
+        private readonly mergeResult: MergeResult,
+        decided?: DecidedState,
+    ) {
+        if (decided !== undefined) {
+            this.handMerges = decided.handMerges;
+            this.effective = decided.effective;
+            this.sides = decided.sides;
+            this.dangling = decided.dangling;
+            return;
+        }
         this.effective = effectiveElementsOf(mergeResult, this.handMerges);
         this.sides = DecidedSides.automatic(this.index.elementsById);
         this.dangling = this.findDangling();
@@ -119,6 +144,24 @@ export class MergeDecisions {
     /** Whether `side`'s version holds the element, so a pick of `side` keeps it rather than leaving it out. */
     holds(id: string, side: MergeSide): boolean {
         return this.requireElement(id).versions[side] !== undefined;
+    }
+
+    /** A pick or the undo of a pick, as far as its scope reaches. */
+    decide(decision: ScopedDecision): PickOutcome {
+        return decision.kind === "pick"
+            ? this.pickScoped(decision.id, decision.side, decision.scope, decision.options)
+            : this.unpickScoped(decision.id, decision.scope, decision.options);
+    }
+
+    /** Whether {@link decide} would apply `decision` now; it changes nothing. */
+    wouldApply(decision: ScopedDecision): boolean {
+        const { handMerges, effective, sides, dangling } = this;
+        return new MergeDecisions(this.mergeResult, {
+            handMerges,
+            effective,
+            sides,
+            dangling,
+        }).decide(decision).applied;
     }
 
     /** A pick as far as `scope` reaches. */

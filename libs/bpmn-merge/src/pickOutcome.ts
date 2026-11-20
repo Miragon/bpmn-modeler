@@ -1,3 +1,4 @@
+import type { MergeSide } from "./mergeResult";
 import type { UnmetRequirement } from "./unmetRequirement";
 
 /** What a pick of an element the other side removed leaves out of what the other side removed with it. */
@@ -8,6 +9,22 @@ export interface RemovedWithLeftOut {
 
 /** How far a pick reaches, and so what Undo takes back with it. */
 export type PickScope = "element" | "withContents" | "withRemoved";
+
+/** A pick of a side or the undo of a pick, as far as its scope reaches. */
+export type ScopedDecision =
+    | {
+          readonly kind: "pick";
+          readonly id: string;
+          readonly side: MergeSide;
+          readonly scope: PickScope;
+          readonly options?: HandMergeOptions;
+      }
+    | {
+          readonly kind: "unpick";
+          readonly id: string;
+          readonly scope: PickScope;
+          readonly options?: HandMergeOptions;
+      };
 
 export interface BlockedPick {
     /** The element the rule would need this pick to change. */

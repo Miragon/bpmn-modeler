@@ -5,8 +5,6 @@ import {
     isDecisionOutcome,
     isHandMergeOutcome,
     type MergeDecisionOutcome,
-    type MergeRefusal,
-    refusalFreedBy,
 } from "./mergeDecisionOutcome";
 import { type MergeElementPickStates, panePicks } from "./mergeElementPick";
 import type { MergeRememberedOutcome } from "./mergeOutcomeCard";
@@ -21,15 +19,13 @@ export type MergeOutcomeStates = Pick<
 /**
  * What a merge pane remembers of the decisions it sent, until it reloads:
  * the one awaiting the host's answer, the merges by hand it asked for whose
- * editors may still be open, the latest outcome of its own, the last
- * refusal an undo may free, and what the last states said of the outcome
- * and the picks ({@link decisionsSeen}).
+ * editors may still be open, the latest outcome of its own, and what the
+ * last states said of the outcome and the picks ({@link decisionsSeen}).
  */
 export interface MergeOutcomeMemory {
     readonly sent?: MergeActedDecision;
     readonly handMergesSent?: readonly MergeXmlRequest[];
     readonly latest?: MergeRememberedOutcome;
-    readonly refused?: MergeRefusal;
     readonly seen?: string;
 }
 
@@ -83,15 +79,8 @@ function answerOwnDecision(
     const { sent } = memory;
     if (outcome === undefined || sent === undefined) return undefined;
     if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
-    const freed = freedRefusal(memory.refused, outcome, states);
-    const refused = outcome.applied ? (freed ? undefined : memory.refused) : outcome;
     return {
-        memory: {
-            ...pendingHandMerges(memory),
-            latest: { outcome, acted: sent, ...(freed ? { freed } : {}) },
-            ...(refused ? { refused } : {}),
-            seen,
-        },
+        memory: { ...pendingHandMerges(memory), latest: { outcome, acted: sent }, seen },
         answer: "show",
     };
 }
@@ -106,13 +95,12 @@ function answerOwnHandMerge(
     if (outcome === undefined || !isHandMergeOutcome(outcome)) return undefined;
     const request = memory.handMergesSent?.find(({ elementId }) => elementId === outcome.elementId);
     if (request === undefined) return undefined;
-    const { sent, refused } = memory;
+    const { sent } = memory;
     return {
         memory: {
             ...(sent ? { sent } : {}),
             handMergesSent: withoutHandMerge(memory, outcome.elementId),
             latest: { outcome, acted: request },
-            ...(refused ? { refused } : {}),
             seen,
         },
         answer: "show",
@@ -161,14 +149,4 @@ function answers(outcome: MergeDecisionOutcome, sent: MergeActedDecision): boole
         outcome.elementId === sent.elementId &&
         (outcome.action === "unpick") === (sent.kind === "undo")
     );
-}
-
-function freedRefusal(
-    refused: MergeRefusal | undefined,
-    outcome: MergeDecisionOutcome,
-    states: MergeOutcomeStates,
-): MergeRefusal | undefined {
-    if (refused === undefined) return undefined;
-    const pickedIds = new Set(panePicks(states).map(({ id }) => id));
-    return refusalFreedBy(refused, outcome, pickedIds) ? refused : undefined;
 }

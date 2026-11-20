@@ -4,6 +4,7 @@ import {
     type MergePaneAction,
     type MergePaneBlock,
     type MergePaneOutcome,
+    type MergePaneRefusedDecision,
 } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
@@ -17,8 +18,9 @@ export interface MergePickFeedback {
 
 /**
  * What a pick or an undo did, as the panes show it: the open conflicts before
- * and after name what it reopened, and a pick's kept side gets the offer of
- * the flows and boundary events it left out.
+ * and after name what it reopened, a pick's kept side gets the offer of the
+ * flows and boundary events it left out, and an undo names the refused
+ * decision it freed.
  */
 export function mergePickFeedback({
     action,
@@ -27,6 +29,7 @@ export function mergePickFeedback({
     outcome,
     openBefore,
     openAfter,
+    freed,
 }: {
     readonly action: MergePaneAction;
     readonly elementId: string;
@@ -34,6 +37,7 @@ export function mergePickFeedback({
     readonly outcome: PickOutcome;
     readonly openBefore: readonly string[];
     readonly openAfter: readonly string[];
+    readonly freed?: MergePaneRefusedDecision;
 }): MergePickFeedback {
     if (!outcome.applied) {
         const refused = { applied: false, action, elementId } as const;
@@ -52,6 +56,7 @@ export function mergePickFeedback({
             pulledIn: outcome.pulledIn,
             dropped: outcome.dropped,
             reopened: reopenedConflicts(openBefore, openAfter),
+            ...(freed === undefined ? {} : { freed }),
         },
     };
     const { connectionsLeftOut, boundaryEventsLeftOut } = outcome;

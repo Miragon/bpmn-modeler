@@ -9,6 +9,7 @@ export type {
     OpenConflict,
     PickOutcome,
     MergeResolution,
+    ScopedDecision,
 } from "./mergeDecisions";
 export { acceptHandMerge } from "./acceptHandMerge";
 export { describeHandMergeRefusal } from "./handMerge";

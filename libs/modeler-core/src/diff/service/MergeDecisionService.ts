@@ -11,7 +11,6 @@ import {
     ApplyMergeStatesQuery,
     type MergeHostOffers,
     NO_MERGE_HOST_OFFERS,
-    type MergePaneAction,
     type MergePaneStepList,
     type MergePaneStepping,
     type MergePickScope,
@@ -32,6 +31,7 @@ import {
     type MergePickFeedback,
     mergePickFeedback,
 } from "./mergePickFeedback";
+import { type PaneDecision, PaneRefusal } from "./paneRefusal";
 
 /**
  * Shows each merge view's decisions on its two panes and takes the user's
@@ -46,6 +46,8 @@ export class MergeDecisionService {
     private readonly stepping = new WeakMap<DiffSession, MergePaneStepping>();
 
     private readonly feedback = new WeakMap<MergeSession, MergePickFeedback>();
+
+    private readonly refusals = new WeakMap<MergeSession, PaneRefusal>();
 
     private readonly decidedListeners = new Set<(session: MergeSession) => void>();
 
@@ -76,29 +78,39 @@ export class MergeDecisionService {
         const paneSide = armed.session.sideFor(pane.uri);
         if (!session || !paneSide) return;
         const side = namedSide ?? mergeSideOfPane(paneSide);
-        await this.decide(session, elementId, (decisions) => ({
+        await this.decide(session, (decisions) => ({
+            pane: paneSide,
             action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
-            outcome: decisions.pickScoped(elementId, side, scope, {
-                dropHandMerges: dropsHandMerges === true,
-            }),
-            keptSide: side,
+            decision: {
+                kind: "pick",
+                id: elementId,
+                side,
+                scope,
+                options: { dropHandMerges: dropsHandMerges === true },
+            },
         }));
     }
 
     /** Takes the user's pick back, as far as `scope` reaches, and sends every pane of the view its states; a stale Undo of no pick changes nothing. */
     async unpick(
         armed: ArmedDiff,
+        pane: DiffPaneHandle,
         { elementId, scope, dropsHandMerges }: MergeUnpickRequest,
     ): Promise<void> {
         const session = this.sessions.ofDiffSession(armed.session);
-        if (!session) return;
-        await this.decide(session, elementId, (decisions) =>
+        const paneSide = armed.session.sideFor(pane.uri);
+        if (!session || !paneSide) return;
+        await this.decide(session, (decisions) =>
             decisions.originOf(elementId) === "picked"
                 ? {
+                      pane: paneSide,
                       action: "unpick",
-                      outcome: decisions.unpickScoped(elementId, scope, {
-                          dropHandMerges: dropsHandMerges === true,
-                      }),
+                      decision: {
+                          kind: "unpick",
+                          id: elementId,
+                          scope,
+                          options: { dropHandMerges: dropsHandMerges === true },
+                      },
                   }
                 : undefined,
         );
@@ -173,28 +185,42 @@ export class MergeDecisionService {
 
     private async decide(
         session: MergeSession,
-        elementId: string,
-        decide: (decisions: MergeDecisions) => DecidedPick | undefined,
+        decisionOf: (decisions: MergeDecisions) => PaneDecision | undefined,
     ): Promise<void> {
-        const openBefore = openIds(session.decisions);
-        let decided: ReturnType<typeof decide>;
+        const { decisions } = session;
+        const openBefore = openIds(decisions);
+        let decided: PaneDecision | undefined;
+        let outcome: PickOutcome;
         try {
-            decided = decide(session.decisions);
+            decided = decisionOf(decisions);
+            if (decided === undefined) return;
+            outcome = decisions.decide(decided.decision);
         } catch (error) {
             this.logger.logError(error as Error);
             return;
         }
-        if (decided === undefined) return;
+        const { refusal, freed } = PaneRefusal.after(
+            this.refusals.get(session),
+            decided,
+            outcome,
+            decisions,
+        );
+        if (refusal === undefined) this.refusals.delete(session);
+        else this.refusals.set(session, refusal);
+        const { action, decision } = decided;
         this.feedback.set(
             session,
             mergePickFeedback({
-                ...decided,
-                elementId,
+                action,
+                elementId: decision.id,
+                ...(decision.kind === "pick" ? { keptSide: decision.side } : {}),
+                outcome,
                 openBefore,
-                openAfter: openIds(session.decisions),
+                openAfter: openIds(decisions),
+                ...(freed === undefined ? {} : { freed }),
             }),
         );
-        if (decided.outcome.applied) {
+        if (outcome.applied) {
             for (const listener of this.decidedListeners) listener(session);
         }
         await this.broadcastSession(session);
@@ -239,12 +265,6 @@ export interface MergeUnpickRequest {
     readonly scope: MergePickScope;
     /** As {@link MergePickRequest.dropsHandMerges}. */
     readonly dropsHandMerges?: boolean;
-}
-
-interface DecidedPick {
-    readonly action: MergePaneAction;
-    readonly outcome: PickOutcome;
-    readonly keptSide?: MergeSide;
 }
 
 function openIds(decisions: MergeDecisions): string[] {

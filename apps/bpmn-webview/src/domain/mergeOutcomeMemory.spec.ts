@@ -198,38 +198,48 @@ describe("answerStates", () => {
         ).toBe("keep");
     });
 
-    it("notes the refusal an undo freed: it undid a blocker and no blocking pick is left", () => {
-        const refusal = refusedLeaveOut([picked("Flow_1"), picked("Flow_2")]);
-        const refused = sendAndAnswer(EMPTY_OUTCOME_MEMORY, leaveOutTask, refusal, {
-            pickable: [pickedEntry("Flow_1"), pickedEntry("Flow_2")],
-        });
+    it("shows the host's outcome of an undo with the refused decision it freed", () => {
+        const freeing = {
+            ...applied("unpick", "Flow_1"),
+            freed: { action: "leaveOut", elementId: "Task_Remind" },
+        } as const;
+        const refused = sendAndAnswer(
+            EMPTY_OUTCOME_MEMORY,
+            leaveOutTask,
+            refusedLeaveOut([picked("Flow_1")]),
+        );
 
-        const first = sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), {
-            pickable: [pickedEntry("Flow_2")],
-        });
-        const second = sendAndAnswer(first.memory, undo("Flow_2"), applied("unpick", "Flow_2"));
+        const { memory } = sendAndAnswer(refused.memory, undo("Flow_1"), freeing);
 
-        expect(first.memory.latest?.freed).toBeUndefined();
-        expect(second.memory.latest?.freed).toStrictEqual(refusal);
-        expect(second.memory.refused).toBeUndefined();
+        expect(memory.latest).toStrictEqual({ outcome: freeing, acted: undo("Flow_1") });
     });
 
-    it.each(["Flow_2", "Message_1"])(
-        "notes no freed refusal where the blocking pick of %s is left",
-        (leftId) => {
-            const refused = sendAndAnswer(
-                EMPTY_OUTCOME_MEMORY,
-                leaveOutTask,
-                refusedLeaveOut([picked("Flow_1"), picked(leftId)]),
-            );
+    it("frees nothing the host does not name, though the pane took back the pick that blocked its refusal", () => {
+        const refused = sendAndAnswer(
+            EMPTY_OUTCOME_MEMORY,
+            leaveOutTask,
+            refusedLeaveOut([picked("Flow_1")]),
+            { pickable: [pickedEntry("Flow_1")] },
+        );
+        const pickedAnother = sendAndAnswer(
+            refused.memory,
+            { ...keepTask, elementId: "Flow_2" },
+            applied("pick", "Flow_2"),
+            { pickable: [pickedEntry("Flow_1"), pickedEntry("Flow_2")] },
+        );
 
-            expect(
-                sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), {
-                    pickable: [pickedEntry(leftId)],
-                }).memory.latest?.freed,
-            ).toBeUndefined();
-        },
-    );
+        const undone = sendAndAnswer(
+            pickedAnother.memory,
+            undo("Flow_1"),
+            applied("unpick", "Flow_1"),
+            { pickable: [pickedEntry("Flow_2")] },
+        );
+
+        expect(undone.memory.latest).toStrictEqual({
+            outcome: applied("unpick", "Flow_1"),
+            acted: undo("Flow_1"),
+        });
+    });
 });
 
 describe("a merge by hand this pane asked for", () => {
