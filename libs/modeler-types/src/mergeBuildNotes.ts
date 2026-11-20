@@ -107,6 +107,24 @@ export type MergeBuildNoteContent =
           readonly target?: string;
       };
 
+/** The note of one kind; a broken flow's note, whose kind is either broken-flow kind, included. */
+export type MergeBuildNoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
+    MergeBuildNoteContent extends infer Note
+        ? Note extends { readonly kind: infer KindOfNote }
+            ? Kind extends KindOfNote
+                ? Note & { readonly kind: Kind }
+                : never
+            : never
+        : never;
+
+/** The kinds of note that record what the build did about them. */
+export type MergeRepairedNoteKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
+
+/** The repairs a note can record. */
+export type MergeNoteRepairOf<Note> = Note extends { readonly repair: infer Repair extends string }
+    ? Repair
+    : never;
+
 /** A build note with the elements it names, in the order its entry offers them. */
 export type MergeBuildNote = MergeBuildNoteContent & { readonly named: readonly string[] };
 

@@ -173,6 +173,15 @@ describe("buildNoteText", () => {
             {
                 kind: "restoredWithoutRemovedWith",
                 id: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+                boundaryEvents: [],
+            },
+            "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
+        ],
+        [
+            {
+                kind: "restoredWithoutRemovedWith",
+                id: "Task_Pack",
                 connections: ["Flow_2"],
                 boundaryEvents: ["Timer_1"],
             },
