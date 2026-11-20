@@ -343,6 +343,21 @@ describe("tidyWaypoints", () => {
         ]);
     });
 
+    it("drops a point half a unit from the one before, as a bend half a unit beyond it", () => {
+        expect(
+            tidyWaypoints([
+                { x: 0, y: 0 },
+                { x: 50, y: 0 },
+                { x: 50.5, y: 0.5 },
+                { x: 50, y: 80 },
+            ]),
+        ).toEqual([
+            { x: 0, y: 0 },
+            { x: 50, y: 0 },
+            { x: 50, y: 80 },
+        ]);
+    });
+
     it("drops a bend that lies between its neighbours", () => {
         expect(
             tidyWaypoints([

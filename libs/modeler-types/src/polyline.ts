@@ -57,7 +57,7 @@ export function longestSegment(points: readonly PolylinePoint[]): PolylineSegmen
 export interface BendTolerance {
     /** The cross product of the bend's two legs below which they count as one line. */
     readonly collinear: number;
-    /** How far the bend may lie beyond its neighbours. */
+    /** How far the bend may lie beyond its neighbours, and how far a point may lie from the one before and repeat it. */
     readonly beyond: number;
 }
 
@@ -82,4 +82,39 @@ export function isRedundantBend(
         value >= Math.min(from, to) - tolerance.beyond &&
         value <= Math.max(from, to) + tolerance.beyond;
     return between(point.x, previous.x, next.x) && between(point.y, previous.y, next.y);
+}
+
+export function isRepeatedPoint(
+    previous: PolylinePoint,
+    point: PolylinePoint,
+    tolerance: BendTolerance,
+): boolean {
+    return (
+        Math.abs(point.x - previous.x) <= tolerance.beyond &&
+        Math.abs(point.y - previous.y) <= tolerance.beyond
+    );
+}
+
+/**
+ * The points without repeats and without redundant bends. The first and the
+ * last point are docking points and stay, even where they repeat a neighbour.
+ */
+export function withoutRedundantBends<Point extends PolylinePoint>(
+    points: readonly Point[],
+    tolerance: BendTolerance,
+): Point[] {
+    const kept: Point[] = [];
+    points.forEach((point, index) => {
+        const last = kept[kept.length - 1];
+        const isLastPoint = index === points.length - 1;
+        if (last !== undefined && !isLastPoint && isRepeatedPoint(last, point, tolerance)) return;
+        const beforeLast = kept[kept.length - 2];
+        const lastIsRedundant =
+            last !== undefined &&
+            beforeLast !== undefined &&
+            isRedundantBend(beforeLast, last, point, tolerance);
+        if (lastIsRedundant) kept[kept.length - 1] = point;
+        else kept.push(point);
+    });
+    return kept;
 }

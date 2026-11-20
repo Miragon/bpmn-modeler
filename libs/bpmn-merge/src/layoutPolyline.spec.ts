@@ -18,6 +18,17 @@ describe("withoutRedundantPoints", () => {
             ],
         ],
         [
+            "keeps both ends of a flow whose points all coincide",
+            [
+                { x: 0, y: 0 },
+                { x: 0, y: 0 },
+            ],
+            [
+                { x: 0, y: 0 },
+                { x: 0, y: 0 },
+            ],
+        ],
+        [
             "drops the middle of a straight run",
             [
                 { x: 0, y: 0 },

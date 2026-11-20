@@ -1,4 +1,9 @@
-import { type BendTolerance, type CleanupItem, isRedundantBend } from "@miragon/bpmn-modeler-types";
+import {
+    type BendTolerance,
+    type CleanupItem,
+    isRepeatedPoint,
+    withoutRedundantBends,
+} from "@miragon/bpmn-modeler-types";
 
 import type { Point } from "../types";
 
@@ -33,7 +38,7 @@ interface Finding {
     actions: CleanupAction[];
 }
 
-/** Two waypoints closer than this are the same point for cleanup purposes. */
+/** Two waypoints no farther apart than this are the same point for cleanup purposes. */
 const WAYPOINT_EPSILON = 0.5;
 
 /** Cross product below this counts as collinear. */
@@ -235,35 +240,12 @@ function idsWithDi(definitions: ModdleNode): Set<string> {
     return withDi;
 }
 
-function isDuplicatePoint(a: Point, b: Point): boolean {
-    return Math.abs(a.x - b.x) < WAYPOINT_EPSILON && Math.abs(a.y - b.y) < WAYPOINT_EPSILON;
-}
-
 /**
  * Drops repeated points and bends that lie on the line between their
  * neighbours. Docking points — first and last — are never touched.
  */
 export function tidyWaypoints(waypoints: Point[]): Point[] {
-    if (waypoints.length < 2) return waypoints;
-
-    const withoutDuplicates: Point[] = [waypoints[0]];
-    for (let i = 1; i < waypoints.length; i++) {
-        const point = waypoints[i];
-        const isLast = i === waypoints.length - 1;
-        if (!isDuplicatePoint(withoutDuplicates[withoutDuplicates.length - 1], point) || isLast) {
-            withoutDuplicates.push(point);
-        }
-    }
-
-    const tidied: Point[] = [withoutDuplicates[0]];
-    for (let i = 1; i < withoutDuplicates.length - 1; i++) {
-        const previous = tidied[tidied.length - 1];
-        const next = withoutDuplicates[i + 1];
-        if (isRedundantBend(previous, withoutDuplicates[i], next, CLEANUP_BEND_TOLERANCE)) continue;
-        tidied.push(withoutDuplicates[i]);
-    }
-    tidied.push(withoutDuplicates[withoutDuplicates.length - 1]);
-    return tidied;
+    return withoutRedundantBends(waypoints, CLEANUP_BEND_TOLERANCE);
 }
 
 function inspectWaypoints(edge: ModdleNode, elementId: string, label: string): Finding[] {
@@ -275,7 +257,7 @@ function inspectWaypoints(edge: ModdleNode, elementId: string, label: string): F
     if (tidied.length === waypoints.length) return findings;
 
     const hasDuplicate = waypoints.some(
-        (point, i) => i > 0 && isDuplicatePoint(waypoints[i - 1], point),
+        (point, i) => i > 0 && isRepeatedPoint(waypoints[i - 1], point, CLEANUP_BEND_TOLERANCE),
     );
     const action: CleanupAction = { kind: "set-waypoints", id: elementId, waypoints: tidied };
 
