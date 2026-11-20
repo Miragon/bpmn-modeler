@@ -2,7 +2,7 @@ import {
     ADD_ONS_PAGE_ATTRIBUTE,
     type AddOnsViewCommand,
     MockHostApi,
-    replyToWebview,
+    replyFromPreview,
     routePreviewCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -23,7 +23,7 @@ export class PreviewHost extends MockHostApi<PersistedChoices, AddOnsViewCommand
         const flags = previewFlagsOf(search);
         // A host writes the page into its shell; the preview has none, so it writes it before the bootstrap reads it.
         document.documentElement.setAttribute(ADD_ONS_PAGE_ATTRIBUTE, flags.page);
-        this.session = { flags, catalog: new MockCatalog(flags.state, { stale: flags.stale }), reply: replyToWebview };
+        this.session = { flags, catalog: new MockCatalog(flags.state, { stale: flags.stale }), reply: replyFromPreview };
     }
 
     override postMessage(message: AddOnsViewCommand): void {

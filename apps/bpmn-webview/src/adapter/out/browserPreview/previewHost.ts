@@ -1,4 +1,4 @@
-import { MockHostApi, replyToWebview, routePreviewCommand } from "@miragon/bpmn-modeler-shared";
+import { MockHostApi, replyFromPreview, routePreviewCommand } from "@miragon/bpmn-modeler-shared";
 
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
 import type { WebviewState } from "../../../port/webviewState";
@@ -30,7 +30,7 @@ export class PreviewHost extends MockHostApi<WebviewState, BpmnWebviewCommand> {
         routePreviewCommand(
             PREVIEW_COMMANDS,
             message,
-            { mode: this.mode, search: window.location.search, diffPreview: this.diffPreview, reply: replyToWebview },
+            { mode: this.mode, search: window.location.search, diffPreview: this.diffPreview, reply: replyFromPreview },
             PREVIEW_LOG_PREFIX,
         );
     }

@@ -123,7 +123,7 @@ describe("development preview host", () => {
         previewHost().postMessage(new SyncDocumentCommand("<definitions />", 3));
 
         expect(debug).toHaveBeenCalledWith(
-            expect.stringMatching(/^\[dev\] SyncDocumentCommand ignored: \S/),
+            expect.stringMatching(/^\[DEBUG\] SyncDocumentCommand ignored: \S/),
             expect.objectContaining({ type: "SyncDocumentCommand" }),
         );
     });
@@ -259,7 +259,7 @@ describe("diff pane host", () => {
 
         expect(error).toHaveBeenCalledWith("import failed");
         expect(debug).toHaveBeenCalledWith(
-            expect.stringMatching(/^\[dev\] CursorChangedCommand ignored: \S/),
+            expect.stringMatching(/^\[DEBUG\] CursorChangedCommand ignored: \S/),
             expect.objectContaining({ type: "CursorChangedCommand" }),
         );
         expect(replies).toEqual([]);
