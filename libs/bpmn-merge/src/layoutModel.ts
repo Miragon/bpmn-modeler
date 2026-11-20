@@ -47,7 +47,7 @@ export interface PoolShape extends DrawnShape {
     readonly kind: "pool";
 }
 
-/** A `bpmn:Group`: it holds no element, so nothing lies inside it by design and it frames nothing. */
+/** A `bpmn:Group`: it holds no element, so nothing lies inside it by design and it is no frame. */
 export interface GroupShape extends DrawnShape {
     readonly kind: "group";
 }

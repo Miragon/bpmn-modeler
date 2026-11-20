@@ -6,7 +6,7 @@ const edge = (id: string, fromX: number, toX: number, y: number) =>
 
 /**
  * Both sides added a task after A in the sub-process at one place, X and Y;
- * Group_K frames task K and the end event right of the sub-process. Making
+ * Group_K encloses task K and the end event right of the sub-process. Making
  * room for Y pushes B, grows the sub-process and pushes K and the end event.
  */
 export const GROUP_AROUND_PUSHED_CHAIN = `<?xml version="1.0" encoding="UTF-8"?>

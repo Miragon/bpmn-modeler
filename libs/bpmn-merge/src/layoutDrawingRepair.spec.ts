@@ -66,7 +66,7 @@ describe("repairIntroducedSpots with a group", () => {
         return { shapes, edges: layout.edges };
     };
 
-    it("shifts the group with the task and end event it frames when making room pushes both", async () => {
+    it("shifts the group with the task and end event it encloses when making room pushes both", async () => {
         const moddle = (await loadBpmnModdle())();
         const { rootElement } = await moddle.fromXML(GROUP_AROUND_PUSHED_CHAIN);
         const document = IndexedDocument.of(rootElement);

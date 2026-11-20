@@ -416,7 +416,7 @@ describe("planShapeMoves", () => {
                     planFlowRepairs,
                 );
             };
-            const framesAll = (plan: ShapeMovePlan, ids: readonly string[]) =>
+            const enclosesAll = (plan: ShapeMovePlan, ids: readonly string[]) =>
                 ids.every((id) => liesWithin(boundsIn(plan, id)!, boundsIn(plan, "Group_1")!));
 
             it("shifts with the shapes it encloses when the room shifts them all by one amount", () => {
@@ -429,10 +429,10 @@ describe("planShapeMoves", () => {
 
             /**
              * Task_Y, which the build moved, comes to lie in the group: the
-             * group keeps framing Task_3, which stays, and Task_4, which shifts
+             * group keeps enclosing Task_3, which stays, and Task_4, which shifts
              * past the room Task_Y takes, so no frame of both leaves Task_Y out.
              */
-            it("grows along the push to keep framing the two tasks it encloses when the room shifts one, and is no frame the room grew", () => {
+            it("grows along the push to keep enclosing the two tasks it encloses when the room shifts one, and is no frame the room grew", () => {
                 const plan = planWith(groupAt(box(450, 80, 240, 100)));
 
                 expect(pairRepairsOf(plan)).toEqual([
@@ -446,7 +446,7 @@ describe("planShapeMoves", () => {
                 ]);
                 expect(boundsIn(plan, "Task_4")).toEqual(box(760, 90));
                 expect(boundsIn(plan, "Group_1")).toEqual(box(450, 80, 420, 100));
-                expect(framesAll(plan, ["Task_3", "Task_4"])).toBe(true);
+                expect(enclosesAll(plan, ["Task_3", "Task_4"])).toBe(true);
             });
 
             it("stays as drawn, its shapes inside it, when the room shifts none of them", () => {
@@ -455,7 +455,7 @@ describe("planShapeMoves", () => {
                 const plan = planWith(group);
 
                 expect(boundsIn(plan, "Group_1")).toEqual(group.bounds);
-                expect(framesAll(plan, ["Task_0", "Task_1"])).toBe(true);
+                expect(enclosesAll(plan, ["Task_0", "Task_1"])).toBe(true);
             });
         });
 

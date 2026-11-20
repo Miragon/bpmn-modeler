@@ -5,7 +5,7 @@ import { rootPlane } from "./__fixtures__/shapePlane";
 import type { Axis } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { DiagramBounds } from "./layoutGeometry";
-import { type FramedMove, GroupFraming, groupAfterPush } from "./layoutGroupFraming";
+import { type EnclosedMove, GroupContent, groupAfterPush } from "./layoutGroupContent";
 import { type GroupShape, translatedNode } from "./layoutModel";
 
 const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
@@ -28,9 +28,9 @@ const TASK_A = box(100, 90);
 const TASK_B = box(240, 90);
 
 describe("groupAfterPush", () => {
-    it.each<[string, Axis, FramedMove[], DiagramBounds]>([
+    it.each<[string, Axis, EnclosedMove[], DiagramBounds]>([
         [
-            "shifts with what it frames when all of it shifted by one amount",
+            "shifts with what it encloses when all of it shifted by one amount",
             "x",
             [
                 { from: TASK_A, to: box(150, 90) },
@@ -39,7 +39,7 @@ describe("groupAfterPush", () => {
             box(140, 80, 260, 100),
         ],
         [
-            "shifts down with what it frames along y",
+            "shifts down with what it encloses along y",
             "y",
             [
                 { from: TASK_A, to: box(100, 130) },
@@ -48,7 +48,7 @@ describe("groupAfterPush", () => {
             box(90, 120, 260, 100),
         ],
         [
-            "grows at its far side by as far as the far side of what it frames went when only some shifted",
+            "grows at its far side by as far as the far side of what it encloses went when only some shifted",
             "x",
             [
                 { from: TASK_A, to: TASK_A },
@@ -57,7 +57,7 @@ describe("groupAfterPush", () => {
             box(90, 80, 320, 100),
         ],
         [
-            "stays when what shifted stays short of the far side of what it frames",
+            "stays when what shifted stays short of the far side of what it encloses",
             "x",
             [
                 { from: TASK_A, to: box(120, 90) },
@@ -66,7 +66,7 @@ describe("groupAfterPush", () => {
             GROUP.bounds,
         ],
         [
-            "grows when a shape it frames grew instead of shifting",
+            "grows when a shape it encloses grew instead of shifting",
             "x",
             [
                 { from: TASK_A, to: TASK_A },
@@ -75,7 +75,7 @@ describe("groupAfterPush", () => {
             box(90, 80, 290, 100),
         ],
         [
-            "stays when nothing it frames moved",
+            "stays when nothing it encloses moved",
             "x",
             [
                 { from: TASK_A, to: TASK_A },
@@ -83,8 +83,8 @@ describe("groupAfterPush", () => {
             ],
             GROUP.bounds,
         ],
-    ])("%s", (_, axis, framed, bounds) => {
-        expect(groupAfterPush(GROUP, framed, axis).bounds).toEqual(bounds);
+    ])("%s", (_, axis, enclosed, bounds) => {
+        expect(groupAfterPush(GROUP, enclosed, axis).bounds).toEqual(bounds);
     });
 
     it("returns the group itself when it stays", () => {
@@ -92,7 +92,7 @@ describe("groupAfterPush", () => {
     });
 });
 
-describe("GroupFraming", () => {
+describe("GroupContent", () => {
     const layout = layoutOf([
         GROUP,
         node("Task_A", { bounds: TASK_A }),
@@ -103,9 +103,9 @@ describe("GroupFraming", () => {
     const followAfter = (placed: readonly string[], shifted: readonly string[]) => {
         const before = DrawingDraft.of(layout);
         const trial = before.fork();
-        const framing = GroupFraming.of(before, trial, PLANE, new Set(placed));
+        const content = GroupContent.of(before, trial, PLANE, new Set(placed));
         for (const id of shifted) trial.replaceShape(translatedNode(trial.node(id)!, 50, 0));
-        framing.follow(trial, "x");
+        content.follow(trial, "x");
         return trial.shapes.get("Group_1")!.bounds;
     };
 
@@ -117,7 +117,7 @@ describe("GroupFraming", () => {
             box(140, 80, 260, 100),
         ],
         [
-            "frames only the shapes it encloses, not one across its border",
+            "holds only the shapes it encloses, not one across its border",
             [],
             ["Task_A", "Task_B", "Task_Out"],
             box(140, 80, 260, 100),
@@ -132,10 +132,10 @@ describe("GroupFraming", () => {
         const elsewhere = group(GROUP.bounds, "Process_2");
         const before = DrawingDraft.of(layoutOf([elsewhere, node("Task_A", { bounds: TASK_A })]));
         const trial = before.fork();
-        const framing = GroupFraming.of(before, trial, PLANE, new Set());
+        const content = GroupContent.of(before, trial, PLANE, new Set());
         trial.replaceShape(translatedNode(trial.node("Task_A")!, 50, 0));
 
-        framing.follow(trial, "x");
+        content.follow(trial, "x");
 
         expect(trial.shapes.get("Group_1")).toBe(elsewhere);
     });

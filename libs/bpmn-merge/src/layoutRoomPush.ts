@@ -4,7 +4,7 @@ import type { FlowTopology } from "./layoutFlowTopology";
 import { type DiagramBounds, bottomOf, keepsClearOf, rightOf } from "./layoutGeometry";
 import { type GrowingFrame, FrameGrowth, growingFrameOf } from "./layoutFrameGrowth";
 import { frameScopeOf } from "./layoutFrames";
-import { GroupFraming } from "./layoutGroupFraming";
+import { GroupContent } from "./layoutGroupContent";
 import type { NodeShape } from "./layoutModel";
 import type { FrameRequest, RoomRequest } from "./layoutRoomRequest";
 import type { ShapeGroups } from "./layoutShapeGroups";
@@ -45,9 +45,9 @@ export class RoomPush {
      * shapes it enclosed before, but those the room places.
      */
     push(at: NodeShape, request: RoomRequest): boolean {
-        const framing = GroupFraming.of(this.before, this.trial, at.plane, request.exclude);
+        const content = GroupContent.of(this.before, this.trial, at.plane, request.exclude);
         const made = this.roomIn({ ...request, plane: at.plane, ...frameScopeOf(this.trial, at) });
-        if (made) framing.follow(this.trial, this.axis);
+        if (made) content.follow(this.trial, this.axis);
         return made;
     }
 
