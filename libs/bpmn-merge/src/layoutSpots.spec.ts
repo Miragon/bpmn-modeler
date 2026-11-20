@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { dockedModel, moveNode } from "./__fixtures__/dockedModel";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import type { LayoutModel } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, hasSpot, isFlowSpot, repairedTogether, sameSpot } from "./layoutSpots";
 
