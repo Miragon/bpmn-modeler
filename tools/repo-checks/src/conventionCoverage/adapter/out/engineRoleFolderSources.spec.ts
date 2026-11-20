@@ -23,6 +23,10 @@ beforeEach(() => {
             'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
         "libs/core/src/__fixtures__/FakeDocuments.ts":
             'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
+        "libs/core/src/__tests__/FakeDocuments.ts":
+            'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
+        "libs/core/src/test/FakeDocuments.ts":
+            'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
         "libs/core/src/globals.d.ts": "declare const version: string;",
         "libs/core/src/theme.css": "",
         "apps/host/package.json": JSON.stringify({ name: "host", architecture: "hexagonal" }),
