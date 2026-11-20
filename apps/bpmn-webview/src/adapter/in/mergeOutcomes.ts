@@ -19,7 +19,7 @@ import {
     rowOutcomeText,
 } from "../../domain/mergeMenuRows";
 import type { MergeCardAction } from "../../domain/mergeCardContent";
-import { handMergeElementOf, handMergeFactsOf } from "../../domain/mergeHandMergeCard";
+import { handMergeFactsOf } from "../../domain/mergeHandMergeCard";
 import {
     mergeOutcomeCardContent,
     type MergeRememberedOutcome,
@@ -36,7 +36,8 @@ import {
     rememberSent,
     rowOutcome,
 } from "../../domain/mergeOutcomeMemory";
-import { keepRemovedWith } from "../../domain/mergePadDecisions";
+import { elementPickOf } from "../../domain/mergeElementPick";
+import { keepRemovedWith } from "../../domain/mergeKeepRemovedWith";
 import { MERGE_CARD_TEXTS } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
 import type { MergeOutcomeCard } from "./mergeOutcomeCard";
@@ -146,7 +147,7 @@ export class MergeOutcomes {
         const content = mergeOutcomeCardContent(remembered, {
             restoreOffer: this.states.restoreOffer,
             handMerge: handMergeFactsOf(
-                handMergeElementOf(this.states, remembered.outcome.elementId),
+                elementPickOf(this.states, remembered.outcome.elementId),
                 this.offers,
             ),
             nameOf,
