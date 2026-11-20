@@ -1,26 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { box, lane, task } from "./__fixtures__/planeLanes";
-import { rootPlane } from "./__fixtures__/shapePlane";
+import { box, lane, node, pool as buildPool } from "./__fixtures__/layoutShapes";
 import type { Axis } from "./layoutAxis";
 import { type GrowingFrame, growingFrameOf } from "./layoutFrameGrowth";
 import type { FrameScope } from "./layoutFrames";
-import type { LaneShape, NodeShape, PoolShape } from "./layoutModel";
 
 describe("growingFrameOf", () => {
-    const pool: PoolShape = {
-        kind: "pool",
-        id: "Pool_1",
-        ...rootPlane("Collaboration_1"),
-        outline: "rectangle",
-        bounds: box(0, 0, 1200, 300),
-    };
-    const laneInPool: LaneShape = { ...lane("Lane_1", box(30, 0, 1170, 300)), pool: "Pool_1" };
+    const pool = buildPool("Pool_1", box(0, 0, 1200, 300));
+    const laneInPool = lane("Lane_1", box(30, 0, 1170, 300), { pool: "Pool_1" });
     const planeLane = lane("Lane_1", box(30, 0, 1170, 300));
-    const subProcess: NodeShape = {
-        ...task("Sub_1", box(100, 50, 300, 200), "Lane_1"),
+    const subProcess = node("Sub_1", {
+        bounds: box(100, 50, 300, 200),
+        lanes: ["Lane_1"],
         expanded: true,
-    };
+    });
 
     it.each<[string, FrameScope, Axis, GrowingFrame]>([
         [

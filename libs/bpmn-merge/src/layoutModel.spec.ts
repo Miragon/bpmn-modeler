@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, flow, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
-import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
+import { box, flow, group, lane, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
+import { subProcessPlane } from "./__fixtures__/shapePlane";
 import {
     type LayoutEdge,
     type LayoutShape,
@@ -21,16 +21,18 @@ describe("otherEndOf", () => {
 });
 
 describe("sharesAnEndWith", () => {
+    const aToB = flow("Flow_1", "A", "B");
+
     it.each<[string, Partial<LayoutEdge>, boolean]>([
         ["its source", { id: "Flow_2", target: "C" }, true],
         ["its target", { id: "Flow_2", source: "C" }, true],
         ["neither end", { id: "Flow_2", source: "B", target: "A" }, false],
     ])("tells a flow that shares %s with another", (_, other, shares) => {
-        expect(sharesAnEndWith(flow, { ...flow, ...other })).toBe(shares);
+        expect(sharesAnEndWith(aToB, { ...aToB, ...other })).toBe(shares);
     });
 
     it("does not tell two flows drawn without ends as sharing one", () => {
-        const loose = { ...flow, source: undefined, target: undefined };
+        const loose = { ...aToB, source: undefined, target: undefined };
 
         expect(sharesAnEndWith(loose, { ...loose, id: "Flow_2" })).toBe(false);
     });
@@ -59,18 +61,9 @@ describe("drawnHostOf", () => {
 });
 
 describe("isFrame", () => {
-    const lane = {
-        kind: "lane",
-        id: "Lane_1",
-        ...rootPlane(PLANE),
-        parent: "Process_1",
-        outline: "rectangle",
-        bounds: { x: 30, y: 0, width: 870, height: 300 },
-    } as const;
-
     it.each<[string, LayoutShape, boolean]>([
         ["a pool", pool("Pool_1"), true],
-        ["a lane", lane, true],
+        ["a lane", lane("Lane_1", box(30, 0, 870, 300)), true],
         ["a sub-process drawn open", node("Sub_1", { expanded: true }), true],
         ["a collapsed sub-process or task", node("Task_A"), false],
     ])("tells whether %s holds other shapes", (_, shape, frame) => {
@@ -81,19 +74,12 @@ describe("isFrame", () => {
 describe("reachOf", () => {
     const bounds = { x: 100, y: 100, width: 200, height: 100 };
     const label = { x: 175, y: 210, width: 50, height: 14 };
-    const group = {
-        kind: "group",
-        id: "Group_1",
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        bounds,
-        label,
-    } as const;
+    const named = group("Group_1", bounds, { label });
     const around = { x: 100, y: 100, width: 200, height: 124 };
 
     it.each<[string, LayoutShape, typeof bounds]>([
         ["a node with its label", node("Event_1", { bounds, label }), around],
-        ["a named group with its name", group, around],
+        ["a named group with its name", named, around],
         ["a pool by its bounds", pool("Pool_1"), pool("Pool_1").bounds],
     ])("measures %s", (_, shape, reach) => {
         expect(reachOf(shape)).toEqual(reach);

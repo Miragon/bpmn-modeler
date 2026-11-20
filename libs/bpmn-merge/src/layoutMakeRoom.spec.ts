@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { box, planeLanesWith, task } from "./__fixtures__/planeLanes";
-import { rootPlane } from "./__fixtures__/shapePlane";
+import { box, lane, layoutOf, node, planeLanesWith, pool } from "./__fixtures__/layoutShapes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
-import type { LayoutModel, LayoutShape } from "./layoutModel";
+import type { LayoutModel } from "./layoutModel";
 import { type RoomMade, freeRoom, makeRoom, shiftedShapeCountOf } from "./layoutMakeRoom";
 import type { RoomSlot } from "./layoutRoomSlots";
 import { ShapeGroups } from "./layoutShapeGroups";
 
 describe("free rooms", () => {
-    const draft = DrawingDraft.of({ shapes: new Map(), edges: new Map() });
+    const draft = DrawingDraft.of(layoutOf([]));
 
     it("keep the draft with the shape moved there and shift and grow nothing", () => {
         expect(freeRoom(draft)).toStrictEqual({ draft, shifted: [], grown: [], growth: 0 });
@@ -18,41 +17,14 @@ describe("free rooms", () => {
 });
 
 describe("shiftedShapeCountOf", () => {
-    const bounds = { x: 0, y: 0, width: 100, height: 80 };
-    const shapes: LayoutShape[] = [
-        {
-            kind: "pool",
-            id: "Pool_2",
-            ...rootPlane("Collaboration_1"),
-            outline: "rectangle",
-            bounds,
-        },
-        {
-            kind: "lane",
-            id: "Lane_2",
-            ...rootPlane("Collaboration_1"),
-            parent: "Process_1",
-            pool: "Pool_1",
-            outline: "rectangle",
-            bounds,
-        },
-        {
-            kind: "node",
-            id: "Task_L",
-            ...rootPlane("Collaboration_1"),
-            pool: "Pool_1",
-            lanes: ["Lane_2"],
-            subProcesses: [],
-            expanded: false,
-            mayLieOutsidePool: false,
-            outline: "rectangle",
-            bounds,
-        },
-    ];
-    const draft = DrawingDraft.of({
-        shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-        edges: new Map(),
-    });
+    const bounds = box(0, 0);
+    const draft = DrawingDraft.of(
+        layoutOf([
+            pool("Pool_2", bounds),
+            lane("Lane_2", bounds, { pool: "Pool_1" }),
+            node("Task_L", { pool: "Pool_1", lanes: ["Lane_2"], bounds }),
+        ]),
+    );
 
     it("counts the nodes and pools that gave way but not the lanes shifted below a grown lane, whose growth weighs them", () => {
         const room: RoomMade = {
@@ -81,9 +53,9 @@ describe("makeRoom in a lane on a plane without a pool", () => {
 
     it("stacks the shape under the other as in a pool, the lane grown and the lane below shifted with what it holds", () => {
         const layout = planeLanesWith([
-            task("Task_A", box(500, 90), "Lane_1"),
-            task("Task_Y", box(510, 90), "Lane_1"),
-            task("Task_L", box(800, 200), "Lane_2"),
+            node("Task_A", { bounds: box(500, 90), lanes: ["Lane_1"] }),
+            node("Task_Y", { bounds: box(510, 90), lanes: ["Lane_1"] }),
+            node("Task_L", { bounds: box(800, 200), lanes: ["Lane_2"] }),
         ]);
 
         const room = roomFor(layout, "Task_Y", "Task_A", "below");
@@ -104,10 +76,10 @@ describe("makeRoom in a lane on a plane without a pool", () => {
         "places the shape after the other, the last shape at x %d shifted once and the lanes grown to %d wide to hold it",
         (lastX, laneWidth) => {
             const layout = planeLanesWith([
-                task("Task_O", box(700, 90), "Lane_1"),
-                task("Task_A", box(940, 90), "Lane_1"),
-                task("Task_B", box(lastX, 90), "Lane_1"),
-                task("Task_Y", box(300, 90), "Lane_1"),
+                node("Task_O", { bounds: box(700, 90), lanes: ["Lane_1"] }),
+                node("Task_A", { bounds: box(940, 90), lanes: ["Lane_1"] }),
+                node("Task_B", { bounds: box(lastX, 90), lanes: ["Lane_1"] }),
+                node("Task_Y", { bounds: box(300, 90), lanes: ["Lane_1"] }),
             ]);
 
             const room = roomFor(layout, "Task_Y", "Task_O", "after");

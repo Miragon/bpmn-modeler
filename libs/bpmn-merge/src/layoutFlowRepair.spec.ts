@@ -1,57 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
+import { at, flow as buildFlow, layoutOf, node as buildNode } from "./__fixtures__/layoutShapes";
+import { subProcessPlane } from "./__fixtures__/shapePlane";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import { type DiagramBounds, type Outline, type Point, centerOf } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
+import type { LayoutModel, NodeShape } from "./layoutModel";
 import { distanceToPolyline } from "./layoutPolyline";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import type { LayoutSpot } from "./layoutSpots";
 
-const PLANE = "Process_1";
-
-function node(
+const node = (
     id: string,
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
-    relations: Partial<
-        Pick<NodeShape, "host" | "plane" | "slot" | "subProcesses" | "expanded">
-    > = {},
-): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds,
-        outline,
-        expanded: false,
-        subProcesses: [],
-        lanes: [],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
+    relations: Partial<NodeShape> = {},
+) => buildNode(id, { bounds, outline, ...relations });
 
-const at = (x: number, y: number): Point => ({ x, y });
-
-function layoutOf(nodes: readonly NodeShape[], edges: readonly LayoutEdge[]): LayoutModel {
-    return {
-        shapes: new Map(nodes.map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
-}
-
-function flow(waypoints: readonly Point[], label?: DiagramBounds): LayoutEdge {
-    return {
-        id: "Flow_1",
-        plane: PLANE,
-        kind: "sequenceFlow",
-        source: "Task_A",
-        target: "Task_B",
-        waypoints,
-        ...(label === undefined ? {} : { label }),
-    };
-}
+const flow = (waypoints: readonly Point[], label?: DiagramBounds) =>
+    buildFlow("Flow_1", "Task_A", "Task_B", waypoints, label === undefined ? {} : { label });
 
 const TASK_A = node("Task_A", { x: 100, y: 100, width: 100, height: 80 });
 
@@ -166,16 +132,7 @@ describe("planFlowRepairs", () => {
         const target = node("Task_B", { x: 120, y: 300, width: 100, height: 80 });
         const layout = layoutOf(
             [host, boundary, target],
-            [
-                {
-                    id: "Flow_1",
-                    plane: PLANE,
-                    kind: "sequenceFlow",
-                    source: "Boundary_1",
-                    target: "Task_B",
-                    waypoints: [at(150, 198), at(150, 260)],
-                },
-            ],
+            [buildFlow("Flow_1", "Boundary_1", "Task_B", [at(150, 198), at(150, 260)])],
         );
 
         const [repair] = repairsOf(layout);

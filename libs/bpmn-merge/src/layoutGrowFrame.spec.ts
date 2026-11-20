@@ -1,32 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
-import { rootPlane } from "./__fixtures__/shapePlane";
+import { box, lane, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
-import type { DiagramBounds } from "./layoutGeometry";
 import { type FrameGrown, growFrameFor } from "./layoutGrowFrame";
-import type { LaneShape, LayoutModel, LayoutShape } from "./layoutModel";
+import type { LayoutModel, LayoutShape } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
-
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-function lane(id: string, bounds: DiagramBounds): LaneShape {
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        parent: "Process_1",
-        pool: "Pool_1",
-        outline: "rectangle",
-        bounds,
-    };
-}
 
 const IN_POOL = { pool: "Pool_1" };
 const IN_SUB = { pool: "Pool_1", subProcesses: ["Sub_1"] };
@@ -93,7 +72,7 @@ describe("growFrameFor", () => {
     it("grows a pool with its lanes sideways", () => {
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 600, 200)),
-            lane("Lane_1", box(30, 0, 570, 200)),
+            lane("Lane_1", box(30, 0, 570, 200), IN_POOL),
             node("Task_Z", { ...IN_POOL, lanes: ["Lane_1"], bounds: box(560, 60) }),
         ]);
 
@@ -116,7 +95,7 @@ describe("growFrameFor", () => {
     it("grows no lane on its own", () => {
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 600, 200)),
-            lane("Lane_1", box(30, 0, 570, 200)),
+            lane("Lane_1", box(30, 0, 570, 200), IN_POOL),
             node("Task_Z", { ...IN_POOL, lanes: ["Lane_1"], bounds: box(560, 60) }),
         ]);
 

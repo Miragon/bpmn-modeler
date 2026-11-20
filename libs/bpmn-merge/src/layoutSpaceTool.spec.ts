@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { rootPlane } from "./__fixtures__/shapePlane";
+import {
+    PLANE,
+    box,
+    flow,
+    lane,
+    layoutOf,
+    node as buildNode,
+    pool,
+} from "./__fixtures__/layoutShapes";
 import type { Axis } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { DiagramBounds, Point } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import type { LaneShape, LayoutModel, NodeShape } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
 import { SpaceTool } from "./layoutSpaceTool";
-
-const PLANE = "Process_1";
 
 /** Along y the drawing is the one along x mirrored at its diagonal. */
 const oriented = (axis: Axis, { x, y, width, height }: DiagramBounds): DiagramBounds =>
@@ -17,43 +23,11 @@ const oriented = (axis: Axis, { x, y, width, height }: DiagramBounds): DiagramBo
 const point = (axis: Axis, x: number, y: number): Point =>
     axis === "x" ? { x, y } : { x: y, y: x };
 
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
+const node = (axis: Axis, id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}) =>
+    buildNode(id, { bounds: oriented(axis, bounds), ...relations });
 
-function node(
-    axis: Axis,
-    id: string,
-    bounds: DiagramBounds,
-    relations: Partial<NodeShape> = {},
-): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds: oriented(axis, bounds),
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        lanes: [],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
-function frame(axis: Axis, id: string, bounds: DiagramBounds, parent = PLANE): LayoutShape {
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        parent,
-        bounds: oriented(axis, bounds),
-    };
-}
+const frame = (axis: Axis, id: string, bounds: DiagramBounds, relations: Partial<LaneShape> = {}) =>
+    lane(id, oriented(axis, bounds), relations);
 
 /**
  * Along x: Task_A before the line at 340, Task_B past it by its center with
@@ -62,7 +36,7 @@ function frame(axis: Axis, id: string, bounds: DiagramBounds, parent = PLANE): L
  * in and a frame past the line.
  */
 function drawingAlong(axis: Axis): LayoutModel {
-    const shapes: LayoutShape[] = [
+    const shapes = [
         frame(axis, "Frame_Open", box(0, 0, 1000, 600)),
         frame(axis, "Frame_Past", box(1100, 0, 200, 600)),
         node(axis, "Task_A", box(100, 100)),
@@ -71,20 +45,8 @@ function drawingAlong(axis: Axis): LayoutModel {
         node(axis, "Sub_1", box(320, 300, 300, 200), { expanded: true }),
         node(axis, "Task_S", box(400, 360), { subProcesses: ["Sub_1"] }),
     ];
-    const edges: LayoutEdge[] = [
-        {
-            id: "Flow_1",
-            plane: PLANE,
-            kind: "sequenceFlow",
-            source: "Task_A",
-            target: "Task_B",
-            waypoints: [point(axis, 200, 140), point(axis, 300, 140)],
-        },
-    ];
-    return {
-        shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
+    const route = [point(axis, 200, 140), point(axis, 300, 140)];
+    return layoutOf(shapes, [flow("Flow_1", "Task_A", "Task_B", route)]);
 }
 
 describe("SpaceTool.openBand", () => {
@@ -140,13 +102,10 @@ describe("SpaceTool.openBand", () => {
         const shapes = [
             frame("x", "Lane_Open", box(0, 0, 300, 600)),
             frame("x", "Lane_Past", box(400, 0, 400, 600)),
-            frame("x", "Lane_Child", box(430, 0, 370, 600), "Lane_Past"),
-            frame("x", "Lane_Nested", box(600, 0, 200, 600), "Lane_Open"),
+            frame("x", "Lane_Child", box(430, 0, 370, 600), { parent: "Lane_Past" }),
+            frame("x", "Lane_Nested", box(600, 0, 200, 600), { parent: "Lane_Open" }),
         ];
-        const layout: LayoutModel = {
-            shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-            edges: new Map(),
-        };
+        const layout = layoutOf(shapes);
         const before = DrawingDraft.of(layout);
         const tool = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "x");
 
@@ -190,14 +149,8 @@ describe("SpaceTool.shiftedBy", () => {
 
 describe("SpaceTool.unitsIn", () => {
     it("gives a pool the data stores and artifacts lying in it, which then give way with it", () => {
-        const shapes: LayoutShape[] = [
-            {
-                kind: "pool",
-                id: "Pool_1",
-                ...rootPlane(PLANE),
-                outline: "rectangle",
-                bounds: box(0, 0, 600, 300),
-            },
+        const shapes = [
+            pool("Pool_1", box(0, 0, 600, 300)),
             node("x", "Task_A", box(100, 100), { pool: "Pool_1" }),
             node("x", "Store_In", box(300, 100, 50, 50), {
                 pool: "Pool_1",
@@ -209,10 +162,7 @@ describe("SpaceTool.unitsIn", () => {
                 mayLieOutsidePool: true,
             }),
         ];
-        const layout: LayoutModel = {
-            shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-            edges: new Map(),
-        };
+        const layout = layoutOf(shapes);
         const before = DrawingDraft.of(layout);
         const tool = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "y");
 

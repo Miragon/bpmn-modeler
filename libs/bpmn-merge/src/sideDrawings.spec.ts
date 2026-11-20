@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, layoutOf, node } from "./__fixtures__/layoutShapes";
+import { box, lane as buildLane, layoutOf, node } from "./__fixtures__/layoutShapes";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
-import type { LayoutShape, NodeShape } from "./layoutModel";
+import type { NodeShape } from "./layoutModel";
 import {
     drawingOfSameSize,
     drawsAt,
@@ -132,14 +132,7 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
     });
 
     it("tells whether a layout draws a frame where it lies", () => {
-        const lane: LayoutShape = {
-            kind: "lane",
-            id: "Lane_1",
-            ...rootPlane(PLANE),
-            outline: "rectangle",
-            parent: "Process_1",
-            bounds: { x: 30, y: 0, width: 870, height: 200 },
-        };
+        const lane = buildLane("Lane_1", box(30, 0, 870, 200));
         const moved = { ...lane, bounds: { ...lane.bounds, y: 200 } };
 
         expect(drawsWhereItLies(layoutOf([lane]), lane)).toBe(true);
@@ -192,7 +185,12 @@ describe("placedByBuild", () => {
             placed: false,
         },
     ])("is $placed when $label", ({ node: onPlane = task, sides, placed }) => {
-        expect(placedByBuild(onPlane, sides.map(layoutOf))).toBe(placed);
+        expect(
+            placedByBuild(
+                onPlane,
+                sides.map((shapes) => layoutOf(shapes)),
+            ),
+        ).toBe(placed);
     });
 
     it("is false for a boundary event, which goes with its host", () => {
@@ -203,14 +201,7 @@ describe("placedByBuild", () => {
 });
 
 describe("placedByBuildOutside", () => {
-    const lane: LayoutShape = {
-        kind: "lane",
-        id: "Lane_1",
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        parent: "Process_1",
-        bounds: { x: 30, y: 300, width: 870, height: 200 },
-    };
+    const lane = buildLane("Lane_1", box(30, 300, 870, 200));
     const sideLane = { ...lane, bounds: { ...lane.bounds, y: 100 } };
     const member = node("Task_1", { bounds: { x: 100, y: 120, width: 100, height: 80 } });
 
@@ -237,6 +228,12 @@ describe("placedByBuildOutside", () => {
             placed: true,
         },
     ])("is $placed when $label", ({ sides, placed }) => {
-        expect(placedByBuildOutside(member, [lane], sides.map(layoutOf))).toBe(placed);
+        expect(
+            placedByBuildOutside(
+                member,
+                [lane],
+                sides.map((shapes) => layoutOf(shapes)),
+            ),
+        ).toBe(placed);
     });
 });

@@ -6,6 +6,7 @@ import {
     NAMED_GROUP_AROUND_PUSHED_CHAIN,
 } from "./__fixtures__/groupAroundPushedChain";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
+import { box } from "./__fixtures__/layoutShapes";
 import { DiagramIndex } from "./diagramIndex";
 import { IndexedDocument } from "./indexedDocument";
 import { BUILD_LAYOUT_REPAIRS, repairIntroducedSpots } from "./layoutDrawingRepair";
@@ -100,7 +101,3 @@ describe("repairIntroducedSpots with a group", () => {
         });
     });
 });
-
-function box(x: number, y: number, width: number, height: number) {
-    return { x, y, width, height };
-}

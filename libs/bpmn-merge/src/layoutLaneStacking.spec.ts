@@ -3,78 +3,27 @@ import { describe, expect, it } from "vitest";
 import { dockedModel } from "./__fixtures__/dockedModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { rootPlane } from "./__fixtures__/shapePlane";
-import type { DiagramBounds, Point } from "./layoutGeometry";
+import {
+    at,
+    box,
+    flow,
+    lane as buildLane,
+    layoutOf,
+    node as buildNode,
+    pool,
+} from "./__fixtures__/layoutShapes";
+import type { DiagramBounds } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
-import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import type { LaneShape, LayoutModel, NodeShape } from "./layoutModel";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { liesWithin } from "./layoutGeometry";
 
-const PLANE = "Collaboration_1";
+const lane = (id: string, bounds: DiagramBounds, parent = "Process_1") =>
+    buildLane(id, bounds, { parent, pool: "Pool_1" });
 
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-const at = (x: number, y: number): Point => ({ x, y });
-
-function pool(id: string, bounds: DiagramBounds): LayoutShape {
-    return {
-        kind: "pool",
-        id,
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        bounds,
-    };
-}
-
-function lane(
-    id: string,
-    bounds: DiagramBounds,
-    parent = "Process_1",
-    inPool = "Pool_1",
-): LaneShape {
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        parent,
-        pool: inPool,
-        bounds,
-    };
-}
-
-function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds,
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        pool: "Pool_1",
-        lanes: [],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
-function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
-}
-
-function layoutOf(shapes: readonly LayoutShape[], edges: readonly LayoutEdge[] = []): LayoutModel {
-    return {
-        shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
-}
+const node = (id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}) =>
+    buildNode(id, { bounds, pool: "Pool_1", ...relations });
 
 function planOf(layout: LayoutModel, appendedLanes: readonly string[]): LaneStackPlan {
     return stackAppendedLanes(layout, appendedLanes);

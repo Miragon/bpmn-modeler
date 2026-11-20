@@ -1,31 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import { at, flow as buildFlow, layoutOf as buildLayout } from "./__fixtures__/layoutShapes";
 import { flowClashesOf, runsOn } from "./layoutFlowClashes";
 import type { Point } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel } from "./layoutModel";
+import type { LayoutEdge } from "./layoutModel";
 
-const at = (x: number, y: number): Point => ({ x, y });
-
-function flow(
+const flow = (
     id: string,
     waypoints: readonly Point[],
     ends: Partial<Pick<LayoutEdge, "source" | "target" | "plane">> = {},
-): LayoutEdge {
-    return {
-        id,
-        plane: "Plane_1",
-        source: `${id}_Source`,
-        target: `${id}_Target`,
-        waypoints,
-        kind: "sequenceFlow",
-        ...ends,
-    };
-}
+) => buildFlow(id, `${id}_Source`, `${id}_Target`, waypoints, ends);
 
-const layoutOf = (...edges: LayoutEdge[]): LayoutModel => ({
-    shapes: new Map(),
-    edges: new Map(edges.map((edge) => [edge.id, edge])),
-});
+const layoutOf = (...edges: LayoutEdge[]) => buildLayout([], edges);
 
 const ACROSS = flow("Flow_Across", [at(0, 50), at(200, 50)]);
 

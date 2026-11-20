@@ -1,29 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, layoutOf, node } from "./__fixtures__/layoutShapes";
+import { PLANE, box, group, layoutOf, node } from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import type { Axis } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { DiagramBounds } from "./layoutGeometry";
 import { type EnclosedMove, GroupContent, groupAfterPush } from "./layoutGroupContent";
-import { type GroupShape, translatedNode } from "./layoutModel";
+import { translatedNode } from "./layoutModel";
 
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-const group = (bounds: DiagramBounds, plane = PLANE): GroupShape => ({
-    kind: "group",
-    id: "Group_1",
-    ...rootPlane(plane),
-    outline: "rectangle",
-    bounds,
-});
-
-const GROUP = group(box(90, 80, 260, 100));
+const GROUP = group("Group_1", box(90, 80, 260, 100));
 const TASK_A = box(100, 90);
 const TASK_B = box(240, 90);
 
@@ -214,7 +199,7 @@ describe("GroupContent", () => {
     });
 
     it("leaves a group on another plane as drawn", () => {
-        const elsewhere = group(GROUP.bounds, "Process_2");
+        const elsewhere = group("Group_1", GROUP.bounds, rootPlane("Process_2"));
         const before = DrawingDraft.of(layoutOf([elsewhere, node("Task_A", { bounds: TASK_A })]));
         const trial = before.fork();
         const content = GroupContent.of(before, trial, PLANE, new Set());

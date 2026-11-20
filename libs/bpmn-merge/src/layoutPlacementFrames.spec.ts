@@ -1,30 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
-import { rootPlane } from "./__fixtures__/shapePlane";
-import type { DiagramBounds } from "./layoutGeometry";
-import type { LaneShape, LayoutModel, LayoutShape } from "./layoutModel";
+import { box, lane, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
+import type { LayoutModel, LayoutShape } from "./layoutModel";
 import { FrameFit, growthToHold, holdsLevel, innerBoundsOf } from "./layoutPlacementFrames";
 import { ShapeGroups } from "./layoutShapeGroups";
 
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-function lane(id: string, bounds: DiagramBounds): LaneShape {
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        parent: "Process_1",
-        pool: "Pool_1",
-        outline: "rectangle",
-        bounds,
-    };
-}
+const IN_POOL = { pool: "Pool_1" };
 
 function frameFitOf(layout: LayoutModel, id: string, into: readonly LayoutShape[] = []): FrameFit {
     const moving = layout.shapes.get(id);
@@ -38,7 +19,9 @@ describe("innerBoundsOf", () => {
     });
 
     it("keeps off the name band at the top of a frame drawn taller than wide", () => {
-        expect(innerBoundsOf(lane("Lane_1", box(0, 0, 200, 600)))).toEqual(box(10, 40, 180, 550));
+        expect(innerBoundsOf(lane("Lane_1", box(0, 0, 200, 600), IN_POOL))).toEqual(
+            box(10, 40, 180, 550),
+        );
     });
 
     it("keeps off a sub-process's border and off the name band at its top", () => {
@@ -49,7 +32,7 @@ describe("innerBoundsOf", () => {
 });
 
 describe("holdsLevel", () => {
-    const upper = lane("Lane_1", box(30, 0, 1170, 150));
+    const upper = lane("Lane_1", box(30, 0, 1170, 150), IN_POOL);
 
     it("holds bounds that lie in the lane's band off its border", () => {
         expect(holdsLevel(upper, box(300, 10, 100, 130))).toBe(true);
@@ -76,7 +59,7 @@ describe("growthToHold", () => {
     });
 
     it("grows each side the bounds pass, as far as the frame needing most", () => {
-        const narrower = lane("Lane_1", box(30, 0, 500, 200));
+        const narrower = lane("Lane_1", box(30, 0, 500, 200), IN_POOL);
 
         expect(growthToHold([frame, narrower], box(520, 150, 100, 80))).toEqual({
             left: 0,
@@ -230,8 +213,8 @@ describe("FrameFit", () => {
         });
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 900, 400)),
-            lane("Lane_1", box(30, 0, 870, 200)),
-            lane("Lane_2", box(30, 200, 870, 200)),
+            lane("Lane_1", box(30, 0, 870, 200), IN_POOL),
+            lane("Lane_2", box(30, 200, 870, 200), IN_POOL),
             subProcess,
             node("A", {
                 pool: "Pool_1",
