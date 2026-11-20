@@ -12,6 +12,8 @@ export interface FileMeasure {
     readonly functions: readonly FunctionMeasure[];
     /** No statement other than imports and re-exports. */
     readonly barrel: boolean;
+    /** Only imports, exports, types and constants whose values compute nothing: no logic to measure. */
+    readonly runsNoCode: boolean;
 }
 
 /** The first of the most complex, so a tie points at the one higher up. */

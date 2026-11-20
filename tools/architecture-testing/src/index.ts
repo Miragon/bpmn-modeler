@@ -1,4 +1,5 @@
 export type { ArchitectureRule } from "./architectureRule";
+export { runsNoCode } from "./codeFreeModule";
 export { readComments, stripComments } from "./comments";
 export { findContractSuites } from "./contractSuites";
 export type {
