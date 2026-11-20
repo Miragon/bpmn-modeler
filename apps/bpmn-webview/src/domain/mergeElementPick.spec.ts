@@ -5,9 +5,10 @@ import type { MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 import {
     elementPickOf,
     type MergeElementPick,
+    type MergeElementPickStates,
     offersMergeXml,
     panePicks,
-    rowPickOf,
+    ownPickOf,
 } from "./mergeElementPick";
 
 const MESSAGE_ROW: MergePaneShapelessRow = {
@@ -21,67 +22,45 @@ const MESSAGE_ROW: MergePaneShapelessRow = {
 
 const STATES = {
     pickable: [
-        { id: "Task_Remind", undo: "element", handMergeable: true },
-        { id: "Task_Cancel", undo: "element" },
-        { id: "Message_1", undo: "element", handMergeable: true },
-    ],
-    badges: [
         {
             id: "Task_Remind",
-            kind: "keptHere",
-            keptSide: "current",
-            scope: "withContents",
-            mergedByHand: true,
+            pick: { keptSide: "current", scope: "withContents", mergedByHand: true },
+            handMergeable: true,
         },
+        { id: "Task_Open", takenSide: "current" },
+        { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
+        { id: "Message_1", pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
     ],
-    picksNotDrawn: [
-        { id: "Task_Cancel", keptSide: "incoming", scope: "element" },
-        { id: "Message_1", keptSide: "incoming", scope: "element" },
-    ],
-    shapelessRows: [MESSAGE_ROW, { ...MESSAGE_ROW, id: "Message_Unlisted" }],
-} as const;
+} as const satisfies MergeElementPickStates;
 
 describe("elementPickOf", () => {
     it.each<[string, string, MergeElementPick]>([
         [
-            "drawn with a badge",
+            "picked, and its XML can be merged by hand",
             "Task_Remind",
             {
                 pick: { keptSide: "current", scope: "withContents", mergedByHand: true },
                 handMergeable: true,
             },
         ],
-        [
-            "picked but drawn by the partner alone",
-            "Task_Cancel",
-            { pick: { keptSide: "incoming", scope: "element" } },
-        ],
-        [
-            "a menu row the pane also lists as picked",
-            "Message_1",
-            { pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
-        ],
-        [
-            "a menu row alone",
-            "Message_Unlisted",
-            { pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
-        ],
-        ["neither picked nor listed", "Task_Gone", {}],
+        ["picked alone", "Task_Cancel", { pick: { keptSide: "incoming", scope: "element" } }],
+        ["open", "Task_Open", {}],
+        ["not pickable on the pane", "Task_Gone", {}],
     ])("reads the pick of an element %s: %s", (_case, id, expected) => {
         expect(elementPickOf(STATES, id)).toStrictEqual(expected);
     });
 
     it("reads a menu row's own pick, as the pane finds it", () => {
-        expect(rowPickOf(MESSAGE_ROW)).toStrictEqual(elementPickOf(STATES, "Message_1"));
+        expect(ownPickOf(MESSAGE_ROW)).toStrictEqual(elementPickOf(STATES, "Message_1"));
     });
 
     it("reads nothing of a row that is not there", () => {
-        expect(rowPickOf(undefined)).toStrictEqual({});
+        expect(ownPickOf(undefined)).toStrictEqual({});
     });
 });
 
 describe("panePicks", () => {
-    it("lists each picked element once with its pick: badges, then picks not drawn, then menu rows", () => {
+    it("lists each picked element once with its pick, in the order the host sends them", () => {
         expect(panePicks(STATES)).toStrictEqual([
             {
                 id: "Task_Remind",
@@ -89,16 +68,7 @@ describe("panePicks", () => {
             },
             { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
             { id: "Message_1", pick: { keptSide: "incoming", scope: "element" } },
-            { id: "Message_Unlisted", pick: { keptSide: "incoming", scope: "element" } },
         ]);
-    });
-
-    it("leaves out a menu row without a pick", () => {
-        const { pick: _open, ...openRow } = MESSAGE_ROW;
-
-        expect(
-            panePicks({ badges: [], picksNotDrawn: [], shapelessRows: [openRow] }),
-        ).toStrictEqual([]);
     });
 
     it("reads the pick elementPickOf reads for every element", () => {

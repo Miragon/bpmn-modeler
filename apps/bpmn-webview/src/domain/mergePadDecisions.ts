@@ -1,18 +1,19 @@
 import type {
     MergePaneContainerReach,
-    MergePaneOtherSideLack,
+    MergePaneSideLack,
+    MergePanePickable,
     MergePaneShapelessRow,
     MergePaneStates,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
+import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
 import {
     elementPickOf,
     type MergeElementPickStates,
     type MergePadOffers,
     offersMergeXml,
-    rowPickOf,
+    ownPickOf,
 } from "./mergeElementPick";
 import { keepRemovedWith, type MergeKeepRemovedWith } from "./mergeKeepRemovedWith";
 
@@ -32,7 +33,7 @@ export type MergePadDecision =
     | {
           readonly kind: "leaveOut";
           readonly side: MergeSide;
-          readonly otherSideLacks: MergePaneOtherSideLack;
+          readonly lack: MergePaneSideLack;
       }
     | MergeKeepRemovedWith
     | MergeXmlDecision
@@ -57,7 +58,7 @@ export type MergePadStates = Pick<MergePaneStates, "caption" | "restoreOffer"> &
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
  * the pane's side, keep a container with everything inside, leave it out
- * where the other side lacks it, keep what the host offers with it, merge
+ * by picking the side that lacks it, keep what the host offers with it, merge
  * its XML by hand where the host has a merge editor, undo the user's pick.
  * An entry whose outcome the result already has is left out, so every
  * entry changes something.
@@ -69,22 +70,23 @@ export function mergePadDecisions(
 ): readonly MergePadDecision[] {
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
-    const paneSide = states.caption.side;
-    const lackingSide =
-        pickable.otherSideLacks === undefined
-            ? undefined
-            : { side: otherSide(paneSide), lack: pickable.otherSideLacks };
     const facts: MergeDecisionFacts = {
         ...elementPickOf(states, elementId),
         takenSide: pickable.takenSide,
-        lackingSide,
+        lackingSide: pickable.lackingSide,
         container: pickable.container,
         restoreOffer: keepRemovedWith(states, elementId),
     };
-    const sides = lackingSide === undefined ? [paneSide] : [paneSide, lackingSide.side];
-    return decisionsOn(facts, sides, offers).filter(
+    return decisionsOn(facts, padSides(states.caption.side, pickable), offers).filter(
         (decision): decision is MergePadDecision => decision.kind !== "heldKeepInside",
     );
+}
+
+/** The pane's own side, then the side whose pick leaves the element out, where that is another. */
+function padSides(paneSide: MergeSide, { lackingSide }: MergePanePickable): readonly MergeSide[] {
+    return lackingSide === undefined || lackingSide.side === paneSide
+        ? [paneSide]
+        : [paneSide, lackingSide.side];
 }
 
 /** What a menu row reads of the host's states. */
@@ -117,7 +119,7 @@ export function mergeRowDecisions(
     offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
     const facts: MergeDecisionFacts = {
-        ...rowPickOf(row),
+        ...ownPickOf(row),
         takenSide: row.takenSide,
         lackingSide: row.lackingSide,
         container: row.container,
@@ -135,7 +137,7 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
 
 /** What decides the entries offered on one element, read from the pad's states or from a menu row. */
 type MergeDecisionFacts = Pick<
-    MergePaneShapelessRow,
+    MergePanePickable,
     "pick" | "takenSide" | "lackingSide" | "container" | "handMergeable"
 > & {
     readonly restoreOffer?: MergeKeepRemovedWith;
@@ -177,7 +179,7 @@ function sidePick(facts: MergeDecisionFacts, side: MergeSide): MergePadDecision 
     if (facts.lackingSide?.side === side) {
         return facts.takenSide === side
             ? undefined
-            : { kind: "leaveOut", side, otherSideLacks: facts.lackingSide.lack };
+            : { kind: "leaveOut", side, lack: facts.lackingSide.lack };
     }
     return facts.pick?.keptSide === side ? undefined : { kind: "keep", scope: "element", side };
 }

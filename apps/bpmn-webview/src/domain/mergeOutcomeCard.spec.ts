@@ -57,12 +57,12 @@ const keep = (
 
 const leaveOut = (
     elementId: string,
-    otherSideLacks: "removed" | "missing" = "removed",
+    lack: "removed" | "missing" = "removed",
 ): MergeActedDecision => ({
     kind: "leaveOut",
     elementId,
     side: "current",
-    otherSideLacks,
+    lack,
     origin: "canvas",
 });
 

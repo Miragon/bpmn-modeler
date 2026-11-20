@@ -50,9 +50,7 @@ const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeAct
 });
 
 const states = (overrides: Partial<MergeOutcomeStates> = {}): MergeOutcomeStates => ({
-    badges: [],
-    picksNotDrawn: [],
-    shapelessRows: [],
+    pickable: [],
     allSteps: [
         { id: "Task_Remind", shapeless: false, onThisPane: true, onOtherPane: false },
         { id: "Message_1", shapeless: true, onThisPane: true, onOtherPane: true },

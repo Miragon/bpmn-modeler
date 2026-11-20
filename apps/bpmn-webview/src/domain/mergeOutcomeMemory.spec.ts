@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
     MergePaneBlock,
     MergePaneOutcome,
-    MergePaneShapelessRow,
+    MergePanePickable,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision, MergeXmlRequest } from "./mergeActedDecision";
@@ -54,7 +54,7 @@ const leaveOutTask: MergeActedDecision = {
     kind: "leaveOut",
     elementId: "Task_Remind",
     side: "current",
-    otherSideLacks: "removed",
+    lack: "removed",
     origin: "canvas",
 };
 const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeActedDecision => ({
@@ -65,9 +65,7 @@ const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeAct
 });
 
 const states = (overrides: Partial<MergeOutcomeStates> = {}): MergeOutcomeStates => ({
-    badges: [],
-    picksNotDrawn: [],
-    shapelessRows: [],
+    pickable: [],
     allSteps: [
         { id: "Task_Remind", shapeless: false, onThisPane: true, onOtherPane: false },
         { id: "Message_1", shapeless: true, onThisPane: true, onOtherPane: true },
@@ -75,19 +73,10 @@ const states = (overrides: Partial<MergeOutcomeStates> = {}): MergeOutcomeStates
     ...overrides,
 });
 
-const pickedRow = (
+const pickedEntry = (
     id: string,
     keptSide: "current" | "incoming" = "incoming",
-): MergePaneShapelessRow => ({
-    id,
-    type: "bpmn:Message",
-    marker: "takenFromOtherSide",
-    pick: { keptSide, scope: "element" },
-    differences: [],
-});
-
-const badge = (id: string) =>
-    ({ id, kind: "keptHere", keptSide: "incoming", scope: "element" }) as const;
+): MergePanePickable => ({ id, pick: { keptSide, scope: "element" } });
 
 /** Sends `acted` and lets the host answer with `lastOutcome`. */
 function sendAndAnswer(
@@ -166,7 +155,7 @@ describe("answerStates", () => {
             removedBy: "current",
         } as const;
         const shown = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, outcome, {
-            badges: [badge("Task_Remind")],
+            pickable: [pickedEntry("Task_Remind")],
             restoreOffer: offer,
         });
 
@@ -174,14 +163,7 @@ describe("answerStates", () => {
             shown.memory,
             states({
                 lastOutcome: outcome,
-                badges: [
-                    {
-                        id: "Task_Remind",
-                        kind: "replacedHere",
-                        keptSide: "current",
-                        scope: "element",
-                    },
-                ],
+                pickable: [pickedEntry("Task_Remind", "current")],
             }),
         );
 
@@ -189,15 +171,15 @@ describe("answerStates", () => {
         expect(memory.latest).toBeUndefined();
     });
 
-    it("takes the partner's change of a pick only a menu row lists for newer, though its outcome reads the same", () => {
+    it("takes the partner's change of another element's pick for newer, though its outcome reads the same", () => {
         const outcome = applied("pick", "Task_Remind");
         const shown = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, outcome, {
-            shapelessRows: [pickedRow("Message_1")],
+            pickable: [pickedEntry("Message_1")],
         });
 
         const { answer } = answerStates(
             shown.memory,
-            states({ lastOutcome: outcome, shapelessRows: [pickedRow("Message_1", "current")] }),
+            states({ lastOutcome: outcome, pickable: [pickedEntry("Message_1", "current")] }),
         );
 
         expect(answer).toBe("forget");
@@ -219,11 +201,11 @@ describe("answerStates", () => {
     it("notes the refusal an undo freed: it undid a blocker and no blocking pick is left", () => {
         const refusal = refusedLeaveOut([picked("Flow_1"), picked("Flow_2")]);
         const refused = sendAndAnswer(EMPTY_OUTCOME_MEMORY, leaveOutTask, refusal, {
-            badges: [badge("Flow_1"), badge("Flow_2")],
+            pickable: [pickedEntry("Flow_1"), pickedEntry("Flow_2")],
         });
 
         const first = sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), {
-            badges: [badge("Flow_2")],
+            pickable: [pickedEntry("Flow_2")],
         });
         const second = sendAndAnswer(first.memory, undo("Flow_2"), applied("unpick", "Flow_2"));
 
@@ -232,29 +214,22 @@ describe("answerStates", () => {
         expect(second.memory.refused).toBeUndefined();
     });
 
-    it.each<[string, MergePaneBlock[], Partial<MergeOutcomeStates>]>([
-        [
-            "the pane cannot draw",
-            [picked("Flow_1"), picked("Flow_2")],
-            { picksNotDrawn: [{ id: "Flow_2", keptSide: "incoming", scope: "element" }] },
-        ],
-        [
-            "only a menu row lists",
-            [picked("Flow_1"), picked("Message_1")],
-            { shapelessRows: [pickedRow("Message_1")] },
-        ],
-    ])("notes no freed refusal where a blocking pick %s is left", (_case, blockedBy, overrides) => {
-        const refused = sendAndAnswer(
-            EMPTY_OUTCOME_MEMORY,
-            leaveOutTask,
-            refusedLeaveOut(blockedBy),
-        );
+    it.each(["Flow_2", "Message_1"])(
+        "notes no freed refusal where the blocking pick of %s is left",
+        (leftId) => {
+            const refused = sendAndAnswer(
+                EMPTY_OUTCOME_MEMORY,
+                leaveOutTask,
+                refusedLeaveOut([picked("Flow_1"), picked(leftId)]),
+            );
 
-        expect(
-            sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), overrides)
-                .memory.latest?.freed,
-        ).toBeUndefined();
-    });
+            expect(
+                sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), {
+                    pickable: [pickedEntry(leftId)],
+                }).memory.latest?.freed,
+            ).toBeUndefined();
+        },
+    );
 });
 
 describe("a merge by hand this pane asked for", () => {
@@ -271,16 +246,19 @@ describe("a merge by hand this pane asked for", () => {
         blockedBy: [],
         handMergeRefusal: { kind: "conflictMarkersLeft" },
     };
-    const mergedBadge = { ...badge("Task_Remind"), mergedByHand: true } as const;
+    const mergedEntry: MergePanePickable = {
+        id: "Task_Remind",
+        pick: { keptSide: "incoming", scope: "element", mergedByHand: true },
+    };
     const opened = answerStates(
         rememberSent(EMPTY_OUTCOME_MEMORY, mergeXml),
-        states({ badges: [badge("Task_Remind")] }),
+        states({ pickable: [pickedEntry("Task_Remind")] }),
     ).memory;
 
     it("shows the finished merge as the answer, with the request", () => {
         const { memory, answer } = answerStates(
             opened,
-            states({ lastOutcome: accepted, badges: [mergedBadge] }),
+            states({ lastOutcome: accepted, pickable: [mergedEntry] }),
         );
 
         expect(answer).toBe("show");
@@ -327,17 +305,17 @@ describe("a merge by hand this pane asked for", () => {
     it("answers a finish that repeats the last one word for word by its count, so it claims no later finish of the partner", () => {
         const shown = answerStates(
             opened,
-            states({ lastOutcome: { ...accepted, finish: 1 }, badges: [mergedBadge] }),
+            states({ lastOutcome: { ...accepted, finish: 1 }, pickable: [mergedEntry] }),
         ).memory;
         const editing = rememberSent(shown, mergeXml);
 
         const repeated = answerStates(
             editing,
-            states({ lastOutcome: { ...accepted, finish: 2 }, badges: [mergedBadge] }),
+            states({ lastOutcome: { ...accepted, finish: 2 }, pickable: [mergedEntry] }),
         );
         const partners = answerStates(
             repeated.memory,
-            states({ lastOutcome: { ...refusedText, finish: 3 }, badges: [mergedBadge] }),
+            states({ lastOutcome: { ...refusedText, finish: 3 }, pickable: [mergedEntry] }),
         );
 
         expect(repeated.answer).toBe("show");
@@ -351,11 +329,11 @@ describe("a merge by hand this pane asked for", () => {
         );
     });
 
-    it("tells a merge by hand from the plain pick by the badge's flag", () => {
+    it("tells a merge by hand from the plain pick by the pick's flag", () => {
         const shown = answerStates(opened, states({ lastOutcome: accepted })).memory;
 
         expect(
-            answerStates(shown, states({ lastOutcome: accepted, badges: [mergedBadge] })).answer,
+            answerStates(shown, states({ lastOutcome: accepted, pickable: [mergedEntry] })).answer,
         ).toBe("forget");
     });
 
