@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.5.0...orca-v0.6.0) (2026-11-20)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** draw Camunda 7 transaction boundaries in Miragon blue ([#2581](https://github.com/Miragon/bpmn-modeler/issues/2581)) [sync 0969f58] ([9b929bc](https://github.com/Miragon/bpmn-modeler/commit/9b929bc0116d142c87a1bf5c229a043199daa36c))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-layout:** move each label once when formatting ([#2572](https://github.com/Miragon/bpmn-modeler/issues/2572)) [sync 1f2f555] ([0f06f50](https://github.com/Miragon/bpmn-modeler/commit/0f06f50452c02587b8b2eb37391b870ef42bacb3))
+
 ## [0.5.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.4.0...orca-v0.5.0) (2026-11-18)
 
 
