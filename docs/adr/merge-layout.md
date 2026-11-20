@@ -86,7 +86,10 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   slot for its plane (`PlaneSlots`), read with the slots the assembly uses, so a collaboration's
   plane and the planes of the processes either side's participants name are one place, as one
   side may wrap a process in a pool and the other not; the root planes of two unrelated
-  processes and a collapsed sub-process's plane are elsewhere (#2589, #2597). Rejected:
+  processes and a collapsed sub-process's plane are elsewhere (#2589, #2597). So is the plane of
+  a process with lanes that no pool names, though bpmn-js draws it from the collaboration's
+  plane and the build check accepts it there: a side may give it a diagram of its own, which
+  one slot would fold onto the collaboration's plane (#2702). Rejected:
   comparing plane ids, which moved a whole lane's members both sides draw at one place under two
   root plane ids; counting any two root planes as one, which took a shape that changed process
   between two process diagrams for drawn in place; and matching two planes by a process both
