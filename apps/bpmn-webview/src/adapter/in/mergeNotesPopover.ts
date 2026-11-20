@@ -1,6 +1,5 @@
 import { type MergeBuildNote, createButton, createElement } from "@miragon/bpmn-modeler-types";
 
-import { buildNoteElementIds } from "../../domain/mergeBuildNotes";
 import { MERGE_MENU_TEXTS } from "../../domain/mergeBarTexts";
 import { buildNoteText } from "../../domain/mergeBuildNoteTexts";
 import { MERGE_BUILD_TEXTS } from "../../domain/mergeTexts";
@@ -82,7 +81,7 @@ export class MergeNotesPopover {
                 const item = createElement("li", "merge-notes__note");
                 item.append(
                     createElement("span", "merge-notes__text", texts[index]),
-                    ...buildNoteElementIds(note).map((id) =>
+                    ...note.named.map((id) =>
                         createButton("merge-notes__element", () => this.onSelect(id), nameOf(id)),
                     ),
                 );
