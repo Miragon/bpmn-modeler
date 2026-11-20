@@ -8,7 +8,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "preact/hooks"
 import type { ElementTemplate, Translate } from "../types";
 import { extractImplementationDetail } from "../types";
 import { TemplateSearchIndex } from "../search";
-import { CHOOSER_TEXTS } from "../chooserTexts";
+import { CHOOSER_TEXTS, TEMPLATE_LIST_TEXTS } from "../chooserTexts";
 import { TemplatePreview } from "./TemplatePreview";
 
 interface ChooserOverlayProps {
@@ -184,7 +184,7 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
                                 searchRef.current?.focus();
                             }}
                             type="button"
-                            aria-label={translate(CHOOSER_TEXTS.clearSearch)}
+                            aria-label={translate(TEMPLATE_LIST_TEXTS.clearSearch)}
                         >
                             ×
                         </button>
@@ -199,7 +199,7 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
                             onClick={() => setActiveCategory(null)}
                             type="button"
                         >
-                            {translate(CHOOSER_TEXTS.allCategories)}
+                            {translate(TEMPLATE_LIST_TEXTS.allCategories)}
                         </button>
                         {categories.map((cat) => (
                             <button
@@ -221,10 +221,12 @@ export function ChooserOverlay({ templates, translate, onSelect, onCancel }: Cho
                     <div class="etc-list-panel" ref={listRef}>
                         {filtered.length === 0 ? (
                             <div class="etc-empty">
-                                <p class="etc-empty-text">{translate(CHOOSER_TEXTS.noTemplates)}</p>
+                                <p class="etc-empty-text">
+                                    {translate(TEMPLATE_LIST_TEXTS.noTemplates)}
+                                </p>
                                 {search && (
                                     <p class="etc-empty-hint">
-                                        {translate(CHOOSER_TEXTS.noTemplatesHint)}
+                                        {translate(TEMPLATE_LIST_TEXTS.noTemplatesHint)}
                                     </p>
                                 )}
                             </div>

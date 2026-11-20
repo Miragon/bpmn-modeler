@@ -38,6 +38,7 @@ import {
 } from "../navigation";
 import { clampToCanvas, type CanvasBounds } from "../positioning";
 import { offersTypePick } from "../templateTypeAction";
+import { TEMPLATE_LIST_TEXTS } from "@miragon/bpmn-modeler-element-template-chooser/chooserTexts";
 import { APPEND_MENU_TEXTS } from "../appendMenuTexts";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
@@ -391,7 +392,7 @@ export function AppendMenuOverlay({
                                 searchRef.current?.focus();
                             }}
                             type="button"
-                            aria-label={translate(APPEND_MENU_TEXTS.clearSearch)}
+                            aria-label={translate(TEMPLATE_LIST_TEXTS.clearSearch)}
                         >
                             ×
                         </button>
