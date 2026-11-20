@@ -12,6 +12,7 @@ import {
 } from "bpmn-js-create-append-anything";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
+import { C8_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotationOverrides";
 
 const FEEL_POPUP_LINKS = {
     feel: {
@@ -23,8 +24,6 @@ const FEEL_POPUP_LINKS = {
         href: "https://docs.camunda.io/docs/components/modeler/forms/configuration/forms-config-templating-syntax/",
     },
 } as const;
-
-const JOB_WORKER_KEYWORDS = ["Job worker"];
 
 export const c8Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -47,16 +46,5 @@ export const c8Stack: EngineStack = {
             return link ? [link] : undefined;
         },
     },
-    popupMenuAnnotations: {
-        descriptions: {
-            "service-task": "Automated work carried out by a job worker or connector",
-        },
-        additionalKeywords: {
-            "service-task": JOB_WORKER_KEYWORDS,
-            "script-task": JOB_WORKER_KEYWORDS,
-            "send-task": JOB_WORKER_KEYWORDS,
-            "message-intermediate-throw": JOB_WORKER_KEYWORDS,
-            "message-end": JOB_WORKER_KEYWORDS,
-        },
-    },
+    popupMenuAnnotations: C8_POPUP_MENU_ANNOTATIONS,
 };

@@ -4,6 +4,7 @@
  */
 import type { ElementTemplate, TemplateStep } from "@miragon/bpmn-modeler-element-template-chooser";
 
+import { APPEND_MENU_TEXTS } from "./appendMenuTexts";
 import { isTemplatePopupEntry, templateIdOfEntryKey } from "./templatePopupEntry";
 
 export type { Translate } from "@miragon/bpmn-modeler-element-template-chooser/types";
@@ -146,7 +147,7 @@ export function classifyEntries(
 
         const group = entry.group ?? inheritedGroup;
         const groupId = group?.id ?? "other";
-        const groupName = group?.name ?? "Other";
+        const groupName = group?.name ?? APPEND_MENU_TEXTS.otherGroup;
 
         let bpmnGroup = groupMap.get(groupId);
         if (!bpmnGroup) {

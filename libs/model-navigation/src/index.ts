@@ -23,6 +23,7 @@ import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
 
 export { extractReference } from "./extractReference";
+export { MODEL_NAVIGATION_KEYS } from "./modelNavigationTexts";
 export { FormReferenceStatusClient };
 export type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort";
 export type {

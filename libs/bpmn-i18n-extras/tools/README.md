@@ -14,6 +14,8 @@ and prune the overlay against it.
 | `harvested.json`, `harvested-dmn.json`, `harvested-template-editor.json` | The recorded keys of each driver. |
 | `harvested-merge.json` | The keys of the merge view's texts, recorded by `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`, which asks each merge text once. No browser driver opens a merge pane. |
 | `harvested-diff.json`, `harvested-dmn-diff.json` | The keys of the BPMN and DMN diff panes' texts, recorded by `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`: the shared diff views' `DIFF_VIEW_KEYS` from `@miragon/bpmn-modeler-types` plus the pane's own constants. No browser driver opens a diff pane. |
+| `harvested-modeler-features.json` | The keys of the modeler package's features no browser driver reaches, recorded by `packages/bpmn-modeler/src/featureTextsHarvest.spec.ts`: the mode strip (mounted with a recording translator), the popup-menu annotations of the Design, C7 and C8 surfaces, and the `*_KEYS` constants of the element template chooser, the append menu, the ID-from-name links, the definition search and the model navigation context pad. |
+| `harvested-form-preview.json` | The keys of the linked form preview, recorded by `apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts` from `FORM_PREVIEW_KEYS`. |
 | `record-harvest.mjs` | Adds a driver's drained keys to its record and rewrites it in the shape `harvestRecord.spec.ts` checks, keeping the record's note. |
 | `build-overlay.mjs` | Prunes every registered overlay dictionary against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
 
@@ -40,16 +42,19 @@ production builds leave it out.
    `pbpaste | bun libs/bpmn-i18n-extras/tools/record-harvest.mjs harvested.json` (or `harvested-dmn.json`,
    `harvested-template-editor.json`). It keeps the record's note and the keys it already holds, so for the
    template editor run it once per page state.
-   The merge view's and the diff panes' records have no driver: rewrite `harvested-merge.json`,
-   `harvested-diff.json` or `harvested-dmn-diff.json` after changing one of their texts, since CI fails
-   until they are current. A key the shared diff views start translating fails modeler-types'
-   `diffVocabulary.spec.ts` until `DIFF_VIEW_KEYS` lists it; a pane's own new text must be added to its
-   record spec by hand.
+   The records written by specs have no driver: rewrite `harvested-merge.json`, `harvested-diff.json`,
+   `harvested-dmn-diff.json`, `harvested-modeler-features.json` or `harvested-form-preview.json` after
+   changing one of their texts, since CI fails until they are current. A key the shared diff views start
+   translating fails modeler-types' `diffVocabulary.spec.ts` until `DIFF_VIEW_KEYS` lists it. Any other
+   new text goes into its feature's texts constant, which its `*_KEYS` list reads; a text passed to
+   `translate()` inline reaches no record.
 
    ```bash
    corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts
    corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts
    corepack yarn vitest run --project dmn-webview -u apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts
+   corepack yarn vitest run --project bpmn-modeler -u packages/bpmn-modeler/src/featureTextsHarvest.spec.ts
+   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts
    ```
 
 4. Prune, first as a dry run:

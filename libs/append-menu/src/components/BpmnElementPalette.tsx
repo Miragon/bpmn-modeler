@@ -18,6 +18,7 @@ import {
     type ProcessedGroup,
 } from "../filtering";
 import type { Translate } from "../types";
+import { APPEND_MENU_TEXTS } from "../appendMenuTexts";
 import { ElementDescriptionCard } from "./ElementDescriptionCard";
 import { useHoverCardPosition } from "./useHoverCardPosition";
 
@@ -120,11 +121,15 @@ export function BpmnElementPalette({
                 onMouseLeave={() => onPeekChange?.(false)}
             >
                 <div class="am-palette-header">
-                    <h3 class="am-palette-title">{translate("BPMN")}</h3>
+                    <h3 class="am-palette-title">{translate(APPEND_MENU_TEXTS.paletteTitle)}</h3>
                     <button
                         class="am-palette-toggle"
                         onClick={onToggleExpand}
-                        title={expanded ? translate("Collapse") : translate("Expand")}
+                        title={
+                            expanded
+                                ? translate(APPEND_MENU_TEXTS.collapse)
+                                : translate(APPEND_MENU_TEXTS.expand)
+                        }
                         type="button"
                     >
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -141,7 +146,9 @@ export function BpmnElementPalette({
                     {favouriteEntries.length > 0 && (
                         <div class="am-bpmn-group am-bpmn-group--favourites">
                             {expanded && (
-                                <h4 class="am-bpmn-group-title">{translate("Favourites")}</h4>
+                                <h4 class="am-bpmn-group-title">
+                                    {translate(APPEND_MENU_TEXTS.favourites)}
+                                </h4>
                             )}
                             <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                                 {favouriteEntries

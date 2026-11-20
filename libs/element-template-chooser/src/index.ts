@@ -21,4 +21,5 @@ export type {
     BindingDirection,
 } from "./types";
 export { classifyBinding, extractImplementationDetail } from "./types";
+export { CHOOSER_KEYS } from "./chooserTexts";
 export type { TemplateOffer } from "./ElementTemplateChooser";

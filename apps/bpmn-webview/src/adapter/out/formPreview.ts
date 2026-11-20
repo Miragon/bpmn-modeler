@@ -5,6 +5,7 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { parsePreviewSchema } from "../../domain/formPreviewSchema";
 import { positionFormPreview } from "../../domain/formPreviewPosition";
+import { FORM_PREVIEW_TEXTS, FORM_PREVIEW_UNAVAILABLE_TEXTS } from "../../domain/formPreviewTexts";
 import "@bpmn-io/form-js-viewer/dist/assets/form-js.css";
 import "./formPreview.css";
 
@@ -48,13 +49,13 @@ export function createFormPreview(
         let statusKey = "";
         function translate(): void {
             if (indicator) panel.removeAttribute("aria-label");
-            else panel.setAttribute("aria-label", i18n.translate("Linked form preview"));
-            panel.querySelector("h2")!.textContent = i18n.translate("Linked form preview");
-            panel.querySelector("[data-refresh]")!.textContent = i18n.translate("Refresh");
-            closeButton.setAttribute("aria-label", i18n.translate("Close form preview"));
-            closeButton.title = i18n.translate("Close form preview");
+            else panel.setAttribute("aria-label", i18n.translate(FORM_PREVIEW_TEXTS.title));
+            panel.querySelector("h2")!.textContent = i18n.translate(FORM_PREVIEW_TEXTS.title);
+            panel.querySelector("[data-refresh]")!.textContent = i18n.translate(FORM_PREVIEW_TEXTS.refresh);
+            closeButton.setAttribute("aria-label", i18n.translate(FORM_PREVIEW_TEXTS.close));
+            closeButton.title = i18n.translate(FORM_PREVIEW_TEXTS.close);
             panel.querySelector("[data-description]")!.textContent = i18n.translate(
-                "Read-only preview of the saved local form.",
+                FORM_PREVIEW_TEXTS.description,
             );
             status.textContent = statusKey ? i18n.translate(statusKey) : "";
             reposition();
@@ -170,7 +171,7 @@ export function createFormPreview(
             statusKey = "";
             translate();
             panel.setAttribute("aria-busy", "true");
-            let failureKey = "The saved form could not be read. Refresh to try again.";
+            let failureKey: string = FORM_PREVIEW_UNAVAILABLE_TEXTS.unreadable;
             let importing: PreviewViewer | undefined;
             try {
                 const result = await read(request.id, automatic);
@@ -180,20 +181,10 @@ export function createFormPreview(
                     return;
                 }
                 if (result.kind === "unavailable") {
-                    const messages = {
-                        noScope: "Open a workspace folder to preview linked forms.",
-                        notFound:
-                            "No saved local form matches this reference. Refresh to try again.",
-                        ambiguous:
-                            "Multiple saved forms match this reference. Choose a form to preview.",
-                        unreadable: "The saved form could not be read. Refresh to try again.",
-                        timeout: "The host did not answer. Refresh to try again.",
-                    };
-                    failureKey = messages[result.reason];
+                    failureKey = FORM_PREVIEW_UNAVAILABLE_TEXTS[result.reason];
                     throw new Error(failureKey);
                 }
-                failureKey =
-                    "The saved form is invalid or unsupported. Open it in the form editor.";
+                failureKey = FORM_PREVIEW_TEXTS.invalidForm;
                 const schema = parsePreviewSchema(result.content);
                 const mount = document.createElement("div");
                 // Keep content readable to assistive technology without enabling form actions.
@@ -207,7 +198,7 @@ export function createFormPreview(
                         true,
                     );
                 }
-                failureKey = "The form preview could not be loaded. Refresh to try again.";
+                failureKey = FORM_PREVIEW_TEXTS.viewerFailed;
                 importing = await create(mount);
                 if (closed || token !== generation) return;
                 await importing.importSchema(schema);
@@ -215,7 +206,7 @@ export function createFormPreview(
                 viewer = importing;
                 importing = undefined;
                 content.replaceChildren(mount);
-                show("Saved form loaded.");
+                show(FORM_PREVIEW_TEXTS.loaded);
                 if (!automatic && !panel.hidden) closeButton.focus();
             } catch (error) {
                 if (!closed && token === generation) {
@@ -243,7 +234,7 @@ export function createFormPreview(
         window.addEventListener("resize", scheduleReposition);
         active = { close, reposition: scheduleReposition };
         if (request.unavailable)
-            indicate("The linked form is missing or invalid. Check the form reference.");
+            indicate(FORM_PREVIEW_TEXTS.referenceBroken);
         else void load(request.automatic);
         return active;
     }
