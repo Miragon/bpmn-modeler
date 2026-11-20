@@ -1,7 +1,7 @@
 import type { Axis } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
-import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
-import { bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
+import type { FlowTopology } from "./layoutFlowTopology";
+import { bottomOf, inflated, rightOf } from "./layoutGeometry";
 import {
     type LayoutModel,
     type NodeShape,
@@ -9,10 +9,11 @@ import {
     isFrame,
     liesOnAnotherPool,
 } from "./layoutModel";
-import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP } from "./layoutRoomPush";
+import { RoomPush, type RoomRequest } from "./layoutRoomPush";
+import { type RoomSlot, slotOffsetsOf, slotShapeOf } from "./layoutRoomSlots";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
 import { leadAlong } from "./layoutSpaceTool";
-import { crampsNoFlow, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
+import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
 import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot, shapesOverlap } from "./layoutSpots";
@@ -43,103 +44,9 @@ export interface RoomContext {
 }
 
 /**
- * Where the moved group goes against the shape it lay on: in line after it,
- * stacked below it in its column, or in line before it with the other shape
- * pushed on.
- */
-export type RoomSlot = "after" | "below" | "before";
-
-/** Where a modeller draws the moved shape against the other: stacked below it or not, then the slots in line to try in turn. */
-export interface RoomSlots {
-    readonly stacked: boolean;
-    readonly inLine: readonly RoomSlot[];
-}
-
-/**
- * The slots for a moved shape that stands so to the other by the flows: a
- * parallel branch stacked below it, a shape that leads into it before it,
- * else after it. Where the flows do not run right, only after it.
- */
-export function slotsFor(relation: FlowRelation, flowsRight: boolean): RoomSlots {
-    if (!flowsRight) return { stacked: false, inLine: ["after"] };
-    return {
-        stacked: relation === "parallel",
-        inLine: relation === "precedes" ? ["before", "after"] : ["after"],
-    };
-}
-
-/** How far along the flow the group is looked for past its slot, in which steps. */
-const SLOT_STEP = 10;
-const AFTER_STEPS = ROOM_GAP / SLOT_STEP;
-
-/**
- * The moves of the group to lie in the slot against the other shape, the
- * first to try first: after it, then further along the flow; before it;
- * below it and its label and boundary events, then along the flow while the
- * group stays under it, the places clear of the flows that are not the
- * group's own and their labels first, then those clear of the labels, as a
- * room may still shift a flow away.
- */
-export function slotOffsetsOf(
-    draft: DrawingDraft,
-    groups: ShapeGroups,
-    group: ShapeGroup,
-    other: NodeShape,
-    slot: RoomSlot,
-): Offset[] {
-    const { node } = group;
-    switch (slot) {
-        case "after": {
-            const dx = rightOf(other.bounds) + ROOM_GAP - node.bounds.x;
-            return Array.from({ length: AFTER_STEPS + 1 }, (_, step) => ({
-                dx: dx + step * SLOT_STEP,
-                dy: 0,
-            }));
-        }
-        case "below": {
-            const groupBounds = groupBoundsIn(draft, group);
-            const column = groupBoundsIn(draft, groups.of(draft, other));
-            const under = {
-                dx: centerOf(other.bounds).x - centerOf(node.bounds).x,
-                dy: bottomOf(column) + STACK_GAP - groupBounds.y,
-            };
-            const steps = Math.floor(other.bounds.width / 2 / SLOT_STEP);
-            const offsets = Array.from({ length: steps + 1 }, (_, step) => ({
-                ...under,
-                dx: under.dx + step * SLOT_STEP,
-            })).map((offset) => {
-                const box = translated(groupBounds, offset.dx, offset.dy);
-                const flows = foreignFlowsNear(draft, group, inflated(box, SHAPE_CLEARANCE));
-                return {
-                    offset,
-                    clearOfFlows: keepsClearOfFlows(box, flows, SHAPE_CLEARANCE),
-                    clearOfLabels: keepsClearOfFlows(
-                        box,
-                        { ...flows, segments: [] },
-                        SHAPE_CLEARANCE,
-                    ),
-                };
-            });
-            return [
-                ...offsets.filter(({ clearOfFlows }) => clearOfFlows),
-                ...offsets.filter(
-                    ({ clearOfFlows, clearOfLabels }) => !clearOfFlows && clearOfLabels,
-                ),
-            ].map(({ offset }) => offset);
-        }
-        case "before":
-            return [
-                {
-                    dx: Math.min(0, other.bounds.x - node.bounds.x),
-                    dy: centerOf(other.bounds).y - centerOf(node.bounds).y,
-                },
-            ];
-    }
-}
-
-/**
- * Makes room for the group in the slot against the shape it lies on, as the
- * modeler's space tool would held over just what is in the way: what the
+ * Makes room for the group in the slot against the shape it lies on, or
+ * below the host of the boundary event it lies on, as the modeler's space
+ * tool would held over just what is in the way: what the
  * group lands on gives way along the flow, or downward for a stacked branch,
  * with what that lands on; the frames that no longer hold it grow, and the
  * flows between shifted and staying shapes stretch. A stacked branch then
@@ -158,8 +65,9 @@ export function makeRoom(
     other: NodeShape,
     slot: RoomSlot = "after",
 ): RoomMade | undefined {
+    const against = slotShapeOf(draft, other, slot);
     for (const offset of slotOffsetsOf(draft, context.groups, group, other, slot)) {
-        const room = roomAt(draft, context, group, other, slot, offset);
+        const room = roomAt(draft, context, group, against, slot, offset);
         if (room !== undefined) return room;
     }
     return undefined;
