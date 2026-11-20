@@ -2,7 +2,7 @@ import {
     AddOnAboutQuery,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
-    type AddOnsViewCommandType,
+    type AddOnsViewCommand,
     BrandModeQuery,
     type MessageOfType,
     type PreviewCommandTable,
@@ -23,7 +23,7 @@ export interface PreviewSession {
     reply(query: Query | undefined): void;
 }
 
-export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommandType, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommand, PreviewSession> = {
     LogInfoCommand: logToConsole,
     LogErrorCommand: logToConsole,
     GetAddOnCatalogCommand: (_, preview) => answerCatalogRequest(preview),
@@ -37,10 +37,8 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommandType, Previe
         preview.reply(new AddOnAboutQuery(targetId, mockAboutOf(targetId))),
 };
 
-export const PREVIEW_LOG_PREFIX = "[add-ons preview]";
-
 function logToConsole({ type, message }: MessageOfType<"LogInfoCommand" | "LogErrorCommand">): void {
-    console.debug(`${PREVIEW_LOG_PREFIX} ${type}`, message);
+    console.debug(`[add-ons preview] ${type}`, message);
 }
 
 function answerCatalogRequest(preview: PreviewSession): void {

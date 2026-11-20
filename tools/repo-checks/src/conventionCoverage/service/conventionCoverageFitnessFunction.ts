@@ -18,10 +18,10 @@ export function createConventionCoverageFitnessFunction({
 }: ConventionCoveragePorts): FitnessFunction {
     return defineFitnessFunction({
         id: "convention-coverage",
-        version: 1,
+        version: 2,
         categories: { scope: "atomic", cadence: "triggered", result: "dynamic" },
         measures:
-            'Code the role-folder convention does not cover, in every workspace whose manifest declares "architecture": "hexagonal". Each rule of HEXAGONAL_RULES runs without the exceptions the blocking architecture spec grants: a file outside every role folder and not directly in src/, and a file whose imports contradict its folder, one finding per file and rule at its first offending import. A class whose implements clause names an interface declared in a port/ folder of any hexagonal workspace, sitting outside adapter/out/ and testing/, one finding per file at its first such class. Read: tracked .ts and .tsx files under each workspace\'s src/, without specs, declaration files and __fixtures__; an implemented interface is resolved through imports, barrels and the tsconfig.base.json path aliases.',
+            'Code the role-folder convention does not cover, in every workspace whose manifest declares "architecture": "hexagonal". Each rule of HEXAGONAL_RULES runs without the exceptions the blocking architecture spec grants: a file outside every role folder and not directly in src/, and a file whose imports contradict its folder, one finding per file and rule at its first offending import. A class whose implements clause names an interface declared in a port/ folder of any hexagonal workspace, sitting outside adapter/out/ and testing/, one finding per file at its first such class. Read: tracked .ts and .tsx files under each workspace\'s src/, without specs, declaration files and files in a __fixtures__, __tests__, test or tests folder; an implemented interface is resolved through imports, barrels and the tsconfig.base.json path aliases.',
         reliesOn: {
             skill: "architecture",
             rule: "every file sits in its role folder; a class that implements a port sits in adapter/out/ or testing/",
@@ -30,7 +30,7 @@ export function createConventionCoverageFitnessFunction({
             "What code does: a domain/ file full of orchestration, or a service/ that decides on raw data, imports nothing the rules forbid.",
             "A structural port implementation without an implements clause, such as an object literal typed by the port or a class that only matches its shape.",
             "Kotlin, and every workspace that declares no hexagonal architecture (diagram-js and flat workspaces).",
-            "Specs and __fixtures__, which are not read.",
+            "Specs and test folders, which are not read.",
         ],
         reportsWrongly: [
             "Counts per rule, not per file: a file breaking two rules is two findings, so the count exceeds the number of files.",
@@ -53,6 +53,12 @@ export function createConventionCoverageFitnessFunction({
                 commit: "03b31896",
                 outcome:
                     "first run: 62 findings in 451 files of 9 workspaces, none in a migrated one; 42 outside every role folder (bpmn-webview 22, template builder 12, form and deployment webview 4 each), 19 divergent imports (12 entry imports in the flat webview roots, 7 template-builder domain files importing catalog/), 1 misplaced port implementation (EditorSessionDocuments); 14 testing/ fakes and 46 adapter/out/ classes implement a port and stay unreported",
+            },
+            {
+                kind: "trial",
+                commit: "69ecc374",
+                outcome:
+                    "Version 2 against version 1: 0 findings both and the same files read; no hexagonal workspace holds a __tests__, test or tests folder under src/. The blocking architecture spec's readSourceTree skips the same folders, so both read the same files.",
             },
         ],
         groups: CONVENTION_COVERAGE_GROUPS,

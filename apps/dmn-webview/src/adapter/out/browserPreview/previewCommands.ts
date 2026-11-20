@@ -1,4 +1,4 @@
-import type { DmnEditorCommandType, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
+import type { DmnEditorCommand, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
 
 import { previewDocument, previewFocus, previewModelerSettings, previewPanelState } from "./editorPreview";
 
@@ -7,7 +7,7 @@ export interface PreviewSession {
     reply(query: Query): void;
 }
 
-export const PREVIEW_COMMANDS: PreviewCommandTable<DmnEditorCommandType, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<DmnEditorCommand, PreviewSession> = {
     GetDmnFileCommand: (_, preview) => preview.reply(previewDocument()),
     GetPropertiesPanelStateCommand: (_, preview) => preview.reply(previewPanelState()),
     GetDmnModelerSettingCommand: (_, preview) => preview.reply(previewModelerSettings()),
@@ -18,5 +18,3 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<DmnEditorCommandType, Preview
     LogWarningCommand: ({ message }) => console.warn(message),
     LogErrorCommand: ({ message }) => console.error(message),
 };
-
-export const PREVIEW_LOG_PREFIX = "[DEBUG]";

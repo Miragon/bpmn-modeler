@@ -1,5 +1,5 @@
 import type {
-    DeploymentSidebarCommandType,
+    DeploymentSidebarCommand,
     PreviewCommandTable,
     Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -16,9 +16,7 @@ export interface PreviewSession {
     reply(...queries: readonly Query[]): void;
 }
 
-export const PREVIEW_LOG_PREFIX = "[DEBUG]";
-
-export const PREVIEW_COMMANDS: PreviewCommandTable<DeploymentSidebarCommandType, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<DeploymentSidebarCommand, PreviewSession> = {
     LogInfoCommand: ({ message }) => console.info(message),
     LogErrorCommand: ({ message }) => console.error(message),
     RequestFormDefaultsCommand: (_, preview) =>

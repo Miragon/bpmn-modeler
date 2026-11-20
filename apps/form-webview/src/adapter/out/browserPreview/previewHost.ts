@@ -6,7 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import type { WebviewState } from "../../../port/formHost";
-import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 
 /**
  * The browser preview's host: answers the Form editor's commands with
@@ -15,11 +15,6 @@ import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX } from "./previewCommands";
  */
 export class PreviewHost extends MockHostApi<WebviewState, FormEditorCommand> {
     override postMessage(message: FormEditorCommand): void {
-        routePreviewCommand(
-            PREVIEW_COMMANDS,
-            message,
-            { reply: replyFromPreview },
-            PREVIEW_LOG_PREFIX,
-        );
+        routePreviewCommand(PREVIEW_COMMANDS, message, { reply: replyFromPreview });
     }
 }
