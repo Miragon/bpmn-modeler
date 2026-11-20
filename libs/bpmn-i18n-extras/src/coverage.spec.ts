@@ -9,8 +9,8 @@
  *
  * Runtime truth is the union of the harvests (`readHarvestedKeys` in
  * harvestedKeys.ts): every template the harvested pages asked to translate,
- * captured by the harvest drivers and, for the merge view and the diff panes, by
- * the specs that record their texts (see tools/README.md). Every one of those
+ * captured by the harvest drivers and, for the views no driver reaches, by the
+ * specs that record their texts (see tools/README.md). Every one of those
  * must resolve via the shared library (exact or normalized) or via the overlay.
  * When this fails, the named keys are genuine gaps — cover them upstream in the
  * shared library, or add them to the overlay (src/languages/*).

@@ -33,6 +33,29 @@ describe("classifyEntries", () => {
         expect(bpmnGroups.find((g) => g.id === "gateways")?.entries).toHaveLength(1);
     });
 
+    it("collects entries without a group in a fallback group it marks as made up", () => {
+        const { bpmnGroups } = classifyEntries({
+            "custom-entry": { label: "Custom", action: noop },
+        });
+
+        expect(bpmnGroups).toEqual([
+            {
+                id: "other",
+                name: "Other",
+                isFallback: true,
+                entries: [{ id: "custom-entry", entry: expect.anything() }],
+            },
+        ]);
+    });
+
+    it("does not mark a provider's own group as the fallback, whatever its id", () => {
+        const { bpmnGroups } = classifyEntries({
+            "custom-entry": leaf("Custom", { id: "other", name: "Sonstige" }),
+        });
+
+        expect(bpmnGroups[0]?.isFallback).toBeFalsy();
+    });
+
     it("flattens drill-in categories, synthesizing a group from the category", () => {
         const { bpmnGroups } = classifyEntries({
             "append-tasks": {

@@ -38,6 +38,8 @@ import {
 } from "../navigation";
 import { clampToCanvas, type CanvasBounds } from "../positioning";
 import { offersTypePick } from "../templateTypeAction";
+import { TEMPLATE_LIST_TEXTS } from "@miragon/bpmn-modeler-element-template-chooser/chooserTexts";
+import { APPEND_MENU_TEXTS } from "../appendMenuTexts";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
 import { useHoverPreview } from "./useHoverPreview";
@@ -378,7 +380,7 @@ export function AppendMenuOverlay({
                         ref={searchRef}
                         class="am-search-input"
                         type="text"
-                        placeholder={translate("Search...")}
+                        placeholder={translate(APPEND_MENU_TEXTS.search)}
                         value={search}
                         onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
@@ -390,7 +392,7 @@ export function AppendMenuOverlay({
                                 searchRef.current?.focus();
                             }}
                             type="button"
-                            aria-label={translate("Clear search")}
+                            aria-label={translate(TEMPLATE_LIST_TEXTS.clearSearch)}
                         >
                             ×
                         </button>

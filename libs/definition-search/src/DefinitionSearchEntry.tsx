@@ -7,19 +7,16 @@ import type {
 } from "@miragon/bpmn-modeler-types";
 
 import type { DefinitionSearchPort } from "./DefinitionSearchPort";
+import {
+    DEFINITION_SEARCH_TEXTS,
+    SEARCH_STATUS_HINTS,
+    type SearchStatus,
+} from "./definitionSearchTexts";
 
 const SEARCH_DEBOUNCE_MS = 150;
 const MAX_LISTED_USAGES = 3;
 
 type Translate = (template: string, replacements?: Record<string, string>) => string;
-
-type SearchStatus = "searching" | "done" | "failed";
-
-const HINTS: Record<SearchStatus, string> = {
-    searching: "Searching…",
-    done: "No matches in other models",
-    failed: "Search failed",
-};
 
 /** Props the provider puts on the entry; the panel spreads the whole entry onto the component. */
 export interface DefinitionSearchEntryProps {
@@ -76,8 +73,8 @@ export function DefinitionSearchEntry(props: DefinitionSearchEntryProps) {
         const thrownBy = byRole("throw");
         const caughtBy = byRole("catch");
         return [
-            thrownBy && translate("thrown by {elements}", { elements: thrownBy }),
-            caughtBy && translate("caught by {elements}", { elements: caughtBy }),
+            thrownBy && translate(DEFINITION_SEARCH_TEXTS.thrownBy, { elements: thrownBy }),
+            caughtBy && translate(DEFINITION_SEARCH_TEXTS.caughtBy, { elements: caughtBy }),
         ]
             .filter(Boolean)
             .join(" · ");
@@ -131,7 +128,7 @@ export function DefinitionSearchEntry(props: DefinitionSearchEntryProps) {
         <div class="bio-properties-panel-entry definition-search" data-entry-id={id}>
             <div class="bio-properties-panel-textfield">
                 <label for={inputId} class="bio-properties-panel-label">
-                    {translate("Search other models")}
+                    {translate(DEFINITION_SEARCH_TEXTS.label)}
                 </label>
                 <input
                     id={inputId}
@@ -141,7 +138,7 @@ export function DefinitionSearchEntry(props: DefinitionSearchEntryProps) {
                     role="combobox"
                     autoComplete="off"
                     spellcheck={false}
-                    placeholder={translate("Name or code")}
+                    placeholder={translate(DEFINITION_SEARCH_TEXTS.placeholder)}
                     aria-autocomplete="list"
                     aria-expanded={showList}
                     aria-controls={listId}
@@ -168,7 +165,7 @@ export function DefinitionSearchEntry(props: DefinitionSearchEntryProps) {
                     >
                         {results.length === 0 && (
                             <li role="option" aria-disabled="true" class="definition-search-hint">
-                                {translate(HINTS[status])}
+                                {translate(SEARCH_STATUS_HINTS[status])}
                             </li>
                         )}
                         {results.map((definition, index) => {

@@ -10,6 +10,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { EnrichedTemplateEntry, Translate } from "../types";
 import type { TemplateCategory } from "../filtering";
+import { TEMPLATE_LIST_TEXTS } from "@miragon/bpmn-modeler-element-template-chooser/chooserTexts";
 import { ExpandableTemplateCard } from "./ExpandableTemplateCard";
 import { TemplateHoverCard } from "./TemplateHoverCard";
 import { useHoverCardPosition } from "./useHoverCardPosition";
@@ -97,7 +98,7 @@ export function TemplatePanel({
                         onClick={() => onCategoryChange(null)}
                         type="button"
                     >
-                        {translate("All")}
+                        {translate(TEMPLATE_LIST_TEXTS.allCategories)}
                     </button>
                     {categories.map((cat) => (
                         <button
@@ -118,9 +119,11 @@ export function TemplatePanel({
             <div class="am-template-list" ref={listRef}>
                 {entries.length === 0 ? (
                     <div class="am-empty">
-                        <p class="am-empty-text">{translate("No templates found")}</p>
+                        <p class="am-empty-text">{translate(TEMPLATE_LIST_TEXTS.noTemplates)}</p>
                         {search && (
-                            <p class="am-empty-hint">{translate("Try a different search term")}</p>
+                            <p class="am-empty-hint">
+                                {translate(TEMPLATE_LIST_TEXTS.noTemplatesHint)}
+                            </p>
                         )}
                     </div>
                 ) : (

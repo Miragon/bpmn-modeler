@@ -10,6 +10,7 @@ import { DefinitionSearchPropertiesProvider } from "./DefinitionSearchProperties
 import type { DefinitionSearchPort } from "./DefinitionSearchPort";
 
 export type { DefinitionSearchPort };
+export { DEFINITION_SEARCH_KEYS } from "./definitionSearchTexts";
 
 /**
  * @internal Package-internal composition wiring: consumers enable this feature

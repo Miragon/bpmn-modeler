@@ -151,6 +151,11 @@ const IMPLEMENTATION_BINDINGS: {
     { label: "Task Type", bindingType: "zeebe:taskDefinition", bindingProperty: "type" },
 ];
 
+/** The labels an implementation detail can carry, each translated where it is shown. */
+export const IMPLEMENTATION_LABELS: readonly string[] = [
+    ...new Set(IMPLEMENTATION_BINDINGS.map(({ label }) => label)),
+];
+
 /**
  * Extracts the primary implementation detail from a template's properties.
  *

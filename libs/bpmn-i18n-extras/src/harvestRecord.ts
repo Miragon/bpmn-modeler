@@ -1,5 +1,6 @@
 // One file per harvest: the C7 modeler, the dmn-js views, the element template
-// editor, the merge view and the diff panes request mostly disjoint strings, and all of them are needed.
+// editor, the merge view, the diff panes, the modeler's features no driver
+// reaches and the linked form preview request mostly disjoint strings, and all of them are needed.
 export const HARVEST_FILES = [
     "harvested.json",
     "harvested-dmn.json",
@@ -7,6 +8,8 @@ export const HARVEST_FILES = [
     "harvested-merge.json",
     "harvested-diff.json",
     "harvested-dmn-diff.json",
+    "harvested-modeler-features.json",
+    "harvested-form-preview.json",
 ] as const;
 
 /** A record in `tools/` that `readHarvestedKeys` reads. */

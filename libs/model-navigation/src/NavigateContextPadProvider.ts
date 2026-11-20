@@ -28,6 +28,7 @@ import { referenceKindSupports } from "@miragon/bpmn-modeler-types";
 import { extractModelReference, extractReference, referenceKindOf } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
 import type { FormReferenceStatusClient } from "./FormReferenceStatusClient";
+import { MODEL_NAVIGATION_TEXTS } from "./modelNavigationTexts";
 import type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort";
 import type { FormPreviewController } from "./FormPreviewController";
 
@@ -119,7 +120,7 @@ export class NavigateContextPadProvider {
             "navigate-to-referenced-model": {
                 group: "connect",
                 html: `<div class="entry">${NAVIGATE_ICON_SVG}</div>`,
-                title: this.translate("Navigate to referenced model"),
+                title: this.translate(MODEL_NAVIGATION_TEXTS.navigate),
                 action: {
                     // Re-extract on click so an edit made between pad-render
                     // and click (e.g. via keyboard in the properties panel)
@@ -138,7 +139,7 @@ export class NavigateContextPadProvider {
             this.port.formPreview &&
             !this.formPreviewController?.isVisible(element)
         ) {
-            const title = this.translate("Preview linked form");
+            const title = this.translate(MODEL_NAVIGATION_TEXTS.previewForm);
             entries["preview-linked-form"] = {
                 group: "connect",
                 html: `<button type="button" class="entry linked-form-preview-action" aria-label="${title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>`,

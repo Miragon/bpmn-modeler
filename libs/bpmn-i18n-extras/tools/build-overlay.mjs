@@ -27,7 +27,8 @@
  * keys come from tools/harvested-merge.json, which
  * apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts writes, and the
  * diff panes' from tools/harvested-diff.json and tools/harvested-dmn-diff.json,
- * which the diffTextsHarvest.spec.ts files of bpmn-webview and dmn-webview write.
+ * which the diffTextsHarvest.spec.ts files of bpmn-webview and dmn-webview write;
+ * tools/README.md lists the other recording specs.
  *
  * The key normalization lives in src/normalizeKey.ts, the harvest file list in
  * src/harvestRecord.ts and the harvest union in src/harvestedKeys.ts, shared

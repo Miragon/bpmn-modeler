@@ -19,6 +19,7 @@ export { getPopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 export type { PopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 export { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "./plainEntryCatalog";
 export { isTemplatePopupEntry, templateIdOfEntryKey } from "./templatePopupEntry";
+export { APPEND_MENU_KEYS } from "./appendMenuTexts";
 
 export const AppendMenuModule = {
     __init__: ["appendMenuOverride"],
