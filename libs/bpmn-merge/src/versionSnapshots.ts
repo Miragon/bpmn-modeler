@@ -37,8 +37,16 @@ function processesDrawnWithoutAPool(byId: ReadonlyMap<string, ElementSnapshot>):
         const parent = snapshot.parent === undefined ? undefined : byId.get(snapshot.parent);
         return parent === undefined ? snapshot : rootOf(parent);
     };
+    const holderOf = (lane: ElementSnapshot): ElementSnapshot | undefined => {
+        const parent = lane.parent === undefined ? undefined : byId.get(lane.parent);
+        return parent?.type === "bpmn:Lane" ? holderOf(parent) : parent;
+    };
+    // bpmn-js reaches a process through its own lane sets only, not through a sub-process's.
     const withLanes = new Set(
-        snapshots.filter(({ type }) => type === "bpmn:Lane").map((lane) => rootOf(lane).id),
+        snapshots
+            .filter(({ type }) => type === "bpmn:Lane")
+            .map((lane) => holderOf(lane))
+            .flatMap((holder) => (holder?.type === "bpmn:Process" ? [holder.id] : [])),
     );
     const pooled = new Set(
         snapshots

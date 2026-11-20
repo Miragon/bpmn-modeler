@@ -1,6 +1,8 @@
-import { elementSnapshots } from "@miragon/bpmn-modeler-diff";
+import { elementSnapshots, idOf, moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
+import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { rootsReachedFrom } from "./collaborationPools";
 import { isMergeElement } from "./mergeElements";
 import { VersionSnapshots } from "./versionSnapshots";
 
@@ -19,7 +21,13 @@ const SEMANTIC = `
     </bpmn:laneSet>
     <bpmn:task id="Task_L" />
   </bpmn:process>
-  <bpmn:process id="Process_Loose"><bpmn:task id="Task_Loose" /></bpmn:process>`;
+  <bpmn:process id="Process_Loose"><bpmn:task id="Task_Loose" /></bpmn:process>
+  <bpmn:process id="Process_Sub">
+    <bpmn:subProcess id="Sub_1">
+      <bpmn:laneSet id="LaneSet_Sub"><bpmn:lane id="Lane_Sub" /></bpmn:laneSet>
+      <bpmn:task id="Task_Sub" />
+    </bpmn:subProcess>
+  </bpmn:process>`;
 
 const shape = (element: string) => `
       <bpmndi:BPMNShape id="${element}_di" bpmnElement="${element}">
@@ -32,11 +40,14 @@ const plane = (owner: string, elements: readonly string[]) => `
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>`;
 
-async function versionOf(diagrams: string): Promise<VersionSnapshots> {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+const documentOf = (diagrams: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${SEMANTIC}${diagrams}
 </bpmn:definitions>`;
-    return VersionSnapshots.of(await elementSnapshots(xml, { isUnit: isMergeElement }));
+
+async function versionOf(diagrams: string): Promise<VersionSnapshots> {
+    return VersionSnapshots.of(
+        await elementSnapshots(documentOf(diagrams), { isUnit: isMergeElement }),
+    );
 }
 
 describe("VersionSnapshots.draws", () => {
@@ -88,5 +99,35 @@ describe("VersionSnapshots.draws", () => {
         const version = await versionOf(plane("Process_A", ["Task_L"]));
 
         expect(version.draws("Process_L")).toBe(false);
+    });
+});
+
+describe("VersionSnapshots.draws and rootsReachedFrom", () => {
+    const PROCESSES = ["Process_A", "Process_B", "Process_L", "Process_Loose", "Process_Sub"];
+    const NODE_OF: Record<string, string> = {
+        Process_A: "Task_A",
+        Process_B: "Task_B",
+        Process_L: "Task_L",
+        Process_Loose: "Task_Loose",
+        Process_Sub: "Task_Sub",
+    };
+
+    it("count the same processes as drawn from the collaboration's plane when it draws a node of each", async () => {
+        const diagrams = plane("Collab_1", ["Pool_A", ...PROCESSES.map((id) => NODE_OF[id])]);
+        const version = await versionOf(diagrams);
+        const definitions = (await parseWithoutWarnings(documentOf(diagrams))).rootElement;
+        const collaboration = moddleElements(definitions.rootElements).find(
+            ({ id }) => id === "Collab_1",
+        );
+        const pooled = new Set(
+            moddleElements(collaboration?.participants)
+                .filter(({ id }) => id !== undefined)
+                .map(({ processRef }) => idOf(processRef)),
+        );
+        const reached = rootsReachedFrom(collaboration!);
+
+        expect(PROCESSES.filter((id) => version.draws(id))).toEqual(
+            PROCESSES.filter((id) => reached.has(id) && !pooled.has(id)),
+        );
     });
 });
