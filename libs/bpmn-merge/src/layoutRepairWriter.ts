@@ -1,6 +1,6 @@
 import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import { type DiagramIndex, diagramIndexOf, flowDrawingOf, shapeDrawingOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 
@@ -17,17 +17,17 @@ export function writeLayoutChanges(
 ): void {
     if (before === after) return;
     let index: DiagramIndex | undefined;
-    const indexed = () => (index ??= diagramIndexOf(definitions));
+    const indexed = () => (index ??= DiagramIndex.of(definitions));
     for (const [id, shape] of after.shapes) {
         const old = before.shapes.get(id);
         if (old === undefined || old === shape || sameDrawing(old, shape)) continue;
-        const drawing = shapeDrawingOf(indexed(), id)?.element;
+        const drawing = indexed().shapeDrawingOf(id)?.element;
         if (drawing !== undefined) writeShape(drawing, old, shape);
     }
     for (const [id, edge] of after.edges) {
         const old = before.edges.get(id);
         if (old === undefined || old === edge) continue;
-        const drawing = flowDrawingOf(indexed(), id)?.element;
+        const drawing = indexed().flowDrawingOf(id)?.element;
         if (drawing !== undefined) writeEdge(drawing, old, edge, createPoint);
     }
 }

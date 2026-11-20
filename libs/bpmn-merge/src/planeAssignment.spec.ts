@@ -1,7 +1,7 @@
 import { type ModdleElement, isModdleElement, loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { DrawingSides } from "./drawingSides";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
@@ -106,8 +106,8 @@ async function assignmentOf(currentXml: string, incomingXml: string): Promise<As
     const current = await createModdle().fromXML(currentXml);
     const incoming = await createModdle().fromXML(incomingXml);
     const indexes: Record<MergeSide, DiagramIndex> = {
-        current: diagramIndexOf(current.rootElement),
-        incoming: diagramIndexOf(incoming.rootElement),
+        current: DiagramIndex.of(current.rootElement),
+        incoming: DiagramIndex.of(incoming.rootElement),
     };
     const resultUnits = new Map(
         Object.entries(current.elementsById).flatMap(([id, element]) =>

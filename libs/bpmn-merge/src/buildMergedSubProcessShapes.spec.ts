@@ -4,7 +4,7 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
 import { computeMerge, type MergeVersions } from "./computeMerge";
-import { diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { MergeDecisions } from "./mergeDecisions";
 
 const shape = (element: string, x = 0) =>
@@ -43,8 +43,8 @@ async function automaticMerge(versions: MergeVersions) {
 }
 
 async function planeOwnersOf(xml: string, element: string) {
-    const index = diagramIndexOf((await parseWithoutWarnings(xml)).rootElement);
-    return (index.drawingsByElement.get(element) ?? []).map(({ planeOwner }) => planeOwner);
+    const index = DiagramIndex.of((await parseWithoutWarnings(xml)).rootElement);
+    return index.drawingsOf(element).map(({ planeOwner }) => planeOwner);
 }
 
 describe("buildMerged with a sub-process whose only shape lacks bounds", () => {
