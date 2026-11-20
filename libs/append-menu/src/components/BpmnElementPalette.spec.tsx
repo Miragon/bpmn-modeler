@@ -13,7 +13,8 @@ const tasks = group("tasks", "Tasks", [
     ["append-service-task", "Service task", { disabled: true }],
 ]);
 const gateways = group("gateways", "Gateways", [["append-exclusive-gateway", "Exclusive gateway"]]);
-const other = group("other", "Other", [["custom-entry", "Custom"]]);
+const fallback = { ...group("other", "Other", [["custom-entry", "Custom"]]), isFallback: true };
+const upstreamOther = group("other", "Sonstige", [["custom-entry", "Custom"]]);
 const described = group("subprocess", "Sub-processes", [
     [
         "append-call-activity",
@@ -123,13 +124,22 @@ describe("BpmnElementPalette", () => {
         expect(titles).toEqual(["Gateways"]);
     });
 
-    it("translates only the synthesized Other group title", () => {
-        renderPalette([gateways, other]);
+    it("translates only the fallback group's title", () => {
+        renderPalette([gateways, fallback]);
 
         const titles = [...container.querySelectorAll(".am-bpmn-group-title")].map(
             (title) => title.textContent,
         );
         expect(titles).toEqual(["Gateways", "translated:Other"]);
+    });
+
+    it("shows a provider's group with the id other as it arrives, already translated", () => {
+        renderPalette([upstreamOther]);
+
+        const titles = [...container.querySelectorAll(".am-bpmn-group-title")].map(
+            (title) => title.textContent,
+        );
+        expect(titles).toEqual(["Sonstige"]);
     });
 
     it("previews the item's description in a card that describes its button", () => {

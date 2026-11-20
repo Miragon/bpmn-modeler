@@ -109,9 +109,7 @@ export interface ProcessedEntry extends BpmnElementEntry {
 }
 
 /** A palette group with its entries annotated. */
-export interface ProcessedGroup {
-    id: string;
-    name: string;
+export interface ProcessedGroup extends Omit<BpmnElementGroup, "entries"> {
     entries: ProcessedEntry[];
 }
 

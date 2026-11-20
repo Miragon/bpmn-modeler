@@ -66,6 +66,8 @@ export interface BpmnElementGroup {
     id: string;
     name: string;
     entries: BpmnElementEntry[];
+    /** Made up for entries without a group: its name is a source text, a provider's arrives translated. */
+    isFallback?: boolean;
 }
 
 export interface ClassifiedEntries {
@@ -147,11 +149,17 @@ export function classifyEntries(
 
         const group = entry.group ?? inheritedGroup;
         const groupId = group?.id ?? "other";
-        const groupName = group?.name ?? APPEND_MENU_TEXTS.otherGroup;
 
         let bpmnGroup = groupMap.get(groupId);
         if (!bpmnGroup) {
-            bpmnGroup = { id: groupId, name: groupName, entries: [] };
+            bpmnGroup = group
+                ? { id: groupId, name: group.name, entries: [] }
+                : {
+                      id: groupId,
+                      name: APPEND_MENU_TEXTS.otherGroup,
+                      entries: [],
+                      isFallback: true,
+                  };
             groupMap.set(groupId, bpmnGroup);
         }
         bpmnGroup.entries.push({ id: key, entry });

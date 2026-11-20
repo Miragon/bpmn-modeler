@@ -168,11 +168,9 @@ export function BpmnElementPalette({
                         }
                         return (
                             <div key={group.id} class="am-bpmn-group">
-                                {/* Upstream group names arrive already translated; only the
-                                synthesized "Other" fallback needs the overlay. */}
                                 {expanded && (
                                     <h4 class="am-bpmn-group-title">
-                                        {group.id === "other" ? translate(group.name) : group.name}
+                                        {group.isFallback ? translate(group.name) : group.name}
                                     </h4>
                                 )}
                                 <div
