@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { flowClashesOf } from "./layoutFlowClashes";
+import { flowClashesOf, runsOn } from "./layoutFlowClashes";
 import type { Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel } from "./layoutModel";
 
@@ -84,5 +84,21 @@ describe("flowClashesOf", () => {
         const elsewhere = flow("Flow_Else", [at(100, 0), at(100, 100)], { plane: "Plane_2" });
 
         expect(flowClashesOf(layoutOf(ACROSS, elsewhere), ["Flow_Across", "Flow_Gone"])).toBe(0);
+    });
+});
+
+describe("runsOn", () => {
+    const along = flow("Flow_Along", [at(20, 50), at(120, 50)]);
+
+    it("tells a flow that runs on another for more than 10 px", () => {
+        expect(runsOn(along, ACROSS)).toBe(true);
+    });
+
+    it("does not tell a flow that runs on another for 10 px or less", () => {
+        expect(runsOn(flow("Flow_T", [at(20, 50), at(30, 50)]), ACROSS)).toBe(false);
+    });
+
+    it("lets a flow run on one it shares an end with", () => {
+        expect(runsOn({ ...along, source: ACROSS.source! }, ACROSS)).toBe(false);
     });
 });

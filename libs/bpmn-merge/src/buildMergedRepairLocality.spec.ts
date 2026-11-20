@@ -11,6 +11,7 @@ import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
+import { runsOn } from "./layoutFlowClashes";
 import { areaOutside, inflated, liesWithin, sameBounds } from "./layoutGeometry";
 import { type LayoutModel, framesOf, isFrame, nodeShapeIn } from "./layoutModel";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
@@ -18,7 +19,7 @@ import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { placedByBuild } from "./sideDrawings";
 import { layoutModelOf } from "./layoutModelReader";
 import { segmentsOf } from "./layoutPolyline";
-import { segmentsCross, sharedRunLength } from "./layoutSegments";
+import { segmentsCross } from "./layoutSegments";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, sameSpot } from "./layoutSpots";
 import { MergeDecisions } from "./mergeDecisions";
@@ -480,23 +481,12 @@ function unaccountedContainerMoves(
     ];
 }
 
-/** The flows that run on another of their plane for more than 10 px, unless the two share an end, where flows join. */
+/** The flows that run on another of their plane, as the layout repair weighs a room's flows. */
 function flowsRunOnOthers(layout: LayoutModel, flows: readonly string[]): string[] {
     return flows.flatMap((id) => {
         const edge = layout.edges.get(id)!;
         return [...layout.edges.values()]
-            .filter(
-                (other) =>
-                    other.id !== id &&
-                    other.plane === edge.plane &&
-                    other.source !== edge.source &&
-                    other.target !== edge.target &&
-                    segmentsOf(edge.waypoints).some((own) =>
-                        segmentsOf(other.waypoints).some(
-                            (theirs) => sharedRunLength(own, theirs) > 10,
-                        ),
-                    ),
-            )
+            .filter((other) => other.id !== id && other.plane === edge.plane && runsOn(edge, other))
             .map((other) => `${id} on ${other.id}`);
     });
 }

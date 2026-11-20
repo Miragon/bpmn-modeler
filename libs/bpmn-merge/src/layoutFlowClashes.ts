@@ -1,4 +1,4 @@
-import type { LayoutEdge, LayoutModel } from "./layoutModel";
+import { type LayoutEdge, type LayoutModel, sharesAnEndWith } from "./layoutModel";
 import { segmentsOf } from "./layoutPolyline";
 import { segmentsCross, sharedRunLength } from "./layoutSegments";
 
@@ -27,19 +27,24 @@ export function flowClashesOf(layout: LayoutModel, flows: readonly string[]): nu
 }
 
 function clashesBetween(edge: LayoutEdge, other: LayoutEdge): number {
-    const pairs = segmentsOf(edge.waypoints).flatMap((own) =>
-        segmentsOf(other.waypoints).map((theirs) => [own, theirs] as const),
-    );
-    const crossings = pairs.filter(([own, theirs]) => segmentsCross(own, theirs)).length;
-    const runsOn =
-        !sharesAnEnd(edge, other) &&
-        pairs.some(([own, theirs]) => sharedRunLength(own, theirs) > SHARED_RUN);
-    return crossings + (runsOn ? 1 : 0);
+    const crossings = segmentPairsOf(edge, other).filter(([own, theirs]) =>
+        segmentsCross(own, theirs),
+    ).length;
+    return crossings + (runsOn(edge, other) ? 1 : 0);
 }
 
-function sharesAnEnd(edge: LayoutEdge, other: LayoutEdge): boolean {
+/** Whether the flow runs on the other for more than a few pixels; a flow may run on one it shares an end with, as flows join there. */
+export function runsOn(edge: LayoutEdge, other: LayoutEdge): boolean {
     return (
-        (edge.source !== undefined && edge.source === other.source) ||
-        (edge.target !== undefined && edge.target === other.target)
+        !sharesAnEndWith(edge, other) &&
+        segmentPairsOf(edge, other).some(
+            ([own, theirs]) => sharedRunLength(own, theirs) > SHARED_RUN,
+        )
+    );
+}
+
+function segmentPairsOf(edge: LayoutEdge, other: LayoutEdge) {
+    return segmentsOf(edge.waypoints).flatMap((own) =>
+        segmentsOf(other.waypoints).map((theirs) => [own, theirs] as const),
     );
 }
