@@ -81,7 +81,7 @@ export function isKotlinSource(path: string): boolean {
 }
 
 export function isScannedSource(path: string): boolean {
-    return isKotlinSource(path) || (TYPESCRIPT_FILE.test(path) &&!isTestOrDeclarationFile(path));
+    return isKotlinSource(path) || (TYPESCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path));
 }
 
 function isHostApi(specifier: string): boolean {
