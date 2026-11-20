@@ -62,8 +62,12 @@ names (`named`). A repair named for shifting or growing carries its lists as `Me
 
 `@miragon/bpmn-modeler-types/mergeBuildNoteReaders` is `src/mergeBuildNoteReaders.ts` alone: the
 functions over those notes. `elementsNamedBy` gives `named`: the merge sets it with it, and the
-webview's text spec checks that a note's text names no other element. `isNonEmpty` is the one check a
-producer narrows a list with before it picks a repair named for shifting or growing.
+webview's text spec checks that a note's text names no other element. `elementsRedrawnBy` gives the
+subset of `named` whose drawing a layout repair changed; only the build's specs read it. One table per
+kind and, for a repaired kind, per repair answers both, and `noteVariantEntry` is the one lookup into
+such a table, which the webview's wording table uses too. `shapesShiftedBy` and `framesGrownBy` give
+the shapes a repair shifted and the frames it grew, none for a repair that did neither. `isNonEmpty` is
+the one check a producer narrows a list with before it picks a repair named for shifting or growing.
 
 ### The `/conflictMarkers` entry point
 

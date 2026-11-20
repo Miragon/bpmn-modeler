@@ -1,6 +1,6 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, inflated, keepsClearOf } from "./layoutGeometry";
-import { segmentsOf } from "./layoutPolyline";
 import { type Segment, segmentEntersBounds } from "./layoutSegments";
 import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
 
@@ -19,7 +19,7 @@ export function foreignFlowsNear(
     const own = ownEdgesOf(group);
     const flows = draft.edgesNear(group.node.plane, window).filter(({ id }) => !own.has(id));
     return {
-        segments: flows.flatMap(({ waypoints }) => segmentsOf(waypoints)),
+        segments: flows.flatMap(({ waypoints }) => polylineSegments(waypoints)),
         labels: flows.flatMap(({ label }) => (label === undefined ? [] : [label])),
     };
 }

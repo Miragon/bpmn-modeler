@@ -23,8 +23,9 @@ The builder and the guard specs share one copy of each rule in `src/`: the key n
 `normalizeKey.ts`, the list of harvest files and the record's shape in `harvestRecord.ts`, their union in
 `harvestedKeys.ts`, and `SOURCE_ONLY` in `sourceOnlyKeys.ts`. A new harvest file goes into `HARVEST_FILES`
 in `harvestRecord.ts`; a spec that records one writes it with `harvestRecord` to `harvestRecordPath(file)`,
-both from the test-only entry `@miragon/bpmn-modeler-i18n-extras/testing`. `harvestRecord.spec.ts` fails
-until every record is in that shape.
+its note built by `harvestNote(subject, task)` from the running test's path and Vitest project, all from the
+test-only entry `@miragon/bpmn-modeler-i18n-extras/testing`. A moved spec fails until its record is rewritten
+with the new path. `harvestRecord.spec.ts` fails until every record is in that shape.
 
 The recorder is `libs/shared/src/lib/harvestRecorder.ts`. The webview entries (`apps/bpmn-webview/src/main.ts`,
 `templateEditorMain.ts`, `apps/dmn-webview/src/main.ts`) wire it only under `import.meta.env.DEV`, so
@@ -49,12 +50,10 @@ production builds leave it out.
    new text goes into its feature's texts constant, which its `*_KEYS` list reads; a text passed to
    `translate()` inline reaches no record, and lint fails it in the features these specs record (`eslint.config.cjs`).
 
+   Each of these records' `note` names its spec and the command that rewrites it, in this form:
+
    ```bash
-   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts
-   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts
-   corepack yarn vitest run --project dmn-webview -u apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts
-   corepack yarn vitest run --project bpmn-modeler -u packages/bpmn-modeler/src/featureTextsHarvest.spec.ts
-   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts
+   corepack yarn vitest run --project <project> <spec> -u
    ```
 
 4. Prune, first as a dry run:

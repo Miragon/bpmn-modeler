@@ -4,13 +4,18 @@ import {
     applyTemplatePreset,
     classifyBinding,
     extractImplementationDetail,
-    fallbackTranslate,
     partitionVisibleProperties,
     propertyDisplayLabel,
+    templatePropertyBadges,
     templatePropertyDisplayText,
     templatePropertyValue,
+} from "./templateProperties";
+import type {
+    BindingDirection,
+    ElementTemplate,
+    TemplateProperty,
+    TemplatePropertyBadge,
 } from "./types";
-import type { BindingDirection, ElementTemplate, TemplateProperty } from "./types";
 
 const template: ElementTemplate = {
     id: "rest",
@@ -239,14 +244,22 @@ describe("propertyDisplayLabel", () => {
     });
 });
 
-describe("fallbackTranslate", () => {
-    it("resolves known placeholders and keeps unknown ones", () => {
-        expect(fallbackTranslate("{count} of {total} properties", { count: "2" })).toBe(
-            "2 of {total} properties",
-        );
-    });
+describe("templatePropertyBadges", () => {
+    const url = { type: "zeebe:input", name: "url" };
 
-    it("echoes a template without placeholders", () => {
-        expect(fallbackTranslate("Apply Template")).toBe("Apply Template");
+    it.each<[string, Partial<TemplateProperty>, TemplatePropertyBadge[]]>([
+        ["a plain property", {}, []],
+        ["a property that must not be empty", { constraints: { notEmpty: true } }, ["required"]],
+        ["a property that may be empty", { constraints: { notEmpty: false } }, []],
+        ["a property the user cannot edit", { editable: false }, ["readOnly"]],
+        ["a property the user can edit", { editable: true }, []],
+        ["an optional property", { optional: true }, ["optional"]],
+        [
+            "a property with every flag",
+            { optional: true, editable: false, constraints: { notEmpty: true } },
+            ["required", "readOnly", "optional"],
+        ],
+    ])("gives %s its badges in order", (_label, overrides, badges) => {
+        expect(templatePropertyBadges(property(url, overrides))).toEqual(badges);
     });
 });

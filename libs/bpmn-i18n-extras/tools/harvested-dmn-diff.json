@@ -1,5 +1,5 @@
 {
-    "note": "Templates the DMN diff pane's texts pass to translate(), recorded by apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project dmn-webview -u apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "note": "Templates the DMN diff pane's texts pass to translate(), recorded by apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project dmn-webview apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
     "count": 16,
     "keys": [
         "Added",

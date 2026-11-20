@@ -1,3 +1,5 @@
+import { type SegmentEnds, pointAlongSegment } from "@miragon/bpmn-modeler-types/polyline";
+
 import {
     type DiagramBounds,
     type Outline,
@@ -11,17 +13,17 @@ import {
     rightOf,
 } from "./layoutGeometry";
 
-export type Segment = readonly [Point, Point];
+export type Segment = SegmentEnds;
 
 /** Whether the two segments cross at one point inside both, not merely touch. */
-export function segmentsCross([a, b]: Segment, [c, d]: Segment): boolean {
+export function segmentsCross({ from: a, to: b }: Segment, { from: c, to: d }: Segment): boolean {
     const turn = (p: Point, q: Point, r: Point) =>
         Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
     return turn(a, b, c) * turn(a, b, d) < 0 && turn(c, d, a) * turn(c, d, b) < 0;
 }
 
 /** How long two axis-parallel segments run on one line, give or take a pixel. */
-export function sharedRunLength([a, b]: Segment, [c, d]: Segment): number {
+export function sharedRunLength({ from: a, to: b }: Segment, { from: c, to: d }: Segment): number {
     const overlap = (from: number, to: number, otherFrom: number, otherTo: number) =>
         Math.max(
             0,
@@ -39,7 +41,7 @@ export interface NearestPoint {
 }
 
 export function nearestOnSegment(segment: Segment, point: Point): NearestPoint {
-    const [from, to] = segment;
+    const { from, to } = segment;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const lengthSquared = dx * dx + dy * dy;
@@ -50,16 +52,11 @@ export function nearestOnSegment(segment: Segment, point: Point): NearestPoint {
                   0,
                   Math.min(1, ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared),
               );
-    const nearest = pointAlong(segment, along);
+    const nearest = pointAlongSegment(segment, along);
     return { point: nearest, distance: Math.hypot(point.x - nearest.x, point.y - nearest.y) };
 }
 
-/** The point `share` of the way from the segment's start to its end. */
-export function pointAlong([from, to]: Segment, share: number): Point {
-    return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
-}
-
-export function segmentBounds([from, to]: Segment): DiagramBounds {
+export function segmentBounds({ from, to }: Segment): DiagramBounds {
     return boundsAround([pointBounds(from), pointBounds(to)]);
 }
 
@@ -72,7 +69,7 @@ export function segmentEntersShape(segment: Segment, bounds: DiagramBounds): boo
 }
 
 /** Whether the segment enters the open inside of the bounds (Liang-Barsky clipping). */
-export function segmentEntersBounds([from, to]: Segment, bounds: DiagramBounds): boolean {
+export function segmentEntersBounds({ from, to }: Segment, bounds: DiagramBounds): boolean {
     if (bounds.width <= 0 || bounds.height <= 0) return false;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
@@ -110,7 +107,7 @@ export function segmentEntersOutline(
     outline: Outline,
 ): boolean {
     const distanceAt = (share: number) =>
-        outlineDistance(pointAlong(segment, share), bounds, outline);
+        outlineDistance(pointAlongSegment(segment, share), bounds, outline);
     let low = 0;
     let high = 1;
     for (let step = 0; step < DEEPEST_POINT_STEPS; step++) {

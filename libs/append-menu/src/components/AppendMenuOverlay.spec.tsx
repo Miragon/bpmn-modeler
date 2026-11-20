@@ -1,4 +1,4 @@
-import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/types";
+import { fallbackTranslate } from "@miragon/bpmn-modeler-element-template-chooser/translate";
 import { render, type ComponentProps } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -405,6 +405,60 @@ describe("AppendMenuOverlay", () => {
                 (chip) => chip.textContent,
             ),
         ).toEqual(["true", "false", "0"]);
+    });
+
+    it("badges each previewed parameter as required, read-only and optional, in that order", () => {
+        const mailer = templateEntry("mailer", "Mailer", {
+            template: {
+                properties: [
+                    {
+                        label: "Host",
+                        type: "String",
+                        value: "smtp",
+                        description: "SMTP host",
+                        editable: false,
+                        optional: true,
+                        constraints: { notEmpty: true },
+                        binding: { type: "zeebe:input", name: "host" },
+                    },
+                    {
+                        type: "String",
+                        editable: false,
+                        binding: { type: "zeebe:output", source: "=response" },
+                    },
+                ],
+            },
+        });
+
+        renderOverlay({ templateEntries: [mailer] });
+
+        expect(container.querySelector(".am-hover-param-title")?.tagName).toBe("H5");
+        const items = [...container.querySelectorAll(".am-hover-param-item")].map((item) => ({
+            label: item.querySelector(".am-hover-param-label")?.textContent,
+            badges: [...item.querySelectorAll(".am-hover-param-badges > .am-badge")].map(
+                (badge) => `${badge.className}: ${badge.textContent}`,
+            ),
+            description: item.querySelector(".am-hover-param-desc")?.textContent,
+            value: item.querySelector(".am-hover-param-value")?.textContent,
+        }));
+        expect(items).toEqual([
+            {
+                label: "Host",
+                badges: [
+                    "am-badge am-badge--required: required",
+                    "am-badge am-badge--readonly: read-only",
+                    "am-badge am-badge--optional: optional",
+                ],
+                description: "SMTP host",
+                value: "smtp",
+            },
+            {
+                label: "Unnamed",
+                badges: ["am-badge am-badge--readonly: read-only"],
+                description: undefined,
+                value: undefined,
+            },
+        ]);
     });
 
     describe("hover previews", () => {

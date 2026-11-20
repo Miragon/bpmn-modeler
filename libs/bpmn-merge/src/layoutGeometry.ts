@@ -1,3 +1,5 @@
+import type { PolylinePoint } from "@miragon/bpmn-modeler-types/polyline";
+
 export interface DiagramBounds {
     readonly x: number;
     readonly y: number;
@@ -5,10 +7,7 @@ export interface DiagramBounds {
     readonly height: number;
 }
 
-export interface Point {
-    readonly x: number;
-    readonly y: number;
-}
+export type Point = PolylinePoint;
 
 /** The outline bpmn-js draws a shape with: a circle for an event, a diamond for a gateway. */
 export type Outline = "circle" | "diamond" | "rectangle";
