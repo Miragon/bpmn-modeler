@@ -3,40 +3,16 @@ import { describe, expect, it } from "vitest";
 import { baseModel } from "./__fixtures__/baseModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { rootPlane } from "./__fixtures__/shapePlane";
-import type { DiagramBounds } from "./layoutGeometry";
+import { box, flow as buildFlow, layoutOf, node } from "./__fixtures__/layoutShapes";
 import { FlowTopology } from "./layoutFlowTopology";
-import type { EdgeKind, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
+import type { EdgeKind, LayoutEdge, NodeShape } from "./layoutModel";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 
-const PLANE = "Process_1";
+const task = (id: string, x: number, y: number, relations: Partial<NodeShape> = {}) =>
+    node(id, { bounds: box(x, y), ...relations });
 
-function task(id: string, x: number, y: number, relations: Partial<NodeShape> = {}): NodeShape {
-    const bounds: DiagramBounds = { x, y, width: 100, height: 80 };
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds,
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        lanes: [],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
-function flow(source: string, target: string, kind: EdgeKind = "sequenceFlow"): LayoutEdge {
-    return { id: `${source}_${target}`, plane: PLANE, source, target, waypoints: [], kind };
-}
-
-function layoutOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): LayoutModel {
-    return {
-        shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
-}
+const flow = (source: string, target: string, kind: EdgeKind = "sequenceFlow") =>
+    buildFlow(`${source}_${target}`, source, target, [], { kind });
 
 function topologyOf(shapes: readonly NodeShape[], edges: readonly LayoutEdge[]): FlowTopology {
     return new FlowTopology(layoutOf(shapes, edges));

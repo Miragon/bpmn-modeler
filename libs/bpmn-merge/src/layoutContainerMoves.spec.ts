@@ -1,79 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
+import {
+    at,
+    box,
+    flow,
+    laneInPool as lane,
+    nodeInPoolLane as node,
+    poolOfLanes as pool,
+    poolWithLaneHolding as layoutOf,
+} from "./__fixtures__/layoutShapes";
+import { subProcessPlane } from "./__fixtures__/shapePlane";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
-import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
-import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import { liesWithin } from "./layoutGeometry";
+import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { innerBoundsOf } from "./layoutPlacementFrames";
 import type { LayoutSpot } from "./layoutSpots";
-
-const PLANE = "Collaboration_1";
-
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-const at = (x: number, y: number): Point => ({ x, y });
-
-function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds,
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        pool: "Pool_1",
-        lanes: ["Lane_1"],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
-function pool(bounds: DiagramBounds = box(0, 0, 1200, 300)): LayoutShape {
-    return {
-        kind: "pool",
-        id: "Pool_1",
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        bounds,
-    };
-}
-
-function lane(id: string, bounds: DiagramBounds): LaneShape {
-    const relations = { parent: "Process_1", pool: "Pool_1" };
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        ...relations,
-        bounds,
-    };
-}
-
-const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
-
-function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
-}
-
-function layoutOf(
-    shapes: readonly LayoutShape[],
-    edges: readonly LayoutEdge[] = [],
-    frames: readonly LayoutShape[] = FRAMES,
-): LayoutModel {
-    return {
-        shapes: new Map([...frames, ...shapes].map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
-}
 
 function planOf(result: LayoutModel, sides: readonly LayoutModel[]): ContainerMovePlan {
     return planContainerMoves(result, introducedLayoutSpots(result, sides), sides);

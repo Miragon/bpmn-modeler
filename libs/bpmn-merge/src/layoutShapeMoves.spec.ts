@@ -1,82 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { rootPlane } from "./__fixtures__/shapePlane";
+import {
+    at,
+    box,
+    flow,
+    group,
+    laneInPool,
+    nodeInPoolLane as node,
+    poolOfLanes,
+    poolWithLaneHolding as layoutOf,
+} from "./__fixtures__/layoutShapes";
 import { type FlowRepairPlanner, planFlowRepairs } from "./layoutFlowRepair";
-import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
-import type {
-    GroupShape,
-    LaneShape,
-    LayoutEdge,
-    LayoutModel,
-    LayoutShape,
-    NodeShape,
-} from "./layoutModel";
+import { type DiagramBounds, liesWithin } from "./layoutGeometry";
+import type { GroupShape, LaneShape, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, isFlowSpot } from "./layoutSpots";
 
-const PLANE = "Collaboration_1";
-
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-function node(id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds,
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        pool: "Pool_1",
-        lanes: ["Lane_1"],
-        mayLieOutsidePool: false,
-        ...relations,
-    };
-}
-
-const POOL: LayoutShape = {
-    kind: "pool",
-    id: "Pool_1",
-    ...rootPlane(PLANE),
-    outline: "rectangle",
-    bounds: box(0, 0, 1200, 300),
-};
+const POOL = poolOfLanes();
 
 /** A lane of the pool's full width, `y` to `y + height`. */
-function lane(y: number, height: number, width = 1170): LaneShape {
-    return {
-        kind: "lane",
-        id: "Lane_1",
-        ...rootPlane(PLANE),
-        outline: "rectangle",
-        parent: "Process_1",
-        pool: "Pool_1",
-        bounds: box(30, y, width, height),
-    };
-}
-
-const at = (x: number, y: number): Point => ({ x, y });
-
-function flow(id: string, source: string, target: string, waypoints: readonly Point[]): LayoutEdge {
-    return { id, plane: PLANE, source, target, waypoints, kind: "sequenceFlow" };
-}
-
-function layoutOf(
-    shapes: readonly LayoutShape[],
-    edges: readonly LayoutEdge[] = [],
-    frames: readonly LayoutShape[] = [POOL, lane(0, 300)],
-): LayoutModel {
-    return {
-        shapes: new Map([...frames, ...shapes].map((shape) => [shape.id, shape])),
-        edges: new Map(edges.map((edge) => [edge.id, edge])),
-    };
-}
+const lane = (y: number, height: number, width = 1170) =>
+    laneInPool("Lane_1", box(30, y, width, height));
 
 const overlapsOf = (layout: LayoutModel): LayoutSpot[] =>
     detectLayoutSpots(layout).filter(({ kind }) => kind === "shapesOverlap");
@@ -398,13 +343,7 @@ describe("planShapeMoves", () => {
         });
 
         describe("a group around shapes of the row", () => {
-            const groupAt = (bounds: DiagramBounds): GroupShape => ({
-                kind: "group",
-                id: "Group_1",
-                ...rootPlane(PLANE),
-                outline: "rectangle",
-                bounds,
-            });
+            const groupAt = (bounds: DiagramBounds) => group("Group_1", bounds);
             const planWith = (group: GroupShape) => {
                 const drawn = [...row, group];
                 const result = layoutOf([...drawn, node("Task_Y", box(470, 90))], rowFlows, frames);

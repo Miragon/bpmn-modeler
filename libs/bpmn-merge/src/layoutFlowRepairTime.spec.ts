@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import { withShiftedTasks } from "./__fixtures__/shiftedTasks";
 import { perParseOf } from "./__fixtures__/timeAgainstParsing";
-import { rootPlane } from "./__fixtures__/shapePlane";
+import { at, box, flow, lane, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
 import type { BuildNoteContent } from "./buildNotes";
 import { planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
-import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
@@ -98,22 +98,8 @@ describe("shape move time", () => {
     );
 });
 
-const COLLABORATION = "Collaboration_1";
-
-function taskIn(pool: string, id: string, x: number, y: number): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(COLLABORATION),
-        bounds: { x, y, width: 100, height: 80 },
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        pool,
-        lanes: [],
-        mayLieOutsidePool: false,
-    };
-}
+const taskIn = (inPool: string, id: string, x: number, y: number) =>
+    node(id, { bounds: box(x, y), pool: inPool });
 
 /**
  * A message flow from a task in one pool to a second pool of `count` tasks,
@@ -124,21 +110,9 @@ function messageFlowIntoLargePool(count: number, blocked: boolean): LayoutModel 
     const perRow = 50;
     const rows = Math.ceil(count / perRow);
     const width = perRow * 160 + 40;
-    const pools: LayoutShape[] = [
-        {
-            kind: "pool",
-            id: "Pool_A",
-            ...rootPlane(COLLABORATION),
-            outline: "rectangle",
-            bounds: { x: 0, y: 0, width, height: 300 },
-        },
-        {
-            kind: "pool",
-            id: "Pool_B",
-            ...rootPlane(COLLABORATION),
-            outline: "rectangle",
-            bounds: { x: 0, y: 420, width, height: rows * 120 + 40 },
-        },
+    const pools = [
+        pool("Pool_A", box(0, 0, width, 300)),
+        pool("Pool_B", box(0, 420, width, rows * 120 + 40)),
     ];
     const tasks = Array.from({ length: count }, (_, index) =>
         taskIn(
@@ -150,21 +124,10 @@ function messageFlowIntoLargePool(count: number, blocked: boolean): LayoutModel 
     );
     const sender = taskIn("Pool_A", "Task_Send", 3950, 60);
     const blocker = blocked ? [taskIn("Pool_A", "Task_Block", 3950, 200)] : [];
-    const flow: LayoutEdge = {
-        id: "Message_1",
-        plane: COLLABORATION,
+    const message = flow("Message_1", "Task_Send", "Pool_B", [at(4000, 140), at(4000, 400)], {
         kind: "messageFlow",
-        source: "Task_Send",
-        target: "Pool_B",
-        waypoints: [
-            { x: 4000, y: 140 },
-            { x: 4000, y: 400 },
-        ],
-    };
-    return {
-        shapes: new Map([...pools, sender, ...blocker, ...tasks].map((shape) => [shape.id, shape])),
-        edges: new Map([[flow.id, flow]]),
-    };
+    });
+    return layoutOf([...pools, sender, ...blocker, ...tasks], [message]);
 }
 
 // Measured against parsing the 800 KB file once (37 to 44 ms), best of five each, with and without
@@ -209,13 +172,7 @@ function isMovedInDensePool(index: number, perRow: number): boolean {
  */
 function densePool(rows: number, dx: number): LayoutModel {
     const perRow = 50;
-    const pool: LayoutShape = {
-        kind: "pool",
-        id: "Pool_A",
-        ...rootPlane(COLLABORATION),
-        outline: "rectangle",
-        bounds: { x: 0, y: 0, width: perRow * 110 + 100, height: rows * 140 + 40 },
-    };
+    const drawnPool = pool("Pool_A", box(0, 0, perRow * 110 + 100, rows * 140 + 40));
     const tasks = Array.from({ length: rows * perRow }, (_, index) => {
         const task = taskIn(
             "Pool_A",
@@ -232,23 +189,13 @@ function densePool(rows: number, dx: number): LayoutModel {
         if ((index + 1) % perRow === 0) return [];
         const y = source.bounds.y + 40;
         return [
-            {
-                id: `Flow_${index}`,
-                plane: COLLABORATION,
-                kind: "sequenceFlow",
-                source: source.id,
-                target: task.id,
-                waypoints: [
-                    { x: source.bounds.x + 100, y },
-                    { x: task.bounds.x, y },
-                ],
-            },
+            flow(`Flow_${index}`, source.id, task.id, [
+                at(source.bounds.x + 100, y),
+                at(task.bounds.x, y),
+            ]),
         ];
     });
-    return {
-        shapes: new Map([pool, ...tasks].map((shape) => [shape.id, shape])),
-        edges: new Map(flows.map((flow) => [flow.id, flow])),
-    };
+    return layoutOf([drawnPool, ...tasks], flows);
 }
 
 // Measured against parsing the 800 KB file once (42 ms), best of five each, as the build parses
@@ -296,13 +243,7 @@ function poolWithAddedTasks(
     withFreeRows: boolean,
     addedX: (index: number) => number,
 ): LayoutModel {
-    const pool: LayoutShape = {
-        kind: "pool",
-        id: "Pool_A",
-        ...rootPlane(COLLABORATION),
-        outline: "rectangle",
-        bounds: { x, y: 0, width, height: 20 * 140 + 40 },
-    };
+    const drawnPool = pool("Pool_A", box(x, 0, width, 20 * 140 + 40));
     const rows = Array.from({ length: 20 }, (_, row) => row).filter(
         (row) => !withFreeRows || !ADDED_ROWS.includes(row),
     );
@@ -314,10 +255,7 @@ function poolWithAddedTasks(
     const added = ADDED_ROWS.map((row, index) =>
         taskIn("Pool_A", `Task_Added_${index}`, addedX(index), 40 + row * 140),
     );
-    return {
-        shapes: new Map([pool, ...tasks, ...added].map((shape) => [shape.id, shape])),
-        edges: new Map(),
-    };
+    return layoutOf([drawnPool, ...tasks, ...added]);
 }
 
 /** The drawing as the side that added no task draws it. */
@@ -367,28 +305,13 @@ describe("container repair time", () => {
     });
 });
 
-function laneIn(id: string, y: number, width: number): LayoutShape {
-    return {
-        kind: "lane",
-        id,
-        ...rootPlane(COLLABORATION),
-        outline: "rectangle",
-        parent: "Process_A",
-        pool: "Pool_A",
-        bounds: { x: 30, y, width: width - 30, height: 600 },
-    };
-}
+const laneIn = (id: string, y: number, width: number) =>
+    lane(id, box(30, y, width - 30, 600), { parent: "Process_A", pool: "Pool_A" });
 
 /** A pool of two lanes 600 px tall, `Lane_A` and `second`, each with four rows of 50 tasks. */
 function poolOfTwoLanes(second: string): LayoutShape[] {
     const width = 50 * 160 + 40;
-    const pool: LayoutShape = {
-        kind: "pool",
-        id: "Pool_A",
-        ...rootPlane(COLLABORATION),
-        outline: "rectangle",
-        bounds: { x: 0, y: 0, width, height: 1200 },
-    };
+    const drawnPool = pool("Pool_A", box(0, 0, width, 1200));
     const tasksOf = (lane: string, top: number) =>
         Array.from({ length: 200 }, (_, index) => ({
             ...taskIn(
@@ -400,18 +323,13 @@ function poolOfTwoLanes(second: string): LayoutShape[] {
             lanes: [lane],
         }));
     return [
-        pool,
+        drawnPool,
         laneIn("Lane_A", 0, width),
         laneIn(second, 600, width),
         ...tasksOf("Lane_A", 0),
         ...tasksOf(second, 600),
     ];
 }
-
-const layoutOfShapes = (shapes: readonly LayoutShape[]): LayoutModel => ({
-    shapes: new Map(shapes.map((shape) => [shape.id, shape])),
-    edges: new Map(),
-});
 
 // Measured against parsing the 800 KB file once (43 to 48 ms), best of five each, with and without
 // coverage: 0.36 to 0.39 (16 to 17 ms) to stack the lane and bring its 200 tasks after it, as each
@@ -424,9 +342,9 @@ describe("lane stacking time", () => {
         { timeout: 60_000 },
         async () => {
             const { xml } = generateLargeC7Model({ rows: 28, perRow: 50 });
-            const current = layoutOfShapes(poolOfTwoLanes("Lane_B"));
-            const incoming = layoutOfShapes(poolOfTwoLanes("Lane_C"));
-            const result = layoutOfShapes([
+            const current = layoutOf(poolOfTwoLanes("Lane_B"));
+            const incoming = layoutOf(poolOfTwoLanes("Lane_C"));
+            const result = layoutOf([
                 ...current.shapes.values(),
                 ...[...incoming.shapes.values()].filter(({ id }) => id.startsWith("Lane_C")),
             ]);

@@ -1,29 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { pool } from "./__fixtures__/layoutShapes";
-import { rootPlane } from "./__fixtures__/shapePlane";
+import { box, node as buildNode, layoutOf, pool } from "./__fixtures__/layoutShapes";
 import { DrawingDraft } from "./layoutDrawingDraft";
-import { type LayoutModel, type LayoutShape, type NodeShape, translatedNode } from "./layoutModel";
+import { translatedNode } from "./layoutModel";
 
-const PLANE = "Process_1";
-
-function node(id: string, x: number): NodeShape {
-    return {
-        kind: "node",
-        id,
-        ...rootPlane(PLANE),
-        bounds: { x, y: 0, width: 100, height: 80 },
-        outline: "rectangle",
-        expanded: false,
-        subProcesses: [],
-        lanes: [],
-        mayLieOutsidePool: false,
-    };
-}
-
-function layoutOf(...nodes: NodeShape[]): LayoutModel {
-    return { shapes: new Map(nodes.map((shape) => [shape.id, shape])), edges: new Map() };
-}
+const node = (id: string, x: number) => buildNode(id, { bounds: box(x, 0) });
 
 function moveRight(draft: DrawingDraft, id: string): void {
     draft.replaceShape(translatedNode(draft.node(id)!, 10, 0));
@@ -31,7 +12,7 @@ function moveRight(draft: DrawingDraft, id: string): void {
 
 describe("DrawingDraft.shapesChangedFrom", () => {
     it("names the shapes the fork changed since it was forked, in document order", () => {
-        const base = DrawingDraft.of(layoutOf(node("A", 0), node("B", 200), node("C", 400)));
+        const base = DrawingDraft.of(layoutOf([node("A", 0), node("B", 200), node("C", 400)]));
         moveRight(base, "A");
         const trial = base.fork();
         moveRight(trial, "C");
@@ -41,7 +22,7 @@ describe("DrawingDraft.shapesChangedFrom", () => {
     });
 
     it("names a shape the base changed before the fork when the fork changed it again", () => {
-        const base = DrawingDraft.of(layoutOf(node("A", 0), node("B", 200)));
+        const base = DrawingDraft.of(layoutOf([node("A", 0), node("B", 200)]));
         moveRight(base, "A");
         const trial = base.fork();
         moveRight(trial, "A");
@@ -50,7 +31,7 @@ describe("DrawingDraft.shapesChangedFrom", () => {
     });
 
     it("names no shape when the fork changed nothing", () => {
-        const base = DrawingDraft.of(layoutOf(node("A", 0)));
+        const base = DrawingDraft.of(layoutOf([node("A", 0)]));
         moveRight(base, "A");
 
         expect(base.fork().shapesChangedFrom(base)).toEqual([]);
@@ -59,7 +40,7 @@ describe("DrawingDraft.shapesChangedFrom", () => {
 
 describe("DrawingDraft.changedOrOriginal", () => {
     it("is the drawing it was made of while nothing changed, also on a fork", () => {
-        const original = layoutOf(node("A", 0));
+        const original = layoutOf([node("A", 0)]);
         const draft = DrawingDraft.of(original);
 
         expect(draft.changedOrOriginal).toBe(original);
@@ -67,7 +48,7 @@ describe("DrawingDraft.changedOrOriginal", () => {
     });
 
     it("is the draft itself once it changed a shape", () => {
-        const draft = DrawingDraft.of(layoutOf(node("A", 0)));
+        const draft = DrawingDraft.of(layoutOf([node("A", 0)]));
         const trial = draft.fork();
         moveRight(trial, "A");
 
@@ -78,13 +59,7 @@ describe("DrawingDraft.changedOrOriginal", () => {
 
 describe("DrawingDraft.pool", () => {
     it("is the pool as the draft draws it now, and nothing for another shape", () => {
-        const draft = DrawingDraft.of({
-            shapes: new Map<string, LayoutShape>([
-                ["Pool_1", pool("Pool_1")],
-                ["A", node("A", 0)],
-            ]),
-            edges: new Map(),
-        });
+        const draft = DrawingDraft.of(layoutOf([pool("Pool_1"), node("A", 0)]));
         const grown = { ...pool("Pool_1"), bounds: { x: 0, y: 0, width: 900, height: 400 } };
         draft.replaceShape(grown);
 

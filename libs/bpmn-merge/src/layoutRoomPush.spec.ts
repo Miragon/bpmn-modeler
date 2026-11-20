@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { box, planeLanesWith, task } from "./__fixtures__/planeLanes";
+import { box, node, planeLanesWith } from "./__fixtures__/layoutShapes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
 import { RoomPush } from "./layoutRoomPush";
@@ -8,9 +8,9 @@ import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
 
 describe("RoomPush below a shape in a lane on a plane without a pool", () => {
     const layout = planeLanesWith([
-        task("Task_A", box(500, 90), "Lane_1"),
-        task("Task_Y", box(510, 90), "Lane_1"),
-        task("Task_L", box(800, 200), "Lane_2"),
+        node("Task_A", { bounds: box(500, 90), lanes: ["Lane_1"] }),
+        node("Task_Y", { bounds: box(510, 90), lanes: ["Lane_1"] }),
+        node("Task_L", { bounds: box(800, 200), lanes: ["Lane_2"] }),
     ]);
 
     it("grows the lane and shifts the lane below with what it holds once, by the growth", () => {
@@ -38,8 +38,8 @@ describe("RoomPush below a shape in a lane on a plane without a pool", () => {
 
 describe("RoomPush along x in a lane on a plane without a pool", () => {
     const layout = planeLanesWith([
-        task("Task_A", box(1000, 90), "Lane_1"),
-        task("Task_L", box(800, 200), "Lane_2"),
+        node("Task_A", { bounds: box(1000, 90), lanes: ["Lane_1"] }),
+        node("Task_L", { bounds: box(800, 200), lanes: ["Lane_2"] }),
     ]);
 
     it.each([

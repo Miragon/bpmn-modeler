@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { PLANE, flow, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
+import {
+    PLANE,
+    box,
+    flow,
+    lane as buildLane,
+    layoutOf,
+    node,
+    pool,
+} from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import {
     carrierIdsOf,
@@ -20,6 +28,8 @@ import type { DiagramBounds } from "./layoutGeometry";
 import type { LaneShape, LayoutShape, NodeShape } from "./layoutModel";
 
 describe("sharedFrameOf", () => {
+    const aToB = flow("Flow_1", "A", "B");
+
     it("is the innermost expanded sub-process both ends lie in", () => {
         const layout = layoutOf([
             pool("Pool_1"),
@@ -29,7 +39,7 @@ describe("sharedFrameOf", () => {
             node("B", { pool: "Pool_1", subProcesses: ["Sub_Outer"] }),
         ]);
 
-        expect(sharedFrameOf(layout, flow)?.id).toBe("Sub_Outer");
+        expect(sharedFrameOf(layout, aToB)?.id).toBe("Sub_Outer");
     });
 
     it("is the pool when the ends share no sub-process drawn open on the flow's plane", () => {
@@ -40,7 +50,7 @@ describe("sharedFrameOf", () => {
             node("B", { pool: "Pool_1", subProcesses: ["Sub_1"] }),
         ]);
 
-        expect(sharedFrameOf(layout, flow)?.id).toBe("Pool_1");
+        expect(sharedFrameOf(layout, aToB)?.id).toBe("Pool_1");
     });
 
     it("is none for a flow between two pools, or to a pool", () => {
@@ -52,8 +62,8 @@ describe("sharedFrameOf", () => {
         ]);
         const toPool = layoutOf([pool("Pool_1"), pool("B"), node("A", { pool: "Pool_1" })]);
 
-        expect(sharedFrameOf(twoPools, flow)).toBeUndefined();
-        expect(sharedFrameOf(toPool, flow)).toBeUndefined();
+        expect(sharedFrameOf(twoPools, aToB)).toBeUndefined();
+        expect(sharedFrameOf(toPool, aToB)).toBeUndefined();
     });
 
     it("leaves out the pool of a data store, which may lie outside it", () => {
@@ -63,20 +73,13 @@ describe("sharedFrameOf", () => {
             node("B", { pool: "Pool_1", mayLieOutsidePool: true }),
         ]);
 
-        expect(sharedFrameOf(layout, flow)).toBeUndefined();
+        expect(sharedFrameOf(layout, aToB)).toBeUndefined();
     });
 });
 
 describe("framesAroundOf", () => {
     it("lists every frame drawn around the node: its open sub-processes, pool and lanes", () => {
-        const lane = {
-            kind: "lane",
-            id: "Lane_1",
-            ...rootPlane(PLANE),
-            parent: "Process_1",
-            outline: "rectangle",
-            bounds: { x: 30, y: 0, width: 870, height: 300 },
-        } as const;
+        const lane = buildLane("Lane_1", box(30, 0, 870, 300));
         const layout = layoutOf([
             pool("Pool_1"),
             lane,
@@ -96,15 +99,8 @@ describe("framesAroundOf", () => {
 });
 
 describe("frameScopeOf", () => {
-    const lane = (id: string, parent: string, height: number): LayoutShape => ({
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        bounds: { x: 30, y: 0, width: 870, height },
-        outline: "rectangle",
-        parent,
-        pool: "Pool_1",
-    });
+    const lane = (id: string, parent: string, height: number) =>
+        buildLane(id, box(30, 0, 870, height), { parent, pool: "Pool_1" });
 
     it("finds the lane no other lane of the node is nested in, even of the same height as its parent", () => {
         const layout = layoutOf([
@@ -208,15 +204,11 @@ describe("frameIdsOf", () => {
 });
 
 describe("carrierIdsOf", () => {
-    const lane = (id: string, parent: string, poolId?: string): LayoutShape => ({
-        kind: "lane",
-        id,
-        ...rootPlane(PLANE),
-        parent,
-        ...(poolId === undefined ? {} : { pool: poolId }),
-        outline: "rectangle",
-        bounds: { x: 30, y: 0, width: 870, height: 300 },
-    });
+    const lane = (id: string, parent: string, poolId?: string) =>
+        buildLane(id, box(30, 0, 870, 300), {
+            parent,
+            ...(poolId === undefined ? {} : { pool: poolId }),
+        });
 
     it.each<[string, LayoutShape, string[]]>([
         [
@@ -241,20 +233,8 @@ describe("carrierIdsOf", () => {
 });
 
 describe("lanesOf", () => {
-    const lane = (
-        id: string,
-        bounds: DiagramBounds,
-        plane = PLANE,
-        inPool: string | undefined = "Pool_1",
-    ): LayoutShape => ({
-        kind: "lane",
-        id,
-        ...rootPlane(plane),
-        bounds,
-        outline: "rectangle",
-        parent: "Process_1",
-        ...(inPool === undefined ? {} : { pool: inPool }),
-    });
+    const lane = (id: string, bounds: DiagramBounds, plane = PLANE, inPool = "Pool_1") =>
+        buildLane(id, bounds, { ...rootPlane(plane), pool: inPool });
 
     it("lists the lanes drawn inside the pool on its plane, in document order", () => {
         const own = [
@@ -289,19 +269,12 @@ describe("lanesOf", () => {
 });
 
 describe("the lane tree", () => {
-    const lane = (
-        id: string,
-        parent: string,
-        { plane = PLANE, inPool = true } = {},
-    ): LaneShape => ({
-        kind: "lane",
-        id,
-        ...rootPlane(plane),
-        bounds: { x: 30, y: 0, width: 870, height: 100 },
-        outline: "rectangle",
-        parent,
-        ...(inPool ? { pool: "Pool_1" } : {}),
-    });
+    const lane = (id: string, parent: string, { plane = PLANE, inPool = true } = {}) =>
+        buildLane(id, box(30, 0, 870, 100), {
+            ...rootPlane(plane),
+            parent,
+            ...(inPool ? { pool: "Pool_1" } : {}),
+        });
     const top = lane("Lane_Top", "Process_1");
     const beside = lane("Lane_Beside", "Process_1");
     const child = lane("Lane_Child", "Lane_Top");
