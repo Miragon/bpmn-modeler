@@ -31,6 +31,31 @@ export function innerBoundsOf(frame: LayoutShape): DiagramBounds {
         : { ...inner, y: inner.y + FRAME_HEADER, height: inner.height - FRAME_HEADER };
 }
 
+/** How far a frame grows on each side. */
+export interface SideGrowth {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+}
+
+/** Whether the lane's band, off its border, holds the bounds from top to bottom. */
+export function holdsLevel(lane: LayoutShape, bounds: DiagramBounds): boolean {
+    const inner = innerBoundsOf(lane);
+    return bounds.y >= inner.y && bottomOf(bounds) <= bottomOf(inner);
+}
+
+/** How far each frame must grow on each side to hold the bounds off its border. */
+export function growthToHold(frames: readonly LayoutShape[], bounds: DiagramBounds): SideGrowth {
+    const inners = frames.map(innerBoundsOf);
+    return {
+        left: Math.max(0, ...inners.map((inner) => inner.x - bounds.x)),
+        right: Math.max(0, ...inners.map((inner) => rightOf(bounds) - rightOf(inner))),
+        top: Math.max(0, ...inners.map((inner) => inner.y - bounds.y)),
+        bottom: Math.max(0, ...inners.map((inner) => bottomOf(bounds) - bottomOf(inner))),
+    };
+}
+
 /**
  * A member of a moving group held in a frame: inside it, off its border
  * where it keeps off it now, or, lying partly outside it now, no further out.

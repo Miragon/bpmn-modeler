@@ -9,7 +9,8 @@ import {
     isFrame,
     liesOnAnotherPool,
 } from "./layoutModel";
-import { RoomPush, type RoomRequest } from "./layoutRoomPush";
+import { RoomPush } from "./layoutRoomPush";
+import type { RoomRequest } from "./layoutRoomRequest";
 import { type RoomSlot, slotOffsetsOf, slotShapeOf } from "./layoutRoomSlots";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
 import { SpaceTool, leadAlong } from "./layoutSpaceTool";
