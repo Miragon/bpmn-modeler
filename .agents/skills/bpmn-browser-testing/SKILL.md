@@ -48,8 +48,10 @@ each serves (an untagged model in Design, diff panes with real
 has no partner for synchronized navigation. `?plugins` loads the sample
 plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
 starts a merge pane with Merge XML offered. Workspace definition search answers from
-`__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
-decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
+`__fixtures__/mock-workspace-definitions.ts`. The DMN preview's hosts in
+`apps/dmn-webview/src/adapter/out/browserPreview/` serve one sample decision,
+and `?mode=diff-before|diff-after` one pane of the shipping change with its
+real diff. The Add-ons view
 preview serves `apps/add-ons-webview/src/adapter/out/browserPreview/mockCatalog.ts`;
 its query flags pick the catalog state, a revealed add-on, the Review preset, a
 stale first allow, the brand theme, the page and a detail page's add-on, and

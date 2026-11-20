@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    DocumentFlushedCommand,
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
@@ -107,6 +108,7 @@ describe("development preview host", () => {
     it.each<[string, DmnEditorCommand]>([
         ["a properties-panel toggle", new SetPropertiesPanelStateCommand(false)],
         ["a document sync", new SyncDocumentCommand("<definitions />", 3)],
+        ["a flushed document", new DocumentFlushedCommand(1, "<definitions />")],
     ])("takes %s without throwing or replying", (_, command) => {
         vi.spyOn(console, "debug").mockImplementation(() => undefined);
         const host = previewHost();
@@ -132,7 +134,7 @@ describe("development preview host", () => {
         const outsideTheProtocol = { type: "NotAProtocolMessage" } as unknown as DmnEditorCommand;
 
         expect(() => host.postMessage(outsideTheProtocol)).toThrow(
-            "Unknown message type NotAProtocolMessage",
+            "Unknown message type: NotAProtocolMessage",
         );
     });
 
@@ -235,8 +237,22 @@ describe("diff pane host", () => {
         host.postMessage(new CursorChangedCommand(1));
 
         expect(error).toHaveBeenCalledWith("import failed");
-        expect(debug).toHaveBeenCalledWith("[dev] CursorChangedCommand");
+        expect(debug).toHaveBeenCalledWith(
+            expect.stringMatching(/^\[dev\] CursorChangedCommand ignored: \S/),
+            expect.objectContaining({ type: "CursorChangedCommand" }),
+        );
         expect(replies).toEqual([]);
+    });
+
+    it("rejects a message outside the pane's protocol so drift stays visible", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        const host = getDiffPaneHostApi();
+
+        const outsideTheProtocol = { type: "NotAProtocolMessage" } as unknown as DmnDiffPaneCommand;
+
+        expect(() => host.postMessage(outsideTheProtocol)).toThrow(
+            "Unknown message type: NotAProtocolMessage",
+        );
     });
 
     it.each<[string, DmnDiffPaneCommand]>([
