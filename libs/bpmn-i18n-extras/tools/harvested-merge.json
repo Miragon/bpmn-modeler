@@ -1,5 +1,5 @@
 {
-    "note": "Templates the merge view's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts, which asks every merge text once. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "note": "Templates the merge view's texts pass to translate(), each asked once, recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
     "count": 219,
     "keys": [
         "1 conflict left",
