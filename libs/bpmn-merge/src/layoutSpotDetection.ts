@@ -1,7 +1,7 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { framesOf } from "./layoutFrames";
 import type { LaneShape, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
-import { segmentsOf } from "./layoutPolyline";
 import { segmentBounds } from "./layoutSegments";
 import {
     type LayoutSpot,
@@ -92,7 +92,7 @@ export function shapesRunThrough(
 ): NodeShape[] {
     if (plane === undefined) return [];
     const candidates = new Set<number>();
-    for (const segment of segmentsOf(edge.waypoints)) {
+    for (const segment of polylineSegments(edge.waypoints)) {
         for (const near of plane.grid.indicesNear(segmentBounds(segment))) candidates.add(near);
     }
     return [...candidates]

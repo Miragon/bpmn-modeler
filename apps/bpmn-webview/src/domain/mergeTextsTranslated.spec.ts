@@ -13,6 +13,7 @@ import type {
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
+    harvestNote,
     harvestRecord,
     harvestRecordPath,
     type HarvestFile,
@@ -471,8 +472,8 @@ function mergeTextKeys(): Set<string> {
 
 // The overlay keeps a merge text because this record names it; no browser harvest opens a merge pane.
 const MERGE_HARVEST_FILE: HarvestFile = "harvested-merge.json";
-const MERGE_HARVEST_NOTE =
-    "Templates the merge view's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts, which asks every merge text once. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`. Feeds the needed-key set alongside the browser harvests.";
+const MERGE_HARVEST_SUBJECT =
+    "Templates the merge view's texts pass to translate(), each asked once";
 
 describe("a build note's text", () => {
     it.each(noteVariants())("names only elements its $kind note names", (note) => {
@@ -489,10 +490,10 @@ describe("a build note's text", () => {
 });
 
 describe("the merge view's harvest", () => {
-    it("records every key the merge texts pass to translate", async () => {
-        await expect(harvestRecord(MERGE_HARVEST_NOTE, mergeTextKeys())).toMatchFileSnapshot(
-            harvestRecordPath(MERGE_HARVEST_FILE),
-        );
+    it("records every key the merge texts pass to translate", async ({ task }) => {
+        await expect(
+            harvestRecord(harvestNote(MERGE_HARVEST_SUBJECT, task), mergeTextKeys()),
+        ).toMatchFileSnapshot(harvestRecordPath(MERGE_HARVEST_FILE));
     });
 });
 

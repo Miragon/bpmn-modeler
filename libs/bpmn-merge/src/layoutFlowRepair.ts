@@ -1,3 +1,4 @@
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,
@@ -25,7 +26,7 @@ import {
     otherEndOf,
 } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
-import { isOrthogonal, nearestPointOn, polylineBounds, segmentsOf } from "./layoutPolyline";
+import { isOrthogonal, nearestPointOn, polylineBounds } from "./layoutPolyline";
 import { routeCost, routeOrthogonal } from "./layoutRouter";
 import { type Segment, segmentEntersOutline, segmentEntersShape } from "./layoutSegments";
 import { shapesRunThrough } from "./layoutSpotDetection";
@@ -206,7 +207,7 @@ class RepairRoutes {
         return this.repairedSoFar
             .edgesNear(this.edge.plane, window)
             .filter(({ id }) => id !== this.edge.id)
-            .flatMap(({ waypoints }) => segmentsOf(waypoints));
+            .flatMap(({ waypoints }) => polylineSegments(waypoints));
     }
 
     private windowOf(margin: number): DiagramBounds {
@@ -223,7 +224,7 @@ class RepairRoutes {
     private fits(points: readonly Point[] | undefined): points is Point[] {
         if (points === undefined) return false;
         const { frame } = this;
-        const segments = segmentsOf(points);
+        const segments = polylineSegments(points);
         const throughHost = segments.some((segment) =>
             this.hosts.some((host) => segmentEntersShape(segment, host)),
         );

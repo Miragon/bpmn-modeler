@@ -1,5 +1,5 @@
 {
-    "note": "Templates the BPMN diff pane's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "note": "Templates the BPMN diff pane's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
     "count": 14,
     "keys": [
         "Added",

@@ -334,7 +334,7 @@ export function moreReasonsText(count: number, translate: MergeTranslate): strin
     return translate("and {count} more", { count: String(count) });
 }
 
-/** What an undo lifted: the refused decision of `elementId` is free to go now. */
+/** What an undo freed: the refused decision of `elementId` is free to go now. */
 export function unblockedText(
     action: MergePanePickAction,
     name: string,

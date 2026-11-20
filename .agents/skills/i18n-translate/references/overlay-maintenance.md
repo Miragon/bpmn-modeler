@@ -20,7 +20,8 @@ and guarded.
 - `libs/bpmn-i18n-extras/tools/harvested-merge.json`: the keys of the merge view's texts, which no
   browser driver reaches. `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts` asks every merge
   text once and fails until the record is current; rewrite it with
-  `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`.
+  `corepack yarn vitest run --project bpmn-webview apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts -u`,
+  the command its note names.
 - `libs/bpmn-i18n-extras/tools/harvested-diff.json` and `harvested-dmn-diff.json`: the keys of the BPMN
   and DMN diff panes' texts, recorded by
   `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and
@@ -49,7 +50,8 @@ and guarded.
 - `libs/bpmn-i18n-extras/src/normalizeKey.ts`, `src/harvestRecord.ts`, `src/harvestedKeys.ts` and
   `src/sourceOnlyKeys.ts`: the one home of the key normalization, the harvest file list and the record's
   shape (`harvestRecord`, which every recording spec writes through from the test-only entry
-  `@miragon/bpmn-modeler-i18n-extras/testing`), the harvest union and `SOURCE_ONLY`.
+  `@miragon/bpmn-modeler-i18n-extras/testing`), the harvest union and `SOURCE_ONLY`. `src/harvestNote.ts`
+  builds a spec-written record's note from the running test, so no spec spells its own path or project.
   The builder and the guard specs import them; change a rule there, never in a copy.
 - `libs/bpmn-i18n-extras/tools/README.md`: the authoritative, up-to-date version of this workflow. Prefer
   it if it disagrees with this file.

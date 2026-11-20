@@ -1,5 +1,5 @@
 {
-    "note": "Templates the linked form preview passes to translate(), recorded by apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "note": "Templates the linked form preview passes to translate(), recorded by apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
     "count": 13,
     "keys": [
         "Close form preview",

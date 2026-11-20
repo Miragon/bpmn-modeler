@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
+import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { computeDiff } from "@miragon/bpmn-modeler-diff";
+import { elementsRedrawnBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { seededRandom } from "./__fixtures__/randomMergeVersions";
 import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
-import { elementsRedrawnBy } from "./buildNoteElements";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import { DrawingDraft } from "./layoutDrawingDraft";
@@ -19,7 +20,6 @@ import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { placedByBuild } from "./sideDrawings";
 import { layoutModelOf } from "./layoutModelReader";
-import { segmentsOf } from "./layoutPolyline";
 import { segmentsCross } from "./layoutSegments";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, sameSpot } from "./layoutSpots";
@@ -504,8 +504,8 @@ function crossingsOf(layout: LayoutModel): number {
             .slice(index + 1)
             .filter((other) => other.plane === edge.plane)
             .flatMap((other) =>
-                segmentsOf(edge.waypoints).flatMap((own) =>
-                    segmentsOf(other.waypoints).map((theirs) => [own, theirs] as const),
+                polylineSegments(edge.waypoints).flatMap((own) =>
+                    polylineSegments(other.waypoints).map((theirs) => [own, theirs] as const),
                 ),
             ),
     );
