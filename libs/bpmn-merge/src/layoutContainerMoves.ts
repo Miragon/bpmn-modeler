@@ -9,7 +9,8 @@ import { frameIdsOf } from "./layoutFrames";
 import { type LayoutModel, type LayoutShape, nodeShapeIn } from "./layoutModel";
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
-import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
+import { innerBoundsOf } from "./layoutPlacementFrames";
+import { type Offset, Placement, offsetBetween } from "./layoutShapePlacement";
 import type { ContainerRepair, SpotRepair } from "./layoutSpotRepairs";
 import { type LayoutSpot, liesOutside } from "./layoutSpots";
 

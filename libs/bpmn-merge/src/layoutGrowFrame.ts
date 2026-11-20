@@ -12,7 +12,8 @@ import { type LayoutShape, translatedNode } from "./layoutModel";
 import { type RoomContext, breaksNothing } from "./layoutMakeRoom";
 import { RoomPush } from "./layoutRoomPush";
 import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
-import { type Offset, innerBoundsOf } from "./layoutShapePlacement";
+import { innerBoundsOf } from "./layoutPlacementFrames";
+import type { Offset } from "./layoutShapePlacement";
 import { liesOutside } from "./layoutSpots";
 
 export interface FrameGrown {

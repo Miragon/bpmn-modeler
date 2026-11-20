@@ -6,7 +6,7 @@ import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
 import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
-import { innerBoundsOf } from "./layoutShapePlacement";
+import { innerBoundsOf } from "./layoutPlacementFrames";
 import type { LayoutSpot } from "./layoutSpots";
 
 const PLANE = "Collaboration_1";
