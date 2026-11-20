@@ -3,11 +3,12 @@ import {
     type AddOnsViewCommand,
     MockHostApi,
     type Query,
+    routePreviewCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import type { PersistedChoices } from "../../../domain/viewState";
 import { MockCatalog } from "./mockCatalog";
-import { type PreviewSession, routePreviewCommand } from "./previewCommands";
+import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX, type PreviewSession } from "./previewCommands";
 import { previewFlagsOf } from "./previewFlags";
 
 /**
@@ -26,7 +27,7 @@ export class PreviewHost extends MockHostApi<PersistedChoices, AddOnsViewCommand
     }
 
     override postMessage(message: AddOnsViewCommand): void {
-        routePreviewCommand(message, this.session);
+        routePreviewCommand(PREVIEW_COMMANDS, message, this.session, PREVIEW_LOG_PREFIX);
     }
 }
 

@@ -2,10 +2,10 @@ import {
     AddOnAboutQuery,
     AddOnActionResultQuery,
     AddOnCatalogQuery,
-    type AddOnsViewCommand,
     type AddOnsViewCommandType,
     BrandModeQuery,
     type MessageOfType,
+    type PreviewCommandTable,
     type Query,
     RevealAddOnsQuery,
     ShowAddOnQuery,
@@ -23,17 +23,7 @@ export interface PreviewSession {
     reply(query: Query | undefined): void;
 }
 
-/** What the preview does with a command, or why it drops it. */
-export type PreviewRoute<TType extends AddOnsViewCommandType> =
-    | ((command: MessageOfType<TType>, preview: PreviewSession) => void)
-    | { readonly ignored: string };
-
-/** A row per command of the view: a command without one fails to compile. */
-type PreviewCommandTable = {
-    readonly [TType in AddOnsViewCommandType]: PreviewRoute<TType>;
-};
-
-const PREVIEW_COMMANDS: PreviewCommandTable = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommandType, PreviewSession> = {
     LogInfoCommand: logToConsole,
     LogErrorCommand: logToConsole,
     GetAddOnCatalogCommand: (_, preview) => answerCatalogRequest(preview),
@@ -47,26 +37,10 @@ const PREVIEW_COMMANDS: PreviewCommandTable = {
         preview.reply(new AddOnAboutQuery(targetId, mockAboutOf(targetId))),
 };
 
-/** The row of a command type; a type without one, an inherited object member's included, throws. */
-export function previewRouteOf(type: string): PreviewRoute<AddOnsViewCommandType> {
-    if (!Object.hasOwn(PREVIEW_COMMANDS, type)) {
-        throw new Error(`Unknown message type: ${type}`);
-    }
-    return PREVIEW_COMMANDS[type as AddOnsViewCommandType] as PreviewRoute<AddOnsViewCommandType>;
-}
-
-export function routePreviewCommand(command: AddOnsViewCommand, preview: PreviewSession): void {
-    const route = previewRouteOf(command.type);
-    if ("ignored" in route) {
-        console.debug(`[add-ons preview] ${command.type} ignored: ${route.ignored}`, command);
-        return;
-    }
-    // Sound because the table hands each row only commands of its own key's type.
-    (route as (command: AddOnsViewCommand, preview: PreviewSession) => void)(command, preview);
-}
+export const PREVIEW_LOG_PREFIX = "[add-ons preview]";
 
 function logToConsole({ type, message }: MessageOfType<"LogInfoCommand" | "LogErrorCommand">): void {
-    console.debug(`[add-ons preview] ${type}`, message);
+    console.debug(`${PREVIEW_LOG_PREFIX} ${type}`, message);
 }
 
 function answerCatalogRequest(preview: PreviewSession): void {

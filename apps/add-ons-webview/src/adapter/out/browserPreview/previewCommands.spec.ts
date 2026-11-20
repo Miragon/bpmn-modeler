@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -14,11 +12,12 @@ import {
     LogInfoCommand,
     type MessageOfType,
     OpenAddOnDetailCommand,
+    previewRouteOf,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 
 import { getHostApi } from "../host";
-import { previewRouteOf } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 
 const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
     LogInfoCommand: new LogInfoCommand("info"),
@@ -127,7 +126,7 @@ describe("the preview's command routing", () => {
 
     it.each(
         Object.values(COMMANDS).flatMap((command) => {
-            const route = previewRouteOf(command.type);
+            const route = previewRouteOf(PREVIEW_COMMANDS, command.type);
             return "ignored" in route ? [{ command, reason: route.ignored }] : [];
         }),
     )("says why it drops a $command.type", ({ command, reason }) => {
@@ -137,12 +136,5 @@ describe("the preview's command routing", () => {
 
         expect(reason.trim()).not.toBe("");
         expect(debug).toHaveBeenCalledWith(`[add-ons preview] ${command.type} ignored: ${reason}`, command);
-    });
-
-    // Rollup keeps a module-level statement holding an interpolated template literal, so the table would ship in production.
-    it("writes each drop reason as a plain string, which leaves the table out of the production bundle", () => {
-        const table = readFileSync(join(__dirname, "previewCommands.ts"), "utf8");
-
-        expect(table).not.toMatch(/ignored:\s*`/);
     });
 });

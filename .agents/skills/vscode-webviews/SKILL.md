@@ -290,6 +290,9 @@ IntelliJ, or a plain browser. Two implementations back it:
   row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
   The add-ons webview's `PreviewHost` (in
   `apps/add-ons-webview/src/adapter/out/browserPreview/`) routes the same way.
+  The table's type and its router are `PreviewCommandTable` and
+  `routePreviewCommand` in `libs/shared/src/lib/previewCommandTable.ts`; a new
+  preview table uses them instead of its own copy.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts
