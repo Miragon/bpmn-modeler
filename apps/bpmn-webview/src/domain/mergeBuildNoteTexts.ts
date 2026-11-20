@@ -2,6 +2,7 @@ import {
     type MergeBuildNoteContent,
     type MergeBuildNoteOfKind,
     type MergeNoteRepairOf,
+    type MergeOverlapNote,
     type MergeRepairedNoteKind,
     type MergeSide,
     framesGrownBy,
@@ -48,9 +49,6 @@ type ElementAndShapesNote = MergeBuildNoteOfKind<
 
 /** A shape and the containers it lies outside. */
 type OutsideContainerNote = MergeBuildNoteOfKind<"shapeOutsideContainer">;
-
-/** Shapes or lanes on top of each other. */
-type OverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 
 /** A shape the build moved off the others it lay on. */
 type MovedShapeNote = Extract<MergeBuildNoteOfKind<"shapesOverlap">, { readonly moved: string }>;
@@ -184,7 +182,7 @@ function containerRepairNames(
     return { ...elementAndShapesNames(note, names), shifted: names.list(shapesShiftedBy(note)) };
 }
 
-function overlappingNames(note: OverlapNote, names: CanvasNames): Record<string, string> {
+function overlappingNames(note: MergeOverlapNote, names: CanvasNames): Record<string, string> {
     return { first: names.one(note.ids[0] ?? ""), second: names.list(note.ids.slice(1)) };
 }
 

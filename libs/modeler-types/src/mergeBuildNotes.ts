@@ -142,6 +142,9 @@ export type MergeBuildNoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
             : never
         : never;
 
+/** Shapes or lanes on top of each other. */
+export type MergeOverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
+
 /** The kinds of note that record what the build did about them. */
 export type MergeRepairedNoteKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
 

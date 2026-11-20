@@ -2,15 +2,13 @@ import type {
     MergeBuildNoteContent,
     MergeBuildNoteOfKind,
     MergeNonEmptyIds,
+    MergeOverlapNote,
 } from "./mergeBuildNotes";
 
 /** A note whose repair can shift shapes to make room. */
 type ShiftingNote = MergeBuildNoteOfKind<
     "shapeOutsideContainer" | "shapesOverlap" | "lanesOverlap"
 >;
-
-/** A note whose repair can grow frames to hold the shape or lane it moved. */
-type MovingNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 
 /** Whether a list holds an id, so that a repair named for shifting or growing can carry it. */
 export function isNonEmpty(ids: readonly string[]): ids is MergeNonEmptyIds {
@@ -57,6 +55,6 @@ export function shapesShiftedBy(note: ShiftingNote): readonly string[] {
  * The frames grown to hold the shape or lane an overlap's repair moved; none for one that grew nothing. A container
  * repair grows the note's own `shapes` instead.
  */
-export function framesGrownBy(note: MovingNote): readonly string[] {
+export function framesGrownBy(note: MergeOverlapNote): readonly string[] {
     return "grown" in note ? note.grown : [];
 }
