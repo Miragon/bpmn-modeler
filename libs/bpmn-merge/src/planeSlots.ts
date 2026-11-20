@@ -1,8 +1,8 @@
-import { type DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
-import type { MergeSide } from "./mergeResult";
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
-/** A collaboration and a process one of its participants names: one root plane draws them. */
-export type CollaborationProcess = readonly [collaboration: string, process: string];
+import { DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
+import { type CollaborationProcess, collaborationProcessesOf } from "./layoutRelations";
+import type { MergeSide } from "./mergeResult";
 
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */
 export class PlaneSlot {
@@ -36,7 +36,7 @@ export class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
     private readonly handedOut = new Map<string, PlaneSlot>();
 
-    constructor(
+    private constructor(
         private readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>,
         collaborationProcesses: readonly CollaborationProcess[],
     ) {
@@ -47,12 +47,27 @@ export class PlaneSlots {
         }
     }
 
+    /** The slots of a merge of the two sides' documents, read before the build changes them. */
+    static ofSides(definitions: Readonly<Record<MergeSide, ModdleElement>>): PlaneSlots {
+        return new PlaneSlots(
+            {
+                current: DiagramIndex.of(definitions.current),
+                incoming: DiagramIndex.of(definitions.incoming),
+            },
+            [
+                ...collaborationProcessesOf(definitions.current),
+                ...collaborationProcessesOf(definitions.incoming),
+            ],
+        );
+    }
+
     /** One document's slots, as if it were merged with itself. */
-    static ofDocument(
-        index: DiagramIndex,
-        collaborationProcesses: readonly CollaborationProcess[],
-    ): PlaneSlots {
-        return new PlaneSlots({ current: index, incoming: index }, collaborationProcesses);
+    static ofDocument(definitions: ModdleElement): PlaneSlots {
+        const index = DiagramIndex.of(definitions);
+        return new PlaneSlots(
+            { current: index, incoming: index },
+            collaborationProcessesOf(definitions),
+        );
     }
 
     slotOf(planeOwner: string): PlaneSlot {

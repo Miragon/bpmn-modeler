@@ -1,40 +1,26 @@
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { DiagramIndex } from "./diagramIndex";
-import { collaborationProcessesOf } from "./layoutRelations";
-import { type CollaborationProcess, PlaneSlot, PlaneSlots } from "./planeSlots";
+import { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const plane = (owner: string) => `
   <bpmndi:BPMNDiagram id="Diagram_${owner}">
     <bpmndi:BPMNPlane id="Plane_${owner}" bpmnElement="${owner}" />
   </bpmndi:BPMNDiagram>`;
 
-interface SlotDocument {
-    readonly index: DiagramIndex;
-    readonly collaborationProcesses: readonly CollaborationProcess[];
-}
-
-async function documentOf(semantic: string, diagrams: readonly string[]): Promise<SlotDocument> {
+async function documentOf(semantic: string, diagrams: readonly string[]): Promise<ModdleElement> {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${semantic}${diagrams.join("")}
 </bpmn:definitions>`;
-    const definitions = (await parseWithoutWarnings(xml)).rootElement;
-    return {
-        index: DiagramIndex.of(definitions),
-        collaborationProcesses: collaborationProcessesOf(definitions),
-    };
+    return (await parseWithoutWarnings(xml)).rootElement;
 }
 
-function slotsOf(current: SlotDocument, incoming: SlotDocument = current): PlaneSlots {
-    return new PlaneSlots({ current: current.index, incoming: incoming.index }, [
-        ...current.collaborationProcesses,
-        ...incoming.collaborationProcesses,
-    ]);
+function slotsOf(current: ModdleElement, incoming: ModdleElement = current): PlaneSlots {
+    return PlaneSlots.ofSides({ current, incoming });
 }
 
-const documentSlotsOf = ({ index, collaborationProcesses }: SlotDocument) =>
-    PlaneSlots.ofDocument(index, collaborationProcesses);
+const documentSlotsOf = (definitions: ModdleElement) => PlaneSlots.ofDocument(definitions);
 
 const PROCESSES = `
   <bpmn:process id="Process_A"><bpmn:subProcess id="Sub_A" /></bpmn:process>

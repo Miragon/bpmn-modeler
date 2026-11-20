@@ -4,9 +4,7 @@ import { baseModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
-import { DiagramIndex } from "./diagramIndex";
 import { layoutModelOf } from "./layoutModelReader";
-import { collaborationProcessesOf } from "./layoutRelations";
 import { PlaneSlots } from "./planeSlots";
 
 async function layoutOf(edit: (model: BpmnFixtureModel) => void) {
@@ -50,16 +48,10 @@ describe("layoutModelOf", () => {
     it("reads each shape's plane into the slot the merge gives it", async () => {
         const current = await parseWithoutWarnings(TWO_PROCESS_DIAGRAMS);
         const incoming = await parseWithoutWarnings(ONE_COLLABORATION);
-        const slots = new PlaneSlots(
-            {
-                current: DiagramIndex.of(current.rootElement),
-                incoming: DiagramIndex.of(incoming.rootElement),
-            },
-            [
-                ...collaborationProcessesOf(current.rootElement),
-                ...collaborationProcessesOf(incoming.rootElement),
-            ],
-        );
+        const slots = PlaneSlots.ofSides({
+            current: current.rootElement,
+            incoming: incoming.rootElement,
+        });
 
         const currentLayout = layoutModelOf(current.rootElement, slots);
         const incomingLayout = layoutModelOf(incoming.rootElement, slots);

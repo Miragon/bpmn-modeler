@@ -3,7 +3,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { DiagramIndex } from "./diagramIndex";
 import { DrawingSides } from "./drawingSides";
-import { collaborationProcessesOf } from "./layoutRelations";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
 import { type PlaneSlot, PlaneSlots } from "./planeSlots";
@@ -123,10 +122,10 @@ async function assignmentOf(currentXml: string, incomingXml: string): Promise<As
             FROM_INCOMING.has(id) ? "incoming" : "current",
         ]),
     ) as Record<string, MergeSide>;
-    const slots = new PlaneSlots(indexes, [
-        ...collaborationProcessesOf(current.rootElement),
-        ...collaborationProcessesOf(incoming.rootElement),
-    ]);
+    const slots = PlaneSlots.ofSides({
+        current: current.rootElement,
+        incoming: incoming.rootElement,
+    });
     const keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
     const assignment = PlaneAssignment.of({
         indexes,

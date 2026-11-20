@@ -3,11 +3,7 @@ import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bp
 import { DiagramIndex, type Drawing } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
-import {
-    type LayoutRelations,
-    collaborationProcessesOf,
-    layoutRelationsOf,
-} from "./layoutRelations";
+import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
 import { PlaneSlots } from "./planeSlots";
 
 type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
@@ -20,7 +16,7 @@ type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
 export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
     const relations = layoutRelationsOf(definitions);
     const index = DiagramIndex.of(definitions);
-    const planeSlots = slots ?? PlaneSlots.ofDocument(index, collaborationProcessesOf(definitions));
+    const planeSlots = slots ?? PlaneSlots.ofDocument(definitions);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
     for (const id of index.drawnIds()) {
