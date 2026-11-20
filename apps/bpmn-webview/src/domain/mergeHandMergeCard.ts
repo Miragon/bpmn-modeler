@@ -22,7 +22,7 @@ export interface MergeRememberedHandMerge {
     readonly outcome: MergeHandMergeOutcome;
     readonly acted: MergeXmlRequest;
     /** No undo frees a merge by hand. */
-    readonly lifted?: undefined;
+    readonly freed?: undefined;
 }
 
 /** What the card of a merge by hand reads of the element's pick. */

@@ -290,7 +290,7 @@ describe("mergeOutcomeCardContent", () => {
             card({
                 outcome: applied("unpick", "Flow_1"),
                 acted: undo("Flow_1"),
-                lifted: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
+                freed: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
             }).announcement,
         ).toStrictEqual([
             "Took back the pick of Flow from Order received to Send invoice",
@@ -302,7 +302,7 @@ describe("mergeOutcomeCardContent", () => {
         const content = card({
             outcome: applied("unpick", "Flow_1"),
             acted: undo("Flow_1"),
-            lifted: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
+            freed: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
         });
 
         expect(content.unblocked).toStrictEqual({

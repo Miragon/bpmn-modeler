@@ -5,6 +5,7 @@ import {
     loadBpmnModdle,
 } from "@miragon/bpmn-modeler-diff";
 import { ENGINE_NAMESPACE } from "@miragon/bpmn-modeler-types/engine";
+import { elementsRedrawnBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 import { describe, expect, it } from "vitest";
 
 import { baseModel, cloneModel, nodeById, removeNode } from "./__fixtures__/baseModel";
@@ -19,7 +20,6 @@ import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { acceptHandMerge } from "./acceptHandMerge";
 import { type BuildNote, buildMerged } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
-import { elementsRedrawnBy } from "./buildNoteElements";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { MergeDecisions, type MergeResolution } from "./mergeDecisions";
 import { isMergeElement } from "./mergeElements";

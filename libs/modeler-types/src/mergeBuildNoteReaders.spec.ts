@@ -4,6 +4,7 @@ import {
     elementsNamedBy,
     framesGrownBy,
     isNonEmpty,
+    noteVariantEntry,
     shapesShiftedBy,
 } from "./mergeBuildNoteReaders";
 import type { MergeBuildNoteContent, MergeNonEmptyIds } from "./mergeBuildNotes";
@@ -181,6 +182,44 @@ describe("elementsNamedBy", () => {
         expect(
             elementsNamedBy({ kind: "defaultFlowNotRestored", id: "Gateway_1", flow: "Flow_1" }),
         ).toStrictEqual(["Gateway_1", "Flow_1"]);
+    });
+});
+
+describe("noteVariantEntry", () => {
+    const repairs = { movedByBuild: "moved", notRepaired: "left" };
+    const table: Record<MergeBuildNoteContent["kind"], unknown> = {
+        flowEndOffShape: repairs,
+        flowThroughShape: repairs,
+        shapeOutsideContainer: repairs,
+        shapesOverlap: repairs,
+        lanesOverlap: repairs,
+        layoutChangedByBoth: "layout",
+        boundaryEventOffHost: "boundary",
+        restoredWithoutRemovedWith: "restored",
+        defaultFlowNotRestored: "default",
+        flowNotDrawn: "flow",
+        frameDiffers: "frame",
+    };
+
+    it("picks a repaired note's entry by its kind and repair", () => {
+        const note: MergeBuildNoteContent = {
+            kind: "flowThroughShape",
+            id: "Flow_1",
+            shapes: ["Task_C"],
+            repair: "notRepaired",
+        };
+
+        expect(noteVariantEntry<string>(table, note)).toBe("left");
+    });
+
+    it("picks any other note's entry by its kind alone", () => {
+        const note: MergeBuildNoteContent = {
+            kind: "boundaryEventOffHost",
+            id: "Event_1",
+            host: "Task_A",
+        };
+
+        expect(noteVariantEntry<string>(table, note)).toBe("boundary");
     });
 });
 

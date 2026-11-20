@@ -1,4 +1,4 @@
-import { IMPLEMENTATION_LABELS } from "./types";
+import { IMPLEMENTATION_LABELS } from "./templateProperties";
 
 /** What a template list shows around its search, in the chooser and in the append menu. */
 export const TEMPLATE_LIST_TEXTS = {
