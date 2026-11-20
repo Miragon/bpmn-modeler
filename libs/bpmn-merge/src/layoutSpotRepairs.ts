@@ -6,15 +6,19 @@ import type {
 
 import type { RepairOf } from "./buildNotes";
 import type { FlowRepair } from "./layoutFlowRepair";
-import { type FlowSpot, type LayoutSpot, isFlowSpot, repairedTogether } from "./layoutSpots";
+import {
+    type FlowSpot,
+    type LayoutSpot,
+    type SpotOf,
+    isFlowSpot,
+    repairedTogether,
+} from "./layoutSpots";
 
 /** What the build did about a shape outside its sub-process, pool or lane. */
 export type ContainerRepair = RepairOf<MergeContainerRepair>;
 
 /** What the build did about two shapes on top of each other. */
 export type OverlapRepair = RepairOf<MergeOverlapRepair>;
-
-type SpotOf<Kind extends LayoutSpot["kind"]> = Extract<LayoutSpot, { readonly kind: Kind }>;
 
 interface FlowSpotRepair {
     readonly spot: FlowSpot;

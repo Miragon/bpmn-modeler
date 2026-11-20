@@ -20,7 +20,7 @@ const view = (
 
 const labels = (conflict: string): MergeMarksLabels => ({
     conflict,
-    badge: ({ keptSide, scope }) => ({
+    badge: ({ pick: { keptSide, scope } }) => ({
         side: keptSide[0].toUpperCase() + keptSide.slice(1),
         label: `${keptSide} ${scope}`,
     }),
@@ -29,9 +29,10 @@ const labels = (conflict: string): MergeMarksLabels => ({
 const PICKED: MergePaneBadge = {
     id: "Task_Pack",
     kind: "keptHere",
-    keptSide: "incoming",
-    scope: "element",
+    pick: { keptSide: "incoming", scope: "element" },
 };
+
+const MERGED_BY_HAND = { keptSide: "incoming", scope: "element", mergedByHand: true } as const;
 
 interface RecordedOverlay {
     element: string;
@@ -170,7 +171,12 @@ describe("MergeMarks", () => {
                 {
                     badges: [
                         PICKED,
-                        { ...PICKED, id: "Flow_1", kind: "replacedHere", scope: "withContents" },
+                        {
+                            ...PICKED,
+                            id: "Flow_1",
+                            kind: "replacedHere",
+                            pick: { ...PICKED.pick, scope: "withContents" },
+                        },
                     ],
                     consequences: ["Task_Check"],
                 },
@@ -264,15 +270,15 @@ describe("MergeMarks", () => {
         const { marks, overlays } = fakeCanvas(["Task_Pack", "Flow_1"]);
         const byHand = (badge: MergePaneBadge) => ({
             side: "Incoming",
-            label: `${badge.keptSide} merged by hand`,
+            label: `${badge.pick.keptSide} merged by hand`,
             byHand: "by hand",
         });
 
         marks().paint(
             view(NO_MARKS, {
                 badges: [
-                    { ...PICKED, mergedByHand: true },
-                    { ...PICKED, id: "Flow_1", kind: "replacedHere", mergedByHand: true },
+                    { ...PICKED, pick: MERGED_BY_HAND },
+                    { ...PICKED, id: "Flow_1", kind: "replacedHere", pick: MERGED_BY_HAND },
                 ],
                 consequences: [],
             }),
@@ -297,7 +303,7 @@ describe("MergeMarks", () => {
         const { marks, overlays } = fakeCanvas(["Task_Pack"]);
 
         marks().paint(
-            view(NO_MARKS, { badges: [{ ...PICKED, mergedByHand: true }], consequences: [] }),
+            view(NO_MARKS, { badges: [{ ...PICKED, pick: MERGED_BY_HAND }], consequences: [] }),
             {
                 conflict: "Conflict",
                 badge: () => ({ side: "Incoming", label: "merged by hand", byHand: "by hand" }),
@@ -312,7 +318,7 @@ describe("MergeMarks", () => {
         const { marks, overlays } = fakeCanvas(["Task_Pack"]);
 
         marks().paint(
-            view(NO_MARKS, { badges: [{ ...PICKED, mergedByHand: true }], consequences: [] }),
+            view(NO_MARKS, { badges: [{ ...PICKED, pick: MERGED_BY_HAND }], consequences: [] }),
             labels("Conflict"),
         );
 

@@ -19,7 +19,7 @@ const KEEP_INSIDE: MergePadDecision = {
 const LEAVE_OUT: MergePadDecision = {
     kind: "leaveOut",
     side: "current",
-    otherSideLacks: "removed",
+    lack: "removed",
 };
 const KEEP_REMOVED_WITH: MergePadDecision = {
     kind: "keepRemovedWith",

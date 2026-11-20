@@ -1,8 +1,9 @@
 import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
+import { DiagramIndex } from "./diagramIndex";
 import { type LayoutModel, type NodeShape, translatedNode } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
 import { writeLayoutChanges } from "./layoutRepairWriter";
 
 const edge = (id: string, y: number) => `
@@ -50,7 +51,7 @@ async function writtenWith(xml: string, change: (layout: LayoutModel) => LayoutM
     const moddle = (await loadBpmnModdle())();
     const { rootElement } = await moddle.fromXML(xml);
     const before = layoutModelOf(rootElement);
-    writeLayoutChanges(rootElement, before, change(before), (point) =>
+    writeLayoutChanges(DiagramIndex.of(rootElement), before, change(before), (point) =>
         moddle.create("dc:Point", { x: point.x, y: point.y }),
     );
     return { layout: layoutModelOf(rootElement), xml: (await moddle.toXML(rootElement)).xml };

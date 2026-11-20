@@ -1,16 +1,9 @@
 import { moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
-import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { definitionsOf } from "./__fixtures__/poolsAndLanes";
 import { collaborationProcessesOf, rootsReachedFrom } from "./collaborationPools";
-import { layoutRelationsOf } from "./layoutRelations";
-
-async function definitionsOf(semantic: string) {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${semantic}
-</bpmn:definitions>`;
-    return (await parseWithoutWarnings(xml)).rootElement;
-}
+import { poolRelationsOf } from "./poolRelations";
 
 const PROCESSES = `
   <bpmn:process id="Process_A" />
@@ -52,7 +45,7 @@ describe("collaborationProcessesOf", () => {
   </bpmn:collaboration>${PROCESSES}`);
 
         expect(collaborationProcessesOf(definitions)).toEqual([["Collab_1", "Process_B"]]);
-        expect([...layoutRelationsOf(definitions).pools]).toEqual(["Pool_B"]);
+        expect([...poolRelationsOf(definitions).pools]).toEqual(["Pool_B"]);
     });
 
     it("answers no pairs for a document without a collaboration", async () => {

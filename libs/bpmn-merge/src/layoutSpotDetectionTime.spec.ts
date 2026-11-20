@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import { withShiftedTasks } from "./__fixtures__/shiftedTasks";
 import { perParseOf } from "./__fixtures__/timeAgainstParsing";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 
 /** The spots of the result against both sides, and how long finding them takes per millisecond of parsing the result. */

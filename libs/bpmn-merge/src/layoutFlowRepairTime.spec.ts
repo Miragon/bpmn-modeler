@@ -10,7 +10,7 @@ import { planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 

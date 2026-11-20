@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBadge } from "@miragon/bpmn-modeler-shared";
+import type { MergePanePick } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergePadDecision } from "./mergePadDecisions";
@@ -22,25 +22,25 @@ const untranslated: MergeTranslate = (key, replacements = {}) =>
     key.replace(/\{(\w+)\}/g, (_match, name: string) => replacements[name] ?? `{${name}}`);
 
 describe("pickBadgeText", () => {
-    it.each<[string, MergePaneBadge, { side: string; label: string }]>([
+    it.each<[string, MergePanePick, { side: string; label: string }]>([
         [
             "names the side an element was kept from on the pane that kept it",
-            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "element" },
+            { keptSide: "incoming", scope: "element" },
             { side: "Incoming", label: "Kept from incoming, your pick" },
         ],
         [
             "names the kept side on the pane whose version was replaced",
-            { id: "Task_1", kind: "replacedHere", keptSide: "current", scope: "element" },
+            { keptSide: "current", scope: "element" },
             { side: "Current", label: "Kept from current, your pick" },
         ],
         [
             "says a container was kept with everything inside",
-            { id: "Sub_1", kind: "keptHere", keptSide: "current", scope: "withContents" },
+            { keptSide: "current", scope: "withContents" },
             { side: "Current", label: "Kept from current with everything inside, your pick" },
         ],
         [
             "says an element was kept with what was removed with it",
-            { id: "Task_1", kind: "keptHere", keptSide: "incoming", scope: "withRemoved" },
+            { keptSide: "incoming", scope: "withRemoved" },
             {
                 side: "Incoming",
                 label: "Kept from incoming with what was removed with it, your pick",
@@ -81,14 +81,14 @@ describe("padDecisionText", () => {
             },
         ],
         [
-            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+            { kind: "leaveOut", side: "current", lack: "removed" },
             {
                 label: "Leave out: Leave it out, as current removed it",
                 tooltip: "Leave out: Leave it out, as current removed it",
             },
         ],
         [
-            { kind: "leaveOut", side: "incoming", otherSideLacks: "missing" },
+            { kind: "leaveOut", side: "incoming", lack: "missing" },
             {
                 label: "Leave out: Leave it out, as incoming doesn't have it",
                 tooltip: "Leave out: Leave it out, as incoming doesn't have it",
@@ -137,7 +137,7 @@ describe("padDecisionText", () => {
     it.each<Extract<MergePadDecision, { side: MergeSide }>>([
         { kind: "keep", scope: "element", side: "current" },
         { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
-        { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+        { kind: "leaveOut", side: "current", lack: "removed" },
     ])("names the side in the screen readers' label of %o", (decision) => {
         expect(padDecisionText(decision, untranslated).label.toLowerCase()).toContain(
             decision.side,
@@ -229,11 +229,9 @@ describe("build words", () => {
 });
 
 describe("the words of a merge by hand", () => {
-    it.each<[MergePaneBadge, { side: string; label: string; byHand?: string }]>([
+    it.each<[MergePanePick, { side: string; label: string; byHand?: string }]>([
         [
             {
-                id: "Task_1",
-                kind: "keptHere",
                 keptSide: "current",
                 scope: "element",
                 mergedByHand: true,
@@ -246,8 +244,6 @@ describe("the words of a merge by hand", () => {
         ],
         [
             {
-                id: "Task_1",
-                kind: "replacedHere",
                 keptSide: "incoming",
                 scope: "withContents",
                 mergedByHand: true,

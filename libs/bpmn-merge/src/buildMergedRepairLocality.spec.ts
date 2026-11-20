@@ -19,7 +19,7 @@ import { type LayoutModel, isFrame, nodeShapeIn } from "./layoutModel";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { placedByBuild } from "./sideDrawings";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { segmentsCross } from "./layoutSegments";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, sameSpot } from "./layoutSpots";

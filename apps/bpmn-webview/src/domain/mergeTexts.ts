@@ -4,7 +4,8 @@ import type {
     MergeObstacleWithMissing,
     MergePanePickAction,
     MergePaneBlock,
-    MergePaneOtherSideLack,
+    MergePaneSideLack,
+    MergePanePick,
     MergePaneRestoreOffer,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
@@ -82,22 +83,18 @@ const RESTORE_OFFER_TEXTS: Record<MergeSide, Record<MergeRemovedWithWording, str
  * full words for screen readers; a version merged by hand adds its word.
  */
 export function pickBadgeText(
-    badge: {
-        readonly keptSide: MergeSide;
-        readonly scope: MergePickScope;
-        readonly mergedByHand?: true;
-    },
+    pick: MergePanePick,
     translate: MergeTranslate,
 ): { side: string; label: string; byHand?: string } {
-    const side = translate(MERGE_SIDE_TEXTS[badge.keptSide]);
-    if (badge.mergedByHand) {
+    const side = translate(MERGE_SIDE_TEXTS[pick.keptSide]);
+    if (pick.mergedByHand) {
         return {
             side,
-            label: byHandBadgeLabel(badge.scope, badge.keptSide, translate),
+            label: byHandBadgeLabel(pick.scope, pick.keptSide, translate),
             byHand: translate(MERGE_XML_TEXTS.byHand),
         };
     }
-    return { side, label: translate(PICK_BADGE_LABELS[badge.scope][badge.keptSide]) };
+    return { side, label: translate(PICK_BADGE_LABELS[pick.scope][pick.keptSide]) };
 }
 
 /** The action that keeps an element from `side`. */
@@ -127,7 +124,7 @@ const KEEP_INSIDE_TIPS: Record<MergePaneContainerReach, Record<MergeSide, string
     },
 };
 
-const LEAVE_OUT_TIPS: Record<MergeSide, Record<MergePaneOtherSideLack, string>> = {
+const LEAVE_OUT_TIPS: Record<MergeSide, Record<MergePaneSideLack, string>> = {
     current: {
         removed: "Leave it out, as current removed it",
         missing: "Leave it out, as current doesn't have it",
@@ -175,7 +172,7 @@ export function padDecisionText(
             // "Leave out" names no side, so the label carries the tip too.
             const { tooltip } = withTip(
                 translate(MERGE_PAD_TEXTS.leaveOut),
-                translate(LEAVE_OUT_TIPS[decision.side][decision.otherSideLacks]),
+                translate(LEAVE_OUT_TIPS[decision.side][decision.lack]),
             );
             return { label: tooltip, tooltip };
         }
@@ -214,7 +211,7 @@ const KEPT_HEADLINES: Record<MergePickScope, Record<MergeSide, string>> = {
     },
 };
 
-const LEFT_OUT_HEADLINES: Record<MergeSide, Record<MergePaneOtherSideLack, string>> = {
+const LEFT_OUT_HEADLINES: Record<MergeSide, Record<MergePaneSideLack, string>> = {
     current: {
         removed: "Left out: {element}, as current removed it",
         missing: "Left out: {element}, as current doesn't have it",
@@ -303,7 +300,7 @@ export function outcomeCardHeadline(
         case "keep":
             return translate(KEPT_HEADLINES[acted.scope][acted.side], element);
         case "leaveOut":
-            return translate(LEFT_OUT_HEADLINES[acted.side][acted.otherSideLacks], element);
+            return translate(LEFT_OUT_HEADLINES[acted.side][acted.lack], element);
         case "undo":
             return outcome.reopened.includes(outcome.elementId)
                 ? translate(REOPENED_HEADLINE, element)

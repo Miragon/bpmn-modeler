@@ -25,11 +25,12 @@ import {
     type MergeRememberedOutcome,
 } from "../../domain/mergeOutcomeCard";
 import {
-    cardOnAnswer,
     cardOnSelection,
     chooseOn,
+    type MergeCardChange,
     outcomeToShowAt,
     rowOutcome,
+    settleOn,
 } from "../../domain/mergeOutcomeCardRules";
 import {
     answerStates,
@@ -81,9 +82,9 @@ export class MergeOutcomes {
 
     /** A choice on the card or in a row: sends what it asks and closes a dismissed card. */
     choose(action: MergeCardAction): void {
-        const { memory, send, close } = chooseOn(this.memory, action);
+        const { memory, send, card } = chooseOn(this.memory, action);
         this.memory = memory;
-        if (close) this.card?.close();
+        this.change(card, { announce: false });
         if (send) this.send(send.request, { dropsHandMerges: send.dropsHandMerges });
     }
 
@@ -97,23 +98,15 @@ export class MergeOutcomes {
     }
 
     /**
-     * After the repaint: shows this pane's new outcome, closes the card on
-     * another, or marks its blockers again. Returns what a row's newly
-     * answered decision did, for the bar to announce once.
+     * After the repaint: does to the card what {@link settleOn} says, and
+     * returns the words of the row outcome it announces, for the bar.
      */
     settle(answer: MergeOutcomeAnswer): readonly string[] | undefined {
-        const change = cardOnAnswer(this.memory, answer);
-        if (change.show !== undefined) {
-            this.showCard(change.show, { announce: true });
-        } else if (change.close) {
-            this.card?.close();
-        } else {
-            this.card?.remark();
-        }
-        const fromRow = rowOutcome(this.memory);
-        if (answer !== "show" || fromRow === undefined || !this.states) return undefined;
+        const { card, rowOutcome: said } = settleOn(this.memory, answer);
+        this.change(card, { announce: true });
+        if (said === undefined || !this.states) return undefined;
         const { nameOf, translate } = this.context;
-        return rowOutcomeText(this.states, fromRow, { nameOf, translate, offers: this.offers });
+        return rowOutcomeText(this.states, said, { nameOf, translate, offers: this.offers });
     }
 
     /** The menu's rows, the row a decision was sent from saying what it did. */
@@ -129,15 +122,20 @@ export class MergeOutcomes {
 
     /** The card follows the selection ({@link cardOnSelection}); shown again, it announces nothing. */
     follow(selectedId: string | undefined): void {
-        const change = cardOnSelection(this.memory, this.card?.shownAt, selectedId);
-        if (change.close) this.card?.close();
-        if (change.show !== undefined) this.showCard(change.show, { announce: false });
+        const card = cardOnSelection(this.memory, this.card?.shownAt, selectedId);
+        this.change(card, { announce: false });
     }
 
     /** Rewrites a shown card, as after a change of language, without announcing it again. */
     rewrite(): void {
         const remembered = outcomeToShowAt(this.memory, this.card?.shownAt);
         if (remembered !== undefined) this.showCard(remembered, { announce: false });
+    }
+
+    private change(card: MergeCardChange, announcement: { readonly announce: boolean }): void {
+        if (card.kind === "show") this.showCard(card.outcome, announcement);
+        else if (card.kind === "close") this.card?.close();
+        else if (card.kind === "remark") this.card?.remark();
     }
 
     private showCard(

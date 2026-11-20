@@ -2,6 +2,7 @@ import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { IndexedDocument } from "./indexedDocument";
 import { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const plane = (owner: string) => `
@@ -17,10 +18,14 @@ async function documentOf(semantic: string, diagrams: readonly string[]): Promis
 }
 
 function slotsOf(current: ModdleElement, incoming: ModdleElement = current): PlaneSlots {
-    return PlaneSlots.ofSides({ current, incoming });
+    return PlaneSlots.ofSides({
+        current: IndexedDocument.of(current),
+        incoming: IndexedDocument.of(incoming),
+    });
 }
 
-const documentSlotsOf = (definitions: ModdleElement) => PlaneSlots.ofDocument(definitions);
+const documentSlotsOf = (definitions: ModdleElement) =>
+    PlaneSlots.ofDocument(IndexedDocument.of(definitions));
 
 const PROCESSES = `
   <bpmn:process id="Process_A"><bpmn:subProcess id="Sub_A" /></bpmn:process>

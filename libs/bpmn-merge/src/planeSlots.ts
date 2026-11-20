@@ -1,7 +1,6 @@
-import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
-
 import { type CollaborationProcess, collaborationProcessesOf } from "./collaborationPools";
-import { DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
+import { type DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
+import type { IndexedDocument } from "./indexedDocument";
 import type { MergeSide } from "./mergeResult";
 
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */
@@ -53,22 +52,18 @@ export class PlaneSlots {
     }
 
     /** The slots of a merge of the two sides' documents, read before the build changes them. */
-    static ofSides(definitions: Readonly<Record<MergeSide, ModdleElement>>): PlaneSlots {
+    static ofSides(documents: Readonly<Record<MergeSide, IndexedDocument>>): PlaneSlots {
         return new PlaneSlots(
-            {
-                current: DiagramIndex.of(definitions.current),
-                incoming: DiagramIndex.of(definitions.incoming),
-            },
+            { current: documents.current.index, incoming: documents.incoming.index },
             [
-                ...collaborationProcessesOf(definitions.current),
-                ...collaborationProcessesOf(definitions.incoming),
+                ...collaborationProcessesOf(documents.current.definitions),
+                ...collaborationProcessesOf(documents.incoming.definitions),
             ],
         );
     }
 
     /** One document's slots, as if it were merged with itself. */
-    static ofDocument(definitions: ModdleElement): PlaneSlots {
-        const index = DiagramIndex.of(definitions);
+    static ofDocument({ definitions, index }: IndexedDocument): PlaneSlots {
         return new PlaneSlots(
             { current: index, incoming: index },
             collaborationProcessesOf(definitions),

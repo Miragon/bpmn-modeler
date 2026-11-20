@@ -21,7 +21,7 @@ describe("shapelessHeadingText", () => {
 describe("decisionButtonText", () => {
     it.each<[Parameters<typeof decisionButtonText>[0], string]>([
         [{ kind: "keep", scope: "element", side: "current" }, "Keep current"],
-        [{ kind: "leaveOut", side: "current", otherSideLacks: "removed" }, "Leave out"],
+        [{ kind: "leaveOut", side: "current", lack: "removed" }, "Leave out"],
         [
             {
                 kind: "keepRemovedWith",

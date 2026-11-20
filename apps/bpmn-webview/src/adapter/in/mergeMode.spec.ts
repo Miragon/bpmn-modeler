@@ -5,6 +5,7 @@ import {
     MERGE_PAD_ENTRIES,
     type MergePadEntry,
     type MergePaneCommand,
+    type MergePanePickable,
     type MergePaneStates,
     type MergePaneStep,
     type MergePaneStepList,
@@ -229,7 +230,6 @@ const STATES: MergePaneStates = {
     openConflicts: 3,
     stepping: { list: "openConflicts" },
     badges: [],
-    picksNotDrawn: [],
     consequences: [],
     pickable: [
         { id: "Task_Check" },
@@ -1126,6 +1126,32 @@ describe("MergeMode", () => {
             expect(card().show).not.toHaveBeenCalled();
         });
 
+        it("announces a row's outcome once, not again when the states repeat it", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            rowButton("Process_1", "Keep incoming").click();
+            const answered = mergeStates({
+                lastOutcome: {
+                    applied: true,
+                    action: "pick",
+                    elementId: "Process_1",
+                    pulledIn: [],
+                    dropped: [],
+                    reopened: [],
+                },
+            });
+            dispatch(answered);
+            const status = menu().querySelector('[role="status"]')!;
+            status.textContent = "";
+
+            dispatch(answered);
+
+            expect(status.textContent).toBe("");
+            expect(rowOf("Process_1")?.querySelector(".merge-menu__outcome")?.textContent).toBe(
+                "Kept from incoming: Process_1",
+            );
+        });
+
         it("says nothing in the row for the partner's decision", async () => {
             await startMergePane();
             dispatch(mergeStates());
@@ -1245,8 +1271,7 @@ describe("MergeMode", () => {
             const badge = {
                 id: "Task_Pack",
                 kind: "keptHere",
-                keptSide: "current",
-                scope: "element",
+                pick: { keptSide: "current", scope: "element" },
             } as const;
 
             dispatch(mergeStates({ badges: [badge], consequences: ["Flow_1"] }));
@@ -1270,16 +1295,15 @@ describe("MergeMode", () => {
                     pickable: [
                         {
                             id: "Task_Pack",
-                            undo: "element",
-                            otherSideLacks: "removed",
+                            pick: { keptSide: "current", scope: "element" },
+                            lackingSide: { side: "current", lack: "removed" },
                         },
                     ],
                     badges: [
                         {
                             id: "Task_Pack",
                             kind: "replacedHere",
-                            keptSide: "current",
-                            scope: "element",
+                            pick: { keptSide: "current", scope: "element" },
                         },
                     ],
                     restoreOffer: {
@@ -1355,6 +1379,12 @@ describe("MergeMode", () => {
                     announce: true,
                 },
             ]);
+        });
+
+        it("announces a pad decision on its card only, not in the menu", async () => {
+            await keepPackOnPad();
+
+            expect(menu().querySelector('[role="status"]')?.textContent).toBe("");
         });
 
         it("shows no card on the pane that did not send the decision, and no outcome in its bar", async () => {
@@ -1504,7 +1534,7 @@ describe("MergeMode", () => {
             pad().decide("Task_Pack", {
                 kind: "leaveOut",
                 side: "incoming",
-                otherSideLacks: "missing",
+                lack: "missing",
             });
 
             dispatch(
@@ -1534,12 +1564,19 @@ describe("MergeMode", () => {
         const keptPack = {
             id: "Task_Pack",
             kind: "keptHere",
-            keptSide: "incoming",
-            scope: "element",
+            pick: { keptSide: "incoming", scope: "element" },
+        } as const;
+        const mergedPack = {
+            ...keptPack,
+            pick: { ...keptPack.pick, mergedByHand: true },
         } as const;
         const HAND_MERGEABLE: Partial<MergePaneStates> = {
-            pickable: [{ id: "Task_Pack", undo: "element", handMergeable: true }],
+            pickable: [{ id: "Task_Pack", pick: keptPack.pick, handMergeable: true }],
             badges: [keptPack],
+        };
+        const MERGED_BY_HAND: Partial<MergePaneStates> = {
+            pickable: [{ id: "Task_Pack", pick: mergedPack.pick, handMergeable: true }],
+            badges: [mergedPack],
         };
         const offered = (states: Partial<MergePaneStates> = {}) =>
             mergeStates({ ...HAND_MERGEABLE, ...states }, false, true);
@@ -1576,7 +1613,7 @@ describe("MergeMode", () => {
         it("offers editing the merged XML once the element is merged by hand", async () => {
             await startMergePane();
 
-            dispatch(offered({ badges: [{ ...keptPack, mergedByHand: true }] }));
+            dispatch(offered(MERGED_BY_HAND));
 
             expect(pad().decisionsOf("Task_Pack")).toContainEqual({
                 kind: "mergeXml",
@@ -1586,12 +1623,10 @@ describe("MergeMode", () => {
 
         it("names a badge merged by hand with its word", async () => {
             await startMergePane();
-            const merged = { ...keptPack, mergedByHand: true } as const;
-
-            dispatch(offered({ badges: [merged] }));
+            dispatch(offered(MERGED_BY_HAND));
 
             const [, labels] = fakes.marks.paint.mock.lastCall!;
-            expect(labels.badge(merged)).toEqual({
+            expect(labels.badge(mergedPack)).toEqual({
                 side: "Incoming",
                 label: "Kept from incoming and merged by hand, your pick",
                 byHand: "by hand",
@@ -1633,13 +1668,13 @@ describe("MergeMode", () => {
 
         it("asks before a pick drops the XML merged by hand, and Drop it resends the pick with consent", async () => {
             await startMergePane();
-            dispatch(offered({ badges: [{ ...keptPack, mergedByHand: true }] }));
+            dispatch(offered(MERGED_BY_HAND));
             next();
             pad().decide("Task_Pack", { kind: "keep", scope: "element", side: "current" });
 
             dispatch(
                 offered({
-                    badges: [{ ...keptPack, mergedByHand: true }],
+                    ...MERGED_BY_HAND,
                     lastOutcome: {
                         applied: false,
                         action: "pick",
@@ -1673,7 +1708,12 @@ describe("MergeMode", () => {
                 pick: { keptSide: "incoming", scope: "element" },
                 handMergeable: true,
             } as const;
-            dispatch(mergeStates({ shapelessRows: [picked] }, false, true));
+            const pickable = STATES.pickable.map((entry): MergePanePickable =>
+                entry.id === picked.id
+                    ? { ...entry, takenSide: "incoming", pick: picked.pick, handMergeable: true }
+                    : entry,
+            );
+            dispatch(mergeStates({ shapelessRows: [picked], pickable }, false, true));
             openMenu();
 
             rowButton("Process_1", "Merge XML").click();
@@ -1681,6 +1721,7 @@ describe("MergeMode", () => {
                 mergeStates(
                     {
                         shapelessRows: [picked],
+                        pickable,
                         lastOutcome: { ...refusal, elementId: "Process_1" },
                     },
                     false,
@@ -1728,12 +1769,16 @@ describe("MergeMode", () => {
                 {
                     id: "Task_Pack",
                     container: "contents",
-                    undo: "element",
-                    otherSideLacks: "removed",
+                    pick: { keptSide: "current", scope: "element" },
+                    lackingSide: { side: "current", lack: "removed" },
                 },
             ],
             badges: [
-                { id: "Task_Pack", kind: "replacedHere", keptSide: "current", scope: "element" },
+                {
+                    id: "Task_Pack",
+                    kind: "replacedHere",
+                    pick: { keptSide: "current", scope: "element" },
+                },
             ],
             restoreOffer: { elementId: "Task_Pack", connections: ["Flow_1"], removedBy: "current" },
         };
@@ -1746,13 +1791,14 @@ describe("MergeMode", () => {
             selectOnCanvas("Task_Pack");
             dispatch(
                 mergeStates({
-                    pickable: [{ id: "Task_Pack", undo: "element" }],
+                    pickable: [
+                        { id: "Task_Pack", pick: { keptSide: "incoming", scope: "element" } },
+                    ],
                     badges: [
                         {
                             id: "Task_Pack",
                             kind: "keptHere",
-                            keptSide: "incoming",
-                            scope: "element",
+                            pick: { keptSide: "incoming", scope: "element" },
                         },
                     ],
                 }),
@@ -1805,13 +1851,18 @@ describe("MergeMode", () => {
             dispatch(
                 mergeStates(
                     {
-                        pickable: [{ id: "Task_Pack", undo: "element", handMergeable: true }],
+                        pickable: [
+                            {
+                                id: "Task_Pack",
+                                pick: { keptSide: "incoming", scope: "element" },
+                                handMergeable: true,
+                            },
+                        ],
                         badges: [
                             {
                                 id: "Task_Pack",
                                 kind: "keptHere",
-                                keptSide: "incoming",
-                                scope: "element",
+                                pick: { keptSide: "incoming", scope: "element" },
                             },
                         ],
                     },

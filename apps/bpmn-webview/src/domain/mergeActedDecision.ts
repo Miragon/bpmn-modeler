@@ -1,4 +1,4 @@
-import type { MergePaneOtherSideLack, MergePickScope } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneSideLack, MergePickScope } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergePadDecision, MergePickDecision } from "./mergePadDecisions";
@@ -24,7 +24,7 @@ export type MergeActedDecision =
           readonly elementId: string;
           /** The side that lacks the element, which the pick names. */
           readonly side: MergeSide;
-          readonly otherSideLacks: MergePaneOtherSideLack;
+          readonly lack: MergePaneSideLack;
           readonly origin: MergeDecisionOrigin;
       }
     | {
@@ -101,7 +101,7 @@ function acted(
                 kind: "leaveOut",
                 elementId,
                 side: decision.side,
-                otherSideLacks: decision.otherSideLacks,
+                lack: decision.lack,
                 origin,
             };
         case "keepRemovedWith":

@@ -192,7 +192,10 @@ describe("ElementXmlMergeService", () => {
             });
         }
         expect(lastStatesOf(host.current).states.badges).toContainEqual(
-            expect.objectContaining({ id: "Task_Pack", mergedByHand: true }),
+            expect.objectContaining({
+                id: "Task_Pack",
+                pick: expect.objectContaining({ mergedByHand: true }),
+            }),
         );
     });
 

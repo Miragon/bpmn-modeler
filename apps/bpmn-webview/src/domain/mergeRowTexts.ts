@@ -1,4 +1,4 @@
-import type { MergePaneOtherSideLack, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
+import type { MergePaneSideLack, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 import { elementTypeName, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { mergeXmlDecisionText } from "./mergeHandMergeTexts";
@@ -62,7 +62,7 @@ const MERGE_VALUE_TEXTS = {
     moreDiffers: "and other content",
 } as const;
 
-const LACKING_TEXTS: Record<MergeSide, Record<MergePaneOtherSideLack, string>> = {
+const LACKING_TEXTS: Record<MergeSide, Record<MergePaneSideLack, string>> = {
     current: { removed: "Removed in current", missing: "Not in current" },
     incoming: { removed: "Removed in incoming", missing: "Not in incoming" },
 };
