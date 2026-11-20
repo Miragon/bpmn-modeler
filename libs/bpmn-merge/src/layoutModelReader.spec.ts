@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { baseModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { diagramIndexOf } from "./diagramIndex";
 import { layoutModelOf } from "./layoutModelReader";
 import { PlaneSlots } from "./planeSlots";
@@ -36,16 +37,13 @@ describe("layoutModelOf", () => {
     ])("reads $label as a root plane", async ({ edit, plane }) => {
         const layout = await layoutOf(edit);
 
-        expect(layout.shapes.get("Sub_Ship")).toMatchObject({ plane, slot: `root:${plane}` });
+        expect(layout.shapes.get("Sub_Ship")).toMatchObject(rootPlane(plane));
     });
 
     it("reads a collapsed sub-process's own plane as a sub-process plane", async () => {
         const layout = await layoutOf(collapseShipping);
 
-        expect(layout.shapes.get("Task_Pack")).toMatchObject({
-            plane: "Sub_Ship",
-            slot: "subProcess:Sub_Ship",
-        });
+        expect(layout.shapes.get("Task_Pack")).toMatchObject(subProcessPlane("Sub_Ship"));
     });
 
     it("reads each shape's plane into the slot the merge gives it", async () => {
@@ -72,7 +70,9 @@ describe("layoutModelOf", () => {
 
         const layout = layoutModelOf(current.rootElement);
 
-        expect(layout.shapes.get("Task_B")?.slot).not.toBe(layout.shapes.get("Task_A")?.slot);
+        expect(layout.shapes.get("Task_B")!.slot.equals(layout.shapes.get("Task_A")!.slot)).toBe(
+            false,
+        );
     });
 });
 
