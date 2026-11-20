@@ -1281,7 +1281,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts — implements a port",
@@ -1293,7 +1293,7 @@
       ]
     },
     "host-text": {
-      "version": 4,
+      "version": 5,
       "findings": [
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/BpmnDiffTool.kt — BPMN Diagram Diff",

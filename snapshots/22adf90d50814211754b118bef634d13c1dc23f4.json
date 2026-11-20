@@ -1491,7 +1491,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts — nothing imports an entry",
@@ -1930,7 +1930,7 @@
       ]
     },
     "host-text": {
-      "version": 4,
+      "version": 5,
       "findings": [
         {
           "key": "apps/intellij-plugin/src/main/kotlin/io/miragon/intellij/bpmn/AddMarketplaceAction.kt — Add Template Marketplace",
