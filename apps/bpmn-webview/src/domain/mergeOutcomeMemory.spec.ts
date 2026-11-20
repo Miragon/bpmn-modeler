@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergePaneBlock, MergePaneOutcome } from "@miragon/bpmn-modeler-shared";
+import type {
+    MergePaneBlock,
+    MergePaneOutcome,
+    MergePaneShapelessRow,
+} from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision, MergeXmlRequest } from "./mergeActedDecision";
 import {
@@ -67,11 +71,23 @@ const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeAct
 const states = (overrides: Partial<MergeOutcomeStates> = {}): MergeOutcomeStates => ({
     badges: [],
     picksNotDrawn: [],
+    shapelessRows: [],
     allSteps: [
         { id: "Task_Remind", shapeless: false, onThisPane: true, onOtherPane: false },
         { id: "Message_1", shapeless: true, onThisPane: true, onOtherPane: true },
     ],
     ...overrides,
+});
+
+const pickedRow = (
+    id: string,
+    keptSide: "current" | "incoming" = "incoming",
+): MergePaneShapelessRow => ({
+    id,
+    type: "bpmn:Message",
+    marker: "takenFromOtherSide",
+    pick: { keptSide, scope: "element" },
+    differences: [],
 });
 
 const badge = (id: string) =>
@@ -177,6 +193,20 @@ describe("answerStates", () => {
         expect(memory.latest).toBeUndefined();
     });
 
+    it("takes the partner's change of a pick only a menu row lists for newer, though its outcome reads the same", () => {
+        const outcome = applied("pick", "Task_Remind");
+        const shown = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, outcome, {
+            shapelessRows: [pickedRow("Message_1")],
+        });
+
+        const { answer } = answerStates(
+            shown.memory,
+            states({ lastOutcome: outcome, shapelessRows: [pickedRow("Message_1", "current")] }),
+        );
+
+        expect(answer).toBe("forget");
+    });
+
     it("forgets nothing it does not have when a reloaded pane gets the last outcome", () => {
         const { memory, answer } = answerStates(
             EMPTY_OUTCOME_MEMORY,
@@ -223,6 +253,20 @@ describe("answerStates", () => {
 
         expect(
             sendAndAnswer(refused.memory, acted, outcome, overrides).memory.latest?.lifted,
+        ).toBeUndefined();
+    });
+
+    it("notes no freed refusal where a blocking pick only a menu row lists is left", () => {
+        const refused = sendAndAnswer(
+            EMPTY_OUTCOME_MEMORY,
+            leaveOutTask,
+            refusedLeaveOut([picked("Flow_1"), picked("Message_1")]),
+        );
+
+        expect(
+            sendAndAnswer(refused.memory, undo("Flow_1"), applied("unpick", "Flow_1"), {
+                shapelessRows: [pickedRow("Message_1")],
+            }).memory.latest?.lifted,
         ).toBeUndefined();
     });
 

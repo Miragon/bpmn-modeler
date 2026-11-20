@@ -2,7 +2,7 @@ import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
 import type { BuildNoteContent } from "./buildNotes";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
-import { type FlowRepair, planFlowRepairs, withFlowRepairs } from "./layoutFlowRepair";
+import { type FlowRepairPlanner, planFlowRepairs, withFlowRepairs } from "./layoutFlowRepair";
 import type { Point } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LayoutModel } from "./layoutModel";
@@ -27,8 +27,9 @@ export interface LayoutRepairPlanners {
         layout: LayoutModel,
         spots: readonly LayoutSpot[],
         sides: readonly LayoutModel[],
+        repairFlows: FlowRepairPlanner,
     ) => ShapeMovePlan;
-    readonly repairFlows: (layout: LayoutModel, spots: readonly LayoutSpot[]) => FlowRepair[];
+    readonly repairFlows: FlowRepairPlanner;
 }
 
 export const BUILD_LAYOUT_REPAIRS: LayoutRepairPlanners = {
@@ -67,7 +68,12 @@ export function planLayoutRepair(
     const containerMoves = planners.moveIntoContainers(stacked, spots, sideLayouts);
     const inContainers = containerMoves.layout;
     const spotsInContainers = spotsAfter(inContainers, stacked, spots);
-    const shapeMoves = planners.moveShapes(inContainers, spotsInContainers, sideLayouts);
+    const shapeMoves = planners.moveShapes(
+        inContainers,
+        spotsInContainers,
+        sideLayouts,
+        planners.repairFlows,
+    );
     const moved = shapeMoves.layout;
     const spotsAfterMoves = spotsAfter(moved, inContainers, spotsInContainers);
     const flowRepairs = planners.repairFlows(moved, spotsAfterMoves);

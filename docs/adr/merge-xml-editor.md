@@ -107,7 +107,8 @@ changed different parts to a whole pick.
 
 - *The panes offer it and word the answer.* The pad, a shape-less row and the keyboard
   command `bpmn-modeler.mergeXml` (Ctrl+K X, `mergePane.canMergeXml`) offer Merge XML where
-  `handMergeable` and `MergeHostOffers.elementXmlMerge` both hold (`mergePadDecisions`);
+  `handMergeable` and `MergeHostOffers.elementXmlMerge` both hold (`mergeElementPick`, which
+  also reads the pick the pad, the row and the card's Edit again share);
   the badge marks a version merged by hand with a pen and "by hand", a cue no colour
   carries. The pane that asked words the finished merge on its card or row: one headline
   and one detail per refusal kind, composed and translated in the webview from the

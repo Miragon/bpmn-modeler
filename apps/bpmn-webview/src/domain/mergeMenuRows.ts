@@ -1,19 +1,23 @@
-import type {
-    MergeHostOffers,
-    MergePaneShapelessRow,
-    MergePaneStates,
-} from "@miragon/bpmn-modeler-shared";
+import type { MergeHostOffers, MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 import type { MergeMarker } from "@miragon/bpmn-modeler-types";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
 import type { MergeCardChoice } from "./mergeCardContent";
+import { elementPickOf, type MergeElementPickStates } from "./mergeElementPick";
 import { handMergeFactsOf } from "./mergeHandMergeCard";
 import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import { type MergeRowDecision, mergeRowDecisions, type MergeRowStates } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTranslate";
 
 /** What the menu's rows read of the host's states. */
-export type MergeMenuRowStates = MergeRowStates & Pick<MergePaneStates, "shapelessRows">;
+export type MergeMenuRowStates = MergeRowStates & MergeElementPickStates;
+
+/** What the menu's rows say things with and what the host offers. */
+interface MergeMenuRowContext {
+    readonly nameOf: (id: string) => string;
+    readonly translate: MergeTranslate;
+    readonly offers: MergeHostOffers;
+}
 
 /** A shape-less element as the menu lists it; the menu only renders it. */
 export interface MergeMenuRowContent {
@@ -41,33 +45,19 @@ export interface MergeMenuRowContent {
 export function mergeMenuRows(
     states: MergeMenuRowStates,
     outcome: MergeRememberedOutcome | undefined,
-    context: {
-        readonly nameOf: (id: string) => string;
-        readonly translate: MergeTranslate;
-        readonly offers: MergeHostOffers;
-    },
+    context: MergeMenuRowContext,
 ): readonly MergeMenuRowContent[] {
     const { offers } = context;
     return states.shapelessRows.map((row) => {
         const name = row.current?.name ?? row.incoming?.name;
-        const said =
-            outcome?.outcome.elementId === row.id
-                ? rowOutcomeContent(states, outcome, context)
-                : undefined;
-        const { lackingSide, differences, moreDiffers } = row;
         return {
             id: row.id,
             type: row.type,
             marker: row.marker,
             ...(name === undefined ? {} : { name }),
-            values: {
-                ...(lackingSide === undefined ? {} : { lackingSide }),
-                differences,
-                ...(moreDiffers === undefined ? {} : { moreDiffers }),
-            },
+            values: rowValues(row),
             decisions: mergeRowDecisions(states, row, offers),
-            ...(said === undefined ? {} : { outcome: said.announcement }),
-            ...(said?.choices === undefined ? {} : { choices: said.choices }),
+            ...saidInRow(states, row, outcome, context),
             xmlChanges: offers.elementXmlChanges,
         };
     });
@@ -77,33 +67,44 @@ export function mergeMenuRows(
 export function rowOutcomeText(
     states: MergeMenuRowStates,
     outcome: MergeRememberedOutcome,
-    context: {
-        readonly nameOf: (id: string) => string;
-        readonly translate: MergeTranslate;
-        readonly offers: MergeHostOffers;
-    },
+    context: MergeMenuRowContext,
 ): readonly string[] {
     return rowOutcomeContent(states, outcome, context).announcement;
+}
+
+function saidInRow(
+    states: MergeMenuRowStates,
+    row: MergePaneShapelessRow,
+    outcome: MergeRememberedOutcome | undefined,
+    context: MergeMenuRowContext,
+): Pick<MergeMenuRowContent, "outcome" | "choices"> {
+    if (outcome?.outcome.elementId !== row.id) return {};
+    const { announcement, choices } = rowOutcomeContent(states, outcome, context);
+    return { outcome: announcement, ...(choices === undefined ? {} : { choices }) };
 }
 
 function rowOutcomeContent(
     states: MergeMenuRowStates,
     outcome: MergeRememberedOutcome,
-    {
-        offers,
-        ...words
-    }: {
-        readonly nameOf: (id: string) => string;
-        readonly translate: MergeTranslate;
-        readonly offers: MergeHostOffers;
-    },
+    { offers, ...words }: MergeMenuRowContext,
 ) {
-    const row = states.shapelessRows.find(({ id }) => id === outcome.outcome.elementId);
     return mergeOutcomeCardContent(outcome, {
         ...words,
         restoreOffer: states.restoreOffer,
-        handMerge: handMergeFactsOf(row ?? {}, offers),
+        handMerge: handMergeFactsOf(elementPickOf(states, outcome.outcome.elementId), offers),
     });
+}
+
+function rowValues({
+    lackingSide,
+    differences,
+    moreDiffers,
+}: MergePaneShapelessRow): MergeShapelessValues {
+    return {
+        ...(lackingSide === undefined ? {} : { lackingSide }),
+        differences,
+        ...(moreDiffers === undefined ? {} : { moreDiffers }),
+    };
 }
 
 /** The open conflicts the menu lists, which no canvas draws; the "…" button counts them. */
