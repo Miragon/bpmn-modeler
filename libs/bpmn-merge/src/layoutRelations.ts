@@ -6,6 +6,7 @@ import {
     moddleElements,
 } from "@miragon/bpmn-modeler-diff";
 
+import { poolsOf } from "./collaborationPools";
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
 import type { EdgeKind } from "./layoutModel";
@@ -107,11 +108,9 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
 
     const roots = moddleElements(definitions.rootElements);
     for (const collaboration of roots.filter((root) => isType(root, "bpmn:Collaboration"))) {
-        for (const participant of moddleElements(collaboration.participants)) {
-            if (participant.id === undefined) continue;
-            pools.add(participant.id);
-            const process = idOf(participant.processRef);
-            if (process !== undefined) poolsByProcess.set(process, participant.id);
+        for (const { pool, process } of poolsOf(collaboration)) {
+            pools.add(pool);
+            if (process !== undefined) poolsByProcess.set(process, pool);
         }
         for (const messageFlow of moddleElements(collaboration.messageFlows)) {
             connect("messageFlow", messageFlow);

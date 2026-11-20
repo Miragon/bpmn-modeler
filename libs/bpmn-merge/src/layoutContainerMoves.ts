@@ -5,7 +5,8 @@ import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./l
 import { FlowTopology } from "./layoutFlowTopology";
 import { type FrameGrown, growFrameFor } from "./layoutGrowFrame";
 import type { RoomContext } from "./layoutMakeRoom";
-import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./layoutModel";
+import { frameIdsOf } from "./layoutFrames";
+import { type LayoutModel, type LayoutShape, nodeShapeIn } from "./layoutModel";
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups, groupShapesBoundsIn } from "./layoutShapeGroups";
 import { type Offset, Placement, innerBoundsOf, offsetBetween } from "./layoutShapePlacement";
