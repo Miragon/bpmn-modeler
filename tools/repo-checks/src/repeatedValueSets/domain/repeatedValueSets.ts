@@ -7,6 +7,8 @@ export interface ValueSetOccurrence {
     readonly path: string;
     readonly line: number;
     readonly values: readonly string[];
+    /** Read from a regular expression literal's alternation. */
+    readonly inPattern: boolean;
 }
 
 /** A type equality assertion that holds a declaration of `path` equal to one of `pinnedPath`. */
@@ -50,6 +52,11 @@ function writtenOrder(values: readonly string[]): string {
 
 function compareOccurrences(left: ValueSetOccurrence, right: ValueSetOccurrence): number {
     return compareText(left.path, right.path) || left.line - right.line;
+}
+
+// A type pin, the remedy for another order, cannot hold a pattern, and an expanded group has no order.
+function hasPinnableOrder({ inPattern }: ValueSetOccurrence): boolean {
+    return !inPattern;
 }
 
 function location({ path, line }: ValueSetOccurrence): string {
@@ -117,7 +124,9 @@ function othersText(
 ): string {
     const others = sameSet.filter((other) => other !== occurrence);
     const order = writtenOrder(occurrence.values);
-    const reordered = others.filter((other) => writtenOrder(other.values) !== order);
+    const reordered = hasPinnableOrder(occurrence)
+        ? others.filter((other) => hasPinnableOrder(other) && writtenOrder(other.values) !== order)
+        : [];
     const othersList = others.map(location).join(", ");
     return reordered.length === 0
         ? othersList

@@ -18,11 +18,13 @@ const AUTH_HOME: ValueSetOccurrence = {
     path: "a/domain/auth.ts",
     line: 1,
     values: ["none", "basic", "oauth2"],
+    inPattern: false,
 };
 const AUTH_COPY: ValueSetOccurrence = {
     path: "b/service/x.ts",
     line: 1,
     values: ["oauth2", "none", "basic"],
+    inPattern: false,
 };
 
 function unpinned(...occurrences: ValueSetOccurrence[]): ValueSetInventory {
