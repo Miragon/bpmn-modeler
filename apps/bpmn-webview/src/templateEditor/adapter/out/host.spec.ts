@@ -82,6 +82,48 @@ describe("getTemplateEditorHostApi", () => {
         expect(replies).toEqual([new ElementTemplateFileQuery(content)]);
     });
 
+    it.each([
+        ["noschema", "Plain", undefined],
+        ["unshaped", "Unshaped", "bpmn:ServiceTask"],
+        ["process", "Process", undefined],
+    ])("serves the %s template file for the builder's other states", (file, name, elementType) => {
+        vi.stubEnv("NODE_ENV", "development");
+        window.history.replaceState({}, "", `/?file=${file}`);
+        const replies = captureReplies();
+
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
+
+        const [reply] = replies as ElementTemplateFileQuery[];
+        expect(reply.content.endsWith("}\n")).toBe(true);
+        const template = JSON.parse(reply.content) as { name: string; elementType?: string };
+        expect([template.name, template.elementType]).toEqual([name, elementType]);
+    });
+
+    it("serves no template for the notemplate file", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        window.history.replaceState({}, "", "/?file=notemplate");
+        const replies = captureReplies();
+
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
+
+        expect(replies).toEqual([new ElementTemplateFileQuery("[]\n")]);
+    });
+
+    it("serves templates with every finding of the builder's rules for the problems file", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        window.history.replaceState({}, "", "/?file=problems");
+        const replies = captureReplies();
+
+        getTemplateEditorHostApi().postMessage(new GetElementTemplateFileCommand());
+
+        const [reply] = replies as ElementTemplateFileQuery[];
+        const templates = JSON.parse(reply.content) as { id: string; properties: unknown[] }[];
+        expect(templates.map(({ id, properties }) => [id, properties.length])).toEqual([
+            ["problems", 17],
+            ["more-problems", 1],
+        ]);
+    });
+
     it("only logs other commands", () => {
         vi.stubEnv("NODE_ENV", "development");
         const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);

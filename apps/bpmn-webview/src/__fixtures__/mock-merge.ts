@@ -47,25 +47,26 @@ const SHAPELESS_ROWS = [
 ] as const;
 
 /** Nothing picked yet: every element of the merge can be kept from either side. */
-const NO_PICKS = {
-    badges: [],
-    picksNotDrawn: [],
-    consequences: [],
-    names: {},
-    pickable: [
-        { id: "Process_1", container: "contents" },
-        { id: "ServiceTask_1" },
-        ...["Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
-            id,
-            takenSide: "incoming" as const,
-        })),
-    ],
-} as const satisfies Pick<
-    MergePaneStates,
-    "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
->;
+const noPicks = () =>
+    ({
+        badges: [],
+        picksNotDrawn: [],
+        consequences: [],
+        names: {},
+        pickable: [
+            { id: "Process_1", container: "contents" },
+            { id: "ServiceTask_1" },
+            ...["Flow_2", "UserTask_ToRemove", "Gateway_1", "Flow_3"].map((id) => ({
+                id,
+                takenSide: "incoming" as const,
+            })),
+        ],
+    }) as const satisfies Pick<
+        MergePaneStates,
+        "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
+    >;
 
-const CURRENT: MergePaneStates = {
+const current = (): MergePaneStates => ({
     caption: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
     marks: {
         takenFromThisSide: [],
@@ -85,11 +86,11 @@ const CURRENT: MergePaneStates = {
     ],
     openConflicts: 2,
     stepping: { list: "openConflicts" },
-    ...NO_PICKS,
+    ...noPicks(),
     build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
-};
+});
 
-const INCOMING: MergePaneStates = {
+const incoming = (): MergePaneStates => ({
     caption: { side: "incoming", role: "upstream", ref: "feature", shortHash: "9f8e7d6" },
     marks: {
         takenFromThisSide: ["Flow_2", "Gateway_1", "Flow_3"],
@@ -109,22 +110,20 @@ const INCOMING: MergePaneStates = {
     ],
     openConflicts: 2,
     stepping: { list: "openConflicts" },
-    ...NO_PICKS,
+    ...noPicks(),
     build: { canBuild: false, openConflicts: 2, built: false, notes: [] },
-};
+});
 
 const PREVIEW_OFFERS = { elementXmlChanges: true, elementXmlMerge: false } as const;
 
-const PANE_STATES: Readonly<Record<DiffSide, MergePaneStates>> = {
-    before: CURRENT,
-    after: INCOMING,
-};
+function paneStates(side: DiffSide): MergePaneStates {
+    return side === "before" ? current() : incoming();
+}
 
-/** What each pane of the preview gets once it reports ready; it offers Show XML changes. */
-export const MOCK_MERGE_STATES: Readonly<Record<DiffSide, ApplyMergeStatesQuery>> = {
-    before: new ApplyMergeStatesQuery("before", CURRENT, PREVIEW_OFFERS),
-    after: new ApplyMergeStatesQuery("after", INCOMING, PREVIEW_OFFERS),
-};
+/** What a pane of the preview gets once it reports ready; it offers Show XML changes. */
+export function mockMergeStates(side: DiffSide): ApplyMergeStatesQuery {
+    return new ApplyMergeStatesQuery(side, paneStates(side), PREVIEW_OFFERS);
+}
 
 /** How the preview answers Merge XML on `ServiceTask_1`: it takes the text, or refuses a changed type. */
 export type MockMergeXmlAnswer = "accept" | "refuse";
@@ -140,7 +139,7 @@ function withServiceTaskKept(
     side: DiffSide,
     { mergedByHand }: { readonly mergedByHand: boolean },
 ): MergePaneStates {
-    const states = PANE_STATES[side];
+    const states = paneStates(side);
     const badge = {
         id: "ServiceTask_1",
         kind: side === "after" ? "keptHere" : "replacedHere",

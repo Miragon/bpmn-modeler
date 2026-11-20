@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    type BpmnPluginsQuery,
     CleanupReportCommand,
     CursorChangedCommand,
     DiffPlaneChangedCommand,
@@ -280,6 +281,54 @@ describe("PreviewHost", () => {
         ];
         expect(answer.requestId).toBe(7);
         expect(answer.definitions.map((definition) => definition.name)).toEqual(["OrderPlaced"]);
+    });
+
+    describe("plugin preview", () => {
+        const PREVIEW_PLUGINS = [
+            "Resize Tasks (rules)",
+            "Reduced Palette (palette)",
+            "Id Badges (overlays + style)",
+            "Technical IDs (modeling command)",
+            "Acme Moddle (moddle extension)",
+            "Engine Flags (engine-specific)",
+            "Probe (exposes the injector for checks)",
+            "Throws While Loading",
+        ];
+
+        beforeEach(() => {
+            // jsdom has no object URLs.
+            Object.defineProperty(URL, "createObjectURL", {
+                configurable: true,
+                value: (blob: Blob) => `blob:${blob.type}`,
+            });
+        });
+
+        afterEach(() => {
+            Reflect.deleteProperty(URL, "createObjectURL");
+        });
+
+        it.each([
+            ["", []],
+            ["?plugins", PREVIEW_PLUGINS],
+            ["?plugins=broken", [...PREVIEW_PLUGINS, "Broken Constructor"]],
+        ])("serves the plugins of %j as script URLs", (search, names) => {
+            previewHost(search).postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(answer.plugins.map((plugin) => plugin.name)).toEqual(names);
+            expect(answer.plugins.every((plugin) => plugin.scriptUrl === "blob:text/javascript")).toBe(
+                true,
+            );
+        });
+
+        it("serves a plugin's style as a style URL", () => {
+            previewHost("?plugins").postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(
+                answer.plugins.flatMap((plugin) => (plugin.styleUrl ? [plugin.name] : [])),
+            ).toEqual(["Id Badges (overlays + style)"]);
+        });
     });
 
     describe("merge preview", () => {
