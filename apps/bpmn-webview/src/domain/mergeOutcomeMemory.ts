@@ -83,12 +83,12 @@ function answerOwnDecision(
     const { sent } = memory;
     if (outcome === undefined || sent === undefined) return undefined;
     if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
-    const lifted = freedRefusal(memory.refused, outcome, states);
-    const refused = outcome.applied ? (lifted ? undefined : memory.refused) : outcome;
+    const freed = freedRefusal(memory.refused, outcome, states);
+    const refused = outcome.applied ? (freed ? undefined : memory.refused) : outcome;
     return {
         memory: {
             ...pendingHandMerges(memory),
-            latest: { outcome, acted: sent, ...(lifted ? { lifted } : {}) },
+            latest: { outcome, acted: sent, ...(freed ? { freed } : {}) },
             ...(refused ? { refused } : {}),
             seen,
         },
