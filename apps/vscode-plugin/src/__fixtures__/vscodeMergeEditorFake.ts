@@ -8,7 +8,9 @@
  * returns while the editor still loads: the tab and the start text show
  * first, a save through the editor is dropped, and only on a later timer
  * does the editor merge a start with conflict markers into a dirty result
- * (see {@link holdMergeEditorLoading}). Call {@link resetVscodeMergeEditor}
+ * (see {@link holdMergeEditorLoading}). A result whose tabs close while it
+ * loads is still merged, and stays open dirty without a tab, as VS Code's
+ * leaked input model keeps it. Call {@link resetVscodeMergeEditor}
  * before each test.
  */
 import { Uri } from "./vscodeFileSystemFake";
@@ -142,6 +144,7 @@ let commandList: string[] = [];
 let groupsSplit = true;
 const loadingResults = new Set<string>();
 let loadingHeld = false;
+let workingCopy = false;
 
 export const env = { appName: "Visual Studio Code", uriScheme: "vscode" };
 
@@ -163,6 +166,7 @@ export function resetVscodeMergeEditor(): void {
     groupsSplit = true;
     loadingResults.clear();
     loadingHeld = false;
+    workingCopy = false;
     env.appName = "Visual Studio Code";
     env.uriScheme = "vscode";
 }
@@ -183,6 +187,14 @@ export function holdMergeEditorLoading(): void {
 export function finishMergeEditorLoading(): void {
     loadingHeld = false;
     for (const result of [...loadingResults]) finishLoading(result);
+}
+
+/**
+ * Sets the hidden `mergeEditor.useWorkingCopy`: the editor merges a start with
+ * conflict markers into a copy of its own, so the result stays clean as it loads.
+ */
+export function mergeEditorUsesWorkingCopy(): void {
+    workingCopy = true;
 }
 
 /** The next `_open.mergeEditor` rejects, as on a host without the command. */
@@ -372,10 +384,12 @@ function removeTabs(closing: readonly FakeMergeTab[]): void {
         tab.group.tabs.splice(tab.group.tabs.indexOf(tab), 1);
         if (tab.group.activeTab === tab) tab.group.activeTab = tab.group.tabs.at(-1);
     }
-    const shown = documents.filter((document) =>
-        mergeTabs().some((tab) => isShownIn(document, tab)),
+    const kept = documents.filter(
+        (document) =>
+            loadingResults.has(document.uri.toString()) ||
+            mergeTabs().some((tab) => isShownIn(document, tab)),
     );
-    documents.splice(0, documents.length, ...shown);
+    documents.splice(0, documents.length, ...kept);
     tabChangeListeners.forEach((listener) => listener({ opened: [], closed, changed: [] }));
 }
 
@@ -385,7 +399,9 @@ function finishLoading(result: string): void {
     if (!loadingResults.delete(result)) return;
     const document = documents.find((shown) => shown.uri.toString() === result);
     if (!document) return;
-    if (/^<<<<<<</m.test(document.getText())) document.type(mergeOf(document.getText()));
+    if (!workingCopy && /^<<<<<<</m.test(document.getText())) {
+        document.type(mergeOf(document.getText()));
+    }
     const changed = mergeTabs().filter((tab) => tab.input.result.toString() === result);
     tabChangeListeners.forEach((listener) => listener({ opened: [], closed: [], changed }));
 }
@@ -440,6 +456,14 @@ function openMergeEditor(args: MergeEditorArgs): void {
 export const workspace = {
     get textDocuments(): readonly FakeResultDocument[] {
         return [...documents];
+    },
+    getConfiguration(section: string) {
+        return {
+            get: <T>(key: string, defaultValue: T): T =>
+                section === "mergeEditor" && key === "useWorkingCopy"
+                    ? (workingCopy as T)
+                    : defaultValue,
+        };
     },
     registerFileSystemProvider(scheme: string, provider: ServedFileSystem): Disposable {
         fileSystems.set(scheme, provider);

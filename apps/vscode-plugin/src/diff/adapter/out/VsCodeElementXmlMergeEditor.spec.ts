@@ -19,6 +19,7 @@ import {
     finishMergeEditorLoading,
     focusGroupByUser,
     holdMergeEditorLoading,
+    mergeEditorUsesWorkingCopy,
     mergeResultTexts,
     mergeTabs,
     openNextMergeEditorWithoutTab,
@@ -40,6 +41,7 @@ import {
 
 const START = "<<<<<<< Current\ncurrent\n=======\nincoming\n>>>>>>> Incoming\n";
 const MERGED = "merged by the editor\n";
+const dropMarkerLines = (start: string) => start.replace(/^(<<<<<<<|=======|>>>>>>>).*\n/gm, "");
 
 const REQUEST: ElementXmlMergeRequest = {
     key: "merge-1",
@@ -70,10 +72,12 @@ function registeredEditor(onFinished: ElementXmlMergeFinished): VsCodeElementXml
 
 describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished) => {
     resetVscodeMergeEditor();
+    editorMergesStartTextTo(dropMarkerLines);
     const contracted = registeredEditor(onFinished);
     return {
         editor: contracted,
         shown: () => mergeResultTexts(),
+        shownFor: dropMarkerLines,
         inputs: (elementId) => {
             const tab = mergeTabs().find(({ input }) => input.result.path === `/${elementId}.xml`);
             if (!tab?.titles) return undefined;
@@ -316,6 +320,35 @@ describe("VsCodeElementXmlMergeEditor", () => {
         await expect(opening).resolves.toBeUndefined();
         expect(logError).toHaveBeenCalledTimes(1);
         expect(mergeTabs()).toHaveLength(1);
+    });
+
+    it("resolves the open once the tab shows where the editor merges into a working copy", async () => {
+        vi.useFakeTimers();
+        mergeEditorUsesWorkingCopy();
+        let opened = false;
+        void editor.open(REQUEST).then(() => {
+            opened = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(opened).toBe(true);
+        expect(logError).not.toHaveBeenCalled();
+    });
+
+    it("lets the editor finish loading before the merge view closes it, so no dirty result stays behind", async () => {
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+        await new Promise((done) => setTimeout(done, 0));
+
+        const closing = editor.close(REQUEST.key);
+        finishMergeEditorLoading();
+        await closing;
+        await opening;
+
+        expect(mergeTabs()).toEqual([]);
+        expect(workspace.textDocuments.filter((document) => document.isDirty)).toEqual([]);
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
     });
 
     it("releases the files and finishes without a text when the editor fails to open", async () => {
