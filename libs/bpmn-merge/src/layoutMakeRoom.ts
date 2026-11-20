@@ -1,6 +1,7 @@
+import type { Axis } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
-import { type Axis, bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
+import { bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
 import {
     type LayoutModel,
     type NodeShape,
