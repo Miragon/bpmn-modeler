@@ -1,7 +1,7 @@
 import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
+import { type CollaborationProcess, collaborationProcessesOf } from "./collaborationPools";
 import { DiagramIndex, type PlaneKind, ROOT_PLANE, planeKindOf } from "./diagramIndex";
-import { type CollaborationProcess, collaborationProcessesOf } from "./layoutRelations";
 import type { MergeSide } from "./mergeResult";
 
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { collaborationProcessesOf, layoutRelationsOf } from "./layoutRelations";
+import { collaborationProcessesOf } from "./collaborationPools";
+import { layoutRelationsOf } from "./layoutRelations";
 
 async function definitionsOf(semantic: string) {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
