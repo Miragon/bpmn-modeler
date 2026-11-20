@@ -13,14 +13,15 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
-import { type DiffStepLanding, diffStepSelection } from "../../domain/diffStepSelection";
 import { requestInMenu, requestOnPad } from "../../domain/mergeActedDecision";
 import { openShapelessConflicts } from "../../domain/mergeMenuRows";
+import { type MergePadDecision, mergePadDecisions } from "../../domain/mergePadDecisions";
 import {
-    decidesInMenu,
-    type MergePadDecision,
-    mergePadDecisions,
-} from "../../domain/mergePadDecisions";
+    centresStep,
+    landOnStep,
+    type MergeLandingPlan,
+    type MergeStepLanding,
+} from "../../domain/mergeStepLanding";
 import { type MergeStepList, mergeStepPosition, nextMergeStep } from "../../domain/mergeStepper";
 import { MERGE_MARK_TEXTS, pickBadgeText } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
@@ -42,9 +43,6 @@ const STEPS_OF: Readonly<
 };
 
 const translate: MergeTranslate = (key, replacements) => i18n.translate(key, replacements);
-
-/** How the pane came to a step: its own user stepped or clicked, or it follows the partner or the host. */
-type MergeStepLanding = "stepped" | "clicked" | "followed";
 
 /**
  * Entry point for a webview running as one side of a BPMN merge view.
@@ -121,7 +119,7 @@ export class MergeMode {
         this.outcomes = new MergeOutcomes({
             post: (command) => host.postMessage(command),
             nameOf: (id) => this.nameOf(id),
-            select: (id) => this.select(id, { keepCard: true }),
+            select: (id) => this.select(id, "steppedFromCard"),
             translate,
         });
         this.keyboard = new MergePaneKeyboard({
@@ -149,7 +147,7 @@ export class MergeMode {
                 onNext: () => this.step(1),
                 onShowAll: () => this.showAll(),
                 onStepList: (list) => this.switchStepList(list),
-                onShapeless: (id) => this.stepTo(id),
+                onShapeless: (id) => this.goTo(id, "stepped"),
                 onDecide: (id, decision) => this.outcomes.send(requestInMenu(id, decision)),
                 onChoose: (action) => {
                     this.outcomes.choose(action);
@@ -189,7 +187,7 @@ export class MergeMode {
                 } else {
                     const id = this.states?.states.allSteps[query.index]?.id;
                     if (id !== undefined) {
-                        this.goTo(id, { landing: "followed", shareViewport: true, openMenu: true });
+                        this.goTo(id, "followed");
                     }
                 }
                 break;
@@ -221,9 +219,9 @@ export class MergeMode {
         this.pickPad?.refresh();
         const answer = this.outcomes.receive(query.states, query.offers);
         const kept = query.states.stepping.cursor;
-        // A pane that reloaded has no step of its own; the host kept the tab's, without opening the menu.
+        // A pane that reloaded has no step of its own; the host kept the tab's.
         if (this.cursorId === undefined && kept !== undefined && this.allStepIds().includes(kept)) {
-            this.goTo(kept, { landing: "followed", shareViewport: false, openMenu: false });
+            this.goTo(kept, "reloaded");
         } else {
             this.updateBar();
         }
@@ -254,7 +252,7 @@ export class MergeMode {
             pickable &&
             this.allStepIds().includes(id)
         ) {
-            this.stepTo(id, { clicked: true });
+            this.goTo(id, "clicked");
         }
     }
 
@@ -263,9 +261,9 @@ export class MergeMode {
      * partner, anything else only shows here. A card's link leaves the card
      * open.
      */
-    private select(id: string, { keepCard = false }: { readonly keepCard?: boolean } = {}): void {
+    private select(id: string, landing: "stepped" | "steppedFromCard" = "stepped"): void {
         if (this.allStepIds().includes(id)) {
-            this.stepTo(id, { keepCard });
+            this.goTo(id, landing);
         } else {
             this.pane.viewer.focusElement(id);
         }
@@ -291,104 +289,92 @@ export class MergeMode {
 
     private step(direction: 1 | -1): void {
         const id = nextMergeStep(this.stepIds(), this.allStepIds(), this.cursorId, direction);
-        if (id !== undefined) this.stepTo(id);
+        if (id !== undefined) this.goTo(id, "stepped");
     }
 
     /**
-     * A user's step: moves there and takes the partner pane along. It reports
-     * an element with a shape as the selection, so an open XML diff follows;
-     * a click reported its own already.
+     * Shows the step on this pane as {@link landOnStep} decides: a drawn
+     * element in the centre at the current zoom, selected so its context pad
+     * opens, a shape-less one by its row in the right pane's menu. The
+     * element's plane is entered first, since a selection holds only on the
+     * plane shown. A user's step takes the partner pane along.
      */
-    private stepTo(
-        id: string,
-        {
-            keepCard = false,
-            clicked = false,
-        }: { readonly keepCard?: boolean; readonly clicked?: boolean } = {},
-    ): void {
-        this.goTo(id, {
-            landing: clicked ? "clicked" : "stepped",
-            shareViewport: false,
-            openMenu: true,
-            keepCard,
-        });
-        this.host.postMessage(new CursorChangedCommand(this.allStepIds().indexOf(id)));
-        if (!clicked && this.stepOf(id)?.shapeless === false) {
-            this.host.postMessage(new DiffSelectionChangedCommand(id));
-        }
-        this.shareViewportOnStepOnlyHere(id);
-    }
-
-    /**
-     * Shows the step on this pane: a drawn element in the centre at the
-     * current zoom, selected, so its context pad opens; a shape-less one by
-     * its row in the right pane's menu, which a step opens there and a step
-     * onto a drawn element closes again. The element's plane is entered
-     * first, since a selection holds only on the plane shown. On a step only
-     * the partner pane draws, or one without a shape, the pane clears its
-     * selection; it keeps its place, since a neighbour here would point
-     * elsewhere, but shows the plane the partner stepped into, so their
-     * viewports still match, or notes that this version lacks it. A click's
-     * own selection stands; a step's is kept in view as {@link selectStepped}
-     * decides.
-     */
-    private goTo(
-        id: string,
-        {
-            landing,
-            shareViewport,
-            openMenu,
-            keepCard = false,
-        }: {
-            readonly landing: MergeStepLanding;
-            readonly shareViewport: boolean;
-            readonly openMenu: boolean;
-            readonly keepCard?: boolean;
-        },
-    ): void {
+    private goTo(id: string, landing: MergeStepLanding): void {
         this.cursorId = id;
         const step = this.stepOf(id);
-        const drawnHere =
-            step !== undefined &&
-            step.onThisPane &&
-            !step.shapeless &&
-            this.pane.viewer.focusElement(id);
-        if (drawnHere) {
-            this.pane.notePlaneShown(step.plane);
-        } else {
-            this.pane.viewer.clearSelectionMarker();
-            if (step !== undefined && !step.shapeless) this.pane.followPlane(step.plane);
-        }
-        if (landing !== "clicked") {
-            this.selectStepped(id, {
-                steppedHere: landing === "stepped",
-                drawnHere,
-                onlyThisSideHasIt: step !== undefined && step.onThisPane && !step.onOtherPane,
-            });
-        }
-        if (!keepCard) this.outcomes.follow(drawnHere ? id : undefined);
+        const landed = landOnStep(
+            step,
+            landing,
+            centresStep(step) && this.pane.viewer.focusElement(id),
+        );
+        this.showOnCanvas(landed.canvas);
+        this.selectLanded(id, landed.selection);
+        this.moveCard(id, landed.card);
         this.updateBar();
-        if (step !== undefined && decidesInMenu(step)) {
-            if (openMenu) this.bar.openMenuAt(id);
-        } else {
-            this.bar.closeMenuOpenedByStep();
-        }
-        if (shareViewport) this.shareViewportOnStepOnlyHere(id);
+        this.moveMenu(id, landed.menu);
+        this.tellHostLanded(id, landed.posts);
     }
 
-    private selectStepped(id: string, landing: DiffStepLanding): void {
-        const selection = diffStepSelection(landing);
-        if (selection.kind === "select") {
-            this.pane.viewer.selectStep(id, { keepInView: selection.keepsInView });
-        } else {
-            this.pane.viewer.selectStep(undefined, { keepInView: false });
+    private showOnCanvas(canvas: MergeLandingPlan["canvas"]): void {
+        switch (canvas.kind) {
+            case "centred":
+                this.pane.notePlaneShown(canvas.plane);
+                break;
+            case "followsPlane":
+                this.pane.viewer.clearSelectionMarker();
+                this.pane.followPlane(canvas.plane);
+                break;
+            case "staysInPlace":
+                this.pane.viewer.clearSelectionMarker();
+                break;
         }
     }
 
-    /** The partner draws nothing for a step only this pane draws, so it takes this pane's viewport. */
-    private shareViewportOnStepOnlyHere(id: string): void {
-        const step = this.stepOf(id);
-        if (step?.onThisPane && !step.onOtherPane && !step.shapeless) {
+    private selectLanded(id: string, selection: MergeLandingPlan["selection"]): void {
+        switch (selection.kind) {
+            case "select":
+                this.pane.viewer.selectStep(id, { keepInView: selection.keepsInView });
+                break;
+            case "clear":
+                this.pane.viewer.selectStep(undefined, { keepInView: false });
+                break;
+            case "leave":
+                break;
+        }
+    }
+
+    private moveCard(id: string, card: MergeLandingPlan["card"]): void {
+        switch (card) {
+            case "followStep":
+                this.outcomes.follow(id);
+                break;
+            case "followNothing":
+                this.outcomes.follow(undefined);
+                break;
+            case "keep":
+                break;
+        }
+    }
+
+    private moveMenu(id: string, menu: MergeLandingPlan["menu"]): void {
+        switch (menu) {
+            case "openAtRow":
+                this.bar.openMenuAt(id);
+                break;
+            case "closeOpenedByStep":
+                this.bar.closeMenuOpenedByStep();
+                break;
+            case "leave":
+                break;
+        }
+    }
+
+    private tellHostLanded(id: string, posts: MergeLandingPlan["posts"]): void {
+        if (posts.cursor) {
+            this.host.postMessage(new CursorChangedCommand(this.allStepIds().indexOf(id)));
+        }
+        if (posts.selection) this.host.postMessage(new DiffSelectionChangedCommand(id));
+        if (posts.viewport) {
             this.host.postMessage(new ViewportChangedCommand(this.pane.viewer.getViewport()));
         }
     }

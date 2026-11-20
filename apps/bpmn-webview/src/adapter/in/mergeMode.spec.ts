@@ -901,10 +901,15 @@ describe("MergeMode", () => {
             await startMergePane();
 
             dispatch(
-                mergeStates({ allSteps: ONLY_HERE, stepping: { list: "all", cursor: "Task_Check" } }),
+                mergeStates({
+                    allSteps: ONLY_HERE,
+                    stepping: { list: "all", cursor: "Task_Check" },
+                }),
             );
 
-            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", { keepInView: true });
+            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", {
+                keepInView: true,
+            });
             expect(viewportsPosted()).toEqual([]);
         });
 
@@ -1547,7 +1552,9 @@ describe("MergeMode", () => {
 
             card().lastActions!.onSelect("Task_Check");
 
-            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", { keepInView: true });
+            expect(viewer().selectStep).toHaveBeenLastCalledWith("Task_Check", {
+                keepInView: true,
+            });
             expect(posted().at(-1)).toEqual(
                 expect.objectContaining({
                     type: "DiffSelectionChangedCommand",
