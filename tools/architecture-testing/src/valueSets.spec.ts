@@ -22,7 +22,7 @@ describe("readValueSets", () => {
         ],
         ["a single string in an array", 'const one = ["only"];', ["only"]],
     ])("reads %s", (_, source, values) => {
-        expect(readValueSets("source.ts", source)).toEqual([{ line: 1, values }]);
+        expect(readValueSets("source.ts", source)).toEqual([{ line: 1, values, inPattern: false }]);
     });
 
     it.each([
@@ -39,6 +39,8 @@ describe("readValueSets", () => {
         ["an && chain", 'const x = a === "a" && a === "b";'],
         ["a set in a comment", '// const types = ["none", "basic"];\n/* type T = "a" | "b"; */'],
         ["a set in a string", 'const text = \'x === "a" || x === "b"; ["none", "basic"]\';'],
+        ["a regular expression in a string", 'const pattern = new RegExp("(spec|test)");'],
+        ["a regular expression without an alternation of words", "const pattern = /\\.(\\w+)$/;"],
     ])("reads nothing from %s", (_, source) => {
         expect(readValueSets("source.ts", source)).toEqual([]);
     });
@@ -54,9 +56,9 @@ describe("readValueSets", () => {
         ].join("\n");
 
         expect(readValueSets("source.ts", source)).toEqual([
-            { line: 1, values: ["light", "dark"] },
-            { line: 3, values: ["a", "b", "c"] },
-            { line: 6, values: ["info", "error"] },
+            { line: 1, values: ["light", "dark"], inPattern: false },
+            { line: 3, values: ["a", "b", "c"], inPattern: false },
+            { line: 6, values: ["info", "error"], inPattern: false },
         ]);
     });
 
@@ -65,17 +67,30 @@ describe("readValueSets", () => {
             'const config = { modes: ["light", "dark"], check: (m) => m === "x" || m === "y" };';
 
         expect(readValueSets("source.ts", source)).toEqual([
-            { line: 1, values: ["light", "dark"] },
-            { line: 1, values: ["x", "y"] },
+            { line: 1, values: ["light", "dark"], inPattern: false },
+            { line: 1, values: ["x", "y"], inPattern: false },
         ]);
     });
 
     it("reads an .mjs script and a .tsx file", () => {
         expect(readValueSets("build.mjs", 'const LOCALES = ["de", "en"];')).toEqual([
-            { line: 1, values: ["de", "en"] },
+            { line: 1, values: ["de", "en"], inPattern: false },
         ]);
         expect(readValueSets("View.tsx", 'const view = <Select options={["a", "b"]} />;')).toEqual([
-            { line: 1, values: ["a", "b"] },
+            { line: 1, values: ["a", "b"], inPattern: false },
+        ]);
+    });
+
+    it("reads each word alternation of a regular expression literal, marked as read from a pattern", () => {
+        const source = [
+            'const kind = ["spec", "test"];',
+            "const SPEC = /\\.(spec|test)\\.(?:[mc]?ts|tsx)$/u;",
+        ].join("\n");
+
+        expect(readValueSets("source.ts", source)).toEqual([
+            { line: 1, values: ["spec", "test"], inPattern: false },
+            { line: 2, values: ["spec", "test"], inPattern: true },
+            { line: 2, values: ["ts", "mts", "cts", "tsx"], inPattern: true },
         ]);
     });
 });

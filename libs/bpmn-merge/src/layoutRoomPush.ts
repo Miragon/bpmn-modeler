@@ -17,15 +17,8 @@ import {
     liesWithin,
     rightOf,
 } from "./layoutGeometry";
-import {
-    type LaneShape,
-    type LayoutShape,
-    type NodeShape,
-    drawnPartsOf,
-    innermostFrameOf,
-    innermostLaneOf,
-    lanesOf,
-} from "./layoutModel";
+import { innermostFrameOf, innermostLaneOf, lanesOf, lanesWithoutPoolOn } from "./layoutFrames";
+import { type LaneShape, type LayoutShape, type NodeShape, drawnPartsOf } from "./layoutModel";
 import type { ShapeGroups } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";
@@ -233,10 +226,7 @@ export class RoomPush {
     /** The lanes of the pool, or on a plane without a pool the lanes beside the lane. */
     private lanesWith(pool: LayoutShape | undefined, lane: LaneShape | undefined): LaneShape[] {
         if (pool !== undefined) return lanesOf(this.trial, pool);
-        return [...this.trial.shapes.values()].filter(
-            (shape): shape is LaneShape =>
-                shape.kind === "lane" && shape.plane === lane?.plane && shape.pool === undefined,
-        );
+        return lane === undefined ? [] : lanesWithoutPoolOn(this.trial, lane.plane);
     }
 
     /**
