@@ -1,6 +1,7 @@
 import {
     type Border,
     type DiagramBounds,
+    type Offset,
     type Outline,
     type Point,
     bottomOf,
@@ -38,7 +39,7 @@ export const endsLevelAlong = (axis: Axis, first: DiagramBounds, second: Diagram
 /** The border at the bounds' far side along the axis. */
 export const farBorderOf = (axis: Axis): Border => (axis === "x" ? "right" : "bottom");
 
-export function offsetAlong(axis: Axis, by: number): { readonly dx: number; readonly dy: number } {
+export function offsetAlong(axis: Axis, by: number): Offset {
     return axis === "x" ? { dx: by, dy: 0 } : { dx: 0, dy: by };
 }
 
