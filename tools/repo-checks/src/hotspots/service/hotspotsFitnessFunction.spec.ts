@@ -23,8 +23,8 @@ function history(length: number): CommitRecord[] {
 }
 
 const SOURCES = new InMemorySourceMeasures([
-    { path: OFTEN, codeLines: 40, functions: [], barrel: false },
-    { path: OTHER, codeLines: 10, functions: [], barrel: false },
+    { path: OFTEN, codeLines: 40, functions: [], barrel: false, runsNoCode: false },
+    { path: OTHER, codeLines: 10, functions: [], barrel: false, runsNoCode: false },
 ]);
 
 const modified = (...paths: string[]): FileChange[] =>
