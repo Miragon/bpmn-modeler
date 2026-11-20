@@ -77,6 +77,19 @@ describe("growFrameFor", () => {
         expect(grown?.shifted).toEqual(["Task_After"]);
     });
 
+    it("grows the sub-process before the pool when the shape lies outside both", () => {
+        const layout = layoutOf([
+            wideBox,
+            node("Sub_1", { ...IN_POOL, expanded: true, bounds: box(800, 100, 300, 200) }),
+            node("Task_Z", { ...IN_SUB, bounds: box(1150, 150) }),
+        ]);
+
+        const grown = grownFor(layout, "Task_Z", ["Pool_1", "Sub_1"]);
+
+        expect(boundsIn(grown, "Sub_1")).toEqual(box(800, 100, 460, 200));
+        expect(boundsIn(grown, "Pool_1")).toEqual(box(0, 0, 1270, 600));
+    });
+
     it("grows a pool with its lanes sideways", () => {
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 600, 200)),
