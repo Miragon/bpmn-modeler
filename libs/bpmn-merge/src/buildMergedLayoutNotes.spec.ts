@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
 import { baseModel, cloneModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import {
@@ -117,13 +119,17 @@ function movedOff(ids: [string, string], shape: string): BuildNoteContent {
  * No free place lies near the inserted tasks, which are parallel branches into Ship: one is
  * stacked under the other, its lane grows and the lane below shifts down with what it holds.
  */
-function stacked(ids: [string, string], shape: string, shifted: string[] = []): BuildNoteContent {
+function stacked(
+    ids: [string, string],
+    shape: string,
+    shifted: MergeNonEmptyIds = ["Task_R", "End_Rejected"],
+): BuildNoteContent {
     return {
         kind: "shapesOverlap",
         ids,
         repair: "madeRoomByGrowingAndShifting",
         moved: shape,
-        shifted: [...shifted, "Task_R", "End_Rejected"],
+        shifted,
         grown: ["Participant_Order", "Lane_Sales"],
     };
 }
@@ -255,7 +261,12 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "incoming",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_X", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_X", [
+                            "Task_C",
+                            "End_Done",
+                            "Task_R",
+                            "End_Rejected",
+                        ]),
                         moved("flowThroughShape", "Flow_X", "Task_Y"),
                         moved("flowEndOffShape", "Flow_X", "Task_X", "Task_C"),
                     ],
@@ -263,7 +274,12 @@ describe("buildMerged's layout notes", () => {
                 {
                     conflictsTo: "current",
                     notes: [
-                        stacked(["Task_Y", "Task_X"], "Task_Y", ["Task_C", "End_Done"]),
+                        stacked(["Task_Y", "Task_X"], "Task_Y", [
+                            "Task_C",
+                            "End_Done",
+                            "Task_R",
+                            "End_Rejected",
+                        ]),
                         moved("flowThroughShape", "Flow_Y", "Task_X"),
                         moved("flowEndOffShape", "Flow_Y", "Task_Y", "Task_C"),
                     ],

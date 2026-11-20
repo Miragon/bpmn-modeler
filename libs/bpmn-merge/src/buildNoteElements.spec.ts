@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    type MergeBuildNoteContent,
-    type MergeBuildNoteOfKind,
-    type MergeNoteRepairOf,
-    type MergeRepairedNoteKind,
-    elementsNamedBy,
+import { elementsNamedBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import type {
+    MergeBuildNoteContent,
+    MergeBuildNoteOfKind,
+    MergeNoteRepairOf,
+    MergeRepairedNoteKind,
 } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import { elementsRedrawnBy } from "./buildNoteElements";

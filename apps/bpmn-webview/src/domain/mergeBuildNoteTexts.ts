@@ -46,6 +46,9 @@ type ElementAndShapesNote = MergeBuildNoteOfKind<
     "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer"
 >;
 
+/** A shape and the containers it lies outside. */
+type OutsideContainerNote = MergeBuildNoteOfKind<"shapeOutsideContainer">;
+
 /** Shapes or lanes on top of each other. */
 type OverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 
@@ -87,20 +90,12 @@ const NOTE_WORDINGS: NoteWordings = {
             replacements: overlappingNames(note, names),
         }),
     },
-    shapeOutsideContainer: {
-        ...sharingNames(elementAndShapesNames, {
-            movedIntoContainer: "The build moved {element} into {shapes}",
-            grewContainer: "The build grew {shapes} to hold {element}",
-            notRepaired: "{element} lies outside {shapes}; the build could not repair it",
-        }),
-        grewContainerAndShifted: (note, names) => ({
-            template: "The build grew {shapes} to hold {element} and shifted {shifted}",
-            replacements: {
-                ...elementAndShapesNames(note, names),
-                shifted: names.list(note.shifted),
-            },
-        }),
-    },
+    shapeOutsideContainer: sharingNames(containerRepairNames, {
+        movedIntoContainer: "The build moved {element} into {shapes}",
+        grewContainer: "The build grew {shapes} to hold {element}",
+        grewContainerAndShifted: "The build grew {shapes} to hold {element} and shifted {shifted}",
+        notRepaired: "{element} lies outside {shapes}; the build could not repair it",
+    }),
     lanesOverlap: {
         ...sharingNames(stackedLaneNames, {
             movedByBuild:
@@ -181,6 +176,14 @@ function elementAndShapesNames(
     return { element: names.one(note.id), shapes: names.list(note.shapes) };
 }
 
+/** The shape outside its containers, with what was shifted to make room for a grown one. */
+function containerRepairNames(
+    note: OutsideContainerNote,
+    names: CanvasNames,
+): Record<string, string> {
+    return { ...elementAndShapesNames(note, names), shifted: names.list(shapesShiftedBy(note)) };
+}
+
 function overlappingNames(note: OverlapNote, names: CanvasNames): Record<string, string> {
     return { first: names.one(note.ids[0] ?? ""), second: names.list(note.ids.slice(1)) };
 }
@@ -205,7 +208,7 @@ function roomNames(note: MovedShapeNote, names: CanvasNames): Record<string, str
 function stackedLaneNames(note: StackedLaneNote, names: CanvasNames): Record<string, string> {
     return {
         element: names.one(note.moved),
-        grown: names.list(note.grown),
+        grown: names.list(framesGrownBy(note)),
         shifted: names.list(shapesShiftedBy(note)),
     };
 }

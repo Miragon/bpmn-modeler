@@ -1,10 +1,6 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
-import {
-    type MergeBuildNote,
-    type MergeBuildNoteContent,
-    elementsNamedBy,
-} from "./mergeBuildNotes";
+import type { MergeBuildNote, MergeBuildNoteContent } from "./mergeBuildNotes";
 
 type JsonValue =
     | string
@@ -20,178 +16,65 @@ describe("MergeBuildNote", () => {
     });
 });
 
-// A record, so the compiler names a note kind the merge adds and this spec misses.
-const NAMED: Record<MergeBuildNoteContent["kind"], [MergeBuildNoteContent, readonly string[]]> = {
-    flowEndOffShape: [
-        {
-            kind: "flowEndOffShape",
-            id: "Flow_1",
-            shapes: ["Task_A", "Task_B"],
-            repair: "movedByBuild",
-        },
-        ["Flow_1", "Task_A", "Task_B"],
-    ],
-    shapesOverlap: [
-        {
+describe("a repair named for what it shifted or grew", () => {
+    it("carries at least one shape it shifted", () => {
+        expectTypeOf({
             kind: "shapesOverlap",
             ids: ["Task_A", "Task_B"],
-            repair: "madeRoomByGrowingAndShifting",
+            repair: "madeRoomByShifting",
             moved: "Task_B",
-            shifted: ["Task_C", "End_1"],
-            grown: ["Lane_1"],
-        },
-        ["Task_A", "Task_B", "Task_C", "End_1", "Lane_1"],
-    ],
-    flowThroughShape: [
-        { kind: "flowThroughShape", id: "Flow_1", shapes: ["Task_C"], repair: "notRepaired" },
-        ["Flow_1", "Task_C"],
-    ],
-    shapeOutsideContainer: [
-        {
+            shifted: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
+        expectTypeOf({
             kind: "shapeOutsideContainer",
             id: "Task_A",
             shapes: ["Sub_1"],
             repair: "grewContainerAndShifted",
-            shifted: ["Task_C", "End_1"],
-        },
-        ["Task_A", "Sub_1", "Task_C", "End_1"],
-    ],
-    boundaryEventOffHost: [
-        { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_A" },
-        ["Timer_1", "Task_A"],
-    ],
-    lanesOverlap: [
-        {
+            shifted: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
+        expectTypeOf({
             kind: "lanesOverlap",
             ids: ["Lane_2", "Lane_1"],
             repair: "movedByBuildAndShifted",
             moved: "Lane_2",
-            grown: ["Pool_1", "Lane_0"],
-            shifted: ["Pool_2"],
-        },
-        ["Lane_2", "Lane_1", "Pool_1", "Lane_0", "Pool_2"],
-    ],
-    restoredWithoutRemovedWith: [
-        { kind: "restoredWithoutRemovedWith", id: "Task_A", connections: ["Flow_1", "Flow_2"] },
-        ["Task_A", "Flow_1", "Flow_2"],
-    ],
-    defaultFlowNotRestored: [
-        { kind: "defaultFlowNotRestored", id: "Gateway_1", flow: "Flow_1", keptDefault: "Flow_2" },
-        ["Gateway_1", "Flow_1", "Flow_2"],
-    ],
-    layoutChangedByBoth: [
-        { kind: "layoutChangedByBoth", ids: ["Task_A", "Gateway_1"], keptSide: "incoming" },
-        ["Task_A", "Gateway_1"],
-    ],
-    frameDiffers: [{ kind: "frameDiffers", attribute: "exporter" }, []],
-    flowNotDrawn: [
-        { kind: "flowNotDrawn", id: "Flow_1", source: "Task_A", target: "Task_B" },
-        ["Flow_1", "Task_A", "Task_B"],
-    ],
-};
-
-describe("elementsNamedBy", () => {
-    it.each(Object.entries(NAMED))(
-        "names the elements a %s note shows, in the order its entry offers them",
-        (_kind, [note, ids]) => {
-            expect(elementsNamedBy(note)).toStrictEqual(ids);
-        },
-    );
-
-    it("names the boundary events a kept element is noted without", () => {
-        expect(
-            elementsNamedBy({
-                kind: "restoredWithoutRemovedWith",
-                id: "Task_A",
-                connections: ["Flow_1"],
-                boundaryEvents: ["Timer_1"],
-            }),
-        ).toStrictEqual(["Task_A", "Timer_1", "Flow_1"]);
+            grown: ["Pool_1"],
+            shifted: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
     });
 
-    it("names only the two shapes of an overlap the build moved one of or left as is", () => {
-        const ids = ["Task_A", "Task_B"];
-
-        expect(
-            elementsNamedBy({
-                kind: "shapesOverlap",
-                ids,
-                repair: "movedByBuild",
-                moved: "Task_B",
-            }),
-        ).toStrictEqual(ids);
-        expect(
-            elementsNamedBy({ kind: "shapesOverlap", ids, repair: "notRepaired" }),
-        ).toStrictEqual(ids);
+    it("carries at least one frame it grew", () => {
+        expectTypeOf({
+            kind: "shapesOverlap",
+            ids: ["Task_A", "Task_B"],
+            repair: "madeRoomByGrowing",
+            moved: "Task_B",
+            grown: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
+        expectTypeOf({
+            kind: "shapesOverlap",
+            ids: ["Task_A", "Task_B"],
+            repair: "madeRoomByGrowingAndShifting",
+            moved: "Task_B",
+            shifted: ["Task_C"],
+            grown: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
+        expectTypeOf({
+            kind: "lanesOverlap",
+            ids: ["Lane_2", "Lane_1"],
+            repair: "movedByBuild",
+            moved: "Lane_2",
+            grown: [],
+        } as const).not.toExtend<MergeBuildNoteContent>();
     });
 
-    it("names the shapes an overlap's repair shifted or the frames it grew, whichever it did", () => {
-        const ids = ["Task_A", "Task_B"];
-
-        expect(
-            elementsNamedBy({
-                kind: "shapesOverlap",
-                ids,
-                repair: "madeRoomByShifting",
-                moved: "Task_B",
-                shifted: ["Task_C"],
-            }),
-        ).toStrictEqual([...ids, "Task_C"]);
-        expect(
-            elementsNamedBy({
-                kind: "shapesOverlap",
-                ids,
-                repair: "madeRoomByGrowing",
-                moved: "Task_B",
-                grown: ["Lane_1"],
-            }),
-        ).toStrictEqual([...ids, "Lane_1"]);
-    });
-
-    it("names the lanes and the frames grown for a lane the build moved without shifting shapes", () => {
-        expect(
-            elementsNamedBy({
-                kind: "lanesOverlap",
-                ids: ["Lane_2", "Lane_1"],
-                repair: "movedByBuild",
-                moved: "Lane_2",
-                grown: ["Pool_1"],
-            }),
-        ).toStrictEqual(["Lane_2", "Lane_1", "Pool_1"]);
-    });
-
-    it("names only the shape and its containers when the build moved it inside, grew one or left it", () => {
-        for (const repair of ["movedIntoContainer", "grewContainer", "notRepaired"] as const) {
-            expect(
-                elementsNamedBy({
-                    kind: "shapeOutsideContainer",
-                    id: "Task_A",
-                    shapes: ["Pool_1", "Lane_1"],
-                    repair,
-                }),
-            ).toStrictEqual(["Task_A", "Pool_1", "Lane_1"]);
-        }
-    });
-
-    it("names only the lanes of an overlap the build left as is", () => {
-        expect(
-            elementsNamedBy({
-                kind: "lanesOverlap",
-                ids: ["Lane_1", "Lane_2"],
-                repair: "notRepaired",
-            }),
-        ).toStrictEqual(["Lane_1", "Lane_2"]);
-    });
-
-    it("names only the end a flow left out of the drawing has", () => {
-        expect(
-            elementsNamedBy({ kind: "flowNotDrawn", id: "Flow_1", target: "Task_B" }),
-        ).toStrictEqual(["Flow_1", "Task_B"]);
-    });
-
-    it("names no kept default for a source that keeps none", () => {
-        expect(
-            elementsNamedBy({ kind: "defaultFlowNotRestored", id: "Gateway_1", flow: "Flow_1" }),
-        ).toStrictEqual(["Gateway_1", "Flow_1"]);
+    it("is a note when it names what it shifted and grew", () => {
+        expectTypeOf({
+            kind: "shapesOverlap",
+            ids: ["Task_A", "Task_B"],
+            repair: "madeRoomByGrowingAndShifting",
+            moved: "Task_B",
+            shifted: ["Task_C"],
+            grown: ["Lane_1"],
+        } as const).toExtend<MergeBuildNoteContent>();
     });
 });

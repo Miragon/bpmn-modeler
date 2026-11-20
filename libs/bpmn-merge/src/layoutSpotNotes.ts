@@ -1,3 +1,5 @@
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+
 import type { BuildNoteContent, NoteRepairOf } from "./buildNotes";
 import type { LaneStacking } from "./layoutLaneStacking";
 import { type SpotRepair, SpotRepairs } from "./layoutSpotRepairs";
@@ -49,16 +51,16 @@ export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNoteContent[
 /** A lane moved below its pool's lanes, with the frames that grew to hold it and the shapes it shifted down, if any. */
 function laneStackedNote({ lane, grown, overlapped, shifted }: LaneStacking): BuildNoteContent {
     const ids = [lane, ...overlapped];
-    return shifted.length === 0
-        ? { kind: "lanesOverlap", ids, repair: "movedByBuild", moved: lane, grown }
-        : {
+    return isNonEmpty(shifted)
+        ? {
               kind: "lanesOverlap",
               ids,
               repair: "movedByBuildAndShifted",
               moved: lane,
               grown,
               shifted,
-          };
+          }
+        : { kind: "lanesOverlap", ids, repair: "movedByBuild", moved: lane, grown };
 }
 
 /**
