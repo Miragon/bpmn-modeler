@@ -95,8 +95,7 @@ describe("PreviewHost", () => {
 
         new PreviewHost().postMessage(command);
 
-        expect(reason.trim()).not.toBe("");
-        expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
+        expect(debug).toHaveBeenCalledWith(expect.stringContaining(reason), command);
     });
 
     it.each<[FormEditorCommand, "warn" | "error"]>([

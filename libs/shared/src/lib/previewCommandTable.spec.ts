@@ -56,6 +56,17 @@ describe("a browser preview's command table", () => {
         ]);
     });
 
+    it.each(["", "  "])("refuses a row that drops its command without a reason: %j", (reason) => {
+        const table: PreviewCommandTable<TestCommand, TestSession> = {
+            ...TABLE,
+            OpenAddOnDetailCommand: { ignored: reason },
+        };
+
+        expect(() =>
+            routePreviewCommand(table, new OpenAddOnDetailCommand("plugin:/work/x"), { handled: [] }),
+        ).toThrow("OpenAddOnDetailCommand needs a reason to be ignored");
+    });
+
     it("returns the row of a command type", () => {
         expect(previewRouteOf(TABLE, "OpenAddOnDetailCommand")).toEqual({
             ignored: "the test has no tab to open",

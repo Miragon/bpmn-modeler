@@ -1,3 +1,4 @@
+import { requireIgnoreReason } from "./ignoredCommand";
 import type { ProtocolCommand } from "./protocolMessageMap";
 
 /** What a browser preview does with a command, or why it drops it. */
@@ -9,7 +10,10 @@ export type PreviewCommandTable<TCommand extends ProtocolCommand, TSession> = {
     readonly [Type in TCommand["type"]]: PreviewRoute<Extract<TCommand, { type: Type }>, TSession>;
 };
 
-/** The row of a command type; a type without one, an inherited object member's included, throws. */
+/**
+ * The row of a command type. A type without one, an inherited object member's
+ * included, throws, and so does a row that drops its command without a reason.
+ */
 export function previewRouteOf<TCommand extends ProtocolCommand, TSession>(
     table: PreviewCommandTable<TCommand, TSession>,
     type: string,
@@ -18,7 +22,11 @@ export function previewRouteOf<TCommand extends ProtocolCommand, TSession>(
         throw new Error(`Unknown message type: ${type}`);
     }
     // Sound because the router hands each row only commands of its own key's type.
-    return table[type as TCommand["type"]] as PreviewRoute<TCommand, TSession>;
+    const route = table[type as TCommand["type"]] as PreviewRoute<TCommand, TSession>;
+    if ("ignored" in route) {
+        requireIgnoreReason(type, route.ignored);
+    }
+    return route;
 }
 
 export function routePreviewCommand<TCommand extends ProtocolCommand, TSession>(
