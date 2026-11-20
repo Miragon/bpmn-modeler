@@ -2,11 +2,7 @@ import { moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { definitionsOf } from "./__fixtures__/poolsAndLanes";
-import {
-    collaborationProcessesOf,
-    processesDrawnWithoutAPool,
-    rootsReachedFrom,
-} from "./collaborationPools";
+import { collaborationProcessesOf, rootsReachedFrom } from "./collaborationPools";
 import { poolRelationsOf } from "./poolRelations";
 
 const PROCESSES = `
@@ -99,35 +95,5 @@ describe("rootsReachedFrom", () => {
         const { roots } = await rootsIn(`${PROCESSES}${LANE_PROCESS}`, "Process_A");
 
         expect(roots).toEqual(["Process_A"]);
-    });
-});
-
-describe("processesDrawnWithoutAPool", () => {
-    const planeOf = (owner: string) => `
-  <bpmndi:BPMNDiagram xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" id="Diagram_${owner}">
-    <bpmndi:BPMNPlane id="Plane_${owner}" bpmnElement="${owner}" />
-  </bpmndi:BPMNDiagram>`;
-    const SEMANTIC = `
-  <bpmn:collaboration id="Collab_1">
-    <bpmn:participant id="Pool_A" processRef="Process_A" />
-    <bpmn:participant processRef="Process_B" />
-  </bpmn:collaboration>${PROCESSES}
-  <bpmn:process id="Process_L">
-    <bpmn:laneSet id="LaneSet_L"><bpmn:lane id="Lane_L" /></bpmn:laneSet>
-  </bpmn:process>`;
-
-    async function drawnWithoutAPool(semantic: string) {
-        return [...processesDrawnWithoutAPool(await definitionsOf(semantic))].sort();
-    }
-
-    it("answers the processes a collaboration's plane draws that no pool of it names", async () => {
-        expect(await drawnWithoutAPool(`${SEMANTIC}${planeOf("Collab_1")}`)).toEqual([
-            "Process_B",
-            "Process_L",
-        ]);
-    });
-
-    it("answers none without a collaboration's plane, though a process with lanes has one of its own", async () => {
-        expect(await drawnWithoutAPool(`${SEMANTIC}${planeOf("Process_L")}`)).toEqual([]);
     });
 });

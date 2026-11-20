@@ -53,6 +53,11 @@ const ON_ITS_OWN_DIAGRAM = `${SEMANTIC}${diagram("BPMNDiagram_1", "Collaboration
 </bpmn:definitions>
 `;
 
+/** The collaboration's plane stays, yet no side of it draws the process's lane or task. */
+const POOL_ONLY = `${SEMANTIC}${diagram("BPMNDiagram_1", "Collaboration_1", POOL)}
+</bpmn:definitions>
+`;
+
 async function automaticMerge(versions: MergeVersions) {
     const decisions = MergeDecisions.from(await computeMerge(versions));
     return buildMerged(await prepareMergeSources(versions), decisions);
@@ -86,5 +91,24 @@ describe("buildMerged: a process with lanes that no pool names", () => {
         });
 
         expect(xml).toBe(ON_THE_COLLABORATION_PLANE);
+    });
+
+    it("keeps incoming's own diagram when current's collaboration plane draws nothing of the process", async () => {
+        const { xml } = await automaticMerge({
+            current: POOL_ONLY,
+            incoming: ON_ITS_OWN_DIAGRAM,
+        });
+
+        expect(xml).toBe(ON_ITS_OWN_DIAGRAM);
+    });
+
+    it("keeps the own diagram when incoming's collaboration plane draws nothing of the process", async () => {
+        const { xml } = await automaticMerge({
+            base: ON_ITS_OWN_DIAGRAM,
+            current: ON_ITS_OWN_DIAGRAM,
+            incoming: POOL_ONLY,
+        });
+
+        expect(xml).toBe(ON_ITS_OWN_DIAGRAM);
     });
 });

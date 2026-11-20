@@ -185,11 +185,12 @@ parser and asserts that the module still loads.
   parent, lane, host or between other ends, since bpmn-js reads lane membership and
   attachment from geometry, and from the other side when neither draws it in place: a
   process one side drew only through a pool the result drops takes the other side's
-  plane, unless a pool of the result draws it. A side whose collaboration's plane draws a
-  process that no pool names (one with lanes, or one only a participant without an id names)
-  draws it, though the process has no plane there, so the other side's diagram of it neither
-  takes its lanes nor stays behind empty (#2719); `computeMerge` reads this from the
-  definitions the mergeability check already parsed (`processesDrawnWithoutAPool`). A pool
+  plane, unless a pool of the result draws it. A process no pool names (one with lanes, or
+  one only a participant without an id names) is drawn by a side whose collaboration's plane
+  holds a shape or edge of something inside it, though the process has no plane there, so the
+  other side's diagram of it neither takes its lanes nor stays behind empty (#2719). A side
+  that keeps the collaboration's plane but draws nothing of the process does not draw it, or
+  its lanes would land on the pools. `VersionSnapshots` reads this from the side's snapshots. A pool
   and the lanes of its process take one side, chosen from all their layouts as for one element, or the other side when only that one
   draws no lane the result leaves out; lanes are stacked, and lanes from both sides overlapped
   (28 times on the #2565 harvest). A lane follows no container, and one that side does not
