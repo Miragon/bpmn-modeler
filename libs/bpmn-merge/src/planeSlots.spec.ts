@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
-import { PlaneSlots } from "./planeSlots";
+import { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const plane = (owner: string) => `
   <bpmndi:BPMNDiagram id="Diagram_${owner}">
@@ -43,7 +43,7 @@ describe("PlaneSlots", () => {
         expect(slots.slotOf("Process_A")).toBe(slots.slotOf("Collab_1"));
         expect(slots.slotOf("Process_B")).toBe(slots.slotOf("Collab_1"));
         expect(slots.slotOf("Process_C")).not.toBe(slots.slotOf("Collab_1"));
-        expect(slots.isRoot(slots.slotOf("Collab_1"))).toBe(true);
+        expect(slots.slotOf("Collab_1").isRoot).toBe(true);
     });
 
     it("gives a sub-process's plane a slot of its own that is no root slot", async () => {
@@ -51,7 +51,7 @@ describe("PlaneSlots", () => {
         const slots = new PlaneSlots({ current: index, incoming: index });
 
         expect(slots.slotOf("Sub_A")).not.toBe(slots.slotOf("Process_A"));
-        expect(slots.isRoot(slots.slotOf("Sub_A"))).toBe(false);
+        expect(slots.slotOf("Sub_A").isRoot).toBe(false);
     });
 
     it("reads one document's slots as the document merged with itself", async () => {
@@ -63,5 +63,47 @@ describe("PlaneSlots", () => {
 
         expect(slots.slotOf("Process_A")).toBe(slots.slotOf("Collab_1"));
         expect(slots.slotOf("Process_C")).not.toBe(slots.slotOf("Collab_1"));
+    });
+
+    it("names a joined root slot after the collaboration that wraps its processes", async () => {
+        const current = await indexOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
+        const incoming = await indexOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
+        const slots = new PlaneSlots({ current, incoming });
+
+        expect(slots.slotOf("Process_A").equals(new PlaneSlot("root", "Collab_1"))).toBe(true);
+        expect(slots.slotOf("Sub_A").equals(new PlaneSlot("subProcess", "Sub_A"))).toBe(true);
+    });
+
+    it.each<[string, string, boolean]>([
+        ["the collaboration's own plane", "Collab_1", true],
+        ["a process plane the collaboration wraps", "Process_B", true],
+        ["a process plane the collaboration does not wrap", "Process_C", false],
+        ["a sub-process plane inside a wrapped process", "Sub_A", false],
+    ])("tells whether the joined root slot holds %s (%s)", async (_case, planeOwner, holds) => {
+        const current = await indexOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
+        const incoming = await indexOf(`${COLLABORATION}${PROCESSES}`, [plane("Collab_1")]);
+        const slots = new PlaneSlots({ current, incoming });
+
+        expect(slots.holds(slots.slotOf("Process_A"), planeOwner)).toBe(holds);
+    });
+});
+
+describe("PlaneSlot", () => {
+    it.each<[string, PlaneSlot, PlaneSlot, boolean]>([
+        [
+            "two root slots of one owner",
+            new PlaneSlot("root", "P"),
+            new PlaneSlot("root", "P"),
+            true,
+        ],
+        ["root slots of two owners", new PlaneSlot("root", "P"), new PlaneSlot("root", "Q"), false],
+        [
+            "a root and a sub-process slot of one owner",
+            new PlaneSlot("root", "P"),
+            new PlaneSlot("subProcess", "P"),
+            false,
+        ],
+    ])("compares %s by value", (_case, left, right, equal) => {
+        expect(left.equals(right)).toBe(equal);
     });
 });
