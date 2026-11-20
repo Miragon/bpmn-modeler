@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -21,9 +19,10 @@ import {
     type DeploymentSidebarCommandType,
     type DeploymentTargetPayload,
     type MessageOfType,
+    previewRouteOf,
 } from "@miragon/bpmn-modeler-shared";
 
-import { previewRouteOf } from "./previewCommands";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 import { PreviewHost } from "./previewHost";
 
 type Reply = { type: string } & Record<string, unknown>;
@@ -317,26 +316,14 @@ describe("PreviewHost", () => {
         expect(targetNames(targets)).toEqual(["dev", "prod"]);
     });
 
-
-    it("logs an unknown message without replying", () => {
-        // @ts-expect-error No sidebar command has this type.
-        previewHost().postMessage({ type: "NotAProtocolMessage" });
-
-        expect(replies).toEqual([]);
-        expect(console.debug).toHaveBeenCalledWith(
-            "[DEBUG] Unhandled message type:",
-            "NotAProtocolMessage",
-        );
-    });
-
-    it.each(["toString", "constructor", "hasOwnProperty"])(
-        "logs a message whose type names the inherited %s as unhandled",
+    it.each(["NotAProtocolMessage", "toString"])(
+        "rejects a message of type %s without replying",
         (type) => {
-            // @ts-expect-error No sidebar command has this type.
-            previewHost().postMessage({ type });
+            const host = previewHost();
 
+            // @ts-expect-error No sidebar command has this type.
+            expect(() => host.postMessage({ type })).toThrow(`Unknown message type: ${type}`);
             expect(replies).toEqual([]);
-            expect(console.debug).toHaveBeenCalledWith("[DEBUG] Unhandled message type:", type);
         },
     );
 
@@ -353,8 +340,8 @@ describe("PreviewHost", () => {
 
     it.each(
         Object.values(SIDEBAR_COMMANDS).flatMap((command) => {
-            const route = previewRouteOf(command.type);
-            return route && "ignored" in route ? [{ command, reason: route.ignored }] : [];
+            const route = previewRouteOf(PREVIEW_COMMANDS, command.type);
+            return "ignored" in route ? [{ command, reason: route.ignored }] : [];
         }),
     )("says why it drops a $command.type", ({ command, reason }) => {
         previewHost().postMessage(command);
@@ -364,12 +351,5 @@ describe("PreviewHost", () => {
             `[DEBUG] ${command.type} ignored: ${reason}`,
             command,
         );
-    });
-
-    // Rollup keeps a module-level statement holding an interpolated template literal, so the table would ship in production.
-    it("writes each drop reason as a plain string, which leaves the table out of the production bundle", () => {
-        const table = readFileSync(join(__dirname, "previewCommands.ts"), "utf8");
-
-        expect(table).not.toMatch(/ignored:\s*`/);
     });
 });

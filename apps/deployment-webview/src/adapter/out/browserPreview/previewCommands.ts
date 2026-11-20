@@ -1,7 +1,6 @@
 import type {
     DeploymentSidebarCommand,
-    DeploymentSidebarCommandType,
-    MessageOfType,
+    PreviewCommandTable,
     Query,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -17,17 +16,7 @@ export interface PreviewSession {
     reply(...queries: readonly Query[]): void;
 }
 
-/** What the preview does with a command, or why it drops it. */
-export type PreviewRoute<TType extends DeploymentSidebarCommandType> =
-    | ((command: MessageOfType<TType>, preview: PreviewSession) => void)
-    | { readonly ignored: string };
-
-/** A row per sidebar command: a command without one fails to compile. */
-type PreviewCommandTable = {
-    readonly [TType in DeploymentSidebarCommandType]: PreviewRoute<TType>;
-};
-
-const PREVIEW_COMMANDS: PreviewCommandTable = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<DeploymentSidebarCommand, PreviewSession> = {
     LogInfoCommand: ({ message }) => console.info(message),
     LogErrorCommand: ({ message }) => console.error(message),
     RequestFormDefaultsCommand: (_, preview) =>
@@ -51,35 +40,3 @@ const PREVIEW_COMMANDS: PreviewCommandTable = {
     },
     RequestPayloadFilesCommand: (_, preview) => preview.reply(noPayloadFile()),
 };
-
-/** The row of a command type, or undefined for a type without one, an inherited object member's included. */
-export function previewRouteOf(
-    type: string,
-): PreviewRoute<DeploymentSidebarCommandType> | undefined {
-    if (!Object.hasOwn(PREVIEW_COMMANDS, type)) {
-        return undefined;
-    }
-    return PREVIEW_COMMANDS[
-        type as DeploymentSidebarCommandType
-    ] as PreviewRoute<DeploymentSidebarCommandType>;
-}
-
-export function routePreviewCommand(
-    command: DeploymentSidebarCommand,
-    preview: PreviewSession,
-): void {
-    const route = previewRouteOf(command.type);
-    if (!route) {
-        console.debug("[DEBUG] Unhandled message type:", command.type);
-        return;
-    }
-    if ("ignored" in route) {
-        console.debug(`[DEBUG] ${command.type} ignored: ${route.ignored}`, command);
-        return;
-    }
-    // Sound because the table hands each row only commands of its own key's type.
-    (route as (command: DeploymentSidebarCommand, preview: PreviewSession) => void)(
-        command,
-        preview,
-    );
-}

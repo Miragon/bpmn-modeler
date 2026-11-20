@@ -289,7 +289,12 @@ IntelliJ, or a plain browser. Two implementations back it:
   table in `browserPreview/previewCommands.ts`: a new webview command needs a
   row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
   The deployment-webview's `PreviewHost` follows the same shape in its own
-  `adapter/out/browserPreview/`.
+  `adapter/out/browserPreview/`. Each table is a `PreviewCommandTable` and is
+  routed by `routePreviewCommand`, both beside `MockHostApi` in `libs/shared`,
+  so a webview keeps only its table and its session. A reason is a plain string:
+  `previewCommandTables.spec.ts` in `tools/repo-checks` rejects an interpolated
+  template literal that runs at load in a table's modules, since it keeps the
+  table in the production bundle.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts
