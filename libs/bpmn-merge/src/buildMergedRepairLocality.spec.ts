@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
 import { computeDiff } from "@miragon/bpmn-modeler-diff";
+import { elementsRedrawnBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { seededRandom } from "./__fixtures__/randomMergeVersions";
 import { type BuildNote, buildMerged, buildMergedWith } from "./buildMerged";
 import { prepareMergeSources } from "./buildMergedSources";
-import { elementsRedrawnBy } from "./buildNoteElements";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import { DrawingDraft } from "./layoutDrawingDraft";

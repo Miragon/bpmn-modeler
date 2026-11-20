@@ -1,6 +1,7 @@
 import {
     type MergeBuildNoteContent,
     type MergeBuildNoteOfKind,
+    type MergeElementAndShapesNote,
     type MergeNoteRepairOf,
     type MergeOverlapNote,
     type MergeRepairedNoteKind,
@@ -41,11 +42,6 @@ type NoteWordings = {
           }
         : Wording<MergeBuildNoteOfKind<Kind>>;
 };
-
-/** A flow and the shapes it misses or runs through, or a shape and the containers it lies outside. */
-type ElementAndShapesNote = MergeBuildNoteOfKind<
-    "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer"
->;
 
 /** A shape and the containers it lies outside. */
 type OutsideContainerNote = MergeBuildNoteOfKind<"shapeOutsideContainer">;
@@ -168,7 +164,7 @@ function sharingNames<Note, Variant extends string>(
 }
 
 function elementAndShapesNames(
-    note: ElementAndShapesNote,
+    note: MergeElementAndShapesNote,
     names: CanvasNames,
 ): Record<string, string> {
     return { element: names.one(note.id), shapes: names.list(note.shapes) };
