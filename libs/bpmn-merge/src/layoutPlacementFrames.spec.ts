@@ -4,7 +4,7 @@ import { PLANE, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds } from "./layoutGeometry";
 import type { LaneShape, LayoutModel, LayoutShape } from "./layoutModel";
-import { FrameFit, innerBoundsOf } from "./layoutPlacementFrames";
+import { FrameFit, growthToHold, holdsLevel, innerBoundsOf } from "./layoutPlacementFrames";
 import { ShapeGroups } from "./layoutShapeGroups";
 
 const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
@@ -45,6 +45,51 @@ describe("innerBoundsOf", () => {
         const subProcess = node("Sub_1", { expanded: true, bounds: box(100, 100, 400, 200) });
 
         expect(innerBoundsOf(subProcess)).toEqual(box(110, 130, 380, 160));
+    });
+});
+
+describe("holdsLevel", () => {
+    const upper = lane("Lane_1", box(30, 0, 1170, 150));
+
+    it("holds bounds that lie in the lane's band off its border", () => {
+        expect(holdsLevel(upper, box(300, 10, 100, 130))).toBe(true);
+    });
+
+    it.each([
+        ["above the band", box(300, 5)],
+        ["below the band", box(300, 100)],
+    ])("holds no bounds reaching %s, wherever they lie sideways", (_, bounds) => {
+        expect(holdsLevel(upper, bounds)).toBe(false);
+    });
+});
+
+describe("growthToHold", () => {
+    const frame = pool("Pool_1", box(0, 0, 600, 200));
+
+    it("grows no side of a frame that holds the bounds off its border", () => {
+        expect(growthToHold([frame], box(100, 60))).toEqual({
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+        });
+    });
+
+    it("grows each side the bounds pass, as far as the frame needing most", () => {
+        const narrower = lane("Lane_1", box(30, 0, 500, 200));
+
+        expect(growthToHold([frame, narrower], box(520, 150, 100, 80))).toEqual({
+            left: 0,
+            right: 100,
+            top: 0,
+            bottom: 40,
+        });
+        expect(growthToHold([frame, narrower], box(20, -20))).toEqual({
+            left: 50,
+            right: 0,
+            top: 30,
+            bottom: 0,
+        });
     });
 });
 

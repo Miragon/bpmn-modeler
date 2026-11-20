@@ -39,8 +39,7 @@ function grownFor(layout: LayoutModel, id: string, frameIds: readonly string[]) 
     return growFrameFor(draft, context, groups.of(draft, draft.node(id)!), frames);
 }
 
-const boundsIn = (grown: FrameGrown | undefined, id: string) =>
-    grown?.draft.shapes.get(id)?.bounds;
+const boundsIn = (grown: FrameGrown | undefined, id: string) => grown?.draft.shapes.get(id)?.bounds;
 
 describe("growFrameFor", () => {
     const wideBox = pool("Pool_1", box(0, 0, 1200, 600));
