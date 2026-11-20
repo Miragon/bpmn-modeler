@@ -11,18 +11,19 @@ import {
     keepsEverythingInside,
     type MergePadDecision,
     mergePadDecisions,
-    type MergePadOffers,
     type MergePadStates,
     type MergeRowDecision,
     mergeRowDecisions,
     type MergeRowStates,
-    offersMergeXml,
 } from "./mergePadDecisions";
+import type { MergePadOffers } from "./mergeElementPick";
 
 const states = (overrides: Partial<MergePadStates> = {}): MergePadStates => ({
     caption: { side: "incoming", role: "upstream" },
     pickable: [{ id: "Task_1" }],
     badges: [],
+    picksNotDrawn: [],
+    shapelessRows: [],
     ...overrides,
 });
 
@@ -524,16 +525,5 @@ describe("decidesInMenu", () => {
         [false, false],
     ])("a step without a shape %s → decided in the menu %s", (shapeless, expected) => {
         expect(decidesInMenu({ shapeless })).toBe(expected);
-    });
-});
-
-describe("offersMergeXml", () => {
-    it.each([
-        [{ handMergeable: true } as const, true, true],
-        [{ handMergeable: true } as const, false, false],
-        [{}, true, false],
-        [{}, false, false],
-    ])("an element %o, the host offering a merge editor: %s → %s", (element, offered, expected) => {
-        expect(offersMergeXml(element, { elementXmlMerge: offered })).toBe(expected);
     });
 });

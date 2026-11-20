@@ -11,6 +11,7 @@ import { computeMerge, type MergeVersions } from "./computeMerge";
 import { BUILD_LAYOUT_REPAIRS, type LayoutRepairPlanners } from "./layoutDrawingRepair";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
+import { runsOn } from "./layoutFlowClashes";
 import { areaOutside, inflated, liesWithin, sameBounds } from "./layoutGeometry";
 import { type LayoutModel, framesOf, isFrame, nodeShapeIn } from "./layoutModel";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
@@ -173,8 +174,7 @@ const CASES: readonly HarvestCase[] = [
             [33, "conflictsToCurrent", 2],
             [36, "conflictsToCurrent", 0],
             [36, "conflictsToIncoming", 0],
-            // Room is made inside Ship instead of carrying Sub_N1 out of it, and Reject's flows cross once more.
-            [69, "conflictsToIncoming", 1],
+            [69, "conflictsToIncoming", 0],
             [74, "conflictsToCurrent", 0],
             [74, "conflictsToIncoming", 0],
             [113, "conflictsToCurrent", 0],
@@ -335,7 +335,7 @@ describe("the shapes the layout repair moves off another", () => {
         [74, "conflictsToCurrent"],
         [74, "conflictsToIncoming"],
     ] as const)(
-        "seed %i, %s: come no further out of their sub-process, and no flow beside them nor label comes within the shape clearance",
+        "seed %i, %s: come no further out of their sub-process, no flow beside them nor label comes within the shape clearance, and their flows run on no other",
         { timeout: 20_000 },
         async (seed, strategy) => {
             const versions = versionsOf(seed);
@@ -366,6 +366,7 @@ describe("the shapes the layout repair moves off another", () => {
                 const box = groupBoundsIn(layout, group);
                 const flows = foreignFlowsNear(draft, group, inflated(box, SHAPE_CLEARANCE));
                 expect(crampsNoFlow(box, flows, SHAPE_CLEARANCE), id).toBe(true);
+                expect(flowsRunOnOthers(layout, group.attachedEdges), id).toEqual([]);
             }
         },
     );
@@ -478,6 +479,16 @@ function unaccountedContainerMoves(
         ...changed.filter((change) => !goesWithANote(change)).map(({ shape }) => shape.id),
         ...drawnThereByBoth,
     ];
+}
+
+/** The flows that run on another of their plane, as the layout repair weighs a room's flows. */
+function flowsRunOnOthers(layout: LayoutModel, flows: readonly string[]): string[] {
+    return flows.flatMap((id) => {
+        const edge = layout.edges.get(id)!;
+        return [...layout.edges.values()]
+            .filter((other) => other.id !== id && other.plane === edge.plane && runsOn(edge, other))
+            .map((other) => `${id} on ${other.id}`);
+    });
 }
 
 function kindsOf(spots: readonly LayoutSpot[]): LayoutSpot["kind"][] {
