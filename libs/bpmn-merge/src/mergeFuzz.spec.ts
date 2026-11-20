@@ -429,6 +429,21 @@ function expectPanesShowEveryPick(
                 ),
             );
         expect(notAllInside, `${label}: with everything inside on ${side}'s pane`).toEqual([]);
+        const pickableById = new Map(view.pickable.map((entry) => [entry.id, entry]));
+        for (const { id, scope } of shown) {
+            expect(pickableById.get(id)?.undo, `${label}: ${id}'s undo on ${side}'s pane`).toBe(
+                scope,
+            );
+        }
+        for (const row of view.shapelessRows) {
+            const pickable = pickableById.get(row.id);
+            expect(row.pick?.scope, `${label}: ${row.id}'s row on ${side}'s pane`).toBe(
+                pickable?.undo,
+            );
+            expect(row.handMergeable, `${label}: ${row.id}'s row on ${side}'s pane`).toBe(
+                pickable?.handMergeable,
+            );
+        }
     }
     const touched = picks[picks.length - 1]?.id;
     const undo = views[0][1].pickable.find(({ id }) => id === touched)?.undo;
