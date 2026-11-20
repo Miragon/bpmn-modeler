@@ -28,7 +28,7 @@ const PREVIEW_HOST_THEMES: Readonly<Record<string, HostColorThemeKind>> = {
  * Reads the query flags
  * `state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
  * `reveal=<add-on id or name>`, `preset=needsReview` (Review Add-ons, after any reveal),
- * `stale=1` (the first allow is refused as stale), `theme=dark|hc`,
+ * `stale=1` (the first allow is refused as stale), `theme=dark|hc` (the brand mode a host would post; light without it),
  * `page=listWithTab|detail` (which page a host serves) and `show=<add-on id or name>` (a detail page's add-on).
  */
 export function previewFlagsOf(flags: URLSearchParams): PreviewFlags {

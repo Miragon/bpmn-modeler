@@ -51,11 +51,10 @@ starts a merge pane with Merge XML offered. Workspace definition search answers 
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
 decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
 preview serves `apps/add-ons-webview/src/adapter/out/browserPreview/mockCatalog.ts`;
-`?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
-`?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after
-any reveal), `?stale=1` (the first allow is refused as
-stale) and `?theme=dark|hc` (the brand mode a host would post; light without
-it) pick what it shows. Resize the window across 640px to see both layouts:
+its query flags pick the catalog state, a revealed add-on, the Review preset, a
+stale first allow, the brand theme, the page and a detail page's add-on, and
+`previewFlagsOf` in `browserPreview/previewFlags.ts` lists each flag with its
+values. Resize the window across 640px to see both layouts:
 two panes from 640px, the drill-down with Back below (container queries, so
 no reload). Drive it by clicking and with Tab, arrow keys in the tabs and the
 "…" menus, and read the accessibility snapshot; after load the page has
