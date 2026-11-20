@@ -5,39 +5,23 @@ import {
     box,
     flow,
     group,
-    lane as buildLane,
-    layoutOf as buildLayout,
-    node as buildNode,
-    pool,
+    laneInPool,
+    nodeInPoolLane as node,
+    poolOfLanes,
+    poolWithLaneHolding as layoutOf,
 } from "./__fixtures__/layoutShapes";
 import { type FlowRepairPlanner, planFlowRepairs } from "./layoutFlowRepair";
 import { type DiagramBounds, liesWithin } from "./layoutGeometry";
-import type {
-    GroupShape,
-    LaneShape,
-    LayoutEdge,
-    LayoutModel,
-    LayoutShape,
-    NodeShape,
-} from "./layoutModel";
+import type { GroupShape, LaneShape, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, isFlowSpot } from "./layoutSpots";
 
-const node = (id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}) =>
-    buildNode(id, { bounds, pool: "Pool_1", lanes: ["Lane_1"], ...relations });
-
-const POOL = pool("Pool_1", box(0, 0, 1200, 300));
+const POOL = poolOfLanes();
 
 /** A lane of the pool's full width, `y` to `y + height`. */
 const lane = (y: number, height: number, width = 1170) =>
-    buildLane("Lane_1", box(30, y, width, height), { pool: "Pool_1" });
-
-const layoutOf = (
-    shapes: readonly LayoutShape[],
-    edges: readonly LayoutEdge[] = [],
-    frames: readonly LayoutShape[] = [POOL, lane(0, 300)],
-) => buildLayout([...frames, ...shapes], edges);
+    laneInPool("Lane_1", box(30, y, width, height));
 
 const overlapsOf = (layout: LayoutModel): LayoutSpot[] =>
     detectLayoutSpots(layout).filter(({ kind }) => kind === "shapesOverlap");

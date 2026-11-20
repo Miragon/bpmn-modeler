@@ -98,11 +98,54 @@ export function layoutOf(
     };
 }
 
+/** The plane a process without a pool draws on: its own, where its lanes lie too. */
+export const PROCESS_PLANE = "Process_1";
+
+/** The layout redrawn as a process without a pool draws it: every shape and edge on `PROCESS_PLANE`. */
+export function onProcessPlane(layout: LayoutModel): LayoutModel {
+    const processPlane = rootPlane(PROCESS_PLANE);
+    return layoutOf(
+        [...layout.shapes.values()].map((shape) => ({ ...shape, ...processPlane })),
+        [...layout.edges.values()].map((edge) => ({ ...edge, plane: PROCESS_PLANE })),
+    );
+}
+
 /** Two lanes stacked on a plane without a pool, `Lane_1` above `Lane_2`, holding the nodes. */
 export function planeLanesWith(nodes: readonly NodeShape[]): LayoutModel {
-    return layoutOf([
-        lane("Lane_1", box(30, 70, 1170, 120)),
-        lane("Lane_2", box(30, 190, 1170, 110)),
-        ...nodes,
-    ]);
+    return onProcessPlane(
+        layoutOf([
+            lane("Lane_1", box(30, 70, 1170, 120)),
+            lane("Lane_2", box(30, 190, 1170, 110)),
+            ...nodes,
+        ]),
+    );
+}
+
+const POOL_OF_LANES = "Pool_1";
+
+/** `Pool_1`, the pool `poolWithLaneHolding` draws, 1200 by 300 unless the bounds say otherwise. */
+export const poolOfLanes = (bounds: DiagramBounds = box(0, 0, 1200, 300)): PoolShape =>
+    pool(POOL_OF_LANES, bounds);
+
+/** A lane of `Pool_1`, by default its one lane of the pool's full width. */
+export const laneInPool = (
+    id: string,
+    bounds: DiagramBounds = box(30, 0, 1170, 300),
+    relations: Partial<LaneShape> = {},
+): LaneShape => lane(id, bounds, { pool: POOL_OF_LANES, ...relations });
+
+/** A node in `Pool_1`'s `Lane_1`. */
+export const nodeInPoolLane = (
+    id: string,
+    bounds: DiagramBounds,
+    relations: Partial<NodeShape> = {},
+): NodeShape => node(id, { bounds, pool: POOL_OF_LANES, lanes: ["Lane_1"], ...relations });
+
+/** `Pool_1` with its one full-width lane `Lane_1`, or the frames given, holding the shapes. */
+export function poolWithLaneHolding(
+    shapes: readonly LayoutShape[],
+    edges: readonly LayoutEdge[] = [],
+    frames: readonly LayoutShape[] = [poolOfLanes(), laneInPool("Lane_1")],
+): LayoutModel {
+    return layoutOf([...frames, ...shapes], edges);
 }

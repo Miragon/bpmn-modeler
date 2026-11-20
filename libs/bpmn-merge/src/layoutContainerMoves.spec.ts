@@ -4,34 +4,19 @@ import {
     at,
     box,
     flow,
-    lane as buildLane,
-    layoutOf as buildLayout,
-    node as buildNode,
-    pool as buildPool,
+    laneInPool as lane,
+    nodeInPoolLane as node,
+    poolOfLanes as pool,
+    poolWithLaneHolding as layoutOf,
 } from "./__fixtures__/layoutShapes";
 import { subProcessPlane } from "./__fixtures__/shapePlane";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
-import { type DiagramBounds, liesWithin } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import { liesWithin } from "./layoutGeometry";
+import type { LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { innerBoundsOf } from "./layoutPlacementFrames";
 import type { LayoutSpot } from "./layoutSpots";
-
-const node = (id: string, bounds: DiagramBounds, relations: Partial<NodeShape> = {}) =>
-    buildNode(id, { bounds, pool: "Pool_1", lanes: ["Lane_1"], ...relations });
-
-const pool = (bounds = box(0, 0, 1200, 300)) => buildPool("Pool_1", bounds);
-
-const lane = (id: string, bounds: DiagramBounds) => buildLane(id, bounds, { pool: "Pool_1" });
-
-const FRAMES = [pool(), lane("Lane_1", box(30, 0, 1170, 300))];
-
-const layoutOf = (
-    shapes: readonly LayoutShape[],
-    edges: readonly LayoutEdge[] = [],
-    frames: readonly LayoutShape[] = FRAMES,
-) => buildLayout([...frames, ...shapes], edges);
 
 function planOf(result: LayoutModel, sides: readonly LayoutModel[]): ContainerMovePlan {
     return planContainerMoves(result, introducedLayoutSpots(result, sides), sides);

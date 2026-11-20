@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { box, lane, node, pool as buildPool } from "./__fixtures__/layoutShapes";
+import { box, lane, laneInPool, node, poolOfLanes } from "./__fixtures__/layoutShapes";
 import type { Axis } from "./layoutAxis";
 import { type GrowingFrame, growingFrameOf } from "./layoutFrameGrowth";
 import type { FrameScope } from "./layoutFrames";
 
 describe("growingFrameOf", () => {
-    const pool = buildPool("Pool_1", box(0, 0, 1200, 300));
-    const laneInPool = lane("Lane_1", box(30, 0, 1170, 300), { pool: "Pool_1" });
+    const pool = poolOfLanes();
+    const poolLane = laneInPool("Lane_1");
     const planeLane = lane("Lane_1", box(30, 0, 1170, 300));
     const subProcess = node("Sub_1", {
         bounds: box(100, 50, 300, 200),
@@ -30,9 +30,9 @@ describe("growingFrameOf", () => {
         ],
         [
             "a lane of a pool down",
-            { container: pool, lane: laneInPool },
+            { container: pool, lane: poolLane },
             "y",
-            { kind: "laneDown", lane: laneInPool, pool, keepsPoolsLevel: true },
+            { kind: "laneDown", lane: poolLane, pool, keepsPoolsLevel: true },
         ],
         [
             "a lane on a plane without a pool down",
@@ -42,7 +42,7 @@ describe("growingFrameOf", () => {
         ],
         [
             "the pool, not the lane, along x",
-            { container: pool, lane: laneInPool },
+            { container: pool, lane: poolLane },
             "x",
             { kind: "pool", pool, keepsPoolsLevel: false },
         ],

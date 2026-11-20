@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
     PLANE,
+    PROCESS_PLANE,
     box,
     flow,
     lane,
     layoutOf,
     node as buildNode,
+    onProcessPlane,
     pool,
 } from "./__fixtures__/layoutShapes";
 import type { Axis } from "./layoutAxis";
@@ -46,7 +48,7 @@ function drawingAlong(axis: Axis): LayoutModel {
         node(axis, "Task_S", box(400, 360), { subProcesses: ["Sub_1"] }),
     ];
     const route = [point(axis, 200, 140), point(axis, 300, 140)];
-    return layoutOf(shapes, [flow("Flow_1", "Task_A", "Task_B", route)]);
+    return onProcessPlane(layoutOf(shapes, [flow("Flow_1", "Task_A", "Task_B", route)]));
 }
 
 describe("SpaceTool.openBand", () => {
@@ -60,11 +62,11 @@ describe("SpaceTool.openBand", () => {
         tool.openBand({
             line: 340,
             by: 100,
-            units: tool.unitsIn(PLANE, undefined, new Set()),
+            units: tool.unitsIn(PROCESS_PLANE, undefined, new Set()),
             frames,
             growing: new Set(["Frame_Open"]),
         });
-        tool.stretchEdges(PLANE, new Set(), 340);
+        tool.stretchEdges(PROCESS_PLANE, new Set(), 340);
 
         const boundsOf = (id: string) => trial.shapes.get(id)!.bounds;
         expect(boundsOf("Task_A")).toEqual(oriented(axis, box(100, 100)));
@@ -87,7 +89,7 @@ describe("SpaceTool.openBand", () => {
         const before = DrawingDraft.of(layout);
         const trial = before.fork();
         const tool = new SpaceTool(before, trial, new ShapeGroups(layout), "x");
-        const units = tool.unitsIn(PLANE, undefined, new Set());
+        const units = tool.unitsIn(PROCESS_PLANE, undefined, new Set());
         tool.shiftUnit(
             units.find(({ id }) => id === "Task_B")!,
             50,
@@ -105,7 +107,7 @@ describe("SpaceTool.openBand", () => {
             frame("x", "Lane_Child", box(430, 0, 370, 600), { parent: "Lane_Past" }),
             frame("x", "Lane_Nested", box(600, 0, 200, 600), { parent: "Lane_Open" }),
         ];
-        const layout = layoutOf(shapes);
+        const layout = onProcessPlane(layoutOf(shapes));
         const before = DrawingDraft.of(layout);
         const tool = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "x");
 
@@ -113,7 +115,7 @@ describe("SpaceTool.openBand", () => {
             line: 340,
             by: 100,
             units: [],
-            frames: [...shapes].reverse(),
+            frames: [...layout.shapes.values()].reverse(),
             growing: new Set(["Lane_Open"]),
         });
 
@@ -127,7 +129,7 @@ describe("SpaceTool.shiftedBy", () => {
         const layout = drawingAlong("x");
         const before = DrawingDraft.of(layout);
         const units = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "x").unitsIn(
-            PLANE,
+            PROCESS_PLANE,
             undefined,
             new Set(),
         );
