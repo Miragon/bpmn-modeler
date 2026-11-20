@@ -13,6 +13,7 @@ import { stretchedEdge } from "./layoutEdgeStretch";
 import { type DiagramBounds, bordersAt, centerOf, translated } from "./layoutGeometry";
 import {
     type LaneShape,
+    type LayoutModel,
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
@@ -68,6 +69,13 @@ export class SpaceTool {
     /** The outermost shapes that gave way, pools among them, in document order. */
     get shifted(): string[] {
         return [...this.before.shapes.keys()].filter((id) => this.shiftedUnits.has(id));
+    }
+
+    static shiftedBy(
+        _drawing: LayoutModel,
+        _tools: readonly Pick<SpaceTool, "shifted">[],
+    ): string[] {
+        return [];
     }
 
     /** Every shape that moved, frames among them. */

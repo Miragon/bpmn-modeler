@@ -411,7 +411,7 @@ describe("planShapeMoves", () => {
                         kind: "madeRoom",
                         shapes: ["Task_1", "Task_Y"],
                         moved: "Task_Y",
-                        shifted: ["Task_L"],
+                        shifted: ["Lane_2", "Task_L"],
                         grown: ["Pool_1", "Lane_1"],
                     },
                 ]);
