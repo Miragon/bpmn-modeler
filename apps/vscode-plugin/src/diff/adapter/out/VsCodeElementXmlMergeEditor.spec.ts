@@ -55,14 +55,14 @@ let inputs: InMemoryFileSystemProvider;
 let results: InMemoryFileSystemProvider;
 let finished: { key: string; written: string | undefined }[];
 let editor: VsCodeElementXmlMergeEditor;
-let logError: ReturnType<typeof vi.fn>;
+let logError: ReturnType<typeof vi.fn<(error: string | Error) => void>>;
 
 function registeredEditor(onFinished: ElementXmlMergeFinished): VsCodeElementXmlMergeEditor {
     inputs = new InMemoryFileSystemProvider({ readOnly: true });
     results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
     workspace.registerFileSystemProvider(MERGE_XML_SCHEME, inputs);
     workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results);
-    logError = vi.fn();
+    logError = vi.fn<(error: string | Error) => void>();
     const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished, { logError });
     registered.register({ subscriptions: [] } as unknown as ExtensionContext);
     return registered;
@@ -260,6 +260,7 @@ describe("VsCodeElementXmlMergeEditor", () => {
         const opening = editor.open(REQUEST);
         await vi.advanceTimersByTimeAsync(MERGE_EDITOR_READY_TIMEOUT_MS);
         await opening;
+        vi.useRealTimers();
         expect(finished).toEqual([]);
 
         await editor.close(REQUEST.key);

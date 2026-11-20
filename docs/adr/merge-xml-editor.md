@@ -84,8 +84,13 @@ changed different parts to a whole pick.
   change without notice; this shape held from 1.69 to 1.146. The entry shows only when
   `commands.getCommands(false)` lists it (the filtered list hides it); otherwise the
   element is picked whole. The call cannot report a failed open: the command returns
-  before the editor loads. A merge whose editor never showed is finished without a text
-  when the merge view closes it; a rejected call finishes it at once. Theia registers the
+  before the editor loads, and until it has loaded the editor drops a save and shows the
+  marker text still. So `open` resolves only once the editor has loaded
+  (`mergeEditorIsReady`): the merge tab shows and, for a start with a line that opens with
+  `<<<<<<<`, reports dirty, which a merge tab does only once VS Code's own merge replaced
+  the start. After ten seconds it logs and resolves anyway. A merge whose editor never
+  showed is finished without a text when the merge view closes it; a rejected call
+  finishes it at once. Theia registers the
   command with the same arguments, but it has not run there and Theia's tab API reports
   the inputs swapped, so no Theia host offers the entry: `hostRunsElementXmlMergeEditor`
   rules out `env.appName` equal to the standalone app's `applicationName` (Theia 1.76's
@@ -128,6 +133,10 @@ side's change from a conflict.
   checks; only the editor's dialog warns.
 - A Ctrl+S followed by a revert or by Don't Save still counts the saved text: the provider
   cannot tell it from a save followed by a close.
+- A Ctrl+S in the moment the editor still loads (milliseconds, a few hundred for a very
+  large element) is dropped by VS Code; closing then asks to save as usual. The tab API
+  shows no load ending for a start without markers (Edit again), so its `open` resolves
+  once the tab shows, before the editor has loaded.
 - The title button (`bpmn-modeler.acceptElementXmlMerge`) shows where `resourceScheme` is
   `bpmn-merge-result`: VS Code sets that key for a merge editor from its result, which the
   `merge-xml` smoke suite clicks on 1.78.2 and stable.

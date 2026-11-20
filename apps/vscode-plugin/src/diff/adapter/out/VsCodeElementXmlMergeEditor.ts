@@ -19,6 +19,7 @@ import {
 import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
 import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
+import { mergeEditorIsReady } from "../../domain/mergeEditorReadiness";
 import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
 import { groupBelowActive } from "./editorGroupBelow";
@@ -54,7 +55,8 @@ interface OpenMerge {
  * read-only under `bpmn-merge-xml:`, the result writable under
  * `bpmn-merge-result:`, in a group below the diagrams or beside the merges
  * already open. The merge finishes when its last tab closes, with the text
- * its {@link MergeTabAnswer} names.
+ * its {@link MergeTabAnswer} names. `open` resolves once the editor has
+ * loaded (see {@link mergeEditorIsReady}), since it drops a save before.
  */
 export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     private readonly mergesByKey = new Map<string, OpenMerge>();
@@ -103,6 +105,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             this.finish(request.key, merge, undefined);
             throw error;
         }
+        await this.loaded(merge);
     }
 
     async focus(key: string): Promise<void> {
@@ -139,6 +142,32 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
         if (result) await result.save();
         const tabs = tabsShowing(merge.result);
         if (tabs.length > 0) await window.tabGroups.close(tabs, true);
+    }
+
+    // `_open.mergeEditor` returns before the editor has loaded; a merge that finished meanwhile waits no longer.
+    private loaded(merge: OpenMerge): Promise<void> {
+        const settled = () =>
+            this.mergesByKey.get(merge.request.key) !== merge ||
+            mergeEditorIsReady(merge.request.start, tabsShowing(merge.result));
+        if (settled()) return Promise.resolve();
+        return new Promise((resolve) => {
+            const subscription = window.tabGroups.onDidChangeTabs(() => {
+                if (settled()) settle();
+            });
+            const timeout = setTimeout(() => {
+                this.logger.logError(
+                    new Error(
+                        `The merge editor of ${merge.request.elementId} did not load within ${MERGE_EDITOR_READY_TIMEOUT_MS} ms.`,
+                    ),
+                );
+                settle();
+            }, MERGE_EDITOR_READY_TIMEOUT_MS);
+            function settle(): void {
+                clearTimeout(timeout);
+                subscription.dispose();
+                resolve();
+            }
+        });
     }
 
     private serve(request: ElementXmlMergeRequest): OpenMerge {
