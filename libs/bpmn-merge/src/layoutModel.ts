@@ -68,6 +68,14 @@ export function carriesSequence(edge: LayoutEdge): boolean {
     return edge.kind === "sequenceFlow";
 }
 
+/** Whether the flows leave one shape or enter one, where flows join; an end drawn on no shape is shared with none. */
+export function sharesAnEndWith(edge: LayoutEdge, other: LayoutEdge): boolean {
+    return (
+        (edge.source !== undefined && edge.source === other.source) ||
+        (edge.target !== undefined && edge.target === other.target)
+    );
+}
+
 export const FLOW_ENDS = ["source", "target"] as const;
 
 export type FlowEnd = (typeof FLOW_ENDS)[number];
