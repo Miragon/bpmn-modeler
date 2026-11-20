@@ -305,7 +305,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7"],
@@ -344,7 +344,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7"],
@@ -368,7 +368,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_4", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7"],
@@ -408,7 +408,7 @@ describe("planShapeMoves", () => {
 
                 expect(pairRepairsOf(plan)).toEqual([
                     {
-                        kind: "madeRoom",
+                        kind: "madeRoomByGrowingAndShifting",
                         shapes: ["Task_1", "Task_Y"],
                         moved: "Task_Y",
                         shifted: ["Task_L"],
@@ -490,10 +490,9 @@ describe("planShapeMoves", () => {
 
                 expect(pairRepairsOf(plan)).toEqual([
                     {
-                        kind: "madeRoom",
+                        kind: "madeRoomByGrowing",
                         shapes: ["Task_1", "Task_Y"],
                         moved: "Task_Y",
-                        shifted: [],
                         grown: ["Pool_1", "Lane_1"],
                     },
                 ]);
@@ -519,7 +518,7 @@ describe("planShapeMoves", () => {
 
                 expect(pairRepairsOf(plan)).toEqual([
                     {
-                        kind: "madeRoom",
+                        kind: "madeRoomByGrowingAndShifting",
                         shapes: ["Task_1", "Task_Y"],
                         moved: "Task_Y",
                         shifted: ["Task_N"],
@@ -605,7 +604,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_4", "Task_5", "Task_6", "Task_7", "Data_1"],
@@ -647,10 +646,9 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowing",
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
-                    shifted: [],
                     grown: ["Pool_1", "Lane_1"],
                 },
             ]);
@@ -679,7 +677,10 @@ describe("planShapeMoves", () => {
 
             const plan = planShapeMoves(result, spots, [current, current]);
 
-            expect(pairRepairsOf(plan)[0]).toMatchObject({ kind: "madeRoom", moved: "Task_Y" });
+            expect(pairRepairsOf(plan)[0]).toMatchObject({
+                kind: "madeRoomByGrowingAndShifting",
+                moved: "Task_Y",
+            });
             expect(pairRepairsOf(plan)[1]).toEqual({
                 kind: "movedByBuild",
                 shapes: ["Task_C", "Task_D"],
@@ -732,7 +733,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_3", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Pool_2", "Task_4", "Task_5", "Task_6", "Task_7"],
@@ -765,7 +766,7 @@ describe("planShapeMoves", () => {
                 const plan = planShapeMoves(result, overlapsOf(result), [current, current]);
 
                 expect(pairRepairsOf(plan)[0]).toMatchObject({
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     grown: ["Pool_1", "Lane_1"],
                 });
                 expect(boundsIn(plan, "Pool_2")).toEqual(below.bounds);
@@ -792,11 +793,10 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByShifting",
                     shapes: ["Task_2", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_Ship", "End_Shipped"],
-                    grown: [],
                 },
             ]);
             expect(boundsIn(plan, "Task_Y")).toEqual(box(490, 90));
@@ -834,7 +834,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_X", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_K"],
@@ -878,7 +878,7 @@ describe("planShapeMoves", () => {
 
             expect(pairRepairsOf(plan)).toEqual([
                 {
-                    kind: "madeRoom",
+                    kind: "madeRoomByGrowingAndShifting",
                     shapes: ["Task_X", "Task_Y"],
                     moved: "Task_Y",
                     shifted: ["Task_K"],

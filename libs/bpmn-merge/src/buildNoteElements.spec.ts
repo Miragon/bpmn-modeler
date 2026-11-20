@@ -54,11 +54,31 @@ const REDRAWN: {
             },
             ["Task_B"],
         ],
-        madeRoom: [
+        madeRoomByShifting: [
             {
                 kind: "shapesOverlap",
                 ids: ["Task_A", "Task_B"],
-                repair: "madeRoom",
+                repair: "madeRoomByShifting",
+                moved: "Task_B",
+                shifted: ["Task_C", "End_1"],
+            },
+            ["Task_B", "Task_C", "End_1"],
+        ],
+        madeRoomByGrowing: [
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_A", "Task_B"],
+                repair: "madeRoomByGrowing",
+                moved: "Task_B",
+                grown: ["Lane_1"],
+            },
+            ["Task_B", "Lane_1"],
+        ],
+        madeRoomByGrowingAndShifting: [
+            {
+                kind: "shapesOverlap",
+                ids: ["Task_A", "Task_B"],
+                repair: "madeRoomByGrowingAndShifting",
                 moved: "Task_B",
                 shifted: ["Task_C", "End_1"],
                 grown: ["Lane_1"],
@@ -115,6 +135,16 @@ const REDRAWN: {
                 kind: "lanesOverlap",
                 ids: ["Lane_2", "Lane_1"],
                 repair: "movedByBuild",
+                moved: "Lane_2",
+                grown: ["Pool_1", "Lane_0"],
+            },
+            ["Lane_2", "Pool_1", "Lane_0"],
+        ],
+        movedByBuildAndShifted: [
+            {
+                kind: "lanesOverlap",
+                ids: ["Lane_2", "Lane_1"],
+                repair: "movedByBuildAndShifted",
                 moved: "Lane_2",
                 grown: ["Pool_1", "Lane_0"],
                 shifted: ["Pool_2"],

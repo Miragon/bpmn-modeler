@@ -32,8 +32,12 @@ export function freeRoom(draft: DrawingDraft): RoomMade {
     return { draft, shifted: [], grown: [], growth: 0 };
 }
 
-export function onlyMoves({ shifted, grown }: RoomMade): boolean {
-    return shifted.length === 0 && grown.length === 0;
+/** What a room took beside moving the shape: shifting shapes, growing frames, both, or neither. */
+export type RoomMadeBy = "moving" | "shifting" | "growing" | "growingAndShifting";
+
+export function roomMadeBy({ shifted, grown }: RoomMade): RoomMadeBy {
+    if (grown.length === 0) return shifted.length === 0 ? "moving" : "shifting";
+    return shifted.length === 0 ? "growing" : "growingAndShifting";
 }
 
 /** What making room reads beside the drawing: what moves with a node and how the flows join the nodes. */

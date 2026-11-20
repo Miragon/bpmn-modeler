@@ -17,16 +17,46 @@ export type MergeContainerRepair =
       }
     | { readonly repair: "notRepaired" };
 
-/** Which of two shapes on top of each other the build moved, and what it shifted and grew to make room. */
+/**
+ * Which of two shapes on top of each other the build moved, and whether it shifted shapes, grew frames or did both to
+ * make room. `shifted` lists the outermost shapes shifted, `grown` the sub-processes, lanes and pools grown to hold
+ * the moved shape, each in document order.
+ */
 export type MergeOverlapRepair =
     | { readonly repair: "movedByBuild"; readonly moved: string }
     | {
-          readonly repair: "madeRoom";
+          readonly repair: "madeRoomByShifting";
           readonly moved: string;
-          /** The outermost shapes shifted to make the room, in document order. */
           readonly shifted: readonly string[];
-          /** The sub-processes, lanes and pools that grew to hold it, in document order. */
+      }
+    | {
+          readonly repair: "madeRoomByGrowing";
+          readonly moved: string;
           readonly grown: readonly string[];
+      }
+    | {
+          readonly repair: "madeRoomByGrowingAndShifting";
+          readonly moved: string;
+          readonly shifted: readonly string[];
+          readonly grown: readonly string[];
+      }
+    | { readonly repair: "notRepaired" };
+
+/**
+ * Whether the build moved a lane below the others, with the pool and parent lanes it grew to hold it, and whether it
+ * shifted shapes down.
+ */
+type MergeLaneRepair =
+    | {
+          readonly repair: "movedByBuild";
+          readonly moved: string;
+          readonly grown: readonly string[];
+      }
+    | {
+          readonly repair: "movedByBuildAndShifted";
+          readonly moved: string;
+          readonly grown: readonly string[];
+          readonly shifted: readonly string[];
       }
     | { readonly repair: "notRepaired" };
 
@@ -70,15 +100,7 @@ export type MergeBuildNoteContent =
            */
           readonly kind: "lanesOverlap";
           readonly ids: readonly string[];
-      } & (
-          | {
-                readonly repair: "movedByBuild";
-                readonly moved: string;
-                readonly grown: readonly string[];
-                readonly shifted: readonly string[];
-            }
-          | { readonly repair: "notRepaired" }
-      ))
+      } & MergeLaneRepair)
     | {
           readonly kind: "restoredWithoutRemovedWith";
           readonly id: string;
@@ -135,17 +157,11 @@ export function elementsNamedBy(note: MergeBuildNoteContent): string[] {
         case "flowThroughShape":
             return [note.id, ...note.shapes];
         case "shapeOutsideContainer":
-            return note.repair === "grewContainerAndShifted"
-                ? [note.id, ...note.shapes, ...note.shifted]
-                : [note.id, ...note.shapes];
+            return [note.id, ...note.shapes, ...shapesShiftedBy(note)];
         case "shapesOverlap":
-            return note.repair === "madeRoom"
-                ? [...note.ids, ...note.shifted, ...note.grown]
-                : [...note.ids];
+            return [...note.ids, ...shapesShiftedBy(note), ...framesGrownBy(note)];
         case "lanesOverlap":
-            return note.repair === "movedByBuild"
-                ? [...note.ids, ...note.grown, ...note.shifted]
-                : [...note.ids];
+            return [...note.ids, ...framesGrownBy(note), ...shapesShiftedBy(note)];
         case "layoutChangedByBoth":
             return [...note.ids];
         case "boundaryEventOffHost":
@@ -163,4 +179,14 @@ export function elementsNamedBy(note: MergeBuildNoteContent): string[] {
         case "frameDiffers":
             return [];
     }
+}
+
+/** The shapes a note's repair shifted to make room; none for a repair that shifted nothing. */
+export function shapesShiftedBy(note: MergeBuildNoteContent): readonly string[] {
+    return "shifted" in note ? note.shifted : [];
+}
+
+/** The frames a note's repair grew to hold what it moved; none for a repair that grew nothing. */
+export function framesGrownBy(note: MergeBuildNoteContent): readonly string[] {
+    return "grown" in note ? note.grown : [];
 }

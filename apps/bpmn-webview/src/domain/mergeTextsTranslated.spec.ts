@@ -126,17 +126,34 @@ const NOTES: {
         movedByBuild: [
             { kind: "shapesOverlap", ids: ["a", "b"], repair: "movedByBuild", moved: "b" },
         ],
-        madeRoom: [
-            { shifted: ["c"], grown: [] },
-            { shifted: [], grown: ["d"] },
-            { shifted: ["c"], grown: ["d"] },
-        ].map((room) => ({
-            kind: "shapesOverlap",
-            ids: ["a", "b"],
-            repair: "madeRoom",
-            moved: "b",
-            ...room,
-        })),
+        madeRoomByShifting: [
+            {
+                kind: "shapesOverlap",
+                ids: ["a", "b"],
+                repair: "madeRoomByShifting",
+                moved: "b",
+                shifted: ["c"],
+            },
+        ],
+        madeRoomByGrowing: [
+            {
+                kind: "shapesOverlap",
+                ids: ["a", "b"],
+                repair: "madeRoomByGrowing",
+                moved: "b",
+                grown: ["d"],
+            },
+        ],
+        madeRoomByGrowingAndShifting: [
+            {
+                kind: "shapesOverlap",
+                ids: ["a", "b"],
+                repair: "madeRoomByGrowingAndShifting",
+                moved: "b",
+                shifted: ["c"],
+                grown: ["d"],
+            },
+        ],
         notRepaired: [{ kind: "shapesOverlap", ids: ["a", "b"], repair: "notRepaired" }],
     },
     flowThroughShape: {
@@ -167,14 +184,25 @@ const NOTES: {
     },
     boundaryEventOffHost: [{ kind: "boundaryEventOffHost", id: "a", host: "b" }],
     lanesOverlap: {
-        movedByBuild: [[], ["d"]].map((shifted) => ({
-            kind: "lanesOverlap",
-            ids: ["a", "b"],
-            repair: "movedByBuild",
-            moved: "a",
-            grown: ["c"],
-            shifted,
-        })),
+        movedByBuild: [
+            {
+                kind: "lanesOverlap",
+                ids: ["a", "b"],
+                repair: "movedByBuild",
+                moved: "a",
+                grown: ["c"],
+            },
+        ],
+        movedByBuildAndShifted: [
+            {
+                kind: "lanesOverlap",
+                ids: ["a", "b"],
+                repair: "movedByBuildAndShifted",
+                moved: "a",
+                grown: ["c"],
+                shifted: ["d"],
+            },
+        ],
         notRepaired: [{ kind: "lanesOverlap", ids: ["a", "b"], repair: "notRepaired" }],
     },
     restoredWithoutRemovedWith: [

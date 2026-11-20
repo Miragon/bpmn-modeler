@@ -1,9 +1,11 @@
-import type {
-    MergeBuildNoteContent,
-    MergeBuildNoteOfKind,
-    MergeNoteRepairOf,
-    MergeRepairedNoteKind,
-    MergeSide,
+import {
+    type MergeBuildNoteContent,
+    type MergeBuildNoteOfKind,
+    type MergeNoteRepairOf,
+    type MergeRepairedNoteKind,
+    type MergeSide,
+    framesGrownBy,
+    shapesShiftedBy,
 } from "@miragon/bpmn-modeler-types";
 
 import { type MergeRemovedWithWording, removedWithElement } from "./mergeRemovedWith";
@@ -50,6 +52,9 @@ type OverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 /** A shape the build moved off the others it lay on. */
 type MovedShapeNote = Extract<MergeBuildNoteOfKind<"shapesOverlap">, { readonly moved: string }>;
 
+/** A lane the build moved below the others. */
+type StackedLaneNote = Extract<MergeBuildNoteOfKind<"lanesOverlap">, { readonly moved: string }>;
+
 const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
     current: "Both sides changed the layout of {elements}; current's is kept",
     incoming: "Both sides changed the layout of {elements}; incoming's is kept",
@@ -69,7 +74,13 @@ const NOTE_WORDINGS: NoteWordings = {
             template: "The build moved {element} off {shapes}",
             replacements: movedOffNames(note, names),
         }),
-        madeRoom: madeRoomWording,
+        ...sharingNames(roomNames, {
+            madeRoomByShifting:
+                "The build moved {element} off {shapes} and made room by shifting {shifted}",
+            madeRoomByGrowing: "The build moved {element} off {shapes} and grew {grown} to hold it",
+            madeRoomByGrowingAndShifting:
+                "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}",
+        }),
         notRepaired: (note, names) => ({
             template:
                 "{first} and {second} lie on top of each other; the build could not repair it",
@@ -91,7 +102,12 @@ const NOTE_WORDINGS: NoteWordings = {
         }),
     },
     lanesOverlap: {
-        movedByBuild: laneStackedWording,
+        ...sharingNames(stackedLaneNames, {
+            movedByBuild:
+                "The build moved {element} below the other lanes and grew {grown} to hold it",
+            movedByBuildAndShifted:
+                "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}",
+        }),
         notRepaired: (note, names) => ({
             template: "{first} and {second} overlap; the build could not repair it",
             replacements: overlappingNames(note, names),
@@ -176,47 +192,21 @@ function movedOffNames(note: MovedShapeNote, names: CanvasNames): Record<string,
     };
 }
 
-/** Room made for a moved shape by shifting shapes, growing frames, or both. */
-function madeRoomWording(
-    note: MergeBuildNoteOfKind<"shapesOverlap"> & { readonly repair: "madeRoom" },
-    names: CanvasNames,
-): NoteWording {
-    const replacements = {
-        ...movedOffNames(note, names),
-        shifted: names.list(note.shifted),
-        grown: names.list(note.grown),
-    };
-    if (note.grown.length === 0) {
-        return {
-            template: "The build moved {element} off {shapes} and made room by shifting {shifted}",
-            replacements,
-        };
-    }
+/** The shape moved off the others, with what was shifted and grown to make room for it. */
+function roomNames(note: MovedShapeNote, names: CanvasNames): Record<string, string> {
     return {
-        template:
-            note.shifted.length === 0
-                ? "The build moved {element} off {shapes} and grew {grown} to hold it"
-                : "The build moved {element} off {shapes}, grew {grown} to hold it and shifted {shifted}",
-        replacements,
+        ...movedOffNames(note, names),
+        shifted: names.list(shapesShiftedBy(note)),
+        grown: names.list(framesGrownBy(note)),
     };
 }
 
-/** A lane the build moved below the others, with or without shifting shapes. */
-function laneStackedWording(
-    note: MergeBuildNoteOfKind<"lanesOverlap"> & { readonly repair: "movedByBuild" },
-    names: CanvasNames,
-): NoteWording {
-    const replacements = { element: names.one(note.moved), grown: names.list(note.grown) };
-    if (note.shifted.length === 0) {
-        return {
-            template: "The build moved {element} below the other lanes and grew {grown} to hold it",
-            replacements,
-        };
-    }
+/** The lane moved below the others, with what grew to hold it and what shifted down. */
+function stackedLaneNames(note: StackedLaneNote, names: CanvasNames): Record<string, string> {
     return {
-        template:
-            "The build moved {element} below the other lanes, grew {grown} to hold it and shifted {shifted}",
-        replacements: { ...replacements, shifted: names.list(note.shifted) },
+        element: names.one(note.moved),
+        grown: names.list(note.grown),
+        shifted: names.list(shapesShiftedBy(note)),
     };
 }
 

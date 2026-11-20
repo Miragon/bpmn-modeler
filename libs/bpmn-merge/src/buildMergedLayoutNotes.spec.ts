@@ -121,7 +121,7 @@ function stacked(ids: [string, string], shape: string, shifted: string[] = []): 
     return {
         kind: "shapesOverlap",
         ids,
-        repair: "madeRoom",
+        repair: "madeRoomByGrowingAndShifting",
         moved: shape,
         shifted: [...shifted, "Task_R", "End_Rejected"],
         grown: ["Participant_Order", "Lane_Sales"],
@@ -356,7 +356,6 @@ describe("buildMerged's layout notes", () => {
                     repair: "movedByBuild",
                     moved: "Lane_Back",
                     grown: ["Participant_Order"],
-                    shifted: [],
                 },
             ],
         },
@@ -431,7 +430,7 @@ describe("buildMerged's layout notes", () => {
             const { xml, notes } = await builtOf(versions, conflictsTo);
 
             const room = notes.find((note) => note.kind === "shapesOverlap");
-            expect(room).toMatchObject({ repair: "madeRoom" });
+            expect(room).toMatchObject({ repair: "madeRoomByGrowingAndShifting" });
             const movedId = room?.kind === "shapesOverlap" && "moved" in room ? room.moved : "";
             const otherId = movedId === "Task_X" ? "Task_Y" : "Task_X";
             const layout = await layoutOfXml(xml);
@@ -605,7 +604,6 @@ describe("buildMerged's layout notes", () => {
                     repair: "movedByBuild",
                     moved: "Lane_New",
                     grown: ["Participant_Order"],
-                    shifted: [],
                     named: ["Lane_New", "Participant_Order"],
                 });
                 for (const spot of await spotsLeftIn(xml, versions)) {

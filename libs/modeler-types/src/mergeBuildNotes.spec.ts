@@ -35,7 +35,7 @@ const NAMED: Record<MergeBuildNoteContent["kind"], [MergeBuildNoteContent, reado
         {
             kind: "shapesOverlap",
             ids: ["Task_A", "Task_B"],
-            repair: "madeRoom",
+            repair: "madeRoomByGrowingAndShifting",
             moved: "Task_B",
             shifted: ["Task_C", "End_1"],
             grown: ["Lane_1"],
@@ -64,7 +64,7 @@ const NAMED: Record<MergeBuildNoteContent["kind"], [MergeBuildNoteContent, reado
         {
             kind: "lanesOverlap",
             ids: ["Lane_2", "Lane_1"],
-            repair: "movedByBuild",
+            repair: "movedByBuildAndShifted",
             moved: "Lane_2",
             grown: ["Pool_1", "Lane_0"],
             shifted: ["Pool_2"],
@@ -123,6 +123,41 @@ describe("elementsNamedBy", () => {
         expect(
             elementsNamedBy({ kind: "shapesOverlap", ids, repair: "notRepaired" }),
         ).toStrictEqual(ids);
+    });
+
+    it("names the shapes an overlap's repair shifted or the frames it grew, whichever it did", () => {
+        const ids = ["Task_A", "Task_B"];
+
+        expect(
+            elementsNamedBy({
+                kind: "shapesOverlap",
+                ids,
+                repair: "madeRoomByShifting",
+                moved: "Task_B",
+                shifted: ["Task_C"],
+            }),
+        ).toStrictEqual([...ids, "Task_C"]);
+        expect(
+            elementsNamedBy({
+                kind: "shapesOverlap",
+                ids,
+                repair: "madeRoomByGrowing",
+                moved: "Task_B",
+                grown: ["Lane_1"],
+            }),
+        ).toStrictEqual([...ids, "Lane_1"]);
+    });
+
+    it("names the lanes and the frames grown for a lane the build moved without shifting shapes", () => {
+        expect(
+            elementsNamedBy({
+                kind: "lanesOverlap",
+                ids: ["Lane_2", "Lane_1"],
+                repair: "movedByBuild",
+                moved: "Lane_2",
+                grown: ["Pool_1"],
+            }),
+        ).toStrictEqual(["Lane_2", "Lane_1", "Pool_1"]);
     });
 
     it("names only the shape and its containers when the build moved it inside, grew one or left it", () => {

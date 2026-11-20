@@ -7,7 +7,7 @@ import {
     type RoomSlots,
     freeRoom,
     makeRoom,
-    onlyMoves,
+    roomMadeBy,
     slotOffsetsOf,
     slotsFor,
 } from "./layoutMakeRoom";
@@ -143,9 +143,16 @@ function endedEarlier([first, second]: readonly [NodeShape, NodeShape]): boolean
 function roomRepairOf(room: GroupRoom): MoveRepair {
     const moved = room.group.node.id;
     const { shifted, grown } = room;
-    return onlyMoves(room)
-        ? { kind: "movedByBuild", moved }
-        : { kind: "madeRoom", moved, shifted, grown };
+    switch (roomMadeBy(room)) {
+        case "moving":
+            return { kind: "movedByBuild", moved };
+        case "shifting":
+            return { kind: "madeRoomByShifting", moved, shifted };
+        case "growing":
+            return { kind: "madeRoomByGrowing", moved, grown };
+        case "growingAndShifting":
+            return { kind: "madeRoomByGrowingAndShifting", moved, shifted, grown };
+    }
 }
 
 /**
