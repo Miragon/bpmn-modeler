@@ -9,6 +9,7 @@ import {
     isFrame,
     liesOnAnotherPool,
     otherEndOf,
+    reachOf,
     sharesAnEndWith,
 } from "./layoutModel";
 
@@ -74,6 +75,28 @@ describe("isFrame", () => {
         ["a collapsed sub-process or task", node("Task_A"), false],
     ])("tells whether %s holds other shapes", (_, shape, frame) => {
         expect(isFrame(shape)).toBe(frame);
+    });
+});
+
+describe("reachOf", () => {
+    const bounds = { x: 100, y: 100, width: 200, height: 100 };
+    const label = { x: 175, y: 210, width: 50, height: 14 };
+    const group = {
+        kind: "group",
+        id: "Group_1",
+        ...rootPlane(PLANE),
+        outline: "rectangle",
+        bounds,
+        label,
+    } as const;
+    const around = { x: 100, y: 100, width: 200, height: 124 };
+
+    it.each<[string, LayoutShape, typeof bounds]>([
+        ["a node with its label", node("Event_1", { bounds, label }), around],
+        ["a named group with its name", group, around],
+        ["a pool by its bounds", pool("Pool_1"), pool("Pool_1").bounds],
+    ])("measures %s", (_, shape, reach) => {
+        expect(reachOf(shape)).toEqual(reach);
     });
 });
 

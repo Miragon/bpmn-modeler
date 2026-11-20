@@ -1,5 +1,15 @@
+const bounds = (x: number, y: number, width: number, height: number) =>
+    `<dc:Bounds x="${x}" y="${y}" width="${width}" height="${height}" />`;
+
 const shape = (id: string, x: number, y: number, width: number, height: number, extra = "") =>
-    `<bpmndi:BPMNShape id="${id}_di" bpmnElement="${id}"${extra}><dc:Bounds x="${x}" y="${y}" width="${width}" height="${height}" /></bpmndi:BPMNShape>`;
+    `<bpmndi:BPMNShape id="${id}_di" bpmnElement="${id}"${extra}>${bounds(x, y, width, height)}</bpmndi:BPMNShape>`;
+
+const GROUP = '<bpmn:group id="Group_K" />';
+const NAMED_GROUP = '<bpmn:group id="Group_K" categoryValueRef="CategoryValue_K" />';
+const CATEGORY =
+    '<bpmn:category id="Category_K"><bpmn:categoryValue id="CategoryValue_K" value="K part" /></bpmn:category>';
+const GROUP_SHAPE = shape("Group_K", 790, 110, 230, 140);
+const NAMED_GROUP_SHAPE = `<bpmndi:BPMNShape id="Group_K_di" bpmnElement="Group_K">${bounds(790, 110, 230, 140)}<bpmndi:BPMNLabel>${bounds(880, 117, 50, 14)}</bpmndi:BPMNLabel></bpmndi:BPMNShape>`;
 
 const edge = (id: string, fromX: number, toX: number, y: number) =>
     `<bpmndi:BPMNEdge id="${id}_di" bpmnElement="${id}"><di:waypoint x="${fromX}" y="${y}" /><di:waypoint x="${toX}" y="${y}" /></bpmndi:BPMNEdge>`;
@@ -9,11 +19,12 @@ const edge = (id: string, fromX: number, toX: number, y: number) =>
  * Group_K encloses task K and the end event right of the sub-process. Making
  * room for Y pushes B, grows the sub-process and pushes K and the end event.
  */
-export const GROUP_AROUND_PUSHED_CHAIN = `<?xml version="1.0" encoding="UTF-8"?>
+const groupAroundPushedChain = (named: boolean) => `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  ${named ? CATEGORY : ""}
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Pool" processRef="Process_1" />
-    <bpmn:group id="Group_K" />
+    ${named ? NAMED_GROUP : GROUP}
   </bpmn:collaboration>
   <bpmn:process id="Process_1">
     <bpmn:laneSet id="LaneSet_1">
@@ -71,7 +82,7 @@ export const GROUP_AROUND_PUSHED_CHAIN = `<?xml version="1.0" encoding="UTF-8"?>
       ${shape("Task_B", 620, 140, 100, 80)}
       ${shape("Task_K", 810, 140, 100, 80)}
       ${shape("End_K", 962, 162, 36, 36)}
-      ${shape("Group_K", 790, 110, 230, 140)}
+      ${named ? NAMED_GROUP_SHAPE : GROUP_SHAPE}
       ${shape("Start_Low", 170, 362, 36, 36)}
       ${shape("Task_Low", 560, 340, 100, 80)}
       ${shape("End_Low", 1002, 362, 36, 36)}
@@ -87,3 +98,8 @@ export const GROUP_AROUND_PUSHED_CHAIN = `<?xml version="1.0" encoding="UTF-8"?>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
+
+export const GROUP_AROUND_PUSHED_CHAIN = groupAroundPushedChain(false);
+
+/** The same with the group named, its name drawn at its top middle as bpmn-js draws it. */
+export const NAMED_GROUP_AROUND_PUSHED_CHAIN = groupAroundPushedChain(true);

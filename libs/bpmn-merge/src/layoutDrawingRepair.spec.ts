@@ -1,7 +1,10 @@
 import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { GROUP_AROUND_PUSHED_CHAIN } from "./__fixtures__/groupAroundPushedChain";
+import {
+    GROUP_AROUND_PUSHED_CHAIN,
+    NAMED_GROUP_AROUND_PUSHED_CHAIN,
+} from "./__fixtures__/groupAroundPushedChain";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { DiagramIndex } from "./diagramIndex";
 import { IndexedDocument } from "./indexedDocument";
@@ -66,9 +69,9 @@ describe("repairIntroducedSpots with a group", () => {
         return { shapes, edges: layout.edges };
     };
 
-    it("shifts the group with the task and end event it encloses when making room pushes both", async () => {
+    const repairedFrom = async (xml: string) => {
         const moddle = (await loadBpmnModdle())();
-        const { rootElement } = await moddle.fromXML(GROUP_AROUND_PUSHED_CHAIN);
+        const { rootElement } = await moddle.fromXML(xml);
         const document = IndexedDocument.of(rootElement);
         const slots = PlaneSlots.ofDocument(document);
         const assembled = layoutModelOfDocument(document, slots);
@@ -77,11 +80,24 @@ describe("repairIntroducedSpots with a group", () => {
         repairIntroducedSpots(rootElement, sides, slots, BUILD_LAYOUT_REPAIRS, [], (point) =>
             moddle.create("dc:Point", { x: point.x, y: point.y }),
         );
-        const repaired = layoutModelOf(rootElement);
+        return layoutModelOf(rootElement);
+    };
+
+    it("shifts the group with the task and end event it encloses when making room pushes both", async () => {
+        const repaired = await repairedFrom(GROUP_AROUND_PUSHED_CHAIN);
 
         expect(repaired.shapes.get("Task_K")!.bounds).toEqual(box(960, 140, 100, 80));
         expect(repaired.shapes.get("End_K")!.bounds).toEqual(box(1112, 162, 36, 36));
         expect(repaired.shapes.get("Group_K")!.bounds).toEqual(box(940, 110, 230, 140));
+    });
+
+    it("shifts a named group's name with it", async () => {
+        const repaired = await repairedFrom(NAMED_GROUP_AROUND_PUSHED_CHAIN);
+
+        expect(repaired.shapes.get("Group_K")).toMatchObject({
+            bounds: box(940, 110, 230, 140),
+            label: box(1030, 117, 50, 14),
+        });
     });
 });
 

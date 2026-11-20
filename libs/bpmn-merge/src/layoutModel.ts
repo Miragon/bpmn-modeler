@@ -2,6 +2,7 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    boundsAround,
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
@@ -50,6 +51,8 @@ export interface PoolShape extends DrawnShape {
 /** A `bpmn:Group`: it holds no element, so nothing lies inside it by design and it is no frame. */
 export interface GroupShape extends DrawnShape {
     readonly kind: "group";
+    /** Where the group's name is drawn: bpmn-js draws it apart from the shape. */
+    readonly label?: DiagramBounds;
 }
 
 export type LayoutShape = NodeShape | LaneShape | PoolShape | GroupShape;
@@ -109,6 +112,17 @@ export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefi
 /** The node's shape and, when drawn apart from it, its label. */
 export function drawnPartsOf(node: NodeShape): DiagramBounds[] {
     return node.label === undefined ? [node.bounds] : [node.bounds, node.label];
+}
+
+/** Where the shape's name is drawn apart from it: only a node's or a group's is. */
+export function labelOf(shape: LayoutShape): DiagramBounds | undefined {
+    return shape.kind === "node" || shape.kind === "group" ? shape.label : undefined;
+}
+
+/** How far the shape reaches as drawn, its label with it. */
+export function reachOf(shape: LayoutShape): DiagramBounds {
+    const label = labelOf(shape);
+    return label === undefined ? shape.bounds : boundsAround([shape.bounds, label]);
 }
 
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {

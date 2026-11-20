@@ -449,6 +449,25 @@ describe("planShapeMoves", () => {
                 expect(enclosesAll(plan, ["Task_3", "Task_4"])).toBe(true);
             });
 
+            it("stays as drawn when shifting with its task would take in a shape that lay beside it", () => {
+                const group = groupAt(box(930, 80, 120, 148));
+                const beside = node("Data_1", box(1120, 190, 36, 36));
+                const drawn = [...row, group, beside];
+                const result = layoutOf([...drawn, node("Task_Y", box(470, 90))], rowFlows, frames);
+                const current = layoutOf(drawn, rowFlows, frames);
+
+                const plan = planShapeMoves(
+                    result,
+                    overlapsOf(result),
+                    [current, current],
+                    planFlowRepairs,
+                );
+
+                expect(boundsIn(plan, "Task_7")).toEqual(box(1120, 90));
+                expect(boundsIn(plan, "Data_1")).toEqual(beside.bounds);
+                expect(boundsIn(plan, "Group_1")).toEqual(group.bounds);
+            });
+
             it("stays as drawn, its shapes inside it, when the room shifts none of them", () => {
                 const group = groupAt(box(90, 80, 240, 100));
 

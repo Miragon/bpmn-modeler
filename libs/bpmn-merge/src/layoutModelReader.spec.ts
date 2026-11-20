@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { baseModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
-import { GROUP_AROUND_PUSHED_CHAIN } from "./__fixtures__/groupAroundPushedChain";
+import {
+    GROUP_AROUND_PUSHED_CHAIN,
+    NAMED_GROUP_AROUND_PUSHED_CHAIN,
+} from "./__fixtures__/groupAroundPushedChain";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { IndexedDocument } from "./indexedDocument";
@@ -77,6 +80,17 @@ describe("layoutModelOf", () => {
             ...rootPlane("Collaboration_1"),
             outline: "rectangle",
             bounds: { x: 790, y: 110, width: 230, height: 140 },
+        });
+    });
+
+    it("reads a named group's label with it, as bpmn-js draws a group's name apart from its shape", async () => {
+        const { rootElement } = await parseWithoutWarnings(NAMED_GROUP_AROUND_PUSHED_CHAIN);
+
+        const layout = layoutModelOf(rootElement);
+
+        expect(layout.shapes.get("Group_K")).toMatchObject({
+            kind: "group",
+            label: { x: 880, y: 117, width: 50, height: 14 },
         });
     });
 

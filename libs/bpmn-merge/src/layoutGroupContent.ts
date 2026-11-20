@@ -1,9 +1,9 @@
 import { type Axis, boundsShifted, farSideOf, grownAlong, nearSideOf } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
-import { type DiagramBounds, liesWithin, sameBounds } from "./layoutGeometry";
-import type { GroupShape, LayoutModel } from "./layoutModel";
+import { type DiagramBounds, labelAfterResize, liesWithin, sameBounds } from "./layoutGeometry";
+import { type GroupShape, type LayoutModel, reachOf } from "./layoutModel";
 
-/** Where a shape a group encloses lay when a push started and where the push left it. */
+/** How far a shape a group encloses reached, its label with it, when a push started and after it. */
 export interface EnclosedMove {
     readonly from: DiagramBounds;
     readonly to: DiagramBounds;
@@ -19,15 +19,28 @@ export function groupAfterPush(
     enclosed: readonly EnclosedMove[],
     axis: Axis,
 ): GroupShape {
+    const bounds = boundsAfterPush(group.bounds, enclosed, axis);
+    if (bounds === group.bounds) return group;
+    const { label } = group;
+    return label === undefined
+        ? { ...group, bounds }
+        : { ...group, bounds, label: labelAfterResize(label, group.bounds, bounds) };
+}
+
+function boundsAfterPush(
+    bounds: DiagramBounds,
+    enclosed: readonly EnclosedMove[],
+    axis: Axis,
+): DiagramBounds {
     const shifts = enclosed.map((move) => shiftOf(move, axis));
     const [first] = shifts;
     if (first !== undefined && first !== 0 && shifts.every((shift) => shift === first)) {
-        return { ...group, bounds: boundsShifted(axis, group.bounds, first) };
+        return boundsShifted(axis, bounds, first);
     }
     const farOf = (all: readonly DiagramBounds[]) =>
-        Math.max(...all.map((bounds) => farSideOf(axis, bounds)));
+        Math.max(...all.map((side) => farSideOf(axis, side)));
     const growth = farOf(enclosed.map(({ to }) => to)) - farOf(enclosed.map(({ from }) => from));
-    return growth > 0 ? { ...group, bounds: grownAlong(axis, group.bounds, growth) } : group;
+    return growth > 0 ? grownAlong(axis, bounds, growth) : bounds;
 }
 
 /** How far the move shifted the bounds along the axis, undefined when it did more than shift them. */
@@ -40,12 +53,14 @@ interface Enclosure {
     readonly group: GroupShape;
     readonly enclosed: readonly string[];
     readonly from: readonly DiagramBounds[];
+    /** The plane's other shapes but groups and placed ones, which the group must not come to enclose. */
+    readonly others: readonly string[];
 }
 
 /**
  * The groups on a plane with the shapes each encloses as a drawing drew
  * them, read when a push starts, so that each group can follow what the
- * push did to them.
+ * push did to them, unless following takes in a shape it did not enclose.
  */
 export class GroupContent {
     private constructor(private readonly enclosures: readonly Enclosure[]) {}
@@ -62,32 +77,42 @@ export class GroupContent {
     ): GroupContent {
         const onPlane = [...before.shapes.values()].filter((shape) => shape.plane === plane);
         const groups = onPlane.filter((shape): shape is GroupShape => shape.kind === "group");
+        const held = onPlane.filter((shape) => shape.kind !== "group" && !placed.has(shape.id));
         const enclosures = groups.flatMap((group): Enclosure[] => {
-            const enclosed = onPlane
-                .filter(
-                    (shape) =>
-                        shape.kind !== "group" &&
-                        !placed.has(shape.id) &&
-                        liesWithin(shape.bounds, group.bounds),
-                )
+            const enclosed = held
+                .filter((shape) => liesWithin(shape.bounds, group.bounds))
                 .map(({ id }) => id);
             if (enclosed.length === 0) return [];
             const now = trial.shapes.get(group.id) as GroupShape;
-            const from = enclosed.map((id) => trial.shapes.get(id)!.bounds);
-            return [{ group: now, enclosed, from }];
+            const from = enclosed.map((id) => reachOf(trial.shapes.get(id)!));
+            const others = held.map(({ id }) => id).filter((id) => !enclosed.includes(id));
+            return [{ group: now, enclosed, from, others }];
         });
         return new GroupContent(enclosures);
     }
 
     /** Draws each group in the trial as it follows what the push along the axis did to the shapes it encloses. */
     follow(trial: DrawingDraft, axis: Axis): void {
-        for (const { group, enclosed, from } of this.enclosures) {
+        for (const { group, enclosed, from, others } of this.enclosures) {
             const moves = enclosed.map((id, at) => ({
                 from: from[at]!,
-                to: trial.shapes.get(id)!.bounds,
+                to: reachOf(trial.shapes.get(id)!),
             }));
             const after = groupAfterPush(group, moves, axis);
-            if (after !== group) trial.replaceShape(after);
+            if (after !== group && !takesIn(trial, others, group, after)) trial.replaceShape(after);
         }
     }
+}
+
+/** Whether the group drawn at `after` encloses one of the others that it does not enclose as drawn. */
+function takesIn(
+    trial: LayoutModel,
+    others: readonly string[],
+    drawn: GroupShape,
+    after: GroupShape,
+): boolean {
+    return others.some((id) => {
+        const { bounds } = trial.shapes.get(id)!;
+        return liesWithin(bounds, after.bounds) && !liesWithin(bounds, drawn.bounds);
+    });
 }

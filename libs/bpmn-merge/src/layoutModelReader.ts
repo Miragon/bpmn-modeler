@@ -48,7 +48,11 @@ function shapeOf(
     const drawn = { id, ...plane, bounds: boundsOf(drawing.bounds as ModdleElement) };
     const rectangle: Outline = "rectangle";
     if (relations.pools.has(id)) return { ...drawn, kind: "pool", outline: rectangle };
-    if (relations.groups.has(id)) return { ...drawn, kind: "group", outline: rectangle };
+    const label = labelBoundsOf(drawing);
+    if (relations.groups.has(id)) {
+        const group = { ...drawn, kind: "group", outline: rectangle } as const;
+        return label === undefined ? group : { ...group, label };
+    }
     const laneParent = relations.laneParents.get(id);
     if (laneParent !== undefined) {
         const lane = { ...drawn, kind: "lane", outline: rectangle, parent: laneParent } as const;
@@ -57,7 +61,6 @@ function shapeOf(
     }
     const node = relations.nodes.get(id);
     if (node === undefined) return undefined;
-    const label = labelBoundsOf(drawing);
     const shape = {
         ...drawn,
         ...node,

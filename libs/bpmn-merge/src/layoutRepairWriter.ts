@@ -2,7 +2,7 @@ import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff"
 
 import type { DiagramIndex } from "./diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
-import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
+import { type LayoutEdge, type LayoutModel, type LayoutShape, labelOf } from "./layoutModel";
 
 /**
  * Writes what the repaired layout changed against the layout read through the
@@ -32,10 +32,6 @@ export function writeLayoutChanges(
 
 function sameDrawing(before: LayoutShape, after: LayoutShape): boolean {
     return sameBounds(before.bounds, after.bounds) && sameLabel(labelOf(before), labelOf(after));
-}
-
-function labelOf(shape: LayoutShape): DiagramBounds | undefined {
-    return shape.kind === "node" ? shape.label : undefined;
 }
 
 function writeShape(drawing: ModdleElement, before: LayoutShape, after: LayoutShape): void {
