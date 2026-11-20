@@ -278,6 +278,36 @@ describe("stackAppendedLanes", () => {
         expect(plan.layout.edges.get("Message_1")?.waypoints).toEqual([at(350, 530), at(350, 830)]);
     });
 
+    it("shifts a run between the ends that lies past the line with the end that shifts", () => {
+        const layout = layoutOf(
+            [
+                pool("Pool_1", box(0, 0, 1200, 200)),
+                lane("Lane_A", box(30, 0, 1170, 200)),
+                lane("Lane_C", box(30, 100, 1170, 100)),
+                node("Task_A", box(300, 60), { lanes: ["Lane_A"] }),
+                pool("Pool_2", box(0, 260, 1200, 200)),
+                node("Task_X", box(550, 320), { pool: "Pool_2" }),
+            ],
+            [
+                flow("Message_1", "Task_A", "Task_X", [
+                    at(350, 140),
+                    at(350, 230),
+                    at(600, 230),
+                    at(600, 320),
+                ]),
+            ],
+        );
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.edges.get("Message_1")?.waypoints).toEqual([
+            at(350, 140),
+            at(350, 330),
+            at(600, 330),
+            at(600, 420),
+        ]);
+    });
+
     it("leaves an overlap alone when neither lane is appended", () => {
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 1200, 400)),
