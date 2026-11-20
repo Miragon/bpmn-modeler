@@ -86,6 +86,16 @@ describe("PlaneSlots", () => {
 
         expect(slots.holds(slots.slotOf("Process_A"), planeOwner)).toBe(holds);
     });
+
+    it("hands out one instance per place only within itself; slots of two are compared by value", async () => {
+        const index = await indexOf(PROCESSES, [plane("Process_A")]);
+        const first = PlaneSlots.ofDocument(index);
+        const second = PlaneSlots.ofDocument(index);
+
+        expect(first.slotOf("Process_A")).not.toBe(second.slotOf("Process_A"));
+        expect(first.slotOf("Process_A").equals(second.slotOf("Process_A"))).toBe(true);
+        expect(first.slotOf("Process_A").key).toBe(second.slotOf("Process_A").key);
+    });
 });
 
 describe("PlaneSlot", () => {
@@ -103,7 +113,8 @@ describe("PlaneSlot", () => {
             new PlaneSlot("subProcess", "P"),
             false,
         ],
-    ])("compares %s by value", (_case, left, right, equal) => {
+    ])("compares %s by value, spelled as one key", (_case, left, right, equal) => {
         expect(left.equals(right)).toBe(equal);
+        expect(left.key === right.key).toBe(equal);
     });
 });

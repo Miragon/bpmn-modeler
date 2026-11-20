@@ -16,7 +16,7 @@ type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
 /**
  * The document's drawing as plain values; numbers are copied, so later changes to the tree do
  * not reach it. Each shape's plane goes to its slot among the merge's `slots`, by default the
- * document's own.
+ * document's own, whose slots match the merge's by `equals` only.
  */
 export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
     const relations = layoutRelationsOf(definitions);

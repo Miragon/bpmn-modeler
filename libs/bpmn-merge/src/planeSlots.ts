@@ -3,17 +3,22 @@ import type { MergeSide } from "./mergeResult";
 
 /** A place in the result's drawing: a sub-process's plane, or a root slot named after its outermost owner. */
 export class PlaneSlot {
+    /** The value that defines the slot; a map across two `PlaneSlots` keys by it, not by the instance. */
+    readonly key: string;
+
     constructor(
         private readonly kind: PlaneKind,
-        private readonly owner: string,
-    ) {}
+        owner: string,
+    ) {
+        this.key = `${kind}:${owner}`;
+    }
 
     get isRoot(): boolean {
         return this.kind === ROOT_PLANE;
     }
 
     equals(other: PlaneSlot): boolean {
-        return this.kind === other.kind && this.owner === other.owner;
+        return this.key === other.key;
     }
 }
 
@@ -21,7 +26,8 @@ export class PlaneSlot {
  * Where a plane goes in the result. A sub-process's plane is its own slot;
  * a collaboration's plane and the planes of the processes its participants
  * name share one root slot, whichever side wraps a process in a pool. Hands
- * out one `PlaneSlot` per place, so a slot keys a map.
+ * out one `PlaneSlot` per place, so a slot keys a map, but only among the
+ * slots of one `PlaneSlots`; slots of two are compared with `equals`.
  */
 export class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
@@ -46,9 +52,9 @@ export class PlaneSlots {
     slotOf(planeOwner: string): PlaneSlot {
         const kind = planeKindOf(planeOwner, this.indexes.current, this.indexes.incoming);
         const owner = kind === ROOT_PLANE ? this.root(planeOwner) : planeOwner;
-        const key = `${kind}:${owner}`;
-        const slot = this.handedOut.get(key) ?? new PlaneSlot(kind, owner);
-        this.handedOut.set(key, slot);
+        const fresh = new PlaneSlot(kind, owner);
+        const slot = this.handedOut.get(fresh.key) ?? fresh;
+        this.handedOut.set(slot.key, slot);
         return slot;
     }
 
