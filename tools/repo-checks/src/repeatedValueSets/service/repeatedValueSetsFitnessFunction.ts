@@ -23,6 +23,7 @@ export function createRepeatedValueSetsFitnessFunction({
             "Partial and extended copies: 9 of the 12 modeler languages (issue 1983), and at add816a2 IGNORED_WATCH_DIRS as EXCLUDED_DIRS plus six folders.",
             "Copies that live in logic, such as the allMatch parsing of the element template builder, and before PR 2341's fix the Form's default version in emptyForm.ts, taken from the BPMN registry while formEngine.ts defined the Form versions.",
             "Sets with another member: `| undefined`, a spread, an enum, object keys, switch cases, and !== or && chains.",
+            'Key unions of two Pick<T, K> types of one T that share keys without being equal, such as `"badges" | "picksNotDrawn"` in the pick readers of mergeOutcomeMemory.ts and mergeElementPick.ts before PR 2621: two readers of one fact.',
             "Equal value maps: an object whose values repeat another object's, such as the pending-state texts of three domain files in PR 2274; object values are no set.",
             "Nested sets: a tuple of tuples, such as COUNT_KINDS of the DMN diff legend in PR 2359, whose kinds are a column, not one array of strings.",
             "A copy whose other occurrence is in a spec or a test folder, which are not read: SOURCE_ONLY in overlayNeeded.spec.ts and tools/build-overlay.mjs (PR 2359) gave no finding.",

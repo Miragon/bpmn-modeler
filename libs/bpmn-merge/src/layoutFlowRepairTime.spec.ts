@@ -269,9 +269,9 @@ describe("shape move time in a pool without a free place", () => {
             const side = densePool(20, -60);
             const spots = introducedLayoutSpots(result, [side, side]);
 
-            const plan = planShapeMoves(result, spots, [side, side]);
+            const plan = planShapeMoves(result, spots, [side, side], planFlowRepairs);
             const perParse = await perParseOf(xml, () =>
-                planShapeMoves(result, spots, [side, side]),
+                planShapeMoves(result, spots, [side, side], planFlowRepairs),
             );
 
             expect(plan.repairs.map(({ repair }) => repair.kind)).toEqual([

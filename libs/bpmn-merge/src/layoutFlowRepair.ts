@@ -42,6 +42,9 @@ export type FlowRepair =
       }
     | { readonly kind: "notRepaired"; readonly flow: string };
 
+/** How the build plans the repair of the flows the spots name. */
+export type FlowRepairPlanner = (layout: LayoutModel, spots: readonly LayoutSpot[]) => FlowRepair[];
+
 /** How far around a flow's ends and waypoints the router looks for shapes, tried from the nearest out. */
 const OBSTACLE_WINDOW_MARGINS = [120, 360] as const;
 
