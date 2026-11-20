@@ -18,5 +18,3 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<DmnEditorCommandType, Preview
     LogWarningCommand: ({ message }) => console.warn(message),
     LogErrorCommand: ({ message }) => console.error(message),
 };
-
-export const PREVIEW_LOG_PREFIX = "[DEBUG]";

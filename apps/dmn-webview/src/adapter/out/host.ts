@@ -10,7 +10,7 @@ import type { DiffSide } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffPaneHost, DmnHost, WebviewState } from "../../port/dmnHost";
 import { DiffPanePreviewHost } from "./browserPreview/diffPanePreviewHost";
 import { PreviewHost } from "./browserPreview/previewHost";
-import { previewDiffSide } from "./browserPreview/previewMode";
+import { diffSideOf, readPreviewMode } from "./browserPreview/previewMode";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -50,5 +50,5 @@ function requestedPreviewDiffSide(): DiffSide | undefined {
     if (process.env.NODE_ENV !== "development") {
         return undefined;
     }
-    return previewDiffSide(location.search);
+    return diffSideOf(readPreviewMode(location.search));
 }

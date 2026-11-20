@@ -1,4 +1,7 @@
+import type { Query } from "./messages";
 import type { MessageOfType, ProtocolCommandType } from "./protocolMessageMap";
+
+export const PREVIEW_LOG_PREFIX = "[dev]";
 
 /** What a browser preview does with a command, or why it drops it. */
 export type PreviewRoute<TType extends ProtocolCommandType, TSession> =
@@ -35,4 +38,11 @@ export function routePreviewCommand<TType extends ProtocolCommandType, TSession>
     }
     // Sound because the table hands each row only commands of its own key's type.
     (route as (command: MessageOfType<TType>, session: TSession) => void)(command, session);
+}
+
+/** Hands a query to the webview as if its host had sent it; a feature without an answer passes undefined. */
+export function replyToWebview(query: Query | undefined): void {
+    if (query) {
+        window.dispatchEvent(new MessageEvent("message", { data: query }));
+    }
 }

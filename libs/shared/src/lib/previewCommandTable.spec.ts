@@ -3,10 +3,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GetAddOnCatalogCommand, OpenAddOnDetailCommand } from "./addOnsView";
-import { LogInfoCommand } from "./messages";
+import { LogInfoCommand, TakeFocusQuery } from "./messages";
 import {
     type PreviewCommandTable,
     previewRouteOf,
+    replyToWebview,
     routePreviewCommand,
 } from "./previewCommandTable";
 
@@ -103,5 +104,36 @@ describe("a browser preview's command table", () => {
         expect(tables.filter((file) => /ignored:\s*`/.test(readFileSync(file, "utf8")))).toEqual(
             [],
         );
+    });
+});
+
+describe("a browser preview's reply", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    function receivedReplies(): unknown[] {
+        const received: unknown[] = [];
+        const webview = new EventTarget();
+        webview.addEventListener("message", (event) => received.push((event as MessageEvent).data));
+        vi.stubGlobal("window", webview);
+        return received;
+    }
+
+    it("reaches the webview as a message from its host", () => {
+        const received = receivedReplies();
+        const query = new TakeFocusQuery();
+
+        replyToWebview(query);
+
+        expect(received).toEqual([query]);
+    });
+
+    it("sends nothing when a feature has no answer", () => {
+        const received = receivedReplies();
+
+        replyToWebview(undefined);
+
+        expect(received).toEqual([]);
     });
 });

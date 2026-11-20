@@ -24,5 +24,3 @@ export const DIFF_PANE_PREVIEW_COMMANDS: PreviewCommandTable<
     DmnDiffViewChangedCommand: { ignored: NO_PARTNER_PANE },
     DmnDiffScrollChangedCommand: { ignored: NO_PARTNER_PANE },
 };
-
-export const DIFF_PANE_PREVIEW_LOG_PREFIX = "[dev]";

@@ -1,8 +1,13 @@
-import { type DmnEditorCommand, MockHostApi, routePreviewCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    type DmnEditorCommand,
+    MockHostApi,
+    PREVIEW_LOG_PREFIX,
+    replyToWebview,
+    routePreviewCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import type { WebviewState } from "../../../port/dmnHost";
-import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX } from "./previewCommands";
-import { replyToWebview } from "./previewReply";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 
 /** The browser preview's editor host: answers the webview's commands as `previewCommands.ts` routes them. */
 export class PreviewHost extends MockHostApi<WebviewState, DmnEditorCommand> {

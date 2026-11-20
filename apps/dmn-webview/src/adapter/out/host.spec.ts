@@ -117,6 +117,17 @@ describe("development preview host", () => {
         expect(replies).toEqual([]);
     });
 
+    it("logs an ignored command under the same prefix as the diff pane", () => {
+        const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new SyncDocumentCommand("<definitions />", 3));
+
+        expect(debug).toHaveBeenCalledWith(
+            expect.stringMatching(/^\[dev\] SyncDocumentCommand ignored: \S/),
+            expect.objectContaining({ type: "SyncDocumentCommand" }),
+        );
+    });
+
     it.each([
         ["warn", new LogWarningCommand("warning entry")],
         ["error", new LogErrorCommand("error entry")],
@@ -152,6 +163,7 @@ describe("development preview host", () => {
 describe("diff pane detection", () => {
     afterEach(() => {
         vi.unstubAllEnvs();
+        vi.restoreAllMocks();
         delete document.body.dataset.surface;
         history.replaceState(null, "", "/");
     });
@@ -170,6 +182,15 @@ describe("diff pane detection", () => {
         history.replaceState(null, "", `/?mode=${mode}`);
 
         expect(isDiffPane()).toBe(true);
+    });
+
+    it("opens an unknown preview mode as the modeler and warns about it", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        history.replaceState(null, "", "/?mode=diff-befor");
+
+        expect(isDiffPane()).toBe(false);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("Unknown ?mode=diff-befor"));
     });
 
     it("ignores a preview mode outside the development build", () => {
