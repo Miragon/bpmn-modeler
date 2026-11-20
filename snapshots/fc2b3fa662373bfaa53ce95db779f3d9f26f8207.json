@@ -2359,7 +2359,7 @@
       "findings": []
     },
     "repeated-value-sets": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/session/messageRouter.ts — [\"FlushDocumentQuery\",\"ReleaseDocumentFlushQuery\"]",
@@ -2524,6 +2524,12 @@
           "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:50`, `libs/append-menu/src/templateTypeAction.ts:27`"
         },
         {
+          "key": "libs/append-menu/src/plainEntryCatalog.ts — [\"append\",\"create\"]",
+          "path": "libs/append-menu/src/plainEntryCatalog.ts",
+          "line": 37,
+          "message": "`append` · `create`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts:20`"
+        },
+        {
           "key": "libs/append-menu/src/templateTypeAction.ts — [\"bpmn-append\",\"bpmn-create\"]",
           "path": "libs/append-menu/src/templateTypeAction.ts",
           "line": 27,
@@ -2544,14 +2550,20 @@
         {
           "key": "libs/inline-scripting/src/scriptEditorButtons.ts — [\"executionListener\",\"taskListener\"]",
           "path": "libs/inline-scripting/src/scriptEditorButtons.ts",
+          "line": 45,
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:48`, `libs/inline-scripting/src/scriptEditorOpener.ts:62`"
+        },
+        {
+          "key": "libs/inline-scripting/src/scriptEditorButtons.ts — [\"executionListener\",\"taskListener\"]",
+          "path": "libs/inline-scripting/src/scriptEditorButtons.ts",
           "line": 48,
-          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorOpener.ts:62`"
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:45`, `libs/inline-scripting/src/scriptEditorOpener.ts:62`"
         },
         {
           "key": "libs/inline-scripting/src/scriptEditorOpener.ts — [\"executionListener\",\"taskListener\"]",
           "path": "libs/inline-scripting/src/scriptEditorOpener.ts",
           "line": 62,
-          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:48`"
+          "message": "`executionListener` · `taskListener`, also at `libs/inline-scripting/src/scriptEditorButtons.ts:45`, `libs/inline-scripting/src/scriptEditorButtons.ts:48`"
         },
         {
           "key": "libs/inline-scripting/src/scriptLockPropertiesProvider.ts — [\" \",\"Enter\"]",
@@ -2680,6 +2692,12 @@
           "message": "`GetBpmnModelerSettingCommand` · `OpenScriptEditorCommand` · `OpenScriptEditorsCommand` · `UpdateScriptSourceCommand` · `UpdateScriptVariablesCommand`, also at `libs/modeler-core/src/modeler/bpmn/BpmnEditorFeature.ts:121`"
         },
         {
+          "key": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts",
+          "line": 138,
+          "message": "`JSON` · `S`, also at `libs/modeler-types/src/processVariables.ts:66`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
           "key": "libs/modeler-core/src/template-marketplace/domain/sourceConfig.ts — [\"github\",\"gitlab\"]",
           "path": "libs/modeler-core/src/template-marketplace/domain/sourceConfig.ts",
           "line": 46,
@@ -2732,6 +2750,18 @@
           "path": "libs/modeler-types/src/engine.ts",
           "line": 15,
           "message": "`c7` · `c8`, also at `libs/modeler-core/src/migration/domain/MigrationPlan.ts:27`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 66,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 81,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:66`"
         },
         {
           "key": "libs/modeler-types/src/settings.ts — [\"automatic\",\"light\"]",
@@ -2836,6 +2866,12 @@
           "message": "`bpmn-append` · `bpmn-create` · `bpmn-replace`, also at `packages/bpmn-modeler/src/modeModules.ts:6`; in another order at `packages/bpmn-modeler/src/modeModules.ts:6`: pin the copy to the home's type, and derive it from the home only where the order is the same concern"
         },
         {
+          "key": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts — [\"append\",\"create\"]",
+          "path": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts",
+          "line": 20,
+          "message": "`append` · `create`, also at `libs/append-menu/src/plainEntryCatalog.ts:37`"
+        },
+        {
           "key": "packages/bpmn-modeler/src/publicApi.ts — [\"automatic\",\"dark\",\"light\"]",
           "path": "packages/bpmn-modeler/src/publicApi.ts",
           "line": 60,
@@ -2874,7 +2910,7 @@
       ]
     },
     "size-and-complexity": {
-      "version": 1,
+      "version": 2,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -2929,16 +2965,6 @@
           "values": {
             "codeLines": 45,
             "complexity": 4
-          }
-        },
-        {
-          "key": "apps/bpmn-webview/src/index.ts",
-          "path": "apps/bpmn-webview/src/index.ts",
-          "line": 1,
-          "message": "2 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 2
           }
         },
         {
@@ -3150,16 +3176,6 @@
           }
         },
         {
-          "key": "apps/bpmn-webview/src/webviewState.ts",
-          "path": "apps/bpmn-webview/src/webviewState.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
-          }
-        },
-        {
           "key": "apps/bpmn-webview/vite.config.mts",
           "path": "apps/bpmn-webview/vite.config.mts",
           "line": 15,
@@ -3189,16 +3205,6 @@
           "values": {
             "codeLines": 697,
             "complexity": 14
-          }
-        },
-        {
-          "key": "apps/deployment-webview/src/app/formTemplate.ts",
-          "path": "apps/deployment-webview/src/app/formTemplate.ts",
-          "line": 1,
-          "message": "185 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 185
           }
         },
         {
@@ -3331,16 +3337,6 @@
           }
         },
         {
-          "key": "apps/dmn-webview/src/webviewState.ts",
-          "path": "apps/dmn-webview/src/webviewState.ts",
-          "line": 1,
-          "message": "2 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 2
-          }
-        },
-        {
           "key": "apps/dmn-webview/vite.config.mts",
           "path": "apps/dmn-webview/vite.config.mts",
           "line": 1,
@@ -3369,16 +3365,6 @@
           "values": {
             "codeLines": 304,
             "complexity": 8
-          }
-        },
-        {
-          "key": "apps/form-webview/src/app/formTemplate.ts",
-          "path": "apps/form-webview/src/app/formTemplate.ts",
-          "line": 1,
-          "message": "12 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 12
           }
         },
         {
@@ -3611,16 +3597,6 @@
           }
         },
         {
-          "key": "apps/modeler-bridge/src/protocol/types.ts",
-          "path": "apps/modeler-bridge/src/protocol/types.ts",
-          "line": 1,
-          "message": "263 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 263
-          }
-        },
-        {
           "key": "apps/modeler-bridge/src/rpc.ts",
           "path": "apps/modeler-bridge/src/rpc.ts",
           "line": 62,
@@ -3796,16 +3772,6 @@
           }
         },
         {
-          "key": "apps/vscode-plugin/src/deployment/index.ts",
-          "path": "apps/vscode-plugin/src/deployment/index.ts",
-          "line": 1,
-          "message": "1 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 1
-          }
-        },
-        {
           "key": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts",
           "path": "apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts",
           "line": 16,
@@ -3861,16 +3827,6 @@
           }
         },
         {
-          "key": "apps/vscode-plugin/src/diff/index.ts",
-          "path": "apps/vscode-plugin/src/diff/index.ts",
-          "line": 1,
-          "message": "1 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 1
-          }
-        },
-        {
           "key": "apps/vscode-plugin/src/diff/infrastructure/CompareSelectionStore.ts",
           "path": "apps/vscode-plugin/src/diff/infrastructure/CompareSelectionStore.ts",
           "line": 26,
@@ -3904,16 +3860,6 @@
           }
         },
         {
-          "key": "apps/vscode-plugin/src/migration/index.ts",
-          "path": "apps/vscode-plugin/src/migration/index.ts",
-          "line": 1,
-          "message": "1 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 1
-          }
-        },
-        {
           "key": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
           "path": "apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts",
           "line": 254,
@@ -3933,16 +3879,6 @@
           "values": {
             "codeLines": 24,
             "complexity": 3
-          }
-        },
-        {
-          "key": "apps/vscode-plugin/src/modeler/bpmn/index.ts",
-          "path": "apps/vscode-plugin/src/modeler/bpmn/index.ts",
-          "line": 1,
-          "message": "1 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 1
           }
         },
         {
@@ -4053,16 +3989,6 @@
           "values": {
             "codeLines": 28,
             "complexity": 3
-          }
-        },
-        {
-          "key": "apps/vscode-plugin/src/scriptTask/index.ts",
-          "path": "apps/vscode-plugin/src/scriptTask/index.ts",
-          "line": 1,
-          "message": "1 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 1
           }
         },
         {
@@ -4545,16 +4471,6 @@
           }
         },
         {
-          "key": "libs/append-menu/src/index.ts",
-          "path": "libs/append-menu/src/index.ts",
-          "line": 1,
-          "message": "9 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 9
-          }
-        },
-        {
           "key": "libs/append-menu/src/navigation.ts",
           "path": "libs/append-menu/src/navigation.ts",
           "line": 53,
@@ -4675,16 +4591,6 @@
           }
         },
         {
-          "key": "libs/bpmn-clipboard/src/index.ts",
-          "path": "libs/bpmn-clipboard/src/index.ts",
-          "line": 1,
-          "message": "3 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 3
-          }
-        },
-        {
           "key": "libs/bpmn-clipboard/vitest.config.ts",
           "path": "libs/bpmn-clipboard/vitest.config.ts",
           "line": 1,
@@ -4717,16 +4623,6 @@
           }
         },
         {
-          "key": "libs/bpmn-diff/src/diffResult.ts",
-          "path": "libs/bpmn-diff/src/diffResult.ts",
-          "line": 1,
-          "message": "21 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 21
-          }
-        },
-        {
           "key": "libs/bpmn-diff/src/differResult.ts",
           "path": "libs/bpmn-diff/src/differResult.ts",
           "line": 26,
@@ -4735,16 +4631,6 @@
           "values": {
             "codeLines": 35,
             "complexity": 10
-          }
-        },
-        {
-          "key": "libs/bpmn-diff/src/index.ts",
-          "path": "libs/bpmn-diff/src/index.ts",
-          "line": 1,
-          "message": "5 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 5
           }
         },
         {
@@ -4766,146 +4652,6 @@
           "group": "files",
           "values": {
             "codeLines": 14
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/index.ts",
-          "path": "libs/bpmn-i18n-extras/src/index.ts",
-          "line": 1,
-          "message": "4 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 4
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/de.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/en.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/es.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/index.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/index.ts",
-          "line": 1,
-          "message": "27 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 27
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/it.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
-          "line": 1,
-          "message": "53 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 53
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ru.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ru.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
-          }
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
-          "line": 1,
-          "message": "52 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 52
           }
         },
         {
@@ -5007,16 +4753,6 @@
           }
         },
         {
-          "key": "libs/bpmn-layout/src/index.ts",
-          "path": "libs/bpmn-layout/src/index.ts",
-          "line": 1,
-          "message": "33 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 33
-          }
-        },
-        {
           "key": "libs/bpmn-layout/src/module.ts",
           "path": "libs/bpmn-layout/src/module.ts",
           "line": 36,
@@ -5061,16 +4797,6 @@
           }
         },
         {
-          "key": "libs/bpmn-layout/src/types.ts",
-          "path": "libs/bpmn-layout/src/types.ts",
-          "line": 1,
-          "message": "38 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 38
-          }
-        },
-        {
           "key": "libs/bpmn-layout/vitest.config.ts",
           "path": "libs/bpmn-layout/vitest.config.ts",
           "line": 1,
@@ -5100,16 +4826,6 @@
           "values": {
             "codeLines": 103,
             "complexity": 5
-          }
-        },
-        {
-          "key": "libs/code-link/src/CodeLinkPort.ts",
-          "path": "libs/code-link/src/CodeLinkPort.ts",
-          "line": 1,
-          "message": "6 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 6
           }
         },
         {
@@ -5164,16 +4880,6 @@
           "values": {
             "codeLines": 184,
             "complexity": 9
-          }
-        },
-        {
-          "key": "libs/definition-search/src/DefinitionSearchPort.ts",
-          "path": "libs/definition-search/src/DefinitionSearchPort.ts",
-          "line": 1,
-          "message": "4 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 4
           }
         },
         {
@@ -5250,16 +4956,6 @@
           "values": {
             "codeLines": 138,
             "complexity": 11
-          }
-        },
-        {
-          "key": "libs/element-template-chooser/src/index.ts",
-          "path": "libs/element-template-chooser/src/index.ts",
-          "line": 1,
-          "message": "15 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 15
           }
         },
         {
@@ -5361,16 +5057,6 @@
           }
         },
         {
-          "key": "libs/flow-navigation/src/index.ts",
-          "path": "libs/flow-navigation/src/index.ts",
-          "line": 1,
-          "message": "19 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 19
-          }
-        },
-        {
           "key": "libs/flow-navigation/src/traversal.ts",
           "path": "libs/flow-navigation/src/traversal.ts",
           "line": 234,
@@ -5389,36 +5075,6 @@
           "group": "files",
           "values": {
             "codeLines": 14
-          }
-        },
-        {
-          "key": "libs/inline-scripting/src/InlineScriptingPort.ts",
-          "path": "libs/inline-scripting/src/InlineScriptingPort.ts",
-          "line": 1,
-          "message": "6 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 6
-          }
-        },
-        {
-          "key": "libs/inline-scripting/src/bpmnTypes.ts",
-          "path": "libs/inline-scripting/src/bpmnTypes.ts",
-          "line": 1,
-          "message": "30 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 30
-          }
-        },
-        {
-          "key": "libs/inline-scripting/src/editorIcon.ts",
-          "path": "libs/inline-scripting/src/editorIcon.ts",
-          "line": 1,
-          "message": "4 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 4
           }
         },
         {
@@ -5463,16 +5119,6 @@
           "values": {
             "codeLines": 134,
             "complexity": 7
-          }
-        },
-        {
-          "key": "libs/inline-scripting/src/scriptEditorEvents.ts",
-          "path": "libs/inline-scripting/src/scriptEditorEvents.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
           }
         },
         {
@@ -5560,16 +5206,6 @@
           "values": {
             "codeLines": 56,
             "complexity": 4
-          }
-        },
-        {
-          "key": "libs/model-navigation/src/ModelNavigationPort.ts",
-          "path": "libs/model-navigation/src/ModelNavigationPort.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
           }
         },
         {
@@ -5913,16 +5549,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/deployment/domain/deploymentTargetsEvent.ts",
-          "path": "libs/modeler-core/src/deployment/domain/deploymentTargetsEvent.ts",
-          "line": 1,
-          "message": "9 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 9
-          }
-        },
-        {
           "key": "libs/modeler-core/src/deployment/domain/deploymentVerification.ts",
           "path": "libs/modeler-core/src/deployment/domain/deploymentVerification.ts",
           "line": 29,
@@ -5964,16 +5590,6 @@
           "values": {
             "codeLines": 113,
             "complexity": 2
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/deployment/domain/ports.ts",
-          "path": "libs/modeler-core/src/deployment/domain/ports.ts",
-          "line": 1,
-          "message": "49 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 49
           }
         },
         {
@@ -6285,16 +5901,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts",
-          "path": "libs/modeler-core/src/editorSession/domain/EditorSessionParticipant.ts",
-          "line": 1,
-          "message": "15 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 15
-          }
-        },
-        {
           "key": "libs/modeler-core/src/editorSession/domain/StatusItemOwnership.ts",
           "path": "libs/modeler-core/src/editorSession/domain/StatusItemOwnership.ts",
           "line": 14,
@@ -6372,16 +5978,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/editorSession/service/EditorContribution.ts",
-          "path": "libs/modeler-core/src/editorSession/service/EditorContribution.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
-          }
-        },
-        {
           "key": "libs/modeler-core/src/editorSession/service/EditorDocumentSync.ts",
           "path": "libs/modeler-core/src/editorSession/service/EditorDocumentSync.ts",
           "line": 77,
@@ -6390,16 +5986,6 @@
           "values": {
             "codeLines": 98,
             "complexity": 9
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/editorSession/service/EditorHandle.ts",
-          "path": "libs/modeler-core/src/editorSession/service/EditorHandle.ts",
-          "line": 1,
-          "message": "22 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 22
           }
         },
         {
@@ -6488,16 +6074,6 @@
           "values": {
             "codeLines": 24,
             "complexity": 4
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/index.ts",
-          "path": "libs/modeler-core/src/index.ts",
-          "line": 1,
-          "message": "143 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 143
           }
         },
         {
@@ -6622,16 +6198,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/kernel/domain/hostPorts.ts",
-          "path": "libs/modeler-core/src/kernel/domain/hostPorts.ts",
-          "line": 1,
-          "message": "113 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 113
-          }
-        },
-        {
           "key": "libs/modeler-core/src/kernel/domain/http.ts",
           "path": "libs/modeler-core/src/kernel/domain/http.ts",
           "line": 79,
@@ -6687,16 +6253,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/kernel/domain/prompts.ts",
-          "path": "libs/modeler-core/src/kernel/domain/prompts.ts",
-          "line": 1,
-          "message": "26 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 26
-          }
-        },
-        {
           "key": "libs/modeler-core/src/kernel/domain/rootContainment.ts",
           "path": "libs/modeler-core/src/kernel/domain/rootContainment.ts",
           "line": 7,
@@ -6719,16 +6275,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/kernel/domain/statusView.ts",
-          "path": "libs/modeler-core/src/kernel/domain/statusView.ts",
-          "line": 1,
-          "message": "13 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 13
-          }
-        },
-        {
           "key": "libs/modeler-core/src/kernel/domain/truncateForDisplay.ts",
           "path": "libs/modeler-core/src/kernel/domain/truncateForDisplay.ts",
           "line": 4,
@@ -6737,16 +6283,6 @@
           "values": {
             "codeLines": 7,
             "complexity": 2
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/kernel/domain/viewTypes.ts",
-          "path": "libs/modeler-core/src/kernel/domain/viewTypes.ts",
-          "line": 1,
-          "message": "3 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 3
           }
         },
         {
@@ -6871,16 +6407,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/migration/domain/ports.ts",
-          "path": "libs/modeler-core/src/migration/domain/ports.ts",
-          "line": 1,
-          "message": "4 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 4
-          }
-        },
-        {
           "key": "libs/modeler-core/src/migration/service/BpmnMigrationService.ts",
           "path": "libs/modeler-core/src/migration/service/BpmnMigrationService.ts",
           "line": 53,
@@ -6988,16 +6514,6 @@
           "values": {
             "codeLines": 40,
             "complexity": 1
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/modeler/bpmn/domain/ports.ts",
-          "path": "libs/modeler-core/src/modeler/bpmn/domain/ports.ts",
-          "line": 1,
-          "message": "19 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 19
           }
         },
         {
@@ -7199,16 +6715,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts",
-          "path": "libs/modeler-core/src/modeler/dmn/domain/emptyDmn.ts",
-          "line": 1,
-          "message": "22 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 22
-          }
-        },
-        {
           "key": "libs/modeler-core/src/modeler/dmn/infrastructure/dmnMessageHandlers.ts",
           "path": "libs/modeler-core/src/modeler/dmn/infrastructure/dmnMessageHandlers.ts",
           "line": 7,
@@ -7404,16 +6910,6 @@
           "values": {
             "codeLines": 100,
             "complexity": 11
-          }
-        },
-        {
-          "key": "libs/modeler-core/src/scriptTask/domain/ports.ts",
-          "path": "libs/modeler-core/src/scriptTask/domain/ports.ts",
-          "line": 1,
-          "message": "23 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 23
           }
         },
         {
@@ -7835,16 +7331,6 @@
           }
         },
         {
-          "key": "libs/modeler-core/src/testing/index.ts",
-          "path": "libs/modeler-core/src/testing/index.ts",
-          "line": 1,
-          "message": "13 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 13
-          }
-        },
-        {
           "key": "libs/modeler-core/src/testing/settingsNormalization.ts",
           "path": "libs/modeler-core/src/testing/settingsNormalization.ts",
           "line": 13,
@@ -7910,16 +7396,6 @@
           }
         },
         {
-          "key": "libs/modeler-types/src/diff.ts",
-          "path": "libs/modeler-types/src/diff.ts",
-          "line": 1,
-          "message": "8 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 8
-          }
-        },
-        {
           "key": "libs/modeler-types/src/disposableStore.ts",
           "path": "libs/modeler-types/src/disposableStore.ts",
           "line": 40,
@@ -7975,26 +7451,6 @@
           }
         },
         {
-          "key": "libs/modeler-types/src/index.ts",
-          "path": "libs/modeler-types/src/index.ts",
-          "line": 1,
-          "message": "21 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 21
-          }
-        },
-        {
-          "key": "libs/modeler-types/src/layout.ts",
-          "path": "libs/modeler-types/src/layout.ts",
-          "line": 1,
-          "message": "33 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 33
-          }
-        },
-        {
           "key": "libs/modeler-types/src/lint.ts",
           "path": "libs/modeler-types/src/lint.ts",
           "line": 73,
@@ -8036,26 +7492,6 @@
           "values": {
             "codeLines": 86,
             "complexity": 5
-          }
-        },
-        {
-          "key": "libs/modeler-types/src/scripting.ts",
-          "path": "libs/modeler-types/src/scripting.ts",
-          "line": 1,
-          "message": "12 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 12
-          }
-        },
-        {
-          "key": "libs/modeler-types/src/settings.ts",
-          "path": "libs/modeler-types/src/settings.ts",
-          "line": 1,
-          "message": "9 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 9
           }
         },
         {
@@ -8179,16 +7615,6 @@
           }
         },
         {
-          "key": "libs/properties-panel/src/index.ts",
-          "path": "libs/properties-panel/src/index.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
-          }
-        },
-        {
           "key": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts",
           "path": "libs/properties-panel/src/modeFilter/ModeFilterProvider.ts",
           "line": 108,
@@ -8230,16 +7656,6 @@
           "values": {
             "codeLines": 18,
             "complexity": 5
-          }
-        },
-        {
-          "key": "libs/properties-panel/src/provider/index.ts",
-          "path": "libs/properties-panel/src/provider/index.ts",
-          "line": 1,
-          "message": "5 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 5
           }
         },
         {
@@ -8397,16 +7813,6 @@
           }
         },
         {
-          "key": "libs/properties-panel/src/provider/properties/index.ts",
-          "path": "libs/properties-panel/src/provider/properties/index.ts",
-          "line": 1,
-          "message": "14 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 14
-          }
-        },
-        {
           "key": "libs/properties-panel/src/provider/utils/ElementUtil.ts",
           "path": "libs/properties-panel/src/provider/utils/ElementUtil.ts",
           "line": 10,
@@ -8528,16 +7934,6 @@
           }
         },
         {
-          "key": "libs/properties-panel/src/render/index.ts",
-          "path": "libs/properties-panel/src/render/index.ts",
-          "line": 1,
-          "message": "8 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 8
-          }
-        },
-        {
           "key": "libs/properties-panel/vitest.config.ts",
           "path": "libs/properties-panel/vitest.config.ts",
           "line": 1,
@@ -8545,26 +7941,6 @@
           "group": "files",
           "values": {
             "codeLines": 15
-          }
-        },
-        {
-          "key": "libs/shared/src/index.ts",
-          "path": "libs/shared/src/index.ts",
-          "line": 1,
-          "message": "19 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 19
-          }
-        },
-        {
-          "key": "libs/shared/src/lib/bpmnEditorCommands.ts",
-          "path": "libs/shared/src/lib/bpmnEditorCommands.ts",
-          "line": 1,
-          "message": "37 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 37
           }
         },
         {
@@ -9039,16 +8415,6 @@
           }
         },
         {
-          "key": "packages/bpmn-modeler/src/capabilities.ts",
-          "path": "packages/bpmn-modeler/src/capabilities.ts",
-          "line": 1,
-          "message": "10 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 10
-          }
-        },
-        {
           "key": "packages/bpmn-modeler/src/capabilityModules.ts",
           "path": "packages/bpmn-modeler/src/capabilityModules.ts",
           "line": 20,
@@ -9068,16 +8434,6 @@
           "values": {
             "codeLines": 50,
             "complexity": 3
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/coreServices.ts",
-          "path": "packages/bpmn-modeler/src/coreServices.ts",
-          "line": 1,
-          "message": "19 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 19
           }
         },
         {
@@ -9122,26 +8478,6 @@
           "values": {
             "codeLines": 191,
             "complexity": 7
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/design/index.ts",
-          "path": "packages/bpmn-modeler/src/design/index.ts",
-          "line": 1,
-          "message": "31 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 31
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/design/publicApi.ts",
-          "path": "packages/bpmn-modeler/src/design/publicApi.ts",
-          "line": 1,
-          "message": "53 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 53
           }
         },
         {
@@ -9221,16 +8557,6 @@
           }
         },
         {
-          "key": "packages/bpmn-modeler/src/engineStacks/engineStack.ts",
-          "path": "packages/bpmn-modeler/src/engineStacks/engineStack.ts",
-          "line": 1,
-          "message": "9 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 9
-          }
-        },
-        {
           "key": "packages/bpmn-modeler/src/engineStacks/index.ts",
           "path": "packages/bpmn-modeler/src/engineStacks/index.ts",
           "line": 7,
@@ -9283,16 +8609,6 @@
           "values": {
             "codeLines": 60,
             "complexity": 5
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/index.ts",
-          "path": "packages/bpmn-modeler/src/index.ts",
-          "line": 1,
-          "message": "79 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 79
           }
         },
         {
@@ -9406,16 +8722,6 @@
           }
         },
         {
-          "key": "packages/bpmn-modeler/src/modeSession/publicApi.ts",
-          "path": "packages/bpmn-modeler/src/modeSession/publicApi.ts",
-          "line": 1,
-          "message": "42 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 42
-          }
-        },
-        {
           "key": "packages/bpmn-modeler/src/modeler.ts",
           "path": "packages/bpmn-modeler/src/modeler.ts",
           "line": 186,
@@ -9492,16 +8798,6 @@
           }
         },
         {
-          "key": "packages/bpmn-modeler/src/publicApi.ts",
-          "path": "packages/bpmn-modeler/src/publicApi.ts",
-          "line": 1,
-          "message": "92 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 92
-          }
-        },
-        {
           "key": "packages/bpmn-modeler/src/reporting.ts",
           "path": "packages/bpmn-modeler/src/reporting.ts",
           "line": 17,
@@ -9543,16 +8839,6 @@
           "values": {
             "codeLines": 92,
             "complexity": 3
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/surfaceHandle.ts",
-          "path": "packages/bpmn-modeler/src/surfaceHandle.ts",
-          "line": 1,
-          "message": "18 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 18
           }
         },
         {
@@ -9630,26 +8916,6 @@
           "values": {
             "codeLines": 6,
             "complexity": 3
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/viewer/index.ts",
-          "path": "packages/bpmn-modeler/src/viewer/index.ts",
-          "line": 1,
-          "message": "24 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 24
-          }
-        },
-        {
-          "key": "packages/bpmn-modeler/src/viewer/publicApi.ts",
-          "path": "packages/bpmn-modeler/src/viewer/publicApi.ts",
-          "line": 1,
-          "message": "25 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 25
           }
         },
         {
@@ -9757,16 +9023,6 @@
           }
         },
         {
-          "key": "packages/dmn-modeler/src/index.ts",
-          "path": "packages/dmn-modeler/src/index.ts",
-          "line": 1,
-          "message": "22 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 22
-          }
-        },
-        {
           "key": "packages/dmn-modeler/src/modeler.ts",
           "path": "packages/dmn-modeler/src/modeler.ts",
           "line": 304,
@@ -9775,16 +9031,6 @@
           "values": {
             "codeLines": 343,
             "complexity": 9
-          }
-        },
-        {
-          "key": "packages/dmn-modeler/src/publicApi.ts",
-          "path": "packages/dmn-modeler/src/publicApi.ts",
-          "line": 1,
-          "message": "74 code lines; no function",
-          "group": "files",
-          "values": {
-            "codeLines": 74
           }
         },
         {
