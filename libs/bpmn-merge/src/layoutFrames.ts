@@ -6,15 +6,16 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    type PoolShape,
     endShapeOf,
     isFrame,
 } from "./layoutModel";
 
 /** The pool drawn around the node on its plane; none for a data store's pool, as it may lie outside. */
-export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+export function drawnPoolOf(layout: LayoutModel, node: NodeShape): PoolShape | undefined {
     if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
     const pool = layout.shapes.get(node.pool);
-    return isDrawnFrameOf(node, pool) ? pool : undefined;
+    return pool?.kind === "pool" && isDrawnFrameOf(node, pool) ? pool : undefined;
 }
 
 /**
@@ -133,26 +134,38 @@ export function framesAroundOf(layout: LayoutModel, node: NodeShape): LayoutShap
     ];
 }
 
+/** The innermost frames around a node: a sub-process drawn open, which holds no lane, else its pool and lane, either none on a plane outside a pool or outside lanes. */
+export type FrameScope =
+    | { readonly container: NodeShape; readonly lane: undefined }
+    | { readonly container: PoolShape | undefined; readonly lane: LaneShape | undefined };
+
 /** The innermost sub-process drawn open or pool around the node on its plane. */
-export function innermostFrameOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+export function innermostFrameOf(
+    layout: LayoutModel,
+    node: NodeShape,
+): NodeShape | PoolShape | undefined {
     return enclosingFramesOf(layout, node)[0];
 }
 
-/** The innermost drawn lane of the node, the one no other of its lanes is nested in, unless it lies in a sub-process. */
-export function innermostLaneOf(layout: LayoutModel, node: NodeShape): LaneShape | undefined {
-    if (innermostFrameOf(layout, node)?.kind === "node") return undefined;
+/** The node's innermost frame, and outside a sub-process its innermost drawn lane, the one no other of its lanes is nested in. */
+export function frameScopeOf(layout: LayoutModel, node: NodeShape): FrameScope {
+    const container = innermostFrameOf(layout, node);
+    if (container?.kind === "node") return { container, lane: undefined };
     const lanes = framesAroundOf(layout, node).filter(
         (frame): frame is LaneShape => frame.kind === "lane",
     );
-    return lanes.find((lane) => !lanes.some((other) => other.parent === lane.id));
+    return {
+        container,
+        lane: lanes.find((lane) => !lanes.some((other) => other.parent === lane.id)),
+    };
 }
 
 /** The drawn frames around the node, innermost first. */
-function enclosingFramesOf(layout: LayoutModel, node: NodeShape): LayoutShape[] {
+function enclosingFramesOf(layout: LayoutModel, node: NodeShape): (NodeShape | PoolShape)[] {
     const pool = drawnPoolOf(layout, node);
     const subProcesses = node.subProcesses.flatMap((id) => {
         const frame = layout.shapes.get(id);
-        return isDrawnFrameOf(node, frame) ? [frame] : [];
+        return frame?.kind === "node" && isDrawnFrameOf(node, frame) ? [frame] : [];
     });
     return pool === undefined ? subProcesses : [...subProcesses, pool];
 }

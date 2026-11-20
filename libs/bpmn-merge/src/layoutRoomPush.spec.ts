@@ -5,8 +5,9 @@ import type { Axis } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
 import type { DiagramBounds } from "./layoutGeometry";
-import type { LaneShape, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
-import { type FrameScope, type GrowingFrame, RoomPush, growingFrameOf } from "./layoutRoomPush";
+import type { FrameScope } from "./layoutFrames";
+import type { LaneShape, LayoutModel, NodeShape, PoolShape } from "./layoutModel";
+import { type GrowingFrame, RoomPush, growingFrameOf } from "./layoutRoomPush";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
 
 const PLANE = "Process_1";
@@ -40,7 +41,7 @@ const task = (id: string, bounds: DiagramBounds, inLane: string): NodeShape => (
 });
 
 describe("growingFrameOf", () => {
-    const pool: LayoutShape = {
+    const pool: PoolShape = {
         kind: "pool",
         id: "Pool_1",
         ...rootPlane("Collaboration_1"),
@@ -71,13 +72,13 @@ describe("growingFrameOf", () => {
             "a lane of a pool down",
             { container: pool, lane: laneInPool },
             "y",
-            { kind: "laneDown", lane: laneInPool, pool },
+            { kind: "laneDown", lane: laneInPool, pool, keepsPoolsLevel: true },
         ],
         [
             "a lane on a plane without a pool down",
             { container: undefined, lane: planeLane },
             "y",
-            { kind: "laneDown", lane: planeLane, pool: undefined },
+            { kind: "laneDown", lane: planeLane, pool: undefined, keepsPoolsLevel: false },
         ],
         [
             "the pool, not the lane, along x",
