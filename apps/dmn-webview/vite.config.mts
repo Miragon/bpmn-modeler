@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
-import { modelerBundlePreset } from "../../vite.shared";
+import { modelerBundlePreset, webviewBuildGuards } from "../../vite.shared";
 
 // Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
 export default defineConfig({
@@ -13,7 +13,7 @@ export default defineConfig({
     // resource scheme that rejects the dynamic import and leaves the pane blank.
     base: "./",
     cacheDir: "../../node_modules/.vite/dmn-webview",
-    plugins: [tsconfigPaths()],
+    plugins: [tsconfigPaths(), ...webviewBuildGuards({ entry: "index.js" })],
     ...modelerBundlePreset,
     build: {
         target: "es2021",

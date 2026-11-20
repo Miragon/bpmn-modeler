@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { DiagramBounds } from "./layoutGeometry";
 import {
     nearestOnSegment,
-    outlinePointOn,
     pointAlong,
     segmentBounds,
     segmentEntersBounds,
@@ -11,13 +10,10 @@ import {
     segmentEntersShape,
     segmentsCross,
     sharedRunLength,
-    sideOfCenter,
-    spansAlong,
 } from "./layoutSegments";
 
 const TASK: DiagramBounds = { x: 100, y: 100, width: 100, height: 80 };
 const EVENT: DiagramBounds = { x: 300, y: 140, width: 36, height: 36 };
-const GATEWAY: DiagramBounds = { x: 0, y: 0, width: 50, height: 50 };
 
 describe("segmentBounds", () => {
     it("is the segment's bounding box, whichever way it runs", () => {
@@ -85,79 +81,6 @@ describe("segmentEntersShape", () => {
                 TASK,
             ),
         ).toBe(true);
-    });
-});
-
-describe("outlinePointOn", () => {
-    it.each([
-        {
-            label: "a horizontal line meets a task's right side",
-            line: { axis: "y", at: 140 },
-            bounds: TASK,
-            outline: "rectangle",
-            towards: 1,
-            point: { x: 200, y: 140 },
-        },
-        {
-            label: "a horizontal line meets a task's left side",
-            line: { axis: "y", at: 140 },
-            bounds: TASK,
-            outline: "rectangle",
-            towards: -1,
-            point: { x: 100, y: 140 },
-        },
-        {
-            label: "a line off center meets a circle, rounded to whole pixels",
-            line: { axis: "y", at: 168 },
-            bounds: EVENT,
-            outline: "circle",
-            towards: 1,
-            point: { x: 333, y: 168 },
-        },
-        {
-            label: "a vertical line meets a diamond's lower edges",
-            line: { axis: "x", at: 35 },
-            bounds: GATEWAY,
-            outline: "diamond",
-            towards: 1,
-            point: { x: 35, y: 40 },
-        },
-        {
-            label: "a line past the bounds misses",
-            line: { axis: "y", at: 190 },
-            bounds: TASK,
-            outline: "rectangle",
-            towards: 1,
-            point: undefined,
-        },
-    ] as const)("$label", ({ line, bounds, outline, towards, point }) => {
-        expect(outlinePointOn(line, bounds, outline, towards)).toEqual(point);
-    });
-});
-
-describe("spansAlong", () => {
-    it.each([
-        { line: { axis: "y", at: 140 }, margin: 5, spans: true },
-        { line: { axis: "y", at: 104 }, margin: 5, spans: false },
-        { line: { axis: "y", at: 106 }, margin: 5, spans: true },
-        { line: { axis: "y", at: 106 }, margin: 10, spans: false },
-        { line: { axis: "x", at: 150 }, margin: 10, spans: true },
-        { line: { axis: "x", at: 195 }, margin: 5, spans: false },
-        { line: { axis: "x", at: 250 }, margin: 5, spans: false },
-    ] as const)(
-        "a line along $line.axis at $line.at, $margin px from the corners: $spans",
-        ({ line, margin, spans }) => {
-            expect(spansAlong(TASK, line, margin)).toBe(spans);
-        },
-    );
-});
-
-describe("sideOfCenter", () => {
-    it("names the side of the center a point lies on, even inside the shape", () => {
-        expect(sideOfCenter(TASK, { x: 103, y: 140 }, "x")).toBe(-1);
-        expect(sideOfCenter(TASK, { x: 197, y: 140 }, "x")).toBe(1);
-        expect(sideOfCenter(TASK, { x: 150, y: 103 }, "y")).toBe(-1);
-        expect(sideOfCenter(TASK, { x: 150, y: 400 }, "y")).toBe(1);
     });
 });
 

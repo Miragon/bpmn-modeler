@@ -1,5 +1,5 @@
 import {
-    type FormEditorCommand,
+    type FormEditorCommandType,
     logPreviewError,
     type PreviewCommandTable,
     type Query,
@@ -12,7 +12,7 @@ export interface PreviewSession {
     reply(query: Query): void;
 }
 
-export const PREVIEW_COMMANDS: PreviewCommandTable<FormEditorCommand, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<FormEditorCommandType, PreviewSession> = {
     SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
     DocumentFlushedCommand: { ignored: "the preview has no file to save" },
     LogWarningCommand: ({ message }) => console.warn(message),
@@ -21,3 +21,5 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<FormEditorCommand, PreviewSes
     GetFormInputValuesCommand: (_, preview) => preview.reply(emptyInputValues()),
     UpdateFormOutputValuesCommand: { ignored: "the preview has no host to hand the output to" },
 };
+
+export const PREVIEW_LOG_PREFIX = "[DEBUG]";

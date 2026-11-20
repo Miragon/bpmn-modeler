@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    type BpmnPluginsQuery,
     CleanupReportCommand,
     CursorChangedCommand,
     DiffPlaneChangedCommand,
@@ -282,6 +283,54 @@ describe("PreviewHost", () => {
         expect(answer.definitions.map((definition) => definition.name)).toEqual(["OrderPlaced"]);
     });
 
+    describe("plugin preview", () => {
+        const PREVIEW_PLUGINS = [
+            "Resize Tasks (rules)",
+            "Reduced Palette (palette)",
+            "Id Badges (overlays + style)",
+            "Technical IDs (modeling command)",
+            "Acme Moddle (moddle extension)",
+            "Engine Flags (engine-specific)",
+            "Probe (exposes the injector for checks)",
+            "Throws While Loading",
+        ];
+
+        beforeEach(() => {
+            // jsdom has no object URLs.
+            Object.defineProperty(URL, "createObjectURL", {
+                configurable: true,
+                value: (blob: Blob) => `blob:${blob.type}`,
+            });
+        });
+
+        afterEach(() => {
+            Reflect.deleteProperty(URL, "createObjectURL");
+        });
+
+        it.each([
+            ["", []],
+            ["?plugins", PREVIEW_PLUGINS],
+            ["?plugins=broken", [...PREVIEW_PLUGINS, "Broken Constructor"]],
+        ])("serves the plugins of %j as script URLs", (search, names) => {
+            previewHost(search).postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(answer.plugins.map((plugin) => plugin.name)).toEqual(names);
+            expect(answer.plugins.every((plugin) => plugin.scriptUrl === "blob:text/javascript")).toBe(
+                true,
+            );
+        });
+
+        it("serves a plugin's style as a style URL", () => {
+            previewHost("?plugins").postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(
+                answer.plugins.flatMap((plugin) => (plugin.styleUrl ? [plugin.name] : [])),
+            ).toEqual(["Id Badges (overlays + style)"]);
+        });
+    });
+
     describe("merge preview", () => {
         it.each([
             ["?mode=merge-current", "before", "current"],
@@ -464,14 +513,6 @@ describe("PreviewHost", () => {
 
         expect(reason.trim()).not.toBe("");
         expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
-    });
-
-    it("logs a caught error's stack under its message", () => {
-        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-        previewHost().postMessage(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
-
-        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
     });
 
     it("shows an info message in the console", () => {

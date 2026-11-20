@@ -96,18 +96,31 @@ describe("PreviewHost", () => {
     });
 
     it.each([
-        ["noschema", "Plain"],
-        ["problems", "Problems"],
-        ["unshaped", "Unshaped"],
-        ["process", "Process"],
-    ])("serves the %s file as JSON naming %s", (file, name) => {
+        ["noschema", "Plain", undefined],
+        ["unshaped", "Unshaped", "bpmn:ServiceTask"],
+        ["process", "Process", undefined],
+    ])("serves the %s template file for the builder's other states", (file, name, elementType) => {
         window.history.replaceState({}, "", `/?file=${file}`);
 
         new PreviewHost().postMessage(new GetElementTemplateFileCommand());
 
         const [reply] = replies as ElementTemplateFileQuery[];
-        expect(reply.content.endsWith("\n")).toBe(true);
-        expect([JSON.parse(reply.content)].flat()[0]).toEqual(expect.objectContaining({ name }));
+        expect(reply.content.endsWith("}\n")).toBe(true);
+        const template = JSON.parse(reply.content) as { name: string; elementType?: string };
+        expect([template.name, template.elementType]).toEqual([name, elementType]);
+    });
+
+    it("serves templates with every finding of the builder's rules for the problems file", () => {
+        window.history.replaceState({}, "", "/?file=problems");
+
+        new PreviewHost().postMessage(new GetElementTemplateFileCommand());
+
+        const [reply] = replies as ElementTemplateFileQuery[];
+        const templates = JSON.parse(reply.content) as { id: string; properties: unknown[] }[];
+        expect(templates.map(({ id, properties }) => [id, properties.length])).toEqual([
+            ["problems", 17],
+            ["more-problems", 1],
+        ]);
     });
 
     it.each(

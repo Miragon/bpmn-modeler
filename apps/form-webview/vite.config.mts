@@ -4,11 +4,13 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import { webviewBuildGuards } from "../../vite.shared";
+
 export default defineConfig({
     root: __dirname,
     base: "/",
     cacheDir: "../../node_modules/.vite/form-webview",
-    plugins: [tsconfigPaths()],
+    plugins: [tsconfigPaths(), ...webviewBuildGuards({ entry: "index.js" })],
     resolve: {
         // CodeMirror extension values require one shared state module instance.
         dedupe: ["preact", "@codemirror/state"],

@@ -5,13 +5,14 @@ import {
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
+import type { PlaneSlot } from "./planeSlots";
 
 interface DrawnShape {
     readonly id: string;
     /** The element whose plane draws the shape; "" for a plane that names none. */
     readonly plane: string;
     /** The result's slot for the shape's plane (`PlaneSlots`): two layouts draw a shape in one place only within one slot. */
-    readonly slot: string;
+    readonly slot: PlaneSlot;
     readonly bounds: DiagramBounds;
     readonly outline: Outline;
 }

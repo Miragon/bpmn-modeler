@@ -5,7 +5,7 @@ import {
     type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { PREVIEW_COMMANDS } from "./previewCommands";
+import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX } from "./previewCommands";
 
 /**
  * The browser preview's host: answers the template editor's commands with
@@ -18,6 +18,7 @@ export class PreviewHost extends MockHostApi<unknown, TemplateEditorCommand> {
             PREVIEW_COMMANDS,
             message,
             { search: window.location.search, reply: replyFromPreview },
+            PREVIEW_LOG_PREFIX,
         );
     }
 }

@@ -19,7 +19,7 @@ const register = (type: string, plugin: string) =>
 const isTask =
     "function (element) { return element.businessObject && element.businessObject.$instanceOf('bpmn:Task'); }";
 
-const MOCK_PLUGINS: readonly MockPlugin[] = [
+const mockPlugins = (): readonly MockPlugin[] => [
     {
         name: "Resize Tasks (rules)",
         script: `(function () {
@@ -128,13 +128,13 @@ const MOCK_PLUGINS: readonly MockPlugin[] = [
     },
 ];
 
-const BROKEN_CONSTRUCTOR: MockPlugin = {
+const brokenConstructor = (): MockPlugin => ({
     name: "Broken Constructor",
     script: `(function () {
   function Broken() { throw new Error('plugin bug in its constructor'); }
   ${register("bpmn.modeler.additionalModules", "{ __init__: ['broken'], broken: ['type', Broken] }")}
 })();`,
-};
+});
 
 function blobUrl(text: string, type: string): string {
     return URL.createObjectURL(new Blob([text], { type }));
@@ -145,7 +145,7 @@ export function mockPluginAssets(variant: string | null): BpmnPluginAsset[] {
     if (variant === null) {
         return [];
     }
-    const plugins = variant === "broken" ? [...MOCK_PLUGINS, BROKEN_CONSTRUCTOR] : MOCK_PLUGINS;
+    const plugins = variant === "broken" ? [...mockPlugins(), brokenConstructor()] : mockPlugins();
     return plugins.map((plugin) => ({
         name: plugin.name,
         scriptUrl: blobUrl(plugin.script, "text/javascript"),

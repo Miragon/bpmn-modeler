@@ -43,7 +43,7 @@ export { CLEANUP_COMMAND, CLEANUP_MODDLE_COMMAND } from "./apply/CleanupHandlers
 export { analyzeLayoutability } from "./preflight";
 export type { PreflightModel } from "./preflight";
 
-export { computeLayoutPlan, polylineMidpoint } from "./plan";
+export { computeLayoutPlan } from "./plan";
 
 export {
     findCleanupCandidates,
