@@ -122,9 +122,8 @@ export class MergeOutcomes {
 
     /** The card follows the selection ({@link cardOnSelection}); shown again, it announces nothing. */
     follow(selectedId: string | undefined): void {
-        this.change(cardOnSelection(this.memory, this.card?.shownAt, selectedId), {
-            announce: false,
-        });
+        const card = cardOnSelection(this.memory, this.card?.shownAt, selectedId);
+        this.change(card, { announce: false });
     }
 
     /** Rewrites a shown card, as after a change of language, without announcing it again. */
@@ -134,16 +133,9 @@ export class MergeOutcomes {
     }
 
     private change(card: MergeCardChange, announcement: { readonly announce: boolean }): void {
-        switch (card.kind) {
-            case "show":
-                return this.showCard(card.outcome, announcement);
-            case "close":
-                return this.card?.close();
-            case "remark":
-                return this.card?.remark();
-            case "keep":
-                return;
-        }
+        if (card.kind === "show") this.showCard(card.outcome, announcement);
+        else if (card.kind === "close") this.card?.close();
+        else if (card.kind === "remark") this.card?.remark();
     }
 
     private showCard(
