@@ -17,6 +17,9 @@ import {
     MERGE_MARKERS,
     MERGE_SIDES,
     type MergeBuildNoteContent,
+    type MergeBuildNoteOfKind,
+    type MergeNoteRepairOf,
+    type MergeRepairedNoteKind,
     type MergeSide,
     elementsNamedBy,
     otherSide,
@@ -98,27 +101,17 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     targetPickedWithout: true,
     sideLacksTarget: true,
 };
-type NoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
-    MergeBuildNoteContent extends infer Note
-        ? Note extends { kind: infer NoteKind }
-            ? Kind extends NoteKind
-                ? Note & { kind: Kind }
-                : never
-            : never
-        : never;
-
-type RepairedKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
-
-type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
-
 /**
  * Every build note, a repaired note's variants keyed by its repair, so the compiler names a kind or a repair the
  * merge adds and this spec misses.
  */
 const NOTES: {
-    [Kind in MergeBuildNoteContent["kind"]]: Kind extends RepairedKind
-        ? Record<RepairOf<NoteOfKind<Kind>>, readonly NoteOfKind<Kind>[]>
-        : readonly NoteOfKind<Kind>[];
+    [Kind in MergeBuildNoteContent["kind"]]: Kind extends MergeRepairedNoteKind
+        ? Record<
+              MergeNoteRepairOf<MergeBuildNoteOfKind<Kind>>,
+              readonly MergeBuildNoteOfKind<Kind>[]
+          >
+        : readonly MergeBuildNoteOfKind<Kind>[];
 } = {
     flowEndOffShape: {
         movedByBuild: [{ kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" }],

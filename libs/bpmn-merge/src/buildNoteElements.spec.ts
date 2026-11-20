@@ -2,24 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
     type MergeBuildNoteContent,
+    type MergeBuildNoteOfKind,
+    type MergeNoteRepairOf,
+    type MergeRepairedNoteKind,
     elementsNamedBy,
 } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import { elementsRedrawnBy } from "./buildNoteElements";
 
 type NoteKind = MergeBuildNoteContent["kind"];
-
-type NoteOfKind<Kind extends NoteKind> = MergeBuildNoteContent extends infer Note
-    ? Note extends { kind: infer OfKind }
-        ? Kind extends OfKind
-            ? Note & { kind: Kind }
-            : never
-        : never
-    : never;
-
-type RepairedKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
-
-type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
 
 type RedrawnCase<Note> = readonly [Note, readonly string[]];
 
@@ -28,7 +19,10 @@ type RedrawnCase<Note> = readonly [Note, readonly string[]];
  * repair the merge adds and this spec misses.
  */
 const REDRAWN: {
-    [Kind in RepairedKind]: Record<RepairOf<NoteOfKind<Kind>>, RedrawnCase<NoteOfKind<Kind>>>;
+    [Kind in MergeRepairedNoteKind]: Record<
+        MergeNoteRepairOf<MergeBuildNoteOfKind<Kind>>,
+        RedrawnCase<MergeBuildNoteOfKind<Kind>>
+    >;
 } = {
     flowEndOffShape: {
         movedByBuild: [
@@ -135,7 +129,9 @@ const REDRAWN: {
 };
 
 /** Every note no repair writes, so the compiler names a kind the merge adds and this spec misses. */
-const UNREPAIRED: { [Kind in Exclude<NoteKind, RepairedKind>]: NoteOfKind<Kind> } = {
+const UNREPAIRED: {
+    [Kind in Exclude<NoteKind, MergeRepairedNoteKind>]: MergeBuildNoteOfKind<Kind>;
+} = {
     boundaryEventOffHost: { kind: "boundaryEventOffHost", id: "Timer_1", host: "Task_A" },
     restoredWithoutRemovedWith: {
         kind: "restoredWithoutRemovedWith",

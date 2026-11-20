@@ -1,21 +1,14 @@
-import type { MergeBuildNoteContent, MergeSide } from "@miragon/bpmn-modeler-types";
+import type {
+    MergeBuildNoteContent,
+    MergeBuildNoteOfKind,
+    MergeNoteRepairOf,
+    MergeRepairedNoteKind,
+    MergeSide,
+} from "@miragon/bpmn-modeler-types";
 
 import type { MergeTranslate } from "./mergeTranslate";
 
 type NoteKind = MergeBuildNoteContent["kind"];
-
-/** The note of one kind, a broken flow's note, whose kind is either broken-flow kind, included. */
-type NoteOfKind<Kind extends NoteKind> = MergeBuildNoteContent extends infer Note
-    ? Note extends { kind: infer KindOfNote }
-        ? Kind extends KindOfNote
-            ? Note & { kind: Kind }
-            : never
-        : never
-    : never;
-
-type RepairedKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
-
-type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
 
 /** A note's sentence before translation: its translation key and the names that fill its placeholders. */
 interface NoteWording {
@@ -36,25 +29,25 @@ type Wording<Note> = (note: Note, names: CanvasNames) => NoteWording;
  * variant of its note once, for the template and its replacements together.
  */
 type NoteWordings = {
-    readonly [Kind in NoteKind]: Kind extends RepairedKind
+    readonly [Kind in NoteKind]: Kind extends MergeRepairedNoteKind
         ? {
-              readonly [Repair in RepairOf<NoteOfKind<Kind>>]: Wording<
-                  NoteOfKind<Kind> & { readonly repair: Repair }
+              readonly [Repair in MergeNoteRepairOf<MergeBuildNoteOfKind<Kind>>]: Wording<
+                  MergeBuildNoteOfKind<Kind> & { readonly repair: Repair }
               >;
           }
-        : Wording<NoteOfKind<Kind>>;
+        : Wording<MergeBuildNoteOfKind<Kind>>;
 };
 
 /** A flow and the shapes it misses or runs through, or a shape and the containers it lies outside. */
-type ElementAndShapesNote = NoteOfKind<
+type ElementAndShapesNote = MergeBuildNoteOfKind<
     "flowEndOffShape" | "flowThroughShape" | "shapeOutsideContainer"
 >;
 
 /** Shapes or lanes on top of each other. */
-type OverlapNote = NoteOfKind<"shapesOverlap" | "lanesOverlap">;
+type OverlapNote = MergeBuildNoteOfKind<"shapesOverlap" | "lanesOverlap">;
 
 /** A shape the build moved off the others it lay on. */
-type MovedShapeNote = Extract<NoteOfKind<"shapesOverlap">, { readonly moved: string }>;
+type MovedShapeNote = Extract<MergeBuildNoteOfKind<"shapesOverlap">, { readonly moved: string }>;
 
 const LAYOUT_CHANGED_BY_BOTH_TEXTS: Record<MergeSide, string> = {
     current: "Both sides changed the layout of {elements}; current's is kept",
@@ -184,7 +177,7 @@ function movedOffNames(note: MovedShapeNote, names: CanvasNames): Record<string,
 
 /** Room made for a moved shape by shifting shapes, growing frames, or both. */
 function madeRoomWording(
-    note: NoteOfKind<"shapesOverlap"> & { readonly repair: "madeRoom" },
+    note: MergeBuildNoteOfKind<"shapesOverlap"> & { readonly repair: "madeRoom" },
     names: CanvasNames,
 ): NoteWording {
     const replacements = {
@@ -209,7 +202,7 @@ function madeRoomWording(
 
 /** A lane the build moved below the others, with or without shifting shapes. */
 function laneStackedWording(
-    note: NoteOfKind<"lanesOverlap"> & { readonly repair: "movedByBuild" },
+    note: MergeBuildNoteOfKind<"lanesOverlap"> & { readonly repair: "movedByBuild" },
     names: CanvasNames,
 ): NoteWording {
     const replacements = { element: names.one(note.moved), grown: names.list(note.grown) };
@@ -228,7 +221,7 @@ function laneStackedWording(
 
 /** The flows left out, or once it names a boundary event, the elements left out, counted as the restore offer counts. */
 function restoredWithoutWording(
-    note: NoteOfKind<"restoredWithoutRemovedWith">,
+    note: MergeBuildNoteOfKind<"restoredWithoutRemovedWith">,
     names: CanvasNames,
 ): NoteWording {
     const element = names.one(note.id);
@@ -251,7 +244,7 @@ function restoredWithoutWording(
 
 /** A flow no diagram draws both ends of, or one that lacks an end. */
 function flowNotDrawnWording(
-    { id, source, target }: NoteOfKind<"flowNotDrawn">,
+    { id, source, target }: MergeBuildNoteOfKind<"flowNotDrawn">,
     names: CanvasNames,
 ): NoteWording {
     if (source === undefined || target === undefined) {
