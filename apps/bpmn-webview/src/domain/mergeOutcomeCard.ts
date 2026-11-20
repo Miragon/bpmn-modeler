@@ -24,7 +24,7 @@ interface MergeRememberedDecision {
     readonly outcome: MergeDecisionOutcome;
     readonly acted: MergeActedDecision;
     /** The refusal an undo freed: nothing that blocked it is left. */
-    readonly lifted?: MergeRefusal;
+    readonly freed?: MergeRefusal;
 }
 
 /** What the card or a row says of the pane's own latest request. */
@@ -56,7 +56,7 @@ export function mergeOutcomeCardContent(
     context: MergeOutcomeCardContext,
 ): MergeOutcomeCardContent {
     if (isRememberedHandMerge(remembered)) return handMergeCardContent(remembered, context);
-    const { outcome, acted, lifted } = remembered;
+    const { outcome, acted, freed } = remembered;
     const { restoreOffer, nameOf, translate } = context;
     const { elementId } = outcome;
     if (!outcome.applied && outcome.handMergesAtStake !== undefined) {
@@ -80,12 +80,12 @@ export function mergeOutcomeCardContent(
     }
     const headline = outcomeCardHeadline(outcome, acted, nameOf, translate);
     const unblocked =
-        lifted === undefined
+        freed === undefined
             ? {}
             : {
                   unblocked: {
-                      elementId: lifted.elementId,
-                      text: unblockedText(lifted.action, nameOf(lifted.elementId), translate),
+                      elementId: freed.elementId,
+                      text: unblockedText(freed.action, nameOf(freed.elementId), translate),
                   },
               };
     if (!outcome.applied) {
