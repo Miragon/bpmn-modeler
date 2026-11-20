@@ -1,13 +1,12 @@
 import type {
     MergePaneContainerReach,
-    MergePaneLackingSide,
     MergePaneOtherSideLack,
     MergePanePickable,
     MergePaneShapelessRow,
     MergePaneStates,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
+import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
 
 import {
     elementPickOf,
@@ -59,7 +58,7 @@ export type MergePadStates = Pick<MergePaneStates, "caption" | "restoreOffer"> &
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
  * the pane's side, keep a container with everything inside, leave it out
- * where the other side lacks it, keep what the host offers with it, merge
+ * by picking the side that lacks it, keep what the host offers with it, merge
  * its XML by hand where the host has a merge editor, undo the user's pick.
  * An entry whose outcome the result already has is left out, so every
  * entry changes something.
@@ -71,27 +70,23 @@ export function mergePadDecisions(
 ): readonly MergePadDecision[] {
     const pickable = states.pickable.find(({ id }) => id === elementId);
     if (pickable === undefined) return [];
-    const paneSide = states.caption.side;
-    const lackingSide = otherPanesLack(pickable, paneSide);
     const facts: MergeDecisionFacts = {
         ...elementPickOf(states, elementId),
         takenSide: pickable.takenSide,
-        lackingSide,
+        lackingSide: pickable.lackingSide,
         container: pickable.container,
         restoreOffer: keepRemovedWith(states, elementId),
     };
-    const sides = lackingSide === undefined ? [paneSide] : [paneSide, lackingSide.side];
-    return decisionsOn(facts, sides, offers).filter(
+    return decisionsOn(facts, padSides(states.caption.side, pickable), offers).filter(
         (decision): decision is MergePadDecision => decision.kind !== "heldKeepInside",
     );
 }
 
-/** The pad leaves an element out only by picking the other pane's side, where the element it draws is lacking. */
-function otherPanesLack(
-    pickable: MergePanePickable,
-    paneSide: MergeSide,
-): MergePaneLackingSide | undefined {
-    return pickable.lackingSide?.side === otherSide(paneSide) ? pickable.lackingSide : undefined;
+/** The pane's own side, then the side whose pick leaves the element out, where that is another. */
+function padSides(paneSide: MergeSide, { lackingSide }: MergePanePickable): readonly MergeSide[] {
+    return lackingSide === undefined || lackingSide.side === paneSide
+        ? [paneSide]
+        : [paneSide, lackingSide.side];
 }
 
 /** What a menu row reads of the host's states. */

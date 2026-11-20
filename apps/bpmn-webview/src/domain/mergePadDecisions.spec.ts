@@ -109,9 +109,9 @@ describe("mergePadDecisions", () => {
             ["keep element", "leaveOut"],
         ],
         [
-            "the pane's own side lacks it: the pad offers no leave-out of it",
+            "the pane's own side lacks it: picking that side leaves it out, never keeps it",
             { pickable: [{ id: "Task_1", lackingSide: { side: "incoming", lack: "missing" } }] },
-            ["keep element"],
+            ["leaveOut"],
         ],
         [
             "the result already leaves it out: no leave-out",
