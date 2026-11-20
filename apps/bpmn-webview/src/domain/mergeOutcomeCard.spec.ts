@@ -49,6 +49,16 @@ const refused = (
     blockedBy,
 });
 
+const undoFreeingLeaveOut: MergeDecisionOutcome = {
+    applied: true,
+    action: "unpick",
+    elementId: "Flow_1",
+    pulledIn: [],
+    dropped: [],
+    reopened: [],
+    freed: { action: "leaveOut", elementId: "Task_Remind" },
+};
+
 const keep = (
     elementId: string,
     scope: "element" | "withContents" | "withRemoved" = "element",
@@ -288,9 +298,8 @@ describe("mergeOutcomeCardContent", () => {
         ]);
         expect(
             card({
-                outcome: applied("unpick", "Flow_1"),
+                outcome: undoFreeingLeaveOut,
                 acted: undo("Flow_1"),
-                freed: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
             }).announcement,
         ).toStrictEqual([
             "Took back the pick of Flow from Order received to Send invoice",
@@ -298,12 +307,8 @@ describe("mergeOutcomeCardContent", () => {
         ]);
     });
 
-    it("says what an undo freed, with the element it freed", () => {
-        const content = card({
-            outcome: applied("unpick", "Flow_1"),
-            acted: undo("Flow_1"),
-            freed: refused("leaveOut", "Task_Remind", [picked("Flow_1")]),
-        });
+    it("says what the host says an undo freed, with the element it freed", () => {
+        const content = card({ outcome: undoFreeingLeaveOut, acted: undo("Flow_1") });
 
         expect(content.unblocked).toStrictEqual({
             elementId: "Task_Remind",

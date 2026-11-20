@@ -2,6 +2,7 @@ export { computeMerge } from "./computeMerge";
 export type { MergeVersions } from "./computeMerge";
 export { MergeDecisions } from "./mergeDecisions";
 export { mergeElementNames } from "./mergeElementNames";
+export { asksToDropHandMerges } from "./pickOutcome";
 export type {
     BlockedPick,
     DecisionOrigin,
@@ -9,6 +10,7 @@ export type {
     OpenConflict,
     PickOutcome,
     MergeResolution,
+    ScopedDecision,
 } from "./mergeDecisions";
 export { acceptHandMerge } from "./acceptHandMerge";
 export { describeHandMergeRefusal } from "./handMerge";

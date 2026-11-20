@@ -23,8 +23,6 @@ import type { MergeTranslate } from "./mergeTranslate";
 interface MergeRememberedDecision {
     readonly outcome: MergeDecisionOutcome;
     readonly acted: MergeActedDecision;
-    /** The refusal an undo freed: nothing that blocked it is left. */
-    readonly freed?: MergeRefusal;
 }
 
 /** What the card or a row says of the pane's own latest request. */
@@ -47,7 +45,8 @@ const OUTCOME_ROWS = [
 /**
  * The card for a decision this pane sent: a headline naming the side, then
  * what it changed and the offer of what the other side removed with it, or
- * up to three short reasons it was refused, and what an undo freed. A
+ * up to three short reasons it was refused, and what the host says an undo
+ * freed. A
  * decision that would drop versions merged by hand asks first; a merge by
  * hand says whether its text was taken ({@link handMergeCardContent}).
  */
@@ -56,7 +55,7 @@ export function mergeOutcomeCardContent(
     context: MergeOutcomeCardContext,
 ): MergeOutcomeCardContent {
     if (isRememberedHandMerge(remembered)) return handMergeCardContent(remembered, context);
-    const { outcome, acted, freed } = remembered;
+    const { outcome, acted } = remembered;
     const { restoreOffer, nameOf, translate } = context;
     const { elementId } = outcome;
     if (!outcome.applied && outcome.handMergesAtStake !== undefined) {
@@ -79,15 +78,6 @@ export function mergeOutcomeCardContent(
         });
     }
     const headline = outcomeCardHeadline(outcome, acted, nameOf, translate);
-    const unblocked =
-        freed === undefined
-            ? {}
-            : {
-                  unblocked: {
-                      elementId: freed.elementId,
-                      text: unblockedText(freed.action, nameOf(freed.elementId), translate),
-                  },
-              };
     if (!outcome.applied) {
         const hidden = outcome.blockedBy.length - MAX_REASONS;
         return withAnnouncement({
@@ -100,7 +90,6 @@ export function mergeOutcomeCardContent(
                 .map((block) => cardBlockText(block, elementId, nameOf, translate)),
             ...(hidden > 0 ? { moreReasons: moreReasonsText(hidden, translate) } : {}),
             blockers: blockersOf(outcome, elementId),
-            ...unblocked,
         });
     }
     return withAnnouncement({
@@ -119,7 +108,18 @@ export function mergeOutcomeCardContent(
         ...(restoreOffer?.elementId === elementId
             ? { offer: { elementId, text: restoreOfferText(restoreOffer, translate) } }
             : {}),
-        ...unblocked,
+        ...(outcome.freed === undefined
+            ? {}
+            : {
+                  unblocked: {
+                      elementId: outcome.freed.elementId,
+                      text: unblockedText(
+                          outcome.freed.action,
+                          nameOf(outcome.freed.elementId),
+                          translate,
+                      ),
+                  },
+              }),
     });
 }
 
