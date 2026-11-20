@@ -1,4 +1,4 @@
-import { type PolylineSegment, pointAlongSegment } from "@miragon/bpmn-modeler-types/polyline";
+import { type SegmentEnds, pointAlongSegment } from "@miragon/bpmn-modeler-types/polyline";
 
 import {
     type DiagramBounds,
@@ -13,7 +13,7 @@ import {
     rightOf,
 } from "./layoutGeometry";
 
-export type Segment = Pick<PolylineSegment, "from" | "to">;
+export type Segment = SegmentEnds;
 
 /** Whether the two segments cross at one point inside both, not merely touch. */
 export function segmentsCross({ from: a, to: b }: Segment, { from: c, to: d }: Segment): boolean {
