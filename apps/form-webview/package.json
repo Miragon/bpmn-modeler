@@ -16,8 +16,8 @@
     },
     "dependencies": {
         "@bpmn-io/cm-theme": "0.2.2",
-        "@bpmn-io/form-js-editor": "2.1.1",
-        "@bpmn-io/form-js-viewer": "2.1.1",
+        "@bpmn-io/form-js-editor": "2.2.0",
+        "@bpmn-io/form-js-viewer": "2.2.0",
         "@codemirror/state": "6.7.6",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*"
