@@ -2,10 +2,12 @@ import {
     type Axis,
     along,
     boundsShifted,
+    farBorderOf,
     farSideOf,
     grownAlong,
     liesAheadWithin,
     nearSideOf,
+    offsetAlong,
     stripPast,
 } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
@@ -389,7 +391,7 @@ export class RoomPush {
     }
 
     private moveShape(shape: LayoutShape, by: number): void {
-        const [dx, dy] = this.axis === "x" ? [by, 0] : [0, by];
+        const { dx, dy } = offsetAlong(this.axis, by);
         this.trial.replaceShape(
             shape.kind === "node"
                 ? translatedNode(shape, dx, dy)
@@ -426,7 +428,7 @@ export class RoomPush {
     private growFrame(frame: LayoutShape, lanes: readonly LaneShape[], farSide: number): number {
         const growth = farSide - this.far(frame.bounds);
         if (growth <= 0) return 0;
-        const side = this.axis === "x" ? "right" : "bottom";
+        const side = farBorderOf(this.axis);
         const across = lanes.filter(
             (lane) =>
                 lane.id !== frame.id &&

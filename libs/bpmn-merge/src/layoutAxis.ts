@@ -1,4 +1,5 @@
 import {
+    type Border,
     type DiagramBounds,
     type Outline,
     type Point,
@@ -10,6 +11,8 @@ import {
 
 /** A direction through the diagram: along x room is made to the right, along y downward. */
 export type Axis = "x" | "y";
+
+export const crossAxisOf = (axis: Axis): Axis => (axis === "x" ? "y" : "x");
 
 export const along = (axis: Axis, point: Point): number => (axis === "x" ? point.x : point.y);
 
@@ -28,12 +31,21 @@ export const nearSideOf = (axis: Axis, bounds: DiagramBounds): number =>
 export const farSideOf = (axis: Axis, bounds: DiagramBounds): number =>
     axis === "x" ? rightOf(bounds) : bottomOf(bounds);
 
+/** The border at the bounds' far side along the axis. */
+export const farBorderOf = (axis: Axis): Border => (axis === "x" ? "right" : "bottom");
+
+export function offsetAlong(axis: Axis, by: number): { readonly dx: number; readonly dy: number } {
+    return axis === "x" ? { dx: by, dy: 0 } : { dx: 0, dy: by };
+}
+
 export function pointShifted(axis: Axis, point: Point, by: number): Point {
-    return axis === "x" ? { x: point.x + by, y: point.y } : { x: point.x, y: point.y + by };
+    const { dx, dy } = offsetAlong(axis, by);
+    return { x: point.x + dx, y: point.y + dy };
 }
 
 export function boundsShifted(axis: Axis, bounds: DiagramBounds, by: number): DiagramBounds {
-    return axis === "x" ? translated(bounds, by, 0) : translated(bounds, 0, by);
+    const { dx, dy } = offsetAlong(axis, by);
+    return translated(bounds, dx, dy);
 }
 
 /** The bounds grown at their far side along the axis. */
@@ -54,7 +66,7 @@ export function liesAheadWithin(
     other: DiagramBounds,
     clearance: number,
 ): boolean {
-    const crossAxis: Axis = axis === "x" ? "y" : "x";
+    const crossAxis = crossAxisOf(axis);
     const overlapsAcross =
         nearSideOf(crossAxis, other) < farSideOf(crossAxis, bounds) &&
         nearSideOf(crossAxis, bounds) < farSideOf(crossAxis, other);
@@ -91,10 +103,10 @@ export function outlinePointOn(
 ): Point | undefined {
     const center = centerOf(bounds);
     const horizontal = line.axis === "y";
-    const across = horizontal ? bounds.height / 2 : bounds.width / 2;
-    const along = horizontal ? bounds.width / 2 : bounds.height / 2;
+    const halfAcross = horizontal ? bounds.height / 2 : bounds.width / 2;
+    const halfAlong = horizontal ? bounds.width / 2 : bounds.height / 2;
     const offset = line.at - (horizontal ? center.y : center.x);
-    const reach = reachAlong(outline, along, across, Math.abs(offset));
+    const reach = reachAlong(outline, halfAlong, halfAcross, Math.abs(offset));
     if (reach === undefined) return undefined;
     const end = Math.round((horizontal ? center.x : center.y) + towards * reach);
     return horizontal ? { x: end, y: line.at } : { x: line.at, y: end };
@@ -116,6 +128,13 @@ function reachAlong(
     return halfAlong;
 }
 
+/** The line both points lie on, horizontal first; undefined when they share neither. */
+export function lineThrough(from: Point, to: Point): AxisLine | undefined {
+    if (from.y === to.y) return { axis: "y", at: from.y };
+    if (from.x === to.x) return { axis: "x", at: from.x };
+    return undefined;
+}
+
 /** Whether the line crosses the bounds at least `margin` away from their corners. */
 export function spansAlong(bounds: DiagramBounds, line: AxisLine, margin: number): boolean {
     const [low, high] =
@@ -123,7 +142,8 @@ export function spansAlong(bounds: DiagramBounds, line: AxisLine, margin: number
     return line.at > low + margin && line.at < high - margin;
 }
 
-/** Which side of the bounds' center the point lies on along the axis, as `outlinePointOn` takes `towards`. */
-export function sideOfCenter(bounds: DiagramBounds, point: Point, axis: Axis): 1 | -1 {
+/** Which side of the bounds' center the point lies on along the line, as `outlinePointOn` takes `towards`. */
+export function sideOfCenter(bounds: DiagramBounds, point: Point, line: AxisLine): 1 | -1 {
+    const axis = crossAxisOf(line.axis);
     return point[axis] > centerOf(bounds)[axis] ? 1 : -1;
 }

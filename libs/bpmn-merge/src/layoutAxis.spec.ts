@@ -5,10 +5,14 @@ import {
     along,
     atAcross,
     boundsShifted,
+    crossAxisOf,
+    farBorderOf,
     farSideOf,
     grownAlong,
     liesAheadWithin,
+    lineThrough,
     nearSideOf,
+    offsetAlong,
     outlinePointOn,
     pointShifted,
     sideOfCenter,
@@ -142,10 +146,59 @@ describe("spansAlong", () => {
 });
 
 describe("sideOfCenter", () => {
-    it("names the side of the center a point lies on, even inside the shape", () => {
-        expect(sideOfCenter(TASK, { x: 103, y: 140 }, "x")).toBe(-1);
-        expect(sideOfCenter(TASK, { x: 197, y: 140 }, "x")).toBe(1);
-        expect(sideOfCenter(TASK, { x: 150, y: 103 }, "y")).toBe(-1);
-        expect(sideOfCenter(TASK, { x: 150, y: 400 }, "y")).toBe(1);
+    it("names the side of the center a point lies on along the line, even inside the shape", () => {
+        const horizontal = { axis: "y", at: 140 } as const;
+        const vertical = { axis: "x", at: 150 } as const;
+        expect(sideOfCenter(TASK, { x: 103, y: 140 }, horizontal)).toBe(-1);
+        expect(sideOfCenter(TASK, { x: 197, y: 140 }, horizontal)).toBe(1);
+        expect(sideOfCenter(TASK, { x: 150, y: 103 }, vertical)).toBe(-1);
+        expect(sideOfCenter(TASK, { x: 150, y: 400 }, vertical)).toBe(1);
+    });
+
+    it("answers on the line's own side, which outlinePointOn takes as towards", () => {
+        const line = { axis: "y", at: 120 } as const;
+        const from = { x: 400, y: 120 };
+        expect(outlinePointOn(line, TASK, "rectangle", sideOfCenter(TASK, from, line))).toEqual({
+            x: 200,
+            y: 120,
+        });
+    });
+});
+
+describe("crossAxisOf", () => {
+    it.each([
+        { axis: "x", cross: "y" },
+        { axis: "y", cross: "x" },
+    ] as const)("$axis crosses $cross", ({ axis, cross }) => {
+        expect(crossAxisOf(axis)).toBe(cross);
+    });
+});
+
+describe("offsetAlong", () => {
+    it.each([
+        { axis: "x", offset: { dx: 7, dy: 0 } },
+        { axis: "y", offset: { dx: 0, dy: 7 } },
+    ] as const)("moves along $axis only", ({ axis, offset }) => {
+        expect(offsetAlong(axis, 7)).toEqual(offset);
+    });
+});
+
+describe("farBorderOf", () => {
+    it.each([
+        { axis: "x", border: "right" },
+        { axis: "y", border: "bottom" },
+    ] as const)("ends $axis at the $border border", ({ axis, border }) => {
+        expect(farBorderOf(axis)).toBe(border);
+    });
+});
+
+describe("lineThrough", () => {
+    it.each([
+        { from: { x: 10, y: 40 }, to: { x: 90, y: 40 }, line: { axis: "y", at: 40 } },
+        { from: { x: 30, y: 10 }, to: { x: 30, y: 90 }, line: { axis: "x", at: 30 } },
+        { from: { x: 30, y: 40 }, to: { x: 30, y: 40 }, line: { axis: "y", at: 40 } },
+        { from: { x: 10, y: 10 }, to: { x: 90, y: 90 }, line: undefined },
+    ] as const)("$from to $to lie on $line", ({ from, to, line }) => {
+        expect(lineThrough(from, to)).toEqual(line);
     });
 });
