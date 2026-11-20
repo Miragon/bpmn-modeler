@@ -296,7 +296,11 @@ each of those.
   (`restoredWithoutRemovedWith`; each is decided on its own), a kept flow no longer its
   source's default, elements the base and both sides draw differently, every frame
   difference the result does not carry, and each flow left out of the drawing
-  (`flowNotDrawn`).
+  (`flowNotDrawn`). Each note carries the elements it names (`named`, from `elementsNamedBy`
+  beside the note type, which a webview spec holds the note's text to). The build specs read
+  `elementsRedrawnBy`, a subset of `named` that a spec checks and the one other place a repair's
+  new field goes. Rejected: a switch per reader, which had to change with every new field while
+  nothing checked that they agreed. Cost: a note carries its ids twice.
 - *The drawing's broken spots are found, noted and partly repaired by geometry.* Which spots
   count, which shapes the build moves, which containers it grows and which flows it re-routes,
   and the layout notes are in [merge layout](merge-layout.md).

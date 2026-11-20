@@ -5,7 +5,7 @@ import { generateLargeC7Model } from "../../../scripts/perf/largeBpmnModel.mjs";
 import { withShiftedTasks } from "./__fixtures__/shiftedTasks";
 import { perParseOf } from "./__fixtures__/timeAgainstParsing";
 import { rootPlane } from "./__fixtures__/shapePlane";
-import type { BuildNote } from "./buildNotes";
+import type { BuildNoteContent } from "./buildNotes";
 import { planContainerMoves } from "./layoutContainerMoves";
 import { BUILD_LAYOUT_REPAIRS, planLayoutRepair } from "./layoutDrawingRepair";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
@@ -64,7 +64,7 @@ async function layoutRepairPerParseOf(resultXml: string, sideXml: string) {
     return { notes: plan().notes, perParse: await perParseOf(resultXml, plan) };
 }
 
-const overlapRepairsOf = (notes: readonly BuildNote[]) =>
+const overlapRepairsOf = (notes: readonly BuildNoteContent[]) =>
     notes.flatMap((note) => (note.kind === "shapesOverlap" ? [note.repair] : []));
 
 // Measured against parsing the result once, best of five each, on 800 KB (44 ms to parse), the
