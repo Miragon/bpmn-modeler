@@ -1,9 +1,8 @@
 import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import { type DiagramIndex, diagramIndexOf, flowDrawingOf } from "./diagramIndex";
+import { type DiagramIndex, diagramIndexOf, flowDrawingOf, shapeDrawingOf } from "./diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
-import { shapeDrawingOf } from "./layoutModelReader";
 
 /**
  * Writes what the repaired layout changed against the layout read from the
@@ -22,7 +21,7 @@ export function writeLayoutChanges(
     for (const [id, shape] of after.shapes) {
         const old = before.shapes.get(id);
         if (old === undefined || old === shape || sameDrawing(old, shape)) continue;
-        const drawing = shapeDrawingOf(indexed().drawingsByElement.get(id) ?? [])?.element;
+        const drawing = shapeDrawingOf(indexed(), id)?.element;
         if (drawing !== undefined) writeShape(drawing, old, shape);
     }
     for (const [id, edge] of after.edges) {
