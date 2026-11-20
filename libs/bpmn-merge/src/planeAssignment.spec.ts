@@ -5,7 +5,7 @@ import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
 import { DrawingSides } from "./drawingSides";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
-import { PlaneSlots } from "./planeSlots";
+import { type PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const SEMANTIC = `
   <bpmn:collaboration id="Collab_1">
@@ -96,7 +96,7 @@ const PARTS = new Set(["Input_Sub"]);
 
 let assignment: PlaneAssignment;
 let slots: PlaneSlots;
-let keptSlots: readonly string[];
+let keptSlots: readonly PlaneSlot[];
 
 beforeAll(async () => {
     const createModdle = await loadBpmnModdle();

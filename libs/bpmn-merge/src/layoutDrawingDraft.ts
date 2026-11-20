@@ -23,6 +23,7 @@ interface DraftIndex {
  */
 export class DrawingDraft implements LayoutModel {
     private constructor(
+        private readonly original: LayoutModel,
         private readonly shapeMap: Map<string, LayoutShape>,
         private readonly edgeMap: Map<string, LayoutEdge>,
         private readonly changedShapes: Set<string>,
@@ -44,6 +45,7 @@ export class DrawingDraft implements LayoutModel {
         );
         const drawn = [...layout.edges.values()].filter(({ waypoints }) => waypoints.length > 0);
         return new DrawingDraft(
+            layout,
             new Map(layout.shapes),
             new Map(layout.edges),
             new Set(),
@@ -58,6 +60,7 @@ export class DrawingDraft implements LayoutModel {
     /** A copy to try changes on, which leaves this draft as it is. */
     fork(): DrawingDraft {
         return new DrawingDraft(
+            this.original,
             new Map(this.shapeMap),
             new Map(this.edgeMap),
             new Set(this.changedShapes),
@@ -68,6 +71,18 @@ export class DrawingDraft implements LayoutModel {
 
     get changed(): boolean {
         return this.changedShapes.size > 0 || this.changedEdges.size > 0;
+    }
+
+    /** This draft once it changed anything, else the drawing it was made of. */
+    get changedOrOriginal(): LayoutModel {
+        return this.changed ? this : this.original;
+    }
+
+    /** The shapes this draft draws other than the draft it was forked from does, in document order. */
+    shapesChangedFrom(base: DrawingDraft): string[] {
+        return [...this.shapes].flatMap(([id, shape]) =>
+            base.shapes.get(id) === shape ? [] : [id],
+        );
     }
 
     node(id: string): NodeShape | undefined {

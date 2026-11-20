@@ -120,6 +120,7 @@ describe("preview command tables", () => {
     it("finds every table by the shared type it declares", () => {
         expect(tables.map(({ path }) => path)).toEqual(
             expect.arrayContaining([
+                "apps/add-ons-webview/src/adapter/out/browserPreview/previewCommands.ts",
                 "apps/bpmn-webview/src/adapter/out/browserPreview/previewCommands.ts",
                 "apps/deployment-webview/src/adapter/out/browserPreview/previewCommands.ts",
             ]),

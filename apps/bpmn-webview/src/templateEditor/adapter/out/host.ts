@@ -8,10 +8,11 @@ import {
     type Query,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine, isEngine } from "@miragon/bpmn-modeler-types";
+import { type Engine, isEngine } from "@miragon/bpmn-modeler-types";
 
 import c7Samples from "../../../__fixtures__/c7-samples.json";
 import c8Samples from "../../../__fixtures__/c8-samples.json";
+import { mockTemplateFile } from "../../../__fixtures__/mock-template-files";
 import type { TemplateEditorHost } from "../../port/templateEditorHost";
 
 declare const process: { env: { NODE_ENV: string } };
@@ -27,72 +28,9 @@ export function getTemplateEditorHostApi(): TemplateEditorHost {
     return new HostApiImpl<unknown, MessageType>();
 }
 
-const C8_SCHEMA = ELEMENT_TEMPLATE_SCHEMA_URL.c8;
-const hidden = (binding: Record<string, string>, value = "x") => ({
-    type: "Hidden",
-    value,
-    binding,
-});
-const input = (name: string, extra: Record<string, unknown> = {}) => ({
-    label: name,
-    type: "String",
-    binding: { type: "zeebe:input", name },
-    ...extra,
-});
-
-// Every finding of the builder's own rules; one template cannot miss the script's
-// expression and its result variable at once, so a second one misses the latter.
-const PROBLEMS = [
-    {
-        $schema: C8_SCHEMA,
-        name: "Problems",
-        id: "problems",
-        appliesTo: ["bpmn:ServiceTask"],
-        groups: [{}, { id: "twin" }, { id: "twin" }],
-        properties: [
-            input("first", { id: "a" }),
-            input("second", { id: "a" }),
-            input("self", { id: "self", condition: { property: "self", equals: "x" } }),
-            input("orphan", { condition: { property: "nope", equals: "x" } }),
-            input("grouped", { group: "missing" }),
-            input("choice", { type: "Dropdown", value: "c", choices: [{ name: "A", value: "a" }] }),
-            hidden({ type: "zeebe:formDefinition", property: "formId" }),
-            hidden({ type: "zeebe:formDefinition", property: "externalReference" }),
-            hidden({ type: "zeebe:calledElement", property: "propagateAllChildVariables" }, "true"),
-            hidden({ type: "zeebe:calledDecision", property: "resultVariable" }),
-            hidden({ type: "zeebe:script", property: "resultVariable" }),
-            hidden({ type: "bpmn:Message#property", name: "name" }),
-            hidden({ type: "zeebe:linkedResource", linkName: "x", property: "resourceId" }),
-            hidden({ type: "zeebe:taskDefinition:type" }),
-            input("old optional", { optional: true }),
-            input("locked FEEL", { feel: "optional", editable: false }),
-            { type: "Hidden", binding: { type: "zeebe:input", name: "no value" } },
-        ],
-    },
-    {
-        $schema: C8_SCHEMA,
-        name: "More problems",
-        id: "more-problems",
-        appliesTo: ["bpmn:ScriptTask"],
-        properties: [hidden({ type: "zeebe:script", property: "expression" }, "=1")],
-    },
-];
-
-// Files for the editor's other states, picked with `?file=`.
-const FILES: Readonly<Record<string, string>> = {
-    empty: "",
-    noschema: `${JSON.stringify({ name: "Plain", id: "plain", appliesTo: ["bpmn:ServiceTask"], properties: [] }, null, 2)}\n`,
-    broken: '{\n  "name": "Broken",\n',
-    notemplate: "[]\n",
-    problems: `${JSON.stringify(PROBLEMS, null, 2)}\n`,
-    // Valid JSON the builder cannot edit in place, and a type the preview cannot show.
-    unshaped: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Unshaped", id: "unshaped", appliesTo: ["bpmn:ServiceTask"], elementType: "bpmn:ServiceTask", properties: [] }, null, 2)}\n`,
-    process: `${JSON.stringify({ $schema: C8_SCHEMA, name: "Process", id: "process", appliesTo: ["bpmn:Process"], properties: [] }, null, 2)}\n`,
-};
-
 /**
- * Serves the C8 sample templates, the C7 ones for `?engine=c7`, or one of
- * {@link FILES} for `?file=`. `?lang=de` switches the language once the
+ * Serves the C8 sample templates, the C7 ones for `?engine=c7`, or the
+ * {@link mockTemplateFile} `?file=` names. `?lang=de` switches the language once the
  * first template is shown.
  */
 class MockTemplateEditorHost extends MockHostApi<unknown, MessageType> {
@@ -105,7 +43,7 @@ class MockTemplateEditorHost extends MockHostApi<unknown, MessageType> {
         const params = new URLSearchParams(window.location.search);
         const engine = params.get("engine");
         const samples = SAMPLES[isEngine(engine) ? engine : "c8"];
-        const file = FILES[params.get("file") ?? ""] ?? `${JSON.stringify(samples, null, 2)}\n`;
+        const file = mockTemplateFile(params.get("file") ?? "") ?? `${JSON.stringify(samples, null, 2)}\n`;
         dispatch(new ElementTemplateFileQuery(file));
         const lang = params.get("lang");
         if (lang) {
