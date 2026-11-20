@@ -11,9 +11,27 @@ import { type PlaneIndex, type PlaneNodes, byPlaneWithGrid, planeNodesOf } from 
 import { polylineBounds } from "./layoutPolyline";
 import type { ShapeGroup } from "./layoutShapeGroups";
 
-interface DraftIndex {
-    readonly nodes: ReadonlyMap<string, PlaneNodes>;
-    readonly edges: ReadonlyMap<string, PlaneIndex<LayoutEdge>>;
+/** The original drawing's nodes and drawn edges by plane; each grid is built on its first read. */
+class DraftIndex {
+    private nodeIndex: ReadonlyMap<string, PlaneNodes> | undefined;
+    private edgeIndex: ReadonlyMap<string, PlaneIndex<LayoutEdge>> | undefined;
+
+    constructor(
+        private readonly originalNodes: readonly NodeShape[],
+        private readonly drawnEdges: readonly LayoutEdge[],
+    ) {}
+
+    get nodes(): ReadonlyMap<string, PlaneNodes> {
+        this.nodeIndex ??= planeNodesOf(this.originalNodes);
+        return this.nodeIndex;
+    }
+
+    get edges(): ReadonlyMap<string, PlaneIndex<LayoutEdge>> {
+        this.edgeIndex ??= byPlaneWithGrid(this.drawnEdges, ({ waypoints }) =>
+            polylineBounds(waypoints),
+        );
+        return this.edgeIndex;
+    }
 }
 
 /**
@@ -50,10 +68,7 @@ export class DrawingDraft implements LayoutModel {
             new Map(layout.edges),
             new Set(),
             new Set(),
-            {
-                nodes: planeNodesOf(nodes),
-                edges: byPlaneWithGrid(drawn, ({ waypoints }) => polylineBounds(waypoints)),
-            },
+            new DraftIndex(nodes, drawn),
         );
     }
 
