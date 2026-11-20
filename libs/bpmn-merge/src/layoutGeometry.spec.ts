@@ -6,6 +6,7 @@ import {
     bordersAt,
     gapBetween,
     keepsClearOf,
+    labelAfterResize,
 } from "./layoutGeometry";
 
 const TASK: DiagramBounds = { x: 100, y: 100, width: 100, height: 80 };
@@ -59,5 +60,45 @@ describe("keepsClearOf", () => {
         { label: "on top", other: TASK, clear: false },
     ])("a shape $label keeps 15 px clear: $clear", ({ other, clear }) => {
         expect(keepsClearOf(TASK, other, 15)).toBe(clear);
+    });
+});
+
+describe("labelAfterResize", () => {
+    const GROUP: DiagramBounds = { x: 100, y: 100, width: 200, height: 100 };
+    const label = (x: number, y: number): DiagramBounds => ({ x, y, width: 50, height: 14 });
+
+    it.each<[string, DiagramBounds, DiagramBounds, DiagramBounds]>([
+        [
+            "moves with bounds that only shifted",
+            label(175, 107),
+            { ...GROUP, x: 250 },
+            label(325, 107),
+        ],
+        [
+            "keeps the middle of the top border when the bounds grow to the right",
+            label(175, 107),
+            { ...GROUP, width: 300 },
+            label(225, 107),
+        ],
+        [
+            "stays at the top border when the bounds grow downward",
+            label(175, 107),
+            { ...GROUP, height: 160 },
+            label(175, 107),
+        ],
+        [
+            "follows the bottom border when the bounds grow downward",
+            label(175, 210),
+            { ...GROUP, height: 160 },
+            label(175, 270),
+        ],
+        [
+            "follows the nearest point of the border from outside a corner",
+            label(310, 210),
+            { ...GROUP, width: 300, height: 160 },
+            label(410, 270),
+        ],
+    ])("%s", (_, drawn, to, placed) => {
+        expect(labelAfterResize(drawn, GROUP, to)).toEqual(placed);
     });
 });

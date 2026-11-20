@@ -180,3 +180,44 @@ export function gapBetween(first: DiagramBounds, second: DiagramBounds): number 
     const apartY = Math.max(0, second.y - bottomOf(first), first.y - bottomOf(second));
     return apartX + apartY;
 }
+
+/**
+ * Where bpmn-js moves an external label when its element's bounds change:
+ * by as far as the border point nearest the label's middle moves as the
+ * bounds scale about their center.
+ */
+export function labelAfterResize(
+    label: DiagramBounds,
+    from: DiagramBounds,
+    to: DiagramBounds,
+): DiagramBounds {
+    const reference = nearestBorderPoint(centerOf(label), from);
+    const oldCenter = centerOf(from);
+    const newCenter = centerOf(to);
+    const moved = (at: number, center: number, newCenterAt: number, scale: number) =>
+        Math.round(Math.round(newCenterAt + (at - center) * scale) - at);
+    const dx = moved(reference.x, oldCenter.x, newCenter.x, scaleOf(to.width, from.width));
+    const dy = moved(reference.y, oldCenter.y, newCenter.y, scaleOf(to.height, from.height));
+    return translated(label, dx, dy);
+}
+
+function scaleOf(size: number, drawn: number): number {
+    return drawn === 0 ? 1 : size / drawn;
+}
+
+function nearestBorderPoint(point: Point, bounds: DiagramBounds): Point {
+    const clamped = (at: number, start: number, end: number) => Math.min(Math.max(at, start), end);
+    if (!liesInside(point, bounds)) {
+        return {
+            x: clamped(point.x, bounds.x, rightOf(bounds)),
+            y: clamped(point.y, bounds.y, bottomOf(bounds)),
+        };
+    }
+    const onBorders: [number, Point][] = [
+        [point.y - bounds.y, { x: point.x, y: bounds.y }],
+        [rightOf(bounds) - point.x, { x: rightOf(bounds), y: point.y }],
+        [bottomOf(bounds) - point.y, { x: point.x, y: bottomOf(bounds) }],
+        [point.x - bounds.x, { x: bounds.x, y: point.y }],
+    ];
+    return onBorders.reduce((nearest, next) => (next[0] < nearest[0] ? next : nearest))[1];
+}

@@ -8,7 +8,7 @@ import {
     type LayoutShape,
     type NodeShape,
     type PoolShape,
-    drawnPartsOf,
+    reachOf,
 } from "./layoutModel";
 import { FRAME_PADDING, type SideGrowth, growthToHold, holdsLevel } from "./layoutPlacementFrames";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
@@ -269,9 +269,7 @@ export class FrameGrowth {
         const ends = units.flatMap(({ id }) => {
             const shape = before.shapes.get(id);
             if (shape === undefined || !liesWithin(shape.bounds, bounds)) return [];
-            return [
-                this.far(shape.kind === "node" ? boundsAround(drawnPartsOf(shape)) : shape.bounds),
-            ];
+            return [this.far(reachOf(shape))];
         });
         if (ends.length === 0) return FRAME_PADDING;
         const kept = this.far(bounds) - Math.max(...ends);

@@ -23,6 +23,7 @@ interface Connection extends ConnectionEnds {
 export interface LayoutRelations extends PoolRelations {
     readonly nodes: ReadonlyMap<string, NodeRelations>;
     readonly connections: ReadonlyMap<string, Connection>;
+    readonly groups: ReadonlySet<string>;
 }
 
 interface Scope {
@@ -38,6 +39,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     const poolRelations = poolRelationsOf(definitions);
     const nodes = new Map<string, NodeRelations>();
     const connections = new Map<string, Connection>();
+    const groups = new Set<string>();
 
     const connect = (kind: EdgeKind, connection: ModdleElement, holder?: ModdleElement) => {
         const ends = connectionEndsOf(connection, holder);
@@ -50,6 +52,8 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
                 connect("association", artifact);
             } else if (isType(artifact, "bpmn:TextAnnotation") && artifact.id !== undefined) {
                 nodes.set(artifact.id, nodeRelationsOf(artifact, scope));
+            } else if (isType(artifact, "bpmn:Group") && artifact.id !== undefined) {
+                groups.add(artifact.id);
             }
         }
     };
@@ -92,7 +96,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             pool === undefined ? { subProcesses: [] } : { subProcesses: [], pool },
         );
     }
-    return { ...poolRelations, nodes, connections };
+    return { ...poolRelations, nodes, connections, groups };
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

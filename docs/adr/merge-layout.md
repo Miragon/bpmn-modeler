@@ -157,7 +157,20 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   and a growing pool the pool beside it instead of covering them; the strip moves only what lies
   across from it, as the frame already lay beside the rest. Room below grows the lane; the lanes
   under it shift down across the pool, and another pool that ended level with it grows as far
-  when that lands on nothing. A stacked branch and the shape above it then give way as one
+  when that lands on nothing. A group holds no element, so it is no frame and no spot names it,
+  but it follows the push (#2599): the shapes it enclosed before, but the moved ones, are its
+  content; it shifts with them when all shifted by one amount, else it grows along the push by
+  as far as their far side went, labels included, and its name moves as bpmn-js moves a group's
+  label on resize. It stays as drawn where following would take in a shape it did not enclose,
+  as a group around a foreign shape misleads more than one its content left. Rejected: leaving
+  groups where they were, so a group enclosed what the push brought under it; a group as an
+  obstacle, which blocks rooms fine for every shape, as a group often spans a row. Cost: a shape
+  a room places or shifts into a group it never enclosed stays inside it, where the group
+  encloses shapes on both sides of it or none of its content moved; a group that stays so as not
+  to take in a shape loses the content that moved; only the room push moves groups, so a group
+  stays as drawn around shapes the build stacks with their lane, moves into their container or
+  off another shape, and around a frame the container step grows; a group's associations are
+  left as drawn. A stacked branch and the shape above it then give way as one
   column along the flow: what the stacked shape comes within 15 px of gives way, and so does
   what overlaps the shape above or its label, as in the column the two branches take one place;
   what lies merely near the shape above stays, as only introduced spots are repaired. Every place a
@@ -217,5 +230,6 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
 - Shapes keep their side's coordinates, and so does every flow the merge did not break, unless
   the build stacked a lane, moved a shape into its container or off another, or grew a
   container or made room; a stacked lane, a moved shape, a grown container, a shifted shape and
-  a re-routed flow differ from both sides and a note names them. A boundary event off its host
+  a re-routed flow differ from both sides and a note names them; a group that followed a push
+  differs too, and no note names it. A boundary event off its host
   is still named, not moved, and so are lanes that overlap in a process without a pool.

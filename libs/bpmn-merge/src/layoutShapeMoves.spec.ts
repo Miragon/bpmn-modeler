@@ -2,8 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { rootPlane } from "./__fixtures__/shapePlane";
 import { type FlowRepairPlanner, planFlowRepairs } from "./layoutFlowRepair";
-import type { DiagramBounds, Point } from "./layoutGeometry";
-import type { LaneShape, LayoutEdge, LayoutModel, LayoutShape, NodeShape } from "./layoutModel";
+import { type DiagramBounds, type Point, liesWithin } from "./layoutGeometry";
+import type {
+    GroupShape,
+    LaneShape,
+    LayoutEdge,
+    LayoutModel,
+    LayoutShape,
+    NodeShape,
+} from "./layoutModel";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import { detectLayoutSpots } from "./layoutSpotDetection";
 import { type LayoutSpot, isFlowSpot } from "./layoutSpots";
@@ -388,6 +395,87 @@ describe("planShapeMoves", () => {
                 at(880, 130),
             ]);
             expect(overlapsOf(plan.layout)).toEqual([]);
+        });
+
+        describe("a group around shapes of the row", () => {
+            const groupAt = (bounds: DiagramBounds): GroupShape => ({
+                kind: "group",
+                id: "Group_1",
+                ...rootPlane(PLANE),
+                outline: "rectangle",
+                bounds,
+            });
+            const planWith = (group: GroupShape) => {
+                const drawn = [...row, group];
+                const result = layoutOf([...drawn, node("Task_Y", box(470, 90))], rowFlows, frames);
+                const current = layoutOf(drawn, rowFlows, frames);
+                return planShapeMoves(
+                    result,
+                    overlapsOf(result),
+                    [current, current],
+                    planFlowRepairs,
+                );
+            };
+            const enclosesAll = (plan: ShapeMovePlan, ids: readonly string[]) =>
+                ids.every((id) => liesWithin(boundsIn(plan, id)!, boundsIn(plan, "Group_1")!));
+
+            it("shifts with the shapes it encloses when the room shifts them all by one amount", () => {
+                const plan = planWith(groupAt(box(810, 80, 240, 100)));
+
+                expect(boundsIn(plan, "Task_6")).toEqual(box(1000, 90));
+                expect(boundsIn(plan, "Task_7")).toEqual(box(1120, 90));
+                expect(boundsIn(plan, "Group_1")).toEqual(box(990, 80, 240, 100));
+            });
+
+            /**
+             * Task_Y, which the build moved, comes to lie in the group: the
+             * group keeps enclosing Task_3, which stays, and Task_4, which shifts
+             * past the room Task_Y takes, so no frame of both leaves Task_Y out.
+             */
+            it("grows along the push to keep enclosing the two tasks it encloses when the room shifts one, and is no frame the room grew", () => {
+                const plan = planWith(groupAt(box(450, 80, 240, 100)));
+
+                expect(pairRepairsOf(plan)).toEqual([
+                    {
+                        kind: "madeRoomByGrowingAndShifting",
+                        shapes: ["Task_3", "Task_Y"],
+                        moved: "Task_Y",
+                        shifted: ["Task_4", "Task_5", "Task_6", "Task_7"],
+                        grown: ["Pool_1", "Lane_1"],
+                    },
+                ]);
+                expect(boundsIn(plan, "Task_4")).toEqual(box(760, 90));
+                expect(boundsIn(plan, "Group_1")).toEqual(box(450, 80, 420, 100));
+                expect(enclosesAll(plan, ["Task_3", "Task_4"])).toBe(true);
+            });
+
+            it("stays as drawn when shifting with its task would take in a shape that lay beside it", () => {
+                const group = groupAt(box(930, 80, 120, 148));
+                const beside = node("Data_1", box(1120, 190, 36, 36));
+                const drawn = [...row, group, beside];
+                const result = layoutOf([...drawn, node("Task_Y", box(470, 90))], rowFlows, frames);
+                const current = layoutOf(drawn, rowFlows, frames);
+
+                const plan = planShapeMoves(
+                    result,
+                    overlapsOf(result),
+                    [current, current],
+                    planFlowRepairs,
+                );
+
+                expect(boundsIn(plan, "Task_7")).toEqual(box(1120, 90));
+                expect(boundsIn(plan, "Data_1")).toEqual(beside.bounds);
+                expect(boundsIn(plan, "Group_1")).toEqual(group.bounds);
+            });
+
+            it("stays as drawn, its shapes inside it, when the room shifts none of them", () => {
+                const group = groupAt(box(90, 80, 240, 100));
+
+                const plan = planWith(group);
+
+                expect(boundsIn(plan, "Group_1")).toEqual(group.bounds);
+                expect(enclosesAll(plan, ["Task_0", "Task_1"])).toBe(true);
+            });
         });
 
         /** Task_Y dropped into Flow_3: it follows Task_3 and leads into Task_4. */

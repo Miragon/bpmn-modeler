@@ -2,6 +2,7 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    boundsAround,
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
@@ -47,7 +48,14 @@ export interface PoolShape extends DrawnShape {
     readonly kind: "pool";
 }
 
-export type LayoutShape = NodeShape | LaneShape | PoolShape;
+/** A `bpmn:Group`: it holds no element, so nothing lies inside it by design and it is no frame. */
+export interface GroupShape extends DrawnShape {
+    readonly kind: "group";
+    /** Where the group's name is drawn: bpmn-js draws it apart from the shape. */
+    readonly label?: DiagramBounds;
+}
+
+export type LayoutShape = NodeShape | LaneShape | PoolShape | GroupShape;
 
 export interface LayoutEdge {
     readonly id: string;
@@ -106,6 +114,17 @@ export function drawnPartsOf(node: NodeShape): DiagramBounds[] {
     return node.label === undefined ? [node.bounds] : [node.bounds, node.label];
 }
 
+/** Where the shape's name is drawn apart from it: only a node's or a group's is. */
+export function labelOf(shape: LayoutShape): DiagramBounds | undefined {
+    return shape.kind === "node" || shape.kind === "group" ? shape.label : undefined;
+}
+
+/** How far the shape reaches as drawn, its label with it. */
+export function reachOf(shape: LayoutShape): DiagramBounds {
+    const label = labelOf(shape);
+    return label === undefined ? shape.bounds : boundsAround([shape.bounds, label]);
+}
+
 export function translatedNode(node: NodeShape, dx: number, dy: number): NodeShape {
     const moved = { ...node, bounds: translated(node.bounds, dx, dy) };
     return node.label === undefined ? moved : { ...moved, label: translated(node.label, dx, dy) };
@@ -117,7 +136,7 @@ export function translatedEdge(edge: LayoutEdge, dx: number, dy: number): Layout
     return edge.label === undefined ? moved : { ...moved, label: translated(edge.label, dx, dy) };
 }
 
-/** The shape of the flow's end on the flow's own plane. */
+/** The shape of the flow's end on the flow's own plane; never a group, whose associations the repair leaves as drawn. */
 export function endShapeOf(
     layout: LayoutModel,
     edge: LayoutEdge,
@@ -125,7 +144,7 @@ export function endShapeOf(
 ): LayoutShape | undefined {
     const id = edge[end];
     const shape = id === undefined ? undefined : layout.shapes.get(id);
-    return shape?.plane === edge.plane ? shape : undefined;
+    return shape?.plane === edge.plane && shape.kind !== "group" ? shape : undefined;
 }
 
 /** The activity a boundary event sits on, as drawn on the event's own plane. */
@@ -147,7 +166,7 @@ export function liesOnAnotherPool(layout: LayoutModel, pool: LayoutShape): boole
 
 /** A shape others lie inside: a pool, a lane or a sub-process drawn open. */
 export function isFrame(shape: LayoutShape): boolean {
-    return shape.kind !== "node" || shape.expanded;
+    return shape.kind === "node" ? shape.expanded : shape.kind !== "group";
 }
 
 /** Whether one shape encloses the other or one is attached to the other: they lie on each other by design. */
