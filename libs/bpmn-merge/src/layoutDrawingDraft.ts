@@ -4,6 +4,7 @@ import {
     type LayoutModel,
     type LayoutShape,
     type NodeShape,
+    type PoolShape,
     translatedEdge,
     translatedNode,
 } from "./layoutModel";
@@ -103,6 +104,11 @@ export class DrawingDraft implements LayoutModel {
     node(id: string): NodeShape | undefined {
         const shape = this.shapes.get(id);
         return shape?.kind === "node" ? shape : undefined;
+    }
+
+    pool(id: string): PoolShape | undefined {
+        const shape = this.shapes.get(id);
+        return shape?.kind === "pool" ? shape : undefined;
     }
 
     /** The plane's nodes whose drawing may meet the box, as they lie now. */

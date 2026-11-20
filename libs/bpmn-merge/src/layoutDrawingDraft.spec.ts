@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { pool } from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import { DrawingDraft } from "./layoutDrawingDraft";
-import { type LayoutModel, type NodeShape, translatedNode } from "./layoutModel";
+import { type LayoutModel, type LayoutShape, type NodeShape, translatedNode } from "./layoutModel";
 
 const PLANE = "Process_1";
 
@@ -72,5 +73,22 @@ describe("DrawingDraft.changedOrOriginal", () => {
 
         expect(trial.changedOrOriginal).toBe(trial);
         expect(draft.changedOrOriginal).not.toBe(draft);
+    });
+});
+
+describe("DrawingDraft.pool", () => {
+    it("is the pool as the draft draws it now, and nothing for another shape", () => {
+        const draft = DrawingDraft.of({
+            shapes: new Map<string, LayoutShape>([
+                ["Pool_1", pool("Pool_1")],
+                ["A", node("A", 0)],
+            ]),
+            edges: new Map(),
+        });
+        const grown = { ...pool("Pool_1"), bounds: { x: 0, y: 0, width: 900, height: 400 } };
+        draft.replaceShape(grown);
+
+        expect(draft.pool("Pool_1")).toBe(grown);
+        expect(draft.pool("A")).toBeUndefined();
     });
 });

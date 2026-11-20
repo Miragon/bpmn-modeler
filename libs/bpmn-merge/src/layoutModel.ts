@@ -43,7 +43,7 @@ export interface LaneShape extends DrawnShape {
     readonly pool?: string;
 }
 
-interface PoolShape extends DrawnShape {
+export interface PoolShape extends DrawnShape {
     readonly kind: "pool";
 }
 

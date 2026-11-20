@@ -17,8 +17,14 @@ import {
     liesWithin,
     rightOf,
 } from "./layoutGeometry";
-import { innermostFrameOf, innermostLaneOf, lanesOf, lanesWithoutPoolOn } from "./layoutFrames";
-import { type LaneShape, type LayoutShape, type NodeShape, drawnPartsOf } from "./layoutModel";
+import { type FrameScope, frameScopeOf, lanesOf, lanesWithoutPoolOn } from "./layoutFrames";
+import {
+    type LaneShape,
+    type LayoutShape,
+    type NodeShape,
+    type PoolShape,
+    drawnPartsOf,
+} from "./layoutModel";
 import type { ShapeGroups } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";
@@ -54,12 +60,58 @@ export interface RoomRequest {
     readonly frameGrowth?: number;
 }
 
-interface FrameRequest extends RoomRequest {
-    readonly plane: string;
-    /** The innermost sub-process or pool the box lies in; none on a plane outside a pool. */
-    readonly container: LayoutShape | undefined;
-    /** The innermost lane the box lies in, which room below grows. */
-    readonly lane: LaneShape | undefined;
+/** Room asked in the frames a shape lies in, on its plane. */
+type FrameRequest = RoomRequest & FrameScope & { readonly plane: string };
+
+/** The frame that grows when what lies in it no longer fits, by how it grows, and whether the pools level with its pool follow. */
+export type GrowingFrame =
+    | { readonly kind: "subProcess"; readonly subProcess: NodeShape }
+    | {
+          readonly kind: "laneDown";
+          readonly lane: LaneShape;
+          readonly pool: PoolShape | undefined;
+          readonly keepsPoolsLevel: boolean;
+      }
+    | { readonly kind: "pool"; readonly pool: PoolShape; readonly keepsPoolsLevel: boolean }
+    | { readonly kind: "planeLanes"; readonly lane: LaneShape }
+    | { readonly kind: "plane" };
+
+/**
+ * Which frame room asked in the scope grows along the axis: the sub-process
+ * it lies in; down a lane, the lane; else the pool, or the lanes of a plane
+ * without a pool. The pools level with a pool grown down follow it.
+ */
+export function growingFrameOf({ container, lane }: FrameScope, axis: Axis): GrowingFrame {
+    if (container?.kind === "node") return { kind: "subProcess", subProcess: container };
+    const keepsPoolsLevel = axis === "y" && container !== undefined;
+    if (axis === "y" && lane !== undefined) {
+        return { kind: "laneDown", lane, pool: container, keepsPoolsLevel };
+    }
+    if (container !== undefined) return { kind: "pool", pool: container, keepsPoolsLevel };
+    if (lane !== undefined) return { kind: "planeLanes", lane };
+    return { kind: "plane" };
+}
+
+/** The plane outside every pool and lane. */
+const PLANE_SCOPE: FrameScope = { container: undefined, lane: undefined };
+
+/** What a push leaves in its frame: the units in it, those that might give way, and how far they and the box reach. */
+interface PushedFrame {
+    readonly units: readonly SpaceUnit[];
+    readonly givingWay: readonly SpaceUnit[];
+    readonly extent: number;
+}
+
+/** The strip a frame gained, asked of the frame around it, and the pool whose growth the pools level with it follow once it is made. */
+interface OuterRoom {
+    readonly request: FrameRequest;
+    readonly levelWith?: LevelGrowth;
+}
+
+interface LevelGrowth {
+    readonly pool: PoolShape;
+    readonly before: DiagramBounds;
+    readonly growth: number;
 }
 
 /**
@@ -86,12 +138,7 @@ export class RoomPush {
 
     /** Makes room for the request in the frame `at` lies in; false when something before the line is in the way. */
     push(at: NodeShape, request: RoomRequest): boolean {
-        return this.roomIn({
-            ...request,
-            plane: at.plane,
-            container: innermostFrameOf(this.trial, at),
-            lane: innermostLaneOf(this.trial, at),
-        });
+        return this.roomIn({ ...request, plane: at.plane, ...frameScopeOf(this.trial, at) });
     }
 
     /** The outermost shapes that gave way, pools among them, in document order. */
@@ -115,62 +162,59 @@ export class RoomPush {
     }
 
     private roomIn(request: FrameRequest): boolean {
-        const { container, lane, stays = new Set() } = request;
+        const frame = growingFrameOf(request, this.axis);
+        const { stays = new Set() } = request;
         const units = this.space
-            .unitsIn(request.plane, container, request.exclude)
+            .unitsIn(request.plane, request.container, request.exclude)
             .filter(({ id }) => !stays.has(id));
-        const inLane =
-            this.axis === "y" && lane !== undefined
-                ? units.filter(({ id }) => this.trial.node(id)?.lanes.includes(lane.id))
-                : units;
-        const pushed = this.pushedBy(inLane, request);
-        if (pushed === undefined) return false;
+        const givingWay = this.mayGiveWay(frame, units);
+        const extent = this.shiftWhatGivesWay(givingWay, request);
+        if (extent === undefined) return false;
+        const outer = this.grow(frame, request, { units, givingWay, extent });
+        if (outer === undefined) return true;
+        const made = this.roomIn(outer.request);
+        if (made && outer.levelWith !== undefined) this.growLevelPools(outer.levelWith);
+        return made;
+    }
+
+    /** The units that may give way: down a lane only those in it, as the lane's growth shifts the rest. */
+    private mayGiveWay(frame: GrowingFrame, units: SpaceUnit[]): SpaceUnit[] {
+        if (frame.kind !== "laneDown") return units;
+        return units.filter(({ id }) => this.trial.node(id)?.lanes.includes(frame.lane.id));
+    }
+
+    /** Shifts what gives way to the request; how far it and the box reach, or undefined when something before the line is in the way. */
+    private shiftWhatGivesWay(
+        units: readonly SpaceUnit[],
+        request: FrameRequest,
+    ): number | undefined {
+        const pushed = this.pushedBy(units, request);
+        if (pushed === undefined) return undefined;
         for (const unit of pushed.units) this.space.shiftUnit(unit, pushed.by);
-        const extent = Math.max(
+        return Math.max(
             this.far(request.box),
             ...pushed.units.map((unit) => this.far(unit.bounds) + pushed.by),
         );
-        if (container?.kind === "node") {
-            return this.growSubProcess(
-                request,
-                container,
-                extent + this.marginOf(container, units),
-            );
+    }
+
+    /** Grows the frame to hold what the push reached with the margin it kept; the strip it gained, none when it did not grow. */
+    private grow(
+        frame: GrowingFrame,
+        request: FrameRequest,
+        pushed: PushedFrame,
+    ): OuterRoom | undefined {
+        switch (frame.kind) {
+            case "subProcess":
+                return this.growSubProcess(request, frame.subProcess, pushed);
+            case "laneDown":
+                return this.growLaneDown(request, frame, pushed);
+            case "pool":
+                return this.growPool(request, frame.pool, frame.keepsPoolsLevel, pushed);
+            case "planeLanes":
+                return this.growPlaneLanes(request, frame.lane, pushed);
+            case "plane":
+                return undefined;
         }
-        if (lane === undefined && container === undefined) return true;
-        const pool = container && this.trial.shapes.get(container.id)!;
-        const lanes = this.lanesWith(pool, lane);
-        const before = boundsAround(
-            [...(pool ? [pool] : []), ...lanes].map(({ bounds }) => bounds),
-        );
-        const growth =
-            this.axis === "y" && lane !== undefined
-                ? this.growLane(
-                      pool,
-                      this.trial.shapes.get(lane.id) as LaneShape,
-                      lanes,
-                      extent + this.marginOf(lane, inLane),
-                      units,
-                  )
-                : this.space.growFrame(
-                      pool ?? lane!,
-                      lanes,
-                      extent + this.marginOf(pool ?? lane!, units),
-                  );
-        if (growth <= 0) return true;
-        const made = this.roomIn({
-            plane: request.plane,
-            container: undefined,
-            lane: undefined,
-            box: stripPast(this.axis, before, growth),
-            line: this.far(before),
-            exclude: new Set([...request.exclude, ...(pool ? [pool.id] : [])]),
-            frameGrowth: growth,
-        });
-        if (made && this.axis === "y" && pool !== undefined) {
-            this.growLevelPools(pool, before, growth);
-        }
-        return made;
     }
 
     /**
@@ -178,7 +222,7 @@ export class RoomPush {
      * as much, with its lanes across its far side, where the strip it gains
      * lands on nothing: the space tool held over the plane keeps them level.
      */
-    private growLevelPools(pool: LayoutShape, before: DiagramBounds, growth: number): void {
+    private growLevelPools({ pool, before, growth }: LevelGrowth): void {
         const units = this.space.unitsIn(pool.plane, undefined, new Set([pool.id]));
         for (const other of units) {
             const shape = this.trial.shapes.get(other.id)!;
@@ -206,27 +250,100 @@ export class RoomPush {
         }
     }
 
-    /** Grows the sub-process to reach the far side, and asks its own frame for the strip it gains. */
-    private growSubProcess(request: FrameRequest, container: NodeShape, farSide: number): boolean {
-        const frame = this.trial.shapes.get(container.id)!;
-        const growth = this.space.growFrame(frame, [], farSide);
-        if (growth <= 0) return true;
-        const grown = this.trial.node(frame.id)!;
-        return this.roomIn({
-            plane: request.plane,
-            container: innermostFrameOf(this.trial, grown),
-            lane: innermostLaneOf(this.trial, grown),
-            box: stripPast(this.axis, frame.bounds, growth),
-            line: this.far(frame.bounds),
-            exclude: new Set([...request.exclude, frame.id]),
-            frameGrowth: growth,
-        });
+    /** Grows the sub-process, and asks its own frame for the strip it gains. */
+    private growSubProcess(
+        request: FrameRequest,
+        subProcess: NodeShape,
+        { units, extent }: PushedFrame,
+    ): OuterRoom | undefined {
+        const frame = this.trial.shapes.get(subProcess.id)!;
+        const growth = this.space.growFrame(frame, [], extent + this.marginOf(subProcess, units));
+        if (growth <= 0) return undefined;
+        const scope = frameScopeOf(this.trial, this.trial.node(frame.id)!);
+        return { request: this.outerStrip(request, scope, frame.bounds, growth, frame) };
     }
 
-    /** The lanes of the pool, or on a plane without a pool the lanes beside the lane. */
-    private lanesWith(pool: LayoutShape | undefined, lane: LaneShape | undefined): LaneShape[] {
-        if (pool !== undefined) return lanesOf(this.trial, pool);
-        return lane === undefined ? [] : lanesWithoutPoolOn(this.trial, lane.plane);
+    /**
+     * Grows the lane down: what lies under it shifts down, the lanes across
+     * its bottom grow with it and so does the pool, whose strip the plane is
+     * asked for and the pools level with it follow.
+     */
+    private growLaneDown(
+        request: FrameRequest,
+        { lane, pool: container, keepsPoolsLevel }: Extract<GrowingFrame, { kind: "laneDown" }>,
+        { units, givingWay, extent }: PushedFrame,
+    ): OuterRoom | undefined {
+        const pool = container && this.trial.pool(container.id)!;
+        const lanes = pool ? lanesOf(this.trial, pool) : lanesWithoutPoolOn(this.trial, lane.plane);
+        const before = boundsAround(
+            [...(pool ? [pool] : []), ...lanes].map(({ bounds }) => bounds),
+        );
+        const line = bottomOf(this.trial.shapes.get(lane.id)!.bounds);
+        const growth = extent + this.marginOf(lane, givingWay) - line;
+        if (growth <= 0) return undefined;
+        const across = lanes.filter(
+            (other) => other.bounds.y < line && bottomOf(other.bounds) >= line,
+        );
+        this.space.openBand({
+            line,
+            by: growth,
+            units,
+            frames: [...lanes, ...(pool ? [pool] : [])],
+            growing: new Set([...across, ...(pool ? [pool] : [])].map(({ id }) => id)),
+        });
+        return {
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool),
+            levelWith: keepsPoolsLevel && pool ? { pool, before, growth } : undefined,
+        };
+    }
+
+    /** Grows the pool with its lanes across its far side, and asks the plane for the strip it gains. */
+    private growPool(
+        request: FrameRequest,
+        container: PoolShape,
+        keepsPoolsLevel: boolean,
+        { units, extent }: PushedFrame,
+    ): OuterRoom | undefined {
+        const pool = this.trial.pool(container.id)!;
+        const lanes = lanesOf(this.trial, pool);
+        const before = boundsAround([pool, ...lanes].map(({ bounds }) => bounds));
+        const growth = this.space.growFrame(pool, lanes, extent + this.marginOf(pool, units));
+        if (growth <= 0) return undefined;
+        return {
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool),
+            levelWith: keepsPoolsLevel ? { pool, before, growth } : undefined,
+        };
+    }
+
+    /** Grows the lanes of a plane without a pool across their far side, and asks the plane for the strip they gain. */
+    private growPlaneLanes(
+        request: FrameRequest,
+        lane: LaneShape,
+        { units, extent }: PushedFrame,
+    ): OuterRoom | undefined {
+        const lanes = lanesWithoutPoolOn(this.trial, lane.plane);
+        const before = boundsAround(lanes.map(({ bounds }) => bounds));
+        const growth = this.space.growFrame(lane, lanes, extent + this.marginOf(lane, units));
+        if (growth <= 0) return undefined;
+        return { request: this.outerStrip(request, PLANE_SCOPE, before, growth, undefined) };
+    }
+
+    /** The strip a frame gained past its bounds before, asked in the scope around it, the grown frame no longer giving way. */
+    private outerStrip(
+        request: FrameRequest,
+        scope: FrameScope,
+        before: DiagramBounds,
+        growth: number,
+        grown: LayoutShape | undefined,
+    ): FrameRequest {
+        return {
+            plane: request.plane,
+            ...scope,
+            box: stripPast(this.axis, before, growth),
+            line: this.far(before),
+            exclude: new Set([...request.exclude, ...(grown ? [grown.id] : [])]),
+            frameGrowth: growth,
+        };
     }
 
     /**
@@ -322,34 +439,6 @@ export class RoomPush {
         if (ends.length === 0) return FRAME_PADDING;
         const kept = this.far(bounds) - Math.max(...ends);
         return Math.min(this.gap, Math.max(FRAME_PADDING, kept));
-    }
-
-    /**
-     * Grows the lane down to the far side: what lies under it shifts down,
-     * the lanes across its bottom grow with it and so does the pool. Returns
-     * the growth.
-     */
-    private growLane(
-        pool: LayoutShape | undefined,
-        lane: LaneShape,
-        lanes: readonly LaneShape[],
-        farSide: number,
-        units: readonly SpaceUnit[],
-    ): number {
-        const growth = farSide - bottomOf(lane.bounds);
-        if (growth <= 0) return 0;
-        const line = bottomOf(lane.bounds);
-        const across = lanes.filter(
-            (other) => other.bounds.y < line && bottomOf(other.bounds) >= line,
-        );
-        this.space.openBand({
-            line,
-            by: growth,
-            units,
-            frames: [...lanes, ...(pool ? [pool] : [])],
-            growing: new Set([...across, ...(pool ? [pool] : [])].map(({ id }) => id)),
-        });
-        return growth;
     }
 
     private get gap(): number {
