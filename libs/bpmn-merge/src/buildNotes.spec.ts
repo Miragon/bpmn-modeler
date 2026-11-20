@@ -13,9 +13,10 @@ import {
     refersTo,
 } from "./__fixtures__/mergeResultBuilder";
 import {
-    type BuildNote,
+    type BuildNoteContent,
     type NoteRepairOf,
     type RepairOf,
+    buildNotesOf,
     flowNotDrawnNotes,
     layoutChangedByBothNotes,
     restoredWithoutRemovedWithNotes,
@@ -45,6 +46,36 @@ describe("NoteRepairOf", () => {
         expectTypeOf<
             NoteRepairOf<RepairOf<MergeContainerRepair>>
         >().toEqualTypeOf<MergeContainerRepair>();
+    });
+});
+
+describe("buildNotesOf", () => {
+    it("gives every note the elements it names, in the order its entry offers them", () => {
+        const notes = buildNotesOf({
+            result: mergeResult(),
+            resolution: resolutionWithLayout({}),
+            undrawnEdges: [{ id: "Flow_1", ends: { target: "Task_B" } }],
+            layoutSpotNotes: [
+                {
+                    kind: "lanesOverlap",
+                    ids: ["Lane_2", "Lane_1"],
+                    repair: "movedByBuild",
+                    moved: "Lane_2",
+                    grown: ["Pool_1"],
+                    shifted: ["Pool_2"],
+                },
+            ],
+            flowDefaults: [],
+            restoredDefaults: new Map(),
+            layoutOf: () => undefined,
+            frameNotes: [{ kind: "frameDiffers", attribute: "exporter" }],
+        });
+
+        expect(notes.map(({ kind, named }) => ({ kind, named }))).toStrictEqual([
+            { kind: "flowNotDrawn", named: ["Flow_1", "Task_B"] },
+            { kind: "lanesOverlap", named: ["Lane_2", "Lane_1", "Pool_1", "Pool_2"] },
+            { kind: "frameDiffers", named: [] },
+        ]);
     });
 });
 
@@ -440,7 +471,7 @@ describe("layoutChangedByBothNotes", () => {
 });
 
 describe("flowNotDrawnNotes", () => {
-    it.each<[ConnectionEnds, BuildNote]>([
+    it.each<[ConnectionEnds, BuildNoteContent]>([
         [
             { source: "Task_A", target: "Task_B" },
             { kind: "flowNotDrawn", id: "Flow_1", source: "Task_A", target: "Task_B" },
