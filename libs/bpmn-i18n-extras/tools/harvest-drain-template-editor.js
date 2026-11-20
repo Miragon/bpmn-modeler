@@ -20,8 +20,8 @@
  * through every binding and type the builder offers, which renders their
  * fields' labels.
  *
- * After each page, add `[...window.__harvested]` to tools/harvested-template-editor.json
- * (sorted, under the {note,count,keys} wrapper). See tools/README.md.
+ * After each page, add `JSON.stringify([...window.__harvested])` to
+ * tools/harvested-template-editor.json with tools/record-harvest.mjs. See tools/README.md.
  */
 /* global window, document, setTimeout, Event */
 window.__harvestDrainTemplateEditor = async function harvestDrainTemplateEditor() {

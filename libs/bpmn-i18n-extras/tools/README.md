@@ -13,11 +13,16 @@ and prune the overlay against it.
 | `harvest-drain-template-editor.js` | Browser driver for the element template editor page; its header lists the page states to run it on. |
 | `harvested.json`, `harvested-dmn.json`, `harvested-template-editor.json` | The recorded keys of each driver. |
 | `harvested-merge.json` | The keys of the merge view's texts, recorded by `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`, which asks each merge text once. No browser driver opens a merge pane. |
+| `harvested-diff.json`, `harvested-dmn-diff.json` | The keys of the BPMN and DMN diff panes' texts, recorded by `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`: the shared diff views' `DIFF_VIEW_KEYS` from `@miragon/bpmn-modeler-types` plus the pane's own constants. No browser driver opens a diff pane. |
+| `record-harvest.mjs` | Adds a driver's drained keys to its record and rewrites it in the shape `harvestRecord.spec.ts` checks, keeping the record's note. |
 | `build-overlay.mjs` | Prunes every registered overlay dictionary against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
 
 The builder and the guard specs share one copy of each rule in `src/`: the key normalization in
-`normalizeKey.ts`, the list of harvest files and their union in `harvestedKeys.ts`, and `SOURCE_ONLY` in
-`sourceOnlyKeys.ts`. A new harvest file goes into `harvestedKeys.ts`.
+`normalizeKey.ts`, the list of harvest files and the record's shape in `harvestRecord.ts`, their union in
+`harvestedKeys.ts`, and `SOURCE_ONLY` in `sourceOnlyKeys.ts`. A new harvest file goes into `HARVEST_FILES`
+in `harvestRecord.ts`; a spec that records one writes it with `harvestRecord` to `harvestRecordPath(file)`,
+both from the test-only entry `@miragon/bpmn-modeler-i18n-extras/testing`. `harvestRecord.spec.ts` fails
+until every record is in that shape.
 
 The recorder is `libs/shared/src/lib/harvestRecorder.ts`. The webview entries (`apps/bpmn-webview/src/main.ts`,
 `templateEditorMain.ts`, `apps/dmn-webview/src/main.ts`) wire it only under `import.meta.env.DEV`, so
@@ -30,13 +35,21 @@ production builds leave it out.
    for DMN with a `.dmn` that has a decision table.
 2. In the page console (or with Playwright's `browser_evaluate`), paste the driver and run it:
    `await window.__harvestDrain()`, `__harvestDrainDmn()` or `__harvestDrainTemplateEditor()`.
-3. Copy `JSON.stringify([...window.__harvested].sort())` into the matching `harvested*.json`, under its
-   `{ note, count, keys }` wrapper. For the template editor, merge the sets of every page state.
-   The merge view's record has no driver: rewrite `harvested-merge.json` after changing a merge text,
-   since CI fails until it is current.
+3. Run `copy(JSON.stringify([...window.__harvested]))` in the console (with Playwright, return
+   `[...window.__harvested]` and save it as JSON), then add the keys to the driver's record:
+   `pbpaste | bun libs/bpmn-i18n-extras/tools/record-harvest.mjs harvested.json` (or `harvested-dmn.json`,
+   `harvested-template-editor.json`). It keeps the record's note and the keys it already holds, so for the
+   template editor run it once per page state.
+   The merge view's and the diff panes' records have no driver: rewrite `harvested-merge.json`,
+   `harvested-diff.json` or `harvested-dmn-diff.json` after changing one of their texts, since CI fails
+   until they are current. A key the shared diff views start translating fails modeler-types'
+   `diffVocabulary.spec.ts` until `DIFF_VIEW_KEYS` lists it; a pane's own new text must be added to its
+   record spec by hand.
 
    ```bash
    corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts
+   corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts
+   corepack yarn vitest run --project dmn-webview -u apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts
    ```
 
 4. Prune, first as a dry run:

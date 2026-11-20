@@ -1,6 +1,7 @@
+import type { Axis } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRelation, FlowTopology } from "./layoutFlowTopology";
-import { type Axis, bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
+import { bottomOf, centerOf, inflated, rightOf, translated } from "./layoutGeometry";
 import {
     type LayoutModel,
     type NodeShape,
@@ -8,8 +9,9 @@ import {
     isFrame,
     liesOnAnotherPool,
 } from "./layoutModel";
-import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP, leadAlong } from "./layoutRoomPush";
+import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
+import { leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
 import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -23,6 +25,15 @@ export interface RoomMade {
     readonly grown: readonly string[];
     /** How far the frames grew in all, across both axes. */
     readonly growth: number;
+}
+
+/** The room of a slot that was free: the draft with the shape moved there, nothing shifted or grown. */
+export function freeRoom(draft: DrawingDraft): RoomMade {
+    return { draft, shifted: [], grown: [], growth: 0 };
+}
+
+export function onlyMoves({ shifted, grown }: RoomMade): boolean {
+    return shifted.length === 0 && grown.length === 0;
 }
 
 /** What making room reads beside the drawing: what moves with a node and how the flows join the nodes. */

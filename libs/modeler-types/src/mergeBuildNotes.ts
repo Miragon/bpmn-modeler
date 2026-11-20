@@ -43,7 +43,7 @@ export type MergeOverlapRepair =
  * the result keeps current's, or a flow left out of the drawing since no
  * diagram draws both its ends.
  */
-export type MergeBuildNote =
+export type MergeBuildNoteContent =
     | {
           /** A flow and the shapes it misses at its ends or runs through, with whether the build re-routed it. */
           readonly kind: MergeBrokenFlowKind;
@@ -106,3 +106,61 @@ export type MergeBuildNote =
           readonly source?: string;
           readonly target?: string;
       };
+
+/** The note of one kind; a broken flow's note, whose kind is either broken-flow kind, included. */
+export type MergeBuildNoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
+    MergeBuildNoteContent extends infer Note
+        ? Note extends { readonly kind: infer KindOfNote }
+            ? Kind extends KindOfNote
+                ? Note & { readonly kind: Kind }
+                : never
+            : never
+        : never;
+
+/** The kinds of note that record what the build did about them. */
+export type MergeRepairedNoteKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
+
+/** The repairs a note can record. */
+export type MergeNoteRepairOf<Note> = Note extends { readonly repair: infer Repair extends string }
+    ? Repair
+    : never;
+
+/** A build note with the elements it names, in the order its entry offers them. */
+export type MergeBuildNote = MergeBuildNoteContent & { readonly named: readonly string[] };
+
+/** The elements a note names, in the order its entry offers them. */
+export function elementsNamedBy(note: MergeBuildNoteContent): string[] {
+    switch (note.kind) {
+        case "flowEndOffShape":
+        case "flowThroughShape":
+            return [note.id, ...note.shapes];
+        case "shapeOutsideContainer":
+            return note.repair === "grewContainerAndShifted"
+                ? [note.id, ...note.shapes, ...note.shifted]
+                : [note.id, ...note.shapes];
+        case "shapesOverlap":
+            return note.repair === "madeRoom"
+                ? [...note.ids, ...note.shifted, ...note.grown]
+                : [...note.ids];
+        case "lanesOverlap":
+            return note.repair === "movedByBuild"
+                ? [...note.ids, ...note.grown, ...note.shifted]
+                : [...note.ids];
+        case "layoutChangedByBoth":
+            return [...note.ids];
+        case "boundaryEventOffHost":
+            return [note.id, note.host];
+        case "restoredWithoutRemovedWith":
+            return [note.id, ...(note.boundaryEvents ?? []), ...note.connections];
+        case "defaultFlowNotRestored":
+            return [
+                note.id,
+                note.flow,
+                ...(note.keptDefault === undefined ? [] : [note.keptDefault]),
+            ];
+        case "flowNotDrawn":
+            return [note.id, note.source, note.target].filter((id) => id !== undefined);
+        case "frameDiffers":
+            return [];
+    }
+}

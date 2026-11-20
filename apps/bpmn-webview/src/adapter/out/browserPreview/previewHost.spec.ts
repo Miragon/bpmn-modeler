@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     ApplyDiffHighlightsQuery,
+    type BpmnPluginsQuery,
     CleanupReportCommand,
     CursorChangedCommand,
     DiffPlaneChangedCommand,
@@ -62,12 +63,14 @@ import {
     CompareMergeResultCommand,
     SwitchMergeComparisonCommand,
     MergePaneCommandsChangedCommand,
+    previewRouteOf,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 
 import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "../../../__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "../../../__fixtures__/mock-diff";
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
+import { PREVIEW_COMMANDS } from "./previewCommands";
 import { PreviewHost } from "./previewHost";
 
 vi.mock("@miragon/bpmn-modeler/diff", async (importOriginal) => {
@@ -151,6 +154,27 @@ const DIFF_PANE_COMMANDS: { [Type in BpmnDiffPaneCommandType]: MessageOfType<Typ
     SwitchMergeComparisonCommand: new SwitchMergeComparisonCommand(),
     MergePaneCommandsChangedCommand: new MergePaneCommandsChangedCommand(["build"]),
 };
+
+const WEBVIEW_COMMANDS: readonly BpmnWebviewCommand[] = Object.values({
+    ...BPMN_EDITOR_COMMANDS,
+    ...DIFF_PANE_COMMANDS,
+});
+
+const ANSWERED_TYPES: ReadonlySet<string> = new Set([
+    "GetBpmnFileCommand",
+    "GetBpmnPluginsCommand",
+    "GetElementTemplatesCommand",
+    "GetBpmnModelerSettingCommand",
+    "GetPropertiesPanelStateCommand",
+    "RequestFocusCommand",
+    "GetClipboardCommand",
+    "GetTextClipboardCommand",
+    "GetBpmnlintConfigCommand",
+    "GetFormPreviewCommand",
+    "SearchWorkspaceDefinitionsCommand",
+    "DiffReadyCommand",
+    "OpenElementXmlMergeCommand",
+]);
 
 describe("PreviewHost", () => {
     let replies: Reply[];
@@ -257,6 +281,54 @@ describe("PreviewHost", () => {
         ];
         expect(answer.requestId).toBe(7);
         expect(answer.definitions.map((definition) => definition.name)).toEqual(["OrderPlaced"]);
+    });
+
+    describe("plugin preview", () => {
+        const PREVIEW_PLUGINS = [
+            "Resize Tasks (rules)",
+            "Reduced Palette (palette)",
+            "Id Badges (overlays + style)",
+            "Technical IDs (modeling command)",
+            "Acme Moddle (moddle extension)",
+            "Engine Flags (engine-specific)",
+            "Probe (exposes the injector for checks)",
+            "Throws While Loading",
+        ];
+
+        beforeEach(() => {
+            // jsdom has no object URLs.
+            Object.defineProperty(URL, "createObjectURL", {
+                configurable: true,
+                value: (blob: Blob) => `blob:${blob.type}`,
+            });
+        });
+
+        afterEach(() => {
+            Reflect.deleteProperty(URL, "createObjectURL");
+        });
+
+        it.each([
+            ["", []],
+            ["?plugins", PREVIEW_PLUGINS],
+            ["?plugins=broken", [...PREVIEW_PLUGINS, "Broken Constructor"]],
+        ])("serves the plugins of %j as script URLs", (search, names) => {
+            previewHost(search).postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(answer.plugins.map((plugin) => plugin.name)).toEqual(names);
+            expect(answer.plugins.every((plugin) => plugin.scriptUrl === "blob:text/javascript")).toBe(
+                true,
+            );
+        });
+
+        it("serves a plugin's style as a style URL", () => {
+            previewHost("?plugins").postMessage(new GetBpmnPluginsCommand());
+
+            const [answer] = repliesOfType("BpmnPluginsQuery") as unknown as [BpmnPluginsQuery];
+            expect(
+                answer.plugins.flatMap((plugin) => (plugin.styleUrl ? [plugin.name] : [])),
+            ).toEqual(["Id Badges (overlays + style)"]);
+        });
     });
 
     describe("merge preview", () => {
@@ -405,7 +477,7 @@ describe("PreviewHost", () => {
         });
     });
 
-    it.each<BpmnWebviewCommand>(Object.values({ ...BPMN_EDITOR_COMMANDS, ...DIFF_PANE_COMMANDS }))(
+    it.each<BpmnWebviewCommand>(WEBVIEW_COMMANDS)(
         "takes a $type from the webview without throwing",
         (command) => {
             vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -413,6 +485,51 @@ describe("PreviewHost", () => {
             const host = previewHost();
 
             expect(() => host.postMessage(command)).not.toThrow();
+        },
+    );
+
+    // A merge pane that offers Merge XML answers the most commands, so a reply any other mode sends shows here too.
+    it.each(WEBVIEW_COMMANDS.filter((command) => !ANSWERED_TYPES.has(command.type)))(
+        "sends nothing back for a $type",
+        (command) => {
+            vi.spyOn(console, "warn").mockImplementation(() => undefined);
+            vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+            previewHost("?mode=merge-incoming&mergeXml=accept").postMessage(command);
+
+            expect(replies).toEqual([]);
+        },
+    );
+
+    it.each(
+        WEBVIEW_COMMANDS.flatMap((command) => {
+            const route = previewRouteOf(PREVIEW_COMMANDS, command.type);
+            return "ignored" in route ? [{ command, reason: route.ignored }] : [];
+        }),
+    )("says why it drops a $command.type", ({ command, reason }) => {
+        const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+
+        previewHost().postMessage(command);
+
+        expect(reason.trim()).not.toBe("");
+        expect(debug).toHaveBeenCalledWith(`[DEBUG] ${command.type} ignored: ${reason}`, command);
+    });
+
+    it("shows an info message in the console", () => {
+        const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new ShowInfoCommand("saved"));
+
+        expect(info).toHaveBeenCalledWith(expect.any(String), "saved");
+    });
+
+    it.each(["toString", "constructor", "hasOwnProperty"])(
+        "rejects a message whose type names the inherited %s",
+        (type) => {
+            const host = previewHost();
+
+            // @ts-expect-error No command has this type.
+            expect(() => host.postMessage({ type })).toThrow(`Unknown message type: ${type}`);
         },
     );
 

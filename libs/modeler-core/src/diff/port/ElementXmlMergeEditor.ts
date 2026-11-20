@@ -8,7 +8,11 @@ import type { ElementXmlMergeRequest } from "../domain/elementXmlMerge";
  * with (see {@link ElementXmlMergeFinished}).
  */
 export interface ElementXmlMergeEditor {
-    /** Opens the merge with `request.start` as its result, which is no save; rejects for a key that is open. */
+    /**
+     * Opens the merge from `request.start`, which is no save, and resolves once
+     * a save the user makes reaches it; the editor may have merged the start by
+     * then. Rejects for a key that is open.
+     */
     open(request: ElementXmlMergeRequest): Promise<void>;
     /** Brings the open merge `key` to the front; does nothing for a key that is not open. */
     focus(key: string): Promise<void>;

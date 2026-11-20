@@ -2,16 +2,18 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    liesWithin,
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
-import type { PlaneKind } from "./diagramIndex";
+import type { PlaneSlot } from "./planeSlots";
 
 interface DrawnShape {
     readonly id: string;
     /** The element whose plane draws the shape; "" for a plane that names none. */
     readonly plane: string;
-    readonly planeKind: PlaneKind;
+    /** The result's slot for the shape's plane (`PlaneSlots`): two layouts draw a shape in one place only within one slot. */
+    readonly slot: PlaneSlot;
     readonly bounds: DiagramBounds;
     readonly outline: Outline;
 }
@@ -70,6 +72,12 @@ export const FLOW_ENDS = ["source", "target"] as const;
 
 export type FlowEnd = (typeof FLOW_ENDS)[number];
 
+/** The shapes a flow's ends are drawn on. */
+export interface FlowEnds {
+    readonly source: LayoutShape;
+    readonly target: LayoutShape;
+}
+
 export function otherEndOf(end: FlowEnd): FlowEnd {
     return end === "source" ? "target" : "source";
 }
@@ -124,6 +132,26 @@ export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape |
     if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
     const pool = layout.shapes.get(node.pool);
     return isDrawnFrameOf(node, pool) ? pool : undefined;
+}
+
+/**
+ * The pool the node goes with: its drawn pool, or for a node drawn with
+ * none, such as a data store or an artifact of the collaboration, the pool
+ * on its plane it lies within.
+ */
+export function holdingPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+    const drawn = drawnPoolOf(layout, node);
+    if (drawn !== undefined) return drawn;
+    for (const shape of layout.shapes.values()) {
+        if (
+            shape.kind === "pool" &&
+            shape.plane === node.plane &&
+            liesWithin(node.bounds, shape.bounds)
+        ) {
+            return shape;
+        }
+    }
+    return undefined;
 }
 
 /** The lanes of the pool's process drawn on its plane, wherever they lie, in document order. */

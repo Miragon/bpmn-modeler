@@ -1,4 +1,6 @@
 export * from "./lib/host";
+export * from "./lib/previewCommandTable";
+export * from "./lib/previewOutput";
 export * from "./lib/utils";
 export * from "./lib/messages";
 export * from "./lib/documentFlush";
@@ -34,3 +36,4 @@ export * from "./lib/propertiesPanelVisibility";
 export * from "./lib/propertiesPanelWidth";
 export * from "./lib/propertiesPanelWidthBinding";
 export * from "./lib/globalErrorForwarding";
+export * from "./lib/previewMode";

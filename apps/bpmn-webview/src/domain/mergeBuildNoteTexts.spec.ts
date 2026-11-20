@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeBuildNote } from "@miragon/bpmn-modeler-types";
+import type { MergeBuildNoteContent } from "@miragon/bpmn-modeler-types";
 
 import { buildNoteText } from "./mergeBuildNoteTexts";
 import type { MergeTranslate } from "./mergeTranslate";
@@ -11,7 +11,7 @@ const untranslated: MergeTranslate = (key, replacements = {}) =>
 describe("buildNoteText", () => {
     const nameOf = (id: string) => ({ Flow_2: "to packing", Task_Pack: "Pack box" })[id] ?? id;
 
-    it.each<[MergeBuildNote, string]>([
+    it.each<[MergeBuildNoteContent, string]>([
         [
             {
                 kind: "flowEndOffShape",
@@ -166,6 +166,15 @@ describe("buildNoteText", () => {
                 kind: "restoredWithoutRemovedWith",
                 id: "Task_Pack",
                 connections: ["Flow_2", "Flow_3"],
+            },
+            "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
+        ],
+        [
+            {
+                kind: "restoredWithoutRemovedWith",
+                id: "Task_Pack",
+                connections: ["Flow_2", "Flow_3"],
+                boundaryEvents: [],
             },
             "Pack box is kept without the flows the other side removed with it: to packing, Flow_3",
         ],

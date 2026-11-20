@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import { type FlowRepair, planFlowRepairs } from "./layoutFlowRepair";
 import { type DiagramBounds, type Outline, type Point, centerOf } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
@@ -14,14 +15,13 @@ function node(
     bounds: DiagramBounds,
     outline: Outline = "rectangle",
     relations: Partial<
-        Pick<NodeShape, "host" | "plane" | "planeKind" | "subProcesses" | "expanded">
+        Pick<NodeShape, "host" | "plane" | "slot" | "subProcesses" | "expanded">
     > = {},
 ): NodeShape {
     return {
         kind: "node",
         id,
-        plane: PLANE,
-        planeKind: "root",
+        ...rootPlane(PLANE),
         bounds,
         outline,
         expanded: false,
@@ -248,6 +248,80 @@ describe("planFlowRepairs", () => {
         }
     });
 
+    it("keeps the flow's own bends when they cost at most the allowance more than a fresh route", () => {
+        const layout = layoutOf(
+            [TASK_A, node("Task_B", { x: 300, y: 300, width: 100, height: 80 })],
+            [flow([at(150, 180), at(150, 240), at(350, 240), at(350, 280)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(150, 180), at(150, 240), at(350, 240), at(350, 300)],
+            },
+        ]);
+    });
+
+    it("takes a fresh route when the flow's own bends cost more than the allowance over it", () => {
+        const layout = layoutOf(
+            [TASK_A, node("Task_B", { x: 300, y: 100, width: 100, height: 80 })],
+            [flow([at(200, 140), at(250, 140), at(250, 400), at(350, 400), at(350, 280)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            { kind: "movedByBuild", flow: "Flow_1", waypoints: [at(200, 140), at(300, 140)] },
+        ]);
+    });
+
+    it("keeps the flow's own bends through a gap too narrow for a fresh route", () => {
+        const layout = layoutOf(
+            [
+                TASK_A,
+                node("Task_B", { x: 400, y: 100, width: 100, height: 80 }),
+                node("Wall_Top", { x: 380, y: 60, width: 140, height: 30 }),
+                node("Wall_Bottom", { x: 380, y: 190, width: 140, height: 30 }),
+                node("Wall_Left_Above_Gap", { x: 360, y: 60, width: 30, height: 76 }),
+                node("Wall_Left_Below_Gap", { x: 360, y: 140, width: 30, height: 80 }),
+                node("Wall_Right", { x: 510, y: 60, width: 30, height: 160 }),
+            ],
+            [flow([at(200, 140), at(300, 140), at(300, 138), at(395, 138)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(200, 140), at(300, 140), at(300, 138), at(400, 138)],
+            },
+        ]);
+    });
+
+    it("routes a later flow clear of the route an earlier flow was just repaired onto", () => {
+        const throughBlocker = [at(200, 140), at(400, 140)];
+        const layout = layoutOf(
+            [
+                TASK_A,
+                node("Task_B", { x: 400, y: 100, width: 100, height: 80 }),
+                node("Blocker", { x: 260, y: 110, width: 80, height: 60 }),
+            ],
+            [flow(throughBlocker), { ...flow(throughBlocker), id: "Flow_2" }],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(150, 100), at(150, 85), at(450, 85), at(450, 100)],
+            },
+            {
+                kind: "movedByBuild",
+                flow: "Flow_2",
+                waypoints: [at(150, 180), at(150, 195), at(450, 195), at(450, 180)],
+            },
+        ]);
+    });
+
     it("re-routes only the flows its spots name, in their order", () => {
         const layout = layoutOf(
             [TASK_A, node("Task_B", { x: 300, y: 300, width: 100, height: 80 })],
@@ -290,8 +364,7 @@ describe("planFlowRepairs", () => {
             [
                 TASK_A,
                 node("Task_B", { x: 300, y: 300, width: 100, height: 80 }, "rectangle", {
-                    plane: "Sub_1",
-                    planeKind: "subProcess",
+                    ...subProcessPlane("Sub_1"),
                 }),
             ],
             [flow([at(200, 140), at(350, 140), at(350, 250)])],

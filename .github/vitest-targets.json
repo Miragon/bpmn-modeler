@@ -177,7 +177,8 @@
                 "apps/add-ons-webview/**",
                 ".miragon/brand-assets.sha256",
                 "libs/shared/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "libs/modeler-core/src/addOns/domain/**"
             ],
             "typecheck": "typecheck"
         },
@@ -335,7 +336,8 @@
             "package": "@miragon/bpmn-modeler-shared",
             "paths": [
                 "libs/shared/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "apps/*/src/adapter/out/browserPreview/**"
             ],
             "typecheck": "typecheck"
         },

@@ -41,6 +41,7 @@
             "@miragon/bpmn-modeler-types/conflictMarkers": [
                 "./libs/modeler-types/src/conflictMarkers.ts"
             ],
+            "@miragon/bpmn-modeler-types/polyline": ["./libs/modeler-types/src/polyline.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-merge": ["./libs/bpmn-merge/src/index.ts"],
             "@miragon/dmn-modeler-diff": ["./libs/dmn-diff/src/index.ts"],
@@ -48,6 +49,7 @@
             "@miragon/bpmn-modeler-core/testing": ["./libs/modeler-core/src/testing/index.ts"],
             "@miragon/bpmn-modeler-clipboard": ["./libs/bpmn-clipboard/src/index.ts"],
             "@miragon/bpmn-modeler-i18n-extras": ["./libs/bpmn-i18n-extras/src/index.ts"],
+            "@miragon/bpmn-modeler-i18n-extras/testing": ["./libs/bpmn-i18n-extras/src/testing.ts"],
             "@miragon/bpmn-modeler-element-template-chooser": [
                 "./libs/element-template-chooser/src/index.ts"
             ],

@@ -1,30 +1,25 @@
-import {
-    type ModdleElement,
-    isModdleElement,
-    isType,
-    moddleElements,
-} from "@miragon/bpmn-modeler-diff";
+import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bpmn-modeler-diff";
 
-import {
-    type DiagramIndex,
-    type Drawing,
-    diagramIndexOf,
-    flowDrawingOf,
-    planeKindOf,
-} from "./diagramIndex";
+import { type Drawing, diagramIndexOf, flowDrawingOf, shapeDrawingOf } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
+import { PlaneSlots } from "./planeSlots";
 
-type ShapePlane = Pick<LayoutShape, "plane" | "planeKind">;
+type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
 
-/** The document's drawing as plain values; numbers are copied, so later changes to the tree do not reach it. */
-export function layoutModelOf(definitions: ModdleElement): LayoutModel {
+/**
+ * The document's drawing as plain values; numbers are copied, so later changes to the tree do
+ * not reach it. Each shape's plane goes to its slot among the merge's `slots`, by default the
+ * document's own, whose slots match the merge's by `equals` only.
+ */
+export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
     const relations = layoutRelationsOf(definitions);
     const index = diagramIndexOf(definitions);
+    const planeSlots = slots ?? PlaneSlots.ofDocument(index);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
-    for (const [id, drawings] of index.drawingsByElement) {
+    for (const id of index.drawingsByElement.keys()) {
         const connection = relations.connections.get(id);
         const flowDrawing = connection === undefined ? undefined : flowDrawingOf(index, id);
         if (connection !== undefined && flowDrawing !== undefined) {
@@ -34,22 +29,16 @@ export function layoutModelOf(definitions: ModdleElement): LayoutModel {
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }
-        const drawing = shapeDrawingOf(drawings);
-        const shape = drawing && shapeOf(relations, id, planeOf(index, drawing), drawing.element);
+        const drawing = shapeDrawingOf(index, id);
+        const shape =
+            drawing && shapeOf(relations, id, planeOf(planeSlots, drawing), drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
     }
     return { shapes, edges };
 }
 
-function planeOf(index: DiagramIndex, { planeOwner }: Drawing): ShapePlane {
-    return { plane: planeOwner, planeKind: planeKindOf(planeOwner, index) };
-}
-
-/** The element's shape drawing the layout reads: the first with bounds. */
-export function shapeDrawingOf(drawings: readonly Drawing[]): Drawing | undefined {
-    return drawings.find(
-        ({ element }) => isType(element, "bpmndi:BPMNShape") && isModdleElement(element.bounds),
-    );
+function planeOf(slots: PlaneSlots, { planeOwner }: Drawing): ShapePlane {
+    return { plane: planeOwner, slot: slots.slotOf(planeOwner) };
 }
 
 function shapeOf(

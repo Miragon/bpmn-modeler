@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type LayoutSpot, isFlowSpot, sameSpot } from "./layoutSpots";
+import { type LayoutSpot, isFlowSpot, repairedTogether, sameSpot } from "./layoutSpots";
 
 describe("isFlowSpot", () => {
     it("tells the spots of a flow from those of shapes", () => {
@@ -76,5 +76,51 @@ describe("sameSpot", () => {
     ])("tells %s", (_, first, second, same) => {
         expect(sameSpot(first, second)).toBe(same);
         expect(sameSpot(second, first)).toBe(same);
+    });
+});
+
+describe("repairedTogether", () => {
+    const endOff: LayoutSpot = {
+        kind: "flowEndOffShape",
+        flow: "Flow_1",
+        end: "B",
+        at: "target",
+        lies: "outside",
+    };
+
+    it.each<[string, LayoutSpot, LayoutSpot, boolean]>([
+        [
+            "two spots of one flow",
+            endOff,
+            { kind: "flowThroughShape", flow: "Flow_1", shape: "C" },
+            true,
+        ],
+        [
+            "spots of two flows",
+            endOff,
+            { kind: "flowThroughShape", flow: "Flow_2", shape: "C" },
+            false,
+        ],
+        [
+            "two shapes named in the other order",
+            { kind: "shapesOverlap", shapes: ["A", "B"] },
+            { kind: "shapesOverlap", shapes: ["B", "A"] },
+            true,
+        ],
+        [
+            "a shape outside two containers",
+            { kind: "shapeOutsideContainer", shape: "A", container: "Lane_1" },
+            { kind: "shapeOutsideContainer", shape: "A", container: "Lane_2" },
+            false,
+        ],
+        [
+            "a flow and a shape of the same id",
+            { kind: "flowThroughShape", flow: "A", shape: "C" },
+            { kind: "shapeOutsideContainer", shape: "A", container: "Lane_1" },
+            false,
+        ],
+    ])("tells %s", (_, first, second, together) => {
+        expect(repairedTogether(first, second)).toBe(together);
+        expect(repairedTogether(second, first)).toBe(together);
     });
 });

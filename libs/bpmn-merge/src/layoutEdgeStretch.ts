@@ -1,22 +1,23 @@
 import {
     type Axis,
-    type DiagramBounds,
-    type Point,
     across,
     along,
     atAcross,
     boundsShifted,
-    centerOf,
     nearSideOf,
     pointShifted,
-} from "./layoutGeometry";
+} from "./layoutAxis";
+import { type DiagramBounds, type Point, centerOf } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel } from "./layoutModel";
 
 /**
  * The edge with its ends shifted along the axis, by `bySource` and
  * `byTarget`: moved whole when both ends shifted alike, else stretched by its
- * runs across the axis, so its segments keep their direction; its label goes
- * with the waypoint nearest to it. `before` is the drawing before the shift.
+ * runs across the axis, so its segments keep their direction: a run between
+ * the ends goes with the end that shifted further when it lies at or past
+ * the `line` where that shift starts, by default that end's near side before
+ * the shift. Its label goes with the waypoint nearest to it. `before` is the
+ * drawing before the shift.
  */
 export function stretchedEdge(
     before: LayoutModel,
@@ -24,6 +25,7 @@ export function stretchedEdge(
     axis: Axis,
     bySource: number,
     byTarget: number,
+    line?: number,
 ): LayoutEdge {
     const points = edge.waypoints;
     const runs = runsAcross(axis, points);
@@ -41,9 +43,7 @@ export function stretchedEdge(
             pointShifted(axis, to, byTarget),
         ];
     } else {
-        const farEnd = bySource >= byTarget ? edge.source : edge.target;
-        const farShape = farEnd === undefined ? undefined : before.shapes.get(farEnd);
-        const farLine = farShape === undefined ? Infinity : nearSideOf(axis, farShape.bounds);
+        const farLine = line ?? nearSideOfFarEnd(before, edge, axis, bySource >= byTarget);
         const [larger, smaller] = [Math.max(bySource, byTarget), Math.min(bySource, byTarget)];
         waypoints = runs.flatMap(({ from, to }, run) => {
             const by =
@@ -59,6 +59,17 @@ export function stretchedEdge(
     }
     if (edge.label === undefined) return { ...edge, waypoints };
     return { ...edge, waypoints, label: labelAlong(axis, edge.label, points, waypoints) };
+}
+
+function nearSideOfFarEnd(
+    before: LayoutModel,
+    edge: LayoutEdge,
+    axis: Axis,
+    sourceShiftsFurther: boolean,
+): number {
+    const farEnd = sourceShiftsFurther ? edge.source : edge.target;
+    const farShape = farEnd === undefined ? undefined : before.shapes.get(farEnd);
+    return farShape === undefined ? Infinity : nearSideOf(axis, farShape.bounds);
 }
 
 /** The label shifted as far as the waypoint nearest to it. */

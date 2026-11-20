@@ -1,6 +1,3 @@
-import type { MergeOverlapRepair } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
-
-import type { RepairOf } from "./buildNotes";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
 import { sameBounds } from "./layoutGeometry";
@@ -8,7 +5,9 @@ import {
     type RoomContext,
     type RoomMade,
     type RoomSlots,
+    freeRoom,
     makeRoom,
+    onlyMoves,
     slotOffsetsOf,
     slotsFor,
 } from "./layoutMakeRoom";
@@ -22,14 +21,14 @@ import {
     offsetBetween,
     offsetLength,
 } from "./layoutShapePlacement";
+import type { OverlapRepair, SpotRepair } from "./layoutSpotRepairs";
 import { type LayoutSpot, shapesOverlap } from "./layoutSpots";
 
-/** What the build did about two shapes on top of each other. */
-export type OverlapRepair = RepairOf<MergeOverlapRepair> & {
-    readonly shapes: readonly [string, string];
-};
-
 type MoveRepair = Exclude<OverlapRepair, { readonly kind: "notRepaired" }>;
+
+type OverlapSpot = Extract<LayoutSpot, { readonly kind: "shapesOverlap" }>;
+
+const NOT_REPAIRED: OverlapRepair = { kind: "notRepaired" };
 
 /** What a repair did to one shape: moved it with the group it moved, or shifted it to make room. */
 interface ShapeChange {
@@ -41,7 +40,7 @@ export interface ShapeMovePlan {
     /** The drawing with every move applied; the input itself when nothing moved. */
     readonly layout: LayoutModel;
     /** One per overlap spot, in the spots' order. */
-    readonly repairs: readonly OverlapRepair[];
+    readonly repairs: readonly SpotRepair[];
 }
 
 interface Move extends Offset {
@@ -51,10 +50,9 @@ interface Move extends Offset {
 /**
  * Moves one shape of every two the spots name on top of each other: one that
  * not both sides draw where the result does (one side moved it, or only one
- * side has it), never a boundary event, which stays on its host. It goes, with its label, boundary
- * events and contents, to where the other side draws it when that is free,
- * else to the nearest free place in its frames, and only then gets room made
- * for it right of the other shape. A move of one shape that resolves several
+ * side has it), never a boundary event, which stays on its host. It goes with
+ * its label, boundary events and contents to the first place
+ * `OverlapRepairer.repair` finds. A move of one shape that resolves several
  * spots counts for each.
  */
 export function planShapeMoves(
@@ -62,47 +60,92 @@ export function planShapeMoves(
     spots: readonly LayoutSpot[],
     sides: readonly LayoutModel[],
 ): ShapeMovePlan {
-    const overlaps = spots.flatMap((spot) => (spot.kind === "shapesOverlap" ? [spot] : []));
+    const overlaps = spots.flatMap((spot): OverlapSpot[] =>
+        spot.kind === "shapesOverlap" ? [spot] : [],
+    );
     if (overlaps.length === 0) return { layout, repairs: [] };
-    const groups = new ShapeGroups(layout);
-    const context: RoomContext = { groups, topology: new FlowTopology(layout) };
-    let draft = DrawingDraft.of(layout);
-    const changes = new Map<string, ShapeChange>();
-    const repairs = overlaps.map(({ shapes }): OverlapRepair => {
+    const repairer = new OverlapRepairer(layout, sides);
+    const repairs = overlaps.map((spot) => ({ spot, repair: repairer.repair(spot) }));
+    return { layout: repairer.layout, repairs };
+}
+
+/** Ends overlaps one after another, on a draft of the drawing. */
+class OverlapRepairer {
+    private readonly groups: ShapeGroups;
+    private readonly room: RoomContext;
+    private draft: DrawingDraft;
+    /** What the repairs so far did to each shape they changed. */
+    private readonly changes = new Map<string, ShapeChange>();
+
+    constructor(
+        original: LayoutModel,
+        private readonly sides: readonly LayoutModel[],
+    ) {
+        this.groups = new ShapeGroups(original);
+        this.room = { groups: this.groups, topology: new FlowTopology(original) };
+        this.draft = DrawingDraft.of(original);
+    }
+
+    get layout(): LayoutModel {
+        return this.draft.changedOrOriginal;
+    }
+
+    /** Ends the overlap with the first attempt that can: the other side's place, a stacked branch, the nearest free place, room in line. */
+    repair({ shapes }: OverlapSpot): OverlapRepair {
+        const { draft } = this;
         const [first, second] = shapes.map((id) => draft.node(id));
-        if (first === undefined || second === undefined) return { kind: "notRepaired", shapes };
-        if (!shapesOverlap(first, second)) return resolvedEarlier(shapes, changes);
-        const movable = [first, second]
-            .filter((node) => placedByBuild(node, sides))
-            .map((node) => groups.of(draft, node));
+        if (first === undefined || second === undefined) return NOT_REPAIRED;
         const pair = [first, second] as const;
-        const placed = otherSidesPlace(draft, movable, sides);
-        const stacked =
-            placed === undefined ? stackedBranch(draft, context, movable, pair) : undefined;
-        const move =
-            placed ?? (stacked === undefined ? nearestFreePlace(draft, movable) : undefined);
-        if (move !== undefined) {
-            draft.translate(move.group, move.dx, move.dy);
-            const repair = { kind: "movedByBuild", shapes, moved: move.group.node.id } as const;
-            for (const id of move.group.members) changes.set(id, { repair, withMovedGroup: true });
-            return repair;
-        }
-        const room = stacked ?? roomInLine(draft, context, movable, pair);
-        if (room === undefined) return { kind: "notRepaired", shapes };
-        const moved = room.group.node.id;
-        const { shifted, grown } = room;
-        const repair: MoveRepair =
-            shifted.length === 0 && grown.length === 0
-                ? { kind: "movedByBuild", shapes, moved }
-                : { kind: "madeRoom", shapes, moved, shifted, grown };
-        for (const [id, shape] of room.draft.shapes) {
-            const withMovedGroup = room.group.members.includes(id);
-            if (draft.shapes.get(id) !== shape) changes.set(id, { repair, withMovedGroup });
-        }
-        draft = room.draft;
+        if (endedEarlier(pair)) return resolvedEarlier(shapes, this.changes);
+        const movable = pair
+            .filter((node) => placedByBuild(node, this.sides))
+            .map((node) => this.groups.of(draft, node));
+        return (
+            this.moveOf(otherSidesPlace(draft, movable, this.sides)) ??
+            this.roomOf(stackedBranch(draft, this.room, movable, pair)) ??
+            this.moveOf(nearestFreePlace(draft, movable)) ??
+            this.roomOf(roomInLine(draft, this.room, movable, pair)) ??
+            NOT_REPAIRED
+        );
+    }
+
+    /** The repair that moves the group with every shape it carries. */
+    private moveOf(move: Move | undefined): MoveRepair | undefined {
+        if (move === undefined) return undefined;
+        const { group } = move;
+        this.draft.translate(group, move.dx, move.dy);
+        const repair = { kind: "movedByBuild", moved: group.node.id } as const;
+        this.record(repair, group, group.members);
         return repair;
-    });
-    return { layout: draft.changed ? draft : layout, repairs };
+    }
+
+    /** The repair that takes the draft the room was made on. */
+    private roomOf(room: GroupRoom | undefined): MoveRepair | undefined {
+        if (room === undefined) return undefined;
+        const repair = roomRepairOf(room);
+        this.record(repair, room.group, room.draft.shapesChangedFrom(this.draft));
+        this.draft = room.draft;
+        return repair;
+    }
+
+    private record(repair: MoveRepair, group: ShapeGroup, changed: readonly string[]): void {
+        for (const id of changed) {
+            this.changes.set(id, { repair, withMovedGroup: group.members.includes(id) });
+        }
+    }
+}
+
+/** The pair no longer overlaps where the draft draws it, so a repair of an earlier spot ended it. */
+function endedEarlier([first, second]: readonly [NodeShape, NodeShape]): boolean {
+    return !shapesOverlap(first, second);
+}
+
+function roomRepairOf(room: GroupRoom): MoveRepair {
+    const moved = room.group.node.id;
+    const { shifted, grown } = room;
+    return onlyMoves(room)
+        ? { kind: "movedByBuild", moved }
+        : { kind: "madeRoom", moved, shifted, grown };
 }
 
 /**
@@ -119,10 +162,10 @@ function resolvedEarlier(
         return change === undefined ? [] : [{ id, ...change }];
     });
     const named = changed.find(({ withMovedGroup }) => withMovedGroup) ?? changed[0];
-    if (named === undefined) return { kind: "notRepaired", shapes };
+    if (named === undefined) return NOT_REPAIRED;
     return shapes.includes(named.repair.moved)
-        ? { ...named.repair, shapes }
-        : { kind: "movedByBuild", shapes, moved: named.id };
+        ? named.repair
+        : { kind: "movedByBuild", moved: named.id };
 }
 
 /** The shortest move of a group to where a side draws its node, when the group fits there. */
@@ -178,7 +221,7 @@ function stackedBranch(
             if (free !== undefined) {
                 const trial = draft.fork();
                 trial.translate(group, free.dx, free.dy);
-                return [{ draft: trial, shifted: [], grown: [], growth: 0, group }];
+                return [{ ...freeRoom(trial), group }];
             }
             const room = makeRoom(draft, context, group, column, "below");
             return room === undefined ? [] : [{ ...room, group }];

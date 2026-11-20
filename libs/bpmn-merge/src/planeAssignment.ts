@@ -7,11 +7,17 @@ import {
     edgePlaneOf,
 } from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
-import { type DiagramIndex, type Drawing, drawingKeyOf } from "./diagramIndex";
+import {
+    type DiagramIndex,
+    type Drawing,
+    drawingKeyOf,
+    placedDrawingsOf,
+    placedShapeOf,
+} from "./diagramIndex";
 import type { DrawingSides } from "./drawingSides";
 import type { ItemKey } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeSide } from "./mergeResult";
-import type { PlaneSlots } from "./planeSlots";
+import type { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 export interface PlaneAssignmentSources {
     readonly indexes: Readonly<Record<MergeSide, DiagramIndex>>;
@@ -19,7 +25,7 @@ export interface PlaneAssignmentSources {
     readonly resultUnits: ReadonlyMap<string, ModdleElement>;
     readonly slots: PlaneSlots;
     /** The result's slots in order: a drawing whose own root slot the result lacks goes on the first root one. */
-    readonly keptSlots: readonly string[];
+    readonly keptSlots: readonly PlaneSlot[];
 }
 
 interface PendingEdge {
@@ -35,18 +41,18 @@ interface PendingEdge {
  * where current draws it.
  */
 export class PlaneAssignment {
-    private readonly keptSlots: ReadonlySet<string>;
-    private readonly firstRootSlot: string | undefined;
-    private readonly contentsSlots = new Map<string, string | undefined>();
-    private readonly membersBySlot = new Map<string, Map<ItemKey, ModdleElement>>();
-    private readonly slotsOfDrawn = new Map<string, string>();
+    private readonly keptSlots: ReadonlySet<PlaneSlot>;
+    private readonly firstRootSlot: PlaneSlot | undefined;
+    private readonly contentsSlots = new Map<string, PlaneSlot | undefined>();
+    private readonly membersBySlot = new Map<PlaneSlot, Map<ItemKey, ModdleElement>>();
+    private readonly slotsOfDrawn = new Map<string, PlaneSlot>();
     private readonly pendingEdges: PendingEdge[] = [];
     /** The edges no slot draws both ends of, which stay out of the drawing. */
     readonly undrawnEdges: readonly UndrawnEdge[];
 
     private constructor(private readonly sources: PlaneAssignmentSources) {
         this.keptSlots = new Set(sources.keptSlots);
-        this.firstRootSlot = sources.keptSlots.find((slot) => sources.slots.isRoot(slot));
+        this.firstRootSlot = sources.keptSlots.find((slot) => slot.isRoot);
         this.placeTakenDrawings();
         this.undrawnEdges = this.placeEdges();
     }
@@ -56,17 +62,17 @@ export class PlaneAssignment {
     }
 
     /** The slot's drawings by `drawingKeyOf`, in the order they were placed. */
-    membersOf(slot: string): ReadonlyMap<ItemKey, ModdleElement> {
+    membersOf(slot: PlaneSlot): ReadonlyMap<ItemKey, ModdleElement> {
         return this.membersBySlot.get(slot) ?? new Map<ItemKey, ModdleElement>();
     }
 
     private placeTakenDrawings(): void {
         const { indexes, drawingSides, slots } = this.sources;
         for (const side of MERGE_SIDES) {
-            for (const [elementId, drawings] of indexes[side].drawingsByElement) {
+            for (const elementId of indexes[side].drawingsByElement.keys()) {
                 if (drawingSides.takenSideOf(elementId) !== side) continue;
                 const staysPut = drawingSides.staysWhereCurrentDraws(elementId);
-                for (const drawing of drawings) {
+                for (const drawing of placedDrawingsOf(indexes[side], elementId)) {
                     const slot = staysPut
                         ? slots.slotOf(drawing.planeOwner)
                         : this.slotOfElement(elementId, drawing);
@@ -76,7 +82,7 @@ export class PlaneAssignment {
         }
     }
 
-    private place(elementId: string, drawing: Drawing, slot: string | undefined): void {
+    private place(elementId: string, drawing: Drawing, slot: PlaneSlot | undefined): void {
         const drawn = drawing.element.bpmnElement;
         const ends = isModdleElement(drawn) ? connectionEndsOf(drawn) : undefined;
         if (ends !== undefined) {
@@ -87,7 +93,7 @@ export class PlaneAssignment {
         }
     }
 
-    private slotOfElement(elementId: string, drawing: Drawing): string | undefined {
+    private slotOfElement(elementId: string, drawing: Drawing): PlaneSlot | undefined {
         const { drawingSides, resultUnits, slots } = this.sources;
         const subProcess = enclosingSubProcessOf(
             drawingSides.isPart(elementId)
@@ -96,18 +102,15 @@ export class PlaneAssignment {
         );
         if (subProcess !== undefined) return this.contentsSlotOf(subProcess);
         const own = slots.slotOf(drawing.planeOwner);
-        return this.keptSlots.has(own) && slots.isRoot(own) ? own : this.firstRootSlot;
+        return this.keptSlots.has(own) && own.isRoot ? own : this.firstRootSlot;
     }
 
-    private contentsSlotOf(subProcess: string): string | undefined {
+    private contentsSlotOf(subProcess: string): PlaneSlot | undefined {
         if (!this.contentsSlots.has(subProcess)) {
             const { indexes, drawingSides, slots } = this.sources;
             const ownSlot = slots.slotOf(subProcess);
             const side = drawingSides.sides[subProcess];
-            const shape =
-                side === undefined
-                    ? undefined
-                    : indexes[side].drawingsByElement.get(subProcess)?.[0];
+            const shape = side === undefined ? undefined : placedShapeOf(indexes[side], subProcess);
             this.contentsSlots.set(
                 subProcess,
                 contentsPlaneOf(
@@ -124,7 +127,7 @@ export class PlaneAssignment {
     private placeEdges(): UndrawnEdge[] {
         const edgesById = new Map(this.pendingEdges.map((edge) => [edge.elementId, edge] as const));
         const resolving = new Set<string>();
-        const slotOfEnd = (id: string): string | undefined => {
+        const slotOfEnd = (id: string): PlaneSlot | undefined => {
             const edge = edgesById.get(id);
             if (this.slotsOfDrawn.has(id) || edge === undefined || resolving.has(id)) {
                 return this.slotsOfDrawn.get(id);
@@ -142,7 +145,7 @@ export class PlaneAssignment {
         });
     }
 
-    private addMember(drawing: Drawing, slot: string): void {
+    private addMember(drawing: Drawing, slot: PlaneSlot): void {
         const members = this.membersBySlot.get(slot) ?? new Map<ItemKey, ModdleElement>();
         members.set(drawingKeyOf(drawing.element), drawing.element);
         this.membersBySlot.set(slot, members);

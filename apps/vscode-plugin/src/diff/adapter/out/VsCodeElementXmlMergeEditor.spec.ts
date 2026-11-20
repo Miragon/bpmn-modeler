@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("vscode", () => import("../../../__fixtures__/vscodeMergeEditorFake"));
 
@@ -16,7 +16,10 @@ import {
     editorMergesStartTextTo,
     failNextMergeEditorOpen,
     failToSplitGroups,
+    finishMergeEditorLoading,
     focusGroupByUser,
+    holdMergeEditorLoading,
+    mergeEditorUsesWorkingCopy,
     mergeResultTexts,
     mergeTabs,
     openNextMergeEditorWithoutTab,
@@ -30,6 +33,7 @@ import {
 import { InMemoryFileSystemProvider } from "../../../shared/adapter/out/InMemoryFileSystemProvider";
 
 import {
+    MERGE_EDITOR_READY_TIMEOUT_MS,
     MERGE_RESULT_SCHEME,
     MERGE_XML_SCHEME,
     VsCodeElementXmlMergeEditor,
@@ -37,6 +41,7 @@ import {
 
 const START = "<<<<<<< Current\ncurrent\n=======\nincoming\n>>>>>>> Incoming\n";
 const MERGED = "merged by the editor\n";
+const dropMarkerLines = (start: string) => start.replace(/^(<<<<<<<|=======|>>>>>>>).*\n/gm, "");
 
 const REQUEST: ElementXmlMergeRequest = {
     key: "merge-1",
@@ -52,25 +57,27 @@ let inputs: InMemoryFileSystemProvider;
 let results: InMemoryFileSystemProvider;
 let finished: { key: string; written: string | undefined }[];
 let editor: VsCodeElementXmlMergeEditor;
+let logError: ReturnType<typeof vi.fn<(error: string | Error) => void>>;
 
 function registeredEditor(onFinished: ElementXmlMergeFinished): VsCodeElementXmlMergeEditor {
     inputs = new InMemoryFileSystemProvider({ readOnly: true });
     results = new InMemoryFileSystemProvider({ editorMayCreateFiles: false });
     workspace.registerFileSystemProvider(MERGE_XML_SCHEME, inputs);
     workspace.registerFileSystemProvider(MERGE_RESULT_SCHEME, results);
-    const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished, {
-        logError: vi.fn(),
-    });
+    logError = vi.fn<(error: string | Error) => void>();
+    const registered = new VsCodeElementXmlMergeEditor(inputs, results, onFinished, { logError });
     registered.register({ subscriptions: [] } as unknown as ExtensionContext);
     return registered;
 }
 
 describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished) => {
     resetVscodeMergeEditor();
+    editorMergesStartTextTo(dropMarkerLines);
     const contracted = registeredEditor(onFinished);
     return {
         editor: contracted,
         shown: () => mergeResultTexts(),
+        shownFor: dropMarkerLines,
         inputs: (elementId) => {
             const tab = mergeTabs().find(({ input }) => input.result.path === `/${elementId}.xml`);
             if (!tab?.titles) return undefined;
@@ -92,6 +99,10 @@ describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished
         },
         closeByUser: (elementId) => closeMergeTabsOfByUser(elementId),
     };
+});
+
+afterEach(() => {
+    vi.useRealTimers();
 });
 
 beforeEach(() => {
@@ -248,14 +259,109 @@ describe("VsCodeElementXmlMergeEditor", () => {
     });
 
     it("finishes a merge whose editor never showed once it is closed", async () => {
+        vi.useFakeTimers();
         openNextMergeEditorWithoutTab();
-        await editor.open(REQUEST);
+        const opening = editor.open(REQUEST);
+        await vi.advanceTimersByTimeAsync(MERGE_EDITOR_READY_TIMEOUT_MS);
+        await opening;
+        vi.useRealTimers();
         expect(finished).toEqual([]);
 
         await editor.close(REQUEST.key);
 
         expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
         await expect(editor.open(REQUEST)).resolves.toBeUndefined();
+    });
+
+    it("resolves the open only once the editor merged the start, so a save right after it is taken", async () => {
+        holdMergeEditorLoading();
+        let opened = false;
+        const opening = editor.open(REQUEST).then(() => {
+            opened = true;
+        });
+        await new Promise((done) => setTimeout(done, 0));
+        expect(mergeTabs()).toHaveLength(1);
+        expect(opened).toBe(false);
+
+        finishMergeEditorLoading();
+        await opening;
+        saveMergeResult(TextDocumentSaveReason.Manual);
+        closeMergeTabByUser();
+
+        expect(finished).toEqual([{ key: "merge-1", written: MERGED }]);
+    });
+
+    it("resolves the open of a start without conflict markers once its tab shows", async () => {
+        holdMergeEditorLoading();
+
+        await editor.open({ ...REQUEST, start: "resumed\n" });
+
+        expect(mergeTabs()).toHaveLength(1);
+    });
+
+    it("resolves the open once the user closes the merge while it loads", async () => {
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+        await new Promise((done) => setTimeout(done, 0));
+
+        closeMergeTabByUser();
+
+        await expect(opening).resolves.toBeUndefined();
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
+    });
+
+    it("logs and resolves the open when the editor never finishes loading", async () => {
+        vi.useFakeTimers();
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+
+        await vi.advanceTimersByTimeAsync(MERGE_EDITOR_READY_TIMEOUT_MS);
+
+        await expect(opening).resolves.toBeUndefined();
+        expect(logError).toHaveBeenCalledTimes(1);
+        expect(mergeTabs()).toHaveLength(1);
+    });
+
+    it("resolves the open once the tab shows where the editor merges into a working copy", async () => {
+        vi.useFakeTimers();
+        mergeEditorUsesWorkingCopy();
+        let opened = false;
+        void editor.open(REQUEST).then(() => {
+            opened = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(opened).toBe(true);
+        expect(logError).not.toHaveBeenCalled();
+    });
+
+    it("lets the editor finish loading before the merge view closes it, so no dirty result stays behind", async () => {
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+        await new Promise((done) => setTimeout(done, 0));
+
+        const closing = editor.close(REQUEST.key);
+        finishMergeEditorLoading();
+        await closing;
+        await opening;
+
+        expect(mergeTabs()).toEqual([]);
+        expect(workspace.textDocuments.filter((document) => document.isDirty)).toEqual([]);
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
+    });
+
+    it("finishes once without a text when the user closes the tab while the merge view's close waits for the load", async () => {
+        holdMergeEditorLoading();
+        const opening = editor.open(REQUEST);
+        await new Promise((done) => setTimeout(done, 0));
+        const closing = editor.close(REQUEST.key);
+
+        closeMergeTabByUser();
+
+        await expect(closing).resolves.toBeUndefined();
+        await opening;
+        expect(finished).toEqual([{ key: "merge-1", written: undefined }]);
     });
 
     it("releases the files and finishes without a text when the editor fails to open", async () => {

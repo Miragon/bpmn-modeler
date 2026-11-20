@@ -48,14 +48,15 @@ each serves (an untagged model in Design, diff panes with real
 has no partner for synchronized navigation. `?plugins` loads the sample
 plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
 starts a merge pane with Merge XML offered. Workspace definition search answers from
-`__fixtures__/mock-workspace-definitions.ts`. The DMN preview serves one sample
-decision from `apps/dmn-webview/src/adapter/out/host.ts`. The Add-ons view
-preview serves `apps/add-ons-webview/src/adapter/out/mockCatalog.ts`;
-`?state=loading|empty|noFolder|onlyMarketplaces|noMarketplace|marketplacesFailed|rereadFailed|failed|allReviewed`,
-`?reveal=<add-on id or name>`, `?preset=needsReview` (Review Add-ons, after
-any reveal), `?stale=1` (the first allow is refused as
-stale) and `?theme=dark|hc` (the brand mode a host would post; light without
-it) pick what it shows. Resize the window across 640px to see both layouts:
+`__fixtures__/mock-workspace-definitions.ts`. The DMN preview's hosts in
+`apps/dmn-webview/src/adapter/out/browserPreview/` serve one sample decision,
+and `?mode=diff-before|diff-after` one pane of the shipping change with its
+real diff. The Add-ons view
+preview serves `apps/add-ons-webview/src/adapter/out/browserPreview/mockCatalog.ts`;
+its query flags pick the catalog state, a revealed add-on, the Review preset, a
+stale first allow, the brand theme, the page and a detail page's add-on, and
+`previewFlagsOf` in `browserPreview/previewFlags.ts` lists each flag with its
+values. Resize the window across 640px to see both layouts:
 two panes from 640px, the drill-down with Back below (container queries, so
 no reload). Drive it by clicking and with Tab, arrow keys in the tabs and the
 "…" menus, and read the accessibility snapshot; after load the page has
@@ -164,10 +165,11 @@ definition / Job type** fields exist in the default C7 preview.
   Rejected-template warnings for the C8 samples on the C7 fixture are expected.
 - Browser previews use native clipboard behavior. PreviewHost logs document sync
   and several capability commands; it does not save files or perform IDE
-  navigation. It throws `Unknown message type` for any command without a case, so
-  a new webview command needs a log-only case there. Save flushing, external
-  edits, host clipboard, and editor lifecycle
-  need host integration checks; consult
+  navigation. It routes each command from the table in
+  `browserPreview/previewCommands.ts`: a new webview command needs a row there,
+  an answer or `{ ignored: reason }`, or the webview fails to compile. Save
+  flushing, external edits, host clipboard, and editor lifecycle need host
+  integration checks; consult
   [custom editors](../vscode-custom-editors/SKILL.md),
   [webviews](../vscode-webviews/SKILL.md), or
   [IntelliJ](../intellij-plugin/SKILL.md).

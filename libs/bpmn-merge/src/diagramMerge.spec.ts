@@ -158,7 +158,12 @@ describe("buildMerged with a collapsed sub-process", () => {
         });
         expect(xml).toContain('<dc:Bounds x="260" y="100" width="100" height="80" />');
         expect(notes).toEqual([
-            { kind: "layoutChangedByBoth", ids: ["Task_In"], keptSide: "incoming" },
+            {
+                kind: "layoutChangedByBoth",
+                ids: ["Task_In"],
+                keptSide: "incoming",
+                named: ["Task_In"],
+            },
         ]);
     });
 });

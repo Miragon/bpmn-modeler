@@ -5,7 +5,7 @@ import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
 import { DrawingSides } from "./drawingSides";
 import type { MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
-import { PlaneSlots } from "./planeSlots";
+import { type PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const SEMANTIC = `
   <bpmn:collaboration id="Collab_1">
@@ -52,16 +52,17 @@ const document = (diagrams: readonly string[]) => `<?xml version="1.0" encoding=
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${SEMANTIC}${diagrams.join("")}
 </bpmn:definitions>`;
 
-const ROOT_DRAWINGS = [
+const rootDrawings = (sub1Drawings: readonly string[] = [shape("Sub_1")]) => [
     shape("Start_1"),
     shape("Task_A"),
-    shape("Sub_1"),
+    ...sub1Drawings,
     shape("Note_1"),
     edge("Flow_1"),
     edge("Association_ToFlow"),
     edge("Association_Across"),
     edge("Association_Loose"),
 ];
+const ROOT_DRAWINGS = rootDrawings();
 const SUB_1_PLANE = plane("Sub_1", [
     shape("Input_Sub"),
     shape("Task_In"),
@@ -94,14 +95,16 @@ const FROM_INCOMING = new Set(["Pool_1", "Sub_2", "Task_Ex", "Task_Other"]);
 const UNDECIDED = new Set(["Task_Gone", "Task_Dropped"]);
 const PARTS = new Set(["Input_Sub"]);
 
-let assignment: PlaneAssignment;
-let slots: PlaneSlots;
-let keptSlots: readonly string[];
+interface AssignedSlots {
+    readonly assignment: PlaneAssignment;
+    readonly slots: PlaneSlots;
+    readonly keptSlots: readonly PlaneSlot[];
+}
 
-beforeAll(async () => {
+async function assignmentOf(currentXml: string, incomingXml: string): Promise<AssignedSlots> {
     const createModdle = await loadBpmnModdle();
-    const current = await createModdle().fromXML(CURRENT);
-    const incoming = await createModdle().fromXML(INCOMING);
+    const current = await createModdle().fromXML(currentXml);
+    const incoming = await createModdle().fromXML(incomingXml);
     const indexes: Record<MergeSide, DiagramIndex> = {
         current: diagramIndexOf(current.rootElement),
         incoming: diagramIndexOf(incoming.rootElement),
@@ -119,15 +122,24 @@ beforeAll(async () => {
             FROM_INCOMING.has(id) ? "incoming" : "current",
         ]),
     ) as Record<string, MergeSide>;
-    slots = new PlaneSlots(indexes);
-    keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
-    assignment = PlaneAssignment.of({
+    const slots = new PlaneSlots(indexes);
+    const keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
+    const assignment = PlaneAssignment.of({
         indexes,
         drawingSides: new DrawingSides(sides, PARTS, new Set(resultUnits.keys())),
         resultUnits,
         slots,
         keptSlots,
     });
+    return { assignment, slots, keptSlots };
+}
+
+let assignment: PlaneAssignment;
+let slots: PlaneSlots;
+let keptSlots: readonly PlaneSlot[];
+
+beforeAll(async () => {
+    ({ assignment, slots, keptSlots } = await assignmentOf(CURRENT, INCOMING));
 });
 
 const slotDrawing = (elementId: string) =>
@@ -170,5 +182,50 @@ describe("PlaneAssignment", () => {
 
     it("gives a slot no drawing goes on no members", () => {
         expect(assignment.membersOf(slots.slotOf("Sub_2")).size).toBe(0);
+    });
+
+    describe("of a sub-process drawn twice", () => {
+        const UNBOUNDED = `<bpmndi:BPMNShape id="Sub_1_unbounded" bpmnElement="Sub_1" />`;
+        const EXPANDED = shape("Sub_1", ' isExpanded="true"');
+
+        it.each([
+            ["past a first drawing without bounds", [UNBOUNDED, EXPANDED]],
+            ["before a later drawing without bounds", [EXPANDED, UNBOUNDED]],
+        ])(
+            "keeps the shape the layout reads and puts the contents where it does, %s",
+            async (_case, sub1Drawings) => {
+                const drawnTwice = await assignmentOf(
+                    document([plane("Process_1", rootDrawings(sub1Drawings)), SUB_1_PLANE]),
+                    INCOMING,
+                );
+                const rootMembers = drawnTwice.assignment.membersOf(
+                    drawnTwice.slots.slotOf("Process_1"),
+                );
+
+                expect(rootMembers.get("Sub_1")?.id).toBe("Sub_1_di");
+                expect(rootMembers.has("Task_In")).toBe(true);
+            },
+        );
+    });
+
+    it("puts the contents of a sub-process whose only shape lacks bounds where that shape does", async () => {
+        const expandedWithoutBounds = await assignmentOf(
+            document([
+                plane(
+                    "Process_1",
+                    rootDrawings([
+                        `<bpmndi:BPMNShape id="Sub_1_unbounded" bpmnElement="Sub_1" isExpanded="true" />`,
+                    ]),
+                ),
+                SUB_1_PLANE,
+            ]),
+            INCOMING,
+        );
+
+        expect(
+            expandedWithoutBounds.assignment
+                .membersOf(expandedWithoutBounds.slots.slotOf("Process_1"))
+                .has("Task_In"),
+        ).toBe(true);
     });
 });

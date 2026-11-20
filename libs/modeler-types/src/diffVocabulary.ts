@@ -70,3 +70,10 @@ export const DIFF_CATEGORY_LABELS: Readonly<Record<DiffCategory, string>> = {
     changed: DIFF_LEGEND_TEXTS.changed,
     layoutChanged: DIFF_LEGEND_TEXTS.moved,
 };
+
+/** Every i18n key the shared diff views, the legend and the side label, translate. */
+export const DIFF_VIEW_KEYS: readonly string[] = [
+    ...Object.values(DIFF_LEGEND_TEXTS),
+    ...Object.values(DIFF_SIDE_TEXTS),
+    DIFF_PLANE_MISSING_TEXT,
+];

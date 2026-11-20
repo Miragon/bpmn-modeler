@@ -24,6 +24,8 @@ export interface ElementXmlMergeEditorContractFixture {
     readonly editor: ElementXmlMergeEditor;
     /** The result each open merge shows, by element. */
     shown(): Readonly<Record<string, string>>;
+    /** What an editor shows once the open of a merge started from `start` resolved: `start` itself, unless the editor merges it as it loads. */
+    shownFor?(start: string): string;
     /** The base and both sides the open merge of `elementId` shows, if it is open. */
     inputs(elementId: string): ElementXmlMergeInputs | undefined;
     /** The element of the merge in front, if any. */
@@ -49,7 +51,8 @@ const CHECK = requestFor("Task_Check");
 
 /**
  * What the core relies on of a host's element XML merge editor: the start
- * text is no answer, a save is, also of the unchanged text; a merge finishes
+ * text is no answer, a save is, also of the unchanged text and right after
+ * the open resolved, even where the editor merged the start; a merge finishes
  * once, when it closes, with the last save of the user or none; a close from
  * the core finishes it without a text; a key opens once at a time.
  */
@@ -61,16 +64,28 @@ export function describeElementXmlMergeEditorContract(
         const fixtureReportingFinishes = () => {
             const finished: { key: string; written: string | undefined }[] = [];
             const fixture = createFixture((key, written) => finished.push({ key, written }));
-            return { ...fixture, finished };
+            const shownFor = (start: string) => fixture.shownFor?.(start) ?? start;
+            return { ...fixture, finished, shownFor };
         };
 
-        it("opens a merge with its start text as the result", async () => {
-            const { editor, shown, focused } = fixtureReportingFinishes();
+        it("opens a merge from its start text and brings it to the front", async () => {
+            const { editor, shown, shownFor, focused } = fixtureReportingFinishes();
 
             await editor.open(PACK);
 
-            expect(shown()).toStrictEqual({ Task_Pack: PACK.start });
+            expect(shown()).toStrictEqual({ Task_Pack: shownFor(PACK.start) });
             expect(focused()).toBe("Task_Pack");
+        });
+
+        it("takes a save made right after the open resolves", async () => {
+            const { editor, shown, save, closeByUser, finished } = fixtureReportingFinishes();
+            await editor.open(PACK);
+            const { Task_Pack: shownOnOpen } = shown();
+
+            save("Task_Pack", shownOnOpen);
+            closeByUser("Task_Pack");
+
+            expect(finished).toStrictEqual([{ key: PACK.key, written: shownOnOpen }]);
         });
 
         it("shows the base, and each side's text under its own label", async () => {
@@ -128,13 +143,13 @@ export function describeElementXmlMergeEditorContract(
         });
 
         it("closes one merge and leaves another open", async () => {
-            const { editor, shown, finished } = fixtureReportingFinishes();
+            const { editor, shown, shownFor, finished } = fixtureReportingFinishes();
             await editor.open(PACK);
             await editor.open(CHECK);
 
             await editor.close(PACK.key);
 
-            expect(shown()).toStrictEqual({ Task_Check: CHECK.start });
+            expect(shown()).toStrictEqual({ Task_Check: shownFor(CHECK.start) });
             expect(finished).toStrictEqual([{ key: PACK.key, written: undefined }]);
         });
 
@@ -157,22 +172,22 @@ export function describeElementXmlMergeEditorContract(
         });
 
         it("refuses a second open of an open key and keeps the open merge", async () => {
-            const { editor, shown } = fixtureReportingFinishes();
+            const { editor, shown, shownFor } = fixtureReportingFinishes();
             await editor.open(PACK);
 
             await expect(editor.open({ ...PACK, start: "<other />\n" })).rejects.toThrow();
 
-            expect(shown()).toStrictEqual({ Task_Pack: PACK.start });
+            expect(shown()).toStrictEqual({ Task_Pack: shownFor(PACK.start) });
         });
 
         it("opens a key again after its merge finished", async () => {
-            const { editor, closeByUser, shown } = fixtureReportingFinishes();
+            const { editor, closeByUser, shown, shownFor } = fixtureReportingFinishes();
             await editor.open(PACK);
             closeByUser("Task_Pack");
 
             await editor.open(PACK);
 
-            expect(shown()).toStrictEqual({ Task_Pack: PACK.start });
+            expect(shown()).toStrictEqual({ Task_Pack: shownFor(PACK.start) });
         });
     });
 }

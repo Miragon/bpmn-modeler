@@ -1,8 +1,8 @@
 /**
  * Which text one element XML merge answers when its last tab closes: the one
  * the user's last manual save wrote. An auto-save is no answer, since the
- * result is dirty from the start and would be written before the user did
- * anything. A close while the user accepts the merge answers with the last
+ * result is dirty once the editor merged a start with markers and would be
+ * written before the user did anything. A close while the user accepts the merge answers with the last
  * write: the editor's accept saves only a dirty result, so after an auto-save
  * it writes nothing. A merge closed from code answers nothing.
  */

@@ -12,7 +12,7 @@ import type { DrawingSides } from "./drawingSides";
 import { orderMembers } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeSide } from "./mergeResult";
 import { PlaneAssignment } from "./planeAssignment";
-import { PlaneSlots } from "./planeSlots";
+import type { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 interface KeptDiagram {
     readonly diagram: ModdleElement;
@@ -32,10 +32,10 @@ interface KeptDiagram {
 export function assembleDiagrams(
     definitions: ModdleElement,
     indexes: Readonly<Record<MergeSide, DiagramIndex>>,
+    slots: PlaneSlots,
     drawingSides: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
 ): readonly UndrawnEdge[] {
-    const slots = new PlaneSlots(indexes);
     const kept = keptDiagramsOf(indexes, slots, drawingSides, resultUnits);
     const slotOrder = (side: MergeSide) => [
         ...new Set(indexes[side].diagrams.map((diagram) => slots.slotOf(planeOwnerOf(diagram)))),
@@ -54,9 +54,9 @@ export function assembleDiagrams(
         slots,
         keptSlots: orderedSlots,
     });
-    const slotPlaneOrder = (side: MergeSide, slot: string) =>
+    const slotPlaneOrder = (side: MergeSide, slot: PlaneSlot) =>
         [...indexes[side].orderByPlaneOwner].flatMap(([planeOwner, order]) =>
-            slots.slotOf(planeOwner) === slot ? order : [],
+            slots.holds(slot, planeOwner) ? order : [],
         );
     const placed: ModdleElement[] = [];
     for (const slot of orderedSlots) {
@@ -147,8 +147,8 @@ function keptDiagramsOf(
     slots: PlaneSlots,
     drawingSides: DrawingSides,
     resultUnits: ReadonlyMap<string, ModdleElement>,
-): Map<string, KeptDiagram> {
-    const candidates = new Map<string, { owner: string; side: MergeSide }[]>();
+): Map<PlaneSlot, KeptDiagram> {
+    const candidates = new Map<PlaneSlot, { owner: string; side: MergeSide }[]>();
     for (const side of MERGE_SIDES) {
         for (const diagram of indexes[side].diagrams) {
             const owner = planeOwnerOf(diagram);
@@ -157,7 +157,7 @@ function keptDiagramsOf(
             candidates.set(slot, [...(candidates.get(slot) ?? []), { owner, side }]);
         }
     }
-    const kept = new Map<string, KeptDiagram>();
+    const kept = new Map<PlaneSlot, KeptDiagram>();
     for (const [slot, slotCandidates] of candidates) {
         // bpmn-js draws from a collaboration's plane only what its pools reach.
         const { owner, side } =
@@ -168,17 +168,29 @@ function keptDiagramsOf(
             ) ?? slotCandidates[0]!;
         const diagram =
             diagramDrawing(indexes.current, owner) ?? diagramDrawing(indexes[side], owner)!;
-        const plane = diagram.plane as ModdleElement;
-        const currentInSlot = indexes.current.diagrams.find(
-            (candidate) => slots.slotOf(planeOwnerOf(candidate)) === slot,
-        );
-        if (slots.isRoot(slot) && currentInSlot !== undefined && currentInSlot !== diagram) {
-            diagram.id = currentInSlot.id;
-            plane.id = (currentInSlot.plane as ModdleElement | undefined)?.id;
-        }
-        kept.set(slot, { diagram, plane });
+        const keptDiagram = { diagram, plane: diagram.plane as ModdleElement };
+        if (slot.isRoot) takeOverRootIds(keptDiagram, rootDiagramIn(indexes.current, slots, slot));
+        kept.set(slot, keptDiagram);
     }
     return kept;
+}
+
+/** The diagram of current's that draws in the root slot, whose ids the result's root diagram keeps. */
+function rootDiagramIn(
+    current: DiagramIndex,
+    slots: PlaneSlots,
+    slot: PlaneSlot,
+): ModdleElement | undefined {
+    return current.diagrams.find((candidate) => slots.holds(slot, planeOwnerOf(candidate)));
+}
+
+function takeOverRootIds(
+    { diagram, plane }: KeptDiagram,
+    currentRoot: ModdleElement | undefined,
+): void {
+    if (currentRoot === undefined || currentRoot === diagram) return;
+    diagram.id = currentRoot.id;
+    plane.id = (currentRoot.plane as ModdleElement | undefined)?.id;
 }
 
 /** An edge taken from one side may name the end shapes of that side, which the result replaced by the other's. */

@@ -125,11 +125,13 @@ async function tabLabels(): Promise<string[]> {
     return (await vscode().tabsByGroup()).flat().map(({ label }) => label);
 }
 
-/** The merge editor's tabs, of one element or all: VS Code titles each after the result's path. */
+/** Whether a tab is a merge editor of the element, or of any: VS Code titles it after the result's path. */
+function isMergeEditorTab(label: string, elementId = ""): boolean {
+    return label.includes(`${elementId}.xml`) && !label.includes(" (XML): ");
+}
+
 async function mergeEditorTabs(elementId = ""): Promise<string[]> {
-    return (await tabLabels()).filter(
-        (label) => label.includes(`${elementId}.xml`) && !label.includes(" (XML): "),
-    );
+    return (await tabLabels()).filter((label) => isMergeEditorTab(label, elementId));
 }
 
 /** The text of the result VS Code's merge editor shows for an element, as edited. */
@@ -138,9 +140,21 @@ async function resultText(elementId: string): Promise<string | undefined> {
     return results.find(({ path }) => path.endsWith(`/${elementId}.xml`))?.text;
 }
 
+/**
+ * Opens the element's merge editor from the pad and waits until it has loaded: VS Code shows
+ * the tab and the marker text first, and reports the tab dirty only once its own merge replaced
+ * that text. The click cannot await the open the way the core does.
+ */
 async function openMergeXml(pane: FrameLocator, elementId: string): Promise<void> {
     await padEntry(pane, "Merge XML").click();
-    await expect.poll(() => mergeEditorTabs(elementId)).toHaveLength(1);
+    await expect
+        .poll(async () =>
+            (await vscode().tabsByGroup())
+                .flat()
+                .filter(({ label }) => isMergeEditorTab(label, elementId))
+                .map(({ isDirty }) => isDirty),
+        )
+        .toEqual([true]);
     await expect.poll(() => resultText(elementId)).toBeDefined();
 }
 

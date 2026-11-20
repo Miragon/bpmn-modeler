@@ -17,8 +17,11 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { inMemoryViewUris } from "../../../shared/adapter/out/inMemoryViewUris";
+import { mergeEditorUsesWorkingCopy } from "../../../shared/adapter/out/modelerConfiguration";
+import { untilTabsSatisfy } from "../../../shared/adapter/out/tabWait";
 import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
+import { mergeEditorIsReady } from "../../domain/mergeEditorReadiness";
 import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
 import { groupBelowActive } from "./editorGroupBelow";
@@ -26,6 +29,7 @@ import { groupBelowActive } from "./editorGroupBelow";
 export const MERGE_XML_SCHEME = "bpmn-merge-xml";
 export const MERGE_RESULT_SCHEME = "bpmn-merge-result";
 export const OPEN_MERGE_EDITOR = "_open.mergeEditor";
+export const MERGE_EDITOR_READY_TIMEOUT_MS = 10_000;
 
 // VS Code numbers its groups in grid order, as these commands count them.
 const FOCUS_GROUP_COMMANDS = [
@@ -46,6 +50,7 @@ interface OpenMerge {
     readonly incoming: Uri;
     readonly result: Uri;
     readonly answer: MergeTabAnswer;
+    loading: Promise<void>;
 }
 
 /**
@@ -53,7 +58,9 @@ interface OpenMerge {
  * read-only under `bpmn-merge-xml:`, the result writable under
  * `bpmn-merge-result:`, in a group below the diagrams or beside the merges
  * already open. The merge finishes when its last tab closes, with the text
- * its {@link MergeTabAnswer} names.
+ * its {@link MergeTabAnswer} names. `open` resolves once the editor has
+ * loaded (see {@link mergeEditorIsReady}), since it drops a save before,
+ * and `close` waits for that too.
  */
 export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
     private readonly mergesByKey = new Map<string, OpenMerge>();
@@ -102,6 +109,8 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             this.finish(request.key, merge, undefined);
             throw error;
         }
+        merge.loading = this.loaded(merge);
+        await merge.loading;
     }
 
     async focus(key: string): Promise<void> {
@@ -131,13 +140,38 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             return;
         }
         merge.answer.closingFromCode();
-        // The result is dirty from the start, and closing a dirty result asks the user to save it.
+        // An editor still loading merges into the result after its tab closed, and leaves it dirty without a tab.
+        await merge.loading;
+        if (this.mergesByKey.get(key) !== merge) return;
+        // The result is dirty once the editor merged a start with markers, and closing it then asks the user to save it.
         const result = workspace.textDocuments.find(
             (document) => document.uri.toString() === merge.result.toString(),
         );
         if (result) await result.save();
         const tabs = tabsShowing(merge.result);
         if (tabs.length > 0) await window.tabGroups.close(tabs, true);
+    }
+
+    // `_open.mergeEditor` returns before the editor has loaded; a merge that finished meanwhile waits no longer.
+    private loaded(merge: OpenMerge): Promise<void> {
+        const load = {
+            start: merge.request.start,
+            onWorkingCopy: mergeEditorUsesWorkingCopy(),
+        };
+        return untilTabsSatisfy(
+            () =>
+                this.mergesByKey.get(merge.request.key) !== merge ||
+                mergeEditorIsReady(load, tabsShowing(merge.result)),
+            {
+                timeoutMs: MERGE_EDITOR_READY_TIMEOUT_MS,
+                onTimeout: () =>
+                    this.logger.logError(
+                        new Error(
+                            `The merge editor of ${merge.request.elementId} did not load within ${MERGE_EDITOR_READY_TIMEOUT_MS} ms.`,
+                        ),
+                    ),
+            },
+        );
     }
 
     private serve(request: ElementXmlMergeRequest): OpenMerge {
@@ -149,6 +183,7 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
             incoming: uriOf(MERGE_XML_SCHEME, "incoming"),
             result: uriOf(MERGE_RESULT_SCHEME),
             answer: new MergeTabAnswer(),
+            loading: Promise.resolve(),
         };
         this.inputs.setContent(merge.base, request.base);
         this.inputs.setContent(merge.current, request.current);

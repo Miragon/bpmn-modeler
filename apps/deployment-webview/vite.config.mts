@@ -3,10 +3,12 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
+import { webviewBuildGuards } from "../../vite.shared";
+
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/modeler-plugin-deployment-webview",
-    plugins: [tsconfigPaths()],
+    plugins: [tsconfigPaths(), ...webviewBuildGuards({ entry: "index.js" })],
     build: {
         target: "es2021",
         chunkSizeWarningLimit: 1200,

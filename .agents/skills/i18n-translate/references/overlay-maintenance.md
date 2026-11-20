@@ -1,37 +1,49 @@
-# Overlay maintenance — harvesting & pruning the key set
+# Overlay maintenance: harvesting & pruning the key set
 
 The local overlay (`libs/bpmn-i18n-extras/`) is generated against **runtime truth**, not a static
-dictionary diff. Read this when you need to *add or remove overlay keys* — translating existing values is
+dictionary diff. Read this when you need to *add or remove overlay keys*. Translating existing values is
 covered by the main SKILL.md and needs none of this.
 
 ## Why the key set is not hand-authored
 
 A string earns a place in the overlay only when the running modeler actually asks to `translate()` it
 **and** the shared `@miragon/bpmn-modeler-i18n` library has no entry for it (exact or normalized casing).
-Everything else is dead by definition — most often a legacy spelling modern bpmn-js / the properties panel
+Everything else is dead by definition: most often a legacy spelling modern bpmn-js / the properties panel
 has since renamed (e.g. `Business Key` → the shared library's `Business key`), which the editor never
 requests anymore. Hand-adding keys reintroduces exactly this rot, which is why the files are `GENERATED`
 and guarded.
 
 ## Files
 
-- `libs/bpmn-i18n-extras/tools/harvested.json` — every template the running Camunda-7 modeler passed to
+- `libs/bpmn-i18n-extras/tools/harvested.json`: every template the running Camunda-7 modeler passed to
   `translate()`, captured with the harvest driver. The authoritative needed-key set.
-- `libs/bpmn-i18n-extras/tools/harvested-merge.json` — the keys of the merge view's texts, which no
+- `libs/bpmn-i18n-extras/tools/harvested-merge.json`: the keys of the merge view's texts, which no
   browser driver reaches. `apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts` asks every merge
   text once and fails until the record is current; rewrite it with
   `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`.
-- `libs/bpmn-i18n-extras/tools/harvest-drain.js` — the browser-side driver that exercises the editor
+- `libs/bpmn-i18n-extras/tools/harvested-diff.json` and `harvested-dmn-diff.json`: the keys of the BPMN
+  and DMN diff panes' texts, recorded by
+  `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and
+  `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`, which fail until the records are current;
+  rewrite them with `-u` on those specs as for the merge record. Both take the shared diff views' keys
+  from `DIFF_VIEW_KEYS` (`@miragon/bpmn-modeler-types`), which `diffVocabulary.spec.ts` checks against
+  what the legend and side label translate; a pane's own text is added to its record spec by hand.
+- `libs/bpmn-i18n-extras/tools/harvest-drain.js`: the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.
-- `libs/bpmn-i18n-extras/tools/build-overlay.mjs` — prunes every registered overlay dictionary against the
+- `libs/bpmn-i18n-extras/tools/record-harvest.mjs`: adds a driver's drained keys to its record and
+  rewrites it through `harvestRecord`, keeping the note. Never edit a record by hand:
+  `harvestRecord.spec.ts` fails on any other shape.
+- `libs/bpmn-i18n-extras/tools/build-overlay.mjs`: prunes every registered overlay dictionary against the
   harvests + the shared library. Keeps a key only when the shared library lacks it **and** a harvest
   recorded it, plus a small `SOURCE_ONLY` allowlist for strings the harvest driver structurally can't reach
   (script-lock).
-- `libs/bpmn-i18n-extras/src/normalizeKey.ts`, `src/harvestedKeys.ts` and `src/sourceOnlyKeys.ts` — the
-  one home of the key normalization, the harvest file list and `SOURCE_ONLY`. The builder and the guard
-  specs import them; change a rule there, never in a copy.
-- `libs/bpmn-i18n-extras/tools/README.md` — the authoritative, up-to-date version of this workflow. Prefer
+- `libs/bpmn-i18n-extras/src/normalizeKey.ts`, `src/harvestRecord.ts`, `src/harvestedKeys.ts` and
+  `src/sourceOnlyKeys.ts`: the one home of the key normalization, the harvest file list and the record's
+  shape (`harvestRecord`, which every recording spec writes through from the test-only entry
+  `@miragon/bpmn-modeler-i18n-extras/testing`), the harvest union and `SOURCE_ONLY`.
+  The builder and the guard specs import them; change a rule there, never in a copy.
+- `libs/bpmn-i18n-extras/tools/README.md`: the authoritative, up-to-date version of this workflow. Prefer
   it if it disagrees with this file.
 
 ## Refreshing the overlay
@@ -41,10 +53,10 @@ and guarded.
 corepack yarn workspace @miragon/bpmn-modeler-webview serve
 
 # 2. In the page console (or via Playwright browser_evaluate), load and run the
-#    driver, then copy the harvested set into harvested.json:
+#    driver, then add the harvested set to harvested.json:
 #      (paste harvest-drain.js) ; await window.__harvestDrain()
-#      JSON.stringify([...window.__harvested].sort())
-#    Save it under the { note, count, keys } wrapper in harvested.json.
+#      copy(JSON.stringify([...window.__harvested]))
+pbpaste | bun libs/bpmn-i18n-extras/tools/record-harvest.mjs harvested.json
 
 # 3. Prune (dry run, then write):
 bun libs/bpmn-i18n-extras/tools/build-overlay.mjs
@@ -65,7 +77,8 @@ the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). Thes
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
 in `src/sourceOnlyKeys.ts`, the one set that both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`
 import. If you add a genuinely needed modeler-internal string the harvest can't reach, add it there and
-nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead. A key stays listed
+nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead, and a diff pane text into the
+webview's `diffTextsHarvest.spec.ts`. A key stays listed
 while another view's harvest records it, since that harvest does not reach its own call site: the template
 chooser's `Close` and the merge bar's `Close` are one key.
 
@@ -73,5 +86,5 @@ chooser's `Close` and the merge bar's `Close` are one key.
 
 As the shared library grows, residual overlay keys become redundant. `overlayScope.spec.ts` enforces the
 cleanup: the moment the shared library ships a key the overlay still defines, the test fails and names the
-keys to delete from `src/languages/*`. The end state is an empty overlay. Do not fight this — cover strings
+keys to delete from `src/languages/*`. The end state is an empty overlay. Do not fight this: cover strings
 upstream in the shared library when you can, and let the guards retire the local copies.

@@ -1,3 +1,4 @@
+import { previewModeOf } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -42,16 +43,5 @@ export function paneOf(mode: PreviewMode): PreviewPane | undefined {
 }
 
 export function readPreviewMode(search: string): PreviewMode {
-    const raw = new URLSearchParams(search).get("mode");
-    const mode = PREVIEW_MODES.find((candidate) => candidate === raw);
-    if (mode) {
-        return mode;
-    }
-    if (raw !== null && raw !== "") {
-        console.warn(
-            `[dev] Unknown ?mode=${raw}; falling back to "modeler". ` +
-                `Known values: ${PREVIEW_MODES.join(", ")}.`,
-        );
-    }
-    return "modeler";
+    return previewModeOf(search, PREVIEW_MODES);
 }

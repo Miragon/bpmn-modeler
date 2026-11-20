@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computeLayoutPlan, polylineMidpoint } from "./plan";
+import { computeLayoutPlan } from "./plan";
 import type { DiagramSnapshot, ElementSnapshot, LayoutResult, Point } from "./types";
 
 function shape(id: string, x: number, y: number, over: Partial<ElementSnapshot> = {}) {
@@ -281,38 +281,6 @@ describe("computeLayoutPlan", () => {
         expect(plan.length).toBeGreaterThan(0);
 
         expect(computeLayoutPlan(apply(snapshot, plan), target)).toEqual([]);
-    });
-});
-
-describe("polylineMidpoint", () => {
-    it("splits a straight line in half", () => {
-        expect(
-            polylineMidpoint([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 },
-            ]),
-        ).toEqual({ x: 50, y: 0 });
-    });
-
-    it("measures by accumulated length across segments", () => {
-        expect(
-            polylineMidpoint([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 },
-                { x: 100, y: 100 },
-            ]),
-        ).toEqual({ x: 100, y: 0 });
-    });
-
-    it("survives degenerate input", () => {
-        expect(polylineMidpoint([])).toEqual({ x: 0, y: 0 });
-        expect(polylineMidpoint([{ x: 7, y: 9 }])).toEqual({ x: 7, y: 9 });
-        expect(
-            polylineMidpoint([
-                { x: 7, y: 9 },
-                { x: 7, y: 9 },
-            ]),
-        ).toEqual({ x: 7, y: 9 });
     });
 });
 

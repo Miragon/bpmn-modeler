@@ -20,6 +20,7 @@ import {
     framesOf,
     nodeShapeIn,
 } from "./layoutModel";
+import { segmentsOf } from "./layoutPolyline";
 import { segmentEntersShape } from "./layoutSegments";
 
 /** A broken spot in a drawing, by the ids it concerns; two-shape spots list their shapes in document order. */
@@ -78,10 +79,7 @@ export function shapesOverlap(first: NodeShape, second: NodeShape): boolean {
 /** Whether a segment of the edge crosses a shape that is neither an end nor drawn with one. */
 export function runsThrough(layout: LayoutModel, edge: LayoutEdge, shape: NodeShape): boolean {
     if (shape.plane !== edge.plane || isDrawnWithAnEnd(layout, edge, shape)) return false;
-    return edge.waypoints.some((from, index) => {
-        const to = edge.waypoints[index + 1];
-        return to !== undefined && segmentEntersShape(from, to, shape.bounds);
-    });
+    return segmentsOf(edge.waypoints).some((segment) => segmentEntersShape(segment, shape.bounds));
 }
 
 /** Whether the shape is one of the edge's ends, or encloses, lies in or is attached to one. */
@@ -148,6 +146,13 @@ export function sameSpot(first: LayoutSpot, second: LayoutSpot): boolean {
         case "lanesOverlap":
             return second.kind === first.kind && samePair(first.lanes, second.lanes);
     }
+}
+
+/** Whether one repair acts on both spots: a re-route on every spot of its flow, any other repair on its own spot alone. */
+export function repairedTogether(first: LayoutSpot, second: LayoutSpot): boolean {
+    return isFlowSpot(first) && isFlowSpot(second)
+        ? first.flow === second.flow
+        : sameSpot(first, second);
 }
 
 function samePair(first: readonly [string, string], second: readonly [string, string]): boolean {

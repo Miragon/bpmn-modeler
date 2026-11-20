@@ -280,7 +280,10 @@ suite("Element XML merge editor", () => {
         await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 
-    /** Opens the merge of `elementId` and waits until the editor has merged the marker text into a dirty result. */
+    /**
+     * Opens the merge of `elementId`. The open resolves only once the editor has merged the
+     * marker text into a dirty result, since the editor drops a save before; no wait here.
+     */
     async function openMerge(elementId: string): Promise<{
         finished: Promise<string | undefined>;
         result: vscode.TextDocument;
@@ -291,16 +294,15 @@ suite("Element XML merge editor", () => {
         await merge.opened;
         const resultPath = `/${elementId}.xml`;
         const tabShownWhenOpenReturned = mergeTabsOf(resultPath).length > 0;
-        const result = await waitFor(
-            () =>
-                resultDocuments().find(
-                    (document) =>
-                        document.uri.path === resultPath && !document.getText().includes("<<<<<<<"),
-                ),
-            () =>
-                `the editor never merged the marker text: ${JSON.stringify(
-                    resultDocuments().map((document) => document.getText()),
-                )}`,
+        const tabDirtyWhenOpenReturned = mergeTabsOf(resultPath).some((tab) => tab.isDirty);
+        const result = resultDocuments().find((document) => document.uri.path === resultPath);
+        assert.ok(
+            tabDirtyWhenOpenReturned && result && !result.getText().includes("<<<<<<<"),
+            `the open returned before the editor merged the marker text: ${JSON.stringify({
+                tabShownWhenOpenReturned,
+                tabDirtyWhenOpenReturned,
+                result: result?.getText() ?? null,
+            })}`,
         );
         const baseUri = mergeInputOf(mergeTabsOf(resultPath)[0])?.base;
         assert.ok(baseUri instanceof vscode.Uri, "the merge tab names no base");

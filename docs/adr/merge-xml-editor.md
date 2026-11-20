@@ -1,7 +1,7 @@
 # Merge XML editor
 
 - Status: accepted
-- Last reviewed: 2026-11-19
+- Last reviewed: 2026-11-20
 
 ## Context
 
@@ -67,8 +67,8 @@ changed different parts to a whole pick.
   success even when the user cancels its second dialog and the tab stays open, so the
   extension takes the text the user's last manual save wrote to the provider when the
   last merge tab closes; a close without one discards. A save whose
-  `onWillSaveTextDocument` reason is not `Manual` is no answer: the result is dirty from
-  the start, so any `files.autoSave` mode would otherwise
+  `onWillSaveTextDocument` reason is not `Manual` is no answer: the result is dirty once
+  the editor merged a start with markers, so any `files.autoSave` mode would otherwise
   write the editor's own merge, base at every true conflict, before the user did anything.
   The accept's own save is unforced and writes nothing for a result an auto-save already
   wrote, so the button marks the merge as accepted while the command runs, and a close
@@ -84,8 +84,17 @@ changed different parts to a whole pick.
   change without notice; this shape held from 1.69 to 1.146. The entry shows only when
   `commands.getCommands(false)` lists it (the filtered list hides it); otherwise the
   element is picked whole. The call cannot report a failed open: the command returns
-  before the editor loads. A merge whose editor never showed is finished without a text
-  when the merge view closes it; a rejected call finishes it at once. Theia registers the
+  before the editor loads, and until it has loaded the editor drops a save and shows the
+  marker text still. So `open` resolves only once the editor has loaded
+  (`mergeEditorIsReady`): the merge tab shows and, for a start with a line that opens with
+  `<<<<<<<`, reports dirty, which a merge tab does only once VS Code's own merge replaced
+  the start. After ten seconds it logs and resolves anyway. The contract runs the adapter
+  against a fake editor that merges the start as it loads, and names a save made right
+  after `open` resolves. `close` waits for the same load: an editor still loading merges
+  into the result after its tab closed and leaves it dirty with no tab, since the input
+  model it registers on a disposed editor leaks. A merge whose editor never
+  showed is finished without a text when the merge view closes it; a rejected call
+  finishes it at once. Theia registers the
   command with the same arguments, but it has not run there and Theia's tab API reports
   the inputs swapped, so no Theia host offers the entry: `hostRunsElementXmlMergeEditor`
   rules out `env.appName` equal to the standalone app's `applicationName` (Theia 1.76's
@@ -122,13 +131,19 @@ side's change from a conflict.
 
 - The line-wise XML merge rests on an internal VS Code command; a change to its arguments
   or its prefill rule hides the entry or breaks the merge without a compile error.
-- The marker text makes the result dirty from the start, so closing asks to save. Accepting
-  writes only a dirty result; the accept mark covers a clean one, and holds only because
-  VS Code reports the tab closing before the command returns (e2e step 8). "Complete with
-  Conflicts" keeps the base's text for every open conflict, which parses and passes the
-  checks; only the editor's dialog warns.
+- The marker text makes the result dirty once the editor loaded, so closing asks to save.
+  Accepting writes only a dirty result; the accept mark covers a clean one, and holds only
+  because VS Code reports the tab closing before the command returns (e2e step 8).
+  "Complete with Conflicts" keeps the base's text for every open conflict, which parses and
+  passes the checks; only the editor's dialog warns.
 - A Ctrl+S followed by a revert or by Don't Save still counts the saved text: the provider
   cannot tell it from a save followed by a close.
+- A Ctrl+S in the moment the editor still loads (milliseconds, a few hundred for a very
+  large element) is dropped by VS Code; closing then asks to save as usual. The tab API
+  shows no load ending for a start without markers (Edit again), so its `open` resolves
+  once the tab shows, before the editor has loaded. A user who closes the merge tab in
+  that moment leaves the result dirty with no tab (it adds to the unsaved count, and Save
+  All writes to a file the provider no longer serves); the extension cannot wait there.
 - The title button (`bpmn-modeler.acceptElementXmlMerge`) shows where `resourceScheme` is
   `bpmn-merge-result`: VS Code sets that key for a merge editor from its result, which the
   `merge-xml` smoke suite clicks on 1.78.2 and stable.
@@ -145,5 +160,7 @@ side's change from a conflict.
   button shows only in the focused group unless `workbench.editor.alwaysShowEditorActions`
   is set.
 - The hidden setting `mergeEditor.useWorkingCopy` switches the editor to a temp model that
-  computes its own result; with the marker text it starts the same, but whether it writes
-  back to the provider is read in the source only, not run.
+  computes its own result and leaves the result clean, so `open` reads the setting and
+  resolves once the tab shows, as for a start without markers. With the marker text it
+  starts the same, but whether it writes back to the provider is read in the source only
+  (VS Code 1.147), not run.

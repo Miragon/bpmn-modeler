@@ -2,19 +2,14 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-// One file per harvest: the C7 modeler, the dmn-js views, the element template
-// editor and the merge view request mostly disjoint strings, and all of them are needed.
-const HARVEST_FILES = [
-    "harvested.json",
-    "harvested-dmn.json",
-    "harvested-template-editor.json",
-    "harvested-merge.json",
-] as const;
+import { HARVEST_FILES, parseHarvestRecord, type HarvestFile } from "./harvestRecord";
 
 const TOOLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 
-const readHarvestFile = (file: string): string[] =>
-    (JSON.parse(readFileSync(join(TOOLS_DIR, file), "utf8")) as { keys: string[] }).keys;
+export const harvestRecordPath = (file: HarvestFile): string => join(TOOLS_DIR, file);
+
+const readHarvestFile = (file: HarvestFile): string[] =>
+    parseHarvestRecord(readFileSync(harvestRecordPath(file), "utf8")).keys;
 
 /** Every key a harvest recorded the running modeler passing to translate(). */
 export const readHarvestedKeys = (): string[] => [

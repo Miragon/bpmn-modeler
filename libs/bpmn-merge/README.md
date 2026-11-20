@@ -76,5 +76,6 @@ that fails its checks instead of repairing it.
 - Fixtures are generated in `src/__fixtures__/` from a plain model and must equal a moddle round trip
   with the descriptor of the engine the modeler detects (`executionEngineOf`).
 
-Why the merge decides on its own set of elements, what a state compares and what the build checks is
-in the [Merge ADR](../../docs/adr/merge.md).
+Why the merge decides on its own set of elements and what a state compares is in the
+[Merge ADR](../../docs/adr/merge.md), what the build writes and checks in the
+[Merge build ADR](../../docs/adr/merge-build.md).
