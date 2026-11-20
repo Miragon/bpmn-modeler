@@ -49,6 +49,7 @@
             "@miragon/bpmn-modeler-core/testing": ["./libs/modeler-core/src/testing/index.ts"],
             "@miragon/bpmn-modeler-clipboard": ["./libs/bpmn-clipboard/src/index.ts"],
             "@miragon/bpmn-modeler-i18n-extras": ["./libs/bpmn-i18n-extras/src/index.ts"],
+            "@miragon/bpmn-modeler-i18n-extras/testing": ["./libs/bpmn-i18n-extras/src/testing.ts"],
             "@miragon/bpmn-modeler-element-template-chooser": [
                 "./libs/element-template-chooser/src/index.ts"
             ],
