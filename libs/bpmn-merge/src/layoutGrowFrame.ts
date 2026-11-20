@@ -7,7 +7,8 @@ import {
     centerOf,
     rightOf,
 } from "./layoutGeometry";
-import { type LayoutShape, lanesOf, translatedNode } from "./layoutModel";
+import { lanesOf } from "./layoutFrames";
+import { type LayoutShape, translatedNode } from "./layoutModel";
 import { type RoomContext, breaksNothing } from "./layoutMakeRoom";
 import { RoomPush } from "./layoutRoomPush";
 import { type ShapeGroup, ownEdgesOf } from "./layoutShapeGroups";
