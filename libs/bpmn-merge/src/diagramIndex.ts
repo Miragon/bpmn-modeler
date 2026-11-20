@@ -96,9 +96,37 @@ export function planeKindOf(planeOwner: string, ...indexes: readonly DiagramInde
 export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string | undefined {
     return contentsPlaneOf(
         index.planeOwners.has(subProcess) ? subProcess : undefined,
-        index.drawingsByElement.get(subProcess)?.[0],
+        placedShapeOf(index, subProcess),
         (shape) => shape.planeOwner,
     );
+}
+
+/** The shape drawing the element that the layout reads and a repair writes: its first with bounds, in diagram order. */
+export function shapeDrawingOf(index: DiagramIndex, element: string): Drawing | undefined {
+    return index.drawingsByElement
+        .get(element)
+        ?.find(
+            ({ element: drawing }) =>
+                isType(drawing, "bpmndi:BPMNShape") && isModdleElement(drawing.bounds),
+        );
+}
+
+/** The shape of an element a result carries, which its contents' plane follows: the one the layout reads, else its first. */
+export function placedShapeOf(index: DiagramIndex, element: string): Drawing | undefined {
+    return (
+        shapeDrawingOf(index, element) ??
+        index.drawingsByElement
+            .get(element)
+            ?.find(({ element: drawing }) => isType(drawing, "bpmndi:BPMNShape"))
+    );
+}
+
+/** The drawings of an element a result takes from this index: only the edge or shape it carries, or every drawing that names no element. */
+export function placedDrawingsOf(index: DiagramIndex, element: string): readonly Drawing[] {
+    const drawings = index.drawingsByElement.get(element) ?? [];
+    if (element === "") return drawings;
+    const placed = flowDrawingOf(index, element) ?? placedShapeOf(index, element);
+    return placed === undefined ? drawings : [placed];
 }
 
 /** The edge drawing the flow that the layout reads and a repair writes: its first, in diagram order. */

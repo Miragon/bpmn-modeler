@@ -6,6 +6,7 @@ import {
     atAcross,
     boundsShifted,
     crossAxisOf,
+    endsLevelAlong,
     farBorderOf,
     farSideOf,
     grownAlong,
@@ -171,6 +172,17 @@ describe("crossAxisOf", () => {
         { axis: "y", cross: "x" },
     ] as const)("$axis crosses $cross", ({ axis, cross }) => {
         expect(crossAxisOf(axis)).toBe(cross);
+    });
+});
+
+describe("endsLevelAlong", () => {
+    it.each([
+        { axis: "x", other: { ...TASK, width: 101 }, level: true, gap: "1" },
+        { axis: "x", other: { ...TASK, width: 102 }, level: false, gap: "2" },
+        { axis: "y", other: { ...TASK, x: 500, height: 79 }, level: true, gap: "1" },
+        { axis: "y", other: { ...TASK, height: 78 }, level: false, gap: "2" },
+    ] as const)("is $level along $axis for far sides $gap apart", ({ axis, other, level }) => {
+        expect(endsLevelAlong(axis, TASK, other)).toBe(level);
     });
 });
 

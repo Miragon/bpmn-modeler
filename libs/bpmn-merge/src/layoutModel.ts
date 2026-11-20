@@ -2,6 +2,7 @@ import {
     type DiagramBounds,
     type Outline,
     type Point,
+    liesWithin,
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
@@ -139,6 +140,26 @@ export function drawnPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape |
     if (node.pool === undefined || node.mayLieOutsidePool) return undefined;
     const pool = layout.shapes.get(node.pool);
     return isDrawnFrameOf(node, pool) ? pool : undefined;
+}
+
+/**
+ * The pool the node goes with: its drawn pool, or for a node drawn with
+ * none, such as a data store or an artifact of the collaboration, the pool
+ * on its plane it lies within.
+ */
+export function holdingPoolOf(layout: LayoutModel, node: NodeShape): LayoutShape | undefined {
+    const drawn = drawnPoolOf(layout, node);
+    if (drawn !== undefined) return drawn;
+    for (const shape of layout.shapes.values()) {
+        if (
+            shape.kind === "pool" &&
+            shape.plane === node.plane &&
+            liesWithin(node.bounds, shape.bounds)
+        ) {
+            return shape;
+        }
+    }
+    return undefined;
 }
 
 /** The lanes of the pool's process drawn on its plane, wherever they lie, in document order. */

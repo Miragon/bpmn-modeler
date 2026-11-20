@@ -278,6 +278,182 @@ describe("stackAppendedLanes", () => {
         expect(plan.layout.edges.get("Message_1")?.waypoints).toEqual([at(350, 530), at(350, 830)]);
     });
 
+    it("shifts a shape by its center, so one hanging over the line shifts and one above it stays", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Task_Over", box(300, 370), { lanes: ["Lane_A"] }),
+            node("Task_Above", box(600, 330), { lanes: ["Lane_A"] }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Task_Over")).toEqual(box(300, 570));
+        expect(boundsIn(plan, "Task_Above")).toEqual(box(600, 330));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Task_Over"]]);
+    });
+
+    it("shifts a boundary event with its host", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Task_H", box(300, 400), { lanes: ["Lane_A"] }),
+            node("Event_B", box(332, 382, 36, 36), { lanes: ["Lane_A"], host: "Task_H" }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Task_H")).toEqual(box(300, 600));
+        expect(boundsIn(plan, "Event_B")).toEqual(box(332, 582, 36, 36));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Task_H"]]);
+    });
+
+    it("shifts a boundary event drawn in the stacked lane with its host, as one that stays would leave it", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Task_H", box(300, 420), { lanes: ["Lane_A"] }),
+            node("Event_B", box(332, 482, 36, 36), { lanes: ["Lane_C"], host: "Task_H" }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Event_B")).toEqual(box(332, 682, 36, 36));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Task_H"]]);
+    });
+
+    it("shifts a content drawn in the stacked lane with its sub-process", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Sub_1", box(300, 420, 400, 200), { lanes: ["Lane_A"], expanded: true }),
+            node("Task_S", box(350, 450), { lanes: ["Lane_C"], subProcesses: ["Sub_1"] }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Task_S")).toEqual(box(350, 650));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Sub_1"]]);
+    });
+
+    it("keeps a data store and an artifact lying in a pool beside the stacked one where they lie", () => {
+        const store = node("Store_Y", box(1700, 600, 50, 50), {
+            pool: "Pool_2",
+            mayLieOutsidePool: true,
+        });
+        const note = node("Note_Y", box(1500, 600), { pool: undefined });
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            pool("Pool_2", box(1300, 0, 600, 800)),
+            store,
+            note,
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.shapes.get("Store_Y")).toBe(store);
+        expect(plan.layout.shapes.get("Note_Y")).toBe(note);
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([[]]);
+    });
+
+    it("keeps a node of a pool beside the stacked one with that pool, though drawn outside it past the line", () => {
+        const outside = node("Task_Z", box(1500, 500), { pool: "Pool_2" });
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            pool("Pool_2", box(1300, 0, 600, 300)),
+            outside,
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.shapes.get("Task_Z")).toBe(outside);
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([[]]);
+    });
+
+    it("keeps a sub-process across the line where it lies, with its contents", () => {
+        const subProcess = node("Sub_1", box(300, 300, 400, 200), {
+            lanes: ["Lane_A"],
+            expanded: true,
+        });
+        const content = node("Task_S", box(350, 410), {
+            lanes: ["Lane_A"],
+            subProcesses: ["Sub_1"],
+        });
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            subProcess,
+            content,
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.shapes.get("Sub_1")).toBe(subProcess);
+        expect(plan.layout.shapes.get("Task_S")).toBe(content);
+    });
+
+    it("stretches a flow by its runs, so the run at an end that stays keeps its place", () => {
+        const layout = layoutOf(
+            [
+                pool("Pool_1", box(0, 0, 1200, 400)),
+                lane("Lane_A", box(30, 0, 1170, 200)),
+                lane("Lane_B", box(30, 200, 1170, 200)),
+                lane("Lane_C", box(30, 380, 1170, 180)),
+                node("Task_C", box(300, 450), { lanes: ["Lane_C"] }),
+                pool("Pool_2", box(0, 600, 1200, 200)),
+                node("Task_X", box(450, 650), { pool: "Pool_2" }),
+            ],
+            [flow("Message_1", "Task_C", "Task_X", [at(400, 490), at(500, 490), at(500, 650)])],
+        );
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.edges.get("Message_1")?.waypoints).toEqual([
+            at(400, 490),
+            at(500, 490),
+            at(500, 830),
+        ]);
+    });
+
+    it("shifts a run between the ends that lies past the line with the end that shifts", () => {
+        const layout = layoutOf(
+            [
+                pool("Pool_1", box(0, 0, 1200, 200)),
+                lane("Lane_A", box(30, 0, 1170, 200)),
+                lane("Lane_C", box(30, 100, 1170, 100)),
+                node("Task_A", box(300, 60), { lanes: ["Lane_A"] }),
+                pool("Pool_2", box(0, 260, 1200, 200)),
+                node("Task_X", box(550, 320), { pool: "Pool_2" }),
+            ],
+            [
+                flow("Message_1", "Task_A", "Task_X", [
+                    at(350, 140),
+                    at(350, 230),
+                    at(600, 230),
+                    at(600, 320),
+                ]),
+            ],
+        );
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.edges.get("Message_1")?.waypoints).toEqual([
+            at(350, 140),
+            at(350, 330),
+            at(600, 330),
+            at(600, 420),
+        ]);
+    });
+
     it("leaves an overlap alone when neither lane is appended", () => {
         const layout = layoutOf([
             pool("Pool_1", box(0, 0, 1200, 400)),

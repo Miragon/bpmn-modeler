@@ -12,8 +12,8 @@
  * group so the panel actually renders — properties-panel labels are translated
  * during React render, not at getGroups() time.
  *
- * When it settles, copy `JSON.stringify([...window.__harvested].sort())` into
- * tools/harvested.json (under the {note,count,keys} wrapper) and run
+ * When it settles, add `JSON.stringify([...window.__harvested])` to
+ * tools/harvested.json with tools/record-harvest.mjs and run
  * tools/build-overlay.mjs --write. See tools/README.md.
  *
  * Coverage is deliberately broad but not proven-exhaustive; build-overlay only

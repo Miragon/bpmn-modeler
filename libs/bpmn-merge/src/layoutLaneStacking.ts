@@ -1,13 +1,8 @@
-import { type DiagramBounds, bottomOf, liesWithin, translated } from "./layoutGeometry";
-import {
-    type FlowEnd,
-    type LaneShape,
-    type LayoutEdge,
-    type LayoutModel,
-    type LayoutShape,
-    translatedEdge,
-    translatedNode,
-} from "./layoutModel";
+import { DrawingDraft } from "./layoutDrawingDraft";
+import { type DiagramBounds, bottomOf, liesWithin } from "./layoutGeometry";
+import { type LaneShape, type LayoutModel, type LayoutShape, lanesOf } from "./layoutModel";
+import { ShapeGroups } from "./layoutShapeGroups";
+import { SpaceTool } from "./layoutSpaceTool";
 import { lanesOverlap } from "./layoutSpots";
 
 export interface LaneStacking {
@@ -26,19 +21,14 @@ export interface LaneStackPlan {
     readonly stacked: readonly LaneStacking[];
 }
 
-interface EditableDrawing extends LayoutModel {
-    readonly shapes: Map<string, LayoutShape>;
-    readonly edges: Map<string, LayoutEdge>;
-}
-
-/** A band of `height` opened at `line`: what lies below it shifts down, what spans it grows. */
-interface Band {
-    readonly plane: string;
+/** A band of `height` opened at `line` across the pool's plane: what lies below it shifts down, the pool and parent lanes grow. */
+interface LaneBand {
+    readonly pool: LayoutShape;
     readonly line: number;
     readonly height: number;
     /** The lanes and the pool around the inserted lane, which grow to hold it. */
     readonly growing: ReadonlySet<string>;
-    /** The inserted lane, its child lanes and the shapes drawn as their members, which stay where they lie. */
+    /** The inserted lane, its child lanes and the shapes drawn as their members, which stay where they lie unless their host or sub-process shifts. */
     readonly staying: ReadonlySet<string>;
 }
 
@@ -47,17 +37,19 @@ interface Band {
  * siblings, in the order given, at its own height: one that lies on a
  * sibling or outside its parent lane or pool. Its child lanes go with it.
  * The pool and the parent lanes grow to hold it, and what lies below the
- * band shifts down with the flows to it, as the modeler's space tool does;
- * another pool across the band keeps its place and contents. The lane's
- * members stay where they lie; the container repair brings them into the
- * lane.
+ * band shifts down with the flows to it, by the space tool's rules; another
+ * pool across the band keeps its place with what it holds, as it starts
+ * above the line. The lane's members stay where they lie, unless their host
+ * or sub-process shifts; the container repair brings them into the lane.
  */
 export function stackAppendedLanes(
     layout: LayoutModel,
     appendedLanes: readonly string[],
 ): LaneStackPlan {
-    const shapes = new Map(layout.shapes);
-    const drawing: EditableDrawing = { shapes, edges: new Map(layout.edges) };
+    if (appendedLanes.length === 0) return { layout, stacked: [] };
+    const drawing = DrawingDraft.of(layout);
+    const { shapes } = drawing;
+    const groups = new ShapeGroups(layout);
     const unstacked = new Set(appendedLanes);
     const carried = new Set<string>();
     const stacked: LaneStacking[] = [];
@@ -75,8 +67,8 @@ export function stackAppendedLanes(
         const line = Math.max(...siblings.map(({ bounds }) => bottomOf(bounds)));
         const childLanes = descendantLanesOf(drawing, lane);
         const grown = [pool.id, ...parentLanesOf(drawing, lane)];
-        const shifted = openBand(drawing, {
-            plane: lane.plane,
+        const shifted = openBand(drawing, groups, {
+            pool,
             line,
             height: lane.bounds.height,
             growing: new Set(grown),
@@ -85,18 +77,18 @@ export function stackAppendedLanes(
         const { x, width } = siblings[0]!.bounds;
         const place = { x, y: line, width, height: lane.bounds.height };
         for (const child of childLanes) {
-            shapes.set(child.id, {
+            drawing.replaceShape({
                 ...child,
                 bounds: carriedWith(child.bounds, lane.bounds, place),
             });
             carried.add(child.id);
         }
-        shapes.set(id, { ...lane, bounds: place });
+        drawing.replaceShape({ ...lane, bounds: place });
         stacked.push({
             lane: id,
             grown,
             overlapped: overlapped.map((sibling) => sibling.id),
-            shifted: outermostOf(shifted),
+            shifted,
         });
     }
     return stacked.length === 0 ? { layout, stacked } : { layout: drawing, stacked };
@@ -161,56 +153,27 @@ function membersOf(layout: LayoutModel, lanes: readonly LaneShape[]): Set<string
     return members;
 }
 
-/** Opens the band and returns the shapes it shifted down, in document order. */
-function openBand(drawing: EditableDrawing, band: Band): LayoutShape[] {
-    const anchored = poolsAcross(drawing, band);
-    const shifted: LayoutShape[] = [];
-    for (const shape of drawing.shapes.values()) {
-        if (shape.plane !== band.plane || band.staying.has(shape.id)) continue;
-        if (band.growing.has(shape.id)) {
-            drawing.shapes.set(shape.id, { ...shape, bounds: grown(shape.bounds, band.height) });
-        } else if (shape.bounds.y >= band.line && !liesInAny(shape, anchored)) {
-            shifted.push(shape);
-            drawing.shapes.set(
-                shape.id,
-                shape.kind === "node"
-                    ? translatedNode(shape, 0, band.height)
-                    : { ...shape, bounds: translated(shape.bounds, 0, band.height) },
-            );
-        }
-    }
-    const shiftedIds = new Set(shifted.map(({ id }) => id));
-    for (const edge of drawing.edges.values()) {
-        if (edge.plane !== band.plane) continue;
-        const sourceShifts = edge.source !== undefined && shiftedIds.has(edge.source);
-        const targetShifts = edge.target !== undefined && shiftedIds.has(edge.target);
-        if (sourceShifts && targetShifts) {
-            drawing.edges.set(edge.id, translatedEdge(edge, 0, band.height));
-        } else if (sourceShifts || targetShifts) {
-            drawing.edges.set(edge.id, stretched(edge, band, sourceShifts ? "target" : "source"));
-        }
-    }
-    return shifted;
-}
-
-/** The pools across the line that do not grow: they keep their place, and what lies in them stays. */
-function poolsAcross(layout: LayoutModel, band: Band): LayoutShape[] {
-    return [...layout.shapes.values()].filter(
-        (shape) =>
-            shape.kind === "pool" &&
-            shape.plane === band.plane &&
-            !band.growing.has(shape.id) &&
-            shape.bounds.y < band.line &&
-            band.line < bottomOf(shape.bounds),
-    );
-}
-
-function liesInAny(shape: LayoutShape, pools: readonly LayoutShape[]): boolean {
-    return pools.some(
-        (pool) =>
-            (shape.kind !== "pool" && shape.pool === pool.id) ||
-            liesWithin(shape.bounds, pool.bounds),
-    );
+/**
+ * Opens the band with the space tool over the pool's contents and the rest
+ * of the plane, leaving what stays where it lies, and returns the outermost
+ * shapes it shifted down, in document order.
+ */
+function openBand(drawing: DrawingDraft, groups: ShapeGroups, band: LaneBand): string[] {
+    const { pool, staying } = band;
+    const space = new SpaceTool(drawing.fork(), drawing, groups, "y");
+    space.openBand({
+        line: band.line,
+        by: band.height,
+        units: [
+            ...space.unitsIn(pool.plane, pool, staying),
+            ...space.unitsIn(pool.plane, undefined, new Set([pool.id, ...staying])),
+        ],
+        frames: [pool, ...lanesOf(drawing, pool).filter(({ id }) => !staying.has(id))],
+        growing: band.growing,
+    });
+    space.stretchEdges(pool.plane, new Set(), band.line);
+    const moved = new Set(space.moved);
+    return outermostOf([...drawing.shapes.values()].filter(({ id }) => moved.has(id)));
 }
 
 /** The shifted shapes that did not shift with their pool, parent lane, host or sub-process. */
@@ -224,25 +187,4 @@ function outermostOf(shifted: readonly LayoutShape[]): string[] {
     return shifted
         .filter((shape) => !carriers(shape).some((id) => id !== undefined && ids.has(id)))
         .map(({ id }) => id);
-}
-
-function grown(bounds: DiagramBounds, height: number): DiagramBounds {
-    return { ...bounds, height: bounds.height + height };
-}
-
-/**
- * The edge with its points and label below the line shifted down, so its
- * runs across the line stretch; the point at the end that stays keeps its
- * place.
- */
-function stretched(edge: LayoutEdge, { line, height }: Band, staying: FlowEnd): LayoutEdge {
-    const kept = staying === "source" ? 0 : edge.waypoints.length - 1;
-    const waypoints = edge.waypoints.map((point, at) =>
-        point.y >= line && at !== kept ? { x: point.x, y: point.y + height } : point,
-    );
-    const label =
-        edge.label !== undefined && edge.label.y >= line
-            ? translated(edge.label, 0, height)
-            : edge.label;
-    return label === undefined ? { ...edge, waypoints } : { ...edge, waypoints, label };
 }

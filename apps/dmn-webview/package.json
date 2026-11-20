@@ -24,6 +24,7 @@
         "tslib": "2.9.1"
     },
     "devDependencies": {
+        "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@types/node": "26.6.6",
         "@types/vscode-webview": "1.57.5",
         "@typescript/native": "npm:typescript@7.0.2",

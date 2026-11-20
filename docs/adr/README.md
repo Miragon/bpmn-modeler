@@ -18,7 +18,8 @@ preserves earlier decisions and their evolution.
 | [BPMN modeler features](bpmn-modeler-features.md) | Properties panel, themes and locale, linked form previews, transaction boundaries, formatting and cleanup |
 | [BPMN linting](bpmn-linting.md) | The lint injection contract and tiers, host linting, workspace rule packages: the gate, updates without a reload, asking only when needed |
 | [Diff](diff.md) | BPMN and DMN model diff: data libraries, navigation order, shared vocabulary and legend, diff panes |
-| [Merge](merge.md) | Three-way BPMN merge: the unpublished library, merge elements, classification, decisions and reference rules, layout side (a pool's lanes from one side), building and checking the merged file |
+| [Merge](merge.md) | Three-way BPMN merge: the unpublished library, merge elements, classification, decisions and reference rules, layout side (a pool's lanes from one side), versions merged by hand |
+| [Merge build](merge-build.md) | Building the merged file: the shared sources, the parse and prefix map, moving elements and drawings between sides, the checks before it returns, the notes for the reviewer |
 | [Merge layout](merge-layout.md) | The merged drawing: broken spots found by geometry, the lanes the build stacks below their pool's lanes, the shapes it brings into their containers or moves off others and when it grows a container or makes room, the flows it re-routes and what a route must keep to, the layout notes |
 | [Merge XML editor](merge-xml-editor.md) | The line-wise XML merge of one element in VS Code's merge editor: the internal command, the writable output, the conflict-text prefill, finishing on tab close |
 | [Merge view](merge-view.md) | The BPMN merge view in VS Code: opening from Git through its extension's API, the `bpmn-merge:` panes and their identity, where the command shows, the conflict-marker offer, the panes' markers, bar, projections and step lists, hosts |

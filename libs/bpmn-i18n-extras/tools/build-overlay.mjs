@@ -29,8 +29,9 @@
  * diff panes' from tools/harvested-diff.json and tools/harvested-dmn-diff.json,
  * which the diffTextsHarvest.spec.ts files of bpmn-webview and dmn-webview write.
  *
- * The key normalization lives in src/normalizeKey.ts and the harvest union in
- * src/harvestedKeys.ts, shared with the guard specs.
+ * The key normalization lives in src/normalizeKey.ts, the harvest file list in
+ * src/harvestRecord.ts and the harvest union in src/harvestedKeys.ts, shared
+ * with the guard specs.
  */
 /* global console, process */
 import { writeFileSync } from "node:fs";

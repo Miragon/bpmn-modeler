@@ -170,7 +170,8 @@ module.exports = [
     // entry points, never deep-import their `languages/**` internals. The
     // curated barrels are the single seam; deep imports couple callers to locale
     // internals and defeat the parity guardrails. Scoped to exclude the overlay
-    // package itself, whose internal relative imports are legitimate.
+    // package itself, whose internal relative imports are legitimate. The
+    // overlay's test-only `/testing` entry is the one other entry point.
     {
         files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.vue"],
         ignores: ["libs/bpmn-i18n-extras/**"],
@@ -183,6 +184,7 @@ module.exports = [
                             group: [
                                 "@miragon/bpmn-modeler-i18n/*",
                                 "@miragon/bpmn-modeler-i18n-extras/*",
+                                "!@miragon/bpmn-modeler-i18n-extras/testing",
                                 "**/bpmn-i18n-extras/src/languages",
                                 "**/bpmn-i18n-extras/src/languages/**",
                             ],
@@ -245,6 +247,7 @@ module.exports = [
                             group: [
                                 "@miragon/bpmn-modeler-i18n/*",
                                 "@miragon/bpmn-modeler-i18n-extras/*",
+                                "!@miragon/bpmn-modeler-i18n-extras/testing",
                                 "**/bpmn-i18n-extras/src/languages",
                                 "**/bpmn-i18n-extras/src/languages/**",
                             ],

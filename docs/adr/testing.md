@@ -46,6 +46,10 @@ relies on.
   regexes (`@miragon/bpmn-modeler` must not capture its `/diff` subpath);
   `vite-tsconfig-paths` is not declared by the libs and would break focused
   installs.
+- A helper that only specs import goes on a test-only `/testing` entry
+  (`@miragon/bpmn-modeler-core/testing`, `@miragon/bpmn-modeler-i18n-extras/testing`),
+  never on the production barrel the webviews and packages bundle. The entry may
+  use `node:` modules, since only specs load it.
 - Test library behavior in the library that owns it; the package keeps only the
   Chromium round trips and installed-shape pins that need a real modeler.
 - The vendored properties panel requires production Preact JSX transforms in both

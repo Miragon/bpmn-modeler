@@ -13,10 +13,18 @@ import type {
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
+    harvestRecord,
+    harvestRecordPath,
+    type HarvestFile,
+} from "@miragon/bpmn-modeler-i18n-extras/testing";
+import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKERS,
     MERGE_SIDES,
     type MergeBuildNoteContent,
+    type MergeBuildNoteOfKind,
+    type MergeNoteRepairOf,
+    type MergeRepairedNoteKind,
     type MergeSide,
     elementsNamedBy,
     otherSide,
@@ -98,27 +106,17 @@ const OBSTACLES_WITH_MISSING: Record<MergeObstacleWithMissing, true> = {
     targetPickedWithout: true,
     sideLacksTarget: true,
 };
-type NoteOfKind<Kind extends MergeBuildNoteContent["kind"]> =
-    MergeBuildNoteContent extends infer Note
-        ? Note extends { kind: infer NoteKind }
-            ? Kind extends NoteKind
-                ? Note & { kind: Kind }
-                : never
-            : never
-        : never;
-
-type RepairedKind = Extract<MergeBuildNoteContent, { repair: string }>["kind"];
-
-type RepairOf<Note> = Note extends { repair: infer Repair extends string } ? Repair : never;
-
 /**
  * Every build note, a repaired note's variants keyed by its repair, so the compiler names a kind or a repair the
  * merge adds and this spec misses.
  */
 const NOTES: {
-    [Kind in MergeBuildNoteContent["kind"]]: Kind extends RepairedKind
-        ? Record<RepairOf<NoteOfKind<Kind>>, readonly NoteOfKind<Kind>[]>
-        : readonly NoteOfKind<Kind>[];
+    [Kind in MergeBuildNoteContent["kind"]]: Kind extends MergeRepairedNoteKind
+        ? Record<
+              MergeNoteRepairOf<MergeBuildNoteOfKind<Kind>>,
+              readonly MergeBuildNoteOfKind<Kind>[]
+          >
+        : readonly MergeBuildNoteOfKind<Kind>[];
 } = {
     flowEndOffShape: {
         movedByBuild: [{ kind: "flowEndOffShape", id: "a", shapes: ["b"], repair: "movedByBuild" }],
@@ -444,7 +442,7 @@ function mergeTextKeys(): Set<string> {
 }
 
 // The overlay keeps a merge text because this record names it; no browser harvest opens a merge pane.
-const MERGE_HARVEST = "../../../../libs/bpmn-i18n-extras/tools/harvested-merge.json";
+const MERGE_HARVEST_FILE: HarvestFile = "harvested-merge.json";
 const MERGE_HARVEST_NOTE =
     "Templates the merge view's texts pass to translate(), recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts, which asks every merge text once. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts`. Feeds the needed-key set alongside the browser harvests.";
 
@@ -464,10 +462,9 @@ describe("a build note's text", () => {
 
 describe("the merge view's harvest", () => {
     it("records every key the merge texts pass to translate", async () => {
-        const keys = [...mergeTextKeys()].sort();
-        const harvest = { note: MERGE_HARVEST_NOTE, count: keys.length, keys };
-
-        await expect(`${JSON.stringify(harvest, null, 4)}\n`).toMatchFileSnapshot(MERGE_HARVEST);
+        await expect(harvestRecord(MERGE_HARVEST_NOTE, mergeTextKeys())).toMatchFileSnapshot(
+            harvestRecordPath(MERGE_HARVEST_FILE),
+        );
     });
 });
 

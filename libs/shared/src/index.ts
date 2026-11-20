@@ -36,3 +36,4 @@ export * from "./lib/propertiesPanelVisibility";
 export * from "./lib/propertiesPanelWidth";
 export * from "./lib/propertiesPanelWidthBinding";
 export * from "./lib/globalErrorForwarding";
+export * from "./lib/previewMode";

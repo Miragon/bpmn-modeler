@@ -13,13 +13,15 @@ import {
     type MergeRefusal,
 } from "./mergeDecisionOutcome";
 import type { MergeCardAction } from "./mergeCardContent";
+import { type MergePanePickStates, panePicks } from "./mergeElementPick";
 import { isRememberedHandMerge, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
 export type MergeOutcomeStates = Pick<
     MergePaneStates,
-    "lastOutcome" | "restoreOffer" | "badges" | "picksNotDrawn" | "allSteps"
->;
+    "lastOutcome" | "restoreOffer" | "allSteps"
+> &
+    MergePanePickStates;
 
 /**
  * What a merge pane remembers of the decisions it sent, until it reloads:
@@ -235,8 +237,8 @@ export function rowOutcome(memory: MergeOutcomeMemory): MergeRememberedOutcome |
  * keeping the element again from the other side.
  */
 function decisionsSeen(states: MergeOutcomeStates): string {
-    const { lastOutcome, badges, picksNotDrawn, restoreOffer } = states;
-    const picks = [...badges, ...picksNotDrawn].map(({ id, keptSide, scope, mergedByHand }) => [
+    const { lastOutcome, restoreOffer } = states;
+    const picks = panePicks(states).map(({ id, pick: { keptSide, scope, mergedByHand } }) => [
         id,
         keptSide,
         scope,
@@ -265,10 +267,7 @@ function liftedRefusal(
     if (refused === undefined || !outcome.applied || outcome.action !== "unpick") return undefined;
     const { blockedBy } = refused;
     if (!blockedBy.some((block) => block.elementId === outcome.elementId)) return undefined;
-    const picks = new Set([
-        ...states.badges.map(({ id }) => id),
-        ...states.picksNotDrawn.map(({ id }) => id),
-    ]);
+    const picks = new Set(panePicks(states).map(({ id }) => id));
     return blockedBy.every(
         (block) => block.obstacle === "dependentPicked" && !picks.has(block.elementId),
     )

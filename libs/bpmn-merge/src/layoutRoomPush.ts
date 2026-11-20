@@ -1,43 +1,34 @@
 import {
     type Axis,
-    along,
     boundsShifted,
-    farBorderOf,
+    endsLevelAlong,
     farSideOf,
-    grownAlong,
     liesAheadWithin,
     nearSideOf,
-    offsetAlong,
     stripPast,
 } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowTopology } from "./layoutFlowTopology";
-import { stretchedEdge } from "./layoutEdgeStretch";
 import {
     type DiagramBounds,
-    bordersAt,
     bottomOf,
     boundsAround,
-    centerOf,
     keepsClearOf,
     liesWithin,
     rightOf,
-    translated,
 } from "./layoutGeometry";
 import {
     type LaneShape,
     type LayoutShape,
     type NodeShape,
-    drawnHostOf,
     drawnPartsOf,
-    drawnPoolOf,
     innermostFrameOf,
     innermostLaneOf,
     lanesOf,
-    translatedNode,
 } from "./layoutModel";
-import { type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
+import type { ShapeGroups } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
+import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";
 
 /** How far what a room pushes keeps from what pushed it: in line along x, stacked along y. */
 export const ROOM_GAP = 50;
@@ -70,15 +61,6 @@ export interface RoomRequest {
     readonly frameGrowth?: number;
 }
 
-/** A node with everything that moves with it, or a pool with its lanes and contents: what gives way as one. */
-interface Unit {
-    readonly id: string;
-    readonly bounds: DiagramBounds;
-    readonly lead: number;
-    readonly nodes: readonly string[];
-    readonly frames: readonly string[];
-}
-
 interface FrameRequest extends RoomRequest {
     readonly plane: string;
     /** The innermost sub-process or pool the box lies in; none on a plane outside a pool. */
@@ -97,17 +79,17 @@ interface FrameRequest extends RoomRequest {
  * with lanes grows the lane, so what lies under it shifts down.
  */
 export class RoomPush {
-    /** How far each shifted node and frame went along the axis. */
-    private readonly shift = new Map<string, number>();
-    private readonly shiftedUnits = new Set<string>();
+    private readonly space: SpaceTool;
 
     constructor(
         private readonly before: DrawingDraft,
         private readonly trial: DrawingDraft,
-        private readonly groups: ShapeGroups,
+        groups: ShapeGroups,
         private readonly topology: FlowTopology,
         private readonly axis: Axis,
-    ) {}
+    ) {
+        this.space = new SpaceTool(before, trial, groups, axis);
+    }
 
     /** Makes room for the request in the frame `at` lies in; false when something before the line is in the way. */
     push(at: NodeShape, request: RoomRequest): boolean {
@@ -121,12 +103,12 @@ export class RoomPush {
 
     /** The outermost shapes that gave way, pools among them, in document order. */
     get shifted(): string[] {
-        return [...this.before.shapes.keys()].filter((id) => this.shiftedUnits.has(id));
+        return this.space.shifted;
     }
 
     /** Every shape that moved, frames among them. */
     get moved(): string[] {
-        return [...this.shift.keys()];
+        return this.space.moved;
     }
 
     /**
@@ -136,30 +118,21 @@ export class RoomPush {
      * out are re-routed by the flow repair.
      */
     stretchEdges(plane: string, leftOut: ReadonlySet<string>): void {
-        for (const edge of this.before.edgesOn(plane)) {
-            if (leftOut.has(edge.id) || edge.waypoints.length === 0) continue;
-            const bySource = edge.source === undefined ? 0 : (this.shift.get(edge.source) ?? 0);
-            const byTarget = edge.target === undefined ? 0 : (this.shift.get(edge.target) ?? 0);
-            if (bySource !== 0 || byTarget !== 0) {
-                this.trial.replaceEdge(
-                    stretchedEdge(this.before, edge, this.axis, bySource, byTarget),
-                );
-            }
-        }
+        this.space.stretchEdges(plane, leftOut);
     }
 
     private roomIn(request: FrameRequest): boolean {
         const { container, lane, stays = new Set() } = request;
-        const units = this.unitsIn(request.plane, container, request.exclude).filter(
-            ({ id }) => !stays.has(id),
-        );
+        const units = this.space
+            .unitsIn(request.plane, container, request.exclude)
+            .filter(({ id }) => !stays.has(id));
         const inLane =
             this.axis === "y" && lane !== undefined
                 ? units.filter(({ id }) => this.trial.node(id)?.lanes.includes(lane.id))
                 : units;
         const pushed = this.pushedBy(inLane, request);
         if (pushed === undefined) return false;
-        for (const unit of pushed.units) this.shiftUnit(unit, pushed.by);
+        for (const unit of pushed.units) this.space.shiftUnit(unit, pushed.by);
         const extent = Math.max(
             this.far(request.box),
             ...pushed.units.map((unit) => this.far(unit.bounds) + pushed.by),
@@ -186,7 +159,7 @@ export class RoomPush {
                       extent + this.marginOf(lane, inLane),
                       units,
                   )
-                : this.growFrame(
+                : this.space.growFrame(
                       pool ?? lane!,
                       lanes,
                       extent + this.marginOf(pool ?? lane!, units),
@@ -213,10 +186,10 @@ export class RoomPush {
      * lands on nothing: the space tool held over the plane keeps them level.
      */
     private growLevelPools(pool: LayoutShape, before: DiagramBounds, growth: number): void {
-        const units = this.unitsIn(pool.plane, undefined, new Set([pool.id]));
+        const units = this.space.unitsIn(pool.plane, undefined, new Set([pool.id]));
         for (const other of units) {
             const shape = this.trial.shapes.get(other.id)!;
-            if (shape.kind !== "pool" || Math.abs(this.far(shape.bounds) - this.far(before)) > 1) {
+            if (shape.kind !== "pool" || !endsLevelAlong(this.axis, shape.bounds, before)) {
                 continue;
             }
             const strip = stripPast(this.axis, shape.bounds, growth);
@@ -231,7 +204,11 @@ export class RoomPush {
                     ),
             );
             if (!landsOnSome) {
-                this.growFrame(shape, lanesOf(this.trial, shape), this.far(shape.bounds) + growth);
+                this.space.growFrame(
+                    shape,
+                    lanesOf(this.trial, shape),
+                    this.far(shape.bounds) + growth,
+                );
             }
         }
     }
@@ -239,7 +216,7 @@ export class RoomPush {
     /** Grows the sub-process to reach the far side, and asks its own frame for the strip it gains. */
     private growSubProcess(request: FrameRequest, container: NodeShape, farSide: number): boolean {
         const frame = this.trial.shapes.get(container.id)!;
-        const growth = this.growFrame(frame, [], farSide);
+        const growth = this.space.growFrame(frame, [], farSide);
         if (growth <= 0) return true;
         const grown = this.trial.node(frame.id)!;
         return this.roomIn({
@@ -271,19 +248,19 @@ export class RoomPush {
      * a unit that gives way goes.
      */
     private pushedBy(
-        units: readonly Unit[],
+        units: readonly SpaceUnit[],
         request: FrameRequest,
-    ): { readonly units: Unit[]; readonly by: number } | undefined {
+    ): { readonly units: SpaceUnit[]; readonly by: number } | undefined {
         const { box, floor, frameGrowth, column = [] } = request;
-        const lands = (on: DiagramBounds, unit: Unit) =>
+        const lands = (on: DiagramBounds, unit: SpaceUnit) =>
             !keepsClearOf(on, unit.bounds, SHAPE_CLEARANCE);
-        const reachesBox = (unit: Unit) =>
+        const reachesBox = (unit: SpaceUnit) =>
             frameGrowth === undefined
                 ? lands(box, unit)
                 : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
-        const columnUnder = (unit: Unit) =>
+        const columnUnder = (unit: SpaceUnit) =>
             column.filter((part) => !keepsClearOf(part, unit.bounds, 0));
-        const partsLandedOn = (unit: Unit) => [
+        const partsLandedOn = (unit: SpaceUnit) => [
             ...(reachesBox(unit) ? [box] : []),
             ...columnUnder(unit),
         ];
@@ -329,7 +306,7 @@ export class RoomPush {
     }
 
     /** Whether `next` is a shape `unit` flows into, in line after it, that the shift would bring nearer than the room gap. */
-    private keptInLineAfter(unit: Unit, next: Unit, by: number): boolean {
+    private keptInLineAfter(unit: SpaceUnit, next: SpaceUnit, by: number): boolean {
         if (this.axis !== "x" || !this.topology.followersOf(unit.id).has(next.id)) return false;
         const inRow =
             unit.bounds.y < bottomOf(next.bounds) && next.bounds.y < bottomOf(unit.bounds);
@@ -337,75 +314,12 @@ export class RoomPush {
         return inRow && gap >= 0 && gap - by < Math.min(ROOM_GAP, gap);
     }
 
-    /** The units directly in the container: its nodes with what moves with them, and on a plane outside a pool also its pools. */
-    private unitsIn(
-        plane: string,
-        container: LayoutShape | undefined,
-        exclude: ReadonlySet<string>,
-    ): Unit[] {
-        const { trial } = this;
-        const nodes = trial
-            .nodesOn(plane)
-            .filter(
-                (node) =>
-                    !exclude.has(node.id) &&
-                    drawnHostOf(trial, node) === undefined &&
-                    innermostFrameOf(trial, node)?.id === container?.id,
-            )
-            .map((node): Unit => {
-                const group = this.groups.of(trial, node);
-                const bounds = groupBoundsIn(trial, group);
-                return {
-                    id: node.id,
-                    bounds,
-                    lead: this.leadOf(node),
-                    nodes: group.members,
-                    frames: [],
-                };
-            });
-        if (container !== undefined) return nodes;
-        const pools = [...trial.shapes.values()]
-            .filter(
-                (shape) => shape.kind === "pool" && shape.plane === plane && !exclude.has(shape.id),
-            )
-            .map((pool): Unit => ({
-                id: pool.id,
-                bounds: pool.bounds,
-                lead: this.near(pool.bounds),
-                nodes: trial
-                    .nodesOn(plane)
-                    .filter((node) => drawnPoolOf(trial, node)?.id === pool.id)
-                    .map(({ id }) => id),
-                frames: [pool.id, ...lanesOf(trial, pool).map(({ id }) => id)],
-            }));
-        return [...nodes, ...pools];
-    }
-
-    private shiftUnit(unit: Unit, by: number): void {
-        for (const id of unit.nodes) {
-            const node = this.trial.node(id);
-            if (node !== undefined) this.moveShape(node, by);
-        }
-        for (const id of unit.frames) this.moveShape(this.trial.shapes.get(id)!, by);
-        this.shiftedUnits.add(unit.id);
-    }
-
-    private moveShape(shape: LayoutShape, by: number): void {
-        const { dx, dy } = offsetAlong(this.axis, by);
-        this.trial.replaceShape(
-            shape.kind === "node"
-                ? translatedNode(shape, dx, dy)
-                : { ...shape, bounds: translated(shape.bounds, dx, dy) },
-        );
-        this.shift.set(shape.id, (this.shift.get(shape.id) ?? 0) + by);
-    }
-
     /**
      * How far the frame kept what lies in it from its far side before the
      * room was made, which it keeps when it grows: at least the frame
      * padding, at most the gap the room keeps.
      */
-    private marginOf(frame: LayoutShape, units: readonly Unit[]): number {
+    private marginOf(frame: LayoutShape, units: readonly SpaceUnit[]): number {
         const { before } = this;
         const bounds = before.shapes.get(frame.id)?.bounds ?? frame.bounds;
         const ends = units.flatMap(({ id }) => {
@@ -421,32 +335,6 @@ export class RoomPush {
     }
 
     /**
-     * Grows the frame to reach the far side, with those of the lanes that
-     * reach its far side and the boundary events on that side. Returns the
-     * growth.
-     */
-    private growFrame(frame: LayoutShape, lanes: readonly LaneShape[], farSide: number): number {
-        const growth = farSide - this.far(frame.bounds);
-        if (growth <= 0) return 0;
-        const side = farBorderOf(this.axis);
-        const across = lanes.filter(
-            (lane) =>
-                lane.id !== frame.id &&
-                Math.abs(this.far(lane.bounds) - this.far(frame.bounds)) <= 1,
-        );
-        const events = this.trial
-            .nodesOn(frame.plane)
-            .filter(
-                (event) =>
-                    event.host === frame.id &&
-                    bordersAt(centerOf(event.bounds), frame.bounds).includes(side),
-            );
-        for (const shape of [frame, ...across]) this.trial.replaceShape(this.grown(shape, growth));
-        for (const event of events) this.moveShape(event, growth);
-        return growth;
-    }
-
-    /**
      * Grows the lane down to the far side: what lies under it shifts down,
      * the lanes across its bottom grow with it and so does the pool. Returns
      * the growth.
@@ -456,33 +344,26 @@ export class RoomPush {
         lane: LaneShape,
         lanes: readonly LaneShape[],
         farSide: number,
-        units: readonly Unit[],
+        units: readonly SpaceUnit[],
     ): number {
         const growth = farSide - bottomOf(lane.bounds);
         if (growth <= 0) return 0;
         const line = bottomOf(lane.bounds);
-        for (const unit of units) {
-            if (unit.lead >= line && !this.shiftedUnits.has(unit.id)) this.shiftUnit(unit, growth);
-        }
-        for (const other of lanes) {
-            if (other.bounds.y >= line) this.moveShape(other, growth);
-            else if (bottomOf(other.bounds) >= line)
-                this.trial.replaceShape(this.grown(other, growth));
-        }
-        if (pool !== undefined) this.trial.replaceShape(this.grown(pool, growth));
+        const across = lanes.filter(
+            (other) => other.bounds.y < line && bottomOf(other.bounds) >= line,
+        );
+        this.space.openBand({
+            line,
+            by: growth,
+            units,
+            frames: [...lanes, ...(pool ? [pool] : [])],
+            growing: new Set([...across, ...(pool ? [pool] : [])].map(({ id }) => id)),
+        });
         return growth;
-    }
-
-    private grown<Shape extends LayoutShape>(shape: Shape, by: number): Shape {
-        return { ...shape, bounds: grownAlong(this.axis, shape.bounds, by) };
     }
 
     private get gap(): number {
         return this.axis === "x" ? ROOM_GAP : STACK_GAP;
-    }
-
-    private leadOf(node: NodeShape): number {
-        return leadAlong(this.axis, node);
     }
 
     private near(bounds: DiagramBounds): number {
@@ -492,9 +373,4 @@ export class RoomPush {
     private far(bounds: DiagramBounds): number {
         return farSideOf(this.axis, bounds);
     }
-}
-
-/** Where a node lies along the axis: a sub-process drawn open by its near side, another node by its center. */
-export function leadAlong(axis: Axis, node: NodeShape): number {
-    return node.expanded ? nearSideOf(axis, node.bounds) : along(axis, centerOf(node.bounds));
 }

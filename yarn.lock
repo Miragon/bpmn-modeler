@@ -3809,6 +3809,7 @@ __metadata:
   dependencies:
     "@fontsource-variable/geist": "npm:5.3.0"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/dmn-modeler": "workspace:*"

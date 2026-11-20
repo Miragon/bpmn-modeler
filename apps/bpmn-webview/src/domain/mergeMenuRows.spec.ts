@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { MergePaneShapelessRow } from "@miragon/bpmn-modeler-shared";
 
-import type { MergeRememberedOutcome } from "./mergeOutcomeCard";
+import { elementPickOf } from "./mergeElementPick";
+import { handMergeFactsOf } from "./mergeHandMergeCard";
+import { mergeOutcomeCardContent, type MergeRememberedOutcome } from "./mergeOutcomeCard";
 import { mergeMenuRows, type MergeMenuRowStates, openShapelessConflicts } from "./mergeMenuRows";
 
 const translate = (key: string, replacements: Record<string, string> = {}) =>
@@ -33,7 +35,14 @@ const ROWS: readonly MergePaneShapelessRow[] = [
     },
 ];
 
-const STATES: MergeMenuRowStates = { shapelessRows: ROWS };
+const rowStates = (shapelessRows: readonly MergePaneShapelessRow[]): MergeMenuRowStates => ({
+    pickable: [],
+    badges: [],
+    picksNotDrawn: [],
+    shapelessRows,
+});
+
+const STATES = rowStates(ROWS);
 
 const NAMES: Readonly<Record<string, string>> = { Message_1: "Order received" };
 
@@ -97,7 +106,7 @@ describe("mergeMenuRows", () => {
         ["no name where no side names it", { current: {}, incoming: {} }, undefined],
     ])("titles a row with %s", (_case, overrides, expected) => {
         const row = { ...ROWS[0], ...overrides };
-        const [content] = mergeMenuRows({ shapelessRows: [row] }, undefined, context);
+        const [content] = mergeMenuRows(rowStates([row]), undefined, context);
 
         expect(content?.name).toBe(expected);
     });
@@ -111,7 +120,7 @@ describe("mergeMenuRows", () => {
                 takenSide: keptSide,
                 pick: { keptSide, scope: "element" as const },
             };
-            const [after] = mergeMenuRows({ shapelessRows: [picked] }, undefined, context);
+            const [after] = mergeMenuRows(rowStates([picked]), undefined, context);
 
             expect({ name: after?.name, values: after?.values }).toStrictEqual({
                 name: before?.name,
@@ -150,7 +159,7 @@ describe("mergeMenuRows", () => {
     it("offers a row merging its XML by hand where the host has the editor", () => {
         const handMergeable = { ...ROWS[1], handMergeable: true } as const;
 
-        const [offered] = mergeMenuRows({ shapelessRows: [handMergeable] }, undefined, {
+        const [offered] = mergeMenuRows(rowStates([handMergeable]), undefined, {
             ...context,
             offers: { elementXmlChanges: false, elementXmlMerge: true },
         });
@@ -175,7 +184,7 @@ describe("mergeMenuRows", () => {
             acted: { kind: "mergeXml", elementId: "Error_1", origin: "menu" },
         };
 
-        const [row] = mergeMenuRows({ shapelessRows: [handMergeable] }, refused, {
+        const [row] = mergeMenuRows(rowStates([handMergeable]), refused, {
             ...context,
             offers: { elementXmlChanges: false, elementXmlMerge: true },
         });
@@ -188,6 +197,42 @@ describe("mergeMenuRows", () => {
             { action: "editAgain", text: "Edit again", primary: true },
             { action: "dismiss", text: "Keep incoming's version" },
         ]);
+    });
+});
+
+describe("a row's outcome and the pane's card", () => {
+    it("read one pick of the element, as the pane finds it", () => {
+        const offers = { elementXmlChanges: false, elementXmlMerge: true };
+        const states: MergeMenuRowStates = {
+            ...rowStates([{ ...ROWS[1], handMergeable: true }]),
+            picksNotDrawn: [
+                { id: "Error_1", keptSide: "incoming", scope: "element", mergedByHand: true },
+            ],
+        };
+        const refused: MergeRememberedOutcome = {
+            outcome: {
+                applied: false,
+                action: "mergeByHand",
+                elementId: "Error_1",
+                blockedBy: [],
+                handMergeRefusal: { kind: "conflictMarkersLeft" },
+            },
+            acted: { kind: "mergeXml", elementId: "Error_1", origin: "menu" },
+        };
+
+        const [row] = mergeMenuRows(states, refused, { ...context, offers });
+        const card = mergeOutcomeCardContent(refused, {
+            nameOf: context.nameOf,
+            translate,
+            restoreOffer: undefined,
+            handMerge: handMergeFactsOf(elementPickOf(states, "Error_1"), offers),
+        });
+
+        expect(row?.choices).toStrictEqual(card.choices);
+        expect(row?.choices).toContainEqual({
+            action: "dismiss",
+            text: "Keep the XML merged before",
+        });
     });
 });
 

@@ -31,6 +31,10 @@ export const nearSideOf = (axis: Axis, bounds: DiagramBounds): number =>
 export const farSideOf = (axis: Axis, bounds: DiagramBounds): number =>
     axis === "x" ? rightOf(bounds) : bottomOf(bounds);
 
+/** Whether the two end within 1 of each other along the axis, as a lane and its pool drawn level do. */
+export const endsLevelAlong = (axis: Axis, first: DiagramBounds, second: DiagramBounds): boolean =>
+    Math.abs(farSideOf(axis, first) - farSideOf(axis, second)) <= 1;
+
 /** The border at the bounds' far side along the axis. */
 export const farBorderOf = (axis: Axis): Border => (axis === "x" ? "right" : "bottom");
 
