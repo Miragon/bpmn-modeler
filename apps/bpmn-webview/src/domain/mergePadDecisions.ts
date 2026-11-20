@@ -1,13 +1,20 @@
 import type {
-    MergeHostOffers,
     MergePaneContainerReach,
     MergePaneOtherSideLack,
-    MergePaneRestoreOffer,
     MergePaneShapelessRow,
     MergePaneStates,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import { MERGE_SIDES, type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
+
+import {
+    elementPickOf,
+    type MergeElementPickStates,
+    type MergePadOffers,
+    offersMergeXml,
+    rowPickOf,
+} from "./mergeElementPick";
+import { keepRemovedWith, type MergeKeepRemovedWith } from "./mergeKeepRemovedWith";
 
 /** Keeps a container from `side` with everything inside, as far as the library says it reaches. */
 export interface MergeKeepInside {
@@ -27,12 +34,7 @@ export type MergePadDecision =
           readonly side: MergeSide;
           readonly otherSideLacks: MergePaneOtherSideLack;
       }
-    /** Picks the element again with the flows and boundary events `offer` names. */
-    | {
-          readonly kind: "keepRemovedWith";
-          readonly side: MergeSide;
-          readonly offer: MergePaneRestoreOffer;
-      }
+    | MergeKeepRemovedWith
     | MergeXmlDecision
     | { readonly kind: "undo"; readonly scope: MergePickScope };
 
@@ -48,14 +50,9 @@ export interface MergeXmlDecision {
 /** A decision that picks or takes a pick back, which the host decides in the merge. */
 export type MergePickDecision = Exclude<MergePadDecision, MergeXmlDecision>;
 
-/** What the decisions read of what the host offers besides them. */
-export type MergePadOffers = Pick<MergeHostOffers, "elementXmlMerge">;
-
 /** What the pad reads of the host's states. */
-export type MergePadStates = Pick<
-    MergePaneStates,
-    "caption" | "pickable" | "badges" | "restoreOffer"
->;
+export type MergePadStates = Pick<MergePaneStates, "caption" | "restoreOffer"> &
+    MergeElementPickStates;
 
 /**
  * The decisions the pad offers on `elementId`, in its order: keep it from
@@ -78,11 +75,10 @@ export function mergePadDecisions(
             ? undefined
             : { side: otherSide(paneSide), lack: pickable.otherSideLacks };
     const facts: MergeDecisionFacts = {
-        pick: states.badges.find(({ id }) => id === elementId),
+        ...elementPickOf(states, elementId),
         takenSide: pickable.takenSide,
         lackingSide,
         container: pickable.container,
-        handMergeable: pickable.handMergeable,
         restoreOffer: keepRemovedWith(states, elementId),
     };
     const sides = lackingSide === undefined ? [paneSide] : [paneSide, lackingSide.side];
@@ -121,11 +117,10 @@ export function mergeRowDecisions(
     offers: MergePadOffers,
 ): readonly MergeRowDecision[] {
     const facts: MergeDecisionFacts = {
-        pick: row.pick,
+        ...rowPickOf(row),
         takenSide: row.takenSide,
         lackingSide: row.lackingSide,
         container: row.container,
-        handMergeable: row.handMergeable,
         restoreOffer: keepRemovedWith(states, row.id),
     };
     return decisionsOn(facts, MERGE_SIDES, offers).map((decision) =>
@@ -137,27 +132,6 @@ export function mergeRowDecisions(
 export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
     return step.shapeless;
 }
-
-/** The host's offer of what was removed with `elementId`, kept from the side that kept the element. */
-export function keepRemovedWith(
-    states: MergeRowStates,
-    elementId: string,
-): MergeKeepRemovedWith | undefined {
-    const offer = states.restoreOffer;
-    return offer?.elementId === elementId
-        ? { kind: "keepRemovedWith", side: otherSide(offer.removedBy), offer }
-        : undefined;
-}
-
-/** Merge XML can be offered on the element: its pick allows a merge by hand and the host has a merge editor. */
-export function offersMergeXml(
-    element: { readonly handMergeable?: true },
-    offers: MergePadOffers,
-): boolean {
-    return element.handMergeable === true && offers.elementXmlMerge;
-}
-
-type MergeKeepRemovedWith = Extract<MergePadDecision, { kind: "keepRemovedWith" }>;
 
 /** What decides the entries offered on one element, read from the pad's states or from a menu row. */
 type MergeDecisionFacts = Pick<

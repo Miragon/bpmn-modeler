@@ -1,4 +1,3 @@
-import type { MergePaneStates } from "@miragon/bpmn-modeler-shared";
 import type { MergeSide } from "@miragon/bpmn-modeler-types";
 
 import type { MergeXmlRequest } from "./mergeActedDecision";
@@ -8,6 +7,7 @@ import {
     withAnnouncement,
 } from "./mergeCardContent";
 import type { MergeHandMergeOutcome } from "./mergeDecisionOutcome";
+import { type MergeElementPick, type MergePadOffers, offersMergeXml } from "./mergeElementPick";
 import {
     handMergeHeadline,
     handMergeRefusalDetail,
@@ -15,7 +15,6 @@ import {
     keepVersionText,
     MERGE_XML_TEXTS,
 } from "./mergeHandMergeTexts";
-import { type MergePadOffers, offersMergeXml } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTranslate";
 
 /** The host's answer to a merge by hand this pane asked for, kept with the request. */
@@ -35,36 +34,9 @@ export interface MergeHandMergeFacts {
     readonly canEditAgain: boolean;
 }
 
-/** An element of a merge by hand as the panes show it: the user's pick and whether its XML can be merged by hand. */
-export interface MergeHandMergeElement {
-    readonly pick?: { readonly keptSide: MergeSide; readonly mergedByHand?: true };
-    readonly handMergeable?: true;
-}
-
-/** What {@link handMergeElementOf} reads of the host's states. */
-export type MergeHandMergeStates = Pick<
-    MergePaneStates,
-    "pickable" | "badges" | "picksNotDrawn" | "shapelessRows"
->;
-
-/** `elementId` on a pane: drawn with a badge, picked but drawn by the partner alone, or a menu row. */
-export function handMergeElementOf(
-    states: MergeHandMergeStates,
-    elementId: string,
-): MergeHandMergeElement {
-    const isIt = ({ id }: { readonly id: string }) => id === elementId;
-    const row = states.shapelessRows.find(isIt);
-    const pick = states.badges.find(isIt) ?? states.picksNotDrawn.find(isIt) ?? row?.pick;
-    const handMergeable = states.pickable.find(isIt)?.handMergeable ?? row?.handMergeable;
-    return {
-        ...(pick === undefined ? {} : { pick }),
-        ...(handMergeable === undefined ? {} : { handMergeable }),
-    };
-}
-
 /** The element's pick, and whether its XML can be merged again. */
 export function handMergeFactsOf(
-    element: MergeHandMergeElement,
+    element: MergeElementPick,
     offers: MergePadOffers,
 ): MergeHandMergeFacts {
     const { pick } = element;
