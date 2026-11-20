@@ -71,25 +71,14 @@ export interface PickableElement {
 
 /**
  * A shape-less element either side holds and either pane marks, as a pane's
- * menu lists it with what each side holds. Unlike {@link ShapelessMark} it
- * covers an element the pane's side lacks, so the menu can decide every
- * shape-less step.
+ * menu lists it: its pickable entry with what each side holds. Unlike
+ * {@link ShapelessMark} it covers an element the pane's side lacks, so the
+ * menu can decide every shape-less step.
  */
-export interface ShapelessRow extends ShapelessValues {
-    readonly id: string;
+export interface ShapelessRow extends PickableElement, ShapelessValues {
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
-    /** Set where something lies inside it, such as a process's elements, which a pick can keep with it: how far that reaches. */
-    readonly container?: ContainerReach;
-    /** As {@link PickableElement.takenSide}. */
-    readonly takenSide?: MergeSide;
-    /** As {@link PickableElement.lackingSide}. */
-    readonly lackingSide?: LackingSide;
-    /** As {@link PickableElement.pick}. */
-    readonly pick?: ElementPick;
-    /** As {@link PickableElement.handMergeable}. */
-    readonly handMergeable?: true;
 }
 
 /** What one merge pane shows of the decisions, in result order. */
@@ -146,12 +135,13 @@ export function mergePaneView(
             marks[marker].length + shapeless.filter((entry) => entry.marker === marker).length,
         ]),
     ) as Record<MergeMarker, number>;
+    const decided = paneDecisions(decisions, side, sources);
     return {
         marks,
         shapeless,
         counts,
-        ...paneDecisions(decisions, side, sources),
-        shapelessRows: shapelessRowsOf(decisions, side, sources),
+        ...decided,
+        shapelessRows: shapelessRowsOf(decisions, side, sources, decided.pickable),
     };
 }
 
@@ -205,32 +195,24 @@ function handMergeableFlag(
         : { handMergeable: true };
 }
 
-/** Every shape-less element the decisions mark as a side sees it, with what each side holds. */
+/** Every shape-less element the decisions mark as a side sees it: its pickable entry with what each side holds. */
 function shapelessRowsOf(
     decisions: MergeDecisions,
     side: MergeSide,
     sources: ShapelessValueSources,
+    pickable: readonly PickableElement[],
 ): ShapelessRow[] {
-    const { elements } = decisions.result;
-    const containers = containersOf(elements);
     const marking = decisionMarking(decisions);
-    return elements.flatMap((element): ShapelessRow[] => {
+    const pickableById = new Map(pickable.map((entry) => [entry.id, entry]));
+    return decisions.result.elements.flatMap((element): ShapelessRow[] => {
         const marker = marking(element, side);
         if (!hasNoShape(element) || marker === undefined) return [];
-        const takenSide = takenSideOf(decisions, element);
-        const lacking = lackingSideOf(element);
-        const pick = pickOf(decisions, containers, element);
-        const reach = containers.get(element.id);
         return [
             {
+                ...pickableById.get(element.id),
                 id: element.id,
                 type: element.type,
                 marker,
-                ...(reach === undefined ? {} : { container: reach }),
-                ...(takenSide === undefined ? {} : { takenSide }),
-                ...(lacking === undefined ? {} : { lackingSide: lacking }),
-                ...(pick === undefined ? {} : { pick }),
-                ...handMergeableFlag(decisions, sources.handMergeTexts, element.id),
                 ...shapelessValuesOf(sources, element, decisions.handMergeOf(element.id)),
             },
         ];

@@ -35,24 +35,13 @@ export type MergePaneContainerReach = "contents" | "poolProcesses";
 
 /**
  * A shape-less element either side holds and either pane marks, as the
- * pane's menu lists it with the user's pick; it covers an element the pane's
- * side lacks, which `counts` leaves out.
+ * pane's menu lists it: its pickable entry with what each side holds; it
+ * covers an element the pane's side lacks, which `counts` leaves out.
  */
-export interface MergePaneShapelessRow {
-    readonly id: string;
+export interface MergePaneShapelessRow extends MergePanePickable {
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
-    /** Set where something lies inside it, such as a process's elements, which a pick can keep with it: how far that reaches. */
-    readonly container?: MergePaneContainerReach;
-    /** As {@link MergePanePickable.takenSide}. */
-    readonly takenSide?: MergeSide;
-    /** As {@link MergePanePickable.lackingSide}. */
-    readonly lackingSide?: MergePaneLackingSide;
-    /** As {@link MergePanePickable.pick}. */
-    readonly pick?: MergePanePick;
-    /** As {@link MergePanePickable.handMergeable}. */
-    readonly handMergeable?: true;
     /** Set where current holds the element, with current's name. */
     readonly current?: { readonly name?: string };
     /** Set where incoming holds the element, with incoming's name. */

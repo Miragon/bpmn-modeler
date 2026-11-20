@@ -137,7 +137,7 @@ export function decidesInMenu(step: { readonly shapeless: boolean }): boolean {
 
 /** What decides the entries offered on one element, read from the pad's states or from a menu row. */
 type MergeDecisionFacts = Pick<
-    MergePaneShapelessRow,
+    MergePanePickable,
     "pick" | "takenSide" | "lackingSide" | "container" | "handMergeable"
 > & {
     readonly restoreOffer?: MergeKeepRemovedWith;
