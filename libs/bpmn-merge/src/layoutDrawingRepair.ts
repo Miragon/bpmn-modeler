@@ -6,7 +6,8 @@ import { type FlowRepairPlanner, planFlowRepairs, withFlowRepairs } from "./layo
 import type { Point } from "./layoutGeometry";
 import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LayoutModel } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
+import { IndexedDocument } from "./indexedDocument";
+import { layoutModelOfDocument } from "./layoutModelReader";
 import { writeLayoutChanges } from "./layoutRepairWriter";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import type { PlaneSlots } from "./planeSlots";
@@ -101,8 +102,9 @@ export function repairIntroducedSpots(
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
 ): BuildNoteContent[] {
-    const layout = layoutModelOf(definitions, slots);
+    const document = IndexedDocument.of(definitions);
+    const layout = layoutModelOfDocument(document, slots);
     const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
-    writeLayoutChanges(definitions, layout, repaired, createPoint);
+    writeLayoutChanges(document.index, layout, repaired, createPoint);
     return notes;
 }

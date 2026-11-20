@@ -1,33 +1,31 @@
 import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import { DiagramIndex } from "./diagramIndex";
+import type { DiagramIndex } from "./diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 
 /**
- * Writes what the repaired layout changed against the layout read from the
- * definitions into the drawings `layoutModelOf` reads: a shape's bounds and
+ * Writes what the repaired layout changed against the layout read through the
+ * index into the drawings `layoutModelOfDocument` reads: a shape's bounds and
  * label, an edge's waypoints and label. Nothing else of the drawing changes.
  */
 export function writeLayoutChanges(
-    definitions: ModdleElement,
+    index: DiagramIndex,
     before: LayoutModel,
     after: LayoutModel,
     createPoint: (point: Point) => ModdleElement,
 ): void {
     if (before === after) return;
-    let index: DiagramIndex | undefined;
-    const indexed = () => (index ??= DiagramIndex.of(definitions));
     for (const [id, shape] of after.shapes) {
         const old = before.shapes.get(id);
         if (old === undefined || old === shape || sameDrawing(old, shape)) continue;
-        const drawing = indexed().shapeDrawingOf(id)?.element;
+        const drawing = index.shapeDrawingOf(id)?.element;
         if (drawing !== undefined) writeShape(drawing, old, shape);
     }
     for (const [id, edge] of after.edges) {
         const old = before.edges.get(id);
         if (old === undefined || old === edge) continue;
-        const drawing = indexed().flowDrawingOf(id)?.element;
+        const drawing = index.flowDrawingOf(id)?.element;
         if (drawing !== undefined) writeEdge(drawing, old, edge, createPoint);
     }
 }

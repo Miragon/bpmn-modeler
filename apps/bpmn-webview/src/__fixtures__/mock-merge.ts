@@ -50,7 +50,6 @@ const SHAPELESS_ROWS = [
 const noPicks = () =>
     ({
         badges: [],
-        picksNotDrawn: [],
         consequences: [],
         names: {},
         pickable: [
@@ -61,10 +60,7 @@ const noPicks = () =>
                 takenSide: "incoming" as const,
             })),
         ],
-    }) as const satisfies Pick<
-        MergePaneStates,
-        "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
-    >;
+    }) as const satisfies Pick<MergePaneStates, "badges" | "consequences" | "pickable" | "names">;
 
 const current = (): MergePaneStates => ({
     caption: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },
@@ -140,12 +136,15 @@ function withServiceTaskKept(
     { mergedByHand }: { readonly mergedByHand: boolean },
 ): MergePaneStates {
     const states = paneStates(side);
-    const badge = {
-        id: "ServiceTask_1",
-        kind: side === "after" ? "keptHere" : "replacedHere",
+    const pick = {
         keptSide: "incoming",
         scope: "element",
         ...(mergedByHand ? { mergedByHand: true as const } : {}),
+    } as const;
+    const badge = {
+        id: "ServiceTask_1",
+        kind: side === "after" ? "keptHere" : "replacedHere",
+        pick,
     } as const;
     const marked = side === "after" ? "takenFromThisSide" : "takenFromOtherSide";
     return {
@@ -163,7 +162,7 @@ function withServiceTaskKept(
                 ? {
                       id: "ServiceTask_1",
                       takenSide: "incoming",
-                      undo: "element",
+                      pick,
                       handMergeable: true,
                   }
                 : pickable,

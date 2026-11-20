@@ -8,7 +8,7 @@ import {
     type MergeRefusal,
     refusalFreedBy,
 } from "./mergeDecisionOutcome";
-import { type MergePanePickStates, panePicks } from "./mergeElementPick";
+import { type MergeElementPickStates, panePicks } from "./mergeElementPick";
 import type { MergeRememberedOutcome } from "./mergeOutcomeCard";
 
 /** What the pane's memory of its outcomes reads of the host's states. */
@@ -16,7 +16,7 @@ export type MergeOutcomeStates = Pick<
     MergePaneStates,
     "lastOutcome" | "restoreOffer" | "allSteps"
 > &
-    MergePanePickStates;
+    MergeElementPickStates;
 
 /**
  * What a merge pane remembers of the decisions it sent, until it reloads:

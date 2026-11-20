@@ -2,10 +2,11 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type {
     ContainerReach,
+    ElementPick,
+    LackingSide,
     MergeStep,
     PickableElement,
     PickBadge,
-    PickNotDrawn,
     PickScope,
     RequirementObstacle,
     ShapelessRow,
@@ -17,8 +18,9 @@ import {
     type MergeObstacleWithMissing,
     type MergePaneBadge,
     type MergePaneContainerReach,
+    type MergePaneLackingSide,
+    type MergePanePick,
     type MergePanePickable,
-    type MergePanePickNotDrawn,
     type MergePaneShapelessRow,
     type MergePaneStep,
     type MergePaneValueDifference,
@@ -362,8 +364,9 @@ describe("MergeDecisionService", () => {
 
     it("keeps the protocol's copies of the picks and the obstacles equal to the merge's", () => {
         expectTypeOf<MergePickScope>().toEqualTypeOf<PickScope>();
+        expectTypeOf<MergePanePick>().toEqualTypeOf<ElementPick>();
+        expectTypeOf<MergePaneLackingSide>().toEqualTypeOf<LackingSide>();
         expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
-        expectTypeOf<MergePanePickNotDrawn>().toEqualTypeOf<PickNotDrawn>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
         expectTypeOf<MergePaneContainerReach>().toEqualTypeOf<ContainerReach>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
@@ -384,17 +387,25 @@ describe("MergeDecisionService", () => {
             expect(incomingStates.marks.takenFromThisSide).toContain("Task_Pack");
             expect(currentStates.marks.takenFromOtherSide).toContain("Task_Pack");
             expect(incomingStates.badges).toStrictEqual([
-                { id: "Task_Pack", kind: "keptHere", keptSide: "incoming", scope: "element" },
+                {
+                    id: "Task_Pack",
+                    kind: "keptHere",
+                    pick: { keptSide: "incoming", scope: "element" },
+                },
             ]);
             expect(currentStates.badges).toStrictEqual([
-                { id: "Task_Pack", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+                {
+                    id: "Task_Pack",
+                    kind: "replacedHere",
+                    pick: { keptSide: "incoming", scope: "element" },
+                },
             ]);
             expect(incomingStates.openConflicts).toBe(1);
             expect(currentStates.openConflicts).toBe(1);
             expect(incomingStates.pickable).toContainEqual({
                 id: "Task_Pack",
                 takenSide: "incoming",
-                undo: "element",
+                pick: { keptSide: "incoming", scope: "element" },
                 handMergeable: true,
             });
             expect(incomingStates.lastOutcome).toStrictEqual({
@@ -417,7 +428,7 @@ describe("MergeDecisionService", () => {
 
             const { states } = lastStatesOf(incoming);
             expect(states.openConflicts).toBe(0);
-            expect(states.badges.map(({ id, scope }) => [id, scope])).toStrictEqual([
+            expect(states.badges.map(({ id, pick }) => [id, pick.scope])).toStrictEqual([
                 ["Sub_Packing", "withContents"],
                 ["Task_Wrap", "element"],
                 ["Task_Label", "element"],
@@ -425,7 +436,7 @@ describe("MergeDecisionService", () => {
             expect(states.pickable).toContainEqual({
                 id: "Sub_Packing",
                 container: "contents",
-                undo: "withContents",
+                pick: { keptSide: "current", scope: "withContents" },
             });
         });
 
@@ -502,7 +513,11 @@ describe("MergeDecisionService", () => {
 
             expect(lastStatesOf(incoming).states.marks.takenFromThisSide).toContain("Task_Check");
             expect(lastStatesOf(current).states.badges).toStrictEqual([
-                { id: "Task_Check", kind: "replacedHere", keptSide: "incoming", scope: "element" },
+                {
+                    id: "Task_Check",
+                    kind: "replacedHere",
+                    pick: { keptSide: "incoming", scope: "element" },
+                },
             ]);
         });
 
@@ -524,7 +539,7 @@ describe("MergeDecisionService", () => {
 
             const { states } = lastStatesOf(incoming);
             expect(states.restoreOffer).toBeUndefined();
-            expect(states.badges.map(({ id, scope }) => [id, scope])).toStrictEqual([
+            expect(states.badges.map(({ id, pick }) => [id, pick.scope])).toStrictEqual([
                 ["Task_Pack", "withRemoved"],
                 ["Flow_2", "element"],
                 ["Flow_3", "element"],
@@ -574,17 +589,19 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(incoming).states.consequences).toStrictEqual([]);
         });
 
-        it("lists a pick the pane cannot draw", async () => {
+        it("carries a pick the pane cannot draw in pickable, without a badge", async () => {
             const { current, incoming, bothReady, pick } =
                 await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
 
             await pick(incoming, "Task_Pack");
 
-            expect(lastStatesOf(current).states.picksNotDrawn).toStrictEqual([
-                { id: "Task_Pack", keptSide: "incoming", scope: "element" },
-            ]);
-            expect(lastStatesOf(current).states.badges).toStrictEqual([]);
+            const { states } = lastStatesOf(current);
+            expect(states.pickable.find(({ id }) => id === "Task_Pack")?.pick).toStrictEqual({
+                keptSide: "incoming",
+                scope: "element",
+            });
+            expect(states.badges).toStrictEqual([]);
         });
 
         it("sends the last outcome and the restore offer again when a pane reloads", async () => {
@@ -606,7 +623,7 @@ describe("MergeDecisionService", () => {
                 await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
             await pick(incoming, "Task_Pack");
-            expect(lastStatesOf(current).states.picksNotDrawn).not.toStrictEqual([]);
+            expect(lastStatesOf(current).states.pickable.some(({ pick }) => pick)).toBe(true);
 
             store.detach(current);
             store.detach(incoming);
@@ -617,7 +634,7 @@ describe("MergeDecisionService", () => {
             for (const pane of [reopened.current, reopened.incoming]) {
                 const { states } = lastStatesOf(pane);
                 expect(states.badges).toStrictEqual([]);
-                expect(states.picksNotDrawn).toStrictEqual([]);
+                expect(states.pickable.filter(({ pick }) => pick)).toStrictEqual([]);
                 expect(states.lastOutcome).toBeUndefined();
                 expect(states.restoreOffer).toBeUndefined();
             }
@@ -653,7 +670,11 @@ describe("MergeDecisionService", () => {
                 );
 
                 expect(lastStatesOf(mergeView[namedSide]).states.badges).toStrictEqual([
-                    { id: "Task_Pack", kind: "keptHere", keptSide: namedSide, scope: "element" },
+                    {
+                        id: "Task_Pack",
+                        kind: "keptHere",
+                        pick: { keptSide: namedSide, scope: "element" },
+                    },
                 ]);
                 for (const pane of [mergeView.current, mergeView.incoming]) {
                     expect(lastStatesOf(pane).states.lastOutcome).toMatchObject({
@@ -733,20 +754,18 @@ describe("MergeDecisionService", () => {
             }
         });
 
-        it("tells the pane that draws an element what the other side lacks", async () => {
+        it("tells both panes which side lacks an element, and why", async () => {
             const { current, incoming, bothReady } = await openMergeView(ORDER_REMOVAL_STAGES);
 
             await bothReady();
 
-            expect(lastStatesOf(incoming).states.pickable).toContainEqual({
-                id: "Task_Pack",
-                takenSide: "current",
-                otherSideLacks: "removed",
-            });
-            expect(lastStatesOf(current).states.pickable).toContainEqual({
-                id: "Task_Pack",
-                takenSide: "current",
-            });
+            for (const pane of [current, incoming]) {
+                expect(lastStatesOf(pane).states.pickable).toContainEqual({
+                    id: "Task_Pack",
+                    takenSide: "current",
+                    lackingSide: { side: "current", lack: "removed" },
+                });
+            }
         });
 
         it("ignores an Undo of an element no longer picked, keeping what the last pick did", async () => {

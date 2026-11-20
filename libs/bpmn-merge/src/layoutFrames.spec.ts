@@ -7,10 +7,9 @@ import {
     descendantLanesOf,
     drawnPoolOf,
     frameIdsOf,
+    frameScopeOf,
     framesAroundOf,
     holdingPoolOf,
-    innermostFrameOf,
-    innermostLaneOf,
     lanesOf,
     lanesWithoutPoolOn,
     parentLanesOf,
@@ -96,7 +95,7 @@ describe("framesAroundOf", () => {
     });
 });
 
-describe("innermostFrameOf and innermostLaneOf", () => {
+describe("frameScopeOf", () => {
     const lane = (id: string, parent: string, height: number): LayoutShape => ({
         kind: "lane",
         id,
@@ -116,8 +115,10 @@ describe("innermostFrameOf and innermostLaneOf", () => {
         ]);
         const inLanes = layout.shapes.get("A") as NodeShape;
 
-        expect(innermostLaneOf(layout, inLanes)?.id).toBe("Lane_Child");
-        expect(innermostFrameOf(layout, inLanes)?.id).toBe("Pool_1");
+        expect(frameScopeOf(layout, inLanes)).toEqual({
+            container: layout.shapes.get("Pool_1"),
+            lane: layout.shapes.get("Lane_Child"),
+        });
     });
 
     it("finds the open sub-process around the node and no lane", () => {
@@ -129,8 +130,10 @@ describe("innermostFrameOf and innermostLaneOf", () => {
         ]);
         const inSub = layout.shapes.get("A") as NodeShape;
 
-        expect(innermostFrameOf(layout, inSub)?.id).toBe("Sub_1");
-        expect(innermostLaneOf(layout, inSub)).toBeUndefined();
+        expect(frameScopeOf(layout, inSub)).toEqual({
+            container: layout.shapes.get("Sub_1"),
+            lane: undefined,
+        });
     });
 });
 

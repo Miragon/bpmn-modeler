@@ -22,35 +22,26 @@ export interface MergePaneStep {
 }
 
 /** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
-export type MergePaneOtherSideLack = "removed" | "missing";
+export type MergePaneSideLack = "removed" | "missing";
+
+/** The side that lacks an element the other holds, and why. */
+export interface MergePaneLackingSide {
+    readonly side: MergeSide;
+    readonly lack: MergePaneSideLack;
+}
 
 /** How far keeping a container with everything inside reaches: its contents, or every pool with its process. */
 export type MergePaneContainerReach = "contents" | "poolProcesses";
 
 /**
  * A shape-less element either side holds and either pane marks, as the
- * pane's menu lists it with the user's pick; it covers an element the pane's
- * side lacks, which `counts` leaves out.
+ * pane's menu lists it: its pickable entry with what each side holds; it
+ * covers an element the pane's side lacks, which `counts` leaves out.
  */
-export interface MergePaneShapelessRow {
-    readonly id: string;
+export interface MergePaneShapelessRow extends MergePanePickable {
     readonly type: string;
     /** The marker as the pane's side names it, also where that side lacks the element. */
     readonly marker: MergeMarker;
-    /** Set where something lies inside it, such as a process's elements, which a pick can keep with it: how far that reaches. */
-    readonly container?: MergePaneContainerReach;
-    /** As {@link MergePanePickable.takenSide}. */
-    readonly takenSide?: MergeSide;
-    /** Set where one side lacks the element: that side, and why. */
-    readonly lackingSide?: { readonly side: MergeSide; readonly lack: MergePaneOtherSideLack };
-    /** Set while the user's pick decides it. */
-    readonly pick?: {
-        readonly keptSide: MergeSide;
-        readonly scope: MergePickScope;
-        readonly mergedByHand?: true;
-    };
-    /** As {@link MergePanePickable.handMergeable}. */
-    readonly handMergeable?: true;
     /** Set where current holds the element, with current's name. */
     readonly current?: { readonly name?: string };
     /** Set where incoming holds the element, with incoming's name. */
@@ -86,23 +77,19 @@ export interface MergePaneStepping {
  */
 export type MergePickScope = "element" | "withContents" | "withRemoved";
 
-/** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
-export interface MergePaneBadge {
-    readonly id: string;
-    readonly kind: "keptHere" | "replacedHere";
+/** The user's pick on an element: the side it keeps, and how far it reaches, which Undo takes back. */
+export interface MergePanePick {
     readonly keptSide: MergeSide;
     readonly scope: MergePickScope;
     /** Set while a version merged by hand replaces the kept side's own. */
     readonly mergedByHand?: true;
 }
 
-/** A user's pick the pane cannot draw. */
-export interface MergePanePickNotDrawn {
+/** A user's pick on a pane that draws the element: kept from this pane's side, or from the other one. */
+export interface MergePaneBadge {
     readonly id: string;
-    readonly keptSide: MergeSide;
-    readonly scope: MergePickScope;
-    /** As {@link MergePaneBadge.mergedByHand}. */
-    readonly mergedByHand?: true;
+    readonly kind: "keptHere" | "replacedHere";
+    readonly pick: MergePanePick;
 }
 
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
@@ -115,14 +102,10 @@ export interface MergePanePickable {
      * both panes; a side that lacks it leaves it out. Absent while it is open.
      */
     readonly takenSide?: MergeSide;
-    /** Set while the user's pick decides it: what Undo takes back. */
-    readonly undo?: MergePickScope;
-    /**
-     * Set where this pane's side holds the element and the other does not: it
-     * removed it from the base, or there is no base version. A pick of the
-     * other side leaves it out.
-     */
-    readonly otherSideLacks?: MergePaneOtherSideLack;
+    /** Set while the user's pick decides it. */
+    readonly pick?: MergePanePick;
+    /** Set where one side lacks the element, the same on both panes; a pick of that side leaves it out. */
+    readonly lackingSide?: MergePaneLackingSide;
     /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
     readonly handMergeable?: true;
 }
@@ -259,7 +242,6 @@ export interface MergePaneStates {
     readonly stepping: MergePaneStepping;
     /** The user's picks the pane draws, in result order. */
     readonly badges: readonly MergePaneBadge[];
-    readonly picksNotDrawn: readonly MergePanePickNotDrawn[];
     /** The drawn elements a pick pulled in or dropped. */
     readonly consequences: readonly string[];
     readonly pickable: readonly MergePanePickable[];

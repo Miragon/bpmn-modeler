@@ -1,15 +1,10 @@
-import {
-    type ModdleElement,
-    idOf,
-    isModdleElement,
-    isType,
-    moddleElements,
-} from "@miragon/bpmn-modeler-diff";
+import { type ModdleElement, idOf, isType, moddleElements } from "@miragon/bpmn-modeler-diff";
 
-import { poolsOf } from "./collaborationPools";
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
+import { isEnteredSubProcess } from "./containerContents";
 import type { Outline } from "./layoutGeometry";
 import type { EdgeKind } from "./layoutModel";
+import { type PoolRelations, poolRelationsOf } from "./poolRelations";
 
 interface NodeRelations {
     readonly outline: Outline;
@@ -25,13 +20,8 @@ interface Connection extends ConnectionEnds {
 }
 
 /** What decides where an element's drawing may lie, read from the semantic tree. */
-export interface LayoutRelations {
+export interface LayoutRelations extends PoolRelations {
     readonly nodes: ReadonlyMap<string, NodeRelations>;
-    readonly pools: ReadonlySet<string>;
-    readonly laneParents: ReadonlyMap<string, string>;
-    /** The pool drawing each lane's process. */
-    readonly lanePools: ReadonlyMap<string, string>;
-    readonly lanesByNode: ReadonlyMap<string, readonly string[]>;
     readonly connections: ReadonlyMap<string, Connection>;
 }
 
@@ -45,32 +35,14 @@ interface Scope {
  * element the build moved between the sides' trees keeps its side's parent.
  */
 export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
+    const poolRelations = poolRelationsOf(definitions);
     const nodes = new Map<string, NodeRelations>();
-    const pools = new Set<string>();
-    const laneParents = new Map<string, string>();
-    const lanePools = new Map<string, string>();
-    const lanesByNode = new Map<string, string[]>();
     const connections = new Map<string, Connection>();
-    const poolsByProcess = new Map<string, string>();
 
     const connect = (kind: EdgeKind, connection: ModdleElement, holder?: ModdleElement) => {
         const ends = connectionEndsOf(connection, holder);
         if (connection.id === undefined || ends === undefined) return;
         connections.set(connection.id, { ...ends, kind });
-    };
-    const visitLanes = (laneSets: unknown, parent: string, pool?: string) => {
-        for (const lane of moddleElements(laneSets).flatMap(({ lanes }) => moddleElements(lanes))) {
-            if (lane.id === undefined) continue;
-            laneParents.set(lane.id, parent);
-            if (pool !== undefined) lanePools.set(lane.id, pool);
-            for (const node of moddleElements(lane.flowNodeRef)) {
-                if (node.id === undefined) continue;
-                const lanes = lanesByNode.get(node.id);
-                if (lanes === undefined) lanesByNode.set(node.id, [lane.id]);
-                else lanes.push(lane.id);
-            }
-            if (isModdleElement(lane.childLaneSet)) visitLanes([lane.childLaneSet], lane.id, pool);
-        }
     };
     const visitArtifacts = (artifacts: unknown, scope: Scope) => {
         for (const artifact of moddleElements(artifacts)) {
@@ -95,8 +67,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             for (const association of moddleElements(element.dataOutputAssociations)) {
                 connect("association", association, element);
             }
-            if (isType(element, "bpmn:SubProcess")) {
-                visitLanes(element.laneSets, element.id);
+            if (isEnteredSubProcess(element)) {
                 visitFlowElements(element, {
                     ...scope,
                     subProcesses: [element.id, ...scope.subProcesses],
@@ -108,10 +79,6 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
 
     const roots = moddleElements(definitions.rootElements);
     for (const collaboration of roots.filter((root) => isType(root, "bpmn:Collaboration"))) {
-        for (const { pool, process } of poolsOf(collaboration)) {
-            pools.add(pool);
-            if (process !== undefined) poolsByProcess.set(process, pool);
-        }
         for (const messageFlow of moddleElements(collaboration.messageFlows)) {
             connect("messageFlow", messageFlow);
         }
@@ -119,14 +86,13 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     }
     for (const process of roots.filter((root) => isType(root, "bpmn:Process"))) {
         if (process.id === undefined) continue;
-        const pool = poolsByProcess.get(process.id);
-        visitLanes(process.laneSets, process.id, pool);
+        const pool = poolRelations.poolsByProcess.get(process.id);
         visitFlowElements(
             process,
             pool === undefined ? { subProcesses: [] } : { subProcesses: [], pool },
         );
     }
-    return { nodes, pools, laneParents, lanePools, lanesByNode, connections };
+    return { ...poolRelations, nodes, connections };
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

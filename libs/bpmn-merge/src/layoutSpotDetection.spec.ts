@@ -5,7 +5,7 @@ import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuild
 import { dock, dockedModel, moveNode } from "./__fixtures__/dockedModel";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import type { LayoutModel } from "./layoutModel";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { detectLayoutSpots, introducedLayoutSpots } from "./layoutSpotDetection";
 
 async function layoutOf(model: BpmnFixtureModel): Promise<LayoutModel> {

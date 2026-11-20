@@ -43,6 +43,10 @@ export type LayoutSpot =
       }
     | { readonly kind: "lanesOverlap"; readonly lanes: readonly [string, string] };
 
+type SpotKind = LayoutSpot["kind"];
+
+export type SpotOf<Kind extends SpotKind> = Extract<LayoutSpot, { readonly kind: Kind }>;
+
 /** A spot of one flow, which the build may re-route. */
 export type FlowSpot = Extract<LayoutSpot, { readonly flow: string }>;
 
@@ -114,40 +118,80 @@ export function lanesOverlap(first: LaneShape, second: LaneShape): boolean {
     );
 }
 
+/** What one spot kind knows of its spots. */
+interface SpotKindRules<Spot extends LayoutSpot> {
+    /** Whether the drawing has the spot, by its own shapes and relations. */
+    readonly isIn: (layout: LayoutModel, spot: Spot) => boolean;
+    /** Whether two spots of the kind name the same thing broken. */
+    readonly isSame: (first: Spot, second: Spot) => boolean;
+}
+
+const SPOT_KINDS: { readonly [Kind in SpotKind]: SpotKindRules<SpotOf<Kind>> } = {
+    flowEndOffShape: {
+        isIn: (layout, spot) => {
+            const edge = layout.edges.get(spot.flow);
+            return (
+                edge?.[spot.at] === spot.end &&
+                endsOffShape(layout, edge).some(
+                    ({ at, lies }) => at === spot.at && lies === spot.lies,
+                )
+            );
+        },
+        isSame: (first, second) =>
+            second.flow === first.flow &&
+            second.end === first.end &&
+            second.at === first.at &&
+            second.lies === first.lies,
+    },
+    shapesOverlap: {
+        isIn: (layout, spot) => {
+            const [first, second] = spot.shapes.map((id) => nodeShapeIn(layout, id));
+            return first !== undefined && second !== undefined && shapesOverlap(first, second);
+        },
+        isSame: (first, second) => samePair(first.shapes, second.shapes),
+    },
+    flowThroughShape: {
+        isIn: (layout, spot) => {
+            const edge = layout.edges.get(spot.flow);
+            const shape = nodeShapeIn(layout, spot.shape);
+            return edge !== undefined && shape !== undefined && runsThrough(layout, edge, shape);
+        },
+        isSame: (first, second) => second.flow === first.flow && second.shape === first.shape,
+    },
+    shapeOutsideContainer: {
+        isIn: (layout, spot) => {
+            const node = nodeShapeIn(layout, spot.shape);
+            const frame = node && framesOf(layout, node).find(({ id }) => id === spot.container);
+            return node !== undefined && frame !== undefined && liesOutside(node, frame);
+        },
+        isSame: (first, second) =>
+            second.shape === first.shape && second.container === first.container,
+    },
+    boundaryEventOffHost: {
+        isIn: (layout, spot) => {
+            const node = nodeShapeIn(layout, spot.boundaryEvent);
+            return node?.host === spot.host && isOffItsHost(layout, node);
+        },
+        isSame: (first, second) =>
+            second.boundaryEvent === first.boundaryEvent && second.host === first.host,
+    },
+    lanesOverlap: {
+        isIn: (layout, spot) => {
+            const [first, second] = spot.lanes.map((id) => layout.shapes.get(id));
+            return first?.kind === "lane" && second?.kind === "lane" && lanesOverlap(first, second);
+        },
+        isSame: (first, second) => samePair(first.lanes, second.lanes),
+    },
+};
+
+/** Asked with a spot of any kind, the rules accept any spot: callers hand them only spots of that kind. */
+function rulesOf<Kind extends SpotKind>(kind: Kind): SpotKindRules<SpotOf<Kind>> {
+    return SPOT_KINDS[kind];
+}
+
 /** Whether two spots name the same thing broken, whichever order they list a pair in. */
 export function sameSpot(first: LayoutSpot, second: LayoutSpot): boolean {
-    switch (first.kind) {
-        case "flowEndOffShape":
-            return (
-                second.kind === first.kind &&
-                second.flow === first.flow &&
-                second.end === first.end &&
-                second.at === first.at &&
-                second.lies === first.lies
-            );
-        case "shapesOverlap":
-            return second.kind === first.kind && samePair(first.shapes, second.shapes);
-        case "flowThroughShape":
-            return (
-                second.kind === first.kind &&
-                second.flow === first.flow &&
-                second.shape === first.shape
-            );
-        case "shapeOutsideContainer":
-            return (
-                second.kind === first.kind &&
-                second.shape === first.shape &&
-                second.container === first.container
-            );
-        case "boundaryEventOffHost":
-            return (
-                second.kind === first.kind &&
-                second.boundaryEvent === first.boundaryEvent &&
-                second.host === first.host
-            );
-        case "lanesOverlap":
-            return second.kind === first.kind && samePair(first.lanes, second.lanes);
-    }
+    return first.kind === second.kind && rulesOf(first.kind).isSame(first, second);
 }
 
 /** Whether one repair acts on both spots: a re-route on every spot of its flow, any other repair on its own spot alone. */
@@ -166,37 +210,5 @@ function samePair(first: readonly [string, string], second: readonly [string, st
 
 /** Whether the drawing has the spot, by its own shapes and relations. */
 export function hasSpot(layout: LayoutModel, spot: LayoutSpot): boolean {
-    switch (spot.kind) {
-        case "flowEndOffShape": {
-            const edge = layout.edges.get(spot.flow);
-            return (
-                edge?.[spot.at] === spot.end &&
-                endsOffShape(layout, edge).some(
-                    ({ at, lies }) => at === spot.at && lies === spot.lies,
-                )
-            );
-        }
-        case "shapesOverlap": {
-            const [first, second] = spot.shapes.map((id) => nodeShapeIn(layout, id));
-            return first !== undefined && second !== undefined && shapesOverlap(first, second);
-        }
-        case "flowThroughShape": {
-            const edge = layout.edges.get(spot.flow);
-            const shape = nodeShapeIn(layout, spot.shape);
-            return edge !== undefined && shape !== undefined && runsThrough(layout, edge, shape);
-        }
-        case "shapeOutsideContainer": {
-            const node = nodeShapeIn(layout, spot.shape);
-            const frame = node && framesOf(layout, node).find(({ id }) => id === spot.container);
-            return node !== undefined && frame !== undefined && liesOutside(node, frame);
-        }
-        case "boundaryEventOffHost": {
-            const node = nodeShapeIn(layout, spot.boundaryEvent);
-            return node?.host === spot.host && isOffItsHost(layout, node);
-        }
-        case "lanesOverlap": {
-            const [first, second] = spot.lanes.map((id) => layout.shapes.get(id));
-            return first?.kind === "lane" && second?.kind === "lane" && lanesOverlap(first, second);
-        }
-    }
+    return rulesOf(spot.kind).isIn(layout, spot);
 }

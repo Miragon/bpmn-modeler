@@ -239,7 +239,7 @@ export class MergeMode {
             { marks, badges, consequences },
             {
                 conflict: translate(MERGE_MARK_TEXTS.conflictBadge),
-                badge: (badge) => pickBadgeText(badge, translate),
+                badge: (badge) => pickBadgeText(badge.pick, translate),
             },
         );
     }

@@ -12,6 +12,13 @@ export function enclosingSubProcessOf(element: ModdleElement | undefined): strin
     return undefined;
 }
 
+/** Whether the walks from the definitions down enter the element's own flow elements. */
+export function isEnteredSubProcess(
+    element: ModdleElement,
+): element is ModdleElement & { readonly id: string } {
+    return isType(element, "bpmn:SubProcess") && element.id !== undefined;
+}
+
 /**
  * The plane a sub-process's contents lie on, as bpmn-js reads them: its own
  * plane when it has one and its shape is not expanded, otherwise the plane

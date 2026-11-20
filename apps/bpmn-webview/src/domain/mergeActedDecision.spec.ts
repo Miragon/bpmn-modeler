@@ -44,12 +44,12 @@ describe("actedOnPad", () => {
             },
         ],
         [
-            { kind: "leaveOut", side: "current", otherSideLacks: "missing" },
+            { kind: "leaveOut", side: "current", lack: "missing" },
             {
                 kind: "leaveOut",
                 elementId: "Task_1",
                 side: "current",
-                otherSideLacks: "missing",
+                lack: "missing",
                 origin: "canvas",
             },
         ],
@@ -75,7 +75,7 @@ describe("actedOnPad", () => {
 describe("requestInMenu", () => {
     it.each<MergePickDecision>([
         { kind: "keep", scope: "element", side: "current" },
-        { kind: "leaveOut", side: "incoming", otherSideLacks: "removed" },
+        { kind: "leaveOut", side: "incoming", lack: "removed" },
         { kind: "keepRemovedWith", side: "incoming", offer: OFFER },
         { kind: "undo", scope: "element" },
     ])("remembers a row's %o as the pad's, decided in the menu", (decision) => {
@@ -127,7 +127,7 @@ describe("mergeDecisionCommandOf", () => {
                 kind: "leaveOut",
                 elementId: "Task_1",
                 side: "current",
-                otherSideLacks: "removed",
+                lack: "removed",
                 origin: "canvas",
             },
             { kind: "pick", elementId: "Task_1", scope: "element", side: "current" },

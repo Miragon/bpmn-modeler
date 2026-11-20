@@ -1,7 +1,8 @@
-import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
+import { loadBpmnModdle, moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
-import { enclosingSubProcessOf } from "./containerContents";
+import { definitionsOf } from "./__fixtures__/poolsAndLanes";
+import { enclosingSubProcessOf, isEnteredSubProcess } from "./containerContents";
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -33,5 +34,26 @@ describe("enclosingSubProcessOf", () => {
         ["Task_Top", undefined],
     ])("finds the sub-process that holds %s", async (id, expected) => {
         expect(enclosingSubProcessOf((await elementsById())[id])).toBe(expected);
+    });
+});
+
+describe("isEnteredSubProcess", () => {
+    it.each([
+        ["Sub_1", true],
+        ["Transaction_1", true],
+        ["AdHoc_1", true],
+        ["Task_Top", false],
+    ])("tells whether the walks down the tree enter %s", async (id, expected) => {
+        expect(isEnteredSubProcess((await elementsById())[id]!)).toBe(expected);
+    });
+
+    it("does not enter a sub-process without an id", async () => {
+        const definitions = await definitionsOf(`
+  <bpmn:process id="Process_1">
+    <bpmn:subProcess />
+  </bpmn:process>`);
+        const [process] = moddleElements(definitions.rootElements);
+
+        expect(isEnteredSubProcess(moddleElements(process?.flowElements)[0]!)).toBe(false);
     });
 });

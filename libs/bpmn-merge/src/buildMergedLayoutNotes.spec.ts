@@ -19,7 +19,7 @@ import { prepareMergeSources } from "./buildMergedSources";
 import type { BuildNoteContent } from "./buildNotes";
 import { computeMerge, type MergeVersions } from "./computeMerge";
 import { bottomOf, centerOf, inflated, keepsClearOf, liesWithin } from "./layoutGeometry";
-import { layoutModelOf } from "./layoutModelReader";
+import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { distanceToPolyline } from "./layoutPolyline";
 import { ROOM_GAP, STACK_GAP } from "./layoutRoomPush";
 import { segmentEntersBounds } from "./layoutSegments";
