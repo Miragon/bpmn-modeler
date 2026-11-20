@@ -184,7 +184,7 @@ describe("mergePadDecisions", () => {
         expect(decisions).toStrictEqual([
             { kind: "keep", scope: "element", side: paneSide },
             { kind: "keep", scope: "withContents", side: paneSide, reach: "contents" },
-            { kind: "leaveOut", side: otherSide, otherSideLacks: "missing" },
+            { kind: "leaveOut", side: otherSide, lack: "missing" },
         ]);
     });
 
@@ -512,7 +512,7 @@ describe("mergeRowDecisions", () => {
                 NO_XML_MERGE,
             ),
         ).toStrictEqual([
-            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+            { kind: "leaveOut", side: "current", lack: "removed" },
             { kind: "keep", scope: "element", side: "incoming" },
         ]);
     });

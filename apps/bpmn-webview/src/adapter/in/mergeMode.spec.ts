@@ -1503,7 +1503,7 @@ describe("MergeMode", () => {
             pad().decide("Task_Pack", {
                 kind: "leaveOut",
                 side: "incoming",
-                otherSideLacks: "missing",
+                lack: "missing",
             });
 
             dispatch(

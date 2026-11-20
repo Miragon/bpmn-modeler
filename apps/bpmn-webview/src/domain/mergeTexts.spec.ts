@@ -81,14 +81,14 @@ describe("padDecisionText", () => {
             },
         ],
         [
-            { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+            { kind: "leaveOut", side: "current", lack: "removed" },
             {
                 label: "Leave out: Leave it out, as current removed it",
                 tooltip: "Leave out: Leave it out, as current removed it",
             },
         ],
         [
-            { kind: "leaveOut", side: "incoming", otherSideLacks: "missing" },
+            { kind: "leaveOut", side: "incoming", lack: "missing" },
             {
                 label: "Leave out: Leave it out, as incoming doesn't have it",
                 tooltip: "Leave out: Leave it out, as incoming doesn't have it",
@@ -137,7 +137,7 @@ describe("padDecisionText", () => {
     it.each<Extract<MergePadDecision, { side: MergeSide }>>([
         { kind: "keep", scope: "element", side: "current" },
         { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
-        { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+        { kind: "leaveOut", side: "current", lack: "removed" },
     ])("names the side in the screen readers' label of %o", (decision) => {
         expect(padDecisionText(decision, untranslated).label.toLowerCase()).toContain(
             decision.side,

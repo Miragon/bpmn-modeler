@@ -19,7 +19,7 @@ const OFFER = { elementId: "Task_1", connections: ["Flow_1", "Flow_2"], removedB
 const EVERY_DECISION: readonly MergePadDecision[] = [
     { kind: "keep", scope: "element", side: "incoming" },
     { kind: "keep", scope: "withContents", side: "incoming", reach: "contents" },
-    { kind: "leaveOut", side: "current", otherSideLacks: "removed" },
+    { kind: "leaveOut", side: "current", lack: "removed" },
     { kind: "keepRemovedWith", side: "incoming", offer: OFFER } as MergePadDecision,
     { kind: "undo", scope: "withContents" },
 ];
@@ -178,7 +178,7 @@ describe("MergePickContextPadProvider", () => {
         const current = buttonsOf(
             build([
                 { kind: "keep", scope: "element", side: "current" },
-                { kind: "leaveOut", side: "incoming", otherSideLacks: "missing" },
+                { kind: "leaveOut", side: "incoming", lack: "missing" },
             ]).provider.getContextPadEntries(TASK),
         );
         const glyph = (button: HTMLButtonElement) => button.querySelector("svg")?.innerHTML;

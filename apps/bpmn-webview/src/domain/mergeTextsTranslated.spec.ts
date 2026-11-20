@@ -7,7 +7,7 @@ import type {
     MergePaneBlock,
     MergePaneContainerReach,
     MergePaneHandMergeRefusal,
-    MergePaneOtherSideLack,
+    MergePaneSideLack,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
@@ -88,7 +88,7 @@ const PICK_SCOPES: Record<MergePickScope, true> = {
     withRemoved: true,
 };
 const REACHES: Record<MergePaneContainerReach, true> = { contents: true, poolProcesses: true };
-const LACKS: Record<MergePaneOtherSideLack, true> = { removed: true, missing: true };
+const LACKS: Record<MergePaneSideLack, true> = { removed: true, missing: true };
 const ACTIONS: Record<MergePanePickAction, true> = { pick: true, leaveOut: true, unpick: true };
 const OBSTACLES: Record<MergeObstacleKind, true> = {
     targetInNoVersion: true,
@@ -307,8 +307,7 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
             reach,
         })),
     ],
-    leaveOut: (side) =>
-        keysOf(LACKS).map((otherSideLacks) => ({ kind: "leaveOut", side, otherSideLacks })),
+    leaveOut: (side) => keysOf(LACKS).map((lack) => ({ kind: "leaveOut", side, lack })),
     keepRemovedWith: (side) =>
         OFFERED.map((offered) => ({
             kind: "keepRemovedWith",
@@ -336,11 +335,11 @@ const ACTED_DECISIONS: Record<
             origin: "canvas",
         })),
     leaveOut: (side) =>
-        keysOf(LACKS).map((otherSideLacks) => ({
+        keysOf(LACKS).map((lack) => ({
             kind: "leaveOut",
             elementId: "a",
             side,
-            otherSideLacks,
+            lack,
             origin: "canvas",
         })),
     undo: () =>

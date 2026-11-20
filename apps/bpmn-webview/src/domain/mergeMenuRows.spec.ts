@@ -89,7 +89,7 @@ describe("mergeMenuRows", () => {
                 marker: "takenFromThisSide",
                 values: { lackingSide: { side: "current", lack: "missing" }, differences: [] },
                 decisions: [
-                    { kind: "leaveOut", side: "current", otherSideLacks: "missing" },
+                    { kind: "leaveOut", side: "current", lack: "missing" },
                     { kind: "undo", scope: "element" },
                 ],
                 xmlChanges: false,
@@ -163,7 +163,7 @@ describe("mergeMenuRows", () => {
         });
 
         expect(offered?.decisions).toStrictEqual([
-            { kind: "leaveOut", side: "current", otherSideLacks: "missing" },
+            { kind: "leaveOut", side: "current", lack: "missing" },
             { kind: "mergeXml", mode: "open" },
             { kind: "undo", scope: "element" },
         ]);

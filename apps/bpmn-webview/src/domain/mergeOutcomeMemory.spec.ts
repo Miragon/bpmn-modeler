@@ -54,7 +54,7 @@ const leaveOutTask: MergeActedDecision = {
     kind: "leaveOut",
     elementId: "Task_Remind",
     side: "current",
-    otherSideLacks: "removed",
+    lack: "removed",
     origin: "canvas",
 };
 const undo = (elementId: string, origin: "canvas" | "menu" = "canvas"): MergeActedDecision => ({

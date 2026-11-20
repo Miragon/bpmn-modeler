@@ -1,6 +1,6 @@
 import type {
     MergePaneContainerReach,
-    MergePaneOtherSideLack,
+    MergePaneSideLack,
     MergePanePickable,
     MergePaneShapelessRow,
     MergePaneStates,
@@ -33,7 +33,7 @@ export type MergePadDecision =
     | {
           readonly kind: "leaveOut";
           readonly side: MergeSide;
-          readonly otherSideLacks: MergePaneOtherSideLack;
+          readonly lack: MergePaneSideLack;
       }
     | MergeKeepRemovedWith
     | MergeXmlDecision
@@ -179,7 +179,7 @@ function sidePick(facts: MergeDecisionFacts, side: MergeSide): MergePadDecision 
     if (facts.lackingSide?.side === side) {
         return facts.takenSide === side
             ? undefined
-            : { kind: "leaveOut", side, otherSideLacks: facts.lackingSide.lack };
+            : { kind: "leaveOut", side, lack: facts.lackingSide.lack };
     }
     return facts.pick?.keptSide === side ? undefined : { kind: "keep", scope: "element", side };
 }

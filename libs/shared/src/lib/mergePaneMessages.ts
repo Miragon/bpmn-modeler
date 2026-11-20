@@ -22,12 +22,12 @@ export interface MergePaneStep {
 }
 
 /** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
-export type MergePaneOtherSideLack = "removed" | "missing";
+export type MergePaneSideLack = "removed" | "missing";
 
 /** The side that lacks an element the other holds, and why. */
 export interface MergePaneLackingSide {
     readonly side: MergeSide;
-    readonly lack: MergePaneOtherSideLack;
+    readonly lack: MergePaneSideLack;
 }
 
 /** How far keeping a container with everything inside reaches: its contents, or every pool with its process. */
