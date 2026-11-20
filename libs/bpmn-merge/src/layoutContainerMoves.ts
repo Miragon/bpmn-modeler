@@ -1,7 +1,7 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, centerOf, liesWithin, rightOf } from "./layoutGeometry";
 import { FlowTopology } from "./layoutFlowTopology";
-import { growFrameFor } from "./layoutGrowFrame";
+import { type FrameGrown, growFrameFor } from "./layoutGrowFrame";
 import type { RoomContext } from "./layoutMakeRoom";
 import { type LayoutModel, type LayoutShape, frameIdsOf, nodeShapeIn } from "./layoutModel";
 import { drawingOfSameSize, drawsWhereItLies, placedByBuildOutside } from "./sideDrawings";
@@ -84,7 +84,7 @@ class ContainerRepairer {
     readonly movedShapes: string[] = [];
 
     constructor(
-        private readonly original: LayoutModel,
+        original: LayoutModel,
         private readonly sides: readonly LayoutModel[],
     ) {
         this.groups = new ShapeGroups(original);
@@ -93,7 +93,7 @@ class ContainerRepairer {
     }
 
     get layout(): LayoutModel {
-        return this.draft.changed ? this.draft : this.original;
+        return this.draft.changedOrOriginal;
     }
 
     /** Brings the shape inside those of the containers it still lies outside. */
@@ -108,27 +108,39 @@ class ContainerRepairer {
         if (frames.length === 0) return resolvedEarlier(id, containers, this.changes);
         if (!placedByBuildOutside(node, frames, this.sides)) return NOT_REPAIRED;
         const group = this.groups.of(draft, node);
-        const move =
-            sidesMove(draft, group, frames, this.sides) ?? nearestPlaceInside(draft, group, frames);
-        if (move !== undefined) {
-            draft.translate(group, move.dx, move.dy);
-            const repair: ContainerRepair = { kind: "movedIntoContainer" };
-            for (const member of group.members) this.changes.set(member, repair);
-            this.movedShapes.push(...group.members);
-            return repair;
-        }
-        const grown = growFrameFor(draft, this.room, group, frames);
-        if (grown === undefined) return NOT_REPAIRED;
+        return (
+            this.moveOf(group, sidesMove(draft, group, frames, this.sides)) ??
+            this.moveOf(group, nearestPlaceInside(draft, group, frames)) ??
+            this.grownOf(growFrameFor(draft, this.room, group, frames)) ??
+            NOT_REPAIRED
+        );
+    }
+
+    /** The repair that moves the group into its containers. */
+    private moveOf(group: ShapeGroup, move: Offset | undefined): ContainerRepair | undefined {
+        if (move === undefined) return undefined;
+        this.draft.translate(group, move.dx, move.dy);
+        const repair: ContainerRepair = { kind: "movedIntoContainer" };
+        this.record(repair, group.members);
+        this.movedShapes.push(...group.members);
+        return repair;
+    }
+
+    /** The repair that takes the draft the containers grew on. */
+    private grownOf(grown: FrameGrown | undefined): ContainerRepair | undefined {
+        if (grown === undefined) return undefined;
         const repair: ContainerRepair =
             grown.shifted.length === 0
                 ? { kind: "grewContainer" }
                 : { kind: "grewContainerAndShifted", shifted: grown.shifted };
-        for (const [changed, shape] of grown.draft.shapes) {
-            if (draft.shapes.get(changed) !== shape) this.changes.set(changed, repair);
-        }
+        this.record(repair, grown.draft.shapesChangedFrom(this.draft));
         this.movedShapes.push(...grown.moved);
         this.draft = grown.draft;
         return repair;
+    }
+
+    private record(repair: ContainerRepair, changed: readonly string[]): void {
+        for (const id of changed) this.changes.set(id, repair);
     }
 }
 
