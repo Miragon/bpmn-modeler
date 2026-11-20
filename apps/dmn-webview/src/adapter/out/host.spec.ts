@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    DocumentFlushedCommand,
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
@@ -17,7 +18,11 @@ import {
 import {
     CursorChangedCommand,
     DiffReadyCommand,
+    DmnDiffScrollChangedCommand,
+    DmnDiffViewChangedCommand,
     type DmnDiffPaneCommand,
+    SwapCompareSidesCommand,
+    ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { getDiffPaneHostApi, getHostApi, isDiffPane } from "./host";
@@ -103,12 +108,24 @@ describe("development preview host", () => {
     it.each<[string, DmnEditorCommand]>([
         ["a properties-panel toggle", new SetPropertiesPanelStateCommand(false)],
         ["a document sync", new SyncDocumentCommand("<definitions />", 3)],
+        ["a flushed document", new DocumentFlushedCommand(1, "<definitions />")],
     ])("takes %s without throwing or replying", (_, command) => {
         vi.spyOn(console, "debug").mockImplementation(() => undefined);
         const host = previewHost();
 
         expect(() => host.postMessage(command)).not.toThrow();
         expect(replies).toEqual([]);
+    });
+
+    it("logs an ignored command under the same prefix as the diff pane", () => {
+        const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new SyncDocumentCommand("<definitions />", 3));
+
+        expect(debug).toHaveBeenCalledWith(
+            expect.stringMatching(/^\[DEBUG\] SyncDocumentCommand ignored: \S/),
+            expect.objectContaining({ type: "SyncDocumentCommand" }),
+        );
     });
 
     it.each([
@@ -128,7 +145,7 @@ describe("development preview host", () => {
         const outsideTheProtocol = { type: "NotAProtocolMessage" } as unknown as DmnEditorCommand;
 
         expect(() => host.postMessage(outsideTheProtocol)).toThrow(
-            "Unknown message type NotAProtocolMessage",
+            "Unknown message type: NotAProtocolMessage",
         );
     });
 
@@ -146,6 +163,7 @@ describe("development preview host", () => {
 describe("diff pane detection", () => {
     afterEach(() => {
         vi.unstubAllEnvs();
+        vi.restoreAllMocks();
         delete document.body.dataset.surface;
         history.replaceState(null, "", "/");
     });
@@ -164,6 +182,15 @@ describe("diff pane detection", () => {
         history.replaceState(null, "", `/?mode=${mode}`);
 
         expect(isDiffPane()).toBe(true);
+    });
+
+    it("opens an unknown preview mode as the modeler and warns about it", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        history.replaceState(null, "", "/?mode=diff-befor");
+
+        expect(isDiffPane()).toBe(false);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("Unknown ?mode=diff-befor"));
     });
 
     it("ignores a preview mode outside the development build", () => {
@@ -231,7 +258,36 @@ describe("diff pane host", () => {
         host.postMessage(new CursorChangedCommand(1));
 
         expect(error).toHaveBeenCalledWith("import failed");
-        expect(debug).toHaveBeenCalledWith("[dev] CursorChangedCommand");
+        expect(debug).toHaveBeenCalledWith(
+            expect.stringMatching(/^\[DEBUG\] CursorChangedCommand ignored: \S/),
+            expect.objectContaining({ type: "CursorChangedCommand" }),
+        );
+        expect(replies).toEqual([]);
+    });
+
+    it("rejects a message outside the pane's protocol so drift stays visible", () => {
+        vi.stubEnv("NODE_ENV", "development");
+        const host = getDiffPaneHostApi();
+
+        const outsideTheProtocol = { type: "NotAProtocolMessage" } as unknown as DmnDiffPaneCommand;
+
+        expect(() => host.postMessage(outsideTheProtocol)).toThrow(
+            "Unknown message type: NotAProtocolMessage",
+        );
+    });
+
+    it.each<[string, DmnDiffPaneCommand]>([
+        ["a viewport change", new ViewportChangedCommand({ x: 0, y: 0, width: 800, height: 600 })],
+        ["a cursor step", new CursorChangedCommand(2)],
+        ["a side swap", new SwapCompareSidesCommand()],
+        ["an opened decision view", new DmnDiffViewChangedCommand("Decision_Shipping")],
+        ["a table scroll", new DmnDiffScrollChangedCommand({ rule: "Rule_1", offset: 4, left: 0 })],
+    ])("takes %s without throwing or replying, having no partner pane", (_, command) => {
+        vi.stubEnv("NODE_ENV", "development");
+        vi.spyOn(console, "debug").mockImplementation(() => undefined);
+        const host = getDiffPaneHostApi();
+
+        expect(() => host.postMessage(command)).not.toThrow();
         expect(replies).toEqual([]);
     });
 });
