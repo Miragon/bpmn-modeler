@@ -1,5 +1,6 @@
 export * from "./lib/host";
 export * from "./lib/previewCommandTable";
+export * from "./lib/previewOutput";
 export * from "./lib/utils";
 export * from "./lib/messages";
 export * from "./lib/documentFlush";
