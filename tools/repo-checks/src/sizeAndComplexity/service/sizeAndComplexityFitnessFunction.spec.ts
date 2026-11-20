@@ -12,6 +12,7 @@ describe("the size and complexity fitness function", () => {
                 codeLines: 12,
                 functions: [{ name: "f", line: 3, complexity: 4 }],
                 barrel: false,
+                runsNoCode: false,
             },
         ]);
 

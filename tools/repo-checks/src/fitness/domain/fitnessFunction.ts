@@ -20,6 +20,8 @@ export interface MeasurementContext {
 
 type NonEmptyList<T> = readonly [T, ...T[]];
 
+export type EvidenceList = NonEmptyList<Evidence>;
+
 export interface FindingGroup {
     readonly id: string;
     readonly title: string;
@@ -50,7 +52,7 @@ export interface FitnessFunction {
     readonly reliesOn: { readonly skill: string; readonly rule: string };
     readonly misses: NonEmptyList<string>;
     readonly reportsWrongly: NonEmptyList<string>;
-    readonly evidence: NonEmptyList<Evidence>;
+    readonly evidence: EvidenceList;
     /** The report prints one table per group, in this order. */
     readonly groups?: NonEmptyList<FindingGroup>;
     readonly values?: NonEmptyList<FindingValue>;
