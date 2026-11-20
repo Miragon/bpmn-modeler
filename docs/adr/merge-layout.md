@@ -50,14 +50,15 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   sibling or outside its parent lane or pool moves first, in the result's order, at its own
   height below its siblings, as wide as they are, its child lanes with it; the pool and its
   parent lanes grow to hold it, and what lies below the band on the plane shifts down, while
-  another pool across the band keeps its place and contents, as it starts above the line. The
-  band is opened by the one space tool that also makes room and grows a frame below
+  another pool across the band keeps its place with what it holds, as it starts above the line.
+  The band is opened by the one space tool that also makes room and grows a frame below
   (`layoutSpaceTool.ts`, #2592), so a shape shifts by its center (a sub-process drawn open by
   its near side, with its contents), a boundary event with its host, a pool with its lanes and
-  contents, and a flow stretches by its runs across the band, a run between its ends going
-  with the shifted end once it lies past the line. The tool checks nothing; each caller decides:
-  making room and growing a container drop a result that breaks the drawing, stacking does not.
-  Its members stay where they lie, so the container step brings
+  what it holds (its nodes wherever drawn, and the data stores and artifacts lying in it), and
+  a flow stretches by its runs across the band, a run between its ends going with the shifted
+  end once it lies past the line. The tool checks nothing; each caller decides: making room and
+  growing a container drop a result that breaks the drawing, stacking does not. Its members
+  stay where they lie unless their host or sub-process shifts, so the container step brings
   them into the band, following the side that drew them in the lane. The step needs no guard
   of its own: it only opens a band, the spots it could make involve the members it leaves for
   the container step, which guards each move, and the notes are read after it, so any spot left
@@ -70,7 +71,8 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the pool, unnamed; a band with its own rules (each shape by its top edge, a flow point by
   point), which left a boundary event behind its host and bent a flow at an end that stays.
   Cost: the pool grows taller than either side drew it; a shape hanging over the line shifts
-  with the band where its center lies past it;
+  with the band where its center lies past it; a node of another pool drawn outside it stays
+  with that pool;
   a boundary event in another lane than its host lay in both while they overlapped and is now
   noted outside its lane; lanes of a process no pool of the result draws are not stacked; on
   the harvest, a result with no lane overlap stays byte-equal to the build without this step

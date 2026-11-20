@@ -28,7 +28,7 @@ interface LaneBand {
     readonly height: number;
     /** The lanes and the pool around the inserted lane, which grow to hold it. */
     readonly growing: ReadonlySet<string>;
-    /** The inserted lane, its child lanes and the shapes drawn as their members, which stay where they lie. */
+    /** The inserted lane, its child lanes and the shapes drawn as their members, which stay where they lie unless their host or sub-process shifts. */
     readonly staying: ReadonlySet<string>;
 }
 
@@ -38,9 +38,9 @@ interface LaneBand {
  * sibling or outside its parent lane or pool. Its child lanes go with it.
  * The pool and the parent lanes grow to hold it, and what lies below the
  * band shifts down with the flows to it, by the space tool's rules; another
- * pool across the band keeps its place and contents, as it starts above the
- * line. The lane's members stay where they lie; the container repair brings
- * them into the lane.
+ * pool across the band keeps its place with what it holds, as it starts
+ * above the line. The lane's members stay where they lie, unless their host
+ * or sub-process shifts; the container repair brings them into the lane.
  */
 export function stackAppendedLanes(
     layout: LayoutModel,

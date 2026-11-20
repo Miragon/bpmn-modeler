@@ -310,6 +310,74 @@ describe("stackAppendedLanes", () => {
         expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Task_H"]]);
     });
 
+    it("shifts a boundary event drawn in the stacked lane with its host, as one that stays would leave it", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Task_H", box(300, 420), { lanes: ["Lane_A"] }),
+            node("Event_B", box(332, 482, 36, 36), { lanes: ["Lane_C"], host: "Task_H" }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Event_B")).toEqual(box(332, 682, 36, 36));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Task_H"]]);
+    });
+
+    it("shifts a content drawn in the stacked lane with its sub-process", () => {
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            node("Sub_1", box(300, 420, 400, 200), { lanes: ["Lane_A"], expanded: true }),
+            node("Task_S", box(350, 450), { lanes: ["Lane_C"], subProcesses: ["Sub_1"] }),
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(boundsIn(plan, "Task_S")).toEqual(box(350, 650));
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([["Sub_1"]]);
+    });
+
+    it("keeps a data store and an artifact lying in a pool beside the stacked one where they lie", () => {
+        const store = node("Store_Y", box(1700, 600, 50, 50), {
+            pool: "Pool_2",
+            mayLieOutsidePool: true,
+        });
+        const note = node("Note_Y", box(1500, 600), { pool: undefined });
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            pool("Pool_2", box(1300, 0, 600, 800)),
+            store,
+            note,
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.shapes.get("Store_Y")).toBe(store);
+        expect(plan.layout.shapes.get("Note_Y")).toBe(note);
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([[]]);
+    });
+
+    it("keeps a node of a pool beside the stacked one with that pool, though drawn outside it past the line", () => {
+        const outside = node("Task_Z", box(1500, 500), { pool: "Pool_2" });
+        const layout = layoutOf([
+            pool("Pool_1", box(0, 0, 1200, 400)),
+            lane("Lane_A", box(30, 0, 1170, 400)),
+            lane("Lane_C", box(30, 200, 1170, 200)),
+            pool("Pool_2", box(1300, 0, 600, 300)),
+            outside,
+        ]);
+
+        const plan = planOf(layout, ["Lane_C"]);
+
+        expect(plan.layout.shapes.get("Task_Z")).toBe(outside);
+        expect(plan.stacked.map(({ shifted }) => shifted)).toEqual([[]]);
+    });
+
     it("keeps a sub-process across the line where it lies, with its contents", () => {
         const subProcess = node("Sub_1", box(300, 300, 400, 200), {
             lanes: ["Lane_A"],

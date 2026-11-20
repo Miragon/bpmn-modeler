@@ -136,3 +136,40 @@ describe("SpaceTool.openBand", () => {
         expect(trial.shapes.get("Task_B")!.bounds).toEqual(box(350, 100));
     });
 });
+
+describe("SpaceTool.unitsIn", () => {
+    it("gives a pool the data stores and artifacts lying in it, which then give way with it", () => {
+        const shapes: LayoutShape[] = [
+            {
+                kind: "pool",
+                id: "Pool_1",
+                ...rootPlane(PLANE),
+                outline: "rectangle",
+                bounds: box(0, 0, 600, 300),
+            },
+            node("x", "Task_A", box(100, 100), { pool: "Pool_1" }),
+            node("x", "Store_In", box(300, 100, 50, 50), {
+                pool: "Pool_1",
+                mayLieOutsidePool: true,
+            }),
+            node("x", "Note_In", box(400, 100)),
+            node("x", "Store_Out", box(800, 100, 50, 50), {
+                pool: "Pool_1",
+                mayLieOutsidePool: true,
+            }),
+        ];
+        const layout: LayoutModel = {
+            shapes: new Map(shapes.map((shape) => [shape.id, shape])),
+            edges: new Map(),
+        };
+        const before = DrawingDraft.of(layout);
+        const tool = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "y");
+
+        const units = tool.unitsIn(PLANE, undefined, new Set());
+
+        expect(units.map(({ id, nodes }) => [id, nodes])).toEqual([
+            ["Store_Out", ["Store_Out"]],
+            ["Pool_1", ["Task_A", "Store_In", "Note_In"]],
+        ]);
+    });
+});

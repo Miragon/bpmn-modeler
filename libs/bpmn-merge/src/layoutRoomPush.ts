@@ -1,6 +1,7 @@
 import {
     type Axis,
     boundsShifted,
+    endsLevelAlong,
     farSideOf,
     liesAheadWithin,
     nearSideOf,
@@ -188,7 +189,7 @@ export class RoomPush {
         const units = this.space.unitsIn(pool.plane, undefined, new Set([pool.id]));
         for (const other of units) {
             const shape = this.trial.shapes.get(other.id)!;
-            if (shape.kind !== "pool" || Math.abs(this.far(shape.bounds) - this.far(before)) > 1) {
+            if (shape.kind !== "pool" || !endsLevelAlong(this.axis, shape.bounds, before)) {
                 continue;
             }
             const strip = stripPast(this.axis, shape.bounds, growth);

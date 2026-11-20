@@ -1,6 +1,7 @@
 import {
     type Axis,
     along,
+    endsLevelAlong,
     farBorderOf,
     farSideOf,
     grownAlong,
@@ -15,7 +16,7 @@ import {
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
-    drawnPoolOf,
+    holdingPoolOf,
     innermostFrameOf,
     lanesOf,
     translatedNode,
@@ -104,10 +105,7 @@ export class SpaceTool {
         if (growth <= 0) return 0;
         const side = farBorderOf(this.axis);
         const across = lanes.filter(
-            (lane) =>
-                lane.id !== frame.id &&
-                Math.abs(farSideOf(this.axis, lane.bounds) - farSideOf(this.axis, frame.bounds)) <=
-                    1,
+            (lane) => lane.id !== frame.id && endsLevelAlong(this.axis, lane.bounds, frame.bounds),
         );
         const events = this.trial
             .nodesOn(frame.plane)
@@ -121,7 +119,11 @@ export class SpaceTool {
         return growth;
     }
 
-    /** The units directly in the container: its nodes with what moves with them, and on a plane outside a pool also its pools. */
+    /**
+     * The units directly in the container: its nodes with what moves with
+     * them, and on a plane outside a pool also its pools, each with the
+     * nodes it holds (`holdingPoolOf`).
+     */
     unitsIn(
         plane: string,
         container: LayoutShape | undefined,
@@ -157,11 +159,12 @@ export class SpaceTool {
                 lead: nearSideOf(this.axis, pool.bounds),
                 nodes: trial
                     .nodesOn(plane)
-                    .filter((node) => drawnPoolOf(trial, node)?.id === pool.id)
+                    .filter((node) => holdingPoolOf(trial, node)?.id === pool.id)
                     .map(({ id }) => id),
                 frames: [pool.id, ...lanesOf(trial, pool).map(({ id }) => id)],
             }));
-        return [...nodes, ...pools];
+        const inPools = new Set(pools.flatMap((pool) => pool.nodes));
+        return [...nodes.filter(({ id }) => !inPools.has(id)), ...pools];
     }
 
     /**
