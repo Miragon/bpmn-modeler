@@ -1534,8 +1534,20 @@
       ]
     },
     "repeated-value-sets": {
-      "version": 2,
+      "version": 3,
       "findings": [
+        {
+          "key": ".github/scripts/check-vitest-targets.mjs — [\"cjs\",\"cts\",\"js\",\"jsx\",\"mjs\",\"mts\",\"ts\",\"tsx\"]",
+          "path": ".github/scripts/check-vitest-targets.mjs",
+          "line": 18,
+          "message": "`cjs` · `cts` · `js` · `jsx` · `mjs` · `mts` · `ts` · `tsx`, also at `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:27`"
+        },
+        {
+          "key": ".github/scripts/check-vitest-targets.mjs — [\"spec\",\"test\"]",
+          "path": ".github/scripts/check-vitest-targets.mjs",
+          "line": 19,
+          "message": "`spec` · `test`, also at `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
         {
           "key": "apps/bpmn-webview/src/adapter/in/mergeBuildButton.ts — [\"canBuild\",\"openConflicts\"]",
           "path": "apps/bpmn-webview/src/adapter/in/mergeBuildButton.ts",
@@ -1589,6 +1601,12 @@
           "path": "libs/append-menu/src/AppendMenuOverride.ts",
           "line": 211,
           "message": "`bpmn-append` · `bpmn-create`, also at `libs/append-menu/src/AppendMenuOverride.ts:50`, `libs/append-menu/src/templateTypeAction.ts:27`"
+        },
+        {
+          "key": "libs/append-menu/src/plainEntryCatalog.ts — [\"append\",\"create\"]",
+          "path": "libs/append-menu/src/plainEntryCatalog.ts",
+          "line": 37,
+          "message": "`append` · `create`, also at `packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts:20`"
         },
         {
           "key": "libs/append-menu/src/templateTypeAction.ts — [\"bpmn-append\",\"bpmn-create\"]",
@@ -1687,6 +1705,12 @@
           "message": "`plugin` · `rulePackage`, also at `libs/shared/src/lib/addOnsView.ts:18`"
         },
         {
+          "key": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-core/src/scriptTask/domain/localDeclarations.ts",
+          "line": 138,
+          "message": "`JSON` · `S`, also at `libs/modeler-types/src/processVariables.ts:66`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
           "key": "libs/modeler-types/src/diffVocabulary.ts — [\"after\",\"before\"]",
           "path": "libs/modeler-types/src/diffVocabulary.ts",
           "line": 58,
@@ -1697,6 +1721,18 @@
           "path": "libs/modeler-types/src/engine.ts",
           "line": 173,
           "message": "`name` · `value`, also at `libs/element-template-builder/src/adapter/in/entries.tsx:74`, `libs/element-template-builder/src/adapter/in/settingEntries.ts:479`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 66,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:81`"
+        },
+        {
+          "key": "libs/modeler-types/src/processVariables.ts — [\"JSON\",\"S\"]",
+          "path": "libs/modeler-types/src/processVariables.ts",
+          "line": 81,
+          "message": "`JSON` · `S`, also at `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts:138`, `libs/modeler-types/src/processVariables.ts:66`"
         },
         {
           "key": "libs/properties-panel/src/cmd/index.ts — [\"eventBus\",\"injector\"]",
@@ -1729,6 +1765,12 @@
           "message": "` ` · `Enter`, also at `apps/deployment-webview/src/adapter/in/form.ts:378`, `libs/inline-scripting/src/scriptLockPropertiesProvider.ts:183`"
         },
         {
+          "key": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts — [\"append\",\"create\"]",
+          "path": "packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.ts",
+          "line": 20,
+          "message": "`append` · `create`, also at `libs/append-menu/src/plainEntryCatalog.ts:37`"
+        },
+        {
           "key": "packages/bpmn-modeler/src/viewState.ts — [\"eventBus\",\"injector\"]",
           "path": "packages/bpmn-modeler/src/viewState.ts",
           "line": 120,
@@ -1759,6 +1801,18 @@
           "message": "`--short` · `HEAD` · `rev-parse`, also at `scripts/perf/bench-lint-rules.mjs:88`"
         },
         {
+          "key": "tools/architecture-testing/src/sourceTree.ts — [\"spec\",\"test\"]",
+          "path": "tools/architecture-testing/src/sourceTree.ts",
+          "line": 19,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
+        {
+          "key": "tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts",
+          "line": 19,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
+        {
           "key": "tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts — [\"paths\",\"subject\"]",
           "path": "tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts",
           "line": 47,
@@ -1777,6 +1831,12 @@
           "message": "`paths` · `subject`, also at `tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts:47`, `tools/repo-checks/src/changeCoupling/domain/changeCoupling.ts:130`"
         },
         {
+          "key": "tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts",
+          "line": 17,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
+        {
           "key": "tools/repo-checks/src/fitness/adapter/out/gitRepository.ts — [\"--is-shallow-repository\",\"rev-parse\"]",
           "path": "tools/repo-checks/src/fitness/adapter/out/gitRepository.ts",
           "line": 29,
@@ -1787,6 +1847,42 @@
           "path": "tools/repo-checks/src/history/adapter/out/gitCommitHistory.ts",
           "line": 33,
           "message": "`--is-shallow-repository` · `rev-parse`, also at `tools/repo-checks/src/fitness/adapter/out/gitRepository.ts:29`"
+        },
+        {
+          "key": "tools/repo-checks/src/hostText/domain/hostText.ts — [\"cts\",\"mts\",\"ts\",\"tsx\"]",
+          "path": "tools/repo-checks/src/hostText/domain/hostText.ts",
+          "line": 45,
+          "message": "`cts` · `mts` · `ts` · `tsx`, also at `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:9`"
+        },
+        {
+          "key": "tools/repo-checks/src/hostText/domain/hostText.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/hostText/domain/hostText.ts",
+          "line": 47,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
+        {
+          "key": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts — [\"cjs\",\"cts\",\"js\",\"jsx\",\"mjs\",\"mts\",\"ts\",\"tsx\"]",
+          "path": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts",
+          "line": 27,
+          "message": "`cjs` · `cts` · `js` · `jsx` · `mjs` · `mts` · `ts` · `tsx`, also at `.github/scripts/check-vitest-targets.mjs:18`"
+        },
+        {
+          "key": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts",
+          "line": 30,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts:7`"
+        },
+        {
+          "key": "tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts — [\"spec\",\"test\"]",
+          "path": "tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts",
+          "line": 7,
+          "message": "`spec` · `test`, also at `.github/scripts/check-vitest-targets.mjs:19`, `tools/architecture-testing/src/sourceTree.ts:19`, `tools/repo-checks/src/changeCoupling/adapter/out/engineSourceStructure.ts:19`, `tools/repo-checks/src/conventionCoverage/adapter/out/engineRoleFolderSources.ts:17`, `tools/repo-checks/src/hostText/domain/hostText.ts:47`, `tools/repo-checks/src/repeatedValueSets/domain/repeatedValueSets.ts:30`"
+        },
+        {
+          "key": "tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts — [\"cts\",\"mts\",\"ts\",\"tsx\"]",
+          "path": "tools/repo-checks/src/sourceFiles/domain/sourceFiles.ts",
+          "line": 9,
+          "message": "`cts` · `mts` · `ts` · `tsx`, also at `tools/repo-checks/src/hostText/domain/hostText.ts:45`"
         }
       ]
     },
