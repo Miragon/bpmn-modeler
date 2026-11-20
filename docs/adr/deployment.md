@@ -1,7 +1,7 @@
 # Deployment
 
 - Status: accepted
-- Last reviewed: 2026-11-09
+- Last reviewed: 2026-11-20
 
 ## Context
 
@@ -24,29 +24,25 @@ credentials are sent, so it is untrusted input to the secret handling.
 
 ### Targets and credentials
 
-**The file.** Named targets live in `<configFolder>/deployment-targets.json`
-(default `.camunda/`), discovered from the focused document toward its workspace
-root; names are unique. `DeploymentTarget.create` owns the value rules, and both
-the file parser and a form save build targets through it
-([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)):
-trimmed non-blank name, engine `c7` or `c8`, non-blank endpoint and the tenant kept
-verbatim (ledger keys are built from the endpoint and trimming would orphan the
-rows of a hand-edited file), URL overrides trimmed or dropped when blank, auth type
-`none`, `basic` or `oauth2` keeping only its own fields, and valid environment
-references. The engine and auth type are checked at runtime against their homes
-(`ENGINES`, `TARGET_AUTH_TYPES`) because a form save's protocol payload is not
-checked on arrival; a malformed save is rejected before it writes a file that would
-no longer load. The parser reports a broken value as `targets[i]` plus the field,
-and a malformed file yields an error and no targets, never a crashed sidebar. The
-[JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json) is registered
+**The file.** Named targets live in `<configFolder>/deployment-targets.json` (default
+`.camunda/`), discovered from the focused document toward its workspace root; names are
+unique. `DeploymentTarget.create` owns the value rules, and both the file parser and a form
+save build targets through it
+([target tests](../../libs/modeler-core/src/deployment/domain/deploymentTarget.spec.ts)).
+The endpoint and tenant are kept verbatim: named ledger keys are built from the endpoint,
+and trimming would orphan the rows of a hand-edited file. The engine and auth type are
+checked at runtime against their homes (`ENGINES`, `TARGET_AUTH_TYPES`) because a form
+save's protocol payload is not checked on arrival; a malformed save is rejected before it
+writes a file that would no longer load. A broken value is reported as `targets[i]` plus
+the field, and a malformed file yields an error and no targets, never a crashed sidebar.
+The [JSON schema](../../libs/shared/src/lib/deploymentTargets.schema.json) is registered
 for editor validation.
 
 Three copies that cannot import these homes are pinned to them: the schema's enums
 ([schema tests](../../libs/modeler-core/src/deployment/domain/deploymentTargetsSchema.spec.ts)),
 the protocol's `AuthTypePayload` (a type-equality assertion in the `toTargetPayload`
-spec; otherwise an auth type only the protocol knows compiles and silently falls
-back to no auth), and the form's `<option>` values (the
-[form tests](../../apps/deployment-webview/src/adapter/in/form.spec.ts)).
+spec; an auth type only the protocol knows would otherwise fall back to no auth), and
+the form's `<option>` values ([form tests](../../apps/deployment-webview/src/adapter/in/form.spec.ts)).
 
 **Credentials** stay in the host secret store under `<targetsFilePath>::<name>`; the
 file path keeps same-named targets in different projects from sharing credentials
@@ -57,16 +53,16 @@ the pair (an earlier release finds no credentials after the first save). Never w
 secrets into the shared file; whole-value environment references (below) are the
 only credential values it may hold.
 
-**Edits.** Each edit returns a `TargetChange` (`created`, `saved`, `renamed`, `removed`), the one
-place that decides whether a save renames and which slot, ledger rows and approvals are retired or
-carried over; services act on it. A save stores the slot's credentials and approvals *before* it
-writes the file, so a failure before that point leaves the file and old slot as they were; once the
-file is written, a rename or delete removes the retired slot even if clearing the active name fails
-(the first failure is reported, later cleanup failures are logged). The trade-off: switching a stored
-literal to an environment reference leaves the reference in the slot while the file lacks it, so the
-target sends an empty value until a save succeeds. Writing the file first would open the reverse
-case (a reference replaced by a literal while the secret store rejects writes), and a rejecting
-secret store is the likelier failure
+**Edits.** Each edit returns a `TargetChange` (`created`, `saved`, `renamed`, `removed`), the
+one place that decides whether a save renames and which slot, ledger rows and approvals are
+retired or carried over; services act on it. A save stores the slot's credentials and approvals
+*before* it writes the file, so a failure before that point leaves the file and old slot as they
+were; once the file is written, a rename or delete removes the retired slot even if clearing the
+active name fails (the first failure is reported, later cleanup failures are logged). The
+trade-off: switching a stored literal to an environment reference leaves the reference in the
+slot while the file lacks it, so the target sends an empty value until a save succeeds. Writing
+the file first would open the reverse case (a reference replaced by a literal while the secret
+store rejects writes), and a rejecting secret store is the likelier failure
 ([service tests](../../libs/modeler-core/src/deployment/service/DeploymentTargetService.spec.ts)).
 
 **New and Save** are separate so a target is never overwritten by accident: New rejects an
@@ -75,12 +71,12 @@ rejected before anything is written. The active target name is non-secret host s
 sidebar and the status-bar picker; with no target selected the legacy unnamed ad-hoc connection
 applies and no file is written.
 
-**Events.** Every target change publishes one `DeploymentTargetsEvent`
-(`DeploymentTargetService.onDidChange`), including a file write whose follow-up cleanup failed (so the
-panel reloads instead of offering a retry of the same edit); a rejected save, cancelled delete or
-dismissed picker publishes nothing. `DeploymentFeature` subscribes the status service (prunes retired
-ledger rows, refreshes the indicator) and each attached panel (pushes the target list), so no command
-does either by hand, and a failing listener is logged and skipped.
+**Events.** Every target change publishes one `DeploymentTargetsEvent`, including a file write
+whose follow-up cleanup failed (so the panel reloads instead of offering a retry of the same
+edit); a rejected save, cancelled delete or dismissed picker publishes nothing. The status
+service and each attached panel subscribe in `DeploymentFeature`, so no command prunes the
+ledger, refreshes the indicator or pushes the target list by hand. A failing listener is logged
+and skipped, since the change is made by then.
 
 **Destination.** A target name resolves once per request into a `DeploymentDestination`: blank is the
 ad-hoc connection, a name the file holds is that target at the `TargetsLocation` it was read from, and
@@ -92,29 +88,25 @@ falls back to the remembered ad-hoc connection, the credentials prefill shows no
 **Routes.** Targets can override complete operation URLs (`endpoints.deploy`,
 `endpoints.startInstance`, with a percent-encoded `{processDefinitionKey}`); bodies stay
 engine-specific, so overrides are for gateways proxying that API. The conventional routes have one
-home (`conventionalRoutes` in `engineRoutes.ts`, built from the `c8ApiVersion` setting, which is read
-at each request, never once at construction: the IntelliJ bridge builds the feature before the host's
-first settings snapshot) and the form shows them as placeholders without writing any route itself.
+home (`conventionalRoutes` in `engineRoutes.ts`), built from the `c8ApiVersion` setting read at each
+request, because the IntelliJ bridge builds the feature before the host's first settings snapshot;
+the form shows them as placeholders and writes no route.
 
-**Environment references.** Any connection or auth field may embed
-`${env:MIRAGON_NAME}`, resolved from one `.env` (the destination's `dotEnvDirectory`):
-for a named target the one in the directory holding the config folder of the targets
-file it was read from, never one located again for the request; for an ad-hoc request
-the one at the document's workspace folder, so a nearer, possibly vendored targets
-file cannot supply variables for an endpoint the user typed. With nested workspace
-folders the innermost encloses a document on both hosts. The reference is stored and
-displayed as the literal everywhere upstream (secret store, targets file, webview
-prefill, target matching) and expanded only when the outbound request is built,
-inside the services that issue HTTP requests (`deploy`, `deployFiles`,
-`startInstance`, `verifyActive`), on the domain objects that return a request-only
-copy (`DeploymentConfig`, `StartInstanceConfig`, `InspectionRequest`, `AuthConfig`).
-Late expansion is load-bearing: an accepted deploy writes `config.auth` back to the
-secret store and `assertAdmits` matches the request against the saved target
-literally, so a resolved value there would persist a secret in cleartext or break
-matching (the ledger identity is the one exception, see
-[Freshness ledger](#freshness-ledger)). A missing variable throws
-`UnresolvedEnvVariableError` and never falls back to the literal; an expanded config
-is rebuilt through the same invariants as a typed one.
+**Environment references.** Any connection or auth field may embed `${env:MIRAGON_NAME}`,
+resolved from one `.env` (the destination's `dotEnvDirectory`): for a named target the one
+in the directory holding the config folder of the targets file it was read from, never one
+located again for the request; for an ad-hoc request the one at the document's workspace
+folder, so a nearer, possibly vendored targets file cannot supply variables for an endpoint
+the user typed. With nested workspace folders the innermost encloses a document on both
+hosts. The reference is stored and displayed as the literal everywhere upstream (secret
+store, targets file, webview prefill, target matching) and expanded only when the outbound
+request is built, on the domain objects that return a request-only copy (`DeploymentConfig`,
+`AuthConfig`, …). Late expansion is load-bearing: an accepted deploy writes `config.auth`
+back to the secret store and `assertAdmits` matches the request against the saved target
+literally, so a resolved value there would persist a secret in cleartext or break matching
+(the ledger identity is the one exception, see [Freshness ledger](#freshness-ledger)). A
+missing variable throws `UnresolvedEnvVariableError` and never falls back to the literal; an
+expanded config is rebuilt through the same invariants as a typed one.
 
 Resolution is scoped because a committed targets file chooses both the destination
 and the variables it embeds:
@@ -135,32 +127,28 @@ and the variables it embeds:
 - A symlinked `.env` is refused (a repository can commit one pointing at another
   project's). `.env` is read only when a value contains a reference, so an unrelated
   `.env` (a virtualenv directory) cannot fail requests without references.
-- No resolved value is echoed. `DisallowedEnvReferenceError` names only the field;
-  `FetchHttpClient` replaces fetch's transport errors (which quote the full URL)
-  with `HttpTransportError` naming only the host. A gateway may repeat the request
-  in its error body, so the REST clients surface only a known message field or a
-  plain-text body, drop HTML and other JSON, cap it at one 1000-character line
-  (`engineErrorDetail`) and first mask what the request carried (`SecretRedactor`:
+- No resolved value is echoed. `DisallowedEnvReferenceError` names only the field and
+  `HttpTransportError` only the host (fetch's own transport errors quote the full URL).
+  A gateway may repeat the request in its error body, so the REST clients surface only
+  a known message field or a plain-text body, capped at one 1000-character line
+  (`engineErrorDetail`), and first mask what the request carried (`SecretRedactor`:
   credentials, substituted `.env` values, `Authorization`, URL userinfo and query
-  values, in raw and several encoded forms). Only the server's text is masked; the
-  modeler's own messages never contain a resolved secret. A successful token
-  response is never echoed.
+  values, raw and encoded). Only the server's text is masked, since the modeler's own
+  messages never contain a resolved secret. A successful token response is never echoed.
 
-**Origin approval.** A named target's credentials and the `.env` values its requests
-carry are bound to the origins (`scheme://host[:port]`) its developer approved for
-that target; the scheme counts because `http:` exposes them on the wire. `.env`
-values count even without credentials (a committed `auth.type: "none"` target could
-otherwise put `${env:MIRAGON_PASSWORD}` into a new host's query). Before deploy,
-start instance or verify sends either, the core resolves the request's destinations
-(deploy/start URL after substitution or `endpoint`, plus the OAuth2 token endpoint)
-and `CredentialApprovalService` asks through the host's confirm dialog for any
-origin not yet approved; declining sends nothing and fails the request. A cancelled
-prompt (such as the keychain read) is a dismissal, not a decline: services let
-`UserCancelledError` through, Deploy Files stops the whole batch since its one
-approval precedes any file, and the sidebar replies with a result marked
-`cancelled`. Destinations are computed from the resolved request, so a changed
-`.env` value is caught, and a URL without a host is refused outright (`https:` plus
-a conventional route would parse the first route segment as the host).
+**Origin approval.** A named target's credentials and the `.env` values its requests carry are
+bound to the origins (`scheme://host[:port]`) its developer approved for that target; the
+scheme counts because `http:` exposes them on the wire. `.env` values count even without
+credentials (a committed `auth.type: "none"` target could otherwise put
+`${env:MIRAGON_PASSWORD}` into a new host's query). Before deploy, start instance or verify
+sends either, the core resolves the request's destinations (deploy/start URL after substitution
+or `endpoint`, plus the OAuth2 token endpoint) and `CredentialApprovalService` asks through the
+host's confirm dialog for any origin not yet approved; declining sends nothing and fails the
+request. A cancelled prompt (such as the keychain read) is a dismissal, not a decline: it stops
+the request, or the whole Deploy Files batch, whose one approval precedes any file; the sidebar
+reports it as cancelled and a command reports nothing. Destinations are computed from the
+resolved request, so a changed `.env` value is caught, and a URL without a host is refused
+outright (`https:` plus a conventional route would parse the first route segment as the host).
 
 - Saving through the form approves only origins the user typed: literal ones no
   target in the shared file names yet. A host the form merely carried over (from the
@@ -171,31 +159,30 @@ a conventional route would parse the first route segment as the host).
   a resolved host is never persisted in cleartext; delete removes them and rename
   carries them over. Ad-hoc requests are gated only once a `.env` value is
   substituted, under one shared `ad-hoc` slot (a typed endpoint is the user's own
-  choice, one from `.env` is not). The prompt leads with the hosts and shows the
-  sanitized target name.
+  choice, one from `.env` is not). The prompt's title names only the hosts; the target
+  name, which the shared file controls, appears in the details sanitized to one
+  shortened line.
 
 **Credential references in the file.** A whole-value env reference is not a secret,
 so a credential field whose entire trimmed value is one prefixed reference is also
-persisted in the shared file (`auth.username`/`password`/`clientId`/`clientSecret`,
-each schema-pinned to the reference pattern so a literal secret cannot validate in;
-the parser rejects any other value under these keys for every auth type).
-`CredentialRefs` owns the split. The secret store keeps every value as typed, refs
-included (blanking would break PasswordSafe, which reads an empty half of a pair
-back as absent). On read, file references win over secret-store values and a ref
-held only by the store is ignored, so a ref a teammate removed stays removed. A
-deploy or start against a named target must carry exactly the target's refs
-(`CredentialRefs.admits`), because deploy re-saves credentials only to the secret
-store and an edited ref would otherwise never reach the shared file. A teammate can
-clone, add a `.env` and deploy with no per-machine credential setup.
+persisted in the shared file (each credential key is schema-pinned to the reference
+pattern, so a literal secret cannot validate in, and the parser rejects any other
+value there). `CredentialRefs` owns the split. The secret store keeps every value as
+typed, refs included (blanking would break PasswordSafe, which reads an empty half of
+a pair back as absent). On read, file references win and a ref held only by the store
+is ignored, so a ref a teammate removed stays removed. A deploy or start against a
+named target must carry exactly the target's refs (`CredentialRefs.admits`), because
+deploy re-saves credentials only to the secret store and an edited ref would otherwise
+never reach the shared file. A teammate can clone, add a `.env` and deploy with no
+per-machine credential setup.
 
 ### Saved-target execution
 
 Connection changes to a named target must be saved before Deploy or Start Instance
 (literal credential edits stay executable; credential references are part of the
 target). Both actions share readiness state and are unavailable during target
-switches or secret loading. The webview checks the connection the same way before
-either posts (a non-blank endpoint and the fields the auth type requires;
-`requestAuthOf` in `domain/deploymentDraft.ts` owns the rule and texts), while
+switches or secret loading. The webview checks the connection before either posts (a
+non-blank endpoint and the fields the auth type requires, `requestAuthOf`), while
 **New** and **Save** check no credential: the file holds the connection and
 credentials are per machine. The core checks no credential field for presence.
 
@@ -219,8 +206,8 @@ in the core owns this rule and host adapters decide nothing. The connection is o
 
 Private credential requests and replies carry a monotonically increasing request id
 and the target name; stale replies, failures included, are ignored. Secrets clear
-when the target or auth method switches, target lists carry their document directory
-so another document's same-named target cannot inherit a credential draft, and
+when the target or auth method switches, and target lists carry their document
+directory so another document's same-named target cannot inherit a credential draft;
 returning to ad-hoc mode restores its defaults and clears named-target URL overrides.
 
 ### Freshness ledger
@@ -238,14 +225,14 @@ connections, not what this machine deployed.
 | Revision | `fingerprint`, `deployedAt`, optional `deploymentId`, `origin`, `verifiedAt` |
 
 Fingerprints normalize line endings and concatenate two independently seeded 32-bit
-FNV-1a hashes (a portable content-change check without `node:crypto`). A deploy reads
-and fingerprints the file on disk, so both deploys of the open diagram first flush the
-webview's pending edits into the document and save it through one `SaveBeforeDeploy`
-step. The sidebar saves only once the config is valid and the target admitted; a
-declined credential approval, failed `.env` lookup or engine error come after the
-save and leave the diagram saved; a failed save aborts the deploy. Freshness compares
-against the editor buffer, so an edit after a deploy reads `changed` before it is
-saved. Additional sidebar files and Deploy Files… deploy as saved.
+FNV-1a hashes (a portable content-change check without `node:crypto`). A deploy
+fingerprints the file on disk, so both deploys of the open diagram first flush the
+webview's pending edits and save the document (`SaveBeforeDeploy`). The sidebar saves
+only once the config is valid and the target admitted; a later failure (a declined
+approval, a failed `.env` lookup, an engine error) leaves the diagram saved, and a
+failed save aborts the deploy. Freshness compares against the editor buffer, so an
+edit after a deploy reads `changed` before it is saved. Additional sidebar files and
+Deploy Files… deploy as saved.
 
 | Freshness | Interpretation |
 | --- | --- |
@@ -255,18 +242,15 @@ saved. Additional sidebar files and Deploy Files… deploy as saved.
 | `superseded` (blue) | Editor differs from a revision adopted from the engine |
 
 `DeploymentStatusService` owns ledger recording and the indicator;
-`DeploymentTargetService` owns target files and credentials. Each ledger write
-(record, adopt, forget, prune) ends by refreshing the indicator, even after a failed
-write (an ad-hoc deploy saves the connection the indicator reads just before its
-row); target changes, editor focus and debounced edits refresh it too. The active
-target and ledger are part of the deployment state's synchronous `load()`
-([mirror contract](intellij-bridge.md#host-replicated-state)). The indicator
-names the connection its freshness refers to (a destination's `statusConnection`; a
-target name that no longer resolves falls back to the remembered ad-hoc connection),
-and `deploymentStatusView` turns connection, freshness and times into the
-`deploymentTarget` [status view](architecture-and-hosts.md#host-integrations), with
-times formatted in the modeler language and the machine's time zone so both hosts
-show the same text.
+`DeploymentTargetService` owns target files and credentials. Each ledger write ends by
+refreshing the indicator, even after a failed write (an ad-hoc deploy saves the
+connection the indicator reads just before its row). The active target and ledger are
+part of the deployment state's synchronous `load()`
+([mirror contract](intellij-bridge.md#host-replicated-state)). The indicator names the
+connection its freshness refers to (a target name that no longer resolves falls back to
+the remembered ad-hoc connection), and `deploymentStatusView` builds the
+`deploymentTarget` [status view](architecture-and-hosts.md#host-integrations), with times
+in the modeler language and the machine's time zone so both hosts show the same text.
 
 ### Engine reconciliation
 
@@ -299,11 +283,9 @@ current row (an accepted reset that avoids a misleading green indicator).
   clone shows `unknown`, and a file rename changes the key.
 - Deploying the open diagram always saves it first, so neither Deploy button can ship
   the saved version while keeping unsaved edits.
-- Approval adds one confirmation per target and host on first use, including once for
-  every existing target with credentials or `.env` references after the upgrade that
-  introduced it. A fresh clone whose credentials are pure `${env:…}` references
-  confirms the host once as well. Approvals follow the targets-file path like the
-  credentials do.
+- Approval adds one confirmation per target and host on first use, also for a fresh
+  clone whose credentials are pure `${env:…}` references. Approvals follow the
+  targets-file path like the credentials do.
 - Error messages trade detail for containment: a gateway's plain-text or structured
   message survives, an HTML page or unrecognised JSON shows only the HTTP status, and
   a short substituted value is masked wherever it appears in the server's text.
@@ -314,5 +296,4 @@ current row (an accepted reset that avoids a misleading green indicator).
   ([envRef tests](../../libs/modeler-core/src/deployment/domain/envRef.spec.ts), with a
   schema parity spec).
 - A non-OAuth2 target loses a hand-written `auth.tokenEndpoint`/`audience` on load and
-  save, and padded URL overrides load and save trimmed, so a hidden field never blocks
-  a save.
+  save, and padded URL overrides load and save trimmed, so a hidden field never blocks a save.

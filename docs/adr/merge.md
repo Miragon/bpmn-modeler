@@ -25,9 +25,13 @@ holds `computeMerge`, `MergeDecisions` and `buildMerged`. It is not in `libs/bpm
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `.github/release-lines.json` ships the workspace on the hosts only, not on the npm line.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
-share one notion of an element's XML, and on `@miragon/bpmn-modeler-types/engine` for the
-modeler's engine rule. It imports that subpath, not the barrel, which would pull DOM-typed
-modules into a DOM-free library.
+share one notion of an element's XML: besides `elementSnapshots`, `bpmn-diff` exports its
+moddle walk, the unit rule `trackedElementOf`, its namespace reading and its parse, so the
+merge applies them instead of copying them. The cost is a wider workspace API: a change to
+one of them is a change to the merge. `@miragon/bpmn-modeler/diff` re-exports none of them.
+The library depends on `@miragon/bpmn-modeler-types/engine` for the modeler's engine rule.
+It imports that subpath, not the barrel, which would pull DOM-typed modules into a DOM-free
+library.
 
 The core imports it, so its consumers' TypeScript `lib` (`ES2021`, `tsconfig.base.json`)
 binds it too: it calls no ES2022 or later library API (`findLast`, `Object.hasOwn`, an
