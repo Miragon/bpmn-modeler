@@ -144,6 +144,12 @@ export type MergePaneBlock =
 /** What the user decided on a pane: kept an element, kept it out from a side that removed it, or took a pick back. */
 export type MergePanePickAction = "pick" | "leaveOut" | "unpick";
 
+/** A decision of a pane the merge refused: what the user did, on which element. */
+export interface MergePaneRefusedDecision {
+    readonly action: MergePanePickAction;
+    readonly elementId: string;
+}
+
 /** What the user did: a decision on a pane, or a picked element's XML merged by hand. */
 export type MergePaneAction = MergePanePickAction | "mergeByHand";
 
@@ -189,6 +195,8 @@ export type MergePaneOutcome =
           readonly reopened: readonly string[];
           /** A merge by hand's count of the finishes in a row, as on a refused one. */
           readonly finish?: number;
+          /** Set on an undo after which the merge would apply the sending pane's last refused decision. */
+          readonly freed?: MergePaneRefusedDecision;
       }
     | {
           readonly applied: false;

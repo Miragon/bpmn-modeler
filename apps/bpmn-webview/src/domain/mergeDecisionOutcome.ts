@@ -17,22 +17,3 @@ export function isHandMergeOutcome(outcome: MergePaneOutcome): outcome is MergeH
 export function isDecisionOutcome(outcome: MergePaneOutcome): outcome is MergeDecisionOutcome {
     return outcome.action !== "mergeByHand";
 }
-
-/**
- * Whether an undo freed the refusal: it took back one of the picks that
- * blocked it, every reason was such a pick, and none of them is left.
- */
-export function refusalFreedBy(
-    refusal: MergeRefusal,
-    undoOutcome: MergeDecisionOutcome,
-    pickedIds: ReadonlySet<string>,
-): boolean {
-    if (!undoOutcome.applied || undoOutcome.action !== "unpick") return false;
-    const { blockedBy } = refusal;
-    return (
-        blockedBy.some((block) => block.elementId === undoOutcome.elementId) &&
-        blockedBy.every(
-            (block) => block.obstacle === "dependentPicked" && !pickedIds.has(block.elementId),
-        )
-    );
-}

@@ -175,7 +175,7 @@ export class BpmnDiffService {
     ): Promise<void> {
         const armed = this.relay.armedOf(handle);
         if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.unpick(armed, { elementId, scope, dropsHandMerges });
+            await this.merge.unpick(armed, handle, { elementId, scope, dropsHandMerges });
         }
     }
 
