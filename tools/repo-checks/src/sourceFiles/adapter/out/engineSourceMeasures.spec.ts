@@ -29,22 +29,24 @@ describe("the engine's source measures", () => {
         repository.write("libs/core/src/untracked.ts", "export const c = 3;");
 
         expect(new EngineSourceMeasures().read(repository.root)).toEqual([
-            { path: "libs/core/src/a.ts", codeLines: 1, functions: [], barrel: false },
+            { path: "libs/core/src/a.ts", codeLines: 1, functions: [], barrel: false, runsNoCode: true },
             {
                 path: "libs/core/src/b.ts",
                 codeLines: 3,
                 functions: [{ name: "f", line: 2, complexity: 2 }],
                 barrel: false,
+                runsNoCode: false,
             },
         ]);
     });
 
-    it("tells a barrel, which only imports and re-exports, from a file of type declarations", () => {
+    it("tells a barrel from a file of type declarations, and both from a file that runs code", () => {
         const files: Record<string, string> = {
             "package.json": JSON.stringify({ name: "root", workspaces: ["libs/*"] }),
             "libs/core/src/index.ts":
                 'import { b } from "./b";\nexport * from "./a";\nexport type { Message } from "./types";\nexport { b };\n',
             "libs/core/src/types.ts": 'export interface Message {\n    kind: "save";\n}\n',
+            "libs/core/src/start.ts": 'import { b } from "./b";\nb();\n',
         };
         for (const [path, content] of Object.entries(files)) {
             repository.write(path, content);
@@ -54,10 +56,11 @@ describe("the engine's source measures", () => {
         expect(
             new EngineSourceMeasures()
                 .read(repository.root)
-                .map(({ path, barrel }) => [path, barrel]),
+                .map(({ path, barrel, runsNoCode }) => [path, { barrel, runsNoCode }]),
         ).toEqual([
-            ["libs/core/src/index.ts", true],
-            ["libs/core/src/types.ts", false],
+            ["libs/core/src/index.ts", { barrel: true, runsNoCode: true }],
+            ["libs/core/src/start.ts", { barrel: false, runsNoCode: false }],
+            ["libs/core/src/types.ts", { barrel: false, runsNoCode: true }],
         ]);
     });
 });
