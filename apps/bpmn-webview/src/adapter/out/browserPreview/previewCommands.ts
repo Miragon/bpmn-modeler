@@ -1,6 +1,6 @@
-import type { MessageOfType, Query } from "@miragon/bpmn-modeler-shared";
+import type { PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
 
-import type { BpmnWebviewCommand, BpmnWebviewCommandType } from "../../../port/hostChannel";
+import type { BpmnWebviewCommandType } from "../../../port/hostChannel";
 import { emptyClipboard, emptyTextClipboard } from "./clipboardPreview";
 import type { DiffPreview } from "./diffPreview";
 import { previewDocument } from "./documentPreview";
@@ -27,16 +27,6 @@ export interface PreviewSession {
     reply(query: Query | undefined): void;
 }
 
-/** What the preview does with a command, or why it drops it. */
-export type PreviewRoute<TType extends BpmnWebviewCommandType> =
-    | ((command: MessageOfType<TType>, preview: PreviewSession) => void)
-    | { readonly ignored: string };
-
-/** A row per webview command: a command without one fails to compile. */
-type PreviewCommandTable = {
-    readonly [TType in BpmnWebviewCommandType]: PreviewRoute<TType>;
-};
-
 const NO_PARTNER_PANE = "a single pane has no partner pane to follow it";
 const NO_WORKSPACE = "the preview has no workspace to act in";
 const NO_SCRIPT_EDITOR = "the preview has no editor to open a script in";
@@ -44,7 +34,7 @@ const NO_MERGE = "the preview has no merge to decide in";
 const NO_SECOND_EDITOR = "the preview has no second editor to compare in";
 const NO_ELEMENT_ID_REVIEW = "the preview has no host to review element ids in";
 
-const PREVIEW_COMMANDS: PreviewCommandTable = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommandType, PreviewSession> = {
     GetBpmnFileCommand: (_, preview) => preview.reply(previewDocument(preview.mode)),
     GetBpmnPluginsCommand: (_, preview) => preview.reply(previewPlugins(preview.search)),
     GetElementTemplatesCommand: (_, preview) => preview.reply(previewElementTemplates()),
@@ -105,23 +95,7 @@ const PREVIEW_COMMANDS: PreviewCommandTable = {
         preview.reply(definitionsMatching(command)),
 };
 
-/** The row of a command type; a type without one, an inherited object member's included, throws. */
-export function previewRouteOf(type: string): PreviewRoute<BpmnWebviewCommandType> {
-    if (!Object.hasOwn(PREVIEW_COMMANDS, type)) {
-        throw new Error(`Unknown message type: ${type}`);
-    }
-    return PREVIEW_COMMANDS[type as BpmnWebviewCommandType] as PreviewRoute<BpmnWebviewCommandType>;
-}
-
-export function routePreviewCommand(command: BpmnWebviewCommand, preview: PreviewSession): void {
-    const route = previewRouteOf(command.type);
-    if ("ignored" in route) {
-        console.debug(`[DEBUG] ${command.type} ignored: ${route.ignored}`, command);
-        return;
-    }
-    // Sound because the table hands each row only commands of its own key's type.
-    (route as (command: BpmnWebviewCommand, preview: PreviewSession) => void)(command, preview);
-}
+export const PREVIEW_LOG_PREFIX = "[DEBUG]";
 
 async function answerReadyPane(preview: PreviewSession): Promise<void> {
     const pane = paneOf(preview.mode);
