@@ -1,4 +1,4 @@
-import { SPEC_FILE, TEST_FOLDERS } from "../../sourceFiles/domain/sourceFiles";
+import { SPEC_FILE, TEST_FOLDERS } from "@miragon/architecture-testing";
 
 export interface ImportLink {
     readonly from: string;

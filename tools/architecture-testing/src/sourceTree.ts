@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { DECLARATION_FILE, SPEC_FILE, TEST_FOLDERS } from "./testFiles";
+
 export interface SourceFile {
     /** POSIX path relative to the tree root. */
     readonly path: string;
@@ -15,15 +17,14 @@ export interface SourceTreeOptions {
 }
 
 const DEFAULT_EXTENSIONS: readonly string[] = [".ts", ".tsx"];
-const DEFAULT_SKIP_DIRS: readonly string[] = ["node_modules", "dist", "coverage", "__fixtures__"];
-const SPEC_FILE = /\.(spec|test)\.[cm]?[jt]sx?$/;
+const DEFAULT_SKIP_DIRS: readonly string[] = ["node_modules", "dist", "coverage", ...TEST_FOLDERS];
 
 export function readSourceTree(root: string, options: SourceTreeOptions = {}): SourceFile[] {
     const extensions = options.extensions ?? DEFAULT_EXTENSIONS;
     const skipDirs = new Set(options.skipDirs ?? DEFAULT_SKIP_DIRS);
     const isIncluded = (name: string): boolean =>
         extensions.some((extension) => name.endsWith(extension)) &&
-        !name.endsWith(".d.ts") &&
+        !DECLARATION_FILE.test(name) &&
         (options.includeSpecs === true || !SPEC_FILE.test(name));
     return listFiles(root, "", skipDirs, isIncluded)
         .sort()

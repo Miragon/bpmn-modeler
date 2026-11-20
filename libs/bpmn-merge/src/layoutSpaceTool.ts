@@ -10,10 +10,11 @@ import {
 } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import { stretchedEdge } from "./layoutEdgeStretch";
+import { carrierIdsOf, holdingPoolOf, innermostFrameOf, lanesOf } from "./layoutFrames";
 import { type DiagramBounds, bordersAt, centerOf, translated } from "./layoutGeometry";
-import { holdingPoolOf, innermostFrameOf, lanesOf } from "./layoutFrames";
 import {
     type LaneShape,
+    type LayoutModel,
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
@@ -54,7 +55,8 @@ export interface Band {
 export class SpaceTool {
     /** How far each shifted node and frame went along the axis. */
     private readonly shift = new Map<string, number>();
-    private readonly shiftedUnits = new Set<string>();
+    /** The units and frames that gave way on their own, not with a frame that shifted. */
+    private readonly gaveWay = new Set<string>();
 
     constructor(
         private readonly before: DrawingDraft,
@@ -65,7 +67,12 @@ export class SpaceTool {
 
     /** The outermost shapes that gave way, pools among them, in document order. */
     get shifted(): string[] {
-        return [...this.before.shapes.keys()].filter((id) => this.shiftedUnits.has(id));
+        return inDocumentOrder(this.before, this.gaveWay);
+    }
+
+    /** The outermost shapes that gave way to any of the tools, in the drawing's document order. */
+    static shiftedBy(drawing: LayoutModel, tools: readonly Pick<SpaceTool, "shifted">[]): string[] {
+        return inDocumentOrder(drawing, new Set(tools.flatMap(({ shifted }) => shifted)));
     }
 
     /** Every shape that moved, frames among them. */
@@ -73,14 +80,27 @@ export class SpaceTool {
         return [...this.shift.keys()];
     }
 
-    /** Opens the band: each unit and frame at or past the line that has not given way yet shifts, the growing frames grow. */
+    /**
+     * Opens the band: each unit and frame at or past the line that has not
+     * given way yet shifts, the growing frames grow. A frame gives way on its
+     * own unless a frame it shifts with shifted too.
+     */
     openBand({ line, by, units, frames, growing }: Band): void {
         for (const unit of units) {
-            if (unit.lead >= line && !this.shiftedUnits.has(unit.id)) this.shiftUnit(unit, by);
+            if (unit.lead >= line && !this.gaveWay.has(unit.id)) this.shiftUnit(unit, by);
         }
+        const shifting: LayoutShape[] = [];
         for (const frame of frames) {
             if (growing.has(frame.id)) this.trial.replaceShape(this.grown(frame, by));
-            else if (nearSideOf(this.axis, frame.bounds) >= line) this.moveShape(frame, by);
+            else if (nearSideOf(this.axis, frame.bounds) >= line) {
+                this.moveShape(frame, by);
+                shifting.push(frame);
+            }
+        }
+        for (const frame of shifting) {
+            if (!carrierIdsOf(frame).some((id) => this.shift.has(id))) {
+                this.gaveWay.add(frame.id);
+            }
         }
     }
 
@@ -90,7 +110,7 @@ export class SpaceTool {
             if (node !== undefined) this.moveShape(node, by);
         }
         for (const id of unit.frames) this.moveShape(this.trial.shapes.get(id)!, by);
-        this.shiftedUnits.add(unit.id);
+        this.gaveWay.add(unit.id);
     }
 
     /**
@@ -199,6 +219,10 @@ export class SpaceTool {
     private grown<Shape extends LayoutShape>(shape: Shape, by: number): Shape {
         return { ...shape, bounds: grownAlong(this.axis, shape.bounds, by) };
     }
+}
+
+function inDocumentOrder(drawing: LayoutModel, ids: ReadonlySet<string>): string[] {
+    return [...drawing.shapes.keys()].filter((id) => ids.has(id));
 }
 
 /** Where a node lies along the axis: a sub-process drawn open by its near side, another node by its center. */

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PLANE, flow, layoutOf, node, pool } from "./__fixtures__/layoutShapes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import {
+    carrierIdsOf,
     drawnPoolOf,
     frameIdsOf,
     framesAroundOf,
@@ -196,6 +197,39 @@ describe("frameIdsOf", () => {
         },
     ])("names $label", ({ relations, frames }) => {
         expect(frameIdsOf(node("Task_1", relations))).toEqual(frames);
+    });
+});
+
+describe("carrierIdsOf", () => {
+    const lane = (id: string, parent: string, poolId?: string): LayoutShape => ({
+        kind: "lane",
+        id,
+        ...rootPlane(PLANE),
+        parent,
+        ...(poolId === undefined ? {} : { pool: poolId }),
+        outline: "rectangle",
+        bounds: { x: 30, y: 0, width: 870, height: 300 },
+    });
+
+    it.each<[string, LayoutShape, string[]]>([
+        [
+            "a top lane's process and pool",
+            lane("Lane_1", "Process_1", "Pool_1"),
+            ["Process_1", "Pool_1"],
+        ],
+        [
+            "a child lane's parent lane and pool",
+            lane("Lane_2", "Lane_1", "Pool_1"),
+            ["Lane_1", "Pool_1"],
+        ],
+        [
+            "only the parent of a lane drawn without a pool",
+            lane("Lane_3", "Process_1"),
+            ["Process_1"],
+        ],
+        ["nothing for a pool", pool("Pool_1"), []],
+    ])("names %s", (_, frame, carriers) => {
+        expect(carrierIdsOf(frame)).toEqual(carriers);
     });
 });
 

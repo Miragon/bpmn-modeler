@@ -1,23 +1,9 @@
-export const TEST_FOLDERS: ReadonlySet<string> = new Set([
-    "__fixtures__",
-    "__tests__",
-    "test",
-    "tests",
-]);
-export const SPEC_FILE = /\.(spec|test)\.[cm]?[jt]sx?$/;
+import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
 
 export const TYPESCRIPT_FILE = /\.(ts|tsx|mts|cts)$/;
-export const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 function isMeasuredTypeScript(pathInWorkspace: string): boolean {
-    const folders = pathInWorkspace.split("/");
-    const name = folders.pop() as string;
-    return (
-        TYPESCRIPT_FILE.test(name) &&
-        !DECLARATION_FILE.test(name) &&
-        !SPEC_FILE.test(name) &&
-        !folders.some((folder) => TEST_FOLDERS.has(folder))
-    );
+    return TYPESCRIPT_FILE.test(pathInWorkspace) && !isTestOrDeclarationFile(pathInWorkspace);
 }
 
 /** Every workspace's TypeScript, without specs, declaration files and test folders. */

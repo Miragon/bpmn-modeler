@@ -175,19 +175,5 @@ function openBand(drawing: DrawingDraft, groups: ShapeGroups, band: LaneBand): s
         growing: band.growing,
     });
     space.stretchEdges(pool.plane, new Set(), band.line);
-    const moved = new Set(space.moved);
-    return outermostOf([...drawing.shapes.values()].filter(({ id }) => moved.has(id)));
-}
-
-/** The shifted shapes that did not shift with their pool, parent lane, host or sub-process. */
-function outermostOf(shifted: readonly LayoutShape[]): string[] {
-    const ids = new Set(shifted.map(({ id }) => id));
-    const carriers = (shape: LayoutShape): (string | undefined)[] => {
-        if (shape.kind === "pool") return [];
-        if (shape.kind === "lane") return [shape.pool, shape.parent];
-        return [shape.pool, shape.host, ...shape.subProcesses];
-    };
-    return shifted
-        .filter((shape) => !carriers(shape).some((id) => id !== undefined && ids.has(id)))
-        .map(({ id }) => id);
+    return space.shifted;
 }

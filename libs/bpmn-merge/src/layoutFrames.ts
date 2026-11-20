@@ -45,6 +45,12 @@ export function lanesOf(layout: LayoutModel, pool: LayoutShape): LaneShape[] {
     );
 }
 
+/** What a lane shifts with: its parent lane or the process whose lane set holds it, and its pool; nothing for a pool. */
+export function carrierIdsOf(frame: LayoutShape): string[] {
+    if (frame.kind !== "lane") return [];
+    return [frame.parent, ...(frame.pool === undefined ? [] : [frame.pool])];
+}
+
 /**
  * The drawn frames on the node's plane that the node must lie inside: its
  * sub-process when it has one, which stands for its contents in the pool and
