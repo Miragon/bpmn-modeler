@@ -12,7 +12,7 @@ import {
 import { RoomPush, type RoomRequest } from "./layoutRoomPush";
 import { type RoomSlot, slotOffsetsOf, slotShapeOf } from "./layoutRoomSlots";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
-import { leadAlong } from "./layoutSpaceTool";
+import { SpaceTool, leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
 import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -31,6 +31,11 @@ export interface RoomMade {
 /** The room of a slot that was free: the draft with the shape moved there, nothing shifted or grown. */
 export function freeRoom(draft: DrawingDraft): RoomMade {
     return { draft, shifted: [], grown: [], growth: 0 };
+}
+
+/** How many shapes the room shifted, leaving out the lanes shifted below a lane it grew: its growth weighs those. */
+export function shiftedShapeCountOf({ draft, shifted }: RoomMade): number {
+    return shifted.filter((id) => draft.shapes.get(id)?.kind !== "lane").length;
 }
 
 /** What making room reads beside the drawing: what moves with a node and how the flows join the nodes. */
@@ -125,11 +130,10 @@ function roomAt(
     ) {
         return undefined;
     }
-    const shiftedIds = new Set(pushes.flatMap(({ shifted }) => shifted));
     const grown = grownFrames(draft, trial);
     return {
         draft: trial,
-        shifted: [...draft.shapes.keys()].filter((id) => shiftedIds.has(id)),
+        shifted: SpaceTool.shiftedBy(draft, pushes),
         grown: grown.map(({ id }) => id),
         growth: grown.reduce((sum, { by }) => sum + by, 0),
     };

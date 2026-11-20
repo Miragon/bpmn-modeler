@@ -12,6 +12,8 @@ const appDir = fileURLToPath(new URL("../", import.meta.url));
 const binary =
     process.env.STANDALONE_PACKAGED_BINARY ??
     path.join(appDir, "dist/linux-unpacked/miragon-bpmn-modeler");
+/** V8 before 15.2 can collect an evaluate's promise after its function ran. */
+const COLLECTED_PROMISE = "Resulting promise was garbage collected";
 
 test("packaged Quick Open finds files through Theia's ripgrep backend", async (t) => {
     const directory = mkdtempSync(path.join(tmpdir(), "modeler-packaged-quick-open-"));
@@ -22,9 +24,13 @@ test("packaged Quick Open finds files through Theia's ripgrep backend", async (t
             if (child.exitCode === null && child.signalCode === null) {
                 const exited = new Promise((resolve) => child.once("exit", resolve));
                 // Theia's Electron quit handler terminates its separately forked backend.
-                const quit = app.evaluate(({ app: electronApp }) => {
-                    setTimeout(() => electronApp.exit(0), 0);
-                });
+                const quit = app
+                    .evaluate(({ app: electronApp }) => {
+                        setTimeout(() => electronApp.exit(0), 0);
+                    })
+                    .catch((error) => {
+                        if (!String(error?.message).includes(COLLECTED_PROMISE)) throw error;
+                    });
                 let timer;
                 try {
                     await Promise.race([

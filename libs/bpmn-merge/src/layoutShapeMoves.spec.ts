@@ -557,7 +557,7 @@ describe("planShapeMoves", () => {
                         kind: "madeRoomByGrowingAndShifting",
                         shapes: ["Task_1", "Task_Y"],
                         moved: "Task_Y",
-                        shifted: ["Task_L"],
+                        shifted: ["Lane_2", "Task_L"],
                         grown: ["Pool_1", "Lane_1"],
                     },
                 ]);
@@ -567,6 +567,34 @@ describe("planShapeMoves", () => {
                 expect(boundsIn(plan, "Task_L")).toEqual(box(800, 320));
                 expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 1200, 420));
                 expect(boundsIn(plan, "Task_2")).toEqual(branches[2]!.bounds);
+            });
+
+            it("names a room that shifted only the empty lane below its grown lane for growing and shifting", () => {
+                const twoLanes = [POOL, lane(70, 120), { ...lane(190, 110), id: "Lane_2" }];
+                const result = layoutOf(
+                    [...branches, node("Task_Y", box(510, 90))],
+                    intoJoin,
+                    twoLanes,
+                );
+                const current = layoutOf(branches, intoJoin.slice(0, 1), twoLanes);
+
+                const plan = planShapeMoves(
+                    result,
+                    overlapsOf(result),
+                    [current, current],
+                    planFlowRepairs,
+                );
+
+                expect(pairRepairsOf(plan)).toEqual([
+                    {
+                        kind: "madeRoomByGrowingAndShifting",
+                        shapes: ["Task_1", "Task_Y"],
+                        moved: "Task_Y",
+                        shifted: ["Lane_2"],
+                        grown: ["Pool_1", "Lane_1"],
+                    },
+                ]);
+                expect(boundsIn(plan, "Lane_2")).toEqual(box(30, 310, 1170, 110));
             });
 
             it("moves along the flow from under the other shape until it keeps clear of a flow's label", () => {
@@ -819,7 +847,7 @@ describe("planShapeMoves", () => {
                         kind: "madeRoomByGrowingAndShifting",
                         shapes: ["Task_3", "Task_Y"],
                         moved: "Task_Y",
-                        shifted: ["Task_Z", "Task_W"],
+                        shifted: ["Lane_2", "Task_Z", "Task_W"],
                         grown: ["Pool_1", "Lane_1"],
                     },
                 ]);

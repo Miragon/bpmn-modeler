@@ -170,6 +170,12 @@ export function lanesOf(layout: LayoutModel, pool: LayoutShape): LaneShape[] {
     );
 }
 
+/** What a lane shifts with: its parent lane or the process whose lane set holds it, and its pool; nothing for a pool. */
+export function carrierIdsOf(frame: LayoutShape): string[] {
+    if (frame.kind !== "lane") return [];
+    return [frame.parent, ...(frame.pool === undefined ? [] : [frame.pool])];
+}
+
 /** Whether the pool covers another pool on its plane by more than the tolerance. */
 export function liesOnAnotherPool(layout: LayoutModel, pool: LayoutShape): boolean {
     return [...layout.shapes.values()].some(
