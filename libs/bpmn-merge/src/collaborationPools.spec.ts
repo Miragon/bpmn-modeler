@@ -1,7 +1,8 @@
+import { moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { collaborationProcessesOf } from "./collaborationPools";
+import { collaborationProcessesOf, processesReachedFrom } from "./collaborationPools";
 import { layoutRelationsOf } from "./layoutRelations";
 
 async function definitionsOf(semantic: string) {
@@ -56,5 +57,42 @@ describe("collaborationProcessesOf", () => {
 
     it("answers no pairs for a document without a collaboration", async () => {
         expect(collaborationProcessesOf(await definitionsOf(PROCESSES))).toEqual([]);
+    });
+});
+
+describe("processesReachedFrom", () => {
+    const LANE_PROCESS = `
+  <bpmn:process id="Process_L">
+    <bpmn:laneSet id="LaneSet_L"><bpmn:lane id="Lane_L" /></bpmn:laneSet>
+  </bpmn:process>`;
+
+    async function collaborationIn(semantic: string) {
+        const definitions = await definitionsOf(semantic);
+        const [collaboration] = moddleElements(definitions.rootElements);
+        return { definitions, collaboration: collaboration! };
+    }
+
+    it("reaches the processes its participants name and every process with lanes, more than share its slot", async () => {
+        const { definitions, collaboration } = await collaborationIn(`
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Pool_A" processRef="Process_A" />
+  </bpmn:collaboration>${PROCESSES}${LANE_PROCESS}`);
+
+        expect([...processesReachedFrom(collaboration, definitions.rootElements)].sort()).toEqual([
+            "Process_A",
+            "Process_L",
+        ]);
+        expect(collaborationProcessesOf(definitions)).toEqual([["Collab_1", "Process_A"]]);
+    });
+
+    it("reaches the process of a participant without an id, which bpmn-js draws all the same", async () => {
+        const { definitions, collaboration } = await collaborationIn(`
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant processRef="Process_A" />
+  </bpmn:collaboration>${PROCESSES}`);
+
+        expect([...processesReachedFrom(collaboration, definitions.rootElements)]).toEqual([
+            "Process_A",
+        ]);
     });
 });

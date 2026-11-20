@@ -10,6 +10,7 @@ import {
     parseWarningMessages,
 } from "@miragon/bpmn-modeler-diff";
 
+import { processesReachedFrom } from "./collaborationPools";
 import { connectionEndsOf, edgePlaneOf } from "./connectionEnds";
 import { enclosingSubProcessOf } from "./containerContents";
 import { DiagramIndex } from "./diagramIndex";
@@ -97,23 +98,19 @@ export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex
 
 /**
  * bpmn-js draws from a root plane only what its owner reaches: a process's
- * contents, or a collaboration's own elements, the processes its pools name
- * and any process with lanes.
+ * contents, or a collaboration's own elements and `processesReachedFrom` it.
  */
 export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: DiagramIndex): void {
     const unreachable = diagramIndex.diagrams.flatMap((diagram) => {
         const plane = diagram.plane as ModdleElement | undefined;
         const owner = plane?.bpmnElement;
         if (!isModdleElement(owner) || !isRootPlaneOwner(owner)) return [];
-        const reachableRoots = new Set<unknown>([owner]);
-        if (isType(owner, "bpmn:Collaboration")) {
-            for (const participant of moddleElements(owner.participants)) {
-                reachableRoots.add(participant.processRef);
-            }
-            for (const root of moddleElements((owner.$parent as ModdleElement).rootElements)) {
-                if (moddleElements(root.laneSets).length > 0) reachableRoots.add(root);
-            }
-        }
+        const reachableRoots = new Set([
+            owner.id,
+            ...(isType(owner, "bpmn:Collaboration")
+                ? processesReachedFrom(owner, (owner.$parent as ModdleElement).rootElements)
+                : []),
+        ]);
         return moddleElements(plane?.planeElement)
             .map((drawing) => drawing.bpmnElement)
             .filter(
@@ -145,13 +142,13 @@ function isRootPlaneOwner(element: ModdleElement): boolean {
     return isType(element, "bpmn:Process") || isType(element, "bpmn:Collaboration");
 }
 
-function isInsideAnyOf(element: ModdleElement, roots: ReadonlySet<unknown>): boolean {
+function isInsideAnyOf(element: ModdleElement, roots: ReadonlySet<string | undefined>): boolean {
     for (
         let container: ModdleElement | undefined = element;
         container !== undefined;
         container = container.$parent as ModdleElement | undefined
     ) {
-        if (roots.has(container)) return true;
+        if (container.id !== undefined && roots.has(container.id)) return true;
     }
     return false;
 }

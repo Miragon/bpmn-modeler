@@ -28,9 +28,13 @@ export class PlaneSlot {
 /**
  * Where a plane goes in the result. A sub-process's plane is its own slot;
  * a collaboration's plane and the planes of the processes its participants
- * name share one root slot, whichever side wraps a process in a pool. Hands
- * out one `PlaneSlot` per place, so a slot keys a map, but only among the
- * slots of one `PlaneSlots`; slots of two are compared with `equals`.
+ * name share one root slot, whichever side wraps a process in a pool. A
+ * process with lanes that no pool names keeps a slot of its own, though the
+ * collaboration's plane reaches it (`processesReachedFrom`): a side may draw
+ * it on a diagram of its own, which joining would fold onto the
+ * collaboration's plane in its own coordinates. Hands out one `PlaneSlot` per place,
+ * so a slot keys a map, but only among the slots of one `PlaneSlots`; slots
+ * of two are compared with `equals`.
  */
 export class PlaneSlots {
     private readonly rootOf = new Map<string, string>();
