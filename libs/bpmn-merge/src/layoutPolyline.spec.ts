@@ -33,6 +33,18 @@ describe("withoutRedundantPoints", () => {
             ],
         ],
         [
+            "drops the middle of a straight diagonal run",
+            [
+                { x: 0, y: 0 },
+                { x: 30, y: 40 },
+                { x: 60, y: 80 },
+            ],
+            [
+                { x: 0, y: 0 },
+                { x: 60, y: 80 },
+            ],
+        ],
+        [
             "keeps a corner",
             [
                 { x: 0, y: 0 },

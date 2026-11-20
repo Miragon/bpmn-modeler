@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findCleanupCandidates, isRedundantBend, planCleanupActions, tidyWaypoints } from "./rules";
+import { findCleanupCandidates, planCleanupActions, tidyWaypoints } from "./rules";
 import type { ModdleNode } from "./rules";
 
 function definitions(over: Partial<ModdleNode> = {}): ModdleNode {
@@ -159,20 +159,6 @@ describe("findCleanupCandidates — waypoints", () => {
                 ]),
             ),
         ).toEqual([]);
-    });
-});
-
-describe("isRedundantBend", () => {
-    it("accepts a point between its collinear neighbours", () => {
-        expect(isRedundantBend({ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 10, y: 0 })).toBe(true);
-    });
-
-    it("rejects a point outside its collinear neighbours", () => {
-        expect(isRedundantBend({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 0 })).toBe(false);
-    });
-
-    it("rejects a real corner", () => {
-        expect(isRedundantBend({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 })).toBe(false);
     });
 });
 
@@ -368,6 +354,28 @@ describe("tidyWaypoints", () => {
             { x: 0, y: 0 },
             { x: 100, y: 0 },
         ]);
+    });
+
+    it("drops a bend a hair off the line between its neighbours", () => {
+        expect(
+            tidyWaypoints([
+                { x: 0, y: 0 },
+                { x: 50, y: 0.005 },
+                { x: 100, y: 0 },
+            ]),
+        ).toEqual([
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+        ]);
+    });
+
+    it("keeps the turning point of a flow that doubles back", () => {
+        const route = [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 50, y: 0 },
+        ];
+        expect(tidyWaypoints(route)).toEqual(route);
     });
 
     it("keeps the docking points even when they repeat", () => {

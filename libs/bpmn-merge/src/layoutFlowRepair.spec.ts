@@ -274,17 +274,18 @@ describe("planFlowRepairs", () => {
         ]);
     });
 
+    const WALLED_IN_TASK_B = [
+        node("Task_B", { x: 400, y: 100, width: 100, height: 80 }),
+        node("Wall_Top", { x: 380, y: 60, width: 140, height: 30 }),
+        node("Wall_Bottom", { x: 380, y: 190, width: 140, height: 30 }),
+        node("Wall_Left_Above_Gap", { x: 360, y: 60, width: 30, height: 76 }),
+        node("Wall_Left_Below_Gap", { x: 360, y: 140, width: 30, height: 80 }),
+        node("Wall_Right", { x: 510, y: 60, width: 30, height: 160 }),
+    ];
+
     it("keeps the flow's own bends through a gap too narrow for a fresh route", () => {
         const layout = layoutOf(
-            [
-                TASK_A,
-                node("Task_B", { x: 400, y: 100, width: 100, height: 80 }),
-                node("Wall_Top", { x: 380, y: 60, width: 140, height: 30 }),
-                node("Wall_Bottom", { x: 380, y: 190, width: 140, height: 30 }),
-                node("Wall_Left_Above_Gap", { x: 360, y: 60, width: 30, height: 76 }),
-                node("Wall_Left_Below_Gap", { x: 360, y: 140, width: 30, height: 80 }),
-                node("Wall_Right", { x: 510, y: 60, width: 30, height: 160 }),
-            ],
+            [TASK_A, ...WALLED_IN_TASK_B],
             [flow([at(200, 140), at(300, 140), at(300, 138), at(395, 138)])],
         );
 
@@ -293,6 +294,21 @@ describe("planFlowRepairs", () => {
                 kind: "movedByBuild",
                 flow: "Flow_1",
                 waypoints: [at(200, 140), at(300, 140), at(300, 138), at(400, 138)],
+            },
+        ]);
+    });
+
+    it("keeps the turning point of the flow's own bends that double back", () => {
+        const layout = layoutOf(
+            [TASK_A, ...WALLED_IN_TASK_B],
+            [flow([at(200, 140), at(320, 140), at(300, 140), at(300, 138), at(395, 138)])],
+        );
+
+        expect(repairsOf(layout)).toEqual([
+            {
+                kind: "movedByBuild",
+                flow: "Flow_1",
+                waypoints: [at(200, 140), at(320, 140), at(300, 140), at(300, 138), at(400, 138)],
             },
         ]);
     });

@@ -1,4 +1,4 @@
-import type { CleanupItem } from "@miragon/bpmn-modeler-types";
+import { type BendTolerance, type CleanupItem, isRedundantBend } from "@miragon/bpmn-modeler-types";
 
 import type { Point } from "../types";
 
@@ -38,6 +38,11 @@ const WAYPOINT_EPSILON = 0.5;
 
 /** Cross product below this counts as collinear. */
 const COLLINEAR_EPSILON = 1;
+
+const CLEANUP_BEND_TOLERANCE: BendTolerance = {
+    collinear: COLLINEAR_EPSILON,
+    beyond: WAYPOINT_EPSILON,
+};
 
 const CONNECTION_TYPES = new Set([
     "bpmn:SequenceFlow",
@@ -235,32 +240,6 @@ function isDuplicatePoint(a: Point, b: Point): boolean {
 }
 
 /**
- * True when `point` sits on the straight line between its neighbours *and*
- * between them.
- *
- * The betweenness test is what keeps a genuine 180° doubling-back — a
- * connection that runs out and comes straight back — from being mistaken for a
- * redundant bend: those three points are collinear too, but the middle one
- * lies outside its neighbours.
- */
-export function isRedundantBend(previous: Point, point: Point, next: Point): boolean {
-    const ax = point.x - previous.x;
-    const ay = point.y - previous.y;
-    const bx = next.x - point.x;
-    const by = next.y - point.y;
-
-    if (Math.abs(ax * by - ay * bx) >= COLLINEAR_EPSILON) return false;
-
-    const withinX =
-        point.x >= Math.min(previous.x, next.x) - WAYPOINT_EPSILON &&
-        point.x <= Math.max(previous.x, next.x) + WAYPOINT_EPSILON;
-    const withinY =
-        point.y >= Math.min(previous.y, next.y) - WAYPOINT_EPSILON &&
-        point.y <= Math.max(previous.y, next.y) + WAYPOINT_EPSILON;
-    return withinX && withinY;
-}
-
-/**
  * Drops repeated points and bends that lie on the line between their
  * neighbours. Docking points — first and last — are never touched.
  */
@@ -279,7 +258,8 @@ export function tidyWaypoints(waypoints: Point[]): Point[] {
     const tidied: Point[] = [withoutDuplicates[0]];
     for (let i = 1; i < withoutDuplicates.length - 1; i++) {
         const previous = tidied[tidied.length - 1];
-        if (isRedundantBend(previous, withoutDuplicates[i], withoutDuplicates[i + 1])) continue;
+        const next = withoutDuplicates[i + 1];
+        if (isRedundantBend(previous, withoutDuplicates[i], next, CLEANUP_BEND_TOLERANCE)) continue;
         tidied.push(withoutDuplicates[i]);
     }
     tidied.push(withoutDuplicates[withoutDuplicates.length - 1]);

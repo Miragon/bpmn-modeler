@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type BendTolerance,
+    EXACT_BEND_TOLERANCE,
     type PolylinePoint,
+    isRedundantBend,
     longestSegment,
     pointAlongSegment,
     polylineMidpoint,
@@ -142,5 +145,83 @@ describe("longestSegment", () => {
 
     it("is undefined for a flow without two waypoints", () => {
         expect(longestSegment([{ x: 0, y: 0 }])).toBeUndefined();
+    });
+});
+
+describe("isRedundantBend", () => {
+    const WITHIN_HALF_A_UNIT: BendTolerance = { collinear: 1, beyond: 0.5 };
+    const bend = (...coordinates: [number, number][]) =>
+        coordinates.map(([x, y]) => ({ x, y })) as [PolylinePoint, PolylinePoint, PolylinePoint];
+
+    it.each<[string, BendTolerance, [PolylinePoint, PolylinePoint, PolylinePoint], boolean]>([
+        [
+            "a point between its neighbours on a line",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [5, 0], [10, 0]),
+            true,
+        ],
+        [
+            "a point between its neighbours on a diagonal",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [10, 10], [20, 20]),
+            true,
+        ],
+        [
+            "the turning point of a flow that doubles back",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [20, 0], [10, 0]),
+            false,
+        ],
+        [
+            "the turning point of a flow back to its start",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [0, 30], [0, 0]),
+            false,
+        ],
+        ["a corner", EXACT_BEND_TOLERANCE, bend([0, 0], [10, 0], [10, 10]), false],
+        [
+            "a point off the line by a fraction",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [5, 0.01], [10, 0]),
+            false,
+        ],
+        [
+            "a point off the line within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [5, 0.01], [10, 0]),
+            true,
+        ],
+        [
+            "a cross product at the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [1, 0], [2, 1]),
+            false,
+        ],
+        [
+            "a point beyond its neighbour within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [10.5, 0], [10, 0]),
+            true,
+        ],
+        [
+            "a point beyond its neighbour past the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [10.6, 0], [10, 0]),
+            false,
+        ],
+        [
+            "a point above a vertical run past the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [0, -0.6], [0, 10]),
+            false,
+        ],
+        [
+            "a point below a vertical run within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [0, 10.5], [0, 10]),
+            true,
+        ],
+    ])("%s", (_case, tolerance, [previous, point, next], redundant) => {
+        expect(isRedundantBend(previous, point, next, tolerance)).toBe(redundant);
     });
 });
