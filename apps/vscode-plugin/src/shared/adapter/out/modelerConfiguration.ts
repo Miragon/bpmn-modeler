@@ -42,6 +42,11 @@ export function setLanguage(locale: string): Thenable<void> {
     return updatePersonalPreference("language", locale);
 }
 
+/** VS Code's hidden `mergeEditor.useWorkingCopy`: its merge editor merges into a model of its own. */
+export function mergeEditorUsesWorkingCopy(): boolean {
+    return workspace.getConfiguration("mergeEditor").get("useWorkingCopy") === true;
+}
+
 export const vsCodeModelerPreferences: ModelerPreferences = {
     lintingEnabled,
     setLintingEnabled,
