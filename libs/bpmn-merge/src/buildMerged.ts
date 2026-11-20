@@ -3,7 +3,6 @@ import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
 import { type BuildNote, buildNotesOf } from "./buildNotes";
-import { DiagramIndex } from "./diagramIndex";
 import { assembleDiagrams } from "./diagramMerge";
 import { drawingSidesOf, drawnByShape } from "./drawingSides";
 import type { MergeModdle } from "./engineModdle";
@@ -15,16 +14,15 @@ import {
     type LayoutRepairPlanners,
     repairIntroducedSpots,
 } from "./layoutDrawingRepair";
-import { layoutModelOf } from "./layoutModelReader";
-import { PlaneSlots } from "./planeSlots";
 import type { MergeDecisions } from "./mergeDecisions";
 import { type MergeSide, otherSide } from "./mergeResult";
-import { assembleSemanticTree, versionTreeOf } from "./mergedTree";
+import { assembleSemanticTree } from "./mergedTree";
 import { restoreDefaultFlows } from "./mergedTreeDefaults";
 import { rebuildDerivedReferences } from "./mergedTreeDerived";
 import { applyFrame, mergeFrames } from "./mergedTreeFrame";
 import { laneMembersOf } from "./mergedTreeLanes";
 import { restoredFlowDefaultsOf } from "./removedWith";
+import { SideReadings } from "./sideReadings";
 import { sideTextOf } from "./sideText";
 
 export type { BuildNote } from "./buildNotes";
@@ -67,35 +65,28 @@ export async function buildMergedWith(
         incoming: await mergeModdle.moddle.fromXML(versions.incoming),
     };
     await spliceHandMerges(mergeModdle, decisions.handMergedVersions, parsed);
-    const current = parsed.current.rootElement;
-    const incoming = parsed.incoming.rootElement;
-    const diagramIndexes = {
-        current: DiagramIndex.of(current),
-        incoming: DiagramIndex.of(incoming),
-    };
-    const slots = PlaneSlots.ofSides({ current, incoming });
-    const sideLayouts = [layoutModelOf(current, slots), layoutModelOf(incoming, slots)];
+    const sides = SideReadings.of(parsed);
+    const current = sides.currentDefinitions;
     const frame = mergeFrames(sources.frames);
-    const trees = { current: versionTreeOf(current), incoming: versionTreeOf(incoming) };
 
     applyFrame(current, frame.takenFromIncoming);
-    const resultUnits = assembleSemanticTree(trees, resolution.elements);
+    const resultUnits = assembleSemanticTree(sides.trees, resolution.elements);
     const flowDefaults = restoredFlowDefaultsOf(result.elements, (id) => resolution.elements[id]);
     const restoredDefaults = restoreDefaultFlows(resultUnits, flowDefaults);
     const laneMembers = laneMembersOf(result, resolution);
     rebuildDerivedReferences(current, laneMembers);
-    const drawingSides = drawingSidesOf(result, resolution, diagramIndexes);
+    const drawingSides = drawingSidesOf(result, resolution, sides.indexes);
     const undrawnEdges = assembleDiagrams(
         current,
-        diagramIndexes,
-        slots,
+        sides.indexes,
+        sides.slots,
         drawingSides,
         resultUnits,
     );
     const layoutSpotNotes = repairIntroducedSpots(
         current,
-        sideLayouts,
-        slots,
+        sides.layoutsCurrentFirst,
+        sides.slots,
         planners,
         resolution.appendedLanes,
         (point) => mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
@@ -106,7 +97,7 @@ export async function buildMergedWith(
         xml,
         {
             sourceSnapshots: sourceSnapshotsOf(sources, resolution.elements, decisions),
-            drawnByShape: drawnByShape(diagramIndexes, drawingSides.sides, undrawnEdges),
+            drawnByShape: drawnByShape(sides.indexes, drawingSides.sides, undrawnEdges),
             laneMembers,
             restoredDefaults,
         },
