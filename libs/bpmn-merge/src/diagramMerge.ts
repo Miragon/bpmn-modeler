@@ -7,7 +7,7 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import type { UndrawnEdge } from "./connectionEnds";
-import { type DiagramIndex, planeOwnerOf } from "./diagramIndex";
+import type { DiagramIndex } from "./diagramIndex";
 import type { DrawingSides } from "./drawingSides";
 import { orderMembers } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeSide } from "./mergeResult";
@@ -38,7 +38,7 @@ export function assembleDiagrams(
 ): readonly UndrawnEdge[] {
     const kept = keptDiagramsOf(indexes, slots, drawingSides, resultUnits);
     const slotOrder = (side: MergeSide) => [
-        ...new Set(indexes[side].diagrams.map((diagram) => slots.slotOf(planeOwnerOf(diagram)))),
+        ...new Set(indexes[side].planeOwnersInDocumentOrder().map((owner) => slots.slotOf(owner))),
     ];
     const orderedSlots = orderMembers(
         slotOrder("current"),
@@ -150,8 +150,7 @@ function keptDiagramsOf(
 ): Map<PlaneSlot, KeptDiagram> {
     const candidates = new Map<PlaneSlot, { owner: string; side: MergeSide }[]>();
     for (const side of MERGE_SIDES) {
-        for (const diagram of indexes[side].diagrams) {
-            const owner = planeOwnerOf(diagram);
+        for (const owner of indexes[side].planeOwnersInDocumentOrder()) {
             if (drawingSides.takenSideOf(owner) !== side) continue;
             const slot = slots.slotOf(owner);
             candidates.set(slot, [...(candidates.get(slot) ?? []), { owner, side }]);
@@ -166,8 +165,7 @@ function keptDiagramsOf(
                     indexes[side].collaborationPlaneOwners.has(owner) &&
                     moddleElements(resultUnits.get(owner)?.participants).length > 0,
             ) ?? slotCandidates[0]!;
-        const diagram =
-            diagramDrawing(indexes.current, owner) ?? diagramDrawing(indexes[side], owner)!;
+        const diagram = indexes.current.diagramOf(owner) ?? indexes[side].diagramOf(owner)!;
         const keptDiagram = { diagram, plane: diagram.plane as ModdleElement };
         if (slot.isRoot) takeOverRootIds(keptDiagram, rootDiagramIn(indexes.current, slots, slot));
         kept.set(slot, keptDiagram);
@@ -181,7 +179,10 @@ function rootDiagramIn(
     slots: PlaneSlots,
     slot: PlaneSlot,
 ): ModdleElement | undefined {
-    return current.diagrams.find((candidate) => slots.holds(slot, planeOwnerOf(candidate)));
+    const owner = current
+        .planeOwnersInDocumentOrder()
+        .find((candidate) => slots.holds(slot, candidate));
+    return owner === undefined ? undefined : current.diagramOf(owner);
 }
 
 function takeOverRootIds(
@@ -208,8 +209,4 @@ function repointEdgeEnds(placed: readonly ModdleElement[]): void {
             else drawing[end] = replacement;
         }
     }
-}
-
-function diagramDrawing(index: DiagramIndex, owner: string): ModdleElement | undefined {
-    return index.diagrams.find((diagram) => planeOwnerOf(diagram) === owner);
 }

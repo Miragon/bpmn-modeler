@@ -230,3 +230,40 @@ describe("hasSubProcessPlane", () => {
         expect(index.hasSubProcessPlane(planeOwner)).toBe(subProcessPlane);
     });
 });
+
+const SECOND_PROCESS_DIAGRAM = `
+  <bpmndi:BPMNDiagram id="Diagram_Process_Again">
+    <bpmndi:BPMNPlane id="Plane_Process_Again" bpmnElement="Process_1" />
+  </bpmndi:BPMNDiagram>`;
+
+async function indexWithSecondProcessDiagram() {
+    const xml = document(EXPANDED).replace(
+        "</bpmn:definitions>",
+        `${SECOND_PROCESS_DIAGRAM}\n</bpmn:definitions>`,
+    );
+    return DiagramIndex.of((await parseWithoutWarnings(xml)).rootElement);
+}
+
+describe("diagramOf", () => {
+    it.each([
+        [
+            "the first in document order of an owner with two diagrams",
+            "Process_1",
+            "Diagram_Process",
+        ],
+        ["a sub-process's diagram", "Sub_1", "Diagram_Sub"],
+        ["none for an owner without a diagram", "Task_B", undefined],
+    ])("answers %s", async (_case, planeOwner, diagramId) => {
+        const index = await indexWithSecondProcessDiagram();
+
+        expect(index.diagramOf(planeOwner)?.id).toBe(diagramId);
+    });
+});
+
+describe("planeOwnersInDocumentOrder", () => {
+    it("lists each plane owner once, in the order of its first diagram", async () => {
+        const index = await indexWithSecondProcessDiagram();
+
+        expect(index.planeOwnersInDocumentOrder()).toEqual(["Process_1", "Sub_1"]);
+    });
+});

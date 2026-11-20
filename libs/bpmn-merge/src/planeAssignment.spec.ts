@@ -122,7 +122,10 @@ async function assignmentOf(currentXml: string, incomingXml: string): Promise<As
             FROM_INCOMING.has(id) ? "incoming" : "current",
         ]),
     ) as Record<string, MergeSide>;
-    const slots = new PlaneSlots(indexes);
+    const slots = PlaneSlots.ofSides({
+        current: current.rootElement,
+        incoming: incoming.rootElement,
+    });
     const keptSlots = ["Process_1", "Sub_1"].map((owner) => slots.slotOf(owner));
     const assignment = PlaneAssignment.of({
         indexes,
