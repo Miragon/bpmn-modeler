@@ -236,7 +236,7 @@ An accept names the side the text was merged for and is refused once the pick ha
 
 - An all-current or all-incoming merge equals that side element by element and under
   `computeDiff`, except where the layout rules draw an element from the other side and
-  where the shared prefix map renames an incoming prefix. `everyPick.spec.ts` builds every
+  where the [shared prefix map](merge-build.md#decision) renames an incoming prefix. `everyPick.spec.ts` builds every
   end state the picks reach, and each with one automatic resolution overridden;
   `mergeFuzz.spec.ts` walks 200 seeded random triples and checks after every step that each
   pick sits on its side, every open conflict has a choice, a refused pick changes nothing and

@@ -34,7 +34,7 @@ Callers use narrow public concepts, never private member names.
 | --- | --- |
 | Clipboard `directEditingInternals` | `_textbox.content`; installed shape tested in Chromium |
 | Diff `differResult` | Private differ category keys; real differ-result test |
-| Diff `moddleNamespaces` | moddle-xml's `nsMap` option, its private `DEFAULT_NS_MAP` prefixes and the serializer declaring every `nsMap` prefix it writes (the merge build relies on it); real parser and serializer test |
+| Diff `moddleNamespaces` | moddle-xml's `nsMap` option, its private `DEFAULT_NS_MAP` prefixes and the serializer declaring every `nsMap` prefix it writes (the [merge build](merge-build.md) relies on it); real parser and serializer test |
 | Append-menu `popupMenuInternals` | `_getContext`; installed shape tested in Chromium |
 | Properties-panel `engineGroupData` | Copied engine group/entry IDs; real providers in Chromium and a template-prefix test in the library |
 | Lint `lintingInternals` | The vendor's private formatting and overlay helpers; the upstream-shape test |

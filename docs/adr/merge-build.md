@@ -31,28 +31,30 @@ extensions and imports). Building a fresh tree would have to copy each of those.
   written with `toXML({ format: true })`. Without the shared map, two sides using one
   prefix for different namespaces swap silently, and an attribute whose namespace only
   incoming declares is dropped.
-- *Spliced, then moved whole.* A version merged by hand is spliced into its side's element in
-  place before the trees are taken apart, so the diagram and every reference keep the same
-  object; what the hand merges bring in is resolved first, so one may name a part another
-  adds. Each element is then taken from its side as written, unknown extensions included,
-  and placed in the collection its side used; incoming-only elements go after the sibling
-  they followed. References inside a moved element still point at the other tree's objects
-  and serialise by id.
+- *Spliced, then moved whole.* A [version merged by hand](merge.md#versions-merged-by-hand) is
+  spliced into its side's element in place before the trees are taken apart, so the diagram and
+  every reference keep the same object; what the hand merges bring in is resolved first, so one
+  may name a part another adds. Each element is then taken from its side as written, unknown
+  extensions included, and placed in the collection its side used; incoming-only elements go
+  after the sibling they followed. References inside a moved element still point at the other
+  tree's objects and serialise by id.
 - *The frame is three-way.* Each `definitions` attribute takes incoming's value when only
   incoming changed it and current's otherwise; without a base, current's. The loaded
   descriptors say which attributes are typed, so an engine's extension of `bpmn:Definitions`
   (Camunda 7's `diagramRelationId`) counts like `exporterVersion`.
-- *Diagrams by what they draw.* One root diagram for the collaboration and the processes
-  its participants name, a collaboration's only while the result keeps one of its pools,
-  and one per collapsed sub-process. Drawings take their layout side's DI unchanged, but
-  for the shapes the build moves and the flows it re-routes. A shape goes on the plane its
-  sub-process implies as bpmn-js reads it (its own plane when it has one and its shape is
-  not expanded); an edge goes on the plane that draws both its ends, as bpmn-js joins them,
-  so a data input of a collapsed sub-process lies beside the sub-process's shape, not inside
-  it. An edge whose ends no plane draws together (one side moved a task into a sub-process
-  the other collapsed) is left out of the drawing with a note rather than written where
-  bpmn-js cannot draw it; its element stays in the model, where the modeler cannot show it,
-  so the user removes or reconnects it in the XML. The build and the check share both rules.
+- *Diagrams by what they draw.* One root diagram for the collaboration and the processes its
+  participants name, a collaboration's only while the result keeps one of its pools, and one
+  per collapsed sub-process. Drawings take their [layout
+  side](merge.md#decisions-and-reference-rules)'s DI unchanged, but for the shapes the build
+  moves and the flows it re-routes. A shape goes on the plane its sub-process implies as
+  bpmn-js reads it (its own plane when it has one and its shape is not expanded); an edge goes
+  on the plane that draws both its ends, as bpmn-js joins them (a data association to the
+  activity holding it), so a data input of a collapsed sub-process lies beside the
+  sub-process's shape, not inside it. An edge whose ends no plane draws together (one side
+  moved a task into a sub-process the other collapsed) is left out of the drawing with a note
+  rather than written where bpmn-js cannot draw it; its element stays in the model, where the
+  modeler cannot show it, so the user removes or reconnects it in the XML. The build and the
+  check share both rules.
 - *Drawn parts follow their element.* A part bpmn-js draws (a process's data input) takes
   its drawing from its element's layout side, else from the side the element is taken
   from, and is not drawn when neither draws it or the chosen version does not hold it.
@@ -76,8 +78,9 @@ extensions and imports). Building a fresh tree would have to copy each of those.
   source's default, elements the base and both sides draw differently, every frame
   difference the result does not carry, and each flow left out of the drawing
   (`flowNotDrawn`). Each note carries the elements it names (`named`, from `elementsNamedBy`
-  beside the note type, which a webview spec holds the note's text to); `elementsRedrawnBy`,
-  a subset of `named` a spec checks, is the one other place a repair's new field goes.
+  beside the note type, which a webview spec holds the note's text to). The build specs read
+  `elementsRedrawnBy`, a subset of `named` that a spec checks and the one other place a
+  repair's new field goes.
   Rejected: a switch per reader, which had to change with every new field while nothing
   checked that they agreed. Cost: a note carries its ids twice.
 
