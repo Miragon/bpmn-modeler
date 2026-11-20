@@ -11,6 +11,7 @@ import {
     pointBounds,
 } from "./layoutGeometry";
 import { keptRoute } from "./layoutKeptRoute";
+import { sharedFrameOf } from "./layoutFrames";
 import {
     FLOW_ENDS,
     type FlowEnds,
@@ -22,7 +23,6 @@ import {
     endShapeOf,
     nodeShapeIn,
     otherEndOf,
-    sharedFrameOf,
 } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
 import { isOrthogonal, nearestPointOn, polylineBounds, segmentsOf } from "./layoutPolyline";

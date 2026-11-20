@@ -17,15 +17,8 @@ import {
     liesWithin,
     rightOf,
 } from "./layoutGeometry";
-import {
-    type LaneShape,
-    type LayoutShape,
-    type NodeShape,
-    drawnPartsOf,
-    innermostFrameOf,
-    innermostLaneOf,
-    lanesOf,
-} from "./layoutModel";
+import { innermostFrameOf, innermostLaneOf, lanesOf } from "./layoutFrames";
+import { type LaneShape, type LayoutShape, type NodeShape, drawnPartsOf } from "./layoutModel";
 import type { ShapeGroups } from "./layoutShapeGroups";
 import { FRAME_PADDING, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { SpaceTool, type SpaceUnit } from "./layoutSpaceTool";

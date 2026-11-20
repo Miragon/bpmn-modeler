@@ -1,10 +1,5 @@
-import {
-    type LaneShape,
-    type LayoutEdge,
-    type LayoutModel,
-    type NodeShape,
-    framesOf,
-} from "./layoutModel";
+import { framesOf } from "./layoutFrames";
+import type { LaneShape, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
 import { segmentsOf } from "./layoutPolyline";
 import { segmentBounds } from "./layoutSegments";

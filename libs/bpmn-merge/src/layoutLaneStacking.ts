@@ -2,7 +2,8 @@ import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNot
 
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, liesWithin } from "./layoutGeometry";
-import { type LaneShape, type LayoutModel, type LayoutShape, lanesOf } from "./layoutModel";
+import { lanesOf } from "./layoutFrames";
+import type { LaneShape, LayoutModel, LayoutShape } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
 import { SpaceTool } from "./layoutSpaceTool";
 import { lanesOverlap } from "./layoutSpots";

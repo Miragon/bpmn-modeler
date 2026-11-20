@@ -11,14 +11,12 @@ import {
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import { stretchedEdge } from "./layoutEdgeStretch";
 import { type DiagramBounds, bordersAt, centerOf, translated } from "./layoutGeometry";
+import { holdingPoolOf, innermostFrameOf, lanesOf } from "./layoutFrames";
 import {
     type LaneShape,
     type LayoutShape,
     type NodeShape,
     drawnHostOf,
-    holdingPoolOf,
-    innermostFrameOf,
-    lanesOf,
     translatedNode,
 } from "./layoutModel";
 import { type ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";

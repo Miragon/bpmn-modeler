@@ -6,6 +6,7 @@ import {
     overlapsBeyondTolerance,
     pointBounds,
 } from "./layoutGeometry";
+import { framesOf } from "./layoutFrames";
 import {
     FLOW_ENDS,
     type FlowEnd,
@@ -17,7 +18,6 @@ import {
     belongTogether,
     drawnHostOf,
     endShapeOf,
-    framesOf,
     nodeShapeIn,
 } from "./layoutModel";
 import { segmentsOf } from "./layoutPolyline";
