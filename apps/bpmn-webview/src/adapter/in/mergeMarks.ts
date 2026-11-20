@@ -1,9 +1,14 @@
 import OverlaysModule from "diagram-js/lib/features/overlays";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import type { MergePaneBadge, MergePickScope } from "@miragon/bpmn-modeler-shared";
-import { MERGE_MARKER_CLASSES, MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
+import {
+    MERGE_MARKER_CLASSES,
+    MERGE_MARKERS,
+    type MergeMarker,
+    type PolylinePoint,
+} from "@miragon/bpmn-modeler-types";
 
-import { flowBadgePlace, type FlowWaypoint } from "../../domain/mergeFlowBadgePlace";
+import { flowBadgePlace } from "../../domain/mergeFlowBadgePlace";
 import { PEN_PATHS } from "./mergeDecisionIcons";
 
 import "./mergeMarks.css";
@@ -20,7 +25,7 @@ interface Canvas {
 }
 
 interface ElementRegistry {
-    get(id: string): { readonly waypoints?: readonly FlowWaypoint[] } | undefined;
+    get(id: string): { readonly waypoints?: readonly PolylinePoint[] } | undefined;
     forEach(visit: (element: { id: string }) => void): void;
 }
 

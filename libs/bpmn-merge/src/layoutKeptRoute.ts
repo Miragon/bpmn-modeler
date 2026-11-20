@@ -1,3 +1,4 @@
+import { type AxisLine, lineThrough, outlinePointOn, sideOfCenter, spansAlong } from "./layoutAxis";
 import { type DiagramBounds, type Outline, type Point, centerOf } from "./layoutGeometry";
 import {
     type FlowEnd,
@@ -7,7 +8,6 @@ import {
     otherEndOf,
 } from "./layoutModel";
 import { withoutRedundantPoints } from "./layoutPolyline";
-import { type AxisLine, outlinePointOn, sideOfCenter, spansAlong } from "./layoutSegments";
 import { endsOffShape } from "./layoutSpots";
 
 /**
@@ -41,14 +41,12 @@ function keptStraight(
     off: ReadonlySet<FlowEnd>,
     ends: FlowEnds,
 ): Point[] | undefined {
-    const axis = first.y === last.y ? "y" : first.x === last.x ? "x" : undefined;
-    if (axis === undefined) return undefined;
-    const along = axis === "y" ? "x" : "y";
-    const line = { axis, at: first[axis] } as const;
+    const line = lineThrough(first, last);
+    if (line === undefined) return undefined;
     const dock = (end: FlowEnd, kept: Point) => {
         if (!off.has(end)) return kept;
         const shape = ends[end];
-        const towards = sideOfCenter(shape.bounds, centerOf(ends[otherEndOf(end)].bounds), along);
+        const towards = sideOfCenter(shape.bounds, centerOf(ends[otherEndOf(end)].bounds), line);
         return outlinePointOn(line, shape.bounds, shape.outline, towards);
     };
     const start = dock("source", first);
@@ -67,10 +65,10 @@ function redocked(
     const besideX = spansAlong(bounds, vertical, BESIDE_MARGIN);
     const besideY = spansAlong(bounds, horizontal, BESIDE_MARGIN);
     if (besideY && !besideX) {
-        return outlinePointOn(horizontal, bounds, outline, sideOfCenter(bounds, from, "x"));
+        return outlinePointOn(horizontal, bounds, outline, sideOfCenter(bounds, from, horizontal));
     }
     if (besideX && !besideY) {
-        return outlinePointOn(vertical, bounds, outline, sideOfCenter(bounds, from, "y"));
+        return outlinePointOn(vertical, bounds, outline, sideOfCenter(bounds, from, vertical));
     }
     return undefined;
 }

@@ -4,6 +4,8 @@ import { resolve } from "path";
 import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import { webviewBuildGuards } from "../../vite.shared";
+
 // The bundle carries these fonts (OFL-1.1) and icons (ISC); their licenses travel with it,
 // so a host that ships the bundle needs no install of the webview's dependencies.
 const THIRD_PARTY_LICENSES = {
@@ -31,7 +33,11 @@ function emitThirdPartyLicenses(): Plugin {
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/modeler-plugin-add-ons-webview",
-    plugins: [tsconfigPaths(), emitThirdPartyLicenses()],
+    plugins: [
+        tsconfigPaths(),
+        emitThirdPartyLicenses(),
+        ...webviewBuildGuards({ entry: "index.js" }),
+    ],
     // "/" makes CSS url()s root-absolute, which 404 under the webview resource origin.
     base: "./",
     build: {

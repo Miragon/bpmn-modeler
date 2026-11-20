@@ -572,6 +572,28 @@ describe("planShapeMoves", () => {
                 expect(boundsIn(plan, "Task_Y")).toEqual(box(500, 210));
                 expect(plan.layout.shapes.get("Lane_1")).toBe(tall[1]);
             });
+
+            it("goes back to where the other side draws it before it is stacked under the other shape", () => {
+                const tall = [POOL, lane(70, 240)];
+                const result = layoutOf(
+                    [...branches, node("Task_Y", box(510, 90))],
+                    intoJoin,
+                    tall,
+                );
+                const current = layoutOf(branches, intoJoin.slice(0, 1), tall);
+                const incoming = layoutOf(
+                    [...branches, node("Task_Y", box(300, 90))],
+                    intoJoin,
+                    tall,
+                );
+
+                const plan = planShapeMoves(result, overlapsOf(result), [current, incoming]);
+
+                expect(pairRepairsOf(plan)).toEqual([
+                    { kind: "movedByBuild", shapes: ["Task_1", "Task_Y"], moved: "Task_Y" },
+                ]);
+                expect(boundsIn(plan, "Task_Y")).toEqual(box(300, 90));
+            });
         });
 
         it("shifts a shape the moved one would land on that starts before the other shape ends", () => {

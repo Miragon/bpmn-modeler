@@ -1,12 +1,10 @@
 import {
-    type Axis,
     type DiagramBounds,
     type Outline,
     type Point,
     LAYOUT_TOLERANCE,
     bottomOf,
     boundsAround,
-    centerOf,
     inflated,
     outlineDistance,
     pointBounds,
@@ -14,12 +12,6 @@ import {
 } from "./layoutGeometry";
 
 export type Segment = readonly [Point, Point];
-
-/** A horizontal (`y`) or vertical (`x`) line through the diagram. */
-export interface AxisLine {
-    readonly axis: Axis;
-    readonly at: number;
-}
 
 /** Whether the two segments cross at one point inside both, not merely touch. */
 export function segmentsCross([a, b]: Segment, [c, d]: Segment): boolean {
@@ -128,54 +120,4 @@ export function segmentEntersOutline(
         else low = first;
     }
     return distanceAt((low + high) / 2) < -LAYOUT_TOLERANCE;
-}
-
-/**
- * Where the line meets the outline on the side `towards` of the center: a
- * horizontal line on the right for +1, a vertical one at the bottom for +1.
- * Rounded to whole pixels, as the modeler docks; undefined when the line misses.
- */
-export function outlinePointOn(
-    line: AxisLine,
-    bounds: DiagramBounds,
-    outline: Outline,
-    towards: 1 | -1,
-): Point | undefined {
-    const center = centerOf(bounds);
-    const horizontal = line.axis === "y";
-    const across = horizontal ? bounds.height / 2 : bounds.width / 2;
-    const along = horizontal ? bounds.width / 2 : bounds.height / 2;
-    const offset = line.at - (horizontal ? center.y : center.x);
-    const reach = reachAlong(outline, along, across, Math.abs(offset));
-    if (reach === undefined) return undefined;
-    const end = Math.round((horizontal ? center.x : center.y) + towards * reach);
-    return horizontal ? { x: end, y: line.at } : { x: line.at, y: end };
-}
-
-/** How far from the center the outline lies along a line `offset` away from it. */
-function reachAlong(
-    outline: Outline,
-    halfAlong: number,
-    halfAcross: number,
-    offset: number,
-): number | undefined {
-    if (offset > halfAcross) return undefined;
-    if (outline === "circle") {
-        const radius = Math.min(halfAlong, halfAcross);
-        return offset > radius ? undefined : Math.sqrt(radius * radius - offset * offset);
-    }
-    if (outline === "diamond") return halfAlong * (1 - offset / halfAcross);
-    return halfAlong;
-}
-
-/** Whether the line crosses the bounds at least `margin` away from their corners. */
-export function spansAlong(bounds: DiagramBounds, line: AxisLine, margin: number): boolean {
-    const [low, high] =
-        line.axis === "y" ? [bounds.y, bottomOf(bounds)] : [bounds.x, rightOf(bounds)];
-    return line.at > low + margin && line.at < high - margin;
-}
-
-/** Which side of the bounds' center the point lies on along the axis, as `outlinePointOn` takes `towards`. */
-export function sideOfCenter(bounds: DiagramBounds, point: Point, axis: Axis): 1 | -1 {
-    return point[axis] > centerOf(bounds)[axis] ? 1 : -1;
 }

@@ -104,7 +104,7 @@ export function importBursts(chunks: readonly BundleChunk[], entry: string): Imp
  * panes that fetch 16 files each fill it, and the next webview of the type
  * stays blank for those 30 s.
  */
-export function webviewImportBudget(options: { entry: string }): Plugin {
+function webviewImportBudget(options: { entry: string }): Plugin {
     return {
         name: "webview-import-budget",
         apply: "build",
@@ -130,4 +130,82 @@ export function webviewImportBudget(options: { entry: string }): Plugin {
             );
         },
     };
+}
+
+/** A chunk of a build's output: its file and how much code it renders of each module. */
+export interface RenderedChunk {
+    readonly fileName: string;
+    readonly modules: Readonly<Record<string, { readonly renderedLength: number }>>;
+}
+
+/** A fixture module a chunk renders code of. */
+export interface BundledFixture {
+    readonly chunk: string;
+    readonly fixture: string;
+}
+
+const UNDER_A_FIXTURES_FOLDER = /[\\/]__fixtures__[\\/]/;
+
+/** The modules under a `__fixtures__` folder whose code the chunks render. */
+export function bundledFixtures(chunks: readonly RenderedChunk[]): BundledFixture[] {
+    return chunks.flatMap((chunk) =>
+        Object.entries(chunk.modules)
+            .filter(
+                ([id, { renderedLength }]) =>
+                    renderedLength > 0 && UNDER_A_FIXTURES_FOLDER.test(id),
+            )
+            .map(([fixture]) => ({ chunk: chunk.fileName, fixture })),
+    );
+}
+
+/**
+ * Whether a build compiles the browser preview in: the preview's gate reads the
+ * `process.env.NODE_ENV` the build defines, or the process's own when it defines none.
+ */
+export function compilesThePreviewIn(
+    define: Readonly<Record<string, unknown>> | undefined,
+    nodeEnv: string | undefined,
+): boolean {
+    const defined = define?.["process.env.NODE_ENV"] ?? JSON.stringify(nodeEnv);
+    return defined === JSON.stringify("development");
+}
+
+/**
+ * Fails a build without the browser preview that renders code of a
+ * `__fixtures__` module. The preview host is dead-code-eliminated, but a
+ * fixture's module-level value that Rolldown cannot prove free of side effects
+ * stays in the bundle.
+ */
+function noFixturesInProductionBundle(): Plugin {
+    let previewCompiledIn = false;
+    return {
+        name: "no-fixtures-in-production-bundle",
+        apply: "build",
+        configResolved(config) {
+            previewCompiledIn = compilesThePreviewIn(
+                config.define,
+                process.env.NODE_ENV ?? config.mode,
+            );
+        },
+        generateBundle(_outputOptions, bundle) {
+            if (previewCompiledIn) return;
+            const chunks = Object.values(bundle).flatMap((output) =>
+                output.type === "chunk" ? [output] : [],
+            );
+            const bundled = bundledFixtures(chunks);
+            if (bundled.length === 0) return;
+            const listed = bundled
+                .map(({ chunk, fixture }) => `${chunk} renders ${fixture}`)
+                .join("; ");
+            this.error(
+                `${listed}. Fixtures serve specs and the browser preview only: build a fixture's ` +
+                    `values inside a function rather than at module level, so tree-shaking drops them.`,
+            );
+        },
+    };
+}
+
+/** The guards every webview a host embeds spreads into its plugins; `entry` is the page's first load. */
+export function webviewBuildGuards(options: { entry: string }): Plugin[] {
+    return [webviewImportBudget(options), noFixturesInProductionBundle()];
 }
