@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    type BendTolerance,
+    EXACT_BEND_TOLERANCE,
     type PolylinePoint,
+    isRedundantBend,
     longestSegment,
     pointAlongSegment,
     polylineMidpoint,
     polylineSegments,
     segmentMiddle,
+    withoutRedundantBends,
 } from "./polyline";
 
 describe("polylineSegments", () => {
@@ -142,5 +146,150 @@ describe("longestSegment", () => {
 
     it("is undefined for a flow without two waypoints", () => {
         expect(longestSegment([{ x: 0, y: 0 }])).toBeUndefined();
+    });
+});
+
+describe("isRedundantBend", () => {
+    const WITHIN_HALF_A_UNIT: BendTolerance = { collinear: 1, beyond: 0.5 };
+    const bend = (...coordinates: [number, number][]) =>
+        coordinates.map(([x, y]) => ({ x, y })) as [PolylinePoint, PolylinePoint, PolylinePoint];
+
+    it.each<[string, BendTolerance, [PolylinePoint, PolylinePoint, PolylinePoint], boolean]>([
+        [
+            "a point between its neighbours on a line",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [5, 0], [10, 0]),
+            true,
+        ],
+        [
+            "a point between its neighbours on a diagonal",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [10, 10], [20, 20]),
+            true,
+        ],
+        [
+            "the turning point of a flow that doubles back",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [20, 0], [10, 0]),
+            false,
+        ],
+        [
+            "the turning point of a flow back to its start",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [0, 30], [0, 0]),
+            false,
+        ],
+        ["a corner", EXACT_BEND_TOLERANCE, bend([0, 0], [10, 0], [10, 10]), false],
+        [
+            "a point off the line by a fraction",
+            EXACT_BEND_TOLERANCE,
+            bend([0, 0], [5, 0.01], [10, 0]),
+            false,
+        ],
+        [
+            "a point off the line within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [5, 0.01], [10, 0]),
+            true,
+        ],
+        [
+            "a cross product at the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [1, 0], [2, 1]),
+            false,
+        ],
+        [
+            "a point beyond its neighbour within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [10.5, 0], [10, 0]),
+            true,
+        ],
+        [
+            "a point beyond its neighbour past the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [10.6, 0], [10, 0]),
+            false,
+        ],
+        [
+            "a point above a vertical run past the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [0, -0.6], [0, 10]),
+            false,
+        ],
+        [
+            "a point below a vertical run within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            bend([0, 0], [0, 10.5], [0, 10]),
+            true,
+        ],
+    ])("%s", (_case, tolerance, [previous, point, next], redundant) => {
+        expect(isRedundantBend(previous, point, next, tolerance)).toBe(redundant);
+    });
+});
+
+describe("withoutRedundantBends", () => {
+    const WITHIN_HALF_A_UNIT: BendTolerance = { collinear: 1, beyond: 0.5 };
+    const route = (...coordinates: [number, number][]) => coordinates.map(([x, y]) => ({ x, y }));
+
+    it.each<[string, BendTolerance, PolylinePoint[], PolylinePoint[]]>([
+        ["keeps no points", EXACT_BEND_TOLERANCE, [], []],
+        ["keeps a lone point", EXACT_BEND_TOLERANCE, route([0, 0]), route([0, 0])],
+        [
+            "drops a repeated point",
+            EXACT_BEND_TOLERANCE,
+            route([0, 0], [50, 0], [50, 0], [50, 80]),
+            route([0, 0], [50, 0], [50, 80]),
+        ],
+        [
+            "drops the middle of a straight run",
+            EXACT_BEND_TOLERANCE,
+            route([0, 0], [50, 0], [100, 0], [100, 80]),
+            route([0, 0], [100, 0], [100, 80]),
+        ],
+        [
+            "keeps the turning point of a flow that doubles back",
+            EXACT_BEND_TOLERANCE,
+            route([0, 0], [100, 0], [50, 0]),
+            route([0, 0], [100, 0], [50, 0]),
+        ],
+        [
+            "keeps both ends of a flow whose points all coincide",
+            EXACT_BEND_TOLERANCE,
+            route([0, 0], [0, 0], [0, 0]),
+            route([0, 0], [0, 0]),
+        ],
+        [
+            "drops a point repeated within the tolerance",
+            WITHIN_HALF_A_UNIT,
+            route([0, 0], [50, 0], [50.5, 0.5], [50, 80]),
+            route([0, 0], [50, 0], [50, 80]),
+        ],
+        [
+            "keeps a point past the tolerance",
+            WITHIN_HALF_A_UNIT,
+            route([0, 0], [50, 0], [50, 0.6], [100, 0.6]),
+            route([0, 0], [50, 0], [50, 0.6], [100, 0.6]),
+        ],
+        [
+            "keeps the last point and drops the one it repeats on the line",
+            WITHIN_HALF_A_UNIT,
+            route([0, 0], [50, 0], [50, 80], [50, 80.4]),
+            route([0, 0], [50, 0], [50, 80.4]),
+        ],
+        [
+            "keeps the corner before a last point that repeats it off the line",
+            WITHIN_HALF_A_UNIT,
+            route([0, 0], [100, 0], [100, 0.4]),
+            route([0, 0], [100, 0], [100, 0.4]),
+        ],
+    ])("%s", (_case, tolerance, points, kept) => {
+        expect(withoutRedundantBends(points, tolerance)).toStrictEqual(kept);
+    });
+
+    it("keeps the points it does not drop", () => {
+        const points = route([0, 0], [50, 0], [100, 0]);
+        const kept = withoutRedundantBends(points, EXACT_BEND_TOLERANCE);
+        expect(kept[0]).toBe(points[0]);
+        expect(kept[1]).toBe(points[2]);
     });
 });

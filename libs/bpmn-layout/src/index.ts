@@ -48,7 +48,6 @@ export { computeLayoutPlan } from "./plan";
 export {
     findCleanupCandidates,
     indexModelElements,
-    isRedundantBend,
     planCleanupActions,
     tidyWaypoints,
 } from "./cleanup/rules";
