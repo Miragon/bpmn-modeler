@@ -1,6 +1,6 @@
 import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
 
-import type { BuildNote } from "./buildNotes";
+import type { BuildNoteContent } from "./buildNotes";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";
 import { type FlowRepair, planFlowRepairs, withFlowRepairs } from "./layoutFlowRepair";
 import type { Point } from "./layoutGeometry";
@@ -42,7 +42,7 @@ export interface LayoutRepairPlan {
     /** The drawing with every repair applied; the input itself when nothing changed. */
     readonly repaired: LayoutModel;
     /** The spots' notes, read before the repair. */
-    readonly notes: BuildNote[];
+    readonly notes: BuildNoteContent[];
 }
 
 /**
@@ -94,7 +94,7 @@ export function repairIntroducedSpots(
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
-): BuildNote[] {
+): BuildNoteContent[] {
     const layout = layoutModelOf(definitions, slots);
     const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
     writeLayoutChanges(definitions, layout, repaired, createPoint);
