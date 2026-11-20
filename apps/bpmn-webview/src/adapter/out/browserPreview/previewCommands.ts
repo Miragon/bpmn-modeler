@@ -1,6 +1,6 @@
 import type { PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
 
-import type { BpmnWebviewCommandType } from "../../../port/hostChannel";
+import type { BpmnWebviewCommand } from "../../../port/hostChannel";
 import { emptyClipboard, emptyTextClipboard } from "./clipboardPreview";
 import type { DiffPreview } from "./diffPreview";
 import { previewDocument } from "./documentPreview";
@@ -34,7 +34,7 @@ const NO_MERGE = "the preview has no merge to decide in";
 const NO_SECOND_EDITOR = "the preview has no second editor to compare in";
 const NO_ELEMENT_ID_REVIEW = "the preview has no host to review element ids in";
 
-export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommandType, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommand, PreviewSession> = {
     GetBpmnFileCommand: (_, preview) => preview.reply(previewDocument(preview.mode)),
     GetBpmnPluginsCommand: (_, preview) => preview.reply(previewPlugins(preview.search)),
     GetElementTemplatesCommand: (_, preview) => preview.reply(previewElementTemplates()),
@@ -94,8 +94,6 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommandType, Previ
     SearchWorkspaceDefinitionsCommand: (command, preview) =>
         preview.reply(definitionsMatching(command)),
 };
-
-export const PREVIEW_LOG_PREFIX = "[DEBUG]";
 
 async function answerReadyPane(preview: PreviewSession): Promise<void> {
     const pane = paneOf(preview.mode);

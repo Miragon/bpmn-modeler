@@ -1,4 +1,9 @@
-import { Command, MessageOfType, ProtocolCommandType } from "@miragon/bpmn-modeler-shared";
+import {
+    Command,
+    MessageOfType,
+    ProtocolCommandType,
+    requireIgnoreReason,
+} from "@miragon/bpmn-modeler-shared";
 
 /**
  * Handles a single webview command, narrowed to the command type it was
@@ -90,9 +95,7 @@ export class WebviewMessageRouter<TSource = string> {
      * can tell it from a type nobody routed. Dispatching it stays a no-op.
      */
     ignore(type: ProtocolCommandType, reason: string): this {
-        if (reason.trim() === "") {
-            throw new Error(`${type} needs a reason to be ignored`);
-        }
+        requireIgnoreReason(type, reason);
         if (this.handlers.has(type)) {
             throw new Error(`${type} is handled, so it cannot be ignored`);
         }

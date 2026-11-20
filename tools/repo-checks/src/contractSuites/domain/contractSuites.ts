@@ -1,13 +1,13 @@
-import { roleOf } from "@miragon/architecture-testing";
+import {
+    DECLARATION_FILE,
+    isTestOrDeclarationFile,
+    roleOf,
+    SPEC_FILE,
+} from "@miragon/architecture-testing";
 
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
 import type { FindingGroup } from "../../fitness/domain/fitnessFunction";
-import {
-    DECLARATION_FILE,
-    SPEC_FILE,
-    TEST_FOLDERS,
-    TYPESCRIPT_FILE,
-} from "../../sourceFiles/domain/sourceFiles";
+import { TYPESCRIPT_FILE } from "../../sourceFiles/domain/sourceFiles";
 
 /** The core's test kit: a contract helper is a function it exports. */
 export const CONTRACT_HELPER_MODULE = "@miragon/bpmn-modeler-core/testing";
@@ -93,14 +93,7 @@ export function isSpecSource(path: string): boolean {
 }
 
 export function isProductionSource(path: string): boolean {
-    return (
-        !isSpecSource(path) &&
-        !DECLARATION_FILE.test(path) &&
-        !path
-            .split("/")
-            .slice(0, -1)
-            .some((folder) => TEST_FOLDERS.has(folder))
-    );
+    return !isTestOrDeclarationFile(path);
 }
 
 function inHexagonalWorkspace(path: string, { hexagonalSourceRoots }: CoreScope): boolean {
