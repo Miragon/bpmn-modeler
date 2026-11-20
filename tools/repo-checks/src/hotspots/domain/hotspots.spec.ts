@@ -25,6 +25,7 @@ function file(path: string, codeLines: number, complexity?: number): FileMeasure
         codeLines,
         functions: complexity === undefined ? [] : [{ name: "handle", line: 7, complexity }],
         barrel: false,
+        runsNoCode: false,
     };
 }
 

@@ -15,6 +15,7 @@ describe("the size and complexity findings", () => {
                         { name: "verifyLater", line: 90, complexity: 23 },
                     ],
                     barrel: false,
+                    runsNoCode: false,
                 },
             ]),
         ).toEqual([
@@ -30,10 +31,30 @@ describe("the size and complexity findings", () => {
         ]);
     });
 
+    it("leave out a file that runs no code, such as a table of data, types or a barrel", () => {
+        expect(
+            sizeAndComplexityFindings([
+                {
+                    path: "libs/core/src/texts.ts",
+                    codeLines: 90,
+                    functions: [],
+                    barrel: false,
+                    runsNoCode: true,
+                },
+            ]),
+        ).toEqual([]);
+    });
+
     it("give a file without a function no complexity and point at its top", () => {
         expect(
             sizeAndComplexityFindings([
-                { path: "libs/core/src/types.ts", codeLines: 9, functions: [], barrel: false },
+                {
+                    path: "libs/core/src/types.ts",
+                    codeLines: 9,
+                    functions: [],
+                    barrel: false,
+                    runsNoCode: false,
+                },
             ]),
         ).toEqual([
             {
