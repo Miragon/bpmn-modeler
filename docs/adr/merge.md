@@ -25,9 +25,13 @@ holds `computeMerge`, `MergeDecisions` and `buildMerged`. It is not in `libs/bpm
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `.github/release-lines.json` ships the workspace on the hosts only, not on the npm line.
 It depends on `bpmn-diff` for the parse, the element text and the reference walk, so both
-share one notion of an element's XML, and on `@miragon/bpmn-modeler-types/engine` for the
-modeler's engine rule. It imports that subpath, not the barrel, which would pull DOM-typed
-modules into a DOM-free library.
+share one notion of an element's XML: besides `elementSnapshots`, `bpmn-diff` exports its
+moddle walk, the unit rule `trackedElementOf`, its namespace reading and its parse, so the
+merge applies them instead of copying them. The cost is a wider workspace API: a change to
+one of them is a change to the merge. `@miragon/bpmn-modeler/diff` re-exports none of them.
+The library depends on `@miragon/bpmn-modeler-types/engine` for the modeler's engine rule.
+It imports that subpath, not the barrel, which would pull DOM-typed modules into a DOM-free
+library.
 
 The core imports it, so its consumers' TypeScript `lib` (`ES2021`, `tsconfig.base.json`)
 binds it too: it calls no ES2022 or later library API (`findLast`, `Object.hasOwn`, an
@@ -43,9 +47,10 @@ library reaches it through the `@miragon/bpmn-modeler-types/mergeVocabulary` sub
 everything else through the barrel, whose exact specifier is the only one the core's `domain/`
 may import. Beside it sit Git's conflict-marker grammar (`/conflictMarkers`), so the core's file
 check and the hand-merge check read markers alike, as a second grammar had drifted, and the
-build's notes (`/mergeBuildNotes`), which the library builds, derives its repairs from, and
-the protocol carries as they are. Rejected: a protocol copy pinned to the library's type (two
-edits per note), and the protocol importing the unpublished library. Each subpath file imports
+build's notes (`/mergeBuildNotes`, types only, with their readers in `/mergeBuildNoteReaders`),
+which the library builds, derives its repairs from, and the protocol carries as they are.
+Rejected: a protocol copy pinned to the library's type (two edits per note), and the protocol
+importing the unpublished library. Each subpath file imports
 nothing at runtime; `domFreeEntries.spec.ts` reads the subpaths from `tsconfig.base.json`.
 
 `libs/modeler-types` is inlined into the npm package and ships on every release line, so no

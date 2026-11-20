@@ -15,66 +15,147 @@ export interface Drawing {
     readonly planeOwner: string;
 }
 
-/** One document's diagrams, a version's read before its semantic tree is taken apart. */
-export interface DiagramIndex {
-    readonly diagrams: readonly ModdleElement[];
-    readonly planeOwners: ReadonlySet<string>;
-    /** Shapes and edges by the id of the element they draw ("" for none). */
-    readonly drawingsByElement: ReadonlyMap<string, readonly Drawing[]>;
-    /** Each plane's drawings in document order, by `drawingKeyOf`. */
-    readonly orderByPlaneOwner: ReadonlyMap<string, readonly ItemKey[]>;
-    /** Plane owners that are sub-processes: each has a plane of its own in the result. */
-    readonly subProcessPlaneOwners: ReadonlySet<string>;
-    readonly collaborationPlaneOwners: ReadonlySet<string>;
-    /** Each collaboration with the processes its participants name: one root plane draws them. */
-    readonly collaborationProcesses: readonly (readonly [string, string])[];
-}
+/**
+ * One document's diagrams, a version's read before its semantic tree is taken apart. It
+ * answers which of an element's drawings a reader takes, so no reader picks its own.
+ */
+export class DiagramIndex {
+    private constructor(
+        readonly diagrams: readonly ModdleElement[],
+        private readonly planeOwners: ReadonlySet<string>,
+        /** Shapes and edges by the id of the element they draw ("" for none). */
+        private readonly drawingsByElement: ReadonlyMap<string, readonly Drawing[]>,
+        /** Each plane's drawings in document order, by `drawingKeyOf`. */
+        readonly orderByPlaneOwner: ReadonlyMap<string, readonly ItemKey[]>,
+        /** Plane owners that are sub-processes: each has a plane of its own in the result. */
+        private readonly subProcessPlaneOwners: ReadonlySet<string>,
+        readonly collaborationPlaneOwners: ReadonlySet<string>,
+        /** Each collaboration with the processes its participants name: one root plane draws them. */
+        readonly collaborationProcesses: readonly (readonly [string, string])[],
+    ) {}
 
-export function diagramIndexOf(definitions: ModdleElement): DiagramIndex {
-    const diagrams = moddleElements(definitions.diagrams);
-    const planeOwners = new Set<string>();
-    const subProcessPlaneOwners = new Set<string>();
-    const collaborationPlaneOwners = new Set<string>();
-    const drawingsByElement = new Map<string, Drawing[]>();
-    const orderByPlaneOwner = new Map<string, ItemKey[]>();
-    for (const diagram of diagrams) {
-        const plane = diagram.plane as ModdleElement | undefined;
-        const planeOwner = planeOwnerOf(diagram);
-        planeOwners.add(planeOwner);
-        if (isPlaneOwnerOfType(plane, "bpmn:SubProcess")) subProcessPlaneOwners.add(planeOwner);
-        if (isPlaneOwnerOfType(plane, "bpmn:Collaboration")) {
-            collaborationPlaneOwners.add(planeOwner);
-        }
-        const order: ItemKey[] = [];
-        for (const drawing of moddleElements(plane?.planeElement)) {
-            const elementId = idOf(drawing.bpmnElement) ?? "";
-            drawingsByElement.set(elementId, [
-                ...(drawingsByElement.get(elementId) ?? []),
-                { element: drawing, planeOwner },
+    static of(definitions: ModdleElement): DiagramIndex {
+        const diagrams = moddleElements(definitions.diagrams);
+        const planeOwners = new Set<string>();
+        const subProcessPlaneOwners = new Set<string>();
+        const collaborationPlaneOwners = new Set<string>();
+        const drawingsByElement = new Map<string, Drawing[]>();
+        const orderByPlaneOwner = new Map<string, ItemKey[]>();
+        for (const diagram of diagrams) {
+            const plane = diagram.plane as ModdleElement | undefined;
+            const planeOwner = planeOwnerOf(diagram);
+            planeOwners.add(planeOwner);
+            if (isPlaneOwnerOfType(plane, "bpmn:SubProcess")) subProcessPlaneOwners.add(planeOwner);
+            if (isPlaneOwnerOfType(plane, "bpmn:Collaboration")) {
+                collaborationPlaneOwners.add(planeOwner);
+            }
+            const order: ItemKey[] = [];
+            for (const drawing of moddleElements(plane?.planeElement)) {
+                const elementId = idOf(drawing.bpmnElement) ?? "";
+                drawingsByElement.set(elementId, [
+                    ...(drawingsByElement.get(elementId) ?? []),
+                    { element: drawing, planeOwner },
+                ]);
+                order.push(drawingKeyOf(drawing));
+            }
+            orderByPlaneOwner.set(planeOwner, [
+                ...(orderByPlaneOwner.get(planeOwner) ?? []),
+                ...order,
             ]);
-            order.push(drawingKeyOf(drawing));
         }
-        orderByPlaneOwner.set(planeOwner, [...(orderByPlaneOwner.get(planeOwner) ?? []), ...order]);
-    }
-    const collaborationProcesses = moddleElements(definitions.rootElements)
-        .filter((root) => isType(root, "bpmn:Collaboration"))
-        .flatMap((collaboration) =>
-            moddleElements(collaboration.participants).flatMap((participant) => {
-                const processId = idOf(participant.processRef);
-                return collaboration.id === undefined || processId === undefined
-                    ? []
-                    : [[collaboration.id, processId] as const];
-            }),
+        const collaborationProcesses = moddleElements(definitions.rootElements)
+            .filter((root) => isType(root, "bpmn:Collaboration"))
+            .flatMap((collaboration) =>
+                moddleElements(collaboration.participants).flatMap((participant) => {
+                    const processId = idOf(participant.processRef);
+                    return collaboration.id === undefined || processId === undefined
+                        ? []
+                        : [[collaboration.id, processId] as const];
+                }),
+            );
+        return new DiagramIndex(
+            diagrams,
+            planeOwners,
+            drawingsByElement,
+            orderByPlaneOwner,
+            subProcessPlaneOwners,
+            collaborationPlaneOwners,
+            collaborationProcesses,
         );
-    return {
-        diagrams,
-        planeOwners,
-        drawingsByElement,
-        orderByPlaneOwner,
-        subProcessPlaneOwners,
-        collaborationPlaneOwners,
-        collaborationProcesses,
-    };
+    }
+
+    /** Each id with drawings, in the order first drawn; "" stands for the drawings that name no element. */
+    drawnIds(): readonly string[] {
+        return [...this.drawingsByElement.keys()];
+    }
+
+    /** The elements drawn with a shape or an edge: `drawnIds` without "". */
+    drawnElements(): readonly string[] {
+        return this.drawnIds().filter((id) => id !== "");
+    }
+
+    elementsDrawnMoreThanOnce(): readonly string[] {
+        return this.drawnElements().filter((element) => this.drawingsOf(element).length > 1);
+    }
+
+    /** Whether a shape or an edge draws the element; a plane does not count. */
+    draws(element: string): boolean {
+        return this.drawingsByElement.has(element);
+    }
+
+    /** Every drawing of the element, in diagram order; a reader that takes one asks for it by name instead. */
+    drawingsOf(element: string): readonly Drawing[] {
+        return this.drawingsByElement.get(element) ?? [];
+    }
+
+    /** The plane the element's first drawing lies on, which a checked result draws it on alone. */
+    planeOf(element: string): string | undefined {
+        return this.drawingsOf(element)[0]?.planeOwner;
+    }
+
+    hasSubProcessPlane(planeOwner: string): boolean {
+        return this.subProcessPlaneOwners.has(planeOwner);
+    }
+
+    /** The plane owner whose plane holds the sub-process's contents in this document. */
+    subProcessContentsPlane(subProcess: string): string | undefined {
+        return contentsPlaneOf(
+            this.planeOwners.has(subProcess) ? subProcess : undefined,
+            this.placedShapeOf(subProcess),
+            (shape) => shape.planeOwner,
+        );
+    }
+
+    /** The shape drawing the element that the layout reads and a repair writes: its first with bounds, in diagram order. */
+    shapeDrawingOf(element: string): Drawing | undefined {
+        return this.drawingsOf(element).find(
+            ({ element: drawing }) =>
+                isType(drawing, "bpmndi:BPMNShape") && isModdleElement(drawing.bounds),
+        );
+    }
+
+    /** The shape of an element a result carries, which its contents' plane follows: the one the layout reads, else its first. */
+    placedShapeOf(element: string): Drawing | undefined {
+        return (
+            this.shapeDrawingOf(element) ??
+            this.drawingsOf(element).find(({ element: drawing }) =>
+                isType(drawing, "bpmndi:BPMNShape"),
+            )
+        );
+    }
+
+    /** The drawings of an element a result takes from this index: only the edge or shape it carries, or every drawing that names no element. */
+    placedDrawingsOf(element: string): readonly Drawing[] {
+        const drawings = this.drawingsOf(element);
+        if (element === "") return drawings;
+        const placed = this.flowDrawingOf(element) ?? this.placedShapeOf(element);
+        return placed === undefined ? drawings : [placed];
+    }
+
+    /** The edge drawing the flow that the layout reads and a repair writes: its first, in diagram order. */
+    flowDrawingOf(flow: string): Drawing | undefined {
+        return this.drawingsOf(flow).find(({ element }) => isType(element, "bpmndi:BPMNEdge"));
+    }
 }
 
 /**
@@ -87,53 +168,9 @@ export const ROOT_PLANE: PlaneKind = "root";
 
 /** The plane's kind: a sub-process plane in any of the indexes is one. */
 export function planeKindOf(planeOwner: string, ...indexes: readonly DiagramIndex[]): PlaneKind {
-    return indexes.some((index) => index.subProcessPlaneOwners.has(planeOwner))
+    return indexes.some((index) => index.hasSubProcessPlane(planeOwner))
         ? "subProcess"
         : ROOT_PLANE;
-}
-
-/** The plane owner whose plane holds the sub-process's contents in this document. */
-export function contentsPlaneIn(index: DiagramIndex, subProcess: string): string | undefined {
-    return contentsPlaneOf(
-        index.planeOwners.has(subProcess) ? subProcess : undefined,
-        placedShapeOf(index, subProcess),
-        (shape) => shape.planeOwner,
-    );
-}
-
-/** The shape drawing the element that the layout reads and a repair writes: its first with bounds, in diagram order. */
-export function shapeDrawingOf(index: DiagramIndex, element: string): Drawing | undefined {
-    return index.drawingsByElement
-        .get(element)
-        ?.find(
-            ({ element: drawing }) =>
-                isType(drawing, "bpmndi:BPMNShape") && isModdleElement(drawing.bounds),
-        );
-}
-
-/** The shape of an element a result carries, which its contents' plane follows: the one the layout reads, else its first. */
-export function placedShapeOf(index: DiagramIndex, element: string): Drawing | undefined {
-    return (
-        shapeDrawingOf(index, element) ??
-        index.drawingsByElement
-            .get(element)
-            ?.find(({ element: drawing }) => isType(drawing, "bpmndi:BPMNShape"))
-    );
-}
-
-/** The drawings of an element a result takes from this index: only the edge or shape it carries, or every drawing that names no element. */
-export function placedDrawingsOf(index: DiagramIndex, element: string): readonly Drawing[] {
-    const drawings = index.drawingsByElement.get(element) ?? [];
-    if (element === "") return drawings;
-    const placed = flowDrawingOf(index, element) ?? placedShapeOf(index, element);
-    return placed === undefined ? drawings : [placed];
-}
-
-/** The edge drawing the flow that the layout reads and a repair writes: its first, in diagram order. */
-export function flowDrawingOf(index: DiagramIndex, flow: string): Drawing | undefined {
-    return index.drawingsByElement
-        .get(flow)
-        ?.find(({ element }) => isType(element, "bpmndi:BPMNEdge"));
 }
 
 /** A drawing is known by the element it draws, not by its DI id, which the sides may give two different drawings. */

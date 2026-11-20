@@ -1,0 +1,19 @@
+{
+    "note": "Templates the linked form preview passes to translate(), recorded by apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview -u apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts`. Feeds the needed-key set alongside the browser harvests.",
+    "count": 13,
+    "keys": [
+        "Close form preview",
+        "Linked form preview",
+        "Multiple saved forms match this reference. Choose a form to preview.",
+        "No saved local form matches this reference. Refresh to try again.",
+        "Open a workspace folder to preview linked forms.",
+        "Read-only preview of the saved local form.",
+        "Refresh",
+        "Saved form loaded.",
+        "The form preview could not be loaded. Refresh to try again.",
+        "The host did not answer. Refresh to try again.",
+        "The linked form is missing or invalid. Check the form reference.",
+        "The saved form could not be read. Refresh to try again.",
+        "The saved form is invalid or unsupported. Open it in the form editor."
+    ]
+}

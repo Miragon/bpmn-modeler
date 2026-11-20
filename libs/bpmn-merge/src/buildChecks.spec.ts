@@ -13,7 +13,7 @@ import {
     requireRebuiltDerivedReferences,
     requireSourceContent,
 } from "./buildChecks";
-import { diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { moddleFor } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
 
@@ -109,7 +109,7 @@ describe("requireOneDrawingPerDrawnElement", () => {
 
         const definitions = (await parse(twice)).rootElement;
 
-        expect(() => requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn)).toThrow(
+        expect(() => requireOneDrawingPerDrawnElement(DiagramIndex.of(definitions), drawn)).toThrow(
             "elements have more than one shape or edge: Task_Check",
         );
     });
@@ -119,7 +119,7 @@ describe("requireOneDrawingPerDrawnElement", () => {
 
         const definitions = (await parse(undrawn)).rootElement;
 
-        expect(() => requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn)).toThrow(
+        expect(() => requireOneDrawingPerDrawnElement(DiagramIndex.of(definitions), drawn)).toThrow(
             "drawn elements have no shape or edge: Task_Check",
         );
     });
@@ -128,7 +128,7 @@ describe("requireOneDrawingPerDrawnElement", () => {
         const definitions = (await parse(valid)).rootElement;
 
         expect(() =>
-            requireOneDrawingPerDrawnElement(diagramIndexOf(definitions), drawn),
+            requireOneDrawingPerDrawnElement(DiagramIndex.of(definitions), drawn),
         ).not.toThrow();
     });
 });
@@ -306,7 +306,7 @@ describe("requireDrawingsReachableFromTheirRootPlane", () => {
         const parsed = await parse(withSecondPoolOnTheRootPlane);
 
         expect(() =>
-            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+            requireDrawingsReachableFromTheirRootPlane(DiagramIndex.of(parsed.rootElement)),
         ).toThrow("drawings lie on a root plane that does not reach them: Participant_Store");
     });
 
@@ -314,7 +314,7 @@ describe("requireDrawingsReachableFromTheirRootPlane", () => {
         const parsed = await parse(valid.replace(' processRef="Process_1"', ""));
 
         expect(() =>
-            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+            requireDrawingsReachableFromTheirRootPlane(DiagramIndex.of(parsed.rootElement)),
         ).not.toThrow();
     });
 
@@ -322,7 +322,7 @@ describe("requireDrawingsReachableFromTheirRootPlane", () => {
         const parsed = await parse(valid);
 
         expect(() =>
-            requireDrawingsReachableFromTheirRootPlane(diagramIndexOf(parsed.rootElement)),
+            requireDrawingsReachableFromTheirRootPlane(DiagramIndex.of(parsed.rootElement)),
         ).not.toThrow();
     });
 });
@@ -386,7 +386,7 @@ ${content}
         const definitions = (await parse(xml)).rootElement;
 
         expect(() =>
-            requireDrawingsOnTheirContainersPlane(diagramIndexOf(definitions)),
+            requireDrawingsOnTheirContainersPlane(DiagramIndex.of(definitions)),
         ).not.toThrow();
     });
 
@@ -413,7 +413,7 @@ ${content}
     ])("refuses $drawing", async ({ xml, refused }) => {
         const definitions = (await parse(xml)).rootElement;
 
-        expect(() => requireDrawingsOnTheirContainersPlane(diagramIndexOf(definitions))).toThrow(
+        expect(() => requireDrawingsOnTheirContainersPlane(DiagramIndex.of(definitions))).toThrow(
             `drawings lie on another plane than their sub-process implies${refused}`,
         );
     });
@@ -459,7 +459,7 @@ ${subProcessPlane}
     const rootShapes = [shape("DataRef_1"), shape("Sub_1"), shape("Task_Out")];
 
     const planeChecksOf = async (xml: string) => {
-        const diagramIndex = diagramIndexOf((await parse(xml)).rootElement);
+        const diagramIndex = DiagramIndex.of((await parse(xml)).rootElement);
         return () => {
             requireEdgesOnThePlaneOfTheirEnds(diagramIndex);
             requireDrawingsOnTheirContainersPlane(diagramIndex);

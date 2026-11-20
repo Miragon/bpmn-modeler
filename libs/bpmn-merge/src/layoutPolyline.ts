@@ -1,3 +1,5 @@
+import { EXACT_BEND_TOLERANCE, withoutRedundantBends } from "@miragon/bpmn-modeler-types/polyline";
+
 import { type DiagramBounds, type Point, boundsAround, pointBounds } from "./layoutGeometry";
 import { type NearestPoint, type Segment, nearestOnSegment } from "./layoutSegments";
 
@@ -13,22 +15,9 @@ export function isOrthogonal(points: readonly Point[]): boolean {
     return segmentsOf(points).every(([from, to]) => from.x === to.x || from.y === to.y);
 }
 
-/** The points without repeats and without a point in the middle of a straight run. */
+/** The points without repeats and without a point in the middle of a straight run; a turning point stays. */
 export function withoutRedundantPoints(points: readonly Point[]): Point[] {
-    const kept: Point[] = [];
-    for (const point of points) {
-        const last = kept[kept.length - 1];
-        if (last !== undefined && last.x === point.x && last.y === point.y) continue;
-        const beforeLast = kept[kept.length - 2];
-        const straight =
-            last !== undefined &&
-            beforeLast !== undefined &&
-            ((beforeLast.x === last.x && last.x === point.x) ||
-                (beforeLast.y === last.y && last.y === point.y));
-        if (straight) kept[kept.length - 1] = point;
-        else kept.push(point);
-    }
-    return kept;
+    return withoutRedundantBends(points, EXACT_BEND_TOLERANCE);
 }
 
 /** The polyline's point nearest to `point`, the first of equally near ones. */

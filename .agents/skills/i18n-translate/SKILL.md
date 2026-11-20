@@ -20,8 +20,8 @@ The modeler's UI strings come from two sources, merged at webview startup:
    them is an *upstream* contribution to that separate repository.
 
 2. **The local overlay `libs/bpmn-i18n-extras/`** (this repo). A deliberately tiny dictionary that fills
-   *only* the modeler-internal strings the shared library does not ship in any spelling — today just the
-   script-lock badge labels the webview emits (e.g. `Read-only`, `Being edited in`, `Element actions`).
+   *only* the modeler-internal strings the shared library does not ship in any spelling, such as the merge
+   and diff views' texts, the element template chooser and the script-lock badge labels.
    The webviews merge it on with a consumer-wins `i18n.extend(extras)`, so the shared translation always
    wins for keys it covers and the overlay only fills the residual gap.
 
@@ -140,8 +140,9 @@ What each guard enforces (so a failure message tells you what to fix):
   normalized casing). A failure names keys to *delete* — the shared library caught up.
 - **`overlayNeeded.spec.ts`** — the overlay defines no key the runtime harvest never requested (except the
   `SOURCE_ONLY` allowlist for strings from a call site no harvest reaches, like script-lock). A failing
-  merge view text belongs in `mergeTextsTranslated.spec.ts`, and a diff pane text in the webview's
-  `diffTextsHarvest.spec.ts`, not in `SOURCE_ONLY`.
+  text of a view a spec records (the merge view, the diff panes, the modeler's features, the linked form
+  preview; `tools/README.md` lists the specs) belongs in that view's texts constant and record, not in
+  `SOURCE_ONLY`.
 - **`coverage.spec.ts`** — no harvested string is left uncovered by both the shared library and the
   overlay (the no-gaps guard).
 

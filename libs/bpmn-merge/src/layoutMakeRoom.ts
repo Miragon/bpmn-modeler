@@ -33,10 +33,6 @@ export function freeRoom(draft: DrawingDraft): RoomMade {
     return { draft, shifted: [], grown: [], growth: 0 };
 }
 
-export function onlyMoves({ shifted, grown }: RoomMade): boolean {
-    return shifted.length === 0 && grown.length === 0;
-}
-
 /** How many shapes the room shifted, leaving out the lanes shifted below a lane it grew: its growth weighs those. */
 export function shiftedShapeCountOf({ draft, shifted }: RoomMade): number {
     return shifted.filter((id) => draft.shapes.get(id)?.kind !== "lane").length;

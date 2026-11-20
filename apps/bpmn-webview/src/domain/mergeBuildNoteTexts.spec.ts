@@ -43,10 +43,9 @@ describe("buildNoteText", () => {
             {
                 kind: "shapesOverlap",
                 ids: ["Task_Pack", "Task_A"],
-                repair: "madeRoom",
+                repair: "madeRoomByShifting",
                 moved: "Task_Pack",
                 shifted: ["Task_B", "End_1"],
-                grown: [],
             },
             "The build moved Pack box off Task_A and made room by shifting Task_B, End_1",
         ],
@@ -54,9 +53,8 @@ describe("buildNoteText", () => {
             {
                 kind: "shapesOverlap",
                 ids: ["Task_Pack", "Task_A"],
-                repair: "madeRoom",
+                repair: "madeRoomByGrowing",
                 moved: "Task_Pack",
-                shifted: [],
                 grown: ["Lane_1", "Pool_1"],
             },
             "The build moved Pack box off Task_A and grew Lane_1, Pool_1 to hold it",
@@ -65,7 +63,7 @@ describe("buildNoteText", () => {
             {
                 kind: "shapesOverlap",
                 ids: ["Task_Pack", "Task_A"],
-                repair: "madeRoom",
+                repair: "madeRoomByGrowingAndShifting",
                 moved: "Task_Pack",
                 shifted: ["Task_B"],
                 grown: ["Lane_1"],
@@ -146,7 +144,6 @@ describe("buildNoteText", () => {
                 repair: "movedByBuild",
                 moved: "Lane_2",
                 grown: ["Pool_1"],
-                shifted: [],
             },
             "The build moved Lane_2 below the other lanes and grew Pool_1 to hold it",
         ],
@@ -154,7 +151,7 @@ describe("buildNoteText", () => {
             {
                 kind: "lanesOverlap",
                 ids: ["Lane_2", "Lane_1"],
-                repair: "movedByBuild",
+                repair: "movedByBuildAndShifted",
                 moved: "Lane_2",
                 grown: ["Pool_1", "Lane_0"],
                 shifted: ["Pool_2", "Task_3"],

@@ -28,6 +28,14 @@ and guarded.
   rewrite them with `-u` on those specs as for the merge record. Both take the shared diff views' keys
   from `DIFF_VIEW_KEYS` (`@miragon/bpmn-modeler-types`), which `diffVocabulary.spec.ts` checks against
   what the legend and side label translate; a pane's own text is added to its record spec by hand.
+- `libs/bpmn-i18n-extras/tools/harvested-modeler-features.json`: the keys of the modeler package's
+  features no browser driver reaches, recorded by `packages/bpmn-modeler/src/featureTextsHarvest.spec.ts`.
+  It mounts the mode strip with a recording translator, asks the popup-menu annotations of every surface
+  for their `translatableTexts()`, and reads the `*_KEYS` lists the element template chooser, the append
+  menu, the ID-from-name links, the definition search and the model navigation export beside their texts
+  constants. `harvested-form-preview.json` holds the linked form preview's `FORM_PREVIEW_KEYS`, recorded by
+  `apps/bpmn-webview/src/domain/formPreviewTextsHarvest.spec.ts`. A new text of these features goes into
+  its texts constant, never inline into `translate()`; rewrite the record with `-u` on its spec.
 - `libs/bpmn-i18n-extras/tools/harvest-drain.js`: the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.
@@ -72,15 +80,14 @@ The recorder seam lives in `libs/shared/src/lib/harvestRecorder.ts`, wired only 
 
 ## The `SOURCE_ONLY` allowlist
 
-Some strings the webview genuinely emits come from a feature the harvest driver does not exercise (today
-the script-lock badges: `Read-only`, `Being edited in`, `Element actions`). These cannot appear in
+Some strings the webview genuinely emits come from a call site no harvest driver or recording spec
+reaches; `src/sourceOnlyKeys.ts` lists them with the reason each one stays. These cannot appear in
 `harvested.json`, so `overlayNeeded` would wrongly flag them as dead. They are allowlisted in `SOURCE_ONLY`
 in `src/sourceOnlyKeys.ts`, the one set that both `tools/build-overlay.mjs` and `src/overlayNeeded.spec.ts`
 import. If you add a genuinely needed modeler-internal string the harvest can't reach, add it there and
-nowhere else. A merge view text goes into `mergeTextsTranslated.spec.ts` instead, and a diff pane text into the
-webview's `diffTextsHarvest.spec.ts`. A key stays listed
-while another view's harvest records it, since that harvest does not reach its own call site: the template
-chooser's `Close` and the merge bar's `Close` are one key.
+nowhere else. A text of a view a spec records goes into that view's texts constant and record instead
+(`tools/README.md` lists the recording specs). A key stays listed while another view's harvest records
+it, since that harvest does not reach its own call site.
 
 ## The overlay is temporary debt
 

@@ -17,8 +17,7 @@ import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7"
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
-
-const JAVA_IMPLEMENTATION_KEYWORDS = ["Java delegate", "External task"];
+import { C7_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotationOverrides";
 
 export const c7Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -37,16 +36,5 @@ export const c7Stack: EngineStack = {
     ],
     moddleExtensions: { camunda: camundaModdle },
     propertiesPanelDefaults: { tooltip: CamundaPlatformTooltipProvider },
-    popupMenuAnnotations: {
-        descriptions: {
-            "service-task":
-                "Automated work carried out by a Java delegate, expression, or external task",
-        },
-        additionalKeywords: {
-            "service-task": JAVA_IMPLEMENTATION_KEYWORDS,
-            "send-task": JAVA_IMPLEMENTATION_KEYWORDS,
-            "message-intermediate-throw": JAVA_IMPLEMENTATION_KEYWORDS,
-            "message-end": JAVA_IMPLEMENTATION_KEYWORDS,
-        },
-    },
+    popupMenuAnnotations: C7_POPUP_MENU_ANNOTATIONS,
 };

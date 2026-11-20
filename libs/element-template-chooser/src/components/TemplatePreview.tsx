@@ -9,6 +9,7 @@ import {
     propertyDisplayLabel,
     templatePropertyDisplayText,
 } from "../types";
+import { CHOOSER_TEXTS, TEMPLATE_DETAIL_TEXTS } from "../chooserTexts";
 
 interface TemplatePreviewProps {
     template: ElementTemplate;
@@ -59,7 +60,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                                 <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
                                 <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 0 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243L6.586 4.672z" />
                             </svg>
-                            {translate("Documentation")}
+                            {translate(TEMPLATE_DETAIL_TEXTS.documentation)}
                         </a>
                     )}
                     <div class="etc-preview-meta">
@@ -76,28 +77,28 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
                 <div class="etc-preview-params">
                     {properties.length > 0 && (
                         <ParameterSection
-                            title={translate("Properties")}
+                            title={translate(TEMPLATE_DETAIL_TEXTS.properties)}
                             items={properties}
                             translate={translate}
                         />
                     )}
                     {inputs.length > 0 && (
                         <ParameterSection
-                            title={translate("Input Parameters")}
+                            title={translate(TEMPLATE_DETAIL_TEXTS.inputParameters)}
                             items={inputs}
                             translate={translate}
                         />
                     )}
                     {outputs.length > 0 && (
                         <ParameterSection
-                            title={translate("Output Parameters")}
+                            title={translate(TEMPLATE_DETAIL_TEXTS.outputParameters)}
                             items={outputs}
                             translate={translate}
                         />
                     )}
                     {properties.length === 0 && inputs.length === 0 && outputs.length === 0 && (
                         <div class="etc-preview-no-params">
-                            <p>{translate("No visible parameters")}</p>
+                            <p>{translate(TEMPLATE_DETAIL_TEXTS.noVisibleParameters)}</p>
                         </div>
                     )}
                 </div>
@@ -106,7 +107,7 @@ export function TemplatePreview({ template, translate, onApply }: TemplatePrevie
             {/* Apply button — pinned at the bottom */}
             <div class="etc-preview-footer">
                 <button class="etc-apply-btn" onClick={onApply} type="button">
-                    {translate("Apply Template")}
+                    {translate(CHOOSER_TEXTS.apply)}
                 </button>
             </div>
         </div>
@@ -138,22 +139,23 @@ function ParameterSection({
                         <li key={i} class="etc-param-item">
                             <div class="etc-param-header">
                                 <span class="etc-param-label">
-                                    {propertyDisplayLabel(p) ?? translate("Unnamed")}
+                                    {propertyDisplayLabel(p) ??
+                                        translate(TEMPLATE_DETAIL_TEXTS.unnamedProperty)}
                                 </span>
                                 <div class="etc-param-badges">
                                     {p.constraints?.notEmpty && (
                                         <span class="etc-badge etc-badge--required">
-                                            {translate("required")}
+                                            {translate(TEMPLATE_DETAIL_TEXTS.required)}
                                         </span>
                                     )}
                                     {p.editable === false && (
                                         <span class="etc-badge etc-badge--readonly">
-                                            {translate("read-only")}
+                                            {translate(TEMPLATE_DETAIL_TEXTS.readOnly)}
                                         </span>
                                     )}
                                     {p.optional && (
                                         <span class="etc-badge etc-badge--optional">
-                                            {translate("optional")}
+                                            {translate(TEMPLATE_DETAIL_TEXTS.optional)}
                                         </span>
                                     )}
                                 </div>

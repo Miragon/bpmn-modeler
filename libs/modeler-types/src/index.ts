@@ -29,6 +29,7 @@ export * from "./diffStepper";
 export * from "./diffVocabulary";
 export * from "./mergeVocabulary";
 export * from "./mergeBuildNotes";
+export * from "./mergeBuildNoteReaders";
 export * from "./conflictMarkers";
 export * from "./elementTypeNames";
 export * from "./layout";

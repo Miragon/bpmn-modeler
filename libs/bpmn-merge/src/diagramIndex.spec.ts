@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import {
-    contentsPlaneIn,
-    diagramIndexOf,
-    placedDrawingsOf,
-    placedShapeOf,
-    shapeDrawingOf,
-} from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 
 const bounds = `<dc:Bounds x="0" y="0" width="100" height="80" />`;
 
@@ -44,12 +38,14 @@ const COLLAPSED = `
       <bpmndi:BPMNShape id="Sub_1_collapsed" bpmnElement="Sub_1">${bounds}</bpmndi:BPMNShape>`;
 const FLOW_EARLIER = `
       <bpmndi:BPMNEdge id="Flow_1_earlier" bpmnElement="Flow_1"><di:waypoint x="100" y="60" /><di:waypoint x="200" y="60" /></bpmndi:BPMNEdge>`;
+const TASK_IN_ON_ROOT = `
+      <bpmndi:BPMNShape id="Task_In_root" bpmnElement="Task_In">${bounds}</bpmndi:BPMNShape>`;
 const UNNAMED = `
       <bpmndi:BPMNShape id="Unnamed_1">${bounds}</bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Unnamed_2">${bounds}</bpmndi:BPMNShape>`;
 
 async function indexOf(rootDrawings: string) {
-    return diagramIndexOf((await parseWithoutWarnings(document(rootDrawings))).rootElement);
+    return DiagramIndex.of((await parseWithoutWarnings(document(rootDrawings))).rootElement);
 }
 
 describe("shapeDrawingOf", () => {
@@ -60,19 +56,19 @@ describe("shapeDrawingOf", () => {
     ])("answers %s", async (_case, rootDrawings, drawingId) => {
         const index = await indexOf(rootDrawings);
 
-        expect(shapeDrawingOf(index, "Sub_1")?.element.id).toBe(drawingId);
+        expect(index.shapeDrawingOf("Sub_1")?.element.id).toBe(drawingId);
     });
 
     it("answers none for an element drawn by an edge", async () => {
         const index = await indexOf(EXPANDED);
 
-        expect(shapeDrawingOf(index, "Flow_1")).toBeUndefined();
+        expect(index.shapeDrawingOf("Flow_1")).toBeUndefined();
     });
 
     it("answers none for an element the index does not draw", async () => {
         const index = await indexOf(EXPANDED);
 
-        expect(shapeDrawingOf(index, "Task_A")).toBeUndefined();
+        expect(index.shapeDrawingOf("Task_A")).toBeUndefined();
     });
 });
 
@@ -83,13 +79,13 @@ describe("placedShapeOf", () => {
     ])("answers %s", async (_case, rootDrawings, drawingId) => {
         const index = await indexOf(rootDrawings);
 
-        expect(placedShapeOf(index, "Sub_1")?.element.id).toBe(drawingId);
+        expect(index.placedShapeOf("Sub_1")?.element.id).toBe(drawingId);
     });
 
     it("answers none for an element drawn by an edge", async () => {
         const index = await indexOf(EXPANDED);
 
-        expect(placedShapeOf(index, "Flow_1")).toBeUndefined();
+        expect(index.placedShapeOf("Flow_1")).toBeUndefined();
     });
 });
 
@@ -100,7 +96,7 @@ describe("placedDrawingsOf", () => {
     ])("places only the shape the layout reads, %s", async (_case, rootDrawings) => {
         const index = await indexOf(rootDrawings);
 
-        expect(placedDrawingsOf(index, "Sub_1").map(({ element }) => element.id)).toEqual([
+        expect(index.placedDrawingsOf("Sub_1").map(({ element }) => element.id)).toEqual([
             "Sub_1_expanded",
         ]);
     });
@@ -108,7 +104,7 @@ describe("placedDrawingsOf", () => {
     it("places only the edge the layout reads of a flow drawn twice", async () => {
         const index = await indexOf(EXPANDED + FLOW_EARLIER);
 
-        expect(placedDrawingsOf(index, "Flow_1").map(({ element }) => element.id)).toEqual([
+        expect(index.placedDrawingsOf("Flow_1").map(({ element }) => element.id)).toEqual([
             "Flow_1_earlier",
         ]);
     });
@@ -116,7 +112,7 @@ describe("placedDrawingsOf", () => {
     it("places every drawing that names no element", async () => {
         const index = await indexOf(EXPANDED + UNNAMED);
 
-        expect(placedDrawingsOf(index, "").map(({ element }) => element.id)).toEqual([
+        expect(index.placedDrawingsOf("").map(({ element }) => element.id)).toEqual([
             "Unnamed_1",
             "Unnamed_2",
         ]);
@@ -125,11 +121,11 @@ describe("placedDrawingsOf", () => {
     it("places nothing for an element the index does not draw", async () => {
         const index = await indexOf(EXPANDED);
 
-        expect(placedDrawingsOf(index, "Task_A")).toEqual([]);
+        expect(index.placedDrawingsOf("Task_A")).toEqual([]);
     });
 });
 
-describe("contentsPlaneIn", () => {
+describe("subProcessContentsPlane", () => {
     it.each([
         ["its own plane under a collapsed shape", COLLAPSED, "Sub_1"],
         ["the plane its expanded shape lies on", EXPANDED, "Process_1"],
@@ -147,6 +143,90 @@ describe("contentsPlaneIn", () => {
     ])("puts a sub-process's contents on %s", async (_case, rootDrawings, planeOwner) => {
         const index = await indexOf(rootDrawings);
 
-        expect(contentsPlaneIn(index, "Sub_1")).toBe(planeOwner);
+        expect(index.subProcessContentsPlane("Sub_1")).toBe(planeOwner);
+    });
+});
+
+describe("drawnIds", () => {
+    it('lists each id with drawings once, in the order first drawn, with "" for drawings that name no element', async () => {
+        const index = await indexOf(COLLAPSED + UNNAMED + EXPANDED);
+
+        expect(index.drawnIds()).toEqual(["Sub_1", "", "Task_B", "Flow_1", "Task_In"]);
+    });
+});
+
+describe("drawnElements", () => {
+    it("lists the drawn elements without the drawings that name none", async () => {
+        const index = await indexOf(UNNAMED + COLLAPSED);
+
+        expect(index.drawnElements()).toEqual(["Sub_1", "Task_B", "Flow_1", "Task_In"]);
+    });
+});
+
+describe("elementsDrawnMoreThanOnce", () => {
+    it.each([
+        ["a sub-process with two shapes", COLLAPSED + EXPANDED, ["Sub_1"]],
+        ["a flow with two edges", EXPANDED + FLOW_EARLIER, ["Flow_1"]],
+        ["an element on two planes", EXPANDED + TASK_IN_ON_ROOT, ["Task_In"]],
+        ["none for two drawings that name no element", EXPANDED + UNNAMED, []],
+    ])("answers %s", async (_case, rootDrawings, elements) => {
+        const index = await indexOf(rootDrawings);
+
+        expect(index.elementsDrawnMoreThanOnce()).toEqual(elements);
+    });
+});
+
+describe("draws", () => {
+    it.each([
+        ["an element drawn by a shape", "Task_B", true],
+        ["an element drawn by an edge", "Flow_1", true],
+        ["an element drawn only by a plane", "Process_1", false],
+        ["an element without a drawing", "Task_A", false],
+    ])("answers %s", async (_case, element, drawn) => {
+        const index = await indexOf(EXPANDED);
+
+        expect(index.draws(element)).toBe(drawn);
+    });
+});
+
+describe("drawingsOf", () => {
+    it("answers every drawing of the element in diagram order", async () => {
+        const index = await indexOf(COLLAPSED + EXPANDED);
+
+        expect(index.drawingsOf("Sub_1").map(({ element }) => element.id)).toEqual([
+            "Sub_1_collapsed",
+            "Sub_1_expanded",
+        ]);
+    });
+
+    it("answers none for an element the index does not draw", async () => {
+        const index = await indexOf(EXPANDED);
+
+        expect(index.drawingsOf("Task_A")).toEqual([]);
+    });
+});
+
+describe("planeOf", () => {
+    it.each([
+        ["the root plane", EXPANDED, "Task_B", "Process_1"],
+        ["a sub-process's plane", EXPANDED, "Task_In", "Sub_1"],
+        ["the plane of its first drawing", EXPANDED + TASK_IN_ON_ROOT, "Task_In", "Process_1"],
+        ["none for an element without a drawing", EXPANDED, "Task_A", undefined],
+    ])("answers %s", async (_case, rootDrawings, element, planeOwner) => {
+        const index = await indexOf(rootDrawings);
+
+        expect(index.planeOf(element)).toBe(planeOwner);
+    });
+});
+
+describe("hasSubProcessPlane", () => {
+    it.each([
+        ["a sub-process's plane", "Sub_1", true],
+        ["a process's plane", "Process_1", false],
+        ["an owner without a plane", "Task_B", false],
+    ])("answers %s", async (_case, planeOwner, subProcessPlane) => {
+        const index = await indexOf(EXPANDED);
+
+        expect(index.hasSubProcessPlane(planeOwner)).toBe(subProcessPlane);
     });
 });

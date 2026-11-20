@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-19
+- Last reviewed: 2026-11-20
 
 ## Context
 
@@ -69,11 +69,8 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   Geist for their diff panes. The public `DiffMarkerClass` literals are pinned to the
   shared markers by a spec.
 - Show all takes both panes back to how they opened, out of a collapsed subprocess
-  too: `DiffViewer.fitDiagram`, `DiffNavigator.reset` and `DiffPaneCoordinator.reset`
-  in-page, and across webviews a `CursorChangedCommand` with `SHOW_ALL_CURSOR` (-1),
-  which the partner reads as Show all. `DiffLegendCallbacks.onShowAll`,
-  `DiffLegendContext.showChanges` and `position`, and
-  `DiffPaneCoordinator.cycleLength` carry the bar's state.
+  too; across webviews it travels as a `CursorChangedCommand` with `SHOW_ALL_CURSOR`
+  (-1), which the partner reads as Show all.
 - Each pane fits its own diagram when it opens and tells its partner nothing: an
   opening fit sent as a viewport could reach the partner while VS Code still laid one
   pane out and leave it off-centre. The panes sync from the user's first pan or zoom.
@@ -131,67 +128,56 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   declares by itself are undocumented, so they sit behind the `moddleNamespaces`
   adapter (see [dependencies](dependencies.md#private-upstream-apis)); its spec, the
   guard and the namespace specs turn an upgrade that changes them into a failing
-  build. A call builds two moddle instances and parses the whole document: about
-  50 ms at 0.8 MB, two calls per selection. `elementSnapshots` gives every element's text
-  from one parse through the same serialiser, with the set of elements as a parameter. A
-  child without an id is never an element of its own: it stays in its parent's text, since
-  nothing else could report it.
+  build. A call builds two moddle instances and parses the whole document, twice per
+  selection. `elementSnapshots` gives every element's text from one parse through the
+  same serialiser. A child without an id is never an element of its own: it stays in its
+  parent's text, since nothing else could report it.
 - *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only production
   code outside bpmn-js that resolves bpmn-moddle's factory, and `moddleDescriptor`
-  beside it unwraps a dynamically imported engine descriptor. `libs/bpmn-layout`, the
-  Node linter and the script task service use the loader, so `bpmn-layout` depends on
-  `bpmn-diff`; specs that import `BpmnModdle` statically do not go through it. The
-  parser, saxen, the engine descriptors and bpmn-js-differ load lazily, so a bundle
-  that imports the library for the loader loads none of them; a spec holds this. saxen
-  is a direct dependency of `bpmn-diff` at moddle-xml's version and so a runtime
-  dependency of `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads
-  the Camunda 7 and 8 prefixes and URIs from the descriptors. `ENGINE_NAMESPACE` in
+  beside it unwraps a dynamically imported BPMN engine descriptor. `bpmn-layout` parses
+  through the loader, so it depends on `bpmn-diff`. The parser, saxen, the engine
+  descriptors and bpmn-js-differ load lazily, so a bundle that imports the library for
+  the loader loads none of them; a spec holds this. saxen is a direct dependency of
+  `bpmn-diff` at moddle-xml's version and so a runtime dependency of
+  `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads the engines'
+  prefixes and URIs from the descriptors; `ENGINE_NAMESPACE` in
   `@miragon/bpmn-modeler-types` copies them for the modeler and the merge, which load no
-  descriptor; its prefixes are typed as the diff's `ExecutionEngine`, and a spec pins each
-  entry to `loadExecutionPackage` (#2464).
-- *The merge builds on the diff's primitives.* Besides `elementSnapshots`, `bpmn-diff`
-  exports its moddle walk (`walkContainment`, `containmentProperties`, `isType`,
-  `isModdleElement`, `moddleElements`, `idOf`, `idsOf`), the unit rule `trackedElementOf`, `namespaceDeclarations`,
-  `createDocumentModdle` and `loadExecutionPackage` with their types, so the three-way
-  merge (#2450) applies the diff's unit rule and parse instead of copying them. The cost
-  is a wider workspace API: a change to one of them is a change to the merge.
-  `@miragon/bpmn-modeler/diff` re-exports none of them.
+  descriptor. Its prefixes are typed as the diff's `ExecutionEngine`, which is why
+  `modeler-types` depends on `bpmn-diff`, and a spec pins each entry to
+  `loadExecutionPackage` (#2464). The primitives the merge builds on are in
+  [Merge](merge.md#one-unpublished-library).
 - *The panes share one selection.* `DiffViewer` takes `DiffViewerOptions.additionalModules`,
-  as `createViewer` does, so only the webview adds a context pad and an outline. The
-  viewer reports the single selected element (`onSelectedElementChanged`, a BPMN id or
-  `undefined` for an empty or multiple selection) and applies the partner's
-  (`mirrorSelection`, which clears on `undefined`, on an absent element and on another
-  plane, and reports nothing back). The names differ from
-  `SelectionManager.onSelectionChanged`, which reports diagram ids such as `X_label` that
-  do not name the same element in two versions; `bpmnElementIdOf` is the one rule that
-  maps a label to its element and a plane to its subprocess, for the selection, the
-  context pad and the plane a pane reports. An import reports no selection, so a pane
-  that loads late does not clear its partner's. Every background click posts
-  `NO_DIFF_SELECTION`, which the core ignores for the XML diff. Which selection and
-  viewport changes are the user's is one guard (`UserChangeGuard`), read by the
-  listeners and the resize rule alike, so a selection the pane does not report as the
-  user's is not centred as the user's on resize either; the one exception is a step's
-  selection (`UserChangeGuard.selectForUser`), which is not reported but kept in view.
+  as `createViewer` does, so only the webview adds a context pad and an outline. The viewer
+  reports the single selected element (`onSelectedElementChanged`, a BPMN id or `undefined`
+  for an empty or multiple selection) and applies the partner's (`mirrorSelection`, which
+  clears on `undefined`, on an absent element and on another plane, and reports nothing
+  back). The names differ from `SelectionManager.onSelectionChanged`, which reports diagram
+  ids such as `X_label` that do not name the same element in two versions; `bpmnElementIdOf`
+  is the one rule that maps a label to its element and a plane to its subprocess, for the
+  selection, the context pad and the plane a pane reports. An import reports no selection,
+  so a pane that loads late does not clear its partner's. A background click posts
+  `NO_DIFF_SELECTION`, which the core ignores for the XML diff, so an open one stays as it
+  is. Which selection and viewport changes are the user's is one guard (`UserChangeGuard`),
+  read by the listeners and the resize rule alike, so a selection the pane does not report
+  as the user's is not centred as the user's on resize either; the one exception is a step's
+  selection, which is not reported but kept in view.
 - *A step selects its change*, as a click does and as in the
   [merge view](merge-view-picking-and-building.md). Each pane that draws the change
   selects it after its own cursor entered the change's plane, since diagram-js drops a
   selection on `root.set`, so its context pad opens; a pane that lacks it anchors on a
   neighbour, selects nothing and drops its old selection. The stepping pane then posts
-  `DiffSelectionChangedCommand` with the change, also one only the partner draws, so an
-  open XML diff follows on the selection's route and a closed one stays closed; the
-  partner's mirror finds the change selected already, so nothing echoes. The decision
-  lives in the webview's `diffStepSelection`, which `DiffMode` and the merge view's
-  step both apply. A diff pane knows a change only its version has from its side of
-  `ApplyDiffHighlightsQuery`, whose `added` and `removed` hold exactly those
-  (`BpmnDiffService` pins it); a merge pane from its step's `onThisPane` and
-  `onOtherPane`. `DiffNavigator` and `DiffPaneCoordinator` only name the change and
-  whether a pane drew it (`currentChangeId`, `drawsCurrentChange`) and
-  `DiffViewer.selectStep` selects it, so a `DiffPaneCoordinator`, which shares no
-  selection, still selects nothing by itself. The blue glow stays beside the outline:
-  it marks the stepper's place, which a later click does not move. Show all keeps the
-  selection, as the merge view's does, except where leaving a sub-process plane drops
-  it. The cost: two webview callers that each read the stepped change their own way,
-  and a core that cannot tell a step's selection from a click's.
+  the change as the selection, also one only the partner draws, so an open XML diff
+  follows on the selection's route and a closed one stays closed; the partner's mirror
+  finds the change selected already, so nothing echoes. The decision lives in the
+  webview's `diffStepSelection`, which `DiffMode` and the merge view's step both apply;
+  a diff pane knows a change only its version has from its side of
+  `ApplyDiffHighlightsQuery` (`BpmnDiffService` pins it). `DiffNavigator` and
+  `DiffPaneCoordinator` only name the change and whether a pane drew it, so a
+  `DiffPaneCoordinator`, which shares no selection, selects nothing by itself. The blue
+  glow stays beside the outline: it marks the stepper's place, which a later click does
+  not move. Show all keeps the selection, as the merge view's does, except where leaving
+  a sub-process plane drops it. The cost: two webview callers that each read the stepped
+  change their own way, and a core that cannot tell a step's selection from a click's.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
   KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in one pane:
   the one the user selected in, or for a step the stepping pane, or the partner when
@@ -203,17 +189,13 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   change instead of upstream's debounce. The cost: the partner follows after the
   viewport debounce. The webview depends on diagram-js directly at the package's pin,
   because bpmn-js's context pad needs `modeling`, which a viewer lacks.
-- *One switch per host.* The host's element XML handler, handed to `BpmnDiffService`, is
-  the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`, which
-  shows the entry, and decides whether the router handles `ShowElementXmlChangesCommand`
-  and the follow, so an entry whose clicks are dropped cannot occur. VS Code passes it
-  where the API has `TabInputTextDiff` (not every Theia does); the bridge always passes
-  it. A merge pane gets the same answer, and whether the host merges a picked element's
-  XML by hand ([merge XML editor](merge-xml-editor.md)), as one `MergeHostOffers` value
-  on `ApplyMergeStatesQuery`, so a new offer adds a field rather than another positional
-  flag. `MergeDecisionService` is built with the source of that value and asks it on every
-  post; VS Code's composition reads the XML diff's support once, for the handler and the
-  source alike.
+- *One switch per host.* The host's element XML handler, handed to `BpmnDiffService`,
+  is the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`,
+  which shows the entry, and decides whether the router handles
+  `ShowElementXmlChangesCommand` and the follow, so an entry whose clicks are dropped
+  cannot occur. VS Code passes it where the API has `TabInputTextDiff` (not every
+  Theia does); the bridge always passes it. A merge pane gets the same answer through
+  [`MergeHostOffers`](merge-xml-editor.md#decision).
 - *The core decides.* The core computes both texts and the title behind the render-only
   port `ElementXmlDiffView`. The rules for requests live in the domain object
   `ElementXmlRequests`: only the latest renders, the same element twice renders once, a
@@ -230,24 +212,22 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   `~` (the index, or HEAD when nothing is staged), `order.bpmn (Index)` against HEAD, and
   otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)`; the file name alone when a
   version is unknown. The core shows a ref as the host names it: VS Code's
-  `documentRevision`, the one home of what the plugin knows about Git URIs, reads the
-  version from the Git extension's URIs and cuts commit hashes with the core's
-  `shortCommitHash` to the extension's default seven characters, which the merge view's
-  captions share, so the title depends on that format and ignores a changed
-  `git.commitShortHashLength`. Theia's own Git integration (`gitfs:`) and the bridge report
-  unknown; the standalone app ships VS Code's Git extension, so its panes are `git:` too.
-  The core also orders the sides of an SCM diff by version (a commit, the index, the
-  working tree); two commits keep the order their panes resolved in.
-- *IntelliJ shows it inside the diagram diff.* The bridge's `RpcElementXmlDiffView`
-  forwards `show`, `refresh` and `close` as `elementXmlDiff/*` notifications, and the
-  host reports the user's close as `elementXmlDiff/closed`. The XML diff carries the
-  diagram diff's before pane (`ElementXmlDiff.paneUri`), because the core's key is its
-  own and the host finds its viewer by pane, as it routes `diff/postMessage`. The viewer
-  splits off a `DiffRequestPanel` below the two browsers, so the XML diff closes with
-  the diagram diff without a message; its sides take the diagram diff's side titles,
-  since the bridge reports no revision. The host owns the refresh rule: a refresh
-  replaces only what the slot of that key shows, and the slot runs on the EDT, where
-  the user's close runs too, so a refresh in flight cannot reopen what the user closed.
+  `documentRevision` is the one home of what the plugin knows about Git URIs, and commit
+  hashes are cut to the Git extension's default seven characters (`shortCommitHash`,
+  shared with the merge view's captions), so the title ignores a changed
+  `git.commitShortHashLength`. Theia's own Git integration (`gitfs:`) and the bridge
+  report unknown; the standalone app ships VS Code's Git extension, so its panes are
+  `git:` too. The core also orders the sides of an SCM diff by version (a commit, the
+  index, the working tree); two commits keep the order their panes resolved in.
+- *IntelliJ shows it inside the diagram diff.* The bridge forwards the view as
+  `elementXmlDiff/*` notifications. The XML diff carries the diagram diff's before pane
+  (`ElementXmlDiff.paneUri`), because the core's key is its own and the host finds its
+  viewer by pane. The viewer splits off a `DiffRequestPanel` below the two browsers, so
+  the XML diff closes with the diagram diff without a message; its sides take the
+  diagram diff's side titles, since the bridge reports no revision. The host owns the
+  refresh rule: a refresh replaces only what the slot of that key shows, and the slot
+  runs on the EDT, where the user's close runs too, so a refresh in flight cannot
+  reopen what the user closed.
   A swap reopens the diagram diff under a new key, so the old key's late frames are
   ignored. The cost: that refresh rule exists twice, in the VS Code view and in Kotlin's
   `ElementXmlDiffSlot`, plus a loopback copy in the bridge's contract spec. The loopback
@@ -266,7 +246,6 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   them before any BPMN file opens. The group below is split from the group that is
   active once both texts are parsed: a click into another group within those tens of
   milliseconds puts the XML diff there.
-
 
 ### DMN diff
 

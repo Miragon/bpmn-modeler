@@ -1,7 +1,9 @@
 import {
-    type MergeBuildNoteContent,
     elementsNamedBy,
-} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+    framesGrownBy,
+    shapesShiftedBy,
+} from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import type { MergeBuildNoteContent } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 /**
  * The elements whose drawing the build's layout repair changed for a note, each of them one the
@@ -16,10 +18,8 @@ export function elementsRedrawnBy(note: MergeBuildNoteContent): string[] {
         case "shapeOutsideContainer":
             return note.repair === "movedIntoContainer" ? [note.id] : elementsNamedBy(note);
         case "shapesOverlap":
-            return note.repair === "madeRoom"
-                ? [note.moved, ...note.shifted, ...note.grown]
-                : [note.moved];
+            return [note.moved, ...shapesShiftedBy(note), ...framesGrownBy(note)];
         case "lanesOverlap":
-            return [note.moved, ...note.grown, ...note.shifted];
+            return [note.moved, ...framesGrownBy(note), ...shapesShiftedBy(note)];
     }
 }

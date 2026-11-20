@@ -1,83 +1,14 @@
 // Strings our own code passes to translate() at a call site no harvest reaches
-// (neither a harvest driver nor a recording spec: mergeTextsTranslated.spec.ts for
-// the merge view, the diffTextsHarvest.spec.ts files for the diff panes),
-// genuinely needed and absent from the shared library. Keep them until upstreamed.
+// (neither a harvest driver nor a recording spec; tools/README.md lists the specs
+// that record the merge view, the diff panes, the modeler's features and the
+// linked form preview), genuinely needed and absent from the shared library.
+// Keep them until upstreamed.
 // A key stays while another view's harvest records it: that harvest does not reach this call site.
 export const SOURCE_ONLY: ReadonlySet<string> = new Set([
-    // Anchored form-preview chrome is outside the harvest driver's modeler interactions.
-    "Preview linked form",
-    "Linked form preview",
-    "The linked form is missing or invalid. Check the form reference.",
-    "Refresh",
-    "Close form preview",
-    "Read-only preview of the saved local form.",
-    "Saved form loaded.",
-    "Open a workspace folder to preview linked forms.",
-    "No saved local form matches this reference. Refresh to try again.",
-    "Multiple saved forms match this reference. Choose a form to preview.",
-    "The saved form could not be read. Refresh to try again.",
-    "The host did not answer. Refresh to try again.",
-    "The saved form is invalid or unsupported. Open it in the form editor.",
-    "The form preview could not be loaded. Refresh to try again.",
+    // The script-lock badge and hint render only while the host reports a script
+    // open in an editor, which the harvest driver does not simulate.
     "Read-only",
     "Being edited in",
+    // The context pad's keyboard search title: the harvest driver never opens it.
     "Element actions",
-    // Workspace definition-search entry: it only renders with a search port,
-    // which the harvest driver does not supply.
-    "Search other models",
-    "Name or code",
-    "No matches in other models",
-    "Search failed",
-    "Searching…",
-    "thrown by {elements}",
-    "caught by {elements}",
-    // Mode-strip labels the webview emits before any surface exists, so the
-    // harvest driver (which drives a live modeler) never records them.
-    "View",
-    "Design",
-    "Implement",
-    "Mode",
-    "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
-    "Mode: {mode}",
-    "Engine-neutral modeling",
-    "Camunda properties, templates and lint",
-    // Append-menu / element-template-chooser chrome. The harvest driver never
-    // opens either overlay (no popupMenu.open of bpmn-append/bpmn-create, no
-    // elementTemplates.select), and none of these are conditional on search /
-    // hover / selection states it could reach, so they cannot be harvested.
-    "Apply Template",
-    "Clear search",
-    "Close",
-    "Collapse",
-    "Delegate",
-    "Element Templates",
-    "Expand",
-    "Favourites",
-    "No templates found",
-    "No visible parameters",
-    "Other",
-    "Search templates...",
-    "Search...",
-    "Select a template to see its details",
-    "Task Type",
-    "Try a different search term",
-    "Unnamed",
-    "optional",
-    "read-only",
-    "required",
-    "{count} properties",
-    "{count} property",
-    // Popup-menu annotations: the harvest snapshot predates them, and the
-    // Design- and C8-only strings are out of the C7 driver's reach anyway.
-    "Automated work carried out by a Java delegate, expression, or external task",
-    "Automated work carried out by a system",
-    "Child process",
-    "Human",
-    "Java delegate",
-    // The ID-from-name links: the harvest snapshot predates them.
-    "Generate from name",
-    "Review all IDs…",
-    "Rename the ID to {id}",
-    "The ID already follows the name.",
-    "Add a name to generate the ID from it.",
 ]);

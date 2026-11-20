@@ -20,6 +20,7 @@ import {
 } from "./RenameElementIdsHandler";
 
 export type { IdConvention } from "./convention";
+export { ID_FROM_NAME_KEYS } from "./idFromNameTexts";
 export type { ElementIdOptions, ElementIdProposal, ElementIdsService } from "./ElementIdsService";
 
 interface EventBusLike {

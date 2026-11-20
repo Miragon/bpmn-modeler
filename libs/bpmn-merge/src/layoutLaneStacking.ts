@@ -1,3 +1,5 @@
+import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, liesWithin } from "./layoutGeometry";
 import { type LaneShape, type LayoutModel, type LayoutShape, lanesOf } from "./layoutModel";
@@ -8,7 +10,7 @@ import { lanesOverlap } from "./layoutSpots";
 export interface LaneStacking {
     readonly lane: string;
     /** The pool, then the parent lanes from the innermost, that grew to hold the lane. */
-    readonly grown: readonly string[];
+    readonly grown: MergeNonEmptyIds;
     /** The sibling lanes it lay on as the build assembled the drawing. */
     readonly overlapped: readonly string[];
     /** The shapes that shifted down on their own, not with their pool, parent lane, host or sub-process, in document order. */
@@ -66,7 +68,7 @@ export function stackAppendedLanes(
 
         const line = Math.max(...siblings.map(({ bounds }) => bottomOf(bounds)));
         const childLanes = descendantLanesOf(drawing, lane);
-        const grown = [pool.id, ...parentLanesOf(drawing, lane)];
+        const grown: MergeNonEmptyIds = [pool.id, ...parentLanesOf(drawing, lane)];
         const shifted = openBand(drawing, groups, {
             pool,
             line,

@@ -3,7 +3,7 @@ import type { ElementSnapshot, ModdleElement, ModdleParseResult } from "@miragon
 import { checkMergedXml } from "./buildChecks";
 import { type MergeSources, requireSourcesOf } from "./buildMergedSources";
 import { type BuildNote, buildNotesOf } from "./buildNotes";
-import { diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { assembleDiagrams } from "./diagramMerge";
 import { drawingSidesOf, drawnByShape } from "./drawingSides";
 import type { MergeModdle } from "./engineModdle";
@@ -69,7 +69,10 @@ export async function buildMergedWith(
     await spliceHandMerges(mergeModdle, decisions.handMergedVersions, parsed);
     const current = parsed.current.rootElement;
     const incoming = parsed.incoming.rootElement;
-    const diagramIndexes = { current: diagramIndexOf(current), incoming: diagramIndexOf(incoming) };
+    const diagramIndexes = {
+        current: DiagramIndex.of(current),
+        incoming: DiagramIndex.of(incoming),
+    };
     const slots = new PlaneSlots(diagramIndexes);
     const sideLayouts = [layoutModelOf(current, slots), layoutModelOf(incoming, slots)];
     const frame = mergeFrames(sources.frames);

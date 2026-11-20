@@ -1,3 +1,5 @@
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+
 import type { BuildNoteContent, NoteRepairOf } from "./buildNotes";
 import type { LaneStacking } from "./layoutLaneStacking";
 import { type SpotRepair, SpotRepairs } from "./layoutSpotRepairs";
@@ -24,16 +26,7 @@ export interface LayoutRepairOutcome {
  * unless a step mended it on purpose, which its note says.
  */
 export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNoteContent[] {
-    const notes: BuildNoteContent[] = outcome.laneStackings.map(
-        ({ lane, grown, overlapped, shifted }) => ({
-            kind: "lanesOverlap",
-            ids: [lane, ...overlapped],
-            repair: "movedByBuild",
-            moved: lane,
-            grown,
-            shifted,
-        }),
-    );
+    const notes: BuildNoteContent[] = outcome.laneStackings.map(laneStackedNote);
     const shapesByNote = new Map<string, string[]>();
     const repairs = new SpotRepairs(outcome.repairs);
     for (const spot of spotsToName(outcome, repairs)) {
@@ -53,6 +46,21 @@ export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNoteContent[
         }
     }
     return notes;
+}
+
+/** A lane moved below its pool's lanes, with the frames that grew to hold it and the shapes it shifted down, if any. */
+function laneStackedNote({ lane, grown, overlapped, shifted }: LaneStacking): BuildNoteContent {
+    const ids = [lane, ...overlapped];
+    return isNonEmpty(shifted)
+        ? {
+              kind: "lanesOverlap",
+              ids,
+              repair: "movedByBuildAndShifted",
+              moved: lane,
+              grown,
+              shifted,
+          }
+        : { kind: "lanesOverlap", ids, repair: "movedByBuild", moved: lane, grown };
 }
 
 /**

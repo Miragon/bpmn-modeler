@@ -59,7 +59,7 @@ describe("buildNotesOf", () => {
                 {
                     kind: "lanesOverlap",
                     ids: ["Lane_2", "Lane_1"],
-                    repair: "movedByBuild",
+                    repair: "movedByBuildAndShifted",
                     moved: "Lane_2",
                     grown: ["Pool_1"],
                     shifted: ["Pool_2"],

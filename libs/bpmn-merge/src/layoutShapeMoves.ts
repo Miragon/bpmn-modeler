@@ -1,7 +1,8 @@
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRepairPlanner } from "./layoutFlowRepair";
 import { FlowTopology } from "./layoutFlowTopology";
-import { onlyMoves } from "./layoutMakeRoom";
 import type { LayoutModel, NodeShape } from "./layoutModel";
 import { placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
@@ -136,9 +137,14 @@ function endedEarlier([first, second]: readonly [NodeShape, NodeShape]): boolean
 function roomRepairOf(room: GroupRoom): MoveRepair {
     const moved = room.group.node.id;
     const { shifted, grown } = room;
-    return onlyMoves(room)
-        ? { kind: "movedByBuild", moved }
-        : { kind: "madeRoom", moved, shifted, grown };
+    if (isNonEmpty(grown)) {
+        return isNonEmpty(shifted)
+            ? { kind: "madeRoomByGrowingAndShifting", moved, shifted, grown }
+            : { kind: "madeRoomByGrowing", moved, grown };
+    }
+    return isNonEmpty(shifted)
+        ? { kind: "madeRoomByShifting", moved, shifted }
+        : { kind: "movedByBuild", moved };
 }
 
 /**

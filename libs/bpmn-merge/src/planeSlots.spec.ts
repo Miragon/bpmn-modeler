@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { type DiagramIndex, diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { PlaneSlot, PlaneSlots } from "./planeSlots";
 
 const plane = (owner: string) => `
@@ -13,7 +13,7 @@ async function indexOf(semantic: string, diagrams: readonly string[]): Promise<D
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">${semantic}${diagrams.join("")}
 </bpmn:definitions>`;
-    return diagramIndexOf((await parseWithoutWarnings(xml)).rootElement);
+    return DiagramIndex.of((await parseWithoutWarnings(xml)).rootElement);
 }
 
 const PROCESSES = `

@@ -1,6 +1,6 @@
 import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bpmn-modeler-diff";
 
-import { type Drawing, diagramIndexOf, flowDrawingOf, shapeDrawingOf } from "./diagramIndex";
+import { DiagramIndex, type Drawing } from "./diagramIndex";
 import type { DiagramBounds, Outline, Point } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, LayoutShape } from "./layoutModel";
 import { type LayoutRelations, layoutRelationsOf } from "./layoutRelations";
@@ -15,13 +15,13 @@ type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
  */
 export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): LayoutModel {
     const relations = layoutRelationsOf(definitions);
-    const index = diagramIndexOf(definitions);
+    const index = DiagramIndex.of(definitions);
     const planeSlots = slots ?? PlaneSlots.ofDocument(index);
     const shapes = new Map<string, LayoutShape>();
     const edges = new Map<string, LayoutEdge>();
-    for (const id of index.drawingsByElement.keys()) {
+    for (const id of index.drawnIds()) {
         const connection = relations.connections.get(id);
-        const flowDrawing = connection === undefined ? undefined : flowDrawingOf(index, id);
+        const flowDrawing = connection === undefined ? undefined : index.flowDrawingOf(id);
         if (connection !== undefined && flowDrawing !== undefined) {
             const { element, planeOwner: plane } = flowDrawing;
             const label = labelBoundsOf(element);
@@ -29,7 +29,7 @@ export function layoutModelOf(definitions: ModdleElement, slots?: PlaneSlots): L
             edges.set(id, label === undefined ? edge : { ...edge, label });
             continue;
         }
-        const drawing = shapeDrawingOf(index, id);
+        const drawing = index.shapeDrawingOf(id);
         const shape =
             drawing && shapeOf(relations, id, planeOf(planeSlots, drawing), drawing.element);
         if (shape !== undefined) shapes.set(id, shape);
