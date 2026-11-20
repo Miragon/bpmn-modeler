@@ -1,4 +1,4 @@
-import type { BuildNote, NoteRepairOf } from "./buildNotes";
+import type { BuildNoteContent, NoteRepairOf } from "./buildNotes";
 import type { LaneStacking } from "./layoutLaneStacking";
 import { type SpotRepair, SpotRepairs } from "./layoutSpotRepairs";
 import { type LayoutSpot, repairedTogether, sameSpot } from "./layoutSpots";
@@ -23,8 +23,8 @@ export interface LayoutRepairOutcome {
  * one a move mended is not, and neither is any other spot a move mended
  * unless a step mended it on purpose, which its note says.
  */
-export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNote[] {
-    const notes: BuildNote[] = outcome.laneStackings.map(
+export function layoutSpotNotes(outcome: LayoutRepairOutcome): BuildNoteContent[] {
+    const notes: BuildNoteContent[] = outcome.laneStackings.map(
         ({ lane, grown, overlapped, shifted }) => ({
             kind: "lanesOverlap",
             ids: [lane, ...overlapped],
@@ -74,7 +74,7 @@ function spotsToName(
     ];
 }
 
-function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNote {
+function spotNoteOf(spot: LayoutSpot, repairs: SpotRepairs): BuildNoteContent {
     switch (spot.kind) {
         case "flowEndOffShape":
             return {
