@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
+import { type CleanupOutcome, polylineMidpoint } from "@miragon/bpmn-modeler-types";
 import Modeler from "bpmn-js/lib/Modeler";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -14,7 +14,6 @@ import {
 import { installHeadlessDom } from "../__fixtures__/headlessDom";
 import { parseDefinitions } from "../__fixtures__/parseBpmn";
 import { createBpmnLayoutModule } from "../module";
-import { polylineMidpoint } from "../plan";
 import type { LayoutEngine } from "../port";
 import type { LayoutResult, Point } from "../types";
 import { LAYOUT_APPLY_COMMAND } from "./Layouter";
