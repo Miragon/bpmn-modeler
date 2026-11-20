@@ -9,19 +9,31 @@ export interface MergeCardChange {
     readonly show?: MergeRememberedOutcome;
 }
 
+/** What settling new states does to the card; a shown card closes before another shows. */
+type MergeSettledCard =
+    | { readonly kind: "show"; readonly outcome: MergeRememberedOutcome }
+    | { readonly kind: "close" }
+    | { readonly kind: "remark" };
+
+/** What settling new states does: the card's change and the row outcome to announce once. */
+export interface MergeSettle {
+    readonly card: MergeSettledCard;
+    readonly announce?: MergeRememberedOutcome;
+}
+
 /**
- * What new states do to the card: this pane's new outcome shows at its
- * element, unless it was decided in a menu row, which says it there; any
- * other new outcome closes the card.
+ * What new states do once the pane repainted: this pane's new outcome shows
+ * at its element, unless it was decided in a menu row, which closes the card
+ * and says it in that row, announced once; the partner's newer outcome
+ * closes the card; nothing new marks the card's blockers again.
  */
-export function cardOnAnswer(
-    memory: MergeOutcomeMemory,
-    answer: MergeOutcomeAnswer,
-): MergeCardChange {
-    if (answer === "keep") return { close: false };
-    const show =
-        answer === "show" ? outcomeToShowAt(memory, memory.latest?.outcome.elementId) : undefined;
-    return { close: true, ...(show ? { show } : {}) };
+export function settleOn(memory: MergeOutcomeMemory, answer: MergeOutcomeAnswer): MergeSettle {
+    if (answer === "keep") return { card: { kind: "remark" } };
+    if (answer === "forget") return { card: { kind: "close" } };
+    const show = outcomeToShowAt(memory, memory.latest?.outcome.elementId);
+    if (show !== undefined) return { card: { kind: "show", outcome: show } };
+    const announce = rowOutcome(memory);
+    return { card: { kind: "close" }, ...(announce ? { announce } : {}) };
 }
 
 /**

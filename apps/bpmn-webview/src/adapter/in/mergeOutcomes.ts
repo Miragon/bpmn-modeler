@@ -25,11 +25,11 @@ import {
     type MergeRememberedOutcome,
 } from "../../domain/mergeOutcomeCard";
 import {
-    cardOnAnswer,
     cardOnSelection,
     chooseOn,
     outcomeToShowAt,
     rowOutcome,
+    settleOn,
 } from "../../domain/mergeOutcomeCardRules";
 import {
     answerStates,
@@ -97,23 +97,17 @@ export class MergeOutcomes {
     }
 
     /**
-     * After the repaint: shows this pane's new outcome, closes the card on
-     * another, or marks its blockers again. Returns what a row's newly
-     * answered decision did, for the bar to announce once.
+     * After the repaint: does to the card what {@link settleOn} says, and
+     * returns the words of the row outcome it announces, for the bar.
      */
     settle(answer: MergeOutcomeAnswer): readonly string[] | undefined {
-        const change = cardOnAnswer(this.memory, answer);
-        if (change.show !== undefined) {
-            this.showCard(change.show, { announce: true });
-        } else if (change.close) {
-            this.card?.close();
-        } else {
-            this.card?.remark();
-        }
-        const fromRow = rowOutcome(this.memory);
-        if (answer !== "show" || fromRow === undefined || !this.states) return undefined;
+        const { card, announce } = settleOn(this.memory, answer);
+        if (card.kind === "show") this.showCard(card.outcome, { announce: true });
+        else if (card.kind === "close") this.card?.close();
+        else this.card?.remark();
+        if (announce === undefined || !this.states) return undefined;
         const { nameOf, translate } = this.context;
-        return rowOutcomeText(this.states, fromRow, { nameOf, translate, offers: this.offers });
+        return rowOutcomeText(this.states, announce, { nameOf, translate, offers: this.offers });
     }
 
     /** The menu's rows, the row a decision was sent from saying what it did. */

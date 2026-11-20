@@ -4,15 +4,17 @@ import type { MergePaneOutcome } from "@miragon/bpmn-modeler-shared";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import {
-    cardOnAnswer,
     cardOnSelection,
     chooseOn,
+    type MergeSettle,
     outcomeToShowAt,
     rowOutcome,
+    settleOn,
 } from "./mergeOutcomeCardRules";
 import {
     answerStates,
     EMPTY_OUTCOME_MEMORY,
+    type MergeOutcomeAnswer,
     type MergeOutcomeMemory,
     type MergeOutcomeStates,
     rememberSent,
@@ -92,31 +94,59 @@ describe("outcomeToShowAt", () => {
     });
 });
 
-describe("cardOnAnswer", () => {
-    it("shows this pane's new outcome of a decision made on the canvas", () => {
-        const { memory, answer } = sendAndAnswer(
-            EMPTY_OUTCOME_MEMORY,
-            keepTask,
-            applied("pick", "Task_Remind"),
-        );
+describe("settleOn", () => {
+    const onCanvas = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepTask, applied("pick", "Task_Remind"));
+    const inRow = sendAndAnswer(
+        EMPTY_OUTCOME_MEMORY,
+        undo("Message_1", "menu"),
+        applied("unpick", "Message_1"),
+    );
+    const partnerNewer = answerStates(
+        inRow.memory,
+        states({ lastOutcome: applied("pick", "Task_Remind") }),
+    );
 
-        expect(cardOnAnswer(memory, answer)).toStrictEqual({ close: true, show: memory.latest });
+    it.each<[string, MergeOutcomeMemory, MergeOutcomeAnswer, MergeSettle]>([
+        [
+            "shows this pane's new outcome of a decision made on the canvas, announcing no row",
+            onCanvas.memory,
+            onCanvas.answer,
+            { card: { kind: "show", outcome: onCanvas.memory.latest! } },
+        ],
+        [
+            "closes the card and announces in its row the outcome of a decision made in the menu",
+            inRow.memory,
+            inRow.answer,
+            { card: { kind: "close" }, announce: inRow.memory.latest! },
+        ],
+        [
+            "closes the card for the partner's newer outcome, announcing no row",
+            partnerNewer.memory,
+            partnerNewer.answer,
+            { card: { kind: "close" } },
+        ],
+        [
+            "marks the card's blockers again while nothing is new",
+            onCanvas.memory,
+            "keep",
+            { card: { kind: "remark" } },
+        ],
+        [
+            "announces a row's outcome no second time while nothing is new",
+            inRow.memory,
+            "keep",
+            { card: { kind: "remark" } },
+        ],
+    ])("%s", (_case, memory, answer, settled) => {
+        expect(settleOn(memory, answer)).toStrictEqual(settled);
     });
 
-    it("closes the card, showing none, for a decision made in the menu, which says it in the row", () => {
-        const { memory, answer } = sendAndAnswer(
-            EMPTY_OUTCOME_MEMORY,
-            undo("Message_1", "menu"),
-            applied("unpick", "Message_1"),
-        );
-
-        expect(answer).toBe("show");
-        expect(cardOnAnswer(memory, answer)).toStrictEqual({ close: true });
-    });
-
-    it("closes the card for the partner's newer outcome and keeps it while nothing is new", () => {
-        expect(cardOnAnswer(EMPTY_OUTCOME_MEMORY, "forget")).toStrictEqual({ close: true });
-        expect(cardOnAnswer(EMPTY_OUTCOME_MEMORY, "keep")).toStrictEqual({ close: false });
+    it("reads the answers the table settles", () => {
+        expect([onCanvas.answer, inRow.answer, partnerNewer.answer]).toStrictEqual([
+            "show",
+            "show",
+            "forget",
+        ]);
     });
 });
 
