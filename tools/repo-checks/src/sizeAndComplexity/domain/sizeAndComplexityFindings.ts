@@ -25,13 +25,15 @@ export const SIZE_AND_COMPLEXITY_GROUPS: readonly [FindingGroup] = [
 ];
 
 export function sizeAndComplexityFindings(files: readonly FileMeasure[]): Finding[] {
-    return files.map((file) => ({
-        key: file.path,
-        path: file.path,
-        paths: [file.path],
-        line: findingLine(file),
-        message: `${file.codeLines} code lines; ${complexityPhrase(file)}`,
-        values: valuesOf(file),
-        group: "files",
-    }));
+    return files
+        .filter((file) => !file.runsNoCode)
+        .map((file) => ({
+            key: file.path,
+            path: file.path,
+            paths: [file.path],
+            line: findingLine(file),
+            message: `${file.codeLines} code lines; ${complexityPhrase(file)}`,
+            values: valuesOf(file),
+            group: "files",
+        }));
 }
