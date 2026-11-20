@@ -12,7 +12,7 @@ import {
 
 import { connectionEndsOf, edgePlaneOf } from "./connectionEnds";
 import { enclosingSubProcessOf } from "./containerContents";
-import { type DiagramIndex, contentsPlaneIn, diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import type { MergeModdle } from "./engineModdle";
 import { isMergeElement } from "./mergeElements";
 import {
@@ -47,7 +47,7 @@ export async function checkMergedXml(
 ): Promise<void> {
     const parsed = await moddle.fromXML(xml);
     requireNoParserWarnings(parsed);
-    const diagramIndex = diagramIndexOf(parsed.rootElement);
+    const diagramIndex = DiagramIndex.of(parsed.rootElement);
     requireOneDrawingPerDrawnElement(diagramIndex, expectations.drawnByShape);
     requireDrawingsOnTheirContainersPlane(diagramIndex);
     requireEdgesOnThePlaneOfTheirEnds(diagramIndex);
@@ -71,29 +71,25 @@ export function requireOneDrawingPerDrawnElement(
     diagramIndex: DiagramIndex,
     drawnByShape: ReadonlySet<string>,
 ): void {
-    const drawnTwice = [...diagramIndex.drawingsByElement]
-        .filter(([id, drawings]) => id !== "" && drawings.length > 1)
-        .map(([id]) => id);
+    const drawnTwice = diagramIndex.elementsDrawnMoreThanOnce();
     if (drawnTwice.length > 0) refuse("elements have more than one shape or edge", drawnTwice);
-    const undrawn = [...drawnByShape].filter((id) => !diagramIndex.drawingsByElement.has(id));
+    const undrawn = [...drawnByShape].filter((id) => !diagramIndex.draws(id));
     if (undrawn.length > 0) refuse("drawn elements have no shape or edge", undrawn);
 }
 
 /** Every drawing but an edge lies where `contentsPlaneOf` puts the contents of its sub-process. */
 export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex): void {
-    const misplaced = [...diagramIndex.drawingsByElement]
-        .filter(([id, drawings]) =>
-            drawings.some(({ element, planeOwner }) => {
-                const drawn = element.bpmnElement as ModdleElement;
-                const subProcess = enclosingSubProcessOf(drawn);
-                const expected =
-                    id === "" || subProcess === undefined || connectionEndsOf(drawn) !== undefined
-                        ? undefined
-                        : contentsPlaneIn(diagramIndex, subProcess);
-                return expected !== undefined && expected !== planeOwner;
-            }),
-        )
-        .map(([id]) => id);
+    const misplaced = diagramIndex.drawnElements().filter((id) =>
+        diagramIndex.drawingsOf(id).some(({ element, planeOwner }) => {
+            const drawn = element.bpmnElement as ModdleElement;
+            const subProcess = enclosingSubProcessOf(drawn);
+            const expected =
+                subProcess === undefined || connectionEndsOf(drawn) !== undefined
+                    ? undefined
+                    : diagramIndex.contentsPlaneOf(subProcess);
+            return expected !== undefined && expected !== planeOwner;
+        }),
+    );
     if (misplaced.length > 0) {
         refuse("drawings lie on another plane than their sub-process implies", misplaced);
     }
@@ -133,16 +129,13 @@ export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: Diagram
 
 /** Every edge lies on the plane `edgePlaneOf` names, so bpmn-js finds both its ends there. */
 export function requireEdgesOnThePlaneOfTheirEnds(diagramIndex: DiagramIndex): void {
-    const planeOfEnd = (id: string) => diagramIndex.drawingsByElement.get(id)?.[0]?.planeOwner;
-    const misplaced = [...diagramIndex.drawingsByElement]
-        .filter(([id, drawings]) =>
-            drawings.some(({ element, planeOwner }) => {
-                const ends =
-                    id === "" ? undefined : connectionEndsOf(element.bpmnElement as ModdleElement);
-                return ends !== undefined && edgePlaneOf(ends, planeOfEnd) !== planeOwner;
-            }),
-        )
-        .map(([id]) => id);
+    const planeOfEnd = (end: string) => diagramIndex.planeOf(end);
+    const misplaced = diagramIndex.drawnElements().filter((id) =>
+        diagramIndex.drawingsOf(id).some(({ element, planeOwner }) => {
+            const ends = connectionEndsOf(element.bpmnElement as ModdleElement);
+            return ends !== undefined && edgePlaneOf(ends, planeOfEnd) !== planeOwner;
+        }),
+    );
     if (misplaced.length > 0) {
         refuse("edges lie on a plane that does not draw both of their ends", misplaced);
     }

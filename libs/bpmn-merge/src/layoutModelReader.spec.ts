@@ -4,7 +4,7 @@ import { baseModel, nodeById } from "./__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./__fixtures__/bpmnModelBuilder";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
-import { diagramIndexOf } from "./diagramIndex";
+import { DiagramIndex } from "./diagramIndex";
 import { layoutModelOf } from "./layoutModelReader";
 import { PlaneSlots } from "./planeSlots";
 
@@ -50,8 +50,8 @@ describe("layoutModelOf", () => {
         const current = await parseWithoutWarnings(TWO_PROCESS_DIAGRAMS);
         const incoming = await parseWithoutWarnings(ONE_COLLABORATION);
         const slots = new PlaneSlots({
-            current: diagramIndexOf(current.rootElement),
-            incoming: diagramIndexOf(incoming.rootElement),
+            current: DiagramIndex.of(current.rootElement),
+            incoming: DiagramIndex.of(incoming.rootElement),
         });
 
         const currentLayout = layoutModelOf(current.rootElement, slots);

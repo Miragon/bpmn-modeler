@@ -52,8 +52,7 @@ export function drawingSidesOf(
         const candidates = [resolution.layout[element.id], side];
         for (const part of version?.parts ?? []) {
             const drawingSide = candidates.find(
-                (candidate) =>
-                    candidate !== undefined && indexes[candidate].drawingsByElement.has(part),
+                (candidate) => candidate !== undefined && indexes[candidate].draws(part),
             );
             if (drawingSide !== undefined) sides[part] = drawingSide;
         }
@@ -70,7 +69,7 @@ export function drawnByShape(
     const leftOut = new Set(undrawnEdges.map(({ id }) => id));
     return new Set(
         Object.entries(drawingSides)
-            .filter(([id, side]) => (indexes[side].drawingsByElement.get(id)?.length ?? 0) > 0)
+            .filter(([id, side]) => indexes[side].draws(id))
             .map(([id]) => id)
             .filter((id) => !leftOut.has(id)),
     );
