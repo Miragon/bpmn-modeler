@@ -288,15 +288,16 @@ IntelliJ, or a plain browser. Two implementations back it:
   standalone in a browser via `vite serve`. It routes each command from the
   table in `browserPreview/previewCommands.ts`: a new webview command needs a
   row there, an answer or `{ ignored: reason }`, or the webview fails to compile.
-  The add-ons webview's, the Form editor's and the template editor's
-  `PreviewHost` route the same way from their own `adapter/out/browserPreview/`.
-  The table's type and its router are `PreviewCommandTable` and
-  `routePreviewCommand` in `libs/shared/src/lib/previewCommandTable.ts`, and
+  The deployment webview's, the add-ons webview's, the Form editor's and the
+  template editor's `PreviewHost`s (each in its own `adapter/out/browserPreview/`)
+  route the same way. The table's type and its router are `PreviewCommandTable`
+  and `routePreviewCommand` in `libs/shared/src/lib/previewCommandTable.ts`, and
   `replyFromPreview` and `logPreviewError` sit in `previewOutput.ts` beside it;
-  a new preview table uses them instead of its own copy. A reason is a plain
-  string: `previewCommandTables.spec.ts` in `tools/repo-checks` rejects an
-  interpolated template literal that runs at load in a table's modules, since
-  it keeps the table in the production bundle.
+  a new preview table uses them instead of its own copy, so a webview keeps only
+  its table and its session. A reason is a plain string:
+  `previewCommandTables.spec.ts` in `tools/repo-checks` rejects an interpolated
+  template literal that runs at load in a table's modules, since it keeps the
+  table in the production bundle.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts
