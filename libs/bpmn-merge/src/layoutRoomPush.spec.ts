@@ -1,45 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { box, lane, planeLanesWith, task } from "./__fixtures__/planeLanes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import type { Axis } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { FlowTopology } from "./layoutFlowTopology";
-import type { DiagramBounds } from "./layoutGeometry";
 import type { FrameScope } from "./layoutFrames";
-import { makeRoom } from "./layoutMakeRoom";
-import type { LaneShape, LayoutModel, NodeShape, PoolShape } from "./layoutModel";
+import type { LaneShape, NodeShape, PoolShape } from "./layoutModel";
 import { type GrowingFrame, RoomPush, growingFrameOf } from "./layoutRoomPush";
 import { ShapeGroups, groupBoundsIn } from "./layoutShapeGroups";
-
-const PLANE = "Process_1";
-
-const box = (x: number, y: number, width = 100, height = 80): DiagramBounds => ({
-    x,
-    y,
-    width,
-    height,
-});
-
-const lane = (id: string, bounds: DiagramBounds): LaneShape => ({
-    kind: "lane",
-    id,
-    ...rootPlane(PLANE),
-    parent: PLANE,
-    outline: "rectangle",
-    bounds,
-});
-
-const task = (id: string, bounds: DiagramBounds, inLane: string): NodeShape => ({
-    kind: "node",
-    id,
-    ...rootPlane(PLANE),
-    lanes: [inLane],
-    subProcesses: [],
-    expanded: false,
-    mayLieOutsidePool: false,
-    outline: "rectangle",
-    bounds,
-});
 
 describe("growingFrameOf", () => {
     const pool: PoolShape = {
@@ -111,18 +80,11 @@ describe("growingFrameOf", () => {
 });
 
 describe("RoomPush below a shape in a lane on a plane without a pool", () => {
-    const layout: LayoutModel = {
-        shapes: new Map(
-            [
-                lane("Lane_1", box(30, 70, 1170, 120)),
-                lane("Lane_2", box(30, 190, 1170, 110)),
-                task("Task_A", box(500, 90), "Lane_1"),
-                task("Task_Y", box(510, 90), "Lane_1"),
-                task("Task_L", box(800, 200), "Lane_2"),
-            ].map((shape) => [shape.id, shape]),
-        ),
-        edges: new Map(),
-    };
+    const layout = planeLanesWith([
+        task("Task_A", box(500, 90), "Lane_1"),
+        task("Task_Y", box(510, 90), "Lane_1"),
+        task("Task_L", box(800, 200), "Lane_2"),
+    ]);
 
     it("grows the lane and shifts the lane below with what it holds once, by the growth", () => {
         const draft = DrawingDraft.of(layout);
@@ -145,25 +107,42 @@ describe("RoomPush below a shape in a lane on a plane without a pool", () => {
         expect(trial.shapes.get("Lane_2")!.bounds).toEqual(box(30, 300, 1170, 110));
         expect(trial.node("Task_L")!.bounds).toEqual(box(800, 310));
     });
+});
 
-    it("stacks the shape under the other as in a pool, the lane grown and the lane below shifted with what it holds", () => {
-        const draft = DrawingDraft.of(layout);
-        const groups = new ShapeGroups(layout);
-        const context = { groups, topology: new FlowTopology(layout) };
+describe("RoomPush along x in a lane on a plane without a pool", () => {
+    const layout = planeLanesWith([
+        task("Task_A", box(1000, 90), "Lane_1"),
+        task("Task_L", box(800, 200), "Lane_2"),
+    ]);
 
-        const room = makeRoom(
-            draft,
-            context,
-            groups.of(draft, draft.node("Task_Y")!),
-            draft.node("Task_A")!,
-            "below",
-        );
+    it.each([
+        ["its center then past the lanes' far side", 1020, 1170, 1290],
+        ["its center then short of the lanes' far side", 980, 1130, 1250],
+    ])(
+        "shifts what the box lands on once, %s, and grows the lanes to hold it",
+        (_, boxX, shiftedX, laneWidth) => {
+            const draft = DrawingDraft.of(layout);
+            const trial = draft.fork();
+            const push = new RoomPush(
+                draft,
+                trial,
+                new ShapeGroups(layout),
+                new FlowTopology(layout),
+                "x",
+            );
 
-        expect(room?.shifted).toEqual(["Lane_2", "Task_L"]);
-        expect(room?.grown).toEqual(["Lane_1"]);
-        expect(room?.draft.node("Task_Y")!.bounds).toEqual(box(500, 210));
-        expect(room?.draft.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, 1170, 230));
-        expect(room?.draft.shapes.get("Lane_2")!.bounds).toEqual(box(30, 300, 1170, 110));
-        expect(room?.draft.node("Task_L")!.bounds).toEqual(box(800, 310));
-    });
+            const made = push.push(trial.node("Task_A")!, {
+                box: box(boxX, 90),
+                line: 900,
+                exclude: new Set(),
+            });
+
+            expect(made).toBe(true);
+            expect(push.shifted).toEqual(["Task_A"]);
+            expect(trial.node("Task_A")!.bounds).toEqual(box(shiftedX, 90));
+            expect(trial.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, laneWidth, 120));
+            expect(trial.shapes.get("Lane_2")!.bounds).toEqual(box(30, 190, laneWidth, 110));
+            expect(trial.node("Task_L")!.bounds).toEqual(box(800, 200));
+        },
+    );
 });

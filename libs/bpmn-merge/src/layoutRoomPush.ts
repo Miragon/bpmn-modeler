@@ -48,7 +48,7 @@ export interface RoomRequest {
     readonly column?: readonly DiagramBounds[];
     /** How far back the line may move to take in what the box lands on before it. */
     readonly floor?: number;
-    /** What never gives way nor stands in the way: the moved group, or a frame that grows. */
+    /** What never gives way nor stands in the way: the moved group, a frame that grows, or what already gave way. */
     readonly exclude: ReadonlySet<string>;
     /** What never gives way in the box's own frame but stands in the way of a frame growing around it: the shape the group lay on. */
     readonly stays?: ReadonlySet<string>;
@@ -261,15 +261,13 @@ export class RoomPush {
         const growth = this.space.growFrame(frame, [], extent + this.marginOf(subProcess, units));
         if (growth <= 0) return undefined;
         const scope = frameScopeOf(this.trial, this.trial.node(frame.id)!);
-        return { request: this.outerStrip(request, scope, frame.bounds, growth, [frame.id]) };
+        return { request: this.outerStrip(request, scope, frame.bounds, growth, frame.id) };
     }
 
     /**
      * Grows the lane down: what lies under it shifts down, the lanes across
      * its bottom grow with it and so does the pool, whose strip the plane is
-     * asked for and the pools level with it follow. The strip passes over
-     * the units the band was held over, on a plane without a pool the
-     * plane's own shapes, so none of them shifts twice.
+     * asked for and the pools level with it follow.
      */
     private growLaneDown(
         request: FrameRequest,
@@ -295,10 +293,7 @@ export class RoomPush {
             growing: new Set([...across, ...(pool ? [pool] : [])].map(({ id }) => id)),
         });
         return {
-            request: this.outerStrip(request, PLANE_SCOPE, before, growth, [
-                ...(pool ? [pool.id] : []),
-                ...units.map(({ id }) => id),
-            ]),
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool?.id),
             levelWith: keepsPoolsLevel && pool ? { pool, before, growth } : undefined,
         };
     }
@@ -316,7 +311,7 @@ export class RoomPush {
         const growth = this.space.growFrame(pool, lanes, extent + this.marginOf(pool, units));
         if (growth <= 0) return undefined;
         return {
-            request: this.outerStrip(request, PLANE_SCOPE, before, growth, [pool.id]),
+            request: this.outerStrip(request, PLANE_SCOPE, before, growth, pool.id),
             levelWith: keepsPoolsLevel ? { pool, before, growth } : undefined,
         };
     }
@@ -331,23 +326,32 @@ export class RoomPush {
         const before = boundsAround(lanes.map(({ bounds }) => bounds));
         const growth = this.space.growFrame(lane, lanes, extent + this.marginOf(lane, units));
         if (growth <= 0) return undefined;
-        return { request: this.outerStrip(request, PLANE_SCOPE, before, growth, []) };
+        return { request: this.outerStrip(request, PLANE_SCOPE, before, growth) };
     }
 
-    /** The strip a frame gained past its bounds before, asked in the scope around it, what the growth already placed no longer giving way. */
+    /**
+     * The strip a frame gained past its bounds before, asked in the scope
+     * around it. What already gave way to the push neither gives way again
+     * nor stands in the way: without a pool the plane's shapes are units of
+     * both the lanes and the plane.
+     */
     private outerStrip(
         request: FrameRequest,
         scope: FrameScope,
         before: DiagramBounds,
         growth: number,
-        placedByGrowth: readonly string[],
+        grown?: string,
     ): FrameRequest {
         return {
             plane: request.plane,
             ...scope,
             box: stripPast(this.axis, before, growth),
             line: this.far(before),
-            exclude: new Set([...request.exclude, ...placedByGrowth]),
+            exclude: new Set([
+                ...request.exclude,
+                ...this.space.shifted,
+                ...(grown === undefined ? [] : [grown]),
+            ]),
             frameGrowth: growth,
         };
     }

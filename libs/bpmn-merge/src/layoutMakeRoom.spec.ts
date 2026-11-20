@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { box, planeLanesWith, task } from "./__fixtures__/planeLanes";
 import { rootPlane } from "./__fixtures__/shapePlane";
 import { DrawingDraft } from "./layoutDrawingDraft";
-import type { LayoutShape } from "./layoutModel";
-import { type RoomMade, freeRoom, shiftedShapeCountOf } from "./layoutMakeRoom";
+import { FlowTopology } from "./layoutFlowTopology";
+import type { LayoutModel, LayoutShape } from "./layoutModel";
+import { type RoomMade, freeRoom, makeRoom, shiftedShapeCountOf } from "./layoutMakeRoom";
+import type { RoomSlot } from "./layoutRoomSlots";
+import { ShapeGroups } from "./layoutShapeGroups";
 
 describe("free rooms", () => {
     const draft = DrawingDraft.of({ shapes: new Map(), edges: new Map() });
@@ -60,4 +64,60 @@ describe("shiftedShapeCountOf", () => {
 
         expect(shiftedShapeCountOf(room)).toBe(2);
     });
+});
+
+describe("makeRoom in a lane on a plane without a pool", () => {
+    const roomFor = (layout: LayoutModel, moved: string, other: string, slot: RoomSlot) => {
+        const draft = DrawingDraft.of(layout);
+        const groups = new ShapeGroups(layout);
+        return makeRoom(
+            draft,
+            { groups, topology: new FlowTopology(layout) },
+            groups.of(draft, draft.node(moved)!),
+            draft.node(other)!,
+            slot,
+        );
+    };
+
+    it("stacks the shape under the other as in a pool, the lane grown and the lane below shifted with what it holds", () => {
+        const layout = planeLanesWith([
+            task("Task_A", box(500, 90), "Lane_1"),
+            task("Task_Y", box(510, 90), "Lane_1"),
+            task("Task_L", box(800, 200), "Lane_2"),
+        ]);
+
+        const room = roomFor(layout, "Task_Y", "Task_A", "below");
+
+        expect(room?.shifted).toEqual(["Lane_2", "Task_L"]);
+        expect(room?.grown).toEqual(["Lane_1"]);
+        expect(room?.draft.node("Task_Y")!.bounds).toEqual(box(500, 210));
+        expect(room?.draft.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, 1170, 230));
+        expect(room?.draft.shapes.get("Lane_2")!.bounds).toEqual(box(30, 300, 1170, 110));
+        expect(room?.draft.node("Task_L")!.bounds).toEqual(box(800, 310));
+    });
+
+    it.each([
+        [1060, 1230],
+        [1080, 1230],
+        [1100, 1240],
+    ])(
+        "places the shape after the other, the last shape at x %d shifted once and the lanes grown to %d wide to hold it",
+        (lastX, laneWidth) => {
+            const layout = planeLanesWith([
+                task("Task_O", box(700, 90), "Lane_1"),
+                task("Task_A", box(940, 90), "Lane_1"),
+                task("Task_B", box(lastX, 90), "Lane_1"),
+                task("Task_Y", box(300, 90), "Lane_1"),
+            ]);
+
+            const room = roomFor(layout, "Task_Y", "Task_O", "after");
+
+            expect(room?.draft.node("Task_Y")!.bounds).toEqual(box(850, 90));
+            expect(room?.shifted).toEqual(["Task_A", "Task_B"]);
+            expect(room?.grown).toEqual(["Lane_1", "Lane_2"]);
+            expect(room?.draft.node("Task_A")!.bounds).toEqual(box(1000, 90));
+            expect(room?.draft.node("Task_B")!.bounds).toEqual(box(lastX + 60, 90));
+            expect(room?.draft.shapes.get("Lane_1")!.bounds).toEqual(box(30, 70, laneWidth, 120));
+        },
+    );
 });
