@@ -1,6 +1,7 @@
 import { type ModdleElement, idOf, isType, moddleElements } from "@miragon/bpmn-modeler-diff";
 
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
+import { isEnteredSubProcess } from "./containerContents";
 import type { Outline } from "./layoutGeometry";
 import type { EdgeKind } from "./layoutModel";
 import { type PoolRelations, poolRelationsOf } from "./poolRelations";
@@ -66,7 +67,7 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
             for (const association of moddleElements(element.dataOutputAssociations)) {
                 connect("association", association, element);
             }
-            if (isType(element, "bpmn:SubProcess")) {
+            if (isEnteredSubProcess(element)) {
                 visitFlowElements(element, {
                     ...scope,
                     subProcesses: [element.id, ...scope.subProcesses],

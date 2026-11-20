@@ -6,6 +6,7 @@ import {
 } from "@miragon/bpmn-modeler-diff";
 
 import { poolsOf } from "./collaborationPools";
+import { isEnteredSubProcess } from "./containerContents";
 
 /** Which pools and lanes the semantic tree holds and what each lane holds. */
 export interface PoolRelations {
@@ -45,7 +46,7 @@ export function poolRelationsOf(definitions: ModdleElement): PoolRelations {
     };
     const visitSubProcessLanes = (container: ModdleElement) => {
         for (const element of moddleElements(container.flowElements)) {
-            if (!isType(element, "bpmn:SubProcess") || element.id === undefined) continue;
+            if (!isEnteredSubProcess(element)) continue;
             visitLanes(element.laneSets, element.id);
             visitSubProcessLanes(element);
         }
