@@ -80,9 +80,7 @@ describe("routeOrthogonal", () => {
                 source: gateway(415, 75),
                 target: task(560, 130),
                 obstacles: [],
-                otherSegments: [
-                    { from: { x: 440, y: 125 }, to: { x: 440, y: 300 } },
-                ],
+                otherSegments: [{ from: { x: 440, y: 125 }, to: { x: 440, y: 300 } }],
             }),
         ).toEqual([
             { x: 465, y: 100 },
@@ -101,9 +99,9 @@ describe("routeOrthogonal", () => {
         })!;
 
         expect(isOrthogonal(route)).toBe(true);
-        expect(polylineSegments(route).some((segment) => segmentEntersBounds(segment, obstacle))).toBe(
-            false,
-        );
+        expect(
+            polylineSegments(route).some((segment) => segmentEntersBounds(segment, obstacle)),
+        ).toBe(false);
     });
 
     it("prefers a route that crosses no other flow when one is as short", () => {
@@ -111,9 +109,7 @@ describe("routeOrthogonal", () => {
             source: task(100, 100),
             target: task(400, 100),
             obstacles: [{ x: 240, y: 90, width: 40, height: 100 }],
-            otherSegments: [
-                { from: { x: 260, y: 0 }, to: { x: 260, y: 90 } },
-            ],
+            otherSegments: [{ from: { x: 260, y: 0 }, to: { x: 260, y: 90 } }],
         })!;
 
         expect(Math.max(...route.map(({ y }) => y))).toBeGreaterThan(190);

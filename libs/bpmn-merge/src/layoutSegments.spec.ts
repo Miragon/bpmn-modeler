@@ -16,9 +16,7 @@ const EVENT: DiagramBounds = { x: 300, y: 140, width: 36, height: 36 };
 
 describe("segmentBounds", () => {
     it("is the segment's bounding box, whichever way it runs", () => {
-        expect(
-            segmentBounds({ from: { x: 10, y: 50 }, to: { x: 4, y: 20 } }),
-        ).toEqual({
+        expect(segmentBounds({ from: { x: 10, y: 50 }, to: { x: 4, y: 20 } })).toEqual({
             x: 4,
             y: 20,
             width: 6,
@@ -45,29 +43,20 @@ describe("segmentEntersBounds", () => {
 
     it("never enters bounds without an inside", () => {
         const line: DiagramBounds = { x: 5, y: 0, width: 0, height: 10 };
-        expect(
-            segmentEntersBounds(
-                { from: { x: 0, y: 5 }, to: { x: 20, y: 5 } },
-                line,
-            ),
-        ).toBe(false);
+        expect(segmentEntersBounds({ from: { x: 0, y: 5 }, to: { x: 20, y: 5 } }, line)).toBe(
+            false,
+        );
     });
 });
 
 describe("segmentEntersShape", () => {
     it("lets a segment run inside the outline within the tolerance", () => {
-        expect(
-            segmentEntersShape(
-                { from: { x: 50, y: 102 }, to: { x: 250, y: 102 } },
-                TASK,
-            ),
-        ).toBe(false);
-        expect(
-            segmentEntersShape(
-                { from: { x: 50, y: 104 }, to: { x: 250, y: 104 } },
-                TASK,
-            ),
-        ).toBe(true);
+        expect(segmentEntersShape({ from: { x: 50, y: 102 }, to: { x: 250, y: 102 } }, TASK)).toBe(
+            false,
+        );
+        expect(segmentEntersShape({ from: { x: 50, y: 104 }, to: { x: 250, y: 104 } }, TASK)).toBe(
+            true,
+        );
     });
 });
 
@@ -148,12 +137,7 @@ describe("segmentsCross", () => {
             cross: false,
         },
     ] as const)("is $cross when $label", ({ other, cross }) => {
-        expect(
-            segmentsCross(
-                { from: { x: 0, y: 50 }, to: { x: 100, y: 50 } },
-                other,
-            ),
-        ).toBe(cross);
+        expect(segmentsCross({ from: { x: 0, y: 50 }, to: { x: 100, y: 50 } }, other)).toBe(cross);
     });
 });
 
@@ -221,12 +205,7 @@ describe("nearestOnSegment", () => {
             distance: 50,
         },
     ])("clamps to the segment for a point $label", ({ point, nearest, distance }) => {
-        expect(
-            nearestOnSegment(
-                { from: { x: 0, y: 0 }, to: { x: 100, y: 0 } },
-                point,
-            ),
-        ).toEqual({
+        expect(nearestOnSegment({ from: { x: 0, y: 0 }, to: { x: 100, y: 0 } }, point)).toEqual({
             point: nearest,
             distance,
         });
@@ -234,10 +213,7 @@ describe("nearestOnSegment", () => {
 
     it("takes the point itself for a segment of no length", () => {
         expect(
-            nearestOnSegment(
-                { from: { x: 5, y: 5 }, to: { x: 5, y: 5 } },
-                { x: 8, y: 9 },
-            ),
+            nearestOnSegment({ from: { x: 5, y: 5 }, to: { x: 5, y: 5 } }, { x: 8, y: 9 }),
         ).toEqual({
             point: { x: 5, y: 5 },
             distance: 5,
