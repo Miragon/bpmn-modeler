@@ -125,10 +125,10 @@ protocol and the Node core, which a frame cannot run, so `apps/orca-plugin` comp
 writes and light modeling. Every capability port stays empty (no code links, navigation,
 definition search, form preview, scripting, workspace templates or deployment). Orca's
 document session is the document authority
-([`syncDocument`](../../apps/orca-plugin/src/service/documentSync.ts)): an edit's export
-is sent only while no newer import replaced its source, and pending panel input is
-applied on Orca's `editor.flush` before a save. A read-only tab gets the BPMN viewer
-only; the DMN modeler has no read-only mode, so its frame is inert.
+([`syncDocument`](../../apps/orca-plugin/src/service/documentSync.ts)): imports run one
+at a time, an edit's export is sent only while no newer import replaced its source, and
+pending panel input is applied on Orca's `editor.flush` before a save. A read-only tab
+gets the BPMN viewer only; the DMN modeler has no read-only mode, so its frame is inert.
 
 **One feature, built once in the core.** A feature both hosts offer is built from ports in
 the core, never wired per host. Per-host wiring kept hosts simple to read but let copies
@@ -165,9 +165,9 @@ failing session hooks); the price is indirection.
   tab operations and host events and nothing else. Which scripts have a tab, which file a
   script gets, streaming a tab's edits into the model and what the webview's script
   commands mean are the core's on both hosts; an edit still waiting to stream when its
-  editor closes is dropped on both. Scripts live below the workspace root's config folder
-  (the OS temp folder for a diagram that is not a file); a failed workspace lookup rejects
-  instead of moving scripts somewhere the user did not configure.
+  editor closes is dropped on both. `ScriptFileStore` keeps scripts below the workspace
+  root's config folder (the OS temp folder for a diagram that is not a file); a failed
+  workspace lookup rejects instead of moving scripts somewhere the user did not configure.
 - The element ID review ([IDs from names](bpmn-modeler-features.md#ids-from-names)) is drawn
   natively by each host from a view the core builds (VS Code: an Element IDs checkbox tree in
   the Panel area; IntelliJ: an Element IDs tool window). The core keeps the review's state

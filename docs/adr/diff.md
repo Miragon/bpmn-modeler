@@ -133,36 +133,34 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   same serialiser. A child without an id is never an element of its own: it stays in its
   parent's text, since nothing else could report it.
 - *One bpmn-moddle loader.* `loadBpmnModdle` in `libs/bpmn-diff` is the only production
-  code outside bpmn-js that resolves bpmn-moddle's factory (and `moddleDescriptor` the
-  only one that unwraps a dynamically imported engine descriptor), so `bpmn-layout`
-  depends on `bpmn-diff`. The parser, saxen, the engine descriptors and bpmn-js-differ
-  load lazily, so a bundle that imports the library for the loader loads none of them; a
-  spec holds this. saxen is a direct dependency of `bpmn-diff` at moddle-xml's version
-  and so a runtime dependency of `@miragon/bpmn-modeler`, which inlines the library.
-  `computeDiff` reads the engines' prefixes and URIs from the descriptors;
-  `ENGINE_NAMESPACE` in `@miragon/bpmn-modeler-types` copies them for the modeler and the
-  merge, which load no descriptor, and a spec pins each entry to `loadExecutionPackage`
-  (#2464).
-- *The merge builds on the diff's primitives.* Besides `elementSnapshots`, `bpmn-diff`
-  exports its moddle walk, the unit rule `trackedElementOf`, its namespace reading and its
-  parse, so the three-way merge (#2450) applies the diff's unit rule and parse instead of
-  copying them. The cost is a wider workspace API: a change to one of them is a change to
-  the merge. `@miragon/bpmn-modeler/diff` re-exports none of them.
+  code outside bpmn-js that resolves bpmn-moddle's factory, and `moddleDescriptor`
+  beside it unwraps a dynamically imported BPMN engine descriptor. `bpmn-layout` parses
+  through the loader, so it depends on `bpmn-diff`. The parser, saxen, the engine
+  descriptors and bpmn-js-differ load lazily, so a bundle that imports the library for
+  the loader loads none of them; a spec holds this. saxen is a direct dependency of
+  `bpmn-diff` at moddle-xml's version and so a runtime dependency of
+  `@miragon/bpmn-modeler`, which inlines the library. `computeDiff` reads the engines'
+  prefixes and URIs from the descriptors; `ENGINE_NAMESPACE` in
+  `@miragon/bpmn-modeler-types` copies them for the modeler and the merge, which load no
+  descriptor. Its prefixes are typed as the diff's `ExecutionEngine`, which is why
+  `modeler-types` depends on `bpmn-diff`, and a spec pins each entry to
+  `loadExecutionPackage` (#2464). The primitives the merge builds on are in
+  [Merge](merge.md#one-unpublished-library).
 - *The panes share one selection.* `DiffViewer` takes `DiffViewerOptions.additionalModules`,
-  as `createViewer` does, so only the webview adds a context pad and an outline. The
-  viewer reports the single selected element (`onSelectedElementChanged`, a BPMN id or
-  `undefined` for an empty or multiple selection) and applies the partner's
-  (`mirrorSelection`, which clears on `undefined`, on an absent element and on another
-  plane, and reports nothing back). The names differ from
-  `SelectionManager.onSelectionChanged`, which reports diagram ids such as `X_label` that
-  do not name the same element in two versions; `bpmnElementIdOf` is the one rule that
-  maps a label to its element and a plane to its subprocess, for the selection, the
-  context pad and the plane a pane reports. An import reports no selection, so a pane
-  that loads late does not clear its partner's. Which selection and viewport changes are
-  the user's is one guard (`UserChangeGuard`), read by the listeners and the resize rule
-  alike, so a selection the pane does not report as the user's is not centred as the
-  user's on resize either; the one exception is a step's selection, which is not
-  reported but kept in view.
+  as `createViewer` does, so only the webview adds a context pad and an outline. The viewer
+  reports the single selected element (`onSelectedElementChanged`, a BPMN id or `undefined`
+  for an empty or multiple selection) and applies the partner's (`mirrorSelection`, which
+  clears on `undefined`, on an absent element and on another plane, and reports nothing
+  back). The names differ from `SelectionManager.onSelectionChanged`, which reports diagram
+  ids such as `X_label` that do not name the same element in two versions; `bpmnElementIdOf`
+  is the one rule that maps a label to its element and a plane to its subprocess, for the
+  selection, the context pad and the plane a pane reports. An import reports no selection,
+  so a pane that loads late does not clear its partner's. A background click posts
+  `NO_DIFF_SELECTION`, which the core ignores for the XML diff, so an open one stays as it
+  is. Which selection and viewport changes are the user's is one guard (`UserChangeGuard`),
+  read by the listeners and the resize rule alike, so a selection the pane does not report
+  as the user's is not centred as the user's on resize either; the one exception is a step's
+  selection, which is not reported but kept in view.
 - *A step selects its change*, as a click does and as in the
   [merge view](merge-view-picking-and-building.md). Each pane that draws the change
   selects it after its own cursor entered the change's plane, since diagram-js drops a
@@ -191,16 +189,13 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   change instead of upstream's debounce. The cost: the partner follows after the
   viewport debounce. The webview depends on diagram-js directly at the package's pin,
   because bpmn-js's context pad needs `modeling`, which a viewer lacks.
-- *One switch per host.* The host's element XML handler, handed to `BpmnDiffService`, is
-  the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`, which
-  shows the entry, and decides whether the router handles `ShowElementXmlChangesCommand`
-  and the follow, so an entry whose clicks are dropped cannot occur. VS Code passes it
-  where the API has `TabInputTextDiff` (not every Theia does); the bridge always passes
-  it. A merge pane gets the same answer, and whether the host merges a picked element's
-  XML by hand ([merge XML editor](merge-xml-editor.md)), as one `MergeHostOffers` value
-  on `ApplyMergeStatesQuery`, so a new offer adds a field rather than another positional
-  flag. `MergeDecisionService` asks the value's source on every post; VS Code reads the
-  XML diff's support once, for the handler and the source alike.
+- *One switch per host.* The host's element XML handler, handed to `BpmnDiffService`,
+  is the only input: its presence sets `ApplyDiffHighlightsQuery.elementXmlChanges`,
+  which shows the entry, and decides whether the router handles
+  `ShowElementXmlChangesCommand` and the follow, so an entry whose clicks are dropped
+  cannot occur. VS Code passes it where the API has `TabInputTextDiff` (not every
+  Theia does); the bridge always passes it. A merge pane gets the same answer through
+  [`MergeHostOffers`](merge-xml-editor.md#decision).
 - *The core decides.* The core computes both texts and the title behind the render-only
   port `ElementXmlDiffView`. The rules for requests live in the domain object
   `ElementXmlRequests`: only the latest renders, the same element twice renders once, a

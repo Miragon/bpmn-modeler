@@ -92,18 +92,21 @@ changed different parts to a whole pick.
   against a fake editor that merges the start as it loads, and names a save made right
   after `open` resolves. `close` waits for the same load: an editor still loading merges
   into the result after its tab closed and leaves it dirty with no tab, since the input
-  model it registers on a disposed editor leaks. A merge whose editor never
-  showed is finished without a text when the merge view closes it; a rejected call
-  finishes it at once. Theia registers the
-  command with the same arguments, but it has not run there and Theia's tab API reports
-  the inputs swapped, so no Theia host offers the entry: `hostRunsElementXmlMergeEditor`
-  rules out `env.appName` equal to the standalone app's `applicationName` (Theia 1.76's
-  plugin host reports that value; a spec reads it from `apps/standalone/package.json`) and
-  `env.uriScheme` `theia`, Theia's default, which the standalone app keeps. The panes are
-  told through `MergeHostOffers.elementXmlMerge` once that answer is known. The router
-  routes `OpenElementXmlMergeCommand` wherever an editor is wired, and an open the host
-  cannot run, or of an element no hand merge may replace, is logged and ignored; the
-  bridge has no editor, so its router ignores the command.
+  model it registers on a disposed editor leaks. A merge whose editor never showed is
+  finished without a text when the merge view closes it; a rejected call finishes it at
+  once. Theia registers the command with the same arguments, but it has not run there and
+  Theia's tab API reports the inputs swapped, so no Theia host offers the entry:
+  `hostRunsElementXmlMergeEditor` rules out `env.appName` equal to the standalone app's
+  `applicationName` (Theia 1.76's plugin host reports that value; a spec reads it from
+  `apps/standalone/package.json`) and `env.uriScheme` `theia`, Theia's default, which the
+  standalone app keeps. The panes are told through `MergeHostOffers.elementXmlMerge` once
+  that answer is known. `MergeHostOffers` is one value on `ApplyMergeStatesQuery` that
+  also carries the [element XML diff](diff.md#element-xml-diff)'s offer, so a new offer
+  adds a field rather than another positional flag; `MergeDecisionService` asks its source
+  on every post, and VS Code reads the XML diff's support once, for the handler and the
+  source alike. The router routes `OpenElementXmlMergeCommand` wherever an editor is
+  wired, and an open the host cannot run, or of an element no hand merge may replace, is
+  logged and ignored; the bridge has no editor, so its router ignores the command.
 
 - *The panes offer it and word the answer.* The pad, a shape-less row and the keyboard
   command `bpmn-modeler.mergeXml` (Ctrl+K X, `mergePane.canMergeXml`) offer Merge XML where
