@@ -8,7 +8,7 @@ import {
 
 import type { PersistedChoices } from "../../../domain/viewState";
 import { MockCatalog } from "./mockCatalog";
-import { PREVIEW_COMMANDS, PREVIEW_LOG_PREFIX, type PreviewSession } from "./previewCommands";
+import { PREVIEW_COMMANDS, type PreviewSession } from "./previewCommands";
 import { previewFlagsOf } from "./previewFlags";
 
 /**
@@ -27,6 +27,6 @@ export class PreviewHost extends MockHostApi<PersistedChoices, AddOnsViewCommand
     }
 
     override postMessage(message: AddOnsViewCommand): void {
-        routePreviewCommand(PREVIEW_COMMANDS, message, this.session, PREVIEW_LOG_PREFIX);
+        routePreviewCommand(PREVIEW_COMMANDS, message, this.session);
     }
 }

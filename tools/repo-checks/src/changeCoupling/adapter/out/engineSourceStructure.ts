@@ -6,6 +6,7 @@ import {
     readWorkspaceDirs,
     resolveWithSuffixes,
     roleOf,
+    SPEC_FILE,
 } from "@miragon/architecture-testing";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
@@ -16,7 +17,7 @@ import type { SourceStructure } from "../../port/SourceStructure";
 
 const GENERATED_ATTRIBUTE = "linguist-generated";
 const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
-const UNPARSED_SCRIPT = /\.(spec|test)\.[cm]?[jt]sx?$|\.d\.ts$/;
+const UNPARSED_DECLARATION = /\.d\.ts$/;
 const BUILD_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
 
 export class EngineSourceStructure implements SourceStructure {
@@ -24,7 +25,12 @@ export class EngineSourceStructure implements SourceStructure {
         const files = trackedFiles(repoRoot);
         const readText = (path: string): string => readFileSync(join(repoRoot, path), "utf8");
         const tree = files
-            .filter((path) => SCRIPT_FILE.test(path) && !UNPARSED_SCRIPT.test(path))
+            .filter(
+                (path) =>
+                    SCRIPT_FILE.test(path) &&
+                    !SPEC_FILE.test(path) &&
+                    !UNPARSED_DECLARATION.test(path),
+            )
             .map((path) => ({ path, text: readText(path) }));
         const tsconfig = join(repoRoot, "tsconfig.base.json");
         const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];

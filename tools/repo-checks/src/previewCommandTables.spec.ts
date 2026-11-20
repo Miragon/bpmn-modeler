@@ -124,6 +124,8 @@ describe("preview command tables", () => {
                 "apps/bpmn-webview/src/adapter/out/browserPreview/previewCommands.ts",
                 "apps/bpmn-webview/src/templateEditor/adapter/out/browserPreview/previewCommands.ts",
                 "apps/deployment-webview/src/adapter/out/browserPreview/previewCommands.ts",
+                "apps/dmn-webview/src/adapter/out/browserPreview/diffPanePreviewCommands.ts",
+                "apps/dmn-webview/src/adapter/out/browserPreview/previewCommands.ts",
                 "apps/form-webview/src/adapter/out/browserPreview/previewCommands.ts",
             ]),
         );
