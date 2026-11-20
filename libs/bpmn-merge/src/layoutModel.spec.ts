@@ -20,6 +20,7 @@ import {
     liesOnAnotherPool,
     otherEndOf,
     sharedFrameOf,
+    sharesAnEndWith,
 } from "./layoutModel";
 
 const PLANE = "Collaboration_1";
@@ -66,6 +67,22 @@ describe("otherEndOf", () => {
     it("names a flow's other end", () => {
         expect(otherEndOf("source")).toBe("target");
         expect(otherEndOf("target")).toBe("source");
+    });
+});
+
+describe("sharesAnEndWith", () => {
+    it.each<[string, Partial<LayoutEdge>, boolean]>([
+        ["its source", { id: "Flow_2", target: "C" }, true],
+        ["its target", { id: "Flow_2", source: "C" }, true],
+        ["neither end", { id: "Flow_2", source: "B", target: "A" }, false],
+    ])("tells a flow that shares %s with another", (_, other, shares) => {
+        expect(sharesAnEndWith(flow, { ...flow, ...other })).toBe(shares);
+    });
+
+    it("does not tell two flows drawn without ends as sharing one", () => {
+        const loose = { ...flow, source: undefined, target: undefined };
+
+        expect(sharesAnEndWith(loose, { ...loose, id: "Flow_2" })).toBe(false);
     });
 });
 

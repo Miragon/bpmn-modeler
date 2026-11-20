@@ -160,9 +160,16 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   room tries, the slot after and up to 50 px further along the flow, or each step below, must
   leave the moved shape 15 px clear of foreign labels and of foreign flows beside it once the
   room is made; a flow running through it is a spot the flow repair re-routes. The flows between shifted and staying shapes stretch
-  by runs across the push, so their segments keep their direction. Between the two shapes of a
-  pair, the room that shifts fewer shapes wins, then the one that grows the frames less, then
-  the shape with fewer flows. A room that adds any shape spot (an overlap, a shape outside its
+  by runs across the push, so their segments keep their direction. Each room re-routes the
+  moved shape's flows inside its trial with the build's own flow repair (#2600). Between the two shapes
+  of a pair, the room whose re-routed flows clash with fewer other flows wins (a crossing each,
+  and a flow run on for more than 10 px unless the two share an end), then the one that shifts
+  fewer shapes, then the one that grows the frames less, then the shape with fewer flows. When
+  the room in line still clashes, the slots neither listed in line nor stacked in (before and below;
+  before alone for a stacked branch, below alone for a shape that leads into the other) are tried too, and one wins only with fewer clashes,
+  so the in-line order holds where every slot clashes alike and where no room in line exists;
+  the slot after a shape that leads into the other is only the fallback for no room before
+  it, never weighed for its flows, as it would turn the flow back. A room that adds any shape spot (an overlap, a shape outside its
   frame, an event off its host), lays a pool on another or covers the other shape is dropped
   and the overlap noted as not repaired. The flow repair then runs on the moved drawing, so it
   re-routes the moved shapes' flows and names a flow a move broke; a spot a move mended, other
@@ -181,15 +188,18 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   the lane instead of widening the pool, so the lanes under it shift across their full width;
   pushing before the other shape moves the other shape of the pair and what follows it, which
   the old room never did; a cramped spot both sides drew beside a stacked column stays, while a
-  shape both sides drew on the shape above it shifts with what follows it in line; on the
-  harvest, a fuzz result (seed 74) now moves a gateway instead of an end event, whose re-routed
-  flow runs on another, and one (seed 69) keeps a sub-process in its parent at the cost of a
-  crossing; flows that do not run right keep the
+  shape both sides drew on the shape above it shifts with what follows it in line; a room taken
+  for its flows may shift more shapes or grow more than the room in line (on the harvest, seed
+  74 keeps an end event before the gateway and pushes the gateway on, seed 69 stacks a task
+  under the sub-process it lay on and grows the sub-process around both by 210 px); only the moved shape's flows are weighed,
+  so a foreign flow a room breaks may take a detour, and bends do not count; flows that do not
+  run right keep the
   in-line order; a label bpmn-js places itself, without bounds in the file, is not seen; the
   container step keeps only off flows, as the clearance there added a crossing; each try still
-  builds a trial drawing and finds the spots of the whole drawing once
-  (`layoutFlowRepairTime.spec.ts`); a result with no introduced overlap stays byte-equal to the
-  flow repair alone (`buildMergedRepairLocality.spec.ts`).
+  builds a trial drawing and finds the spots of the whole drawing once, and each room once more
+  to re-route the moved shape's flows (`layoutFlowRepairTime.spec.ts`); a result with no
+  introduced overlap stays byte-equal to the flow repair alone
+  (`buildMergedRepairLocality.spec.ts`).
 - *A layout both sides changed differently is a note, not a conflict, one per moved block
   and kept side.* Rejected: one note per element, which floods the notes for one moved
   block. Lanes join no block, since one lane can hold most of a diagram. A flow drawn from
