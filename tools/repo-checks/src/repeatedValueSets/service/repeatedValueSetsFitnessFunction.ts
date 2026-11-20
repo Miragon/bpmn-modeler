@@ -29,6 +29,7 @@ export function createRepeatedValueSetsFitnessFunction({
             "A copy whose other occurrence is in a spec or a test folder, which are not read: SOURCE_ONLY in overlayNeeded.spec.ts and tools/build-overlay.mjs (PR 2359) gave no finding.",
             'Sets spelled inside one string, such as the braces of the glob `**/*.{bpmn,dmn}` in DeployFilesService.ts, which repeat the deployable extensions `[".bpmn", ".dmn"]` of DeployActiveDiagramService.ts.',
             "In a regular expression: a group holding a group, such as ((?:get|set)Variable(?:Local)?), of which only (get|set) is read; an optional or a class outside an alternation, such as the extensions of \\.[cm]?[jt]sx?$; an alternative with an escape, a wildcard, a range or another quantifier; and a pattern written in a string for new RegExp.",
+            'An extension list written with its dots never equals the same extensions in a pattern, which are read without them: `[".ts", ".tsx"]` in sourceTree.ts would not match an alternation (ts|tsx).',
             "Kotlin and JSON, such as the enum arrays of a package.json or a JSON schema.",
             "A copy of a set whose home is a dependency, outside the tracked files, such as the 12 locales of @miragon/bpmn-modeler-i18n: one tracked copy is the set's only occurrence.",
         ],
