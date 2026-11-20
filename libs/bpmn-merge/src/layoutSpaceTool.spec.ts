@@ -174,7 +174,8 @@ describe("SpaceTool.shiftedBy", () => {
         );
         const toolShifting = (...ids: string[]) => {
             const tool = new SpaceTool(before, before.fork(), new ShapeGroups(layout), "x");
-            for (const id of ids) tool.shiftUnit(units.find((unit) => unit.id === id)!, 50);
+            const unitNamed = (id: string) => units.find((unit) => unit.id === id)!;
+            for (const id of ids) tool.shiftUnit(unitNamed(id), 50);
             return tool;
         };
 

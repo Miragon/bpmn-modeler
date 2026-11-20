@@ -123,7 +123,7 @@ function stacked(ids: [string, string], shape: string, shifted: string[] = []): 
         ids,
         repair: "madeRoom",
         moved: shape,
-        shifted: [...shifted, "Task_R", "End_Rejected"],
+        shifted: ["Lane_Back", ...shifted, "Task_R", "End_Rejected"],
         grown: ["Participant_Order", "Lane_Sales"],
     };
 }

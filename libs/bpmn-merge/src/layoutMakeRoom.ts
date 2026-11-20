@@ -11,7 +11,7 @@ import {
 } from "./layoutModel";
 import { ROOM_GAP, RoomPush, type RoomRequest, STACK_GAP } from "./layoutRoomPush";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
-import { leadAlong } from "./layoutSpaceTool";
+import { SpaceTool, leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear, keepsClearOfFlows } from "./layoutFlowClearance";
 import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
@@ -221,11 +221,10 @@ function roomAt(
     ) {
         return undefined;
     }
-    const shiftedIds = new Set(pushes.flatMap(({ shifted }) => shifted));
     const grown = grownFrames(draft, trial);
     return {
         draft: trial,
-        shifted: [...draft.shapes.keys()].filter((id) => shiftedIds.has(id)),
+        shifted: SpaceTool.shiftedBy(draft, pushes),
         grown: grown.map(({ id }) => id),
         growth: grown.reduce((sum, { by }) => sum + by, 0),
     };
