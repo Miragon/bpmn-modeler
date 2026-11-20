@@ -2,7 +2,7 @@ import { moddleElements } from "@miragon/bpmn-modeler-diff";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { collaborationProcessesOf, processesReachedFrom } from "./collaborationPools";
+import { collaborationProcessesOf, rootsReachedFrom } from "./collaborationPools";
 import { layoutRelationsOf } from "./layoutRelations";
 
 async function definitionsOf(semantic: string) {
@@ -60,39 +60,47 @@ describe("collaborationProcessesOf", () => {
     });
 });
 
-describe("processesReachedFrom", () => {
+describe("rootsReachedFrom", () => {
     const LANE_PROCESS = `
   <bpmn:process id="Process_L">
     <bpmn:laneSet id="LaneSet_L"><bpmn:lane id="Lane_L" /></bpmn:laneSet>
   </bpmn:process>`;
 
-    async function collaborationIn(semantic: string) {
+    async function rootsIn(semantic: string, owner: string) {
         const definitions = await definitionsOf(semantic);
-        const [collaboration] = moddleElements(definitions.rootElements);
-        return { definitions, collaboration: collaboration! };
+        const root = moddleElements(definitions.rootElements).find(({ id }) => id === owner);
+        return { definitions, roots: [...rootsReachedFrom(root!)].sort() };
     }
 
-    it("reaches the processes its participants name and every process with lanes, more than share its slot", async () => {
-        const { definitions, collaboration } = await collaborationIn(`
+    it("reaches from a collaboration itself, the processes its participants name and every process with lanes, more than share its slot", async () => {
+        const { definitions, roots } = await rootsIn(
+            `
   <bpmn:collaboration id="Collab_1">
     <bpmn:participant id="Pool_A" processRef="Process_A" />
-  </bpmn:collaboration>${PROCESSES}${LANE_PROCESS}`);
+  </bpmn:collaboration>${PROCESSES}${LANE_PROCESS}`,
+            "Collab_1",
+        );
 
-        expect([...processesReachedFrom(collaboration, definitions.rootElements)].sort()).toEqual([
-            "Process_A",
-            "Process_L",
-        ]);
+        expect(roots).toEqual(["Collab_1", "Process_A", "Process_L"]);
         expect(collaborationProcessesOf(definitions)).toEqual([["Collab_1", "Process_A"]]);
     });
 
     it("reaches the process of a participant without an id, which bpmn-js draws all the same", async () => {
-        const { definitions, collaboration } = await collaborationIn(`
+        const { definitions, roots } = await rootsIn(
+            `
   <bpmn:collaboration id="Collab_1">
     <bpmn:participant processRef="Process_A" />
-  </bpmn:collaboration>${PROCESSES}`);
+  </bpmn:collaboration>${PROCESSES}`,
+            "Collab_1",
+        );
 
-        expect([...processesReachedFrom(collaboration, definitions.rootElements)]).toEqual([
-            "Process_A",
-        ]);
+        expect(roots).toEqual(["Collab_1", "Process_A"]);
+        expect(collaborationProcessesOf(definitions)).toEqual([]);
+    });
+
+    it("reaches from a process only the process itself, though another process has lanes", async () => {
+        const { roots } = await rootsIn(`${PROCESSES}${LANE_PROCESS}`, "Process_A");
+
+        expect(roots).toEqual(["Process_A"]);
     });
 });

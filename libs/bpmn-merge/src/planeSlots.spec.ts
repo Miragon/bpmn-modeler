@@ -66,6 +66,20 @@ describe("PlaneSlots", () => {
         expect(slots.slotOf("Process_L")).not.toBe(slots.slotOf("Collab_1"));
     });
 
+    it("keeps a root slot of its own for a process that only a participant without an id names, though the other side draws it on the collaboration's plane", async () => {
+        const semantic = `
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant processRef="Process_A" />
+    <bpmn:participant id="Pool_B" processRef="Process_B" />
+  </bpmn:collaboration>${PROCESSES}`;
+        const current = await documentOf(semantic, [plane("Collab_1")]);
+        const incoming = await documentOf(semantic, [plane("Collab_1"), plane("Process_A")]);
+        const slots = slotsOf(current, incoming);
+
+        expect(slots.slotOf("Process_A").equals(new PlaneSlot("root", "Process_A"))).toBe(true);
+        expect(slots.slotOf("Process_B")).toBe(slots.slotOf("Collab_1"));
+    });
+
     it("gives a sub-process's plane a slot of its own that is no root slot", async () => {
         const version = await documentOf(PROCESSES, [plane("Process_A"), plane("Sub_A")]);
         const slots = slotsOf(version);

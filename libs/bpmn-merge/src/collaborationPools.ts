@@ -25,21 +25,27 @@ export function collaborationProcessesOf(
 }
 
 /**
- * The processes bpmn-js draws from a collaboration's plane: each one a participant names, with an id or
- * without, and every process with lanes, whose lanes that plane draws even without a pool. Wider than
+ * The roots bpmn-js draws from a root plane, its owner included. A process's plane draws only that
+ * process; a collaboration's plane also draws each process a participant names, with an id or
+ * without, and every process with lanes, whose lanes it draws even without a pool. Wider than
  * `collaborationProcessesOf`, which names only the processes that share the collaboration's plane slot.
  */
-export function processesReachedFrom(
-    collaboration: ModdleElement,
-    rootElements: unknown,
-): ReadonlySet<string> {
+export function rootsReachedFrom(rootPlaneOwner: ModdleElement): ReadonlySet<string> {
+    const reached = isType(rootPlaneOwner, "bpmn:Collaboration")
+        ? processesReachedFrom(rootPlaneOwner)
+        : [];
+    return new Set([rootPlaneOwner.id, ...reached].filter((id) => id !== undefined));
+}
+
+function processesReachedFrom(collaboration: ModdleElement): readonly (string | undefined)[] {
     const named = moddleElements(collaboration.participants).map(({ processRef }) =>
         idOf(processRef),
     );
-    const withLanes = moddleElements(rootElements)
+    const definitions = collaboration.$parent as ModdleElement | undefined;
+    const withLanes = moddleElements(definitions?.rootElements)
         .filter((root) => moddleElements(root.laneSets).length > 0)
         .map(({ id }) => id);
-    return new Set([...named, ...withLanes].filter((id) => id !== undefined));
+    return [...named, ...withLanes];
 }
 
 export function poolsOf(collaboration: ModdleElement): readonly Pool[] {

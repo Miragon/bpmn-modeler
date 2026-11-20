@@ -10,7 +10,7 @@ import {
     parseWarningMessages,
 } from "@miragon/bpmn-modeler-diff";
 
-import { processesReachedFrom } from "./collaborationPools";
+import { rootsReachedFrom } from "./collaborationPools";
 import { connectionEndsOf, edgePlaneOf } from "./connectionEnds";
 import { enclosingSubProcessOf } from "./containerContents";
 import { DiagramIndex } from "./diagramIndex";
@@ -98,19 +98,14 @@ export function requireDrawingsOnTheirContainersPlane(diagramIndex: DiagramIndex
 
 /**
  * bpmn-js draws from a root plane only what its owner reaches: a process's
- * contents, or a collaboration's own elements and `processesReachedFrom` it.
+ * contents, or a collaboration's own elements and the processes it reaches (`rootsReachedFrom`).
  */
 export function requireDrawingsReachableFromTheirRootPlane(diagramIndex: DiagramIndex): void {
     const unreachable = diagramIndex.diagrams.flatMap((diagram) => {
         const plane = diagram.plane as ModdleElement | undefined;
         const owner = plane?.bpmnElement;
         if (!isModdleElement(owner) || !isRootPlaneOwner(owner)) return [];
-        const reachableRoots = new Set([
-            owner.id,
-            ...(isType(owner, "bpmn:Collaboration")
-                ? processesReachedFrom(owner, (owner.$parent as ModdleElement).rootElements)
-                : []),
-        ]);
+        const reachableRoots = rootsReachedFrom(owner);
         return moddleElements(plane?.planeElement)
             .map((drawing) => drawing.bpmnElement)
             .filter(
@@ -142,7 +137,7 @@ function isRootPlaneOwner(element: ModdleElement): boolean {
     return isType(element, "bpmn:Process") || isType(element, "bpmn:Collaboration");
 }
 
-function isInsideAnyOf(element: ModdleElement, roots: ReadonlySet<string | undefined>): boolean {
+function isInsideAnyOf(element: ModdleElement, roots: ReadonlySet<string>): boolean {
     for (
         let container: ModdleElement | undefined = element;
         container !== undefined;
