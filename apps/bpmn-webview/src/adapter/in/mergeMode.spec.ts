@@ -230,7 +230,6 @@ const STATES: MergePaneStates = {
     openConflicts: 3,
     stepping: { list: "openConflicts" },
     badges: [],
-    picksNotDrawn: [],
     consequences: [],
     pickable: [
         { id: "Task_Check" },

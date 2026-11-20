@@ -45,12 +45,6 @@ export interface PickBadge {
     readonly pick: ElementPick;
 }
 
-/** A user's pick the pane cannot draw. */
-export interface PickNotDrawn {
-    readonly id: string;
-    readonly pick: ElementPick;
-}
-
 /** Why one side lacks an element the other holds: it removed it from the base, or there is no base version. */
 type SideLack = "removed" | "missing";
 
@@ -106,7 +100,6 @@ export interface MergePaneView {
     /** Per marker, the elements the pane marks and those it lists. */
     readonly counts: Readonly<Record<MergeMarker, number>>;
     readonly badges: readonly PickBadge[];
-    readonly picksNotDrawn: readonly PickNotDrawn[];
     /** The drawn elements a pick pulled in or dropped. */
     readonly consequences: readonly string[];
     readonly pickable: readonly PickableElement[];
@@ -164,30 +157,25 @@ export function mergePaneView(
 
 /**
  * The user's picks, the consequences and what a pick can keep, as a pane of
- * `side` shows them. A pick counts as drawn only where the side's version is
- * drawn, so a pane that cannot badge it lists it.
+ * `side` shows them. A pick is badged only where the side's version is drawn;
+ * `pickable` carries every pick.
  */
 function paneDecisions(
     decisions: MergeDecisions,
     side: MergeSide,
     { handMergeTexts }: ShapelessValueSources,
-): Pick<MergePaneView, "badges" | "picksNotDrawn" | "consequences" | "pickable"> {
+): Pick<MergePaneView, "badges" | "consequences" | "pickable"> {
     const { elements } = decisions.result;
     const containers = containersOf(elements);
     const badges: PickBadge[] = [];
-    const picksNotDrawn: PickNotDrawn[] = [];
     const consequences: string[] = [];
     const pickable: PickableElement[] = [];
     for (const element of elements) {
         const drawnHere = !hasNoShape(element) && element.versions[side]?.drawn === true;
         const pick = pickOf(decisions, containers, element);
-        if (pick !== undefined) {
-            if (drawnHere) {
-                const kind = pick.keptSide === side ? "keptHere" : "replacedHere";
-                badges.push({ id: element.id, kind, pick });
-            } else {
-                picksNotDrawn.push({ id: element.id, pick });
-            }
+        if (pick !== undefined && drawnHere) {
+            const kind = pick.keptSide === side ? "keptHere" : "replacedHere";
+            badges.push({ id: element.id, kind, pick });
         }
         if (decisions.originOf(element.id) === "consequence" && drawnHere) {
             consequences.push(element.id);
@@ -204,7 +192,7 @@ function paneDecisions(
             ...handMergeableFlag(decisions, handMergeTexts, element.id),
         });
     }
-    return { badges, picksNotDrawn, consequences, pickable };
+    return { badges, consequences, pickable };
 }
 
 function handMergeableFlag(

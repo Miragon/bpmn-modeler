@@ -50,7 +50,6 @@ const SHAPELESS_ROWS = [
 const noPicks = () =>
     ({
         badges: [],
-        picksNotDrawn: [],
         consequences: [],
         names: {},
         pickable: [
@@ -61,10 +60,7 @@ const noPicks = () =>
                 takenSide: "incoming" as const,
             })),
         ],
-    }) as const satisfies Pick<
-        MergePaneStates,
-        "badges" | "picksNotDrawn" | "consequences" | "pickable" | "names"
-    >;
+    }) as const satisfies Pick<MergePaneStates, "badges" | "consequences" | "pickable" | "names">;
 
 const current = (): MergePaneStates => ({
     caption: { side: "current", role: "branch", ref: "main", shortHash: "1a2b3c4" },

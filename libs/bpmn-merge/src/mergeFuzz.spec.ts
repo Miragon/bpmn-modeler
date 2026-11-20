@@ -416,14 +416,10 @@ function expectPanesShowEveryPick(
         (side) => [side, mergePaneView(decisions, side, sources)] as const,
     );
     for (const [side, view] of views) {
-        const shown = [...view.badges, ...view.picksNotDrawn];
+        const shown = view.pickable.flatMap(({ id, pick }) => (pick ? [{ id, pick }] : []));
         expect(shown.map(({ id }) => id).sort(), `${label}: picks on ${side}'s pane`).toEqual(
             picked,
         );
-        expect(
-            view.pickable.flatMap(({ id, pick }) => (pick ? [id] : [])).sort(),
-            `${label}: pickable picks on ${side}'s pane`,
-        ).toEqual(picked);
         const notAllInside = shown
             .filter(({ pick }) => pick.scope === "withContents")
             .filter(({ id, pick }) =>
@@ -435,17 +431,24 @@ function expectPanesShowEveryPick(
             );
         expect(notAllInside, `${label}: with everything inside on ${side}'s pane`).toEqual([]);
         const pickableById = new Map(view.pickable.map((entry) => [entry.id, entry]));
-        for (const { id, pick } of shown) {
-            expect(pickableById.get(id)?.pick, `${label}: ${id}'s pick on ${side}'s pane`).toEqual(
+        for (const { id, pick } of view.badges) {
+            expect(pickableById.get(id)?.pick, `${label}: ${id}'s badge on ${side}'s pane`).toEqual(
                 pick,
             );
         }
         for (const row of view.shapelessRows) {
-            const { pick, handMergeable, lackingSide } = pickableById.get(row.id) ?? {};
+            const { pick, handMergeable, lackingSide, takenSide, container } =
+                pickableById.get(row.id) ?? {};
             expect(
-                { pick: row.pick, handMergeable: row.handMergeable, lackingSide: row.lackingSide },
+                {
+                    pick: row.pick,
+                    handMergeable: row.handMergeable,
+                    lackingSide: row.lackingSide,
+                    takenSide: row.takenSide,
+                    container: row.container,
+                },
                 `${label}: ${row.id}'s row on ${side}'s pane`,
-            ).toEqual({ pick, handMergeable, lackingSide });
+            ).toEqual({ pick, handMergeable, lackingSide, takenSide, container });
         }
     }
     const lackingSides = views.map(([, view]) =>

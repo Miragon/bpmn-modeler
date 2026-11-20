@@ -7,7 +7,6 @@ import type {
     MergeStep,
     PickableElement,
     PickBadge,
-    PickNotDrawn,
     PickScope,
     RequirementObstacle,
     ShapelessRow,
@@ -22,7 +21,6 @@ import {
     type MergePaneLackingSide,
     type MergePanePick,
     type MergePanePickable,
-    type MergePanePickNotDrawn,
     type MergePaneShapelessRow,
     type MergePaneStep,
     type MergePaneValueDifference,
@@ -369,7 +367,6 @@ describe("MergeDecisionService", () => {
         expectTypeOf<MergePanePick>().toEqualTypeOf<ElementPick>();
         expectTypeOf<MergePaneLackingSide>().toEqualTypeOf<LackingSide>();
         expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
-        expectTypeOf<MergePanePickNotDrawn>().toEqualTypeOf<PickNotDrawn>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
         expectTypeOf<MergePaneContainerReach>().toEqualTypeOf<ContainerReach>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
@@ -592,20 +589,19 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(incoming).states.consequences).toStrictEqual([]);
         });
 
-        it("lists a pick the pane cannot draw", async () => {
+        it("carries a pick the pane cannot draw in pickable, without a badge", async () => {
             const { current, incoming, bothReady, pick } =
                 await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
 
             await pick(incoming, "Task_Pack");
 
-            expect(lastStatesOf(current).states.picksNotDrawn).toStrictEqual([
-                {
-                    id: "Task_Pack",
-                    pick: { keptSide: "incoming", scope: "element" },
-                },
-            ]);
-            expect(lastStatesOf(current).states.badges).toStrictEqual([]);
+            const { states } = lastStatesOf(current);
+            expect(states.pickable.find(({ id }) => id === "Task_Pack")?.pick).toStrictEqual({
+                keptSide: "incoming",
+                scope: "element",
+            });
+            expect(states.badges).toStrictEqual([]);
         });
 
         it("sends the last outcome and the restore offer again when a pane reloads", async () => {
@@ -627,7 +623,7 @@ describe("MergeDecisionService", () => {
                 await openMergeView(ORDER_REMOVAL_STAGES);
             await bothReady();
             await pick(incoming, "Task_Pack");
-            expect(lastStatesOf(current).states.picksNotDrawn).not.toStrictEqual([]);
+            expect(lastStatesOf(current).states.pickable.some(({ pick }) => pick)).toBe(true);
 
             store.detach(current);
             store.detach(incoming);
@@ -638,7 +634,7 @@ describe("MergeDecisionService", () => {
             for (const pane of [reopened.current, reopened.incoming]) {
                 const { states } = lastStatesOf(pane);
                 expect(states.badges).toStrictEqual([]);
-                expect(states.picksNotDrawn).toStrictEqual([]);
+                expect(states.pickable.filter(({ pick }) => pick)).toStrictEqual([]);
                 expect(states.lastOutcome).toBeUndefined();
                 expect(states.restoreOffer).toBeUndefined();
             }

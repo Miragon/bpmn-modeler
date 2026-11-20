@@ -274,7 +274,6 @@ function statesFor(
             openConflicts: session.decisions.openConflicts.length,
             stepping,
             badges: view.badges,
-            picksNotDrawn: view.picksNotDrawn,
             consequences: view.consequences,
             pickable: view.pickable,
             ...(feedback === undefined ? {} : { lastOutcome: feedback.outcome }),

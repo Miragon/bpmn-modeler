@@ -46,7 +46,7 @@ const { xml, notes } = await buildMerged(sources, decisions); // throws while co
 
 // What a merge view shows on each pane: its markers, the marked elements no canvas draws, its steps.
 const { marks, shapeless } = mergePaneView(decisions, "current"); // takenFromThisSide, takenFromOtherSide, conflict
-const { badges, picksNotDrawn, consequences, pickable } = mergePaneView(decisions, "current"); // the user's picks
+const { badges, consequences, pickable } = mergePaneView(decisions, "current"); // the user's picks
 mergeElementNames(sources, decisions, ["Task_Reject"]); // { Task_Reject: "Reject order" }, alike on both panes
 const order = mergeNavigationOrder(decisions.result, sources); // current's flow, incoming's own steps in it, then the rest
 const { openConflicts, all } = mergePaneSteps(decisions, order, "current");

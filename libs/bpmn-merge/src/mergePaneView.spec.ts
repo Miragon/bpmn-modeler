@@ -427,10 +427,9 @@ describe("mergePaneView", () => {
                     pick: { keptSide: "incoming", scope: "element" },
                 },
             ]);
-            expect(mergePaneView(decisions, "current", NO_SOURCES).picksNotDrawn).toEqual([]);
         });
 
-        it("lists a pick the side has no version of as not drawn", () => {
+        it("badges no pick the side has no version of, which pickable carries", () => {
             const decisions = MergeDecisions.from(
                 mergeResult(
                     process("unchanged"),
@@ -440,22 +439,27 @@ describe("mergePaneView", () => {
 
             decisions.pick("Task_Reject", "incoming");
 
-            expect(mergePaneView(decisions, "current", NO_SOURCES).badges).toEqual([]);
-            expect(mergePaneView(decisions, "current", NO_SOURCES).picksNotDrawn).toEqual([
-                { id: "Task_Reject", pick: { keptSide: "incoming", scope: "element" } },
-            ]);
+            const view = mergePaneView(decisions, "current", NO_SOURCES);
+            expect(view.badges).toEqual([]);
+            expect(view.pickable.find(({ id }) => id === "Task_Reject")?.pick).toEqual({
+                keptSide: "incoming",
+                scope: "element",
+            });
             expect(mergePaneView(decisions, "incoming", NO_SOURCES).badges).toHaveLength(1);
         });
 
-        it("lists a picked element no canvas draws as not drawn on both panes", () => {
+        it("badges a picked element no canvas draws on neither pane, and pickable carries it on both", () => {
             const decisions = MergeDecisions.from(mergeResult(process("bothChanged")));
 
             decisions.pick("Process_1", "current");
 
             for (const side of ["current", "incoming"] as const) {
-                expect(mergePaneView(decisions, side, NO_SOURCES).picksNotDrawn).toEqual([
-                    { id: "Process_1", pick: { keptSide: "current", scope: "element" } },
-                ]);
+                const view = mergePaneView(decisions, side, NO_SOURCES);
+                expect(view.badges).toEqual([]);
+                expect(view.pickable.find(({ id }) => id === "Process_1")?.pick).toEqual({
+                    keptSide: "current",
+                    scope: "element",
+                });
             }
         });
 
@@ -818,9 +822,10 @@ describe("mergePaneView", () => {
 
             const view = mergePaneView(decisions, "incoming", sources);
 
-            expect(view.picksNotDrawn).toContainEqual({
-                id: "Process_1",
-                pick: { keptSide: "current", scope: "element", mergedByHand: true },
+            expect(view.pickable.find(({ id }) => id === "Process_1")?.pick).toEqual({
+                keptSide: "current",
+                scope: "element",
+                mergedByHand: true,
             });
             expect(view.shapelessRows.find(({ id }) => id === "Process_1")).toMatchObject({
                 pick: { keptSide: "current", mergedByHand: true },

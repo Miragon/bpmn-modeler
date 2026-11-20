@@ -42,7 +42,6 @@ export type {
     MergePaneView,
     PickableElement,
     PickBadge,
-    PickNotDrawn,
     PickScope,
     ShapelessRow,
 } from "./mergePaneView";

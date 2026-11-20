@@ -103,12 +103,6 @@ export interface MergePaneBadge {
     readonly pick: MergePanePick;
 }
 
-/** A user's pick the pane cannot draw. */
-export interface MergePanePickNotDrawn {
-    readonly id: string;
-    readonly pick: MergePanePick;
-}
-
 /** An element a pick on the pane can keep from either side; naming a side whose version lacks it leaves it out. */
 export interface MergePanePickable {
     readonly id: string;
@@ -259,7 +253,6 @@ export interface MergePaneStates {
     readonly stepping: MergePaneStepping;
     /** The user's picks the pane draws, in result order. */
     readonly badges: readonly MergePaneBadge[];
-    readonly picksNotDrawn: readonly MergePanePickNotDrawn[];
     /** The drawn elements a pick pulled in or dropped. */
     readonly consequences: readonly string[];
     readonly pickable: readonly MergePanePickable[];
