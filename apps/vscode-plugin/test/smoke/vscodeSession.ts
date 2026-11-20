@@ -143,7 +143,7 @@ export class VsCodeSession {
     private readonly reportedCspViolations: string[] = [];
 
     private constructor(
-        readonly app: ElectronApplication,
+        private readonly app: ElectronApplication,
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
         private changingSettings: ChangingUserSettings,
