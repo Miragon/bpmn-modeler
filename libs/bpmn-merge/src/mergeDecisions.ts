@@ -153,6 +153,12 @@ export class MergeDecisions {
             : this.unpickScoped(decision.id, decision.scope, decision.options);
     }
 
+    /** Whether `decision` would change any pick: an undo needs a pick of its element to take back. */
+    decidesAnything(decision: ScopedDecision): boolean {
+        this.requireElement(decision.id);
+        return decision.kind === "pick" || this.sides.isPicked(decision.id);
+    }
+
     /** Whether {@link decide} would apply `decision` now; it changes nothing. */
     wouldApply(decision: ScopedDecision): boolean {
         const { handMerges, effective, sides, dangling } = this;
@@ -164,8 +170,7 @@ export class MergeDecisions {
         }).decide(decision).applied;
     }
 
-    /** A pick as far as `scope` reaches. */
-    pickScoped(
+    private pickScoped(
         id: string,
         side: MergeSide,
         scope: PickScope,
@@ -181,8 +186,7 @@ export class MergeDecisions {
         }
     }
 
-    /** Takes a pick back as far as `scope` reaches, the reach a view names for the pick. */
-    unpickScoped(id: string, scope: PickScope, options?: HandMergeOptions): PickOutcome {
+    private unpickScoped(id: string, scope: PickScope, options?: HandMergeOptions): PickOutcome {
         switch (scope) {
             case "element":
                 return this.unpick(id, options);

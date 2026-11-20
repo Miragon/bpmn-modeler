@@ -49,11 +49,11 @@ describe("MergeDecisions scoped picks", () => {
             const scoped = removedSubProcess();
             const direct = removedSubProcess();
 
-            scoped.pickScoped("Sub", "incoming", scope);
+            scoped.decide({ kind: "pick", id: "Sub", side: "incoming", scope });
             PICKS[scope](direct, "Sub", "incoming");
             expect(picksOf(scoped)).toStrictEqual(picksOf(direct));
 
-            scoped.unpickScoped("Sub", scope);
+            scoped.decide({ kind: "unpick", id: "Sub", scope });
             UNPICKS[scope](direct, "Sub");
             expect(picksOf(scoped)).toStrictEqual(picksOf(direct));
         },

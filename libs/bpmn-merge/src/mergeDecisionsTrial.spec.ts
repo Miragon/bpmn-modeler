@@ -109,3 +109,20 @@ describe("MergeDecisions.wouldApply", () => {
         expect(decisions.originOf("F")).toBe("picked");
     });
 });
+
+describe("MergeDecisions.decidesAnything", () => {
+    it("answers that a pick decides something", () => {
+        expect(twoFlowsFromARemovedTask().decidesAnything(pick("F", "incoming"))).toBe(true);
+    });
+
+    it("answers that an undo decides something only while its element has a pick to take back", () => {
+        const decisions = twoFlowsFromARemovedTask();
+        expect(decisions.decidesAnything(unpick("F"))).toBe(false);
+
+        decisions.decide(pick("F", "incoming"));
+        expect(decisions.decidesAnything(unpick("F"))).toBe(true);
+
+        decisions.decide(unpick("F"));
+        expect(decisions.decidesAnything(unpick("F"))).toBe(false);
+    });
+});

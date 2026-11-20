@@ -61,3 +61,10 @@ export type PickOutcome =
           /** The elements merged by hand the call would move off their side; it changed nothing. */
           readonly handMergesAtStake: readonly string[];
       };
+
+/** Whether the call changed nothing to ask before it drops versions merged by hand, rather than being blocked or applied. */
+export function asksToDropHandMerges(
+    outcome: PickOutcome,
+): outcome is Extract<PickOutcome, { readonly handMergesAtStake: readonly string[] }> {
+    return "handMergesAtStake" in outcome;
+}

@@ -112,12 +112,13 @@ hand off its side is refused with `handMergesAtStake`, and the card asks before 
 decision with `dropsHandMerges` ("Drop it and pick", "Keep my XML"), so no path drops the XML
 silently, another element's pick included. An undo after which the merge would apply the
 sending pane's last blocked decision names it (`freed`, "Nothing blocks … now"): the core keeps
-that refusal while its pane decides on and asks the merge (`MergeDecisions.wouldApply`), and the
-partner's decision forgets it, so no pane copies the merge's obstacle rules. Rejected: the outcome
-in the header, far from the element and uneven in height; the acting pane in `lastOutcome`; a
-scored placement, which jumped from pick to pick; the pane reading the refusal's blockers, which
-took a picked dependant for the only obstacle an undo clears and missed a pick made after the
-refusal (#2699). Cost: a reload or tab switch loses the card; the badge and the pad's restore
+that refusal while its pane decides on and asks the merge (`MergeDecisions.wouldApply`). A
+decision of any other pane forgets it, the same side in another tab included; the finish of a
+merge editor changes no pick and keeps it. No pane copies the merge's obstacle rules. Rejected:
+the outcome in the header, far from the element and uneven in height; the acting pane in
+`lastOutcome`; a scored placement, which jumped from pick to pick; the pane reading the refusal's
+blockers, which took a picked dependant for the only obstacle an undo clears and missed a pick
+made after the refusal (#2699). Cost: a reload or tab switch loses the card; the badge and the pad's restore
 offer stay, as the core projects them.
 
 **Keeping a removed element offers what the other side removed with it.** The library's offer

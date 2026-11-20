@@ -4,6 +4,7 @@ import { mergeElement, mergeResult, refersTo } from "./__fixtures__/mergeResultB
 import type { HandMergedVersion } from "./handMerge";
 import { MergeDecisions } from "./mergeDecisions";
 import type { ElementVersion, MergeResult, MergeSide } from "./mergeResult";
+import { asksToDropHandMerges } from "./pickOutcome";
 
 const MESSAGE_REFERENCE = "bpmn:MessageEventDefinition#messageRef";
 
@@ -119,15 +120,34 @@ describe("MergeDecisions hand merges", () => {
         {
             name: "keeping a container around it from the other side",
             change: (decisions, drop) =>
-                decisions.pickScoped("Sub", "incoming", "withContents", { dropHandMerges: drop }),
+                decisions.decide({
+                    kind: "pick",
+                    id: "Sub",
+                    side: "incoming",
+                    scope: "withContents",
+                    options: { dropHandMerges: drop },
+                }),
         },
         {
             name: "taking back a container's pick with everything inside",
             before: (decisions) => decisions.pickWithContents("Sub", "current"),
             change: (decisions, drop) =>
-                decisions.unpickScoped("Sub", "withContents", { dropHandMerges: drop }),
+                decisions.decide({
+                    kind: "unpick",
+                    id: "Sub",
+                    scope: "withContents",
+                    options: { dropHandMerges: drop },
+                }),
         },
     ];
+
+    it("tells an outcome that asks before it drops a version merged by hand from a blocked or an applied one", () => {
+        const asking = mergedByHandOnCurrent().pick("T", "incoming");
+
+        expect(asksToDropHandMerges(asking)).toBe(true);
+        expect(asksToDropHandMerges({ applied: false, blockedBy: [] })).toBe(false);
+        expect(asksToDropHandMerges({ applied: true, pulledIn: [], dropped: [] })).toBe(false);
+    });
 
     it.each(dropping)("asks before $name drops it, changing nothing", ({ before, change }) => {
         const decisions = mergedByHandOnCurrent();

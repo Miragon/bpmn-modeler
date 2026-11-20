@@ -6,6 +6,7 @@ import {
     mergePaneSteps,
     mergePaneView,
     type PickOutcome,
+    type ScopedDecision,
 } from "@miragon/bpmn-modeler-merge";
 import {
     ApplyMergeStatesQuery,
@@ -25,13 +26,9 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { ArmedDiff } from "./DiffPaneRelay";
 import { DiffSession } from "./DiffSession";
 import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
-import {
-    handMergeFeedback,
-    idsNamedInWords,
-    type MergePickFeedback,
-    mergePickFeedback,
-} from "./mergePickFeedback";
-import { type PaneDecision, PaneRefusal } from "./paneRefusal";
+import { idsNamedInWords, type MergePickFeedback, openConflictIds } from "./mergePickFeedback";
+import { MergeViewMemory } from "./mergeViewMemory";
+import type { PaneDecision } from "./paneRefusal";
 
 /**
  * Shows each merge view's decisions on its two panes and takes the user's
@@ -45,9 +42,7 @@ export class MergeDecisionService {
     // Per tab, since each tab's two panes step together and apart from another tab's.
     private readonly stepping = new WeakMap<DiffSession, MergePaneStepping>();
 
-    private readonly feedback = new WeakMap<MergeSession, MergePickFeedback>();
-
-    private readonly refusals = new WeakMap<MergeSession, PaneRefusal>();
+    private readonly memories = new WeakMap<MergeSession, MergeViewMemory>();
 
     private readonly decidedListeners = new Set<(session: MergeSession) => void>();
 
@@ -79,7 +74,7 @@ export class MergeDecisionService {
         if (!session || !paneSide) return;
         const side = namedSide ?? mergeSideOfPane(paneSide);
         await this.decide(session, (decisions) => ({
-            pane: paneSide,
+            pane: { tab: armed.session, side: paneSide },
             action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
             decision: {
                 kind: "pick",
@@ -100,18 +95,15 @@ export class MergeDecisionService {
         const session = this.sessions.ofDiffSession(armed.session);
         const paneSide = armed.session.sideFor(pane.uri);
         if (!session || !paneSide) return;
+        const decision: ScopedDecision = {
+            kind: "unpick",
+            id: elementId,
+            scope,
+            options: { dropHandMerges: dropsHandMerges === true },
+        };
         await this.decide(session, (decisions) =>
-            decisions.originOf(elementId) === "picked"
-                ? {
-                      pane: paneSide,
-                      action: "unpick",
-                      decision: {
-                          kind: "unpick",
-                          id: elementId,
-                          scope,
-                          options: { dropHandMerges: dropsHandMerges === true },
-                      },
-                  }
+            decisions.decidesAnything(decision)
+                ? { pane: { tab: armed.session, side: paneSide }, action: "unpick", decision }
                 : undefined,
         );
     }
@@ -132,20 +124,14 @@ export class MergeDecisionService {
             hand.side,
             hand.text,
         );
-        this.feedback.set(
-            session,
-            handMergeFeedback(hand.elementId, outcome, this.feedback.get(session)),
-        );
+        this.memoryOf(session).finishedHandMerge(hand.elementId, outcome);
         await this.broadcastSession(session);
         return outcome;
     }
 
     /** Shows every pane of the view that the user closed the element's merge editor without saving. */
     async discardHandMerge(session: MergeSession, elementId: string): Promise<void> {
-        this.feedback.set(
-            session,
-            handMergeFeedback(elementId, "discarded", this.feedback.get(session)),
-        );
+        this.memoryOf(session).finishedHandMerge(elementId, "discarded");
         await this.broadcastSession(session);
     }
 
@@ -161,7 +147,7 @@ export class MergeDecisionService {
         if (!session) return;
         const offers = await this.offers();
         const stepping = this.steppingOf(armed.session);
-        const feedback = this.feedback.get(session);
+        const feedback = this.memories.get(session)?.feedback;
         await this.post(armed.before, statesFor(session, "before", stepping, feedback, offers));
         await this.post(armed.after, statesFor(session, "after", stepping, feedback, offers));
     }
@@ -188,7 +174,7 @@ export class MergeDecisionService {
         decisionOf: (decisions: MergeDecisions) => PaneDecision | undefined,
     ): Promise<void> {
         const { decisions } = session;
-        const openBefore = openIds(decisions);
+        const openBefore = openConflictIds(decisions);
         let decided: PaneDecision | undefined;
         let outcome: PickOutcome;
         try {
@@ -199,27 +185,7 @@ export class MergeDecisionService {
             this.logger.logError(error as Error);
             return;
         }
-        const { refusal, freed } = PaneRefusal.after(
-            this.refusals.get(session),
-            decided,
-            outcome,
-            decisions,
-        );
-        if (refusal === undefined) this.refusals.delete(session);
-        else this.refusals.set(session, refusal);
-        const { action, decision } = decided;
-        this.feedback.set(
-            session,
-            mergePickFeedback({
-                action,
-                elementId: decision.id,
-                ...(decision.kind === "pick" ? { keptSide: decision.side } : {}),
-                outcome,
-                openBefore,
-                openAfter: openIds(decisions),
-                ...(freed === undefined ? {} : { freed }),
-            }),
-        );
+        this.memoryOf(session).decided(decided, outcome, decisions, openBefore);
         if (outcome.applied) {
             for (const listener of this.decidedListeners) listener(session);
         }
@@ -232,6 +198,15 @@ export class MergeDecisionService {
             const panes = tab.armedPanes();
             if (panes) await this.broadcast({ session: tab, ...panes });
         }
+    }
+
+    private memoryOf(session: MergeSession): MergeViewMemory {
+        let memory = this.memories.get(session);
+        if (!memory) {
+            memory = new MergeViewMemory();
+            this.memories.set(session, memory);
+        }
+        return memory;
     }
 
     private steppingOf(diffSession: DiffSession): MergePaneStepping {
@@ -265,10 +240,6 @@ export interface MergeUnpickRequest {
     readonly scope: MergePickScope;
     /** As {@link MergePickRequest.dropsHandMerges}. */
     readonly dropsHandMerges?: boolean;
-}
-
-function openIds(decisions: MergeDecisions): string[] {
-    return decisions.openConflicts.map(({ id }) => id);
 }
 
 function statesFor(

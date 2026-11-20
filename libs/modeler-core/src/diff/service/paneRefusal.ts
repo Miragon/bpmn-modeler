@@ -1,13 +1,29 @@
-import type { MergeDecisions, PickOutcome, ScopedDecision } from "@miragon/bpmn-modeler-merge";
+import {
+    asksToDropHandMerges,
+    type MergeDecisions,
+    type PickOutcome,
+    type ScopedDecision,
+} from "@miragon/bpmn-modeler-merge";
 import type { MergePanePickAction, MergePaneRefusedDecision } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
+import type { DiffSession } from "./DiffSession";
+
+/** A pane of a merge view: its side in its tab, since another tab's pane of that side is another webview. */
+export interface DecidingPane {
+    readonly tab: DiffSession;
+    readonly side: DiffSide;
+}
+
 /** A decision a pane sent: what the user did, on which pane, and what the merge decides. */
 export interface PaneDecision {
-    readonly pane: DiffSide;
+    readonly pane: DecidingPane;
     readonly action: MergePanePickAction;
     readonly decision: ScopedDecision;
 }
+
+/** What a refusal asks the merge. */
+export type RefusalQuestions = Pick<MergeDecisions, "wouldApply" | "decidesAnything">;
 
 /** What a decision leaves of a merge view's last refusal: the refusal it keeps, and the refused decision an undo freed. */
 export interface PaneRefusalAfter {
@@ -26,34 +42,31 @@ export class PaneRefusal {
 
     /**
      * A blocked decision becomes the refusal; one refused for the versions
-     * merged by hand it would drop asks the user instead and keeps none. The
-     * partner's decision is newer than the refusal, which its pane forgets.
+     * merged by hand it would drop asks the user instead and keeps none. Any
+     * other pane's decision is newer than the refusal, which its pane forgets,
+     * and a refused undo whose pick is gone has nothing left to free.
      */
     static after(
         refusal: PaneRefusal | undefined,
         decided: PaneDecision,
         outcome: PickOutcome,
-        decisions: Pick<MergeDecisions, "wouldApply">,
+        decisions: RefusalQuestions,
     ): PaneRefusalAfter {
         if (!outcome.applied) {
-            return "blockedBy" in outcome ? { refusal: new PaneRefusal(decided) } : {};
+            return asksToDropHandMerges(outcome) ? {} : { refusal: new PaneRefusal(decided) };
         }
         return refusal?.afterApplied(decided, decisions) ?? {};
     }
 
-    private afterApplied(
-        decided: PaneDecision,
-        decisions: Pick<MergeDecisions, "wouldApply">,
-    ): PaneRefusalAfter {
-        if (decided.pane !== this.refused.pane) return {};
+    private afterApplied(decided: PaneDecision, decisions: RefusalQuestions): PaneRefusalAfter {
+        if (!this.sentBy(decided.pane)) return {};
+        if (!decisions.decidesAnything(this.refused.decision)) return {};
         if (!decisions.wouldApply(this.refused.decision)) return { refusal: this };
-        return this.isFreedBy(decided) ? { freed: this.named() } : {};
+        return decided.action === "unpick" ? { freed: this.named() } : {};
     }
 
-    /** An undo frees the refusal, unless it is the refused undo itself, sent again. */
-    private isFreedBy({ action, decision }: PaneDecision): boolean {
-        if (action !== "unpick") return false;
-        return action !== this.refused.action || decision.id !== this.refused.decision.id;
+    private sentBy({ tab, side }: DecidingPane): boolean {
+        return tab === this.refused.pane.tab && side === this.refused.pane.side;
     }
 
     private named(): MergePaneRefusedDecision {

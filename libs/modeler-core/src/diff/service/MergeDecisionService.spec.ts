@@ -111,6 +111,24 @@ async function openMergeView(
     return { host, diffService, current, incoming, bothReady, store, sessions, pick, unpick };
 }
 
+/** A second tab of the view, whose panes show the same versions under the same URIs. */
+async function openAnotherTab(
+    view: Awaited<ReturnType<typeof openMergeView>>,
+    stages: ResolvableStages = ORDER_REMOVED_FLOW_STAGES,
+) {
+    const session = view.sessions.of("file:///repo/order.bpmn");
+    if (!session) throw new Error("no merge view");
+    const tab = view.store.registerMerge(URIS);
+    view.sessions.join(session, tab);
+    const current = new FakeDiffPaneHandle(URIS.current, stages.current);
+    const incoming = new FakeDiffPaneHandle(URIS.incoming, stages.incoming);
+    tab.attachPane(current);
+    tab.attachPane(incoming);
+    await view.diffService.markReady(current);
+    await view.diffService.markReady(incoming);
+    return { current, incoming };
+}
+
 function statesOf(pane: FakeDiffPaneHandle): ApplyMergeStatesQuery[] {
     return pane.posted.filter(
         (message): message is ApplyMergeStatesQuery =>
@@ -511,6 +529,32 @@ describe("MergeDecisionService", () => {
                 await unpick(current, "Flow_2");
 
                 expect(freedOf(current)).toBeUndefined();
+            });
+
+            it("forgets the refusal on a decision of the same side in another tab of the view", async () => {
+                const view = await refusedLeaveOut();
+                const otherTab = await openAnotherTab(view);
+
+                await view.unpick(otherTab.current, "Flow_2");
+                expect(freedOf(otherTab.current)).toBeUndefined();
+                await view.pick(view.current, "Flow_2", "element", "incoming");
+                await view.unpick(view.current, "Flow_2");
+
+                expect(freedOf(view.current)).toBeUndefined();
+            });
+
+            it("keeps the refusal through the finish of a merge editor, which changes no pick", async () => {
+                const view = await refusedLeaveOut();
+                const session = view.sessions.of("file:///repo/order.bpmn");
+                if (!session) throw new Error("no merge view");
+
+                await view.host.decisions.discardHandMerge(session, "Flow_2");
+                await view.unpick(view.current, "Flow_2");
+
+                expect(freedOf(view.current)).toStrictEqual({
+                    action: "leaveOut",
+                    elementId: "Task_Pack",
+                });
             });
 
             it("leaves the partner's refusal to the partner, which forgets it on the newer decision", async () => {

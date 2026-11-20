@@ -1,4 +1,10 @@
-import type { BlockedPick, HandMergeOutcome, PickOutcome } from "@miragon/bpmn-modeler-merge";
+import {
+    asksToDropHandMerges,
+    type BlockedPick,
+    type HandMergeOutcome,
+    type MergeDecisions,
+    type PickOutcome,
+} from "@miragon/bpmn-modeler-merge";
 import {
     handMergeRefusalNamedIds,
     type MergePaneAction,
@@ -42,10 +48,9 @@ export function mergePickFeedback({
     if (!outcome.applied) {
         const refused = { applied: false, action, elementId } as const;
         return {
-            outcome:
-                "handMergesAtStake" in outcome
-                    ? { ...refused, blockedBy: [], handMergesAtStake: outcome.handMergesAtStake }
-                    : { ...refused, blockedBy: outcome.blockedBy.map(blockOf) },
+            outcome: asksToDropHandMerges(outcome)
+                ? { ...refused, blockedBy: [], handMergesAtStake: outcome.handMergesAtStake }
+                : { ...refused, blockedBy: outcome.blockedBy.map(blockOf) },
         };
     }
     const shown: MergePickFeedback = {
@@ -113,6 +118,11 @@ function blockOf({ reason: { element, requirement, obstacle } }: BlockedPick): M
     return "missing" in obstacle
         ? { ...ends, obstacle: obstacle.kind, missing: obstacle.missing }
         : { ...ends, obstacle: obstacle.kind };
+}
+
+/** The ids of the merge's open conflicts, which before and after a decision name what it reopened. */
+export function openConflictIds(decisions: Pick<MergeDecisions, "openConflicts">): string[] {
+    return decisions.openConflicts.map(({ id }) => id);
 }
 
 /** Every element a pane names in words: the shape-less elements its menu lists and what the last outcome names. */

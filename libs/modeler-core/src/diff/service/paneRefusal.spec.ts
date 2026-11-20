@@ -1,26 +1,32 @@
 import { describe, expect, it } from "vitest";
 
 import type { PickOutcome } from "@miragon/bpmn-modeler-merge";
-import type { DiffSide } from "@miragon/bpmn-modeler-types";
-
-import { type PaneDecision, PaneRefusal } from "./paneRefusal";
+import type { DiffSession } from "./DiffSession";
+import { type DecidingPane, type PaneDecision, PaneRefusal } from "./paneRefusal";
 
 const APPLIED: PickOutcome = { applied: true, pulledIn: [], dropped: [] };
 const BLOCKED: PickOutcome = { applied: false, blockedBy: [] };
 const AT_STAKE: PickOutcome = { applied: false, handMergesAtStake: ["Task_Pack"] };
 
-const leaveOut = (pane: DiffSide = "before"): PaneDecision => ({
+const TAB = {} as DiffSession;
+const OTHER_TAB = {} as DiffSession;
+const CURRENT: DecidingPane = { tab: TAB, side: "before" };
+
+const leaveOut = (pane: DecidingPane = CURRENT): PaneDecision => ({
     pane,
     action: "leaveOut",
     decision: { kind: "pick", id: "Task_Pack", side: "current", scope: "element" },
 });
-const undo = (id: string, pane: DiffSide = "before"): PaneDecision => ({
+const undo = (id: string, pane: DecidingPane = CURRENT): PaneDecision => ({
     pane,
     action: "unpick",
     decision: { kind: "unpick", id, scope: "element" },
 });
 
-const merge = (applies: boolean) => ({ wouldApply: () => applies });
+const merge = (applies: boolean, decidesAnything = true) => ({
+    wouldApply: () => applies,
+    decidesAnything: () => decidesAnything,
+});
 
 const refusedLeaveOut = () => PaneRefusal.after(undefined, leaveOut(), BLOCKED, merge(false));
 
@@ -63,19 +69,28 @@ describe("PaneRefusal.after", () => {
         expect(PaneRefusal.after(refusal, decided, APPLIED, merge(true))).toStrictEqual({});
     });
 
-    it("names nothing freed by the undo that repeats a refused undo", () => {
-        const refused = PaneRefusal.after(undefined, undo("Task_Pack"), BLOCKED, merge(false));
+    it.each([
+        ["the undo that repeats it", "Task_Pack"],
+        ["an undo that took its pick along", "Sub"],
+    ])(
+        "forgets a refused undo, naming nothing freed, once %s leaves no pick to take back",
+        (_case, id) => {
+            const refused = PaneRefusal.after(undefined, undo("Task_Pack"), BLOCKED, merge(false));
 
-        expect(
-            PaneRefusal.after(refused.refusal, undo("Task_Pack"), APPLIED, merge(true)),
-        ).toStrictEqual({});
-    });
+            expect(
+                PaneRefusal.after(refused.refusal, undo(id), APPLIED, merge(true, false)),
+            ).toStrictEqual({});
+        },
+    );
 
-    it("forgets the refusal on the partner's decision, newer than it", () => {
+    it.each<[string, DecidingPane]>([
+        ["the partner", { tab: TAB, side: "after" }],
+        ["the same side in another tab", { tab: OTHER_TAB, side: "before" }],
+    ])("forgets the refusal on a decision of %s, newer than it", (_case, pane) => {
         const { refusal } = refusedLeaveOut();
 
         expect(
-            PaneRefusal.after(refusal, undo("Flow_2", "after"), APPLIED, merge(true)),
+            PaneRefusal.after(refusal, undo("Flow_2", pane), APPLIED, merge(true)),
         ).toStrictEqual({});
     });
 });
