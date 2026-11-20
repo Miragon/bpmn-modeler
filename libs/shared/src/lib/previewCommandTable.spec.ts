@@ -1,122 +1,76 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DocumentFlushedCommand, LogErrorCommand, LogWarningCommand, Query } from "./messages";
+import { GetAddOnCatalogCommand, OpenAddOnDetailCommand } from "./addOnsView";
+import { LogInfoCommand } from "./messages";
 import {
-    logPreviewError,
     type PreviewCommandTable,
     previewRouteOf,
-    replyFromPreview,
     routePreviewCommand,
 } from "./previewCommandTable";
 
-type SampleCommand = LogWarningCommand | DocumentFlushedCommand;
+type TestType = "LogInfoCommand" | "GetAddOnCatalogCommand" | "OpenAddOnDetailCommand";
 
-interface SampleSession {
-    readonly heard: string[];
+interface TestSession {
+    readonly handled: string[];
 }
 
-const SAMPLE_TABLE: PreviewCommandTable<SampleCommand, SampleSession> = {
-    LogWarningCommand: ({ message }, session) => session.heard.push(message),
-    DocumentFlushedCommand: { ignored: "the sample has no file to save" },
+const TABLE: PreviewCommandTable<TestType, TestSession> = {
+    LogInfoCommand: ({ message }, session) => session.handled.push(message),
+    GetAddOnCatalogCommand: ({ type }, session) => session.handled.push(type),
+    OpenAddOnDetailCommand: { ignored: "the test has no tab to open" },
 };
 
-class SampleQuery extends Query {
-    constructor() {
-        super("SampleQuery");
-    }
-}
-
-afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-});
-
-describe("routePreviewCommand", () => {
-    it("hands a command and the session to its row", () => {
-        const session: SampleSession = { heard: [] };
-
-        routePreviewCommand(SAMPLE_TABLE, new LogWarningCommand("careful"), session);
-
-        expect(session.heard).toEqual(["careful"]);
+describe("a browser preview's command table", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
-    it("logs why it drops a command whose row is a reason", () => {
+    it("hands a command to its row together with the session", () => {
+        const session: TestSession = { handled: [] };
+
+        routePreviewCommand(TABLE, new LogInfoCommand("hello"), session, "[test preview]");
+
+        expect(session.handled).toEqual(["hello"]);
+    });
+
+    it("drops a command whose row gives a reason, and logs the reason under the preview's prefix", () => {
         const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
-        const command = new DocumentFlushedCommand(3);
+        const session: TestSession = { handled: [] };
+        const command = new OpenAddOnDetailCommand("plugin:/work/x");
 
-        routePreviewCommand(SAMPLE_TABLE, command, { heard: [] });
+        routePreviewCommand(TABLE, command, session, "[test preview]");
 
-        expect(debug).toHaveBeenCalledWith(
-            "[DEBUG] DocumentFlushedCommand ignored: the sample has no file to save",
-            command,
-        );
+        expect([session.handled, debug.mock.calls]).toEqual([
+            [],
+            [
+                [
+                    "[test preview] OpenAddOnDetailCommand ignored: the test has no tab to open",
+                    command,
+                ],
+            ],
+        ]);
     });
 
-    it("throws for a message whose type has no row", () => {
-        const command = new LogErrorCommand("broken") as unknown as SampleCommand;
-
-        expect(() => routePreviewCommand(SAMPLE_TABLE, command, { heard: [] })).toThrow(
-            "Unknown message type: LogErrorCommand",
-        );
-    });
-});
-
-describe("previewRouteOf", () => {
-    it("reads the row of a command type", () => {
-        expect(previewRouteOf(SAMPLE_TABLE, "DocumentFlushedCommand")).toEqual({
-            ignored: "the sample has no file to save",
+    it("returns the row of a command type", () => {
+        expect(previewRouteOf(TABLE, "OpenAddOnDetailCommand")).toEqual({
+            ignored: "the test has no tab to open",
         });
     });
 
-    it.each(["toString", "constructor", "hasOwnProperty"])(
-        "throws for the inherited object member %s",
+    it.each(["SomeOtherCommand", "toString", "constructor", "hasOwnProperty"])(
+        "rejects a command type without a row of its own: %s",
         (type) => {
-            expect(() => previewRouteOf(SAMPLE_TABLE, type)).toThrow(
-                `Unknown message type: ${type}`,
-            );
+            expect(() =>
+                routePreviewCommand(TABLE, { type } as never, { handled: [] }, "[test preview]"),
+            ).toThrow(`Unknown message type: ${type}`);
         },
     );
-});
 
-describe("replyFromPreview", () => {
-    it("dispatches the answer to the window as a host message", () => {
-        const page = new EventTarget();
-        vi.stubGlobal("window", page);
-        const received: unknown[] = [];
-        page.addEventListener("message", (event) => received.push((event as MessageEvent).data));
-        const query = new SampleQuery();
+    it("routes a command whose row reads it", () => {
+        const session: TestSession = { handled: [] };
 
-        replyFromPreview(query);
+        routePreviewCommand(TABLE, new GetAddOnCatalogCommand(), session, "[test preview]");
 
-        expect(received).toEqual([query]);
-    });
-
-    it("sends nothing without an answer", () => {
-        const page = new EventTarget();
-        vi.stubGlobal("window", page);
-        const listener = vi.fn();
-        page.addEventListener("message", listener);
-
-        replyFromPreview(undefined);
-
-        expect(listener).not.toHaveBeenCalled();
-    });
-});
-
-describe("logPreviewError", () => {
-    it("logs the stack of a caught error under its message", () => {
-        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-        logPreviewError(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
-
-        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
-    });
-
-    it("logs the message alone without a stack", () => {
-        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-        logPreviewError(new LogErrorCommand("broken"));
-
-        expect(error).toHaveBeenCalledWith("broken");
+        expect(session.handled).toEqual(["GetAddOnCatalogCommand"]);
     });
 });
