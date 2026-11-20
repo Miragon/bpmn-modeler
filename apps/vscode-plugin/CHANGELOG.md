@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.27.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.26.0...vscode-v1.27.0) (2026-11-20)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** bring shapes back into their container ([#2588](https://github.com/Miragon/bpmn-modeler/issues/2588)) [sync 01a883f] ([b6d295b](https://github.com/Miragon/bpmn-modeler/commit/b6d295bd9dbb75e6563c51a5567e6e67fbd097c8))
+* **bpmn-merge:** draw a pool's lanes from one side ([#2591](https://github.com/Miragon/bpmn-modeler/issues/2591)) [sync e72e79c] ([b0444d6](https://github.com/Miragon/bpmn-modeler/commit/b0444d6bb2b40b0e5994ac390f986925e409a54c))
+* **bpmn-merge:** move shapes off a shape from the other side ([#2585](https://github.com/Miragon/bpmn-modeler/issues/2585)) [sync 6388008] ([8e4a433](https://github.com/Miragon/bpmn-modeler/commit/8e4a43367be62ecfc0fd1d038e9e66e3091a47d9))
+* **bpmn-merge:** re-route flows that end off their shapes or run through one ([#2573](https://github.com/Miragon/bpmn-modeler/issues/2573)) [sync 9465f77] ([647cde9](https://github.com/Miragon/bpmn-modeler/commit/647cde9331d409cbd4b5c5fea9e06275bc8a6bba))
+* **bpmn-modeler:** draw Camunda 7 transaction boundaries in Miragon blue ([#2581](https://github.com/Miragon/bpmn-modeler/issues/2581)) [sync 0969f58] ([9b929bc](https://github.com/Miragon/bpmn-modeler/commit/9b929bc0116d142c87a1bf5c229a043199daa36c))
+* **bpmn-webview:** offer merge xml on a picked element ([#2574](https://github.com/Miragon/bpmn-modeler/issues/2574)) [sync 1d4073f] ([838a3b6](https://github.com/Miragon/bpmn-modeler/commit/838a3b61b2ba8e57288c2dfcf6e9b144f9d6e785))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-layout:** count waypoints half a unit apart as a repeat when cleaning up a diagram ([#2675](https://github.com/Miragon/bpmn-modeler/issues/2675)) [sync b94f892] ([2e447ab](https://github.com/Miragon/bpmn-modeler/commit/2e447ab782c27984e09d95c695531af7093e09b9))
+* **bpmn-layout:** move each label once when formatting ([#2572](https://github.com/Miragon/bpmn-modeler/issues/2572)) [sync 1f2f555] ([0f06f50](https://github.com/Miragon/bpmn-modeler/commit/0f06f50452c02587b8b2eb37391b870ef42bacb3))
+* **bpmn-merge:** count a process with lanes on the collaboration's plane as drawn by that side ([#2734](https://github.com/Miragon/bpmn-modeler/issues/2734)) [sync f0a8391] ([f19a1db](https://github.com/Miragon/bpmn-modeler/commit/f19a1db75679fd29ab1dde763942e7c9b1f3080e))
+* **bpmn-merge:** count two root planes as one place in the layout repair ([#2595](https://github.com/Miragon/bpmn-modeler/issues/2595)) [sync ffb5ac3] ([ef1ccf2](https://github.com/Miragon/bpmn-modeler/commit/ef1ccf277ee6658736687683433a9551755a566e))
+* **bpmn-merge:** draw an edge on the plane where its ends are drawn ([#2583](https://github.com/Miragon/bpmn-modeler/issues/2583)) [sync 030d6c0] ([4141608](https://github.com/Miragon/bpmn-modeler/commit/41416082403a67e749e4aae6bf60996989dc89c6))
+* **bpmn-merge:** keep the layout's drawing of an element drawn twice ([#2660](https://github.com/Miragon/bpmn-modeler/issues/2660)) [sync 5a304de] ([079195d](https://github.com/Miragon/bpmn-modeler/commit/079195df44383180eb0a650ff33153eecdacfca4))
+* **bpmn-merge:** name broken spots by geometry, not by sides ([#2568](https://github.com/Miragon/bpmn-modeler/issues/2568)) [sync 230489a] ([f6fb4a6](https://github.com/Miragon/bpmn-modeler/commit/f6fb4a66272b70533807d95d061d49bd171aeab1))
+* **bpmn-merge:** name the restore offer for elements, not only flows ([#2556](https://github.com/Miragon/bpmn-modeler/issues/2556)) [sync 804d0cf] ([0d1653a](https://github.com/Miragon/bpmn-modeler/commit/0d1653a5f281dd1ea6322a83350d5504e03cd91a))
+* **bpmn-webview:** keep the preview fixtures out of the production bundle ([#2643](https://github.com/Miragon/bpmn-modeler/issues/2643)) [sync 88b6095] ([4c2797e](https://github.com/Miragon/bpmn-modeler/commit/4c2797e334a997e3683682a7077c9e12689615c7))
+* **bpmn-webview:** let the host say whether an undo freed a refusal ([#2733](https://github.com/Miragon/bpmn-modeler/issues/2733)) [sync a897fa6] ([91e7eb8](https://github.com/Miragon/bpmn-modeler/commit/91e7eb810a4ab25c8f398be9ecc122b7735f99f3))
+* **bpmn-webview:** select the change the diff stepper steps to ([#2557](https://github.com/Miragon/bpmn-modeler/issues/2557)) [sync be9720a] ([d0d156e](https://github.com/Miragon/bpmn-modeler/commit/d0d156e7eb0dd7e4aac589a0631d608d8f59207e))
+
 ## [1.26.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.25.0...vscode-v1.26.0) (2026-11-18)
 
 
