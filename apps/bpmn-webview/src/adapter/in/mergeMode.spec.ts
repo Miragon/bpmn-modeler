@@ -1126,6 +1126,32 @@ describe("MergeMode", () => {
             expect(card().show).not.toHaveBeenCalled();
         });
 
+        it("announces a row's outcome once, not again when the states repeat it", async () => {
+            await startMergePane();
+            dispatch(mergeStates());
+            rowButton("Process_1", "Keep incoming").click();
+            const answered = mergeStates({
+                lastOutcome: {
+                    applied: true,
+                    action: "pick",
+                    elementId: "Process_1",
+                    pulledIn: [],
+                    dropped: [],
+                    reopened: [],
+                },
+            });
+            dispatch(answered);
+            const status = menu().querySelector('[role="status"]')!;
+            status.textContent = "";
+
+            dispatch(answered);
+
+            expect(status.textContent).toBe("");
+            expect(rowOf("Process_1")?.querySelector(".merge-menu__outcome")?.textContent).toBe(
+                "Kept from incoming: Process_1",
+            );
+        });
+
         it("says nothing in the row for the partner's decision", async () => {
             await startMergePane();
             dispatch(mergeStates());
@@ -1355,6 +1381,12 @@ describe("MergeMode", () => {
                     announce: true,
                 },
             ]);
+        });
+
+        it("announces a pad decision on its card only, not in the menu", async () => {
+            await keepPackOnPad();
+
+            expect(menu().querySelector('[role="status"]')?.textContent).toBe("");
         });
 
         it("shows no card on the pane that did not send the decision, and no outcome in its bar", async () => {
