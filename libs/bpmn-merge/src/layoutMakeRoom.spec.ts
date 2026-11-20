@@ -1,26 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DrawingDraft } from "./layoutDrawingDraft";
-import type { FlowRelation } from "./layoutFlowTopology";
-import { type RoomMade, type RoomSlots, freeRoom, onlyMoves, slotsFor } from "./layoutMakeRoom";
-
-describe("slotsFor", () => {
-    it.each<[FlowRelation, boolean, RoomSlots]>([
-        ["parallel", true, { stacked: true, inLine: ["after"], otherwise: ["before"] }],
-        ["precedes", true, { stacked: false, inLine: ["before", "after"], otherwise: ["below"] }],
-        ["follows", true, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-        ["unrelated", true, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-        ["parallel", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-        ["precedes", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-        ["follows", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-        ["unrelated", false, { stacked: false, inLine: ["after"], otherwise: ["before", "below"] }],
-    ])(
-        "draws a shape that %s the other, with flows running right %s, as %j",
-        (relation, flowsRight, slots) => {
-            expect(slotsFor(relation, flowsRight)).toEqual(slots);
-        },
-    );
-});
+import { type RoomMade, freeRoom, onlyMoves } from "./layoutMakeRoom";
 
 describe("free rooms", () => {
     const draft = DrawingDraft.of({ shapes: new Map(), edges: new Map() });

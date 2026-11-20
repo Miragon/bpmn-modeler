@@ -150,13 +150,15 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   leave the moved shape 15 px clear of foreign labels and of foreign flows beside it once the
   room is made; a flow running through it is a spot the flow repair re-routes. The flows between shifted and staying shapes stretch
   by runs across the push, so their segments keep their direction. Each room re-routes the
-  moved shape's flows inside its trial as the flow repair will (#2600). Between the two shapes
+  moved shape's flows inside its trial with the build's own flow repair (#2600). Between the two shapes
   of a pair, the room whose re-routed flows clash with fewer other flows wins (a crossing each,
   and a flow run on for more than 10 px unless the two share an end), then the one that shifts
   fewer shapes, then the one that grows the frames less, then the shape with fewer flows. When
-  the room in line still clashes, the slots not tried (before, below) are tried too, and one
-  wins only with fewer clashes, so the in-line order holds where every slot clashes alike and
-  where no room in line exists. A room that adds any shape spot (an overlap, a shape outside its
+  the room in line still clashes, the slots neither listed in line nor stacked in (before and below;
+  before alone for a stacked branch, below alone for a shape that leads into the other) are tried too, and one wins only with fewer clashes,
+  so the in-line order holds where every slot clashes alike and where no room in line exists;
+  the slot after a shape that leads into the other is only the fallback for no room before
+  it, never weighed for its flows, as it would turn the flow back. A room that adds any shape spot (an overlap, a shape outside its
   frame, an event off its host), lays a pool on another or covers the other shape is dropped
   and the overlap noted as not repaired. The flow repair then runs on the moved drawing, so it
   re-routes the moved shapes' flows and names a flow a move broke; a spot a move mended, other

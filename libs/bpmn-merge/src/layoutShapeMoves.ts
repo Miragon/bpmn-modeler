@@ -1,4 +1,5 @@
 import { DrawingDraft } from "./layoutDrawingDraft";
+import type { FlowRepairPlanner } from "./layoutFlowRepair";
 import { FlowTopology } from "./layoutFlowTopology";
 import { onlyMoves } from "./layoutMakeRoom";
 import type { LayoutModel, NodeShape } from "./layoutModel";
@@ -40,19 +41,21 @@ export interface ShapeMovePlan {
  * not both sides draw where the result does (one side moved it, or only one
  * side has it), never a boundary event, which stays on its host. It goes with
  * its label, boundary events and contents to the first place
- * `OverlapRepairer.repair` finds. A move of one shape that resolves several
- * spots counts for each.
+ * `OverlapRepairer.repair` finds, a room weighed by where the build's flow
+ * repair re-routes the moved shape's flows. A move of one shape that
+ * resolves several spots counts for each.
  */
 export function planShapeMoves(
     layout: LayoutModel,
     spots: readonly LayoutSpot[],
     sides: readonly LayoutModel[],
+    repairFlows: FlowRepairPlanner,
 ): ShapeMovePlan {
     const overlaps = spots.flatMap((spot): OverlapSpot[] =>
         spot.kind === "shapesOverlap" ? [spot] : [],
     );
     if (overlaps.length === 0) return { layout, repairs: [] };
-    const repairer = new OverlapRepairer(layout, sides);
+    const repairer = new OverlapRepairer(layout, sides, repairFlows);
     const repairs = overlaps.map((spot) => ({ spot, repair: repairer.repair(spot) }));
     return { layout: repairer.layout, repairs };
 }
@@ -65,9 +68,14 @@ class OverlapRepairer {
     /** What the repairs so far did to each shape they changed. */
     private readonly changes = new Map<string, ShapeChange>();
 
-    constructor(original: LayoutModel, sides: readonly LayoutModel[]) {
+    constructor(
+        original: LayoutModel,
+        sides: readonly LayoutModel[],
+        repairFlows: FlowRepairPlanner,
+    ) {
         this.groups = new ShapeGroups(original);
-        this.context = { groups: this.groups, topology: new FlowTopology(original), sides };
+        const topology = new FlowTopology(original);
+        this.context = { groups: this.groups, topology, sides, repairFlows };
         this.draft = DrawingDraft.of(original);
     }
 

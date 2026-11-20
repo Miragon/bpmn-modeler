@@ -28,7 +28,7 @@ import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";
 import { isOrthogonal, nearestPointOn, polylineBounds, segmentsOf } from "./layoutPolyline";
 import { routeCost, routeOrthogonal } from "./layoutRouter";
 import { type Segment, segmentEntersOutline, segmentEntersShape } from "./layoutSegments";
-import { introducedLayoutSpots, shapesRunThrough } from "./layoutSpotDetection";
+import { shapesRunThrough } from "./layoutSpotDetection";
 import { type LayoutSpot, endsOffShape, isDrawnWithAnEnd, isFlowSpot } from "./layoutSpots";
 
 /** What the build does with a flow the merge broke: re-routes it onto its shapes, or leaves it as drawn. */
@@ -41,6 +41,9 @@ export type FlowRepair =
           readonly label?: DiagramBounds;
       }
     | { readonly kind: "notRepaired"; readonly flow: string };
+
+/** How the build plans the repair of the flows the spots name. */
+export type FlowRepairPlanner = (layout: LayoutModel, spots: readonly LayoutSpot[]) => FlowRepair[];
 
 /** How far around a flow's ends and waypoints the router looks for shapes, tried from the nearest out. */
 const OBSTACLE_WINDOW_MARGINS = [120, 360] as const;
@@ -73,19 +76,6 @@ export function planFlowRepairs(layout: LayoutModel, spots: readonly LayoutSpot[
         }
         return repair;
     });
-}
-
-/** The layout with those of the flows that neither side's drawing breaks where the layout does re-routed, as the repair would. */
-export function withFlowsRerouted(
-    layout: LayoutModel,
-    flows: readonly string[],
-    sides: readonly LayoutModel[],
-): LayoutModel {
-    const named = new Set(flows);
-    const spots = introducedLayoutSpots(layout, sides).filter(
-        (spot) => isFlowSpot(spot) && named.has(spot.flow),
-    );
-    return withFlowRepairs(layout, planFlowRepairs(layout, spots));
 }
 
 /** The layout with each re-routed flow's waypoints and label; the layout itself when no flow moved. */
