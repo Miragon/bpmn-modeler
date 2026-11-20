@@ -2,7 +2,13 @@ import type { DrawingDraft } from "./layoutDrawingDraft";
 import { flowClashesOf } from "./layoutFlowClashes";
 import { type FlowRepairPlanner, withFlowRepairs } from "./layoutFlowRepair";
 import { sameBounds } from "./layoutGeometry";
-import { type RoomContext, type RoomMade, freeRoom, makeRoom } from "./layoutMakeRoom";
+import {
+    type RoomContext,
+    type RoomMade,
+    freeRoom,
+    makeRoom,
+    shiftedShapeCountOf,
+} from "./layoutMakeRoom";
 import type { LayoutModel, NodeShape } from "./layoutModel";
 import { type RoomSlot, type RoomSlots, slotOffsetsOf, slotsFor } from "./layoutRoomSlots";
 import type { ShapeGroup } from "./layoutShapeGroups";
@@ -181,12 +187,17 @@ function otherOf(pair: Pair, group: ShapeGroup): NodeShape {
 
 /**
  * The room whose group's flows clash least, then that shifts the fewest
- * shapes, grows the frames least and moves the shape with the fewest flows;
- * the first of equal ones.
+ * shapes besides the lanes below a grown lane, grows the frames least and
+ * moves the shape with the fewest flows; the first of equal ones.
  */
 function leastOf(rooms: readonly GroupRoom[]): GroupRoom | undefined {
-    const cost = ({ flowClashes, shifted, growth, group }: GroupRoom) =>
-        [flowClashes, shifted.length, growth, group.attachedEdges.length] as const;
+    const cost = (room: GroupRoom) =>
+        [
+            room.flowClashes,
+            shiftedShapeCountOf(room),
+            room.growth,
+            room.group.attachedEdges.length,
+        ] as const;
     return rooms.reduce<GroupRoom | undefined>((least, room) => {
         if (least === undefined) return room;
         const [mine, theirs] = [cost(room), cost(least)];

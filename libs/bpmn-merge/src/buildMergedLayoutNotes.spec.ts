@@ -122,7 +122,7 @@ function movedOff(ids: [string, string], shape: string): BuildNoteContent {
 function stacked(
     ids: [string, string],
     shape: string,
-    shifted: MergeNonEmptyIds = ["Task_R", "End_Rejected"],
+    shifted: MergeNonEmptyIds = ["Lane_Back", "Task_R", "End_Rejected"],
 ): BuildNoteContent {
     return {
         kind: "shapesOverlap",
@@ -262,6 +262,7 @@ describe("buildMerged's layout notes", () => {
                     conflictsTo: "incoming",
                     notes: [
                         stacked(["Task_Y", "Task_X"], "Task_X", [
+                            "Lane_Back",
                             "Task_C",
                             "End_Done",
                             "Task_R",
@@ -275,6 +276,7 @@ describe("buildMerged's layout notes", () => {
                     conflictsTo: "current",
                     notes: [
                         stacked(["Task_Y", "Task_X"], "Task_Y", [
+                            "Lane_Back",
                             "Task_C",
                             "End_Done",
                             "Task_R",
