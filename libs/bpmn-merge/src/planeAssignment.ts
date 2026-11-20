@@ -7,7 +7,13 @@ import {
     edgePlaneOf,
 } from "./connectionEnds";
 import { contentsPlaneOf, enclosingSubProcessOf } from "./containerContents";
-import { type DiagramIndex, type Drawing, drawingKeyOf, shapeDrawingOf } from "./diagramIndex";
+import {
+    type DiagramIndex,
+    type Drawing,
+    drawingKeyOf,
+    placedDrawingsOf,
+    placedShapeOf,
+} from "./diagramIndex";
 import type { DrawingSides } from "./drawingSides";
 import type { ItemKey } from "./mergedTreeOrder";
 import { MERGE_SIDES, type MergeSide } from "./mergeResult";
@@ -63,10 +69,10 @@ export class PlaneAssignment {
     private placeTakenDrawings(): void {
         const { indexes, drawingSides, slots } = this.sources;
         for (const side of MERGE_SIDES) {
-            for (const [elementId, drawings] of indexes[side].drawingsByElement) {
+            for (const elementId of indexes[side].drawingsByElement.keys()) {
                 if (drawingSides.takenSideOf(elementId) !== side) continue;
                 const staysPut = drawingSides.staysWhereCurrentDraws(elementId);
-                for (const drawing of drawings) {
+                for (const drawing of placedDrawingsOf(indexes[side], elementId)) {
                     const slot = staysPut
                         ? slots.slotOf(drawing.planeOwner)
                         : this.slotOfElement(elementId, drawing);
@@ -104,8 +110,7 @@ export class PlaneAssignment {
             const { indexes, drawingSides, slots } = this.sources;
             const ownSlot = slots.slotOf(subProcess);
             const side = drawingSides.sides[subProcess];
-            const shape =
-                side === undefined ? undefined : shapeDrawingOf(indexes[side], subProcess);
+            const shape = side === undefined ? undefined : placedShapeOf(indexes[side], subProcess);
             this.contentsSlots.set(
                 subProcess,
                 contentsPlaneOf(

@@ -184,18 +184,48 @@ describe("PlaneAssignment", () => {
         expect(assignment.membersOf(slots.slotOf("Sub_2")).size).toBe(0);
     });
 
-    it("puts a sub-process's contents where the shape the layout reads puts them", async () => {
-        const unboundedThenExpanded = rootDrawings([
-            `<bpmndi:BPMNShape id="Sub_1_unbounded" bpmnElement="Sub_1" />`,
-            shape("Sub_1", ' isExpanded="true"'),
-        ]);
-        const drawnTwice = await assignmentOf(
-            document([plane("Process_1", unboundedThenExpanded), SUB_1_PLANE]),
+    describe("of a sub-process drawn twice", () => {
+        const UNBOUNDED = `<bpmndi:BPMNShape id="Sub_1_unbounded" bpmnElement="Sub_1" />`;
+        const EXPANDED = shape("Sub_1", ' isExpanded="true"');
+
+        it.each([
+            ["past a first drawing without bounds", [UNBOUNDED, EXPANDED]],
+            ["before a later drawing without bounds", [EXPANDED, UNBOUNDED]],
+        ])(
+            "keeps the shape the layout reads and puts the contents where it does, %s",
+            async (_case, sub1Drawings) => {
+                const drawnTwice = await assignmentOf(
+                    document([plane("Process_1", rootDrawings(sub1Drawings)), SUB_1_PLANE]),
+                    INCOMING,
+                );
+                const rootMembers = drawnTwice.assignment.membersOf(
+                    drawnTwice.slots.slotOf("Process_1"),
+                );
+
+                expect(rootMembers.get("Sub_1")?.id).toBe("Sub_1_di");
+                expect(rootMembers.has("Task_In")).toBe(true);
+            },
+        );
+    });
+
+    it("puts the contents of a sub-process whose only shape lacks bounds where that shape does", async () => {
+        const expandedWithoutBounds = await assignmentOf(
+            document([
+                plane(
+                    "Process_1",
+                    rootDrawings([
+                        `<bpmndi:BPMNShape id="Sub_1_unbounded" bpmnElement="Sub_1" isExpanded="true" />`,
+                    ]),
+                ),
+                SUB_1_PLANE,
+            ]),
             INCOMING,
         );
 
         expect(
-            drawnTwice.assignment.membersOf(drawnTwice.slots.slotOf("Process_1")).has("Task_In"),
+            expandedWithoutBounds.assignment
+                .membersOf(expandedWithoutBounds.slots.slotOf("Process_1"))
+                .has("Task_In"),
         ).toBe(true);
     });
 });
