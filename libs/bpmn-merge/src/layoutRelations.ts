@@ -9,7 +9,15 @@ import {
 import { type ConnectionEnds, connectionEndsOf } from "./connectionEnds";
 import type { Outline } from "./layoutGeometry";
 import type { EdgeKind } from "./layoutModel";
-import type { CollaborationProcess } from "./planeSlots";
+
+/** A collaboration and a process one of its participants names: one root plane draws them. */
+export type CollaborationProcess = readonly [collaboration: string, process: string];
+
+/** A participant a pool draws, with the process it names, if any. */
+interface Pool {
+    readonly pool: string;
+    readonly process?: string;
+}
 
 interface NodeRelations {
     readonly outline: Outline;
@@ -108,11 +116,9 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
 
     const roots = moddleElements(definitions.rootElements);
     for (const collaboration of roots.filter((root) => isType(root, "bpmn:Collaboration"))) {
-        for (const participant of moddleElements(collaboration.participants)) {
-            if (participant.id === undefined) continue;
-            pools.add(participant.id);
-            const process = idOf(participant.processRef);
-            if (process !== undefined) poolsByProcess.set(process, participant.id);
+        for (const { pool, process } of poolsOf(collaboration)) {
+            pools.add(pool);
+            if (process !== undefined) poolsByProcess.set(process, pool);
         }
         for (const messageFlow of moddleElements(collaboration.messageFlows)) {
             connect("messageFlow", messageFlow);
@@ -131,20 +137,27 @@ export function layoutRelationsOf(definitions: ModdleElement): LayoutRelations {
     return { nodes, pools, laneParents, lanePools, lanesByNode, connections };
 }
 
-/** Each collaboration with the processes its participants name, in document order. */
+/** Each collaboration with the processes its pools name, in document order. */
 export function collaborationProcessesOf(
     definitions: ModdleElement,
 ): readonly CollaborationProcess[] {
     return moddleElements(definitions.rootElements)
         .filter((root) => isType(root, "bpmn:Collaboration"))
-        .flatMap((collaboration) =>
-            moddleElements(collaboration.participants).flatMap((participant) => {
-                const process = idOf(participant.processRef);
-                return collaboration.id === undefined || process === undefined
-                    ? []
-                    : [[collaboration.id, process] as const];
-            }),
-        );
+        .flatMap((collaboration) => {
+            const { id } = collaboration;
+            if (id === undefined) return [];
+            return poolsOf(collaboration).flatMap(({ process }) =>
+                process === undefined ? [] : [[id, process] as const],
+            );
+        });
+}
+
+function poolsOf(collaboration: ModdleElement): readonly Pool[] {
+    return moddleElements(collaboration.participants).flatMap(({ id, processRef }) => {
+        if (id === undefined) return [];
+        const process = idOf(processRef);
+        return [process === undefined ? { pool: id } : { pool: id, process }];
+    });
 }
 
 function nodeRelationsOf(element: ModdleElement, scope: Scope): NodeRelations {

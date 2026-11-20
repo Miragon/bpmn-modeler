@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
-import { collaborationProcessesOf } from "./layoutRelations";
+import { collaborationProcessesOf, layoutRelationsOf } from "./layoutRelations";
 
 async function definitionsOf(semantic: string) {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -40,6 +40,17 @@ describe("collaborationProcessesOf", () => {
   </bpmn:collaboration>${PROCESSES}`);
 
         expect(collaborationProcessesOf(definitions)).toEqual([["Collab_1", "Process_A"]]);
+    });
+
+    it("leaves out a participant without an id, as the pools do", async () => {
+        const definitions = await definitionsOf(`
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant processRef="Process_A" />
+    <bpmn:participant id="Pool_B" processRef="Process_B" />
+  </bpmn:collaboration>${PROCESSES}`);
+
+        expect(collaborationProcessesOf(definitions)).toEqual([["Collab_1", "Process_B"]]);
+        expect([...layoutRelationsOf(definitions).pools]).toEqual(["Pool_B"]);
     });
 
     it("answers no pairs for a document without a collaboration", async () => {
