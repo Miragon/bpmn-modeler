@@ -1,4 +1,5 @@
 import { type Finding, sortFindings } from "../../fitness/domain/finding";
+import { isTestOrDeclarationFile } from "../../sourceFiles/domain/sourceFiles";
 
 /** What makes a file host code: the modules it imports and the files declaring the interfaces its classes implement. */
 export interface SourceDependencies {
@@ -43,8 +44,6 @@ export interface HostFileTexts {
 export type HostFileSource = Pick<HostFileTexts, "texts" | "initializedValues">;
 
 const TYPESCRIPT_SOURCE = /\.([mc]?ts|tsx)$/;
-// Specs and fixtures are inputs of tests, and a declaration file only types code; none of them is host code.
-const UNSCANNED_TYPESCRIPT = /\.(spec|test)\.[^/]+$|(^|\/)__fixtures__\/|\.d\.[mc]?ts$/;
 // Gradle's main source set; its tests sit in src/test/kotlin.
 const KOTLIN_SOURCE = /(^|\/)src\/main\/kotlin\/.+\.kt$/;
 const VSCODE_API = "vscode";
@@ -81,9 +80,7 @@ export function isKotlinSource(path: string): boolean {
 }
 
 export function isScannedSource(path: string): boolean {
-    return (
-        isKotlinSource(path) || (TYPESCRIPT_SOURCE.test(path) && !UNSCANNED_TYPESCRIPT.test(path))
-    );
+    return isKotlinSource(path) || (TYPESCRIPT_SOURCE.test(path) && !isTestOrDeclarationFile(path));
 }
 
 function isHostApi(specifier: string): boolean {

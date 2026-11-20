@@ -4,8 +4,8 @@ import { compareText, type Finding, sortFindings } from "../../fitness/domain/fi
 import type { FindingGroup } from "../../fitness/domain/fitnessFunction";
 import {
     DECLARATION_FILE,
+    isTestOrDeclarationFile,
     SPEC_FILE,
-    TEST_FOLDERS,
     TYPESCRIPT_FILE,
 } from "../../sourceFiles/domain/sourceFiles";
 
@@ -93,14 +93,7 @@ export function isSpecSource(path: string): boolean {
 }
 
 export function isProductionSource(path: string): boolean {
-    return (
-        !isSpecSource(path) &&
-        !DECLARATION_FILE.test(path) &&
-        !path
-            .split("/")
-            .slice(0, -1)
-            .some((folder) => TEST_FOLDERS.has(folder))
-    );
+    return !isTestOrDeclarationFile(path);
 }
 
 function inHexagonalWorkspace(path: string, { hexagonalSourceRoots }: CoreScope): boolean {
