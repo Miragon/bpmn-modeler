@@ -23,7 +23,7 @@ export function runsNoCode(fileName: string, text: string): boolean {
 function isDataConstant(statement: ts.Statement): boolean {
     return (
         ts.isVariableStatement(statement) &&
-        (statement.declarationList.flags & ts.NodeFlags.Const) !== 0 &&
+        (statement.declarationList.flags & ts.NodeFlags.BlockScoped) === ts.NodeFlags.Const &&
         statement.declarationList.declarations.every(
             ({ initializer }) => initializer === undefined || computesNothing(initializer),
         )

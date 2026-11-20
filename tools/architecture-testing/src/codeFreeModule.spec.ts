@@ -35,6 +35,8 @@ describe("runsNoCode", () => {
         { form: "a class", source: "export class A {}" },
         { form: "an enum", source: "export enum A { B }" },
         { form: "a let", source: "export let a = 1;" },
+        { form: "a using", source: "using a = b;" },
+        { form: "an await using", source: "await using a = b;" },
         { form: "a statement", source: "a();" },
         { form: "a default export", source: "export default { a: 1 };" },
         { form: "a call", source: "export const a = b();" },
