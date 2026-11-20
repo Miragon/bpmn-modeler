@@ -3,16 +3,18 @@ import * as ts from "typescript";
 import { parseSource } from "./parseSource";
 
 /**
- * Every top-level statement is an import, an export list, a type or a `const`
- * whose value computes nothing: a literal, a name, a property read, or an
- * array, object or template of those. Such a module holds data, types or
- * re-exports, and no logic.
+ * Every top-level statement is an import, an export list, a type, or a `const`
+ * or default export whose value computes nothing: a literal, a name, a property
+ * read, or an array, object or template of those. Such a module holds data,
+ * types or re-exports, and no logic.
  */
 export function runsNoCode(fileName: string, text: string): boolean {
     return parseSource(fileName, text).statements.every(
         (statement) =>
             ts.isImportDeclaration(statement) ||
+            ts.isImportEqualsDeclaration(statement) ||
             ts.isExportDeclaration(statement) ||
+            (ts.isExportAssignment(statement) && computesNothing(statement.expression)) ||
             ts.isInterfaceDeclaration(statement) ||
             ts.isTypeAliasDeclaration(statement) ||
             ts.isEmptyStatement(statement) ||

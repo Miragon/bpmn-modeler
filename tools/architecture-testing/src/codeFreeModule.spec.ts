@@ -26,6 +26,9 @@ describe("runsNoCode", () => {
         { form: "a name and a property read", source: "export const a = B, c = d.e.f;" },
         { form: "a parenthesized value read through !", source: "export const a = (b!) as C;" },
         { form: "a declared const", source: "declare const a: string;" },
+        { form: "a default export of a name", source: "const a = { b: 1 };\nexport default a;" },
+        { form: "a default export of an object", source: 'export default { a: "a", b };' },
+        { form: "an import of a module's export object", source: 'import a = require("./a");' },
     ])("holds for $form", ({ source }) => {
         expect(runsNoCode("data.ts", source)).toBe(true);
     });
@@ -38,7 +41,8 @@ describe("runsNoCode", () => {
         { form: "a using", source: "using a = b;" },
         { form: "an await using", source: "await using a = b;" },
         { form: "a statement", source: "a();" },
-        { form: "a default export", source: "export default { a: 1 };" },
+        { form: "a default export of a call", source: "export default a();" },
+        { form: "a default export of an object that calls", source: "export default { a: b() };" },
         { form: "a call", source: "export const a = b();" },
         { form: "a construction", source: "export const a = new B();" },
         { form: "an arrow function", source: "export const a = () => 1;" },
