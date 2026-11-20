@@ -2,7 +2,7 @@ import {
     logPreviewError,
     type PreviewCommandTable,
     type Query,
-    type TemplateEditorCommandType,
+    type TemplateEditorCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { previewTemplateFile } from "./templateFilePreview";
@@ -14,7 +14,7 @@ export interface PreviewSession {
     reply(query: Query): void;
 }
 
-export const PREVIEW_COMMANDS: PreviewCommandTable<TemplateEditorCommandType, PreviewSession> = {
+export const PREVIEW_COMMANDS: PreviewCommandTable<TemplateEditorCommand, PreviewSession> = {
     GetElementTemplateFileCommand: (_, preview) =>
         previewTemplateFile(preview.search).forEach((query) => preview.reply(query)),
     SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
@@ -24,5 +24,3 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<TemplateEditorCommandType, Pr
     LogWarningCommand: ({ message }) => console.warn(message),
     LogErrorCommand: logPreviewError,
 };
-
-export const PREVIEW_LOG_PREFIX = "[DEBUG]";
