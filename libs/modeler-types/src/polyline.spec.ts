@@ -6,6 +6,7 @@ import {
     pointAlongSegment,
     polylineMidpoint,
     polylineSegments,
+    segmentMiddle,
 } from "./polyline";
 
 describe("polylineSegments", () => {
@@ -32,15 +33,20 @@ describe("polylineSegments", () => {
 
 describe("pointAlongSegment", () => {
     it("is the point the share of the way from the segment's start to its end", () => {
-        const segment = {
-            from: { x: 10, y: 20 },
-            to: { x: 110, y: 220 },
-            length: Math.hypot(100, 200),
-        };
+        const segment = { from: { x: 10, y: 20 }, to: { x: 110, y: 220 } };
 
         expect(pointAlongSegment(segment, 0)).toStrictEqual({ x: 10, y: 20 });
         expect(pointAlongSegment(segment, 0.25)).toStrictEqual({ x: 35, y: 70 });
         expect(pointAlongSegment(segment, 1)).toStrictEqual({ x: 110, y: 220 });
+    });
+});
+
+describe("segmentMiddle", () => {
+    it("is half the sum of the segment's ends", () => {
+        expect(segmentMiddle({ from: { x: 0.1, y: 10 }, to: { x: 100.7, y: 30 } })).toStrictEqual({
+            x: 50.4,
+            y: 20,
+        });
     });
 });
 

@@ -17,9 +17,16 @@ export function polylineSegments(points: readonly PolylinePoint[]): PolylineSegm
     });
 }
 
+type SegmentEnds = Pick<PolylineSegment, "from" | "to">;
+
 /** The point `share` of the way from the segment's start to its end. */
-export function pointAlongSegment({ from, to }: PolylineSegment, share: number): PolylinePoint {
+export function pointAlongSegment({ from, to }: SegmentEnds, share: number): PolylinePoint {
     return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
+}
+
+/** The segment's middle as half the sum of its ends, which can differ from `pointAlongSegment(segment, 0.5)` in the last bit. */
+export function segmentMiddle({ from, to }: SegmentEnds): PolylinePoint {
+    return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
 }
 
 /** The point halfway along the polyline, measured by length; the origin for no points. */

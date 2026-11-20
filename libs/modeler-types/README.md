@@ -63,3 +63,9 @@ build returns, which `libs/bpmn-merge` builds and the merge view's protocol carr
 `@miragon/bpmn-modeler-types/conflictMarkers` is `src/conflictMarkers.ts` alone: Git's conflict-marker
 grammar, which the core reads files with and `libs/bpmn-merge` checks a hand-merged text with, so both
 read markers alike.
+
+### The `/polyline` entry point
+
+`@miragon/bpmn-modeler-types/polyline` is `src/polyline.ts` alone: a flow's segments, its midpoint and
+its longest segment, so a DOM-free workspace such as `libs/bpmn-merge` walks waypoints with the same
+arithmetic as the label follow and the merge view instead of keeping its own copy.

@@ -1,4 +1,6 @@
-import { polylineMidpoint } from "@miragon/bpmn-modeler-types";
+import { type PolylinePoint, polylineMidpoint } from "@miragon/bpmn-modeler-types";
+
+import { flowOverlayAnchor } from "./flowOverlayAnchor";
 
 /** A box in diagram units. */
 export interface DiagramBox {
@@ -8,10 +10,7 @@ export interface DiagramBox {
     readonly height: number;
 }
 
-export interface DiagramPoint {
-    readonly x: number;
-    readonly y: number;
-}
+export type DiagramPoint = PolylinePoint;
 
 /** The element a card is at: a shape with what hangs below it, or a flow with its label. */
 export type MergeCardTarget =
@@ -71,11 +70,7 @@ export function mergeOutcomeCardPlace(
 /** Where diagram-js anchors an element's overlays: a shape's top left corner, a flow's waypoints' box's. */
 export function mergeCardAnchor(target: MergeCardTarget): DiagramPoint {
     if (target.kind === "shape") return { x: target.box.x, y: target.box.y };
-    const { waypoints } = target;
-    return {
-        x: Math.min(...waypoints.map(({ x }) => x)),
-        y: Math.min(...waypoints.map(({ y }) => y)),
-    };
+    return flowOverlayAnchor(target.waypoints);
 }
 
 /**

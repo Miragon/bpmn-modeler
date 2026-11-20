@@ -1,9 +1,6 @@
-import { longestSegment, pointAlongSegment } from "@miragon/bpmn-modeler-types";
+import { type PolylinePoint, longestSegment, segmentMiddle } from "@miragon/bpmn-modeler-types";
 
-export interface FlowWaypoint {
-    readonly x: number;
-    readonly y: number;
-}
+import { flowOverlayAnchor } from "./flowOverlayAnchor";
 
 /** The radius of a flow's round check, centred on its place, in diagram units at zoom 1. */
 export const FLOW_BADGE_RADIUS = 9;
@@ -22,12 +19,11 @@ const SHORTEST_BADGE_SEGMENT = 48;
  * keep the check off the arrowhead and the shapes the flow joins.
  */
 export function flowBadgePlace(
-    waypoints: readonly FlowWaypoint[],
+    waypoints: readonly PolylinePoint[],
 ): { readonly left: number; readonly top: number } | undefined {
     const longest = longestSegment(waypoints);
     if (longest === undefined || longest.length < SHORTEST_BADGE_SEGMENT) return undefined;
-    const middle = pointAlongSegment(longest, 0.5);
-    const boxLeft = Math.min(...waypoints.map(({ x }) => x));
-    const boxTop = Math.min(...waypoints.map(({ y }) => y));
-    return { left: middle.x - boxLeft, top: middle.y - boxTop };
+    const middle = segmentMiddle(longest);
+    const anchor = flowOverlayAnchor(waypoints);
+    return { left: middle.x - anchor.x, top: middle.y - anchor.y };
 }

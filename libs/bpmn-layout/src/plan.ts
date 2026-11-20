@@ -34,8 +34,6 @@ function isAssociation(type: string): boolean {
     return type.includes("Association");
 }
 
-export { polylineMidpoint };
-
 /**
  * Turns absolute target geometry into the ordered list of changes to apply.
  *
