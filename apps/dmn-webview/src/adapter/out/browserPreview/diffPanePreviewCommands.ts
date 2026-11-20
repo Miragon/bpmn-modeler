@@ -1,4 +1,4 @@
-import type { DmnDiffPaneCommandType, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
+import type { DmnDiffPaneCommand, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { diffPaneDocument, diffPaneHighlights } from "./diffPreview";
@@ -12,7 +12,7 @@ export interface DiffPanePreviewSession {
 const NO_PARTNER_PANE = "a single pane has no partner pane to follow it";
 
 export const DIFF_PANE_PREVIEW_COMMANDS: PreviewCommandTable<
-    DmnDiffPaneCommandType,
+    DmnDiffPaneCommand,
     DiffPanePreviewSession
 > = {
     GetDmnFileCommand: (_, pane) => pane.reply(diffPaneDocument(pane.side)),

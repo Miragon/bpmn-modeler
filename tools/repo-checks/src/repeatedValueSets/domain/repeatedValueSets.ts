@@ -1,5 +1,6 @@
+import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
+
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
-import { TEST_FOLDERS } from "../../sourceFiles/domain/sourceFiles";
 
 export interface ValueSetOccurrence {
     /** POSIX path relative to the repo root. */
@@ -25,20 +26,17 @@ interface ValueSet {
 }
 
 const SCRIPT_FILE = /\.([mc]?[jt]s|[jt]sx)$/;
-// Specs and test folders are tests and their inputs; a declaration file repeats third-party typings
-// per workspace; a build config is configuration, as change coupling treats it.
-const UNREAD_SCRIPT_FILE = /\.(spec|test)\.[^/]+$|\.d\.[mc]?ts$|(^|\/)[^/]*\.config\.[^/]+$/;
+// Wider than a spec elsewhere: `*.spec.*` also covers spec data such as `a.spec.data.ts`. A build
+// config is configuration, as change coupling treats it.
+const UNREAD_SCRIPT_FILE = /\.(spec|test)\.[^/]+$|(^|\/)[^/]*\.config\.[^/]+$/;
 const MIN_DISTINCT_VALUES = 2;
 const MIN_FILE_GROUPS = 2;
 const TYPE_PIN_REMEDY =
     "pin the copy to the home's type, and derive it from the home only where the order is the same concern";
 
 export function isValueSetSource(path: string): boolean {
-    const folders = path.split("/").slice(0, -1);
     return (
-        SCRIPT_FILE.test(path) &&
-        !UNREAD_SCRIPT_FILE.test(path) &&
-        !folders.some((folder) => TEST_FOLDERS.has(folder))
+        SCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path) && !UNREAD_SCRIPT_FILE.test(path)
     );
 }
 
