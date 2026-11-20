@@ -17,8 +17,10 @@ and prune the overlay against it.
 | `build-overlay.mjs` | Prunes every registered overlay dictionary against the union of the harvests and the shared library. Keeps a key only when the shared library lacks it and a harvest recorded it, plus the `SOURCE_ONLY` allowlist for strings no driver can reach. |
 
 The builder and the guard specs share one copy of each rule in `src/`: the key normalization in
-`normalizeKey.ts`, the list of harvest files and their union in `harvestedKeys.ts`, and `SOURCE_ONLY` in
-`sourceOnlyKeys.ts`. A new harvest file goes into `harvestedKeys.ts`.
+`normalizeKey.ts`, the list of harvest files and the record's shape in `harvestRecord.ts`, their union in
+`harvestedKeys.ts`, and `SOURCE_ONLY` in `sourceOnlyKeys.ts`. A new harvest file goes into `HARVEST_FILES`
+in `harvestRecord.ts`; a spec that records one writes it with `harvestRecord` from
+`@miragon/bpmn-modeler-i18n-extras`. `harvestRecord.spec.ts` fails until every record is in that shape.
 
 The recorder is `libs/shared/src/lib/harvestRecorder.ts`. The webview entries (`apps/bpmn-webview/src/main.ts`,
 `templateEditorMain.ts`, `apps/dmn-webview/src/main.ts`) wire it only under `import.meta.env.DEV`, so
