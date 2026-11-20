@@ -9,6 +9,17 @@ export interface DiagramBounds {
 
 export type Point = PolylinePoint;
 
+export interface Offset {
+    readonly dx: number;
+    readonly dy: number;
+}
+
+export const offsetLength = ({ dx, dy }: Offset): number => Math.abs(dx) + Math.abs(dy);
+
+export function offsetBetween(from: DiagramBounds, to: DiagramBounds): Offset {
+    return { dx: to.x - from.x, dy: to.y - from.y };
+}
+
 /** The outline bpmn-js draws a shape with: a circle for an event, a diamond for a gateway. */
 export type Outline = "circle" | "diamond" | "rectangle";
 

@@ -1,7 +1,7 @@
 import type { Axis } from "./layoutAxis";
 import type { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowTopology } from "./layoutFlowTopology";
-import { bottomOf, inflated, rightOf } from "./layoutGeometry";
+import { type Offset, bottomOf, inflated, rightOf } from "./layoutGeometry";
 import {
     type LayoutModel,
     type NodeShape,
@@ -14,7 +14,7 @@ import { type RoomSlot, slotOffsetsOf, slotShapeOf } from "./layoutRoomSlots";
 import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
 import { SpaceTool, leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
-import { type Offset, SHAPE_CLEARANCE } from "./layoutShapePlacement";
+import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot, shapesOverlap } from "./layoutSpots";
 
