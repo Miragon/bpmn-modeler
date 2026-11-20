@@ -31,13 +31,17 @@ and guarded.
 - `libs/bpmn-i18n-extras/tools/harvest-drain.js`: the browser-side driver that exercises the editor
   (palette, context pad, replace/append/create menus, linting) and walks the properties panel across a
   broad set of C7 elements and implementation configs.
+- `libs/bpmn-i18n-extras/tools/record-harvest.mjs`: adds a driver's drained keys to its record and
+  rewrites it through `harvestRecord`, keeping the note. Never edit a record by hand:
+  `harvestRecord.spec.ts` fails on any other shape.
 - `libs/bpmn-i18n-extras/tools/build-overlay.mjs`: prunes every registered overlay dictionary against the
   harvests + the shared library. Keeps a key only when the shared library lacks it **and** a harvest
   recorded it, plus a small `SOURCE_ONLY` allowlist for strings the harvest driver structurally can't reach
   (script-lock).
 - `libs/bpmn-i18n-extras/src/normalizeKey.ts`, `src/harvestRecord.ts`, `src/harvestedKeys.ts` and
   `src/sourceOnlyKeys.ts`: the one home of the key normalization, the harvest file list and the record's
-  shape (`harvestRecord`, which every recording spec writes through), the harvest union and `SOURCE_ONLY`.
+  shape (`harvestRecord`, which every recording spec writes through from the test-only entry
+  `@miragon/bpmn-modeler-i18n-extras/testing`), the harvest union and `SOURCE_ONLY`.
   The builder and the guard specs import them; change a rule there, never in a copy.
 - `libs/bpmn-i18n-extras/tools/README.md`: the authoritative, up-to-date version of this workflow. Prefer
   it if it disagrees with this file.
@@ -49,10 +53,10 @@ and guarded.
 corepack yarn workspace @miragon/bpmn-modeler-webview serve
 
 # 2. In the page console (or via Playwright browser_evaluate), load and run the
-#    driver, then copy the harvested set into harvested.json:
+#    driver, then add the harvested set to harvested.json:
 #      (paste harvest-drain.js) ; await window.__harvestDrain()
-#      JSON.stringify([...window.__harvested].sort())
-#    Save it under the { note, count, keys } wrapper in harvested.json.
+#      copy(JSON.stringify([...window.__harvested]))
+pbpaste | bun libs/bpmn-i18n-extras/tools/record-harvest.mjs harvested.json
 
 # 3. Prune (dry run, then write):
 bun libs/bpmn-i18n-extras/tools/build-overlay.mjs

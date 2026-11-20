@@ -20,9 +20,6 @@ import { extras } from "./languages";
 
 export { extras };
 
-// For the specs that record a harvest; free of node:fs, so a jsdom spec can import the barrel.
-export { harvestRecord, type HarvestFile } from "./harvestRecord";
-
 /**
  * The shared {@link supportedLanguages} list as is: the overlay covers every
  * locale it ships, which the parity guard keeps true. The static copies in the

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { harvestRecord, type HarvestFile } from "@miragon/bpmn-modeler-i18n-extras";
+import {
+    harvestRecord,
+    harvestRecordPath,
+    type HarvestFile,
+} from "@miragon/bpmn-modeler-i18n-extras/testing";
 import { DIFF_VIEW_KEYS } from "@miragon/bpmn-modeler-types";
 
 import { DMN_DIFF_TEXTS } from "./diffTexts";
@@ -15,7 +19,7 @@ describe("the DMN diff pane's harvest", () => {
         const keys = [...DIFF_VIEW_KEYS, ...Object.values(DMN_DIFF_TEXTS)];
 
         await expect(harvestRecord(DMN_DIFF_HARVEST_NOTE, keys)).toMatchFileSnapshot(
-            `../../../../libs/bpmn-i18n-extras/tools/${DMN_DIFF_HARVEST_FILE}`,
+            harvestRecordPath(DMN_DIFF_HARVEST_FILE),
         );
     });
 });

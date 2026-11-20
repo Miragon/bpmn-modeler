@@ -2,12 +2,14 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { HARVEST_FILES, type HarvestFile } from "./harvestRecord";
+import { HARVEST_FILES, parseHarvestRecord, type HarvestFile } from "./harvestRecord";
 
 const TOOLS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 
+export const harvestRecordPath = (file: HarvestFile): string => join(TOOLS_DIR, file);
+
 const readHarvestFile = (file: HarvestFile): string[] =>
-    (JSON.parse(readFileSync(join(TOOLS_DIR, file), "utf8")) as { keys: string[] }).keys;
+    parseHarvestRecord(readFileSync(harvestRecordPath(file), "utf8")).keys;
 
 /** Every key a harvest recorded the running modeler passing to translate(). */
 export const readHarvestedKeys = (): string[] => [

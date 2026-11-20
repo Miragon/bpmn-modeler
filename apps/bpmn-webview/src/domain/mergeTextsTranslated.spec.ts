@@ -11,7 +11,12 @@ import type {
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
 import { dictionaries } from "@miragon/bpmn-modeler-i18n";
-import { extras, harvestRecord, type HarvestFile } from "@miragon/bpmn-modeler-i18n-extras";
+import { extras } from "@miragon/bpmn-modeler-i18n-extras";
+import {
+    harvestRecord,
+    harvestRecordPath,
+    type HarvestFile,
+} from "@miragon/bpmn-modeler-i18n-extras/testing";
 import {
     MERGE_CAPTION_ROLES,
     MERGE_MARKERS,
@@ -465,7 +470,7 @@ describe("a build note's text", () => {
 describe("the merge view's harvest", () => {
     it("records every key the merge texts pass to translate", async () => {
         await expect(harvestRecord(MERGE_HARVEST_NOTE, mergeTextKeys())).toMatchFileSnapshot(
-            `../../../../libs/bpmn-i18n-extras/tools/${MERGE_HARVEST_FILE}`,
+            harvestRecordPath(MERGE_HARVEST_FILE),
         );
     });
 });
