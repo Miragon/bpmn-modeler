@@ -11,6 +11,7 @@ import {
     drawnPoolOf,
     frameIdsOf,
     framesAroundOf,
+    holdingPoolOf,
     innermostFrameOf,
     innermostLaneOf,
     isFrame,
@@ -223,6 +224,31 @@ describe("drawnPoolOf", () => {
         const task = node("Task_A", { pool: "Pool_1", ...relations });
 
         expect(drawnPoolOf(layoutOf([drawnPool, task]), task)?.id).toBe(expected);
+    });
+});
+
+describe("holdingPoolOf", () => {
+    const inside = { x: 100, y: 100, width: 50, height: 50 };
+    const outside = { x: 1000, y: 100, width: 50, height: 50 };
+
+    it.each([
+        ["its drawn pool, wherever it lies", { pool: "Pool_1", bounds: outside }, "Pool_1"],
+        [
+            "the pool a data store lies within",
+            { pool: "Pool_2", mayLieOutsidePool: true, bounds: inside },
+            "Pool_1",
+        ],
+        ["the pool an artifact of the collaboration lies within", { bounds: inside }, "Pool_1"],
+        [
+            "none for a data store outside every pool",
+            { pool: "Pool_1", mayLieOutsidePool: true, bounds: outside },
+            undefined,
+        ],
+    ])("is %s", (_, relations, expected) => {
+        const shape = node("Shape_A", relations);
+        const layout = layoutOf([pool("Pool_1"), pool("Pool_2", { ...outside, x: 2000 }), shape]);
+
+        expect(holdingPoolOf(layout, shape)?.id).toBe(expected);
     });
 });
 
