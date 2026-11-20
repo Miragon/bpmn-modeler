@@ -5,7 +5,7 @@
 
 ## Context
 
-The merge builds one file from two sides' drawings ([merge](merge.md#building-the-file)). Each
+The merge builds one file from two sides' drawings ([merge build](merge-build.md)). Each
 element keeps its side's drawing, so the result can hold a spot neither side drew: a flow whose
 end one side moved, a task the other side placed on it, a block both sides moved apart. This
 record covers how the build finds those spots, which shapes it moves, which containers it grows,
