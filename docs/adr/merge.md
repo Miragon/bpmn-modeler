@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-20
+- Last reviewed: 2026-11-21
 
 ## Context
 
@@ -180,7 +180,13 @@ parser and asserts that the module still loads.
   fresh merge agree (`mergeDecisionsPathIndependence.spec.ts`). The cost is one closure over
   all picks per call, plus a pass for clashes and dead ends; and a pick can reopen an
   element the user did not touch, which then waits for its own choice.
-- *Layout side.* Current's DI, unless only incoming changed the layout. An element is drawn
+- *Layout side.* Current's DI, unless only incoming changed the layout. Where both changed it,
+  the DI of the side that re-laid out the diagram, when one did: it moved more than half of the
+  elements the base and both sides draw, and more of them than the other side (#2738). Rejected:
+  current's DI throughout, which tore a re-laid-out diagram between two frames, the elements
+  both moved in current's and the rest in incoming's; composing both sides' moves, which no
+  drawing either side made would match. Cost: the smaller side's moves of elements the leader
+  moved too are dropped, and the notes name them; without a base no side leads. An element is drawn
   from its own side when the preferred side does not draw it, or draws it in another
   parent, lane, host or between other ends, since bpmn-js reads lane membership and
   attachment from geometry, and from the other side when neither draws it in place: a
