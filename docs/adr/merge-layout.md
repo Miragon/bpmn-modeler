@@ -157,9 +157,10 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   introduced, it moves a shape that not both sides draw where the result does (one side moved
   it, or only one side has it), so one side's own drawing may move off the other side's shape;
   never a boundary event, which goes with its host. It carries the shape's label, boundary events
-  and, drawn open, its contents. The shape goes first to where the other side draws it; a shape
-  only one side draws has no such place, as its side's coordinates are where the step above
-  left it (#2738). The
+  and, drawn open, its contents. The shape goes first to where the other side draws it, a shape
+  only one side draws to its side's coordinates (#2738): where a result mixes both sides' frames,
+  those often lie among the shape's other neighbours, and on the synthetic merges dropping the
+  try put fewer added tasks in place. The
   slot after that comes from the sequence flows between the two shapes, a boundary event's
   counting as its host's, where those flows run right (#2596): a shape that shares a predecessor
   or a successor with the other and is joined to it by no flow is a parallel branch, which a

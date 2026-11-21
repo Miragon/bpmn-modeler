@@ -338,27 +338,6 @@ describe("planShapeMoves", () => {
             expect(boundsIn(plan, "Task_C")).toEqual(box(550, 130));
         });
 
-        it("stays beside its neighbours rather than going back to its side's coordinates", () => {
-            const { result, sides } = sidesIn(1200);
-            const [current, incoming] = sides as [LayoutModel, LayoutModel];
-            const elsewhere = layoutOf(
-                [...incoming.shapes.values()].map((shape) =>
-                    shape.id === "Task_N" ? { ...shape, bounds: box(250, 330) } : shape,
-                ),
-                [...incoming.edges.values()],
-                [],
-            );
-
-            const plan = planShapeMoves(
-                result,
-                overlapsOf(result),
-                [current, elsewhere],
-                planFlowRepairs,
-            );
-
-            expect(boundsIn(plan, "Task_N")).toEqual(box(250, 130));
-        });
-
         it("moves to a free place when room in line would grow its pool and lane", () => {
             const { result, sides } = sidesIn(560);
 
@@ -895,13 +874,9 @@ describe("planShapeMoves", () => {
                     intoJoin,
                     tall,
                 );
-                const current = layoutOf(
-                    [...branches, node("Task_Y", box(300, 90))],
-                    intoJoin,
-                    tall,
-                );
+                const current = layoutOf(branches, intoJoin.slice(0, 1), tall);
                 const incoming = layoutOf(
-                    [...branches, node("Task_Y", box(510, 90))],
+                    [...branches, node("Task_Y", box(300, 90))],
                     intoJoin,
                     tall,
                 );
