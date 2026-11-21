@@ -15,7 +15,7 @@ import type { ShapeGroup } from "./layoutShapeGroups";
 import { OFF_A_SHAPE, Placement } from "./layoutShapePlacement";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { isFlowSpot } from "./layoutSpots";
-import { placeOf } from "./sideDrawings";
+import { drawnByOneSideOnly, placeOf } from "./sideDrawings";
 
 /** What the attempts read beside the draft: what moves with a node, how the flows join the nodes, the sides' drawings and how the build repairs flows. */
 export interface AttemptContext extends RoomContext {
@@ -123,6 +123,22 @@ export function roomInLine(
         ),
     );
     return otherwise !== undefined && clashesLess(otherwise, inLine) ? otherwise : inLine;
+}
+
+/**
+ * Room in line, as `roomInLine` makes it, for the movable shapes only one
+ * side draws, when it grows no frame: such a shape stays beside its flow
+ * neighbours rather than moving off their row to a free place.
+ */
+export function roomInLineForOneSided(
+    draft: DrawingDraft,
+    context: AttemptContext,
+    movable: readonly ShapeGroup[],
+    pair: Pair,
+): GroupRoom | undefined {
+    const oneSided = movable.filter(({ node }) => drawnByOneSideOnly(node.id, context.sides));
+    const room = roomInLine(draft, context, oneSided, pair);
+    return room?.grown.length === 0 ? room : undefined;
 }
 
 /** The rooms for the group in each of the slots against the other shape. */

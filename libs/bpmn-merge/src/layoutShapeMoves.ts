@@ -13,6 +13,7 @@ import {
     nearestFreePlace,
     otherSidesPlace,
     roomInLine,
+    roomInLineForOneSided,
     stackedBranch,
 } from "./layoutShapeMoveAttempts";
 import type { OverlapRepair, SpotRepair } from "./layoutSpotRepairs";
@@ -82,7 +83,11 @@ class OverlapRepairer {
         return this.draft.changedOrOriginal;
     }
 
-    /** Ends the overlap with the first attempt that can: the other side's place, a stacked branch, the nearest free place, room in line. */
+    /**
+     * Ends the overlap with the first attempt that can: the other side's place,
+     * a stacked branch, room in line for a shape only one side draws that grows
+     * no frame, the nearest free place, room in line.
+     */
     repair({ shapes }: SpotOf<"shapesOverlap">): OverlapRepair {
         const { draft } = this;
         const [first, second] = shapes.map((id) => draft.node(id));
@@ -95,6 +100,7 @@ class OverlapRepairer {
         return (
             this.moveOf(otherSidesPlace(draft, this.context, movable)) ??
             this.roomOf(stackedBranch(draft, this.context, movable, pair)) ??
+            this.roomOf(roomInLineForOneSided(draft, this.context, movable, pair)) ??
             this.moveOf(nearestFreePlace(draft, movable)) ??
             this.roomOf(roomInLine(draft, this.context, movable, pair)) ??
             NOT_REPAIRED

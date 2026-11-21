@@ -112,10 +112,6 @@ function moved(
     return { kind, id, shapes, repair: "movedByBuild" };
 }
 
-function movedOff(ids: [string, string], shape: string): BuildNoteContent {
-    return { kind: "shapesOverlap", ids, repair: "movedByBuild", moved: shape };
-}
-
 /**
  * No free place lies near the inserted tasks, which are parallel branches into Ship: one is
  * stacked under the other, its lane grows and the lane below shifts down with what it holds.
@@ -193,7 +189,7 @@ describe("buildMerged's layout notes", () => {
         notes: BuildNoteContent[];
     }>([
         {
-            name: "01 a task moved onto one the other side added: hidden, its flow ends in the open",
+            name: "01 a task moved onto one the other side added after it: the added task follows it, what follows is pushed on",
             versions: dockedVersions(
                 "c8",
                 (model) => dragNodes(model, ["Task_R"], 150),
@@ -206,8 +202,15 @@ describe("buildMerged's layout notes", () => {
                     ),
             ),
             notes: [
-                movedOff(["Task_R", "Task_N"], "Task_R"),
-                moved("flowEndOffShape", "Flow_No", "Task_R"),
+                moved("flowEndOffShape", "Flow_6", "Task_R", "Task_N"),
+                moved("flowEndOffShape", "Flow_7", "Task_N", "End_Rejected"),
+                {
+                    kind: "shapesOverlap",
+                    ids: ["End_Rejected", "Task_N"],
+                    repair: "madeRoomByShifting",
+                    moved: "Task_N",
+                    shifted: ["End_Rejected"],
+                },
             ],
         },
         {

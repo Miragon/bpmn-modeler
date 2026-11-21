@@ -40,6 +40,12 @@ export function drawsWhereItLies(layout: LayoutModel, shape: LayoutShape): boole
     return drawn !== undefined && sameBounds(drawn.bounds, shape.bounds);
 }
 
+/** Whether one side draws the element and the other does not: one side added it or removed it. */
+export function drawnByOneSideOnly(id: string, sides: readonly LayoutModel[]): boolean {
+    const drawing = sides.filter((side) => side.shapes.has(id)).length;
+    return drawing > 0 && drawing < sides.length;
+}
+
 /** A shape the build placed: not both sides draw it just where the result does; a boundary event goes with its host. */
 export function placedByBuild(node: NodeShape, sides: readonly LayoutModel[]): boolean {
     return node.host === undefined && !sides.every((side) => drawsAt(side, node));
