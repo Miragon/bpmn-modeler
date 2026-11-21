@@ -7,6 +7,7 @@ import {
     group,
     laneInPool,
     nodeInPoolLane as node,
+    pool,
     poolOfLanes,
     poolWithLaneHolding as layoutOf,
 } from "./__fixtures__/layoutShapes";
@@ -285,6 +286,69 @@ describe("planShapeMoves", () => {
             { kind: "movedByBuild", shapes: ["Task_Z", "Task_Y"], moved: "Task_Y" },
         ]);
         expect(overlapsOf(plan.layout)).toEqual([]);
+    });
+
+    describe("a shape only one side draws, on a shape of the row it leads into", () => {
+        /** Incoming dropped Task_N between Task_A and Task_B and pushed both on; current kept them. */
+        const sidesIn = (poolWidth: number) => {
+            const frames = [
+                pool("Pool_1", box(0, 0, poolWidth, 500)),
+                lane(70, 400, poolWidth - 30),
+            ];
+            const kept = node("Task_A", box(100, 130));
+            const added = node("Task_N", box(250, 130));
+            const current = layoutOf(
+                [kept, node("Task_B", box(250, 130)), node("Task_C", box(400, 130))],
+                [flow("Flow_AB", "Task_A", "Task_B"), flow("Flow_BC", "Task_B", "Task_C")],
+                frames,
+            );
+            const addedFlows = [
+                flow("Flow_AN", "Task_A", "Task_N"),
+                flow("Flow_NB", "Task_N", "Task_B"),
+                flow("Flow_BC", "Task_B", "Task_C"),
+            ];
+            const incoming = layoutOf(
+                [kept, added, node("Task_B", box(400, 130)), node("Task_C", box(550, 130))],
+                addedFlows,
+                frames,
+            );
+            const result = layoutOf(
+                [kept, added, node("Task_B", box(250, 130)), node("Task_C", box(400, 130))],
+                addedFlows,
+                frames,
+            );
+            return { result, sides: [current, incoming] };
+        };
+
+        it("stays in line, pushing what it leads into on, before it moves off the row to a free place", () => {
+            const { result, sides } = sidesIn(1200);
+
+            const plan = planShapeMoves(result, overlapsOf(result), sides, planFlowRepairs);
+
+            expect(pairRepairsOf(plan)).toEqual([
+                {
+                    kind: "madeRoomByShifting",
+                    shapes: ["Task_N", "Task_B"],
+                    moved: "Task_N",
+                    shifted: ["Task_B", "Task_C"],
+                },
+            ]);
+            expect(boundsIn(plan, "Task_N")).toEqual(box(250, 130));
+            expect(boundsIn(plan, "Task_B")).toEqual(box(400, 130));
+            expect(boundsIn(plan, "Task_C")).toEqual(box(550, 130));
+        });
+
+        it("moves to a free place when room in line would grow its pool and lane", () => {
+            const { result, sides } = sidesIn(560);
+
+            const plan = planShapeMoves(result, overlapsOf(result), sides, planFlowRepairs);
+
+            expect(pairRepairsOf(plan)).toEqual([
+                { kind: "movedByBuild", shapes: ["Task_N", "Task_B"], moved: "Task_N" },
+            ]);
+            expect(boundsIn(plan, "Pool_1")).toEqual(box(0, 0, 560, 500));
+            expect(boundsIn(plan, "Task_B")).toEqual(box(250, 130));
+        });
     });
 
     describe("without a free place nearby", () => {
