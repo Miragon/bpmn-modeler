@@ -3,6 +3,7 @@ import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, type Offset, centerOf } from "./layoutGeometry";
 import { type LayoutEdge, type LayoutModel, type NodeShape, nodeShapeIn } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
+import { sameLanes } from "./mergeResult";
 import { drawnByOneSideOnly, drawsAt } from "./sideDrawings";
 
 /** A shape only one side draws, still where that side drew it, with its neighbours there. */
@@ -121,7 +122,7 @@ function inSameContainer(neighbour: NodeShape, shape: NodeShape): boolean {
     return (
         neighbour.slot.equals(shape.slot) &&
         neighbour.subProcesses[0] === shape.subProcesses[0] &&
-        neighbour.lanes.join(" ") === shape.lanes.join(" ")
+        sameLanes(neighbour.lanes, shape.lanes)
     );
 }
 
