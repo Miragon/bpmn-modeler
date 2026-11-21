@@ -1,6 +1,7 @@
 import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 
 import { DrawingDraft } from "./layoutDrawingDraft";
+import type { MergeSide } from "./mergeResult";
 import type { FlowRepairPlanner } from "./layoutFlowRepair";
 import { FlowTopology } from "./layoutFlowTopology";
 import type { LayoutModel, NodeShape } from "./layoutModel";
@@ -50,6 +51,7 @@ export function planShapeMoves(
     spots: readonly LayoutSpot[],
     sides: readonly LayoutModel[],
     repairFlows: FlowRepairPlanner,
+    _layoutLeader?: MergeSide,
 ): ShapeMovePlan {
     const overlaps = spots.flatMap((spot): SpotOf<"shapesOverlap">[] =>
         spot.kind === "shapesOverlap" ? [spot] : [],

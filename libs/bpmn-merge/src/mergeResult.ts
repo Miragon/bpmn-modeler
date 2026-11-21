@@ -49,8 +49,12 @@ export function combinedLayoutOf(layouts: readonly LayoutState[]): LayoutState {
 }
 
 /** Current's layout unless only incoming changed it. */
-export function preferredLayoutSideOf(layout: LayoutState): MergeSide {
+export function preferredLayoutSideOf(layout: LayoutState, _leader?: MergeSide): MergeSide {
     return layout === "takenFromIncoming" ? "incoming" : "current";
+}
+
+export function layoutLeaderOf(_elements: readonly MergeElement[]): MergeSide | undefined {
+    return undefined;
 }
 
 export interface ElementReference {
