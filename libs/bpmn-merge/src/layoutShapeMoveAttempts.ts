@@ -35,13 +35,18 @@ export type GroupRoom = RoomMade & {
 
 type Pair = readonly [NodeShape, NodeShape];
 
-/** The shortest move of a group to where a side draws its node, when the group fits there. */
+/**
+ * The shortest move of a group to where a side draws its node, when the group
+ * fits there. A node only one side draws has no other side's place: its own
+ * side's coordinates are where the build left it beside its neighbours.
+ */
 export function otherSidesPlace(
     draft: DrawingDraft,
     { sides }: AttemptContext,
     movable: readonly ShapeGroup[],
 ): Move | undefined {
-    const moves = movable.flatMap((group) =>
+    const drawnByBoth = movable.filter(({ node }) => !drawnByOneSideOnly(node.id, sides));
+    const moves = drawnByBoth.flatMap((group) =>
         sides.flatMap((side): Move[] => {
             const place = placeOf(side, group.node);
             if (place === undefined || sameBounds(place, group.node.bounds)) return [];

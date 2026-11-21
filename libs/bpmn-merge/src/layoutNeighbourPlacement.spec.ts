@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { box, flow, layoutOf, node as nodeWith } from "./__fixtures__/layoutShapes";
+import { rootPlane } from "./__fixtures__/shapePlane";
 import type { DiagramBounds } from "./layoutGeometry";
 import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { placeBesideNeighbours } from "./layoutNeighbourPlacement";
@@ -96,6 +97,92 @@ describe("placeBesideNeighbours", () => {
         expect(boundsIn(placedLayout, "Task_N")).toEqual(box(140, 270));
     });
 
+    it.each([
+        {
+            lies: "left of its predecessor, on a flow back",
+            neighbour: { side: box(250, 100), result: box(250, 100, 200, 80) },
+            shape: box(100, 100),
+            edge: flow("Flow_AN", "Task_A", "Task_N"),
+            placed: box(100, 100),
+        },
+        {
+            lies: "right of its successor, on a flow back",
+            neighbour: { side: box(100, 100, 250, 80), result: box(100, 100, 400, 80) },
+            shape: box(400, 100),
+            edge: flow("Flow_NA", "Task_N", "Task_A"),
+            placed: box(550, 100),
+        },
+        {
+            lies: "above a predecessor the other side made taller",
+            neighbour: { side: box(100, 300, 300, 200), result: box(100, 300, 300, 400) },
+            shape: box(200, 150),
+            edge: flow("Flow_AN", "Task_A", "Task_N"),
+            placed: box(200, 150),
+        },
+    ])(
+        "keeps its gap to the border it faces when it lies $lies",
+        ({ neighbour, shape, edge, placed }) => {
+            const added = node("Task_N", shape);
+            const result = layoutOf([node("Task_A", neighbour.result), added]);
+
+            const placedLayout = placeBesideNeighbours(result, [
+                layoutOf([node("Task_A", neighbour.side), added], [edge]),
+                layoutOf([node("Task_A", neighbour.result)]),
+            ]);
+
+            expect(boundsIn(placedLayout, "Task_N")).toEqual(placed);
+        },
+    );
+
+    it("keeps its gap along the row beside a tall predecessor whose middle lies far above it", () => {
+        const tall = { side: box(100, 0, 300, 600), result: box(100, 0, 340, 600) };
+        const added = node("Task_N", box(420, 520));
+        const result = layoutOf([node("Sub_A", tall.result), added]);
+
+        const placedLayout = placeBesideNeighbours(result, [
+            layoutOf([node("Sub_A", tall.side), added], [flow("Flow_AN", "Sub_A", "Task_N")]),
+            layoutOf([node("Sub_A", tall.result)]),
+        ]);
+
+        expect(boundsIn(placedLayout, "Task_N")).toEqual(box(460, 520));
+    });
+
+    it("follows its sequence predecessor before a data store its side associated it with first", () => {
+        const store = { side: box(250, 300, 50, 50), result: box(250, 400, 50, 50) };
+        const edges = [
+            flow("Assoc_1", "Store_1", "Task_N", [], { kind: "association" }),
+            flow("Flow_AN", "Task_A", "Task_N"),
+        ];
+        const result = layoutOf([
+            node("Task_A", box(100, 160)),
+            node("Store_1", store.result),
+            ADDED,
+        ]);
+
+        const placedLayout = placeBesideNeighbours(result, [
+            layoutOf([node("Task_A", box(100, 100)), node("Store_1", store.side), ADDED], edges),
+            layoutOf([node("Task_A", box(100, 160)), node("Store_1", store.result)]),
+        ]);
+
+        expect(boundsIn(placedLayout, "Task_N")).toEqual(box(250, 160));
+    });
+
+    it("follows a neighbour its side draws on the process's plane where the result draws on the collaboration's", () => {
+        const onProcessPlane = rootPlane("Process_1", "Collaboration_1");
+        const adding = layoutOf(
+            [node("Task_A", box(100, 100), onProcessPlane), { ...ADDED, ...onProcessPlane }],
+            [flow("Flow_AN", "Task_A", "Task_N", [], { plane: "Process_1" })],
+        );
+        const result = resultWith(box(100, 160), box(400, 160));
+
+        const placedLayout = placeBesideNeighbours(result, [
+            adding,
+            sideWithout(box(100, 160), box(400, 160)),
+        ]);
+
+        expect(boundsIn(placedLayout, "Task_N")).toEqual(box(250, 160));
+    });
+
     it("follows the neighbours its side drew, even where the result dropped the flow", () => {
         const result = resultWith(box(300, 220), box(600, 220));
 
@@ -183,6 +270,28 @@ describe("placeBesideNeighbours", () => {
                 node("Task_B", box(400, 100)),
             ]),
             sides: [sideWith(), sideWithout(box(100, 160), box(400, 100))],
+        },
+        {
+            case: "the other side moved its neighbour into another lane",
+            result: layoutOf([
+                node("Task_A", box(100, 260), { lanes: ["Lane_2"] }),
+                { ...ADDED, lanes: ["Lane_1"] },
+                node("Task_B", box(400, 100), { lanes: ["Lane_1"] }),
+            ]),
+            sides: [
+                layoutOf(
+                    [
+                        node("Task_A", box(100, 100), { lanes: ["Lane_1"] }),
+                        { ...ADDED, lanes: ["Lane_1"] },
+                        node("Task_B", box(400, 100), { lanes: ["Lane_1"] }),
+                    ],
+                    [flow("Flow_AN", "Task_A", "Task_N")],
+                ),
+                layoutOf([
+                    node("Task_A", box(100, 260), { lanes: ["Lane_2"] }),
+                    node("Task_B", box(400, 100), { lanes: ["Lane_1"] }),
+                ]),
+            ],
         },
     ])("leaves the drawing as it is when $case", ({ result, sides }) => {
         expect(placeBesideNeighbours(result, sides)).toBe(result);

@@ -134,25 +134,32 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
 - *A shape only one side draws keeps its place beside its flow neighbour, not its coordinates*
   (#2738). Before the spots are found, each shape one side draws and the other does not, still
   where that side drew it, moves with its boundary events and contents by as far as the result
-  moved its neighbour: the first one that side joined it to, predecessors first, read from that
-  side's flows (so a flow the result dropped still counts), that both sides draw in the shape's
-  own sub-process. The shape keeps its gap to the border of the neighbour it faces along the flow
-  and lines up with the neighbour's middle across it. A shape without such a neighbour follows an
-  added neighbour placed so in its sub-process; message flows do not count, as they join pools.
-  Where the neighbour lies as the side drew it, nothing moves. Rejected: the side's coordinates,
-  which left a task one side added far from its neighbours or on another shape once the other
-  side moved or re-laid out the flow, and the overlap repair then moved it further; following a
-  neighbour the result draws in another sub-process, which pulled the shape onto that
-  sub-process's border (harvest seed 74). Cost: the shape lies where neither side drew it and no
-  note names it, as it lies where its side drew it among its neighbours; a neighbour moved into
-  another sub-process is not followed; a task one side added inside a sub-process the other side
-  dragged follows its predecessor, and the sub-process's contents stay torn as before.
+  moved its neighbour: the first one that side joined it to (so a flow the result dropped still
+  counts) that both sides draw in the shape's plane slot, sub-process and lanes, sequence flows
+  before associations, predecessors first. The shape keeps its gap to the border of the
+  neighbour it faces, on the side it lies on, and its offset from the neighbour's middle across
+  the flow; it lies along the flow from a neighbour it overlaps across, else along the axis
+  their middles lie farther apart on. A shape without such a neighbour follows an added
+  neighbour placed so in its container; message flows do not count, as they join pools. Where
+  the neighbour lies as the side drew it, nothing moves. Rejected: the side's coordinates, which
+  left a task one side added far from its neighbours or on another shape once the other side
+  moved or re-laid out the flow, and the overlap repair then moved it further; following a
+  neighbour the result draws in another sub-process or lane, which pulled the shape onto that
+  sub-process's border (harvest seed 74) or out of its lane, a spot only the build made. Cost:
+  the shape lies where neither side drew it and no note names the move, as it lies where its
+  side drew it among its neighbours, though the flows it breaks are re-routed and noted; a
+  neighbour moved into another sub-process or lane is not followed, nor one a flow across lanes
+  joins; a neighbour a later repair moves back, off another shape, leaves the added shape where
+  the neighbour lay; a task one side added inside a sub-process the other side dragged follows
+  its predecessor, and the sub-process's contents stay torn as before.
 - *The build moves the shape it placed off a shape from the other side, stacks a parallel
   branch, and makes room only as a last resort.* For each overlap the detector names as
   introduced, it moves a shape that not both sides draw where the result does (one side moved
   it, or only one side has it), so one side's own drawing may move off the other side's shape;
   never a boundary event, which goes with its host. It carries the shape's label, boundary events
-  and, drawn open, its contents. The shape goes first to where the other side draws it. The
+  and, drawn open, its contents. The shape goes first to where the other side draws it; a shape
+  only one side draws has no such place, as its side's coordinates are where the step above
+  left it (#2738). The
   slot after that comes from the sequence flows between the two shapes, a boundary event's
   counting as its host's, where those flows run right (#2596): a shape that shares a predecessor
   or a successor with the other and is joined to it by no flow is a parallel branch, which a
@@ -160,8 +167,9 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   it lay on a boundary event), centred in its column, 40 px under it and its label, as far along
   the flow as keeps it 15 px clear of foreign flows and their labels, even when a free place lies
   in line (the user's choice on #2596). Otherwise, or when stacking fails, a shape only one side
-  draws gets room in line, as below, when that grows no frame (#2738): it stays beside its flow
-  neighbours, which a free place off their row lost, while a growing frame falls back, as on the
+  draws gets a room, as below, when that grows no frame (#2738): in line it stays beside its
+  flow neighbours, which a free place off their row lost, though a room whose flows clash less
+  may still go before or below the other shape; a growing frame falls back, as on the
   harvest it widened a pool and its lanes for a catch event a free place nearby held. Then the
   shape goes to the nearest place within 250 px that keeps every moved shape in the pool, lanes and sub-processes it lies
   in, no further out of a sub-process it hangs out of, 15 px clear of other shapes, of flows that
