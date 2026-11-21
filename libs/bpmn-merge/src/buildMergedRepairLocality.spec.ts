@@ -36,6 +36,7 @@ const HARVEST = import.meta.glob<string>("./__fixtures__/harvest/*.bpmn", {
 type Strategy = "conflictsToCurrent" | "conflictsToIncoming" | "conflictsAtRandom";
 
 const NO_REPAIRS: LayoutRepairPlanners = {
+    placeBesideNeighbours: (layout) => layout,
     stackLanes: (layout) => ({ layout, stacked: [] }),
     moveIntoContainers: (layout) => ({ layout, repairs: [] }),
     moveShapes: (layout) => ({ layout, repairs: [] }),

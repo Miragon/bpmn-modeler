@@ -5,6 +5,7 @@ import { rootPlane, subProcessPlane } from "./__fixtures__/shapePlane";
 import type { NodeShape } from "./layoutModel";
 import {
     drawingOfSameSize,
+    drawnByOneSideOnly,
     drawsAt,
     drawsWhereItLies,
     placeOf,
@@ -142,6 +143,25 @@ describe("drawingOfSameSize and drawsWhereItLies", () => {
     it("finds no drawing of a node the layout does not draw", () => {
         expect(drawingOfSameSize(layoutOf([]), task)).toBeUndefined();
         expect(drawsWhereItLies(layoutOf([]), task)).toBe(false);
+    });
+});
+
+describe("drawnByOneSideOnly", () => {
+    const task = node("Task_1", { bounds: box(100, 100) });
+    const withTask = layoutOf([task]);
+    const without = layoutOf([]);
+
+    it.each([
+        { label: "only current draws it", sides: [withTask, without], oneSided: true },
+        { label: "only incoming draws it", sides: [without, withTask], oneSided: true },
+        {
+            label: "both draw it, in different places",
+            sides: [withTask, layoutOf([{ ...task, bounds: box(300, 100) }])],
+            oneSided: false,
+        },
+        { label: "neither draws it", sides: [without, without], oneSided: false },
+    ])("is $oneSided when $label", ({ sides, oneSided }) => {
+        expect(drawnByOneSideOnly("Task_1", sides)).toBe(oneSided);
     });
 });
 

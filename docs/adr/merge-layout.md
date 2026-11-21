@@ -1,7 +1,7 @@
 # Merge layout
 
 - Status: proposed
-- Last reviewed: 2026-11-19
+- Last reviewed: 2026-11-21
 
 ## Context
 
@@ -9,7 +9,8 @@ The merge builds one file from two sides' drawings ([merge build](merge-build.md
 element keeps its side's drawing, so the result can hold a spot neither side drew: a flow whose
 end one side moved, a task the other side placed on it, a block both sides moved apart. This
 record covers how the build finds those spots, which shapes it moves, which containers it grows,
-which lanes it stacks, which flows it re-routes and what it tells the reviewer (#2565, #2567, #2596).
+which lanes it stacks, which flows it re-routes and what it tells the reviewer (#2565, #2567, #2596,
+#2738).
 
 ## Decision
 
@@ -130,6 +131,22 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   of the whole drawing once (`layoutFlowRepairTime.spec.ts`). `buildMergedRepairLocality.spec.ts` keeps a
   result with no shape outside its container byte-equal to the build without this step, and
   checks that the step changes only what a note names, with what goes with it.
+- *A shape only one side draws keeps its place beside its flow neighbour, not its coordinates*
+  (#2738). Before the spots are found, each shape one side draws and the other does not, still
+  where that side drew it, moves with its boundary events and contents by as far as the result
+  moved its neighbour: the first one that side joined it to, predecessors first, read from that
+  side's flows (so a flow the result dropped still counts), that both sides draw in the shape's
+  own sub-process. The shape keeps its gap to the border of the neighbour it faces along the flow
+  and lines up with the neighbour's middle across it. A shape without such a neighbour follows an
+  added neighbour placed so in its sub-process; message flows do not count, as they join pools.
+  Where the neighbour lies as the side drew it, nothing moves. Rejected: the side's coordinates,
+  which left a task one side added far from its neighbours or on another shape once the other
+  side moved or re-laid out the flow, and the overlap repair then moved it further; following a
+  neighbour the result draws in another sub-process, which pulled the shape onto that
+  sub-process's border (harvest seed 74). Cost: the shape lies where neither side drew it and no
+  note names it, as it lies where its side drew it among its neighbours; a neighbour moved into
+  another sub-process is not followed; a task one side added inside a sub-process the other side
+  dragged follows its predecessor, and the sub-process's contents stay torn as before.
 - *The build moves the shape it placed off a shape from the other side, stacks a parallel
   branch, and makes room only as a last resort.* For each overlap the detector names as
   introduced, it moves a shape that not both sides draw where the result does (one side moved
@@ -142,8 +159,11 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   modeller stacks, so it goes below the other shape (below the host and its boundary events when
   it lay on a boundary event), centred in its column, 40 px under it and its label, as far along
   the flow as keeps it 15 px clear of foreign flows and their labels, even when a free place lies
-  in line (the user's choice on #2596). Otherwise, or when stacking fails, it goes to the nearest
-  place within 250 px that keeps every moved shape in the pool, lanes and sub-processes it lies
+  in line (the user's choice on #2596). Otherwise, or when stacking fails, a shape only one side
+  draws gets room in line, as below, when that grows no frame (#2738): it stays beside its flow
+  neighbours, which a free place off their row lost, while a growing frame falls back, as on the
+  harvest it widened a pool and its lanes for a catch event a free place nearby held. Then the
+  shape goes to the nearest place within 250 px that keeps every moved shape in the pool, lanes and sub-processes it lies
   in, no further out of a sub-process it hangs out of, 15 px clear of other shapes, of flows that
   are not its own and of their labels. Only when none exists does it make room in line: before the other shape
   when it leads into it, which keeps it in place and pushes the other on, never leftward, else
@@ -194,8 +214,9 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   than the overlap itself, gets no note. The note names the moved shape and, for a room, every
   outermost shape it shifted and every frame it grew (the user's choice on #2565: make room,
   but say what moved); an overlap an earlier move resolved names the shape of the two that
-  moved. Rejected: making room first, which shifts shapes beyond the two that meet when a free
-  place lies near; leaving both shapes for the user, which keeps tasks hidden behind others and
+  moved. Rejected: making room first for every shape, which shifts shapes beyond the two that meet when
+  a free place lies near (the harvest changed in four merges, each pushing three to four shapes
+  aside or growing a pool where one moved); leaving both shapes for the user, which keeps tasks hidden behind others and
   their flows running through them; shifting everything past a vertical line, which moved
   bystanders in other lanes, widened every frame by the full shift and, keeping the moved shape
   in line, always put it on the other branch's flow, so one or two flows were detoured around
@@ -228,7 +249,7 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
 ## Consequences
 
 - Shapes keep their side's coordinates, and so does every flow the merge did not break, unless
-  the build stacked a lane, moved a shape into its container or off another, or grew a
+  the build placed a shape only one side draws beside its neighbour, stacked a lane, moved a shape into its container or off another, or grew a
   container or made room; a stacked lane, a moved shape, a grown container, a shifted shape and
   a re-routed flow differ from both sides and a note names them; a group that followed a push
   differs too, and no note names it. A boundary event off its host

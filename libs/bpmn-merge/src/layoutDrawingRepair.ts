@@ -8,6 +8,7 @@ import { type LaneStackPlan, stackAppendedLanes } from "./layoutLaneStacking";
 import type { LayoutModel } from "./layoutModel";
 import { IndexedDocument } from "./indexedDocument";
 import { layoutModelOfDocument } from "./layoutModelReader";
+import { placeBesideNeighbours } from "./layoutNeighbourPlacement";
 import { writeLayoutChanges } from "./layoutRepairWriter";
 import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import type { PlaneSlots } from "./planeSlots";
@@ -18,6 +19,10 @@ import type { LayoutSpot } from "./layoutSpots";
 
 /** How the build repairs the drawing the merge broke; the specs build with less to compare. */
 export interface LayoutRepairPlanners {
+    readonly placeBesideNeighbours: (
+        layout: LayoutModel,
+        sides: readonly LayoutModel[],
+    ) => LayoutModel;
     readonly stackLanes: (layout: LayoutModel, appendedLanes: readonly string[]) => LaneStackPlan;
     readonly moveIntoContainers: (
         layout: LayoutModel,
@@ -34,6 +39,7 @@ export interface LayoutRepairPlanners {
 }
 
 export const BUILD_LAYOUT_REPAIRS: LayoutRepairPlanners = {
+    placeBesideNeighbours,
     stackLanes: stackAppendedLanes,
     moveIntoContainers: planContainerMoves,
     moveShapes: planShapeMoves,
@@ -48,20 +54,22 @@ export interface LayoutRepairPlan {
 }
 
 /**
- * Finds the broken spots of the drawing that neither side drew, stacks the
+ * Keeps the shapes only one side draws beside the flow neighbours that side
+ * drew them at, finds the broken spots of the drawing that neither side drew, stacks the
  * appended lanes their pool's lanes do not hold below them, brings the
  * shapes the build placed outside their containers back inside, moves the
  * shapes it placed on another, then re-routes the flows still or newly
  * broken after that.
  */
 export function planLayoutRepair(
-    layout: LayoutModel,
+    assembled: LayoutModel,
     sideLayouts: readonly LayoutModel[],
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
 ): LayoutRepairPlan {
     const spotsAfter = (step: LayoutModel, before: LayoutModel, spotsBefore: LayoutSpot[]) =>
         step === before ? spotsBefore : introducedLayoutSpots(step, sideLayouts);
+    const layout = planners.placeBesideNeighbours(assembled, sideLayouts);
     const assembledSpots = introducedLayoutSpots(layout, sideLayouts);
     const laneStacks = planners.stackLanes(layout, appendedLanes);
     const stacked = laneStacks.layout;
