@@ -14,6 +14,7 @@ import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import type { PlaneSlots } from "./planeSlots";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { layoutSpotNotes } from "./layoutSpotNotes";
+import type { MergeSide } from "./mergeResult";
 import { flowSpotRepairs } from "./layoutSpotRepairs";
 import type { LayoutSpot } from "./layoutSpots";
 
@@ -34,6 +35,7 @@ export interface LayoutRepairPlanners {
         spots: readonly LayoutSpot[],
         sides: readonly LayoutModel[],
         repairFlows: FlowRepairPlanner,
+        layoutLeader?: MergeSide,
     ) => ShapeMovePlan;
     readonly repairFlows: FlowRepairPlanner;
 }
@@ -66,6 +68,7 @@ export function planLayoutRepair(
     sideLayouts: readonly LayoutModel[],
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
+    layoutLeader?: MergeSide,
 ): LayoutRepairPlan {
     const spotsAfter = (step: LayoutModel, before: LayoutModel, spotsBefore: LayoutSpot[]) =>
         step === before ? spotsBefore : introducedLayoutSpots(step, sideLayouts);
@@ -82,6 +85,7 @@ export function planLayoutRepair(
         spotsInContainers,
         sideLayouts,
         planners.repairFlows,
+        layoutLeader,
     );
     const moved = shapeMoves.layout;
     const spotsAfterMoves = spotsAfter(moved, inContainers, spotsInContainers);
@@ -109,10 +113,17 @@ export function repairIntroducedSpots(
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
+    layoutLeader?: MergeSide,
 ): BuildNoteContent[] {
     const document = IndexedDocument.of(definitions);
     const layout = layoutModelOfDocument(document, slots);
-    const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
+    const { repaired, notes } = planLayoutRepair(
+        layout,
+        sideLayouts,
+        planners,
+        appendedLanes,
+        layoutLeader,
+    );
     writeLayoutChanges(document.index, layout, repaired, createPoint);
     return notes;
 }

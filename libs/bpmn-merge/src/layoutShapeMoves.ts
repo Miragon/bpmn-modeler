@@ -51,13 +51,13 @@ export function planShapeMoves(
     spots: readonly LayoutSpot[],
     sides: readonly LayoutModel[],
     repairFlows: FlowRepairPlanner,
-    _layoutLeader?: MergeSide,
+    layoutLeader?: MergeSide,
 ): ShapeMovePlan {
     const overlaps = spots.flatMap((spot): SpotOf<"shapesOverlap">[] =>
         spot.kind === "shapesOverlap" ? [spot] : [],
     );
     if (overlaps.length === 0) return { layout, repairs: [] };
-    const repairer = new OverlapRepairer(layout, sides, repairFlows);
+    const repairer = new OverlapRepairer(layout, sides, repairFlows, layoutLeader === undefined);
     const repairs = overlaps.map((spot) => ({ spot, repair: repairer.repair(spot) }));
     return { layout: repairer.layout, repairs };
 }
@@ -74,6 +74,8 @@ class OverlapRepairer {
         original: LayoutModel,
         sides: readonly LayoutModel[],
         repairFlows: FlowRepairPlanner,
+        /** Where one side re-laid out the diagram, the other side's coordinates lie in another frame. */
+        private readonly triesOtherSidesPlace: boolean,
     ) {
         this.groups = new ShapeGroups(original);
         const topology = new FlowTopology(original);
@@ -86,8 +88,8 @@ class OverlapRepairer {
     }
 
     /**
-     * Ends the overlap with the first attempt that can: the other side's place,
-     * a stacked branch, room in line for a shape only one side draws that grows
+     * Ends the overlap with the first attempt that can: the other side's place
+     * unless one side re-laid out the diagram, a stacked branch, room in line for a shape only one side draws that grows
      * no frame, the nearest free place, room in line.
      */
     repair({ shapes }: SpotOf<"shapesOverlap">): OverlapRepair {
@@ -100,7 +102,9 @@ class OverlapRepairer {
             .filter((node) => placedByBuild(node, this.context.sides))
             .map((node) => this.groups.of(draft, node));
         return (
-            this.moveOf(otherSidesPlace(draft, this.context, movable)) ??
+            (this.triesOtherSidesPlace
+                ? this.moveOf(otherSidesPlace(draft, this.context, movable))
+                : undefined) ??
             this.roomOf(stackedBranch(draft, this.context, movable, pair)) ??
             this.roomOf(roomInLineForOneSided(draft, this.context, movable, pair)) ??
             this.moveOf(nearestFreePlace(draft, movable)) ??

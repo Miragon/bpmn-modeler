@@ -48,14 +48,34 @@ export function combinedLayoutOf(layouts: readonly LayoutState[]): LayoutState {
     return byIncoming ? "takenFromIncoming" : "unchanged";
 }
 
-/** Current's layout unless only incoming changed it. */
-export function preferredLayoutSideOf(layout: LayoutState, _leader?: MergeSide): MergeSide {
+/** Current's layout unless only incoming changed it; where both changed it, the leader's, current's without one. */
+export function preferredLayoutSideOf(layout: LayoutState, leader?: MergeSide): MergeSide {
+    if (layout === "bothChanged") return leader ?? "current";
     return layout === "takenFromIncoming" ? "incoming" : "current";
 }
 
-export function layoutLeaderOf(_elements: readonly MergeElement[]): MergeSide | undefined {
-    return undefined;
+/**
+ * The side that re-laid out the diagram: it moved more than half of the elements the base and both sides draw, and
+ * more of them than the other side. None without a base, as nothing tells who moved what.
+ */
+export function layoutLeaderOf(elements: readonly MergeElement[]): MergeSide | undefined {
+    const drawnByAll = elements.filter(({ versions }) =>
+        [versions.base, versions.current, versions.incoming].every((version) => version?.drawn),
+    );
+    const movedBy = (side: MergeSide) =>
+        drawnByAll.filter(
+            ({ layout }) => layout === "bothChanged" || layout === LAYOUT_TAKEN_FROM[side],
+        ).length;
+    const [byCurrent, byIncoming] = [movedBy("current"), movedBy("incoming")];
+    const leads = (moved: number, other: number) => moved * 2 > drawnByAll.length && moved > other;
+    if (leads(byIncoming, byCurrent)) return "incoming";
+    return leads(byCurrent, byIncoming) ? "current" : undefined;
 }
+
+const LAYOUT_TAKEN_FROM: Record<MergeSide, LayoutState> = {
+    current: "takenFromCurrent",
+    incoming: "takenFromIncoming",
+};
 
 export interface ElementReference {
     /** Owning type and property, for example `bpmn:SequenceFlow#sourceRef`. */

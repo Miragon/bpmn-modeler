@@ -90,6 +90,7 @@ export async function buildMergedWith(
         planners,
         resolution.appendedLanes,
         (point) => mergeModdle.moddle.create("dc:Point", { x: point.x, y: point.y }),
+        resolution.layoutLeader,
     );
     const { xml } = await mergeModdle.moddle.toXML(current, { format: true });
 

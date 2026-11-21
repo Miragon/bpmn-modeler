@@ -129,7 +129,7 @@ describe("layoutLeaderOf", () => {
             case: "current moved more than half of them and more than incoming",
             layouts: [
                 "takenFromCurrent",
-                "bothChanged",
+                "takenFromCurrent",
                 "bothChanged",
                 "takenFromIncoming",
                 "unchanged",
