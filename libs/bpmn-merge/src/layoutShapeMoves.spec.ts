@@ -56,6 +56,22 @@ describe("planShapeMoves", () => {
         expect(boundsIn(plan, "Task_X")).toEqual(TASK_X.bounds);
     });
 
+    it("moves a shape to where the side that laid out the result draws it", () => {
+        const result = layoutOf([TASK_X, node("Task_R", box(310, 110))]);
+        const current = layoutOf([TASK_X, node("Task_R", box(420, 110))]);
+        const incoming = layoutOf([TASK_X, node("Task_R", box(560, 110))]);
+
+        const plan = planShapeMoves(
+            result,
+            overlapsOf(result),
+            [current, incoming],
+            planFlowRepairs,
+            incoming,
+        );
+
+        expect(boundsIn(plan, "Task_R")).toEqual(box(560, 110));
+    });
+
     it("does not move a shape to the other side's place in a result one side lays out", () => {
         const result = layoutOf([TASK_X, node("Task_R", box(310, 110))]);
         const incoming = layoutOf([TASK_X, node("Task_R", box(560, 110))]);
@@ -65,7 +81,7 @@ describe("planShapeMoves", () => {
             overlapsOf(result),
             [result, incoming],
             planFlowRepairs,
-            "current",
+            result,
         );
 
         expect(pairRepairsOf(plan)).toEqual([

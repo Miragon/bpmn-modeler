@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { BpmnFixtureModel } from "./__fixtures__/bpmnModelBuilder";
-import { dock, dockedVersions, dragNodes, insertIntoFlow } from "./__fixtures__/dockedModel";
+import {
+    dock,
+    dockedVersions,
+    dragNodes,
+    insertIntoFlow,
+    recoloured,
+} from "./__fixtures__/dockedModel";
 import { layoutModelOf } from "./__fixtures__/layoutModelOf";
 import { parseWithoutWarnings } from "./__fixtures__/parseWithoutWarnings";
 import { buildMerged } from "./buildMerged";
@@ -89,6 +95,36 @@ describe("buildMerged when one side moved most of the drawing", () => {
         );
         expect(middleY(merged, "Task_X")).toBe(middleY(merged, "Task_A"));
         expect(introducedLayoutSpots(merged, [current, incoming])).toEqual([]);
+    });
+
+    it("puts a shape only the other side moved where the leading side draws it when it lands on another", async () => {
+        const versions = dockedVersions(
+            "c8",
+            (model) => dragNodes(model, ["Task_R"], 160),
+            (model) => {
+                dragNodes(model, SALES_ROW, 100);
+                dragNodes(model, ["End_Rejected"], -192);
+            },
+        );
+
+        const { merged, incoming } = await mergedLayoutOf(versions);
+
+        expect(boundsIn(merged, "Task_R")).toEqual(boundsIn(incoming, "Task_R"));
+    });
+
+    it("keeps current's drag when incoming only recoloured the diagram", async () => {
+        const versions = dockedVersions(
+            "c8",
+            (model) => dragNodes(model, ["Task_C"], 0, 30),
+            () => undefined,
+        );
+
+        const { merged, current } = await mergedLayoutOf({
+            ...versions,
+            incoming: recoloured(versions.incoming),
+        });
+
+        expect(boundsIn(merged, "Task_C")).toEqual(boundsIn(current, "Task_C"));
     });
 
     it("keeps current's drawing of what both sides moved when neither side moved most of the drawing", async () => {

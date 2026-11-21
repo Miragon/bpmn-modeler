@@ -110,8 +110,10 @@ describe("preferredLayoutSideOf", () => {
 });
 
 describe("layoutLeaderOf", () => {
-    const drawnByAll = (layouts: readonly LayoutState[]) =>
-        layouts.map((layout, index) => mergeElement(`Task_${index}`, "unchanged", { layout }));
+    const drawnByAll = (moves: readonly LayoutState[]) =>
+        moves.map((moved, index) =>
+            mergeElement(`Task_${index}`, "unchanged", { layout: moved, moved }),
+        );
 
     it.each<{ case: string; layouts: LayoutState[]; leader: MergeSide | undefined }>([
         {
@@ -151,12 +153,35 @@ describe("layoutLeaderOf", () => {
         expect(layoutLeaderOf(drawnByAll(layouts))).toBe(leader);
     });
 
+    it("counts a drawing changed without moving its shapes, as by a colour, as no move", () => {
+        const recoloured = ["A", "B", "C"].map((id) =>
+            mergeElement(id, "unchanged", { layout: "takenFromIncoming", moved: "unchanged" }),
+        );
+
+        expect(layoutLeaderOf(recoloured)).toBeUndefined();
+    });
+
+    it("counts no element without shapes, such as a flow", () => {
+        const elements = [
+            ...drawnByAll(["takenFromIncoming", "unchanged"]),
+            ...["Flow_1", "Flow_2"].map((id) =>
+                mergeElement(id, "unchanged", { layout: "takenFromIncoming" }),
+            ),
+        ];
+
+        expect(layoutLeaderOf(elements)).toBeUndefined();
+    });
+
     it("counts only the elements the base and both sides draw", () => {
         const elements = [
             ...drawnByAll(["takenFromIncoming", "unchanged"]),
-            mergeElement("Task_New", "addedByIncoming", { layout: "takenFromIncoming" }),
+            mergeElement("Task_New", "addedByIncoming", {
+                layout: "takenFromIncoming",
+                moved: "takenFromIncoming",
+            }),
             mergeElement("Task_Undrawn", "unchanged", {
                 layout: "takenFromIncoming",
+                moved: "takenFromIncoming",
                 base: { drawn: false },
             }),
         ];

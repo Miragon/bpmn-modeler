@@ -48,6 +48,8 @@ export interface ElementSnapshot {
     readonly layout?: string;
     /** The `bpmnElement` id of the plane holding the unit's first shape or edge; `undefined` when none does. */
     readonly plane?: string;
+    /** Canonical text of the bounds of the shapes that draw the unit, without labels or attributes; `undefined` when no shape does. */
+    readonly place?: string;
 }
 
 /**
@@ -126,6 +128,7 @@ export async function elementSnapshots(
             parts,
             ...(layout === undefined ? {} : { layout: layout.text }),
             ...(layout?.plane === undefined ? {} : { plane: layout.plane }),
+            ...(layout?.place === undefined ? {} : { place: layout.place }),
         });
     }
     return snapshots;

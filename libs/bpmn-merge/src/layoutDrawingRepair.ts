@@ -14,7 +14,6 @@ import { type ShapeMovePlan, planShapeMoves } from "./layoutShapeMoves";
 import type { PlaneSlots } from "./planeSlots";
 import { introducedLayoutSpots } from "./layoutSpotDetection";
 import { layoutSpotNotes } from "./layoutSpotNotes";
-import type { MergeSide } from "./mergeResult";
 import { flowSpotRepairs } from "./layoutSpotRepairs";
 import type { LayoutSpot } from "./layoutSpots";
 
@@ -35,7 +34,7 @@ export interface LayoutRepairPlanners {
         spots: readonly LayoutSpot[],
         sides: readonly LayoutModel[],
         repairFlows: FlowRepairPlanner,
-        layoutLeader?: MergeSide,
+        framing?: LayoutModel,
     ) => ShapeMovePlan;
     readonly repairFlows: FlowRepairPlanner;
 }
@@ -68,7 +67,7 @@ export function planLayoutRepair(
     sideLayouts: readonly LayoutModel[],
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
-    layoutLeader?: MergeSide,
+    framing?: LayoutModel,
 ): LayoutRepairPlan {
     const spotsAfter = (step: LayoutModel, before: LayoutModel, spotsBefore: LayoutSpot[]) =>
         step === before ? spotsBefore : introducedLayoutSpots(step, sideLayouts);
@@ -85,7 +84,7 @@ export function planLayoutRepair(
         spotsInContainers,
         sideLayouts,
         planners.repairFlows,
-        layoutLeader,
+        framing,
     );
     const moved = shapeMoves.layout;
     const spotsAfterMoves = spotsAfter(moved, inContainers, spotsInContainers);
@@ -113,7 +112,7 @@ export function repairIntroducedSpots(
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
-    layoutLeader?: MergeSide,
+    framing?: LayoutModel,
 ): BuildNoteContent[] {
     const document = IndexedDocument.of(definitions);
     const layout = layoutModelOfDocument(document, slots);
@@ -122,7 +121,7 @@ export function repairIntroducedSpots(
         sideLayouts,
         planners,
         appendedLanes,
-        layoutLeader,
+        framing,
     );
     writeLayoutChanges(document.index, layout, repaired, createPoint);
     return notes;

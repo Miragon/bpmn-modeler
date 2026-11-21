@@ -55,19 +55,21 @@ export function preferredLayoutSideOf(layout: LayoutState, leader?: MergeSide): 
 }
 
 /**
- * The side that re-laid out the diagram: it moved more than half of the elements the base and both sides draw, and
- * more of them than the other side. None without a base, as nothing tells who moved what.
+ * The side that re-laid out the diagram: it moved more than half of the shapes the base and both sides draw, and
+ * more of them than the other side. A colour, a label or a flow is no move. None without a base, as nothing tells who
+ * moved what.
  */
 export function layoutLeaderOf(elements: readonly MergeElement[]): MergeSide | undefined {
-    const drawnByAll = elements.filter(({ versions }) =>
-        [versions.base, versions.current, versions.incoming].every((version) => version?.drawn),
+    const shapes = elements.filter(
+        ({ moved, versions }) =>
+            moved !== undefined &&
+            [versions.base, versions.current, versions.incoming].every((version) => version?.drawn),
     );
     const movedBy = (side: MergeSide) =>
-        drawnByAll.filter(
-            ({ layout }) => layout === "bothChanged" || layout === LAYOUT_TAKEN_FROM[side],
-        ).length;
+        shapes.filter(({ moved }) => moved === "bothChanged" || moved === LAYOUT_TAKEN_FROM[side])
+            .length;
     const [byCurrent, byIncoming] = [movedBy("current"), movedBy("incoming")];
-    const leads = (moved: number, other: number) => moved * 2 > drawnByAll.length && moved > other;
+    const leads = (moved: number, other: number) => moved * 2 > shapes.length && moved > other;
     if (leads(byIncoming, byCurrent)) return "incoming";
     return leads(byCurrent, byIncoming) ? "current" : undefined;
 }
@@ -122,6 +124,8 @@ export interface MergeElement {
     readonly type: string;
     readonly state: ElementState;
     readonly layout: LayoutState;
+    /** How the sides moved or resized the element's shapes, apart from labels and colours; absent unless the base and both sides draw it with shapes. */
+    readonly moved?: LayoutState;
     readonly versions: {
         readonly base?: ElementVersion;
         readonly current?: ElementVersion;

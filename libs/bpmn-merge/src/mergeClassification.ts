@@ -6,6 +6,8 @@ export interface ClassifiedVersion {
     readonly key: string;
     /** Absent when the version does not draw the element. */
     readonly layout?: string;
+    /** The bounds of the shapes that draw the element; absent when no shape does. */
+    readonly place?: string;
 }
 
 export interface ClassifiedVersions {
@@ -39,6 +41,22 @@ export function layoutStateOf({ base, current, incoming }: ClassifiedVersions): 
     if (current && incoming)
         return current.layout === incoming.layout ? "unchanged" : "bothChanged";
     return changeState(current?.layout !== undefined, incoming?.layout !== undefined);
+}
+
+/** How the sides moved the element's shapes; undefined unless the base and both sides draw it with shapes. */
+export function moveStateOf({
+    base,
+    current,
+    incoming,
+}: ClassifiedVersions): LayoutState | undefined {
+    if (
+        base?.place === undefined ||
+        current?.place === undefined ||
+        incoming?.place === undefined
+    ) {
+        return undefined;
+    }
+    return changeState(current.place !== base.place, incoming.place !== base.place);
 }
 
 function stateWithoutBase(

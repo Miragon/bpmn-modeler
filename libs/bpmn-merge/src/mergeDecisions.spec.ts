@@ -2470,9 +2470,15 @@ describe("MergeDecisions", () => {
         });
 
         it("draws what both sides moved from the side that moved most of the drawing, and names that side", () => {
-            const movedByBoth = mergeElement("A", "unchanged", { layout: "bothChanged" });
+            const movedByBoth = mergeElement("A", "unchanged", {
+                layout: "bothChanged",
+                moved: "bothChanged",
+            });
             const movedByIncoming = ["B", "C"].map((id) =>
-                mergeElement(id, "unchanged", { layout: "takenFromIncoming" }),
+                mergeElement(id, "unchanged", {
+                    layout: "takenFromIncoming",
+                    moved: "takenFromIncoming",
+                }),
             );
 
             const resolution = MergeDecisions.from(

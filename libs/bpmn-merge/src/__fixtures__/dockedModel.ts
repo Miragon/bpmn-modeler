@@ -156,6 +156,19 @@ export function dockedModel(platform: Engine): BpmnFixtureModel {
     return model;
 }
 
+const BIOCOLOR_NAMESPACE = "http://bpmn.io/schema/bpmn/biocolor/1.0";
+
+/** The file with every flow node filled and every flow stroked red, its pool and lanes as they were; nothing moves. */
+export function recoloured(xml: string): string {
+    return xml
+        .replace("<bpmn:definitions ", `<bpmn:definitions xmlns:bioc="${BIOCOLOR_NAMESPACE}" `)
+        .replace(
+            /<bpmndi:BPMNShape (id="[^"]*" bpmnElement="(?!Participant_|Lane_))/g,
+            '<bpmndi:BPMNShape bioc:fill="#ffcdd2" $1',
+        )
+        .replaceAll("<bpmndi:BPMNEdge ", '<bpmndi:BPMNEdge bioc:stroke="#e53935" ');
+}
+
 /** The docked model as base, each side with its edits. */
 export function dockedVersions(platform: Engine, current: Edit, incoming: Edit): MergeVersions {
     const base = dockedModel(platform);
