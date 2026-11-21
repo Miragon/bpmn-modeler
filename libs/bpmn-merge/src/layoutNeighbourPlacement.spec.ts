@@ -134,6 +134,21 @@ describe("placeBesideNeighbours", () => {
         },
     );
 
+    it("keeps its gap to the bottom border of a predecessor its side drew further above it than beside it", () => {
+        const diagonal = node("Task_N", box(250, 330));
+        const result = layoutOf([node("Task_A", box(100, 100, 100, 120)), diagonal]);
+
+        const placedLayout = placeBesideNeighbours(result, [
+            layoutOf(
+                [node("Task_A", box(100, 100)), diagonal],
+                [flow("Flow_AN", "Task_A", "Task_N")],
+            ),
+            layoutOf([node("Task_A", box(100, 100, 100, 120))]),
+        ]);
+
+        expect(boundsIn(placedLayout, "Task_N")).toEqual(box(250, 370));
+    });
+
     it("keeps its gap along the row beside a tall predecessor whose middle lies far above it", () => {
         const tall = { side: box(100, 0, 300, 600), result: box(100, 0, 340, 600) };
         const added = node("Task_N", box(420, 520));
