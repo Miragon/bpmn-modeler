@@ -181,8 +181,11 @@ parser and asserts that the module still loads.
   all picks per call, plus a pass for clashes and dead ends; and a pick can reopen an
   element the user did not touch, which then waits for its own choice.
 - *Layout side.* Current's DI, unless only incoming changed the layout. Where both changed it,
-  the DI of the side that re-laid out the diagram, when one did: it moved more than half of the
-  elements the base and both sides draw, and more of them than the other side (#2738). Rejected:
+  the DI of the side that re-laid out the diagram, when one did: it moved or resized more than
+  half of the shapes the base and both sides draw, and more of them than the other side
+  (#2738). A colour, a label or a flow is no move, as the bounds of an element's shapes alone
+  decide (`moved`, read by `diagramLayouts`); counting the whole DI let a side that only
+  recoloured the diagram lead. Rejected:
   current's DI throughout, which tore a re-laid-out diagram between two frames, the elements
   both moved in current's and the rest in incoming's; composing both sides' moves, which no
   drawing either side made would match. Cost: the smaller side's moves of elements the leader

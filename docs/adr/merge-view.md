@@ -1,7 +1,7 @@
 # Merge view
 
 - Status: accepted
-- Last reviewed: 2026-11-19
+- Last reviewed: 2026-11-21
 
 ## Context
 
@@ -116,8 +116,8 @@ extension active, which opening any `.bpmn` does, in any editor.
 side, taken from the other side (also when the other side removed the element) and conflict.
 They are `MergeMarker` in `mergeVocabulary.ts`, not new `DiffMarker` values, which are a
 semver contract of `@miragon/bpmn-modeler/diff`. A layout difference is never a conflict and
-gets no marker; the build takes current's drawing unless only incoming changed it, incoming
-re-laid out the diagram, or the element follows its container's side ([layout side](merge.md#decisions-and-reference-rules)),
+gets no marker; the build takes current's drawing unless only incoming changed it, both did
+and incoming re-laid out the diagram, or the element follows its container's side ([layout side](merge.md#decisions-and-reference-rules)),
 and notes a layout both sides changed differently. Each marker has a cue that is no colour (a
 heavy contour, a hatch, a dashed contour with a "!" badge) and a stroke of its own in the dark
 theme, which tints no surface; a halo of the hatch's ground keeps the hatch behind the label.

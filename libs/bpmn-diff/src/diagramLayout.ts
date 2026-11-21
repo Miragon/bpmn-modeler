@@ -49,7 +49,7 @@ export function diagramLayouts(definitions: ModdleElement): Map<ModdleElement, D
             addDrawing(drawnElement, { ...canonical(drawing, DRAWING_OMITTED), plane: planeId });
             if (isModdleElement(drawnElement) && isModdleElement(drawing.bounds)) {
                 const places = placesByElement.get(drawnElement) ?? [];
-                places.push({ ...canonical(drawing.bounds, NESTED_OMITTED), plane: planeId });
+                places.push(canonical(drawing.bounds, NESTED_OMITTED));
                 placesByElement.set(drawnElement, places);
             }
             if (isModdleElement(drawnElement) && !planeByElement.has(drawnElement))

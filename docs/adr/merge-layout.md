@@ -162,8 +162,9 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   those often lie among the shape's other neighbours, and on the synthetic merges dropping the
   try put fewer added tasks in place. Where one side re-laid out the diagram
   ([layout side](merge.md#decisions-and-reference-rules)), the result has that side's frame and
-  the other side's coordinates lie in another, so this try is skipped: kept, it made shapes jump
-  across the diagram and put one of three added tasks out of place. The
+  the other side's coordinates lie in another, so only that side's place is tried: every side's
+  made shapes jump across the diagram and put one of three added tasks out of place, and none
+  sent a shape only the other side moved past its own successor. The
   slot after that comes from the sequence flows between the two shapes, a boundary event's
   counting as its host's, where those flows run right (#2596): a shape that shares a predecessor
   or a successor with the other and is joined to it by no flow is a parallel branch, which a

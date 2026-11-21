@@ -161,15 +161,15 @@ describe("layoutLeaderOf", () => {
         expect(layoutLeaderOf(recoloured)).toBeUndefined();
     });
 
-    it("counts no element without shapes, such as a flow", () => {
+    it("counts an element without shapes, such as a flow, neither as moved nor among the shapes", () => {
         const elements = [
-            ...drawnByAll(["takenFromIncoming", "unchanged"]),
+            ...drawnByAll(["takenFromIncoming", "takenFromIncoming", "unchanged"]),
             ...["Flow_1", "Flow_2"].map((id) =>
-                mergeElement(id, "unchanged", { layout: "takenFromIncoming" }),
+                mergeElement(id, "unchanged", { layout: "takenFromCurrent" }),
             ),
         ];
 
-        expect(layoutLeaderOf(elements)).toBeUndefined();
+        expect(layoutLeaderOf(elements)).toBe("incoming");
     });
 
     it("counts only the elements the base and both sides draw", () => {
