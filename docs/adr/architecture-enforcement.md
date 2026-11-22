@@ -1,7 +1,7 @@
 # Architecture enforcement
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-22
 
 ## Context
 
@@ -145,8 +145,8 @@ and not in `build.yml`'s `ci.needs`.
 - A function may declare what the comment shows instead of its new and resolved rows
   (`changesView`, #2371); the full report and the JSON keep every row.
   `size-and-complexity` lists only the existing files that grew since the merge base,
-  and a PR that only adds or deletes files counts as no change: in the trial most of
-  its new rows were such files and none led to a change. `missed-partner` and
+  and a PR that only adds or deletes files counts as no change: in the first trial
+  most of its new rows were such files and none led to a change. `missed-partner` and
   `mutation-score` are full-report-only and never count as a change: a mutation score
   comes from a stored run, so it landed on whichever PR came next, and the
   missed-partner warnings left on PRs were mostly judged false or not judged.
@@ -269,12 +269,29 @@ CI pilot: the first two reviews needed a skeptic to filter their findings, runs
 differ, so the comment would change from push to push, and a job needs a workflow, an
 API secret and possibly a dependency. Recall was not measured.
 
-**What the report adds** (#2231). About 7 of the trial's 75 findings trace to a report
-row, and none of the behaviour bugs: those came from the copy search, from comparing a
-port's adapters and from comparing the wiring per host. One review repeated without
-the report found 7 of its 10 findings. The report's value therefore lies in trends,
-placement leads and feedback on the functions, not in finding erosion. That is one run
-on one PR.
+**What the report adds** (#2231, #2398). About 7 of the first trial's 75 findings
+trace to a report row and none of its behaviour bugs: those came from the copy search,
+from comparing a port's adapters and from comparing the wiring per host. In the second
+trial 9 of 109 findings cite a row. One review repeated without the report found 7 of
+its 10 findings; four more, run on another model, found each of their 14 at least in
+part, among them the four that cite a row. The report's value therefore lies in
+trends, placement leads and feedback on the functions, not in finding erosion.
+
+**A function's place in the PR comment** (decided on #2398, 2026-11-22). A function
+keeps its rows in the comment while they lead to fixes in the same PR. A second trial
+on 84 PRs judged each function by rules written before it started, with one reading
+fixed afterwards: a row counts as acted on when its PR fixed it, not when a PR body
+only lists it. `repeated-value-sets` and `contract-suites` stay; `contract-suites`
+stays against the written rules, which count its render-only group as false although
+two of those rows led to a suite. `change-coupling` and `host-text` are to move to
+the full report (#2743, #2744): none of their new rows was fixed and all but one were
+false, and the review, which reads the full report, keeps them. `hotspots` is to stop
+ranking modules that run no code (#2708). The grown-files list is to show a row only
+when it grew by at least 11 code lines, its complexity rose or its trend rose twice
+in a row (#2745), which leaves about a quarter of the grown rows out of the comment.
+The written rule gave no threshold, because five smaller rows were fixed in their PR,
+but four of those went with nothing written about the row. Each of these issues
+replaces the text above that describes today's comment.
 
 ## Consequences
 
