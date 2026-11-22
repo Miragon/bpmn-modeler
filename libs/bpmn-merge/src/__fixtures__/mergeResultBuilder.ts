@@ -23,6 +23,7 @@ interface VersionFacts {
 export interface ElementSpec extends VersionFacts {
     readonly type?: string;
     readonly layout?: LayoutState;
+    readonly moved?: LayoutState;
     /** Facts that differ in one version; they replace the shared ones there. */
     readonly base?: VersionFacts;
     readonly current?: VersionFacts;
@@ -76,6 +77,7 @@ export function mergeElement(
         type: spec.type ?? "bpmn:Task",
         state,
         layout: spec.layout ?? "unchanged",
+        ...(spec.moved === undefined ? {} : { moved: spec.moved }),
         versions,
     };
 }

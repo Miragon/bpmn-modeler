@@ -56,6 +56,41 @@ describe("planShapeMoves", () => {
         expect(boundsIn(plan, "Task_X")).toEqual(TASK_X.bounds);
     });
 
+    it("moves a shape to where the side that laid out the result draws it", () => {
+        const result = layoutOf([TASK_X, node("Task_R", box(310, 110))]);
+        const current = layoutOf([TASK_X, node("Task_R", box(420, 110))]);
+        const incoming = layoutOf([TASK_X, node("Task_R", box(560, 110))]);
+
+        const plan = planShapeMoves(
+            result,
+            overlapsOf(result),
+            [current, incoming],
+            planFlowRepairs,
+            incoming,
+        );
+
+        expect(boundsIn(plan, "Task_R")).toEqual(box(560, 110));
+    });
+
+    it("does not move a shape to the other side's place in a result one side lays out", () => {
+        const result = layoutOf([TASK_X, node("Task_R", box(310, 110))]);
+        const incoming = layoutOf([TASK_X, node("Task_R", box(560, 110))]);
+
+        const plan = planShapeMoves(
+            result,
+            overlapsOf(result),
+            [result, incoming],
+            planFlowRepairs,
+            result,
+        );
+
+        expect(pairRepairsOf(plan)).toEqual([
+            { kind: "movedByBuild", shapes: ["Task_X", "Task_R"], moved: "Task_R" },
+        ]);
+        expect(boundsIn(plan, "Task_R")).not.toEqual(box(560, 110));
+        expect(overlapsOf(plan.layout)).toEqual([]);
+    });
+
     it("moves the shape to the nearest free place in its lane when the other side's place is taken", () => {
         const frames = [POOL, lane(70, 160)];
         const result = layoutOf([TASK_X, node("Task_Y", box(310, 110))], [], frames);

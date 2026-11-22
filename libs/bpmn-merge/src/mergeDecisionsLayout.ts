@@ -5,6 +5,7 @@ import {
     type MergeSide,
     type SideInResult,
     chosenVersionOf,
+    layoutLeaderOf,
     otherSide,
     preferredLayoutSideOf,
     sameLanes,
@@ -31,6 +32,8 @@ export interface ResultLayout {
     readonly sides: Record<string, MergeSide>;
     /** The lanes drawn from another side than the rest of their pool's lanes, in the result's order. */
     readonly appendedLanes: readonly string[];
+    /** The side that re-laid out the diagram, whose drawing an element both sides moved takes. */
+    readonly leader?: MergeSide;
 }
 
 /**
@@ -47,7 +50,8 @@ export function layoutSidesOf(
 ): ResultLayout {
     const elementsById = new Map(elements.map((element) => [element.id, element]));
     const poolOfProcess = poolsByProcess(elements, sideInResult);
-    const blocks = laneBlocksOf(elementsById, sideInResult, poolOfProcess);
+    const leader = layoutLeaderOf(elements);
+    const blocks = laneBlocksOf(elementsById, sideInResult, poolOfProcess, leader);
     const blockSides = new Map(
         blocks.flatMap(({ pool, lanes, side }) =>
             [pool, ...lanes].map((id) => [id, side] as const),
@@ -56,7 +60,8 @@ export function layoutSidesOf(
     const choices = new Map<string, LayoutChoice>();
     for (const element of elements) {
         const side = sideInResult(element.id);
-        const preferred = blockSides.get(element.id) ?? preferredLayoutSideOf(element.layout);
+        const preferred =
+            blockSides.get(element.id) ?? preferredLayoutSideOf(element.layout, leader);
         const choice =
             side === undefined
                 ? undefined
@@ -82,7 +87,8 @@ export function layoutSidesOf(
     const appended = new Set(
         blocks.flatMap(({ lanes, side }) => lanes.filter((id) => sides[id] !== side)),
     );
-    return { sides, appendedLanes: elements.map(({ id }) => id).filter((id) => appended.has(id)) };
+    const appendedLanes = elements.map(({ id }) => id).filter((id) => appended.has(id));
+    return leader === undefined ? { sides, appendedLanes } : { sides, appendedLanes, leader };
 }
 
 /**

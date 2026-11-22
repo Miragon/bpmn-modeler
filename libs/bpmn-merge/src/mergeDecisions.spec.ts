@@ -2460,12 +2460,33 @@ describe("MergeDecisions", () => {
 
         it("draws a boundary event from its host's side when that side moved the host", () => {
             const host = mergeElement("A", "unchanged", { layout: "bothChanged" });
+            const unmoved = ["B", "C"].map((id) => mergeElement(id, "unchanged"));
 
             const { layout } = MergeDecisions.from(
-                mergeResult(host, boundaryOnA("takenFromIncoming")),
+                mergeResult(host, boundaryOnA("takenFromIncoming"), ...unmoved),
             ).resolution();
 
-            expect(layout).toEqual({ A: "current", BE: "current" });
+            expect(layout).toEqual({ A: "current", BE: "current", B: "current", C: "current" });
+        });
+
+        it("draws what both sides moved from the side that moved most of the drawing, and names that side", () => {
+            const movedByBoth = mergeElement("A", "unchanged", {
+                layout: "bothChanged",
+                moved: "bothChanged",
+            });
+            const movedByIncoming = ["B", "C"].map((id) =>
+                mergeElement(id, "unchanged", {
+                    layout: "takenFromIncoming",
+                    moved: "takenFromIncoming",
+                }),
+            );
+
+            const resolution = MergeDecisions.from(
+                mergeResult(movedByBoth, ...movedByIncoming),
+            ).resolution();
+
+            expect(resolution.layout).toEqual({ A: "incoming", B: "incoming", C: "incoming" });
+            expect(resolution.layoutLeader).toBe("incoming");
         });
 
         it("keeps a boundary event's own layout change when its host's layout is unchanged", () => {

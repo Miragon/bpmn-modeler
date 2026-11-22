@@ -20,13 +20,14 @@ export interface LaneBlock {
 
 /**
  * The lanes of each process a pool of the result draws, with the side they prefer together: current's, unless only
- * incoming changed the pool or one of its lanes, as for a single element. A side that draws a lane of the process the
+ * incoming changed the pool or one of its lanes, as for a single element, or both did and incoming leads the layout. A side that draws a lane of the process the
  * result leaves out would leave its band empty, so the other side draws them when it draws none.
  */
 export function laneBlocksOf(
     elementsById: ReadonlyMap<string, MergeElement>,
     sideInResult: SideInResult,
     poolOfProcess: ReadonlyMap<string, string>,
+    leader: MergeSide | undefined,
 ): LaneBlock[] {
     const lanesByPool = new Map<string, MergeElement[]>();
     const leftOut: Record<MergeSide, Set<string>> = { current: new Set(), incoming: new Set() };
@@ -54,6 +55,7 @@ export function laneBlocksOf(
         const members = poolElement === undefined ? lanes : [poolElement, ...lanes];
         const preferred = preferredLayoutSideOf(
             combinedLayoutOf(members.map(({ layout }) => layout)),
+            leader,
         );
         const leavesOut = (side: MergeSide) => leftOut[side].has(processOf.get(pool) ?? "");
         const side =

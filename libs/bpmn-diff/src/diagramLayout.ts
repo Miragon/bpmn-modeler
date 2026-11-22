@@ -15,19 +15,23 @@ interface DiagramLayout {
     readonly text: string;
     /** The `bpmnElement` id of the plane holding its first shape or edge. */
     readonly plane?: string;
+    /** Canonical text of the bounds of every shape that draws the element, without labels or attributes. */
+    readonly place?: string;
 }
 
 /**
  * For every semantic element drawn in `definitions`, a canonical text of the
  * diagram elements that draw it: shapes and edges with their bounds, labels,
  * waypoints and own attributes, and a plane of its own (a collapsed
- * sub-process's). DI ids, attribute order, number spelling and defaults the
+ * sub-process's); and apart from it the bounds of its shapes alone, which
+ * a colour, a label or an edge does not change. DI ids, attribute order, number spelling and defaults the
  * file does not set do not change it: a DI reference is written by the
  * element its target draws, a label style by its content.
  */
 export function diagramLayouts(definitions: ModdleElement): Map<ModdleElement, DiagramLayout> {
     const drawingsByElement = new Map<ModdleElement, CanonicalObject[]>();
     const planeByElement = new Map<ModdleElement, string | undefined>();
+    const placesByElement = new Map<ModdleElement, CanonicalObject[]>();
     const addDrawing = (element: unknown, drawing: CanonicalObject) => {
         if (!isModdleElement(element)) return;
         const drawings = drawingsByElement.get(element) ?? [];
@@ -43,6 +47,11 @@ export function diagramLayouts(definitions: ModdleElement): Map<ModdleElement, D
         for (const drawing of moddleElements(plane.planeElement)) {
             const drawnElement = drawing.bpmnElement;
             addDrawing(drawnElement, { ...canonical(drawing, DRAWING_OMITTED), plane: planeId });
+            if (isModdleElement(drawnElement) && isModdleElement(drawing.bounds)) {
+                const places = placesByElement.get(drawnElement) ?? [];
+                places.push(canonical(drawing.bounds, NESTED_OMITTED));
+                placesByElement.set(drawnElement, places);
+            }
             if (isModdleElement(drawnElement) && !planeByElement.has(drawnElement))
                 planeByElement.set(drawnElement, planeId);
         }
@@ -50,8 +59,17 @@ export function diagramLayouts(definitions: ModdleElement): Map<ModdleElement, D
     return new Map(
         [...drawingsByElement].map(([element, drawings]) => {
             const plane = planeByElement.get(element);
-            const text = JSON.stringify(drawings.map(sortedKeys));
-            return [element, plane === undefined ? { text } : { text, plane }];
+            const places = placesByElement.get(element);
+            return [
+                element,
+                {
+                    text: JSON.stringify(drawings.map(sortedKeys)),
+                    ...(plane === undefined ? {} : { plane }),
+                    ...(places === undefined
+                        ? {}
+                        : { place: JSON.stringify(places.map(sortedKeys)) }),
+                },
+            ];
         }),
     );
 }

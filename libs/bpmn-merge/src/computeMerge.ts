@@ -1,10 +1,17 @@
 import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
-import { type ClassifiedVersion, elementStateOf, layoutStateOf } from "./mergeClassification";
+import {
+    type ClassifiedVersion,
+    type ClassifiedVersions,
+    elementStateOf,
+    layoutStateOf,
+    moveStateOf,
+} from "./mergeClassification";
 import { isMergeElement } from "./mergeElements";
 import { parseFailure } from "./mergeRefusal";
 import {
     type ElementVersion,
+    type LayoutState,
     type MergeElement,
     type MergeResult,
     lanesKeyOf,
@@ -95,6 +102,7 @@ function mergeElementOf(
         type,
         state: elementStateOf(classified, hasBase),
         layout: layoutStateOf(classified),
+        ...movedOf(classified),
         versions,
     };
 }
@@ -106,5 +114,14 @@ function classifiedVersionOf(snapshot: ElementSnapshot | undefined): ClassifiedV
         snapshot.parent ?? null,
         lanesKeyOf(snapshot.lanes),
     ]);
-    return snapshot.layout === undefined ? { key } : { key, layout: snapshot.layout };
+    return {
+        key,
+        ...(snapshot.layout === undefined ? {} : { layout: snapshot.layout }),
+        ...(snapshot.place === undefined ? {} : { place: snapshot.place }),
+    };
+}
+
+function movedOf(classified: ClassifiedVersions): { moved?: LayoutState } {
+    const moved = moveStateOf(classified);
+    return moved === undefined ? {} : { moved };
 }

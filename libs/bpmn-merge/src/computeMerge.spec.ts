@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { baseModel, cloneModel, nodeById, removeNode } from "./__fixtures__/baseModel";
 import { renderBpmn } from "./__fixtures__/bpmnModelBuilder";
+import { dockedVersions, dragNodes, recoloured } from "./__fixtures__/dockedModel";
 import { MERGE_SCENARIOS, scenarioNamed } from "./__fixtures__/mergeScenarios";
 import { computeMerge } from "./computeMerge";
 import {
@@ -137,6 +138,26 @@ describe("computeMerge classifies", () => {
             expect(states).toEqual(new Set(["unchanged", ...changes]));
         },
     );
+
+    it("a move of an element's shapes apart from a change of their colour, and no move for a flow", async () => {
+        const versions = dockedVersions(
+            "c8",
+            (model) => dragNodes(model, ["Task_C"], 0, 30),
+            () => undefined,
+        );
+
+        const result = await computeMerge({ ...versions, incoming: recoloured(versions.incoming) });
+
+        expect(elementNamed(result, "Task_C")).toMatchObject({
+            layout: "bothChanged",
+            moved: "takenFromCurrent",
+        });
+        expect(elementNamed(result, "Task_A")).toMatchObject({
+            layout: "takenFromIncoming",
+            moved: "unchanged",
+        });
+        expect(elementNamed(result, "Flow_Yes").moved).toBeUndefined();
+    });
 
     it("a change of an unknown namespaced attribute", async () => {
         const result = await computeMerge(scenarioNamed("unknown namespaced attribute changed"));

@@ -34,6 +34,7 @@ export interface LayoutRepairPlanners {
         spots: readonly LayoutSpot[],
         sides: readonly LayoutModel[],
         repairFlows: FlowRepairPlanner,
+        framing?: LayoutModel,
     ) => ShapeMovePlan;
     readonly repairFlows: FlowRepairPlanner;
 }
@@ -66,6 +67,7 @@ export function planLayoutRepair(
     sideLayouts: readonly LayoutModel[],
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
+    framing?: LayoutModel,
 ): LayoutRepairPlan {
     const spotsAfter = (step: LayoutModel, before: LayoutModel, spotsBefore: LayoutSpot[]) =>
         step === before ? spotsBefore : introducedLayoutSpots(step, sideLayouts);
@@ -82,6 +84,7 @@ export function planLayoutRepair(
         spotsInContainers,
         sideLayouts,
         planners.repairFlows,
+        framing,
     );
     const moved = shapeMoves.layout;
     const spotsAfterMoves = spotsAfter(moved, inContainers, spotsInContainers);
@@ -109,10 +112,17 @@ export function repairIntroducedSpots(
     planners: LayoutRepairPlanners,
     appendedLanes: readonly string[],
     createPoint: (point: Point) => ModdleElement,
+    framing?: LayoutModel,
 ): BuildNoteContent[] {
     const document = IndexedDocument.of(definitions);
     const layout = layoutModelOfDocument(document, slots);
-    const { repaired, notes } = planLayoutRepair(layout, sideLayouts, planners, appendedLanes);
+    const { repaired, notes } = planLayoutRepair(
+        layout,
+        sideLayouts,
+        planners,
+        appendedLanes,
+        framing,
+    );
     writeLayoutChanges(document.index, layout, repaired, createPoint);
     return notes;
 }

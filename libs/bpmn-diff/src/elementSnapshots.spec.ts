@@ -691,6 +691,45 @@ describe("elementSnapshots", () => {
             return ["Start_1", "Task_1", "Flow_1"].map((id) => snapshotOf(snapshots, id).layout);
         };
 
+        describe("place", () => {
+            const placeOf = async (xml: string, id = "Task_1") =>
+                snapshotOf(await elementSnapshots(xml), id).place;
+
+            it.each([
+                ["a colour", shape(BOUNDS, 'bioc:stroke="#f00" color:background-color="#fff"')],
+                [
+                    "a label",
+                    shape(
+                        `${BOUNDS}<bpmndi:BPMNLabel><dc:Bounds x="90" y="170" width="120" height="14" /></bpmndi:BPMNLabel>`,
+                    ),
+                ],
+                ["an unknown attribute", shape(BOUNDS, 'custom:hint="left"')],
+                [
+                    "number spelling",
+                    shape('<dc:Bounds x="100.0" y="80" width="100" height="80" />'),
+                ],
+            ])("stays the same with %s", async (_label, changed) => {
+                const original = await placeOf(drawn(shape(BOUNDS)));
+
+                expect(original).toBeDefined();
+                await expect(placeOf(drawn(changed))).resolves.toBe(original);
+            });
+
+            it.each([
+                ["a moved shape", shape('<dc:Bounds x="101" y="80" width="100" height="80" />')],
+                ["a resized shape", shape('<dc:Bounds x="100" y="80" width="120" height="80" />')],
+            ])("changes with %s", async (_label, changed) => {
+                const original = await placeOf(drawn(shape(BOUNDS)));
+
+                await expect(placeOf(drawn(changed))).resolves.not.toBe(original);
+            });
+
+            it("is undefined for an element only an edge draws", async () => {
+                await expect(placeOf(withDiReferences(), "Flow_1")).resolves.toBeUndefined();
+                await expect(placeOf(withDiReferences(), "Task_1")).resolves.toBeDefined();
+            });
+        });
+
         it("writes an edge's ends by the elements their shapes draw, not by the shapes' ids", async () => {
             const original = await layouts(withDiReferences());
 
