@@ -18,7 +18,8 @@ code depends on it.
 Exempt: bpmn-js/diagram-js wiring, DOM chrome and host-API glue (VS Code API,
 JCEF, Kotlin UI). Cover those afterwards with the browser specs
 (`*.browser.spec.ts`), the bridge black-box harness or the VS Code smoke test.
-Pull any decision out of such code first; the decision itself is not exempt.
+Pull any decision out of such code first (step 2 says how to spot one); the
+decision itself is not exempt.
 
 ## 1. Red
 
@@ -52,14 +53,16 @@ Pull any decision out of such code first; the decision itself is not exempt.
 - Return decisions as values, as discriminated unions such as
   `{ kind: "alreadyDeclared" } | { kind: "declared"; manifestText: string }`,
   and let the service act on them. The domain decides; it does not call out.
-- Services in `service/` only orchestrate ports around those decisions.
 - No code outside a value's home decides on its raw data
   (`target.engine === "c7"`, `mode === "design"`); it asks the home, a
   capability or method named after the rule (for example `verifiesDeployments`,
   `surfaceModeSupports(mode, "elementTemplates")`), or looks the value up in a
-  `Record`. Acting on a decision a domain function returned is fine.
+  `Record`. Acting on an answer the home returned is fine.
   `miragon/no-guarded-value-comparison` enforces it for the types registered in
-  `eslint.config.cjs`.
+  `eslint.config.cjs`; nothing checks the rest. Before you write a condition
+  outside a value's home, the exempt code above included, name the fact it
+  decides and give the answer its home first, with a failing spec (step 1), as
+  the [architecture](../architecture/SKILL.md#place-the-change) skill says.
 - Rules that browser code and the core both apply live in `libs/modeler-types`
   (pure, protocol-free). Webview-only rules go into a pure reducer module next
   to the bootstrap, not into DOM handlers.
