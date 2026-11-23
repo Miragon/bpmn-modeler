@@ -1,7 +1,11 @@
 /* diagram-js opens the pad right of its target's top right corner; a
-   connection's moves left and up by its own size, onto the connection's
-   right end, by the 8px margin diagram-js leaves at zoom 1. */
+   connection's moves by the offset ConnectionPadPlacement sets, onto the
+   connection's middle, then up and left by its own size to stand centred
+   above it. */
 .djs-context-pad.djs-context-pad--above-connection {
     width: max-content;
-    transform: translate(calc(-100% - 8px), calc(-100% - 4px));
+    transform: translate(
+        calc(var(--connection-pad-dx, 0px) - 50%),
+        calc(var(--connection-pad-dy, 0px) - 100% - 4px)
+    );
 }

@@ -115,8 +115,8 @@ async function textDiffLines(page: Page): Promise<string> {
 
 /**
  * Whether the pane's open context pad sits where it belongs: right of a
- * selected shape, level with its top, or above a selected connection, flush
- * with its right end, and never over another shape. No pad and no selection
+ * selected shape, level with its top, or centred just above a selected
+ * connection's middle, and never over another shape. No pad and no selection
  * count as placed.
  */
 function padPlacement(webview: FrameLocator): Promise<string> {
@@ -147,12 +147,26 @@ function padPlacement(webview: FrameLocator): Promise<string> {
                     shape.top < pad.bottom,
             );
         if (covered) return "over another shape";
-        const placed = selected.classList.contains("djs-connection")
-            ? pad.bottom <= box.top + 1 && Math.abs(pad.right - box.right) <= 4
-            : pad.left >= box.right &&
-              pad.left - box.right <= 24 &&
-              Math.abs(pad.top - box.top) <= 4;
-        return placed ? "placed" : "beside or below where it belongs";
+        const round = (value: number) => Math.round(value);
+        if (selected.classList.contains("djs-connection")) {
+            // The first path in the visual is the arrowhead in the connection's own defs.
+            const line = selected.querySelector<SVGPathElement>(".djs-visual > path")!;
+            const half = line.getPointAtLength(line.getTotalLength() / 2);
+            const viewport = document.querySelector<SVGGElement>("svg > .viewport")!;
+            const { a: scale, e, f } = viewport.transform.baseVal.consolidate()!.matrix;
+            const svg = viewport.ownerSVGElement!.getBoundingClientRect();
+            const middle = { x: svg.left + e + half.x * scale, y: svg.top + f + half.y * scale };
+            const offCentre = (pad.left + pad.right) / 2 - middle.x;
+            const gap = middle.y - pad.bottom;
+            return Math.abs(offCentre) <= 4 && gap >= 0 && gap <= 16
+                ? "placed"
+                : `connection pad ${round(offCentre)} off centre, ${round(gap)} above the line`;
+        }
+        const dx = pad.left - box.right;
+        const dy = pad.top - box.top;
+        return dx >= 0 && dx <= 24 && Math.abs(dy) <= 4
+            ? "placed"
+            : `shape pad ${round(dx)} right of it, ${round(dy)} below its top`;
     });
 }
 
@@ -201,7 +215,7 @@ describe("the BPMN visual diff in a real VS Code", () => {
         await suite.screenshot("bpmn-diff");
     });
 
-    it("opens the context pad of each change it steps to right of a shape or above a connection, clear of every shape", async () => {
+    it("opens the context pad of each change it steps to right of a shape or above a connection's middle, clear of every shape", async () => {
         const { before, after } = await compareFromExplorer(BEFORE_FILE, AFTER_FILE);
         await expectMarked(after, "Activity_review", "diff-added");
 

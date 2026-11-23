@@ -1,11 +1,25 @@
 import ContextPadModule from "diagram-js/lib/features/context-pad";
+import { type PolylinePoint, polylineMidpoint } from "@miragon/bpmn-modeler-types";
 
 import "./connectionPadPlacement.css";
 
 type PadTarget<Element> = Element | readonly Element[];
 
+interface Connection {
+    readonly waypoints: readonly PolylinePoint[];
+}
+
+interface OpenPad {
+    readonly target: PadTarget<object>;
+    readonly html: HTMLElement;
+}
+
 interface ContextPad {
     open(target: PadTarget<object>, force: boolean): void;
+}
+
+interface Canvas {
+    zoom(): number;
 }
 
 interface EventBus {
@@ -14,38 +28,44 @@ interface EventBus {
         priority: number,
         listener: (event: { newSelection: readonly object[] }) => void,
     ): void;
-    on(
-        event: "contextPad.open",
-        listener: (event: { current: { target: PadTarget<object>; html: HTMLElement } }) => void,
-    ): void;
+    on(event: "contextPad.open", listener: (event: { current: OpenPad }) => void): void;
+    on(event: "contextPad.close" | "canvas.viewbox.changed", listener: () => void): void;
 }
 
 // After diagram-js's own handler, which opens a pad on the single selected element.
 const AFTER_CONTEXT_PAD = 500;
 
+// diagram-js puts the pad this far right of its target, in diagram units.
+const PAD_MARGIN = 8;
+
 /**
- * Opens a selected connection's pad above the connection's right end, where
- * it covers neither shape the connection joins; diagram-js's own sits on the
+ * Opens a selected connection's pad centred above the connection's middle,
+ * where it plainly belongs to the connection; diagram-js's own sits on the
  * arrowhead, over the shape the connection points to. The pad opens for the
  * connection alone, which diagram-js places at the top right of its bounds,
- * and {@link ConnectionPadPlacement.ABOVE_CONNECTION} lifts it from there. A
- * provider offers the same entries on such a pad, through
- * {@link ConnectionPadPlacement.elementOf}.
+ * and the offset this sets on {@link ConnectionPadPlacement.ABOVE_CONNECTION}
+ * moves it from there, again on every zoom. A provider offers the same entries
+ * on such a pad, through {@link ConnectionPadPlacement.elementOf}.
  */
 export class ConnectionPadPlacement {
-    static $inject = ["contextPad", "eventBus"];
+    static $inject = ["contextPad", "eventBus", "canvas"];
 
-    /** The class of a connection's pad, which `connectionPadPlacement.css` lifts. */
+    /** The class of a connection's pad, which `connectionPadPlacement.css` moves by its offset. */
     static readonly ABOVE_CONNECTION = "djs-context-pad--above-connection";
+
+    private connectionPad?: { readonly connection: Connection; readonly html: HTMLElement };
 
     constructor(
         private readonly contextPad: ContextPad,
         eventBus: EventBus,
+        private readonly canvas: Canvas,
     ) {
         eventBus.on("selection.changed", AFTER_CONTEXT_PAD, ({ newSelection }) =>
             this.placeSelected(newSelection),
         );
-        eventBus.on("contextPad.open", ({ current }) => this.markConnectionPad(current));
+        eventBus.on("contextPad.open", ({ current }) => this.followPad(current));
+        eventBus.on("contextPad.close", () => (this.connectionPad = undefined));
+        eventBus.on("canvas.viewbox.changed", () => this.moveConnectionPad());
     }
 
     /** The element a pad for one element was opened for, given as itself or alone in a list. */
@@ -66,22 +86,33 @@ export class ConnectionPadPlacement {
         }
     }
 
-    private markConnectionPad({
-        target,
-        html,
-    }: {
-        target: PadTarget<object>;
-        html: HTMLElement;
-    }): void {
+    private followPad({ target, html }: OpenPad): void {
         const element = ConnectionPadPlacement.elementOf(target);
-        const aboveConnection =
-            Array.isArray(target) &&
-            element !== undefined &&
-            ConnectionPadPlacement.isConnection(element);
-        html.classList.toggle(ConnectionPadPlacement.ABOVE_CONNECTION, aboveConnection);
+        const connection =
+            Array.isArray(target) && element && ConnectionPadPlacement.isConnection(element)
+                ? element
+                : undefined;
+        html.classList.toggle(ConnectionPadPlacement.ABOVE_CONNECTION, connection !== undefined);
+        this.connectionPad = connection && { connection, html };
+        this.moveConnectionPad();
     }
 
-    private static isConnection(element: object): boolean {
+    /** Sets the offset from where diagram-js puts the pad to the connection's middle, at the zoom shown. */
+    private moveConnectionPad(): void {
+        if (!this.connectionPad) return;
+        const { connection, html } = this.connectionPad;
+        const middle = polylineMidpoint(connection.waypoints);
+        const right = Math.max(...connection.waypoints.map(({ x }) => x));
+        const top = Math.min(...connection.waypoints.map(({ y }) => y));
+        const zoom = this.canvas.zoom();
+        html.style.setProperty(
+            "--connection-pad-dx",
+            `${(middle.x - right - PAD_MARGIN) * zoom}px`,
+        );
+        html.style.setProperty("--connection-pad-dy", `${(middle.y - top) * zoom}px`);
+    }
+
+    private static isConnection(element: object): element is Connection {
         return "waypoints" in element;
     }
 }

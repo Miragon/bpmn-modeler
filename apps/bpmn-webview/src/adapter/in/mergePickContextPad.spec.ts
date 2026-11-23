@@ -67,7 +67,7 @@ function build(
         eventBus,
         untranslated,
         entryConfig,
-        new ConnectionPadPlacement({ open: vi.fn() }, { on: vi.fn() }),
+        new ConnectionPadPlacement({ open: vi.fn() }, { on: vi.fn() }, { zoom: () => 1 }),
     );
     const fire = (event: string) => listeners.get(event)?.();
     return { provider, contextPad, entryConfig, fire };

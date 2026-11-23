@@ -183,15 +183,16 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   not move. Show all keeps the selection, as the merge view's does, except where leaving
   a sub-process plane drops it. The cost: two webview callers that each read the stepped
   change their own way, and a core that cannot tell a step's selection from a click's.
-- *A connection's pad opens above its right end*: diagram-js puts it on the arrowhead,
-  over the shape the connection points to. `ConnectionPadPlacement` reopens a selected
-  connection's pad for the connection alone, which diagram-js places at the top right of
-  its bounds, and a class lifts it from there by its own size, so it covers neither shape
-  the connection joins and the merge card below a flow never meets it. It uses only the
-  public `selection.changed`, `contextPad.open` and `contextPad.open(target)`. The cost:
-  every pad provider of a diff or merge pane also answers
-  `getMultiElementContextPadEntries` for that one-element pad, and the lift assumes
-  diagram-js's 8px margin, so it is off by a few pixels away from zoom 1.
+- *A connection's pad stands centred above its middle*, where it plainly belongs to the
+  connection: diagram-js puts it on the arrowhead, over the shape the connection points
+  to. `ConnectionPadPlacement` reopens a selected connection's pad for the connection
+  alone, which diagram-js places at the top right of its bounds, and moves it from there
+  by an offset to the polyline's midpoint that it recomputes on every zoom, so the merge
+  card below a flow never meets it. It uses only the public `selection.changed`,
+  `contextPad.open`, `contextPad.close`, `canvas.viewbox.changed` and
+  `contextPad.open(target)`. The cost: every pad provider of a diff or merge pane also
+  answers `getMultiElementContextPadEntries` for that one-element pad, and the offset
+  assumes diagram-js's 8-unit margin and bounds-based place.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
   KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in one pane:
   the one the user selected in, or for a step the stepping pane, or the partner when
