@@ -21,7 +21,7 @@ import {
     type SelectionService,
 } from "./__fixtures__/diffPane";
 import { FAR_FROM_ORIGIN_XML } from "../../__fixtures__/bpmnXml";
-import { removeMounts, settleObserver } from "../../__fixtures__/surfaceMount";
+import { removeMounts, settleObserver, wait } from "../../__fixtures__/surfaceMount";
 
 /**
  * The diff pane's latch only matters against a real canvas: a `setViewport`
@@ -463,6 +463,26 @@ describe("DiffViewer resize", () => {
         await settleObserver();
         showTopTaskLow(viewer, registry);
         viewer.mirrorSelection("Top_Task");
+        const before = viewer.getViewport();
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        container.style.height = "200px";
+        await settleObserver();
+        await waitForViewportNotification();
+
+        expect(viewer.getViewport().x).toBeCloseTo(before.x, 0);
+        expect(viewer.getViewport().y).toBeCloseTo(before.y, 0);
+        expect(onViewportChanged).not.toHaveBeenCalled();
+    });
+
+    it("leaves an element mirrored a while ago where it is when the pane shrinks, and tells no partner", async () => {
+        const { container, viewer, registry } = await openSelectablePane();
+        await settleObserver();
+        showTopTaskLow(viewer, registry);
+        viewer.mirrorSelection("Top_Task");
+        // Past diagram-js's 300 ms debounce, after which its own KeepSelectionVisible would scroll.
+        await wait(350);
         const before = viewer.getViewport();
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);

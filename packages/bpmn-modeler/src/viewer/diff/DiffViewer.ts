@@ -45,12 +45,6 @@ export interface DiffViewerOptions {
     additionalModules?: unknown[];
 }
 
-/**
- * Replaces diagram-js's KeepSelectionVisible: its scroll on resize would post a
- * viewport that competes with the partner pane's.
- */
-const NO_KEEP_SELECTION_VISIBLE_MODULE = { keepSelectionVisible: ["value", {}] };
-
 const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SELECTED_MARKER];
 
 /**
@@ -99,7 +93,7 @@ export class DiffViewer {
             this.viewer = new NavigatedViewer({
                 container,
                 additionalModules: [
-                    NO_KEEP_SELECTION_VISIBLE_MODULE,
+                    DiffPaneSelection.viewerModule,
                     ...(options.additionalModules ?? []),
                 ] as ModuleDeclaration[],
             });

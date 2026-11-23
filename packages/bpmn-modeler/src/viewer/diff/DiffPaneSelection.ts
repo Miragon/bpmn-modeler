@@ -14,6 +14,9 @@ import { armKeepSelectionVisible, type UserChangeGuard } from "./selectionPolicy
  * the listeners and for keeping a selection in view on resize alike.
  */
 export class DiffPaneSelection {
+    /** Turns off diagram-js's KeepSelectionVisible, which the constructor replaces. */
+    static readonly viewerModule = { keepSelectionVisible: ["value", {}] };
+
     private readonly changes: UserChangeGuard;
 
     private readonly store = new DisposableStore();
