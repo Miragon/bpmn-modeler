@@ -4,7 +4,7 @@ import {
     isModdleElement,
     isType,
     moddleElements,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import { contentsPlaneOf } from "./containerContents";
 import type { ItemKey } from "../../kernel/domain/memberOrder";

@@ -4,7 +4,7 @@ import {
     idsOf,
     isType,
     walkContainment,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 /**
  * Sets what the modeler derives from the rest: each flow node's `incoming`

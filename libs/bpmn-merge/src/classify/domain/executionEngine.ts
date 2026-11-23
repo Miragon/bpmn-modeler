@@ -1,4 +1,4 @@
-import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff";
+import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff/domain";
 import {
     ENGINE_NAMESPACE,
     detectEngineWithNamespaceFallback,

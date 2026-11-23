@@ -84,6 +84,8 @@ each reads the other's model.
 - **Domain entry:** the root barrel re-exports `service/` modules and is not pure, so
   `src/domain.ts` (`@miragon/bpmn-modeler-merge/domain`, a `tsconfig.base.json` alias) re-exports
   the `domain/` modules the core's `domain/` imports, and no more, as knip reports unused exports.
+  The library's own `domain/` imports `@miragon/bpmn-modeler-diff/domain` for the same reason
+  ([library folders](diff.md#library-folders)).
 - **Cost:** synchronous rules beside the parse they need, or inline in the function that awaits
   it, stay in `service/` files (`mergeVersions.ts`, `buildChecks.ts`, `handMergeText.ts`,
   `handMergeTexts.ts`, `buildMergedSources.ts`, `buildMerged.ts` and `acceptHandMerge.ts`), and

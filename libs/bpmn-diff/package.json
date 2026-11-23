@@ -1,11 +1,11 @@
 {
     "name": "@miragon/bpmn-modeler-diff",
-    "architecture": "flat",
+    "architecture": "hexagonal",
     "types": "./src/index.ts",
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "build": "tsc --noEmit",
+        "build": "tsc --noEmit -p tsconfig.lib.json && tsc --noEmit -p tsconfig.spec.json",
         "test": "vitest run --coverage"
     },
     "dependencies": {
@@ -16,6 +16,8 @@
         "zeebe-bpmn-moddle": "2.0.0"
     },
     "devDependencies": {
+        "@miragon/architecture-testing": "workspace:*",
+        "@types/node": "26.6.6",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.1.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",

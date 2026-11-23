@@ -1,4 +1,4 @@
-import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { RestoredFlowDefault } from "../../decide/domain/removedWith";
 

@@ -1,4 +1,4 @@
-import type { DiffResult } from "../diffResult";
+import type { DiffResult } from "../present/domain/diffResult";
 
 export interface ExecutionPropertyFixture {
     name: string;

@@ -155,7 +155,7 @@ const STAGE_TREE = [
         path: "sources/service/prepare.ts",
         text: importsOf("../../classify/service/classify", "../../decide/domain/picks"),
     },
-    { path: "sources/domain/sources.ts", text: importsOf("@miragon/bpmn-modeler-diff") },
+    { path: "sources/domain/sources.ts", text: importsOf("@miragon/bpmn-modeler-diff/domain") },
     {
         path: "build/service/buildMerged.ts",
         text: importsOf("../../sources/service/prepare", "../domain/layout/repair"),
@@ -169,7 +169,7 @@ const STAGE_TREE = [
 
 function violationsWith(path: string, text: string): string[] {
     const graph = buildImportGraph([...STAGE_TREE, { path, text }]);
-    return libraryRules((specifier) => specifier === "@miragon/bpmn-modeler-diff").flatMap(
+    return libraryRules((specifier) => specifier === "@miragon/bpmn-modeler-diff/domain").flatMap(
         ({ violations }) => violations(graph).map(describeViolation),
     );
 }

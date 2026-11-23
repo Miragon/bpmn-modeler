@@ -1,9 +1,7 @@
 {
+    // Bun reads the path aliases from the nearest tsconfig.json, not from the referenced ones.
     "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-        "noEmit": true,
-        "skipLibCheck": true,
-        "lib": ["ESNext"]
-    },
-    "include": ["src/**/*.ts"]
+    "files": [],
+    "include": [],
+    "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.spec.json" }]
 }

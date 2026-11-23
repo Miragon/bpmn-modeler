@@ -48,8 +48,15 @@ reference; by default only skipped content rejects, as in `elementXml`.
 
 ## Rules
 
-- Keep it free of the DOM: the tsconfig compiles with `lib: ["ESNext"]`, the tests run in the `node`
-  environment, and `packages/bpmn-modeler/scripts/check-diff-node.mjs` imports the built subpath in Node.
+- Put a file in its folder (`moddle`, `present`, `parse`, `compare`, `snapshot`), the rule in
+  `domain/` and what loads a parser or awaits a parse in `service/`. `moddle` and `present` import
+  no other folder, `parse` imports `moddle`, `compare` imports `moddle`, `parse` and `present`,
+  `snapshot` imports `moddle`, `parse` and `compare`; `architecture.spec.ts` checks it. A `domain/`
+  file elsewhere, and a library whose entry must stay pure, imports
+  `@miragon/bpmn-modeler-diff/domain`, which re-exports only `domain/` modules.
+- Keep it free of the DOM: `tsconfig.lib.json` compiles with `lib: ["ESNext"]`, the tests run in the
+  `node` environment, and `packages/bpmn-modeler/scripts/check-diff-node.mjs` imports the built
+  subpath in Node.
 - The parser (`loadBpmnModdle`), the `saxen` tokenizer that reads namespace declarations and both engine descriptors
   load through dynamic `import()`, so a consumer that never diffs never loads them.
 - `DiffSide` and `DiffCounts` are defined here and re-exported type-only from

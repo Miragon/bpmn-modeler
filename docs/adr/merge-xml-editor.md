@@ -76,7 +76,7 @@ changed different parts to a whole pick.
   value `MergeTabAnswer`. The text then passes #2457's checks.
 - *Placement.* The command takes no view column and opens in the active group, so the
   group below the diagrams is created and focused first, as for the
-  [XML diff](diff.md#element-xml-diff) (`editorGroupBelow.ts`); a later merge opens beside
+  [XML diff](element-xml-diff.md) (`editorGroupBelow.ts`); a later merge opens beside
   the merges already open. Bringing one to the front focuses its group by grid index
   (`workbench.action.focus…EditorGroup`, eight at most) and runs the command again, which
   shows the open editor instead of a second one.
@@ -101,7 +101,7 @@ changed different parts to a whole pick.
   `apps/standalone/package.json`) and `env.uriScheme` `theia`, Theia's default, which the
   standalone app keeps. The panes are told through `MergeHostOffers.elementXmlMerge` once
   that answer is known. `MergeHostOffers` is one value on `ApplyMergeStatesQuery` that
-  also carries the [element XML diff](diff.md#element-xml-diff)'s offer, so a new offer
+  also carries the [element XML diff](element-xml-diff.md)'s offer, so a new offer
   adds a field rather than another positional flag; `MergeDecisionService` asks its source
   on every post, and VS Code reads the XML diff's support once, for the handler and the
   source alike. The router routes `OpenElementXmlMergeCommand` wherever an editor is

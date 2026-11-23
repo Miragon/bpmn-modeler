@@ -1,4 +1,8 @@
-import type { ElementSnapshot, ExecutionPackage, PrefixedModdle } from "@miragon/bpmn-modeler-diff";
+import type {
+    ElementSnapshot,
+    ExecutionPackage,
+    PrefixedModdle,
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import type { MergeVersions } from "../../classify/domain/versionNames";
 import type { HandMergeTexts } from "../../decide/domain/handMergeEligibility";

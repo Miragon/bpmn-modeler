@@ -1,4 +1,4 @@
-import { type ModdleElement, isType } from "@miragon/bpmn-modeler-diff";
+import { type ModdleElement, isType } from "@miragon/bpmn-modeler-diff/domain";
 
 /** The sub-process whose plane, or whose shape's plane, draws the element; none for an element of a process. */
 export function enclosingSubProcessOf(element: ModdleElement | undefined): string | undefined {

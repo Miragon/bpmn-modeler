@@ -1,4 +1,9 @@
-import { type ModdleElement, idOf, isType, moddleElements } from "@miragon/bpmn-modeler-diff";
+import {
+    type ModdleElement,
+    idOf,
+    isType,
+    moddleElements,
+} from "@miragon/bpmn-modeler-diff/domain";
 
 export interface ConnectionEnds {
     readonly source?: string;

@@ -1,4 +1,9 @@
-import { type ModdleElement, idOf, isType, moddleElements } from "@miragon/bpmn-modeler-diff";
+import {
+    type ModdleElement,
+    idOf,
+    isType,
+    moddleElements,
+} from "@miragon/bpmn-modeler-diff/domain";
 
 /** A collaboration and a process one of its participants names: one root plane draws them. */
 export type CollaborationProcess = readonly [collaboration: string, process: string];

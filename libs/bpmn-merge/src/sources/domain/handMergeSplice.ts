@@ -8,7 +8,7 @@ import {
     isNamespaceDeclaration,
     rebindReferences,
     walkContainment,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import type { HandMergeScope } from "../../decide/domain/handMerge";
 
