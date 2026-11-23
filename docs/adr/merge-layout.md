@@ -170,19 +170,19 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   shifts by one amount that clears the chains, as the modeler's space tool opens a band, and
   the frames grow as for any room; a flow the band stretches through a chain is re-routed.
   Every pair of chains is settled before a chain makes the shape it leads into give way, as
-  that band would take the other chain along. Left to the shape repair below: two single
-  steps, which it stacks as branches; chains a flow enters each, or none; a chain on a shape
-  it does not lead into; a shape no sequence flow joins. Rejected: repairing a chain shape by
-  shape, which put the shapes of two chains between each other and pushed a gateway behind the
-  chain past its own branch targets, as a room moves only what is in the way; stacking the
-  chain no flow enters below the other as a branch, which needs room downward for several rows
-  and still leaves the join behind both; no band, as for single shapes below, where it moved
-  bystanders for one shape: a chain is several steps wide, and the side that added it opened
-  that band with the space tool itself. Cost: the band shifts every shape past its line in the
+  that band would take the other chain along, and the band shifts far enough that nothing it
+  shifts lies on a chain. Left to the shape repair below: two single steps, which it stacks as
+  branches; chains a flow enters each, or none; a chain on a shape it does not lead into; a
+  shape no sequence flow joins; chains whose flows do not run right. Rejected: repairing a
+  chain shape by shape, which put the shapes of two chains between each other and pushed a
+  gateway behind the chain past its own branch targets, as a room moves only what is in the
+  way; stacking the chain no flow enters below the other, which needs room downward for
+  several rows and leaves the join behind both; no band, as for single shapes below, where it
+  moved bystanders for one shape: a chain is several steps wide, and its side opened that band
+  with the space tool itself. Cost: the band shifts every shape past its line in the
   container, bystanders in other lanes included, and grows the frames by the full shift; in a
   result that keeps one side's flow, the other side's chain lies in line though no flow enters
-  it, and the flow past it takes a detour; the note names the chain's leading shape as moved,
-  not every shape of it; room is made only to the right.
+  it, and the flow past it takes a detour; the note names one shape of the chain as moved.
 - *The build moves the shape it placed off a shape from the other side, stacks a parallel
   branch, and makes room only as a last resort.* For each overlap the detector names as
   introduced, it moves a shape that not both sides draw where the result does (one side moved

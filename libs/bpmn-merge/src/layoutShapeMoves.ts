@@ -1,6 +1,6 @@
 import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 
-import { CHAIN_ROOMS, type ChainRoomAttempt } from "./layoutChainRoom";
+import { CHAIN_ROOMS } from "./layoutChainRoom";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRepairPlanner } from "./layoutFlowRepair";
 import { FlowTopology } from "./layoutFlowTopology";
@@ -60,11 +60,8 @@ export function planShapeMoves(
     );
     if (overlaps.length === 0) return { layout, repairs: [] };
     const repairer = new OverlapRepairer(layout, sides, repairFlows, framing);
-    const chainRepairs = repairer.repairChains(overlaps);
-    const repairs = overlaps.map((spot) => ({
-        spot,
-        repair: chainRepairs.get(spot) ?? repairer.repair(spot),
-    }));
+    repairer.giveChainsRoom(overlaps);
+    const repairs = overlaps.map((spot) => ({ spot, repair: repairer.repair(spot) }));
     return { layout: repairer.layout, repairs };
 }
 
@@ -122,33 +119,18 @@ class OverlapRepairer {
 
     /**
      * Gives the chains of shapes one side added room as one piece, each kind
-     * of room tried over every overlap before the next; the repair of each
-     * overlap that got one.
+     * of room tried over every overlap before the next. `repair` then names
+     * the room for each overlap it ended.
      */
-    repairChains(
-        overlaps: readonly SpotOf<"shapesOverlap">[],
-    ): ReadonlyMap<LayoutSpot, MoveRepair> {
-        const repairs = new Map<LayoutSpot, MoveRepair>();
+    giveChainsRoom(overlaps: readonly SpotOf<"shapesOverlap">[]): void {
         for (const roomFor of CHAIN_ROOMS) {
-            for (const spot of overlaps) {
-                const repair = this.repairChain(spot, roomFor);
-                if (repair !== undefined) repairs.set(spot, repair);
+            for (const { shapes } of overlaps) {
+                const [first, second] = shapes.map((id) => this.draft.node(id));
+                if (first === undefined || second === undefined) continue;
+                const pair = [first, second] as const;
+                if (!endedEarlier(pair)) this.roomOf(roomFor(this.draft, this.context, pair));
             }
         }
-        return repairs;
-    }
-
-    /** Gives the chain a shape of the overlap belongs to the room the attempt makes; undefined when it makes none or the two lie apart by now. */
-    private repairChain(
-        { shapes }: SpotOf<"shapesOverlap">,
-        roomFor: ChainRoomAttempt,
-    ): MoveRepair | undefined {
-        const [first, second] = shapes.map((id) => this.draft.node(id));
-        if (first === undefined || second === undefined) return undefined;
-        const pair = [first, second] as const;
-        return endedEarlier(pair)
-            ? undefined
-            : this.roomOf(roomFor(this.draft, this.context, pair));
     }
 
     /** The repair that moves the group with every shape it carries. */

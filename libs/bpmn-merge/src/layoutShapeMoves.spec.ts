@@ -439,7 +439,7 @@ describe("planShapeMoves", () => {
             ]);
         });
 
-        it("names the chain and everything it shifted for a chain that stays on the shape it leads into", () => {
+        it("names the chain's shape of the overlap and everything shifted for a chain that stays on the shape it leads into", () => {
             const flows = [
                 flow("Flow_AY", "Task_A", "Task_Y1"),
                 ...flowsOfIncoming,
@@ -451,9 +451,9 @@ describe("planShapeMoves", () => {
                 node("Task_C", box(bAt + 300, 130)),
                 ...chain,
             ];
-            const chainOnNext = layoutOf(shapesWith(300, chainOfIncoming), flows, frames);
+            const chainOnNext = layoutOf(shapesWith(420, chainOfIncoming), flows, frames);
             const drawings = [
-                layoutOf(shapesWith(300, []), [flow("Flow_BC", "Task_B", "Task_C")], frames),
+                layoutOf(shapesWith(420, []), [flow("Flow_BC", "Task_B", "Task_C")], frames),
                 layoutOf(shapesWith(560, chainOfIncoming), flows, frames),
             ];
 
@@ -467,8 +467,8 @@ describe("planShapeMoves", () => {
             expect(pairRepairsOf(plan)).toEqual([
                 {
                     kind: "madeRoomByShifting",
-                    shapes: ["Task_B", "Task_Y1"],
-                    moved: "Task_Y1",
+                    shapes: ["Task_B", "Task_Y2"],
+                    moved: "Task_Y2",
                     shifted: ["Task_B", "Task_C"],
                 },
             ]);

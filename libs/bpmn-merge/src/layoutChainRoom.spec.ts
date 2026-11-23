@@ -55,13 +55,13 @@ describe("room for chains of shapes one side added", () => {
             enters: "a flow enters current's chain only",
             result: resultWith(INTO_X, ...X_FLOWS, ...Y_FLOWS),
             x: [250, 400, 550, 700, 850],
-            placed: "Task_Y1",
+            placed: "Task_Y2",
         },
         {
             enters: "a flow enters incoming's chain only",
             result: resultWith(INTO_Y, ...X_FLOWS, ...Y_FLOWS),
             x: [560, 710, 260, 410, 860],
-            placed: "Task_X1",
+            placed: "Task_X2",
         },
         {
             enters: "a flow enters current's single step only",
@@ -120,6 +120,29 @@ describe("room for chains of shapes one side added", () => {
             expect(room?.shifted).toEqual(["Task_B"]);
         },
     );
+
+    it("names the room after the host of a boundary event that lies on the shape the chain leads into", () => {
+        const onFirst = node("Boundary_Y", { bounds: box(332, 162, 36, 36), host: "Task_Y1" });
+        const current = layoutOf([TASK_A, task("Task_B", 340, 150)]);
+        const incoming = layoutOf(
+            [TASK_A, ...Y, onFirst, task("Task_B", 560, 150)],
+            [INTO_Y, ...Y_FLOWS],
+        );
+        const result = layoutOf(
+            [TASK_A, ...Y, onFirst, task("Task_B", 340, 150)],
+            [INTO_Y, ...Y_FLOWS],
+        );
+
+        const room = roomFor(
+            chainBeforeWhatItLeadsInto,
+            result,
+            ["Boundary_Y", "Task_B"],
+            [current, incoming],
+        );
+
+        expect(room?.group.node.id).toBe("Task_Y1");
+        expect(room?.shifted).toEqual(["Task_B"]);
+    });
 
     it.each([
         {

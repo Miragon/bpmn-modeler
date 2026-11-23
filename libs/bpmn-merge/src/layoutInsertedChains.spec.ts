@@ -295,6 +295,16 @@ describe("InsertedChain.inFlowOrder", () => {
             order: ["Task_Y1", "Task_X1"],
         },
         {
+            flows: "a flow leads from the first into the second and one from outside enters each",
+            given: [INTO_X, INTO_Y, flow("Flow_XY", "Task_X2", "Task_Y1"), LEAVING[1]!],
+            order: ["Task_X1", "Task_Y1"],
+        },
+        {
+            flows: "a flow leads from the second into the first and none enters them",
+            given: [flow("Flow_YX", "Task_Y2", "Task_X1"), LEAVING[0]!],
+            order: ["Task_Y1", "Task_X1"],
+        },
+        {
             flows: "a flow from outside enters only the first",
             given: [INTO_X, ...LEAVING],
             order: ["Task_X1", "Task_Y1"],
