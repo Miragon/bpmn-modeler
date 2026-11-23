@@ -57,8 +57,8 @@ that needs types, not syntax, gets a type-checked `ts.Program`
 (`readTypeProgram`); it throws when a named file or base class is missing, so a
 moved declaration cannot make a rule match nothing and pass. The engine lives under
 `tools/` because it is dev-only. A workspace's own spec keeps only rules specific to
-it (the core's contexts and domain imports, the merge library's stages, the diff library's
-folders).
+it (the core's contexts and domain imports, the merge library's stages, the diff and types
+libraries' folders).
 
 - [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds the
   repo-wide rules for every root workspace with a `src/`: no import cycle inside a

@@ -1,4 +1,4 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import {
     type DiagramBounds,

@@ -1,5 +1,5 @@
 import type { MergeRefusal } from "@miragon/bpmn-modeler-merge/domain";
-import { ENGINE_LABEL, otherSide } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL, otherSide } from "@miragon/bpmn-modeler-types/domain";
 
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ConflictReading, ResolvableStages } from "./conflictReading";

@@ -1,4 +1,4 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { type LayoutEdge, type LayoutModel, sharesAnEndWith } from "./layoutModel";
 import { segmentsCross, sharedRunLength } from "./layoutSegments";
 

@@ -79,16 +79,16 @@ val settingsNormalizationCases =
 val vscodeManifest = layout.projectDirectory.file("../vscode-plugin/package.json")
 val statusViewTypes = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/statusView.ts")
 val elementTemplateFileCases =
-    layout.projectDirectory.file("../../libs/modeler-types/src/elementTemplateFile.cases.json")
+    layout.projectDirectory.file("../../libs/modeler-types/src/elements/domain/elementTemplateFile.cases.json")
 val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 val elementIdReviewViewCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json")
-val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surfaceMode.ts")
-val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/settings.ts")
+val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/surfaceMode.ts")
+val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/settings.ts")
 val modelerSettings = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/modelerSettings.ts")
 val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
-val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/emptyDmn.ts")
+val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/documents/domain/emptyDmn.ts")
 val scriptCompletionCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")
 val scriptCompletionDetail =

@@ -3,7 +3,7 @@ import type {
     MergePaneShapelessRow,
     MergePaneStates,
 } from "@miragon/bpmn-modeler-shared";
-import type { MergeMarker } from "@miragon/bpmn-modeler-types";
+import type { MergeMarker } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeShapelessValues } from "./mergeRowTexts";
 import type { MergeCardChoice } from "./mergeCardContent";

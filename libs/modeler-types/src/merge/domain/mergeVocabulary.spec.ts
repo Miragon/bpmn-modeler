@@ -11,7 +11,7 @@ import {
     type MergeSide,
     type MergeSideCaption,
 } from "./mergeVocabulary";
-import { DIFF_MARKERS, DIFF_SELECTED_MARKER } from "./diffVocabulary";
+import { DIFF_MARKERS, DIFF_SELECTED_MARKER } from "../../diff/domain/diffVocabulary";
 
 const EVERY_SIDE: Record<MergeSide, true> = { current: true, incoming: true };
 

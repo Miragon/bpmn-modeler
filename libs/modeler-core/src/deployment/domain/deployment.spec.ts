@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type Engine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
+import { type Engine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     DisallowedEnvReferenceError,

@@ -1,4 +1,4 @@
-import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types";
+import type { ElementTemplateRef } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { ListedTemplate } from "./templateListing";

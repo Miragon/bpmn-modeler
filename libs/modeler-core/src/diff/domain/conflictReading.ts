@@ -1,4 +1,4 @@
-import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
+import { MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import { ConflictStageFacts } from "./conflictFacts";
 

@@ -1,4 +1,4 @@
-import { ScriptIdentity } from "@miragon/bpmn-modeler-types";
+import { ScriptIdentity } from "@miragon/bpmn-modeler-types/domain";
 
 /** An inline script as the webview hands it over for a host tab. */
 export interface InlineScript extends ScriptIdentity {

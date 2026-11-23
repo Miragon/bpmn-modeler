@@ -2,7 +2,7 @@ import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff/domain";
 import {
     ENGINE_NAMESPACE,
     detectEngineWithNamespaceFallback,
-} from "@miragon/bpmn-modeler-types/engine";
+} from "@miragon/bpmn-modeler-types/domain";
 
 /** The engine whose descriptor parses the document, detected as the modeler detects it. */
 export function executionEngineOf(xml: string): ExecutionEngine | undefined {

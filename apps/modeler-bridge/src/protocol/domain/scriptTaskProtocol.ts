@@ -1,5 +1,5 @@
 import { GlobalFunctionDef, MethodDef } from "@miragon/bpmn-modeler-core";
-import { VariableDef } from "@miragon/bpmn-modeler-types";
+import { VariableDef } from "@miragon/bpmn-modeler-types/domain";
 
 import { EmptyParams, ProtocolEntry } from "./protocolEntry";
 

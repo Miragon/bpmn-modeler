@@ -314,33 +314,60 @@ module.exports = [
                     guardedTypes: [
                         {
                             name: "ReferenceKind",
-                            module: path.join(__dirname, "libs/modeler-types/src/referenceKind.ts"),
+                            module: path.join(
+                                __dirname,
+                                "libs/modeler-types/src/references/domain/referenceKind.ts",
+                            ),
                             homes: [
-                                path.join(__dirname, "libs/modeler-types/src/referenceKind.ts"),
+                                path.join(
+                                    __dirname,
+                                    "libs/modeler-types/src/references/domain/referenceKind.ts",
+                                ),
                             ],
                             message:
-                                "`ReferenceKind` compared outside its home. Add a capability to `libs/modeler-types/src/referenceKind.ts` and ask it, or look the kind up in a `Record<ReferenceKind, …>`.",
+                                "`ReferenceKind` compared outside its home. Add a capability to `libs/modeler-types/src/references/domain/referenceKind.ts` and ask it, or look the kind up in a `Record<ReferenceKind, …>`.",
                         },
                         {
                             name: "Engine",
-                            module: path.join(__dirname, "libs/modeler-types/src/engine.ts"),
-                            homes: [path.join(__dirname, "libs/modeler-types/src/engine.ts")],
+                            module: path.join(
+                                __dirname,
+                                "libs/modeler-types/src/engine/domain/engine.ts",
+                            ),
+                            homes: [
+                                path.join(
+                                    __dirname,
+                                    "libs/modeler-types/src/engine/domain/engine.ts",
+                                ),
+                            ],
                             message:
-                                "`Engine` compared outside its home. Add a capability to `libs/modeler-types/src/engine.ts` and ask it.",
+                                "`Engine` compared outside its home. Add a capability to `libs/modeler-types/src/engine/domain/engine.ts` and ask it.",
                         },
                         {
                             name: "SurfaceMode",
-                            module: path.join(__dirname, "libs/modeler-types/src/surfaceMode.ts"),
-                            homes: [path.join(__dirname, "libs/modeler-types/src/surfaceMode.ts")],
+                            module: path.join(
+                                __dirname,
+                                "libs/modeler-types/src/surface/domain/surfaceMode.ts",
+                            ),
+                            homes: [
+                                path.join(
+                                    __dirname,
+                                    "libs/modeler-types/src/surface/domain/surfaceMode.ts",
+                                ),
+                            ],
                             message:
-                                "`SurfaceMode` compared outside its home. Add a capability to `libs/modeler-types/src/surfaceMode.ts` and ask it, or look the mode up in a `Record<SurfaceMode, …>`.",
+                                "`SurfaceMode` compared outside its home. Add a capability to `libs/modeler-types/src/surface/domain/surfaceMode.ts` and ask it, or look the mode up in a `Record<SurfaceMode, …>`.",
                         },
                         {
                             name: "DiffOrigin",
-                            module: path.join(__dirname, "libs/modeler-types/src/diff.ts"),
-                            homes: [path.join(__dirname, "libs/modeler-types/src/diff.ts")],
+                            module: path.join(
+                                __dirname,
+                                "libs/modeler-types/src/diff/domain/diff.ts",
+                            ),
+                            homes: [
+                                path.join(__dirname, "libs/modeler-types/src/diff/domain/diff.ts"),
+                            ],
                             message:
-                                "`DiffOrigin` compared outside its home. Add a capability to `libs/modeler-types/src/diff.ts` and ask it, or look the origin up in a `Record<DiffOrigin, …>`.",
+                                "`DiffOrigin` compared outside its home. Add a capability to `libs/modeler-types/src/diff/domain/diff.ts` and ask it, or look the origin up in a `Record<DiffOrigin, …>`.",
                         },
                     ],
                 },

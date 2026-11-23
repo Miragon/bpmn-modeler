@@ -1,4 +1,4 @@
-import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types/domain";
 
 /** The flows and boundary events a pick of an element left out, which keeping them with it would bring back. */
 export interface PickRestoreOffer {

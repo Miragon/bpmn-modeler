@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { CredentialDestinations } from "./credentialDestinations";
 import { AdHocDestination, NamedDestination } from "./deploymentDestination";

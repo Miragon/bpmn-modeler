@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { templateDiagnostics, type Diagnostic } from "./diagnostics";
 import {

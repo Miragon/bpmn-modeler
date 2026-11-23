@@ -1,4 +1,4 @@
-import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL } from "@miragon/bpmn-modeler-types/domain";
 
 import { EngineVersionStatus } from "../../../kernel/domain/BpmnDocument";
 import { StatusView } from "../../../kernel/domain/statusView";

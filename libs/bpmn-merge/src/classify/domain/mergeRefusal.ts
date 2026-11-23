@@ -1,4 +1,4 @@
-import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types/engine";
+import { ENGINE_LABEL, type Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import type { VersionName } from "./versionNames";
 

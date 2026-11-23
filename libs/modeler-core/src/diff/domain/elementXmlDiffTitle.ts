@@ -1,4 +1,4 @@
-import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types/domain";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";

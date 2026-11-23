@@ -1,4 +1,4 @@
-import type { ConflictMarkerReading } from "@miragon/bpmn-modeler-types";
+import type { ConflictMarkerReading } from "@miragon/bpmn-modeler-types/domain";
 import { GitRefFacts } from "./conflictFacts";
 
 /** The Git operation that left a file conflicted. */

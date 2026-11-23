@@ -1,4 +1,4 @@
-import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/domain";
 
 import { CHAIN_ROOMS } from "./layoutChainRoom";
 import { DrawingDraft } from "./layoutDrawingDraft";

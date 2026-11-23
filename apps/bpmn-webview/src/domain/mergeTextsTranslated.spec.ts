@@ -29,7 +29,7 @@ import {
     type MergeSide,
     elementsNamedBy,
     otherSide,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";

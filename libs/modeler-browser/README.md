@@ -12,7 +12,7 @@ Internal workspace, not published on its own.
 - Widgets and helpers only. The types and rules they use (the legend's state, slots and texts, the
   viewbox and canvas-size checks, the theme modes) live in
   [`@miragon/bpmn-modeler-types`](../modeler-types/README.md), which compiles without the DOM so a
-  `domain/` may import it. A rule that does not touch the DOM goes there, not here.
+  `domain/` file may import its domain entry (`@miragon/bpmn-modeler-types/domain`). A rule that does not touch the DOM goes there, not here.
 - It is free of the private protocol, as `modeler-types` is: the ESLint rule `BND-PROTOCOL-PRIVATE`
   forbids `@miragon/bpmn-modeler-shared` here.
 - A declaration here that a public type references ships in the published `.d.ts`, so the

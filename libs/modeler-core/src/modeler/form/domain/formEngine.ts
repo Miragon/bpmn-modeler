@@ -3,7 +3,7 @@ import {
     ENGINE_LABEL,
     ENGINES,
     Engine,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { ChoicePrompt } from "../../../kernel/domain/prompts";
 import { StatusView } from "../../../kernel/domain/statusView";

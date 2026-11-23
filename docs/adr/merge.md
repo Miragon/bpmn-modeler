@@ -29,10 +29,10 @@ share one notion of an element's XML: besides `elementSnapshots`, `bpmn-diff` ex
 moddle walk, the unit rule `trackedElementOf`, its namespace reading and its parse, so the
 merge applies them instead of copying them. The cost is a wider workspace API: a change to
 one of them is a change to the merge. `@miragon/bpmn-modeler/diff` re-exports none of them.
-The library depends on `@miragon/bpmn-modeler-types/engine` for the modeler's engine rule and
-on `@miragon/bpmn-modeler-types/polyline` for the waypoint walk, so a fix to the segment
-arithmetic reaches the merge's layout too. It imports those subpaths, not the barrel, which
-would pull DOM-typed modules into a DOM-free library.
+The library depends on `@miragon/bpmn-modeler-types` for the modeler's engine rule and the
+waypoint walk, so a fix to the segment arithmetic reaches the merge's layout too. It imports the
+types library's domain entry (`@miragon/bpmn-modeler-types/domain`), not the root entry, which
+re-exports that library's timer helpers and would make the merge's own domain entry impure.
 
 The core imports it, so its consumers' TypeScript `lib` (`ES2021`, `tsconfig.base.json`)
 binds it too: it calls no ES2022 or later library API (`findLast`, `Object.hasOwn`, an
@@ -41,16 +41,14 @@ one fails its build. Rejected: raising `lib` in the core, the bridge and the plu
 consumers for five call sites.
 
 The core, the protocol and the merge view's webview share one vocabulary (the sides, the
-markers a pane paints, the caption roles) in `libs/modeler-types/src/mergeVocabulary.ts`; the
-library reaches it through the `@miragon/bpmn-modeler-types/mergeVocabulary` subpath,
-everything else through the barrel, whose exact specifier is the only one the core's `domain/`
-may import. Beside it sit Git's conflict-marker grammar (`/conflictMarkers`), so the core's file
-check and the hand-merge check read markers alike, as a second grammar had drifted, and the
-build's notes (`/mergeBuildNotes`, types only, with their readers in `/mergeBuildNoteReaders`),
-which the library builds, derives its repairs from, and the protocol carries as they are.
+markers a pane paints, the caption roles) in the `merge/` folder of `libs/modeler-types`. Beside
+it sit Git's conflict-marker grammar (`conflictMarkers.ts`), so the core's file check and the
+hand-merge check read markers alike, as a second grammar had drifted, and the build's notes
+(`mergeBuildNotes.ts`, types only, with their readers in `mergeBuildNoteReaders.ts`), which the
+library builds, derives its repairs from, and the protocol carries as they are. The library and
+every `domain/` file reach them through `@miragon/bpmn-modeler-types/domain`.
 Rejected: a protocol copy pinned to the library's type (two edits per note), and the protocol
-importing the unpublished library. Each subpath file imports
-nothing at runtime; `domFreeEntries.spec.ts` reads the subpaths from `tsconfig.base.json`.
+importing the unpublished library.
 
 `libs/modeler-types` is inlined into the npm package and ships on every release line, so no
 path keeps these files out of the npm changelog: a merge-view change ticks only the lines that

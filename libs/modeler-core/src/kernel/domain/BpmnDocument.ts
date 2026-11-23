@@ -23,7 +23,7 @@ import {
     readStartTag,
     XmlAttribute,
     XmlStartTag,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";

@@ -3,7 +3,7 @@ import {
     Engine,
     LintResults,
     staticUnresolvedModdleExtensions,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { LintFindingsSource } from "./bpmnlintIndicator";
 import { BlockedRulePackage } from "./rulePackageApproval";

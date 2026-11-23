@@ -3,7 +3,7 @@ import {
     type Engine,
     templateEngineOf,
     templatesOfFile,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 export interface TemplateChoice {
     /** Where the template sits in the file. */

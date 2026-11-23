@@ -1,4 +1,4 @@
-import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types/domain";
 
 import { inPaneOrder } from "./mergePaneSide";
 

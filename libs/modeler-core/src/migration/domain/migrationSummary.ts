@@ -1,4 +1,4 @@
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types/domain";
 
 import { PlannedWrite } from "./MigrationPlan";
 

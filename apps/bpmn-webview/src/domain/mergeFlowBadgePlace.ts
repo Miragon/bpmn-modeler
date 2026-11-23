@@ -1,4 +1,8 @@
-import { type PolylinePoint, longestSegment, segmentMiddle } from "@miragon/bpmn-modeler-types";
+import {
+    type PolylinePoint,
+    longestSegment,
+    segmentMiddle,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { flowOverlayAnchor } from "./flowOverlayAnchor";
 

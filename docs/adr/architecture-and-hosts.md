@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-23
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -59,8 +59,8 @@ such as the polyline midpoint that bpmn-layout's label follow and the BPMN webvi
 merge card both place by. A rule only the core applies stays in the core's `domain/`.
 The package is private and inlined, and its modules have no top-level side effects so
 a bundle that does not use one leaves it out. It compiles without the DOM, so the core's
-`domain/` imports it as a [pure module](role-folders.md#domain-imports); DOM code goes to
-`libs/modeler-browser`, which both packages inline, and only its types and rules stay here.
+`domain/` imports its [domain entry](role-folders.md#types-library-folders) as a pure module;
+DOM code goes to `libs/modeler-browser`, which both packages inline.
 `libs/shared` also holds the editor page chrome and the VS Code body-class theme adapter,
 deliberately mixing private browser chrome with the protocol to avoid a workspace for a few
 helpers. Every editor page mounts `mountPanelChrome`, so host shells ship only an empty

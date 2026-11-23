@@ -1,9 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type {
-    MergeContainerRepair,
-    MergeOverlapRepair,
-} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+import type { MergeContainerRepair, MergeOverlapRepair } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     type ElementSpec,

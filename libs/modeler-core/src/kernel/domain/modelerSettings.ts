@@ -5,7 +5,7 @@ import {
     DEFAULT_FORM_PREVIEW_AUTOMATIC,
     SURFACE_MODES,
     SurfaceMode,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 /** The services a marketplace repository can live on, public or self-hosted. */
 export const MARKETPLACE_PROVIDERS = ["github", "gitlab"] as const;

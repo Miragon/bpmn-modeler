@@ -1,8 +1,8 @@
-import { elementsNamedBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
-import type {
-    MergeBuildNote,
-    MergeBuildNoteContent,
-} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+import {
+    type MergeBuildNote,
+    type MergeBuildNoteContent,
+    elementsNamedBy,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import type { UndrawnEdge } from "./connectionEnds";
 import type { MergeResolution } from "../../decide/domain/mergeDecisions";

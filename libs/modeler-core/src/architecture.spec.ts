@@ -229,11 +229,14 @@ describe("context rules on a synthetic graph", () => {
 describe("modeler-core architecture", () => {
     const graph = buildImportGraph(readSourceTree(SRC_ROOT));
 
-    it("reads the merge and diff libraries' domain entries and the types library as pure modules, the protocol and browser libraries not", () => {
+    it("reads the merge, diff and types libraries' domain entries as pure modules, their root entries and the protocol and browser libraries not", () => {
         expect(
             [
                 "@miragon/bpmn-modeler-merge/domain",
                 "@miragon/bpmn-modeler-diff/domain",
+                "@miragon/bpmn-modeler-types/domain",
+                "@miragon/bpmn-modeler-merge",
+                "@miragon/bpmn-modeler-diff",
                 "@miragon/bpmn-modeler-types",
                 "@miragon/bpmn-modeler-shared",
                 "@miragon/bpmn-modeler-browser",
@@ -241,7 +244,7 @@ describe("modeler-core architecture", () => {
         ).toEqual([
             "@miragon/bpmn-modeler-merge/domain",
             "@miragon/bpmn-modeler-diff/domain",
-            "@miragon/bpmn-modeler-types",
+            "@miragon/bpmn-modeler-types/domain",
         ]);
     });
 

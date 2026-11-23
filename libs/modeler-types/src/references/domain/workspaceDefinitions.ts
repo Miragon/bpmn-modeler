@@ -1,4 +1,4 @@
-import { commentAndCdataRanges } from "./xmlMarkup";
+import { commentAndCdataRanges } from "../../documents/domain/xmlMarkup";
 
 /**
  * Root-level BPMN definitions an engine correlates by name or code — the kinds

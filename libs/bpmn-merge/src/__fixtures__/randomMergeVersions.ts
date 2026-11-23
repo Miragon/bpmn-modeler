@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types/engine";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { baseModel, cloneModel, removeFlow, removeNode, removeRoot } from "./baseModel";
 import {

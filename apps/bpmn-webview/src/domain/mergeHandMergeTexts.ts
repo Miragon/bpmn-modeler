@@ -3,7 +3,7 @@ import type {
     MergePanePickAction,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeXmlDecision } from "./mergePadDecisions";
 import type { MergeTranslate } from "./mergeTranslate";

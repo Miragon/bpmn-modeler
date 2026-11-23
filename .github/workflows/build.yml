@@ -44,19 +44,19 @@ jobs:
               - 'libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json'
               - 'libs/modeler-core/src/kernel/domain/modelerSettings.ts'
               - 'apps/vscode-plugin/package.json'
-              - 'libs/modeler-types/src/surfaceMode.ts'
-              - 'libs/modeler-types/src/settings.ts'
+              - 'libs/modeler-types/src/surface/domain/surfaceMode.ts'
+              - 'libs/modeler-types/src/surface/domain/settings.ts'
               - 'packages/bpmn-modeler/src/modeSession/modeStrip.ts'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'
               # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.
-              - 'libs/modeler-types/src/elementTemplateFile.cases.json'
+              - 'libs/modeler-types/src/elements/domain/elementTemplateFile.cases.json'
               - 'libs/shared/src/lib/elementTemplatePreviewMessages.cases.json'
               # ElementIdReviewViewTest reads every field of the core's element ID review view.
               - 'libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json'
               # EmptyDmnDiagramTest holds New DMN Model's scaffold to the shared one,
               # NewModelFileDialogTest the New BPMN/DMN Model dialog texts to the core's.
-              - 'libs/modeler-types/src/emptyDmn.ts'
+              - 'libs/modeler-types/src/documents/domain/emptyDmn.ts'
               - 'libs/modeler-core/src/modeler/domain/newModelFilePrompt.ts'
               # ScriptCompletionMatchersTest runs these rows against the Kotlin matchers,
               # ScriptCompletionDetailTest checks the untyped variable label against the core's.

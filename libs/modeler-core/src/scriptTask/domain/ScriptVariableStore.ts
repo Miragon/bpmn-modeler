@@ -1,4 +1,4 @@
-import { VariableDef } from "@miragon/bpmn-modeler-types";
+import { VariableDef } from "@miragon/bpmn-modeler-types/domain";
 
 import { ScriptUri } from "./ScriptUri";
 

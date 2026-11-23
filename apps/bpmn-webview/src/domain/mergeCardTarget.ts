@@ -1,4 +1,4 @@
-import { type PolylinePoint, polylineMidpoint } from "@miragon/bpmn-modeler-types";
+import { type PolylinePoint, polylineMidpoint } from "@miragon/bpmn-modeler-types/domain";
 
 import { flowOverlayAnchor } from "./flowOverlayAnchor";
 

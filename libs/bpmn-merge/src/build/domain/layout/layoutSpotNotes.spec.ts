@@ -1,9 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type {
-    MergeBrokenFlowKind,
-    MergeFlowRepair,
-} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+import type { MergeBrokenFlowKind, MergeFlowRepair } from "@miragon/bpmn-modeler-types/domain";
 
 import type { FlowRepair } from "./layoutFlowRepair";
 import { layoutSpotNotes } from "./layoutSpotNotes";

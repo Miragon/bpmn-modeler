@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-types";
+import { ScriptKind } from "@miragon/bpmn-modeler-types/domain";
 
 import { beansFor, COMPLEX_TYPES, globalFunctionsFor, MethodDef, MethodParam } from "./scriptApi";
 

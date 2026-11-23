@@ -31,20 +31,7 @@
             "@miragon/dmn-modeler": ["./packages/dmn-modeler/src/index.ts"],
             "@miragon/bpmn-modeler-shared": ["./libs/shared/src/index.ts"],
             "@miragon/bpmn-modeler-types": ["./libs/modeler-types/src/index.ts"],
-            "@miragon/bpmn-modeler-types/engine": ["./libs/modeler-types/src/engine.ts"],
-            "@miragon/bpmn-modeler-types/mergeVocabulary": [
-                "./libs/modeler-types/src/mergeVocabulary.ts"
-            ],
-            "@miragon/bpmn-modeler-types/mergeBuildNotes": [
-                "./libs/modeler-types/src/mergeBuildNotes.ts"
-            ],
-            "@miragon/bpmn-modeler-types/mergeBuildNoteReaders": [
-                "./libs/modeler-types/src/mergeBuildNoteReaders.ts"
-            ],
-            "@miragon/bpmn-modeler-types/conflictMarkers": [
-                "./libs/modeler-types/src/conflictMarkers.ts"
-            ],
-            "@miragon/bpmn-modeler-types/polyline": ["./libs/modeler-types/src/polyline.ts"],
+            "@miragon/bpmn-modeler-types/domain": ["./libs/modeler-types/src/domain.ts"],
             "@miragon/bpmn-modeler-browser": ["./libs/modeler-browser/src/index.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-diff/domain": ["./libs/bpmn-diff/src/domain.ts"],

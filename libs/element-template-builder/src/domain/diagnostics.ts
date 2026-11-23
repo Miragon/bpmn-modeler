@@ -3,7 +3,7 @@ import {
     validateZeebe,
     type ValidationError,
 } from "@bpmn-io/element-templates-validator";
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     catalogFor,

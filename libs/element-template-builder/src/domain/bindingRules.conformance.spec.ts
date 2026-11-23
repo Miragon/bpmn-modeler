@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validate, validateZeebe } from "@bpmn-io/element-templates-validator";
-import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types/domain";
 
 import { catalogFor, type BindingSpec, type EngineCatalog, type PropertyType } from "./catalog";
 import {

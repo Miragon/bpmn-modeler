@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { C7_CATALOG } from "./c7";
 import { C8_CATALOG } from "./c8";

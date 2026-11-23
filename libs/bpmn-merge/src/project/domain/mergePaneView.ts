@@ -1,4 +1,4 @@
-import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
+import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/domain";
 
 import { type HandMergeStart, handMergeStartOf } from "../../decide/domain/handMergeEligibility";
 import type { MergeDecisions } from "../../decide/domain/mergeDecisions";

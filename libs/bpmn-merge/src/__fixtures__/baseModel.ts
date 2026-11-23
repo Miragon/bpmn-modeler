@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types/engine";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import type { BpmnFixtureModel, FixtureNode, XmlElement } from "./bpmnModelBuilder";
 

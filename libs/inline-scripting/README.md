@@ -18,7 +18,7 @@ Internal workspace, not published on its own.
   deletion) or its element disappeared while the webview was hidden, and asks the host to overwrite or
   close the tab. Before the first import no script counts as gone.
 - **Addressing.** Which element and property a `(kind, listenerIndex)` pair means comes from the one
-  table in `libs/modeler-types/src/scriptSurface.ts`, which the core's XML fallback uses too.
+  table in `libs/modeler-types/src/scripting/domain/scriptSurface.ts`, which the core's XML fallback uses too.
 - `ScriptEditorButtons` watches the panel given as the `propertiesPanelRoot` DI value, which
   `@miragon/bpmn-modeler` registers per instance. Without it, it falls back to the `#js-properties-panel`
   DOM id.

@@ -1,4 +1,4 @@
-import { DIFF_PLANE_MISSING_TEXT } from "@miragon/bpmn-modeler-types";
+import { DIFF_PLANE_MISSING_TEXT } from "@miragon/bpmn-modeler-types/domain";
 
 /** The DMN diff pane's own words, as i18n keys; the words every diff legend shows are `DIFF_LEGEND_TEXTS`. */
 export const DMN_DIFF_TEXTS = {

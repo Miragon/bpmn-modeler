@@ -5,7 +5,7 @@ import {
     ENGINE_LABEL,
     ENGINES,
     Engine,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import {
     formEngineChange,

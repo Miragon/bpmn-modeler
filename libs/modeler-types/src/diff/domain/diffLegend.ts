@@ -1,5 +1,5 @@
 import type { DiffCategory } from "./diff";
-import type { Translate } from "./translate";
+import type { Translate } from "../../surface/domain/translate";
 
 /** The chevrons of the legend's Previous and Next buttons, on its icons' 24 × 24 grid. */
 export const DIFF_LEGEND_CHEVRONS = {

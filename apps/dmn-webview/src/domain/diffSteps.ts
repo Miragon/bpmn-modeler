@@ -4,7 +4,7 @@ import {
     type DiffCounts,
     type DiffSide,
     nearestPresent,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 import type { DmnDiffStatus } from "@miragon/dmn-modeler";
 
 /** The changes a pane's stepper walks in the open view: the DRD's, or the open decision table's. */

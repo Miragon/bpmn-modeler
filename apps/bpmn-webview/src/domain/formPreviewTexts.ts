@@ -1,4 +1,4 @@
-import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
+import type { FormPreviewResult } from "@miragon/bpmn-modeler-types/domain";
 
 type FormPreviewUnavailableReason = Extract<FormPreviewResult, { kind: "unavailable" }>["reason"];
 

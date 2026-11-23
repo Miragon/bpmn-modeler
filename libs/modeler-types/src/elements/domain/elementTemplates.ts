@@ -1,4 +1,4 @@
-import type { Engine } from "./engine";
+import type { Engine } from "../../engine/domain/engine";
 
 export type ElementTemplate = Record<string, unknown>;
 

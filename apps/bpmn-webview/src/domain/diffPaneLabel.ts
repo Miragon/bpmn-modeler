@@ -1,4 +1,4 @@
-import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types/domain";
 
 /** What a diff pane knows to name itself. */
 export interface DiffPaneLabelFacts {

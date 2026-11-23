@@ -1,4 +1,4 @@
-import type { PolylinePoint } from "@miragon/bpmn-modeler-types/polyline";
+import type { PolylinePoint } from "@miragon/bpmn-modeler-types/domain";
 
 export interface DiagramBounds {
     readonly x: number;

@@ -1,4 +1,4 @@
-import { readConflictMarkers } from "@miragon/bpmn-modeler-types";
+import { readConflictMarkers } from "@miragon/bpmn-modeler-types/domain";
 import type { ConfirmRequest } from "../../kernel/domain/prompts";
 import { overwriteConfirm, type OverwriteReason } from "./mergeBuildTexts";
 

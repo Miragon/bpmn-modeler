@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     builderStateOf,

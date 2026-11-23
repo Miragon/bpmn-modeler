@@ -4,8 +4,7 @@ import {
     elementSnapshots,
     loadBpmnModdle,
 } from "@miragon/bpmn-modeler-diff";
-import { ENGINE_NAMESPACE } from "@miragon/bpmn-modeler-types/engine";
-import { elementsRedrawnBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import { ENGINE_NAMESPACE, elementsRedrawnBy } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
 
 import { baseModel, cloneModel, nodeById, removeNode } from "../../__fixtures__/baseModel";

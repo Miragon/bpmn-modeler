@@ -1,4 +1,4 @@
-import type { PolylinePoint } from "@miragon/bpmn-modeler-types";
+import type { PolylinePoint } from "@miragon/bpmn-modeler-types/domain";
 
 /** Where diagram-js anchors a flow's overlays: the top left corner of its waypoints' box. */
 export function flowOverlayAnchor(waypoints: readonly PolylinePoint[]): PolylinePoint {

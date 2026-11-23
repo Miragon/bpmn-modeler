@@ -1,4 +1,8 @@
-import type { MergeCaptionRole, MergeMarker, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type {
+    MergeCaptionRole,
+    MergeMarker,
+    MergeSideCaption,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { mergeSideText } from "./mergeTexts";
 import type { MergeTranslate } from "./mergeTranslate";

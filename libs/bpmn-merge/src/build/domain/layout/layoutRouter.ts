@@ -1,4 +1,4 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { type Axis, type AxisLine, outlinePointOn, spansAlong } from "./layoutAxis";
 import {
     type DiagramBounds,

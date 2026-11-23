@@ -6,7 +6,7 @@ import {
     harvestRecordPath,
     type HarvestFile,
 } from "@miragon/bpmn-modeler-i18n-extras/testing";
-import { DIFF_VIEW_KEYS } from "@miragon/bpmn-modeler-types";
+import { DIFF_VIEW_KEYS } from "@miragon/bpmn-modeler-types/domain";
 
 import { DMN_DIFF_TEXTS } from "./diffTexts";
 

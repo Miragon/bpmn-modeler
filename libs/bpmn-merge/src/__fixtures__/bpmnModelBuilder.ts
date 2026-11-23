@@ -3,7 +3,7 @@ import {
     ENGINE_NAMESPACE,
     type Engine,
     MODELER_NAMESPACE_URI,
-} from "@miragon/bpmn-modeler-types/engine";
+} from "@miragon/bpmn-modeler-types/domain";
 
 /** Extension XML the builder writes as given, unknown to it. */
 export interface XmlElement {

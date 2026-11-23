@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
 import { computeDiff } from "@miragon/bpmn-modeler-diff";
-import { elementsRedrawnBy } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import { elementsRedrawnBy, polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
 
 import { parseWithoutWarnings } from "../../__fixtures__/parseWithoutWarnings";

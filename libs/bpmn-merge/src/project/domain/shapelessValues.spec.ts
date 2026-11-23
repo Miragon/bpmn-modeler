@@ -1,4 +1,4 @@
-import { ENGINE_NAMESPACE, MODELER_NAMESPACE_URI } from "@miragon/bpmn-modeler-types/engine";
+import { ENGINE_NAMESPACE, MODELER_NAMESPACE_URI } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
 
 import { prepareMergeSources } from "../../sources/service/buildMergedSources";

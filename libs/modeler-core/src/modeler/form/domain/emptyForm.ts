@@ -1,4 +1,4 @@
-import { ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
+import { ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types/domain";
 import { latestFormVersion } from "./formEngine";
 
 const FORM_ID_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

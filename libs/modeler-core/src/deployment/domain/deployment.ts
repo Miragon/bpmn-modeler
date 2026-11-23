@@ -11,7 +11,7 @@ import {
 } from "./envRef";
 import { SecretRedactor } from "./secretRedactor";
 
-import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
+import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types/domain";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
 
 export class NoAuth {

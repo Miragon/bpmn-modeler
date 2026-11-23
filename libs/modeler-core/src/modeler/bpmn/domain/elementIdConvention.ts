@@ -1,7 +1,7 @@
 import {
     type ElementIdConventionOptions,
     EVENT_DEFINITION_QUALIFIER_MODES,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 /** The rule's name in a config bpmnlint resolved: the package's short name, then the rule. */
 export const ELEMENT_ID_NAMING_RULE = "@miragon/rules/element-id-naming";

@@ -1,4 +1,4 @@
-import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 // Fixed positions: current left, incoming right, during a rebase too; the captions name the roles.
 const MERGE_SIDE_OF_PANE: Record<DiffSide, MergeSide> = {

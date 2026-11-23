@@ -1,4 +1,4 @@
-import { VariableDef } from "@miragon/bpmn-modeler-types";
+import { VariableDef } from "@miragon/bpmn-modeler-types/domain";
 import { LocalDeclaration } from "./localDeclarations";
 
 // IntelliJ's ScriptCompletionDetailTest holds the Kotlin copy to this literal.
