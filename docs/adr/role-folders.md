@@ -37,7 +37,7 @@ no role folder; it shows in the imports.
 
 | Folder | Holds |
 | --- | --- |
-| `domain/` | rules as pure functions and values |
+| `domain/` | the workspace's pure core: decisions, state transitions, display logic, texts and message tables; it calls no port and holds no handle |
 | `port/` | types only: interfaces that services and inbound adapters call and outbound adapters implement |
 | `service/` | orchestration, including the core's editor-session participants |
 | `adapter/in/` | calls into the workspace: commands, webview and RPC message handlers, UI |
@@ -123,7 +123,7 @@ last use.
 - **Kind:** not read, and that is what lets the libraries get role folders
   (decided 2026-11-23): the flat logic libraries, `bpmn-merge` first, then
   `bpmn-diff` and `modeler-types`, get feature or stage folders with `domain/`
-  (rules) and `service/` (orchestration) inside, no `port/` or `adapter/`. An entry
+  (pure core) and `service/` (orchestration) inside, no `port/` or `adapter/`. An entry
   that re-exports only `domain/` stays pure, and so does every library that
   imports it (`bpmn-merge` and `dmn-diff` import `bpmn-diff`); an entry that
   re-exports a `service/` is not, so the core's domain then imports the `domain/`
@@ -135,6 +135,15 @@ last use.
 
 ### Placement
 
+- The BPMN model lives in the libraries `bpmn-diff`, `bpmn-merge` and
+  `modeler-types` ([domain imports](#domain-imports)); a rich domain model stays
+  the goal and is built there (#2562, B4 to B6).
+  - **Why:** a classification on 2026-11-23 found few `domain/` files that hold
+    rules about BPMN; most hold display logic, message glue, editor state,
+    policy and tables. The hexagon pays at the host seam (core ports with host
+    adapters, fakes and contract suites), not through a rich domain.
+  - **Cost:** the name still reads as a domain model, so the table above, not
+    the name, says what a `domain/` holds.
 - The core's session participants are in-core reactions that
   `EditorSessionLifecycle` drives, so they sit in `service/`.
 - An object that holds or calls a port, such as a store or a session with

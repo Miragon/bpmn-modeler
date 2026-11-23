@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-first workflow for new features, changed business rules and bug fixes in this repository. Use before writing production code for a feature or a fix: write the failing spec, give the rule one home in the domain model, then make it pass.
+description: Test-first workflow for new features, changed business rules and bug fixes in this repository. Use before writing production code for a feature or a fix: write the failing spec, give the rule one pure home, then make it pass.
 ---
 
 # Test-first development
@@ -42,12 +42,15 @@ decision itself is not exempt.
 5. Keep the failing output for the PR description.
 6. For a bug, commit the spec on its own: `test(<scope>): reproduce …`.
 
-## 2. Green: put the rule in the domain model
+## 2. Green: put the rule in its pure home
 
-- Pure code in `libs/modeler-core/src/<feature>/domain/`: no ports, fakes,
-  timers, DOM, `vscode`, Node host modules or `@miragon/bpmn-modeler-shared`
-  imports. `tools/repo-checks/src/architecture.spec.ts` enforces the role
-  folders' import direction; the domain imports no `port/`.
+- Pure code in `libs/modeler-core/src/<feature>/domain/`, the workspace's pure
+  core: decisions, state transitions, display logic, texts and message tables.
+  It calls no port and holds no handle: no ports, fakes, timers, DOM, `vscode`,
+  Node host modules or `@miragon/bpmn-modeler-shared` imports.
+  `tools/repo-checks/src/architecture.spec.ts` enforces the role folders'
+  import direction; the domain imports no `port/`. Where the BPMN model lives:
+  [architecture](../architecture/SKILL.md#place-the-change).
 - Aggregates and value objects own their invariants: a factory that validates,
   no public mutation, derived state computed instead of stored.
 - Return decisions as values, as discriminated unions such as

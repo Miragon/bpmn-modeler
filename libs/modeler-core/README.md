@@ -1,8 +1,8 @@
 # `@miragon/bpmn-modeler-core`
 
-The host-agnostic engine behind the editors: domain models, services, the host ports
-(`src/kernel/port/hostPorts.ts`) and the editor-session registries (`EditorSessionStore`,
-`WebviewMessageRouter`, `DiffPaneStore`).
+The host-agnostic engine behind the editors: a pure core (`domain/`), services, the host
+ports (`src/kernel/port/hostPorts.ts`) and the editor-session registries
+(`EditorSessionStore`, `WebviewMessageRouter`, `DiffPaneStore`).
 
 Internal workspace, not published on its own.
 
