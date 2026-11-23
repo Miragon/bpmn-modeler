@@ -5,7 +5,8 @@
 # Theia build output; a bare `**/lib` would also hide `libs/shared/src/lib`
 apps/standalone/lib
 libs/standalone-extension/lib
-**/build
+# Gradle output; a bare `**/build` would also hide `libs/bpmn-merge/src/build`
+apps/intellij-plugin/build
 **/out
 **/coverage
 **/reports/mutation

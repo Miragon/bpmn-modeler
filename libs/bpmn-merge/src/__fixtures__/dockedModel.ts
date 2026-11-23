@@ -1,6 +1,6 @@
 import type { Engine } from "@miragon/bpmn-modeler-types/engine";
 
-import type { MergeVersions } from "../computeMerge";
+import type { MergeVersions } from "../classify/service/computeMerge";
 import { cloneModel, nodeById } from "./baseModel";
 import { type BpmnFixtureModel, type FixtureNode, renderBpmn } from "./bpmnModelBuilder";
 

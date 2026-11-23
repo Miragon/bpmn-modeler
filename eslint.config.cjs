@@ -18,11 +18,12 @@ module.exports = [
             // Theia build output; a bare `**/lib` would also hide `libs/shared/src/lib`.
             "apps/standalone/lib",
             "libs/standalone-extension/lib",
-            // Gradle output (e.g. the IntelliJ plugin). Stages minified webview
+            // Gradle output of the IntelliJ plugin. Stages minified webview
             // bundles under `build/**/webview/`; linting those one-line files
             // emits tens of thousands of spurious errors. Flat config ignores
-            // `.gitignore`, so it must be excluded here explicitly.
-            "**/build",
+            // `.gitignore`, so it must be excluded here explicitly. Not
+            // `**/build`: the merge library has a `build/` stage in `src/`.
+            "apps/intellij-plugin/build",
             "**/src-gen",
             // Vitest HTML coverage reports ship their own JavaScript.
             "**/coverage",

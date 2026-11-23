@@ -1,7 +1,7 @@
 import { loadBpmnModdle, loadExecutionPackage } from "@miragon/bpmn-modeler-diff";
 import type { BpmnModdleFactory } from "@miragon/bpmn-modeler-diff";
 
-import { executionEngineOf } from "../executionEngine";
+import { executionEngineOf } from "../classify/domain/executionEngine";
 
 type BpmnModdle = ReturnType<BpmnModdleFactory>;
 type ParsedBpmn = Awaited<ReturnType<BpmnModdle["fromXML"]>>;

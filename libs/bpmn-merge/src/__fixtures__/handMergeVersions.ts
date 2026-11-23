@@ -1,6 +1,6 @@
 import { baseModel, cloneModel, nodeById, removeRoot } from "./baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "./bpmnModelBuilder";
-import type { MergeVersions } from "../mergeVersions";
+import type { MergeVersions } from "../classify/service/mergeVersions";
 
 const INPUT_PARAMETERS = "camunda:inputOutput";
 
