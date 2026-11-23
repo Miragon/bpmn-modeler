@@ -3,7 +3,7 @@ import {
     AddOnCatalogQuery,
     AddOnAboutQuery,
     AddOnRequestCommand,
-    AddOnsViewCommandType,
+    AddOnsViewCommand,
     Command,
     GetAddOnAboutCommand,
     ProtocolCommandType,
@@ -35,7 +35,7 @@ import {
  * a host passes what the panel's page posts and a `post` that delivers to it.
  */
 export class AddOnViewMessages implements RouteLookup {
-    private readonly router = WebviewMessageRouter.fromTable<AddOnsViewCommandType, void>({
+    private readonly router = WebviewMessageRouter.fromTable<AddOnsViewCommand, void>({
         LogInfoCommand: [(command) => this.log(command)],
         LogErrorCommand: [(command) => this.log(command)],
         GetAddOnCatalogCommand: [() => this.repost()],

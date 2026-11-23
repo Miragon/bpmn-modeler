@@ -1,7 +1,16 @@
 import {
-    BpmnDiffPaneCommandType,
-    DiffPaneHandshakeCommandType,
-    DmnDiffPaneCommandType,
+    BpmnDiffPaneCommand,
+    BuildMergeResultCommand,
+    CompareMergeResultCommand,
+    DiffPaneHandshakeCommand,
+    DmnDiffPaneCommand,
+    LogErrorCommand,
+    MergePaneCommandsChangedCommand,
+    MergeStepListChangedCommand,
+    PickMergeSideCommand,
+    SwapCompareSidesCommand,
+    SwitchMergeComparisonCommand,
+    UnpickMergeCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { routeWebviewLogCommand } from "../../editorSession/service/webviewLog";
@@ -42,7 +51,7 @@ export function createDiffPaneRouter(
     extensions: DiffPaneHostExtensions,
 ): WebviewMessageRouter<DiffPaneHandle> {
     return WebviewMessageRouter.fromTable<
-        DiffPaneHandshakeCommandType | BpmnDiffPaneCommandType,
+        DiffPaneHandshakeCommand | BpmnDiffPaneCommand,
         DiffPaneHandle
     >({
         GetBpmnFileCommand: [(_command, pane) => diffService.sendViewerFile(pane)],
@@ -81,7 +90,7 @@ export function createDiffPaneRouter(
 function mergeRoutes(
     diffService: BpmnDiffService,
 ): CommandTable<
-    "MergeStepListChangedCommand" | "PickMergeSideCommand" | "UnpickMergeCommand",
+    MergeStepListChangedCommand | PickMergeSideCommand | UnpickMergeCommand,
     DiffPaneHandle
 > {
     if (!diffService.opensMergeViews) {
@@ -122,7 +131,7 @@ function mergeRoutes(
 
 function mergePaneCommandRoutes({
     mergePaneCommands,
-}: DiffPaneHostExtensions): CommandTable<"MergePaneCommandsChangedCommand", DiffPaneHandle> {
+}: DiffPaneHostExtensions): CommandTable<MergePaneCommandsChangedCommand, DiffPaneHandle> {
     return {
         MergePaneCommandsChangedCommand: mergePaneCommands
             ? [(command, pane) => mergePaneCommands.report(pane, command.available)]
@@ -133,7 +142,7 @@ function mergePaneCommandRoutes({
 function mergeResultRoutes(
     diffService: BpmnDiffService,
 ): CommandTable<
-    "BuildMergeResultCommand" | "CompareMergeResultCommand" | "SwitchMergeComparisonCommand",
+    BuildMergeResultCommand | CompareMergeResultCommand | SwitchMergeComparisonCommand,
     DiffPaneHandle
 > {
     if (!diffService.buildsMergeResults) {
@@ -158,7 +167,7 @@ export function createDmnDiffPaneRouter(
     diffService: DmnDiffService,
     extensions: DiffPaneHostExtensions,
 ): WebviewMessageRouter<DiffPaneHandle> {
-    return WebviewMessageRouter.fromTable<DmnDiffPaneCommandType, DiffPaneHandle>({
+    return WebviewMessageRouter.fromTable<DmnDiffPaneCommand, DiffPaneHandle>({
         GetDmnFileCommand: [(_command, pane) => diffService.sendViewerFile(pane)],
         DiffReadyCommand: [(_command, pane) => diffService.markReady(pane)],
         ViewportChangedCommand: [
@@ -179,7 +188,7 @@ function hostRoutes({
     swapSides,
     paneLog,
 }: DiffPaneHostExtensions): CommandTable<
-    "SwapCompareSidesCommand" | "LogErrorCommand",
+    SwapCompareSidesCommand | LogErrorCommand,
     DiffPaneHandle
 > {
     return {

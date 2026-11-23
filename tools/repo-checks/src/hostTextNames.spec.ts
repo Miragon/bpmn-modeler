@@ -5,13 +5,11 @@ import { describe, expect, it } from "vitest";
 import { EngineHostTextSources } from "./hostText/adapter/out/engineHostTextSources";
 import {
     type CallSite,
-    type HostFileTexts,
     isErrorConstruction,
-    isHostFile,
-    isKotlinSource,
     isTypeScriptLogCall,
     kotlinLoggers,
-} from "./hostText/domain/hostText";
+} from "./hostText/domain/developerMessages";
+import { type HostFileTexts, isHostFile, isKotlinSource } from "./hostText/domain/hostText";
 
 /**
  * host-text leaves unread the arguments of TypeScript calls to a function

@@ -1,3 +1,11 @@
+import {
+    GetBpmnModelerSettingCommand,
+    OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
+    UpdateScriptSourceCommand,
+    UpdateScriptVariablesCommand,
+} from "@miragon/bpmn-modeler-shared";
+
 import { NotifierPort, PickerPort } from "../../kernel/port/hostPorts";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
 import { EditorSessionStore } from "../../editorSession/service/EditorSessionStore";
@@ -36,11 +44,11 @@ export interface ScriptEditorHostPorts {
 export class ScriptEditorFeature {
     readonly scriptTabs: ScriptTabService;
     readonly editorContribution: EditorContribution<
-        | "OpenScriptEditorCommand"
-        | "OpenScriptEditorsCommand"
-        | "UpdateScriptSourceCommand"
-        | "UpdateScriptVariablesCommand"
-        | "GetBpmnModelerSettingCommand"
+        | OpenScriptEditorCommand
+        | OpenScriptEditorsCommand
+        | UpdateScriptSourceCommand
+        | UpdateScriptVariablesCommand
+        | GetBpmnModelerSettingCommand
     >;
 
     constructor({
