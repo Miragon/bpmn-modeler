@@ -52,16 +52,13 @@ function roomNaming(
  * Room in line for two chains that lie on each other, one from each side:
  * each stays as its side drew it, the one the flows put first where it lies,
  * the other behind it, and everything after them shifts on as the space tool
- * shifts it. Only for chains in the flow, at least one of several steps: two
- * single steps are stacked or put in line as shapes. Undefined where the
- * flows order the two neither way or do not run to the right.
+ * shifts it. Undefined where the two are not put in line as chains
+ * (`InsertedChain.toPutInLine`) or their flows do not run to the right.
  */
 export const twoChainsInLine: ChainRoomAttempt = (draft, context, pair) => {
     const [first, second] = pair.map((node) => InsertedChain.of(draft, context.sides, node));
     if (first === undefined || second === undefined) return undefined;
-    if (!first.liesInTheFlow || !second.liesInTheFlow) return undefined;
-    if (!first.hasSeveralSteps && !second.hasSeveralSteps) return undefined;
-    const ordered = InsertedChain.inFlowOrder(draft, first, second);
+    const ordered = InsertedChain.toPutInLine(draft, first, second);
     if (ordered === undefined || !flowsRight(draft, context, ordered)) return undefined;
     const [ahead, behind] = ordered.map((chain) => chain.groupIn(context.groups, draft));
     const room = makeRoomInLine(draft, context, ahead!.node.bounds.x, ahead!, behind!);

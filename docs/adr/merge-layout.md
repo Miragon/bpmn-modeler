@@ -135,12 +135,12 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
   (#2738). Before the spots are found, each shape one side draws and the other does not, still
   where that side drew it, moves with its boundary events and contents by as far as the result
   moved its neighbour. Its neighbours are those that side joined it to (so a flow the result
-  dropped still counts) in the shape's plane slot, sub-process and lanes, sequence flows before
-  associations, predecessors first, and the first of them places it: one both sides draw, or
-  one the side added with it, which it then follows (#2775). So a chain of added shapes stays
-  as its side drew it behind its first shape, and a flow between shapes that move alike moves
-  with them. Added shapes that lead only to each other follow the first neighbour both sides
-  draw. The shape keeps its gap to the border of the neighbour it faces, on the side it lies
+  dropped still counts, a boundary event's as its host's) in the shape's plane slot,
+  sub-process and lanes, sequence flows before associations, predecessors first, and the first
+  of them places it: one both sides draw, or one the side added with it, which it then follows
+  (#2775). So a chain of added shapes stays as its side drew it behind its first shape, and a
+  flow between shapes that move alike moves with them. Added shapes that lead only to each
+  other follow the first neighbour both sides draw. The shape keeps its gap to the border of the neighbour it faces, on the side it lies
   on, and its offset from the neighbour's middle across the flow; it lies along the flow from a
   neighbour it overlaps across, else along the axis their middles lie farther apart on. Message
   flows do not count, as they join pools. Where the neighbour lies as the side drew it, nothing

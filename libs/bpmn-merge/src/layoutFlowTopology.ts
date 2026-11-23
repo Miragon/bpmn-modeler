@@ -1,5 +1,11 @@
 import { centerOf } from "./layoutGeometry";
-import { type LayoutModel, carriesSequence, flowOwnerOf, nodeShapeIn } from "./layoutModel";
+import {
+    type LayoutModel,
+    carriesSequence,
+    flowOwnerOf,
+    neighboursJoinedBy,
+    nodeShapeIn,
+} from "./layoutModel";
 
 /**
  * How a moved shape stands to the shape it lay on by the sequence flows: it
@@ -17,14 +23,10 @@ export class FlowTopology {
 
     constructor(private readonly layout: LayoutModel) {
         for (const edge of layout.edges.values()) {
-            if (!carriesSequence(edge) || edge.source === undefined || edge.target === undefined) {
-                continue;
-            }
-            const source = this.ownerOf(edge.source);
-            const target = this.ownerOf(edge.target);
-            if (source === target) continue;
-            addUnder(this.successors, source, target);
-            addUnder(this.predecessors, target, source);
+            const joined = carriesSequence(edge) ? neighboursJoinedBy(layout, edge) : undefined;
+            if (joined === undefined) continue;
+            addUnder(this.successors, joined.source, joined.target);
+            addUnder(this.predecessors, joined.target, joined.source);
         }
     }
 

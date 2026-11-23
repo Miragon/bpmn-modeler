@@ -351,6 +351,39 @@ describe("placeBesideNeighbours", () => {
         expect(placedLayout.edges.get("Flow_NM")).toBe(between);
     });
 
+    it("follows the added task whose boundary event leads into it, and the task both sides draw whose added boundary event does", () => {
+        const onAdded = node("Boundary_N", box(282, 162, 36, 36), { host: "Task_N" });
+        const onKept = node("Boundary_A", box(132, 162, 36, 36), { host: "Task_A" });
+        const afterAdded = node("Task_E", box(250, 260));
+        const afterKept = node("Task_F", box(100, 260));
+        const edges = [
+            flow("Flow_AN", "Task_A", "Task_N"),
+            flow("Flow_E", "Boundary_N", "Task_E"),
+            flow("Flow_F", "Boundary_A", "Task_F"),
+        ];
+        const adding = layoutOf(
+            [node("Task_A", box(100, 100)), ADDED, onAdded, onKept, afterAdded, afterKept],
+            edges,
+        );
+        const result = layoutOf([
+            node("Task_A", box(100, 400)),
+            ADDED,
+            onAdded,
+            onKept,
+            afterAdded,
+            afterKept,
+        ]);
+
+        const placedLayout = placeBesideNeighbours(result, [
+            adding,
+            layoutOf([node("Task_A", box(100, 400))]),
+        ]);
+
+        expect(boundsIn(placedLayout, "Task_N")).toEqual(box(250, 400));
+        expect(boundsIn(placedLayout, "Task_E")).toEqual(box(250, 560));
+        expect(boundsIn(placedLayout, "Task_F")).toEqual(box(100, 560));
+    });
+
     it("moves an added shape's boundary events and, drawn open, its contents with it", () => {
         const sub = node("Sub_1", box(250, 60, 200, 160), { expanded: true });
         const inside = node("Task_In", box(300, 100), IN_SUB);

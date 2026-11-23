@@ -124,28 +124,19 @@ export class RoomPush {
         units: readonly SpaceUnit[],
         request: FrameRequest,
     ): { readonly units: SpaceUnit[]; readonly by: number } | undefined {
-        const { box, floor, frameGrowth, column = [] } = request;
+        const line = this.lineBeforeWhatBlocks(units, request);
+        if (line === undefined) return undefined;
+        const past = units.filter((unit) => unit.lead >= line);
+        if (request.band === true) return this.bandOf(past, request);
+        const { box, frameGrowth, column = [] } = request;
         const lands = (on: DiagramBounds, unit: SpaceUnit) =>
             !keepsClearOf(on, unit.bounds, SHAPE_CLEARANCE);
-        const reachesBox = (unit: SpaceUnit) =>
-            frameGrowth === undefined
-                ? lands(box, unit)
-                : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
         const columnUnder = (unit: SpaceUnit) =>
             column.filter((part) => !keepsClearOf(part, unit.bounds, 0));
         const partsLandedOn = (unit: SpaceUnit) => [
-            ...(reachesBox(unit) ? [box] : []),
+            ...(this.reachesBox(request, unit) ? [box] : []),
             ...columnUnder(unit),
         ];
-        let line = request.line;
-        let blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
-        while (blocking.length > 0) {
-            line = Math.min(...blocking.map(({ lead }) => lead));
-            if (floor === undefined || line <= floor) return undefined;
-            blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
-        }
-        const past = units.filter((unit) => unit.lead >= line);
-        if (request.band === true) return this.bandOf(past, request);
         const hit = past.filter((unit) => partsLandedOn(unit).length > 0);
         const by =
             frameGrowth ??
@@ -177,6 +168,33 @@ export class RoomPush {
             staying.some((other) => lands(boundsShifted(this.axis, unit.bounds, by), other)),
         );
         return landsOnStaying ? undefined : { units: [...pushed], by };
+    }
+
+    /** Whether the unit lies where the box goes; for the strip a frame gained, whether it lies across from it. */
+    private reachesBox({ box, frameGrowth }: RoomRequest, unit: SpaceUnit): boolean {
+        return frameGrowth === undefined
+            ? !keepsClearOf(box, unit.bounds, SHAPE_CLEARANCE)
+            : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
+    }
+
+    /**
+     * The request's line, moved back before each unit that lies before it
+     * where the box goes, so that the unit gives way too; undefined when the
+     * request's floor does not let the line move that far back.
+     */
+    private lineBeforeWhatBlocks(
+        units: readonly SpaceUnit[],
+        request: RoomRequest,
+    ): number | undefined {
+        const { floor } = request;
+        for (let line = request.line; ;) {
+            const blocking = units.filter(
+                (unit) => unit.lead < line && this.reachesBox(request, unit),
+            );
+            if (blocking.length === 0) return line;
+            line = Math.min(...blocking.map(({ lead }) => lead));
+            if (floor === undefined || line <= floor) return undefined;
+        }
     }
 
     /**

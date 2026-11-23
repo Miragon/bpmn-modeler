@@ -6,7 +6,9 @@ import {
     type LayoutEdge,
     type LayoutModel,
     type NodeShape,
+    carriesSequence,
     inSameContainer,
+    neighboursJoinedBy,
     nodeShapeIn,
     translatedEdge,
 } from "./layoutModel";
@@ -154,26 +156,21 @@ function oneSidedShapesOf(layout: LayoutModel, sides: readonly LayoutModel[]): O
     });
 }
 
-/** The shape's neighbours along the flows its side draws: sequence before association, predecessors first, in the side's order. */
+/**
+ * The shape's neighbours along the flows its side draws, a boundary event's
+ * flows as its host's: sequence before association, predecessors first, in
+ * the side's order.
+ */
 function neighboursOf(node: NodeShape, side: LayoutModel): Neighbour[] {
     const neighbours = [...side.edges.values()].flatMap((edge): Neighbour[] => {
-        if (!ordersNeighbours(edge)) return [];
-        const inSequence = edge.kind === "sequenceFlow";
-        if (edge.target === node.id && edge.source !== undefined) {
-            return [{ id: edge.source, before: true, inSequence }];
-        }
-        if (edge.source === node.id && edge.target !== undefined) {
-            return [{ id: edge.target, before: false, inSequence }];
-        }
+        const joined = neighboursJoinedBy(side, edge);
+        const inSequence = carriesSequence(edge);
+        if (joined?.target === node.id) return [{ id: joined.source, before: true, inSequence }];
+        if (joined?.source === node.id) return [{ id: joined.target, before: false, inSequence }];
         return [];
     });
     const rank = ({ before, inSequence }: Neighbour) => (inSequence ? 0 : 2) + (before ? 0 : 1);
     return [...neighbours].sort((first, second) => rank(first) - rank(second));
-}
-
-/** A message flow joins two pools, which are placed by rules of their own. */
-function ordersNeighbours(edge: LayoutEdge): boolean {
-    return edge.kind !== "messageFlow";
 }
 
 /** The axis the two shapes lie apart along, as the side drew them: beside each other where they overlap across it, else where their middles lie farther apart. */
@@ -205,12 +202,18 @@ function translatedBy(layout: LayoutModel, offsets: ReadonlyMap<string, Offset>)
         for (const member of group.members) movedBy.set(member, offset);
         for (const edge of group.attachedEdges) attached.add(edge);
     }
-    for (const id of attached) {
-        const edge = draft.edges.get(id)!;
-        const [source, target] = FLOW_ENDS.map((end) => movedBy.get(edge[end] ?? ""));
-        if (source !== undefined && source.dx === target?.dx && source.dy === target.dy) {
-            draft.replaceEdge(translatedEdge(edge, source.dx, source.dy));
-        }
-    }
+    for (const id of attached) moveWithBothEnds(draft, draft.edges.get(id)!, movedBy);
     return draft.changedOrOriginal;
+}
+
+/** Moves the flow by as much as its ends when both moved alike. */
+function moveWithBothEnds(
+    draft: DrawingDraft,
+    edge: LayoutEdge,
+    movedBy: ReadonlyMap<string, Offset>,
+): void {
+    const [source, target] = FLOW_ENDS.map((end) => movedBy.get(edge[end] ?? ""));
+    if (source !== undefined && source.dx === target?.dx && source.dy === target.dy) {
+        draft.replaceEdge(translatedEdge(edge, source.dx, source.dy));
+    }
 }

@@ -1,10 +1,10 @@
 import {
-    type LayoutEdge,
     type LayoutModel,
     type NodeShape,
     carriesSequence,
     flowOwnerOf,
     inSameContainer,
+    neighboursJoinedBy,
     nodeShapeIn,
 } from "./layoutModel";
 import type { ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
@@ -137,6 +137,22 @@ export class InsertedChain {
     }
 
     /**
+     * The two chains in the order to put them in line as chains, each as
+     * its side drew it: both lie in the flow, at least one has several steps
+     * (two single steps are stacked or put in line as shapes) and the flows
+     * order them (`inFlowOrder`). Undefined otherwise.
+     */
+    static toPutInLine(
+        layout: LayoutModel,
+        first: InsertedChain,
+        second: InsertedChain,
+    ): readonly [InsertedChain, InsertedChain] | undefined {
+        if (!first.liesInTheFlow || !second.liesInTheFlow) return undefined;
+        if (!first.hasSeveralSteps && !second.hasSeveralSteps) return undefined;
+        return InsertedChain.inFlowOrder(layout, first, second);
+    }
+
+    /**
      * The two chains in the order the flows of the drawing put them: first
      * the one a flow leads from into the other while none leads back, else
      * the one a flow enters from outside both while none enters the other.
@@ -162,18 +178,9 @@ export class InsertedChain {
 /** The ends of each sequence flow of the drawing, a boundary event's as its host's. */
 function sequenceEndsOf(layout: LayoutModel): { source: string; target: string }[] {
     return [...layout.edges.values()].flatMap((edge) => {
-        const ends = carriesSequence(edge) ? ownersOf(layout, edge) : undefined;
+        const ends = carriesSequence(edge) ? neighboursJoinedBy(layout, edge) : undefined;
         return ends === undefined ? [] : [ends];
     });
-}
-
-/** The shapes the edge joins, a boundary event's host for the event; undefined for an edge with an open end. */
-function ownersOf(
-    layout: LayoutModel,
-    { source, target }: LayoutEdge,
-): { source: string; target: string } | undefined {
-    if (source === undefined || target === undefined) return undefined;
-    return { source: flowOwnerOf(layout, source), target: flowOwnerOf(layout, target) };
 }
 
 /** Which shapes the side's sequence flows and associations join, and which of them a sequence flow does. */
@@ -189,8 +196,8 @@ function joinedBy(side: LayoutModel): {
         else joined.add(to);
     };
     for (const edge of side.edges.values()) {
-        const ends = edge.kind === "messageFlow" ? undefined : ownersOf(side, edge);
-        if (ends === undefined || ends.source === ends.target) continue;
+        const ends = neighboursJoinedBy(side, edge);
+        if (ends === undefined) continue;
         join(ends.source, ends.target);
         join(ends.target, ends.source);
         if (carriesSequence(edge)) {

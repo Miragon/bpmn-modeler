@@ -250,6 +250,43 @@ describe("InsertedChain", () => {
     });
 });
 
+describe("InsertedChain.toPutInLine", () => {
+    const flowInto = (id: string) => flow(`Flow_Into_${id}`, "Task_A", id);
+    const chainOfTasks = (prefix: string, count: number, y: number) =>
+        Array.from({ length: count }, (_, at) =>
+            task(`Task_${prefix}${at + 1}`, 250 + at * 150, y),
+        );
+    const flowsAlong = (chain: readonly NodeShape[]) =>
+        chain.slice(1).map((next, at) => flow(`Flow_${next.id}`, chain[at]!.id, next.id));
+
+    /** Current adds `ofCurrent` tasks in a row and incoming `ofIncoming`; the result's flow out of Task_A enters current's. */
+    const orderOf = (ofCurrent: number, ofIncoming: number, incomingInFlow = true) => {
+        const [x, y] = [chainOfTasks("X", ofCurrent, 100), chainOfTasks("Y", ofIncoming, 110)];
+        const flowsOfIncoming = incomingInFlow ? [flowInto("Task_Y1"), ...flowsAlong(y)] : [];
+        const current = layoutOf([...KEPT, ...x], [flowInto("Task_X1"), ...flowsAlong(x)]);
+        const incoming = layoutOf([...KEPT, ...y], flowsOfIncoming);
+        const result = layoutOf(
+            [...KEPT, ...x, ...y],
+            [flowInto("Task_X1"), ...flowsAlong(x), ...flowsAlong(y)],
+        );
+        const chain = (id: string) =>
+            InsertedChain.of(result, [current, incoming], result.shapes.get(id) as NodeShape)!;
+        return InsertedChain.toPutInLine(result, chain("Task_Y1"), chain("Task_X1"))?.map(
+            ({ nodes }) => nodes[0]!.id,
+        );
+    };
+
+    it.each([
+        { chains: "two chains of several steps", order: orderOf(2, 2), inLine: true },
+        { chains: "a single step and a chain", order: orderOf(1, 2), inLine: true },
+        { chains: "a chain and a single step", order: orderOf(2, 1), inLine: true },
+        { chains: "two single steps", order: orderOf(1, 1), inLine: false },
+        { chains: "a chain and a shape no flow joins", order: orderOf(2, 1, false), inLine: false },
+    ])("puts $chains in line in the order of the flows, or not: $inLine", ({ order, inLine }) => {
+        expect(order).toEqual(inLine ? ["Task_X1", "Task_Y1"] : undefined);
+    });
+});
+
 describe("InsertedChain.inFlowOrder", () => {
     const X = [task("Task_X1", 250), task("Task_X2", 400)];
     const Y = [task("Task_Y1", 260), task("Task_Y2", 410)];
