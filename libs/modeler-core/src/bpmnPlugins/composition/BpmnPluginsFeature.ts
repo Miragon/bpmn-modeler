@@ -1,3 +1,5 @@
+import { GetBpmnPluginsCommand } from "@miragon/bpmn-modeler-shared";
+
 import {
     ActionNotifierPort,
     NotifierPort,
@@ -56,7 +58,7 @@ export interface BpmnPluginsHostPorts {
  * BPMN webview. A host that wires it hands its contribution to the BPMN editor.
  */
 export class BpmnPluginsFeature {
-    readonly editorContribution: EditorContribution<"GetBpmnPluginsCommand">;
+    readonly editorContribution: EditorContribution<GetBpmnPluginsCommand>;
     readonly catalog: PluginCatalog;
     readonly service: BpmnPluginService;
     readonly cache: PluginCache;

@@ -1,6 +1,6 @@
 import { basename } from "path";
 
-import { TemplateEditorCommandType } from "@miragon/bpmn-modeler-shared";
+import { TemplateEditorCommand } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort, SettingsPort } from "../../../kernel/port/hostPorts";
 import { EditorSessionParticipant } from "../../../editorSession/domain/EditorSessionParticipant";
@@ -56,7 +56,7 @@ export class ElementTemplateEditorFeature {
                 return undefined;
             }
         });
-        const commands: CommandTable<TemplateEditorCommandType> = {
+        const commands: CommandTable<TemplateEditorCommand> = {
             GetElementTemplateFileCommand: [
                 displayDocumentHandler(service, notifier, "Element template editor is ready"),
             ],

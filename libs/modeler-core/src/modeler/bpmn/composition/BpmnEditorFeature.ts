@@ -1,6 +1,22 @@
 import { basename } from "path";
 
-import { BpmnEditorCommandType } from "@miragon/bpmn-modeler-shared";
+import {
+    BpmnEditorCommand,
+    BpmnEditorCommandType,
+    GetBpmnModelerSettingCommand,
+    GetBpmnPluginsCommand,
+    GetFormPreviewCommand,
+    GetFormReferenceStatusCommand,
+    MessageOfType,
+    NavigateToImplementationCommand,
+    NavigateToReferencedModelCommand,
+    OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
+    SearchWorkspaceDefinitionsCommand,
+    SyncActivitiesCommand,
+    UpdateScriptSourceCommand,
+    UpdateScriptVariablesCommand,
+} from "@miragon/bpmn-modeler-shared";
 
 import { TemplatePreferenceStorePort } from "../../../kernel/port/templatePreferencePorts";
 import {
@@ -93,6 +109,8 @@ export const DOCUMENT_SYNC_COMMAND_TYPES = [
 
 export type DocumentSyncCommandType = (typeof DOCUMENT_SYNC_COMMAND_TYPES)[number];
 
+type DocumentSyncCommand = MessageOfType<DocumentSyncCommandType>;
+
 export interface BpmnEditorHostPorts {
     readonly store: EditorSessionStore;
     readonly documents: EditorSessionDocuments;
@@ -136,25 +154,21 @@ export interface BpmnEditorHostExtensions {
 /** The other features' handlers and participants, which the hosts' composition hands over. */
 export interface BpmnEditorContributions {
     readonly navigation: EditorContribution<
-        | "NavigateToReferencedModelCommand"
-        | "GetFormReferenceStatusCommand"
-        | "GetFormPreviewCommand"
+        NavigateToReferencedModelCommand | GetFormReferenceStatusCommand | GetFormPreviewCommand
     >;
-    readonly definitionSearch: EditorContribution<"SearchWorkspaceDefinitionsCommand">;
+    readonly definitionSearch: EditorContribution<SearchWorkspaceDefinitionsCommand>;
     readonly deploymentStatus: EditorSessionParticipant;
     /** Its `GetBpmnModelerSettingCommand` handler runs after the settings broadcast. */
     readonly scriptEditor: EditorContribution<
-        | "OpenScriptEditorCommand"
-        | "OpenScriptEditorsCommand"
-        | "UpdateScriptSourceCommand"
-        | "UpdateScriptVariablesCommand"
-        | "GetBpmnModelerSettingCommand"
+        | OpenScriptEditorCommand
+        | OpenScriptEditorsCommand
+        | UpdateScriptSourceCommand
+        | UpdateScriptVariablesCommand
+        | GetBpmnModelerSettingCommand
     >;
-    readonly codeLink: EditorContribution<
-        "NavigateToImplementationCommand" | "SyncActivitiesCommand"
-    >;
+    readonly codeLink: EditorContribution<NavigateToImplementationCommand | SyncActivitiesCommand>;
     /** Absent: the host serves no plugins, and the editor is told so at once. */
-    readonly plugins?: EditorContribution<"GetBpmnPluginsCommand">;
+    readonly plugins?: EditorContribution<GetBpmnPluginsCommand>;
 }
 
 const PANEL_ALWAYS_VISIBLE: PropertiesPanelStatePort = {
@@ -257,7 +271,7 @@ export class BpmnEditorFeature {
         const logToHost = webviewLogHandler(ports.notifier, (editorId) => this.logSource(editorId));
         const { navigation, definitionSearch, scriptEditor, codeLink } = contributions;
 
-        const commands: CommandTable<BpmnEditorCommandType> = {
+        const commands: CommandTable<BpmnEditorCommand> = {
             ...this.documentSyncRoutes(extensions.documentSync),
             LogDebugCommand: [logToHost],
             LogInfoCommand: [logToHost],
@@ -367,7 +381,7 @@ export class BpmnEditorFeature {
 
     private documentSyncRoutes(
         documentSync: BpmnDocumentSync | undefined,
-    ): CommandTable<DocumentSyncCommandType> {
+    ): CommandTable<DocumentSyncCommand> {
         if (!documentSync) {
             const ownPlumbing = { ignored: "the host's own plumbing owns the document" };
             return {

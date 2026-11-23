@@ -1,6 +1,7 @@
 import {
     Command,
     MessageOfType,
+    ProtocolCommand,
     ProtocolCommandType,
     requireIgnoreReason,
 } from "@miragon/bpmn-modeler-shared";
@@ -23,16 +24,13 @@ export type MessageRoute =
 export type RouteLookup = Pick<WebviewMessageRouter<never>, "routeOf">;
 
 /** A command's handlers in run order, or the reason its editor drops it. */
-export type CommandRoute<TType extends ProtocolCommandType, TSource = string> =
-    | readonly [
-          MessageHandler<MessageOfType<TType>, TSource>,
-          ...MessageHandler<MessageOfType<TType>, TSource>[],
-      ]
+export type CommandRoute<TCommand extends ProtocolCommand, TSource = string> =
+    | readonly [MessageHandler<TCommand, TSource>, ...MessageHandler<TCommand, TSource>[]]
     | { readonly ignored: string };
 
-/** Routes for a closed set of command types: a type without an entry fails to compile. */
-export type CommandTable<TType extends ProtocolCommandType, TSource = string> = {
-    readonly [T in TType]: CommandRoute<T, TSource>;
+/** Routes for a closed set of commands: a command without an entry fails to compile. */
+export type CommandTable<TCommand extends ProtocolCommand, TSource = string> = {
+    readonly [Type in TCommand["type"]]: CommandRoute<Extract<TCommand, { type: Type }>, TSource>;
 };
 
 /**
@@ -52,12 +50,13 @@ export class WebviewMessageRouter<TSource = string> {
 
     private readonly ignoredReasons = new Map<string, string>();
 
-    static fromTable<TType extends ProtocolCommandType, TSource = string>(
-        table: CommandTable<TType, TSource>,
+    static fromTable<TCommand extends ProtocolCommand, TSource = string>(
+        table: CommandTable<TCommand, TSource>,
     ): WebviewMessageRouter<TSource> {
         const router = new WebviewMessageRouter<TSource>();
-        for (const type of Object.keys(table) as TType[]) {
-            const route: CommandRoute<TType, TSource> = table[type];
+        for (const type of Object.keys(table) as TCommand["type"][]) {
+            // Sound because the router hands each row only commands of its own key's type.
+            const route = table[type] as CommandRoute<ProtocolCommand, TSource>;
             if ("ignored" in route) {
                 router.ignore(type, route.ignored);
             } else {

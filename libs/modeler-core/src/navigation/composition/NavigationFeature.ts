@@ -1,3 +1,9 @@
+import {
+    GetFormPreviewCommand,
+    GetFormReferenceStatusCommand,
+    NavigateToReferencedModelCommand,
+} from "@miragon/bpmn-modeler-shared";
+
 import { NotifierPort, PickerPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
@@ -27,9 +33,7 @@ export interface NavigationHostPorts {
  */
 export class NavigationFeature {
     readonly editorContribution: EditorContribution<
-        | "NavigateToReferencedModelCommand"
-        | "GetFormReferenceStatusCommand"
-        | "GetFormPreviewCommand"
+        NavigateToReferencedModelCommand | GetFormReferenceStatusCommand | GetFormPreviewCommand
     >;
 
     private readonly formReferenceStatus: FormReferenceStatusService;

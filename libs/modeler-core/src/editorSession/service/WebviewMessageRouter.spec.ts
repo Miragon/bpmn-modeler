@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { Command, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
+import { Command, GetDiagramAsSVGCommand, ShowInfoCommand } from "@miragon/bpmn-modeler-shared";
 
-import { WebviewMessageRouter } from "./WebviewMessageRouter";
+import { CommandRoute, CommandTable, WebviewMessageRouter } from "./WebviewMessageRouter";
 
 /** Minimal concrete `Command` for driving the router in tests. */
 class TestCommand extends Command {
@@ -108,8 +108,15 @@ describe("WebviewMessageRouter", () => {
         });
     });
 
+    it("keys a table's row by each command it routes, and hands the row's handlers that command", () => {
+        type Table = CommandTable<ShowInfoCommand | GetDiagramAsSVGCommand>;
+
+        expectTypeOf<keyof Table>().toEqualTypeOf<"ShowInfoCommand" | "GetDiagramAsSVGCommand">();
+        expectTypeOf<Table["ShowInfoCommand"]>().toEqualTypeOf<CommandRoute<ShowInfoCommand>>();
+    });
+
     it("handles or ignores every type a table lists, as the table says", () => {
-        const router = WebviewMessageRouter.fromTable({
+        const router = WebviewMessageRouter.fromTable<ShowInfoCommand | GetDiagramAsSVGCommand>({
             ShowInfoCommand: [() => undefined],
             GetDiagramAsSVGCommand: { ignored: "the export request reads the reply itself" },
         });
@@ -124,7 +131,7 @@ describe("WebviewMessageRouter", () => {
 
     it("runs a table entry's handlers in the order it lists them", async () => {
         const calls: string[] = [];
-        const router = WebviewMessageRouter.fromTable({
+        const router = WebviewMessageRouter.fromTable<ShowInfoCommand>({
             ShowInfoCommand: [
                 (message) => {
                     calls.push(`first ${message.message}`);
