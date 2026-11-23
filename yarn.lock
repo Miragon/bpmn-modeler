@@ -3296,6 +3296,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-diff@workspace:libs/bpmn-diff"
   dependencies:
+    "@miragon/architecture-testing": "workspace:*"
+    "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
     bpmn-js-differ: "npm:3.2.0"

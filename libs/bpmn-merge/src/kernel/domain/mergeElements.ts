@@ -3,7 +3,7 @@ import {
     isModdleElement,
     isType,
     trackedElementOf,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 /** Elements the diff folds into their container that are no root elements, which a merge decides on separately. */
 const OWN_MERGE_ELEMENT_TYPES = [

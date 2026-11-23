@@ -1,4 +1,4 @@
-import { layoutOnlyEdgeIds } from "@miragon/bpmn-modeler-diff";
+import { layoutOnlyEdgeIds } from "@miragon/bpmn-modeler-diff/domain";
 
 import { compareTable } from "./compareTable";
 import type { DecisionTableChanges, DmnDiffResult } from "./dmnDiffResult";

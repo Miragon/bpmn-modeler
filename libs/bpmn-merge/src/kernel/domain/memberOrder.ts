@@ -1,4 +1,4 @@
-import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff/domain";
 
 /** How a member of a collection is known in every version: by its id, or as the object itself without one. */
 export type ItemKey = string | ModdleElement;

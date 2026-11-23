@@ -4,7 +4,7 @@ import {
     isModdleElement,
     moddleElements,
     walkContainment,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import type { UndrawnEdge } from "./connectionEnds";
 import type { DiagramIndex } from "./diagramIndex";

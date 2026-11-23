@@ -3,7 +3,7 @@ import {
     containmentProperties,
     isModdleElement,
     isType,
-} from "@miragon/bpmn-modeler-diff";
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import { isMergeElement } from "../../kernel/domain/mergeElements";
 import { type ItemKey, itemKeyOf, orderMembers } from "../../kernel/domain/memberOrder";

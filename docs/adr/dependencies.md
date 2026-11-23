@@ -46,8 +46,8 @@ Callers use narrow public concepts, never private member names.
 - Installed-package tests make a dependency bump fail where its shape changed:
   [upstream shapes](../../packages/bpmn-modeler/src/upstreamShape.browser.spec.ts),
   [engine groups](../../packages/bpmn-modeler/src/engineGroupData.upstream.browser.spec.ts),
-  [differ results](../../libs/bpmn-diff/src/upstreamInternals/differResult.spec.ts),
-  [moddle namespaces](../../libs/bpmn-diff/src/upstreamInternals/moddleNamespaces.spec.ts)
+  [differ results](../../libs/bpmn-diff/src/compare/service/upstreamInternals/differResult.spec.ts),
+  [moddle namespaces](../../libs/bpmn-diff/src/parse/domain/upstreamInternals/moddleNamespaces.spec.ts)
   and [template prefixes](../../libs/properties-panel/src/modeFilter/engineGroupData.upstream.spec.ts).
   The `bpmn-diff` and `properties-panel` targets list `yarn.lock` among their
   trigger paths so a lockfile-only bump re-runs the pins. The clipboard catches a

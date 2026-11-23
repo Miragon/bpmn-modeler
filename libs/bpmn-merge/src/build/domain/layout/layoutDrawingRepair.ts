@@ -1,4 +1,4 @@
-import type { ModdleElement } from "@miragon/bpmn-modeler-diff";
+import type { ModdleElement } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { BuildNoteContent } from "../buildNotes";
 import { type ContainerMovePlan, planContainerMoves } from "./layoutContainerMoves";

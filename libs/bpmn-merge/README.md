@@ -74,7 +74,7 @@ that fails its checks instead of repairing it.
 - Keep it free of the DOM: the tsconfig compiles with `lib: ["ES2021"]` and the tests run in the
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
-  lazily. Import the engine rule from `@miragon/bpmn-modeler-types/engine` and the waypoint walk from
+  lazily; a `domain/` file imports `@miragon/bpmn-modeler-diff/domain`. Import the engine rule from `@miragon/bpmn-modeler-types/engine` and the waypoint walk from
   `@miragon/bpmn-modeler-types/polyline`, never the barrel, whose modules are DOM-typed.
 - `mergeDecisions.ts` and its helpers import no parser: `mergeDecisionsPurity.spec.ts` mocks the parser
   and loads them.

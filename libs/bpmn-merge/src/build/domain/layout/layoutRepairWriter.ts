@@ -1,4 +1,4 @@
-import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff";
+import { type ModdleElement, isModdleElement } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { DiagramIndex } from "../diagramIndex";
 import { type DiagramBounds, type Point, sameBounds } from "./layoutGeometry";

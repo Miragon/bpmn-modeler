@@ -127,7 +127,7 @@ const CONTEXT_RULES = contextRules(IS_PURE_MODULE);
 /** Fixed, so the synthetic cases hold whatever the real tree reads as pure. */
 const SYNTHETIC_PURE_MODULES: readonly string[] = [
     "@miragon/bpmn-modeler-merge/domain",
-    "@miragon/bpmn-modeler-diff",
+    "@miragon/bpmn-modeler-diff/domain",
 ];
 
 function isSyntheticPureModule(specifier: string): boolean {
@@ -145,7 +145,7 @@ const CONTEXT_TREE = [
         text: [
             importsOf("../../kernel/domain/errors", "../../editorSession/domain/session", "path"),
             'import { MERGE_SIDES } from "@miragon/bpmn-modeler-merge/domain";',
-            'import type { BpmnDiff } from "@miragon/bpmn-modeler-diff";',
+            'import type { BpmnDiff } from "@miragon/bpmn-modeler-diff/domain";',
         ].join("\n"),
     },
     {
@@ -235,14 +235,14 @@ describe("context rules on a synthetic graph", () => {
 describe("modeler-core architecture", () => {
     const graph = buildImportGraph(readSourceTree(SRC_ROOT));
 
-    it("reads the merge library's domain entry and the diff entry as pure modules, the protocol library's not", () => {
+    it("reads the merge and diff libraries' domain entries as pure modules, the protocol library's not", () => {
         expect(
             [
                 "@miragon/bpmn-modeler-merge/domain",
-                "@miragon/bpmn-modeler-diff",
+                "@miragon/bpmn-modeler-diff/domain",
                 "@miragon/bpmn-modeler-shared",
             ].filter(IS_PURE_MODULE),
-        ).toEqual(["@miragon/bpmn-modeler-merge/domain", "@miragon/bpmn-modeler-diff"]);
+        ).toEqual(["@miragon/bpmn-modeler-merge/domain", "@miragon/bpmn-modeler-diff/domain"]);
     });
 
     it("still imports path in a domain file, or its allowance goes", () => {

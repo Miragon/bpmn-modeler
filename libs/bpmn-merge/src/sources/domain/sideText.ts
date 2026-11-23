@@ -1,4 +1,4 @@
-import type { ElementSnapshot } from "@miragon/bpmn-modeler-diff";
+import type { ElementSnapshot } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { HandMergedVersion } from "../../decide/domain/handMerge";
 import type { MergeSide } from "../../kernel/domain/mergeResult";

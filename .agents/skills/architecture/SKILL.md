@@ -165,8 +165,8 @@ port has a suite.
   container-scoped. Use feature barrels for cross-feature access.
 
 Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
-`libs/bpmn-merge/src`, `apps/vscode-plugin/src` and `tools/repo-checks/src`,
-plus root `eslint.config.cjs`. All specs read sources through the shared engine
+`libs/bpmn-merge/src`, `libs/bpmn-diff/src`, `apps/vscode-plugin/src` and
+`tools/repo-checks/src`, plus root `eslint.config.cjs`. All specs read sources through the shared engine
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
 transitive host-module imports (the core is still not browser-safe), a domain
@@ -201,7 +201,7 @@ command that is on no list.
 ## Put each file in its role folder
 
 Each workspace declares its kind in the `"architecture"` field of its
-`package.json`: `hexagonal` (core, merge library, VS Code host, bridge,
+`package.json`: `hexagonal` (core, merge and diff libraries, VS Code host, bridge,
 webviews, template builder, `tools/repo-checks`), `diagram-js` (feature
 libraries and the modeler packages) or `flat` (types, protocol and the rest of
 the tooling). A new workspace declares one too. Only a `hexagonal` workspace
@@ -259,6 +259,15 @@ and `service/` inside, and a stage imports only `kernel/` and the stages before
 it, `build` and `project` not each other. A consumer's `domain/` imports
 `@miragon/bpmn-modeler-merge/domain`, never the root entry
 ([stages](../../../docs/adr/merge.md#stages)).
+
+The diff library is laid out the same way, in folders by concept: `moddle`
+(loader, parse result, element model) and `present` (what a pane reads of a
+result) import no other folder, `parse` imports `moddle`, `compare` imports
+`moddle`, `parse` and `present`, `snapshot` imports `moddle`, `parse` and
+`compare`. A pure
+importer, a `domain/` file or a library whose entry must stay pure, imports
+`@miragon/bpmn-modeler-diff/domain`
+([library folders](../../../docs/adr/diff.md#library-folders)).
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved

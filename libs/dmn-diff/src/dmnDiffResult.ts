@@ -1,4 +1,4 @@
-import type { DiffCounts } from "@miragon/bpmn-modeler-diff";
+import type { DiffCounts } from "@miragon/bpmn-modeler-diff/domain";
 
 /**
  * What changed in one decision table that both versions contain.

@@ -17,7 +17,8 @@ preserves earlier decisions and their evolution.
 | [BPMN modeler](bpmn-modeler.md) | Public API and capabilities, surfaces and modes, document identity, mode session and lifecycle |
 | [BPMN modeler features](bpmn-modeler-features.md) | Properties panel, themes and locale, linked form previews, transaction boundaries, formatting and cleanup |
 | [BPMN linting](bpmn-linting.md) | The lint injection contract and tiers, host linting, workspace rule packages: the gate, updates without a reload, asking only when needed |
-| [Diff](diff.md) | BPMN and DMN model diff: data libraries, navigation order, shared vocabulary and legend, diff panes |
+| [Diff](diff.md) | BPMN and DMN model diff: data libraries and the diff library's folders, navigation order, shared vocabulary and legend, diff panes |
+| [Element XML diff](element-xml-diff.md) | One element's XML from both diff versions: what the text holds, the shared selection, steps and resize, the core's request rules and titles, the VS Code group below and IntelliJ's panel |
 | [Merge](merge.md) | Three-way BPMN merge: the unpublished library, merge elements, classification, decisions and reference rules, layout side (a pool's lanes from one side), versions merged by hand |
 | [Merge build](merge-build.md) | Building the merged file: the shared sources, the parse and prefix map, moving elements and drawings between sides, the checks before it returns, the notes for the reviewer |
 | [Merge layout](merge-layout.md) | The merged drawing: broken spots found by geometry, the lanes the build stacks below their pool's lanes, the shapes it brings into their containers or moves off others and when it grows a container or makes room, the flows it re-routes and what a route must keep to, the layout notes |

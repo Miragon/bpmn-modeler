@@ -1,4 +1,8 @@
-import { type ModdleElement, isModdleElement, moddleElements } from "@miragon/bpmn-modeler-diff";
+import {
+    type ModdleElement,
+    isModdleElement,
+    moddleElements,
+} from "@miragon/bpmn-modeler-diff/domain";
 
 import type { Drawing } from "../diagramIndex";
 import type { IndexedDocument } from "../indexedDocument";

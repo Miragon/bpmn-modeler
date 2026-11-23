@@ -1,4 +1,4 @@
-import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff";
+import type { ExecutionEngine } from "@miragon/bpmn-modeler-diff/domain";
 
 /**
  * The webview can either host the full editable modeler, a readonly viewer

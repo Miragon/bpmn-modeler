@@ -15,37 +15,71 @@
  * descriptors it is given. The package touches no DOM, no CSS, and no bpmn-js —
  * it is inlined into the publishable `@miragon/bpmn-modeler` under its `./diff`
  * subpath and imported directly by the extension engine (`modeler-core`).
+ * This entry re-exports `service/` modules; a `domain/` file imports
+ * `@miragon/bpmn-modeler-diff/domain` instead.
  */
-export { computeDiff } from "./computeDiff";
-export { sideView } from "./sideView";
-export { elementXml } from "./elementXml";
-export { loadBpmnModdle, moddleDescriptor } from "./bpmnModdleFactory";
-export type { BpmnModdleFactory } from "./bpmnModdleFactory";
-export { layoutOnlyEdgeIds } from "./drawnEdges";
-export type { DiffSide, DiffCounts, DiffCategory, DiffResult, DiffSideView } from "./diffResult";
-export { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
-export type { FlowPosition } from "./bpmnFlowOrder";
-export { elementSnapshots } from "./elementSnapshots";
-export { elementTexts, rebindReferences, standaloneElementText } from "./elementTexts";
-export type { ElementTextOptions, OwnPropertyFilter, UnitText } from "./elementTexts";
-export { rootElementNamesOf } from "./rootElements";
-export type { RootElementName } from "./rootElements";
-export { unitParts, unitReferences } from "./unitStructure";
-export { isDerivedReference } from "./elementSnippets";
+export { computeDiff } from "./compare/service/computeDiff";
+export { sideView } from "./present/domain/sideView";
+export { elementXml } from "./snapshot/service/elementXml";
+export { loadBpmnModdle } from "./moddle/service/loadBpmnModdle";
+export { moddleDescriptor } from "./moddle/domain/bpmnModdleFactory";
+export type { BpmnModdleFactory } from "./moddle/domain/bpmnModdleFactory";
+export { layoutOnlyEdgeIds } from "./present/domain/drawnEdges";
 export type {
-    ElementSnapshot,
-    ElementSnapshotOptions,
-    SnapshotReference,
-} from "./elementSnapshots";
-export { idOf, idsOf, isModdleElement, isType, moddleElements } from "./moddleElement";
-export type { ModdleElement, ModdlePropertyDescriptor } from "./moddleElement";
-export { trackedElementOf } from "./trackedElements";
-export { containmentProperties, ownAttributeEntries, walkContainment } from "./moddleContainment";
-export type { OwnAttributeEntry } from "./moddleContainment";
-export { createDocumentModdle } from "./documentModdle";
-export type { PrefixedModdle } from "./upstreamInternals/moddleNamespaces";
-export { loadExecutionPackage } from "./executionPackages";
-export type { ExecutionEngine, ExecutionPackage } from "./executionPackages";
-export { isNamespaceDeclaration, namespaceDeclarations } from "./namespaceDeclarations";
-export { isUnresolvedReferenceWarning, parseWarningMessages } from "./bpmnModdleFactory";
-export type { ModdleParseResult, ModdleParseWarning, ModdleReference } from "./bpmnModdleFactory";
+    DiffSide,
+    DiffCounts,
+    DiffCategory,
+    DiffResult,
+    DiffSideView,
+} from "./present/domain/diffResult";
+export {
+    buildFlowOrder,
+    buildRemovedAnchors,
+    sortIdsByOrder,
+} from "./present/domain/bpmnFlowOrder";
+export type { FlowPosition } from "./present/domain/bpmnFlowOrder";
+export { elementSnapshots } from "./snapshot/service/elementSnapshots";
+export { elementTexts, standaloneElementText } from "./snapshot/service/elementTexts";
+export { rebindReferences } from "./snapshot/domain/rebindReferences";
+export type {
+    ElementTextOptions,
+    OwnPropertyFilter,
+    UnitText,
+} from "./snapshot/service/elementTexts";
+export { rootElementNamesOf } from "./parse/service/rootElements";
+export type { RootElementName } from "./parse/service/rootElements";
+export { unitParts, unitReferences } from "./snapshot/domain/unitStructure";
+export { isDerivedReference } from "./snapshot/domain/elementSnippets";
+export type { ElementSnapshot } from "./snapshot/domain/elementSnapshot";
+export type { ElementSnapshotOptions } from "./snapshot/service/elementSnapshots";
+export type { SnapshotReference } from "./snapshot/domain/unitStructure";
+export {
+    idOf,
+    idsOf,
+    isModdleElement,
+    isType,
+    moddleElements,
+} from "./moddle/domain/moddleElement";
+export type { ModdleElement, ModdlePropertyDescriptor } from "./moddle/domain/moddleElement";
+export { trackedElementOf } from "./compare/domain/trackedElements";
+export {
+    containmentProperties,
+    ownAttributeEntries,
+    walkContainment,
+} from "./parse/domain/moddleContainment";
+export type { OwnAttributeEntry } from "./parse/domain/moddleContainment";
+export { createDocumentModdle } from "./parse/service/documentModdle";
+export type { PrefixedModdle } from "./parse/domain/upstreamInternals/moddleNamespaces";
+export { loadExecutionPackage } from "./parse/service/loadExecutionPackage";
+export type { ExecutionEngine, ExecutionPackage } from "./parse/domain/executionPackage";
+export { isNamespaceDeclaration } from "./parse/domain/namespacePrefixes";
+export { namespaceDeclarations } from "./parse/service/namespaceDeclarations";
+export {
+    isUnresolvedReferenceWarning,
+    parseWarningMessages,
+} from "./moddle/domain/bpmnModdleFactory";
+export type {
+    ModdleParseResult,
+    ModdleParseWarning,
+    ModdleReference,
+} from "./moddle/domain/bpmnModdleFactory";

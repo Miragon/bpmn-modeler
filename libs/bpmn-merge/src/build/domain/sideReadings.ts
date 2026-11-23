@@ -1,4 +1,4 @@
-import type { ModdleElement, ModdleParseResult } from "@miragon/bpmn-modeler-diff";
+import type { ModdleElement, ModdleParseResult } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { DiagramIndex } from "./diagramIndex";
 import { IndexedDocument } from "./indexedDocument";

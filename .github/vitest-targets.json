@@ -358,8 +358,12 @@
         "bpmn-diff": {
             "dir": "libs/bpmn-diff",
             "package": "@miragon/bpmn-modeler-diff",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "libs/bpmn-diff/**",
+                "tools/architecture-testing/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

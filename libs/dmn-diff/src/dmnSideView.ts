@@ -1,4 +1,4 @@
-import type { DiffSide } from "@miragon/bpmn-modeler-diff";
+import type { DiffSide } from "@miragon/bpmn-modeler-diff/domain";
 
 import type { DecisionTableChanges, DmnDiffResult } from "./dmnDiffResult";
 
