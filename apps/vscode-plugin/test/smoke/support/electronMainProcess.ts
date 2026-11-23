@@ -7,6 +7,8 @@ const CLOSE_TIMEOUT_MS = 10_000;
 
 type ElectronLaunchOptions = NonNullable<Parameters<typeof electron.launch>[0]>;
 
+export type CloseOutcome = "quit" | "killed";
+
 interface BrowserWindowState {
     focused: boolean;
     visible: boolean;
@@ -58,7 +60,7 @@ export class ElectronMainProcess {
      * A modal dialog left by a failed step blocks a graceful quit. A killed VS Code
      * may not have flushed its global state, so the caller learns which it was.
      */
-    async close(): Promise<"quit" | "killed"> {
+    async close(): Promise<CloseOutcome> {
         let timer: ReturnType<typeof setTimeout> | undefined;
         const closed = await Promise.race([
             this.app.close().then(

@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { downloadAndUnzipVSCode, type ProgressReport } from "@vscode/test-electron";
 import type { FrameLocator, Locator, Page } from "playwright-core";
 
-import { ElectronMainProcess } from "./support/electronMainProcess";
+import { type CloseOutcome, ElectronMainProcess } from "./support/electronMainProcess";
 import { type OpenDocumentText, VsCodeDriver, fileUri } from "./support/vscodeDriver";
 
 const runFile = promisify(execFile);
@@ -811,7 +811,7 @@ export class VsCodeSession {
         });
     }
 
-    close(): Promise<"quit" | "killed"> {
+    close(): Promise<CloseOutcome> {
         return this.mainProcess.close();
     }
 }
