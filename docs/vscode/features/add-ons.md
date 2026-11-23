@@ -2,7 +2,7 @@
 
 See and manage everything your workspace adds to the BPMN editor in one place: [BPMN plugins](/vscode/features/bpmn-plugins), [bpmnlint rule packages](/vscode/features/linting#allow-a-rule-package), [element templates](/vscode/features/element-template-chooser) and [template marketplaces](/vscode/features/template-marketplace). Allow or revoke code, and turn templates on or off.
 
-<figure class="shot"><img src="./images/ao-overview.png" alt="Add-ons view with a header line that counts what waits and what is not loaded, Needs attention with the waiting plugin Resize Tasks at the top of the list, the installed add-ons of the folder's .camunda source below it, and the details of Resize Tasks on the right, with its review, where the allowance would hold and Allow"><figcaption>A wide view: the list on the left, the selected add-on's details on the right.</figcaption></figure>
+<figure class="shot"><img src="./images/ao-overview.png" alt="Add-ons view with a header line that counts what waits and what is not loaded, Needs attention with the waiting plugin Resize Tasks at the top of the list, the installed add-ons of the folder's .camunda source below it, and the details of Resize Tasks on the right, with its MIT license, its review, where the allowance would hold, Allow and the start of its README"><figcaption>A wide view: the list on the left, the selected add-on's details on the right.</figcaption></figure>
 
 ## Open the view
 
