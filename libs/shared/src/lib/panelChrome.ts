@@ -3,6 +3,8 @@
  * webviews and the Orca editors. Its look is `panelChrome.css` beside it, which
  * every page that mounts it imports. Not part of the modeler public API.
  */
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
 import { installPanelShortcuts } from "./propertiesPanelFocus";
 import { initResizer, type PropertiesPanelHandle } from "./propertiesPanelResizer";
 import type { PanelStateStore } from "./propertiesPanelUiState";
@@ -22,7 +24,7 @@ export interface PanelChromeOptions {
     store: PanelStateStore;
     /** Receives a visibility the user chose, to report as the host's new default. */
     onVisibilityChosen?: (visible: boolean) => void;
-    translate: (key: string) => string;
+    translate: Translate;
     /** Re-applies the toggle label on a language change; returns the unsubscribe. */
     onLanguageChange: (apply: () => void) => () => void;
     focusCanvas: () => void;

@@ -16,6 +16,7 @@
  * rule task may show both this entry and the model-navigation entry; they never
  * conflict because {@link extractImplementation} ignores `camunda:decisionRef`.
  */
+import type { Translate } from "@miragon/bpmn-modeler-types";
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
 import { Element, extractImplementation } from "./extractImplementation";
@@ -25,10 +26,6 @@ import type { CodeLinkPort } from "./CodeLinkPort";
 
 interface ContextPad {
     registerProvider(provider: CodeLinkContextPadProvider): void;
-}
-
-interface Translate {
-    (template: string): string;
 }
 
 interface ContextPadEntry {

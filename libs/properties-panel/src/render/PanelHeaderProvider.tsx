@@ -6,6 +6,7 @@
  * Template-driven icons and documentation refs remain dropped (they need the
  * `elementTemplates` service, absent from a neutral modeler).
  */
+import type { Translate } from "@miragon/bpmn-modeler-types";
 import { getLabel } from "bpmn-js/lib/features/label-editing/LabelUtil";
 
 import iconsByType from "./icons";
@@ -58,7 +59,7 @@ function getConcreteType(element: any): string {
     return type;
 }
 
-export const PanelHeaderProvider = (translate?: (text: string) => string) => {
+export const PanelHeaderProvider = (translate?: Translate) => {
     const t = translate ?? ((text: string) => text);
     return {
         getDocumentationRef: (_element: any): string | undefined => {
