@@ -259,6 +259,7 @@
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
                 "packages/bpmn-modeler/src/bpmnlint/**",
+                "apps/deployment-webview/src/adapter/out/browserPreview/**",
                 "scripts/perf/**",
                 "apps/standalone/package.json"
             ],

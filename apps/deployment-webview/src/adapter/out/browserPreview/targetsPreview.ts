@@ -29,7 +29,8 @@ const SAMPLE_TARGETS: readonly DeploymentTargetPayload[] = [
 /**
  * The preview's deployment targets, held in memory and starting from two
  * samples, and the one that is active. Each change answers with the queries a
- * host sends back for it.
+ * host sends back for it. Its target rules and refusal text copy the core's
+ * `DeploymentTargets`; the core's `deploymentPreviewParity.spec.ts` pins them.
  */
 export class PreviewTargets {
     private targets: DeploymentTargetPayload[] = [...SAMPLE_TARGETS];
@@ -41,11 +42,12 @@ export class PreviewTargets {
     }
 
     select(name: string): DeploymentTargetsQuery {
-        this.activeName = name;
+        this.activeName = name.trim();
         return this.list();
     }
 
-    create(target: DeploymentTargetPayload): Query[] {
+    create(entered: DeploymentTargetPayload): Query[] {
+        const target = withTrimmedName(entered);
         if (this.isTaken(target.name)) {
             return [nameTaken(target.name)];
         }
@@ -54,19 +56,20 @@ export class PreviewTargets {
         return [new TargetSavedQuery(true, `Created target "${target.name}" (mock).`), this.list()];
     }
 
-    save(target: DeploymentTargetPayload, previousName?: string): Query[] {
-        if (this.isRenamedOntoAnother(target, previousName)) {
+    save(entered: DeploymentTargetPayload, previousName?: string): Query[] {
+        const target = withTrimmedName(entered);
+        const savedName = previousName?.trim() ?? target.name;
+        if (savedName !== target.name && this.isTaken(target.name)) {
             return [nameTaken(target.name)];
         }
-        this.targets = this.targets.filter(
-            ({ name }) => name !== target.name && name !== previousName,
-        );
+        this.targets = this.targets.filter(({ name }) => name !== savedName);
         this.targets.push(target);
         this.activeName = target.name;
         return [new TargetSavedQuery(true, `Saved target "${target.name}" (mock).`), this.list()];
     }
 
-    delete(name: string): Query[] {
+    delete(entered: string): Query[] {
+        const name = entered.trim();
         this.targets = this.targets.filter((target) => target.name !== name);
         if (this.activeName === name) {
             this.activeName = "";
@@ -76,7 +79,7 @@ export class PreviewTargets {
 
     /** A name no target holds has no auth to look up. */
     authOf(name: string): AuthConfigPayload {
-        const target = this.targets.find((entry) => entry.name === name);
+        const target = this.targets.find((entry) => entry.name === name.trim());
         return {
             authType: target?.authType ?? "none",
             tokenEndpoint: target?.tokenEndpoint,
@@ -87,11 +90,10 @@ export class PreviewTargets {
     private isTaken(name: string): boolean {
         return this.targets.some((target) => target.name === name);
     }
+}
 
-    private isRenamedOntoAnother(target: DeploymentTargetPayload, previousName?: string): boolean {
-        const isRename = previousName !== undefined && previousName !== target.name;
-        return isRename && this.isTaken(target.name);
-    }
+function withTrimmedName(target: DeploymentTargetPayload): DeploymentTargetPayload {
+    return { ...target, name: target.name.trim() };
 }
 
 function nameTaken(name: string): TargetSavedQuery {
