@@ -4,7 +4,7 @@ import {
     CreateTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
-    DeploymentSidebarCommandType,
+    DeploymentSidebarCommand,
     DeploymentTargetsQuery,
     FormDefaultsQuery,
     ProcessDefinitionKeyQuery,
@@ -63,7 +63,7 @@ import { StartInstanceService } from "./StartInstanceService";
  * redirect which file is deployed.
  */
 export class DeploymentMessageDispatcher implements RouteLookup {
-    private readonly router = WebviewMessageRouter.fromTable<DeploymentSidebarCommandType, void>({
+    private readonly router = WebviewMessageRouter.fromTable<DeploymentSidebarCommand, void>({
         LogInfoCommand: [(command) => this.logWebviewCommand(command)],
         LogErrorCommand: [(command) => this.logWebviewCommand(command)],
         RequestFormDefaultsCommand: [() => this.sendFormDefaults()],

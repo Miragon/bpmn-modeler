@@ -1,3 +1,5 @@
+import { SearchWorkspaceDefinitionsCommand } from "@miragon/bpmn-modeler-shared";
+
 import { NotifierPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { EditorSessionDocuments } from "../../editorSession/service/EditorSessionDocuments";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
@@ -19,7 +21,7 @@ export interface DefinitionSearchHostPorts {
  * other models of the workspace define, for every host.
  */
 export class DefinitionSearchFeature {
-    readonly editorContribution: EditorContribution<"SearchWorkspaceDefinitionsCommand">;
+    readonly editorContribution: EditorContribution<SearchWorkspaceDefinitionsCommand>;
 
     private readonly definitionIndex: WorkspaceDefinitionIndex;
 

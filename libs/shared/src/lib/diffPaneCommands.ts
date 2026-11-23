@@ -52,6 +52,8 @@ export const DIFF_PANE_HANDSHAKE_COMMAND_TYPES = [
 
 export type DiffPaneHandshakeCommandType = (typeof DIFF_PANE_HANDSHAKE_COMMAND_TYPES)[number];
 
+export type DiffPaneHandshakeCommand = MessageOfType<DiffPaneHandshakeCommandType>;
+
 /**
  * Every command a DMN diff pane posts. Its host names the pane a diff pane in
  * the page's HTML, so the page asks only for its file and posts no editor

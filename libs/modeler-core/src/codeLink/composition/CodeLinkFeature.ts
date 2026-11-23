@@ -1,3 +1,8 @@
+import {
+    NavigateToImplementationCommand,
+    SyncActivitiesCommand,
+} from "@miragon/bpmn-modeler-shared";
+
 import { NotifierPort, PickerPort, SettingsPort, WorkspacePort } from "../../kernel/port/hostPorts";
 import { ArtifactService } from "../../kernel/service/ArtifactService";
 import { EditorContribution } from "../../editorSession/service/EditorContribution";
@@ -28,7 +33,7 @@ export interface CodeLinkHostPorts {
  */
 export class CodeLinkFeature {
     readonly editorContribution: EditorContribution<
-        "NavigateToImplementationCommand" | "SyncActivitiesCommand"
+        NavigateToImplementationCommand | SyncActivitiesCommand
     >;
 
     private readonly codeLinkMap: CodeLinkMapService;
