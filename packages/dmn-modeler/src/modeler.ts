@@ -19,6 +19,7 @@ import {
     observeCanvasSize,
     type ResizableCanvas,
     ThemeController,
+    type Translate,
 } from "@miragon/bpmn-modeler-types";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
@@ -76,8 +77,6 @@ interface DrdCanvas extends FittableCanvas {
 interface FocusEventBus {
     on(event: "canvas.focus.changed", callback: (event: { focused: boolean }) => void): void;
 }
-
-type Translate = (template: string) => string;
 
 interface Viewbox {
     x: number;

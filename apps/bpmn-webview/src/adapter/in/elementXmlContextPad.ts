@@ -3,6 +3,7 @@ import ContextPadModule from "diagram-js/lib/features/context-pad";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import { ELEMENT_XML_CHANGES_TITLE } from "../../domain/elementXmlTexts";
 import { CODE_ICON_SVG } from "./elementXmlEntry";
@@ -32,8 +33,6 @@ interface ContextPad {
 interface Canvas {
     getRootElement(): unknown;
 }
-
-type Translate = (template: string) => string;
 
 /** One context-pad entry that asks the host for the element's XML changes. */
 export class ElementXmlChangesContextPadProvider {

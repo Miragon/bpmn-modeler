@@ -1,4 +1,9 @@
-import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
+import type {
+    BpmnlintConfig,
+    LintResults,
+    LintRunEvent,
+    Translate,
+} from "@miragon/bpmn-modeler-types";
 
 import { BrowserLinter } from "./browserLinter";
 import {
@@ -32,8 +37,6 @@ interface Bpmnjs {
 interface EventBus {
     on(event: string, callback: (event: unknown) => void): void;
 }
-
-type Translate = (template: string) => string;
 
 export type { LintTierInit } from "./lintTierMachine";
 

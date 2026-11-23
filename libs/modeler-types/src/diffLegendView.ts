@@ -1,6 +1,7 @@
 import type { DiffCategory } from "./diff";
 import { DIFF_CATEGORIES, DIFF_CATEGORY_LABELS, DIFF_LEGEND_TEXTS } from "./diffVocabulary";
 import { createButton, createElement } from "./dom";
+import type { Translate } from "./translate";
 
 /** The chevrons of the legend's Previous and Next buttons, on its icons' 24 × 24 grid. */
 export const DIFF_LEGEND_CHEVRONS = {
@@ -55,7 +56,7 @@ export function reserveLegendHeight(
 
 /** The translator the legend renders its words with, such as `@miragon/bpmn-modeler-i18n`'s `i18n`. */
 export interface DiffLegendTranslator {
-    translate(key: string): string;
+    translate: Translate;
     /** Calls `listener` when the language changes; returns the unsubscribe. */
     onChange(listener: () => void): () => void;
 }

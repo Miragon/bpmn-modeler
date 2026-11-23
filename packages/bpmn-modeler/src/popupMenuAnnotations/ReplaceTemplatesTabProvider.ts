@@ -1,4 +1,5 @@
 import { isTemplatePopupEntry } from "@miragon/bpmn-modeler-append-menu";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;
@@ -16,7 +17,7 @@ export class ReplaceTemplatesTabProvider {
 
     constructor(
         popupMenu: PopupMenuRegistry,
-        private readonly translate: (text: string) => string,
+        private readonly translate: Translate,
     ) {
         popupMenu.registerProvider("bpmn-replace", TAB_PRIORITY, this);
     }

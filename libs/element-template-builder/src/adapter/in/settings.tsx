@@ -1,8 +1,8 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
 import { type ComponentChildren, createContext } from "@bpmn-io/properties-panel/preact";
 import { useContext, useState } from "@bpmn-io/properties-panel/preact/hooks";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
-import type { Translate } from "../../domain/translate";
 import type { EntryDiagnostic } from "../../domain/entryIds";
 
 export type { Translate };

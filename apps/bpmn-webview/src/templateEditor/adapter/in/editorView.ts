@@ -10,9 +10,8 @@ import {
     type Engine,
     isEngine,
     isPreviewableElementType,
+    type Translate,
 } from "@miragon/bpmn-modeler-types";
-
-type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 /** The template editor's page: toolbar, messages, the builder and the preview on the right. */
 export interface EditorView {

@@ -1,3 +1,5 @@
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
 /** A bpmn-js popup entry id, e.g. `service-task`; create and append entries use it as action name. */
 export type PopupEntryKey = string;
 
@@ -89,7 +91,7 @@ export class PopupMenuAnnotations {
 export function annotateEntry<Entry extends AnnotatableEntry>(
     entry: Entry,
     annotation: PopupMenuAnnotation,
-    translate: (text: string) => string,
+    translate: Translate,
 ): Entry {
     const description =
         entry.description ??
@@ -101,7 +103,7 @@ export function annotateEntry<Entry extends AnnotatableEntry>(
                   ...new Set([
                       ...searchTermsOf(entry),
                       ...annotation.keywords,
-                      ...annotation.keywords.map(translate),
+                      ...annotation.keywords.map((keyword) => translate(keyword)),
                   ]),
               ];
     return {

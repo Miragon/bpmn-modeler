@@ -21,11 +21,10 @@ import {
     type TextOrigin,
     withSchema,
 } from "@miragon/bpmn-modeler-element-template-builder";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import type { TemplateDocumentSession } from "../../service/documentSession";
 import type { EditorView } from "./editorView";
-
-type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 // Host edits arrive already debounced; this skips the half-typed states of the page's own.
 const EDIT_DEBOUNCE_MS = 300;
