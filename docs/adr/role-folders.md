@@ -81,46 +81,53 @@ contexts here.
 
 ### Domain imports
 
-The core's `domain/` imports `domain/` (rule 2), a pure workspace and `path`,
-value imports included. A workspace is pure when its manifest says `flat`, no file
-it reaches imports a platform module (a host module of rule 7, or `path`), and the
-program the native compiler builds from its tsconfig, and from
-each config it references, holds no DOM lib file. Imports are followed to the
-file, through relative imports and the `tsconfig.base.json` aliases, and only into
-flat workspaces. The program holds every file the workspace reaches, so a DOM-free
-entry of another workspace keeps it pure, and it shows the DOM however it came in:
-the `lib`, the default lib, or a `/// <reference lib="dom" />` in a declaration it
-loads, as preact's JSX types do once a `.tsx` file is in it. `readPureWorkspaces`
-(`tools/architecture-testing`) decides it from structure; no list names a package.
+The core's `domain/` imports `domain/` (rule 2), a pure module and `path`, value
+imports included. Purity is decided per imported module, whatever the kind of its
+workspace. A module is pure when no file it reaches sits in a `port/`, `service/`,
+`adapter/` or `composition/` folder, none imports a platform module (a host module
+of rule 7, or `path`), and the program the native compiler builds from its
+workspace's tsconfig, and from each config it references, holds no DOM lib file.
+Imports are followed to the file, through relative imports and the
+`tsconfig.base.json` aliases, into any workspace. The program holds every file the
+module reaches, so a DOM-free module of another workspace keeps it pure, and it
+shows the DOM however it came in: the `lib`, the default lib, or a
+`/// <reference lib="dom" />` in a declaration it loads, as preact's JSX types do
+once a `.tsx` file is in it. `readModulePurity` (`tools/architecture-testing`)
+decides it from structure; no list names a package.
 
-Pure today: `bpmn-diff`, `bpmn-merge`, `dmn-diff`. Not pure: `shared` and
-`modeler-types`, which both compile with the DOM; `modeler-types` needs it for ten
-canvas and chrome modules. The core's domain imports `modeler-types` under a known
-exception until those modules leave it (#2776). `path` is allowed in the core's
-domain but makes a library impure, because pure libraries also run in the browser
-(`packages/bpmn-modeler` imports them) and the core runs only in Node hosts. Seven
-domain files compute workspace paths with `path.posix`; rewriting it would copy
-Node's normalisation into the domain. The core spec fails once no domain file
-imports `path`, so the allowance goes with its last use.
+Pure today: the entries of `bpmn-diff`, `bpmn-merge` and `dmn-diff`. Not pure:
+`shared` and `modeler-types`, which both compile with the DOM; `modeler-types`
+needs it for ten canvas and chrome modules. The core's domain imports
+`modeler-types` under a known exception until those modules leave it (#2776).
+`path` is allowed in the core's domain but makes a module impure, because pure
+libraries also run in the browser (`packages/bpmn-modeler` imports them) and the
+core runs only in Node hosts. Seven domain files compute workspace paths with
+`path.posix`; rewriting it would copy Node's normalisation into the domain. The
+core spec fails once no domain file imports `path`, so the allowance goes with its
+last use.
 
 - **Why:** a pinned copy of a pure library's type (`StageRefusal` of the merge
   library's `MergeRefusal`) only hid that the core speaks that library's language,
   and a hand-kept package list drifts (#2049).
 - **Cost:** the core's domain depends on those libraries' APIs, so a change there
-  breaks the domain at compile time. The DOM half holds only while each pure
-  workspace's own no-DOM compile (`build`, its Vitest target's typecheck) runs in
-  CI, and it reads the native compiler that compile uses: TypeScript 6 loads
-  preact's JSX runtime, and with it the DOM, into every program under the base
-  config's `jsx` options. Each candidate costs a compiler run; a config the compiler
-  refuses, or no tsconfig, reads as the DOM. An npm package is a leaf that is not
-  followed, and Node globals (`process`, `Buffer`) have no import to read.
-- **Kind:** a pure library must stay `flat`. One that turns `hexagonal`, as planned
-  for the flat libraries, stops being pure, and so does every pure library that
-  imports it (`bpmn-merge` and `dmn-diff` import `bpmn-diff`); the core's domain
-  imports of them fail, which would bring the pinned copies back. Before a pure
-  library changes kind, the rule has to read a hexagonal workspace's `domain/`, and
-  an entry that re-exports only it, as pure under the same platform and DOM tests
-  (#2562, A8).
+  breaks the domain at compile time. The DOM half holds only while each workspace
+  with a pure module runs its own no-DOM compile (`build`, its Vitest target's
+  typecheck) in CI, and it reads the native compiler that compile uses:
+  TypeScript 6 loads preact's JSX runtime, and with it the DOM, into every program
+  under the base config's `jsx` options. Each workspace a domain import reaches
+  costs one compiler run; a config the compiler refuses, or no tsconfig, reads as
+  the DOM. The DOM is read per workspace, so a library whose `service/` needs the
+  DOM makes its `domain/` impure too. A workspace import no alias resolves cannot
+  be followed and reads as impure. An npm package is a leaf that is not followed,
+  and Node globals (`process`, `Buffer`) have no import to read.
+- **Kind:** not read, and that is what lets the libraries get role folders
+  (decided 2026-11-23): the flat logic libraries, `bpmn-merge` first, then
+  `bpmn-diff` and `modeler-types`, get feature or stage folders with `domain/`
+  (rules) and `service/` (orchestration) inside, no `port/` or `adapter/`. An entry
+  that re-exports only `domain/` stays pure, and so does every library that
+  imports it (`bpmn-merge` and `dmn-diff` import `bpmn-diff`); an entry that
+  re-exports a `service/` is not, so the core's domain then imports the `domain/`
+  module by subpath, which needs a `tsconfig.base.json` alias to be followed.
 - **Scope:** only the core's spec applies the rule. The other hexagonal workspaces
   have no package rule for `domain/`; there it would flag 81 imports in 65 files,
   most of them `@miragon/bpmn-modeler-shared` (34) and `@miragon/bpmn-modeler-types`
@@ -177,8 +184,11 @@ and so reports what the list excuses as remaining work
   outside `adapter/out/` and `testing/`.
 - Only type imports from pure libraries: their functions are as pure as their
   types, so the domain would reach them through a service for nothing.
-- Purity per entry, such as a DOM-free subpath of `modeler-types`: an entry has no
-  compiler of its own, so its DOM-freeness would rest on whichever DOM-free
+- Purity per workspace kind, a `flat` precondition: a library that gets role
+  folders would turn impure, with every library that imports it, and the core's
+  domain imports of them would fail.
+- The DOM per module, such as a DOM-free subpath of `modeler-types`: a module has
+  no compiler of its own, so its DOM-freeness would rest on whichever DOM-free
   workspace happens to import it.
 - The tsconfig `lib` as proof of no DOM: a `/// <reference lib="dom" />` in any
   declaration the program loads adds it back, and preact's JSX types carry one.
@@ -190,5 +200,5 @@ and so reports what the list excuses as remaining work
 [Repo-level architecture spec](../../tools/repo-checks/src/architecture.spec.ts)
 (`RULES_BY_KIND` applied to every workspace of that kind, rules 10 and 11), the
 [core spec](../../libs/modeler-core/src/architecture.spec.ts) (domain imports
-through `readPureWorkspaces`, contexts) and the ESLint override that bans an empty
+through `readModulePurity`, contexts) and the ESLint override that bans an empty
 function in an adapter (`**/src/**/adapter/**`, #2053).

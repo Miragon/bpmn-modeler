@@ -46,12 +46,12 @@ export {
 export type { KnownException, Violation } from "./knownExceptions";
 export { readModuleImports } from "./moduleImports";
 export type { ModuleImport } from "./moduleImports";
+export { impureDomainImports, modulePurity, readModulePurity } from "./modulePurity";
+export type { ModulePurity, WorkspaceSources } from "./modulePurity";
 export { readModuleSymbols } from "./moduleSymbols";
 export type { ModuleSymbols, ReExport, SymbolImport } from "./moduleSymbols";
 export { readPathAliases, resolveAliasImport } from "./pathAliases";
 export type { PathAlias } from "./pathAliases";
-export { impureDomainImports, pureWorkspaces, readPureWorkspaces } from "./pureWorkspaces";
-export type { WorkspaceSources } from "./pureWorkspaces";
 export { requireMatches } from "./requireMatches";
 export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";

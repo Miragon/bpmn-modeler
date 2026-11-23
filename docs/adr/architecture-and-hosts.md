@@ -79,7 +79,7 @@ built-in other than `path`), directly or transitively.
 **Core contexts.** Each feature folder (`modeler/<editor>` for the editors) is a context
 with the [role folders](role-folders.md) it needs. Two contexts are shared; the others
 reach each other only through them, composition included, and a context's `domain/`
-imports only its own `domain/`, that of the shared two, pure workspaces and `path`
+imports only its own `domain/`, that of the shared two, pure modules and `path`
 ([domain imports](role-folders.md#domain-imports)).
 
 - `kernel/` is the vocabulary several features build on (`BpmnDocument`, engine

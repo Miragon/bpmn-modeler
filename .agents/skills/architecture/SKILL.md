@@ -152,14 +152,16 @@ Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
 transitive host-module imports (the core is still not browser-safe), a domain
-import of anything but a pure workspace and `path`, and context isolation
+import of anything but a pure module and `path`, and context isolation
 through `kernel/` (which imports nothing outside itself) and `editorSession/`
 (which imports only `kernel/`) against known exceptions that may only shrink.
-A pure workspace is `flat`, reaches no Node built-in, `vscode` or `electron`
-through its imports, and its compiler program loads no DOM lib;
-`readPureWorkspaces` decides the set from structure. The core's domain imports
-pure workspaces directly, values included, instead of pinning a copy of their
-types. Which workspaces are pure today and the one known exception are in
+A module is pure, whatever its workspace's kind, when no file it reaches sits
+in `port/`, `service/`, `adapter/` or `composition/` or imports a Node built-in,
+`vscode` or `electron`, and its workspace's compiler program loads no DOM lib;
+`readModulePurity` decides it from structure. A library may therefore get role
+folders, and its entry stays pure while it re-exports only `domain/`. The core's
+domain imports pure modules directly, values included, instead of pinning a copy
+of their types. Which modules are pure today and the one known exception are in
 [domain imports](../../../docs/adr/role-folders.md#domain-imports). VS Code
 checks that a context reaches another only through `shared/`. The repo-level
 spec bans import cycles in and between every workspace and a dependency on a

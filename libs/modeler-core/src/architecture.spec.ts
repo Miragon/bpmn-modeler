@@ -5,7 +5,7 @@ import {
     impureDomainImports,
     isHostModule,
     PORTABLE_NODE_MODULES,
-    readPureWorkspaces,
+    readModulePurity,
     readSourceTree,
     roleOf,
     staleExceptions,
@@ -15,8 +15,8 @@ import type {
     ImportEdge,
     ImportGraph,
     KnownException,
+    ModulePurity,
     Violation,
-    Workspace,
 } from "@miragon/architecture-testing";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -28,8 +28,9 @@ import { describe, expect, it } from "vitest";
  * host module (`electron`, a Node built-in). The portable Node modules (`path`)
  * exist in any Node host and are allowed; they are not host capabilities.
  *
- * `domain/` imports only pure workspaces, decided from their manifests, imports
- * and compiler programs (docs/adr/role-folders.md#domain-imports), and `path`.
+ * `domain/` imports only pure modules, decided per module from the files it
+ * reaches and its workspace's compiler program, whatever the workspace's kind
+ * (docs/adr/role-folders.md#domain-imports), and `path`.
  * Contexts meet only in `kernel/` and `editorSession/`, and `kernel/` imports
  * nothing outside itself. A known exception names the issue that removes it,
  * and an exception the code no longer needs fails the gate, so the lists only
@@ -37,7 +38,7 @@ import { describe, expect, it } from "vitest";
  */
 const SRC_ROOT = __dirname;
 
-const PURE_WORKSPACES = readPureWorkspaces(join(SRC_ROOT, "../../.."));
+const IS_PURE_MODULE = readModulePurity(join(SRC_ROOT, "../../.."));
 const KERNEL = "kernel";
 const SUBSTRATE: readonly string[] = [KERNEL, "editorSession"];
 
@@ -47,9 +48,9 @@ function contextOf(path: string): string | undefined {
     return location === undefined || location.role === "testing" ? undefined : location.context;
 }
 
-function domainPackageViolations(pure: readonly Workspace[]) {
+function domainPackageViolations(isPureModule: ModulePurity) {
     return (graph: ImportGraph): ImportEdge[] =>
-        impureDomainImports(graph, pure).filter(
+        impureDomainImports(graph, isPureModule).filter(
             ({ specifier }) => !PORTABLE_NODE_MODULES.includes(specifier),
         );
 }
@@ -95,11 +96,11 @@ interface ContextRule {
     readonly exceptions: readonly KnownException[];
 }
 
-function contextRules(pure: readonly Workspace[]): readonly ContextRule[] {
+function contextRules(isPureModule: ModulePurity): readonly ContextRule[] {
     return [
         {
-            rule: "domain imports no package but a pure workspace and path",
-            violations: domainPackageViolations(pure),
+            rule: "domain imports no package but a pure module and path",
+            violations: domainPackageViolations(isPureModule),
             exceptions: [
                 {
                     from: "*",
@@ -121,13 +122,17 @@ function contextRules(pure: readonly Workspace[]): readonly ContextRule[] {
     ];
 }
 
-const CONTEXT_RULES = contextRules(PURE_WORKSPACES);
+const CONTEXT_RULES = contextRules(IS_PURE_MODULE);
 
 /** Fixed, so the synthetic cases hold whatever the real tree reads as pure. */
-const SYNTHETIC_PURE: readonly Workspace[] = [
-    { name: "@miragon/bpmn-modeler-merge", dir: "libs/bpmn-merge", kind: "flat" },
-    { name: "@miragon/bpmn-modeler-diff", dir: "libs/bpmn-diff", kind: "flat" },
+const SYNTHETIC_PURE_MODULES: readonly string[] = [
+    "@miragon/bpmn-modeler-merge",
+    "@miragon/bpmn-modeler-diff",
 ];
+
+function isSyntheticPureModule(specifier: string): boolean {
+    return SYNTHETIC_PURE_MODULES.includes(specifier);
+}
 
 function importsOf(...specifiers: string[]): string {
     return specifiers.map((specifier) => `import "${specifier}";`).join("\n");
@@ -168,7 +173,7 @@ const CONTEXT_TREE = [
 
 function violationsWith(path: string, text: string): string[] {
     const graph = buildImportGraph([...CONTEXT_TREE, { path, text }]);
-    return contextRules(SYNTHETIC_PURE).flatMap(({ violations }) =>
+    return contextRules(isSyntheticPureModule).flatMap(({ violations }) =>
         violations(graph).map(asViolation).map(describeViolation),
     );
 }
@@ -192,7 +197,7 @@ describe("context rules on a synthetic graph", () => {
             violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler-types",
         },
         {
-            name: "domain → a modeler package, which is not flat",
+            name: "domain → a modeler package, which is not pure",
             path: "deployment/domain/x.ts",
             text: importsOf("@miragon/bpmn-modeler"),
             violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler",
@@ -230,13 +235,14 @@ describe("context rules on a synthetic graph", () => {
 describe("modeler-core architecture", () => {
     const graph = buildImportGraph(readSourceTree(SRC_ROOT));
 
-    it("reads the merge and diff libraries as pure workspaces, the protocol library not", () => {
-        const pure = PURE_WORKSPACES.map(({ name }) => name);
-
-        expect(pure).toEqual(
-            expect.arrayContaining(["@miragon/bpmn-modeler-merge", "@miragon/bpmn-modeler-diff"]),
-        );
-        expect(pure).not.toContain("@miragon/bpmn-modeler-shared");
+    it("reads the merge and diff entries as pure modules, the protocol library's not", () => {
+        expect(
+            [
+                "@miragon/bpmn-modeler-merge",
+                "@miragon/bpmn-modeler-diff",
+                "@miragon/bpmn-modeler-shared",
+            ].filter(IS_PURE_MODULE),
+        ).toEqual(["@miragon/bpmn-modeler-merge", "@miragon/bpmn-modeler-diff"]);
     });
 
     it("still imports path in a domain file, or its allowance goes", () => {
