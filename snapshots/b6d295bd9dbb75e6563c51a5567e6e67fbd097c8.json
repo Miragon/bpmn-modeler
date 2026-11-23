@@ -1378,14 +1378,14 @@
       ]
     },
     "hotspots": {
-      "version": 3,
+      "version": 4,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/adapter/out/host.ts",
           "path": "apps/bpmn-webview/src/adapter/out/host.ts",
           "line": 130,
           "message": "26 revisions × 403 code lines = 10,478; highest complexity 55 (postMessage)",
-          "rank": 18
+          "rank": 5
         },
         {
           "key": "apps/bpmn-webview/src/composition/bootstrap.ts",
@@ -1395,116 +1395,95 @@
           "rank": 3
         },
         {
+          "key": "apps/bpmn-webview/src/domain/mergeTexts.ts",
+          "path": "apps/bpmn-webview/src/domain/mergeTexts.ts",
+          "line": 160,
+          "message": "17 revisions × 317 code lines = 5,389; highest complexity 7 (padDecisionText)",
+          "rank": 16
+        },
+        {
           "key": "apps/deployment-webview/src/adapter/in/form.ts",
           "path": "apps/deployment-webview/src/adapter/in/form.ts",
           "line": 213,
           "message": "12 revisions × 669 code lines = 8,028; highest complexity 14 (populateCredentials)",
-          "rank": 20
+          "rank": 7
         },
         {
           "key": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
           "path": "apps/modeler-bridge/src/kernel/adapter/out/NodeWorkspace.ts",
           "line": 615,
           "message": "30 revisions × 430 code lines = 12,900; highest complexity 9 (walkEntry)",
-          "rank": 16
-        },
-        {
-          "key": "apps/modeler-bridge/src/protocol/domain/types.ts",
-          "path": "apps/modeler-bridge/src/protocol/domain/types.ts",
-          "line": 1,
-          "message": "33 revisions × 344 code lines = 11,352; no function",
-          "rank": 17
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/de.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/de.ts",
-          "line": 1,
-          "message": "26 revisions × 599 code lines = 15,574; no function",
           "rank": 4
         },
         {
-          "key": "libs/bpmn-i18n-extras/src/languages/en.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/en.ts",
-          "line": 1,
-          "message": "26 revisions × 566 code lines = 14,716; no function",
-          "rank": 12
+          "key": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts",
+          "path": "apps/vscode-plugin/src/modeler/bpmn/adapter/in/CommandController.ts",
+          "line": 323,
+          "message": "19 revisions × 246 code lines = 4,674; highest complexity 5 (anonymous)",
+          "rank": 19
         },
         {
-          "key": "libs/bpmn-i18n-extras/src/languages/es.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/es.ts",
-          "line": 1,
-          "message": "26 revisions × 593 code lines = 15,418; no function",
-          "rank": 7
+          "key": "libs/modeler-core/src/deployment/composition/DeploymentFeature.ts",
+          "path": "libs/modeler-core/src/deployment/composition/DeploymentFeature.ts",
+          "line": 252,
+          "message": "21 revisions × 227 code lines = 4,767; highest complexity 4 (run)",
+          "rank": 18
         },
         {
-          "key": "libs/bpmn-i18n-extras/src/languages/fr.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/fr.ts",
-          "line": 1,
-          "message": "26 revisions × 595 code lines = 15,470; no function",
-          "rank": 6
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/it.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/it.ts",
-          "line": 1,
-          "message": "26 revisions × 593 code lines = 15,418; no function",
+          "key": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts",
+          "path": "libs/modeler-core/src/deployment/domain/deploymentTarget.ts",
+          "line": 89,
+          "message": "14 revisions × 554 code lines = 7,756; highest complexity 9 (authWith)",
           "rank": 8
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ja.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ja.ts",
-          "line": 1,
-          "message": "26 revisions × 574 code lines = 14,924; no function",
-          "rank": 11
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ko.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ko.ts",
-          "line": 1,
-          "message": "26 revisions × 562 code lines = 14,612; no function",
-          "rank": 13
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/nl-nl.ts",
-          "line": 1,
-          "message": "26 revisions × 598 code lines = 15,548; no function",
-          "rank": 5
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/pt-br.ts",
-          "line": 1,
-          "message": "26 revisions × 587 code lines = 15,262; no function",
-          "rank": 9
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/ru.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/ru.ts",
-          "line": 1,
-          "message": "26 revisions × 585 code lines = 15,210; no function",
-          "rank": 10
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hans.ts",
-          "line": 1,
-          "message": "26 revisions × 518 code lines = 13,468; no function",
-          "rank": 15
-        },
-        {
-          "key": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
-          "path": "libs/bpmn-i18n-extras/src/languages/zh-Hant.ts",
-          "line": 1,
-          "message": "26 revisions × 520 code lines = 13,520; no function",
-          "rank": 14
         },
         {
           "key": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "path": "libs/modeler-core/src/deployment/service/DeploymentMessageDispatcher.ts",
           "line": 456,
           "message": "20 revisions × 410 code lines = 8,200; highest complexity 8 (handleDeploy)",
-          "rank": 19
+          "rank": 6
+        },
+        {
+          "key": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
+          "path": "libs/modeler-core/src/deployment/service/DeploymentTargetService.ts",
+          "line": 443,
+          "message": "17 revisions × 372 code lines = 6,324; highest complexity 9 (toAuthConfig)",
+          "rank": 13
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts",
+          "path": "libs/modeler-core/src/modeler/bpmn/composition/BpmnEditorFeature.ts",
+          "line": 189,
+          "message": "20 revisions × 363 code lines = 7,260; highest complexity 10 (constructor)",
+          "rank": 10
+        },
+        {
+          "key": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "path": "libs/modeler-core/src/modeler/bpmn/service/BpmnLintConfigService.ts",
+          "line": 259,
+          "message": "22 revisions × 322 code lines = 7,084; highest complexity 12 (carryOut)",
+          "rank": 11
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/domain/marketplace.ts",
+          "path": "libs/modeler-core/src/template-marketplace/domain/marketplace.ts",
+          "line": 647,
+          "message": "9 revisions × 518 code lines = 4,662; highest complexity 14 (parseSource)",
+          "rank": 20
+        },
+        {
+          "key": "libs/modeler-core/src/template-marketplace/service/TemplateMarketplaceService.ts",
+          "path": "libs/modeler-core/src/template-marketplace/service/TemplateMarketplaceService.ts",
+          "line": 247,
+          "message": "19 revisions × 342 code lines = 6,498; highest complexity 8 (fetchAndCache)",
+          "rank": 12
+        },
+        {
+          "key": "libs/shared/src/lib/mergePaneMessages.ts",
+          "path": "libs/shared/src/lib/mergePaneMessages.ts",
+          "line": 343,
+          "message": "20 revisions × 278 code lines = 5,560; highest complexity 3 (constructor)",
+          "rank": 15
         },
         {
           "key": "libs/shared/src/lib/modeler.ts",
@@ -1514,11 +1493,32 @@
           "rank": 1
         },
         {
+          "key": "libs/shared/src/lib/protocolMessageMap.ts",
+          "path": "libs/shared/src/lib/protocolMessageMap.ts",
+          "line": 297,
+          "message": "20 revisions × 298 code lines = 5,960; highest complexity 2 (isMessageOfType)",
+          "rank": 14
+        },
+        {
+          "key": "packages/bpmn-modeler/src/design/designer.ts",
+          "path": "packages/bpmn-modeler/src/design/designer.ts",
+          "line": 116,
+          "message": "32 revisions × 236 code lines = 7,552; highest complexity 9 (init)",
+          "rank": 9
+        },
+        {
           "key": "packages/bpmn-modeler/src/modeler.ts",
           "path": "packages/bpmn-modeler/src/modeler.ts",
           "line": 214,
           "message": "54 revisions × 513 code lines = 27,702; highest complexity 7 (init)",
           "rank": 2
+        },
+        {
+          "key": "packages/dmn-modeler/src/modeler.ts",
+          "path": "packages/dmn-modeler/src/modeler.ts",
+          "line": 346,
+          "message": "13 revisions × 376 code lines = 4,888; highest complexity 9 (syncCanvasOverlays)",
+          "rank": 17
         }
       ]
     },
