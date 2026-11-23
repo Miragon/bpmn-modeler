@@ -1,6 +1,9 @@
 export type { ArchitectureRule } from "./architectureRule";
+export { readAsyncSyntax } from "./asyncSyntax";
+export type { AsyncSyntax } from "./asyncSyntax";
 export { runsNoCode } from "./codeFreeModule";
 export { readComments, stripComments } from "./comments";
+export { compilesWithDom } from "./compilerProgram";
 export { findContractSuites } from "./contractSuites";
 export type {
     AdapterSpec,
@@ -47,6 +50,8 @@ export { readModuleSymbols } from "./moduleSymbols";
 export type { ModuleSymbols, ReExport, SymbolImport } from "./moduleSymbols";
 export { readPathAliases, resolveAliasImport } from "./pathAliases";
 export type { PathAlias } from "./pathAliases";
+export { impureDomainImports, pureWorkspaces, readPureWorkspaces } from "./pureWorkspaces";
+export type { WorkspaceSources } from "./pureWorkspaces";
 export { requireMatches } from "./requireMatches";
 export { isEntry, roleOf } from "./roleFolders";
 export type { Role, RoleLocation } from "./roleFolders";

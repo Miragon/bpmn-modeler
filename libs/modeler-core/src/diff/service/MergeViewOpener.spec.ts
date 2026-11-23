@@ -1,5 +1,4 @@
-import type { MergeRefusal } from "@miragon/bpmn-modeler-merge";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
     createTestHost,
@@ -11,7 +10,6 @@ import {
     RecordingMergeSidesView,
     StagedConflict,
 } from "../../testing";
-import type { StageRefusal } from "../domain/mergeViewTexts";
 import { DiffPaneStore } from "./DiffPaneStore";
 import { MergeSessionStore } from "./MergeSessionStore";
 import { MergeViewOpener } from "./MergeViewOpener";
@@ -195,10 +193,6 @@ describe("MergeViewOpener", () => {
         ]);
         expect(notifier.errors).toStrictEqual([]);
         expect(view.opened).toStrictEqual([]);
-    });
-
-    it("maps every refusal of the merge library onto a refusal of its own", () => {
-        expectTypeOf<StageRefusal>().toEqualTypeOf<MergeRefusal>();
     });
 
     it("explains a Merge Changes row that is not a BPMN file, without asking Git", async () => {

@@ -57,7 +57,7 @@ that needs types, not syntax, gets a type-checked `ts.Program`
 (`readTypeProgram`); it throws when a named file or base class is missing, so a
 moved declaration cannot make a rule match nothing and pass. The engine lives under
 `tools/` because it is dev-only. A workspace's own spec keeps only rules specific to
-it (the core's domain package allowlist).
+it (the core's contexts and domain imports).
 
 - [`tools/repo-checks`](../../tools/repo-checks/src/architecture.spec.ts) holds the
   repo-wide rules for every root workspace with a `src/`: no import cycle inside a
@@ -66,7 +66,8 @@ it (the core's domain package allowlist).
   `I = Ce / (Ca + Ce)`, compared on integers), and the
   [role-folder rules](role-folders.md) of each workspace's declared kind. It also
   reads every `port/` file of a hexagonal workspace and fails on any runtime value
-  (rule 10). That guard is no import rule, so it keeps its own exception list.
+  (rule 10). That guard is no import rule, so it keeps its own exception list. Every
+  `domain/` file is read for an async function or an `await` (rule 11).
 - **Two exception regimes.** Cycles take no exceptions; a cycle is fixed. Role,
   layer and stability rules take `KnownException` entries that name the issue
   removing them; a stale or unnamed entry fails the gate, so the lists only shrink.

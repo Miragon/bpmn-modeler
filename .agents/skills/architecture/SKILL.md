@@ -151,16 +151,23 @@ Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
 `eslint.config.cjs`. All specs read sources through the shared engine
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
-transitive host-module imports (the core is still not browser-safe), its
-domain package allowlist, and context isolation through `kernel/` (which imports
-nothing outside itself) and `editorSession/` (which imports only `kernel/`)
-against known exceptions that may only shrink. VS Code checks that a context
-reaches another only through `shared/`. The repo-level spec bans import cycles
-in and between every workspace and a dependency on a less stable workspace, and
-applies the role-folder rules below. A fitness function that can fire on
-correct code, each dynamic one and a static one such as host text or a size
-limit, plugs into `corepack yarn fitness` (`tools/repo-checks/src/fitness/`),
-which reports new and existing findings and never fails a build
+transitive host-module imports (the core is still not browser-safe), a domain
+import of anything but a pure workspace and `path`, and context isolation
+through `kernel/` (which imports nothing outside itself) and `editorSession/`
+(which imports only `kernel/`) against known exceptions that may only shrink.
+A pure workspace is `flat`, reaches no Node built-in, `vscode` or `electron`
+through its imports, and its compiler program loads no DOM lib;
+`readPureWorkspaces` decides the set from structure. The core's domain imports
+pure workspaces directly, values included, instead of pinning a copy of their
+types. Which workspaces are pure today and the one known exception are in
+[domain imports](../../../docs/adr/role-folders.md#domain-imports). VS Code
+checks that a context reaches another only through `shared/`. The repo-level
+spec bans import cycles in and between every workspace and a dependency on a
+less stable workspace, and applies the role-folder rules below. A fitness
+function that can fire on correct code, each dynamic one and a static one such
+as host text or a size limit, plugs into `corepack yarn fitness`
+(`tools/repo-checks/src/fitness/`), which reports new and existing findings and
+never fails a build
 ([ADR](../../../docs/adr/architecture-enforcement.md#architecture-erosion)).
 
 A webview posts only the commands of its surface list in `libs/shared`, and
@@ -211,6 +218,13 @@ file or type name:
     statement. Re-export an interface with `export type`. Rule 10 keeps its
     own exception list in the same spec; neither a blanket role exception
     nor `convention-coverage` covers it.
+11. A `domain/` file declares no async function and uses no `await` or
+    `for await`; the call it would wait on belongs to a service.
+
+An object that holds or calls a port (a store, a session with handles) stays
+in `service/`, and its decisions move to `domain/` as values it asks for. An
+entity that belongs in `domain/` refers to host objects by a uri or an id,
+never by handle.
 
 In a webview the UI, its markup and the router for the host's queries are
 `adapter/in/`, the host channel and the modeler-library wrappers

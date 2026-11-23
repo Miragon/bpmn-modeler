@@ -5,6 +5,7 @@ import {
     findImportCycles,
     instability,
     isWorkspaceKind,
+    readAsyncSyntax,
     readRuntimeDeclarations,
     readSourceTree,
     readWorkspaces,
@@ -32,8 +33,8 @@ import { describe, expect, it } from "vitest";
  * Rules over every workspace at once: no import cycles inside a workspace or
  * between workspaces, no workspace depending on a less stable one (Stable
  * Dependencies Principle), and the role-folder rules of each workspace's
- * declared kind. Type-only imports count; a cycle of types still ties the
- * files together.
+ * declared kind, with the syntax of its port/ and domain/ files. Type-only
+ * imports count; a cycle of types still ties the files together.
  */
 const REPO_ROOT = join(__dirname, "../../..");
 const ASSET_EXTENSIONS = [".css", ".json", ".svg"];
@@ -178,10 +179,37 @@ describe("role folders", () => {
             expect(exceptionsWithoutIssue(PORT_VALUE_EXCEPTIONS)).toEqual([]);
         });
     });
+
+    // A domain that awaits waits on something outside it; that call belongs to a service.
+    describe("hexagonal domain/ files", () => {
+        const domainFiles = requireMatches(
+            "domain/ files of hexagonal workspaces",
+            workspacesWithRoles
+                .filter(({ kind }) => kind === "hexagonal")
+                .flatMap(({ dir, tree }) =>
+                    tree.filter(isDomainFile).map((file) => ({ dir, file })),
+                ),
+        );
+
+        it("a domain/ file declares no async function and awaits nothing", () => {
+            expect(
+                domainFiles.flatMap(({ dir, file: { path, text } }) =>
+                    readAsyncSyntax(path, text).map(
+                        ({ form, line }) =>
+                            `${dir}/src/${path}:${line} uses ${form}; a domain/ file decides on values it is handed, a service awaits`,
+                    ),
+                ),
+            ).toEqual([]);
+        });
+    });
 });
 
 function isPortFile({ path }: SourceFile): boolean {
     return roleOf(path)?.role === "port";
+}
+
+function isDomainFile({ path }: SourceFile): boolean {
+    return roleOf(path)?.role === "domain";
 }
 
 function runtimeValuesIn(
