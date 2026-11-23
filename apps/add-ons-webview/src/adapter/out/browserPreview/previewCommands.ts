@@ -4,7 +4,8 @@ import {
     AddOnCatalogQuery,
     type AddOnsViewCommand,
     BrandModeQuery,
-    type MessageOfType,
+    logPreviewError,
+    logPreviewInfo,
     type PreviewCommandTable,
     type Query,
     RevealAddOnsQuery,
@@ -24,8 +25,8 @@ export interface PreviewSession {
 }
 
 export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommand, PreviewSession> = {
-    LogInfoCommand: logToConsole,
-    LogErrorCommand: logToConsole,
+    LogInfoCommand: logPreviewInfo,
+    LogErrorCommand: logPreviewError,
     GetAddOnCatalogCommand: (_, preview) => answerCatalogRequest(preview),
     AddOnRequestCommand: ({ requestId, request }, preview) => {
         const { result, changed } = preview.catalog.act(request);
@@ -36,10 +37,6 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommand, PreviewSes
     GetAddOnAboutCommand: ({ targetId }, preview) =>
         preview.reply(new AddOnAboutQuery(targetId, mockAboutOf(targetId))),
 };
-
-function logToConsole({ type, message }: MessageOfType<"LogInfoCommand" | "LogErrorCommand">): void {
-    console.debug(`[add-ons preview] ${type}`, message);
-}
 
 function answerCatalogRequest(preview: PreviewSession): void {
     // The preview has no host shell to carry the mode, so it arrives as a theme change would.

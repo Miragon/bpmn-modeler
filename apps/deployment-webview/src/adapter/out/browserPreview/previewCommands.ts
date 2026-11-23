@@ -1,7 +1,9 @@
-import type {
-    DeploymentSidebarCommand,
-    PreviewCommandTable,
-    Query,
+import {
+    type DeploymentSidebarCommand,
+    logPreviewError,
+    logPreviewInfo,
+    type PreviewCommandTable,
+    type Query,
 } from "@miragon/bpmn-modeler-shared";
 
 import { storedCredentialsOf } from "./credentialsPreview";
@@ -17,8 +19,8 @@ export interface PreviewSession {
 }
 
 export const PREVIEW_COMMANDS: PreviewCommandTable<DeploymentSidebarCommand, PreviewSession> = {
-    LogInfoCommand: ({ message }) => console.info(message),
-    LogErrorCommand: ({ message }) => console.error(message),
+    LogInfoCommand: logPreviewInfo,
+    LogErrorCommand: logPreviewError,
     RequestFormDefaultsCommand: (_, preview) =>
         preview.reply(previewFormDefaults(), previewProcessDefinitionKey(), preview.targets.list()),
     DeployCommand: (command, preview) => {

@@ -1,6 +1,9 @@
 import {
     type FormEditorCommand,
     logPreviewError,
+    logPreviewWarning,
+    PREVIEW_NO_FILE_TO_SAVE,
+    PREVIEW_NO_FILE_TO_WRITE_EDIT_TO,
     type PreviewCommandTable,
     type Query,
 } from "@miragon/bpmn-modeler-shared";
@@ -13,9 +16,9 @@ export interface PreviewSession {
 }
 
 export const PREVIEW_COMMANDS: PreviewCommandTable<FormEditorCommand, PreviewSession> = {
-    SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
-    DocumentFlushedCommand: { ignored: "the preview has no file to save" },
-    LogWarningCommand: ({ message }) => console.warn(message),
+    SyncDocumentCommand: { ignored: PREVIEW_NO_FILE_TO_WRITE_EDIT_TO },
+    DocumentFlushedCommand: { ignored: PREVIEW_NO_FILE_TO_SAVE },
+    LogWarningCommand: logPreviewWarning,
     LogErrorCommand: logPreviewError,
     GetFormFileCommand: (_, preview) => preview.reply(emptyCamunda8Form()),
     GetFormInputValuesCommand: (_, preview) => preview.reply(emptyInputValues()),

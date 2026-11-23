@@ -113,6 +113,14 @@ describe("PreviewHost", () => {
         expect(replies).toEqual([]);
     });
 
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        new PreviewHost().postMessage(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
+
+        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
+    });
+
     it("rejects a command of another surface", () => {
         const host = new PreviewHost();
 
@@ -168,6 +176,16 @@ describe("DiffPanePreviewHost", () => {
 
         expect(error).toHaveBeenCalledWith("broken");
         expect(replies).toEqual([]);
+    });
+
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        new DiffPanePreviewHost("before").postMessage(
+            new LogErrorCommand("Could not render", "Error: boom\n    at render"),
+        );
+
+        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
     });
 
     it("rejects a command of the editor's surface", () => {

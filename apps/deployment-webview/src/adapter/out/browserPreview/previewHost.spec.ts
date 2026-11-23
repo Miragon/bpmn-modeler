@@ -308,6 +308,14 @@ describe("PreviewHost", () => {
         expect(replies).toEqual([]);
     });
 
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new LogErrorCommand("Deploy failed", "Error: boom\n    at deploy"));
+
+        expect(error).toHaveBeenCalledWith("Deploy failed\nError: boom\n    at deploy");
+    });
+
     it("keeps each preview host's targets to itself", () => {
         previewHost().postMessage(new CreateTargetCommand(target("staging"), noAuth));
 

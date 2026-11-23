@@ -48,19 +48,26 @@ describe("the preview's command routing", () => {
         document.documentElement.removeAttribute(ADD_ONS_PAGE_ATTRIBUTE);
     });
 
-    it.each([new LogInfoCommand("info"), new LogErrorCommand("error")])(
-        "writes a $type to the console and sends nothing back",
-        (command) => {
-            const { host, replies } = previewAt();
+    it.each([
+        { command: new LogInfoCommand("info"), level: "info" },
+        { command: new LogErrorCommand("error"), level: "error" },
+    ] as const)("writes a $command.type to the console's $level and sends nothing back", ({ command, level }) => {
+        const write = vi.spyOn(console, level).mockImplementation(() => undefined);
+        const { host, replies } = previewAt();
 
-            host.postMessage(command);
+        host.postMessage(command);
 
-            expect([debug.mock.calls, replies]).toEqual([
-                [[`[add-ons preview] ${command.type}`, command.message]],
-                [],
-            ]);
-        },
-    );
+        expect([write.mock.calls, replies]).toEqual([[[command.message]], []]);
+    });
+
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const { host } = previewAt();
+
+        host.postMessage(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
+
+        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
+    });
 
     it("sends nothing back for an OpenAddOnDetailCommand", () => {
         const { host, replies } = previewAt();

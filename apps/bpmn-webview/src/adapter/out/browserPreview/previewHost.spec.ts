@@ -63,6 +63,7 @@ import {
     CompareMergeResultCommand,
     SwitchMergeComparisonCommand,
     MergePaneCommandsChangedCommand,
+    PREVIEW_NO_PARTNER_PANE,
     previewRouteOf,
 } from "@miragon/bpmn-modeler-shared";
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
@@ -262,6 +263,14 @@ describe("PreviewHost", () => {
         previewHost().postMessage(command);
 
         expect(write).toHaveBeenCalledWith(command.message);
+    });
+
+    it("logs a caught error's stack under its message", () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        previewHost().postMessage(new LogErrorCommand("Could not render", "Error: boom\n    at render"));
+
+        expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
     });
 
     it("seeds the state on the first update and merges later ones", () => {
@@ -513,6 +522,18 @@ describe("PreviewHost", () => {
 
         expect(debug).toHaveBeenCalledWith(expect.stringContaining(reason), command);
     });
+
+    it.each(["CursorChangedCommand", "MergeStepListChangedCommand"])(
+        "drops a %s for the shared partner-pane reason and says what the pane does locally",
+        (type) => {
+            const route = previewRouteOf(PREVIEW_COMMANDS, type);
+            const reason = "ignored" in route ? route.ignored : "";
+            const sharedStart = `${PREVIEW_NO_PARTNER_PANE}; `;
+
+            expect(reason.slice(0, sharedStart.length)).toBe(sharedStart);
+            expect(reason.length).toBeGreaterThan(sharedStart.length);
+        },
+    );
 
     it("shows an info message in the console", () => {
         const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
