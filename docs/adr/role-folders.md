@@ -84,7 +84,7 @@ contexts here.
 The core's `domain/` imports `domain/` (rule 2), a pure module and `path`, value
 imports included. Purity is decided per imported module, whatever the kind of its
 workspace. A module is pure when no file it reaches sits in a `port/`, `service/`,
-`adapter/` or `composition/` folder, none imports a platform module (a host module
+`adapter/`, `composition/` or `testing/` folder, none imports a platform module (a host module
 of rule 7, or `path`), and the program the native compiler builds from its
 workspace's tsconfig, and from each config it references, holds no DOM lib file.
 Imports are followed to the file, through relative imports and the
@@ -114,8 +114,8 @@ last use.
   with a pure module runs its own no-DOM compile (`build`, its Vitest target's
   typecheck) in CI, and it reads the native compiler that compile uses:
   TypeScript 6 loads preact's JSX runtime, and with it the DOM, into every program
-  under the base config's `jsx` options. Each workspace a domain import reaches
-  costs one compiler run; a config the compiler refuses, or no tsconfig, reads as
+  under the base config's `jsx` options. Each workspace that owns an imported
+  module costs one compiler run; a config the compiler refuses, or no tsconfig, reads as
   the DOM. The DOM is read per workspace, so a library whose `service/` needs the
   DOM makes its `domain/` impure too. A workspace import no alias resolves cannot
   be followed and reads as impure. An npm package is a leaf that is not followed,

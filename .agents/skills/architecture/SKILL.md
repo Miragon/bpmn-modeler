@@ -156,7 +156,7 @@ import of anything but a pure module and `path`, and context isolation
 through `kernel/` (which imports nothing outside itself) and `editorSession/`
 (which imports only `kernel/`) against known exceptions that may only shrink.
 A module is pure, whatever its workspace's kind, when no file it reaches sits
-in `port/`, `service/`, `adapter/` or `composition/` or imports a Node built-in,
+in `port/`, `service/`, `adapter/`, `composition/` or `testing/` or imports a Node built-in,
 `vscode` or `electron`, and its workspace's compiler program loads no DOM lib;
 `readModulePurity` decides it from structure. A library may therefore get role
 folders, and its entry stays pure while it re-exports only `domain/`. The core's

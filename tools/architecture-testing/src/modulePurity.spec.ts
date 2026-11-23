@@ -166,7 +166,7 @@ describe("modulePurity", () => {
         }).toEqual({ entry: false, domain: true });
     });
 
-    it.each(["port", "service", "adapter/in", "adapter/out", "composition"])(
+    it.each(["port", "service", "adapter/in", "adapter/out", "composition", "testing"])(
         "reads a module that reaches a file in %s/ of any workspace as impure, one that reaches its domain/ not",
         (folder) => {
             const core = hexagonal("@x/core", {

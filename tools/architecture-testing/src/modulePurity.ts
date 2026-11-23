@@ -20,13 +20,14 @@ export interface WorkspaceSources extends Workspace {
 /** Whether a `domain/` file may import a package specifier. */
 export type ModulePurity = (specifier: string) => boolean;
 
-/** Roles that call out or are called from outside; a file in them decides nothing on values alone. */
+/** Roles that call out, are called from outside, or serve only tests; a domain decides on values alone. */
 const IMPURE_ROLES: readonly Role[] = [
     "port",
     "service",
     "adapter/in",
     "adapter/out",
     "composition",
+    "testing",
 ];
 
 interface SourceModule {
