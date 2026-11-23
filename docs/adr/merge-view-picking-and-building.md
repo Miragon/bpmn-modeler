@@ -104,7 +104,7 @@ back to its canvas, where an unnamed flow reads "Flow from A to B" (`mergeElemen
 to the id. The sending pane remembers its side, which the outcome lacks (`mergeOutcomeMemory`,
 in `MergeOutcomes`), and shows the answer as a card below the element, its label, its boundary
 events and the pad; a flow's goes below its label or middle, away from the pad
-(`mergeOutcomeCardPlace`). It closes on the next step, another selection, × or the partner's
+(`MergeCardTarget.placeCard`). It closes on the next step, another selection, × or the partner's
 newer decision, told by the outcome with the picks, since it names no side; it shows again on
 reselection and announces each outcome once, through live regions that exist before their text.
 The partner shows none; a row says its own. A pick or undo that would move a version merged by

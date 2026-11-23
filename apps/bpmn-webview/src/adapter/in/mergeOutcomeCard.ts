@@ -11,11 +11,11 @@ import {
 import {
     type DiagramBox,
     type DiagramPoint,
+    FlowCardTarget,
     type MergeCardPlace,
     type MergeCardTarget,
-    mergeOutcomeCardPlace,
-    mergeOutcomeCardScroll,
-} from "../../domain/mergeOutcomeCardPlace";
+    ShapeCardTarget,
+} from "../../domain/mergeCardTarget";
 
 import { ConnectionPadPlacement, connectionPadPlacementModule } from "./connectionPadPlacement";
 import "./mergeOutcomeCard.css";
@@ -89,7 +89,7 @@ const CHECK_MARK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 
 /**
  * The outcome of a decision this pane sent, as a card below the element it
- * concerns ({@link mergeOutcomeCardPlace}), at a fixed size whatever the
+ * concerns ({@link MergeCardTarget.placeCard}), at a fixed size whatever the
  * zoom: what it pulled in, dropped or opened again, or why it was refused
  * with the blockers marked on the canvas, and the offer to keep what was
  * removed with the element. It announces each outcome once, through live
@@ -188,8 +188,8 @@ export class MergeOutcomeCard {
         const measured = html.getBoundingClientRect();
         const card = { width: measured.width || CARD_MAX_WIDTH_PX, height: measured.height };
         const pad = this.padSize(element);
-        const target = targetOf(element);
-        const place = mergeOutcomeCardPlace(target, {
+        const target = MergeOutcomeCard.targetOf(element);
+        const place = target.placeCard({
             scale: this.canvas.viewbox().scale,
             card,
             ...(pad === undefined ? {} : { pad }),
@@ -213,12 +213,27 @@ export class MergeOutcomeCard {
         const placed = this.place();
         if (placed === undefined) return;
         const { y, scale, outer } = this.canvas.viewbox();
-        const scroll = mergeOutcomeCardScroll(
-            placed.target,
+        const scroll = placed.target.scrollToFit(
             { top: placed.place.top, height: placed.height },
             { y, scale, height: outer.height },
         );
         if (scroll > 0) this.canvas.scroll({ dx: 0, dy: -scroll });
+    }
+
+    private static targetOf(element: CardElement): MergeCardTarget {
+        const { waypoints, label } = element;
+        if (waypoints !== undefined) return new FlowCardTarget(waypoints, label);
+        const attachers = element.attachers ?? [];
+        const below = [label, ...attachers, ...attachers.map((attacher) => attacher.label)];
+        return new ShapeCardTarget(
+            {
+                x: element.x ?? 0,
+                y: element.y ?? 0,
+                width: element.width ?? 0,
+                height: element.height ?? 0,
+            },
+            below.filter((box): box is DiagramBox => box !== undefined),
+        );
     }
 
     private announce(content: MergeOutcomeCardContent): void {
@@ -294,26 +309,6 @@ function choiceButton(choice: MergeCardChoice, actions: MergeOutcomeCardActions)
 
 function link(text: string, onClick: () => void): HTMLButtonElement {
     return createButton("merge-outcome-card__link", onClick, text);
-}
-
-function targetOf(element: CardElement): MergeCardTarget {
-    const { waypoints, label } = element;
-    if (waypoints !== undefined) {
-        return { kind: "flow", waypoints, ...(label === undefined ? {} : { label }) };
-    }
-    const attachers = element.attachers ?? [];
-    return {
-        kind: "shape",
-        box: {
-            x: element.x ?? 0,
-            y: element.y ?? 0,
-            width: element.width ?? 0,
-            height: element.height ?? 0,
-        },
-        below: [label, ...attachers, ...attachers.map((attacher) => attacher.label)].filter(
-            (box): box is DiagramBox => box !== undefined,
-        ),
-    };
 }
 
 /** The merge pane's outcome card, which hands itself to `config` once the pane's canvas exists. */
