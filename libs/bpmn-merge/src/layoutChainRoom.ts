@@ -6,7 +6,7 @@ import {
     type RoomMade,
     makeRoomInLine,
 } from "./layoutMakeRoom";
-import { type LayoutModel, type NodeShape, flowOwnerOf } from "./layoutModel";
+import type { LayoutModel, NodeShape } from "./layoutModel";
 import type { ShapeGroup } from "./layoutShapeGroups";
 import { leadAlong } from "./layoutSpaceTool";
 
@@ -15,9 +15,8 @@ type ChainRoomContext = RoomContext & { readonly sides: readonly LayoutModel[] }
 
 /**
  * Room for the chains two shapes that lie on each other belong to, with the
- * chain that was placed as its group, led by its shape of the pair, which
- * the note names as moved; undefined where the attempt does not apply or
- * finds none.
+ * chain that was placed as its group and named after that chain's shape of
+ * the pair; undefined where the attempt does not apply or finds none.
  */
 export type ChainRoomAttempt = (
     draft: DrawingDraft,
@@ -39,13 +38,13 @@ function flowsRight(
 
 /** The room for the chain, named after the chain's shape of the pair, its host for a boundary event. */
 function roomNaming(
-    draft: DrawingDraft,
     room: RoomMade | undefined,
     chain: ShapeGroup,
     ofPair: NodeShape,
 ): RoomForGroup | undefined {
-    const node = draft.node(flowOwnerOf(draft, ofPair.id)) ?? ofPair;
-    return room === undefined ? undefined : { ...room, group: { ...chain, node } };
+    return room === undefined
+        ? undefined
+        : { ...room, group: chain, named: ofPair.host ?? ofPair.id };
 }
 
 /**
@@ -58,11 +57,11 @@ function roomNaming(
 export const twoChainsInLine: ChainRoomAttempt = (draft, context, pair) => {
     const [first, second] = pair.map((node) => InsertedChain.of(draft, context.sides, node));
     if (first === undefined || second === undefined) return undefined;
-    const ordered = InsertedChain.toPutInLine(draft, first, second);
+    const ordered = InsertedChain.toPutInLine(context.topology, first, second);
     if (ordered === undefined || !flowsRight(draft, context, ordered)) return undefined;
     const [ahead, behind] = ordered.map((chain) => chain.groupIn(context.groups, draft));
     const room = makeRoomInLine(draft, context, ahead!.node.bounds.x, ahead!, behind!);
-    return roomNaming(draft, room, behind!, pair[ordered[1] === first ? 0 : 1]);
+    return roomNaming(room, behind!, pair[ordered[1] === first ? 0 : 1]);
 };
 
 /**
@@ -80,11 +79,11 @@ export const chainBeforeWhatItLeadsInto: ChainRoomAttempt = (draft, context, pai
     if (chain === undefined || next === undefined || chains[1 - at] !== undefined) {
         return undefined;
     }
-    if (!chain.hasSeveralSteps || !chain.leadsInto(draft, next)) return undefined;
+    if (!chain.hasSeveralSteps || !chain.leadsInto(context.topology, next)) return undefined;
     if (!flowsRight(draft, context, [chain])) return undefined;
     const group = chain.groupIn(context.groups, draft);
     const line = Math.min(group.node.bounds.x, leadAlong("x", next));
-    return roomNaming(draft, makeRoomInLine(draft, context, line, group), group, pair[at]!);
+    return roomNaming(makeRoomInLine(draft, context, line, group), group, pair[at]!);
 };
 
 /**

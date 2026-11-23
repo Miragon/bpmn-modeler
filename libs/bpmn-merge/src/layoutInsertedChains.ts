@@ -1,3 +1,4 @@
+import type { FlowTopology } from "./layoutFlowTopology";
 import {
     type LayoutModel,
     type NodeShape,
@@ -108,12 +109,10 @@ export class InsertedChain {
         };
     }
 
-    /** Whether a sequence flow of the drawing leads from the chain into the node. */
-    leadsInto(layout: LayoutModel, node: NodeShape): boolean {
-        const target = flowOwnerOf(layout, node.id);
-        return sequenceEndsOf(layout).some(
-            ({ source, target: end }) => this.holds(source) && end === target,
-        );
+    /** Whether a sequence flow leads from the chain into the node, or into the host of the boundary event. */
+    leadsInto(topology: FlowTopology, node: NodeShape): boolean {
+        const target = node.host ?? node.id;
+        return this.nodes.some(({ id }) => topology.followersOf(id).has(target));
     }
 
     /** Whether the shape is one of the chain's; a boundary event counts as its host. */
@@ -121,18 +120,19 @@ export class InsertedChain {
         return this.nodes.some(({ id }) => id === shape);
     }
 
-    /** Whether a sequence flow of the drawing leads from this chain into the other. */
-    private leadsIntoChain(layout: LayoutModel, other: InsertedChain): boolean {
-        return sequenceEndsOf(layout).some(
-            ({ source, target }) => this.holds(source) && other.holds(target),
+    /** Whether a sequence flow leads from this chain into the other. */
+    private leadsIntoChain(topology: FlowTopology, other: InsertedChain): boolean {
+        return this.nodes.some(({ id }) =>
+            [...topology.followersOf(id)].some((next) => other.holds(next)),
         );
     }
 
-    /** Whether a sequence flow of the drawing enters the chain from a shape of neither chain. */
-    private enteredFromOutside(layout: LayoutModel, other: InsertedChain): boolean {
-        return sequenceEndsOf(layout).some(
-            ({ source, target }) =>
-                this.holds(target) && !this.holds(source) && !other.holds(source),
+    /** Whether a sequence flow enters the chain from a shape of neither chain. */
+    private enteredFromOutside(topology: FlowTopology, other: InsertedChain): boolean {
+        return this.nodes.some(({ id }) =>
+            [...topology.predecessorsOf(id)].some(
+                (before) => !this.holds(before) && !other.holds(before),
+            ),
         );
     }
 
@@ -143,44 +143,39 @@ export class InsertedChain {
      * order them (`inFlowOrder`). Undefined otherwise.
      */
     static toPutInLine(
-        layout: LayoutModel,
+        topology: FlowTopology,
         first: InsertedChain,
         second: InsertedChain,
     ): readonly [InsertedChain, InsertedChain] | undefined {
         if (!first.liesInTheFlow || !second.liesInTheFlow) return undefined;
         if (!first.hasSeveralSteps && !second.hasSeveralSteps) return undefined;
-        return InsertedChain.inFlowOrder(layout, first, second);
+        return InsertedChain.inFlowOrder(topology, first, second);
     }
 
     /**
-     * The two chains in the order the flows of the drawing put them: first
-     * the one a flow leads from into the other while none leads back, else
-     * the one a flow enters from outside both while none enters the other.
-     * Undefined when the flows order them neither way: each is entered, as
-     * two branches are, or none.
+     * The two chains in the order the sequence flows put them: first the one
+     * a flow leads from into the other while none leads back, else the one a
+     * flow enters from outside both while none enters the other. Undefined
+     * when the flows order them neither way: each is entered, as two
+     * branches are, or none.
      */
     static inFlowOrder(
-        layout: LayoutModel,
+        topology: FlowTopology,
         first: InsertedChain,
         second: InsertedChain,
     ): readonly [InsertedChain, InsertedChain] | undefined {
-        const leads = [first.leadsIntoChain(layout, second), second.leadsIntoChain(layout, first)];
+        const leads = [
+            first.leadsIntoChain(topology, second),
+            second.leadsIntoChain(topology, first),
+        ];
         if (leads[0] !== leads[1]) return leads[0] ? [first, second] : [second, first];
         const entered = [
-            first.enteredFromOutside(layout, second),
-            second.enteredFromOutside(layout, first),
+            first.enteredFromOutside(topology, second),
+            second.enteredFromOutside(topology, first),
         ];
         if (entered[0] === entered[1]) return undefined;
         return entered[0] ? [first, second] : [second, first];
     }
-}
-
-/** The ends of each sequence flow of the drawing, a boundary event's as its host's. */
-function sequenceEndsOf(layout: LayoutModel): { source: string; target: string }[] {
-    return [...layout.edges.values()].flatMap((edge) => {
-        const ends = carriesSequence(edge) ? neighboursJoinedBy(layout, edge) : undefined;
-        return ends === undefined ? [] : [ends];
-    });
 }
 
 /** Which shapes the side's sequence flows and associations join, and which of them a sequence flow does. */

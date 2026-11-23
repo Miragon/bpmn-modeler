@@ -79,7 +79,8 @@ export class FlowTopology {
         return this.successors.get(id) ?? NONE;
     }
 
-    private predecessorsOf(id: string): ReadonlySet<string> {
+    /** The nodes a sequence flow leads from into the node; a boundary event's flow counts as its host's. */
+    predecessorsOf(id: string): ReadonlySet<string> {
         return this.predecessors.get(id) ?? NONE;
     }
 

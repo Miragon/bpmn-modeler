@@ -36,7 +36,11 @@ export interface RoomMade {
 }
 
 /** Room made, with the group it was made for. */
-export type RoomForGroup = RoomMade & { readonly group: ShapeGroup };
+export type RoomForGroup = RoomMade & {
+    readonly group: ShapeGroup;
+    /** The shape of the group a note names as moved, when it is not the group's node. */
+    readonly named?: string;
+};
 
 /** The room of a slot that was free: the draft with the shape moved there, nothing shifted or grown. */
 export function freeRoom(draft: DrawingDraft): RoomMade {

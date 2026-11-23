@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { box, flow, layoutOf, node } from "./__fixtures__/layoutShapes";
+import { FlowTopology } from "./layoutFlowTopology";
 import { InsertedChain } from "./layoutInsertedChains";
 import type { LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
@@ -226,7 +227,9 @@ describe("InsertedChain", () => {
     ])("leads into $into or not", ({ id, leads }) => {
         const kept = INCOMING.shapes.get(id) as NodeShape;
 
-        expect(chainOf(INCOMING, "Task_N1")!.leadsInto(INCOMING, kept)).toBe(leads);
+        expect(chainOf(INCOMING, "Task_N1")!.leadsInto(new FlowTopology(INCOMING), kept)).toBe(
+            leads,
+        );
     });
 
     it("leads into a boundary event when it flows into the event's host", () => {
@@ -235,7 +238,7 @@ describe("InsertedChain", () => {
         const current = layoutOf([...KEPT, onTaskB]);
         const chain = chainOf(incoming, "Task_N1", [current, incoming])!;
 
-        expect(chain.leadsInto(incoming, onTaskB)).toBe(true);
+        expect(chain.leadsInto(new FlowTopology(incoming), onTaskB)).toBe(true);
     });
 
     it("leads into the shape a boundary event on one of its steps flows into", () => {
@@ -245,7 +248,10 @@ describe("InsertedChain", () => {
         const current = layoutOf([...KEPT, escalation]);
 
         expect(
-            chainOf(incoming, "Task_N2", [current, incoming])!.leadsInto(incoming, escalation),
+            chainOf(incoming, "Task_N2", [current, incoming])!.leadsInto(
+                new FlowTopology(incoming),
+                escalation,
+            ),
         ).toBe(true);
     });
 });
@@ -271,7 +277,8 @@ describe("InsertedChain.toPutInLine", () => {
         );
         const chain = (id: string) =>
             InsertedChain.of(result, [current, incoming], result.shapes.get(id) as NodeShape)!;
-        return InsertedChain.toPutInLine(result, chain("Task_Y1"), chain("Task_X1"))?.map(
+        const topology = new FlowTopology(result);
+        return InsertedChain.toPutInLine(topology, chain("Task_Y1"), chain("Task_X1"))?.map(
             ({ nodes }) => nodes[0]!.id,
         );
     };
@@ -315,7 +322,8 @@ describe("InsertedChain.inFlowOrder", () => {
         const result = layoutOf([...KEPT, ...X, ...Y], [...INSIDE, ...flows]);
         const chain = (id: string) =>
             InsertedChain.of(result, [current, incoming], result.shapes.get(id) as NodeShape)!;
-        return InsertedChain.inFlowOrder(result, chain("Task_X2"), chain("Task_Y2"))?.map(
+        const topology = new FlowTopology(result);
+        return InsertedChain.inFlowOrder(topology, chain("Task_X2"), chain("Task_Y2"))?.map(
             ({ nodes }) => nodes[0]!.id,
         );
     };

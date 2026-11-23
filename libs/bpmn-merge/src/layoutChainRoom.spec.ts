@@ -94,7 +94,7 @@ describe("room for chains of shapes one side added", () => {
             expect(roomFor(chainBeforeWhatItLeadsInto, result, pair, sides)).toBeUndefined();
 
             expect(xOf(room, SHAPES)).toEqual(x);
-            expect(room?.group.node.id).toBe(placed);
+            expect(room?.named).toBe(placed);
             expect(room?.shifted).toEqual(["Task_B"]);
         },
     );
@@ -116,7 +116,7 @@ describe("room for chains of shapes one side added", () => {
             expect(xOf(room, ["Task_A", "Task_Y1", "Task_Y2", "Task_B"])).toEqual([
                 100, 260, 410, 560,
             ]);
-            expect(room?.group.node.id).toBe("Task_Y1");
+            expect(room?.named).toBe("Task_Y1");
             expect(room?.shifted).toEqual(["Task_B"]);
         },
     );
@@ -140,7 +140,7 @@ describe("room for chains of shapes one side added", () => {
             [current, incoming],
         );
 
-        expect(room?.group.node.id).toBe("Task_Y1");
+        expect(room?.named).toBe("Task_Y1");
         expect(room?.shifted).toEqual(["Task_B"]);
     });
 

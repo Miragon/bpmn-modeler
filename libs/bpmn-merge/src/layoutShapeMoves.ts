@@ -165,7 +165,7 @@ function endedEarlier([first, second]: readonly [NodeShape, NodeShape]): boolean
 }
 
 function roomRepairOf(room: RoomForGroup): MoveRepair {
-    const moved = room.group.node.id;
+    const moved = room.named ?? room.group.node.id;
     const { shifted, grown } = room;
     if (isNonEmpty(grown)) {
         return isNonEmpty(shifted)
