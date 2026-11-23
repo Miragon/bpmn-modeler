@@ -3,7 +3,7 @@
   "commit": "dbcaf5c8d2914ecb9de02c95ca5d2db8e79314d9",
   "entries": {
     "change-coupling": {
-      "version": 3,
+      "version": 4,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/adapter/out/host.ts ↔ libs/shared/src/lib/modeler.ts",
@@ -1497,7 +1497,7 @@
       ]
     },
     "hotspots": {
-      "version": 4,
+      "version": 5,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/adapter/in/mergeMode.ts",
@@ -1642,7 +1642,7 @@
       ]
     },
     "missed-partner": {
-      "version": 2,
+      "version": 3,
       "findings": []
     },
     "mutation-score": {
