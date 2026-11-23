@@ -10,10 +10,12 @@ import type { PersistedChoices } from "../../../domain/viewState";
 import { MockCatalog } from "./mockCatalog";
 import { PREVIEW_COMMANDS, type PreviewSession } from "./previewCommands";
 import { previewFlagsOf } from "./previewFlags";
+import { PreviewRequests } from "./previewRequests";
 
 /**
- * The browser preview's host: answers the view's commands from {@link MockCatalog}, as the
- * table in `previewCommands.ts` routes them, in the state the URL's flags ({@link previewFlagsOf}) select.
+ * The browser preview's host: answers the view's commands from {@link MockCatalog}, which
+ * {@link PreviewRequests} changes, as the table in `previewCommands.ts` routes them, in the
+ * state the URL's flags ({@link previewFlagsOf}) select.
  */
 export class PreviewHost extends MockHostApi<PersistedChoices, AddOnsViewCommand> {
     private readonly session: PreviewSession;
@@ -23,7 +25,9 @@ export class PreviewHost extends MockHostApi<PersistedChoices, AddOnsViewCommand
         const flags = previewFlagsOf(search);
         // A host writes the page into its shell; the preview has none, so it writes it before the bootstrap reads it.
         document.documentElement.setAttribute(ADD_ONS_PAGE_ATTRIBUTE, flags.page);
-        this.session = { flags, catalog: new MockCatalog(flags.state, { stale: flags.stale }), reply: replyFromPreview };
+        const catalog = new MockCatalog(flags.state);
+        const requests = new PreviewRequests(catalog, { stale: flags.stale });
+        this.session = { flags, catalog, requests, reply: replyFromPreview };
     }
 
     override postMessage(message: AddOnsViewCommand): void {

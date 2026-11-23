@@ -14,11 +14,13 @@ import {
 import { mockAboutOf } from "./mockAbout";
 import type { MockCatalog } from "./mockCatalog";
 import type { PreviewFlags } from "./previewFlags";
+import type { PreviewRequests } from "./previewRequests";
 
 /** The preview a command arrives in, and the way back to the view. */
 export interface PreviewSession {
     readonly flags: PreviewFlags;
     readonly catalog: MockCatalog;
+    readonly requests: PreviewRequests;
     /** An answer the preview cannot give passes undefined and sends nothing. */
     reply(query: Query | undefined): void;
 }
@@ -28,7 +30,7 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<AddOnsViewCommand, PreviewSes
     LogErrorCommand: logToConsole,
     GetAddOnCatalogCommand: (_, preview) => answerCatalogRequest(preview),
     AddOnRequestCommand: ({ requestId, request }, preview) => {
-        const { result, changed } = preview.catalog.act(request);
+        const { result, changed } = preview.requests.act(request);
         preview.reply(new AddOnActionResultQuery(requestId, result));
         if (changed) preview.reply(catalogQueryOf(preview.catalog));
     },

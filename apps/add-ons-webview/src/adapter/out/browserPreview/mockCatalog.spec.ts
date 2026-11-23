@@ -3,13 +3,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The view cannot import the core, so the copied texts are compared as source.
-const MOCK_CATALOG = readFileSync(join(__dirname, "mockCatalog.ts"), "utf8");
 const CORE_ADD_ONS_DOMAIN = join(__dirname, "../../../../../../libs/modeler-core/src/addOns/domain");
 
-function coreSources(): string {
-    return readdirSync(CORE_ADD_ONS_DOMAIN)
+function sourcesIn(dir: string): string {
+    return readdirSync(dir)
         .filter((file) => file.endsWith(".ts") && !file.endsWith(".spec.ts"))
-        .map((file) => readFileSync(join(CORE_ADD_ONS_DOMAIN, file), "utf8"))
+        .map((file) => readFileSync(join(dir, file), "utf8"))
         .join("\n");
 }
 
@@ -18,11 +17,13 @@ function pairsOf(source: string, pattern: RegExp): [string, string][] {
 }
 
 describe("the preview catalog's texts", () => {
-    const core = coreSources();
+    const core = sourcesIn(CORE_ADD_ONS_DOMAIN);
+    // The catalog's rows and the requests that change them live in separate preview modules.
+    const preview = sourcesIn(__dirname);
 
     it("refuses with the text the core refuses with for the same reason", () => {
         const coreRefusals = pairsOf(core, /refused\(\s*"(\w+)",\s*"([^"]*)"/g);
-        const mockRefusals = pairsOf(MOCK_CATALOG, /reason:\s*"(\w+)",\s*message:\s*"([^"]*)"/g);
+        const mockRefusals = pairsOf(preview, /reason:\s*"(\w+)",\s*message:\s*"([^"]*)"/g);
 
         expect(mockRefusals).not.toEqual([]);
         expect(
@@ -35,7 +36,7 @@ describe("the preview catalog's texts", () => {
     it("labels each action as the core labels it", () => {
         const labelBlock = /ACTION_LABEL = \{([^}]*)\}/.exec(core)?.[1] ?? "";
         const coreLabels = new Map(pairsOf(labelBlock, /(\w+):\s*"([^"]*)"/g));
-        const mockActions = pairsOf(MOCK_CATALOG, /kind:\s*"(\w+)",\s*label:\s*"([^"]*)"/g).filter(([kind]) =>
+        const mockActions = pairsOf(preview, /kind:\s*"(\w+)",\s*label:\s*"([^"]*)"/g).filter(([kind]) =>
             coreLabels.has(kind),
         );
 

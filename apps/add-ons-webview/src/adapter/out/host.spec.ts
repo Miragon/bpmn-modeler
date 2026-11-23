@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    type AddOnActionResultPayload,
     AddOnActionResultQuery,
     AddOnCatalogPayload,
     AddOnCatalogQuery,
     AddOnRequestCommand,
+    type AddOnRequestPayload,
     AddOnsViewCommandType,
     BrandModeQuery,
     GetAddOnCatalogCommand,
@@ -31,6 +33,10 @@ const COMMANDS: { [Type in AddOnsViewCommandType]: MessageOfType<Type> } = {
 
 type Reply = AddOnCatalogQuery | AddOnActionResultQuery | RevealAddOnsQuery | BrandModeQuery;
 
+const RESIZE_TASKS = "plugin:/work/.camunda/plugins/resize";
+const GONE = "plugin:/gone";
+const UNLISTED = { kind: "refused", reason: "unknownAddOn", message: "This add-on is no longer listed." } as const;
+
 const reveals = (replies: readonly Reply[]) =>
     replies.flatMap((each) => (each instanceof RevealAddOnsQuery ? [each.reveal] : []));
 
@@ -46,8 +52,7 @@ function previewAt(search = "") {
         replies.flatMap((each) => (each instanceof AddOnActionResultQuery ? [each.result] : []));
     const rows = (model: AddOnCatalogPayload) =>
         model.groups.flatMap((group) => group.sources.flatMap((source) => source.addOns));
-    const rowNamed = (name: string, model = models().at(-1)!) =>
-        rows(model).find((row) => row.name === name)!;
+    const rowNamed = (name: string) => rows(models().at(-1)!).find((row) => row.name === name)!;
 
     return { host, replies, models, results, rowNamed };
 }
@@ -105,36 +110,6 @@ describe("the preview's host", () => {
         );
     });
 
-    it("allows a row and pushes a newer revision that shows it allowed", () => {
-        const { host, models, results, rowNamed } = previewAt();
-        host.postMessage(new GetAddOnCatalogCommand());
-        const [first] = models();
-        const row = rowNamed("Resize Tasks", first);
-
-        host.postMessage(new AddOnRequestCommand(1, { kind: "allow", addOnId: row.id, revision: first.revision }));
-
-        expect(results()).toEqual([
-            { kind: "done", message: "Allowed Resize Tasks in every worktree of its repository. Open editors reload with it." },
-        ]);
-        expect([models().at(-1)!.revision > first.revision, rowNamed("Resize Tasks").stateText]).toEqual([true, "Allowed"]);
-    });
-
-    it.each([
-        { name: "Palette", request: "revoke", result: { kind: "done", message: "Revoked Palette in every worktree of its repository. Open editors reload without it." }, stateText: "Not allowed yet" },
-        { name: "bpmnlint-plugin-acme@1.0.0", request: "revoke", result: { kind: "done", message: "Revoked bpmnlint-plugin-acme@1.0.0 in every worktree of its repository. Code it already ran stays loaded until you reload the window." }, stateText: "Not allowed yet" },
-        { name: "Mail Task", request: "disable", result: { kind: "done" }, stateText: "Disabled" },
-        { name: "Legacy Task", request: "enable", result: { kind: "done" }, stateText: "Enabled" },
-        { name: "Gone", request: "revoke", result: { kind: "refused", reason: "unknownAddOn", message: "This add-on is no longer listed." }, stateText: undefined },
-    ] as const)("answers $request on $name as the core would", ({ name, request, result, stateText }) => {
-        const { host, results, rowNamed } = previewAt();
-        host.postMessage(new GetAddOnCatalogCommand());
-        const id = rowNamed(name)?.id ?? "plugin:/gone";
-
-        host.postMessage(new AddOnRequestCommand(1, { kind: request, addOnId: id }));
-
-        expect([results()[0], rowNamed(name)?.stateText]).toEqual([result, stateText]);
-    });
-
     it.each([
         {
             name: "Palette",
@@ -163,21 +138,131 @@ describe("the preview's host", () => {
         expect([revoked.kind !== "elementTemplate" && revoked.review?.facts, revoked.note]).toEqual([facts, note]);
     });
 
-    it.each([
-        { request: { kind: "disableTemplates", sourceId: "config:/work/.camunda" }, result: { kind: "done" } },
-        { request: { kind: "enableTemplates", sourceId: "config:/work/orders/.camunda" }, result: { kind: "done" } },
-        { request: { kind: "removeMarketplace", sourceId: "marketplace:broken" }, result: { kind: "reportedByFlow" } },
-        { request: { kind: "addMarketplace" }, result: { kind: "reportedByFlow" } },
-        { request: { kind: "updateMarketplaces" }, result: { kind: "reportedByFlow" } },
-        { request: { kind: "pruneCache" }, result: { kind: "done", message: "Removed 2 unused plugin copies." } },
-        { request: { kind: "refresh" }, result: { kind: "done" } },
-    ] as const)("answers $request.kind", ({ request, result }) => {
-        const { host, results } = previewAt();
+    it.each<{
+        when: string;
+        search?: string;
+        request: AddOnRequestPayload;
+        result: AddOnActionResultPayload;
+        revisions: number[];
+        shows?: { name: string; stateText: string };
+    }>([
+        {
+            when: "allow on a plugin",
+            request: { kind: "allow", addOnId: RESIZE_TASKS, revision: 1 },
+            result: { kind: "done", message: "Allowed Resize Tasks in every worktree of its repository. Open editors reload with it." },
+            revisions: [1, 2],
+            shows: { name: "Resize Tasks", stateText: "Allowed" },
+        },
+        {
+            when: "allow on a rule package",
+            request: { kind: "allow", addOnId: "rulePackage:/work/node_modules/@acme/bpmnlint-plugin-rules", revision: 1 },
+            result: {
+                kind: "done",
+                message: "Allowed @acme/bpmnlint-plugin-rules@2.1.0 in every worktree of its repository. Open editors lint again with it.",
+            },
+            revisions: [1, 2],
+            shows: { name: "@acme/bpmnlint-plugin-rules@2.1.0", stateText: "Allowed" },
+        },
+        { when: "allow on an unlisted add-on", request: { kind: "allow", addOnId: GONE, revision: 1 }, result: UNLISTED, revisions: [1] },
+        {
+            when: "the first allow on a stale view",
+            search: "?stale=1",
+            request: { kind: "allow", addOnId: RESIZE_TASKS, revision: 1 },
+            result: { kind: "refused", reason: "staleView", message: "The list changed since you looked at it. Check it again, then allow." },
+            revisions: [1, 2],
+        },
+        {
+            when: "revoke on a plugin",
+            request: { kind: "revoke", addOnId: "plugin:/work/.camunda/plugins/palette" },
+            result: { kind: "done", message: "Revoked Palette in every worktree of its repository. Open editors reload without it." },
+            revisions: [1, 2],
+            shows: { name: "Palette", stateText: "Not allowed yet" },
+        },
+        {
+            when: "revoke on a rule package",
+            request: { kind: "revoke", addOnId: "rulePackage:/work/node_modules/bpmnlint-plugin-acme" },
+            result: {
+                kind: "done",
+                message:
+                    "Revoked bpmnlint-plugin-acme@1.0.0 in every worktree of its repository. Code it already ran stays loaded until you reload the window.",
+            },
+            revisions: [1, 2],
+            shows: { name: "bpmnlint-plugin-acme@1.0.0", stateText: "Not allowed yet" },
+        },
+        { when: "revoke on an unlisted add-on", request: { kind: "revoke", addOnId: GONE }, result: UNLISTED, revisions: [1] },
+        {
+            when: "enable",
+            request: { kind: "enable", addOnId: "template:config:/work/.camunda|legacy.json#0:Legacy Task@1" },
+            result: { kind: "done" },
+            revisions: [1, 2],
+            shows: { name: "Legacy Task", stateText: "Enabled" },
+        },
+        {
+            when: "disable",
+            request: { kind: "disable", addOnId: "template:config:/work/.camunda|mail.json#0:Mail Task@1" },
+            result: { kind: "done" },
+            revisions: [1, 2],
+            shows: { name: "Mail Task", stateText: "Disabled" },
+        },
+        { when: "disable on an unlisted add-on", request: { kind: "disable", addOnId: GONE }, result: UNLISTED, revisions: [1] },
+        {
+            when: "enableTemplates",
+            request: { kind: "enableTemplates", sourceId: "config:/work/orders/.camunda" },
+            result: { kind: "done" },
+            revisions: [1, 2],
+        },
+        {
+            when: "disableTemplates",
+            request: { kind: "disableTemplates", sourceId: "config:/work/.camunda" },
+            result: { kind: "done" },
+            revisions: [1, 2],
+        },
+        {
+            when: "removeMarketplace",
+            request: { kind: "removeMarketplace", sourceId: "marketplace:broken" },
+            result: { kind: "reportedByFlow" },
+            revisions: [1, 2],
+        },
+        { when: "addMarketplace", request: { kind: "addMarketplace" }, result: { kind: "reportedByFlow" }, revisions: [1] },
+        { when: "updateMarketplaces", request: { kind: "updateMarketplaces" }, result: { kind: "reportedByFlow" }, revisions: [1] },
+        {
+            when: "pruneCache",
+            request: { kind: "pruneCache" },
+            result: { kind: "done", message: "Removed 2 unused plugin copies." },
+            revisions: [1],
+        },
+        { when: "refresh", request: { kind: "refresh" }, result: { kind: "done" }, revisions: [1, 2] },
+    ])("answers $when as the core would and pushes a newer catalog only when it changed", ({ search, request, result, revisions, shows }) => {
+        const { host, models, results, rowNamed } = previewAt(search);
         host.postMessage(new GetAddOnCatalogCommand());
 
         host.postMessage(new AddOnRequestCommand(1, request));
 
-        expect(results()).toEqual([result]);
+        expect([results(), models().map(({ revision }) => revision), shows && rowNamed(shows.name).stateText]).toEqual([
+            [result],
+            revisions,
+            shows?.stateText,
+        ]);
+    });
+
+    it("allows on the second try after refusing a stale view", () => {
+        const { host, results, rowNamed } = previewAt("?stale=1");
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        host.postMessage(new AddOnRequestCommand(1, { kind: "allow", addOnId: RESIZE_TASKS, revision: 1 }));
+        host.postMessage(new AddOnRequestCommand(2, { kind: "allow", addOnId: RESIZE_TASKS, revision: 2 }));
+
+        expect([results().map(({ kind }) => kind), rowNamed("Resize Tasks").stateText]).toEqual([["refused", "done"], "Allowed"]);
+    });
+
+    it("drops the marketplace it removes from the next catalog", () => {
+        const { host, models } = previewAt();
+        host.postMessage(new GetAddOnCatalogCommand());
+
+        host.postMessage(new AddOnRequestCommand(1, { kind: "removeMarketplace", sourceId: "marketplace:broken" }));
+        const marketplaces = models().at(-1)!.groups.find(({ kind }) => kind === "marketplaces");
+
+        expect(marketplaces?.sources.map(({ id }) => id)).toEqual(["marketplace:shared"]);
     });
 
     it("switches a source's templates off and on again", () => {
@@ -281,16 +366,6 @@ describe("the preview's host", () => {
             codeRows.length > 0,
             codeRows.filter(({ stateText }) => stateText === "Allowed").length > 0,
         ]).toEqual([[], true, true]);
-    });
-
-    it("refuses the first allow as stale when asked to", () => {
-        const { host, models, results, rowNamed } = previewAt("?stale=1");
-        host.postMessage(new GetAddOnCatalogCommand());
-        const row = rowNamed("Resize Tasks");
-
-        host.postMessage(new AddOnRequestCommand(1, { kind: "allow", addOnId: row.id, revision: models()[0].revision }));
-
-        expect(results()[0]).toMatchObject({ kind: "refused", reason: "staleView" });
     });
 
     it.each([
