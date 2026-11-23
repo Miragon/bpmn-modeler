@@ -6,18 +6,20 @@ import {
     readWorkspaceDirs,
     resolveWithSuffixes,
     roleOf,
-    SPEC_FILE,
 } from "@miragon/architecture-testing";
 import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 
 import { git, trackedFiles } from "../../../fitness/adapter/out/git";
-import type { SourceLayout, WorkspaceLayout } from "../../domain/sourceLayout";
+import {
+    isDataFile,
+    isParsedIntoDeclarationGraph,
+    type SourceLayout,
+    type WorkspaceLayout,
+} from "../../domain/sourceLayout";
 import type { SourceStructure } from "../../port/SourceStructure";
 
 const GENERATED_ATTRIBUTE = "linguist-generated";
-const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
-const UNPARSED_DECLARATION = /\.d\.ts$/;
 const BUILD_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
 
 export class EngineSourceStructure implements SourceStructure {
@@ -25,12 +27,7 @@ export class EngineSourceStructure implements SourceStructure {
         const files = trackedFiles(repoRoot);
         const readText = (path: string): string => readFileSync(join(repoRoot, path), "utf8");
         const tree = files
-            .filter(
-                (path) =>
-                    SCRIPT_FILE.test(path) &&
-                    !SPEC_FILE.test(path) &&
-                    !UNPARSED_DECLARATION.test(path),
-            )
+            .filter(isParsedIntoDeclarationGraph)
             .map((path) => ({ path, text: readText(path) }));
         const tsconfig = join(repoRoot, "tsconfig.base.json");
         const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];
@@ -43,7 +40,7 @@ export class EngineSourceStructure implements SourceStructure {
             generatedFiles: generatedFiles(repoRoot, files),
             links: buildDeclarationGraph(tree, {
                 aliases,
-                dataFiles: files.filter((path) => !SCRIPT_FILE.test(path)),
+                dataFiles: files.filter(isDataFile),
             }),
             workspaces: readWorkspaceDirs(repoRoot).map((dir) =>
                 workspaceLayout(dir, files, known, readText),

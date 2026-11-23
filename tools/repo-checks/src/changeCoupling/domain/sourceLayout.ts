@@ -1,4 +1,4 @@
-import { SPEC_FILE, TEST_FOLDERS } from "@miragon/architecture-testing";
+import { DECLARATION_FILE, SPEC_FILE, TEST_FOLDERS } from "@miragon/architecture-testing";
 
 export interface ImportLink {
     readonly from: string;
@@ -26,6 +26,16 @@ export interface SourceLayout {
 }
 
 const TYPESCRIPT_FILE = /\.tsx?$/;
+const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
+
+/** A declaration file of any module kind runs no code, and a caller's import resolves to the module it types. */
+export function isParsedIntoDeclarationGraph(path: string): boolean {
+    return SCRIPT_FILE.test(path) && !SPEC_FILE.test(path) && !DECLARATION_FILE.test(path);
+}
+
+export function isDataFile(path: string): boolean {
+    return !SCRIPT_FILE.test(path);
+}
 
 export function measuredFiles({
     files,
@@ -75,5 +85,7 @@ function isMeasured(path: string, workspaces: readonly WorkspaceLayout[]): boole
     if (name.endsWith(".kt")) {
         return inWorkspace.startsWith("src/main/");
     }
-    return TYPESCRIPT_FILE.test(name) && !name.endsWith(".d.ts") && inWorkspace.startsWith("src/");
+    return (
+        TYPESCRIPT_FILE.test(name) && !DECLARATION_FILE.test(name) && inWorkspace.startsWith("src/")
+    );
 }
