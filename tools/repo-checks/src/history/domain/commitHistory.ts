@@ -108,6 +108,9 @@ export function withBaseBranchAsOneChange(
 // Release, dependency and formatting commits touch many files for no shared reason.
 const MECHANICAL_SUBJECT = /^(chore\((deps|main|format)\)|style(\([^)]*\))?)!?:/;
 
+/** The commit kinds `MECHANICAL_SUBJECT` matches, worded for a function's limits. */
+export const MECHANICAL_COMMIT_KINDS = "chore(deps), chore(main), chore(format) or style";
+
 export function isMechanicalCommit(subject: string): boolean {
     return MECHANICAL_SUBJECT.test(subject);
 }

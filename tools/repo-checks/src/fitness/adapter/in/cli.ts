@@ -148,19 +148,10 @@ function parseCommand(args: readonly string[]) {
         return { command, format, request, changes: parseChangesOptions(values, format) } as const;
     }
     if (command === "snapshot") {
-        for (const option of [
-            "format",
-            "base",
-            "default-branch",
-            "repo",
-            "changes-only",
-            "head-label",
-            "capped-out",
-            "max-characters",
-        ] as const) {
-            if (values[option] !== undefined) {
-                throw new UsageError(`snapshot does not take --${option}`);
-            }
+        // No option has a default, so `values` holds only the options given.
+        const reportOption = Object.keys(values).find((option) => option !== "out");
+        if (reportOption !== undefined) {
+            throw new UsageError(`snapshot does not take --${reportOption}`);
         }
         if (values.out === undefined) {
             throw new UsageError("snapshot needs --out <dir>");

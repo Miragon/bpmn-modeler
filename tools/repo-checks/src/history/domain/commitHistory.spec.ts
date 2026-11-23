@@ -7,6 +7,7 @@ import {
     HISTORY_WINDOW,
     historyWindow,
     isMechanicalCommit,
+    MECHANICAL_COMMIT_KINDS,
     withBaseBranchAsOneChange,
     withBranchAsOneChange,
 } from "./commitHistory";
@@ -133,6 +134,13 @@ describe("a mechanical commit", () => {
     ])("is $subject: $mechanical", ({ subject, mechanical }) => {
         expect(isMechanicalCommit(subject)).toBe(mechanical);
     });
+
+    it.each(MECHANICAL_COMMIT_KINDS.split(/, | or /))(
+        "is every kind a function's limits name: %s",
+        (kind) => {
+            expect(isMechanicalCommit(`${kind}: reorder imports`)).toBe(true);
+        },
+    );
 });
 
 describe("a branch as one change", () => {

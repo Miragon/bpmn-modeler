@@ -336,6 +336,27 @@ describe("the trend in the fitness report", () => {
         expect(snapshots.historyReads).toEqual([[BASE, "c1"]]);
     });
 
+    it("follows a stacked PR's value from where its base meets the default branch", () => {
+        const snapshots = new InMemorySnapshots([stored("m1", 330), stored("m0", 300)]);
+
+        createFitnessReport(
+            [sized],
+            { baseRef: "origin/stack", defaultBranchRef: "origin/main" },
+            {
+                repoRoot: WORKING_TREE,
+                history: new InMemoryHistory([HEAD, BASE, "s1", "m1", "m0"], BASE).withMergeBase(
+                    BASE,
+                    "origin/main",
+                    "m1",
+                ),
+                snapshots,
+                checkout: new InMemoryCheckout(),
+            },
+        );
+
+        expect(snapshots.historyReads).toEqual([["m1", "m0"]]);
+    });
+
     it("reads no history when no function declares values", () => {
         const snapshots = new InMemorySnapshots([stored(BASE, 330)]);
 

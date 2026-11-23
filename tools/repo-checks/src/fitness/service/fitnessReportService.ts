@@ -64,13 +64,13 @@ function measureBase(
 function readTrendHistory(
     functions: readonly FitnessFunction[],
     headCommit: string,
-    baseCommit: string,
+    defaultBranchBase: string,
     ports: FitnessReportPorts,
 ): TrendHistory | undefined {
     if (!functions.some(declaresValues)) {
         return undefined;
     }
-    const commitsNewestFirst = ports.history.firstParentCommits(baseCommit, BACKFILL_DEPTH);
+    const commitsNewestFirst = ports.history.firstParentCommits(defaultBranchBase, BACKFILL_DEPTH);
     return {
         headCommit,
         commitsNewestFirst,
@@ -99,7 +99,7 @@ export function createFitnessReport(
     );
     const baseById = measureBase(functions, { commit: baseCommit, defaultBranchBase }, ports);
     const renames = ports.history.renamesSince(baseCommit);
-    const history = readTrendHistory(functions, headCommit, baseCommit, ports);
+    const history = readTrendHistory(functions, headCommit, defaultBranchBase, ports);
     return {
         head: { commit: headCommit, uncommittedChanges: ports.history.hasUncommittedChanges() },
         base: { commit: baseCommit, ref: baseRef },

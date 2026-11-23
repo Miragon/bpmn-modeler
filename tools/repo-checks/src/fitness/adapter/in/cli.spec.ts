@@ -147,6 +147,10 @@ describe("the fitness command", () => {
             ["snapshot", "--out", "/tmp/fitness", "--changes-only"],
             "snapshot does not take --changes-only",
         ],
+        [
+            ["snapshot", "--max-characters", "100", "--out", "/tmp/fitness"],
+            "snapshot does not take --max-characters",
+        ],
         [["--head-label", "merge"], "--head-label needs --changes-only"],
         [["--changes-only", "--head-label", ""], "--head-label needs a text"],
         [

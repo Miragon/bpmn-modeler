@@ -196,8 +196,8 @@ keys that name a folder and text moved into another file.
 it holds the same `id` and `version`; otherwise today's code of the function runs on
 a temporary `git worktree --detach` of the merge base (deterministic functions give
 the same result and a version bump stays consistent). The trend of a function that
-declares values is read from the stored snapshots of the merge base's first-parent
-chain, never recomputed.
+declares values is read from the stored snapshots of the first-parent chain from
+where the merge base meets the default branch, never recomputed.
 
 **Snapshot store.** The orphan branch `fitness-history` holds one
 `snapshots/<sha>.json` per first-parent `main` commit and one `mutation/<run id>.json`
