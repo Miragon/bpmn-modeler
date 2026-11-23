@@ -510,6 +510,8 @@ const dictionary: Record<string, string> = {
     "Merge XML": "XML 병합",
     "Merge both sides' changes to its XML by hand in a merge editor":
         "양쪽의 XML 변경 사항을 병합 편집기에서 수동으로 병합합니다",
+    "Keep current and merge XML": "현재를 유지하고 XML 병합",
+    "Keep incoming and merge XML": "수신을 유지하고 XML 병합",
     "Edit merged XML": "병합한 XML 편집",
     "Change the XML you merged by hand": "수동으로 병합한 XML을 변경합니다",
     "Keep current's version": "현재 버전 유지",

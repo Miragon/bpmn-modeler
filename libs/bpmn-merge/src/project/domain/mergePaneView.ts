@@ -1,6 +1,6 @@
 import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/mergeVocabulary";
 
-import { handMergeableSide } from "../../decide/domain/handMergeEligibility";
+import { type HandMergeStart, handMergeStartOf } from "../../decide/domain/handMergeEligibility";
 import type { MergeDecisions } from "../../decide/domain/mergeDecisions";
 import {
     type ContainerReach,
@@ -69,8 +69,8 @@ export interface PickableElement {
     readonly pick?: ElementPick;
     /** Set where one side lacks the element, the same on both panes; a pick of that side leaves it out. */
     readonly lackingSide?: LackingSide;
-    /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
-    readonly handMergeable?: true;
+    /** Set where its three texts differ, so its XML can be merged by hand: how that merge starts. */
+    readonly handMerge?: HandMergeStart;
 }
 
 /**
@@ -183,20 +183,19 @@ function paneDecisions(
             ...(takenSide === undefined ? {} : { takenSide }),
             ...(pick === undefined ? {} : { pick }),
             ...(lacking === undefined ? {} : { lackingSide: lacking }),
-            ...handMergeableFlag(decisions, handMergeTexts, element.id),
+            ...handMergeOf(decisions, handMergeTexts, element.id),
         });
     }
     return { badges, consequences, pickable };
 }
 
-function handMergeableFlag(
+function handMergeOf(
     decisions: MergeDecisions,
     handMergeTexts: ShapelessValueSources["handMergeTexts"],
     id: string,
-): { readonly handMergeable?: true } {
-    return handMergeableSide(decisions, handMergeTexts, id) === undefined
-        ? {}
-        : { handMergeable: true };
+): Pick<PickableElement, "handMerge"> {
+    const handMerge = handMergeStartOf(decisions, handMergeTexts, id);
+    return handMerge === undefined ? {} : { handMerge };
 }
 
 /** Every shape-less element the decisions mark as a side sees it: its pickable entry with what each side holds. */

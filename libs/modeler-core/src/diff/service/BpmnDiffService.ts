@@ -22,7 +22,7 @@ import { DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
 import { ElementXmlMergeService } from "./ElementXmlMergeService";
 import { MergeBuildService } from "./MergeBuildService";
-import { MergeDecisionService } from "./MergeDecisionService";
+import { MergeDecisionService, type MergePickRequest } from "./MergeDecisionService";
 
 /** A host's element XML diff: shows an element's XML from both sides and moves it with the selection. */
 export type ElementXmlChanges = Pick<ElementXmlDiffService, "show" | "follow">;
@@ -164,6 +164,26 @@ export class BpmnDiffService {
         if (armed && this.merge?.shows(armed.session)) {
             await this.merge.pick(armed, handle, { elementId, scope, side, dropsHandMerges });
         }
+    }
+
+    /**
+     * Merge XML on an element no pick decides yet: keeps it as
+     * {@link pickMergeSide} would, then opens its XML in the merge editor.
+     * Picks nothing where the host has no merge editor for it.
+     */
+    async pickMergeSideThenMergeXml(handle: DiffPaneHandle, pick: MergePickRequest): Promise<void> {
+        const armed = this.relay.armedOf(handle);
+        const merge = this.merge;
+        if (!armed || !merge?.shows(armed.session)) return;
+        if (!this.elementXmlMerge) {
+            this.notifier.logInfo(
+                `Merge XML of ${pick.elementId} not opened: the host offers no XML merge editor.`,
+            );
+            return;
+        }
+        await this.elementXmlMerge.openWithPick(armed.session, pick.elementId, () =>
+            merge.pick(armed, handle, pick),
+        );
     }
 
     /** Takes the user's pick back, as far as the merge pane named for it. */

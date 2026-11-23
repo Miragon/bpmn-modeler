@@ -33,6 +33,11 @@ describe("decisionButtonText", () => {
         [{ kind: "undo", scope: "element" }, "Undo pick"],
         [{ kind: "mergeXml", mode: "open" }, "Merge XML"],
         [{ kind: "mergeXml", mode: "edit" }, "Edit merged XML"],
+        [{ kind: "mergeXml", mode: "keepAndOpen", side: "current" }, "Keep current and merge XML"],
+        [
+            { kind: "mergeXml", mode: "keepAndOpen", side: "incoming" },
+            "Keep incoming and merge XML",
+        ],
     ])("words a row's button for %o", (decision, expected) => {
         expect(decisionButtonText(decision, untranslated)).toBe(expected);
     });

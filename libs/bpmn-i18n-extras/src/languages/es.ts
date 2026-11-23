@@ -534,6 +534,8 @@ const dictionary: Record<string, string> = {
     "Merge XML": "Combinar XML",
     "Merge both sides' changes to its XML by hand in a merge editor":
         "Combinar a mano los cambios de ambos lados en su XML en un editor de combinación",
+    "Keep current and merge XML": "Conservar Actual y combinar XML",
+    "Keep incoming and merge XML": "Conservar Entrante y combinar XML",
     "Edit merged XML": "Editar el XML combinado",
     "Change the XML you merged by hand": "Cambiar el XML que combinó a mano",
     "Keep current's version": "Conservar la versión de Actual",

@@ -517,6 +517,8 @@ const dictionary: Record<string, string> = {
     "Merge XML": "XML をマージ",
     "Merge both sides' changes to its XML by hand in a merge editor":
         "両側の XML の変更をマージ エディターで手動でマージします",
+    "Keep current and merge XML": "現在を保持して XML をマージ",
+    "Keep incoming and merge XML": "入力側を保持して XML をマージ",
     "Edit merged XML": "マージした XML を編集",
     "Change the XML you merged by hand": "手動でマージした XML を変更します",
     "Keep current's version": "現在のバージョンを保持",

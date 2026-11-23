@@ -222,7 +222,7 @@ describe("mergePadDecisions", () => {
         [
             "a picked element whose three texts differ: merge its XML, before undo",
             {
-                pickable: [{ id: "Task_1", handMergeable: true, pick: picked("element") }],
+                pickable: [{ id: "Task_1", handMerge: "pickedVersion", pick: picked("element") }],
             },
             ["mergeXml open", "undo"],
         ],
@@ -232,7 +232,7 @@ describe("mergePadDecisions", () => {
                 pickable: [
                     {
                         id: "Task_1",
-                        handMergeable: true,
+                        handMerge: "pickedVersion",
                         pick: { ...picked("element"), mergedByHand: true },
                     },
                 ],
@@ -243,7 +243,11 @@ describe("mergePadDecisions", () => {
             "the pane of the side the pick replaced: keep this side's, merge the XML, undo",
             {
                 pickable: [
-                    { id: "Task_1", handMergeable: true, pick: picked("element", "current") },
+                    {
+                        id: "Task_1",
+                        handMerge: "pickedVersion",
+                        pick: picked("element", "current"),
+                    },
                 ],
             },
             ["keep element", "mergeXml open", "undo"],
@@ -251,7 +255,7 @@ describe("mergePadDecisions", () => {
         [
             "the restore offer comes before the XML merge",
             {
-                pickable: [{ id: "Task_1", handMergeable: true, pick: picked("element") }],
+                pickable: [{ id: "Task_1", handMerge: "pickedVersion", pick: picked("element") }],
                 restoreOffer: OFFER,
             },
             ["keepRemovedWith", "mergeXml open", "undo"],
@@ -262,10 +266,53 @@ describe("mergePadDecisions", () => {
 
     it("offers no XML merge where the host has no merge editor", () => {
         const handMergeable = states({
-            pickable: [{ id: "Task_1", handMergeable: true, pick: picked("element") }],
+            pickable: [{ id: "Task_1", handMerge: "pickedVersion", pick: picked("element") }],
         });
 
         expect(kinds(handMergeable, { elementXmlMerge: false })).toStrictEqual(["undo"]);
+    });
+
+    describe("an element no pick decides whose three texts differ", () => {
+        it.each(["current", "incoming"] as const)(
+            "offers Merge XML that keeps it from the %s pane's side first, after the keep",
+            (paneSide) => {
+                const openConflict = states({
+                    caption: { side: paneSide, role: "unknown" },
+                    pickable: [{ id: "Task_1", handMerge: "withPick" }],
+                });
+
+                expect(mergePadDecisions(openConflict, "Task_1", OFFERS_XML_MERGE)).toStrictEqual([
+                    { kind: "keep", scope: "element", side: paneSide },
+                    { kind: "mergeXml", mode: "keepAndOpen", side: paneSide },
+                ]);
+            },
+        );
+
+        it("offers it on an element the merge decided by itself or another pick pulled in", () => {
+            const takenFromCurrent = states({
+                pickable: [{ id: "Task_1", takenSide: "current", handMerge: "withPick" }],
+            });
+
+            expect(kinds(takenFromCurrent)).toStrictEqual(["keep element", "mergeXml keepAndOpen"]);
+        });
+
+        it("offers a container its keeps first, then Merge XML with the pick of the element alone", () => {
+            const container = states({
+                pickable: [{ id: "Task_1", container: "contents", handMerge: "withPick" }],
+            });
+
+            expect(kinds(container)).toStrictEqual([
+                "keep element",
+                "keep withContents",
+                "mergeXml keepAndOpen",
+            ]);
+        });
+
+        it("offers only the keep where the host has no merge editor", () => {
+            const openConflict = states({ pickable: [{ id: "Task_1", handMerge: "withPick" }] });
+
+            expect(kinds(openConflict, NO_XML_MERGE)).toStrictEqual(["keep element"]);
+        });
     });
 
     it("offers a container the other side's pick keeps with everything inside this side's, alone and with everything inside", () => {
@@ -317,23 +364,26 @@ describe("mergeRowDecisions", () => {
         }
     };
 
+    const ON_INCOMING: MergeRowStates = { caption: { side: "incoming", role: "upstream" } };
+    const ON_CURRENT: MergeRowStates = { caption: { side: "current", role: "branch" } };
+
     it.each<[string, Partial<MergePaneShapelessRow>, MergeRowStates, string[]]>([
         [
             "an open conflict both sides hold: keep either side",
             {},
-            {},
+            ON_INCOMING,
             ["keep current", "keep incoming"],
         ],
         [
             "the user kept current's: keep incoming, and undo",
             { takenSide: "current", pick: { keptSide: "current", scope: "element" } },
-            {},
+            ON_INCOMING,
             ["keep incoming", "undo element"],
         ],
         [
             "an open conflict on a container, such as the process: keep either side, alone or with everything inside",
             { type: "bpmn:Process", container: "contents" },
-            {},
+            ON_INCOMING,
             ["keep current", "keepInside current", "keep incoming", "keepInside incoming"],
         ],
         [
@@ -343,7 +393,7 @@ describe("mergeRowDecisions", () => {
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "element" },
             },
-            {},
+            ON_INCOMING,
             ["keep current", "keepInside current", "keepInside incoming", "undo element"],
         ],
         [
@@ -353,7 +403,7 @@ describe("mergeRowDecisions", () => {
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "withContents" },
             },
-            {},
+            ON_INCOMING,
             [
                 "keep current",
                 "keepInside current",
@@ -368,19 +418,19 @@ describe("mergeRowDecisions", () => {
                 takenSide: "current",
                 lackingSide: { side: "incoming", lack: "missing" },
             },
-            {},
+            ON_INCOMING,
             ["keep current", "keepInside current", "leaveOut incoming"],
         ],
         [
             "only current has it, as incoming never had it: keep current, or leave it out",
             { takenSide: "current", lackingSide: { side: "incoming", lack: "missing" } },
-            {},
+            ON_INCOMING,
             ["keep current", "leaveOut incoming"],
         ],
         [
             "current removed it and the result leaves it out: keep incoming only",
             { takenSide: "current", lackingSide: { side: "current", lack: "removed" } },
-            {},
+            ON_INCOMING,
             ["keep incoming"],
         ],
         [
@@ -390,7 +440,7 @@ describe("mergeRowDecisions", () => {
                 lackingSide: { side: "current", lack: "removed" },
                 pick: { keptSide: "incoming", scope: "element" },
             },
-            {},
+            ON_INCOMING,
             ["leaveOut current", "undo element"],
         ],
         [
@@ -400,13 +450,19 @@ describe("mergeRowDecisions", () => {
                 lackingSide: { side: "current", lack: "removed" },
                 pick: { keptSide: "incoming", scope: "element" },
             },
-            { restoreOffer: { elementId: "Message_1", connections: ["F"], removedBy: "current" } },
+            {
+                ...ON_INCOMING,
+                restoreOffer: { elementId: "Message_1", connections: ["F"], removedBy: "current" },
+            },
             ["leaveOut current", "keepRemovedWith incoming", "undo element"],
         ],
         [
             "the host offers another element's flows: no offer here",
             {},
-            { restoreOffer: { elementId: "Task_1", connections: ["F"], removedBy: "current" } },
+            {
+                ...ON_INCOMING,
+                restoreOffer: { elementId: "Task_1", connections: ["F"], removedBy: "current" },
+            },
             ["keep current", "keep incoming"],
         ],
     ])("%s", (_case, rowOverrides, rowStates, expected) => {
@@ -421,7 +477,7 @@ describe("mergeRowDecisions", () => {
             {
                 takenSide: "current",
                 pick: { keptSide: "current", scope: "element" },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             },
             ["keep incoming", "mergeXml open", "undo element"],
         ],
@@ -430,24 +486,40 @@ describe("mergeRowDecisions", () => {
             {
                 takenSide: "current",
                 pick: { keptSide: "current", scope: "element", mergedByHand: true },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             },
             ["keep incoming", "mergeXml edit", "undo element"],
         ],
     ])("%s", (_case, rowOverrides, expected) => {
         expect(
-            mergeRowDecisions({}, row(rowOverrides), { elementXmlMerge: true }).map(named),
+            mergeRowDecisions(ON_INCOMING, row(rowOverrides), { elementXmlMerge: true }).map(named),
         ).toStrictEqual(expected);
     });
+
+    it.each<[string, MergeRowStates, MergeSide]>([
+        ["current", ON_CURRENT, "current"],
+        ["incoming", ON_INCOMING, "incoming"],
+    ])(
+        "offers an open row whose three texts differ Merge XML that keeps it from the %s pane's side, after both keeps",
+        (_pane, rowStates, paneSide) => {
+            expect(
+                mergeRowDecisions(rowStates, row({ handMerge: "withPick" }), OFFERS_XML_MERGE),
+            ).toStrictEqual([
+                { kind: "keep", scope: "element", side: "current" },
+                { kind: "keep", scope: "element", side: "incoming" },
+                { kind: "mergeXml", mode: "keepAndOpen", side: paneSide },
+            ]);
+        },
+    );
 
     it("offers a row no XML merge where the host has no merge editor", () => {
         const picked = row({
             takenSide: "current",
             pick: { keptSide: "current", scope: "element" },
-            handMergeable: true,
+            handMerge: "pickedVersion",
         });
 
-        expect(mergeRowDecisions({}, picked, NO_XML_MERGE).map(named)).toStrictEqual([
+        expect(mergeRowDecisions(ON_INCOMING, picked, NO_XML_MERGE).map(named)).toStrictEqual([
             "keep incoming",
             "undo element",
         ]);
@@ -455,7 +527,7 @@ describe("mergeRowDecisions", () => {
 
     it("carries a collaboration's reach, every pool with its process, on both sides' keep with everything inside", () => {
         const decisions = mergeRowDecisions(
-            {},
+            ON_INCOMING,
             row({ type: "bpmn:Collaboration", container: "poolProcesses" }),
             NO_XML_MERGE,
         );
@@ -497,17 +569,15 @@ describe("mergeRowDecisions", () => {
             pick: { keptSide: "incoming", scope: "withContents" },
         });
 
-        expect(mergeRowDecisions({}, keptAgainstRemoval, NO_XML_MERGE).map(named)).toStrictEqual([
-            "leaveOut current",
-            "keepInside incoming pressed",
-            "undo withContents",
-        ]);
+        expect(
+            mergeRowDecisions(ON_INCOMING, keptAgainstRemoval, NO_XML_MERGE).map(named),
+        ).toStrictEqual(["leaveOut current", "keepInside incoming pressed", "undo withContents"]);
     });
 
     it("words a leave-out with why the side lacks the element, as the pad does", () => {
         expect(
             mergeRowDecisions(
-                {},
+                ON_INCOMING,
                 row({ lackingSide: { side: "current", lack: "removed" } }),
                 NO_XML_MERGE,
             ),

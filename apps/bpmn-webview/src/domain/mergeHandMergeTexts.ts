@@ -18,15 +18,20 @@ export const MERGE_XML_TEXTS = {
     keepMergedBefore: "Keep the XML merged before",
 } as const;
 
+const MERGE_XML_TIP = "Merge both sides' changes to its XML by hand in a merge editor";
+
 const MERGE_XML_DECISION_TEXTS: Record<
-    MergeXmlDecision["mode"],
+    Exclude<MergeXmlDecision["mode"], "keepAndOpen">,
     { readonly label: string; readonly tip: string }
 > = {
-    open: {
-        label: "Merge XML",
-        tip: "Merge both sides' changes to its XML by hand in a merge editor",
-    },
+    open: { label: "Merge XML", tip: MERGE_XML_TIP },
     edit: { label: "Edit merged XML", tip: "Change the XML you merged by hand" },
+};
+
+/** Merge XML on an element no pick decides yet names the side it keeps first. */
+const KEEP_AND_MERGE_XML_LABELS: Record<MergeSide, string> = {
+    current: "Keep current and merge XML",
+    incoming: "Keep incoming and merge XML",
 };
 
 const KEEP_VERSION_TEXTS: Record<MergeSide, string> = {
@@ -102,7 +107,10 @@ export function mergeXmlDecisionText(
     decision: MergeXmlDecision,
     translate: MergeTranslate,
 ): { label: string; tooltip: string } {
-    const { label, tip } = MERGE_XML_DECISION_TEXTS[decision.mode];
+    const { label, tip } =
+        decision.mode === "keepAndOpen"
+            ? { label: KEEP_AND_MERGE_XML_LABELS[decision.side], tip: MERGE_XML_TIP }
+            : MERGE_XML_DECISION_TEXTS[decision.mode];
     const translated = translate(label);
     return { label: translated, tooltip: `${translated}: ${translate(tip)}` };
 }

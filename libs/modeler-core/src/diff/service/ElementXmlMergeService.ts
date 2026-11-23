@@ -1,4 +1,4 @@
-import { handMergeableSide } from "@miragon/bpmn-modeler-merge";
+import { handMergeableSide, handMergeStartOf } from "@miragon/bpmn-modeler-merge";
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { LoggerPort } from "../../kernel/port/hostPorts";
@@ -12,9 +12,10 @@ import { MergeSession, MergeSessionStore } from "./MergeSessionStore";
 type ElementXmlMergeFinishListener = (elementId: string, written: string | undefined) => void;
 
 /**
- * Opens a picked element's XML in the host's merge editor and takes what the
- * user saved there as the element's version. Each merge view has its own
- * editors, which close with it.
+ * Opens an element's XML in the host's merge editor, on the version the
+ * user's pick keeps or with a pick of its own, and takes what the user saved
+ * there as the element's version. Each merge view has its own editors, which
+ * close with it.
  */
 export class ElementXmlMergeService {
     private readonly mergesBySession = new Map<MergeSession, ElementXmlMerges>();
@@ -44,11 +45,42 @@ export class ElementXmlMergeService {
      */
     async open(diffSession: DiffSession, elementId: string, resume = false): Promise<void> {
         const session = this.sessions.ofDiffSession(diffSession);
-        if (!session) return;
-        if (!(await this.availability.ready)) {
-            this.notOpened(elementId, "the host offers no XML merge editor");
+        if (!session || !(await this.hostOpens(elementId))) return;
+        await this.openPicked(session, elementId, { resume });
+    }
+
+    /**
+     * Merge XML on an element no pick decides yet: opens the editor once
+     * `pick` kept the element from a side. Nothing is picked where the host
+     * has no merge editor or the element's XML cannot be merged by hand, and
+     * closing that editor without a save takes the pick back.
+     */
+    async openWithPick(
+        diffSession: DiffSession,
+        elementId: string,
+        pick: () => Promise<boolean>,
+    ): Promise<void> {
+        const session = this.sessions.ofDiffSession(diffSession);
+        if (!session || !(await this.hostOpens(elementId))) return;
+        const { decisions, sources } = session;
+        if (handMergeStartOf(decisions, sources.handMergeTexts, elementId) !== "withPick") {
+            this.notOpened(elementId, "a pick decides it already, or its base equals a side");
             return;
         }
+        if (await pick()) await this.openPicked(session, elementId, { startedByPick: true });
+    }
+
+    private async hostOpens(elementId: string): Promise<boolean> {
+        const opens = await this.availability.ready;
+        if (!opens) this.notOpened(elementId, "the host offers no XML merge editor");
+        return opens;
+    }
+
+    private async openPicked(
+        session: MergeSession,
+        elementId: string,
+        { resume = false, startedByPick = false },
+    ): Promise<void> {
         const { decisions, sources } = session;
         const side = handMergeableSide(decisions, sources.handMergeTexts, elementId);
         const texts = sources.handMergeTexts.get(elementId);
@@ -63,6 +95,7 @@ export class ElementXmlMergeService {
             captions: session.captions,
             resume,
             handMergedText: decisions.handMergeOf(elementId)?.shownText,
+            startedByPick,
         });
         try {
             if (opening.kind === "focus") await this.editor.focus(opening.key);
@@ -78,7 +111,11 @@ export class ElementXmlMergeService {
             const finish = merges.finish(key, written);
             if (finish === undefined) continue;
             if (finish.kind === "discarded") {
-                await this.decisions.discardHandMerge(session, finish.elementId);
+                await this.decisions.discardHandMerge(
+                    session,
+                    finish.elementId,
+                    finish.takesBackPick ? finish.side : undefined,
+                );
             } else {
                 merges.answered(finish, await this.decisions.mergeByHand(session, finish));
             }

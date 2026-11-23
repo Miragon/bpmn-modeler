@@ -315,9 +315,10 @@ const PAD_DECISIONS: Record<MergePadDecision["kind"], (side: MergeSide) => Merge
             offer: { elementId: "a", ...offered, removedBy: side },
         })),
     undo: () => keysOf(PICK_SCOPES).map((scope) => ({ kind: "undo", scope })),
-    mergeXml: () => [
+    mergeXml: (side) => [
         { kind: "mergeXml", mode: "open" },
         { kind: "mergeXml", mode: "edit" },
+        { kind: "mergeXml", mode: "keepAndOpen", side },
     ],
 };
 

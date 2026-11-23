@@ -7,7 +7,7 @@ import {
     withAnnouncement,
 } from "./mergeCardContent";
 import type { MergeHandMergeOutcome } from "./mergeDecisionOutcome";
-import { type MergeElementPick, type MergePadOffers, offersMergeXml } from "./mergeElementPick";
+import { type MergeElementPick, type MergePadOffers, mergesPickedXml } from "./mergeElementPick";
 import {
     handMergeHeadline,
     handMergeRefusalDetail,
@@ -41,7 +41,7 @@ export function handMergeFactsOf(
     return {
         ...(pick === undefined ? {} : { keptSide: pick.keptSide }),
         mergedByHand: pick?.mergedByHand === true,
-        canEditAgain: offersMergeXml(element, offers),
+        canEditAgain: mergesPickedXml(element, offers),
     };
 }
 

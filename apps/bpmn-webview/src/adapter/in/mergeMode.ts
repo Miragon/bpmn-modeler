@@ -73,7 +73,9 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  *     ({@link MergeOutcomes}); the partner shows none.
  *   - Outgoing {@link OpenElementXmlMergeCommand} from Merge XML, where the
  *     host offers its merge editor; the pane that asked shows the finished
- *     merge's answer when the host sends it, with Edit again.
+ *     merge's answer when the host sends it, with Edit again. On an element
+ *     no pick decides yet, Merge XML sends a {@link PickMergeSideCommand}
+ *     that asks for the editor instead, so the pick's answer shows first.
  *   - Outgoing {@link ViewportChangedCommand} after a step only this pane
  *     draws, so the partner shows the same part of the diagram.
  *   - Outgoing {@link BuildMergeResultCommand} and

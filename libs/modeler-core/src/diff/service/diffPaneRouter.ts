@@ -97,13 +97,15 @@ function mergeRoutes(
         ],
         PickMergeSideCommand: [
             (command, pane) =>
-                diffService.pickMergeSide(
-                    pane,
-                    command.elementId,
-                    command.scope,
-                    command.side,
-                    command.dropsHandMerges,
-                ),
+                command.mergesXml
+                    ? diffService.pickMergeSideThenMergeXml(pane, command)
+                    : diffService.pickMergeSide(
+                          pane,
+                          command.elementId,
+                          command.scope,
+                          command.side,
+                          command.dropsHandMerges,
+                      ),
         ],
         UnpickMergeCommand: [
             (command, pane) =>

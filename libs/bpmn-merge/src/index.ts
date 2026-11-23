@@ -20,8 +20,8 @@ export type {
     HandMergeRefusal,
     HandMergeScope,
 } from "./decide/domain/handMerge";
-export { handMergeableSide } from "./decide/domain/handMergeEligibility";
-export type { HandMergeTexts } from "./decide/domain/handMergeEligibility";
+export { handMergeableSide, handMergeStartOf } from "./decide/domain/handMergeEligibility";
+export type { HandMergeStart, HandMergeTexts } from "./decide/domain/handMergeEligibility";
 export type { Requirement } from "./decide/domain/referenceRules";
 export { describeUnmetRequirement } from "./decide/domain/unmetRequirement";
 export type { RequirementObstacle, UnmetRequirement } from "./decide/domain/unmetRequirement";

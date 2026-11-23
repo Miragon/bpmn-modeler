@@ -473,6 +473,8 @@ const dictionary: Record<string, string> = {
     "Merge XML": "合并 XML",
     "Merge both sides' changes to its XML by hand in a merge editor":
         "在合并编辑器中手动合并双方对其 XML 的更改",
+    "Keep current and merge XML": "保留当前并合并 XML",
+    "Keep incoming and merge XML": "保留传入并合并 XML",
     "Edit merged XML": "编辑已合并的 XML",
     "Change the XML you merged by hand": "更改您手动合并的 XML",
     "Keep current's version": "保留当前的版本",

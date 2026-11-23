@@ -168,6 +168,71 @@ describe("ElementXmlMerges", () => {
     });
 });
 
+describe("an ElementXmlMerges editor that started with its own pick", () => {
+    it("takes the pick back when it closes without a save", () => {
+        const merges = new ElementXmlMerges("merge-1");
+        const { key } = opened(merges, { startedByPick: true });
+
+        expect(merges.finish(key)).toStrictEqual({
+            kind: "discarded",
+            elementId: "Task_Pack",
+            side: "current",
+            takesBackPick: true,
+        });
+    });
+
+    it("keeps the pick once the user wrote a text", () => {
+        const merges = new ElementXmlMerges("merge-1");
+        const { key } = opened(merges, { startedByPick: true });
+
+        expect(merges.finish(key, "<written />")).toStrictEqual({
+            kind: "written",
+            elementId: "Task_Pack",
+            side: "current",
+            text: "<written />",
+        });
+    });
+
+    it("leaves the pick of an editor opened on a picked element", () => {
+        const merges = new ElementXmlMerges("merge-1");
+        const { key } = opened(merges);
+
+        expect(merges.finish(key)).toStrictEqual({
+            kind: "discarded",
+            elementId: "Task_Pack",
+            side: "current",
+        });
+    });
+
+    it("leaves the pick when its element is asked for again while an editor opened on a pick is open", () => {
+        const merges = new ElementXmlMerges("merge-1");
+        const { key } = opened(merges);
+
+        expect(merges.open(element({ startedByPick: true })).kind).toBe("focus");
+        expect(merges.finish(key)).toStrictEqual({
+            kind: "discarded",
+            elementId: "Task_Pack",
+            side: "current",
+        });
+    });
+
+    it("starts Edit again after a refusal as an editor on a picked element", () => {
+        const merges = new ElementXmlMerges("merge-1");
+        const first = merges.finish(opened(merges, { startedByPick: true }).key, "<refused />");
+        if (first?.kind !== "written") throw new Error("expected a written finish");
+        merges.answered(first, { applied: false });
+
+        const again = opened(merges, { resume: true });
+
+        expect(again.start).toBe("<refused />");
+        expect(merges.finish(again.key)).toStrictEqual({
+            kind: "discarded",
+            elementId: "Task_Pack",
+            side: "current",
+        });
+    });
+});
+
 describe("elementXmlMergeLabels", () => {
     it.each([
         ["branches", CAPTIONS, { current: "main", incoming: "feature" }],

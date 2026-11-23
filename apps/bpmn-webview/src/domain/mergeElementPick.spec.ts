@@ -6,7 +6,8 @@ import {
     elementPickOf,
     type MergeElementPick,
     type MergeElementPickStates,
-    offersMergeXml,
+    mergesPickedXml,
+    mergeXmlStartOf,
     panePicks,
     ownPickOf,
 } from "./mergeElementPick";
@@ -16,7 +17,7 @@ const MESSAGE_ROW: MergePaneShapelessRow = {
     type: "bpmn:Message",
     marker: "takenFromOtherSide",
     pick: { keptSide: "incoming", scope: "element" },
-    handMergeable: true,
+    handMerge: "pickedVersion",
     differences: [],
 };
 
@@ -25,11 +26,16 @@ const STATES = {
         {
             id: "Task_Remind",
             pick: { keptSide: "current", scope: "withContents", mergedByHand: true },
-            handMergeable: true,
+            handMerge: "pickedVersion",
         },
         { id: "Task_Open", takenSide: "current" },
+        { id: "Task_Conflict", handMerge: "withPick" },
         { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
-        { id: "Message_1", pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
+        {
+            id: "Message_1",
+            pick: { keptSide: "incoming", scope: "element" },
+            handMerge: "pickedVersion",
+        },
     ],
 } as const satisfies MergeElementPickStates;
 
@@ -40,11 +46,16 @@ describe("elementPickOf", () => {
             "Task_Remind",
             {
                 pick: { keptSide: "current", scope: "withContents", mergedByHand: true },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             },
         ],
         ["picked alone", "Task_Cancel", { pick: { keptSide: "incoming", scope: "element" } }],
         ["open", "Task_Open", {}],
+        [
+            "open, and its XML can be merged by hand with a pick",
+            "Task_Conflict",
+            { handMerge: "withPick" },
+        ],
         ["not pickable on the pane", "Task_Gone", {}],
     ])("reads the pick of an element %s: %s", (_case, id, expected) => {
         expect(elementPickOf(STATES, id)).toStrictEqual(expected);
@@ -78,13 +89,26 @@ describe("panePicks", () => {
     });
 });
 
-describe("offersMergeXml", () => {
+describe("mergeXmlStartOf", () => {
     it.each([
-        [{ handMergeable: true } as const, true, true],
-        [{ handMergeable: true } as const, false, false],
-        [{}, true, false],
-        [{}, false, false],
+        [{ handMerge: "pickedVersion" } as const, true, "pickedVersion"],
+        [{ handMerge: "withPick" } as const, true, "withPick"],
+        [{ handMerge: "pickedVersion" } as const, false, undefined],
+        [{ handMerge: "withPick" } as const, false, undefined],
+        [{}, true, undefined],
+        [{}, false, undefined],
     ])("an element %o, the host offering a merge editor: %s → %s", (element, offered, expected) => {
-        expect(offersMergeXml(element, { elementXmlMerge: offered })).toBe(expected);
+        expect(mergeXmlStartOf(element, { elementXmlMerge: offered })).toBe(expected);
+    });
+});
+
+describe("mergesPickedXml", () => {
+    it.each([
+        [{ handMerge: "pickedVersion" } as const, true, true],
+        [{ handMerge: "pickedVersion" } as const, false, false],
+        [{ handMerge: "withPick" } as const, true, false],
+        [{}, true, false],
+    ])("an element %o, the host offering a merge editor: %s → %s", (element, offered, expected) => {
+        expect(mergesPickedXml(element, { elementXmlMerge: offered })).toBe(expected);
     });
 });

@@ -443,18 +443,18 @@ function expectPanesShowEveryPick(
             );
         }
         for (const row of view.shapelessRows) {
-            const { pick, handMergeable, lackingSide, takenSide, container } =
+            const { pick, handMerge, lackingSide, takenSide, container } =
                 pickableById.get(row.id) ?? {};
             expect(
                 {
                     pick: row.pick,
-                    handMergeable: row.handMergeable,
+                    handMerge: row.handMerge,
                     lackingSide: row.lackingSide,
                     takenSide: row.takenSide,
                     container: row.container,
                 },
                 `${label}: ${row.id}'s row on ${side}'s pane`,
-            ).toEqual({ pick, handMergeable, lackingSide, takenSide, container });
+            ).toEqual({ pick, handMerge, lackingSide, takenSide, container });
         }
     }
     const lackingSides = views.map(([, view]) =>

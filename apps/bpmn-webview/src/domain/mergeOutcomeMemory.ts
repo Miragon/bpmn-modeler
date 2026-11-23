@@ -1,6 +1,11 @@
 import type { MergePaneStates } from "@miragon/bpmn-modeler-shared";
 
-import type { MergeActedDecision, MergePaneRequest, MergeXmlRequest } from "./mergeActedDecision";
+import {
+    type MergeActedDecision,
+    type MergePaneRequest,
+    type MergeXmlRequest,
+    mergeStartedBy,
+} from "./mergeActedDecision";
 import {
     isDecisionOutcome,
     isHandMergeOutcome,
@@ -69,7 +74,11 @@ interface Answered {
     readonly answer: MergeOutcomeAnswer;
 }
 
-/** The outcome that answers the pick or undo this pane sent, however often the states repeat it. */
+/**
+ * The outcome that answers the pick or undo this pane sent, however often
+ * the states repeat it. A keep that asked for Merge XML and applied has the
+ * host open the merge editor, whose finish the pane awaits from then on.
+ */
 function answerOwnDecision(
     memory: MergeOutcomeMemory,
     states: MergeOutcomeStates,
@@ -79,8 +88,10 @@ function answerOwnDecision(
     const { sent } = memory;
     if (outcome === undefined || sent === undefined) return undefined;
     if (!isDecisionOutcome(outcome) || !answers(outcome, sent)) return undefined;
+    const started = outcome.applied ? mergeStartedBy(sent) : undefined;
+    const awaited = started === undefined ? memory : rememberSent(memory, started);
     return {
-        memory: { ...pendingHandMerges(memory), latest: { outcome, acted: sent }, seen },
+        memory: { ...pendingHandMerges(awaited), latest: { outcome, acted: sent }, seen },
         answer: "show",
     };
 }

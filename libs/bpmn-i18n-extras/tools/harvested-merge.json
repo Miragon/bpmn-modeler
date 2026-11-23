@@ -1,6 +1,6 @@
 {
     "note": "Templates the merge view's texts pass to translate(), each asked once, recorded by apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts. Refresh it with `corepack yarn vitest run --project bpmn-webview apps/bpmn-webview/src/domain/mergeTextsTranslated.spec.ts -u`. Feeds the needed-key set alongside the browser harvests.",
-    "count": 219,
+    "count": 221,
     "keys": [
         "1 conflict left",
         "1 open conflict",
@@ -58,10 +58,12 @@
         "Item definition",
         "Its ID is {found} now; keep {expected}.",
         "Keep current",
+        "Keep current and merge XML",
         "Keep current with everything inside",
         "Keep current's version",
         "Keep everything inside",
         "Keep incoming",
+        "Keep incoming and merge XML",
         "Keep incoming with everything inside",
         "Keep incoming's version",
         "Keep it and every pool with its process as current has them",

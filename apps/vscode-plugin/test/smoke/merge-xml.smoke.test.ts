@@ -24,7 +24,9 @@ import { COMMAND_KEY } from "./vscodeSession";
  * nothing; a changed type is refused and Edit again reopens the refused
  * text; a pick that would drop the merge asks first; and an XML diff that
  * follows a step never takes the merge editor's place; a merge editor a
- * reload restored closes without a prompt. The edit of the
+ * reload restored closes without a prompt. On an open conflict the pad's
+ * entry keeps the pane's side first, and closing the editor without a save
+ * opens the conflict again. The edit of the
  * result text goes through the driver: what the user does with the text is
  * under test, not the keystrokes.
  */
@@ -32,6 +34,9 @@ import { COMMAND_KEY } from "./vscodeSession";
 const OPEN_MERGE_VIEW = "bpmn-modeler.openBpmnMergeView";
 const RESULT_SCHEME = "bpmn-merge-result";
 const ACCEPT_TITLE = "Accept Element XML Merge";
+const MERGE_XML = "Merge XML";
+const KEEP_INCOMING_AND_MERGE_XML = "Keep incoming and merge XML";
+const MERGE_XML_TIP = "Merge both sides' changes to its XML by hand in a merge editor";
 const KEY_RETRY_INTERVAL_MS = 1_000;
 
 const suite = smokeSuite({
@@ -103,6 +108,19 @@ function outcomeCard(pane: FrameLocator): Locator {
     return pane.locator(".merge-outcome-card");
 }
 
+/**
+ * The tooltip of a pad entry. An entry can take another's place under the resting pointer, and
+ * the tooltip shows only once the pointer moves, so it moves off the pad first.
+ */
+async function padTooltip(pane: FrameLocator, entry: string): Promise<string> {
+    await pane.locator(".merge-bar__caption").hover();
+    await padEntry(pane, entry).hover();
+    return pane
+        .locator(".merge-tooltip:not([hidden])")
+        .innerText({ timeout: 1_000 })
+        .catch(() => "");
+}
+
 function badgeLabels(pane: FrameLocator): Promise<string[]> {
     return pane
         .locator(".merge-pick-badge")
@@ -145,8 +163,12 @@ async function resultText(elementId: string): Promise<string | undefined> {
  * the tab and the marker text first, and reports the tab dirty only once its own merge replaced
  * that text. The click cannot await the open the way the core does.
  */
-async function openMergeXml(pane: FrameLocator, elementId: string): Promise<void> {
-    await padEntry(pane, "Merge XML").click();
+async function openMergeXml(
+    pane: FrameLocator,
+    elementId: string,
+    entry: string = MERGE_XML,
+): Promise<void> {
+    await padEntry(pane, entry).click();
     await expect
         .poll(async () =>
             (await vscode().tabsByGroup())
@@ -221,26 +243,59 @@ describe("Merge XML", () => {
         const panes = await openMergeView();
         await press(panes.incoming, "Next change");
         await padEntry(panes.incoming, "Keep incoming").waitFor({ state: "visible" });
-        expect(await padEntry(panes.incoming, "Merge XML").count()).toBe(0);
+        expect(await padEntry(panes.incoming, MERGE_XML).count()).toBe(0);
 
         await padEntry(panes.incoming, "Keep incoming").click();
 
         for (const pane of [panes.current, panes.incoming]) {
-            await padEntry(pane, "Merge XML").waitFor({ state: "visible" });
+            await padEntry(pane, MERGE_XML).waitFor({ state: "visible" });
         }
-        // Merge XML takes Keep incoming's place under the resting pointer, and the tooltip
-        // shows only once the pointer moves, so it moves off the pad first.
         await expect
-            .poll(async () => {
-                await panes.incoming.locator(".merge-bar__caption").hover();
-                await padEntry(panes.incoming, "Merge XML").hover();
-                return panes.incoming
-                    .locator(".merge-tooltip:not([hidden])")
-                    .innerText({ timeout: 1_000 })
-                    .catch(() => "");
-            })
-            .toBe("Merge XML: Merge both sides' changes to its XML by hand in a merge editor");
-        await shot("merge-xml-pad-entry");
+            .poll(() => padTooltip(panes.incoming, MERGE_XML))
+            .toBe(`${MERGE_XML}: ${MERGE_XML_TIP}`);
+    });
+
+    it("offers it on an open conflict too, where it keeps the pane's side first and opens the editor", async () => {
+        const panes = await openMergeView();
+        await press(panes.incoming, "Next change");
+        await padEntry(panes.incoming, KEEP_INCOMING_AND_MERGE_XML).waitFor({ state: "visible" });
+        await padEntry(panes.current, "Keep current and merge XML").waitFor({ state: "visible" });
+        await expect
+            .poll(() => padTooltip(panes.incoming, KEEP_INCOMING_AND_MERGE_XML))
+            .toBe(`${KEEP_INCOMING_AND_MERGE_XML}: ${MERGE_XML_TIP}`);
+        await shot("merge-xml-open-conflict-pad-entry");
+
+        await openMergeXml(panes.incoming, "Task_Check", KEEP_INCOMING_AND_MERGE_XML);
+
+        await expect.poll(() => openCount(panes.incoming)).toBe("1 open conflict");
+        expect(await badgeLabels(panes.incoming)).toEqual(["Kept from incoming, your pick"]);
+        await acceptInTitle("Task_Check");
+        for (const pane of [panes.current, panes.incoming]) {
+            await expect
+                .poll(() => badgeLabels(pane))
+                .toEqual(["Kept from incoming and merged by hand, your pick"]);
+        }
+        await expect
+            .poll(() => outcomeCard(panes.incoming).innerText())
+            .toContain("Merged by hand: Check order");
+    });
+
+    it("opens the conflict again when a merge that started on it closes without a save", async () => {
+        const panes = await openMergeView();
+        await press(panes.incoming, "Next change");
+        await openMergeXml(panes.incoming, "Task_Check", KEEP_INCOMING_AND_MERGE_XML);
+        await expect.poll(() => openCount(panes.incoming)).toBe("1 open conflict");
+
+        await closeWithoutSaving("Task_Check");
+
+        await expect.poll(() => openCount(panes.incoming)).toBe("2 open conflicts");
+        await expect
+            .poll(() => outcomeCard(panes.incoming).innerText())
+            .toContain("Closed without saving: Check order is unchanged");
+        for (const pane of [panes.current, panes.incoming]) {
+            expect(await badgeLabels(pane)).toEqual([]);
+        }
+        await padEntry(panes.incoming, KEEP_INCOMING_AND_MERGE_XML).waitFor({ state: "visible" });
     });
 
     it("opens the XML below the diagrams, with both one-sided edits taken and the true conflict left at base", async () => {

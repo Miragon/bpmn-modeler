@@ -44,12 +44,13 @@ its process's root. A click on a pickable step makes it the step on both panes a
 click's own selection, which the pane reported already, since selecting it again would rebuild its
 pad. The pad's icons sit at diagram-js's place: "Show XML changes", keep
 this pane's side, keep everything inside, "Leave out" (where `lackingSide` names the other pane's side), "Also keep what was
-removed with it", "Merge XML" (`handMergeable` and the host's `elementXmlMerge` offer; "Edit merged
-XML" once merged by hand, see [Merge XML editor](merge-xml-editor.md)) and "Undo pick", each left
+removed with it", "Merge XML" (`handMerge` and the host's `elementXmlMerge` offer; "Keep … and
+merge XML" while no pick decides the element, "Edit merged XML" once merged by hand, see
+[Merge XML editor](merge-xml-editor.md)) and "Undo pick", each left
 out where the result has its outcome (`mergePadDecisions`, the rule's one home). Each names its side in `aria-label` and in the merge chrome's styled tooltip, with
 no native `title`. A menu row offers the same rule's decisions for both sides (`mergeRowDecisions`):
-keep where a side holds the element, leave out where it lacks it, Merge XML as on the pad, Undo
-while the user's pick holds;
+keep where a side holds the element, leave out where it lacks it, Merge XML as on the pad (its own
+pick keeps the pane's side), Undo while the user's pick holds;
 a shape-less container adds the pad's keep-inside icon beside each Keep, pressed and inert, so only
 Undo takes it back, while the pick keeps that side with everything inside; the library's `container`
 reach words its tooltip (a collaboration's: every pool with its process). A pick names the side it

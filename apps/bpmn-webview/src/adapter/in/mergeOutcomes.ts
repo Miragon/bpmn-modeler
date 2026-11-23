@@ -174,12 +174,10 @@ function protocolCommandOf(
 ): PickMergeSideCommand | UnpickMergeCommand | OpenElementXmlMergeCommand {
     switch (command.kind) {
         case "pick":
-            return new PickMergeSideCommand(
-                command.elementId,
-                command.scope,
-                command.side,
-                command.dropsHandMerges,
-            );
+            return new PickMergeSideCommand(command.elementId, command.scope, command.side, {
+                dropsHandMerges: command.dropsHandMerges,
+                mergesXml: command.mergesXml,
+            });
         case "unpick":
             return new UnpickMergeCommand(
                 command.elementId,

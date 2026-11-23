@@ -163,7 +163,7 @@ function withServiceTaskKept(
                       id: "ServiceTask_1",
                       takenSide: "incoming",
                       pick,
-                      handMergeable: true,
+                      handMerge: "pickedVersion",
                   }
                 : pickable,
         ),

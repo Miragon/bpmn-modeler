@@ -11,7 +11,7 @@ const MESSAGE_ROW: MergePaneShapelessRow = {
     type: "bpmn:Message",
     marker: "takenFromOtherSide",
     pick: { keptSide: "incoming", scope: "element" },
-    handMergeable: true,
+    handMerge: "pickedVersion",
     differences: [],
 };
 
@@ -20,10 +20,15 @@ const STATES = {
         {
             id: "Task_Remind",
             pick: { keptSide: "current", scope: "element", mergedByHand: true },
-            handMergeable: true,
+            handMerge: "pickedVersion",
         },
         { id: "Task_Cancel", pick: { keptSide: "incoming", scope: "element" } },
-        { id: "Message_1", pick: { keptSide: "incoming", scope: "element" }, handMergeable: true },
+        {
+            id: "Message_1",
+            pick: { keptSide: "incoming", scope: "element" },
+            handMerge: "pickedVersion",
+        },
+        { id: "Task_Conflict", handMerge: "withPick" },
     ],
 } as const;
 
@@ -33,6 +38,7 @@ describe("handMergeFactsOf", () => {
         ["Task_Remind", false, { keptSide: "current", mergedByHand: true, canEditAgain: false }],
         ["Task_Cancel", true, { keptSide: "incoming", mergedByHand: false, canEditAgain: false }],
         ["Message_1", true, { keptSide: "incoming", mergedByHand: false, canEditAgain: true }],
+        ["Task_Conflict", true, { mergedByHand: false, canEditAgain: false }],
         ["Task_Gone", true, { mergedByHand: false, canEditAgain: false }],
     ])(
         "reads %s's pick on a pane and whether it can be merged again, the host offering it: %s",
@@ -58,11 +64,10 @@ describe("the pad and the card read one pick", () => {
         caption: { side: "current", role: "branch" },
         pickable: [
             ...STATES.pickable,
-            { id: "Task_Open", handMergeable: true },
             {
                 id: "Task_Kept",
                 pick: { keptSide: "incoming", scope: "element" },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             },
         ],
     } as const;
@@ -70,9 +75,9 @@ describe("the pad and the card read one pick", () => {
     it.each([
         ["Task_Remind", true],
         ["Task_Remind", false],
-        ["Task_Open", true],
         ["Task_Kept", true],
         ["Task_Kept", false],
+        ["Task_Cancel", true],
     ])(
         "the pad's Merge XML on drawn %s and the card's Edit again agree, the host offering it: %s",
         (id, offered) => {
@@ -87,4 +92,17 @@ describe("the pad and the card read one pick", () => {
             );
         },
     );
+
+    it("the pad starts Merge XML with a pick where the card has no pick to edit again", () => {
+        const offers = { elementXmlMerge: true };
+
+        expect(handMergeFactsOf(elementPickOf(PANE, "Task_Conflict"), offers).canEditAgain).toBe(
+            false,
+        );
+        expect(mergePadDecisions(PANE, "Task_Conflict", offers)).toContainEqual({
+            kind: "mergeXml",
+            mode: "keepAndOpen",
+            side: "current",
+        });
+    });
 });
