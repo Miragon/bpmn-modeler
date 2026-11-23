@@ -45,6 +45,9 @@ corepack yarn workspace @miragon/bpmn-modeler-add-ons-webview test
 ```
 
 The preview answers from `src/adapter/out/browserPreview/mockCatalog.ts`, as the table in
-`browserPreview/previewCommands.ts` routes each command: a new command needs a row there. The query
-flags it reads (state, reveal, preset, stale, theme, page, show) are listed with their values on
-`previewFlagsOf` in `browserPreview/previewFlags.ts`.
+`browserPreview/previewCommands.ts` routes each command: a new command needs a row there. An add-on
+request's answer, and which rows or sources it changes, is in `browserPreview/previewRequests.ts`;
+the shape a row or source takes after it (allowed, revoked, a template enabled or disabled, a
+source's templates switched) is in `mockCatalog.ts`, which raises the revision with each change.
+The query flags it reads (state, reveal, preset, stale, theme, page, show) are listed with their
+values on `previewFlagsOf` in `browserPreview/previewFlags.ts`.

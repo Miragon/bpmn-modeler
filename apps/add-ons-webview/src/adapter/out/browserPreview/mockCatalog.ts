@@ -1,10 +1,8 @@
 import type {
     ActionViewPayload,
-    AddOnActionResultPayload,
     AddOnCatalogPayload,
     AddOnGroupPayload,
     AddOnPayload,
-    AddOnRequestPayload,
     AddOnReviewPayload,
     AddOnSourcePayload,
     CodeAddOnPayload,
@@ -36,18 +34,7 @@ const RISK: Record<CodeAddOnPayload["kind"], string> = {
     plugin: PLUGIN_RISK,
     rulePackage: RULE_RISK,
 };
-const FOLLOW_UP: Record<
-    CodeAddOnPayload["kind"],
-    { readonly allowed: string; readonly revoked: string }
-> = {
-    plugin: { allowed: "Open editors reload with it.", revoked: "Open editors reload without it." },
-    rulePackage: {
-        allowed: "Open editors lint again with it.",
-        revoked: "Code it already ran stays loaded until you reload the window.",
-    },
-};
-
-const IN_REPOSITORY = " in every worktree of its repository";
+export const STILL_LOADED_NOTE = "Code it already ran stays loaded until you reload the window.";
 
 // A rule package's name carries its version, as the core labels it.
 const VERSION_OF: Record<CodeAddOnPayload["kind"], (name: string) => string | undefined> = {
@@ -59,7 +46,7 @@ const VERSION_OF: Record<CodeAddOnPayload["kind"], (name: string) => string | un
 // A revoked plugin unloads at once; code a revoked rule package ran stays loaded.
 const NOTE_AFTER_REVOKE: Record<CodeAddOnPayload["kind"], string | undefined> = {
     plugin: undefined,
-    rulePackage: FOLLOW_UP.rulePackage.revoked,
+    rulePackage: STILL_LOADED_NOTE,
 };
 
 function reviewOf(
@@ -203,7 +190,7 @@ function fullCatalog(): AddOnGroupPayload[] {
                             name: "@acme/bpmnlint-plugin-rules@2.1.0",
                             state: "new",
                             stateText: STATE_TEXT.new,
-                            note: FOLLOW_UP.rulePackage.revoked,
+                            note: STILL_LOADED_NOTE,
                             review: reviewOf(
                                 "@acme/bpmnlint-plugin-rules@2.1.0",
                                 RULE_RISK,
@@ -290,7 +277,7 @@ export function previewStateOf(name: string | null): PreviewState {
     return PREVIEW_STATES.find((state) => state === name) ?? "full";
 }
 
-function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
+export function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
     return {
         ...row,
         state: "approved",
@@ -298,6 +285,59 @@ function allowed(row: CodeAddOnPayload): CodeAddOnPayload {
         review: undefined,
         note: undefined,
         actions: [REVOKE],
+    };
+}
+
+export function revoked(row: CodeAddOnPayload): CodeAddOnPayload {
+    return {
+        ...row,
+        state: "new",
+        stateText: STATE_TEXT.new,
+        ...(NOTE_AFTER_REVOKE[row.kind] !== undefined && { note: NOTE_AFTER_REVOKE[row.kind] }),
+        ...(row.problem === undefined && {
+            review: reviewOf(
+                row.name,
+                RISK[row.kind],
+                row.id.replace(/^\w+:\/work\//, ""),
+                VERSION_OF[row.kind](row.name),
+            ),
+        }),
+        actions: row.problem === undefined ? [ALLOW] : [],
+    };
+}
+
+export function templateIn(
+    row: TemplateAddOnPayload,
+    state: TemplateAddOnPayload["state"],
+): TemplateAddOnPayload {
+    return template(row.name, row.id.slice("template:".length).split("#")[0], state, {
+        id: row.id,
+    });
+}
+
+/** The source with its templates disabled, or enabled again. */
+export function templatesSwitched(
+    source: AddOnSourcePayload,
+    disable: boolean,
+): AddOnSourcePayload {
+    const { stateText: _stateText, ...rest } = source;
+    return {
+        ...rest,
+        ...(disable && { stateText: "Templates disabled" }),
+        actions: source.actions.map((action) =>
+            TEMPLATE_SWITCHES.includes(action)
+                ? disable
+                    ? ENABLE_TEMPLATES
+                    : DISABLE_TEMPLATES
+                : action,
+        ),
+        addOns: source.addOns.map((addOn) =>
+            addOn.kind !== "elementTemplate"
+                ? addOn
+                : disable
+                  ? { ...addOn, note: SOURCE_DISABLED_NOTE, actions: [] }
+                  : templateIn(addOn, addOn.state),
+        ),
     };
 }
 
@@ -351,19 +391,15 @@ const GROUPS_OF: Record<PreviewState, () => Partial<AddOnCatalogPayload> | undef
     }),
 };
 
-type Done = { readonly result: AddOnActionResultPayload; readonly changed: boolean };
-
-/** What the preview's host holds and changes, as the core's catalog would. */
+/** What the preview's host holds, as the core's catalog would. */
 export class MockCatalog {
-    private revision = 1;
+    private latestRevision = 1;
     private groups: AddOnGroupPayload[];
     private parts: Partial<AddOnCatalogPayload> | undefined;
-    private staleOnce: boolean;
 
-    constructor(state: PreviewState, options: { readonly stale?: boolean } = {}) {
+    constructor(state: PreviewState) {
         this.parts = GROUPS_OF[state]();
         this.groups = [...(this.parts?.groups ?? [])];
-        this.staleOnce = options.stale ?? false;
     }
 
     /** `undefined` while the preview shows a catalog that never arrives. */
@@ -372,9 +408,13 @@ export class MockCatalog {
         return {
             actions: CATALOG_ACTIONS,
             ...this.parts,
-            revision: this.revision,
+            revision: this.latestRevision,
             groups: this.groups,
         };
+    }
+
+    get revision(): number {
+        return this.latestRevision;
     }
 
     /** `undefined` for a name or id no row carries, or none at all. */
@@ -382,156 +422,43 @@ export class MockCatalog {
         return this.rows().find((row) => row.id === nameOrId || row.name === nameOrId)?.id;
     }
 
-    act(request: AddOnRequestPayload): Done {
-        const done = this.actOn(request);
-        if (done.changed) this.revision++;
-        return done;
+    /** `undefined` for an id no row carries. */
+    rowOf(addOnId: string): AddOnPayload | undefined {
+        return this.rows().find(({ id }) => id === addOnId);
     }
 
-    private actOn(request: AddOnRequestPayload): Done {
-        switch (request.kind) {
-            case "allow":
-                return this.allow(request.addOnId);
-            case "revoke":
-                return this.revoke(request.addOnId);
-            case "enable":
-            case "disable":
-                return this.changeRow<TemplateAddOnPayload>(request.addOnId, (row) =>
-                    template(
-                        row.name,
-                        row.id.slice("template:".length).split("#")[0],
-                        request.kind === "enable" ? "enabled" : "disabled",
-                        { id: row.id },
-                    ),
-                );
-            case "enableTemplates":
-            case "disableTemplates":
-                return this.switchSource(request.sourceId, request.kind === "disableTemplates");
-            case "removeMarketplace":
-                this.groups = this.groups.map((group) => ({
-                    ...group,
-                    sources: group.sources.filter(({ id }) => id !== request.sourceId),
-                }));
-                return { result: { kind: "reportedByFlow" }, changed: true };
-            case "addMarketplace":
-            case "updateMarketplaces":
-                return { result: { kind: "reportedByFlow" }, changed: false };
-            case "pruneCache":
-                return {
-                    result: { kind: "done", message: "Removed 2 unused plugin copies." },
-                    changed: false,
-                };
-            case "refresh":
-                return { result: { kind: "done" }, changed: true };
-        }
-    }
-
-    private allow(addOnId: string): Done {
-        if (this.staleOnce) {
-            this.staleOnce = false;
-            return {
-                result: {
-                    kind: "refused",
-                    reason: "staleView",
-                    message: "The list changed since you looked at it. Check it again, then allow.",
-                },
-                changed: true,
-            };
-        }
-        return this.changeRow<CodeAddOnPayload>(
-            addOnId,
-            allowed,
-            (row) => `Allowed ${row.name}${IN_REPOSITORY}. ${FOLLOW_UP[row.kind].allowed}`,
-        );
-    }
-
-    private revoke(addOnId: string): Done {
-        return this.changeRow<CodeAddOnPayload>(
-            addOnId,
-            (each) => ({
-                ...each,
-                state: "new",
-                stateText: STATE_TEXT.new,
-                ...(NOTE_AFTER_REVOKE[each.kind] !== undefined && {
-                    note: NOTE_AFTER_REVOKE[each.kind],
-                }),
-                ...(each.problem === undefined && {
-                    review: reviewOf(
-                        each.name,
-                        RISK[each.kind],
-                        each.id.replace(/^\w+:\/work\//, ""),
-                        VERSION_OF[each.kind](each.name),
-                    ),
-                }),
-                actions: each.problem === undefined ? [ALLOW] : [],
-            }),
-            (each) => `Revoked ${each.name}${IN_REPOSITORY}. ${FOLLOW_UP[each.kind].revoked}`,
-        );
-    }
-
-    private switchSource(sourceId: string, disable: boolean): Done {
-        this.groups = this.groups.map((group) => ({
-            ...group,
-            sources: group.sources.map((source): AddOnSourcePayload => {
-                if (source.id !== sourceId) return source;
-                const { stateText: _stateText, ...rest } = source;
-                return {
-                    ...rest,
-                    ...(disable && { stateText: "Templates disabled" }),
-                    actions: source.actions.map((action) =>
-                        TEMPLATE_SWITCHES.includes(action)
-                            ? disable
-                                ? ENABLE_TEMPLATES
-                                : DISABLE_TEMPLATES
-                            : action,
-                    ),
-                    addOns: source.addOns.map((addOn) =>
-                        addOn.kind !== "elementTemplate"
-                            ? addOn
-                            : disable
-                              ? { ...addOn, note: SOURCE_DISABLED_NOTE, actions: [] }
-                              : template(
-                                    addOn.name,
-                                    addOn.id.slice("template:".length).split("#")[0],
-                                    addOn.state,
-                                    { id: addOn.id },
-                                ),
-                    ),
-                };
-            }),
-        }));
-        return { result: { kind: "done" }, changed: true };
-    }
-
-    private changeRow<R extends AddOnPayload>(
-        addOnId: string,
-        change: (row: R) => R,
-        message?: (row: R) => string,
-    ): Done {
-        const row = this.rows().find(({ id }) => id === addOnId) as R | undefined;
-        if (row === undefined) {
-            return {
-                result: {
-                    kind: "refused",
-                    reason: "unknownAddOn",
-                    message: "This add-on is no longer listed.",
-                },
-                changed: false,
-            };
-        }
-        this.groups = this.groups.map((group) => ({
-            ...group,
-            sources: group.sources.map((source) => ({
+    replaceRow(addOnId: string, row: AddOnPayload): void {
+        this.changeSources((sources) =>
+            sources.map((source) => ({
                 ...source,
-                addOns: source.addOns.map((each) =>
-                    each.id === addOnId ? change(each as R) : each,
-                ),
+                addOns: source.addOns.map((each) => (each.id === addOnId ? row : each)),
             })),
-        }));
-        return {
-            result: { kind: "done", ...(message && { message: message(row) }) },
-            changed: true,
-        };
+        );
+    }
+
+    changeSource(
+        sourceId: string,
+        change: (source: AddOnSourcePayload) => AddOnSourcePayload,
+    ): void {
+        this.changeSources((sources) =>
+            sources.map((source) => (source.id === sourceId ? change(source) : source)),
+        );
+    }
+
+    removeSource(sourceId: string): void {
+        this.changeSources((sources) => sources.filter(({ id }) => id !== sourceId));
+    }
+
+    /** For a change no row shows, as a re-read or another window's allow makes. */
+    bumpRevision(): void {
+        this.latestRevision++;
+    }
+
+    private changeSources(
+        change: (sources: readonly AddOnSourcePayload[]) => AddOnSourcePayload[],
+    ): void {
+        this.groups = this.groups.map((group) => ({ ...group, sources: change(group.sources) }));
+        this.latestRevision++;
     }
 
     private rows(): AddOnPayload[] {
