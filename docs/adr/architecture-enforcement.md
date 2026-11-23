@@ -6,7 +6,7 @@
 ## Context
 
 Architecture erodes when the code drifts from the intended design: a rule written
-in two places, decisions outside the domain model, hosts that do more than render,
+in two places, decisions outside pure code, hosts that do more than render,
 messages nobody handles. Coding agents write most changes, so no single control is
 enough; the repository combines guidance, deterministic checks and a model's
 review.

@@ -26,9 +26,15 @@ verify details against source because older guides and ADRs may be outdated.
 | A webview's browser-preview host | Beside its `adapter/out/host.ts`, never in it: `host.ts` only picks the real or the preview host, and the preview host answers each feature from its own module in `adapter/out/browserPreview/`, as in `apps/bpmn-webview`. |
 | Host integration and lifecycle | `apps/vscode-plugin/src/main.ts` and `src/composition/`; `apps/modeler-bridge/src/server.ts` and `src/composition/` (`bridge.ts`); Kotlin host in `apps/intellij-plugin`. |
 
-Decisions (rules, state transitions, validations) go into the owning feature's
-`domain/` as pure code, or into `libs/modeler-types` when browser code applies
-the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
+A workspace's `domain/` is its pure core: decisions, state transitions, display
+logic, texts and message tables; it calls no port and holds no handle. A
+decision goes into the owning feature's `domain/`, or into `libs/modeler-types`
+when browser code applies the same rule, test-first with the
+[tdd](../tdd/SKILL.md) skill. The BPMN element model of diff and merge lives in
+`bpmn-diff` and `bpmn-merge`, where the rich domain model is built; the
+document-level rules only the core applies (engine and version detection,
+migration, the process to deploy) stay in `kernel/domain/BpmnDocument.ts`
+([placement](../../../docs/adr/role-folders.md#placement)).
 
 A service orchestrates; a rule lives in `domain/`, named after the rule it
 decides (for example `isModeAvailable(mode, engine)`, not `check` or
@@ -203,7 +209,7 @@ first one in a file's path is its role:
 
 ```
 <context>/
-  domain/        rules as pure functions and values
+  domain/        pure core: decisions, state transitions, display logic, texts and message tables
   port/          types only: interfaces the services call
   service/       orchestration, session participants included
   adapter/in/    calls into the workspace: commands, message handlers, UI
@@ -286,7 +292,7 @@ their resources on disposal. The store, router and lifecycle live in the core's
 
 Consult only the specialist guidance needed for the task:
 
-- [tdd](../tdd/SKILL.md): failing spec first, rules in the domain model.
+- [tdd](../tdd/SKILL.md): failing spec first, each rule in one pure home.
 - [architecture-review](../architecture-review/SKILL.md): review a branch or PR against the fitness function report.
 - [bpmn-js](../bpmn-js/SKILL.md): DI modules and diagram interactions.
 - [vscode-webviews](../vscode-webviews/SKILL.md) and [vscode-custom-editors](../vscode-custom-editors/SKILL.md): transport, document sync, and lifecycle.

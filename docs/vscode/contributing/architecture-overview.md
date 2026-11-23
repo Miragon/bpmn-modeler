@@ -65,8 +65,8 @@ theme selection is scoped to modeler containers. API details live in the
 [BPMN package guide](https://github.com/Miragon/bpmn-modeler/blob/main/packages/bpmn-modeler/README.md)
 and [DMN package guide](https://github.com/Miragon/bpmn-modeler/blob/main/packages/dmn-modeler/README.md).
 
-**Host services belong in `modeler-core`.** Features group domain models,
-ports, services and host-independent adapters together. Services access host
+**Host services belong in `modeler-core`.** Features group a pure core
+(`domain/`), ports, services and host-independent adapters together. Services access host
 facilities through capability ports; adapters implement filesystem, document,
 settings, notification, and secret-storage access. Deployment has separate
 engine ports and Camunda REST adapters. The core is shared across IDE hosts,

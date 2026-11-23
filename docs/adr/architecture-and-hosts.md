@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-11-20
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -37,7 +37,7 @@ libraries import neither applications nor modeler packages.
 | Private feature libraries in `libs/` | Reusable behavior, inlined into published packages where needed |
 | `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules browser code shares with the core |
 | `libs/shared` | Private Query/Command protocol, host channel, document-flush plumbing and webview chrome |
-| `libs/modeler-core` | Host-independent domain/service layers and shared editor, routing and diff registries |
+| `libs/modeler-core` | Host-independent services around a pure core (`domain/`), and shared editor, routing and diff registries |
 | Host applications and webview bootstraps | Concrete adapters, composition, transport, editor lifecycle and page integration |
 
 **Public contract.** The public browser contract is the factory/handle API, not
@@ -71,7 +71,8 @@ and ambient functions with a body but does not notice a *changed* declaration, a
 `publicApi.spec.ts` pins only the names it lists, so pin a new public-type dependency
 there.
 
-**`modeler-core`** owns domain/services, the editor-session core and `DiffPaneStore`.
+**`modeler-core`** owns services around a pure core (`domain/`; [the BPMN element model
+is in the libraries](role-folders.md#placement)), the editor-session core and `DiffPaneStore`.
 Hosts import its public entrypoint and supply capability ports and editor/diff handles.
 It is VS Code-free and no core file reaches a host module (`electron` or a Node
 built-in other than `path`), directly or transitively.
