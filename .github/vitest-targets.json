@@ -314,6 +314,7 @@
                 "eslint.config.cjs",
                 "**/eslint.config.cjs",
                 ".github/scripts/vitest-target-reads.{mjs,d.mts}",
+                ".github/scripts/vitest-target-imports.{mjs,d.mts}",
                 ".github/scripts/vscode-smoke-plan.{mjs,d.mts}",
                 ".github/scripts/release-routing.{mjs,d.mts}",
                 ".github/scripts/release-lines-sync.{mjs,d.mts}",
