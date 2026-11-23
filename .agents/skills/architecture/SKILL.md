@@ -32,7 +32,17 @@ the same rule, written test-first with the [tdd](../tdd/SKILL.md) skill.
 
 A service orchestrates; a rule lives in `domain/`, named after the rule it
 decides (for example `isModeAvailable(mode, engine)`, not `check` or
-`validate`). A service that grows usually holds a rule in the wrong home. The
+`validate`).
+
+Before you write a condition, a comparison, a filter or a read before and
+after a call in `service/` or `adapter/`, name the fact it decides. If a value,
+an entity or a library result you already hold could answer it, the answer
+belongs on it, in the workspace that declares it: add it there first, with a
+failing spec. A port is no home for it: each of its adapters would repeat the
+answer. A service or an adapter may act on an answer
+(`if (decision.kind === "confirm")`); it does not work one out.
+
+A service that grows usually holds a rule in the wrong home. The
 `size-and-complexity` fitness function reports each file's code lines and
 highest complexity with their trend; `hotspots` ranks the files that are large
 and change often. Both leave out a module that runs no code, and both are leads
