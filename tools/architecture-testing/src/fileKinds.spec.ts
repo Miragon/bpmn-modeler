@@ -85,6 +85,7 @@ describe("a TypeScript source", () => {
 describe("a spec or a module only specs read", () => {
     it.each([
         { path: "libs/core/src/a.spec.ts", specOrSpecData: true },
+        { path: "a.spec.ts", specOrSpecData: true },
         { path: "libs/core/src/a.test.tsx", specOrSpecData: true },
         { path: "libs/core/src/a.spec.data.ts", specOrSpecData: true },
         { path: "libs/core/src/a.test.helpers.mjs", specOrSpecData: true },
@@ -92,10 +93,23 @@ describe("a spec or a module only specs read", () => {
         { path: "libs/core/src/a.ts", specOrSpecData: false },
         { path: "libs/core/src/test.ts", specOrSpecData: false },
         { path: "libs/core/src/latest.ts", specOrSpecData: false },
+        { path: "libs/core/src/a.spec.", specOrSpecData: false },
+        { path: "libs/core/src/a.test.", specOrSpecData: false },
         { path: "libs/core/src/a.spec/model.ts", specOrSpecData: false },
+        { path: "libs/core/src/cases.spec.data/model.ts", specOrSpecData: false },
         { path: "libs/core/src/__fixtures__/fake.ts", specOrSpecData: false },
     ])("reads $path as a spec or spec data: $specOrSpecData", ({ path, specOrSpecData }) => {
         expect(isSpecOrSpecData(path)).toBe(specOrSpecData);
+    });
+
+    it("reads a folder of repeated `.spec.` in linear time", () => {
+        const path = `${".spec.".repeat(30_000)}/a.ts`;
+        const start = performance.now();
+
+        const specOrSpecData = isSpecOrSpecData(path);
+
+        expect(performance.now() - start).toBeLessThan(500);
+        expect(specOrSpecData).toBe(false);
     });
 });
 
@@ -107,13 +121,26 @@ describe("a build config", () => {
         { path: "libs/modeler-core/stryker.config.mjs", buildConfig: true },
         { path: "apps/vscode-plugin/eslint.config.cjs", buildConfig: true },
         { path: "eslint.config.cjs", buildConfig: true },
+        { path: "vite.config.mts", buildConfig: true },
         { path: "libs/core/src/theme.config.json", buildConfig: true },
         { path: "libs/core/tsconfig.json", buildConfig: false },
         { path: "libs/core/src/config.ts", buildConfig: false },
         { path: "libs/core/src/editorConfig.ts", buildConfig: false },
         { path: "libs/core/src/app.config", buildConfig: false },
+        { path: "libs/core/src/app.config.", buildConfig: false },
         { path: "libs/core/src/a.config/index.ts", buildConfig: false },
+        { path: "libs/core/src/app.config.d/index.ts", buildConfig: false },
     ])("reads $path as a build config: $buildConfig", ({ path, buildConfig }) => {
         expect(isBuildConfig(path)).toBe(buildConfig);
+    });
+
+    it("reads a folder of repeated `.config.` in linear time", () => {
+        const path = `${".config.".repeat(30_000)}/a.ts`;
+        const start = performance.now();
+
+        const buildConfig = isBuildConfig(path);
+
+        expect(performance.now() - start).toBeLessThan(500);
+        expect(buildConfig).toBe(false);
     });
 });
