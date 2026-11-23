@@ -19,12 +19,12 @@ this repository, unless Dependabot opened it, has at most one comment with a
 capped copy, posted once there is a change
 ([ADR](../../../docs/adr/architecture-enforcement.md#fitness-function-report)).
 For `size-and-complexity` it lists the existing files that grew and only
-counts the new ones; `missed-partner` and `mutation-score` are in the full
-report only, so the comment never shows their rows.
-It measures GitHub's test merge, so the whole PR counts as one change, which
-the PR row below does not. Read it for an overview; the review still measures
-here, because only the JSON holds the existing findings, the trends and those
-two functions.
+counts the new ones; `change-coupling`, `host-text`, `missed-partner` and
+`mutation-score` are in the full report only, so the comment never shows their
+rows. It measures GitHub's test merge, so the whole PR counts as one change,
+which the PR row below does not. Read it for an overview; the review still
+measures here, because only the JSON holds the existing findings, the trends
+and the rows of the functions in the full report only.
 
 Run every block from this checkout. `OUT` lies outside it: an untracked file
 in the checkout would count as a change. Two reviews at once need their own

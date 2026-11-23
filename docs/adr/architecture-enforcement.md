@@ -146,10 +146,12 @@ and not in `build.yml`'s `ci.needs`.
   (`changesView`, #2371); the full report and the JSON keep every row.
   `size-and-complexity` lists only the existing files that grew since the merge base,
   and a PR that only adds or deletes files counts as no change: in the first trial
-  most of its new rows were such files and none led to a change. `missed-partner` and
-  `mutation-score` are full-report-only and never count as a change: a mutation score
-  comes from a stored run, so it landed on whichever PR came next, and the
-  missed-partner warnings left on PRs were mostly judged false or not judged.
+  most of its new rows were such files and none led to a change. `change-coupling`,
+  `host-text`, `missed-partner` and `mutation-score` are full-report-only and never
+  count as a change: a mutation score comes from a stored run, so it landed on
+  whichever PR came next; the missed-partner warnings left on PRs were mostly judged
+  false or not judged; and the change-coupling and host-text rows were rarely true and
+  rarely fixed in their PR (see below).
 - The job summary carries every row. The PR comment is a capped copy
   (`--capped-out --max-characters 60000`, under GitHub's 65,536 limit): every
   function gets the same row limit, new rows before resolved, and no table or
@@ -283,9 +285,10 @@ on 84 PRs judged each function by rules written before it started, with one read
 fixed afterwards: a row counts as acted on when its PR fixed it, not when a PR body
 only lists it. `repeated-value-sets` and `contract-suites` stay; `contract-suites`
 stays against the written rules, which count its render-only group as false although
-two of those rows led to a suite. `change-coupling` and `host-text` are to move to
-the full report (#2743, #2744): none of their new rows was fixed and all but one were
-false, and the review, which reads the full report, keeps them. `hotspots` is to stop
+two of those rows led to a suite. `change-coupling` and `host-text` moved to the full
+report (#2743, #2744): in the trial's window none of their new rows was fixed and all
+but one were false, and the review, which reads the full report, keeps them. Their
+`reportsWrongly` entries name the false cases the trial found. `hotspots` is to stop
 ranking modules that run no code (#2708). The grown-files list is to show a row only
 when it grew by at least 11 code lines, its complexity rose or its trend rose twice
 in a row (#2745), which leaves about a quarter of the grown rows out of the comment.

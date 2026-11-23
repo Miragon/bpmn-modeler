@@ -48,9 +48,17 @@ export function createChangeCouplingFitnessFunction({
             "A pair explained by a shared import can still hide a copy (VsCodeStatusBar.ts ↔ BpmnLintConfigService.ts, the structural cause of issue 1799); it is listed under explained, not dropped.",
             "The branch's change counts even when its squash would not: it carries no PR title, so a chore(deps), chore(main), chore(format) or style PR counts as a change.",
             `A pair the branch did not touch can enter or leave when the branch deletes, adds or renames a file, or makes a barrel of one: a past commit then holds a different number of read files and can cross the ${maxChangesetSize}-file limit.`,
+            `A pair the branch's own change makes new disappears once that change grows past ${maxChangesetSize} read files, as its squash would not count: that looks like a fix, and the pair shows as new again on the next PR that changes both files.`,
+            "Files of one feature that change together because the feature grows over consecutive PRs, with no value or rule in common: the co-change follows the feature's pace, not a copy.",
+            "A pair whose import, or whose mirrored type, the branch removes or moves: the pair is no longer linked at HEAD and shows as new, though the branch copied nothing.",
+            "A pair that a spec links with a type pin such as toEqualTypeOf: specs are not read, so two pinned mirror declarations, or a file typed by one side and the file that declares the other, show as hidden.",
+            "A file that reaches the other's rule through a chain of typed calls and holds no copy of it: only an import of the other file, or of the file that declares the imported name, links a pair.",
+            "Two files that share an import whose file is new: a shared import explains a pair only when it changed in at least half of the pair's shared changes, so a module both files began to use recently leaves the pair hidden.",
         ],
         evidence: CHANGE_COUPLING_EVIDENCE,
         groups: CHANGE_COUPLING_GROUPS,
+        // Most new rows on pull requests were false and few were fixed; the review reads them all.
+        changesView: "full-report-only",
         findFindings: ({ repoRoot, changeBase }) => {
             const window = historyWindow(
                 history.firstParentCommits(repoRoot, changeBase, HISTORY_WINDOW_READ_DEPTH),
