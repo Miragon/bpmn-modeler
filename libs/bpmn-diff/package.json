@@ -2,6 +2,11 @@
     "name": "@miragon/bpmn-modeler-diff",
     "architecture": "hexagonal",
     "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts",
+        "./domain": "./src/domain.ts",
+        "./package.json": "./package.json"
+    },
     "version": "0.0.1",
     "private": true,
     "scripts": {
