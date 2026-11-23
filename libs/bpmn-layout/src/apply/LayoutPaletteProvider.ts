@@ -1,3 +1,5 @@
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
 import type { Layouter } from "./Layouter";
 
 interface PaletteLike {
@@ -7,8 +9,6 @@ interface PaletteLike {
 interface InjectorLike {
     get<T>(name: string, strict: false): T | null;
 }
-
-type Translate = (template: string) => string;
 
 interface PaletteEntry {
     group?: string;

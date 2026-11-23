@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "@bpmn-io/properties-panel/preact/ho
 import type {
     DefinitionKind,
     DefinitionUsage,
+    Translate,
     WorkspaceDefinition,
 } from "@miragon/bpmn-modeler-types";
 
@@ -15,8 +16,6 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 150;
 const MAX_LISTED_USAGES = 3;
-
-type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 /** Props the provider puts on the entry; the panel spreads the whole entry onto the component. */
 export interface DefinitionSearchEntryProps {

@@ -4,6 +4,7 @@
  * Neutral-mode deltas: optional `bpmnFactory`/`commandStack`, `disabled`
  * forwarded, guarded setters.
  */
+import type { Translate } from "@miragon/bpmn-modeler-types";
 import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
 
 import { useService } from "../../hooks/useService";
@@ -164,7 +165,7 @@ function TimerEventDefinitionValue(props: any) {
 
 function getTimerEventDefinitionValueDescription(
     timerDefinitionType: string,
-    translate: (text: string) => string,
+    translate: Translate,
 ): any {
     switch (timerDefinitionType) {
         case "timeDate":

@@ -2,10 +2,9 @@ import type Canvas from "diagram-js/lib/core/Canvas";
 import type EventBus from "diagram-js/lib/core/EventBus";
 import type Overlays from "diagram-js/lib/features/overlays/Overlays";
 import type { Overlay } from "diagram-js/lib/features/overlays/Overlays";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import { choosePopoverPlacement } from "./lintPopoverPlacement";
-
-type Translate = (template: string) => string;
 
 const LINTING_OVERLAY_TYPE = "linting";
 const OVERLAY_SELECTOR = ".bjsl-overlay";

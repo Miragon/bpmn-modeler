@@ -1,7 +1,9 @@
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
 import type { DiagramElementLike } from "./candidates";
 import type { ElementIdsService } from "./ElementIdsService";
 import { IdFromNameEntry } from "./IdFromNameEntry";
-import { fallbackTranslate, type Translate } from "./translate";
+import { fallbackTranslate } from "./translate";
 
 /**
  * Below the engine (500) and element-template (300) providers, which rebuild

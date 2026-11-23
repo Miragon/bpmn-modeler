@@ -15,6 +15,7 @@ import {
     type MessageOfType,
     resolveHostThemeKind,
 } from "@miragon/bpmn-modeler-shared";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import { createHostMessageRouter, type HostMessage } from "../../adapter/in/messageRouter";
 import { TemplateDocumentSession } from "../service/documentSession";
@@ -24,7 +25,6 @@ import { createTemplatePage } from "../adapter/in/templatePage";
 import type { TemplateEditorHost } from "../port/templateEditorHost";
 
 type EditorHost = Pick<TemplateEditorHost, "postMessage">;
-type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 type TemplateEditorHostMessages = {
     ElementTemplateFileQuery: MessageOfType<"ElementTemplateFileQuery">;

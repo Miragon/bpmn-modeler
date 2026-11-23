@@ -1,2 +1,3 @@
-/** `i18n.translate`, with the replacements its templates name. */
-export type MergeTranslate = (key: string, replacements?: Record<string, string>) => string;
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
+export type MergeTranslate = Translate;

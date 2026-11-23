@@ -66,9 +66,6 @@ export interface MergeBarControls {
     readonly nameOf: (elementId: string) => string;
 }
 
-/** The bar's translator, which renders its templates with replacements. */
-export type MergeBarTranslator = DiffLegendTranslator & { translate: MergeTranslate };
-
 interface CountSlot {
     readonly marker: MergeMarker;
     readonly slot: HTMLElement;
@@ -126,7 +123,7 @@ export class MergeBar {
     constructor(
         parent: HTMLElement,
         actions: MergeBarActions,
-        private readonly translator: MergeBarTranslator,
+        private readonly translator: DiffLegendTranslator,
     ) {
         bars += 1;
         installMergeTooltips(parent.ownerDocument);

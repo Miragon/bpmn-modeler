@@ -1,4 +1,4 @@
-export type Translate = (template: string, replacements?: Record<string, string>) => string;
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 // Used when no TranslateModule is registered (third-party bpmn-js setups):
 // echoes the template while still resolving {placeholders}, matching diagram-js.

@@ -23,7 +23,7 @@
  * a 7th entry in `model` or a 4th in `edit` leaves an orphan row of 1, so we
  * use `connect` (1 + 1 = 2) to avoid the lonely row.
  */
-import { referenceKindSupports } from "@miragon/bpmn-modeler-types";
+import { referenceKindSupports, type Translate } from "@miragon/bpmn-modeler-types";
 
 import { extractModelReference, extractReference, referenceKindOf } from "./extractReference";
 import type { BusinessObjectLike } from "./extractReference";
@@ -34,10 +34,6 @@ import type { FormPreviewController } from "./FormPreviewController";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;
-}
-
-interface Translate {
-    (template: string): string;
 }
 
 interface Element {

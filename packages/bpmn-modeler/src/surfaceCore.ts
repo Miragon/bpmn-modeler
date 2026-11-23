@@ -5,6 +5,7 @@ import {
     installFitViewportButton,
     NoModelerError,
     ThemeController,
+    type Translate,
 } from "@miragon/bpmn-modeler-types";
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
@@ -99,9 +100,7 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
         store.add(
             installFitViewportButton({
                 parent: canvas.getContainer(),
-                label: this.service<(template: string) => string>("translate")(
-                    "Fit diagram to view",
-                ),
+                label: this.service<Translate>("translate")("Fit diagram to view"),
                 fit: () => view.viewport.fitViewport(),
                 focusCanvas: () => canvas.focus(),
                 isCanvasFocused: () => canvas.isFocused(),

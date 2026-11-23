@@ -17,10 +17,7 @@ const MERGE_ROLE_TEXTS: Record<MergeCaptionRole, string | undefined> = {
  * branch and commit it shows (`Current: your branch main · 1a2b3c4`). Branch
  * names and hashes stay as Git wrote them.
  */
-export function mergeCaptionText(
-    caption: MergeSideCaption,
-    translate: (key: string) => string,
-): string {
+export function mergeCaptionText(caption: MergeSideCaption, translate: MergeTranslate): string {
     const { side, detail } = mergeCaptionParts(caption, translate);
     return detail === undefined ? side : `${side}: ${detail}`;
 }
@@ -28,7 +25,7 @@ export function mergeCaptionText(
 /** The caption's side word and its detail, the branch and commit, which a narrow bar drops first. */
 export function mergeCaptionParts(
     caption: MergeSideCaption,
-    translate: (key: string) => string,
+    translate: MergeTranslate,
 ): { side: string; detail?: string } {
     const role = MERGE_ROLE_TEXTS[caption.role];
     const name = [role === undefined ? undefined : translate(role), caption.ref]

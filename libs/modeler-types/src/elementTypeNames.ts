@@ -1,3 +1,5 @@
+import type { Translate } from "./translate";
+
 // The translations' own spellings, shared or overlay: `translate()` looks keys up exactly.
 const NAMES: Readonly<Record<string, string>> = {
     "bpmn:ServiceTask": "Service task",
@@ -41,7 +43,7 @@ const NAMES: Readonly<Record<string, string>> = {
 };
 
 /** What people call an element type, or its identifier for one the modeler does not name. */
-export function elementTypeName(type: string, translate: (name: string) => string): string {
+export function elementTypeName(type: string, translate: Translate): string {
     const name = NAMES[type];
     return name ? translate(name) : type;
 }

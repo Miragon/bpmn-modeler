@@ -25,7 +25,7 @@ const MERGE_SIDE_TEXTS: Record<MergeSide, string> = {
 };
 
 /** The word the panes' captions name `side` with. */
-export function mergeSideText(side: MergeSide, translate: (key: string) => string): string {
+export function mergeSideText(side: MergeSide, translate: MergeTranslate): string {
     return translate(MERGE_SIDE_TEXTS[side]);
 }
 

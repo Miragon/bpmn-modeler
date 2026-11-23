@@ -3,6 +3,7 @@ import {
     isModeAvailable,
     type DetectedEngine,
     type SurfaceMode,
+    type Translate,
 } from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
@@ -33,10 +34,7 @@ export const IMPLEMENT_UNAVAILABLE_HINT =
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.";
 
 /** Translator seam, matching the shape of the modeler's i18n `translate`. */
-export type ModeStripTranslate = (
-    template: string,
-    replacements?: Record<string, string>,
-) => string;
+export type ModeStripTranslate = Translate;
 
 export interface ModeStripOptions {
     /**

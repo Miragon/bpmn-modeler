@@ -1,6 +1,6 @@
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
 import { findListenerAt, listenerPosition } from "@miragon/bpmn-modeler-types";
-import type { ScriptKind } from "@miragon/bpmn-modeler-types";
+import type { ScriptKind, Translate } from "@miragon/bpmn-modeler-types";
 
 import type { Element, ScriptModdle } from "./bpmnTypes";
 import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
@@ -210,7 +210,7 @@ export class ScriptLockPropertiesProvider {
         propertiesPanel: PropertiesPanel,
         private readonly store: OpenScriptEditorsStore,
         private readonly eventBus: EventBus,
-        private readonly translate: (template: string) => string,
+        private readonly translate: Translate,
     ) {
         propertiesPanel.registerProvider(LOCK_PROVIDER_PRIORITY, this);
     }

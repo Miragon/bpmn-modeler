@@ -5,7 +5,9 @@
  * upstream dist, which this lib must not import) — the placeholder text stands
  * on its own.
  */
-export const PanelPlaceholderProvider = (translate?: (text: string) => string) => {
+import type { Translate } from "@miragon/bpmn-modeler-types";
+
+export const PanelPlaceholderProvider = (translate?: Translate) => {
     const t = translate ?? ((text: string) => text);
     return {
         getEmpty: () => {

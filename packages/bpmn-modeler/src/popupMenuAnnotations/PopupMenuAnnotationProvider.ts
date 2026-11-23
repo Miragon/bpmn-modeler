@@ -2,6 +2,7 @@ import * as ReplaceOptions from "bpmn-js/lib/features/replace/ReplaceOptions";
 import type { ReplaceOption } from "bpmn-js/lib/features/replace/ReplaceOptions";
 import { isDifferentType } from "bpmn-js/lib/features/popup-menu/util/TypeUtil";
 import type { Element } from "bpmn-js/lib/model/Types";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import { ELEMENT_POPUP_MENUS } from "../popupMenus";
 import {
@@ -42,7 +43,7 @@ export class PopupMenuAnnotationProvider {
 
     constructor(
         popupMenu: PopupMenuRegistry,
-        private readonly translate: (text: string) => string,
+        private readonly translate: Translate,
         private readonly annotations: PopupMenuAnnotations,
     ) {
         for (const menuId of ELEMENT_POPUP_MENUS) {

@@ -32,6 +32,7 @@ export * from "./mergeBuildNotes";
 export * from "./mergeBuildNoteReaders";
 export * from "./conflictMarkers";
 export * from "./elementTypeNames";
+export * from "./translate";
 export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";

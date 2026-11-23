@@ -1,9 +1,9 @@
 import { h } from "@bpmn-io/properties-panel/preact";
+import type { Translate } from "@miragon/bpmn-modeler-types";
 
 import type { DiagramElementLike } from "./candidates";
 import type { ElementIdProposal } from "./ElementIdsService";
 import { ID_FROM_NAME_TEXTS } from "./idFromNameTexts";
-import type { Translate } from "./translate";
 
 /** Props the provider puts on the entry; the panel spreads the whole entry onto the component. */
 export interface IdFromNameEntryProps {
