@@ -35,8 +35,9 @@ decides (for example `isModeAvailable(mode, engine)`, not `check` or
 `validate`). A service that grows usually holds a rule in the wrong home. The
 `size-and-complexity` fitness function reports each file's code lines and
 highest complexity with their trend; `hotspots` ranks the files that are large
-and change often. Both are leads to read, not limits: a long table of values or
-a protocol type file is large and holds no rule.
+and change often. Both leave out a module that runs no code, and both are leads
+to read, not limits: message classes, or a long table beside a helper or built
+by a call, run code and are large but hold no rule.
 
 A value set (auth types, theme modes, languages) has one home. Every other use
 imports it. A TypeScript copy that cannot (a protocol type behind a package

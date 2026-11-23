@@ -1,7 +1,6 @@
 import {
     readCodeLines,
     readFunctionComplexities,
-    readModuleSymbols,
     readWorkspaceDirs,
     runsNoCode,
 } from "@miragon/architecture-testing";
@@ -23,7 +22,6 @@ export class EngineSourceMeasures implements SourceMeasures {
                     path,
                     codeLines: readCodeLines(path, text),
                     functions: readFunctionComplexities(path, text),
-                    barrel: readModuleSymbols(path, text).declaresNothing,
                     runsNoCode: runsNoCode(path, text),
                 };
             });

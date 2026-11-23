@@ -24,14 +24,11 @@ function file(path: string, codeLines: number, complexity?: number): FileMeasure
         path,
         codeLines,
         functions: complexity === undefined ? [] : [{ name: "handle", line: 7, complexity }],
-        barrel: false,
         runsNoCode: false,
     };
 }
 
-function barrel(path: string, codeLines: number): FileMeasure {
-    return { ...file(path, codeLines), barrel: true };
-}
+const MODULE = "libs/core/src/module.ts";
 
 describe("the hotspot ranking", () => {
     it("ranks a file changed in 6 of 7 commits above a larger file changed once", () => {
@@ -111,19 +108,49 @@ describe("the hotspot ranking", () => {
         ).toEqual([paths[2], paths[1]]);
     });
 
-    it("leaves out a barrel with the top score, so the next file takes the last place", () => {
-        const index = "libs/core/src/index.ts";
-        const window = Array.from({ length: 6 }, () => changed(index, OFTEN, LARGE, SMALL));
+    const moduleChangedMost = [
+        ...Array.from({ length: 6 }, () => changed(MODULE)),
+        changed(OFTEN, LARGE, SMALL),
+    ];
+
+    it("leaves out a module that runs no code with the top score, so the next file takes the last place", () => {
+        const table: FileMeasure = { path: MODULE, codeLines: 4, functions: [], runsNoCode: true };
 
         expect(
             rankHotspots(
-                window,
-                [barrel(index, 160), file(OFTEN, 100), file(LARGE, 90), file(SMALL, 80)],
+                moduleChangedMost,
+                [table, file(OFTEN, 10), file(LARGE, 9), file(SMALL, 8)],
                 2,
             ).map(({ file, rank }) => [file.path, rank]),
         ).toEqual([
             [OFTEN, 1],
             [LARGE, 2],
+        ]);
+    });
+
+    it.each<{ form: string; module: FileMeasure }>([
+        {
+            form: "without a function, such as a table built by a call",
+            module: { path: MODULE, codeLines: 4, functions: [], runsNoCode: false },
+        },
+        {
+            form: "in a function",
+            module: {
+                path: MODULE,
+                codeLines: 4,
+                functions: [{ name: "label", line: 2, complexity: 1 }],
+                runsNoCode: false,
+            },
+        },
+    ])("ranks a module that runs code $form", ({ module }) => {
+        expect(
+            rankHotspots(moduleChangedMost, [module, file(OFTEN, 10)]).map(({ file, rank }) => [
+                file.path,
+                rank,
+            ]),
+        ).toEqual([
+            [MODULE, 1],
+            [OFTEN, 2],
         ]);
     });
 });
