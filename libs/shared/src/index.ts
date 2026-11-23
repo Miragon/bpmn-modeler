@@ -3,6 +3,7 @@ export * from "./lib/ignoredCommand";
 export * from "./lib/previewCommandTable";
 export * from "./lib/previewIgnoreReasons";
 export * from "./lib/previewOutput";
+export * from "./lib/webviewLogText";
 export * from "./lib/utils";
 export * from "./lib/messages";
 export * from "./lib/documentFlush";

@@ -87,19 +87,4 @@ describe("a browser preview's log rows", () => {
 
         expect(error).toHaveBeenCalledWith("Could not render\nError: boom\n    at render");
     });
-
-    it.each([
-        { command: new LogDebugCommand("debug text", "Error: boom"), level: "debug" },
-        { command: new LogInfoCommand("info text", "Error: boom"), level: "info" },
-        { command: new LogWarningCommand("warning text", "Error: boom"), level: "warn" },
-    ] as const)(
-        "write a $command.type without its stack, as the host logs it",
-        ({ command, level }) => {
-            const write = vi.spyOn(console, level).mockImplementation(() => undefined);
-
-            routePreviewCommand(LOG_ROWS, command, undefined);
-
-            expect(write).toHaveBeenCalledWith(command.message);
-        },
-    );
 });

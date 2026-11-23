@@ -295,15 +295,17 @@ IntelliJ, or a plain browser. Two implementations back it:
   `libs/shared/src/lib/previewCommandTable.ts`: a table is keyed by its
   surface's command union, and every preview logs a dropped command as
   `[DEBUG] <type> ignored: <reason>`. `replyFromPreview` and the log rows
-  `logPreviewDebug` to `logPreviewError` (only an error carries its stack, as
-  the host logs it) sit in `previewOutput.ts` beside it, and the reasons more
-  than one preview gives in `previewIgnoreReasons.ts`. A new preview uses them
-  instead of its own copy, so a webview keeps only its table, its session and
-  the reasons no other preview gives. A reason is a plain string:
-  `previewCommandTables.spec.ts` in `tools/repo-checks` rejects an interpolated
-  template literal, a concatenation or a property read that runs at load in a
-  table's modules, since each keeps the table in the production bundle, and a
-  literal that spells out a reason `previewIgnoreReasons.ts` exports.
+  `logPreviewDebug` to `logPreviewError` sit in `previewOutput.ts` beside it,
+  and the reasons more than one preview gives in `previewIgnoreReasons.ts`. A
+  log row writes the text of `webviewLogText`, which the host's
+  `routeWebviewLogCommand` logs too: only an error carries its stack. A new
+  preview uses them instead of its own copy, so a webview keeps only its
+  table, its session and the reasons no other preview gives. A reason is a
+  plain string: `previewCommandTables.spec.ts` in `tools/repo-checks` rejects
+  an interpolated template literal, a concatenation, a property read or a
+  spread that runs at load in a table's modules, since each keeps the table in
+  the production bundle, and a literal that spells out a reason
+  `previewIgnoreReasons.ts` exports.
 
 ```typescript
 // apps/bpmn-webview/src/adapter/out/host.ts

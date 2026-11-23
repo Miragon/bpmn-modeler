@@ -1,4 +1,4 @@
-import { Command, LogMessageCommand } from "@miragon/bpmn-modeler-shared";
+import { Command, LogMessageCommand, webviewLogText } from "@miragon/bpmn-modeler-shared";
 
 import { LoggerPort } from "../../kernel/port/hostPorts";
 
@@ -30,8 +30,9 @@ export function isWebviewLogCommand(
  * Each line is tagged `[webview:<source>]` (or `[webview]` when no source is
  * known) to mark its origin in a channel the host also writes to directly; the
  * `source` lets a reader correlate a line to a specific file/panel when several
- * are open. The error handler appends the command's textual `stack` (an `Error`
- * doesn't survive `postMessage`) so the original throw site prints.
+ * are open. An error's textual `stack` (an `Error` doesn't survive
+ * `postMessage`) goes under its message, as `webviewLogText` writes it, so the
+ * original throw site prints.
  */
 export function routeWebviewLogCommand(
     logger: LoggerPort,
@@ -44,11 +45,6 @@ export function routeWebviewLogCommand(
     const method = LOG_LEVELS[command.type];
     const tag = source ? `[webview:${source}]` : "[webview]";
 
-    if (method === "logError") {
-        const body = command.stack ? `${command.message}\n${command.stack}` : command.message;
-        logger.logError(`${tag} ${body}`);
-    } else {
-        logger[method](`${tag} ${command.message}`);
-    }
+    logger[method](`${tag} ${webviewLogText(command)}`);
     return true;
 }

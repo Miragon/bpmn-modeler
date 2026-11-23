@@ -17,8 +17,8 @@ import { describe, expect, it } from "vitest";
  * host reads it, so the production bundle drops it with every module it takes
  * answers and reasons from. Rolldown keeps a module-level statement that holds
  * an interpolated template literal or a concatenation, since building the
- * string may run code, or a property read, since it may run a getter, and with
- * it the table and its sample data. A reason libs/shared words is imported,
+ * string may run code, or a property read or a spread, since it may run a
+ * getter, and with it the table and its sample data. A reason libs/shared words is imported,
  * not spelled out again, so the previews cannot drift apart. Found by the
  * shared table type a module declares, so a new preview's table is checked
  * without a list.
@@ -70,8 +70,8 @@ function modulesReachedFrom(table: SourceFile, sourcesByPath: ReadonlyMap<string
 }
 
 /**
- * Lines of template literals with a substitution, concatenations and property
- * reads (a getter may run) that run when the module loads.
+ * Lines of template literals with a substitution, concatenations, property
+ * reads and spreads (a getter may run) that run when the module loads.
  */
 function moduleLevelKeptExpressions(fileName: string, text: string): number[] {
     const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true);
@@ -85,6 +85,8 @@ function moduleLevelKeptExpressions(fileName: string, text: string): number[] {
             ts.isTaggedTemplateExpression(node) ||
             ts.isPropertyAccessExpression(node) ||
             ts.isElementAccessExpression(node) ||
+            ts.isSpreadAssignment(node) ||
+            ts.isSpreadElement(node) ||
             isConcatenation(node)
         ) {
             lines.push(lineOf(sourceFile, node));
@@ -189,6 +191,13 @@ describe("moduleLevelKeptExpressions", () => {
     });
 
     it.each([
+        ["a table row", "const TABLE = {\n  ...ROWS,\n};", [2]],
+        ["an array", "const ROWS = [\n  ...SHARED_ROWS,\n];", [2]],
+    ])("reports a spread in %s", (_, text, lines) => {
+        expect(moduleLevelKeptExpressions("sample.ts", text)).toEqual(lines);
+    });
+
+    it.each([
         ["a plain template", "const REASON = `no editor`;"],
         ["an arrow function", "const row = (type: string) => `${type} ignored`;"],
         ["a function", "function reason(type: string) {\n  return `${type} ignored`;\n}"],
@@ -202,11 +211,15 @@ describe("moduleLevelKeptExpressions", () => {
             "a row's handler that concatenates",
             'const TABLE = {\n  Row: ({ type }) => console.debug(type + " ignored"),\n};',
         ],
+        [
+            "a row's handler that spreads",
+            "const TABLE = {\n  Row: (_, preview) => preview.reply({ ...ANSWER }),\n};",
+        ],
         ["a type", "type Reason = typeof REASONS.noFile;\nlet reason: Reasons.NoFile;"],
         ["an interface", "interface Sample extends Base.Shape {}"],
         ["an implemented interface", "class Sample implements Ports.Port {}"],
     ])(
-        "ignores an interpolation, a property read or a concatenation in %s, which runs only when called",
+        "ignores an interpolation, a property read, a concatenation or a spread in %s, which runs only when called",
         (_, text) => {
             expect(moduleLevelKeptExpressions("sample.ts", text)).toEqual([]);
         },
