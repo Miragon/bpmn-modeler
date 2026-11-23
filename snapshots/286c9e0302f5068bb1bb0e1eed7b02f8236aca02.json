@@ -3,7 +3,7 @@
   "commit": "286c9e0302f5068bb1bb0e1eed7b02f8236aca02",
   "entries": {
     "change-coupling": {
-      "version": 3,
+      "version": 4,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts ↔ apps/dmn-webview/src/bootstrap.ts",
@@ -2014,7 +2014,7 @@
       ]
     },
     "hotspots": {
-      "version": 4,
+      "version": 5,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts",
@@ -2159,7 +2159,7 @@
       ]
     },
     "missed-partner": {
-      "version": 2,
+      "version": 3,
       "findings": []
     },
     "repeated-value-sets": {
