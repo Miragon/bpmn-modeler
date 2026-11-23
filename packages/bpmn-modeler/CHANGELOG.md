@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.12.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.11.0...bpmn-modeler-v1.12.0) (2026-11-23)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** draw Camunda 7 transaction boundaries in Miragon blue ([#2581](https://github.com/Miragon/bpmn-modeler/issues/2581)) [sync 0969f58] ([9b929bc](https://github.com/Miragon/bpmn-modeler/commit/9b929bc0116d142c87a1bf5c229a043199daa36c))
+* **viewer:** let a diff pane select the change its stepper lands on ([#2557](https://github.com/Miragon/bpmn-modeler/issues/2557)) [sync be9720a] ([d4c8fe8](https://github.com/Miragon/bpmn-modeler/commit/d4c8fe8061c487607df3e491f3970251e3523864))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-layout:** count waypoints half a unit apart as a repeat when cleaning up a diagram ([#2675](https://github.com/Miragon/bpmn-modeler/issues/2675)) [sync b94f892] ([2e447ab](https://github.com/Miragon/bpmn-modeler/commit/2e447ab782c27984e09d95c695531af7093e09b9))
+* **bpmn-layout:** move each label once when formatting ([#2572](https://github.com/Miragon/bpmn-modeler/issues/2572)) [sync 1f2f555] ([0f06f50](https://github.com/Miragon/bpmn-modeler/commit/0f06f50452c02587b8b2eb37391b870ef42bacb3))
+* **bpmn-modeler:** lint a diagram against the engine version it targets ([#2752](https://github.com/Miragon/bpmn-modeler/issues/2752)) [sync d807575] ([51512d9](https://github.com/Miragon/bpmn-modeler/commit/51512d97382019349a855be0e4d7d8f7443525c4))
+* **diff:** draw the bpmn and dmn diffs like diagit ([#2750](https://github.com/Miragon/bpmn-modeler/issues/2750)) [sync 42ac575] ([ebe3922](https://github.com/Miragon/bpmn-modeler/commit/ebe3922b6b131cd407c483c8fb90c11e27ba3c6a))
+
 ## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.10.0...bpmn-modeler-v1.11.0) (2026-11-18)
 
 
