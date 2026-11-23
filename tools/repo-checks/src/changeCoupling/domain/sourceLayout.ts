@@ -1,4 +1,11 @@
-import { DECLARATION_FILE, SPEC_FILE, TEST_FOLDERS } from "@miragon/architecture-testing";
+import {
+    DECLARATION_FILE,
+    isBuildConfig,
+    SCRIPT_FILE,
+    SPEC_FILE,
+    TEST_FOLDERS,
+    TYPESCRIPT_FILE,
+} from "@miragon/architecture-testing";
 
 export interface ImportLink {
     readonly from: string;
@@ -24,9 +31,6 @@ export interface SourceLayout {
     readonly links: readonly ImportLink[];
     readonly workspaces: readonly WorkspaceLayout[];
 }
-
-const TYPESCRIPT_FILE = /\.tsx?$/;
-const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
 
 /** A declaration file of any module kind runs no code, and a caller's import resolves to the module it types. */
 export function isParsedIntoDeclarationGraph(path: string): boolean {
@@ -80,7 +84,7 @@ function isMeasured(path: string, workspaces: readonly WorkspaceLayout[]): boole
     }
     // Build configs are read only for the entries they name, see `namedPaths`.
     if (name.endsWith(".mjs")) {
-        return !name.includes(".config.");
+        return !isBuildConfig(name);
     }
     if (name.endsWith(".kt")) {
         return inWorkspace.startsWith("src/main/");

@@ -1,7 +1,6 @@
-import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
+import { isTestOrDeclarationFile, TYPESCRIPT_FILE } from "@miragon/architecture-testing";
 
 import { type Finding, sortFindings } from "../../fitness/domain/finding";
-import { TYPESCRIPT_FILE } from "../../sourceFiles/domain/sourceFiles";
 
 /** What makes a file host code: the modules it imports and the files declaring the interfaces its classes implement. */
 export interface SourceDependencies {

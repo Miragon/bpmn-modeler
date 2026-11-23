@@ -1,6 +1,4 @@
-import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
-
-export const TYPESCRIPT_FILE = /\.(ts|tsx|mts|cts)$/;
+import { isTestOrDeclarationFile, TYPESCRIPT_FILE } from "@miragon/architecture-testing";
 
 function isMeasuredTypeScript(pathInWorkspace: string): boolean {
     return TYPESCRIPT_FILE.test(pathInWorkspace) && !isTestOrDeclarationFile(pathInWorkspace);

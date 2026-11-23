@@ -36,6 +36,8 @@ describe("the files change coupling reads", () => {
     it.each([
         { path: "apps/vscode-plugin/src/feature/Service.ts", read: true },
         { path: "apps/vscode-plugin/src/view/Panel.tsx", read: true },
+        { path: "apps/vscode-plugin/src/feature/worker.mts", read: true },
+        { path: "apps/vscode-plugin/src/feature/legacy.cts", read: true },
         { path: "apps/intellij-plugin/src/main/kotlin/io/x/Editor.kt", read: true },
         { path: "libs/i18n/tools/build-overlay.mjs", read: true },
         { path: "libs/shared/src/lib/targets.schema.json", read: true },
@@ -44,6 +46,9 @@ describe("the files change coupling reads", () => {
         { path: "libs/shared/src/themes/dark.json", read: true },
         { path: "libs/i18n/src/languages/de.ts", read: true },
         { path: "apps/vscode-plugin/package.json", read: true },
+        { path: "apps/vscode-plugin/src/main.config.ts", read: true },
+        { path: "libs/shared/src/lib/theme.config.json", read: true },
+        { path: "apps/intellij-plugin/src/main/kotlin/io/x/plugin.config.kt", read: true },
         { path: "libs/shared/package.json", read: false },
         { path: "apps/vscode-plugin/src/feature/Service.spec.ts", read: false },
         { path: "apps/vscode-plugin/src/feature/view.browser.spec.tsx", read: false },

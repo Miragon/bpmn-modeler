@@ -20,7 +20,7 @@ import {
 import type { SourceStructure } from "../../port/SourceStructure";
 
 const GENERATED_ATTRIBUTE = "linguist-generated";
-const BUILD_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
+const WORKSPACE_ROOT_CONFIG = /^[^/]+\.config\.[cm]?[jt]s$/;
 
 export class EngineSourceStructure implements SourceStructure {
     read(repoRoot: string): SourceLayout {
@@ -76,12 +76,13 @@ function workspaceLayout(
     const manifest = known.has(manifestPath)
         ? (JSON.parse(readText(manifestPath)) as Record<string, unknown>)
         : {};
-    const buildConfigs = files.filter(
-        (path) => path.startsWith(`${dir}/`) && BUILD_CONFIG.test(path.slice(dir.length + 1)),
+    const rootConfigs = files.filter(
+        (path) =>
+            path.startsWith(`${dir}/`) && WORKSPACE_ROOT_CONFIG.test(path.slice(dir.length + 1)),
     );
     const literals = [
         ...jsonStrings(manifest),
-        ...buildConfigs.flatMap((path) => readStringLiterals(path, readText(path))),
+        ...rootConfigs.flatMap((path) => readStringLiterals(path, readText(path))),
     ];
     const namedPaths = literals.flatMap((literal) => {
         const candidate = posix.normalize(posix.join(dir, literal));

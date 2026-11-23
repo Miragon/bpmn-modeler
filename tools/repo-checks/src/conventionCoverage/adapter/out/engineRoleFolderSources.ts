@@ -5,6 +5,7 @@ import {
     readPathAliases,
     readWorkspaces,
     type SourceFile,
+    TYPESCRIPT_FILE,
 } from "@miragon/architecture-testing";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,12 +14,10 @@ import { trackedFiles } from "../../../fitness/adapter/out/git";
 import type { HexagonalWorkspaceSources } from "../../domain/hexagonalWorkspaceSources";
 import type { RoleFolderSources } from "../../port/RoleFolderSources";
 
-const SOURCE_FILE = /\.tsx?$/;
-
 export class EngineRoleFolderSources implements RoleFolderSources {
     read(repoRoot: string): readonly HexagonalWorkspaceSources[] {
         const files = trackedFiles(repoRoot).filter(
-            (path) => SOURCE_FILE.test(path) && !isTestOrDeclarationFile(path),
+            (path) => TYPESCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path),
         );
         const tsconfig = join(repoRoot, "tsconfig.base.json");
         const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];

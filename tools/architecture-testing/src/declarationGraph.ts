@@ -1,4 +1,5 @@
 import { compareText } from "./compareText";
+import { SCRIPT_FILE } from "./fileKinds";
 import { resolveRelativeImport } from "./importGraph";
 import { type ModuleSymbols, readModuleSymbols } from "./moduleSymbols";
 import { type PathAlias, resolveAliasImport } from "./pathAliases";
@@ -14,8 +15,6 @@ export interface DeclarationGraphOptions {
     /** Files an import reaches without exports to follow, such as JSON. */
     readonly dataFiles?: readonly string[];
 }
-
-const SCRIPT_FILE = /\.[cm]?[jt]sx?$/;
 
 /**
  * Links each importer to the module it imports and to the files that declare

@@ -1,8 +1,7 @@
-import { RESOLUTION_SUFFIXES } from "@miragon/architecture-testing";
+import { RESOLUTION_SUFFIXES, TYPESCRIPT_FILE } from "@miragon/architecture-testing";
 import { describe, expect, it } from "vitest";
 
 import { RELATIVE_IMPORT_SUFFIXES } from "../../../.github/scripts/vitest-target-imports.mjs";
-import { TYPESCRIPT_FILE } from "./sourceFiles/domain/sourceFiles";
 
 // Vite resolves an extensionless import to .mts, TypeScript never does: the graph leaves it out.
 const VITE_ONLY_TYPESCRIPT_SUFFIXES = [".mts"];

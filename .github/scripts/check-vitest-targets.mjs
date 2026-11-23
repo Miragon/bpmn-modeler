@@ -10,6 +10,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { globToRegExp } from "./glob.mjs";
+import { SCRIPT_FILE, SPEC_FILE } from "./vitest-target-files.mjs";
 import { RELATIVE_IMPORT_SUFFIXES } from "./vitest-target-imports.mjs";
 import { readPathCandidates, uncoveredReads, withoutQuery } from "./vitest-target-reads.mjs";
 
@@ -17,8 +18,6 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const registry = readJson(".github/vitest-targets.json");
 const tsconfigPaths = readJson("tsconfig.base.json").compilerOptions.paths;
 const WORKSPACE_PARENTS = ["apps", "libs", "packages", "tools"];
-const SOURCE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
-const SPEC_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/;
 const IMPORT_SPECIFIER =
     /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\(\s*|\bvi\.(?:mock|doMock|importActual|importMock)\(\s*)["'`]([^"'`$]+)["'`]/g;
 const TYPE_ONLY_STATEMENT =
@@ -207,7 +206,7 @@ function reachablePaths(targetDir) {
 
 function existingSourceFile(path) {
     return RELATIVE_IMPORT_SUFFIXES.map((suffix) => `${path}${suffix}`).find(
-        (candidate) => SOURCE_FILE.test(candidate) && isFile(candidate),
+        (candidate) => SCRIPT_FILE.test(candidate) && isFile(candidate),
     );
 }
 
@@ -271,7 +270,7 @@ function sourceFiles(dir) {
     return readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
         const path = `${dir}/${entry.name}`;
         if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourceFiles(path);
-        return SOURCE_FILE.test(entry.name) ? [path] : [];
+        return SCRIPT_FILE.test(entry.name) ? [path] : [];
     });
 }
 
