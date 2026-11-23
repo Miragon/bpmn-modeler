@@ -122,8 +122,8 @@ describe("PreviewHost", () => {
         expect(targetNames(replies[2])).toEqual(["dev", "prod"]);
     });
 
-    it("activates a selected target", () => {
-        previewHost().postMessage(new SelectTargetCommand("prod"));
+    it.each(["prod", " prod "])("activates a selected target named %j", (name) => {
+        previewHost().postMessage(new SelectTargetCommand(name));
 
         expect(replies).toEqual([
             expect.objectContaining({ type: "DeploymentTargetsQuery", activeTargetName: "prod" }),
@@ -141,8 +141,8 @@ describe("PreviewHost", () => {
         expect(targetNames(targets)).toEqual(["dev", "prod", "staging"]);
     });
 
-    it("refuses to create a target under a taken name", () => {
-        previewHost().postMessage(new CreateTargetCommand(target("dev"), noAuth));
+    it.each(["dev", " dev "])("refuses to create a target named %j, which is taken", (name) => {
+        previewHost().postMessage(new CreateTargetCommand(target(name), noAuth));
 
         expect(replies).toEqual([
             expect.objectContaining({
@@ -164,10 +164,13 @@ describe("PreviewHost", () => {
         expect(targetNames(targets)).toEqual(["prod", "local"]);
     });
 
-    it("overwrites a target saved under its own name", () => {
+    it.each([
+        ["no previous name", undefined],
+        ['previous name "dev"', "dev"],
+    ])("overwrites a target saved under its own name, %s", (_, previousName) => {
         const [, targets] = sendAndCollect(
             previewHost(),
-            new SaveTargetCommand(target("dev"), noAuth, "dev"),
+            new SaveTargetCommand(target("dev"), noAuth, previousName),
         );
 
         expect(targetNames(targets)).toEqual(["prod", "dev"]);
@@ -207,22 +210,25 @@ describe("PreviewHost", () => {
         expect(targets).toEqual(expect.objectContaining({ activeTargetName: "prod" }));
     });
 
-    it("answers a credentials lookup with the target's auth settings", () => {
-        previewHost().postMessage(new RequestStoredCredentialsCommand("prod", 7));
+    it.each(["prod", " prod "])(
+        "answers a credentials lookup for a target named %j with its auth settings",
+        (name) => {
+            previewHost().postMessage(new RequestStoredCredentialsCommand(name, 7));
 
-        expect(replies).toEqual([
-            expect.objectContaining({
-                type: "StoredCredentialsQuery",
-                auth: {
-                    authType: "oauth2",
-                    tokenEndpoint: "https://login.example.com/oauth/token",
-                    audience: "zeebe-api",
-                },
-                targetName: "prod",
-                requestId: 7,
-            }),
-        ]);
-    });
+            expect(replies).toEqual([
+                expect.objectContaining({
+                    type: "StoredCredentialsQuery",
+                    auth: {
+                        authType: "oauth2",
+                        tokenEndpoint: "https://login.example.com/oauth/token",
+                        audience: "zeebe-api",
+                    },
+                    targetName: name,
+                    requestId: 7,
+                }),
+            ]);
+        },
+    );
 
     it("answers a credentials lookup for an unknown target without auth", () => {
         previewHost().postMessage(new RequestStoredCredentialsCommand("missing"));
