@@ -1,11 +1,11 @@
 import { ElementIdReviewService, LoggerPort } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../../protocol/domain/descriptor";
-import { RpcHandlerTable } from "../../../../protocol/domain/rpcHandler";
 import {
     ElementIdReviewRevealParams,
     ElementIdReviewSetCheckedParams,
-} from "../../../../protocol/domain/types";
+} from "../../../../protocol/domain/modelerProtocol";
+import { RpcHandlerTable } from "../../../../protocol/domain/rpcHandler";
 
 /**
  * RPC (Host → Core): elementIdReview/setChecked, elementIdReview/apply,

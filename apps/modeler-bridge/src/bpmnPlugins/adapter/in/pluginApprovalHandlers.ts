@@ -1,6 +1,6 @@
+import { PluginApprovalsSnapshot } from "../../../protocol/domain/bpmnPluginsProtocol";
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import { PluginApprovalsSnapshot } from "../../../protocol/domain/types";
 import { PluginApprovalsMirror } from "../../port/PluginApprovalsMirror";
 
 /**

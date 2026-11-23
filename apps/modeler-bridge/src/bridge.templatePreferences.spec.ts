@@ -42,7 +42,7 @@ import { createBridge } from "./composition/bridge";
 import {
     TemplatePreferencesChangeParams,
     TemplatePreferencesSnapshot,
-} from "./protocol/domain/types";
+} from "./protocol/domain/kernelProtocol";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 const BPMN = `<?xml version="1.0" encoding="UTF-8"?>

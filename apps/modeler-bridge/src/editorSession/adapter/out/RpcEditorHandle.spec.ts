@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { BridgeSettings } from "../../../kernel/adapter/out/BridgeSettings";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { SessionMeta } from "../../../protocol/domain/types";
+import { SessionMeta } from "../../../protocol/domain/editorSessionProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { RpcEditorHandle } from "./RpcEditorHandle";

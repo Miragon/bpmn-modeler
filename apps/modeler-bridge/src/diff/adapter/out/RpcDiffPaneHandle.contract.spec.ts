@@ -1,7 +1,7 @@
 import { describeDiffPaneContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { DiffPostMessageParams } from "../../../protocol/domain/types";
+import { DiffPostMessageParams } from "../../../protocol/domain/diffProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcDiffPaneHandle } from "./RpcDiffPaneHandle";
 

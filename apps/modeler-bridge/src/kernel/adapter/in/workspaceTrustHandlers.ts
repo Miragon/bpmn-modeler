@@ -1,6 +1,6 @@
 import { METHODS } from "../../../protocol/domain/descriptor";
+import { WorkspaceTrustSnapshot } from "../../../protocol/domain/kernelProtocol";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import { WorkspaceTrustSnapshot } from "../../../protocol/domain/types";
 import { WorkspaceTrustMirror } from "../../port/WorkspaceTrustMirror";
 
 /**

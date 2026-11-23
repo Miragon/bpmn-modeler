@@ -1,6 +1,6 @@
 import { METHODS } from "../../../protocol/domain/descriptor";
+import { TemplatePreferencesSnapshot } from "../../../protocol/domain/kernelProtocol";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import { TemplatePreferencesSnapshot } from "../../../protocol/domain/types";
 import { TemplatePreferencesMirror } from "../../port/TemplatePreferencesMirror";
 
 /**

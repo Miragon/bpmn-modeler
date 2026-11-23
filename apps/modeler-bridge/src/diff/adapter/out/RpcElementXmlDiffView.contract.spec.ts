@@ -9,7 +9,10 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ElementXmlDiffCloseParams, ElementXmlDiffShowParams } from "../../../protocol/domain/types";
+import {
+    ElementXmlDiffCloseParams,
+    ElementXmlDiffShowParams,
+} from "../../../protocol/domain/diffProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcElementXmlDiffView } from "./RpcElementXmlDiffView";
 

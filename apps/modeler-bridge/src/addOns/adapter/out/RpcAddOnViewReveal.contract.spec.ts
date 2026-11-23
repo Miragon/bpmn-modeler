@@ -1,8 +1,8 @@
 import { describeAddOnViewRevealContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { createStdinHandler } from "../../../composition/stdioBinding";
+import { AddOnsRevealResult } from "../../../protocol/domain/addOnsProtocol";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { AddOnsRevealResult } from "../../../protocol/domain/types";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcAddOnViewReveal } from "./RpcAddOnViewReveal";
 

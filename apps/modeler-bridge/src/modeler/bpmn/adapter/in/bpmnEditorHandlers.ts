@@ -2,7 +2,7 @@ import { LintingPreferencePort, SettingsPort } from "@miragon/bpmn-modeler-core"
 
 import { METHODS } from "../../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../../protocol/domain/rpcHandler";
-import { SettingsDidChangeParams } from "../../../../protocol/domain/types";
+import { SettingsDidChangeParams } from "../../../../protocol/domain/modelerProtocol";
 import { HostSettingsMirror } from "../../../../kernel/port/HostSettingsMirror";
 
 /** RPC (Host → Core): settings/didChange, linting/toggle (the status widget's click). */

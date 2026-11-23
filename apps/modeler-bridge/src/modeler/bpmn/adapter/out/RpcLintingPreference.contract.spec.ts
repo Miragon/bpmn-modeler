@@ -4,7 +4,7 @@ import { describeLintingPreferenceContract } from "@miragon/bpmn-modeler-core/te
 import { bindHandlers } from "../../../../composition/bindHandlers";
 import { BridgeSettings } from "../../../../kernel/adapter/out/BridgeSettings";
 import { METHODS } from "../../../../protocol/domain/descriptor";
-import { SettingsSetLintingEnabledParams } from "../../../../protocol/domain/types";
+import { SettingsSetLintingEnabledParams } from "../../../../protocol/domain/modelerProtocol";
 import { Rpc } from "../../../../transport/adapter/out/Rpc";
 import { bpmnEditorHandlers } from "../in/bpmnEditorHandlers";
 import { RpcLintingPreference } from "./RpcLintingPreference";

@@ -1,7 +1,7 @@
 import { EditorHandle } from "@miragon/bpmn-modeler-core";
 import { Command } from "@miragon/bpmn-modeler-shared";
 
-import { RegisterParams } from "../../protocol/domain/types";
+import { RegisterParams } from "../../protocol/domain/editorSessionProtocol";
 
 /** An editor handle the host drives: it forwards webview messages and reports focus. */
 export interface HostEditorHandle extends EditorHandle {

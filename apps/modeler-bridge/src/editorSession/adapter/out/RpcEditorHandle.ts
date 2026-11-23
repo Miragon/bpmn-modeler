@@ -8,7 +8,7 @@ import {
     DocumentWriteResult,
     EditorRefParams,
     SessionMeta,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/editorSessionProtocol";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { pluginAssetUrlOf } from "../../domain/pluginAssetUrl";
 import { HostEditorHandle } from "../../port/HostEditorHandle";

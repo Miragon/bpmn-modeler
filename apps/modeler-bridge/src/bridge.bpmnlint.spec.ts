@@ -70,7 +70,8 @@ import {
 } from "./__fixtures__/rulePackageBridge";
 import { createBridge } from "./composition/bridge";
 import { NodeWorkspace } from "./kernel/adapter/out/NodeWorkspace";
-import { PluginApprovalsSnapshot, StatusBarUpdateParams } from "./protocol/domain/types";
+import { PluginApprovalsSnapshot } from "./protocol/domain/bpmnPluginsProtocol";
+import { StatusBarUpdateParams } from "./protocol/domain/kernelProtocol";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 // A process with a task but no start/end event, so bpmnlint:recommended reports

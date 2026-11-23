@@ -11,7 +11,7 @@ import {
     EditorRefParams,
     RegisterParams,
     WebviewMessageParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/editorSessionProtocol";
 import { PluginApprovalsMirror } from "../../../bpmnPlugins/port/PluginApprovalsMirror";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 import { TemplatePreferencesMirror } from "../../../kernel/port/TemplatePreferencesMirror";

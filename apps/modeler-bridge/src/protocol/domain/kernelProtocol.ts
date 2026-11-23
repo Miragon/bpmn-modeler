@@ -1,23 +1,153 @@
-import { ProtocolEntry } from "./protocolEntry";
-import { TEMPLATE_PREFERENCES_SAMPLE } from "./sharedSamples";
 import {
-    ActionNoticeShowParams,
-    ActionNoticeShowResult,
-    ClipboardReadResult,
-    ClipboardWriteParams,
-    ConfirmShowParams,
-    ConfirmShowResult,
-    EmptyParams,
-    NotifierLogParams,
-    NotifierMessageParams,
-    NotifierOpenDocumentParams,
-    NotifierProgressParams,
-    PickerShowParams,
-    PickerShowResult,
-    StatusBarUpdateParams,
-    TemplatePreferencesChangeParams,
-    WorkspaceTrustSnapshot,
-} from "./types";
+    ActionNoticeTone,
+    ProjectScope,
+    StatusSlot,
+    StatusView,
+    TemplateSwitch,
+} from "@miragon/bpmn-modeler-core";
+
+import { EmptyParams, ProtocolEntry } from "./protocolEntry";
+
+/**
+ * `workspaceTrust/didChange` — whether the user trusts the project, pushed
+ * after the IDE's trust changed and after every spawn. `revision` grows with
+ * every read, so the mirror keeps the newest of what its queues apply.
+ */
+export interface WorkspaceTrustSnapshot {
+    trusted: boolean;
+    revision: number;
+}
+
+/** One scope's template switches as the host stores them, with that scope's revision. */
+export interface TemplatePreferencesScopeSnapshot {
+    disabled: TemplateSwitch[];
+    revision: number;
+}
+
+/**
+ * `templatePreferences/didChange` — both scopes' switches as the host stores
+ * them for this bridge's project, pushed after a change: an `allProjects`
+ * change to every running bridge of the IDE, a `project` change to the
+ * project's own. Also the result of `templatePreferences/change` and
+ * `templatePreferences/read`. Each scope's `revision` grows with every list
+ * the host stores for it, so a mirror keeps the newest per scope.
+ */
+export interface TemplatePreferencesSnapshot {
+    project: TemplatePreferencesScopeSnapshot;
+    allProjects: TemplatePreferencesScopeSnapshot;
+}
+
+/** `templatePreferences/change` — the host merges it into the scope's stored list, so no switch another writer stored is lost. */
+export interface TemplatePreferencesChangeParams {
+    scope: ProjectScope;
+    disable: TemplateSwitch[];
+    enable: TemplateSwitch[];
+}
+
+/** One row offered to the host popup: a label plus optional greyed detail. */
+interface PickItem {
+    label: string;
+    description?: string;
+}
+
+/** `picker/show` — round-trip one native chooser; result is the chosen indices. */
+export interface PickerShowParams {
+    title?: string;
+    placeholder: string;
+    canPickMany: boolean;
+    items: PickItem[];
+}
+export interface PickerShowResult {
+    selected?: number[] | null;
+}
+
+/**
+ * `confirm/show` — a modal yes/no the host renders natively.
+ *
+ * A request rather than a notification because the core has to wait for the
+ * answer before deleting anything; requests only run core→host, which is the
+ * direction needed here.
+ *
+ * `details` arrives as the core's `ConfirmRequest` holds it, already
+ * summarised, so the host renders it verbatim and never shortens it.
+ */
+export interface ConfirmShowParams {
+    title: string;
+    confirmLabel: string;
+    details: string[];
+}
+export interface ConfirmShowResult {
+    confirmed?: boolean;
+}
+
+/** `clipboard/read` — the host reads the system clipboard on the core's behalf. */
+export interface ClipboardReadResult {
+    text?: string;
+}
+
+/**
+ * `actionNotice/show` — a non-modal notification with one button per label,
+ * in order. The result names the clicked button by its index; no index means
+ * the user dismissed the notification.
+ */
+export interface ActionNoticeShowParams {
+    tone: ActionNoticeTone;
+    message: string;
+    labels: string[];
+}
+export interface ActionNoticeShowResult {
+    chosen?: number;
+}
+
+/** `clipboard/write` — fire-and-forget system-clipboard write. */
+export interface ClipboardWriteParams {
+    text: string;
+}
+
+/**
+ * `notifier/showInfo`, `notifier/showWarning`, `notifier/showError` — a balloon
+ * with the core's text as it is, including the context line `notifyError` adds.
+ */
+interface NotifierMessageParams {
+    message: string;
+}
+
+/** `notifier/openDocument` — reveal a file in the host. */
+interface NotifierOpenDocumentParams {
+    path: string;
+}
+
+/**
+ * `notifier/log` — a leveled line to the IDE log/console. `message` is the whole
+ * line: the core tags a line a webview forwarded (`[webview]` or
+ * `[webview:<source>]`), so the host adds no origin label.
+ */
+interface NotifierLogParams {
+    level: "debug" | "info" | "warn" | "error";
+    message: string;
+}
+
+/** `notifier/progressStart`, `notifier/progressEnd` — bracket a host spinner. */
+export interface NotifierProgressParams {
+    title: string;
+}
+
+/** `statusBar/update` — what one status slot shows, or `null` to hide the slot. */
+export interface StatusBarUpdateParams {
+    slot: StatusSlot;
+    view: StatusView | null;
+}
+
+export const TEMPLATE_PREFERENCES_SAMPLE = {
+    project: {
+        disabled: [{ source: "configFolder:shop/.camunda", templateId: 'mail#2@"v"' }],
+        revision: 3,
+    },
+    allProjects: {
+        disabled: [{ source: "marketplace:github:github.com/acme/templates" }],
+        revision: 7,
+    },
+} satisfies TemplatePreferencesSnapshot;
 
 export const KERNEL_METHODS = {
     templatePreferencesDidChange: "templatePreferences/didChange",

@@ -10,7 +10,7 @@ import {
     ScriptCloseParams,
     ScriptDidOpenExternalParams,
     ScriptOpenParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/scriptTaskProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { scriptHandlers } from "../in/scriptHandlers";
 import { BridgeScriptEditor } from "./BridgeScriptEditor";

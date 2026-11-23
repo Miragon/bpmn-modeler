@@ -5,9 +5,11 @@ import {
     ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
+} from "../protocol/domain/kernelProtocol";
+import {
     TokenPromptShowParams,
     TokenPromptShowResult,
-} from "../protocol/domain/types";
+} from "../protocol/domain/templateMarketplaceProtocol";
 import { Rpc } from "../transport/adapter/out/Rpc";
 
 /** What the user does with the next chooser, dialog, password prompt or notification IntelliJ shows. */

@@ -22,7 +22,7 @@ import {
 } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./composition/bridge";
 import { METHODS } from "./protocol/domain/descriptor";
-import { RegisterParams } from "./protocol/domain/types";
+import { RegisterParams } from "./protocol/domain/editorSessionProtocol";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 interface Frame {

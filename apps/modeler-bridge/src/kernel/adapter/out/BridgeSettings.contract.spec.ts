@@ -8,7 +8,7 @@ import { hostNotification } from "../../../__fixtures__/bridgeHarness";
 import { bindHandlers } from "../../../composition/bindHandlers";
 import { bpmnEditorHandlers } from "../../../modeler/bpmn/adapter/in/bpmnEditorHandlers";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { SettingsDidChangeParams } from "../../../protocol/domain/types";
+import { SettingsDidChangeParams } from "../../../protocol/domain/modelerProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { BridgeSettings } from "./BridgeSettings";
 

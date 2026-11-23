@@ -5,12 +5,12 @@ import {
     PluginApprovalStorePort,
 } from "@miragon/bpmn-modeler-core";
 
-import { METHODS } from "../../../protocol/domain/descriptor";
 import {
-    EmptyParams,
     PluginApprovalsChangeParams,
     PluginApprovalsSnapshot,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/bpmnPluginsProtocol";
+import { METHODS } from "../../../protocol/domain/descriptor";
+import { EmptyParams } from "../../../protocol/domain/protocolEntry";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { PluginApprovalsMirror } from "../../port/PluginApprovalsMirror";
 

@@ -1,7 +1,13 @@
 import { SecretStorePort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { BasicAuthCredentials, OAuth2Credentials, SecretApprovedDestinations, SecretGetApprovedDestinationsParams, SecretSaveApprovedDestinationsParams } from "../../../protocol/domain/types";
+import {
+    BasicAuthCredentials,
+    OAuth2Credentials,
+    SecretApprovedDestinations,
+    SecretGetApprovedDestinationsParams,
+    SecretSaveApprovedDestinationsParams,
+} from "../../../protocol/domain/deploymentProtocol";
 
 /**
  * Routes the core's {@link SecretStorePort} to the host's PasswordSafe-backed

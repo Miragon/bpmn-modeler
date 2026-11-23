@@ -3,11 +3,11 @@ import { describePluginApprovalStoreContract } from "@miragon/bpmn-modeler-core/
 
 import { bindHandlers } from "../../../composition/bindHandlers";
 import { createStdinHandler } from "../../../composition/stdioBinding";
-import { METHODS } from "../../../protocol/domain/descriptor";
 import {
     PluginApprovalsChangeParams,
     PluginApprovalsSnapshot,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/bpmnPluginsProtocol";
+import { METHODS } from "../../../protocol/domain/descriptor";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { pluginApprovalHandlers } from "../in/pluginApprovalHandlers";
 import { RpcPluginApprovalStore } from "./RpcPluginApprovalStore";

@@ -8,11 +8,11 @@ import {
 
 import { METHODS } from "../../../protocol/domain/descriptor";
 import {
-    EmptyParams,
     TemplatePreferencesChangeParams,
     TemplatePreferencesScopeSnapshot,
     TemplatePreferencesSnapshot,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/kernelProtocol";
+import { EmptyParams } from "../../../protocol/domain/protocolEntry";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { TemplatePreferencesMirror } from "../../port/TemplatePreferencesMirror";
 

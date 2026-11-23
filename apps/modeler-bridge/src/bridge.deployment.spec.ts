@@ -30,9 +30,8 @@ import { METHODS } from "./protocol/domain/descriptor";
 import type {
     DeploymentSaveParams,
     DeploymentSeedParams,
-    PickerShowParams,
-    StatusBarUpdateParams,
-} from "./protocol/domain/types";
+} from "./protocol/domain/deploymentProtocol";
+import type { PickerShowParams, StatusBarUpdateParams } from "./protocol/domain/kernelProtocol";
 
 /** The `deploymentState/save` that records ledger rows, the last step of an accepted deploy. */
 function isLedgerRowSave(frame: { method?: string; params?: unknown }): boolean {

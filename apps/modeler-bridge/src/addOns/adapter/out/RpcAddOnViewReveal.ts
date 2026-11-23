@@ -1,7 +1,8 @@
 import { AddOnsFeature, AddOnViewRevealPort } from "@miragon/bpmn-modeler-core";
 
+import { AddOnsRevealResult } from "../../../protocol/domain/addOnsProtocol";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { AddOnsRevealResult, EmptyParams } from "../../../protocol/domain/types";
+import { EmptyParams } from "../../../protocol/domain/protocolEntry";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 
 /**

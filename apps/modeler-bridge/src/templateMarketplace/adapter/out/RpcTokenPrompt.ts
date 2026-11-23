@@ -1,7 +1,10 @@
 import { TokenPrompt, TokenPromptPort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { TokenPromptShowParams, TokenPromptShowResult } from "../../../protocol/domain/types";
+import {
+    TokenPromptShowParams,
+    TokenPromptShowResult,
+} from "../../../protocol/domain/templateMarketplaceProtocol";
 
 /** IntelliJ's password dialog always masks, so only the text travels. */
 export class RpcTokenPrompt implements TokenPromptPort {

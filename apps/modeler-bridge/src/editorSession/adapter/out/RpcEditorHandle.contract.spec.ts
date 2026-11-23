@@ -10,7 +10,7 @@ import {
     DocumentWriteResult,
     EditorPostMessageParams,
     SessionMeta,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/editorSessionProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { DocumentMirror } from "../../domain/DocumentMirror";
 import { RpcEditorHandle } from "./RpcEditorHandle";

@@ -43,7 +43,7 @@ import {
     waitForNotice,
     writeAcmeDependency,
 } from "../src/__fixtures__/rulePackageBridge";
-import { PluginApprovalsSnapshot } from "../src/protocol/domain/types";
+import { PluginApprovalsSnapshot } from "../src/protocol/domain/bpmnPluginsProtocol";
 
 const EDITED = "v2, edited after the allow";
 const PNPM_UPDATED = "v2, installed by pnpm";

@@ -36,8 +36,9 @@ import {
     waitForNotice,
 } from "./__fixtures__/rulePackageBridge";
 import { createBridge } from "./composition/bridge";
+import { AddOnsOpenParams } from "./protocol/domain/addOnsProtocol";
+import { PluginApprovalsSnapshot } from "./protocol/domain/bpmnPluginsProtocol";
 import { HOST_SHOW_REPLY_DEADLINE_MS, METHODS } from "./protocol/domain/descriptor";
-import { AddOnsOpenParams, PluginApprovalsSnapshot } from "./protocol/domain/types";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 interface AddOnRow {

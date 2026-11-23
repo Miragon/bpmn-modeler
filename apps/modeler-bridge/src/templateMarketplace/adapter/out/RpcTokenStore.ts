@@ -1,7 +1,7 @@
 import { TokenStorePort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { TokenStoreGetResult } from "../../../protocol/domain/types";
+import { TokenStoreGetResult } from "../../../protocol/domain/templateMarketplaceProtocol";
 
 /**
  * Routes the core's {@link TokenStorePort} to the host's PasswordSafe-backed

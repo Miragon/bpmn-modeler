@@ -8,7 +8,7 @@ import { METHODS } from "../../../protocol/domain/descriptor";
 import {
     MarketplacePromptShowParams,
     MarketplacePromptShowResult,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/templateMarketplaceProtocol";
 
 /** `problemWith` cannot cross the bridge; the core checks the answer and asks again. */
 export class RpcMarketplacePrompt implements MarketplacePromptPort {
