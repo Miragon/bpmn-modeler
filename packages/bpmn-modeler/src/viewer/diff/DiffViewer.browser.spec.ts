@@ -11,8 +11,17 @@ import {
     COLLAPSED_SUBPROCESS_AFTER_XML,
     COLLAPSED_SUBPROCESS_BEFORE_XML,
 } from "./__fixtures__/collapsedSubprocessDiff";
+import {
+    destroyPanes,
+    type ElementRegistryService,
+    getDiService,
+    getServices,
+    openPane,
+    openSelectablePane,
+    type SelectionService,
+} from "./__fixtures__/diffPane";
 import { FAR_FROM_ORIGIN_XML } from "../../__fixtures__/bpmnXml";
-import { mountCanvas, removeMounts, settleObserver } from "../../__fixtures__/surfaceMount";
+import { removeMounts, settleObserver, wait } from "../../__fixtures__/surfaceMount";
 
 /**
  * The diff pane's latch only matters against a real canvas: a `setViewport`
@@ -24,43 +33,36 @@ const SYNC = { x: 5000, y: 3900, width: 640, height: 480 };
 
 const waitForViewportNotification = () => new Promise<void>((resolve) => setTimeout(resolve, 120));
 
-let diff: DiffViewer | undefined;
-let container: HTMLElement | undefined;
-
 afterEach(() => {
-    diff?.destroy();
-    diff = undefined;
-    container = undefined;
+    destroyPanes();
     removeMounts();
 });
 
 describe("DiffViewer initial-viewport latch (real ResizeObserver)", () => {
     it("keeps a setViewport sync across the delayed initial fit", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container);
-        await diff.importXML(FAR_FROM_ORIGIN_XML);
+        const { viewer } = openPane();
+        await viewer.importXML(FAR_FROM_ORIGIN_XML);
 
-        diff.setViewport(SYNC);
+        viewer.setViewport(SYNC);
         await settleObserver();
 
-        const viewport = diff.getViewport();
+        const viewport = viewer.getViewport();
         expect(viewport.x).toBeCloseTo(SYNC.x, 0);
         expect(viewport.y).toBeCloseTo(SYNC.y, 0);
     });
 
     it("applies a sync onto an unsized pane once it is laid out", async () => {
-        container = mountCanvas(0, 0);
-        diff = new DiffViewer(container);
-        await diff.importXML(FAR_FROM_ORIGIN_XML);
+        const { container, viewer } = openPane({}, { width: 0, height: 0 });
+        await viewer.importXML(FAR_FROM_ORIGIN_XML);
 
-        diff.setViewport(SYNC);
+        viewer.setViewport(SYNC);
         await settleObserver();
 
         container.style.width = "800px";
         container.style.height = "600px";
         await settleObserver();
 
-        const viewport = diff.getViewport();
+        const viewport = viewer.getViewport();
         expect(viewport.x).toBeCloseTo(SYNC.x, 0);
         expect(viewport.y).toBeCloseTo(SYNC.y, 0);
     });
@@ -83,37 +85,6 @@ const DRILLDOWN_DIFF: DiffResult = {
     counts: { added: 1, removed: 1, changed: 4, layoutChanged: 0 },
     navigationOrder: NAVIGATION_ORDER,
 };
-
-interface DiagramElement extends PositionedElement {
-    id: string;
-}
-
-interface CanvasService {
-    setRootElement(root: DiagramElement): void;
-    findRoot(element: DiagramElement): DiagramElement | undefined;
-    getRootElement(): DiagramElement;
-    setRootElement(element: DiagramElement): void;
-    scroll(delta: { dx: number; dy: number }): void;
-    viewbox(): { x: number; y: number; width: number; height: number };
-    zoom(scale?: number): number;
-}
-
-interface ElementRegistryService {
-    forEach(callback: (element: DiagramElement) => void): void;
-    get(id: string): DiagramElement;
-    getGraphics(element: DiagramElement | string): SVGElement;
-}
-
-function getServices(viewer: DiffViewer): {
-    canvas: CanvasService;
-    registry: ElementRegistryService;
-} {
-    const modeler = (viewer as unknown as { viewer: { get(name: string): unknown } }).viewer;
-    return {
-        canvas: modeler.get("canvas") as CanvasService,
-        registry: modeler.get("elementRegistry") as ElementRegistryService,
-    };
-}
 
 function expectCenteredOn(
     viewer: DiffViewer,
@@ -155,10 +126,8 @@ function expectNoSelection(viewer: DiffViewer): void {
 
 describe("DiffViewer collapsed-subprocess navigation", () => {
     it("steps through parent, subprocess, nested, connection, and fallback targets", async () => {
-        const beforeContainer = mountCanvas(800, 600);
-        const afterContainer = mountCanvas(800, 600);
-        const before = new DiffViewer(beforeContainer);
-        const after = new DiffViewer(afterContainer);
+        const { viewer: before } = openPane();
+        const { viewer: after } = openPane();
         await Promise.all([
             before.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML),
             after.importXML(COLLAPSED_SUBPROCESS_AFTER_XML),
@@ -227,18 +196,14 @@ describe("DiffViewer collapsed-subprocess navigation", () => {
         }
 
         coordinator.destroy();
-        before.destroy();
-        after.destroy();
     });
 
     it("suppresses programmatic positioning and cancels stale viewport notifications", async () => {
-        const testContainer = mountCanvas(800, 600);
-        const viewer = new DiffViewer(testContainer);
-        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        const { viewer } = await openSelectablePane();
         await settleObserver();
 
         const onViewportChanged = vi.fn();
-        const dispose = viewer.onViewportChanged(onViewportChanged);
+        viewer.onViewportChanged(onViewportChanged);
         const { canvas } = getServices(viewer);
 
         canvas.scroll({ dx: 20, dy: 10 });
@@ -258,35 +223,28 @@ describe("DiffViewer collapsed-subprocess navigation", () => {
         canvas.zoom(canvas.zoom() * 0.9);
         await waitForViewportNotification();
         expect(onViewportChanged).toHaveBeenCalledTimes(2);
-
-        dispose();
-        viewer.destroy();
     });
 });
 
 describe("DiffViewer opening fit", () => {
     it("fits each pane for itself and tells no partner", async () => {
-        const testContainer = mountCanvas(800, 600);
-        const viewer = new DiffViewer(testContainer);
+        const { viewer } = openPane();
         const onViewportChanged = vi.fn();
-        const dispose = viewer.onViewportChanged(onViewportChanged);
+        viewer.onViewportChanged(onViewportChanged);
 
         await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
         await settleObserver();
         await waitForViewportNotification();
 
         expect(onViewportChanged).not.toHaveBeenCalled();
-        dispose();
-        viewer.destroy();
     });
 });
 
 describe("DiffViewer planes", () => {
     async function subprocessPane() {
-        const viewer = new DiffViewer(mountCanvas(800, 600));
-        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        const { viewer, registry } = await openSelectablePane();
         await settleObserver();
-        const { canvas, registry } = getServices(viewer);
+        const { canvas } = getServices(viewer);
         const rootId = () => (canvas.getRootElement() as { id: string }).id;
         const enter = (planeRootId: string) => canvas.setRootElement(registry.get(planeRootId)!);
         return { viewer, rootId, enter };
@@ -301,7 +259,6 @@ describe("DiffViewer planes", () => {
         enter("Process_1");
 
         expect(entered).toEqual(["Main_Subprocess", ""]);
-        viewer.destroy();
     });
 
     it("goes back to the plane it opened on for an empty id, whatever its root is called", async () => {
@@ -311,7 +268,6 @@ describe("DiffViewer planes", () => {
         const found = viewer.showPlane("");
 
         expect([found, rootId()]).toEqual([true, "Process_1"]);
-        viewer.destroy();
     });
 
     it("reports no plane when a diagram is imported again", async () => {
@@ -322,7 +278,6 @@ describe("DiffViewer planes", () => {
         await viewer.importXML(COLLAPSED_SUBPROCESS_AFTER_XML);
 
         expect(entered).toEqual([]);
-        viewer.destroy();
     });
 
     it("fits the plane the user enters, instead of bpmn-js' top-left corner, and tells no partner", async () => {
@@ -343,7 +298,6 @@ describe("DiffViewer planes", () => {
             expect(shape.y, id).toBeLessThanOrEqual(viewport.y + viewport.height);
         }
         expect(onViewportChanged).not.toHaveBeenCalled();
-        viewer.destroy();
     });
 
     it("reports no plane it entered itself, stepping or showing the whole diagram", async () => {
@@ -356,7 +310,6 @@ describe("DiffViewer planes", () => {
         viewer.showPlane("Main_Subprocess");
 
         expect(entered).toEqual([]);
-        viewer.destroy();
     });
 
     it("enters the plane its partner entered, and says when its version has none", async () => {
@@ -368,262 +321,40 @@ describe("DiffViewer planes", () => {
 
         expect([found, entered]).toEqual([true, "Main_Subprocess_plane"]);
         expect([missing, rootId()]).toEqual([false, "Main_Subprocess_plane"]);
-        viewer.destroy();
     });
 });
 
 describe("DiffViewer fitDiagram", () => {
     it("goes back to the opening fit without a selection, and tells no partner", async () => {
-        const testContainer = mountCanvas(800, 600);
-        const viewer = new DiffViewer(testContainer);
-        await viewer.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
+        const { container, viewer } = await openSelectablePane();
         await settleObserver();
         const opening = viewer.getViewport();
         const onViewportChanged = vi.fn();
-        const dispose = viewer.onViewportChanged(onViewportChanged);
+        viewer.onViewportChanged(onViewportChanged);
 
         viewer.focusElement("Nested_Task");
         viewer.fitDiagram();
         await waitForViewportNotification();
 
         expect(viewer.getViewport()).toEqual(opening);
-        expect(testContainer.querySelectorAll(".diff-selected")).toHaveLength(0);
+        expect(container.querySelectorAll(".diff-selected")).toHaveLength(0);
         expect(onViewportChanged).not.toHaveBeenCalled();
-        dispose();
-        viewer.destroy();
     });
 });
-
-interface SelectionService {
-    select(elements: DiagramElement | DiagramElement[] | null): void;
-    get(): DiagramElement[];
-}
-
-function getDiService<T>(viewer: DiffViewer, name: string): T {
-    return (viewer as unknown as { viewer: { get(name: string): T } }).viewer.get(name);
-}
 
 describe("DiffViewer additional modules", () => {
     it("registers no context pad without them, so embedders keep a readonly pane", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container);
-        await diff.importXML(FAR_FROM_ORIGIN_XML);
+        const { viewer } = openPane();
+        await viewer.importXML(FAR_FROM_ORIGIN_XML);
 
-        expect(() => getDiService(diff!, "contextPad")).toThrow();
+        expect(() => getDiService(viewer, "contextPad")).toThrow();
     });
 
     it("registers the modules it is given", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container, { additionalModules: [ContextPadModule] });
-        await diff.importXML(FAR_FROM_ORIGIN_XML);
+        const { viewer } = openPane({ additionalModules: [ContextPadModule] });
+        await viewer.importXML(FAR_FROM_ORIGIN_XML);
 
-        expect(getDiService(diff, "contextPad")).toBeDefined();
-    });
-});
-
-async function openSelectablePane(): Promise<{
-    viewer: DiffViewer;
-    selection: SelectionService;
-    registry: ElementRegistryService;
-}> {
-    container = mountCanvas(800, 600);
-    diff = new DiffViewer(container);
-    await diff.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
-    return {
-        viewer: diff,
-        selection: getDiService<SelectionService>(diff, "selection"),
-        registry: getServices(diff).registry,
-    };
-}
-
-const selectedIds = (selection: SelectionService) => selection.get().map((element) => element.id);
-
-describe("DiffViewer selection", () => {
-    it("reports the element the user selects", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        selection.select(registry.get("Top_Task"));
-
-        expect(onSelectedElementChanged.mock.calls).toEqual([["Top_Task"]]);
-    });
-
-    it("reports a selected label as the element it labels", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        const { canvas } = getServices(viewer);
-        canvas.setRootElement(canvas.findRoot(registry.get("Inner_Flow"))!);
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        selection.select(registry.get("Inner_Flow_label"));
-
-        expect(onSelectedElementChanged.mock.calls).toEqual([["Inner_Flow"]]);
-    });
-
-    it("reports an empty and a multiple selection as no element", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        selection.select([registry.get("Top_Task"), registry.get("Main_Subprocess")]);
-        selection.select(null);
-
-        expect(onSelectedElementChanged.mock.calls).toEqual([[undefined], [undefined]]);
-    });
-
-    it("reports no selection the pane drops by entering a plane itself", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        selection.select(registry.get("Top_Task"));
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        viewer.showPlane("Main_Subprocess");
-
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("reports no empty selection while a diagram is imported", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        selection.select(registry.get("Top_Task"));
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        await viewer.importXML(COLLAPSED_SUBPROCESS_AFTER_XML);
-
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("reports no empty selection while the first diagram is imported", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container);
-        const onSelectedElementChanged = vi.fn();
-        diff.onSelectedElementChanged(onSelectedElementChanged);
-
-        await diff.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
-
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("stops reporting once unsubscribed", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        const dispose = viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        dispose();
-        selection.select(registry.get("Top_Task"));
-
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("mirrors the partner's element without reporting it back", async () => {
-        const { viewer, selection } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        expect(viewer.mirrorSelection("Top_Task")).toBe(true);
-
-        expect(selectedIds(selection)).toEqual(["Top_Task"]);
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it.each([
-        ["the element", "Top_Task", "Top_Task"],
-        ["its label", "Inner_Flow_label", "Inner_Flow"],
-    ])(
-        "leaves %s selected already as it is, so diagram-js rebuilds no context pad",
-        async (_case, selectedId, elementId) => {
-            const { viewer, selection, registry } = await openSelectablePane();
-            const { canvas } = getServices(viewer);
-            canvas.setRootElement(canvas.findRoot(registry.get(selectedId))!);
-            selection.select(registry.get(selectedId));
-            const selectionChanged = vi.fn();
-            getDiService<{ on(event: string, listener: () => void): void }>(viewer, "eventBus").on(
-                "selection.changed",
-                selectionChanged,
-            );
-
-            expect(viewer.mirrorSelection(elementId)).toBe(true);
-
-            expect(selectedIds(selection)).toEqual([selectedId]);
-            expect(selectionChanged).not.toHaveBeenCalled();
-        },
-    );
-
-    it("selects an element on the sub-process plane its focus entered, without reporting it", async () => {
-        const { viewer, selection } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        expect(viewer.focusElement("Inner_Task")).toBe(true);
-        expect(viewer.mirrorSelection("Inner_Task")).toBe(true);
-
-        expect(selectedIds(selection)).toEqual(["Inner_Task"]);
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it.each([
-        ["the partner selected nothing", undefined, true],
-        ["the partner's element is not in this version", "After_Only_Inner", false],
-        ["the partner's element is on a plane this pane does not show", "Inner_Task", false],
-    ])(
-        "clears its selection without reporting it when %s",
-        async (_case, partnerElementId, mirrored) => {
-            const { viewer, selection, registry } = await openSelectablePane();
-            selection.select(registry.get("Top_Task"));
-            const onSelectedElementChanged = vi.fn();
-            viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-            expect(viewer.mirrorSelection(partnerElementId)).toBe(mirrored);
-
-            expect(selectedIds(selection)).toEqual([]);
-            expect(onSelectedElementChanged).not.toHaveBeenCalled();
-        },
-    );
-});
-
-describe("DiffViewer step selection", () => {
-    it("selects the element a step lands on without reporting it", async () => {
-        const { viewer, selection } = await openSelectablePane();
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        expect(viewer.selectStep("Top_Task", { keepInView: true })).toBe(true);
-
-        expect(selectedIds(selection)).toEqual(["Top_Task"]);
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("selects the element on the sub-process plane the step's focus entered", async () => {
-        const { viewer, selection } = await openSelectablePane();
-
-        viewer.focusElement("Inner_Task");
-
-        expect(viewer.selectStep("Inner_Task", { keepInView: false })).toBe(true);
-        expect(selectedIds(selection)).toEqual(["Inner_Task"]);
-    });
-
-    it("drops the selection without reporting it for a step it does not draw", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
-        selection.select(registry.get("Top_Task"));
-        const onSelectedElementChanged = vi.fn();
-        viewer.onSelectedElementChanged(onSelectedElementChanged);
-
-        expect(viewer.selectStep(undefined, { keepInView: false })).toBe(true);
-
-        expect(selectedIds(selection)).toEqual([]);
-        expect(onSelectedElementChanged).not.toHaveBeenCalled();
-    });
-
-    it("opens the context pad on the element a step lands on", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container, { additionalModules: [ContextPadModule] });
-        await diff.importXML(COLLAPSED_SUBPROCESS_BEFORE_XML);
-        const contextPad = getDiService<{ isOpen(target?: unknown): boolean }>(diff, "contextPad");
-
-        diff.selectStep("Top_Task", { keepInView: true });
-
-        expect(contextPad.isOpen(getServices(diff).registry.get("Top_Task"))).toBe(true);
+        expect(getDiService(viewer, "contextPad")).toBeDefined();
     });
 });
 
@@ -641,14 +372,14 @@ describe("DiffViewer resize", () => {
     }
 
     it("centres the element the user selected when the shrink cuts it off, and tells the partner", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         showTopTaskLow(viewer, registry);
         selection.select(registry.get("Top_Task"));
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -659,7 +390,7 @@ describe("DiffViewer resize", () => {
     });
 
     it("leaves the viewport alone when the user panned away from the selection before the shrink", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         showTopTaskLow(viewer, registry);
         selection.select(registry.get("Top_Task"));
@@ -668,7 +399,7 @@ describe("DiffViewer resize", () => {
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -678,7 +409,7 @@ describe("DiffViewer resize", () => {
     });
 
     it("leaves the viewport alone when the selection stays fully visible after the shrink", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         viewer.setViewport({ x: -250, y: 100, width: 800, height: 600 });
         selection.select(registry.get("Top_Task"));
@@ -686,7 +417,7 @@ describe("DiffViewer resize", () => {
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "400px";
+        container.style.height = "400px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -696,15 +427,15 @@ describe("DiffViewer resize", () => {
     });
 
     it("centres a selection that a grow brought into view when the next shrink cuts it off", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         // Top_Task's lower edge (y 200) lies below this viewbox (y -420..180).
         viewer.setViewport({ x: -250, y: -420, width: 800, height: 600 });
         selection.select(registry.get("Top_Task"));
-        container!.style.height = "700px";
+        container.style.height = "700px";
         await settleObserver();
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
 
         const centre = centreOf(registry.get("Top_Task") as PositionedElement)!;
@@ -713,22 +444,22 @@ describe("DiffViewer resize", () => {
     });
 
     it("keeps the user's place when the pane is hidden and shown again", async () => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         showTopTaskLow(viewer, registry);
         selection.select(registry.get("Top_Task"));
         const before = viewer.getViewport();
 
-        container!.style.cssText = "position:absolute;width:0;height:0";
+        container.style.cssText = "position:absolute;width:0;height:0";
         await settleObserver();
-        container!.style.cssText = "position:absolute;width:800px;height:600px";
+        container.style.cssText = "position:absolute;width:800px;height:600px";
         await settleObserver();
 
         expect(viewer.getViewport()).toEqual(before);
     });
 
     it("leaves an element mirrored from the partner where it is when the pane shrinks, and tells no partner", async () => {
-        const { viewer, registry } = await openSelectablePane();
+        const { container, viewer, registry } = await openSelectablePane();
         await settleObserver();
         showTopTaskLow(viewer, registry);
         viewer.mirrorSelection("Top_Task");
@@ -736,7 +467,27 @@ describe("DiffViewer resize", () => {
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
+        await settleObserver();
+        await waitForViewportNotification();
+
+        expect(viewer.getViewport().x).toBeCloseTo(before.x, 0);
+        expect(viewer.getViewport().y).toBeCloseTo(before.y, 0);
+        expect(onViewportChanged).not.toHaveBeenCalled();
+    });
+
+    it("leaves an element mirrored a while ago where it is when the pane shrinks, and tells no partner", async () => {
+        const { container, viewer, registry } = await openSelectablePane();
+        await settleObserver();
+        showTopTaskLow(viewer, registry);
+        viewer.mirrorSelection("Top_Task");
+        // Past diagram-js's 300 ms debounce, after which its own KeepSelectionVisible would scroll.
+        await wait(350);
+        const before = viewer.getViewport();
+        const onViewportChanged = vi.fn();
+        viewer.onViewportChanged(onViewportChanged);
+
+        container.style.height = "200px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -746,10 +497,10 @@ describe("DiffViewer resize", () => {
     });
 
     it("applies the partner's viewport after shrinking without centring or reporting it", async () => {
-        const { viewer } = await openSelectablePane();
+        const { container, viewer } = await openSelectablePane();
         await settleObserver();
         viewer.mirrorSelection("Top_Task");
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
@@ -764,14 +515,14 @@ describe("DiffViewer resize", () => {
     });
 
     it("centres the element a step kept in view when the shrink cuts it off, and tells the partner", async () => {
-        const { viewer, registry } = await openSelectablePane();
+        const { container, viewer, registry } = await openSelectablePane();
         await settleObserver();
         viewer.focusElement("Top_Task");
         viewer.selectStep("Top_Task", { keepInView: true });
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -797,7 +548,7 @@ describe("DiffViewer resize", () => {
             (_viewer, selection, registry) => selection.select(registry.get("Top_Task")),
         ],
     ])("leaves a stepped element %s where it is when the pane shrinks", async (_case, before) => {
-        const { viewer, selection, registry } = await openSelectablePane();
+        const { container, viewer, selection, registry } = await openSelectablePane();
         await settleObserver();
         viewer.focusElement("Top_Task");
         before(viewer, selection, registry);
@@ -806,7 +557,7 @@ describe("DiffViewer resize", () => {
         const onViewportChanged = vi.fn();
         viewer.onViewportChanged(onViewportChanged);
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
         await waitForViewportNotification();
 
@@ -816,13 +567,13 @@ describe("DiffViewer resize", () => {
     });
 
     it("keeps an element in view that a step selects after the partner's selection mirrored it", async () => {
-        const { viewer, registry } = await openSelectablePane();
+        const { container, viewer, registry } = await openSelectablePane();
         await settleObserver();
         viewer.focusElement("Top_Task");
         viewer.mirrorSelection("Top_Task");
         viewer.selectStep("Top_Task", { keepInView: true });
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
 
         const centre = centreOf(registry.get("Top_Task") as PositionedElement)!;
@@ -830,11 +581,11 @@ describe("DiffViewer resize", () => {
     });
 
     it("leaves the viewport alone on a resize without a selection", async () => {
-        const { viewer } = await openSelectablePane();
+        const { container, viewer } = await openSelectablePane();
         await settleObserver();
         const before = viewer.getViewport();
 
-        container!.style.height = "200px";
+        container.style.height = "200px";
         await settleObserver();
 
         expect(viewer.getViewport().x).toBeCloseTo(before.x, 0);
@@ -844,13 +595,13 @@ describe("DiffViewer resize", () => {
 
 describe("DiffViewer destroy", () => {
     it("throws NoModelerError from accessors after destroy and is idempotent", async () => {
-        container = mountCanvas(800, 600);
-        diff = new DiffViewer(container);
-        await diff.importXML(FAR_FROM_ORIGIN_XML);
+        const { viewer } = openPane();
+        await viewer.importXML(FAR_FROM_ORIGIN_XML);
 
-        diff.destroy();
+        viewer.destroy();
 
-        expect(() => diff!.getViewport()).toThrow(NoModelerError);
-        expect(() => diff!.destroy()).not.toThrow();
+        expect(() => viewer.getViewport()).toThrow(NoModelerError);
+        expect(() => viewer.mirrorSelection("Top_Task")).toThrow(NoModelerError);
+        expect(() => viewer.destroy()).not.toThrow();
     });
 });

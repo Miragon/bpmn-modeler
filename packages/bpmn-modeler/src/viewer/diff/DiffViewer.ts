@@ -16,7 +16,6 @@ import {
     MIN_CANVAS_SIZE_PX,
     MutableDisposable,
     NoModelerError,
-    subscribe,
     Viewport,
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
@@ -24,8 +23,9 @@ import {
 import { centreOf, type PositionedElement, viewboxCentredOn } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
-import { bpmnElementIdOf, singleSelectedElementId, type BpmnDiagramElement } from "./diffSelection";
-import { armKeepSelectionVisible, UserChangeGuard } from "./selectionPolicy";
+import { DiffPaneSelection } from "./DiffPaneSelection";
+import { bpmnElementIdOf, type BpmnDiagramElement } from "./diffSelection";
+import { UserChangeGuard } from "./selectionPolicy";
 
 /**
  * How a pane names the plane it opened on, so a process on one side and a
@@ -45,12 +45,6 @@ export interface DiffViewerOptions {
     additionalModules?: unknown[];
 }
 
-/**
- * Replaces diagram-js's KeepSelectionVisible: its scroll on resize would post a
- * viewport that competes with the partner pane's.
- */
-const NO_KEEP_SELECTION_VISIBLE_MODULE = { keepSelectionVisible: ["value", {}] };
-
 const DIFF_CLASSES: readonly string[] = [...Object.values(DIFF_MARKERS), DIFF_SELECTED_MARKER];
 
 /**
@@ -64,6 +58,8 @@ export class DiffViewer {
     private viewer: NavigatedViewer | undefined;
 
     private readonly changes = new UserChangeGuard();
+
+    private paneSelection: DiffPaneSelection | undefined;
 
     /**
      * Id of the element highlighted as the stepper's focus, or `undefined`.
@@ -97,7 +93,7 @@ export class DiffViewer {
             this.viewer = new NavigatedViewer({
                 container,
                 additionalModules: [
-                    NO_KEEP_SELECTION_VISIBLE_MODULE,
+                    DiffPaneSelection.viewerModule,
                     ...(options.additionalModules ?? []),
                 ] as ModuleDeclaration[],
             });
@@ -113,16 +109,21 @@ export class DiffViewer {
         });
         this.store.add(() => this.sizeObserver.dispose());
         this.store.add(this.onPlaneChanged(() => this.fitEnteredPlane()));
-        this.store.add(
-            ...armKeepSelectionVisible(
-                {
-                    eventBus: this.getViewer().get<EventBus>("eventBus"),
-                    canvas: this.getCanvas(),
-                    selection: this.getViewer().get<Selection>("selection"),
-                },
-                { changes: this.changes, isPaneSized: () => this.isPaneSized() },
-            ),
+        const viewer = this.getViewer();
+        const paneSelection = new DiffPaneSelection(
+            {
+                eventBus: viewer.get<EventBus>("eventBus"),
+                canvas: this.getCanvas(),
+                selection: viewer.get<Selection>("selection"),
+                elementRegistry: viewer.get<ElementRegistry>("elementRegistry"),
+            },
+            { changes: this.changes, isPaneSized: () => this.isPaneSized() },
         );
+        this.paneSelection = paneSelection;
+        this.store.add(() => {
+            paneSelection.dispose();
+            this.paneSelection = undefined;
+        });
     }
 
     /**
@@ -373,13 +374,7 @@ export class DiffViewer {
      * is, since selecting it again would rebuild its context pad.
      */
     mirrorSelection(elementId: string | undefined): boolean {
-        const selection = this.getViewer().get<Selection>("selection");
-        if (elementId !== undefined && singleSelectedElementId(selection.get()) === elementId) {
-            return true;
-        }
-        return this.selectOnShownPlane(elementId, (select) =>
-            this.changes.selectProgrammatically(select),
-        );
+        return this.getPaneSelection().mirrorSelection(elementId);
     }
 
     /**
@@ -392,26 +387,7 @@ export class DiffViewer {
      * Returns `false`, clearing the selection, as {@link mirrorSelection} does.
      */
     selectStep(elementId: string | undefined, { keepInView }: { keepInView: boolean }): boolean {
-        return this.selectOnShownPlane(elementId, (select) =>
-            keepInView
-                ? this.changes.selectForUser(select)
-                : this.changes.selectProgrammatically(select),
-        );
-    }
-
-    private selectOnShownPlane(
-        elementId: string | undefined,
-        runSelection: (select: () => void) => void,
-    ): boolean {
-        const selection = this.getViewer().get<Selection>("selection");
-        const element =
-            elementId === undefined
-                ? undefined
-                : this.getViewer().get<ElementRegistry>("elementRegistry").get(elementId);
-        const canvas = this.getCanvas();
-        const shown = !!element && canvas.findRoot(element) === canvas.getRootElement();
-        runSelection(() => selection.select(shown ? element : null));
-        return shown || elementId === undefined;
+        return this.getPaneSelection().selectStep(elementId, { keepInView });
     }
 
     /**
@@ -425,16 +401,7 @@ export class DiffViewer {
      * versions of a diagram can share it. Returns a disposer that unsubscribes.
      */
     onSelectedElementChanged(listener: (elementId: string | undefined) => void): () => void {
-        const eventBus = this.getViewer().get<EventBus>("eventBus");
-        return subscribe(
-            eventBus,
-            "selection.changed",
-            (event: { newSelection: BpmnDiagramElement[] }) => {
-                if (this.changes.isUserSelectionChange()) {
-                    listener(singleSelectedElementId(event.newSelection));
-                }
-            },
-        );
+        return this.getPaneSelection().onSelectedElementChanged(listener);
     }
 
     /**
@@ -489,6 +456,13 @@ export class DiffViewer {
             throw new NoModelerError();
         }
         return this.viewer;
+    }
+
+    private getPaneSelection(): DiffPaneSelection {
+        if (!this.paneSelection) {
+            throw new NoModelerError();
+        }
+        return this.paneSelection;
     }
 
     // A subprocess's plane root is `<id>_plane`; bpmnElementIdOf names the subprocess.
