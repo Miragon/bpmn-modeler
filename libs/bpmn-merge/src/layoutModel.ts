@@ -6,6 +6,7 @@ import {
     overlapsBeyondTolerance,
     translated,
 } from "./layoutGeometry";
+import { sameLanes } from "./mergeResult";
 import type { PlaneSlot } from "./planeSlots";
 
 interface DrawnShape {
@@ -107,6 +108,37 @@ export interface LayoutModel {
 export function nodeShapeIn(layout: LayoutModel, id: string): NodeShape | undefined {
     const shape = layout.shapes.get(id);
     return shape?.kind === "node" ? shape : undefined;
+}
+
+/** The node whose flows the node's count as: the host of a boundary event, else the node itself. */
+export function flowOwnerOf(layout: LayoutModel, id: string): string {
+    return nodeShapeIn(layout, id)?.host ?? id;
+}
+
+/**
+ * The two shapes the edge joins as neighbours, a boundary event's host for
+ * the event. None for a message flow, which joins two pools placed by rules
+ * of their own, for an edge with an open end, and for a boundary event's
+ * flow back into its own host.
+ */
+export function neighboursJoinedBy(
+    layout: LayoutModel,
+    edge: LayoutEdge,
+): { readonly source: string; readonly target: string } | undefined {
+    if (edge.kind === "messageFlow" || edge.source === undefined || edge.target === undefined) {
+        return undefined;
+    }
+    const [source, target] = [flowOwnerOf(layout, edge.source), flowOwnerOf(layout, edge.target)];
+    return source === target ? undefined : { source, target };
+}
+
+/** Whether the nodes lie in one place to draw in: the same plane slot, sub-process and lanes. */
+export function inSameContainer(first: NodeShape, second: NodeShape): boolean {
+    return (
+        first.slot.equals(second.slot) &&
+        first.subProcesses[0] === second.subProcesses[0] &&
+        sameLanes(first.lanes, second.lanes)
+    );
 }
 
 /** The node's shape and, when drawn apart from it, its label. */

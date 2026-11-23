@@ -134,24 +134,55 @@ which lanes it stacks, which flows it re-routes and what it tells the reviewer (
 - *A shape only one side draws keeps its place beside its flow neighbour, not its coordinates*
   (#2738). Before the spots are found, each shape one side draws and the other does not, still
   where that side drew it, moves with its boundary events and contents by as far as the result
-  moved its neighbour: the first one that side joined it to (so a flow the result dropped still
-  counts) that both sides draw in the shape's plane slot, sub-process and lanes, sequence flows
-  before associations, predecessors first. The shape keeps its gap to the border of the
-  neighbour it faces, on the side it lies on, and its offset from the neighbour's middle across
-  the flow; it lies along the flow from a neighbour it overlaps across, else along the axis
-  their middles lie farther apart on. A shape without such a neighbour follows an added
-  neighbour placed so in its container; message flows do not count, as they join pools. Where
-  the neighbour lies as the side drew it, nothing moves. Rejected: the side's coordinates, which
-  left a task one side added far from its neighbours or on another shape once the other side
-  moved or re-laid out the flow, and the overlap repair then moved it further; following a
-  neighbour the result draws in another sub-process or lane, which pulled the shape onto that
-  sub-process's border (harvest seed 74) or out of its lane, a spot only the build made. Cost:
-  the shape lies where neither side drew it and no note names the move, as it lies where its
-  side drew it among its neighbours, though the flows it breaks are re-routed and noted; a
-  neighbour moved into another sub-process or lane is not followed, nor one a flow across lanes
-  joins; a neighbour a later repair moves back, off another shape, leaves the added shape where
-  the neighbour lay; a task one side added inside a sub-process the other side dragged follows
-  its predecessor, and the sub-process's contents stay torn as before.
+  moved its neighbour. Its neighbours are those that side joined it to (so a flow the result
+  dropped still counts, a boundary event's as its host's) in the shape's plane slot,
+  sub-process and lanes, sequence flows before associations, predecessors first, and the first
+  of them places it: one both sides draw, or one the side added with it, which it then follows
+  (#2775). So a chain of added shapes stays as its side drew it behind its first shape, and a
+  flow between shapes that move alike moves with them. Added shapes that lead only to each
+  other follow the first neighbour both sides draw. The shape keeps its gap to the border of the neighbour it faces, on the side it lies
+  on, and its offset from the neighbour's middle across the flow; it lies along the flow from a
+  neighbour it overlaps across, else along the axis their middles lie farther apart on. Message
+  flows do not count, as they join pools. Where the neighbour lies as the side drew it, nothing
+  moves. Rejected: the side's coordinates, which left a task one side added far from its
+  neighbours or on another shape once the other side moved or re-laid out the flow, and the
+  overlap repair then moved it further; following a neighbour the result draws in another
+  sub-process or lane, which pulled the shape onto that sub-process's border (harvest seed 74)
+  or out of its lane, a spot only the build made; the first neighbour both sides draw before
+  an added predecessor, which pulled the last shape of a chain to a successor the other side
+  had left close by, onto or before the chain's first shapes. Cost: the shape lies where
+  neither side drew it and no note names the move, as it lies where its side drew it among its
+  neighbours, though the flows it breaks are re-routed and noted; a neighbour moved into
+  another sub-process or lane is not followed, nor one a flow across lanes joins; the last
+  shape of a chain does not follow a successor the other side moved; a neighbour a later repair
+  moves back, off another shape, leaves the added shape where the neighbour lay; a task one
+  side added inside a sub-process the other side dragged follows its predecessor, and the
+  sub-process's contents stay torn as before.
+- *A chain of shapes one side added gets room as one piece, in line* (#2775). The shapes one
+  side added that its sequence flows and associations join in one sub-process and lanes,
+  without passing a shape both sides draw, are a chain, a boundary event with its host. Before
+  any overlap is repaired shape by shape, two chains that lie on each other, one from each
+  side, as when both sides inserted steps after the same task, go one after the other: first
+  the one a flow of the result leads from into the other, else the one a flow enters from
+  outside both, where it lies; the other 50 px behind its far side, in its rows. A chain of
+  several steps on a shape both sides draw that it leads into stays, and the shape gives way.
+  Either way everything at or past the leading shape of the first chain in its container
+  shifts by one amount that clears the chains, as the modeler's space tool opens a band, and
+  the frames grow as for any room; a flow the band stretches through a chain is re-routed.
+  Every pair of chains is settled before a chain makes the shape it leads into give way, as
+  that band would take the other chain along, and the band shifts far enough that nothing it
+  shifts lies on a chain. Left to the shape repair below: two single steps, which it stacks as
+  branches; chains a flow enters each, or none; a chain on a shape it does not lead into; a
+  shape no sequence flow joins; chains whose flows do not run right. Rejected: repairing a
+  chain shape by shape, which put the shapes of two chains between each other and pushed a
+  gateway behind the chain past its own branch targets, as a room moves only what is in the
+  way; stacking the chain no flow enters below the other, which needs room downward for
+  several rows and leaves the join behind both; no band, as for single shapes below, where it
+  moved bystanders for one shape: a chain is several steps wide, and its side opened that band
+  with the space tool itself. Cost: the band shifts every shape past its line in the
+  container, bystanders in other lanes included, and grows the frames by the full shift; in a
+  result that keeps one side's flow, the other side's chain lies in line though no flow enters
+  it, and the flow past it takes a detour; the note names one shape of the chain as moved.
 - *The build moves the shape it placed off a shape from the other side, stacks a parallel
   branch, and makes room only as a last resort.* For each overlap the detector names as
   introduced, it moves a shape that not both sides draw where the result does (one side moved

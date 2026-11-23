@@ -93,7 +93,7 @@ export class RoomPush {
         return units.filter(({ id }) => this.trial.node(id)?.lanes.includes(frame.lane.id));
     }
 
-    /** Shifts what gives way to the request; how far it and the box reach, or undefined when something before the line is in the way. */
+    /** Shifts what gives way to the request; how far it and the box reach, for a band the column too, or undefined when something before the line is in the way. */
     private shiftWhatGivesWay(
         units: readonly SpaceUnit[],
         request: FrameRequest,
@@ -102,9 +102,14 @@ export class RoomPush {
         if (pushed === undefined) return undefined;
         for (const unit of pushed.units) this.space.shiftUnit(unit, pushed.by);
         return Math.max(
-            this.far(request.box),
+            request.band === true ? this.reachOf(request) : this.far(request.box),
             ...pushed.units.map((unit) => this.far(unit.bounds) + pushed.by),
         );
+    }
+
+    /** How far the box and the column reach along the axis. */
+    private reachOf({ box, column = [] }: RoomRequest): number {
+        return Math.max(this.far(box), ...column.map((part) => this.far(part)));
     }
 
     /**
@@ -112,34 +117,26 @@ export class RoomPush {
      * or that overlaps the column, past the far side of what it met, then
      * each it lands on in turn and each in line after it that its flows
      * lead to and that would come nearer than the room gap, all by one shift.
-     * Undefined when a unit before the line lies where the box goes, or where
-     * a unit that gives way goes.
+     * Undefined when a unit before the line lies where the box goes, or
+     * where a unit that gives way goes. A band shifts as `bandOf` says.
      */
     private pushedBy(
         units: readonly SpaceUnit[],
         request: FrameRequest,
     ): { readonly units: SpaceUnit[]; readonly by: number } | undefined {
-        const { box, floor, frameGrowth, column = [] } = request;
+        const line = this.lineBeforeWhatBlocks(units, request);
+        if (line === undefined) return undefined;
+        const past = units.filter((unit) => unit.lead >= line);
+        if (request.band === true) return this.bandOf(past, request);
+        const { box, frameGrowth, column = [] } = request;
         const lands = (on: DiagramBounds, unit: SpaceUnit) =>
             !keepsClearOf(on, unit.bounds, SHAPE_CLEARANCE);
-        const reachesBox = (unit: SpaceUnit) =>
-            frameGrowth === undefined
-                ? lands(box, unit)
-                : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
         const columnUnder = (unit: SpaceUnit) =>
             column.filter((part) => !keepsClearOf(part, unit.bounds, 0));
         const partsLandedOn = (unit: SpaceUnit) => [
-            ...(reachesBox(unit) ? [box] : []),
+            ...(this.reachesBox(request, unit) ? [box] : []),
             ...columnUnder(unit),
         ];
-        let line = request.line;
-        let blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
-        while (blocking.length > 0) {
-            line = Math.min(...blocking.map(({ lead }) => lead));
-            if (floor === undefined || line <= floor) return undefined;
-            blocking = units.filter((unit) => unit.lead < line && reachesBox(unit));
-        }
-        const past = units.filter((unit) => unit.lead >= line);
         const hit = past.filter((unit) => partsLandedOn(unit).length > 0);
         const by =
             frameGrowth ??
@@ -171,6 +168,60 @@ export class RoomPush {
             staying.some((other) => lands(boundsShifted(this.axis, unit.bounds, by), other)),
         );
         return landsOnStaying ? undefined : { units: [...pushed], by };
+    }
+
+    /** Whether the unit lies where the box goes; for the strip a frame gained, whether it lies across from it. */
+    private reachesBox({ box, frameGrowth }: RoomRequest, unit: SpaceUnit): boolean {
+        return frameGrowth === undefined
+            ? !keepsClearOf(box, unit.bounds, SHAPE_CLEARANCE)
+            : liesAheadWithin(this.axis, box, unit.bounds, SHAPE_CLEARANCE);
+    }
+
+    /**
+     * The request's line, moved back before each unit that lies before it
+     * where the box goes, so that the unit gives way too; undefined when the
+     * request's floor does not let the line move that far back.
+     */
+    private lineBeforeWhatBlocks(
+        units: readonly SpaceUnit[],
+        request: RoomRequest,
+    ): number | undefined {
+        const { floor } = request;
+        for (let line = request.line; ;) {
+            const blocking = units.filter(
+                (unit) => unit.lead < line && this.reachesBox(request, unit),
+            );
+            if (blocking.length === 0) return line;
+            line = Math.min(...blocking.map(({ lead }) => lead));
+            if (floor === undefined || line <= floor) return undefined;
+        }
+    }
+
+    /**
+     * What a band shifts: every unit at or past the line, once one of them
+     * lies where the box goes or on the column, by the one shift after
+     * which none of them does: the room gap past all the box and the column
+     * reach for the nearest of those in the way.
+     */
+    private bandOf(
+        past: SpaceUnit[],
+        request: RoomRequest,
+    ): { readonly units: SpaceUnit[]; readonly by: number } {
+        const { box, column = [] } = request;
+        const inTheWay = (bounds: DiagramBounds) =>
+            !keepsClearOf(box, bounds, SHAPE_CLEARANCE) ||
+            column.some((part) => !keepsClearOf(part, bounds, 0));
+        const reach = this.reachOf(request);
+        for (let by = 0; ;) {
+            const further = Math.max(
+                by,
+                ...past
+                    .filter((unit) => inTheWay(boundsShifted(this.axis, unit.bounds, by)))
+                    .map((unit) => reach + this.gap - this.near(unit.bounds)),
+            );
+            if (further === by) return { units: by === 0 ? [] : past, by };
+            by = further;
+        }
     }
 
     /** Whether `next` is a shape `unit` flows into, in line after it, that the shift would bring nearer than the room gap. */
