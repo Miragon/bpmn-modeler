@@ -83,21 +83,28 @@ export function kotlinLoggers({
     return new Set(loggers);
 }
 
-function unreadArgumentRule(source: MessageSource): (site: CallSite) => boolean {
-    if (!source.kotlin) {
-        return (site) => isErrorConstruction(site) || isTypeScriptLogCall(site);
-    }
-    const loggers = kotlinLoggers(source);
-    return (site) => site.thrown === true || loggers.has(site.receiver ?? "");
+function isTypeScriptDeveloperCall(site: CallSite): boolean {
+    return isErrorConstruction(site) || isTypeScriptLogCall(site);
 }
 
 function isPreconditionMessage(lambdaOf: CallSite | undefined): boolean {
     return lambdaOf?.receiver === undefined && KOTLIN_PRECONDITIONS.has(lambdaOf?.callee ?? "");
 }
 
-// A log line and an error's message are read by developers; the core does not word them.
-export function developerMessageRule(source: MessageSource): (calls: EnclosingCalls) => boolean {
-    const isUnreadArgument = unreadArgumentRule(source);
+function kotlinDeveloperMessageRule(
+    declarations: LoggerDeclarations,
+): (calls: EnclosingCalls) => boolean {
+    const loggers = kotlinLoggers(declarations);
+    const isUnreadArgument = (site: CallSite): boolean =>
+        site.thrown === true || loggers.has(site.receiver ?? "");
     return ({ argumentOf, trailingLambdaOf }) =>
         argumentOf.some(isUnreadArgument) || isPreconditionMessage(trailingLambdaOf);
+}
+
+// A log line and an error's message are read by developers; the core does not word them.
+export function developerMessageRule(source: MessageSource): (calls: EnclosingCalls) => boolean {
+    if (!source.kotlin) {
+        return ({ argumentOf }) => argumentOf.some(isTypeScriptDeveloperCall);
+    }
+    return kotlinDeveloperMessageRule(source);
 }

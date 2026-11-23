@@ -88,13 +88,13 @@ describe("developerMessageRule", () => {
             expect(isTypeScriptDeveloperMessage(inCalls())).toBe(false);
         });
 
-        it("takes a developer message in a precondition's lambda, as in Kotlin", () => {
+        it("does not read a precondition's lambda, which only Kotlin has", () => {
             expect(
                 isTypeScriptDeveloperMessage({
                     argumentOf: [],
                     trailingLambdaOf: { construct: false, callee: "require" },
                 }),
-            ).toBe(true);
+            ).toBe(false);
         });
     });
 
