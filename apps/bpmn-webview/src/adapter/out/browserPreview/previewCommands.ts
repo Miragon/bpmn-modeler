@@ -1,4 +1,15 @@
-import type { PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
+import {
+    logPreviewDebug,
+    logPreviewError,
+    logPreviewInfo,
+    logPreviewWarning,
+    PREVIEW_NO_FILE_TO_SAVE,
+    PREVIEW_NO_FILE_TO_WRITE_EDIT_TO,
+    PREVIEW_NO_PARTNER_PANE,
+    PREVIEW_OPENS_PANEL_THE_SAME_WAY,
+    type PreviewCommandTable,
+    type Query,
+} from "@miragon/bpmn-modeler-shared";
 
 import type { BpmnWebviewCommand } from "../../../port/hostChannel";
 import { emptyClipboard, emptyTextClipboard } from "./clipboardPreview";
@@ -27,7 +38,6 @@ export interface PreviewSession {
     reply(query: Query | undefined): void;
 }
 
-const NO_PARTNER_PANE = "a single pane has no partner pane to follow it";
 const NO_WORKSPACE = "the preview has no workspace to act in";
 const NO_SCRIPT_EDITOR = "the preview has no editor to open a script in";
 const NO_MERGE = "the preview has no merge to decide in";
@@ -40,27 +50,29 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommand, PreviewSe
     GetElementTemplatesCommand: (_, preview) => preview.reply(previewElementTemplates()),
     GetBpmnModelerSettingCommand: (_, preview) => preview.reply(previewModelerSettings()),
     GetPropertiesPanelStateCommand: (_, preview) => preview.reply(previewPanelState()),
-    SetPropertiesPanelStateCommand: { ignored: "the preview always opens the panel the same way" },
+    SetPropertiesPanelStateCommand: { ignored: PREVIEW_OPENS_PANEL_THE_SAME_WAY },
     RequestFocusCommand: (_, preview) => preview.reply(previewFocus()),
     GetClipboardCommand: (_, preview) => preview.reply(emptyClipboard()),
     SetClipboardCommand: { ignored: "the preview's clipboard stays empty" },
     GetTextClipboardCommand: (_, preview) => preview.reply(emptyTextClipboard()),
     SetTextClipboardCommand: { ignored: "the preview's text clipboard stays empty" },
-    SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
-    DocumentFlushedCommand: { ignored: "the preview has no file to save" },
-    LogDebugCommand: ({ message }) => console.debug(message),
-    LogInfoCommand: ({ message }) => console.info(message),
-    LogWarningCommand: ({ message }) => console.warn(message),
-    LogErrorCommand: ({ message }) => console.error(message),
+    SyncDocumentCommand: { ignored: PREVIEW_NO_FILE_TO_WRITE_EDIT_TO },
+    DocumentFlushedCommand: { ignored: PREVIEW_NO_FILE_TO_SAVE },
+    LogDebugCommand: logPreviewDebug,
+    LogInfoCommand: logPreviewInfo,
+    LogWarningCommand: logPreviewWarning,
+    LogErrorCommand: logPreviewError,
     ShowInfoCommand: ({ message }) => console.info("[INFO] ShowInfoCommand", message),
     DiffReadyCommand: (_, preview) => void answerReadyPane(preview),
-    ViewportChangedCommand: { ignored: NO_PARTNER_PANE },
+    ViewportChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    DiffPlaneChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    DiffSelectionChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    SwapCompareSidesCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    // Both extend PREVIEW_NO_PARTNER_PANE written out: a module-level concatenation keeps
+    // this table in the production bundle.
     CursorChangedCommand: {
         ignored: "a single pane has no partner pane to follow it; the stepper advances locally",
     },
-    DiffPlaneChangedCommand: { ignored: NO_PARTNER_PANE },
-    DiffSelectionChangedCommand: { ignored: NO_PARTNER_PANE },
-    SwapCompareSidesCommand: { ignored: NO_PARTNER_PANE },
     MergeStepListChangedCommand: {
         ignored: "a single pane has no partner pane to follow it; the list switches locally",
     },

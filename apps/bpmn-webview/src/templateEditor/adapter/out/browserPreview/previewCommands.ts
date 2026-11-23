@@ -1,5 +1,10 @@
 import {
+    logPreviewDebug,
     logPreviewError,
+    logPreviewInfo,
+    logPreviewWarning,
+    PREVIEW_NO_FILE_TO_SAVE,
+    PREVIEW_NO_FILE_TO_WRITE_EDIT_TO,
     type PreviewCommandTable,
     type Query,
     type TemplateEditorCommand,
@@ -17,10 +22,10 @@ export interface PreviewSession {
 export const PREVIEW_COMMANDS: PreviewCommandTable<TemplateEditorCommand, PreviewSession> = {
     GetElementTemplateFileCommand: (_, preview) =>
         previewTemplateFile(preview.search).forEach((query) => preview.reply(query)),
-    SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
-    DocumentFlushedCommand: { ignored: "the preview has no file to save" },
-    LogDebugCommand: ({ message }) => console.debug(message),
-    LogInfoCommand: ({ message }) => console.info(message),
-    LogWarningCommand: ({ message }) => console.warn(message),
+    SyncDocumentCommand: { ignored: PREVIEW_NO_FILE_TO_WRITE_EDIT_TO },
+    DocumentFlushedCommand: { ignored: PREVIEW_NO_FILE_TO_SAVE },
+    LogDebugCommand: logPreviewDebug,
+    LogInfoCommand: logPreviewInfo,
+    LogWarningCommand: logPreviewWarning,
     LogErrorCommand: logPreviewError,
 };

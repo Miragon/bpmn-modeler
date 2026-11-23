@@ -1,4 +1,10 @@
-import type { DmnDiffPaneCommand, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
+import {
+    type DmnDiffPaneCommand,
+    logPreviewError,
+    PREVIEW_NO_PARTNER_PANE,
+    type PreviewCommandTable,
+    type Query,
+} from "@miragon/bpmn-modeler-shared";
 import type { DiffSide } from "@miragon/bpmn-modeler-types";
 
 import { diffPaneDocument, diffPaneHighlights } from "./diffPreview";
@@ -9,18 +15,16 @@ export interface DiffPanePreviewSession {
     reply(query: Query): void;
 }
 
-const NO_PARTNER_PANE = "a single pane has no partner pane to follow it";
-
 export const DIFF_PANE_PREVIEW_COMMANDS: PreviewCommandTable<
     DmnDiffPaneCommand,
     DiffPanePreviewSession
 > = {
     GetDmnFileCommand: (_, pane) => pane.reply(diffPaneDocument(pane.side)),
     DiffReadyCommand: (_, pane) => void diffPaneHighlights(pane.side).then(pane.reply),
-    LogErrorCommand: ({ message }) => console.error(message),
-    ViewportChangedCommand: { ignored: NO_PARTNER_PANE },
-    CursorChangedCommand: { ignored: NO_PARTNER_PANE },
-    SwapCompareSidesCommand: { ignored: NO_PARTNER_PANE },
-    DmnDiffViewChangedCommand: { ignored: NO_PARTNER_PANE },
-    DmnDiffScrollChangedCommand: { ignored: NO_PARTNER_PANE },
+    LogErrorCommand: logPreviewError,
+    ViewportChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    CursorChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    SwapCompareSidesCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    DmnDiffViewChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
+    DmnDiffScrollChangedCommand: { ignored: PREVIEW_NO_PARTNER_PANE },
 };

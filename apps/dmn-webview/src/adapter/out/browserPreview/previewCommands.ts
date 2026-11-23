@@ -1,4 +1,13 @@
-import type { DmnEditorCommand, PreviewCommandTable, Query } from "@miragon/bpmn-modeler-shared";
+import {
+    type DmnEditorCommand,
+    logPreviewError,
+    logPreviewWarning,
+    PREVIEW_NO_FILE_TO_SAVE,
+    PREVIEW_NO_FILE_TO_WRITE_EDIT_TO,
+    PREVIEW_OPENS_PANEL_THE_SAME_WAY,
+    type PreviewCommandTable,
+    type Query,
+} from "@miragon/bpmn-modeler-shared";
 
 import { previewDocument, previewFocus, previewModelerSettings, previewPanelState } from "./editorPreview";
 
@@ -11,10 +20,10 @@ export const PREVIEW_COMMANDS: PreviewCommandTable<DmnEditorCommand, PreviewSess
     GetDmnFileCommand: (_, preview) => preview.reply(previewDocument()),
     GetPropertiesPanelStateCommand: (_, preview) => preview.reply(previewPanelState()),
     GetDmnModelerSettingCommand: (_, preview) => preview.reply(previewModelerSettings()),
-    SetPropertiesPanelStateCommand: { ignored: "the preview always opens the panel the same way" },
+    SetPropertiesPanelStateCommand: { ignored: PREVIEW_OPENS_PANEL_THE_SAME_WAY },
     RequestFocusCommand: (_, preview) => preview.reply(previewFocus()),
-    SyncDocumentCommand: { ignored: "the preview has no file to write an edit to" },
-    DocumentFlushedCommand: { ignored: "the preview has no file to save" },
-    LogWarningCommand: ({ message }) => console.warn(message),
-    LogErrorCommand: ({ message }) => console.error(message),
+    SyncDocumentCommand: { ignored: PREVIEW_NO_FILE_TO_WRITE_EDIT_TO },
+    DocumentFlushedCommand: { ignored: PREVIEW_NO_FILE_TO_SAVE },
+    LogWarningCommand: logPreviewWarning,
+    LogErrorCommand: logPreviewError,
 };
