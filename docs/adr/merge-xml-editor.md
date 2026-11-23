@@ -68,8 +68,9 @@ changed different parts to a whole pick.
   `ElementXmlMergeService.openWithPick` checks the host and the texts before it picks, so
   nothing is picked where no editor can open. The editor remembers that it made the pick
   (`ElementXmlMerges`, `takesBackPick`): closing it without a save takes the pick back
-  while the element is still picked on that side, so a cancel leaves the conflict open
-  instead of resolving it to one side unmerged. A saved text keeps the pick, taken or
+  while the element is still picked on that side (the library's `takeBackHandMergePick`,
+  by the rule that refuses a saved text), so a cancel leaves the conflict open instead of
+  resolving it to one side unmerged. A saved text keeps the pick, taken or
   refused, since Edit again needs it. Rejected: picking only when the text is accepted,
   which would refuse a blocked pick after the user's work in the editor and has no place
   to ask for a consent; keeping the pick after a discard, which resolves a conflict by a
