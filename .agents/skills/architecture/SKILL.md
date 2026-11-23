@@ -165,8 +165,8 @@ port has a suite.
   container-scoped. Use feature barrels for cross-feature access.
 
 Check `architecture.spec.ts` in both modeler packages, `libs/modeler-core/src`,
-`apps/vscode-plugin/src` and `tools/repo-checks/src`, plus root
-`eslint.config.cjs`. All specs read sources through the shared engine
+`libs/bpmn-merge/src`, `apps/vscode-plugin/src` and `tools/repo-checks/src`,
+plus root `eslint.config.cjs`. All specs read sources through the shared engine
 `@miragon/architecture-testing` (`tools/architecture-testing`). Package gates
 protect import direction and theme isolation. Core checks reject VS Code and
 transitive host-module imports (the core is still not browser-safe), a domain
@@ -201,11 +201,11 @@ command that is on no list.
 ## Put each file in its role folder
 
 Each workspace declares its kind in the `"architecture"` field of its
-`package.json`: `hexagonal` (core, VS Code host, bridge, webviews, template
-builder, `tools/repo-checks`), `diagram-js` (feature libraries and the modeler
-packages) or `flat` (types, protocol and the rest of the tooling). A new
-workspace declares one too. Only a `hexagonal` workspace has role folders; the
-first one in a file's path is its role:
+`package.json`: `hexagonal` (core, merge library, VS Code host, bridge,
+webviews, template builder, `tools/repo-checks`), `diagram-js` (feature
+libraries and the modeler packages) or `flat` (types, protocol and the rest of
+the tooling). A new workspace declares one too. Only a `hexagonal` workspace
+has role folders; the first one in a file's path is its role:
 
 ```
 <context>/
@@ -252,6 +252,13 @@ In a webview the UI, its markup and the router for the host's queries are
 session calls `port/`, a session that syncs with the host through injected
 handles `service/`, pure rules `domain/`, the bootstrap `composition/`, and
 `main.ts` the entry.
+
+The merge library has no `port/` or `adapter/`: a file goes into a stage
+(`kernel`, `classify`, `decide`, `sources`, `build`, `project`) with `domain/`
+and `service/` inside, and a stage imports only `kernel/` and the stages before
+it, `build` and `project` not each other. A consumer's `domain/` imports
+`@miragon/bpmn-modeler-merge/domain`, never the root entry
+([stages](../../../docs/adr/merge.md#stages)).
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved

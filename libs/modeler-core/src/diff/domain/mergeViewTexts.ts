@@ -1,4 +1,4 @@
-import type { MergeRefusal } from "@miragon/bpmn-modeler-merge";
+import type { MergeRefusal } from "@miragon/bpmn-modeler-merge/domain";
 import { ENGINE_LABEL, otherSide } from "@miragon/bpmn-modeler-types";
 
 import { ActionNotice } from "../../kernel/domain/actionNotice";

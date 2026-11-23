@@ -47,6 +47,7 @@
             "@miragon/bpmn-modeler-types/polyline": ["./libs/modeler-types/src/polyline.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-merge": ["./libs/bpmn-merge/src/index.ts"],
+            "@miragon/bpmn-modeler-merge/domain": ["./libs/bpmn-merge/src/domain.ts"],
             "@miragon/dmn-modeler-diff": ["./libs/dmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-core": ["./libs/modeler-core/src/index.ts"],
             "@miragon/bpmn-modeler-core/testing": ["./libs/modeler-core/src/testing/index.ts"],

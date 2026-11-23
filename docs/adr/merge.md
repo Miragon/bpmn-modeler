@@ -1,7 +1,7 @@
 # Merge
 
 - Status: proposed
-- Last reviewed: 2026-11-21
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -20,7 +20,7 @@ merge in VS Code's merge editor have records of their own ([merge build](merge-b
 
 ### One unpublished library
 
-`libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, flat, DOM-free like `libs/bpmn-diff`)
+`libs/bpmn-merge` (`@miragon/bpmn-modeler-merge`, hexagonal, DOM-free like `libs/bpmn-diff`)
 holds `computeMerge`, `MergeDecisions` and `buildMerged`. It is not in `libs/bpmn-diff`,
 because the diff result is a semver contract of `@miragon/bpmn-modeler/diff` and the merge is
 not published; `.github/release-lines.json` ships the workspace on the hosts only, not on the npm line.
@@ -38,9 +38,7 @@ The core imports it, so its consumers' TypeScript `lib` (`ES2021`, `tsconfig.bas
 binds it too: it calls no ES2022 or later library API (`findLast`, `Object.hasOwn`, an
 `Error`'s `cause` option), and its own tsconfig compiles with `lib: ["ES2021"]` so the next
 one fails its build. Rejected: raising `lib` in the core, the bridge and the plugin, three
-consumers for five call sites. The library also holds what a merge view shows of the
-decisions, as pure projections (`mergePaneView`, `mergePaneSteps`, `mergeNavigationOrder`,
-`hasNoShape`); the [merge view record](merge-view.md) says why.
+consumers for five call sites.
 
 The core, the protocol and the merge view's webview share one vocabulary (the sides, the
 markers a pane paints, the caption roles) in `libs/modeler-types/src/mergeVocabulary.ts`; the
@@ -58,6 +56,39 @@ nothing at runtime; `domFreeEntries.spec.ts` reads the subpaths from `tsconfig.b
 path keeps these files out of the npm changelog: a merge-view change ticks only the lines that
 offer the merge view ([release lines](release-and-publishing.md#release-lines-and-attribution)).
 Cost: the published barrel carries the vocabulary and the notes, which no package entry uses.
+
+### Stages
+
+Decided 2026-11-23 (#2562, A8 and B9): the library sorts its files into stage folders with
+`domain/` (the rules) and `service/` (what parses or writes XML, which awaits and so stays out of
+`domain/`) inside, and no `port/` or `adapter/`, as it does no I/O.
+
+| Folder | Holds |
+| --- | --- |
+| `kernel/` | the result's vocabulary, what a merge element is, `hasNoShape`, the member order of two sides |
+| `classify/` | the versions, their refusals and fingerprints, `computeMerge` |
+| `decide/` | `MergeDecisions`, the reference rules, pick outcomes, the hand-merged versions it keeps |
+| `sources/` | `prepareMergeSources`, `MergeSources`, the merge's moddle, an element text's cut, parse and splice |
+| `build/` | `buildMerged`, its checks and notes, the merged tree and diagrams, `acceptHandMerge`; the layout repair in `build/domain/layout/` |
+| `project/` | what a merge view shows, as pure projections ([why](merge-view.md)): `mergePaneView`, `mergePaneSteps`, `mergeNavigationOrder`, `mergeElementNames` |
+
+A stage imports `kernel/` and the stages before it in the table's order; `build` and `project`
+read the same stages and not each other. The order is of imports, not calls: the sources read
+decide's hand-merge scope. `architecture.spec.ts` checks it and, as the core's does, that
+`domain/` imports only pure modules. The sources are a stage because the projections and a hand
+merge read the parsed versions, not the built file; the layout repair stays in `build/` because
+each reads the other's model.
+
+- **Why:** the checks that read the core read the library too; its file prefixes did the work of
+  folders, and no rule kept the projections out of the build.
+- **Domain entry:** the root barrel re-exports `service/` modules and is not pure, so
+  `src/domain.ts` (`@miragon/bpmn-modeler-merge/domain`, a `tsconfig.base.json` alias) re-exports
+  the `domain/` modules the core's `domain/` imports, and no more, as knip reports unused exports.
+- **Cost:** synchronous rules beside the parse they need stay in five `service/` files
+  (`mergeVersions.ts`, `buildChecks.ts`, `handMergeText.ts`, `buildMergedSources.ts` and
+  `acceptHandMerge.ts`), and no rule finds them (#2730). The `domain/` imports of
+  `@miragon/bpmn-modeler-types` subpaths run under a known exception for the same issue as the
+  core's (#2776).
 
 ### Merge elements
 

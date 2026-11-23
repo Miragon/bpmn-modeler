@@ -1,11 +1,11 @@
 {
     "name": "@miragon/bpmn-modeler-merge",
-    "architecture": "flat",
+    "architecture": "hexagonal",
     "types": "./src/index.ts",
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "build": "tsc --noEmit",
+        "build": "tsc --noEmit -p tsconfig.lib.json && tsc --noEmit -p tsconfig.spec.json",
         "test": "vitest run --coverage"
     },
     "dependencies": {
@@ -13,6 +13,8 @@
         "@miragon/bpmn-modeler-types": "workspace:*"
     },
     "devDependencies": {
+        "@miragon/architecture-testing": "workspace:*",
+        "@types/node": "26.6.6",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.1.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",

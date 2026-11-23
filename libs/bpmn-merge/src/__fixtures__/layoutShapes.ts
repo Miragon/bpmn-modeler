@@ -1,4 +1,4 @@
-import type { DiagramBounds, Point } from "../layoutGeometry";
+import type { DiagramBounds, Point } from "../build/domain/layout/layoutGeometry";
 import type {
     GroupShape,
     LaneShape,
@@ -7,7 +7,7 @@ import type {
     LayoutShape,
     NodeShape,
     PoolShape,
-} from "../layoutModel";
+} from "../build/domain/layout/layoutModel";
 import { rootPlane } from "./shapePlane";
 
 export const PLANE = "Collaboration_1";

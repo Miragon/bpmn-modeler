@@ -1,5 +1,5 @@
-import type { LayoutShape } from "../layoutModel";
-import { PlaneSlot } from "../planeSlots";
+import type { LayoutShape } from "../build/domain/layout/layoutModel";
+import { PlaneSlot } from "../build/domain/planeSlots";
 
 type ShapePlane = Pick<LayoutShape, "plane" | "slot">;
 

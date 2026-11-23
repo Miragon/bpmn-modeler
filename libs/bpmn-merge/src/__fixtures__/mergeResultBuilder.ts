@@ -5,8 +5,8 @@ import type {
     LayoutState,
     MergeElement,
     MergeResult,
-} from "../mergeResult";
-import type { ShapelessValueSources } from "../shapelessValues";
+} from "../kernel/domain/mergeResult";
+import type { ShapelessValueSources } from "../project/domain/shapelessValues";
 
 type VersionName = "base" | "current" | "incoming";
 

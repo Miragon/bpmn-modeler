@@ -1,9 +1,4 @@
 {
-    "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-        "noEmit": true,
-        "skipLibCheck": true,
-        "lib": ["ES2021"]
-    },
-    "include": ["src/**/*.ts"]
+    "files": [],
+    "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.spec.json" }]
 }
