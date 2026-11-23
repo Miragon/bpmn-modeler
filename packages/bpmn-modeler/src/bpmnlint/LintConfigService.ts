@@ -10,6 +10,7 @@ import {
     reduceLintTier,
     startLintTier,
 } from "./lintTierMachine";
+import { executionPlatformVersion, type ModdleDefinitions } from "../executionPlatformAttributes";
 import type { ModelerMode } from "../mode/mode";
 
 // bpmn-js-bpmnlint ships no types for this service.
@@ -25,7 +26,7 @@ interface Canvas {
 }
 
 interface Bpmnjs {
-    getDefinitions(): unknown;
+    getDefinitions(): ModdleDefinitions | undefined;
 }
 
 interface EventBus {
@@ -89,7 +90,7 @@ export class LintConfigService {
 
         // External instances can later switch to in-page linting, so register this listener in both tiers.
         eventBus.on("import.done", () => {
-            this.dispatch({ type: "diagramImported" });
+            this.dispatch({ type: "diagramImported", engineVersion: this.importedEngineVersion() });
         });
         this.runEffects(start.effects);
     }
@@ -137,6 +138,11 @@ export class LintConfigService {
 
     private isDiagramLoaded(): boolean {
         return Boolean(this.bpmnjs.getDefinitions());
+    }
+
+    private importedEngineVersion(): string | undefined {
+        const definitions = this.bpmnjs.getDefinitions();
+        return definitions ? executionPlatformVersion(definitions) : undefined;
     }
 
     private async runLint(): Promise<LintResults> {

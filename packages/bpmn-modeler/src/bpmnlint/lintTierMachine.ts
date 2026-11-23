@@ -31,6 +31,7 @@ export interface LintTierState {
     readonly tier: LintTier;
     readonly mode: ModelerMode;
     readonly engine?: Engine;
+    readonly engineVersion?: string;
     readonly explicitConfig?: LintConfigOption;
     // A workspace config stays authoritative across mode changes.
     readonly hostConfig?: BpmnlintConfig;
@@ -38,7 +39,7 @@ export interface LintTierState {
 }
 
 export type LintTierEvent =
-    | { readonly type: "diagramImported" }
+    | { readonly type: "diagramImported"; readonly engineVersion?: string }
     | {
           readonly type: "inPageLintingRequested";
           readonly config?: BpmnlintConfig;
@@ -88,7 +89,7 @@ export function reduceLintTier(
 ): LintTierTransition {
     switch (event.type) {
         case "diagramImported":
-            return { state, effects: state.tier === "in-page" ? [ACTIVATE_IN_PAGE] : [] };
+            return importDiagram(state, event.engineVersion);
         case "inPageLintingRequested":
             return requestInPageLinting(state, event.config, event.configToken, diagramLoaded);
         case "modeChanged":
@@ -107,6 +108,21 @@ export function reduceLintTier(
         case "userTurnedLintingOn":
             return state.tier === "in-page-disabled" ? turnOnInPage(state) : { state, effects: [] };
     }
+}
+
+function importDiagram(
+    state: LintTierState,
+    engineVersion: string | undefined,
+): LintTierTransition {
+    if (state.tier !== "in-page") {
+        return { state: { ...state, engineVersion }, effects: [] };
+    }
+    if (engineVersion === state.engineVersion) {
+        return { state, effects: [ACTIVATE_IN_PAGE] };
+    }
+    const next: LintTierState = { ...state, engineVersion };
+    const followsVersion = next.hostConfig === undefined;
+    return { state: next, effects: followsVersion ? lintInPage(next, true) : [ACTIVATE_IN_PAGE] };
 }
 
 function requestInPageLinting(
@@ -165,6 +181,7 @@ function buildLinter(state: LintTierState): LintTierEffect {
     return {
         kind: "buildLinter",
         config:
-            state.hostConfig ?? resolveLintConfig(state.mode, state.engine, state.explicitConfig),
+            state.hostConfig ??
+            resolveLintConfig(state.mode, state.engine, state.explicitConfig, state.engineVersion),
     };
 }

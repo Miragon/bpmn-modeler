@@ -45,12 +45,13 @@ export function isLintConfigByMode(config: LintConfigOption): config is LintConf
  *
  * The mode default drops the Camunda engine layer in Design (there is no
  * execution platform to bind on the engine-neutral surface) and keeps it in
- * Implement.
+ * Implement, for the `engineVersion` the diagram targets.
  */
 export function resolveLintConfig(
     mode: ModelerMode,
     engine: Engine | undefined,
     config: LintConfigOption | undefined,
+    engineVersion?: string,
 ): BpmnlintConfig {
     if (config !== undefined && !isLintConfigByMode(config)) {
         return config;
@@ -59,8 +60,8 @@ export function resolveLintConfig(
     if (perMode !== undefined) {
         return perMode;
     }
-    return getDefaultLintConfig({
-        engine: surfaceModeSupports(mode, "engineLintRules") ? engine : undefined,
-        preset: "modeling",
-    });
+    if (!surfaceModeSupports(mode, "engineLintRules")) {
+        return getDefaultLintConfig({ preset: "modeling" });
+    }
+    return getDefaultLintConfig({ engine, engineVersion, preset: "modeling" });
 }

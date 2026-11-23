@@ -49,6 +49,10 @@ left out: jumping to the code or the models a task refers to, workspace element 
 script editing, deployment and the Form editor. Copy and paste work within one editor tab only. Use the
 [VS Code extension](/vscode/getting-started) for those.
 
+Linting uses the bundled rules for the Camunda version a diagram targets. A `.bpmnlintrc` in your workspace is not read,
+because Orca does not tell the plugin where the open file lives
+([#2749](https://github.com/Miragon/bpmn-modeler/issues/2749)).
+
 A `.bpmn` or `.dmn` file opened from Orca's changes list shows Orca's text diff, not a diagram diff. As of
 13 November 2026, Orca does not hand a diff tab to a plugin editor
 ([stablyai/orca#39928](https://github.com/stablyai/orca/issues/39928)), so the plugin cannot show the BPMN or DMN diff

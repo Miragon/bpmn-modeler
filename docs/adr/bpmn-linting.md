@@ -39,7 +39,8 @@ Consumers import `/lint` and inject its structural `LintModule` interface:
 renderer/config service; an internal fallback import would make lint bytes reachable in
 single-file bundles again. Config is one `BpmnlintConfig` or a `{ design?, implement? }`
 map; defaults use the modeling preset (Design omits Camunda deployability rules,
-Implement adds the engine layer) and a live mode change re-resolves in-page linting. A
+Implement adds the engine layer of the version an import declares, so no diagram is held
+to a newer engine than it targets) and a live mode change re-resolves in-page linting. A
 host-provided workspace config applies unchanged in both modes (the per-mode map is a
 package option, never a host wire payload). The viewer stays lint-free, and
 unresolvable rules are reported through results instead of failing the pass.
