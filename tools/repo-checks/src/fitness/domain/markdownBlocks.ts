@@ -1,7 +1,7 @@
 import { compareText, type Finding } from "./finding";
 import type { Evidence, FindingGroup, FindingValue } from "./fitnessFunction";
 import type { FitnessReport, FunctionReport } from "./report";
-import type { TrendPoint } from "./trend";
+import { type TrendPoint, valueSeries } from "./trend";
 
 /**
  * A table row of the Markdown reports: a finding at HEAD, or one the merge base held and HEAD lacks.
@@ -78,24 +78,13 @@ export function countsLine(counts: {
     return `**${counts.new} new, ${counts.existing} existing, ${counts.resolved} resolved**`;
 }
 
-function valueSeries(id: string, trend: readonly TrendPoint[]): string[] {
-    const series: string[] = [];
-    for (const { values } of trend) {
-        const value = Object.hasOwn(values, id) ? String(values[id]) : "none";
-        if (series.at(-1) !== value) {
-            series.push(value);
-        }
-    }
-    return series;
-}
-
 function trendCell(row: FindingRow, values: readonly FindingValue[]): string {
     if (row.trend === undefined) {
         return "no trend";
     }
     const { trend } = row;
     const changes = values.flatMap(({ id, title }) => {
-        const series = valueSeries(id, trend);
+        const series = valueSeries(id, trend).map((value) => value?.toString() ?? "none");
         return series.length > 1 ? [`${title} ${series.join(" → ")}`] : [];
     });
     return changes.length === 0 ? "unchanged" : changes.join("; ");

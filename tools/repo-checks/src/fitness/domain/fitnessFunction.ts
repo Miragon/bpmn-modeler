@@ -32,6 +32,12 @@ export interface FindingGroup {
 export interface FindingValue {
     readonly id: string;
     readonly title: string;
+    /**
+     * The growth since the merge base from which the grown-values view lists a finding; below it,
+     * only a rise in each of the last `RISING_STEPS` steps of the value's trend lists it. Without
+     * one, any rise does. The full report lists every finding either way.
+     */
+    readonly growthThreshold?: number;
 }
 
 /**
@@ -125,6 +131,25 @@ function changesViewProblems({ changesView, values }: FitnessFunction): string[]
         : [];
 }
 
+function growthThresholdProblems({ changesView, values }: FitnessFunction): string[] {
+    const thresholds = Array.isArray(values)
+        ? values.flatMap(({ growthThreshold }: FindingValue) =>
+              growthThreshold === undefined ? [] : [growthThreshold],
+          )
+        : [];
+    if (thresholds.length === 0) {
+        return [];
+    }
+    return [
+        ...(thresholds.every((threshold) => Number.isFinite(threshold) && threshold > 0)
+            ? []
+            : ["a value's growthThreshold is not a positive number"]),
+        ...(changesView === "grown-values"
+            ? []
+            : ["growthThreshold needs changesView grown-values"]),
+    ];
+}
+
 function contractProblems(definition: FitnessFunction): string[] {
     const { categories, reliesOn, evidence } = definition;
     return [
@@ -153,6 +178,7 @@ function contractProblems(definition: FitnessFunction): string[] {
             ? ["values are empty, blank or repeat an id"]
             : []),
         ...changesViewProblems(definition),
+        ...growthThresholdProblems(definition),
         ...(typeof definition.findFindings === "function" ? [] : ["findFindings is missing"]),
     ];
 }

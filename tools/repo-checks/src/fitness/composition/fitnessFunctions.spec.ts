@@ -37,4 +37,14 @@ describe("the registered fitness functions", () => {
             "mutation-score": "full-report-only",
         });
     });
+
+    it("list a grown file in a pull request's changes from 11 code lines, a threshold size-and-complexity declares", () => {
+        const thresholds = FITNESS_FUNCTIONS.flatMap(({ id, values = [] }) =>
+            values.flatMap(({ id: valueId, growthThreshold }) =>
+                growthThreshold === undefined ? [] : [[`${id} ${valueId}`, growthThreshold]],
+            ),
+        );
+
+        expect(Object.fromEntries(thresholds)).toEqual({ "size-and-complexity codeLines": 11 });
+    });
 });

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { grewSinceBase, type MarkedFinding, markDelta, type Rename } from "./delta";
+import {
+    grewSinceBase,
+    listsGrownFinding,
+    type MarkedFinding,
+    markDelta,
+    type Rename,
+} from "./delta";
 import type { Finding } from "./finding";
+import type { FindingValue } from "./fitnessFunction";
 
 function at(key: string, line: number, path = `src/${key}.ts`): Finding {
     return { key, path, line, message: `${key} at ${line}` };
@@ -160,6 +167,131 @@ describe("the values a finding had at the merge base", () => {
         };
 
         expect(grewSinceBase(finding)).toBe(grew);
+    });
+});
+
+describe("the grown findings the changes report lists", () => {
+    const DECLARED: readonly FindingValue[] = [
+        { id: "codeLines", title: "code lines", growthThreshold: 11 },
+        { id: "complexity", title: "highest complexity" },
+    ];
+
+    it.each<{
+        case: string;
+        valuesAtBase: Record<string, number> | undefined;
+        values: Record<string, number>;
+        /** Oldest first, HEAD last; without it the step from the merge base to HEAD. */
+        trend?: readonly Record<string, number>[];
+        listed: boolean;
+    }>([
+        {
+            case: "10 more code lines",
+            valuesAtBase: { codeLines: 100, complexity: 3 },
+            values: { codeLines: 110, complexity: 3 },
+            listed: false,
+        },
+        {
+            case: "11 more code lines",
+            valuesAtBase: { codeLines: 100, complexity: 3 },
+            values: { codeLines: 111, complexity: 3 },
+            listed: true,
+        },
+        {
+            case: "a complexity rise without more code lines",
+            valuesAtBase: { codeLines: 100, complexity: 3 },
+            values: { codeLines: 100, complexity: 4 },
+            listed: true,
+        },
+        {
+            case: "a complexity the merge base had none of",
+            valuesAtBase: { codeLines: 100 },
+            values: { codeLines: 100, complexity: 1 },
+            listed: true,
+        },
+        {
+            case: "code lines that rose in each of the trend's last two steps",
+            valuesAtBase: { codeLines: 94 },
+            values: { codeLines: 99 },
+            trend: [{ codeLines: 55 }, { codeLines: 78 }, { codeLines: 99 }],
+            listed: true,
+        },
+        {
+            case: "code lines that rose twice from a trend point that lacked them",
+            valuesAtBase: { codeLines: 95 },
+            values: { codeLines: 99 },
+            trend: [{}, { codeLines: 95 }, { codeLines: 99 }],
+            listed: true,
+        },
+        {
+            case: "code lines that rose in the trend's last step only",
+            valuesAtBase: { codeLines: 95 },
+            values: { codeLines: 99 },
+            trend: [{ codeLines: 100 }, { codeLines: 95 }, { codeLines: 99 }],
+            listed: false,
+        },
+        {
+            case: "code lines that rose twice before the trend's last two steps",
+            valuesAtBase: { codeLines: 85 },
+            values: { codeLines: 90 },
+            trend: [
+                { codeLines: 70 },
+                { codeLines: 80 },
+                { codeLines: 90 },
+                { codeLines: 85 },
+                { codeLines: 90 },
+            ],
+            listed: false,
+        },
+        {
+            case: "a stored point where only the complexity changed, which is no step",
+            valuesAtBase: { codeLines: 95, complexity: 3 },
+            values: { codeLines: 99, complexity: 3 },
+            trend: [
+                { codeLines: 95, complexity: 2 },
+                { codeLines: 95, complexity: 3 },
+                { codeLines: 99, complexity: 3 },
+            ],
+            listed: false,
+        },
+        {
+            case: "two rising steps around a stored point where only the complexity changed",
+            valuesAtBase: { codeLines: 95, complexity: 3 },
+            values: { codeLines: 99, complexity: 3 },
+            trend: [
+                { codeLines: 90, complexity: 3 },
+                { codeLines: 95, complexity: 2 },
+                { codeLines: 95, complexity: 3 },
+                { codeLines: 99, complexity: 3 },
+            ],
+            listed: true,
+        },
+        {
+            case: "a value with a threshold that the merge base lacked",
+            valuesAtBase: { complexity: 3 },
+            values: { codeLines: 5, complexity: 3 },
+            listed: true,
+        },
+        {
+            case: "a finding unchanged since the merge base whose trend rose twice",
+            valuesAtBase: undefined,
+            values: { codeLines: 99 },
+            trend: [{ codeLines: 55 }, { codeLines: 78 }, { codeLines: 99 }],
+            listed: false,
+        },
+    ])("lists $case: $listed", ({ valuesAtBase, values, trend, listed }) => {
+        const points = trend ?? [valuesAtBase ?? values, values];
+        const finding = {
+            ...at("A", 1),
+            status: "existing" as const,
+            values,
+            ...(valuesAtBase === undefined ? {} : { valuesAtBase }),
+            trend: points.map((pointValues, index) => ({
+                commit: `c${index}`,
+                values: pointValues,
+            })),
+        };
+
+        expect(listsGrownFinding(finding, DECLARED)).toBe(listed);
     });
 });
 

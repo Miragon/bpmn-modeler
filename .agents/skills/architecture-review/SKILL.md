@@ -18,10 +18,13 @@ resolved rows per function: the job summary holds every row, and a PR from
 this repository, unless Dependabot opened it, has at most one comment with a
 capped copy, posted once there is a change
 ([ADR](../../../docs/adr/architecture-enforcement.md#fitness-function-report)).
-For `size-and-complexity` it lists the existing files that grew and only
-counts the new ones; the functions whose `changesView` is `full-report-only`
-(step 2 lists them) never show their rows there. It measures GitHub's test
-merge, so the whole PR counts as one change, which the PR row below does not.
+For `size-and-complexity` it lists the existing files that grew by at least
+the threshold the function declares, whose complexity rose, or whose code
+lines rose in each of the last two steps of their trend, and only counts the
+other grown files and the new ones; the functions whose `changesView` is
+`full-report-only` (step 2 lists them) never show their rows there. It
+measures GitHub's test merge, so the whole PR counts as one change, which the
+PR row below does not.
 Read it for an overview; the review still measures here, because only the JSON
 holds the existing findings, the trends and the rows of those functions.
 

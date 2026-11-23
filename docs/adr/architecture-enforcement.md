@@ -146,11 +146,16 @@ and not in `build.yml`'s `ci.needs`.
   (`changesView`, #2371); the full report and the JSON keep every row.
   `size-and-complexity` lists only the existing files that grew since the merge base,
   and a PR that only adds or deletes files counts as no change: in the first trial
-  most of its new rows were such files and none led to a change. `change-coupling`,
-  `host-text`, `missed-partner` and `mutation-score` are full-report-only and never
-  count as a change: a mutation score comes from a stored run, so it landed on
-  whichever PR came next; the missed-partner warnings left on PRs were mostly judged
-  false or not judged; change-coupling and host-text as decided below.
+  most of its new rows were such files and none led to a change. Of the grown files it
+  lists those that grew by at least 11 code lines, whose highest complexity rose or
+  whose code lines rose in each of the last two steps of their printed trend (#2745);
+  the rest are counted in one line and alone count as no change too. The threshold is
+  the function's (`growthThreshold` on a declared value), so the shared renderer names
+  no value. `change-coupling`, `host-text`, `missed-partner` and `mutation-score` are
+  full-report-only and never count as a change: a mutation score comes from a stored
+  run, so it landed on whichever PR came next; the missed-partner warnings left on PRs
+  were mostly judged false or not judged; change-coupling and host-text as decided
+  below.
 - The job summary carries every row. The PR comment is a capped copy
   (`--capped-out --max-characters 60000`, under GitHub's 65,536 limit): every
   function gets the same row limit, new rows before resolved, and no table or
@@ -292,12 +297,10 @@ but one were false, and the review, which reads the full report, keeps them.
 protocol file, and over the 738 stored snapshots of version 3 the rule changes every
 top 20, by 1 to 13 files, in favour of files that run code; message classes and
 tables beside a helper or built by a call still rank (its `reportsWrongly`). The
-grown-files list is to show a row only when it grew by at least 11 code lines, its
-complexity rose or its trend rose twice in a row (#2745), which leaves about a
-quarter of the grown rows out of the comment.
-The written rule gave no threshold, because five smaller rows were fixed in their PR,
-but four of those went with nothing written about the row. Each of these issues
-replaces the text above that describes today's comment.
+grown-files list has a threshold (#2745) although by the letter of the trial's rule
+it gets none, since five rows below it were fixed in their PR: four of those went
+with nothing written about the row. Of the 25 rows fixed after the window the rule
+leaves 4 out of the comment, against 8 with three rising steps instead of two.
 
 ## Consequences
 
