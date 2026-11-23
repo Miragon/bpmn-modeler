@@ -1,8 +1,7 @@
-import { isBuiltin } from "node:module";
 import { join } from "node:path";
 
 import { compilesWithDom } from "./compilerProgram";
-import { isHostModule } from "./hostReach";
+import { isPlatformModule } from "./hostReach";
 import { buildImportGraph } from "./importGraph";
 import type { ImportEdge, ImportGraph } from "./importGraph";
 import { readPathAliases, resolveAliasImport } from "./pathAliases";
@@ -18,7 +17,6 @@ export interface WorkspaceSources extends Workspace {
 }
 
 const FLAT = "flat";
-const ELECTRON = /^electron(\/|$)/;
 
 /**
  * The workspaces a `domain/` may import: `flat`, no file they reach imports a
@@ -116,9 +114,4 @@ export function readPureWorkspaces(repoRoot: string): Workspace[] {
 
 function repoPathOf({ dir }: Workspace, path: string): string {
     return `${dir}/src/${path}`;
-}
-
-/** A module only a host provides: a Node built-in (`path` included), `vscode` or `electron`. */
-function isPlatformModule(specifier: string): boolean {
-    return isBuiltin(specifier) || isHostModule(specifier) || ELECTRON.test(specifier);
 }

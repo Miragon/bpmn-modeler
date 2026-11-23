@@ -17,7 +17,7 @@ export type {
 } from "./contractSuites";
 export { buildDeclarationGraph } from "./declarationGraph";
 export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGraph";
-export { filesReaching, isHostModule } from "./hostReach";
+export { filesReaching, isHostModule, PORTABLE_NODE_MODULES } from "./hostReach";
 export { readCodeLines, readFunctionComplexities } from "./functionComplexity";
 export { readKotlinImports } from "./kotlinImports";
 export { readKotlinInitializedValues } from "./kotlinInitializedValues";

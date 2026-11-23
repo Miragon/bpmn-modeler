@@ -209,8 +209,8 @@ file or type name:
 5. Only `adapter/in/`, `service/`, `composition/`, `testing/` and entries
    import a service.
 6. `adapter/in/` and `adapter/out/` never import each other.
-7. Only `adapter/`, `composition/` and entries import `vscode`, `node:*`,
-   `fs` or `http`.
+7. Only `adapter/`, `composition/` and entries import `vscode`, `electron`
+   or a Node built-in other than `path` (`isHostModule`).
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`; nothing imports an entry.
 10. A `port/` file declares only types: no `const`, function, class, enum,

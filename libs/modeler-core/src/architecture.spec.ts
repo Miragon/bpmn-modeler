@@ -4,6 +4,7 @@ import {
     filesReaching,
     impureDomainImports,
     isHostModule,
+    PORTABLE_NODE_MODULES,
     readPureWorkspaces,
     readSourceTree,
     roleOf,
@@ -23,9 +24,9 @@ import { describe, expect, it } from "vitest";
 /**
  * Architecture gate for `@miragon/bpmn-modeler-core`, on top of the shared
  * role-folder rules the repo-level spec applies to every hexagonal workspace.
- * The engine stays host-agnostic: no file imports `vscode` or reaches a Node
- * host module (`node:*`, `fs`, `http`). Portable Node utilities that exist in
- * any Node host (`path`, `Buffer`) are allowed; they are not host capabilities.
+ * The engine stays host-agnostic: no file imports `vscode` or reaches another
+ * host module (`electron`, a Node built-in). The portable Node modules (`path`)
+ * exist in any Node host and are allowed; they are not host capabilities.
  *
  * `domain/` imports only pure workspaces, decided from their manifests, imports
  * and compiler programs (docs/adr/role-folders.md#domain-imports), and `path`.
@@ -37,8 +38,6 @@ import { describe, expect, it } from "vitest";
 const SRC_ROOT = __dirname;
 
 const PURE_WORKSPACES = readPureWorkspaces(join(SRC_ROOT, "../../.."));
-/** `path.posix` is string arithmetic every Node host has; the domain computes workspace paths with it. */
-const PORTABLE_NODE_MODULE = "path";
 const KERNEL = "kernel";
 const SUBSTRATE: readonly string[] = [KERNEL, "editorSession"];
 
@@ -51,14 +50,14 @@ function contextOf(path: string): string | undefined {
 function domainPackageViolations(pure: readonly Workspace[]) {
     return (graph: ImportGraph): ImportEdge[] =>
         impureDomainImports(graph, pure).filter(
-            ({ specifier }) => specifier !== PORTABLE_NODE_MODULE,
+            ({ specifier }) => !PORTABLE_NODE_MODULES.includes(specifier),
         );
 }
 
 function domainImportsOfPath({ edges }: ImportGraph): ImportEdge[] {
     return edges.filter(
         ({ from, specifier }) =>
-            roleOf(from)?.role === "domain" && specifier === PORTABLE_NODE_MODULE,
+            roleOf(from)?.role === "domain" && PORTABLE_NODE_MODULES.includes(specifier),
     );
 }
 
@@ -258,7 +257,7 @@ describe("modeler-core architecture", () => {
         const offenders = [...filesReaching(graph, isHostModule)];
         expect(
             offenders,
-            `these transitively import a host module (vscode/node:*/fs/http) — ` +
+            `these transitively import a host module (vscode, electron, a Node built-in but path) — ` +
                 `the engine must reach the host only through ports:\n${offenders.join("\n")}`,
         ).toEqual([]);
     });

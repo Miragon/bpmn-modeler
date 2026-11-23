@@ -58,7 +58,7 @@ rules 10 and 11 the syntax of a `port/` and a `domain/` file:
    its services).
 6. `adapter/in/` and `adapter/out/` never import each other, in any context.
 7. Only `adapter/`, `composition/` and entries import a host module
-   (`vscode`, `node:*`, `fs`, `http`).
+   (`vscode`, `electron` or a Node built-in other than `path`).
 8. Only `composition/` and entries import `composition/`.
 9. Only `testing/` imports `testing/`, and nothing imports an entry.
 10. A `port/` file declares only types: interfaces, type aliases and type-only
@@ -83,8 +83,8 @@ contexts here.
 
 The core's `domain/` imports `domain/` (rule 2), a pure workspace and `path`,
 value imports included. A workspace is pure when its manifest says `flat`, no file
-it reaches imports a platform module (a Node built-in, `path` included, `vscode` or
-`electron`), and the program the native compiler builds from its tsconfig, and from
+it reaches imports a platform module (a host module of rule 7, or `path`), and the
+program the native compiler builds from its tsconfig, and from
 each config it references, holds no DOM lib file. Imports are followed to the
 file, through relative imports and the `tsconfig.base.json` aliases, and only into
 flat workspaces. The program holds every file the workspace reaches, so a DOM-free
@@ -115,14 +115,16 @@ imports `path`, so the allowance goes with its last use.
   refuses, or no tsconfig, reads as the DOM. An npm package is a leaf that is not
   followed, and Node globals (`process`, `Buffer`) have no import to read.
 - **Kind:** a pure library must stay `flat`. One that turns `hexagonal`, as planned
-  for the flat libraries, stops being pure, and the core's domain imports of it fail,
-  which would bring the pinned copies back. Before a pure library changes kind, the
-  rule has to read a hexagonal workspace's `domain/`, and an entry that re-exports
-  only it, as pure under the same platform and DOM tests.
+  for the flat libraries, stops being pure, and so does every pure library that
+  imports it (`bpmn-merge` and `dmn-diff` import `bpmn-diff`); the core's domain
+  imports of them fail, which would bring the pinned copies back. Before a pure
+  library changes kind, the rule has to read a hexagonal workspace's `domain/`, and
+  an entry that re-exports only it, as pure under the same platform and DOM tests
+  (#2562, A8).
 - **Scope:** only the core's spec applies the rule. The other hexagonal workspaces
   have no package rule for `domain/`; there it would flag 81 imports in 65 files,
-  most of them `@miragon/bpmn-modeler-shared` in the webviews, whose rule is open
-  (#2562).
+  most of them `@miragon/bpmn-modeler-shared` (34) and `@miragon/bpmn-modeler-types`
+  (27). That rule is open (#2562, B10).
 
 ### Placement
 

@@ -73,8 +73,8 @@ there.
 
 **`modeler-core`** owns domain/services, the editor-session core and `DiffPaneStore`.
 Hosts import its public entrypoint and supply capability ports and editor/diff handles.
-It is VS Code-free and no core file reaches a host module (`node:*`, `fs`, `http`),
-directly or transitively; portable Node utilities such as `path` stay valid.
+It is VS Code-free and no core file reaches a host module (`electron` or a Node
+built-in other than `path`), directly or transitively.
 
 **Core contexts.** Each feature folder (`modeler/<editor>` for the editors) is a context
 with the [role folders](role-folders.md) it needs. Two contexts are shared; the others

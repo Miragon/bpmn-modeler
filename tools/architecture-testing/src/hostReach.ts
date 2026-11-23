@@ -1,15 +1,24 @@
+import { isBuiltin } from "node:module";
+
 import type { ImportGraph } from "./importGraph";
 
-/** `vscode` and the Node platform; `path` and `Buffer` exist in any Node host. */
+/** Node built-ins that are string arithmetic every Node host has, not a host capability. */
+export const PORTABLE_NODE_MODULES: readonly string[] = ["path", "node:path"];
+
+const ELECTRON = /^electron(\/|$)/;
+
+/** A module a host provides: `vscode`, `electron` or a Node built-in that is not portable. */
 export function isHostModule(specifier: string): boolean {
     return (
         specifier === "vscode" ||
-        specifier.startsWith("node:") ||
-        specifier === "fs" ||
-        specifier.startsWith("fs/") ||
-        specifier === "http" ||
-        specifier === "https"
+        ELECTRON.test(specifier) ||
+        (isBuiltin(specifier) && !PORTABLE_NODE_MODULES.includes(specifier))
     );
+}
+
+/** A module only a platform provides: a host module or a portable Node built-in. */
+export function isPlatformModule(specifier: string): boolean {
+    return isHostModule(specifier) || isBuiltin(specifier);
 }
 
 /** Files that import a target specifier themselves or through any chain of resolved imports. */

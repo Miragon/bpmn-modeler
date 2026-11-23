@@ -5,8 +5,8 @@ import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { MergePaneUris } from "../port/MergeSidesView";
 
 /**
- * A paired BPMN diff view — the domain object the diff service revolves
- * around.
+ * A paired BPMN diff view: the session the diff service revolves around,
+ * holding both pane handles.
  *
  * An explicit object that owns both URIs and both pane slots, rather than a
  * pairing implied by mutual `partner` pointers on two pane records. A session
