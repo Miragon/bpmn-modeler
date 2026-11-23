@@ -89,41 +89,15 @@ describe("the card's place", () => {
             });
         });
 
-        it("moves away from the pad above the flow's right end where it would cover it", () => {
+        it("stays centred below the flow while its pad is open, since the pad opens above it", () => {
             const short = [
                 { x: 100, y: 300 },
                 { x: 200, y: 300 },
             ];
 
-            // The pad at (208, 300) relative to (100, 300) is at 108; the card would span -70 to 170.
             expect(
                 new FlowCardTarget(short).placeCard(view({ pad: { width: 30, height: 100 } })),
-            ).toStrictEqual({ left: 108 - 10 - 240, top: 10, arrowLeft: 192 });
-        });
-
-        it("stays centred below a flow whose pad, above its right end, ends above the card", () => {
-            const downwards = [
-                { x: 100, y: 200 },
-                { x: 200, y: 300 },
-            ];
-
-            // The pad spans 0 to 50 below the box's top; the card starts 60 below it.
-            expect(
-                new FlowCardTarget(downwards).placeCard(view({ pad: { width: 30, height: 50 } }))
-                    .left,
-            ).toBe(50 - 120);
-        });
-
-        it("moves left of the pad on a flow drawn backwards too", () => {
-            const backwards = [
-                { x: 200, y: 300 },
-                { x: 100, y: 300 },
-            ];
-
-            expect(
-                new FlowCardTarget(backwards).placeCard(view({ pad: { width: 30, height: 100 } }))
-                    .left,
-            ).toBe(108 - 10 - 240);
+            ).toStrictEqual({ left: 50 - 120, top: 10, arrowLeft: 120 });
         });
     });
 });

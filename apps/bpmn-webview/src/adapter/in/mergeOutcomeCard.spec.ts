@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MergeOutcomeCardContent } from "../../domain/mergeCardContent";
-import { ConnectionPadPlacement } from "./connectionPadPlacement";
 import {
     createMergeOutcomeCardModule,
     MERGE_BLOCKER_MARKER,
@@ -62,18 +61,6 @@ const FLOW = {
     ],
 };
 
-/** Whether the pad is open on `target` as diagram-js opens it: a connection's for the connection alone. */
-function isPadFor(target: unknown, elementId: string | undefined): boolean {
-    if (elementId === undefined) return false;
-    const opened = elementId === FLOW.id ? [FLOW] : { id: elementId };
-    if (Array.isArray(opened) !== Array.isArray(target)) return false;
-    const ids = (padTarget: unknown) =>
-        (Array.isArray(padTarget) ? padTarget : [padTarget]).map(
-            (element) => (element as { id: string }).id,
-        );
-    return ids(target).join() === ids(opened).join();
-}
-
 function build({
     drawn = { Task_Remind: TASK, Flow_1: FLOW } as Record<string, object>,
     paneHeight = 800,
@@ -123,9 +110,8 @@ function build({
             on: (event: string, listener: () => void) =>
                 listeners.set(event, [...(listeners.get(event) ?? []), listener]),
         },
-        { isOpen: (target) => isPadFor(target, padOpen.at) },
+        { isOpen: (element) => (element as { id: string }).id === padOpen.at },
         { attach: (found) => (card = found) },
-        new ConnectionPadPlacement({ open: vi.fn() }, { on: vi.fn() }),
     );
     const actions: MergeOutcomeCardActions = {
         onSelect: vi.fn(),
@@ -335,19 +321,6 @@ describe("MergeOutcomeCard", () => {
         fire("contextPad.open");
 
         expect(shownCard(overlays).style.top).toBe("160px");
-    });
-
-    it("moves aside from the pad open above a flow, which opens for the flow alone", () => {
-        const alone = build();
-        alone.card.show({ ...APPLIED, elementId: "Flow_1" }, alone.actions, { announce: false });
-        const withPad = build({ padOpenAt: "Flow_1" });
-        withPad.card.show({ ...APPLIED, elementId: "Flow_1" }, withPad.actions, {
-            announce: false,
-        });
-
-        expect(shownCard(withPad.overlays).style.left).not.toBe(
-            shownCard(alone.overlays).style.left,
-        );
     });
 
     it("goes below a flow's middle", () => {

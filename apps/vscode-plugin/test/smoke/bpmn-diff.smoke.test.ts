@@ -113,6 +113,49 @@ async function textDiffLines(page: Page): Promise<string> {
     return sides.join("\n").replaceAll(" ", " ");
 }
 
+/**
+ * Whether the pane's open context pad sits where it belongs: right of a
+ * selected shape, level with its top, or above a selected connection, flush
+ * with its right end, and never over another shape. No pad and no selection
+ * count as placed.
+ */
+function padPlacement(webview: FrameLocator): Promise<string> {
+    return webview.locator("body").evaluate(() => {
+        const entries = [...document.querySelectorAll(".djs-context-pad.open .entry")];
+        const selected = document.querySelector(".djs-element.selected");
+        if (!selected) return entries.length > 0 ? "a pad without a selection" : "placed";
+        if (entries.length === 0) return "no pad on the selection";
+        const pad = entries
+            .map((entry) => entry.getBoundingClientRect())
+            .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }))
+            .reduce((all, box) => ({
+                left: Math.min(all.left, box.left),
+                top: Math.min(all.top, box.top),
+                right: Math.max(all.right, box.right),
+                bottom: Math.max(all.bottom, box.bottom),
+            }));
+        const box = selected.getBoundingClientRect();
+        const covered = [...document.querySelectorAll(".djs-shape:not(.djs-label)")]
+            .filter((shape) => shape !== selected)
+            .map((shape) => shape.querySelector(".djs-visual")!.getBoundingClientRect())
+            .some(
+                (shape) =>
+                    shape.width > 0 &&
+                    pad.left < shape.right &&
+                    shape.left < pad.right &&
+                    pad.top < shape.bottom &&
+                    shape.top < pad.bottom,
+            );
+        if (covered) return "over another shape";
+        const placed = selected.classList.contains("djs-connection")
+            ? pad.bottom <= box.top + 1 && Math.abs(pad.right - box.right) <= 4
+            : pad.left >= box.right &&
+              pad.left - box.right <= 24 &&
+              Math.abs(pad.top - box.top) <= 4;
+        return placed ? "placed" : "beside or below where it belongs";
+    });
+}
+
 const suite = smokeSuite({
     name: "bpmn-diff",
     workspace: compareFixtures({
@@ -156,6 +199,18 @@ describe("the BPMN visual diff in a real VS Code", () => {
             .toBeGreaterThan(0);
         await settle(after);
         await suite.screenshot("bpmn-diff");
+    });
+
+    it("opens the context pad of each change it steps to right of a shape or above a connection, clear of every shape", async () => {
+        const { before, after } = await compareFromExplorer(BEFORE_FILE, AFTER_FILE);
+        await expectMarked(after, "Activity_review", "diff-added");
+
+        for (let step = 1; step <= 5; step += 1) {
+            await after.locator(".diff-legend__next-btn").click();
+            for (const pane of [before, after]) {
+                await expect.poll(() => padPlacement(pane)).toBe("placed");
+            }
+        }
     });
 
     it("shows an element's XML changes in a text diff below the BPMN diff that follows the selection", async () => {

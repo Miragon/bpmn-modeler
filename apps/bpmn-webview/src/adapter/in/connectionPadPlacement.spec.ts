@@ -12,19 +12,30 @@ const FLOW = {
 };
 
 type SelectionListener = (event: { newSelection: readonly object[] }) => void;
+type PadOpenListener = (event: { current: { target: unknown; html: HTMLElement } }) => void;
 
 function build() {
     const selectionListeners: { priority: number; listener: SelectionListener }[] = [];
+    const padOpenListeners: PadOpenListener[] = [];
     const eventBus = {
-        on: vi.fn((event: string, priority: number, listener: SelectionListener) => {
-            if (event === "selection.changed") selectionListeners.push({ priority, listener });
+        on: vi.fn((event: string, ...rest: unknown[]) => {
+            if (event === "selection.changed") {
+                const [priority, listener] = rest as [number, SelectionListener];
+                selectionListeners.push({ priority, listener });
+            }
+            if (event === "contextPad.open") padOpenListeners.push(rest[0] as PadOpenListener);
         }),
     };
     const contextPad = { open: vi.fn() };
     const placement = new ConnectionPadPlacement(contextPad, eventBus);
     const select = (...newSelection: object[]) =>
         selectionListeners.forEach(({ listener }) => listener({ newSelection }));
-    return { placement, contextPad, selectionListeners, select };
+    const openPad = (target: unknown) => {
+        const html = document.createElement("div");
+        padOpenListeners.forEach((listener) => listener({ current: { target, html } }));
+        return html;
+    };
+    return { placement, contextPad, selectionListeners, select, openPad };
 }
 
 describe("ConnectionPadPlacement", () => {
@@ -46,6 +57,16 @@ describe("ConnectionPadPlacement", () => {
         select();
 
         expect(contextPad.open).not.toHaveBeenCalled();
+    });
+
+    it("marks a connection's pad, which its stylesheet lifts above the connection's right end", () => {
+        const { openPad } = build();
+
+        expect(openPad([FLOW]).classList).toContain(ConnectionPadPlacement.ABOVE_CONNECTION);
+        expect(openPad(TASK).classList).not.toContain(ConnectionPadPlacement.ABOVE_CONNECTION);
+        expect(openPad([FLOW, TASK]).classList).not.toContain(
+            ConnectionPadPlacement.ABOVE_CONNECTION,
+        );
     });
 
     it("names the pad target it opens for an element", () => {

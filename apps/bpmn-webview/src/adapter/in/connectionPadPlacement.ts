@@ -1,5 +1,7 @@
 import ContextPadModule from "diagram-js/lib/features/context-pad";
 
+import "./connectionPadPlacement.css";
+
 type PadTarget<Element> = Element | readonly Element[];
 
 interface ContextPad {
@@ -12,19 +14,29 @@ interface EventBus {
         priority: number,
         listener: (event: { newSelection: readonly object[] }) => void,
     ): void;
+    on(
+        event: "contextPad.open",
+        listener: (event: { current: { target: PadTarget<object>; html: HTMLElement } }) => void,
+    ): void;
 }
 
 // After diagram-js's own handler, which opens a pad on the single selected element.
 const AFTER_CONTEXT_PAD = 500;
 
 /**
- * Opens a selected connection's pad as a one-element pad, which diagram-js
- * places above the connection's right edge as on a shape; its own sits on the
- * arrowhead, over the shape the connection points to. A provider offers the
- * same entries on such a pad, through {@link ConnectionPadPlacement.elementOf}.
+ * Opens a selected connection's pad above the connection's right end, where
+ * it covers neither shape the connection joins; diagram-js's own sits on the
+ * arrowhead, over the shape the connection points to. The pad opens for the
+ * connection alone, which diagram-js places at the top right of its bounds,
+ * and {@link ConnectionPadPlacement.ABOVE_CONNECTION} lifts it from there. A
+ * provider offers the same entries on such a pad, through
+ * {@link ConnectionPadPlacement.elementOf}.
  */
 export class ConnectionPadPlacement {
     static $inject = ["contextPad", "eventBus"];
+
+    /** The class of a connection's pad, which `connectionPadPlacement.css` lifts. */
+    static readonly ABOVE_CONNECTION = "djs-context-pad--above-connection";
 
     constructor(
         private readonly contextPad: ContextPad,
@@ -33,6 +45,7 @@ export class ConnectionPadPlacement {
         eventBus.on("selection.changed", AFTER_CONTEXT_PAD, ({ newSelection }) =>
             this.placeSelected(newSelection),
         );
+        eventBus.on("contextPad.open", ({ current }) => this.markConnectionPad(current));
     }
 
     /** The element a pad for one element was opened for, given as itself or alone in a list. */
@@ -51,6 +64,21 @@ export class ConnectionPadPlacement {
         if (selection.length === 1 && only && ConnectionPadPlacement.isConnection(only)) {
             this.contextPad.open([only], true);
         }
+    }
+
+    private markConnectionPad({
+        target,
+        html,
+    }: {
+        target: PadTarget<object>;
+        html: HTMLElement;
+    }): void {
+        const element = ConnectionPadPlacement.elementOf(target);
+        const aboveConnection =
+            Array.isArray(target) &&
+            element !== undefined &&
+            ConnectionPadPlacement.isConnection(element);
+        html.classList.toggle(ConnectionPadPlacement.ABOVE_CONNECTION, aboveConnection);
     }
 
     private static isConnection(element: object): boolean {

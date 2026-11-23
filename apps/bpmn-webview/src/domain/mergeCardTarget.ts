@@ -111,9 +111,8 @@ export class ShapeCardTarget extends MergeCardTarget {
 }
 
 /**
- * A flow: the card goes below its label or its middle, centred, and moves
- * left of the pad, which opens above the right edge of the flow's box, where
- * it would cover it.
+ * A flow: the card goes below its label or its middle, centred. The flow's
+ * pad opens above it, so the card never meets it there.
  */
 export class FlowCardTarget extends MergeCardTarget {
     readonly anchor: DiagramPoint;
@@ -126,18 +125,13 @@ export class FlowCardTarget extends MergeCardTarget {
         this.anchor = flowOverlayAnchor(waypoints);
     }
 
-    placeCard(view: MergeCardView): MergeCardPlace {
-        const { scale, card } = view;
+    placeCard({ scale, card }: MergeCardView): MergeCardPlace {
         const below = this.pointBelow();
         const centre = (below.x - this.anchor.x) * scale;
-        const centred = {
-            left: centre - card.width / 2,
-            top: (below.y - this.anchor.y) * scale + MergeCardTarget.GAP_PX,
-        };
-        const left = this.leftOfPad(centred, view);
+        const left = centre - card.width / 2;
         return {
             left,
-            top: centred.top,
+            top: (below.y - this.anchor.y) * scale + MergeCardTarget.GAP_PX,
             arrowLeft: MergeCardTarget.arrowAt(centre - left, card.width),
         };
     }
@@ -147,21 +141,5 @@ export class FlowCardTarget extends MergeCardTarget {
         const label = this.label;
         if (label === undefined) return polylineMidpoint(this.waypoints);
         return { x: label.x + label.width / 2, y: label.y + label.height };
-    }
-
-    /** The card's left edge, moved left of the pad where it would cover it. */
-    private leftOfPad(
-        centred: { readonly left: number; readonly top: number },
-        { scale, card: { width }, pad }: MergeCardView,
-    ): number {
-        if (!pad) return centred.left;
-        const padLeft = (this.right() - this.anchor.x + MergeCardTarget.PAD_MARGIN) * scale;
-        const besidePad = centred.left < padLeft + pad.width && padLeft < centred.left + width;
-        const belowPad = centred.top >= pad.height;
-        return besidePad && !belowPad ? padLeft - MergeCardTarget.GAP_PX - width : centred.left;
-    }
-
-    private right(): number {
-        return Math.max(...this.waypoints.map(({ x }) => x));
     }
 }
