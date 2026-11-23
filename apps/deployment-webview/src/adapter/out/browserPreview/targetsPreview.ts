@@ -29,8 +29,10 @@ const SAMPLE_TARGETS: readonly DeploymentTargetPayload[] = [
 /**
  * The preview's deployment targets, held in memory and starting from two
  * samples, and the one that is active. Each change answers with the queries a
- * host sends back for it. Its target rules and refusal text copy the core's
- * `DeploymentTargets`; the core's `deploymentPreviewParity.spec.ts` pins them.
+ * host sends back for it. Its create, save and delete outcomes, refusal text
+ * and name lookup copy the core's `DeploymentTargets`, which the core's
+ * `deploymentPreviewParity.spec.ts` pins. Which target is active copies the
+ * core's `DeploymentTargetService`, and nothing pins that.
  */
 export class PreviewTargets {
     private targets: DeploymentTargetPayload[] = [...SAMPLE_TARGETS];

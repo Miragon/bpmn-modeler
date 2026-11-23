@@ -69,10 +69,14 @@ function editPreview(preview: PreviewTargets, edit: Edit): Query[] {
 }
 
 /** Both sides start from the preview's sample targets. */
-function coreOutcome(edit: Edit): Outcome {
-    const targets = new DeploymentTargets(
+function sampleTargets(): DeploymentTargets {
+    return new DeploymentTargets(
         new PreviewTargets().list().targets.map((sample) => DeploymentTarget.create(sample)),
     );
+}
+
+function coreOutcome(edit: Edit): Outcome {
+    const targets = sampleTargets();
     try {
         return { names: namesOf(editTargets(targets, edit).targets) };
     } catch (error) {
@@ -111,6 +115,20 @@ describe("the deployment webview's browser preview", () => {
         ["deletes nothing for a name no target holds", remove("staging")],
     ])("%s as every host does", (_, edit) => {
         expect(previewOutcome(edit)).toEqual(coreOutcome(edit));
+    });
+
+    // Only "prod" has auth settings, so a lookup that lands on no target answers differently.
+    it.each<[string, string]>([
+        ["finds a target by its name", "prod"],
+        ["finds a target by its padded name", " prod "],
+        ["finds no target for a name none holds", "staging"],
+    ])("%s for a credentials lookup as every host does", (_, name) => {
+        const preview = new PreviewTargets();
+        const found = sampleTargets().find(name);
+
+        expect(preview.authOf(name)).toEqual(
+            found === undefined ? { authType: "none" } : preview.authOf(found.name),
+        );
     });
 
     it("offers the routes a host with the default C8 API version sends", () => {
