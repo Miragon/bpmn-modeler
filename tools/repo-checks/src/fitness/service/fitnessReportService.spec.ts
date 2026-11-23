@@ -13,13 +13,14 @@ import { createFitnessReport } from "./fitnessReportService";
 
 const HEAD = "head000";
 const BASE = "base000";
+const ON_MAIN = { baseRef: "origin/main", defaultBranchRef: "origin/main" };
 
 describe("the fitness report", () => {
     it("marks a finding the merge-base snapshot holds as existing and the rest as new", () => {
         const fake = fakeFitnessFunction({ [WORKING_TREE]: [finding("A", 7), finding("B")] });
         const checkout = new InMemoryCheckout();
 
-        const report = createFitnessReport([fake], "origin/main", {
+        const report = createFitnessReport([fake], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots: new InMemorySnapshots([
@@ -53,7 +54,7 @@ describe("the fitness report", () => {
         });
         const checkout = new InMemoryCheckout();
 
-        const report = createFitnessReport([fake], "origin/main", {
+        const report = createFitnessReport([fake], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots: new InMemorySnapshots([
@@ -93,7 +94,7 @@ describe("the fitness report across renamed files", () => {
             { previousPath: "src/a.ts", path: "src/b.ts" },
         ]);
 
-        const report = createFitnessReport([fake], "origin/main", {
+        const report = createFitnessReport([fake], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history,
             snapshots: new InMemorySnapshots([
@@ -140,7 +141,7 @@ describe("the change the fitness report measures", () => {
             },
         );
 
-        createFitnessReport([recording], "origin/main", {
+        createFitnessReport([recording], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots: new InMemorySnapshots(),
@@ -148,9 +149,64 @@ describe("the change the fitness report measures", () => {
         });
 
         expect(contexts).toEqual([
-            { repoRoot: WORKING_TREE, commit: HEAD, changeBase: BASE },
-            { repoRoot: `/checkout/${BASE}`, commit: BASE, changeBase: BASE },
+            { repoRoot: WORKING_TREE, commit: HEAD, changeBase: BASE, defaultBranchBase: BASE },
+            {
+                repoRoot: `/checkout/${BASE}`,
+                commit: BASE,
+                changeBase: BASE,
+                defaultBranchBase: BASE,
+            },
         ]);
+    });
+
+    it("measures HEAD and a stacked PR's base from where the base meets the default branch", () => {
+        const contexts: MeasurementContext[] = [];
+        const recording = fakeFitnessFunction(
+            {},
+            {
+                findFindings: (context) => {
+                    contexts.push(context);
+                    return [];
+                },
+            },
+        );
+
+        createFitnessReport(
+            [recording],
+            { baseRef: "origin/stack", defaultBranchRef: "origin/trunk" },
+            {
+                repoRoot: WORKING_TREE,
+                history: new InMemoryHistory([HEAD, BASE]).withMergeBase(
+                    BASE,
+                    "origin/trunk",
+                    "fork000",
+                ),
+                snapshots: new InMemorySnapshots(),
+                checkout: new InMemoryCheckout(),
+            },
+        );
+
+        expect(
+            contexts.map(({ changeBase, defaultBranchBase }) => [changeBase, defaultBranchBase]),
+        ).toEqual([
+            [BASE, "fork000"],
+            [BASE, "fork000"],
+        ]);
+    });
+
+    it("fails when the default branch is missing", () => {
+        expect(() =>
+            createFitnessReport(
+                [],
+                { baseRef: "origin/stack", defaultBranchRef: "origin/main" },
+                {
+                    repoRoot: WORKING_TREE,
+                    history: new InMemoryHistory([HEAD, BASE], BASE, false, ["origin/stack"]),
+                    snapshots: new InMemorySnapshots(),
+                    checkout: new InMemoryCheckout(),
+                },
+            ),
+        ).toThrow("origin/main not found");
     });
 });
 
@@ -162,12 +218,19 @@ describe("the base the fitness report compares with", () => {
         });
         const checkout = new InMemoryCheckout();
 
-        const report = createFitnessReport([fake], "452b6440", {
-            repoRoot: WORKING_TREE,
-            history: new InMemoryHistory([HEAD, BASE], BASE, false, ["452b6440"]),
-            snapshots: new InMemorySnapshots(),
-            checkout,
-        });
+        const report = createFitnessReport(
+            [fake],
+            { baseRef: "452b6440", defaultBranchRef: "origin/main" },
+            {
+                repoRoot: WORKING_TREE,
+                history: new InMemoryHistory([HEAD, BASE], BASE, false, [
+                    "452b6440",
+                    "origin/main",
+                ]),
+                snapshots: new InMemorySnapshots(),
+                checkout,
+            },
+        );
 
         expect(report.base).toEqual({ commit: BASE, ref: "452b6440" });
         expect(checkout.checkedOut).toEqual([BASE]);
@@ -191,7 +254,7 @@ describe("the base the fitness report compares with", () => {
             },
         );
 
-        createFitnessReport([recording], "origin/main", {
+        createFitnessReport([recording], ON_MAIN, {
             repoRoot: "/checkouts/old",
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots: new InMemorySnapshots(),
@@ -213,12 +276,16 @@ describe("the base the fitness report compares with", () => {
         );
         const sizes = fakeFitnessFunction({ [WORKING_TREE]: [finding("A")] }, { id: "sizes" });
 
-        const report = createFitnessReport([kinds, sizes], "452b6440", {
-            repoRoot: WORKING_TREE,
-            history: new InMemoryHistory([HEAD, BASE]),
-            snapshots: new InMemorySnapshots(),
-            checkout: new InMemoryCheckout(),
-        });
+        const report = createFitnessReport(
+            [kinds, sizes],
+            { baseRef: "452b6440", defaultBranchRef: "origin/main" },
+            {
+                repoRoot: WORKING_TREE,
+                history: new InMemoryHistory([HEAD, BASE]),
+                snapshots: new InMemorySnapshots(),
+                checkout: new InMemoryCheckout(),
+            },
+        );
 
         expect(
             report.functions.map(({ id, base, outcome }) => ({ id, base, kind: outcome.kind })),
@@ -248,7 +315,7 @@ describe("the trend in the fitness report", () => {
     it("follows a value over the stored snapshots of the merge base's first-parent chain", () => {
         const snapshots = new InMemorySnapshots([stored(BASE, 330), stored("c1", 300)]);
 
-        const report = createFitnessReport([sized], "origin/main", {
+        const report = createFitnessReport([sized], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE, "c1"], BASE),
             snapshots,
@@ -272,7 +339,7 @@ describe("the trend in the fitness report", () => {
     it("reads no history when no function declares values", () => {
         const snapshots = new InMemorySnapshots([stored(BASE, 330)]);
 
-        createFitnessReport([fakeFitnessFunction({})], "origin/main", {
+        createFitnessReport([fakeFitnessFunction({})], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots,
@@ -289,7 +356,7 @@ describe("the fitness report on broken input", () => {
         const coupling = fakeFitnessFunction({}, { id: "coupling" });
         const cohesion = fakeFitnessFunction({}, { id: "cohesion" });
 
-        createFitnessReport([coupling, cohesion], "origin/main", {
+        createFitnessReport([coupling, cohesion], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE]),
             snapshots: new InMemorySnapshots(),
@@ -312,7 +379,7 @@ describe("the fitness report on broken input", () => {
             },
         );
 
-        const report = createFitnessReport([mutation], "origin/main", {
+        const report = createFitnessReport([mutation], ON_MAIN, {
             repoRoot: WORKING_TREE,
             history: new InMemoryHistory([HEAD, BASE], BASE, true),
             snapshots: new InMemorySnapshots(),
@@ -341,7 +408,7 @@ describe("the fitness report on broken input", () => {
         },
     ])("fails when $case", ({ findFindings, problem }) => {
         expect(() =>
-            createFitnessReport([fakeFitnessFunction({}, { findFindings })], "origin/main", {
+            createFitnessReport([fakeFitnessFunction({}, { findFindings })], ON_MAIN, {
                 repoRoot: WORKING_TREE,
                 history: new InMemoryHistory([HEAD, BASE]),
                 snapshots: new InMemorySnapshots(),
@@ -352,7 +419,7 @@ describe("the fitness report on broken input", () => {
 
     it("fails without a merge base", () => {
         expect(() =>
-            createFitnessReport([], "origin/main", {
+            createFitnessReport([], ON_MAIN, {
                 repoRoot: WORKING_TREE,
                 history: new InMemoryHistory([HEAD], null),
                 snapshots: new InMemorySnapshots(),

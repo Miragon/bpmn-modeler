@@ -20,17 +20,21 @@ export class GitRepository implements RepositoryHistory {
     }
 
     mergeBase(ref: string): string {
+        return this.mergeBaseOf("HEAD", ref);
+    }
+
+    mergeBaseOf(commit: string, ref: string): string {
         if (!gitSucceeds(this.repoRoot, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`])) {
             throw new Error(`${ref} does not exist; fetch it first (git fetch origin)`);
         }
         try {
-            return git(this.repoRoot, ["merge-base", "HEAD", ref]).trim();
+            return git(this.repoRoot, ["merge-base", commit, ref]).trim();
         } catch {
             const shallow = git(this.repoRoot, ["rev-parse", "--is-shallow-repository"]).trim() === "true";
             throw new Error(
                 shallow
-                    ? `HEAD and ${ref} share no commit in this shallow clone; run git fetch --unshallow`
-                    : `HEAD and ${ref} share no commit`,
+                    ? `${commit} and ${ref} share no commit in this shallow clone; run git fetch --unshallow`
+                    : `${commit} and ${ref} share no commit`,
             );
         }
     }

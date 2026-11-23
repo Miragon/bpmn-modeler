@@ -21,7 +21,12 @@ describe("the mutation score fitness function", () => {
         const fitnessFunction = createMutationScoreFitnessFunction({ runs: RUNS });
 
         expect(
-            measure(fitnessFunction, { repoRoot: "/repo", commit: "c3", changeBase: "c3" }),
+            measure(fitnessFunction, {
+                repoRoot: "/repo",
+                commit: "c3",
+                changeBase: "c3",
+                defaultBranchBase: "c3",
+            }),
         ).toMatchObject({
             findings: [
                 {
@@ -38,7 +43,12 @@ describe("the mutation score fitness function", () => {
         const fitnessFunction = createMutationScoreFitnessFunction({ runs: RUNS });
 
         expect(
-            measure(fitnessFunction, { repoRoot: "/repo", commit: "c0", changeBase: "c0" }),
+            measure(fitnessFunction, {
+                repoRoot: "/repo",
+                commit: "c0",
+                changeBase: "c0",
+                defaultBranchBase: "c0",
+            }),
         ).toEqual({
             unmeasurable:
                 "none of the 2 stored mutation runs measured a commit on this first-parent chain",

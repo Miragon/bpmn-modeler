@@ -15,6 +15,13 @@ export interface FitnessReportPorts {
     readonly checkout: TreeCheckout;
 }
 
+export interface ReportRefs {
+    /** The report compares with `git merge-base HEAD <baseRef>`. */
+    readonly baseRef: string;
+    /** The branch PRs are squash-merged into; a stacked PR's base branch counts as one change since it. */
+    readonly defaultBranchRef: string;
+}
+
 interface BaseMeasurement {
     readonly source: BaseSource;
     readonly measurement: Measurement;
@@ -22,7 +29,7 @@ interface BaseMeasurement {
 
 function measureBase(
     functions: readonly FitnessFunction[],
-    baseCommit: string,
+    { commit: baseCommit, defaultBranchBase }: { commit: string; defaultBranchBase: string },
     ports: FitnessReportPorts,
 ): ReadonlyMap<string, BaseMeasurement> {
     const baseSnapshot = ports.snapshots.read(baseCommit);
@@ -45,6 +52,7 @@ function measureBase(
                         repoRoot: root,
                         commit: baseCommit,
                         changeBase: baseCommit,
+                        defaultBranchBase,
                     }),
                 });
             }
@@ -72,11 +80,12 @@ function readTrendHistory(
 
 export function createFitnessReport(
     functions: readonly FitnessFunction[],
-    baseRef: string,
+    { baseRef, defaultBranchRef }: ReportRefs,
     ports: FitnessReportPorts,
 ): FitnessReport {
     const headCommit = ports.history.headCommit();
     const baseCommit = ports.history.mergeBase(baseRef);
+    const defaultBranchBase = ports.history.mergeBaseOf(baseCommit, defaultBranchRef);
     const headById = new Map(
         functions.map((fitnessFunction) => [
             fitnessFunction.id,
@@ -84,10 +93,11 @@ export function createFitnessReport(
                 repoRoot: ports.repoRoot,
                 commit: headCommit,
                 changeBase: baseCommit,
+                defaultBranchBase,
             }),
         ]),
     );
-    const baseById = measureBase(functions, baseCommit, ports);
+    const baseById = measureBase(functions, { commit: baseCommit, defaultBranchBase }, ports);
     const renames = ports.history.renamesSince(baseCommit);
     const history = readTrendHistory(functions, headCommit, baseCommit, ports);
     return {

@@ -56,6 +56,27 @@ describe("the git history", () => {
         expect(gitRepository(repository.root).mergeBase(laterMain.slice(0, 8))).toBe(base);
     });
 
+    it("finds where a stacked PR's base meets the default branch", () => {
+        const fork = repository.commit("a.ts", "1");
+        repository.git("checkout", "--quiet", "-b", "stack");
+        const stackTip = repository.commit("b.ts", "1");
+        repository.git("checkout", "--quiet", "main");
+        const laterMain = repository.commit("a.ts", "2");
+        repository.git("update-ref", "refs/remotes/origin/main", laterMain);
+        const history = gitRepository(repository.root);
+
+        expect(history.mergeBaseOf(stackTip, "origin/main")).toBe(fork);
+        expect(history.mergeBaseOf(fork, "origin/main")).toBe(fork);
+    });
+
+    it("fails when the default branch is missing", () => {
+        const commit = repository.commit("a.ts", "1");
+
+        expect(() => gitRepository(repository.root).mergeBaseOf(commit, "origin/main")).toThrow(
+            "origin/main does not exist; fetch it first",
+        );
+    });
+
     it("fails and names a base that is no commit", () => {
         repository.commit("a.ts", "1");
 

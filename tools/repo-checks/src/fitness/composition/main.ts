@@ -79,10 +79,10 @@ export function run(args: readonly string[]): number {
         return runMissedPartner(args.slice(1));
     }
     const useCases: FitnessUseCases = {
-        report: ({ baseRef, repo }) =>
+        report: ({ repo, ...refs }) =>
             createFitnessReport(
                 FITNESS_FUNCTIONS,
-                baseRef,
+                refs,
                 reportPorts(repo === undefined ? REPO_ROOT : checkoutRoot(callerPath(repo))),
             ),
         recordSnapshots: (outDir) =>

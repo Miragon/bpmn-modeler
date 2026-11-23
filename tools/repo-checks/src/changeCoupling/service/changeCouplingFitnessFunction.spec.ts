@@ -48,7 +48,12 @@ function history(changedTogether: readonly (readonly string[])[], length = HISTO
     }));
 }
 
-const CONTEXT = { repoRoot: "/repo", commit: "head", changeBase: "head" };
+const CONTEXT = {
+    repoRoot: "/repo",
+    commit: "head",
+    changeBase: "head",
+    defaultBranchBase: "head",
+};
 
 const modified = (...paths: string[]): FileChange[] =>
     paths.map((path) => ({ kind: "modified", path }));
@@ -60,13 +65,16 @@ function record(commit: string, ...paths: string[]): CommitRecord {
 // The pair changed together in the 4 newest PRs up to the merge base, one short of being listed.
 const MAIN_UP_TO_BASE = history(Array(4).fill([LINT_CONFIG, CORE_LINT_CONFIG]));
 
-function findingsOf(graph: InMemoryCommitGraph, context: { commit: string; changeBase: string }) {
+function findingsOf(
+    graph: InMemoryCommitGraph,
+    context: { commit: string; changeBase: string; defaultBranchBase?: string },
+) {
     return measure(
         createChangeCouplingFitnessFunction({
             history: graph,
             sources: new InMemorySourceStructure(LAYOUT),
         }),
-        { repoRoot: "/repo", ...context },
+        { repoRoot: "/repo", defaultBranchBase: context.changeBase, ...context },
     );
 }
 
@@ -78,7 +86,12 @@ describe("the change coupling fitness function", () => {
             sources: new InMemorySourceStructure(LAYOUT),
         });
 
-        fitnessFunction.findFindings({ repoRoot: "/repo", commit: "head", changeBase: "base" });
+        fitnessFunction.findFindings({
+            repoRoot: "/repo",
+            commit: "head",
+            changeBase: "base",
+            defaultBranchBase: "base",
+        });
 
         expect(commits.requests).toEqual([
             { repoRoot: "/repo", commit: "base", depth: HISTORY_WINDOW + 1 },
@@ -147,6 +160,59 @@ describe("the change coupling fitness function", () => {
         });
     });
 
+    it("counts a stacked PR's base branch as the one change its squash adds, so no pair enters that the retarget drops", () => {
+        // 3 shared changes on main and 3 in the base branch's commits: 6 on the stack, 4 once squashed.
+        const mainUpToFork = history(Array(3).fill([LINT_CONFIG, CORE_LINT_CONFIG]));
+        const baseBranch = [1, 2, 3].map((index) =>
+            record(`baseBranch${index}`, LINT_CONFIG, CORE_LINT_CONFIG),
+        );
+        const graph = new InMemoryCommitGraph(
+            {
+                fork: mainUpToFork,
+                stackBase: [...baseBranch, ...mainUpToFork],
+                baseSquash: [record("baseSquash", LINT_CONFIG, CORE_LINT_CONFIG), ...mainUpToFork],
+            },
+            { stackBase: modified(STATUS_BAR), baseSquash: modified(STATUS_BAR) },
+            { "fork..stackBase": modified(LINT_CONFIG, CORE_LINT_CONFIG) },
+        );
+        const stacked = { changeBase: "stackBase", defaultBranchBase: "fork" };
+
+        const onStack = findingsOf(graph, { commit: "head", ...stacked });
+
+        expect(onStack).toEqual({ findings: [] });
+        expect(onStack).toEqual(
+            findingsOf(graph, { commit: "retargeted", changeBase: "baseSquash" }),
+        );
+        expect(findingsOf(graph, { commit: "stackBase", ...stacked })).toEqual(
+            findingsOf(graph, { commit: "baseSquash", changeBase: "baseSquash" }),
+        );
+    });
+
+    it("counts a stacked PR's base branch once in a pair's shared changes", () => {
+        const baseBranch = [1, 2, 3].map((index) =>
+            record(`baseBranch${index}`, LINT_CONFIG, CORE_LINT_CONFIG),
+        );
+        const graph = new InMemoryCommitGraph(
+            { base: MAIN_UP_TO_BASE, stackBase: [...baseBranch, ...MAIN_UP_TO_BASE] },
+            {},
+            { "base..stackBase": modified(LINT_CONFIG, CORE_LINT_CONFIG) },
+        );
+
+        expect(
+            findingsOf(graph, {
+                commit: "stackBase",
+                changeBase: "stackBase",
+                defaultBranchBase: "base",
+            }),
+        ).toEqual({
+            findings: [
+                expect.objectContaining({
+                    message: expect.stringContaining("in 5 PRs (5 and 5 revisions)"),
+                }),
+            ],
+        });
+    });
+
     it("keeps every commit of the base's window, so a pair the branch did not touch stays as it was", () => {
         const changedTogether: string[][] = Array(4).fill([LINT_CONFIG, CORE_LINT_CONFIG]);
         // The oldest commit of the window holds the fifth shared change.
@@ -186,7 +252,12 @@ describe("the change coupling fitness function", () => {
         });
 
         expect(
-            measure(fitnessFunction, { repoRoot: "/repo", commit: "head", changeBase: "base" }),
+            measure(fitnessFunction, {
+                repoRoot: "/repo",
+                commit: "head",
+                changeBase: "base",
+                defaultBranchBase: "base",
+            }),
         ).toEqual({ findings: [] });
     });
 

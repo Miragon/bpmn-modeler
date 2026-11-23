@@ -5,6 +5,8 @@ export interface RepositoryHistory {
     hasUncommittedChanges(): boolean;
     /** Throws when the ref is missing or shares no commit with HEAD. */
     mergeBase(ref: string): string;
+    /** As `mergeBase`, from `commit` instead of HEAD. */
+    mergeBaseOf(commit: string, ref: string): string;
     /** Newest first. */
     firstParentCommits(ref: string, depth: number): readonly string[];
     /** The working tree's renames against `commit`, as git's pinned rename detection sees them. */

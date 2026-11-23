@@ -11,6 +11,7 @@ export const WORKING_TREE = "/repo";
 
 export class InMemoryHistory implements RepositoryHistory {
     private readonly renamesByCommit = new Map<string, readonly Rename[]>();
+    private readonly mergeBasesOf = new Map<string, string>();
 
     constructor(
         private readonly commits: readonly string[],
@@ -33,6 +34,19 @@ export class InMemoryHistory implements RepositoryHistory {
             throw new Error(`${ref} not found`);
         }
         return this.base;
+    }
+
+    /** The commit is on every ref unless `withMergeBase` says otherwise. */
+    mergeBaseOf(commit: string, ref: string): string {
+        if (this.refs !== undefined && !this.refs.includes(ref)) {
+            throw new Error(`${ref} not found`);
+        }
+        return this.mergeBasesOf.get(`${commit} ${ref}`) ?? commit;
+    }
+
+    withMergeBase(commit: string, ref: string, mergeBase: string): this {
+        this.mergeBasesOf.set(`${commit} ${ref}`, mergeBase);
+        return this;
     }
 
     /** Starts at `ref` when it is one of the commits, at HEAD otherwise. */

@@ -42,6 +42,10 @@ export class GitCommitHistory implements CommitHistory {
     changesSince(repoRoot: string, commit: string): readonly FileChange[] {
         return parseNameStatus(git(repoRoot, [...DIFF_ARGS, commit, "--"]).split("\0"));
     }
+
+    changesBetween(repoRoot: string, from: string, to: string): readonly FileChange[] {
+        return parseNameStatus(git(repoRoot, [...DIFF_ARGS, from, to, "--"]).split("\0"));
+    }
 }
 
 function parseRecord(record: string): CommitRecord {

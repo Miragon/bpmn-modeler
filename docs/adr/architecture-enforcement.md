@@ -81,13 +81,10 @@ home module. The typed ESLint rule `miragon/no-guarded-value-comparison`
 ([source](../../tools/repo-checks/eslint/noGuardedValueComparison.cjs)) reports
 `===`, `!==`, `==`, `!=` and `case` comparisons of such a value with a string
 literal outside its home. Each registry entry in `eslint.config.cjs` names the type,
-its module, its homes and an error message naming the fix. Registered: `Engine`
-(`engineSupports`), `SurfaceMode` (`surfaceModeSupports`), `ReferenceKind`
-(`referenceKindSupports`) and `DiffOrigin` (`diffOriginSupports`), each a capability
-table in `libs/modeler-types`, or a
-`Record<Type, …>` lookup where the knowledge lives; a lookup keyed by the union
-makes the compiler name a missing member, so a new member is decided in every table
-before it builds.
+its module, its homes (a capability table in `libs/modeler-types`, or a
+`Record<Type, …>` lookup where the knowledge lives) and an error message naming the
+fix; a lookup keyed by the union makes the compiler name a missing member, so a new
+member is decided in every table before it builds.
 
 - *Typed, not name-based:* it reads the type checker through typescript-eslint's
   parser services, so it sees the value under any name (a local, a parameter, a type
@@ -126,22 +123,27 @@ A reported fitness function plugs into
 and never fails a build. `corepack yarn fitness` prints the report of the current
 checkout against `git merge-base HEAD origin/main` as Markdown, or JSON with
 `--format json` for the [architecture review](#architecture-review). It exits
-non-zero only on broken input: a base that names no commit, no merge base (a
-shallow clone), a corrupt snapshot, or a function that throws or returns a
-malformed finding. `--base <rev>` and `--repo <dir>` measure another base or a
-worktree of an old commit; a function that cannot measure an old tree throws
-`InsufficientHistory` and is reported as not measurable there.
+non-zero only on broken input: a ref that names no commit, no merge base (a shallow
+clone), a corrupt snapshot, or a function that throws or returns a malformed
+finding. A function that cannot measure an old tree (`--repo` on a worktree of an
+old commit) throws `InsufficientHistory` and is reported as not measurable there.
 
 **On a pull request.** `.github/workflows/fitness-report.yml` runs on every
 `pull_request` (no branch filter, so stacked PRs get it). It is no required check
 and not in `build.yml`'s `ci.needs`.
 
 - It measures GitHub's test merge of the head into the base. The history functions
-  read the base's window and put the branch's change against the merge base in front
-  of it as one more record, so the whole PR counts as one change, as after the squash
-  merge, both here and in a local run, and no base commit leaves the window. Reading
-  the window from the head made each branch commit a change and let rows appear on
-  files the branch did not touch. A conflicting PR has no test merge and no run.
+  read the base's window with the branch's change against the merge base in front as
+  one record, so the PR counts as one change, as after its squash, in CI and locally
+  alike, and no base commit leaves the window. Reading it from the head counted each
+  branch commit and let rows appear on files the branch did not touch. A conflicting
+  PR has no test merge and no run.
+- On a stacked PR the window ends where the merge base meets the default branch
+  (`--default-branch`, `origin/main`, which the workflow's full clone holds), and the
+  base branch counts as one record behind the branch's: its unsquashed commits, one
+  PR each, pushed `main` commits out and brought rows that left on the retarget
+  (#2742). Cost: a stack of several PRs counts as one change where `main` gets one
+  squash each, so a row can be missing or extra until the retarget.
 - A function may declare what the comment shows instead of its new and resolved rows
   (`changesView`, #2371); the full report and the JSON keep every row.
   `size-and-complexity` lists only the existing files that grew since the merge base,
@@ -156,11 +158,10 @@ and not in `build.yml`'s `ci.needs`.
   run, so it landed on whichever PR came next; the missed-partner warnings left on PRs
   were mostly judged false or not judged; change-coupling and host-text as decided
   below.
-- The job summary carries every row. The PR comment is a capped copy
-  (`--capped-out --max-characters 60000`, under GitHub's 65,536 limit): every
-  function gets the same row limit, new rows before resolved, and no table or
-  `<details>` is cut. Without any change and without an earlier comment nothing is
-  posted.
+- The job summary carries every row; the PR comment is a copy capped under GitHub's
+  65,536 characters: every function gets the same row limit, new rows before
+  resolved, and no table or `<details>` is cut. Without any change and without an
+  earlier comment nothing is posted.
 - **Permissions.** The `report` job runs the PR's code (which can change
   `tools/repo-checks`) with `contents: read` only and uploads the summary and the
   comment as an artifact. The `comment` job has only `pull-requests: write`,
@@ -169,19 +170,18 @@ and not in `build.yml`'s `ci.needs`.
   install runs a bumped package's lifecycle scripts), and a fork's token cannot
   write. `pull_request_target` is not used.
 
-**What a function declares** (the contract). `id`, `version`, its categories (scope
-atomic or holistic, cadence triggered, result static or dynamic), what it measures,
-the skill and rule it relies on, what it misses, what it reports wrongly, its
-evidence (published work or a trial on this repository) and `findFindings`.
-`defineFitnessFunction` makes a missing field a type error. The report prints every
-field, so limits travel with the findings instead of living in a document that
-drifts. The `evidence` list sits in a data module beside the definition
-(`<name>Evidence.ts`), so a trial grows that module and not the definition, which
-size-and-complexity would otherwise report as grown on every trial (#2681); JSON was
-rejected because it loses the type check. The rule a function relies on lands in a
-skill in the same PR and names the function's id; a static spec checks both and
-that ids are unique. A function may declare finding groups and numeric values
-(`codeLines`, `complexity`) that feed the trend.
+**What a function declares** (the contract). Its id, version and categories, what it
+measures, the skill rule it relies on, what it misses and reports wrongly, and its
+evidence (published work or a trial on this repository); `defineFitnessFunction`
+makes a missing field a type error. The report prints every field, so limits travel
+with the findings instead of living in a document that drifts. The `evidence` list
+sits in a data module beside the definition (`<name>Evidence.ts`), so a trial grows
+that module and not the definition, which size-and-complexity would otherwise report
+as grown on every trial (#2681); JSON was rejected because it loses the type check.
+The rule a function relies on lands in a skill in the same PR and names the
+function's id; a static spec checks both and that ids are unique. A function may
+declare finding groups and numeric values (`codeLines`, `complexity`) that feed the
+trend.
 
 **Identity and delta.** A finding has `path:line`, a message and a `key` the
 function builds from what the finding is about (paths, a symbol, a value), never
@@ -205,16 +205,14 @@ per stored mutation run. `fitness-history.yml` and the mutation workflow write
 through the `store-fitness-history` composite action, which commits through the Git
 Data API with `GITHUB_TOKEN`, so GitHub signs the commits and the ref moves by
 fast-forward only (a losing writer rebuilds its tree, files are keyed so none
-overwrites another's). The report reads the branch offline from
-`origin/fitness-history` as last fetched. A snapshot entry is `{ version, findings }`
-or `{ version, unmeasurable }` per id; an entry of another version is not used. The
-push job fills missing `id@version` entries newest first over the last 500 commits
-(at most 100 per run), so a version bump refills its series within a few pushes. A
-function that throws `InsufficientHistory` is stored as unmeasurable and its series
-ends there. Workflow artifacts were rejected as the store (they expire and need a
-token to read); recomputing on demand cannot produce a series git cannot recompute,
-such as a mutation score. The data branch is one more ref to keep, and only
-convention keeps people from pushing to it.
+overwrites another's). The report reads `origin/fitness-history` offline as last
+fetched and uses only an entry of the function's version; the push job backfills
+missing `id@version` entries, newest first, so a version bump refills its series
+within a few pushes. A function that throws `InsufficientHistory` is stored as
+unmeasurable and its series ends there. Workflow artifacts were rejected as the store
+(they expire and need a token to read); recomputing on demand cannot produce a series
+git cannot recompute, such as a mutation score. The data branch is one more ref to
+keep, and only convention keeps people from pushing to it.
 
 `tools/repo-checks/bin/fitness.mjs` loads the TypeScript entry with Vite's
 `runnerImport` and the workspace's aliases (Node's type stripping cannot resolve the
@@ -229,12 +227,12 @@ that are not visible there. Source lives in `tools/repo-checks/src/<id>/`.
 
 | Function | Reports | Decisions |
 | --- | --- | --- |
-| `change-coupling` (#2094) | Pairs of files that keep changing in the same PRs with no import between them: the signal for a rule kept in two places | Window is a commit count (924 first-parent commits up to the merge base), not a date, because older dates were rewritten; the branch counts as one change in front of it. Mechanical commits and commits over 30 read files are skipped. Thresholds are code-maat's defaults (5 shared changes, degree 30 %). Linked pairs are not reported; pairs explained by a shared import go in a collapsed group. Files are read by extension and declaration, not by name: every `.json` under `src/` (a contract such as the bridge's `protocol.json` was invisible before), and generated files are skipped by git's `linguist-generated` mark, which GitHub honours too; a generator's header text was rejected as a convention a generator may word differently |
+| `change-coupling` (#2094) | Pairs of files that keep changing in the same PRs with no import between them: the signal for a rule kept in two places | Window is a commit count (924 first-parent commits up to where the merge base meets the default branch), not a date, because older dates were rewritten; a stacked PR's base branch and the branch each count as one change in front of it. Mechanical commits and commits over 30 read files are skipped. Thresholds are code-maat's defaults (5 shared changes, degree 30 %). Linked pairs are not reported; pairs explained by a shared import go in a collapsed group. Files are read by extension and declaration, not by name: every `.json` under `src/` (a contract such as the bridge's `protocol.json` was invisible before), and generated files are skipped by git's `linguist-generated` mark, which GitHub honours too; a generator's header text was rejected as a convention a generator may word differently |
 | `missed-partner` (#2095) | The branch changes a file without the partner it usually changes with, catching drift in the PR where it happens | Association rule: 5 shared changes, confidence 60 % and lift 4, chosen by `corepack yarn fitness missed-partner replay` (confidence alone is near chance below 60 %; lift guards a partner that changes in most commits). Reuses `change-coupling`'s history reader and read files |
 | `convention-coverage` (#2127) | Files outside a role folder, imports that contradict their folder, a port implemented outside `adapter/out/` | Runs the role-folder rules without the blanket exceptions, so it reports migration work; the port-implementation rule is reported, not blocking, because detecting a role by type is what folders were chosen over |
 | `repeated-value-sets` (#2050, #2682) | A set of allowed values written in two or more files | A regular expression's alternation of words is a set too, and an optional character or class inside it is expanded, because the copies that drifted in `tools/` were spelled `([mc]?ts\|tsx)` beside `(ts\|tsx\|mts\|cts)`; such a set gets no order note, since no type pin can hold a pattern. A copy pinned with `expectTypeOf<Copy>().toEqualTypeOf<Home>()` counts as one place; Kotlin, JSON, specs and test folders are not read, so a copy whose other half sits in a spec gives no finding. A finding names copies that list the values in another order, and the remedy is to pin the copy to the home's type: deriving a copy from its home fits only where the order is the same concern. A set that drifts shows as *resolved*, not new (a documented false report: a resolved set is a fix only where its copies are gone, import the home or are pinned) |
 | `size-and-complexity` (#2057) | Per file, code lines and the highest cyclomatic complexity of a function, with trend | A report, not ESLint `max-lines`/`complexity`: line count is a weak sign of a rule and a limit would fire on a long value table. Complexity mirrors ESLint's classic `complexity` rule. A module that runs no code (imports, exports, types and constants that compute nothing) is not measured, told by its syntax and not by a list of names (#2681): its size is no logic. Type-only files and barrels fall under the same rule |
-| `hotspots` (#2057) | Top 20 files by revisions × code lines: a place to look for a rule in the wrong home | A module that runs no code (a table of constants, a type-only file, a barrel) is not ranked, by `size-and-complexity`'s test, so its size cannot crowd logic out of the top 20. The cost: a rule written as a table or in types, in a module that runs no code, is no longer ranked however often it changes. Message classes run code, their constructors, and stay ranked. The product is ours, not Tornhill's script's. A branch adds one revision to each file it changed, as its squash will |
+| `hotspots` (#2057) | Top 20 files by revisions × code lines: a place to look for a rule in the wrong home | A module that runs no code (a table of constants, a type-only file, a barrel) is not ranked, by `size-and-complexity`'s test, so its size cannot crowd logic out of the top 20. The cost: a rule written as a table or in types, in a module that runs no code, is no longer ranked however often it changes. Message classes run code, their constructors, and stay ranked. The product is ours, not Tornhill's script's. A branch, and a stacked PR's base branch, add one revision to each file they changed, as their squashes will |
 | `host-text` (#2052, #2167) | User-visible text written in host code, TypeScript and Kotlin | A text is a literal with two words; markup, error and log arguments and the messages of Kotlin's preconditions are not read; Kotlin is read by a small lexer in `tools/architecture-testing` instead of a new parser dependency. Kotlin loggers are derived from their declarations, not from variable names. Two names stay (`log…`, the members of the core's `LoggerPort`, and the global `Error`), each guarded by `hostTextNames.spec.ts`, which fails when one no longer takes a text in host code; deciding them by type took ten times as long and changed no finding. `console` is no logger: host code logs through `LoggerPort`. Host chrome and host-failure messages are correct host text, so it never blocks and has no allowlist (the delta shows what is new) |
 | `contract-suites` (#2054) | Each adapter of a core port whose specs run no contract suite of that port | Resolved by types, not names. A class without `implements` is an adapter when production code hands it over where the port is expected (a handover is the composition's own statement; structural assignability to every port would make any `dispose()` holder an adapter). Implementers inside the core count like a host's. Render-only ports (every member returns `void`) and ports with one adapter are set aside in collapsed groups; the types cannot see a value the core reads back through another port, so such a port needs a suite of its own ([testing](testing.md#test-environments)) |
 | `mutation-score` (#2057) | Mutation score per domain folder from stored full Stryker runs | No floors; see [testing](testing.md#mutation-testing) |
@@ -275,12 +273,10 @@ CI pilot: the first two reviews needed a skeptic to filter their findings, runs
 differ, so the comment would change from push to push, and a job needs a workflow, an
 API secret and possibly a dependency. Recall was not measured.
 
-**What the report adds** (#2231, #2398). About 7 of the first trial's 75 findings
-trace to a report row and none of its behaviour bugs: those came from the copy search,
-from comparing a port's adapters and from comparing the wiring per host. In the second
-trial 9 of 109 findings cite a row. One review repeated without the report found 7 of
-its 10 findings; four more, run on another model, found each of their 14 at least in
-part, among them the four that cite a row. The report's value therefore lies in
+**What the report adds** (#2231, #2398). Few findings trace to a report row (about 7
+of 75 and 9 of 109 in two trials) and none of the behaviour bugs, which came from the
+copy search and from comparing a port's adapters and the wiring per host; reviews
+repeated without the report found most of theirs again. The report's value lies in
 trends, placement leads and feedback on the functions, not in finding erosion.
 
 **A function's place in the PR comment** (decided on #2398, 2026-11-22). A function

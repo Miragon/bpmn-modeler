@@ -34,9 +34,13 @@ function record(commit: string, ...paths: string[]): CommitRecord {
     return { commit, subject: "feat: change", changes: modified(...paths) };
 }
 
-function findingsOf(graph: InMemoryCommitGraph, context: { commit: string; changeBase: string }) {
+function findingsOf(
+    graph: InMemoryCommitGraph,
+    context: { commit: string; changeBase: string; defaultBranchBase?: string },
+) {
     return measure(createHotspotsFitnessFunction({ history: graph, sources: SOURCES }), {
         repoRoot: "/repo",
+        defaultBranchBase: context.changeBase,
         ...context,
     });
 }
@@ -53,6 +57,7 @@ describe("the hotspots fitness function", () => {
                 repoRoot: "/repo",
                 commit: "head",
                 changeBase: "head",
+                defaultBranchBase: "head",
             },
         );
 
@@ -80,6 +85,7 @@ describe("the hotspots fitness function", () => {
             repoRoot: "/repo",
             commit: "head",
             changeBase: "base",
+            defaultBranchBase: "base",
         });
 
         expect(commits.requests).toEqual([
@@ -166,6 +172,37 @@ describe("the hotspots fitness function", () => {
         expect(findingsOf(graph, { commit: "testMerge", changeBase: "base" })).toEqual(atBase);
     });
 
+    it("counts a stacked PR's base branch as one revision and keeps every commit up to the default branch", () => {
+        const mainUpToFork = MAIN_UP_TO_BASE.map((commit, index) =>
+            index === HISTORY_WINDOW - 1 ? record(commit.commit, OTHER) : commit,
+        );
+        const baseBranch = [1, 2, 3, 4, 5].map((index) => record(`baseBranch${index}`, OFTEN));
+        const graph = new InMemoryCommitGraph(
+            { fork: mainUpToFork, stackBase: [...baseBranch, ...mainUpToFork] },
+            {},
+            { "fork..stackBase": modified(OFTEN) },
+        );
+
+        const onStack = findingsOf(graph, {
+            commit: "stackBase",
+            changeBase: "stackBase",
+            defaultBranchBase: "fork",
+        });
+
+        expect(onStack).toEqual({
+            findings: [
+                expect.objectContaining({
+                    key: OFTEN,
+                    message: expect.stringMatching(/^4 revisions/),
+                }),
+                expect.objectContaining({
+                    key: OTHER,
+                    message: expect.stringMatching(/^1 revision /),
+                }),
+            ],
+        });
+    });
+
     it("is not measurable where fewer commits reach back than the window and its parent", () => {
         const fitnessFunction = createHotspotsFitnessFunction({
             history: new InMemoryCommitHistory(history(HISTORY_WINDOW)),
@@ -173,7 +210,12 @@ describe("the hotspots fitness function", () => {
         });
 
         expect(
-            measure(fitnessFunction, { repoRoot: "/repo", commit: "head", changeBase: "head" }),
+            measure(fitnessFunction, {
+                repoRoot: "/repo",
+                commit: "head",
+                changeBase: "head",
+                defaultBranchBase: "head",
+            }),
         ).toEqual({
             unmeasurable: `${HISTORY_WINDOW} first-parent commits reach back from here; the window needs ${HISTORY_WINDOW} and the parent of the oldest`,
         });

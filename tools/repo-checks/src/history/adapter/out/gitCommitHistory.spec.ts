@@ -134,4 +134,24 @@ describe("the git commit history", () => {
 
         expect(new GitCommitHistory().changesSince(repository.root, commit)).toEqual([]);
     });
+
+    it("lists one commit's changes against another, whatever the working tree holds", () => {
+        repository.write("src/a.ts", "export const a = 1;\n".repeat(20));
+        repository.write("src/b.ts", "b");
+        repository.git("add", "--all");
+        repository.git("commit", "--quiet", "-m", "add");
+        const fork = repository.git("rev-parse", "HEAD");
+        repository.git("mv", "src/a.ts", "src/renamed a.ts");
+        repository.git("commit", "--quiet", "-m", "move a");
+        const baseTip = repository.commit("src/b.ts", "changed");
+        repository.write("src/c.ts", "uncommitted");
+        repository.git("add", "--all");
+        repository.git("config", "diff.renames", "false");
+
+        expect(new GitCommitHistory().changesBetween(repository.root, fork, baseTip)).toEqual([
+            { kind: "modified", path: "src/b.ts" },
+            { kind: "renamed", previousPath: "src/a.ts", path: "src/renamed a.ts" },
+        ]);
+        expect(new GitCommitHistory().changesBetween(repository.root, baseTip, baseTip)).toEqual([]);
+    });
 });
