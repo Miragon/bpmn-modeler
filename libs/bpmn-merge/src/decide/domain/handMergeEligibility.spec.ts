@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { handMergeVersions } from "../../__fixtures__/handMergeVersions";
 import { computeMerge } from "../../classify/service/computeMerge";
 import { prepareMergeSources } from "../../sources/service/buildMergedSources";
-import { type HandMergeTexts, handMergeableSide, handMergeStartOf } from "./handMergeEligibility";
+import {
+    type HandMergeTexts,
+    handMergeableSide,
+    handMergeStartOf,
+    takeBackHandMergePick,
+} from "./handMergeEligibility";
 import { type DecisionOrigin, MergeDecisions } from "./mergeDecisions";
 
 async function opened() {
@@ -75,5 +80,53 @@ describe("handMergeStartOf", () => {
         decisions.pick("Message_New", "incoming");
         expect(handMergeStartOf(decisions, texts, "Message_New")).toBeUndefined();
         expect(handMergeableSide(decisions, texts, "Message_New")).toBeUndefined();
+    });
+});
+
+describe("takeBackHandMergePick", () => {
+    it("takes back the pick a hand merge made for itself, so the conflict is open again", async () => {
+        const { decisions, texts } = await opened();
+        decisions.pick("Task_Check", "current");
+
+        expect(takeBackHandMergePick(decisions, texts, "Task_Check", "current")).toBe(true);
+        expect(decisions.originOf("Task_Check")).toBeUndefined();
+        expect(decisions.openConflicts.map(({ id }) => id)).toContain("Task_Check");
+    });
+
+    it("leaves a pick the user moved to the other side since", async () => {
+        const { decisions, texts } = await opened();
+        decisions.pick("Task_Check", "incoming");
+
+        expect(takeBackHandMergePick(decisions, texts, "Task_Check", "current")).toBe(false);
+        expect(decisions.originOf("Task_Check")).toBe("picked");
+        expect(decisions.sideOf("Task_Check")).toBe("incoming");
+    });
+
+    it("takes nothing back once the user undid the pick", async () => {
+        const { decisions, texts } = await opened();
+        decisions.pick("Task_Check", "current");
+        decisions.unpick("Task_Check");
+
+        expect(takeBackHandMergePick(decisions, texts, "Task_Check", "current")).toBe(false);
+    });
+
+    it("leaves the pick of an element whose texts a hand merge cannot start from", async () => {
+        const { decisions, texts } = await opened();
+        decisions.pick("Message_New", "incoming");
+
+        expect(takeBackHandMergePick(decisions, texts, "Message_New", "incoming")).toBe(false);
+        expect(decisions.originOf("Message_New")).toBe("picked");
+    });
+
+    it("answers that it took nothing back where the undo is refused", () => {
+        const refusingTheUndo = {
+            originOf: () => "picked" as const,
+            sideOf: () => "current" as const,
+            unpick: () => ({ applied: false, handMergesAtStake: ["Task_Pack"] }) as const,
+        };
+
+        expect(takeBackHandMergePick(refusingTheUndo, THREE_TEXTS, "Task_Check", "current")).toBe(
+            false,
+        );
     });
 });

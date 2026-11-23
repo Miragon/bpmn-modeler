@@ -10,6 +10,7 @@ import {
     WebviewMessageRouter,
 } from "../../editorSession/service/WebviewMessageRouter";
 import { LoggerPort } from "../../kernel/port/hostPorts";
+import { NO_ELEMENT_XML_MERGE_EDITOR } from "../domain/elementXmlMerge";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { BpmnDiffService } from "./BpmnDiffService";
@@ -70,7 +71,7 @@ export function createDiffPaneRouter(
                   (command, pane) =>
                       diffService.openElementXmlMerge(pane, command.elementId, command.resume),
               ]
-            : { ignored: "the host offers no XML merge editor" },
+            : { ignored: NO_ELEMENT_XML_MERGE_EDITOR },
         ...mergeResultRoutes(diffService),
         ...mergePaneCommandRoutes(extensions),
         ...hostRoutes(extensions),

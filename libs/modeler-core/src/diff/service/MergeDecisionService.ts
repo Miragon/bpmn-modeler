@@ -1,6 +1,5 @@
 import {
     acceptHandMerge,
-    handMergeableSide,
     type HandMergeOutcome,
     type MergeDecisions,
     mergeElementNames,
@@ -8,6 +7,7 @@ import {
     mergePaneView,
     type PickOutcome,
     type ScopedDecision,
+    takeBackHandMergePick,
 } from "@miragon/bpmn-modeler-merge";
 import {
     ApplyMergeStatesQuery,
@@ -142,8 +142,10 @@ export class MergeDecisionService {
         elementId: string,
         pickToTakeBack?: MergeSide,
     ): Promise<void> {
+        const { decisions, sources } = session;
         const tookPickBack =
-            pickToTakeBack !== undefined && takeBackPick(session, elementId, pickToTakeBack);
+            pickToTakeBack !== undefined &&
+            takeBackHandMergePick(decisions, sources.handMergeTexts, elementId, pickToTakeBack);
         this.memoryOf(session).finishedHandMerge(elementId, "discarded", { tookPickBack });
         if (tookPickBack) this.tellDecided(session);
         await this.broadcastSession(session);
@@ -241,12 +243,6 @@ export class MergeDecisionService {
 }
 
 const FIRST_STEPPING: MergePaneStepping = { list: "openConflicts" };
-
-/** Takes back the pick a merge by hand made of `side`, unless the user's pick moved the element since; whether it did. */
-function takeBackPick({ decisions, sources }: MergeSession, elementId: string, side: MergeSide) {
-    if (handMergeableSide(decisions, sources.handMergeTexts, elementId) !== side) return false;
-    return decisions.unpick(elementId).applied;
-}
 
 /** A pane's pick: the element, how far it reaches, and the side to keep it from; absent means the pane's. */
 export interface MergePickRequest {

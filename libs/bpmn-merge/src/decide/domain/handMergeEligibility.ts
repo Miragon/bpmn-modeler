@@ -36,3 +36,19 @@ export function handMergeableSide(
         ? decisions.sideOf(id)
         : undefined;
 }
+
+/**
+ * Takes back the pick of `side` a hand merge made to start with, where the
+ * merge ended without a text, and answers whether it did. A pick the user
+ * moved or undid since stands as it is: nothing is taken back unless a hand
+ * merge could still replace `side`.
+ */
+export function takeBackHandMergePick(
+    decisions: DecidedElements & Pick<MergeDecisions, "unpick">,
+    handMergeTexts: ReadonlyMap<string, HandMergeTexts>,
+    id: string,
+    side: MergeSide,
+): boolean {
+    if (handMergeableSide(decisions, handMergeTexts, id) !== side) return false;
+    return decisions.unpick(id).applied;
+}

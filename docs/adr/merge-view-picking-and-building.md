@@ -1,7 +1,7 @@
 # Merge view picking and building
 
 - Status: accepted
-- Last reviewed: 2026-11-20
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -115,7 +115,9 @@ silently, another element's pick included. An undo after which the merge would a
 sending pane's last blocked decision names it (`freed`, "Nothing blocks … now"): the core keeps
 that refusal while its pane decides on and asks the merge (`MergeDecisions.wouldApply`). A
 decision of any other pane forgets it, the same side in another tab included; the finish of a
-merge editor changes no pick and keeps it. No pane copies the merge's obstacle rules. Rejected:
+merge editor keeps it, as it changes no pick, except a discard that takes back the pick the merge
+made itself ([Merge XML editor](merge-xml-editor.md)), an undo no pane sent. No pane copies the
+merge's obstacle rules. Rejected:
 the outcome in the header, far from the element and uneven in height; the acting pane in
 `lastOutcome`; a scored placement, which jumped from pick to pick; the pane reading the refusal's
 blockers, which took a picked dependant for the only obstacle an undo clears and missed a pick

@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
     ContainerReach,
     ElementPick,
+    HandMergeStart,
     LackingSide,
     MergeStep,
     PickableElement,
@@ -18,6 +19,7 @@ import {
     type MergeObstacleWithMissing,
     type MergePaneBadge,
     type MergePaneContainerReach,
+    type MergePaneHandMergeStart,
     type MergePaneLackingSide,
     type MergePanePick,
     type MergePanePickable,
@@ -401,6 +403,7 @@ describe("MergeDecisionService", () => {
         expectTypeOf<MergePaneLackingSide>().toEqualTypeOf<LackingSide>();
         expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
+        expectTypeOf<MergePaneHandMergeStart>().toEqualTypeOf<HandMergeStart>();
         expectTypeOf<MergePaneContainerReach>().toEqualTypeOf<ContainerReach>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
         expectTypeOf<MergeObstacleWithMissing>().toEqualTypeOf<

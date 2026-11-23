@@ -6,6 +6,14 @@ import {
 
 import { mergeSideName } from "./diffTabLabel";
 
+/** Why a host without a merge editor opens no element XML merge, as the router and the log say it. */
+export const NO_ELEMENT_XML_MERGE_EDITOR = "the host offers no XML merge editor";
+
+/** The log line of an element XML merge a pane asked for that did not open. */
+export function elementXmlMergeNotOpened(elementId: string, reason: string): string {
+    return `Merge XML of ${elementId} not opened: ${reason}.`;
+}
+
 /** The texts of one element that base, current and incoming hold, which its merge editor shows. */
 interface ElementXmlMergeTexts {
     readonly base: string;

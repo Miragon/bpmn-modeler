@@ -2,7 +2,11 @@ import { handMergeableSide, handMergeStartOf } from "@miragon/bpmn-modeler-merge
 
 import { EditorSubscription } from "../../editorSession/domain/EditorSession";
 import { LoggerPort } from "../../kernel/port/hostPorts";
-import { ElementXmlMerges } from "../domain/elementXmlMerge";
+import {
+    elementXmlMergeNotOpened,
+    ElementXmlMerges,
+    NO_ELEMENT_XML_MERGE_EDITOR,
+} from "../domain/elementXmlMerge";
 import { ElementXmlMergeEditor } from "../port/ElementXmlMergeEditor";
 import { MergeEditorAvailability } from "../port/MergeEditorAvailability";
 import { DiffSession } from "./DiffSession";
@@ -72,7 +76,7 @@ export class ElementXmlMergeService {
 
     private async hostOpens(elementId: string): Promise<boolean> {
         const opens = await this.availability.ready;
-        if (!opens) this.notOpened(elementId, "the host offers no XML merge editor");
+        if (!opens) this.notOpened(elementId, NO_ELEMENT_XML_MERGE_EDITOR);
         return opens;
     }
 
@@ -134,7 +138,7 @@ export class ElementXmlMergeService {
     }
 
     private notOpened(elementId: string, reason: string): void {
-        this.logger.logInfo(`Merge XML of ${elementId} not opened: ${reason}.`);
+        this.logger.logInfo(elementXmlMergeNotOpened(elementId, reason));
     }
 
     private mergesOf(session: MergeSession): ElementXmlMerges {

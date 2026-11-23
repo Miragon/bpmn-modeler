@@ -13,12 +13,13 @@ import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { elementXmlMergeNotOpened, NO_ELEMENT_XML_MERGE_EDITOR } from "../domain/elementXmlMerge";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffSession } from "./DiffSession";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { DiffPaneStore } from "./DiffPaneStore";
-import { DiffPaneRelay } from "./DiffPaneRelay";
+import { type ArmedDiff, DiffPaneRelay } from "./DiffPaneRelay";
 import { ElementXmlDiffService } from "./ElementXmlDiffService";
 import { ElementXmlMergeService } from "./ElementXmlMergeService";
 import { MergeBuildService } from "./MergeBuildService";
@@ -142,10 +143,17 @@ export class BpmnDiffService {
 
     /** Keeps the list a merge pane steps through and has its partner walk it too. */
     async chooseMergeStepList(handle: DiffPaneHandle, list: MergePaneStepList): Promise<void> {
+        const view = this.mergeViewOf(handle);
+        if (view) await view.merge.chooseStepList(view.armed, list);
+    }
+
+    /** The armed panes and the decisions of the merge view a pane belongs to; none for any other pane. */
+    private mergeViewOf(
+        handle: DiffPaneHandle,
+    ): { readonly armed: ArmedDiff; readonly merge: MergeDecisionService } | undefined {
         const armed = this.relay.armedOf(handle);
-        if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.chooseStepList(armed, list);
-        }
+        const merge = this.merge;
+        return armed && merge?.shows(armed.session) ? { armed, merge } : undefined;
     }
 
     /**
@@ -160,10 +168,9 @@ export class BpmnDiffService {
         side?: MergeSide,
         dropsHandMerges?: boolean,
     ): Promise<void> {
-        const armed = this.relay.armedOf(handle);
-        if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.pick(armed, handle, { elementId, scope, side, dropsHandMerges });
-        }
+        const view = this.mergeViewOf(handle);
+        if (!view) return;
+        await view.merge.pick(view.armed, handle, { elementId, scope, side, dropsHandMerges });
     }
 
     /**
@@ -172,15 +179,15 @@ export class BpmnDiffService {
      * Picks nothing where the host has no merge editor for it.
      */
     async pickMergeSideThenMergeXml(handle: DiffPaneHandle, pick: MergePickRequest): Promise<void> {
-        const armed = this.relay.armedOf(handle);
-        const merge = this.merge;
-        if (!armed || !merge?.shows(armed.session)) return;
+        const view = this.mergeViewOf(handle);
+        if (!view) return;
         if (!this.elementXmlMerge) {
             this.notifier.logInfo(
-                `Merge XML of ${pick.elementId} not opened: the host offers no XML merge editor.`,
+                elementXmlMergeNotOpened(pick.elementId, NO_ELEMENT_XML_MERGE_EDITOR),
             );
             return;
         }
+        const { armed, merge } = view;
         await this.elementXmlMerge.openWithPick(armed.session, pick.elementId, () =>
             merge.pick(armed, handle, pick),
         );
@@ -193,10 +200,9 @@ export class BpmnDiffService {
         scope: MergePickScope,
         dropsHandMerges?: boolean,
     ): Promise<void> {
-        const armed = this.relay.armedOf(handle);
-        if (armed && this.merge?.shows(armed.session)) {
-            await this.merge.unpick(armed, handle, { elementId, scope, dropsHandMerges });
-        }
+        const view = this.mergeViewOf(handle);
+        if (view)
+            await view.merge.unpick(view.armed, handle, { elementId, scope, dropsHandMerges });
     }
 
     /** Whether the host has a merge editor for an element's XML, which merge panes may then offer. */

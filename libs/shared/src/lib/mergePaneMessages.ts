@@ -213,7 +213,7 @@ export type MergePaneOutcome =
           readonly handMergesAtStake?: readonly string[];
           /** Set when the merge refused a hand-merged text; the element keeps its version. */
           readonly handMergeRefusal?: MergePaneHandMergeRefusal;
-          /** Set when the user closed the element's merge editor without saving: nothing changed. */
+          /** Set when the user closed the element's merge editor without saving: the element is as before the merge, a pick the merge made itself taken back. */
           readonly discarded?: true;
           /** A merge by hand's count of the finishes in a row: a finish that repeats the last one word for word differs from it here. */
           readonly finish?: number;
