@@ -1,4 +1,3 @@
-import { readCodeLines, readFunctionComplexities, runsNoCode } from "@miragon/architecture-testing";
 import { describe, expect, it } from "vitest";
 
 import type { CommitRecord, FileChange } from "../../history/domain/commitHistory";
@@ -29,17 +28,7 @@ function file(path: string, codeLines: number, complexity?: number): FileMeasure
     };
 }
 
-function measured(path: string, source: string): FileMeasure {
-    return {
-        path,
-        codeLines: readCodeLines(path, source),
-        functions: readFunctionComplexities(path, source),
-        runsNoCode: runsNoCode(path, source),
-    };
-}
-
 const MODULE = "libs/core/src/module.ts";
-const LABELS = 'export const LABELS = {\n    save: "Save",\n    close: "Close",\n};\n';
 
 describe("the hotspot ranking", () => {
     it("ranks a file changed in 6 of 7 commits above a larger file changed once", () => {
@@ -124,50 +113,41 @@ describe("the hotspot ranking", () => {
         changed(OFTEN, LARGE, SMALL),
     ];
 
-    it.each([
-        { form: "a table of constants", source: LABELS },
-        {
-            form: "a type-only file",
-            source: 'export interface Message {\n    kind: "save";\n}\nexport type Reply = Message | undefined;\n',
-        },
-        {
-            form: "a barrel",
-            source: 'export * from "./labels";\nexport { Message } from "./message";\n',
-        },
-    ])(
-        "leaves out a module that runs no code, $form, with the top score, so the next file takes the last place",
-        ({ source }) => {
-            expect(
-                rankHotspots(
-                    moduleChangedMost,
-                    [measured(MODULE, source), file(OFTEN, 10), file(LARGE, 9), file(SMALL, 8)],
-                    2,
-                ).map(({ file, rank }) => [file.path, rank]),
-            ).toEqual([
-                [OFTEN, 1],
-                [LARGE, 2],
-            ]);
-        },
-    );
+    it("leaves out a module that runs no code with the top score, so the next file takes the last place", () => {
+        const table: FileMeasure = { path: MODULE, codeLines: 4, functions: [], runsNoCode: true };
 
-    it.each([
-        {
-            form: "a function beside a table of constants",
-            source: `${LABELS}export function label(key: keyof typeof LABELS): string {\n    return LABELS[key];\n}\n`,
-        },
-        {
-            form: "a class that only holds its fields",
-            source: "export class SaveCommand {\n    constructor(readonly content: string) {}\n}\n",
-        },
-        {
-            form: "a table built by a call, with no function",
-            source: 'export const KEYS = new Set([\n    "save",\n    "close",\n]);\n',
-        },
-    ])("ranks a module that runs code, $form", ({ source }) => {
         expect(
-            rankHotspots(moduleChangedMost, [measured(MODULE, source), file(OFTEN, 10)]).map(
-                ({ file, rank }) => [file.path, rank],
-            ),
+            rankHotspots(
+                moduleChangedMost,
+                [table, file(OFTEN, 10), file(LARGE, 9), file(SMALL, 8)],
+                2,
+            ).map(({ file, rank }) => [file.path, rank]),
+        ).toEqual([
+            [OFTEN, 1],
+            [LARGE, 2],
+        ]);
+    });
+
+    it.each<{ form: string; module: FileMeasure }>([
+        {
+            form: "without a function, such as a table built by a call",
+            module: { path: MODULE, codeLines: 4, functions: [], runsNoCode: false },
+        },
+        {
+            form: "in a function",
+            module: {
+                path: MODULE,
+                codeLines: 4,
+                functions: [{ name: "label", line: 2, complexity: 1 }],
+                runsNoCode: false,
+            },
+        },
+    ])("ranks a module that runs code $form", ({ module }) => {
+        expect(
+            rankHotspots(moduleChangedMost, [module, file(OFTEN, 10)]).map(({ file, rank }) => [
+                file.path,
+                rank,
+            ]),
         ).toEqual([
             [MODULE, 1],
             [OFTEN, 2],
