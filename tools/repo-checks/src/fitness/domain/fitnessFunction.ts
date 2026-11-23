@@ -34,8 +34,8 @@ export interface FindingValue {
     readonly title: string;
     /**
      * The growth since the merge base from which the grown-values view lists a finding; below it,
-     * only a rise in each of the last two steps of the value's trend lists it. Without one, any
-     * rise does. The full report lists every finding either way.
+     * only a rise in each of the last `RISING_STEPS` steps of the value's trend lists it. Without
+     * one, any rise does. The full report lists every finding either way.
      */
     readonly growthThreshold?: number;
 }

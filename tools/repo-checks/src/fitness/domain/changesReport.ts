@@ -1,4 +1,4 @@
-import { grewSinceBase, listsGrownFinding } from "./delta";
+import { grewSinceBase, listsGrownFinding, RISING_STEPS } from "./delta";
 import type { Finding } from "./finding";
 import type { FindingGroup, FindingValue } from "./fitnessFunction";
 import {
@@ -93,6 +93,9 @@ function largestOf(findings: readonly Finding[], { id }: FindingValue): Finding 
     );
 }
 
+/** A count of `RISING_STEPS` without a word here fails the typecheck instead of printing a digit. */
+const STEP_COUNT_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five" } as const;
+
 function grownNotListedLine(count: number, values: readonly FindingValue[]): string {
     const thresholds = values
         .flatMap(({ title, growthThreshold }) =>
@@ -103,7 +106,7 @@ function grownNotListedLine(count: number, values: readonly FindingValue[]): str
         ...values.flatMap(({ title, growthThreshold }) =>
             growthThreshold === undefined ? [`a ${title} rise`] : [],
         ),
-        "a rise in each of the trend's last two steps",
+        `a rise in each of the trend's last ${STEP_COUNT_WORDS[RISING_STEPS]} steps`,
     ].join(" or ");
     return `- **Grown, not listed:** ${rowCount(count)} that grew by less than ${thresholds}, without ${exceptions}`;
 }
