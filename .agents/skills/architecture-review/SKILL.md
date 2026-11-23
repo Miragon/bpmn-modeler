@@ -1,6 +1,6 @@
 ---
 name: architecture-review
-description: Reviews a branch, a pull request or a past commit for architecture and design erosion. Reads the fitness function report (findings, delta, trends and each function's limits) and checks its rows in the code, searches for copies of a rule, judges what no fitness function sees and proposes how to make the fitness functions more accurate. Use when asked to review a branch or PR for architecture, design, layering, duplicated rules or erosion.
+description: Reviews a branch, a pull request or a past commit (a change review), or one area of the tree (a survey), for architecture and design erosion. Reads the fitness function report (findings, delta, trends and each function's limits) and checks its rows in the code, walks a fixed list of files with fixed questions, searches for copies of a rule, checks each finding before writing it and proposes how to make the fitness functions more accurate. Use when asked to review a branch or PR for architecture, design, layering, duplicated rules or erosion, or to survey a workspace, a package or a port family.
 ---
 
 # Architecture review
@@ -10,6 +10,23 @@ deterministic, and blind to what their `misses` name. This review is the
 inferential sensor next to them
 ([ADR](../../../docs/adr/architecture-enforcement.md#architecture-review)). It is
 not deterministic, so it comments and never blocks.
+
+It comes in two kinds:
+
+- **Change review**: a branch, a PR or a commit. The scope is the change: walk
+  every source file it touches, report what it introduces or extends, and
+  list what predates it in one line each.
+- **Survey**: one area of the tree the request names, such as a workspace, a
+  port family or the hosts' composition roots. Walk every source file of the
+  area.
+
+Both walk a fixed list in path order and answer the same closed questions
+(step 4), so every run reads the same files and its coverage list shows what
+it answered for each. Runs still differ in what they notice: on six merged
+PRs, three runs of the review found different findings in the same files,
+with and without this walk, and one run found about 60 % of what the three
+found together. When a change needs more, run the review twice and merge the
+findings.
 
 ## 1. Measure the tree
 
@@ -50,7 +67,7 @@ macOS break them, often without an error.
 | The current branch       | this checkout             | `origin/main`                                                                   |
 | PR `<n>`, open or merged | worktree of the PR's head | its `baseRefOid`                                                                |
 | A commit on main         | worktree of `<commit>`    | `<commit>^`, its first parent (its PR's `baseRefOid` adds the PRs merged since) |
-| A whole tree, no change  | worktree of `<commit>`    | `<commit>`: every finding is `existing`, `touched.txt` is empty                 |
+| A survey, no change      | worktree of `<commit>`    | `<commit>`: every finding is `existing`, `touched.txt` is empty                 |
 
 Run the block of your row. The current branch:
 
@@ -83,7 +100,7 @@ echo "$OUT/worktree" > "$OUT/tree.txt"
 git rev-parse "<commit>^" > "$OUT/rev.txt"
 ```
 
-A whole tree: the same block, with `git rev-parse <commit> > "$OUT/rev.txt"`.
+A survey: the same block, with `git rev-parse <commit> > "$OUT/rev.txt"`.
 
 Then measure:
 
@@ -177,7 +194,7 @@ Each row is a claim about the code, not yet a finding: check it as step 6
 says. A row that matches a `reportsWrongly` entry, proves wrong or is
 harmless goes under **Marked, no action** in the output, never under Findings.
 
-A whole tree has no new findings and no touched files: count the findings per
+A survey has no new findings and no touched files: count the findings per
 function and group, then list those under each area step 4 walks. The rows
 outside those areas stay unchecked; the header counts them per function.
 
@@ -233,41 +250,62 @@ A copy whose spelling you do not know shows in the `change-coupling` and
 `missed-partner` findings the touched-file filter of step 2 lists: open
 both files of each pair and check whether they decide the same thing.
 
-## 4. Review what no fitness function sees
+## 4. Walk each file
 
-Each function's `misses` say what it cannot see; read that code yourself.
-Erosion recurs as:
+The walk list:
 
-- **A rule in another spelling**: the same decision written differently (a
-  comparison with a literal, the negation of a predicate, a Kotlin `when`),
-  or one text worded twice.
-- **Copies that already disagree**: two lists, enums, type declarations or
-  parsers of one concept. Diff their contents or behaviour: the difference is
-  the finding, ahead of the duplication itself. Find them by their members
-  (step 3), not only through the diff or a report row.
-- **Adapters of one port that disagree**: for each port the change calls,
-  open every adapter (each host, the bridge, the in-memory fake) and compare
-  what each returns on failure or cancel, its path format, order and limits,
-  and how it propagates and logs errors. Check that the port's contract suite
-  exercises every parameter the core passes. `contract-suites` proves that a
-  suite runs, not what it asserts; when it is unmeasurable, do this for every
-  port the change touches. It sees an adapter without an `implements` clause
-  only where production code hands it over as the port, and skips the core's
-  own object literals; find those with `git grep` on the port's name.
-- **Two derivations of one state**: one function derives a state from a
-  narrow input (whether an optional field is set, a boolean) while another
-  view of the same state reads the full value (a union, an enum). Walk every
-  value of the full input through both and check that they agree.
-- **Logic in the wrong layer**: a decision in `service/`, `adapter/` or a
-  host instead of `domain/`; a `domain/` file that orchestrates; a port shaped
-  by a host widget instead of the feature's intent. Correct imports do not
-  make it correct code. Open each new or largely rewritten adapter,
-  composition root, bootstrap and UI component in full, not only the lines a
-  report row or a grep names, and list its module-level mutable state kept in
-  sync by hand and every branch on domain data.
-- **Wiring per host**: a feature, route or session participant wired in one
-  host's composition and not in the other's (VS Code, bridge, Kotlin), or in
-  another order.
+- **Change review**: every file in `touched.txt` that exists in `TREE` and
+  holds source (TypeScript, Kotlin, scripts, JSON a workspace reads), without
+  specs, fixtures and generated files, in path order. A deleted or renamed
+  file is walked through what is left of it (step 3). Specs, docs and ADRs
+  are read where a question needs them, not walked.
+- **Survey**: every source file of the area, in path order (the block below
+  lists the areas).
+
+Open each file of the walk list in full, not only the changed lines or the
+lines a row or a grep names. Answer each question below for it, in this
+order, with yes (a finding, or a Marked entry with its reason) or no, and
+record the answers in the coverage list of the output. Each function's
+`misses` say what it cannot see; these questions cover that code.
+
+1. **Another spelling of a rule?** Does the file decide what another place
+   decides too: a comparison with a literal, the negation of a predicate, a
+   Kotlin `when`, or one text worded twice? Search for it as step 3 says.
+2. **Copies that already disagree?** Does it declare a list, enum, type or
+   parser of a concept that has another declaration? Diff their contents or
+   behaviour: the difference is the finding, ahead of the duplication itself.
+   Find them by their members (step 3), not only through the diff or a row.
+3. **Adapters of one port that disagree?** For each port the file declares,
+   implements or calls, open every adapter (each host, the bridge, the
+   in-memory fake) and compare what each returns on failure or cancel, its
+   path format, order and limits, and how it propagates and logs errors.
+   Check that the port's contract suite exercises every parameter the core
+   passes. `contract-suites` proves that a suite runs, not what it asserts;
+   when it is unmeasurable, do this for every port the walk reaches. It sees
+   an adapter without an `implements` clause only where production code
+   hands it over as the port, and skips the core's own object literals; find
+   those with `git grep` on the port's name.
+4. **Two derivations of one state?** Does one function derive a state from a
+   narrow input (whether an optional field is set, a boolean) while another
+   view of the same state reads the full value (a union, an enum)? Walk every
+   value of the full input through both and check that they agree.
+5. **Logic in the wrong layer?** A decision in `service/`, `adapter/` or a
+   host instead of `domain/`; a `domain/` file that orchestrates; a port
+   shaped by a host widget instead of the feature's intent. Correct imports
+   do not make it correct code. In a service, adapter, composition root,
+   bootstrap, UI component or host file, list every branch on domain data and
+   every module-level mutable state kept in sync by hand. Acting on an answer
+   a domain object returned is fine; working the answer out is not.
+6. **Wiring per host?** A feature, route or session participant wired in one
+   host's composition and not in the other's (VS Code, bridge, Kotlin), or in
+   another order.
+7. **A catch-all module?** A `shared/`, `kernel/` or utility file that
+   imports a feature or gathers unrelated concerns.
+8. **A silently ignored command?** A router, `switch` default or `catch` that
+   drops a message without a reason, or a command one host never handles.
+
+Once per review, not per file:
+
 - **"Ships in" against wiring**: on a `feat`/`fix` PR, check each release
   line by its `wiring` in `.github/release-lines.json`. Name a line ticked
   without wiring, and one wired but not ticked (`gh pr view <n> --json body`).
@@ -276,19 +314,14 @@ Erosion recurs as:
   declaration and the ADR coverage of dependencies and layering its siblings
   have. Check this by hand: `convention-coverage` reads only workspaces that
   declare an architecture.
-- **Catch-all modules**: `shared/`, `kernel/` or a utility file that imports
-  a feature or gathers unrelated concerns.
-- **Silently ignored commands**: a router, `switch` default or `catch` that
-  drops a message without a reason; a command one host never handles.
 
-A whole tree gives no touched files to start from and is more than one run
-can walk: whole-tree runs compared about half of 15 ports and left hundreds
-of rows unchecked. Review one area per run: a port family, the hosts'
-composition roots or one workspace's `domain/`, as the request names it.
-Without one, take the ports in hotspot order, at most five per run. Walk each
-port with all its adapters, and each composition root and `domain/` file of
-the area, and apply step 3 and these checks to each. The header names the
-areas and ports not covered, so the next run can take them.
+A survey has no touched files to start from, and a whole tree is more than
+one run can walk: whole-tree runs compared about half of 15 ports and left
+hundreds of rows unchecked. Survey one area per run: a port family, the
+hosts' composition roots or one workspace's `domain/`, as the request names
+it. Without one, take the ports in hotspot order, at most five per run, each
+with all its adapters. The header names the areas and ports not covered, so
+the next run can take them.
 
 ```sh
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
@@ -305,7 +338,7 @@ as context.
 ## 5. Propose measures from trends
 
 For each function that declares `values`, read the `trend` of the touched
-files; for a whole tree, of the files behind your findings and the hotspots.
+files; for a survey, of the files behind your findings and the hotspots.
 A value that rose in each of the last PRs that changed it is a lead:
 "`X.ts` grew in each of the last five PRs that touched it (300 → 330 → 348
 code lines); move the rule it holds into `domain/`". The first point is the
@@ -332,7 +365,7 @@ what it learns back.
 - Before you report a row as erosion or drop it, read the function's
   `reportsWrongly` and `misses`, then open the row's `path:line` and check
   that the code is what its `message` claims. Never drop a row unchecked: a
-  true finding dismissed is as bad as a false one reported. On a whole tree,
+  true finding dismissed is as bad as a false one reported. In a survey,
   check every row in the areas walked and count the rest as unchecked.
 - Before you mark a row false or propose a `reportsWrongly` entry, look up
   the function's trials that name the row's files. A trial ran on a commit of
@@ -377,6 +410,31 @@ what it learns back.
 
 These proposals go under Fitness function feedback, never among the findings.
 
+## 7. Check each finding
+
+Before you write a finding, try to refute it. When this review ran three times
+on six merged PRs without this step, two judges per finding rejected 2 of 30,
+disputed 4 and found a part overstated in 21; one of the two rejected was
+reported by all three runs. With the step, they rejected none of 24. For each
+finding:
+
+- Reopen its `path:line` in `TREE` and check that the code is what you claim.
+- Look for the record that makes the shape intended: an ADR, a doc comment or
+  the PR description that names it as a decision or a cost, with its reason.
+  If one does, the finding goes under Marked, no action, quoting the record,
+  unless the change breaks the recorded reason; then the finding says how.
+- Drop each part of the claim that the code does not show.
+- Give it one problem. A finding that holds two problems is two findings, and
+  a sub-point that is a problem of its own is a finding of its own.
+- Set its origin against `REV`: `introduced` (the change adds it),
+  `extended` (it existed and the change adds to it: a copy, a member, a
+  caller, a branch) or `predates` (it existed and the change leaves it as it
+  was). A survey has no origin.
+
+In a change review, `introduced` and `extended` are findings. A `predates`
+problem goes under Predates the change, one line each, with no proposal: a
+survey of that area takes it.
+
 ## Rules
 
 - Each finding names `path:line`, its evidence (the code, a grep hit, a
@@ -385,9 +443,10 @@ These proposals go under Fitness function feedback, never among the findings.
   its `evidence`, or no fitness function.
 - A row a `reportsWrongly` entry describes goes under Marked, no action once
   the code shows it is that case.
-- "Already duplicated before this PR" is never a reason to keep a copy.
-  `existing` only says the branch did not add it. Fix the copy in the PR, or
-  file an issue that names `path:line` of each copy.
+- "Already duplicated before this PR" is never a reason to keep a copy the
+  change adds or extends: `existing` only says the branch did not add the
+  row. A copy the change leaves as it was goes under Predates the change in a
+  change review, and is a finding in a survey.
 - A copy the tree records as a planned step, in an ADR or a doc comment that
   names an issue, goes under Marked, no action once you checked that the
   issue names each copy. A copy the issue leaves out is a finding.
@@ -405,22 +464,32 @@ Order the findings: copies or hosts that already disagree first, then copies
 that can drift, then placement and naming.
 
 ```markdown
-## Architecture review: <branch | #PR | commit> at `<head>` against `<merge base>` (`<base ref>`)
+## Architecture review: <branch | #PR | commit | survey of <area>> at `<head>` against `<merge base>` (`<base ref>`)
 
 Measured: <ids>. Not measured: `<id>` (<reason>).
 <When the merge base is not the base ref: touched files are the change as it would land on it, or, on a conflict, the change since `<commit>`, which `<merge>` took in, or, on a conflict without a merge, the change since the merge base, which may hold a stacked parent's commits; conflicted files the PR did not change: <paths>.>
-<For a whole tree: walked: <areas and ports>; not covered: <areas and ports>; unchecked rows: <count per function>.>
+<For a survey: walked: <areas and ports>; not covered: <areas and ports>; unchecked rows: <count per function>.>
 
 ### Findings
 
-1. `<path:line>`: <what erodes the design, and how; say if it predates the change>.
+1. `<path:line>`: <one problem: what erodes the design, and how>.
+   Origin: <introduced | extended>. <Leave out in a survey.>
    Evidence: <code, grep hit or report row>.
    Applies: <`id` new | existing | resolved>, <limit of `id`: "<quote>">, <trial of `id` at `<commit>`: "<quote>">, … or <no fitness function>.
-   Proposal: <fix in this PR> or <issue naming `path:line` of each copy>.
+   Proposal: <fix in this PR> or <follow-up naming `path:line` of each copy>.
+
+### Predates the change
+
+- `<path:line>`: <the problem, in one line>. <Change review only.>
 
 ### Marked, no action
 
-- `<id>` `<path:line>`: <the `reportsWrongly` entry it matches, a false alarm and the code that disproves it, the planned step that records it, or why it is harmless>.
+- `<id>` `<path:line>`: <the `reportsWrongly` entry it matches, a false alarm and the code that disproves it, the planned step or recorded decision that covers it, or why it is harmless>.
+
+### Coverage
+
+- `<path>`: <the questions of step 4 answered yes, each with its finding or Marked entry (for example 2 → F1, 5 → marked)>, or no to all.
+- Not walked: <specs, fixtures, docs, generated files: count>.
 
 ### Measures from trends
 
@@ -433,3 +502,7 @@ Measured: <ids>. Not measured: `<id>` (<reason>).
 
 Comments only; this review does not block.
 ```
+
+Whoever acts on a posted review adds a Follow-through section when the
+change is done: each finding fixed (`<commit>`), filed (`#<issue>`) or
+accepted (`<reason>`). A finding without one of the three is lost.
