@@ -16,6 +16,7 @@ import type {
     ImportGraph,
     KnownException,
     ModulePurity,
+    Role,
     Violation,
 } from "@miragon/architecture-testing";
 import { join } from "node:path";
@@ -53,10 +54,22 @@ function stageOf(path: string): string | undefined {
     return roleOf(path)?.context;
 }
 
+/** No `port/` or `adapter/`: the library does no I/O. */
+const STAGE_ROLES: readonly Role[] = ["domain", "service"];
+
 function filesOutsideStages({ files }: ImportGraph): Violation[] {
     return files
-        .filter((path) => !isEntry(path) && !STAGE_READS.has(stageOf(path) ?? ""))
+        .filter((path) => !isEntry(path) && !sitsInAStageRole(path))
         .map((path) => ({ from: path, to: "(no stage)" }));
+}
+
+function sitsInAStageRole(path: string): boolean {
+    const location = roleOf(path);
+    return (
+        location !== undefined &&
+        STAGE_READS.has(location.context) &&
+        STAGE_ROLES.includes(location.role)
+    );
 }
 
 function laterStageImports({ edges }: ImportGraph): Violation[] {
@@ -98,12 +111,12 @@ interface LibraryRule {
 function libraryRules(isPureModule: ModulePurity): readonly LibraryRule[] {
     return [
         {
-            rule: "every file but an entry sits in a stage",
+            rule: "every file but an entry sits in a stage's domain/ or service/",
             violations: filesOutsideStages,
             exceptions: [],
         },
         {
-            rule: "a stage imports only kernel/ and the stages before it",
+            rule: "a stage imports only kernel/ and the stages before it, build and project not each other",
             violations: laterStageImports,
             exceptions: [],
         },
@@ -162,7 +175,7 @@ function violationsWith(path: string, text: string): string[] {
 }
 
 describe("library rules on a synthetic graph", () => {
-    it("pass a tree whose stages read only kernel/ and the stages before them", () => {
+    it("pass a tree whose stages read only kernel/ and the stages before them, build and project not each other", () => {
         expect(violationsWith("kernel/domain/x.ts", "")).toEqual([]);
     });
 
@@ -178,6 +191,18 @@ describe("library rules on a synthetic graph", () => {
             path: "build/layout/domain/x.ts",
             text: "",
             violation: "build/layout/domain/x.ts -> (no stage)",
+        },
+        {
+            name: "a port/ in a stage",
+            path: "decide/port/x.ts",
+            text: "",
+            violation: "decide/port/x.ts -> (no stage)",
+        },
+        {
+            name: "an adapter/ in a stage",
+            path: "build/adapter/out/x.ts",
+            text: "",
+            violation: "build/adapter/out/x.ts -> (no stage)",
         },
         {
             name: "an earlier stage → a later one",

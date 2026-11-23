@@ -1,24 +1,11 @@
-import { type ElementSnapshot, elementSnapshots } from "@miragon/bpmn-modeler-diff";
+import { elementSnapshots } from "@miragon/bpmn-modeler-diff";
 
-import {
-    type ClassifiedVersion,
-    type ClassifiedVersions,
-    elementStateOf,
-    layoutStateOf,
-    moveStateOf,
-} from "../domain/mergeClassification";
 import { isMergeElement } from "../../kernel/domain/mergeElements";
+import type { MergeResult } from "../../kernel/domain/mergeResult";
+import { mergeElementOf, typesInMergeOrder } from "../domain/mergeElementOf";
 import { parseFailure } from "../domain/mergeRefusal";
 import {
-    type ElementVersion,
-    type LayoutState,
-    type MergeElement,
-    type MergeResult,
-    lanesKeyOf,
-} from "../../kernel/domain/mergeResult";
-import {
     type MergeVersions,
-    VERSION_NAMES,
     type VersionName,
     prefixSourcesOf,
     requireMergeableVersions,
@@ -27,8 +14,6 @@ import { versionKeysOf } from "../domain/versionKey";
 import { VersionSnapshots } from "../domain/versionSnapshots";
 
 export type { MergeVersions } from "./mergeVersions";
-
-type SnapshotsOfVersions = Partial<Record<VersionName, VersionSnapshots>>;
 
 /**
  * Classifies every merge element of the three versions: its content, parent
@@ -66,62 +51,4 @@ async function snapshotsOf(
     } catch (error) {
         throw parseFailure(version, error);
     }
-}
-
-/** Current's document order, then incoming's own elements, then base's; the type from the first version holding the element. */
-function typesInMergeOrder(
-    ...snapshotsByPrecedence: (VersionSnapshots | undefined)[]
-): Map<string, string> {
-    const types = new Map<string, string>();
-    for (const snapshots of snapshotsByPrecedence) {
-        for (const [id, snapshot] of snapshots?.byId ?? []) {
-            if (!types.has(id)) types.set(id, snapshot.type);
-        }
-    }
-    return types;
-}
-
-function mergeElementOf(
-    id: string,
-    type: string,
-    snapshots: SnapshotsOfVersions,
-    hasBase: boolean,
-): MergeElement {
-    const classified = {
-        base: classifiedVersionOf(snapshots.base?.byId.get(id)),
-        current: classifiedVersionOf(snapshots.current?.byId.get(id)),
-        incoming: classifiedVersionOf(snapshots.incoming?.byId.get(id)),
-    };
-    const versions: Partial<Record<VersionName, ElementVersion>> = {};
-    for (const name of VERSION_NAMES) {
-        const version = snapshots[name]?.versionOf(id);
-        if (version) versions[name] = version;
-    }
-    return {
-        id,
-        type,
-        state: elementStateOf(classified, hasBase),
-        layout: layoutStateOf(classified),
-        ...movedOf(classified),
-        versions,
-    };
-}
-
-function classifiedVersionOf(snapshot: ElementSnapshot | undefined): ClassifiedVersion | undefined {
-    if (!snapshot) return undefined;
-    const key = JSON.stringify([
-        snapshot.content,
-        snapshot.parent ?? null,
-        lanesKeyOf(snapshot.lanes),
-    ]);
-    return {
-        key,
-        ...(snapshot.layout === undefined ? {} : { layout: snapshot.layout }),
-        ...(snapshot.place === undefined ? {} : { place: snapshot.place }),
-    };
-}
-
-function movedOf(classified: ClassifiedVersions): { moved?: LayoutState } {
-    const moved = moveStateOf(classified);
-    return moved === undefined ? {} : { moved };
 }

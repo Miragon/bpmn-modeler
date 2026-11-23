@@ -68,8 +68,9 @@ that fails its checks instead of repairing it.
 
 - Put a file in its stage (`kernel`, `classify`, `decide`, `sources`, `build`, `project`), the rule
   in `domain/` and what awaits a parse or a write in `service/`. A stage imports only `kernel/` and
-  the stages before it; `architecture.spec.ts` checks it. The core's `domain/` imports
-  `@miragon/bpmn-modeler-merge/domain`, which re-exports only `domain/` modules.
+  the stages before it, `build` and `project` not each other; `architecture.spec.ts` checks it. The
+  core's `domain/` imports `@miragon/bpmn-modeler-merge/domain`, which re-exports only `domain/`
+  modules.
 - Keep it free of the DOM: the tsconfig compiles with `lib: ["ES2021"]` and the tests run in the
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
