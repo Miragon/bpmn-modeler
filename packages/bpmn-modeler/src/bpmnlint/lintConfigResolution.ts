@@ -1,7 +1,4 @@
-import { surfaceModeSupports, type BpmnlintConfig, type Engine } from "@miragon/bpmn-modeler-types";
-import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
-
-import type { ModelerMode } from "../mode/mode";
+import type { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
 
 /**
  * A per-mode lint config map: a consumer can lint Design and Implement
@@ -22,46 +19,3 @@ export interface LintConfigByMode {
  * selects the per-mode zero-config default.
  */
 export type LintConfigOption = BpmnlintConfig | LintConfigByMode;
-
-/**
- * Discriminates the by-mode map from a single config. A {@link BpmnlintConfig}
- * carries neither a `design` nor an `implement` key (its members are `extends` /
- * `rules` / `resolver` / `moddleExtensions`), so the presence of either key is
- * an unambiguous marker of the map form.
- */
-export function isLintConfigByMode(config: LintConfigOption): config is LintConfigByMode {
-    return "design" in config || "implement" in config;
-}
-
-/**
- * Resolves the effective {@link BpmnlintConfig} for a mode from the consumer's
- * `config` option. The single point that decides *what* to lint with, so
- * {@link BrowserLinter} only has to *run* a config (SRP), and a live mode toggle
- * can re-resolve without rebuilding the option.
- *
- * - single config → applied verbatim in both modes;
- * - by-mode map → the entry for `mode`, else the mode default;
- * - omitted → the mode default.
- *
- * The mode default drops the Camunda engine layer in Design (there is no
- * execution platform to bind on the engine-neutral surface) and keeps it in
- * Implement, for the `engineVersion` the diagram targets.
- */
-export function resolveLintConfig(
-    mode: ModelerMode,
-    engine: Engine | undefined,
-    config: LintConfigOption | undefined,
-    engineVersion?: string,
-): BpmnlintConfig {
-    if (config !== undefined && !isLintConfigByMode(config)) {
-        return config;
-    }
-    const perMode = config?.[mode];
-    if (perMode !== undefined) {
-        return perMode;
-    }
-    if (!surfaceModeSupports(mode, "engineLintRules")) {
-        return getDefaultLintConfig({ preset: "modeling" });
-    }
-    return getDefaultLintConfig({ engine, engineVersion, preset: "modeling" });
-}

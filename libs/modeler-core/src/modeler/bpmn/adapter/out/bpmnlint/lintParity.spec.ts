@@ -11,7 +11,7 @@ import { NodeBpmnLinter } from "./NodeBpmnLinter";
 // bpmn-webview app. modeler-core vitest runs in node and inlines the rules
 // plugin, so BrowserLinter runs here exactly as it does in the browser bundle.
 import { BrowserLinter } from "../../../../../../../../packages/bpmn-modeler/src/bpmnlint/browserLinter";
-import { resolveLintConfig } from "../../../../../../../../packages/bpmn-modeler/src/bpmnlint/lintConfigResolution";
+import { LintTierMachine } from "../../../../../../../../packages/bpmn-modeler/src/bpmnlint/lintTierMachine";
 
 /**
  * Parity: the host-side {@link NodeBpmnLinter} default run and the webview's
@@ -21,8 +21,8 @@ import { resolveLintConfig } from "../../../../../../../../packages/bpmn-modeler
  * (workspace config) or the webview did (no config).
  *
  * Both sides lint the same moddle tree with the same engine-aware default config
- * (host: `DefaultBpmnlintConfigService`; browser: the Implement-mode default from
- * `resolveLintConfig`, exactly as the lint tier machine picks it) and must report no
+ * (host: `DefaultBpmnlintConfigService`; browser: the Implement-mode default the
+ * lint tier machine builds its linter with) and must report no
  * unresolved rules — a non-empty `unresolved` on the browser side would be a real
  * `browserResolver` bug, not a test artefact, so it is asserted, never assumed.
  */
@@ -56,6 +56,19 @@ async function parseModdleRoot(
     return rootElement;
 }
 
+/** The config an in-page Implement surface for {@link PLATFORM} builds its linter with. */
+function implementDefault(): BpmnlintConfig {
+    const { effects } = LintTierMachine.start(
+        { tier: "in-page", engine: PLATFORM, mode: "implement" },
+        false,
+    );
+    const [built] = effects;
+    if (built?.kind !== "buildLinter") {
+        throw new Error("the in-page start built no linter");
+    }
+    return built.config;
+}
+
 describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
     it("produces identical findings and no unresolved rules on either side", async () => {
         const config = await new DefaultBpmnlintConfigService().build(PLATFORM);
@@ -71,9 +84,7 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
             BPMN_XML,
             config.moddleExtensions as Record<string, unknown> | undefined,
         );
-        const browserOut = await new BrowserLinter(
-            resolveLintConfig("implement", PLATFORM, undefined),
-        ).run(root);
+        const browserOut = await new BrowserLinter(implementDefault()).run(root);
 
         // The oversized task must actually trip a rule, else "parity" is vacuous.
         expect(Object.keys(nodeOut.results)).toContain("standard-size");

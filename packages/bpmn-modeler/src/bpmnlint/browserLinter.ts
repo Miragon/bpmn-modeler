@@ -13,7 +13,7 @@ import { RecordingBrowserResolver } from "./browserResolver";
  *
  * This is the in-page tier: instead of the host running a linter and pushing
  * results down, the webview lints itself. The config is already resolved by
- * `resolveLintConfig` (explicit config, per-mode entry, or the mode default) —
+ * `LintTierMachine` (explicit config, per-mode entry, or the mode default) —
  * the linter only runs it. Rules the bundled resolver cannot cover degrade to
  * no-ops and are reported via {@link LintRunEvent.unresolved}, so an unusual
  * config is never fatal.

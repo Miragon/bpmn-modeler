@@ -17,10 +17,8 @@ import {
 // modeler-core does not depend on @miragon/bpmn-modeler, so the webview half comes in by path.
 import {
     type LintTierEvent,
+    LintTierMachine,
     type LintTierState,
-    lintsInPage as webviewLintsInPage,
-    reduceLintTier,
-    startLintTier,
 } from "../../../../../../packages/bpmn-modeler/src/bpmnlint/lintTierMachine";
 
 function version(config: BpmnlintConfig, configPath = "/work/.bpmnlintrc"): LintConfigVersion {
@@ -82,7 +80,8 @@ interface SettledView {
 }
 
 function startWebview(): LintTierState {
-    return startLintTier({ tier: "external", engine: "c7", mode: "implement" }, true).state;
+    return LintTierMachine.start({ tier: "external", engine: "c7", mode: "implement" }, true)
+        .machine.state;
 }
 
 const START: Protocol = {
@@ -215,8 +214,13 @@ function toCore(protocol: Protocol, event: LintSessionEvent): Protocol {
     return deliver({ ...protocol, core: next }, action);
 }
 
+function webviewLintsInPage(webview: LintTierState): boolean {
+    return new LintTierMachine(webview).lintsInPage();
+}
+
 function toWebview(protocol: Protocol, event: LintTierEvent): Protocol {
-    return { ...protocol, webview: reduceLintTier(protocol.webview, event, true).state };
+    const webview = new LintTierMachine(protocol.webview).reduce(event, true).machine.state;
+    return { ...protocol, webview };
 }
 
 // Mirrors how BpmnLintConfigService posts each action and the webview turns the message into a tier event.
