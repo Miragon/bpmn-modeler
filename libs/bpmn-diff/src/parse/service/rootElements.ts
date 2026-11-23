@@ -3,7 +3,7 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../../types/saxen.d.ts" />
 
-import { XMLNS_PREFIX, namePrefix } from "../domain/namespacePrefixes";
+import { XMLNS, XMLNS_PREFIX, namePrefix } from "../domain/namespacePrefixes";
 
 export interface RootElementName {
     readonly localName: string;
@@ -42,6 +42,6 @@ function rootNameOf(
 ): RootElementName {
     const prefix = namePrefix(qualifiedName);
     const localName = prefix === undefined ? qualifiedName : qualifiedName.slice(prefix.length + 1);
-    const declared = attributes[prefix === undefined ? "xmlns" : `${XMLNS_PREFIX}${prefix}`];
+    const declared = attributes[prefix === undefined ? XMLNS : `${XMLNS_PREFIX}${prefix}`];
     return declared === undefined ? { localName } : { localName, namespace: decode(declared) };
 }

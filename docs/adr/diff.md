@@ -148,8 +148,8 @@ callers' role folders.
   the root entry: the types barrel stays impure after #2776 until they get another way in, and
   `engine.ts` holds only while no package declaration reaches `ExecutionEngine`. Six modules that
   mixed awaiting code with what `domain/` needs were split; synchronous rules beside the parse they
-  serve stay in `service/` (`computeDiff.ts`, `elementSnapshots.ts`, `parsedUnits.ts`,
-  `serialiseSnippet.ts`, `rootElements.ts`), where no rule finds them.
+  serve stay in `service/` (`computeDiff.ts`, `elementSnapshots.ts`, `elementTexts.ts`,
+  `parsedUnits.ts`, `serialiseSnippet.ts`, `rootElements.ts`), where no rule finds them.
 
 ### DMN diff
 

@@ -125,8 +125,8 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
 
     const beforeDefs = camunda.before;
     const afterDefs = camunda.after;
-    const afterOrder = buildFlowOrder(afterDefs as never);
-    const removedAnchors = buildRemovedAnchors(removedIds, beforeDefs as never, afterOrder);
+    const afterOrder = buildFlowOrder(afterDefs);
+    const removedAnchors = buildRemovedAnchors(removedIds, beforeDefs, afterOrder);
     const sortedAdded = sortIdsByOrder(addedIds, afterOrder);
     const sortedRemoved = sortIdsByOrder(removedIds, removedAnchors);
     const sortedChanged = sortIdsByOrder(changedIds, afterOrder);
