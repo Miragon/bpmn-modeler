@@ -2,7 +2,10 @@ import { AddOnsFeature, AddOnsPanel } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import { AddOnsOpenParams, AddOnsWebviewMessageParams } from "../../../protocol/domain/types";
+import {
+    AddOnsOpenParams,
+    AddOnsWebviewMessageParams,
+} from "../../../protocol/domain/addOnsProtocol";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 

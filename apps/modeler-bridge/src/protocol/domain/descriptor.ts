@@ -2,22 +2,26 @@
  * The aggregate of the host↔core RPC surface: {@link METHODS} and the flat
  * {@link PROTOCOL} array pairing every method with its direction, kind, and a
  * representative param (and, for requests, result) fixture. Each feature owns
- * its methods and fixtures in its own `<feature>Protocol.ts` module; this file
- * only puts their groups in the wire order. The TS side owns this contract;
- * the IntelliJ Kotlin host verifies against the derived {@link protocolSnapshot}
- * (committed as `protocol.json`).
+ * its methods, their fixtures and the param and result types it introduces in
+ * its own `<feature>Protocol.ts` module; one type can serve several methods
+ * (`EditorRefParams`, `DeploymentWorkspaceRootParams`). `protocolEntry.ts`
+ * holds the entry shape and the shared `EmptyParams`. This file only puts the
+ * groups in the wire order. The TS side owns this contract; the IntelliJ
+ * Kotlin host verifies against the derived {@link protocolSnapshot} (committed
+ * as `protocol.json`).
  *
  * Drift is caught two ways. Compile-time: each fixture is checked against its
- * named param/result type via `satisfies`, so renaming a field in `types.ts`
+ * named param/result type via `satisfies`, so renaming a field of that type
  * without updating the fixture is a build error. Runtime: `protocol.spec.ts`
  * pins the method set, directions, and per-method key sets against the snapshot.
  *
  * Adding a method = add it to its feature's `*_METHODS` constant and to one of
  * that feature's entry groups (a new group also goes into {@link PROTOCOL}),
- * then refresh `protocol.json`; the contract test fails until all agree. The
- * IntelliJ `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host
- * method needs its Kotlin handler, a Host→Core method a Kotlin sender, both
- * must use the param keys listed here, and a Kotlin reply the result keys.
+ * declare a new param (and result) type there unless one fits, then refresh
+ * `protocol.json`; the contract test fails until all agree. The IntelliJ
+ * `ProtocolHandlerCoverageTest` reads `protocol.json` too: a Core→Host method
+ * needs its Kotlin handler, a Host→Core method a Kotlin sender, both must use
+ * the param keys listed here, and a Kotlin reply the result keys.
  */
 
 import {

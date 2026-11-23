@@ -1,4 +1,4 @@
-import { PluginApprovalsSnapshot } from "../../protocol/domain/types";
+import { PluginApprovalsSnapshot } from "../../protocol/domain/bpmnPluginsProtocol";
 
 /** The bridge's copy of the approvals the host stores; keeps the newest snapshot the host sent. */
 export interface PluginApprovalsMirror {

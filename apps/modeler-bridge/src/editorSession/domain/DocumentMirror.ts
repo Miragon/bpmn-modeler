@@ -1,4 +1,4 @@
-import { DocumentWriteResult, SessionMeta } from "../../protocol/domain/types";
+import { DocumentWriteResult, SessionMeta } from "../../protocol/domain/editorSessionProtocol";
 
 /**
  * Local mirror of every open document's text + identity, seeded by the host on

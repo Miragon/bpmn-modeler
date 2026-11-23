@@ -15,7 +15,9 @@ It imports only the public entry of `@miragon/bpmn-modeler-core`, never deep pat
   Why not a WebSocket between webview and bridge: [IntelliJ bridge: process lifecycle](../../docs/adr/intellij-bridge.md#process-lifecycle).
 - **One protocol descriptor.** Every method is declared once, with its fixtures, in its feature's
   `src/protocol/domain/<feature>Protocol.ts` (`editorSessionProtocol.ts`, `deploymentProtocol.ts`,
-  …); `src/protocol/domain/descriptor.ts` gathers them into `METHODS` and `PROTOCOL` in wire order.
+  …), which also declares the param and result types the feature introduces; shared shapes such as
+  `EmptyParams` sit in `protocolEntry.ts`. `src/protocol/domain/descriptor.ts` gathers the modules
+  into `METHODS` and `PROTOCOL` in wire order.
   Its snapshot, with each method's direction, kind and the keys
   of its frames and results, is checked in as
   [`src/protocol/domain/protocol.json`](src/protocol/domain/protocol.json) and pinned by

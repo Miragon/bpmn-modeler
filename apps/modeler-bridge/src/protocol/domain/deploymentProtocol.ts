@@ -1,22 +1,93 @@
+import { DeploymentStatePatch, RawDeploymentState } from "@miragon/bpmn-modeler-core";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+
 import { ProtocolEntry } from "./protocolEntry";
 import { SAMPLE_COMMAND, SAMPLE_QUERY } from "./sharedSamples";
-import {
-    BasicAuthCredentials,
-    DeploymentOpenParams,
-    DeploymentPostMessageParams,
-    DeploymentSaveParams,
-    DeploymentSeedParams,
-    DeploymentWebviewMessageParams,
-    DeploymentWorkspaceRootParams,
-    OAuth2Credentials,
-    SecretApprovedDestinations,
-    SecretDeleteParams,
-    SecretGetApprovedDestinationsParams,
-    SecretGetParams,
-    SecretSaveApprovedDestinationsParams,
-    SecretSaveBasicAuthParams,
-    SecretSaveOAuth2Params,
-} from "./types";
+
+/**
+ * `deploymentState/seed` — the host seeds the deployment-state mirror with what
+ * it stored; the core fills in the defaults.
+ */
+export interface DeploymentSeedParams {
+    state: RawDeploymentState;
+}
+
+/** `deployment/webviewMessage` — a webview {@link Command} from the deployment panel. */
+export interface DeploymentWebviewMessageParams {
+    message: Command;
+}
+
+/** `deployment/open` — the host reports the deployment tool-window's visibility. */
+export interface DeploymentOpenParams {
+    open: boolean;
+}
+
+/**
+ * `deployment/switchTarget`, `deployment/deployFiles`, `deployment/deployActive`,
+ * `deployment/verify`, `deployment/statusBarMenu` — host-initiated. The workspace root is passed
+ * because `NodeWorkspace` only learns roots from `session/register`, so a host
+ * action fired with no active editor must name it.
+ */
+export interface DeploymentWorkspaceRootParams {
+    workspaceRoot: string;
+}
+
+/** `secretStore/getBasicAuth` and `secretStore/getOAuth2` results. */
+export interface BasicAuthCredentials {
+    username: string;
+    password: string;
+}
+
+/** `secretStore/getOAuth2` result / `secretStore/saveOAuth2` credential half. */
+export interface OAuth2Credentials {
+    clientId: string;
+    clientSecret: string;
+}
+
+/**
+ * `secretStore/*` params. Every credential call carries an optional `slot`
+ * scoping it to a named deployment target (absent = the legacy ad-hoc keys).
+ */
+export interface SecretSaveBasicAuthParams {
+    username: string;
+    password: string;
+    slot?: string;
+}
+export interface SecretSaveOAuth2Params {
+    clientId: string;
+    clientSecret: string;
+    slot?: string;
+}
+export interface SecretGetParams {
+    slot?: string;
+}
+export interface SecretDeleteParams {
+    slot: string;
+}
+export interface SecretGetApprovedDestinationsParams {
+    slot: string;
+}
+/** `secretStore/getApprovedDestinations` result, or `null` when nothing is stored. */
+export interface SecretApprovedDestinations {
+    origins: string[];
+}
+export interface SecretSaveApprovedDestinationsParams {
+    slot: string;
+    origins: string[];
+}
+
+/**
+ * `deploymentState/save` — persist exactly the fields and ledger rows the patch
+ * names; the host acks an empty reply.
+ */
+export interface DeploymentSaveParams {
+    patch: DeploymentStatePatch;
+}
+
+/** `deployment/postMessage` — the core pushes a {@link Query} into the deployment panel. */
+interface DeploymentPostMessageParams {
+    message: Query;
+}
 
 export const DEPLOYMENT_METHODS = {
     deploymentStateSeed: "deploymentState/seed",

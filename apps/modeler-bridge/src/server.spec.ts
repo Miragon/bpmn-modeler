@@ -14,7 +14,7 @@ import {
     waitForFrame,
 } from "./__fixtures__/bridgeHarness";
 import { createBridge } from "./composition/bridge";
-import { StatusBarUpdateParams } from "./protocol/domain/types";
+import { StatusBarUpdateParams } from "./protocol/domain/kernelProtocol";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 /** A non-empty Camunda-7 diagram: detectable platform + version, so `display` posts without prompting. */

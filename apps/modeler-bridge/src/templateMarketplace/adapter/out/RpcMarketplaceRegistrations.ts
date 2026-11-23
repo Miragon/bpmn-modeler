@@ -10,7 +10,7 @@ import {
     MarketplaceStateReadResult,
     MarketplaceStateRemoveParams,
     MarketplaceStateSaveParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/templateMarketplaceProtocol";
 
 /**
  * IntelliJ's application and project stores. Each write is acknowledged only

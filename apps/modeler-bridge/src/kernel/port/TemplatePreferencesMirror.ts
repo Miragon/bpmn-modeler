@@ -1,4 +1,4 @@
-import { TemplatePreferencesSnapshot } from "../../protocol/domain/types";
+import { TemplatePreferencesSnapshot } from "../../protocol/domain/kernelProtocol";
 
 /** The bridge's copy of the template switches the host stores; keeps the newest list of each scope. */
 export interface TemplatePreferencesMirror {

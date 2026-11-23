@@ -11,7 +11,7 @@ import {
     ScriptCloseParams,
     ScriptDidChangeParams,
     ScriptDidOpenExternalParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/scriptTaskProtocol";
 import { ScriptTabEvents } from "../../port/ScriptTabEvents";
 
 /**

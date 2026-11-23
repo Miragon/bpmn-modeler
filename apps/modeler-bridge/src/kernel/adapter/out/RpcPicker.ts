@@ -1,7 +1,12 @@
 import { ChoicePrompt, ConfirmRequest, PickerPort, SearchPrompt } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ConfirmShowParams, ConfirmShowResult, PickerShowParams, PickerShowResult } from "../../../protocol/domain/types";
+import {
+    ConfirmShowParams,
+    ConfirmShowResult,
+    PickerShowParams,
+    PickerShowResult,
+} from "../../../protocol/domain/kernelProtocol";
 
 /**
  * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list, or

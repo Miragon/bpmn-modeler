@@ -14,7 +14,7 @@ import {
     MarketplaceStateReadResult,
     MarketplaceStateRemoveParams,
     MarketplaceStateSaveParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/templateMarketplaceProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcMarketplaceRegistrations } from "./RpcMarketplaceRegistrations";
 

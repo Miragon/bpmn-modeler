@@ -32,7 +32,7 @@ import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ScriptOpenParams } from "../../../protocol/domain/types";
+import { ScriptOpenParams } from "../../../protocol/domain/scriptTaskProtocol";
 import { ScriptTabEvents } from "../../port/ScriptTabEvents";
 
 export class BridgeScriptEditor implements ScriptEditorPort, ScriptTabEvents {

@@ -1,6 +1,6 @@
 import { WorkspaceTrustPort } from "@miragon/bpmn-modeler-core";
 
-import { WorkspaceTrustSnapshot } from "../../../protocol/domain/types";
+import { WorkspaceTrustSnapshot } from "../../../protocol/domain/kernelProtocol";
 import { WorkspaceTrustMirror } from "../../port/WorkspaceTrustMirror";
 
 /**

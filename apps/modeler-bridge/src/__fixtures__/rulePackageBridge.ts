@@ -14,7 +14,10 @@ import { dirname, join } from "node:path";
 import { approvalsAfter } from "@miragon/bpmn-modeler-core";
 
 import { createBridge } from "../composition/bridge";
-import { PluginApprovalsChangeParams, PluginApprovalsSnapshot } from "../protocol/domain/types";
+import {
+    PluginApprovalsChangeParams,
+    PluginApprovalsSnapshot,
+} from "../protocol/domain/bpmnPluginsProtocol";
 import { Rpc } from "../transport/adapter/out/Rpc";
 import { hostNotification, hostReply, registerParams, waitForFrame } from "./bridgeHarness";
 

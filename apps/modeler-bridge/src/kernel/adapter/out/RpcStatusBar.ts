@@ -1,7 +1,7 @@
 import { StatusBarPort, StatusSlot, StatusView } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { StatusBarUpdateParams } from "../../../protocol/domain/types";
+import { StatusBarUpdateParams } from "../../../protocol/domain/kernelProtocol";
 
 /**
  * Sends each status slot's view to the host, which shows every slot in its own

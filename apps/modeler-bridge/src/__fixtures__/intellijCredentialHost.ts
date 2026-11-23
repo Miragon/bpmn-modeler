@@ -1,4 +1,3 @@
-import { METHODS } from "../protocol/domain/descriptor";
 import {
     BasicAuthCredentials,
     OAuth2Credentials,
@@ -9,10 +8,13 @@ import {
     SecretSaveApprovedDestinationsParams,
     SecretSaveBasicAuthParams,
     SecretSaveOAuth2Params,
+} from "../protocol/domain/deploymentProtocol";
+import { METHODS } from "../protocol/domain/descriptor";
+import {
     TokenStoreGetParams,
     TokenStoreGetResult,
     TokenStoreSetParams,
-} from "../protocol/domain/types";
+} from "../protocol/domain/templateMarketplaceProtocol";
 import { Rpc } from "../transport/adapter/out/Rpc";
 
 /** A PasswordSafe entry, Kotlin's `Credentials(user, password)`, which keeps an empty user name as none. */

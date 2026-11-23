@@ -1,7 +1,8 @@
 import { ElementIdReviewPort, ElementIdReviewView } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../../protocol/domain/descriptor";
-import { EmptyParams, ElementIdReviewShowParams } from "../../../../protocol/domain/types";
+import { ElementIdReviewShowParams } from "../../../../protocol/domain/modelerProtocol";
+import { EmptyParams } from "../../../../protocol/domain/protocolEntry";
 
 /**
  * IntelliJ shows the element ID review in its own tool window, drawn from the

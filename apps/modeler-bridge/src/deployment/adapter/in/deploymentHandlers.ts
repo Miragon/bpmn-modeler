@@ -7,7 +7,7 @@ import {
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
     DeploymentWorkspaceRootParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/deploymentProtocol";
 import { WorkspaceRoots } from "../../../kernel/port/WorkspaceRoots";
 import { DeploymentStateMirror } from "../../port/DeploymentStateMirror";
 

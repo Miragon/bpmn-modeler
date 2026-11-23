@@ -1,4 +1,4 @@
-import { DocumentWriteParams, DocumentWriteResult } from "../protocol/domain/types";
+import { DocumentWriteParams, DocumentWriteResult } from "../protocol/domain/editorSessionProtocol";
 
 /** One open editor's Document as the IntelliJ host holds it. */
 export interface IntellijDocument {

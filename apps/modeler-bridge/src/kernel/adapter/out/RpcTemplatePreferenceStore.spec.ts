@@ -18,7 +18,7 @@ import {
     TemplatePreferencesChangeParams,
     TemplatePreferencesScopeSnapshot,
     TemplatePreferencesSnapshot,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/kernelProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { templatePreferenceHandlers } from "../in/templatePreferenceHandlers";
 import { RpcTemplatePreferenceStore } from "./RpcTemplatePreferenceStore";

@@ -1,7 +1,10 @@
 import { ActionNotice, ActionNotifierPort } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ActionNoticeShowParams, ActionNoticeShowResult } from "../../../protocol/domain/types";
+import {
+    ActionNoticeShowParams,
+    ActionNoticeShowResult,
+} from "../../../protocol/domain/kernelProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 
 /**

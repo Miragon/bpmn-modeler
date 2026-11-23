@@ -18,6 +18,9 @@ export type Kind = "notification" | "request";
  */
 export type ReplyWait = "prompt" | "syncedWrite" | "hostWork" | "hostShow";
 
+/** Empty-body notification/request (e.g. `clipboard/read`, `notifier/openConsole`). */
+export type EmptyParams = Record<string, never>;
+
 interface ProtocolEntryShape {
     readonly method: string;
     readonly direction: Direction;

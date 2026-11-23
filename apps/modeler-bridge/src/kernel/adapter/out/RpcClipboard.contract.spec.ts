@@ -1,7 +1,7 @@
 import { describeClipboardContract } from "@miragon/bpmn-modeler-core/testing";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ClipboardReadResult, ClipboardWriteParams } from "../../../protocol/domain/types";
+import { ClipboardReadResult, ClipboardWriteParams } from "../../../protocol/domain/kernelProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcClipboard } from "./RpcClipboard";
 

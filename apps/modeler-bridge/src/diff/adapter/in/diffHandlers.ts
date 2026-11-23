@@ -7,13 +7,13 @@ import {
 } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
 import {
     DiffDisposeParams,
     DiffOpenParams,
     DiffWebviewMessageParams,
     ElementXmlDiffClosedParams,
-} from "../../../protocol/domain/types";
+} from "../../../protocol/domain/diffProtocol";
+import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
 import { DiffPaneFactory } from "../../port/DiffPaneFactory";
 
 const SESSION_FOR_ORIGIN: Record<

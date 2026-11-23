@@ -1,14 +1,48 @@
-import { ProtocolEntry } from "./protocolEntry";
-import {
-    EditorRefParams,
-    ElementIdReviewRevealParams,
-    ElementIdReviewSetCheckedParams,
-    ElementIdReviewShowParams,
-    EmptyParams,
-    MigrateAllParams,
-    SettingsDidChangeParams,
-    SettingsSetLintingEnabledParams,
-} from "./types";
+import { type ElementIdReviewView, RawModelerSettings } from "@miragon/bpmn-modeler-core";
+
+import { EditorRefParams } from "./editorSessionProtocol";
+import { EmptyParams, ProtocolEntry } from "./protocolEntry";
+
+/** `settings/didChange` — a fresh `miragon.bpmnModeler.*` snapshot from the host. */
+export interface SettingsDidChangeParams {
+    settings: RawModelerSettings;
+}
+
+/**
+ * `migration/migrateAll` — migrate every `.bpmn` under a workspace root to a
+ * user-picked engine version. Carries the root explicitly because the action can
+ * fire with no editor open, so no `session/register` has registered it yet and
+ * `NodeWorkspace.findFiles` only globs registered roots. (`modeler/changeEngineVersion`
+ * needs no dedicated params — it reuses {@link EditorRefParams}.)
+ */
+export interface MigrateAllParams {
+    workspaceRoot: string;
+}
+
+/** `elementIdReview/setChecked` — the user ticked or cleared these rows in the host's panel. */
+export interface ElementIdReviewSetCheckedParams {
+    ids: string[];
+    checked: boolean;
+}
+
+/** `elementIdReview/reveal` — the user clicked a row; the core centres its element. */
+export interface ElementIdReviewRevealParams {
+    elementId: string;
+}
+
+/** `elementIdReview/show` — what the host's element ID review panel shows. */
+export interface ElementIdReviewShowParams {
+    view: ElementIdReviewView;
+}
+
+/**
+ * `settings/setLintingEnabled` — the user's lint choice from the webview or the
+ * BPMNlint widget. The host stores it and pushes the new snapshot to every
+ * bridge before it acks an empty reply.
+ */
+export interface SettingsSetLintingEnabledParams {
+    enabled: boolean;
+}
 
 export const MODELER_METHODS = {
     settingsDidChange: "settings/didChange",

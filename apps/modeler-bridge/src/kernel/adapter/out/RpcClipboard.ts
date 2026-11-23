@@ -1,7 +1,7 @@
 import { ClipboardPort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ClipboardReadResult } from "../../../protocol/domain/types";
+import { ClipboardReadResult } from "../../../protocol/domain/kernelProtocol";
 
 /**
  * Routes {@link ClipboardPort} calls to the host's system clipboard so the

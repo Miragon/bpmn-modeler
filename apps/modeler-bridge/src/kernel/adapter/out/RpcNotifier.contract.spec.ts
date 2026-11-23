@@ -5,7 +5,7 @@ import { describeNotifierContract } from "@miragon/bpmn-modeler-core/testing";
 import { describe, expect, it } from "vitest";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { NotifierProgressParams } from "../../../protocol/domain/types";
+import { NotifierProgressParams } from "../../../protocol/domain/kernelProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcNotifier } from "./RpcNotifier";
 

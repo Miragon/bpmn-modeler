@@ -1,7 +1,7 @@
 import { LanguagePreferencePort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { SettingsSetLanguageParams } from "../../../protocol/domain/types";
+import { SettingsSetLanguageParams } from "../../../protocol/domain/modelerSettingsProtocol";
 
 export class RpcLanguagePreference implements LanguagePreferencePort {
     constructor(private readonly rpc: Rpc) {}

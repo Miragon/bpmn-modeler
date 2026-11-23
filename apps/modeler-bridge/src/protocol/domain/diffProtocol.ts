@@ -1,14 +1,63 @@
+import { Command } from "@miragon/bpmn-modeler-shared";
+import { DiffOrigin } from "@miragon/bpmn-modeler-types";
+
 import { ProtocolEntry } from "./protocolEntry";
 import { SAMPLE_COMMAND } from "./sharedSamples";
-import {
-    DiffDisposeParams,
-    DiffOpenParams,
-    DiffPostMessageParams,
-    DiffWebviewMessageParams,
-    ElementXmlDiffCloseParams,
-    ElementXmlDiffClosedParams,
-    ElementXmlDiffShowParams,
-} from "./types";
+
+/** One side of a diff: a diff-scoped pane uri plus its cached XML. */
+interface DiffPaneInput {
+    /** Stable, diff-scoped pane identity (host appends `#<diffId>-<role>`). */
+    uri: string;
+    content: string;
+}
+
+/** `diff/open` — the host opens a two-pane diff with both sides known up front. */
+export interface DiffOpenParams {
+    diffId: string;
+    /** IntelliJ opens no merge view, so its diffs are never merge panes. */
+    origin: Exclude<DiffOrigin, "merge" | "merge-result">;
+    before: DiffPaneInput;
+    after: DiffPaneInput;
+}
+
+/** `diff/webviewMessage` — a webview {@link Command} from one diff pane. */
+export interface DiffWebviewMessageParams {
+    paneUri: string;
+    message: Command;
+}
+
+/** `diff/dispose` — tear down both panes of a diff. */
+export interface DiffDisposeParams {
+    diffId: string;
+}
+
+/** `elementXmlDiff/closed` — the user closed the element XML diff `diffKey`. */
+export interface ElementXmlDiffClosedParams {
+    diffKey: string;
+}
+
+/** `diff/postMessage` — the core drives one diff pane's host browser. */
+export interface DiffPostMessageParams {
+    paneUri: string;
+    message: unknown;
+}
+
+/**
+ * `elementXmlDiff/show` opens or replaces the element XML diff `diffKey` inside
+ * the diagram diff of pane `paneUri`; `elementXmlDiff/refresh` only replaces it.
+ */
+export interface ElementXmlDiffShowParams {
+    diffKey: string;
+    paneUri: string;
+    title: string;
+    before: string;
+    after: string;
+}
+
+/** `elementXmlDiff/close` — the diagram diff of the element XML diff `diffKey` closed. */
+export interface ElementXmlDiffCloseParams {
+    diffKey: string;
+}
 
 export const DIFF_METHODS = {
     diffOpen: "diff/open",

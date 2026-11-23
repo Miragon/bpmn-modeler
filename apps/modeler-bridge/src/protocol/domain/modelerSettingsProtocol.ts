@@ -1,5 +1,8 @@
 import { ProtocolEntry } from "./protocolEntry";
-import { SettingsSetLanguageParams } from "./types";
+
+export interface SettingsSetLanguageParams {
+    locale: string;
+}
 
 export const MODELER_SETTINGS_METHODS = {
     settingsSetLanguage: "settings/setLanguage",

@@ -1,21 +1,108 @@
-import { ProtocolEntry } from "./protocolEntry";
+import { PluginApproval, RawModelerSettings } from "@miragon/bpmn-modeler-core";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+
 import {
-    PLUGIN_APPROVAL_SAMPLE,
-    SAMPLE_COMMAND,
-    SAMPLE_QUERY,
     TEMPLATE_PREFERENCES_SAMPLE,
-} from "./sharedSamples";
-import {
-    DocumentDidChangeParams,
-    DocumentSaveParams,
-    DocumentSaveResult,
-    DocumentWriteParams,
-    DocumentWriteResult,
-    EditorPostMessageParams,
-    EditorRefParams,
-    RegisterParams,
-    WebviewMessageParams,
-} from "./types";
+    TemplatePreferencesSnapshot,
+    WorkspaceTrustSnapshot,
+} from "./kernelProtocol";
+import { ProtocolEntry } from "./protocolEntry";
+import { PLUGIN_APPROVAL_SAMPLE, SAMPLE_COMMAND, SAMPLE_QUERY } from "./sharedSamples";
+
+/** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
+export interface SessionMeta {
+    editorId: string;
+    /** Exact host editor generation for rejecting same-URI stale traffic. */
+    sessionId?: number;
+    uriString: string;
+    path: string;
+    fsPath: string;
+    scheme: string;
+    /** Host-provided workspace root, used to seed element-template discovery. */
+    workspaceRoot?: string;
+}
+
+/**
+ * `session/register` — the editor identity/meta plus the initial document
+ * content and an optional settings snapshot that must seed the host-global
+ * config before any template discovery runs.
+ */
+export interface RegisterParams extends SessionMeta {
+    content: string;
+    /** Host-owned revision preserved across bridge restarts. */
+    documentRevision?: number;
+    /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
+    settings?: RawModelerSettings;
+    /** The user's plugin approvals, so the first plugin request of a session reads them. */
+    pluginApprovals?: PluginApproval[];
+    /** The host's revision of `pluginApprovals`, as `pluginApprovals/didChange` carries it. */
+    pluginApprovalsRevision?: number;
+    /** The user's template switches, so the first templates the editor sends hide the switched-off ones. */
+    templatePreferences?: TemplatePreferencesSnapshot;
+    /** Whether the user trusts the project, so the first plugin request and lint already read it. */
+    workspaceTrust?: WorkspaceTrustSnapshot;
+}
+
+/** `webview/message` — a webview {@link Command} the host forwards into the core. */
+export interface WebviewMessageParams {
+    editorId: string;
+    sessionId?: number;
+    message: Command;
+}
+
+/**
+ * `document/didChange` — the host reports new on-disk/editor text for an editor.
+ * Only external changes are sent; the core's own writes are acknowledged by the
+ * {@link DocumentWriteResult} instead of an echo.
+ */
+export interface DocumentDidChangeParams {
+    editorId: string;
+    sessionId?: number;
+    content: string;
+    /** Host-owned document revision after applying this external change. */
+    documentRevision?: number;
+}
+
+/** `session/setActive`, `session/dispose` — address one exact editor session. */
+export interface EditorRefParams {
+    editorId: string;
+    sessionId?: number;
+}
+
+/** `document/write` — push core-originated text; result reports whether it changed. */
+export interface DocumentWriteParams {
+    editorId: string;
+    sessionId?: number;
+    content: string;
+    /** Host document revision on which this write was based. */
+    expectedDocumentRevision?: number;
+}
+export interface DocumentWriteResult {
+    changed?: boolean;
+    /** False when the host rejected a stale session or document revision. */
+    accepted?: boolean;
+    /**
+     * The bytes the host Document actually holds, present only when the host
+     * normalised the written content (line separators) so the mirror stays exact.
+     */
+    normalizedContent?: string;
+}
+
+/**
+ * `document/save` — persist the editor; `saved` is `true` when the Document is
+ * saved or had nothing to save, `false` when the host could not save it.
+ */
+export type DocumentSaveParams = EditorRefParams;
+export interface DocumentSaveResult {
+    saved?: boolean;
+}
+
+/** `editor/postMessage` — the core drives the host's editor browser. */
+export interface EditorPostMessageParams {
+    editorId: string;
+    sessionId?: number;
+    message: Command | Query;
+}
 
 export const EDITOR_SESSION_METHODS = {
     sessionRegister: "session/register",

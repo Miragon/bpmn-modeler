@@ -1,7 +1,7 @@
 import { ElementXmlDiff, ElementXmlDiffView } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { ElementXmlDiffShowParams } from "../../../protocol/domain/types";
+import { ElementXmlDiffShowParams } from "../../../protocol/domain/diffProtocol";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 
 /**

@@ -1,7 +1,7 @@
 import { LintingPreferencePort } from "@miragon/bpmn-modeler-core";
 import { Rpc } from "../../../../transport/adapter/out/Rpc";
 import { METHODS } from "../../../../protocol/domain/descriptor";
-import { SettingsSetLintingEnabledParams } from "../../../../protocol/domain/types";
+import { SettingsSetLintingEnabledParams } from "../../../../protocol/domain/modelerProtocol";
 
 /**
  * The host stores the user's lint choice and pushes it back in the settings

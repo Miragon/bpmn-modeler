@@ -1,8 +1,8 @@
 import { RawDeploymentState } from "@miragon/bpmn-modeler-core";
 import { describeDeploymentStateContract } from "@miragon/bpmn-modeler-core/testing";
 
+import { DeploymentSeedParams } from "../../../protocol/domain/deploymentProtocol";
 import { METHODS } from "../../../protocol/domain/descriptor";
-import { DeploymentSeedParams } from "../../../protocol/domain/types";
 import { Rpc } from "../../../transport/adapter/out/Rpc";
 import { RpcDeploymentState } from "./RpcDeploymentState";
 

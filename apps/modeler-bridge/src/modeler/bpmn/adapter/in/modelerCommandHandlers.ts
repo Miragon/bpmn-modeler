@@ -11,7 +11,8 @@ import {
 
 import { METHODS } from "../../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../../protocol/domain/rpcHandler";
-import { EditorRefParams, MigrateAllParams } from "../../../../protocol/domain/types";
+import { EditorRefParams } from "../../../../protocol/domain/editorSessionProtocol";
+import { MigrateAllParams } from "../../../../protocol/domain/modelerProtocol";
 import { WorkspaceRoots } from "../../../../kernel/port/WorkspaceRoots";
 
 /**

@@ -28,7 +28,7 @@ import { RpcMarketplacePrompt } from "./templateMarketplace/adapter/out/RpcMarke
 import { RpcMarketplaceRegistrations } from "./templateMarketplace/adapter/out/RpcMarketplaceRegistrations";
 import { RpcTokenPrompt } from "./templateMarketplace/adapter/out/RpcTokenPrompt";
 import { BridgeSettings } from "./kernel/adapter/out/BridgeSettings";
-import { SessionMeta } from "./protocol/domain/types";
+import { SessionMeta } from "./protocol/domain/editorSessionProtocol";
 import { Rpc } from "./transport/adapter/out/Rpc";
 
 const META: SessionMeta = {

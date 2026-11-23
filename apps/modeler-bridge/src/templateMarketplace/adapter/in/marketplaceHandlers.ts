@@ -2,7 +2,7 @@ import { MarketplaceCommands } from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../../../protocol/domain/descriptor";
 import { RpcHandlerTable } from "../../../protocol/domain/rpcHandler";
-import { MarketplaceCommandParams } from "../../../protocol/domain/types";
+import { MarketplaceCommandParams } from "../../../protocol/domain/templateMarketplaceProtocol";
 import { HostSettingsMirror } from "../../../kernel/port/HostSettingsMirror";
 
 /**

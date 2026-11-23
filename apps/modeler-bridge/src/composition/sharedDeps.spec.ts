@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { RpcEditorHandle } from "../editorSession/adapter/out/RpcEditorHandle";
-import { SessionMeta } from "../protocol/domain/types";
+import { SessionMeta } from "../protocol/domain/editorSessionProtocol";
 import { buildSharedDeps } from "./sharedDeps";
 
 const META: SessionMeta = {
