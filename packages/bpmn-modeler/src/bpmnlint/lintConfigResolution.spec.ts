@@ -49,6 +49,16 @@ describe("resolveLintConfig", () => {
         expect(hasCamundaLayer(resolveLintConfig("design", "c7", undefined))).toBe(false);
     });
 
+    it("lints the implement default against the engine version the diagram targets", () => {
+        expect(resolveLintConfig("implement", "c8", undefined, "8.7.0").extends).toContain(
+            "plugin:camunda-compat/camunda-cloud-8-7",
+        );
+    });
+
+    it("keeps the engine version out of the design default", () => {
+        expect(hasCamundaLayer(resolveLintConfig("design", "c8", undefined, "8.7.0"))).toBe(false);
+    });
+
     it("never adds the engine layer when no engine is given", () => {
         expect(hasCamundaLayer(resolveLintConfig("implement", undefined, undefined))).toBe(false);
         expect(hasCamundaLayer(resolveLintConfig("design", undefined, undefined))).toBe(false);

@@ -3,6 +3,7 @@ import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import { BrowserLinter } from "./browserLinter";
+import { resolveLintConfig } from "./lintConfigResolution";
 
 // The engine-aware default the resolver would hand the linter in Implement mode;
 // BrowserLinter now takes the resolved config, not the engine.
@@ -31,10 +32,30 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-async function parse(xml: string): Promise<unknown> {
+const SECRET_TASK_XML = (engineVersion: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="${engineVersion}">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:serviceTask id="Task_1" name="Call API">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="call-api" />
+        <zeebe:ioMapping>
+          <zeebe:input source="{{secrets.MY_SECRET}}" target="token" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+  </bpmn:process>
+</bpmn:definitions>`;
+
+async function parse(xml: string, packages: Record<string, unknown> = {}): Promise<unknown> {
     const createBpmnModdle = await loadBpmnModdle();
-    const { rootElement } = await createBpmnModdle().fromXML(xml);
+    const { rootElement } = await createBpmnModdle(packages).fromXML(xml);
     return rootElement;
+}
+
+async function lintAgainstTargetVersion(engineVersion: string) {
+    const config = resolveLintConfig("implement", "c8", undefined, engineVersion);
+    const definitions = await parse(SECRET_TASK_XML(engineVersion), config.moddleExtensions);
+    return new BrowserLinter(config).run(definitions);
 }
 
 describe("BrowserLinter (jsdom browser-compat smoke)", () => {
@@ -59,5 +80,18 @@ describe("BrowserLinter (jsdom browser-compat smoke)", () => {
         // The task carries no name; bpmnlint:recommended's label-required is part of
         // the structural base, so it must report at least one finding.
         expect(results["label-required"]?.length ?? 0).toBeGreaterThan(0);
+    });
+
+    it("accepts the {{secrets.X}} format in a diagram that targets Camunda 8.7", async () => {
+        const { results, unresolved } = await lintAgainstTargetVersion("8.7.0");
+
+        expect(results["camunda-compat/secrets"] ?? []).toEqual([]);
+        expect(unresolved).toEqual([]);
+    });
+
+    it("flags the {{secrets.X}} format as legacy in a diagram that targets Camunda 8.11", async () => {
+        const { results } = await lintAgainstTargetVersion("8.11.0");
+
+        expect(results["camunda-compat/secrets"]).toHaveLength(1);
     });
 });
