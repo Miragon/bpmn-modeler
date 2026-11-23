@@ -1,7 +1,5 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { type MergeNonEmptyIds, polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
-
-import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
 
 import { baseModel, cloneModel, nodeById } from "../../__fixtures__/baseModel";
 import { type BpmnFixtureModel, renderBpmn } from "../../__fixtures__/bpmnModelBuilder";

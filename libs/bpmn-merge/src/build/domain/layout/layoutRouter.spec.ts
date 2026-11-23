@@ -1,4 +1,4 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
 
 import { type DiagramBounds, type Outline, outlineMissOf } from "./layoutGeometry";

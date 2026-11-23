@@ -9,7 +9,7 @@ import {
     framesGrownBy,
     noteVariantEntry,
     shapesShiftedBy,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { type MergeRemovedWithWording, removedWithElement } from "./mergeRemovedWith";
 import type { MergeTranslate } from "./mergeTranslate";

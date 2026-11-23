@@ -9,7 +9,7 @@ import {
     parseWarningMessages,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
-import { detectEngineWithNamespaceFallback } from "@miragon/bpmn-modeler-types/engine";
+import { detectEngineWithNamespaceFallback } from "@miragon/bpmn-modeler-types/domain";
 
 import { executionEngineOf } from "../domain/executionEngine";
 import { mergeRefusal, parseFailure } from "../domain/mergeRefusal";

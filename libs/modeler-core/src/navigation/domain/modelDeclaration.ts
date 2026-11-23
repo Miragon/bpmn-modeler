@@ -1,4 +1,7 @@
-import { matchesOutsideCommentsAndCdata, type ReferenceKind } from "@miragon/bpmn-modeler-types";
+import {
+    matchesOutsideCommentsAndCdata,
+    type ReferenceKind,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 

@@ -4,7 +4,7 @@ import {
     type ElementIdSettings,
     elementIdSettingsOf,
     type OpenScriptEditorRef,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 interface SettingsTarget {
     setSettings(settings: BpmnModelerSetting): void;

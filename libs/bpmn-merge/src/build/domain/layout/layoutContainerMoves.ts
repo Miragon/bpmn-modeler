@@ -1,4 +1,4 @@
-import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/domain";
 
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type Offset, centerOf, liesWithin, offsetBetween } from "./layoutGeometry";

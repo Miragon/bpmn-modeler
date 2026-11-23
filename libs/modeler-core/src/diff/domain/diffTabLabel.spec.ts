@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type { MergeSide, MergeSideCaption } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     compareTabLabel,

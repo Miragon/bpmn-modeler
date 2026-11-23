@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
+import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types/domain";
 
 import { CODE_LINK_SCHEMA_VERSION, CodeLinkMapJson, parseMapJson } from "./codeLinkArtifact";
 import { CodeLink, CodeLinkMap, SourceFileChange } from "./CodeLinkMap";

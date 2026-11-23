@@ -1,10 +1,6 @@
-import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types/mergeVocabulary";
+import { type MergeSide, otherSide } from "@miragon/bpmn-modeler-types/domain";
 
-export {
-    MERGE_SIDES,
-    otherSide,
-    type MergeSide,
-} from "@miragon/bpmn-modeler-types/mergeVocabulary";
+export { MERGE_SIDES, otherSide, type MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 export type ResolvedState =
     | "unchanged"

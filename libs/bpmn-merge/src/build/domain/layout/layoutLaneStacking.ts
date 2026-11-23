@@ -1,4 +1,4 @@
-import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+import type { MergeNonEmptyIds } from "@miragon/bpmn-modeler-types/domain";
 
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, bottomOf, liesWithin } from "./layoutGeometry";

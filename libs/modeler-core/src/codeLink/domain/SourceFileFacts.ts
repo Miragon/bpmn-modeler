@@ -3,7 +3,7 @@ import {
     containsCommentOrCdataClose,
     isInsideRanges,
     TextRange,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 /**
  * A Spring/CDI bean-naming annotation up to the opening quote of its id, e.g.

@@ -1,4 +1,4 @@
-import { ENGINE_NAMESPACE } from "@miragon/bpmn-modeler-types/engine";
+import { ENGINE_NAMESPACE } from "@miragon/bpmn-modeler-types/domain";
 import { describe, expect, it } from "vitest";
 
 import { baseModel, removeNode } from "./baseModel";

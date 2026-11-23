@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MergePanePick } from "@miragon/bpmn-modeler-shared";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergePadDecision } from "./mergePadDecisions";
 

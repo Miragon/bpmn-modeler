@@ -1,4 +1,8 @@
-import { isSameScript, OpenScriptEditorRef, ScriptIdentity } from "@miragon/bpmn-modeler-types";
+import {
+    isSameScript,
+    OpenScriptEditorRef,
+    ScriptIdentity,
+} from "@miragon/bpmn-modeler-types/domain";
 
 /** A host tab showing one inline script of one editor. */
 export interface OpenScriptTab extends ScriptIdentity {

@@ -74,8 +74,9 @@ that fails its checks instead of repairing it.
 - Keep it free of the DOM: the tsconfig compiles with `lib: ["ES2021"]` and the tests run in the
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
-  lazily; a `domain/` file imports `@miragon/bpmn-modeler-diff/domain`. Import the engine rule from `@miragon/bpmn-modeler-types/engine` and the waypoint walk from
-  `@miragon/bpmn-modeler-types/polyline`, never the barrel, which loads every module and its runtime imports.
+  lazily; a `domain/` file imports `@miragon/bpmn-modeler-diff/domain`. Import the engine rule, the
+  waypoint walk, the merge vocabulary and the build notes from `@miragon/bpmn-modeler-types/domain`,
+  never the root entry, which re-exports the library's timer helpers and is not pure.
 - `mergeDecisions.ts` and its helpers import no parser: `mergeDecisionsPurity.spec.ts` mocks the parser
   and loads them.
 - Fixtures are generated in `src/__fixtures__/` from a plain model and must equal a moddle round trip

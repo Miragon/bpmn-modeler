@@ -4,7 +4,7 @@ import type {
     ConflictMarkerReading,
     MergeSide,
     MergeSideCaption,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { GitRefFacts } from "./conflictFacts";
 import { GitOperation } from "./gitOperation";

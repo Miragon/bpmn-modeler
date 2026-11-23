@@ -1,4 +1,4 @@
-import { Engine, getVersions } from "@miragon/bpmn-modeler-types";
+import { Engine, getVersions } from "@miragon/bpmn-modeler-types/domain";
 
 import { ChoicePrompt } from "./prompts";
 import { engineVersionChoicePrompt } from "./engineVersionChoicePrompt";
@@ -8,7 +8,7 @@ export {
     C8_VERSIONS,
     getLatestVersion,
     getVersions,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 export function engineVersionPrompt(platform: Engine): ChoicePrompt<string> {
     // One id per engine: migrating both engines asks for both versions in one run.

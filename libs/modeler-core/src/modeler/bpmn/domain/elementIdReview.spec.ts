@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
+import type { ElementIdRow } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     CLOSED_ELEMENT_ID_REVIEW,

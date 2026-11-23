@@ -2,7 +2,7 @@ import {
     type MergeSide,
     type MergeSideCaption,
     writeConflictMarkers,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { mergeSideName } from "./diffTabLabel";
 

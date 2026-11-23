@@ -2,7 +2,7 @@ import type {
     MergeContainerRepair,
     MergeFlowRepair,
     MergeOverlapRepair,
-} from "@miragon/bpmn-modeler-types/mergeBuildNotes";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import type { RepairOf } from "../buildNotes";
 import type { FlowRepair } from "./layoutFlowRepair";

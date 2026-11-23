@@ -1,4 +1,4 @@
-import type { Translate } from "@miragon/bpmn-modeler-types";
+import type { Translate } from "@miragon/bpmn-modeler-types/domain";
 
 import type { EngineCatalog } from "./catalog";
 import { bindingSpecOf } from "./bindingRules";

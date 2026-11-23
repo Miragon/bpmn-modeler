@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import type { ElementIdRow } from "@miragon/bpmn-modeler-types";
+import type { ElementIdRow } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     elementIdReviewView,

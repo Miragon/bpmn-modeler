@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 
 import { describe, expect, it } from "vitest";
 
-import { elementTypeName } from "@miragon/bpmn-modeler-types";
+import { elementTypeName } from "@miragon/bpmn-modeler-types/domain";
 
 import { catalogFor } from "./index";
 

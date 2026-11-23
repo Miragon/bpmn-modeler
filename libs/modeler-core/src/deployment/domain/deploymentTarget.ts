@@ -1,4 +1,4 @@
-import { Engine, ENGINES, engineSupports, isEngine } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINES, engineSupports, isEngine } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     DeploymentTargetChangedError,

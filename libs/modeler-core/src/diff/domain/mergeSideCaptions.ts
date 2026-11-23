@@ -2,7 +2,7 @@ import type {
     ConflictMarkerReading,
     MergeSide,
     MergeSideCaption,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { isFullCommitHash, shortCommitHash } from "./commitHash";
 import { GitCommitFact, GitRefFacts } from "./conflictFacts";

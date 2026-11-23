@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-types";
+import { ScriptKind } from "@miragon/bpmn-modeler-types/domain";
 
 /**
  * Domain model describing the Camunda 7 JSR-223 script execution context.

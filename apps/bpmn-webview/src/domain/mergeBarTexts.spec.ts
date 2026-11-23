@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeSideCaption } from "@miragon/bpmn-modeler-types";
+import type { MergeSideCaption } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     buildBlockedText,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
+import { BpmnlintConfig } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     LintAction,

@@ -1,4 +1,4 @@
-import { polylineSegments } from "@miragon/bpmn-modeler-types/polyline";
+import { polylineSegments } from "@miragon/bpmn-modeler-types/domain";
 import { framesOf } from "./layoutFrames";
 import type { LaneShape, LayoutEdge, LayoutModel, NodeShape } from "./layoutModel";
 import { type PlaneNodes, planeNodesOf } from "./layoutPlanes";

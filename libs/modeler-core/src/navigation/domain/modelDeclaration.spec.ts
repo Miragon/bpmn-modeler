@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ReferenceKind } from "@miragon/bpmn-modeler-types";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     declaresReferencedModel,

@@ -1,7 +1,7 @@
 # Role folders
 
 - Status: accepted
-- Last reviewed: 2026-11-23
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -20,9 +20,9 @@ missing or unknown kind.
 
 | Kind | Workspaces |
 | --- | --- |
-| `hexagonal` | `libs/modeler-core`, `libs/bpmn-merge`, `libs/bpmn-diff`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
+| `hexagonal` | `libs/modeler-core`, `libs/bpmn-merge`, `libs/bpmn-diff`, `libs/modeler-types`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/`, `packages/bpmn-modeler`, `packages/dmn-modeler` (bpmn-js module layout) |
-| `flat` | `modeler-types`, `modeler-browser`, `shared`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+| `flat` | `modeler-browser`, `shared`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
 A `diagram-js` or `flat` workspace holds no role folder, so no folder there
 reads as a role nothing checks.
@@ -96,10 +96,10 @@ once a `.tsx` file is in it. `readModulePurity` (`tools/architecture-testing`)
 decides it from structure; no list names a package.
 
 Pure today: the entry of `dmn-diff`, `@miragon/bpmn-modeler-diff/domain`,
-`@miragon/bpmn-modeler-merge/domain` and `modeler-types`, not the root entries of the diff
-and merge libraries, which re-export their `service/` modules. `modeler-types` compiles
-without the DOM since its ten canvas and chrome modules moved to `modeler-browser` (#2776),
-and its `diff.ts` reads the diff library's domain entry. Not pure: `shared` and
+`@miragon/bpmn-modeler-merge/domain` and `@miragon/bpmn-modeler-types/domain`, not the root
+entries of the diff, merge and types libraries, which re-export their `service/` modules.
+`modeler-types` compiles without the DOM since its ten canvas and chrome modules moved to
+`modeler-browser` (#2776), and its `diff.ts` reads the diff library's domain entry. Not pure: `shared` and
 `modeler-browser`, which compile with the DOM. `modeler-browser` stays `flat`: it holds
 widgets and helpers and no rule, so a `domain/` there would stay empty and its role folders
 would separate nothing; its rules live in `modeler-types`.
@@ -127,15 +127,16 @@ last use.
 - **Kind:** not read, and that is what lets the libraries get role folders
   (decided 2026-11-23): the flat logic libraries get feature or stage folders with
   `domain/` (pure core) and `service/` (orchestration) inside, no `port/` or `adapter/`.
-  `bpmn-merge` ([stages](merge.md#stages)) and `bpmn-diff`
-  ([library folders](diff.md#library-folders)) have them; `modeler-types` follows. An
+  `bpmn-merge` ([stages](merge.md#stages)), `bpmn-diff`
+  ([library folders](diff.md#library-folders)) and `modeler-types`
+  ([types library folders](#types-library-folders)) have them. An
   entry that re-exports only `domain/` stays pure, and so does every library that
   imports it; an entry that re-exports a `service/` is not, so a pure importer then
   imports a domain-only entry by subpath, which needs a `tsconfig.base.json` alias to
   be followed. The importer need not be a `domain/` file: `dmn-diff` imports
   `@miragon/bpmn-modeler-diff/domain` so that its own entry stays pure, and `modeler-types`'
   `engine.ts` does because the merge's domain entry reaches it.
-- **Scope:** only the core's spec and the merge and diff libraries' apply the rule. The other
+- **Scope:** only the core's spec and the merge, diff and types libraries' apply the rule. The other
   hexagonal workspaces have no package rule for `domain/`; there it would flag 64
   imports in 57 files, most of them `@miragon/bpmn-modeler-shared` (37) and
   `@miragon/bpmn-modeler-core` (12). That rule is open (#2562, B10).
@@ -174,15 +175,32 @@ last use.
   adapters that mirror host state implement a port the handlers take, so a
   handler keeps its order against the core (settings applied before a session's
   participants run).
-- A library that does no I/O, such as `bpmn-merge` and `bpmn-diff`, has only `domain/`
+- A library that does no I/O, such as `bpmn-merge`, `bpmn-diff` and `modeler-types`, has only `domain/`
   and `service/`: the hexagonal rules fit it unchanged, as those for ports, adapters and
   composition find nothing to read. What awaits a parse or a write sits in `service/`
-  (rule 11), the rules it applies in `domain/`; both libraries still keep some beside
-  their parse ([stages](merge.md#stages), [library folders](diff.md#library-folders)).
+  (rule 11), the rules it applies in `domain/`; the merge and diff libraries still keep some
+  beside their parse ([stages](merge.md#stages), [library folders](diff.md#library-folders)).
 - The template builder library keeps the engines' data in `domain/catalog/` and
   the rules over it in the rest of `domain/`; its own spec adds what the shared
   rules do not read (the catalog imports no rule, the domain names no DOM
   global, only `adapter/in/` imports Preact or a stylesheet).
+
+### Types library folders
+
+`modeler-types` sorts its files into folders by concept with `domain/` inside
+([README](../../libs/modeler-types/README.md#layout)), as the merge and diff libraries do,
+so these rules and the fitness functions read it as they read the core. `lifecycle/` is
+`service/`: its debounces wait on timers (rule 11) and its store runs the disposers it is
+handed. So the root entry is not pure, and `@miragon/bpmn-modeler-types/domain` re-exports
+every `domain/` module for `domain/` files and `libs/bpmn-merge`. It replaced the one-file
+subpaths, which kept the DOM helpers (#2776) and lodash out of the merge.
+
+- **Why:** decided 2026-11-23 (#2562) for every flat logic library.
+- **Rejected:** the lifecycle helpers in `modeler-browser`, which the core's services and
+  `shared` would load for a timer.
+- **Cost:** a new `domain/` module is listed in both entries, and outside the core and the
+  merge, diff and types libraries no spec catches a `domain/` file that imports the root
+  entry (#2562, B10).
 
 ### Migration
 
@@ -229,5 +247,6 @@ and so reports what the list excuses as remaining work
 through `readModulePurity`, contexts), the
 [merge library's spec](../../libs/bpmn-merge/src/architecture.spec.ts) (domain imports,
 stages), the [diff library's spec](../../libs/bpmn-diff/src/architecture.spec.ts) (domain
-imports, folders) and the ESLint override that bans an empty
+imports, folders), the [types library's spec](../../libs/modeler-types/src/architecture.spec.ts)
+(domain imports, folders) and the ESLint override that bans an empty
 function in an adapter (`**/src/**/adapter/**`, #2053).

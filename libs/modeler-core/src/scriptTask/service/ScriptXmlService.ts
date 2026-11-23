@@ -3,7 +3,7 @@ import { resolveScriptWriteTarget, type ScriptKind } from "@miragon/bpmn-modeler
 
 /**
  * One script surface's new content, addressed exactly as the webview addresses
- * it (see `libs/modeler-types/src/scriptSurface.ts`): element id + kind, plus
+ * it (see `libs/modeler-types/src/scripting/domain/scriptSurface.ts`): element id + kind, plus
  * the filtered listener index for the two listener kinds (`undefined` for a
  * script task).
  */

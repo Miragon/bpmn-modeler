@@ -11,7 +11,7 @@ import {
 import { SecretRedactor } from "./secretRedactor";
 import { expandUrlTemplate } from "./urlTemplate";
 
-import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
+import { Engine, isEngine, UnsupportedEngineError } from "@miragon/bpmn-modeler-types/domain";
 /**
  * Value object representing a validated configuration for starting a process instance.
  *

@@ -1,4 +1,4 @@
-import type { DetectedEngine } from "./engine";
+import type { DetectedEngine } from "../../engine/domain/engine";
 
 /**
  * The three canvas-side modes a host webview exposes on the BPMN modeler page.

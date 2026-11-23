@@ -1,4 +1,4 @@
-import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
+import { isNonEmpty } from "@miragon/bpmn-modeler-types/domain";
 
 import type { BuildNoteContent, NoteRepairOf } from "../buildNotes";
 import type { LaneStacking } from "./layoutLaneStacking";

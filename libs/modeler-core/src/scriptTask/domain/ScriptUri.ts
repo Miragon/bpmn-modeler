@@ -1,4 +1,4 @@
-import { listenerPosition, ScriptKind } from "@miragon/bpmn-modeler-types";
+import { listenerPosition, ScriptKind } from "@miragon/bpmn-modeler-types/domain";
 
 /**
  * Directory (relative to the config folder) that holds all on-disk inline

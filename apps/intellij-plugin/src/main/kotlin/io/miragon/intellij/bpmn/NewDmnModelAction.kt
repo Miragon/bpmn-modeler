@@ -25,7 +25,7 @@ class NewDmnModelAction : DumbAwareAction() {
     internal companion object {
         val FILE_DIALOG = NewModelFileDialog("New DMN Model", "Create a new empty DMN decision", "dmn")
 
-        // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-types/src/emptyDmn.ts;
+        // A copy of EMPTY_DMN_DIAGRAM in libs/modeler-types/src/documents/domain/emptyDmn.ts;
         // EmptyDmnDiagramTest holds it to that file byte for byte.
         val EMPTY_DMN_DIAGRAM =
             """

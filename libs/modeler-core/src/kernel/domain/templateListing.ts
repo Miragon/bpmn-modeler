@@ -1,4 +1,4 @@
-import type { ElementTemplateRef, Engine } from "@miragon/bpmn-modeler-types";
+import type { ElementTemplateRef, Engine } from "@miragon/bpmn-modeler-types/domain";
 
 /** One template as the template owner read it. */
 export interface ListedTemplate extends Partial<ElementTemplateRef> {

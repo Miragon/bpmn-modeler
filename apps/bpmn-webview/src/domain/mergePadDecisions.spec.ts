@@ -6,7 +6,7 @@ import type {
     MergePaneShapelessRow,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     decidesInMenu,

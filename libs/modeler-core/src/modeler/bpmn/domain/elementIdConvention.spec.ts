@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
     EVENT_DEFINITION_QUALIFIER_MODES,
     type EventDefinitionQualifierMode,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { elementIdConventionOptionsOf } from "./elementIdConvention";
 

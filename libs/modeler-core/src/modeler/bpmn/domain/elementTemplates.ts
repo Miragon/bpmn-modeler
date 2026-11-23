@@ -7,7 +7,7 @@ import {
     elementTemplateVersionOf,
     templateEngineOf,
     templatesOfFile,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { configFolderPath } from "../../../kernel/domain/configArtifacts";
 import { ListedTemplate, TemplateFileReading } from "../../../kernel/domain/templateListing";

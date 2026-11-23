@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 export const PROPERTY_TYPES = [
     "String",

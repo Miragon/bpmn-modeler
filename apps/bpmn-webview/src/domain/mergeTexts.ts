@@ -9,7 +9,7 @@ import type {
     MergePaneRestoreOffer,
     MergePickScope,
 } from "@miragon/bpmn-modeler-shared";
-import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeActedDecision } from "./mergeActedDecision";
 import type { MergeDecisionOutcome } from "./mergeDecisionOutcome";

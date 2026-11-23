@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validateZeebe } from "@bpmn-io/element-templates-validator";
-import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_TEMPLATE_SCHEMA_URL } from "@miragon/bpmn-modeler-types/domain";
 
 import { deprecationAdvice } from "./deprecations";
 import { applyTemplateEdits } from "./templateText";

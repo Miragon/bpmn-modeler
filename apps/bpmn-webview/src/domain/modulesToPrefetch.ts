@@ -1,4 +1,4 @@
-import type { SurfaceMode } from "@miragon/bpmn-modeler-types";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-types/domain";
 
 export type PrefetchableModule = "viewer" | "modeler" | "lint";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { VariableDef } from "@miragon/bpmn-modeler-types";
+import { VariableDef } from "@miragon/bpmn-modeler-types/domain";
 
 import { ScriptUri } from "./ScriptUri";
 import { ScriptVariableStore } from "./ScriptVariableStore";

@@ -2,7 +2,7 @@ import {
     ELEMENT_ID_GROUPS,
     type ElementIdRow,
     isChangingStatus,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { SWITCH_MODE_TO_GENERATE_IDS } from "./elementIdTexts";
 

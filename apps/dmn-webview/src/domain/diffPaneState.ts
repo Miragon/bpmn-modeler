@@ -6,7 +6,7 @@ import {
     type DiffSide,
     diffOriginSupports,
     stepCursor,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-types/domain";
 import type { DmnDiffStatus } from "@miragon/dmn-modeler";
 
 import {

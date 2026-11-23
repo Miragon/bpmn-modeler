@@ -1,4 +1,4 @@
-import type { ElementIdProposalsStatus, ElementIdRow } from "@miragon/bpmn-modeler-types";
+import type { ElementIdProposalsStatus, ElementIdRow } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     elementIdReviewView,

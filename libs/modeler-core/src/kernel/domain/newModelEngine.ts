@@ -1,4 +1,4 @@
-import { ENGINE_LABEL, Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINE_LABEL, Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { ChoicePrompt } from "./prompts";
 

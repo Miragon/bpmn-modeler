@@ -1,5 +1,5 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
-import { DiffOrigin } from "@miragon/bpmn-modeler-types";
+import { DiffOrigin } from "@miragon/bpmn-modeler-types/domain";
 
 import { ProtocolEntry } from "./protocolEntry";
 import { SAMPLE_COMMAND } from "./sharedSamples";

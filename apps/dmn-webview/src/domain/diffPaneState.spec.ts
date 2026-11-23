@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DmnDiffView } from "@miragon/bpmn-modeler-shared";
-import type { DiffSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     type DiffPaneEvent,

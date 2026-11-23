@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { BlockedRulePackage } from "./rulePackageApproval";
 

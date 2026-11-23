@@ -361,9 +361,13 @@
         "modeler-types": {
             "dir": "libs/modeler-types",
             "package": "@miragon/bpmn-modeler-types",
+            "focus": [
+                "@miragon/architecture-testing"
+            ],
             "paths": [
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
+                "tools/architecture-testing/**",
                 "yarn.lock"
             ],
             "typecheck": "build"

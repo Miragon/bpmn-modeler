@@ -1,4 +1,4 @@
-import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine } from "@miragon/bpmn-modeler-types";
+import { ELEMENT_TEMPLATE_SCHEMA_URL, type Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import { applyTemplateEdits, type JsonPath, type TemplateEditResult } from "./templateText";
 

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ENGINES } from "@miragon/bpmn-modeler-types";
+import { ENGINES } from "@miragon/bpmn-modeler-types/domain";
 
 import { DisallowedEnvReferenceError } from "./errors";
 import { TARGET_AUTH_TYPES } from "./deploymentTarget";

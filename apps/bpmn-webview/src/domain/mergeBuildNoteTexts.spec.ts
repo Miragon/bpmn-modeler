@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MergeBuildNoteContent } from "@miragon/bpmn-modeler-types";
+import type { MergeBuildNoteContent } from "@miragon/bpmn-modeler-types/domain";
 
 import { buildNoteText } from "./mergeBuildNoteTexts";
 import type { MergeTranslate } from "./mergeTranslate";

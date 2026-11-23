@@ -1,4 +1,4 @@
-import type { Engine } from "@miragon/bpmn-modeler-types/engine";
+import type { Engine } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeVersions } from "../classify/service/computeMerge";
 import { cloneModel, nodeById } from "./baseModel";

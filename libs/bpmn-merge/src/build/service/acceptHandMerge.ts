@@ -8,7 +8,7 @@ import {
     standaloneElementText,
     walkContainment,
 } from "@miragon/bpmn-modeler-diff";
-import { readConflictMarkers } from "@miragon/bpmn-modeler-types/conflictMarkers";
+import { readConflictMarkers } from "@miragon/bpmn-modeler-types/domain";
 
 import { elementReferenceOf } from "../../classify/domain/elementVersion";
 import type { MergeModdle, MergeSources } from "../../sources/domain/mergeSources";

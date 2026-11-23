@@ -1,4 +1,4 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import type { MergeXmlRequest } from "./mergeActedDecision";
 import {

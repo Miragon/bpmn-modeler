@@ -1,4 +1,4 @@
-import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
+import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types/domain";
 
 import { isWithinRoot } from "../../kernel/domain/rootContainment";
 import {

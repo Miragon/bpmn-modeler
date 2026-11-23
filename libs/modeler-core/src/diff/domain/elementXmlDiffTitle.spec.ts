@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DiffOrigin } from "@miragon/bpmn-modeler-types";
+import type { DiffOrigin } from "@miragon/bpmn-modeler-types/domain";
 
 import { DiffRevision, DiffSideVersion } from "./DiffRevision";
 import { diffTabLabelNamesFile } from "./diffTabLabel";

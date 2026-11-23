@@ -1,4 +1,4 @@
-import { Engine, ENGINES } from "@miragon/bpmn-modeler-types";
+import { Engine, ENGINES } from "@miragon/bpmn-modeler-types/domain";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
 

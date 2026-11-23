@@ -1,4 +1,4 @@
-import type { Translate } from "./translate";
+import type { Translate } from "../../surface/domain/translate";
 
 // The translations' own spellings, shared or overlay: `translate()` looks keys up exactly.
 const NAMES: Readonly<Record<string, string>> = {

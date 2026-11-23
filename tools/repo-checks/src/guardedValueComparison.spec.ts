@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = join(__dirname, "../../..");
 const RULE = "miragon/no-guarded-value-comparison";
-const ENGINE_HOME = join(REPO_ROOT, "libs/modeler-types/src/engine.ts");
+const ENGINE_HOME = join(REPO_ROOT, "libs/modeler-types/src/engine/domain/engine.ts");
 const ENGINE = 'import("@miragon/bpmn-modeler-types").Engine';
 const SURFACE_MODE = 'import("@miragon/bpmn-modeler-types").SurfaceMode';
 
@@ -65,7 +65,7 @@ if (guardedTarget?.engine !== "c7") { void guardedTarget; }`,
         },
         {
             comparison: "an engine in its home",
-            file: "libs/modeler-types/src/engine.ts",
+            file: "libs/modeler-types/src/engine/domain/engine.ts",
             snippet: `declare const guardedTarget: { readonly engine: ${ENGINE} } | undefined;
 if (guardedTarget?.engine !== "c7") { void guardedTarget; }`,
             errors: 0,
@@ -79,7 +79,7 @@ if (guardedReference.kind === "form") { void guardedReference; }`,
         },
         {
             comparison: "a reference kind in its home",
-            file: "libs/modeler-types/src/referenceKind.ts",
+            file: "libs/modeler-types/src/references/domain/referenceKind.ts",
             snippet: `declare const guardedReference: { readonly kind: ReferenceKind };
 if (guardedReference.kind === "form") { void guardedReference; }`,
             errors: 0,
@@ -205,14 +205,14 @@ if (guardedIsSurfaceMode(guardedRaw) && guardedRaw === "view") { void guardedRaw
             type: "Engine",
             snippet: `declare const guardedEngine: ${ENGINE};
 export const guardedIsC7 = guardedEngine === "c7";`,
-            fragments: ["libs/modeler-types/src/engine.ts", "Add a capability"],
+            fragments: ["libs/modeler-types/src/engine/domain/engine.ts", "Add a capability"],
         },
         {
             type: "ReferenceKind",
             snippet: `declare const guardedKind: import("@miragon/bpmn-modeler-types").ReferenceKind;
 export const guardedIsForm = guardedKind === "form";`,
             fragments: [
-                "libs/modeler-types/src/referenceKind.ts",
+                "libs/modeler-types/src/references/domain/referenceKind.ts",
                 "Add a capability",
                 "Record<ReferenceKind",
             ],

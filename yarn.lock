@@ -3659,6 +3659,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-types@workspace:libs/modeler-types"
   dependencies:
+    "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@types/lodash": "npm:4.17.27"
     "@types/node": "npm:26.6.6"

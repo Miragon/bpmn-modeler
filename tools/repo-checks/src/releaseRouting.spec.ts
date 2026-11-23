@@ -418,9 +418,9 @@ describe("the release lines of past changes", () => {
     });
 
     it("routes the merge vocabulary to every line that ships the types library", () => {
-        expect(derivedLines(["libs/modeler-types/src/mergeVocabulary.ts"], registry)).toEqual(
-            derivedLines(["libs/modeler-types/src/index.ts"], registry),
-        );
+        expect(
+            derivedLines(["libs/modeler-types/src/merge/domain/mergeVocabulary.ts"], registry),
+        ).toEqual(derivedLines(["libs/modeler-types/src/index.ts"], registry));
     });
 
     it("routes a VS Code walkthrough page, which the extension shows, to VS Code", () => {

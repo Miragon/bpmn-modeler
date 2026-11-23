@@ -2,7 +2,7 @@ import {
     EXACT_BEND_TOLERANCE,
     polylineSegments,
     withoutRedundantBends,
-} from "@miragon/bpmn-modeler-types/polyline";
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { type DiagramBounds, type Point, boundsAround, pointBounds } from "./layoutGeometry";
 import { type NearestPoint, nearestOnSegment } from "./layoutSegments";

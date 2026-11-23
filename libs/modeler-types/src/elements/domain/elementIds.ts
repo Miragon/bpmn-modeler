@@ -1,4 +1,4 @@
-import type { BpmnModelerSetting } from "./settings";
+import type { BpmnModelerSetting } from "../../surface/domain/settings";
 
 /** Whether an event's ID names its event definition, such as `messageStartEvent_orderReceived`. */
 export type EventDefinitionQualifierMode = "off" | "optional" | "required";

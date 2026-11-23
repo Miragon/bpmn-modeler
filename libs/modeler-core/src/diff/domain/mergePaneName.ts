@@ -1,4 +1,4 @@
-import type { MergeSide } from "@miragon/bpmn-modeler-types";
+import type { MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 /** A document a merge view or a result comparison shows: a Git stage, or the built result as it was. */
 export type MergePaneName = MergeSide | "result";

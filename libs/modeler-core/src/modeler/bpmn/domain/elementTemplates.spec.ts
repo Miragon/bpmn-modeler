@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ElementTemplate } from "@miragon/bpmn-modeler-types";
+import type { ElementTemplate } from "@miragon/bpmn-modeler-types/domain";
 
 import { configFolderOfArea } from "../../../kernel/domain/configArtifacts";
 import {

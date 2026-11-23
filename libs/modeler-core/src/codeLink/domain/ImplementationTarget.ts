@@ -14,7 +14,7 @@
  */
 import { posix } from "path";
 
-import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types";
+import { matchesOutsideCommentsAndCdata } from "@miragon/bpmn-modeler-types/domain";
 
 import { escapeRegExpLiteral } from "../../kernel/domain/escapeRegExpLiteral";
 

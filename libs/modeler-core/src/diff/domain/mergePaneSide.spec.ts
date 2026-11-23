@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
+import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types/domain";
 
 import { inPaneOrder, mergeSideOfPane } from "./mergePaneSide";
 

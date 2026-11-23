@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ConflictMarkerReading } from "@miragon/bpmn-modeler-types";
+import type { ConflictMarkerReading } from "@miragon/bpmn-modeler-types/domain";
 import { GitRefFacts } from "./conflictFacts";
 import { GitOperation, gitOperationOf } from "./gitOperation";
 

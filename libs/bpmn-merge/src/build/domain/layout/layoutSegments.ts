@@ -1,4 +1,4 @@
-import { type SegmentEnds, pointAlongSegment } from "@miragon/bpmn-modeler-types/polyline";
+import { type SegmentEnds, pointAlongSegment } from "@miragon/bpmn-modeler-types/domain";
 
 import {
     type DiagramBounds,
