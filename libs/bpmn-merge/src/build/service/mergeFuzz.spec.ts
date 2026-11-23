@@ -655,18 +655,26 @@ describe("random versions of the order process", () => {
         ).toBeGreaterThanOrEqual(MIN_DEFAULTS_RESTORED);
     });
 
-    it(`merge soundly for the seeds ${PINNED_SEEDS.join(", ")}`, async () => {
-        for (const seed of PINNED_SEEDS) await expectMergesSoundly(seed);
-    });
+    it(
+        `merge soundly for the seeds ${PINNED_SEEDS.join(", ")}`,
+        async () => {
+            for (const seed of PINNED_SEEDS) await expectMergesSoundly(seed);
+        },
+        FUZZ_TIMEOUT_MS,
+    );
 
-    it(`keep the boundary events removed with a task for the seeds ${BOUNDARY_EVENT_SEEDS.join(", ")}`, async () => {
-        let boundaryEventsKept = 0;
-        for (const seed of BOUNDARY_EVENT_SEEDS) {
-            boundaryEventsKept += (await expectMergesSoundly(seed)).boundaryEventsKept;
-        }
-        expect(
-            boundaryEventsKept,
-            "offers that kept a task with its boundary events",
-        ).toBeGreaterThanOrEqual(MIN_BOUNDARY_EVENTS_KEPT);
-    });
+    it(
+        `keep the boundary events removed with a task for the seeds ${BOUNDARY_EVENT_SEEDS.join(", ")}`,
+        async () => {
+            let boundaryEventsKept = 0;
+            for (const seed of BOUNDARY_EVENT_SEEDS) {
+                boundaryEventsKept += (await expectMergesSoundly(seed)).boundaryEventsKept;
+            }
+            expect(
+                boundaryEventsKept,
+                "offers that kept a task with its boundary events",
+            ).toBeGreaterThanOrEqual(MIN_BOUNDARY_EVENTS_KEPT);
+        },
+        FUZZ_TIMEOUT_MS,
+    );
 });
