@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { DiffLegendTranslator } from "./diffLegendView";
+import type { DiffLegendTranslator } from "@miragon/bpmn-modeler-types";
+
 import { DiffSideLabelView } from "./diffSideLabelView";
 
 class GermanOnDemand implements DiffLegendTranslator {

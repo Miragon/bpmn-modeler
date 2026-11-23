@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DiffCounts } from "./diff";
-import {
-    type DiffLegendSlot,
-    type DiffLegendState,
-    DiffLegendView,
-    type DiffLegendTranslator,
-} from "./diffLegendView";
+import type {
+    DiffCounts,
+    DiffLegendSlot,
+    DiffLegendState,
+    DiffLegendTranslator,
+} from "@miragon/bpmn-modeler-types";
+
+import { DiffLegendView } from "./diffLegendView";
 
 const COUNTS: DiffCounts = { added: 3, removed: 1, changed: 2, layoutChanged: 4 };
 const SHOWN: DiffLegendState = { counts: COUNTS, showSwap: false, canStep: true };

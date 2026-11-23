@@ -1,6 +1,6 @@
 import ContextPadModule from "diagram-js/lib/features/context-pad";
 import OverlaysModule from "diagram-js/lib/features/overlays";
-import { createButton, createElement } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import {
     cardToneOf,

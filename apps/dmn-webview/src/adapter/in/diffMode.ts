@@ -12,7 +12,8 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { DiffSideLabelView, diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import { diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import { DiffSideLabelView } from "@miragon/bpmn-modeler-browser";
 import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
 import {

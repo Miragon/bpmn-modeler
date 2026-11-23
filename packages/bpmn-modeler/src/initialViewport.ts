@@ -1,8 +1,5 @@
-import {
-    type Disposer,
-    observeCanvasSize,
-    type ResizableCanvas,
-} from "@miragon/bpmn-modeler-types";
+import { type Disposer } from "@miragon/bpmn-modeler-types";
+import { observeCanvasSize, type ResizableCanvas } from "@miragon/bpmn-modeler-browser";
 
 /**
  * The one initial-viewport decision policy (#1490), shared by `ViewportManager`

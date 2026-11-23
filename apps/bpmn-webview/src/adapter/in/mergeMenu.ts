@@ -1,11 +1,6 @@
 import type { MergePaneBuild } from "@miragon/bpmn-modeler-shared";
-import {
-    createButton,
-    createElement,
-    DIFF_LEGEND_TEXTS,
-    MERGE_SIDES,
-    type MergeSide,
-} from "@miragon/bpmn-modeler-types";
+import { DIFF_LEGEND_TEXTS, MERGE_SIDES, type MergeSide } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import type { MergeMenuRowContent } from "../../domain/mergeMenuRows";
 import type { MergeStepList } from "../../domain/mergeStepper";

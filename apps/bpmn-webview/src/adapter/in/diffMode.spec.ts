@@ -143,8 +143,8 @@ vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     DiffSideLabel: fakes.FakeDiffSideLabel,
 }));
 
-vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-types")>()),
+vi.mock("@miragon/bpmn-modeler-browser", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-browser")>()),
     DiffLegendView: fakes.FakeDiffLegend,
 }));
 

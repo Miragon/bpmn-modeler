@@ -143,7 +143,7 @@ describe("the pane's stylesheet", () => {
         const paneCss = readFileSync(join(__dirname, "diff.css"), "utf8");
 
         expect(paneCss).toContain(
-            '@import "../../../../../libs/modeler-types/src/diffLegend.css";',
+            '@import "../../../../../libs/modeler-browser/src/diffLegend.css";',
         );
         expect(paneCss).not.toMatch(/--diff-legend-[\w-]+:/);
     });

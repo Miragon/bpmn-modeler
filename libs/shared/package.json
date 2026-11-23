@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.lib.json && tsc --noEmit -p tsconfig.spec.json"
   },
   "dependencies": {
+    "@miragon/bpmn-modeler-browser": "workspace:*",
     "@miragon/bpmn-modeler-types": "workspace:*",
     "tslib": "2.9.1"
   },

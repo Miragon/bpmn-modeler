@@ -56,9 +56,9 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   older `computeDiff` steps as before. The coordinator syncs in-page viewport and cursor,
   and the private host protocol handles separate webviews. Legends take presentation
   props, not host vocabulary.
-- Both diffs share one vocabulary and one legend in `libs/modeler-types`: the categories
-  in legend order, the canvas markers, the legend's i18n keys and the stepping rules
-  (`canStep`), plus `DiffLegendView` with its stylesheet. Prev and Next are enabled only
+- Both diffs share one vocabulary and one legend: `libs/modeler-types` holds the categories
+  in legend order, the canvas markers, the legend's i18n keys, its state and the stepping
+  rules (`canStep`), `libs/modeler-browser` the `DiffLegendView` with its stylesheet. Prev and Next are enabled only
   when there is a step; a consumer without a stepper may omit `canStep`, and the legend
   then enables them whenever a count is above zero, which overstates a diff of
   connections that only moved. The legend takes a translator instead of importing one,
@@ -140,13 +140,12 @@ callers' role folders.
   and `/diff` read, imports no parser code.
 - **Domain entry:** the root barrel re-exports `service/` modules and is not pure, so
   `@miragon/bpmn-modeler-diff/domain` (`src/domain.ts`, a `tsconfig.base.json` alias) re-exports
-  what pure importers use and no more: the merge's `domain/`, `dmn-diff`, and `modeler-types`'
-  `engine.ts`, which the merge's domain entry reaches. Every other consumer keeps the root entry,
-  whose names did not change.
-- **Cost:** API Extractor leaves a subpath of an inlined library as an import, which `check-dts`
-  rejects, so `modeler-types`' `diff.ts`, whose types the DMN package's declarations carry, keeps
-  the root entry: the types barrel stays impure after #2776 until they get another way in, and
-  `engine.ts` holds only while no package declaration reaches `ExecutionEngine`. Six modules that
+  what pure importers use and no more: the merge's `domain/`, `dmn-diff`, and `modeler-types`
+  (`engine.ts`, and `diff.ts`, whose types the DMN package's declarations carry). Every other
+  consumer keeps the root entry, whose names did not change.
+- **Cost:** API Extractor inlines the subpath into a package's declarations only through the
+  `./domain` entry of this library's `exports` map; without it the DMN build cannot resolve
+  `diff.ts`' types (#2776). Six modules that
   mixed awaiting code with what `domain/` needs were split; synchronous rules beside the parse they
   serve stay in `service/` (`computeDiff.ts`, `elementSnapshots.ts`, `elementTexts.ts`,
   `parsedUnits.ts`, `serialiseSnippet.ts`, `rootElements.ts`), where no rule finds them.

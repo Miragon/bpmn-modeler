@@ -3,18 +3,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
-const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENTRY_DTS = ["index.d.ts"];
 
 const FORBIDDEN_CONTENT =
     /\bHostApi\b|\bQuery\b|\bCommand\b|@miragon\/bpmn-modeler-shared|@miragon\/bpmn-modeler-core|\bfrom\s+["']dmn-js/g;
-
-// The diff package is reachable transitively through the modeler-types barrel.
-const PRIVATE_LIBS = [
-    "@miragon/bpmn-modeler-types",
-    "@miragon/bpmn-modeler-i18n-extras",
-    "@miragon/bpmn-modeler-diff",
-];
 
 // `@internal` on a re-export does nothing; these must stay trimmed by the tag on their declaration.
 const INTERNAL_DECLARATIONS = [
@@ -31,14 +24,19 @@ const INTERNAL_DECLARATION = new RegExp(
     "g",
 );
 
-export function checkDts({ distDir = DIST_DIR, entries = ENTRY_DTS } = {}) {
+export function checkDts({
+    distDir = resolve(PACKAGE_ROOT, "dist"),
+    configPath = resolve(PACKAGE_ROOT, "inlined-libraries.json"),
+    entries = ENTRY_DTS,
+} = {}) {
+    const privateLibs = JSON.parse(readFileSync(configPath, "utf8")).map((library) => library.name);
     for (const entry of entries) {
-        checkEntry(distDir, entry);
+        checkEntry(distDir, entry, privateLibs);
     }
     return { checkedEntries: entries.length };
 }
 
-function checkEntry(distDir, fileName) {
+function checkEntry(distDir, fileName, privateLibs) {
     const dtsPath = resolve(distDir, fileName);
     let dts;
     try {
@@ -65,7 +63,7 @@ function checkEntry(distDir, fileName) {
         );
     }
 
-    for (const lib of PRIVATE_LIBS) {
+    for (const lib of privateLibs) {
         const escaped = lib.replace(/[.*+?^${}()|[\]\\/-]/g, "\\$&");
         if (new RegExp(`["']${escaped}(/[^"']*)?["']`).test(dts)) {
             failures.push(`leaked private-lib import: ${lib}`);

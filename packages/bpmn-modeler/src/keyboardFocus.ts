@@ -1,4 +1,4 @@
-import { focusCanvasFromKeystroke } from "@miragon/bpmn-modeler-types";
+import { focusCanvasFromKeystroke } from "@miragon/bpmn-modeler-browser";
 
 /** @internal */
 

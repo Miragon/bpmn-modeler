@@ -1,7 +1,7 @@
 import { installGlobalErrorForwarding } from "@miragon/bpmn-modeler-shared";
 
 import { getHostApi } from "./adapter/out/host";
-import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-types";
+import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-browser";
 import { bootstrap } from "./composition/bootstrap";
 
 ensureUrlCanParse();

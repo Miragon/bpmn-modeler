@@ -101,13 +101,7 @@ function contextRules(isPureModule: ModulePurity): readonly ContextRule[] {
         {
             rule: "domain imports no package but a pure module and path",
             violations: domainPackageViolations(isPureModule),
-            exceptions: [
-                {
-                    from: "*",
-                    to: "@miragon/bpmn-modeler-types",
-                    until: "#2776: the types library compiles with the DOM for ten canvas and chrome modules",
-                },
-            ],
+            exceptions: [],
         },
         {
             rule: "a context reaches another context only through kernel/ or editorSession/",
@@ -193,8 +187,8 @@ describe("context rules on a synthetic graph", () => {
         {
             name: "domain → a workspace that is not pure, value import",
             path: "deployment/domain/x.ts",
-            text: 'import { isEngine } from "@miragon/bpmn-modeler-types";',
-            violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler-types",
+            text: 'import { createElement } from "@miragon/bpmn-modeler-browser";',
+            violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler-browser",
         },
         {
             name: "domain → a modeler package, which is not pure",
@@ -235,14 +229,20 @@ describe("context rules on a synthetic graph", () => {
 describe("modeler-core architecture", () => {
     const graph = buildImportGraph(readSourceTree(SRC_ROOT));
 
-    it("reads the merge and diff libraries' domain entries as pure modules, the protocol library's not", () => {
+    it("reads the merge and diff libraries' domain entries and the types library as pure modules, the protocol and browser libraries not", () => {
         expect(
             [
                 "@miragon/bpmn-modeler-merge/domain",
                 "@miragon/bpmn-modeler-diff/domain",
+                "@miragon/bpmn-modeler-types",
                 "@miragon/bpmn-modeler-shared",
+                "@miragon/bpmn-modeler-browser",
             ].filter(IS_PURE_MODULE),
-        ).toEqual(["@miragon/bpmn-modeler-merge/domain", "@miragon/bpmn-modeler-diff/domain"]);
+        ).toEqual([
+            "@miragon/bpmn-modeler-merge/domain",
+            "@miragon/bpmn-modeler-diff/domain",
+            "@miragon/bpmn-modeler-types",
+        ]);
     });
 
     it("still imports path in a domain file, or its allowance goes", () => {

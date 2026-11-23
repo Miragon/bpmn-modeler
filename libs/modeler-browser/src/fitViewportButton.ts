@@ -1,4 +1,4 @@
-import type { Disposer } from "./disposableStore";
+import type { Disposer } from "@miragon/bpmn-modeler-types";
 
 export interface FitViewportButtonOptions {
     /** The canvas container (`.djs-container`) the button floats in. */

@@ -19,6 +19,7 @@
         "@bpmn-io/form-js-editor": "2.1.1",
         "@bpmn-io/form-js-viewer": "2.1.1",
         "@codemirror/state": "6.7.6",
+        "@miragon/bpmn-modeler-browser": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*"
     },

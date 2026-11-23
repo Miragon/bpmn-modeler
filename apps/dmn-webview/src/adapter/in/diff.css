@@ -1,4 +1,4 @@
-@import "../../../../../libs/modeler-types/src/diffLegend.css";
+@import "../../../../../libs/modeler-browser/src/diffLegend.css";
 
 /*
  * A page loaded as one side of a DMN diff: the floating legend and the card

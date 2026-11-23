@@ -2,7 +2,7 @@
  * The properties-panel focus and toggle shortcuts of the editor page chrome.
  * Not part of the modeler public API.
  */
-import { focusCanvasFromKeystroke, isTextEditingSurface } from "@miragon/bpmn-modeler-types";
+import { focusCanvasFromKeystroke, isTextEditingSurface } from "@miragon/bpmn-modeler-browser";
 
 import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
 

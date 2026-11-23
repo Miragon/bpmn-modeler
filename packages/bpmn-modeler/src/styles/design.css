@@ -22,7 +22,7 @@
 @import "../../../../libs/append-menu/src/append-menu.css";
 @import "../../../../libs/definition-search/src/definitionSearch.css";
 @import "../../../../libs/element-ids/src/elementIds.css";
-@import "../../../../libs/modeler-types/src/canvasOverlays.css";
+@import "../../../../libs/modeler-browser/src/canvasOverlays.css";
 @import "./dark-theme/diagram-js.css";
 @import "./dark-theme/properties-panel.css";
 @import "./dark-theme/append-menu.css";

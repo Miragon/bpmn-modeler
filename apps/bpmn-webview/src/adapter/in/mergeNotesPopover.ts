@@ -1,4 +1,5 @@
-import { type MergeBuildNote, createButton, createElement } from "@miragon/bpmn-modeler-types";
+import { type MergeBuildNote } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import { MERGE_MENU_TEXTS } from "../../domain/mergeBarTexts";
 import { buildNoteText } from "../../domain/mergeBuildNoteTexts";

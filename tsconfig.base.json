@@ -45,6 +45,7 @@
                 "./libs/modeler-types/src/conflictMarkers.ts"
             ],
             "@miragon/bpmn-modeler-types/polyline": ["./libs/modeler-types/src/polyline.ts"],
+            "@miragon/bpmn-modeler-browser": ["./libs/modeler-browser/src/index.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],
             "@miragon/bpmn-modeler-diff/domain": ["./libs/bpmn-diff/src/domain.ts"],
             "@miragon/bpmn-modeler-merge": ["./libs/bpmn-merge/src/index.ts"],

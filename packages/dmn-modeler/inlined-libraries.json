@@ -1,0 +1,18 @@
+[
+    {
+        "name": "@miragon/bpmn-modeler-types",
+        "sourceRoot": "../../libs/modeler-types/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-browser",
+        "sourceRoot": "../../libs/modeler-browser/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-diff",
+        "sourceRoot": "../../libs/bpmn-diff/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-i18n-extras",
+        "sourceRoot": "../../libs/bpmn-i18n-extras/src"
+    }
+]

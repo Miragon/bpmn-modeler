@@ -17,7 +17,8 @@ verify details against source because older guides and ADRs may be outdated.
 | Embeddable BPMN behavior and public API | `packages/bpmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. Viewer, designer, mode-session, diff, and lint have separate subpaths. |
 | Embeddable DMN behavior and public API | `packages/dmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. |
 | Reusable browser features | Feature libraries under `libs/`, composed by the modeler packages. |
-| Public-facing types, browser utilities and pure rules browser code shares with the core or across browser workspaces | `libs/modeler-types`; keep the surface suitable for publication. |
+| Public-facing types and pure rules browser code shares with the core or across browser workspaces | `libs/modeler-types`, compiled without the DOM; keep the surface suitable for publication. |
+| DOM widgets and helpers both modeler packages and the webviews share | `libs/modeler-browser`; their types and rules stay in `libs/modeler-types`. |
 | Private messages and webview chrome | `libs/shared/src/lib/`; base/sync messages in `messages.ts`, feature payloads in their corresponding files, host channel in `host.ts`. |
 | Host-independent domain logic and services | Feature folders in `libs/modeler-core/src/`, with the shared vocabulary in `kernel/` and the editor-session core in `editorSession/`; consumers use its `index.ts`. |
 | IDE protocol-to-modeler adaptation | `apps/bpmn-webview/src/composition/bootstrap.ts` and the adapters and services it wires, `apps/dmn-webview/src/composition/bootstrap.ts`. |
@@ -144,7 +145,8 @@ port has a suite.
 - Keep `modeler-core` and `shared` out of published browser code. Put protocol
   adaptation in webview bootstraps. `modeler-types` holds publishable concepts
   and the pure rules browser code shares with the core, such as script-surface
-  addressing, the XML comment and CDATA scan and process-variable extraction;
+  addressing, the XML comment and CDATA scan and process-variable extraction,
+  and compiles without the DOM; shared DOM widgets go to `modeler-browser`;
   the editor page chrome (`mountPanelChrome`) and host-theme adaptation belong
   in `shared`.
 - Add host-independent logic to the core's feature-oriented `domain/` and

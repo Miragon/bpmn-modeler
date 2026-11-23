@@ -78,6 +78,23 @@ describe("declaration roll-up guard", () => {
         );
     });
 
+    it("rejects an import of each library the build config inlines", () => {
+        const distDir = distWithIndexDts(
+            'import type { X } from "@miragon/bpmn-modeler-layout";\n',
+        );
+        const configPath = join(distDir, "..", "inlined-libraries.json");
+        writeFileSync(
+            configPath,
+            JSON.stringify([
+                { name: "@miragon/bpmn-modeler-layout", sourceRoot: "../../libs/bpmn-layout/src" },
+            ]),
+        );
+
+        expect(() => checkDts({ distDir, configPath })).toThrow(
+            /leaked private-lib import: @miragon\/bpmn-modeler-layout/,
+        );
+    });
+
     it("rejects an ambient function declaration with a body", () => {
         const distDir = distWithIndexDts("export declare function f() { return 1; }\n");
 

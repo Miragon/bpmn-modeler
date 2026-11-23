@@ -15,7 +15,8 @@ Where code belongs and which imports are allowed is in the
 | Package                                    | What it holds                                                                                                   |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | [`modeler-core`](modeler-core/README.md)   | The host-agnostic engine behind the VS Code extension and the IntelliJ bridge: domain, services and host ports. |
-| [`modeler-types`](modeler-types/README.md) | Types, browser utilities and pure rules safe to publish with the npm packages.                                  |
+| [`modeler-types`](modeler-types/README.md) | Types and pure rules safe to publish with the npm packages, compiled without the DOM.                           |
+| [`modeler-browser`](modeler-browser/README.md) | The DOM widgets and helpers the npm packages and the webviews share, built on `modeler-types`.              |
 | [`shared`](shared/README.md)               | The private webview ↔ host message protocol and the webview chrome the hosts share.                             |
 
 ## bpmn-js modules (inlined into `@miragon/bpmn-modeler`)

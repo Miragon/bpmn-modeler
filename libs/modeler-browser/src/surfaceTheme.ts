@@ -1,4 +1,4 @@
-import type { ResolvedThemeKind, SurfaceThemeMode } from "./surfaceThemeMode";
+import type { ResolvedThemeKind, SurfaceThemeMode } from "@miragon/bpmn-modeler-types";
 
 /**
  * @internal Toggles one instance's theme attribute (`data-bpmn-theme`,

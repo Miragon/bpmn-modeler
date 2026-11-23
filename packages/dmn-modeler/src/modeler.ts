@@ -10,17 +10,19 @@ import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 import {
     createFlushableDebounceInput,
     DisposableStore,
-    fitCanvasToContent,
-    type FittableCanvas,
     type FlushableDebounceInput,
-    installFitViewportButton,
     MutableDisposable,
     NoModelerError,
+    type Translate,
+} from "@miragon/bpmn-modeler-types";
+import {
+    fitCanvasToContent,
+    type FittableCanvas,
+    installFitViewportButton,
     observeCanvasSize,
     type ResizableCanvas,
     ThemeController,
-    type Translate,
-} from "@miragon/bpmn-modeler-types";
+} from "@miragon/bpmn-modeler-browser";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
 import type {

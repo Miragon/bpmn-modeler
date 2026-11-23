@@ -22,7 +22,7 @@ missing or unknown kind.
 | --- | --- |
 | `hexagonal` | `libs/modeler-core`, `libs/bpmn-merge`, `libs/bpmn-diff`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
 | `diagram-js` | the diagram-js feature libraries in `libs/`, `packages/bpmn-modeler`, `packages/dmn-modeler` (bpmn-js module layout) |
-| `flat` | `modeler-types`, `shared`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
+| `flat` | `modeler-types`, `modeler-browser`, `shared`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
 A `diagram-js` or `flat` workspace holds no role folder, so no folder there
 reads as a role nothing checks.
@@ -95,13 +95,14 @@ shows the DOM however it came in: the `lib`, the default lib, or a
 once a `.tsx` file is in it. `readModulePurity` (`tools/architecture-testing`)
 decides it from structure; no list names a package.
 
-Pure today: the entry of `dmn-diff`, `@miragon/bpmn-modeler-diff/domain` and
-`@miragon/bpmn-modeler-merge/domain`, not the root entries of those two libraries, which
-re-export their `service/` modules. Not pure:
-`shared` and `modeler-types`, which both compile with the DOM; `modeler-types`
-needs it for ten canvas and chrome modules, and its barrel also reaches the diff library's
-root entry ([why](diff.md#library-folders)). The core's domain imports
-`modeler-types` under a known exception until those modules leave it (#2776).
+Pure today: the entry of `dmn-diff`, `@miragon/bpmn-modeler-diff/domain`,
+`@miragon/bpmn-modeler-merge/domain` and `modeler-types`, not the root entries of the diff
+and merge libraries, which re-export their `service/` modules. `modeler-types` compiles
+without the DOM since its ten canvas and chrome modules moved to `modeler-browser` (#2776),
+and its `diff.ts` reads the diff library's domain entry. Not pure: `shared` and
+`modeler-browser`, which compile with the DOM. `modeler-browser` stays `flat`: it holds
+widgets and helpers and no rule, so a `domain/` there would stay empty and its role folders
+would separate nothing; its rules live in `modeler-types`.
 `path` is allowed in the core's domain but makes a module impure, because pure
 libraries also run in the browser (`packages/bpmn-modeler` imports them) and the
 core runs only in Node hosts. Seven domain files compute workspace paths with
@@ -115,7 +116,7 @@ last use.
 - **Cost:** the core's domain depends on those libraries' APIs, so a change there
   breaks the domain at compile time. The DOM half holds only while each workspace
   with a pure module runs its own no-DOM compile (`build`, its Vitest target's
-  typecheck) in CI, and it reads the native compiler that compile uses:
+  typecheck) in CI, specs included, since the referenced spec config is read too, and it reads the native compiler that compile uses:
   TypeScript 6 loads preact's JSX runtime, and with it the DOM, into every program
   under the base config's `jsx` options. Each workspace that owns an imported
   module costs one compiler run; a config the compiler refuses, or no tsconfig, reads as
@@ -135,9 +136,9 @@ last use.
   `@miragon/bpmn-modeler-diff/domain` so that its own entry stays pure, and `modeler-types`'
   `engine.ts` does because the merge's domain entry reaches it.
 - **Scope:** only the core's spec and the merge and diff libraries' apply the rule. The other
-  hexagonal workspaces have no package rule for `domain/`; there it would flag 81
-  imports in 65 files, most of them `@miragon/bpmn-modeler-shared` (34) and
-  `@miragon/bpmn-modeler-types` (27). That rule is open (#2562, B10).
+  hexagonal workspaces have no package rule for `domain/`; there it would flag 64
+  imports in 57 files, most of them `@miragon/bpmn-modeler-shared` (37) and
+  `@miragon/bpmn-modeler-core` (12). That rule is open (#2562, B10).
 
 ### Placement
 

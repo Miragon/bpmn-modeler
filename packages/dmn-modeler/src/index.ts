@@ -1,5 +1,5 @@
 import "./styles/canvas.css";
-import "../../../libs/modeler-types/src/canvasOverlays.css";
+import "../../../libs/modeler-browser/src/canvasOverlays.css";
 import "./styles/themes.css";
 import "./styles/diff.css";
 

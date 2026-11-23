@@ -8,14 +8,8 @@ function libraryDirectories(sourceRoots: readonly string[]): string[] {
     });
 }
 
-/** The `libs/` folders listed in `packages/bpmn-modeler/inlined-libraries.json`. */
-export function bpmnInlinedLibraries(inlinedLibrariesJson: string): string[] {
+/** The `libs/` folders an npm package's `inlined-libraries.json` lists. */
+export function inlinedLibraries(inlinedLibrariesJson: string): string[] {
     const libraries = JSON.parse(inlinedLibrariesJson) as { sourceRoot: string }[];
     return libraryDirectories(libraries.map(({ sourceRoot }) => sourceRoot));
-}
-
-/** The `libs/` folders of `INLINED_LIB_SRC` in `packages/dmn-modeler/vite.config.mts`. */
-export function dmnInlinedLibraries(viteConfig: string): string[] {
-    const sourceRoots = /INLINED_LIB_SRC = \[([^\]]*)\]/.exec(viteConfig)?.[1] ?? "";
-    return libraryDirectories([...sourceRoots.matchAll(/"([^"]+)"/g)].map((entry) => entry[1]));
 }

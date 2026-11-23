@@ -11,7 +11,7 @@ import {
     type ReleaseLineRegistry,
 } from "../../../.github/scripts/release-routing.mjs";
 import { hostBuildOf, webviewAppsOf } from "./testing/hostBuilds";
-import { bpmnInlinedLibraries, dmnInlinedLibraries } from "./testing/inlinedLibraries";
+import { inlinedLibraries } from "./testing/inlinedLibraries";
 
 /**
  * The release line registry must follow the builds: a line ships exactly the
@@ -257,11 +257,11 @@ describe.each(lineBuilds)("the $id release line", ({ id, ownFolder, roots }) => 
 });
 
 describe("the libraries the npm packages inline", () => {
-    const bpmnInlined = bpmnInlinedLibraries(
+    const bpmnInlined = inlinedLibraries(
         readRepoFile("packages/bpmn-modeler/inlined-libraries.json").text,
     );
-    const dmnInlined = dmnInlinedLibraries(
-        readRepoFile("packages/dmn-modeler/vite.config.mts").text,
+    const dmnInlined = inlinedLibraries(
+        readRepoFile("packages/dmn-modeler/inlined-libraries.json").text,
     );
 
     it.each(bpmnInlined)("ships libs/%s on the bpmn-modeler line", (library) => {

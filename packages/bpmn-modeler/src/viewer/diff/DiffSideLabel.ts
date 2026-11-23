@@ -1,5 +1,5 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { DiffSideLabelView } from "@miragon/bpmn-modeler-types";
+import { DiffSideLabelView } from "@miragon/bpmn-modeler-browser";
 
 /**
  * The label in a diff pane's top left corner: which version the pane shows,

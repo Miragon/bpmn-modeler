@@ -1,11 +1,10 @@
 import {
     type Disposer,
-    type FittableCanvas,
     type MinimalEventBus,
-    fitCanvasToContent,
     isCanvasSized,
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
+import { type FittableCanvas, fitCanvasToContent } from "@miragon/bpmn-modeler-browser";
 
 import { centreOf, type PositionedElement, viewboxCentredOn } from "./elementGeometry";
 import type { CoreServiceAccessor } from "./coreServices";

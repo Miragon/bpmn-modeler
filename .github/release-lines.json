@@ -37,6 +37,7 @@
                 "libs/flow-navigation/**",
                 "libs/inline-scripting/**",
                 "libs/model-navigation/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-types/**",
                 "libs/properties-panel/**",
                 "vite.shared.ts"
@@ -72,6 +73,7 @@
                 "libs/flow-navigation/**",
                 "libs/inline-scripting/**",
                 "libs/model-navigation/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-core/**",
                 "libs/modeler-types/**",
                 "libs/properties-panel/**",
@@ -107,6 +109,7 @@
                 "libs/flow-navigation/**",
                 "libs/inline-scripting/**",
                 "libs/model-navigation/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-core/**",
                 "libs/modeler-types/**",
                 "libs/properties-panel/**",
@@ -135,6 +138,7 @@
                 "libs/flow-navigation/**",
                 "libs/inline-scripting/**",
                 "libs/model-navigation/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-types/**",
                 "libs/properties-panel/**",
                 "libs/shared/**",
@@ -150,6 +154,7 @@
                 "packages/dmn-modeler/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-i18n-extras/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-types/**"
             ],
             "breaking": ["packages/dmn-modeler/**"]

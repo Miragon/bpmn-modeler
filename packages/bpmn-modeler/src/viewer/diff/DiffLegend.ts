@@ -1,6 +1,7 @@
 import { DiffCounts } from "@miragon/bpmn-modeler-diff";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { DIFF_CATEGORIES, DiffLegendView } from "@miragon/bpmn-modeler-types";
+import { DIFF_CATEGORIES } from "@miragon/bpmn-modeler-types";
+import { DiffLegendView } from "@miragon/bpmn-modeler-browser";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;
