@@ -1,6 +1,9 @@
 export type { ArchitectureRule } from "./architectureRule";
+export { readAsyncSyntax } from "./asyncSyntax";
+export type { AsyncSyntax } from "./asyncSyntax";
 export { runsNoCode } from "./codeFreeModule";
 export { readComments, stripComments } from "./comments";
+export { compilesWithDom } from "./compilerProgram";
 export { findContractSuites } from "./contractSuites";
 export type {
     AdapterSpec,
@@ -14,7 +17,7 @@ export type {
 } from "./contractSuites";
 export { buildDeclarationGraph } from "./declarationGraph";
 export type { DeclarationEdge, DeclarationGraphOptions } from "./declarationGraph";
-export { filesReaching, isHostModule } from "./hostReach";
+export { filesReaching, isHostModule, PORTABLE_NODE_MODULES } from "./hostReach";
 export { readCodeLines, readFunctionComplexities } from "./functionComplexity";
 export { readKotlinImports } from "./kotlinImports";
 export { readKotlinInitializedValues } from "./kotlinInitializedValues";
@@ -44,6 +47,8 @@ export {
 export type { KnownException, Violation } from "./knownExceptions";
 export { readModuleImports } from "./moduleImports";
 export type { ModuleImport } from "./moduleImports";
+export { impureDomainImports, modulePurity, readModulePurity } from "./modulePurity";
+export type { ModulePurity, WorkspaceSources } from "./modulePurity";
 export { readModuleSymbols } from "./moduleSymbols";
 export type { ModuleSymbols, ReExport, SymbolImport } from "./moduleSymbols";
 export { readPathAliases, resolveAliasImport } from "./pathAliases";

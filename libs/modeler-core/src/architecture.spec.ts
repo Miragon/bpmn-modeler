@@ -2,7 +2,10 @@ import {
     buildImportGraph,
     exceptionsWithoutIssue,
     filesReaching,
+    impureDomainImports,
     isHostModule,
+    PORTABLE_NODE_MODULES,
+    readModulePurity,
     readSourceTree,
     roleOf,
     staleExceptions,
@@ -12,17 +15,22 @@ import type {
     ImportEdge,
     ImportGraph,
     KnownException,
+    ModulePurity,
     Violation,
 } from "@miragon/architecture-testing";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
  * Architecture gate for `@miragon/bpmn-modeler-core`, on top of the shared
  * role-folder rules the repo-level spec applies to every hexagonal workspace.
- * The engine stays host-agnostic: no file imports `vscode` or reaches a Node
- * host module (`node:*`, `fs`, `http`). Pure Node utilities that exist in any
- * Node host (`path`, `Buffer`) are allowed; they are not host capabilities.
+ * The engine stays host-agnostic: no file imports `vscode` or reaches another
+ * host module (`electron`, a Node built-in). The portable Node modules (`path`)
+ * exist in any Node host and are allowed; they are not host capabilities.
  *
+ * `domain/` imports only pure modules, decided per module from the files it
+ * reaches and its workspace's compiler program, whatever the workspace's kind
+ * (docs/adr/role-folders.md#domain-imports), and `path`.
  * Contexts meet only in `kernel/` and `editorSession/`, and `kernel/` imports
  * nothing outside itself. A known exception names the issue that removes it,
  * and an exception the code no longer needs fails the gate, so the lists only
@@ -30,7 +38,7 @@ import { describe, expect, it } from "vitest";
  */
 const SRC_ROOT = __dirname;
 
-const DOMAIN_PACKAGES: readonly string[] = ["@miragon/bpmn-modeler-types", "path"];
+const IS_PURE_MODULE = readModulePurity(join(SRC_ROOT, "../../.."));
 const KERNEL = "kernel";
 const SUBSTRATE: readonly string[] = [KERNEL, "editorSession"];
 
@@ -40,13 +48,17 @@ function contextOf(path: string): string | undefined {
     return location === undefined || location.role === "testing" ? undefined : location.context;
 }
 
-function domainPackageViolations({ edges }: ImportGraph): ImportEdge[] {
+function domainPackageViolations(isPureModule: ModulePurity) {
+    return (graph: ImportGraph): ImportEdge[] =>
+        impureDomainImports(graph, isPureModule).filter(
+            ({ specifier }) => !PORTABLE_NODE_MODULES.includes(specifier),
+        );
+}
+
+function domainImportsOfPath({ edges }: ImportGraph): ImportEdge[] {
     return edges.filter(
-        ({ from, specifier, to }) =>
-            roleOf(from)?.role === "domain" &&
-            to === undefined &&
-            !specifier.startsWith(".") &&
-            !DOMAIN_PACKAGES.includes(specifier),
+        ({ from, specifier }) =>
+            roleOf(from)?.role === "domain" && PORTABLE_NODE_MODULES.includes(specifier),
     );
 }
 
@@ -84,23 +96,43 @@ interface ContextRule {
     readonly exceptions: readonly KnownException[];
 }
 
-const CONTEXT_RULES: readonly ContextRule[] = [
-    {
-        rule: "domain imports no package but @miragon/bpmn-modeler-types and path",
-        violations: domainPackageViolations,
-        exceptions: [],
-    },
-    {
-        rule: "a context reaches another context only through kernel/ or editorSession/",
-        violations: crossContextViolations,
-        exceptions: [],
-    },
-    {
-        rule: "kernel/ imports nothing outside kernel/",
-        violations: kernelImportViolations,
-        exceptions: [],
-    },
+function contextRules(isPureModule: ModulePurity): readonly ContextRule[] {
+    return [
+        {
+            rule: "domain imports no package but a pure module and path",
+            violations: domainPackageViolations(isPureModule),
+            exceptions: [
+                {
+                    from: "*",
+                    to: "@miragon/bpmn-modeler-types",
+                    until: "#2776: the types library compiles with the DOM for ten canvas and chrome modules",
+                },
+            ],
+        },
+        {
+            rule: "a context reaches another context only through kernel/ or editorSession/",
+            violations: crossContextViolations,
+            exceptions: [],
+        },
+        {
+            rule: "kernel/ imports nothing outside kernel/",
+            violations: kernelImportViolations,
+            exceptions: [],
+        },
+    ];
+}
+
+const CONTEXT_RULES = contextRules(IS_PURE_MODULE);
+
+/** Fixed, so the synthetic cases hold whatever the real tree reads as pure. */
+const SYNTHETIC_PURE_MODULES: readonly string[] = [
+    "@miragon/bpmn-modeler-merge",
+    "@miragon/bpmn-modeler-diff",
 ];
+
+function isSyntheticPureModule(specifier: string): boolean {
+    return SYNTHETIC_PURE_MODULES.includes(specifier);
+}
 
 function importsOf(...specifiers: string[]): string {
     return specifiers.map((specifier) => `import "${specifier}";`).join("\n");
@@ -110,12 +142,11 @@ function importsOf(...specifiers: string[]): string {
 const CONTEXT_TREE = [
     {
         path: "deployment/domain/deploymentTarget.ts",
-        text: importsOf(
-            "../../kernel/domain/errors",
-            "../../editorSession/domain/session",
-            "@miragon/bpmn-modeler-types",
-            "path",
-        ),
+        text: [
+            importsOf("../../kernel/domain/errors", "../../editorSession/domain/session", "path"),
+            'import { MERGE_SIDES } from "@miragon/bpmn-modeler-merge";',
+            'import type { BpmnDiff } from "@miragon/bpmn-modeler-diff";',
+        ].join("\n"),
     },
     {
         path: "deployment/service/DeploymentService.ts",
@@ -142,7 +173,7 @@ const CONTEXT_TREE = [
 
 function violationsWith(path: string, text: string): string[] {
     const graph = buildImportGraph([...CONTEXT_TREE, { path, text }]);
-    return CONTEXT_RULES.flatMap(({ violations }) =>
+    return contextRules(isSyntheticPureModule).flatMap(({ violations }) =>
         violations(graph).map(asViolation).map(describeViolation),
     );
 }
@@ -154,10 +185,28 @@ describe("context rules on a synthetic graph", () => {
 
     it.each([
         {
-            name: "domain → protocol package",
+            name: "domain → protocol package, even type-only",
             path: "deployment/domain/x.ts",
-            text: importsOf("@miragon/bpmn-modeler-shared"),
+            text: 'import type { Query } from "@miragon/bpmn-modeler-shared";',
             violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler-shared",
+        },
+        {
+            name: "domain → a workspace that is not pure, value import",
+            path: "deployment/domain/x.ts",
+            text: 'import { isEngine } from "@miragon/bpmn-modeler-types";',
+            violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler-types",
+        },
+        {
+            name: "domain → a modeler package, which is not pure",
+            path: "deployment/domain/x.ts",
+            text: importsOf("@miragon/bpmn-modeler"),
+            violation: "deployment/domain/x.ts -> @miragon/bpmn-modeler",
+        },
+        {
+            name: "domain → a Node module other than path",
+            path: "deployment/domain/x.ts",
+            text: importsOf("node:url"),
+            violation: "deployment/domain/x.ts -> node:url",
         },
         {
             name: "context → another context",
@@ -186,6 +235,20 @@ describe("context rules on a synthetic graph", () => {
 describe("modeler-core architecture", () => {
     const graph = buildImportGraph(readSourceTree(SRC_ROOT));
 
+    it("reads the merge and diff entries as pure modules, the protocol library's not", () => {
+        expect(
+            [
+                "@miragon/bpmn-modeler-merge",
+                "@miragon/bpmn-modeler-diff",
+                "@miragon/bpmn-modeler-shared",
+            ].filter(IS_PURE_MODULE),
+        ).toEqual(["@miragon/bpmn-modeler-merge", "@miragon/bpmn-modeler-diff"]);
+    });
+
+    it("still imports path in a domain file, or its allowance goes", () => {
+        expect(domainImportsOfPath(graph)).not.toEqual([]);
+    });
+
     it("no engine file imports vscode", () => {
         const offenders = graph.edges
             .filter(({ specifier }) => specifier === "vscode")
@@ -200,7 +263,7 @@ describe("modeler-core architecture", () => {
         const offenders = [...filesReaching(graph, isHostModule)];
         expect(
             offenders,
-            `these transitively import a host module (vscode/node:*/fs/http) — ` +
+            `these transitively import a host module (vscode, electron, a Node built-in but path) — ` +
                 `the engine must reach the host only through ports:\n${offenders.join("\n")}`,
         ).toEqual([]);
     });

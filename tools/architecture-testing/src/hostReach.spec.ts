@@ -1,20 +1,53 @@
 import { describe, expect, it } from "vitest";
 
-import { filesReaching, isHostModule } from "./hostReach";
+import { filesReaching, isHostModule, isPlatformModule, PORTABLE_NODE_MODULES } from "./hostReach";
 import { buildImportGraph } from "./importGraph";
 
 describe("isHostModule", () => {
-    it.each(["vscode", "node:fs", "fs", "fs/promises", "http", "https"])(
-        "treats %s as a host module",
+    it.each([
+        "vscode",
+        "node:fs",
+        "fs",
+        "fs/promises",
+        "http",
+        "https",
+        "child_process",
+        "node:child_process",
+        "os",
+        "crypto",
+        "url",
+        "worker_threads",
+        "electron",
+        "electron/main",
+    ])("treats %s as a host module", (specifier) => {
+        expect(isHostModule(specifier)).toBe(true);
+    });
+
+    it.each([
+        "path",
+        "node:path",
+        "@miragon/bpmn-modeler-types",
+        "vscode-uri",
+        "electron-store",
+        "fsevents",
+        "./http",
+    ])("does not treat %s as a host module", (specifier) => {
+        expect(isHostModule(specifier)).toBe(false);
+    });
+});
+
+describe("isPlatformModule", () => {
+    it.each([...PORTABLE_NODE_MODULES, "node:fs", "os", "vscode", "electron"])(
+        "treats %s as a platform module",
         (specifier) => {
-            expect(isHostModule(specifier)).toBe(true);
+            expect(isPlatformModule(specifier)).toBe(true);
         },
     );
 
-    it.each(["path", "@miragon/bpmn-modeler-types", "vscode-uri", "fsevents", "./http"])(
-        "does not treat %s as a host module",
+    it.each(["@miragon/bpmn-modeler-types", "vscode-uri", "electron-store", "./path"])(
+        "does not treat %s as a platform module",
         (specifier) => {
-            expect(isHostModule(specifier)).toBe(false);
+            expect(isPlatformModule(specifier)).toBe(false);
         },
     );
 });

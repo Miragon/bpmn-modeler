@@ -73,13 +73,14 @@ there.
 
 **`modeler-core`** owns domain/services, the editor-session core and `DiffPaneStore`.
 Hosts import its public entrypoint and supply capability ports and editor/diff handles.
-It is VS Code-free and no core file reaches a host module (`node:*`, `fs`, `http`),
-directly or transitively; portable Node utilities such as `path` stay valid.
+It is VS Code-free and no core file reaches a host module (`electron` or a Node
+built-in other than `path`), directly or transitively.
 
 **Core contexts.** Each feature folder (`modeler/<editor>` for the editors) is a context
 with the [role folders](role-folders.md) it needs. Two contexts are shared; the others
 reach each other only through them, composition included, and a context's `domain/`
-imports only its own `domain/` and that of the shared two.
+imports only its own `domain/`, that of the shared two, pure modules and `path`
+([domain imports](role-folders.md#domain-imports)).
 
 - `kernel/` is the vocabulary several features build on (`BpmnDocument`, engine
   versions, workspace path and config-folder rules, cross-cutting errors, the host
@@ -101,9 +102,10 @@ imports only its own `domain/` and that of the shared two.
   types, errors and pure functions it names stay in `domain/`. A port, prompt or error one feature owns lives in that feature, so
   `kernel/` names no feature. A store that holds application state and reaches the host
   only through ports (`MarketplaceCache`, `DiffPaneStore`, `DiffSession`) lives in
-  `service/` with no port of its own.
-- The core architecture test lists no exception today; a new one names the issue that
-  removes it and the test fails when it is no longer needed, so the lists only shrink.
+  `service/` with no port of its own ([placement](role-folders.md#placement)).
+- The core architecture test lists one exception: the domain imports `modeler-types`
+  until its DOM modules leave it (#2776). A new one names the issue that removes it,
+  and the test fails when it is no longer needed, so the lists only shrink.
 
 The core/host seam and the host/webview seam are distinct. The core reaches documents,
 settings, notifications, pickers, secrets and other host facilities through ports and

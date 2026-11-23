@@ -261,7 +261,8 @@
                 "packages/bpmn-modeler/src/bpmnlint/**",
                 "apps/deployment-webview/src/adapter/out/browserPreview/**",
                 "scripts/perf/**",
-                "apps/standalone/package.json"
+                "apps/standalone/package.json",
+                "tsconfig.base.json"
             ],
             "typecheck": "typecheck"
         },

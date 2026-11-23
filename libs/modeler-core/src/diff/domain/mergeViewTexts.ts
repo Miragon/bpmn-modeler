@@ -1,28 +1,16 @@
-import { ENGINE_LABEL, type Engine, otherSide } from "@miragon/bpmn-modeler-types";
+import type { MergeRefusal } from "@miragon/bpmn-modeler-merge";
+import { ENGINE_LABEL, otherSide } from "@miragon/bpmn-modeler-types";
 
 import { ActionNotice } from "../../kernel/domain/actionNotice";
 import { ConflictReading, ResolvableStages } from "./conflictReading";
 
 type StageName = keyof ResolvableStages;
 
-/** Why the merge refuses Git's stages: the merge library's `MergeRefusal`, which the core cannot import here. */
-export type StageRefusal =
-    /** The parser rejected the text, as it does a Git LFS pointer; `detail` is the parser's. */
-    | { readonly kind: "unparsable"; readonly version: StageName; readonly detail: string }
-    /** The version parsed with warnings, such as an unresolved reference; `detail` names them. */
-    | { readonly kind: "parsesWithWarnings"; readonly version: StageName; readonly detail: string }
-    | { readonly kind: "mixedEngines"; readonly current: Engine; readonly incoming: Engine }
-    | {
-          readonly kind: "elementWithoutId";
-          readonly version: StageName;
-          readonly elementType: string;
-      };
-
 /** Why the merge view does not open: a conflict reading other than resolvable, no file at all, or a stage the merge refuses. */
 export type MergeViewRefusal =
     | Exclude<ConflictReading, { readonly kind: "resolvable" }>
     | { readonly kind: "noFile" }
-    | StageRefusal;
+    | MergeRefusal;
 
 /** The command's title and the notice's action, which the host's manifest repeats. */
 export const RESOLVE_IN_MERGE_VIEW_LABEL = "Resolve in BPMN Merge View";

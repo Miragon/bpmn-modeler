@@ -14,9 +14,9 @@ Internal workspace, not published on its own.
 
 ## Rules
 
-- Never import `vscode`. The `domain/` layer also never imports a Node host module (`node:*`, `fs`,
-  `http`, `https`). `src/architecture.spec.ts` enforces both. Plain Node utilities such as `path` and
-  `Buffer` are fine in services.
+- Never import `vscode`, and never reach another host module (`electron` or a Node built-in other than
+  `path`), directly or transitively. `src/architecture.spec.ts` enforces both. `path` is fine in every
+  layer, the `Buffer` global in services.
 - Host capabilities (files, notifications, clipboard, ...) are reached only through ports: cross-cutting
   ones in `kernel/port/`, feature-owned ones in the feature's `port/`.
 - Each feature folder uses the role folders `domain/`, `port/`, `service/`, `adapter/in/`,

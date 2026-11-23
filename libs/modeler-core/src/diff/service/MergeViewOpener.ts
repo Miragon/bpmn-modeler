@@ -1,4 +1,4 @@
-import { mergeRefusalOf } from "@miragon/bpmn-modeler-merge";
+import { type MergeRefusal, mergeRefusalOf } from "@miragon/bpmn-modeler-merge";
 import { type MergeSide, readConflictMarkers } from "@miragon/bpmn-modeler-types";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
@@ -10,12 +10,7 @@ import { mergePaneBasename } from "../domain/mergePaneName";
 import { inPaneOrder } from "../domain/mergePaneSide";
 import { mergeSideCaptions } from "../domain/mergeSideCaptions";
 import { showsSameConflict } from "../domain/mergeViewContent";
-import {
-    mergeViewFailedText,
-    MergeViewRefusal,
-    mergeViewRefusal,
-    StageRefusal,
-} from "../domain/mergeViewTexts";
+import { mergeViewFailedText, MergeViewRefusal, mergeViewRefusal } from "../domain/mergeViewTexts";
 import { ConflictVersionsSource } from "../port/ConflictVersionsSource";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { MergeSideDocument, MergeSidesView } from "../port/MergeSidesView";
@@ -154,7 +149,7 @@ export class MergeViewOpener {
     private async mergeOf(
         stages: MergeSession["stages"],
     ): Promise<
-        | { readonly kind: "refused"; readonly refusal: StageRefusal }
+        | { readonly kind: "refused"; readonly refusal: MergeRefusal }
         | ({ readonly kind: "merged" } & MergeOfStages)
     > {
         try {
