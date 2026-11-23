@@ -57,15 +57,12 @@ decision itself is not exempt.
   (`target.engine === "c7"`, `mode === "design"`); it asks the home, a
   capability or method named after the rule (for example `verifiesDeployments`,
   `surfaceModeSupports(mode, "elementTemplates")`), or looks the value up in a
-  `Record`. `miragon/no-guarded-value-comparison` enforces it for the types
-  registered in `eslint.config.cjs`; nothing checks the rest. Before you write
-  a condition, a comparison, a filter or a read before and after a call in
-  `service/`, `adapter/` or the exempt code above, name the fact it decides.
-  If a value, an entity or a library result you already hold could answer it,
-  add the answer there first (a method, or a field of what a domain or library
-  call returns), with a failing spec (step 1). A port is no home for it: each
-  of its adapters would repeat the answer. Any code may act on an answer
-  (`if (decision.kind === "confirm")`); only the rule's home works one out.
+  `Record`. Acting on an answer the home returned is fine.
+  `miragon/no-guarded-value-comparison` enforces it for the types registered in
+  `eslint.config.cjs`; nothing checks the rest. Before you write a condition
+  outside a value's home, the exempt code above included, name the fact it
+  decides and give the answer its home first, with a failing spec (step 1), as
+  the [architecture](../architecture/SKILL.md#place-the-change) skill says.
 - Rules that browser code and the core both apply live in `libs/modeler-types`
   (pure, protocol-free). Webview-only rules go into a pure reducer module next
   to the bootstrap, not into DOM handlers.
