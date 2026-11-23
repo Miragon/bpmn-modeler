@@ -51,6 +51,7 @@
         "packages/dmn-modeler/scripts/check-dts.d.mts",
         "scripts/perf/largeBpmnModel.d.mts",
         ".github/scripts/vitest-target-reads.d.mts",
+        ".github/scripts/vitest-target-imports.d.mts",
         ".github/scripts/vscode-smoke-plan.d.mts",
         ".github/scripts/release-routing.d.mts",
         ".github/scripts/release-lines-sync.d.mts",

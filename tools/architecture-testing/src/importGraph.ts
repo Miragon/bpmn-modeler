@@ -17,7 +17,13 @@ export interface ImportGraph {
     readonly edges: readonly ImportEdge[];
 }
 
-const RESOLUTION_SUFFIXES: readonly string[] = [".ts", ".tsx", "/index.ts", "/index.tsx", ""];
+export const RESOLUTION_SUFFIXES: readonly string[] = [
+    ".ts",
+    ".tsx",
+    "/index.ts",
+    "/index.tsx",
+    "",
+];
 
 export function buildImportGraph(tree: readonly SourceFile[]): ImportGraph {
     const files = tree.map(({ path }) => path);

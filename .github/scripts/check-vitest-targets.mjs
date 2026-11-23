@@ -10,6 +10,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { globToRegExp } from "./glob.mjs";
+import { RELATIVE_IMPORT_SUFFIXES } from "./vitest-target-imports.mjs";
 import { readPathCandidates, uncoveredReads, withoutQuery } from "./vitest-target-reads.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -205,9 +206,9 @@ function reachablePaths(targetDir) {
 }
 
 function existingSourceFile(path) {
-    return ["", ".ts", ".tsx", ".mts", ".js", ".mjs", "/index.ts"]
-        .map((suffix) => `${path}${suffix}`)
-        .find((candidate) => SOURCE_FILE.test(candidate) && isFile(candidate));
+    return RELATIVE_IMPORT_SUFFIXES.map((suffix) => `${path}${suffix}`).find(
+        (candidate) => SOURCE_FILE.test(candidate) && isFile(candidate),
+    );
 }
 
 function isFile(path) {

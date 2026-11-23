@@ -29,6 +29,7 @@ export { findImportCycles } from "./importCycles";
 export type { DirectedEdge } from "./importCycles";
 export {
     buildImportGraph,
+    RESOLUTION_SUFFIXES,
     resolveRelativeImport,
     resolveWithSuffixes,
     unresolvedRelativeImports,
