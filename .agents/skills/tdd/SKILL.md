@@ -49,8 +49,8 @@ decision itself is not exempt.
   It calls no port and holds no handle: no ports, fakes, timers, DOM, `vscode`,
   Node host modules or `@miragon/bpmn-modeler-shared` imports.
   `tools/repo-checks/src/architecture.spec.ts` enforces the role folders'
-  import direction; the domain imports no `port/`. Where the BPMN model lives:
-  [architecture](../architecture/SKILL.md#place-the-change).
+  import direction; the domain imports no `port/`. Where the BPMN element model
+  and the document rules live: [architecture](../architecture/SKILL.md#place-the-change).
 - Aggregates and value objects own their invariants: a factory that validates,
   no public mutation, derived state computed instead of stored.
 - Return decisions as values, as discriminated unions such as

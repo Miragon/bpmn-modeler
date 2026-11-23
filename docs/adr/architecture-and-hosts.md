@@ -71,8 +71,8 @@ and ambient functions with a body but does not notice a *changed* declaration, a
 `publicApi.spec.ts` pins only the names it lists, so pin a new public-type dependency
 there.
 
-**`modeler-core`** owns services around a pure core (`domain/`; [the BPMN model is in
-the libraries](role-folders.md#placement)), the editor-session core and `DiffPaneStore`.
+**`modeler-core`** owns services around a pure core (`domain/`; [the BPMN element model
+is in the libraries](role-folders.md#placement)), the editor-session core and `DiffPaneStore`.
 Hosts import its public entrypoint and supply capability ports and editor/diff handles.
 It is VS Code-free and no core file reaches a host module (`electron` or a Node
 built-in other than `path`), directly or transitively.

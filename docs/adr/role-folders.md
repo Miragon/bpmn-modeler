@@ -135,12 +135,17 @@ last use.
 
 ### Placement
 
-- The BPMN model lives in the libraries `bpmn-diff`, `bpmn-merge` and
-  `modeler-types` ([domain imports](#domain-imports)); a rich domain model stays
-  the goal and is built there (#2562, B4 to B6).
-  - **Why:** a classification on 2026-11-23 found few `domain/` files that hold
-    rules about BPMN; most hold display logic, message glue, editor state,
-    policy and tables. The hexagon pays at the host seam (core ports with host
+- The BPMN element model of diff and merge lives in `bpmn-diff` and
+  `bpmn-merge`, and the BPMN rules browser code shares with the core in
+  `modeler-types` ([domain imports](#domain-imports)). The document-level rules
+  only the core applies stay in its `kernel/domain/BpmnDocument.ts`: engine and
+  version detection, new-model scaffolds, migration stamping and the process to
+  deploy. A rich domain model stays the goal and is built in the libraries
+  (#2562, B4 and B6).
+  - **Why:** a classification on 2026-11-23
+    ([#2562](https://github.com/Miragon/bpmn-modeler/issues/2562#issuecomment-7105424934))
+    found few `domain/` files that hold rules about BPMN; most hold display
+    logic, message glue, editor state, policy and tables. The hexagon pays at the host seam (core ports with host
     adapters, fakes and contract suites), not through a rich domain.
   - **Cost:** the name still reads as a domain model, so the table above, not
     the name, says what a `domain/` holds.

@@ -30,9 +30,11 @@ A workspace's `domain/` is its pure core: decisions, state transitions, display
 logic, texts and message tables; it calls no port and holds no handle. A
 decision goes into the owning feature's `domain/`, or into `libs/modeler-types`
 when browser code applies the same rule, test-first with the
-[tdd](../tdd/SKILL.md) skill. The BPMN model lives in the libraries the core's
-domain may import (`bpmn-diff`, `bpmn-merge`, `modeler-types`), where the rich
-domain model is built ([placement](../../../docs/adr/role-folders.md#placement)).
+[tdd](../tdd/SKILL.md) skill. The BPMN element model of diff and merge lives in
+`bpmn-diff` and `bpmn-merge`, where the rich domain model is built; the
+document-level rules only the core applies (engine and version detection,
+migration, the process to deploy) stay in `kernel/domain/BpmnDocument.ts`
+([placement](../../../docs/adr/role-folders.md#placement)).
 
 A service orchestrates; a rule lives in `domain/`, named after the rule it
 decides (for example `isModeAvailable(mode, engine)`, not `check` or
