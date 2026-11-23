@@ -1,6 +1,11 @@
 import { isTypeScriptSource } from "@miragon/architecture-testing";
 
 import { type Finding, sortFindings } from "../../fitness/domain/finding";
+import {
+    developerMessageRule,
+    type EnclosingCalls,
+    type LoggerDeclarations,
+} from "./developerMessages";
 
 /** What makes a file host code: the modules it imports and the files declaring the interfaces its classes implement. */
 export interface SourceDependencies {
@@ -9,36 +14,15 @@ export interface SourceDependencies {
     readonly implementedInterfaceFiles: readonly string[];
 }
 
-/** A call or `new` whose arguments hold a text: `this.logger.info` calls `info` on `logger`. */
-export interface CallSite {
-    readonly construct: boolean;
-    readonly callee?: string;
-    readonly receiver?: string;
-    /** Kotlin, which constructs without `new`: the call is what a `throw` raises. */
-    readonly thrown?: boolean;
-}
-
-export interface WrittenText {
+export interface WrittenText extends EnclosingCalls {
     readonly line: number;
     /** One for a plain literal; a template's literal stretches around its placeholders. */
     readonly parts: readonly string[];
-    readonly argumentOf: readonly CallSite[];
-    /** Kotlin: the call whose parentheses the nearest lambda around the text follows. */
-    readonly trailingLambdaOf?: CallSite;
 }
 
-/** A Kotlin `val` or `var`, a constructor property's default included, whose value is a call: `log` from `Logger.getInstance`. */
-interface InitializedValue {
-    readonly name: string;
-    /** The called name with its qualifiers. */
-    readonly initializer: string;
-}
-
-export interface HostFileTexts {
+export interface HostFileTexts extends LoggerDeclarations {
     readonly path: string;
     readonly texts: readonly WrittenText[];
-    readonly importedSpecifiers: readonly string[];
-    readonly initializedValues: readonly InitializedValue[];
 }
 
 /** What a host file holds beyond its imports. */
@@ -52,20 +36,6 @@ const CORE_DIR = "libs/modeler-core/";
 // A word holds a letter or a digit, so punctuation around whitespace, such as `:root {` or `, '*');`, is none.
 const WORD = /[\p{L}\p{N}]/u;
 const WHITESPACE = /\s+/;
-// The members of the core's LoggerPort: logInfo, logWarning, logError, logDebug.
-const TYPESCRIPT_LOGGING_CALLEE = /^log(?![a-z])/;
-const TYPESCRIPT_ERROR = "Error";
-const INTELLIJ_DIAGNOSTIC_PACKAGE = "com.intellij.openapi.diagnostic";
-// A file imports each by its first name: `Logger` for `Logger.getInstance`.
-const INTELLIJ_LOGGER_FACTORIES: readonly string[] = ["Logger.getInstance", "logger", "fileLogger"];
-const INTELLIJ_THIS_LOGGER = "thisLogger";
-// Kotlin's preconditions throw what their lambda returns, a message for developers.
-const KOTLIN_PRECONDITIONS: ReadonlySet<string> = new Set([
-    "require",
-    "check",
-    "requireNotNull",
-    "checkNotNull",
-]);
 // A character no source text holds, so the stretches split again where they were joined.
 const STRETCH_SEPARATOR = "\u0000";
 // A tag spans the placeholders inside it; one the literal leaves open runs to its end.
@@ -103,58 +73,6 @@ export function isHostFile({
     );
 }
 
-export function isTypeScriptLogCall({ construct, callee = "" }: CallSite): boolean {
-    return !construct && TYPESCRIPT_LOGGING_CALLEE.test(callee);
-}
-
-export function isErrorConstruction({ construct, callee }: CallSite): boolean {
-    return construct && callee === TYPESCRIPT_ERROR;
-}
-
-function importsFromDiagnostics(importedSpecifiers: readonly string[], name: string): boolean {
-    return importedSpecifiers.some(
-        (specifier) =>
-            specifier === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${name}` ||
-            specifier === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.*`,
-    );
-}
-
-function isLoggerFactory(initializer: string, importedSpecifiers: readonly string[]): boolean {
-    return INTELLIJ_LOGGER_FACTORIES.some(
-        (factory) =>
-            initializer === `${INTELLIJ_DIAGNOSTIC_PACKAGE}.${factory}` ||
-            (initializer === factory &&
-                importsFromDiagnostics(importedSpecifiers, factory.split(".")[0])),
-    );
-}
-
-/** IntelliJ's loggers in a Kotlin file: values it declares from `Logger.getInstance(…)`, `logger<T>()` or `fileLogger()`, and `thisLogger()`. */
-export function kotlinLoggers({
-    importedSpecifiers,
-    initializedValues,
-}: Pick<HostFileTexts, "importedSpecifiers" | "initializedValues">): Set<string> {
-    const loggers = initializedValues
-        .filter(({ initializer }) => isLoggerFactory(initializer, importedSpecifiers))
-        .map(({ name }) => name);
-    if (importsFromDiagnostics(importedSpecifiers, INTELLIJ_THIS_LOGGER)) {
-        loggers.push(INTELLIJ_THIS_LOGGER);
-    }
-    return new Set(loggers);
-}
-
-// A log line and an error's message are read by developers; the core does not word them.
-function unreadArgumentRule(file: HostFileTexts): (site: CallSite) => boolean {
-    if (!isKotlinSource(file.path)) {
-        return (site) => isErrorConstruction(site) || isTypeScriptLogCall(site);
-    }
-    const loggers = kotlinLoggers(file);
-    return (site) => site.thrown === true || loggers.has(site.receiver ?? "");
-}
-
-function isPreconditionMessage(lambdaOf: CallSite | undefined): boolean {
-    return lambdaOf?.receiver === undefined && KOTLIN_PRECONDITIONS.has(lambdaOf?.callee ?? "");
-}
-
 function holdsTwoWords(part: string): boolean {
     return part.split(WHITESPACE).filter((token) => WORD.test(token)).length >= 2;
 }
@@ -169,14 +87,10 @@ function withoutMarkup(parts: readonly string[]): string[] {
 
 // Each stretch on its own: a placeholder is no word, so a format such as `${a}: ${b}` holds no text.
 function isShownText(
-    { parts, argumentOf, trailingLambdaOf }: WrittenText,
-    isUnreadArgument: (site: CallSite) => boolean,
+    text: WrittenText,
+    isDeveloperMessage: (calls: EnclosingCalls) => boolean,
 ): boolean {
-    return (
-        withoutMarkup(parts).some(holdsTwoWords) &&
-        !argumentOf.some(isUnreadArgument) &&
-        !isPreconditionMessage(trailingLambdaOf)
-    );
+    return withoutMarkup(text.parts).some(holdsTwoWords) && !isDeveloperMessage(text);
 }
 
 function shownText(parts: readonly string[]): string {
@@ -199,9 +113,12 @@ export function hostTextFindings(files: readonly HostFileTexts[]): Finding[] {
     return sortFindings(
         files.flatMap((file) => {
             const { path, texts } = file;
-            const isUnreadArgument = unreadArgumentRule(file);
+            const isDeveloperMessage = developerMessageRule({
+                ...file,
+                kotlin: isKotlinSource(path),
+            });
             return texts
-                .filter((text) => isShownText(text, isUnreadArgument))
+                .filter((text) => isShownText(text, isDeveloperMessage))
                 .map(({ line, parts }): Finding => {
                     const text = shownText(parts);
                     return {
