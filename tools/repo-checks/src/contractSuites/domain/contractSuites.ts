@@ -3,11 +3,11 @@ import {
     isTestOrDeclarationFile,
     roleOf,
     SPEC_FILE,
+    TYPESCRIPT_FILE,
 } from "@miragon/architecture-testing";
 
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
 import type { FindingGroup } from "../../fitness/domain/fitnessFunction";
-import { TYPESCRIPT_FILE } from "../../sourceFiles/domain/sourceFiles";
 
 /** The core's test kit: a contract helper is a function it exports. */
 export const CONTRACT_HELPER_MODULE = "@miragon/bpmn-modeler-core/testing";

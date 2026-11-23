@@ -27,7 +27,10 @@ beforeEach(() => {
             'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
         "libs/core/src/test/FakeDocuments.ts":
             'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
+        "libs/core/src/service/worker.mts":
+            'import type { DocumentPort } from "../port/DocumentPort";',
         "libs/core/src/globals.d.ts": "declare const version: string;",
+        "libs/core/src/globals.d.mts": "declare const build: string;",
         "libs/core/src/theme.css": "",
         "apps/host/package.json": JSON.stringify({ name: "host", architecture: "hexagonal" }),
         "apps/host/src/adapter/out/HostDocuments.tsx": [
@@ -58,7 +61,12 @@ describe("the engine role folder sources", () => {
             { dir: "apps/host", files: ["adapter/out/HostDocuments.tsx"] },
             {
                 dir: "libs/core",
-                files: ["index.ts", "port/DocumentPort.ts", "service/Documents.ts"],
+                files: [
+                    "index.ts",
+                    "port/DocumentPort.ts",
+                    "service/Documents.ts",
+                    "service/worker.mts",
+                ],
             },
         ]);
         expect(workspaces[1].graph.edges).toContainEqual(
@@ -86,6 +94,22 @@ describe("the engine role folder sources", () => {
                     interfaceFiles: ["libs/core/src/port/DocumentPort.ts"],
                 },
             ],
+        ]);
+    });
+
+    it("read a test folder name only inside the workspace", () => {
+        repository.write(
+            "libs/tests/package.json",
+            JSON.stringify({ name: "tests", architecture: "hexagonal" }),
+        );
+        repository.write("libs/tests/src/index.ts", "export const harness = 1;");
+        repository.git("add", "libs/tests");
+        repository.git("commit", "--quiet", "-m", "workspace in a folder named tests");
+
+        const workspaces = new EngineRoleFolderSources().read(repository.root);
+
+        expect(workspaces.find(({ dir }) => dir === "libs/tests")?.graph.files).toEqual([
+            "index.ts",
         ]);
     });
 

@@ -13,6 +13,9 @@ describe("readSourceTree", () => {
         for (const path of [
             "index.ts",
             "feature/view.tsx",
+            "feature/worker.mts",
+            "feature/legacy.cts",
+            "feature/build.mjs",
             "feature/domain/model.ts",
             "feature/domain/model.spec.ts",
             "feature/view.test.tsx",
@@ -36,10 +39,12 @@ describe("readSourceTree", () => {
         rmSync(root, { recursive: true, force: true });
     });
 
-    it("lists sources as sorted POSIX paths with their text, without test folders", () => {
+    it("lists the TypeScript files as sorted POSIX paths with their text, without test folders", () => {
         expect(readSourceTree(root)).toEqual([
             { path: "feature/domain/model.ts", text: "// feature/domain/model.ts" },
+            { path: "feature/legacy.cts", text: "// feature/legacy.cts" },
             { path: "feature/view.tsx", text: "// feature/view.tsx" },
+            { path: "feature/worker.mts", text: "// feature/worker.mts" },
             { path: "index.ts", text: "// index.ts" },
             { path: "lib/vendored.ts", text: "// lib/vendored.ts" },
         ]);
@@ -49,8 +54,10 @@ describe("readSourceTree", () => {
         expect(readSourceTree(root, { includeSpecs: true }).map(({ path }) => path)).toEqual([
             "feature/domain/model.spec.ts",
             "feature/domain/model.ts",
+            "feature/legacy.cts",
             "feature/view.test.tsx",
             "feature/view.tsx",
+            "feature/worker.mts",
             "index.ts",
             "lib/vendored.ts",
         ]);

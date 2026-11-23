@@ -197,6 +197,7 @@ describe("a value set source", () => {
         "a/domain/auth.spec.ts",
         "a/ui/View.test.tsx",
         "a/tools/build.spec.mjs",
+        "a/src/model.spec.data.ts",
         "a/types/bpmn-moddle.d.ts",
         "a/types/module.d.mts",
         "a/src/__fixtures__/vscodeWindowFake.ts",

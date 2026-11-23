@@ -1,4 +1,9 @@
-import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
+import {
+    isBuildConfig,
+    isSpecOrSpecData,
+    isTestOrDeclarationFile,
+    SCRIPT_FILE,
+} from "@miragon/architecture-testing";
 
 import { compareText, type Finding, sortFindings } from "../../fitness/domain/finding";
 
@@ -27,10 +32,6 @@ interface ValueSet {
     readonly occurrences: ValueSetOccurrence[];
 }
 
-const SCRIPT_FILE = /\.([mc]?[jt]s|[jt]sx)$/;
-// Wider than a spec elsewhere: `*.spec.*` also covers spec data such as `a.spec.data.ts`. A build
-// config is configuration, as change coupling treats it.
-const UNREAD_SCRIPT_FILE = /\.(spec|test)\.[^/]+$|(^|\/)[^/]*\.config\.[^/]+$/;
 const MIN_DISTINCT_VALUES = 2;
 const MIN_FILE_GROUPS = 2;
 const TYPE_PIN_REMEDY =
@@ -38,7 +39,10 @@ const TYPE_PIN_REMEDY =
 
 export function isValueSetSource(path: string): boolean {
     return (
-        SCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path) && !UNREAD_SCRIPT_FILE.test(path)
+        SCRIPT_FILE.test(path) &&
+        !isTestOrDeclarationFile(path) &&
+        !isSpecOrSpecData(path) &&
+        !isBuildConfig(path)
     );
 }
 

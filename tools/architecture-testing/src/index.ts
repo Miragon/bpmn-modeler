@@ -24,6 +24,17 @@ export { readKotlinInitializedValues } from "./kotlinInitializedValues";
 export type { KotlinInitializedValue } from "./kotlinInitializedValues";
 export { readKotlinTextLiterals } from "./kotlinTextLiterals";
 export type { FunctionComplexity } from "./functionComplexity";
+export {
+    DECLARATION_FILE,
+    isBuildConfig,
+    isSpecOrSpecData,
+    isTestOrDeclarationFile,
+    isTypeScriptSource,
+    SCRIPT_FILE,
+    SPEC_FILE,
+    TEST_FOLDERS,
+    TYPESCRIPT_FILE,
+} from "./fileKinds";
 export { FLAT_RULES } from "./flatRules";
 export { HEXAGONAL_RULES } from "./hexagonalRules";
 export { findImplementations } from "./implementations";
@@ -72,7 +83,6 @@ export type { Stability, WorkspaceDependency } from "./stability";
 export { readStringLiterals } from "./stringLiterals";
 export { readTextLiterals } from "./textLiterals";
 export type { CallSite, TextLiteral } from "./textLiterals";
-export { DECLARATION_FILE, isTestOrDeclarationFile, SPEC_FILE, TEST_FOLDERS } from "./testFiles";
 export { findTypeEqualityPins } from "./typeEqualityPins";
 export type { TypeEqualityPin, TypeEqualityPinOptions } from "./typeEqualityPins";
 export { readTypeProgram } from "./typeProgram";

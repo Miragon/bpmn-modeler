@@ -1,7 +1,6 @@
-import { isTestOrDeclarationFile } from "@miragon/architecture-testing";
+import { isTypeScriptSource } from "@miragon/architecture-testing";
 
 import { type Finding, sortFindings } from "../../fitness/domain/finding";
-import { TYPESCRIPT_FILE } from "../../sourceFiles/domain/sourceFiles";
 
 /** What makes a file host code: the modules it imports and the files declaring the interfaces its classes implement. */
 export interface SourceDependencies {
@@ -80,8 +79,9 @@ export function isKotlinSource(path: string): boolean {
     return KOTLIN_SOURCE.test(path);
 }
 
+// Host text scans the whole tree, root files included, so a test folder counts anywhere in the repo path.
 export function isScannedSource(path: string): boolean {
-    return isKotlinSource(path) || (TYPESCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path));
+    return isKotlinSource(path) || isTypeScriptSource(path);
 }
 
 function isHostApi(specifier: string): boolean {

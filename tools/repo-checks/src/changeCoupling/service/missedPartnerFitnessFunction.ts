@@ -36,7 +36,7 @@ export function createMissedPartnerFitnessFunction({
             `A partner with fewer than ${minSharedChanges} shared changes, so a copy that is new has no history to warn from.`,
             `A partner below ${minConfidencePercent} % confidence or a lift of ${minLift}, such as one that changed in 18 of 20 changes.`,
             "The known lint-config copy: LintConfigService.ts changed in 5 of 15 changes to BpmnLintConfigService.ts (33 %, lift 9.7 at f9560b0a).",
-            "Files change-coupling does not read: specs, barrels, build configs, test folders and files .gitattributes marks linguist-generated.",
+            "Files change-coupling does not read: specs, barrels, build configs outside src/ and .mjs ones anywhere, test folders and files .gitattributes marks linguist-generated.",
             "Untracked files: git diff lists tracked changes only.",
             "Shared changes from a stack of several PRs below the branch: the stack is mined as one change where main gets one squash each, so a partner can fall short on the stacked PR and warn after the retarget.",
         ],
