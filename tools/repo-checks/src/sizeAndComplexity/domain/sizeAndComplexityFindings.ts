@@ -8,7 +8,7 @@ import {
 } from "../../sourceFiles/domain/fileMeasure";
 
 export const SIZE_AND_COMPLEXITY_VALUES: readonly [FindingValue, FindingValue] = [
-    { id: "codeLines", title: "code lines" },
+    { id: "codeLines", title: "code lines", growthThreshold: 11 },
     { id: "complexity", title: "highest complexity" },
 ];
 

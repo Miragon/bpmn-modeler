@@ -85,6 +85,21 @@ function trendOf(
 }
 
 /**
+ * One value over a trend, oldest first, as the report prints it: a point that leaves the value as
+ * it was adds nothing; `undefined` where a point lacks the value.
+ */
+export function valueSeries(id: string, trend: readonly TrendPoint[]): (number | undefined)[] {
+    const series: (number | undefined)[] = [];
+    for (const { values } of trend) {
+        const value = Object.hasOwn(values, id) ? values[id] : undefined;
+        if (series.length === 0 || series.at(-1) !== value) {
+            series.push(value);
+        }
+    }
+    return series;
+}
+
+/**
  * Per key that occurs once at HEAD and once in the newest stored findings, its values over the
  * stored findings, oldest first and HEAD's last; HEAD's values alone show no change. A commit
  * without findings is a gap and skipped; a commit that lacks the key, or holds it twice, ends its

@@ -1,4 +1,4 @@
-import { grewSinceBase } from "./delta";
+import { grewSinceBase, listsGrownFinding } from "./delta";
 import type { Finding } from "./finding";
 import type { FindingGroup, FindingValue } from "./fitnessFunction";
 import {
@@ -93,14 +93,33 @@ function largestOf(findings: readonly Finding[], { id }: FindingValue): Finding 
     );
 }
 
+function grownNotListedLine(count: number, values: readonly FindingValue[]): string {
+    const thresholds = values
+        .flatMap(({ title, growthThreshold }) =>
+            growthThreshold === undefined ? [] : [`${growthThreshold} ${title}`],
+        )
+        .join(" and ");
+    const exceptions = [
+        ...values.flatMap(({ title, growthThreshold }) =>
+            growthThreshold === undefined ? [`a ${title} rise`] : [],
+        ),
+        "a rise in each of the trend's last two steps",
+    ].join(" or ");
+    return `- **Grown, not listed:** ${rowCount(count)} that grew by less than ${thresholds}, without ${exceptions}`;
+}
+
 function notListedLines(
     added: readonly Finding[],
+    grownNotListed: number,
     resolvedCount: number,
-    largestBy: FindingValue,
+    values: readonly FindingValue[],
 ): string[] {
     const lines: string[] = [];
+    if (grownNotListed > 0) {
+        lines.push(grownNotListedLine(grownNotListed, values));
+    }
     if (added.length > 0) {
-        const largest = largestOf(added, largestBy);
+        const largest = largestOf(added, values[0]);
         const named = `${location(largest)} (${tableCell(largest.message)})`;
         lines.push(
             added.length === 1
@@ -122,19 +141,28 @@ interface Commits {
 }
 
 /** Without a stored series a grown row's trend is the step from the merge base to HEAD. */
-function grownRows(outcome: MeasuredOutcome, commits: Commits): readonly FindingRow[] {
-    return inTableOrder(
-        outcome.findings
-            .filter(grewSinceBase)
-            .map(({ valuesAtBase = {}, trend, ...finding }): FindingRow => ({
+function grownChanges(
+    outcome: MeasuredOutcome,
+    values: readonly FindingValue[],
+    commits: Commits,
+): { readonly rows: readonly FindingRow[]; readonly notListed: number } {
+    const grown = outcome.findings.filter(grewSinceBase).map((finding) => ({
+        ...finding,
+        trend: finding.trend ?? [
+            { commit: commits.base, values: finding.valuesAtBase ?? {} },
+            { commit: commits.head, values: finding.values ?? {} },
+        ],
+    }));
+    const listed = grown.filter((finding) => listsGrownFinding(finding, values));
+    return {
+        rows: inTableOrder(
+            listed.map(({ valuesAtBase: _valuesAtBase, ...finding }): FindingRow => ({
                 ...finding,
                 status: "grown",
-                trend: trend ?? [
-                    { commit: commits.base, values: valuesAtBase },
-                    { commit: commits.head, values: finding.values ?? {} },
-                ],
             })),
-    );
+        ),
+        notListed: grown.length - listed.length,
+    };
 }
 
 function newAndResolvedRows(report: FunctionReport, outcome: MeasuredOutcome): FindingRow[] {
@@ -158,8 +186,13 @@ function changesOf(report: FunctionReport, commits: Commits): FunctionChanges | 
         resolved: outcome.resolved.length,
     };
     if (report.changesView === "grown-values" && report.values !== undefined) {
-        const notListed = notListedLines(added, outcome.resolved.length, report.values[0]);
-        const rows = grownRows(outcome, commits);
+        const { rows, notListed: grownNotListed } = grownChanges(outcome, report.values, commits);
+        const notListed = notListedLines(
+            added,
+            grownNotListed,
+            outcome.resolved.length,
+            report.values,
+        );
         return rows.length === 0 && notListed.length === 0
             ? undefined
             : { report, counts, rows, notListed };

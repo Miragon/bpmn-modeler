@@ -48,6 +48,10 @@ describe("the fitness function contract", () => {
     it.each([
         { changesView: "full-report-only" },
         { changesView: "grown-values", values: [{ id: "codeLines", title: "code lines" }] },
+        {
+            changesView: "grown-values",
+            values: [{ id: "codeLines", title: "code lines", growthThreshold: 11 }],
+        },
     ] as const)("accepts the changes view $changesView", (declared) => {
         const viewed = { ...valid, ...declared } as const;
 
@@ -211,6 +215,19 @@ describe("the fitness function contract", () => {
             case: "grown values without declared values",
             override: { changesView: "grown-values" },
             problem: "changesView grown-values needs declared values",
+        },
+        ...[0, -11, Number.NaN, Number.POSITIVE_INFINITY].map((growthThreshold) => ({
+            case: `a growth threshold of ${growthThreshold}`,
+            override: {
+                changesView: "grown-values",
+                values: [{ id: "codeLines", title: "code lines", growthThreshold }],
+            },
+            problem: "a value's growthThreshold is not a positive number",
+        })),
+        {
+            case: "a growth threshold without the grown-values view",
+            override: { values: [{ id: "codeLines", title: "code lines", growthThreshold: 11 }] },
+            problem: "growthThreshold needs changesView grown-values",
         },
     ])("rejects $case at run time", ({ override, problem }) => {
         expect(() => defineFitnessFunction({ ...valid, ...override } as never)).toThrow(

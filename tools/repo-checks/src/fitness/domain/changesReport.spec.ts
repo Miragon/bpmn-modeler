@@ -330,7 +330,7 @@ describe("the changes of a function that shows grown values", () => {
         {
             id: "sized-files",
             values: [
-                { id: "codeLines", title: "code lines" },
+                { id: "codeLines", title: "code lines", growthThreshold: 11 },
                 { id: "complexity", title: "highest complexity" },
             ],
             groups: [{ id: "files", title: "Every measured file", collapsed: true }],
@@ -357,6 +357,25 @@ describe("the changes of a function that shows grown values", () => {
         return markdown
             .split("\n")
             .filter((line) => /^\| (new|existing|grown|resolved) \|/.test(line));
+    }
+
+    function storedHistory(
+        newestFirst: readonly { commit: string; findings: readonly Finding[] }[],
+    ): TrendHistory {
+        return {
+            headCommit: HEAD,
+            commitsNewestFirst: newestFirst.map(({ commit }) => commit),
+            snapshots: new Map(
+                newestFirst.map(({ commit, findings }) => [
+                    commit,
+                    {
+                        schemaVersion: 1,
+                        commit,
+                        entries: { "sized-files": { version: 2, findings } },
+                    },
+                ]),
+            ),
+        };
     }
 
     it("lists no file a pull request only adds, and folds them into their count and the largest", () => {
@@ -408,29 +427,87 @@ describe("the changes of a function that shows grown values", () => {
     });
 
     it("shows a grown file's trend over the stored snapshots", () => {
-        const history: TrendHistory = {
-            headCommit: HEAD,
-            commitsNewestFirst: [BASE, "older"],
-            snapshots: new Map(
-                [
-                    { commit: BASE, findings: [file("grown", 272)] },
-                    { commit: "older", findings: [file("grown", 98)] },
-                ].map(({ commit, findings }) => [
-                    commit,
-                    {
-                        schemaVersion: 1,
-                        commit,
-                        entries: { "sized-files": { version: 2, findings } },
-                    },
-                ]),
-            ),
-        };
+        const history = storedHistory([
+            { commit: BASE, findings: [file("grown", 272)] },
+            { commit: "older", findings: [file("grown", 98)] },
+        ]);
 
         expect(
             changesReport(
                 reportOf([{ ...sized([file("grown", 348)], [file("grown", 272)]), history }]),
             ),
         ).toContain("| grown | `src/grown.ts:1` | 348 code lines | code lines 98 → 272 → 348 |");
+    });
+
+    it("lists a grown file from the growth its values declare and counts the rest in one line", () => {
+        const markdown = changesReport(
+            reportOf([
+                sized(
+                    [file("branchy", 100, 4), file("large", 111, 3), file("small", 110, 3)],
+                    [file("branchy", 100, 3), file("large", 100, 3), file("small", 100, 3)],
+                ),
+            ]),
+        );
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: some -->");
+        expect(tableRows(markdown)).toEqual([
+            "| grown | `src/branchy.ts:1` | 100 code lines | highest complexity 3 → 4 |",
+            "| grown | `src/large.ts:1` | 111 code lines | code lines 100 → 111 |",
+        ]);
+        expect(markdown).toContain(
+            "- **Grown, not listed:** 1 row that grew by less than 11 code lines, without a highest complexity rise or a rise in each of the trend's last two steps",
+        );
+    });
+
+    it("prints the complexity of a grown file whose merge base had none as none in its trend", () => {
+        const markdown = changesReport(
+            reportOf([sized([file("branchy", 100, 1)], [file("branchy", 100)])]),
+        );
+
+        expect(tableRows(markdown)).toEqual([
+            "| grown | `src/branchy.ts:1` | 100 code lines | highest complexity none → 1 |",
+        ]);
+    });
+
+    it("lists a file below the threshold whose code lines rose in each of its trend's last two steps", () => {
+        const history = storedHistory([
+            { commit: BASE, findings: [file("grown", 95)] },
+            { commit: "older", findings: [file("grown", 78)] },
+        ]);
+
+        const markdown = changesReport(
+            reportOf([{ ...sized([file("grown", 99)], [file("grown", 95)]), history }]),
+        );
+
+        expect(tableRows(markdown)).toEqual([
+            "| grown | `src/grown.ts:1` | 99 code lines | code lines 78 → 95 → 99 |",
+        ]);
+        expect(markdown).not.toContain("not listed");
+    });
+
+    it("counts grown files below the threshold alone as no change, which the full report keeps", () => {
+        const report = reportOf([
+            sized(
+                [file("added", 12), file("small", 105), file("smaller", 101)],
+                [file("gone", 5), file("small", 100), file("smaller", 100)],
+            ),
+            unchanged,
+        ]);
+
+        const markdown = changesReport(report);
+
+        expect(markdown.split("\n")[0]).toBe("<!-- fitness-changes: none -->");
+        expect(tableRows(markdown)).toEqual([]);
+        expect(markdown).toContain(
+            [
+                "- **Grown, not listed:** 2 rows that grew by less than 11 code lines, without a highest complexity rise or a rise in each of the trend's last two steps",
+                "- **New, not listed:** 1 row, `src/added.ts:1` (12 code lines)",
+                "- **Resolved, not listed:** 1 row",
+            ].join("\n"),
+        );
+        expect(markdownReport(report)).toContain(
+            "| existing | `src/small.ts:1` | 105 code lines |",
+        );
     });
 
     it("names a single new file and counts the removed ones", () => {

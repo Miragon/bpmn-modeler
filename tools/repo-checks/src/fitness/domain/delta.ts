@@ -7,6 +7,8 @@ import {
     sortedValues,
     sortFindings,
 } from "./finding";
+import type { FindingValue } from "./fitnessFunction";
+import { type TrendPoint, valueSeries } from "./trend";
 
 export type MarkedFinding = Finding & {
     readonly status: "new" | "existing";
@@ -21,6 +23,44 @@ export function grewSinceBase({ values = {}, valuesAtBase }: MarkedFinding): boo
     }
     return Object.entries(values).some(
         ([id, value]) => !Object.hasOwn(valuesAtBase, id) || value > valuesAtBase[id],
+    );
+}
+
+function rose(from: number | undefined, to: number | undefined): boolean {
+    return to !== undefined && (from === undefined || to > from);
+}
+
+function roseInLastTwoSteps(id: string, trend: readonly TrendPoint[]): boolean {
+    const series = valueSeries(id, trend);
+    const [first, middle, last] = series.slice(-3);
+    return series.length >= 3 && rose(first, middle) && rose(middle, last);
+}
+
+/**
+ * A grown finding the grown-values view does not list is only counted. A declared value without a
+ * growth threshold lists it on any rise since the merge base; one with a threshold lists it from
+ * that growth, or when the value rose in each of the last two steps of `trend`, the trend the report
+ * prints with HEAD as its last point. A value the merge base lacked lists it either way.
+ */
+export function listsGrownFinding(
+    finding: MarkedFinding & { readonly trend: readonly TrendPoint[] },
+    declared: readonly FindingValue[],
+): boolean {
+    const { values = {}, valuesAtBase = {}, trend } = finding;
+    return (
+        grewSinceBase(finding) &&
+        declared.some(({ id, growthThreshold }) => {
+            if (!Object.hasOwn(values, id)) {
+                return false;
+            }
+            if (!Object.hasOwn(valuesAtBase, id)) {
+                return true;
+            }
+            const growth = values[id] - valuesAtBase[id];
+            return growthThreshold === undefined
+                ? growth > 0
+                : growth >= growthThreshold || roseInLastTwoSteps(id, trend);
+        })
     );
 }
 
