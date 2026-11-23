@@ -150,8 +150,7 @@ and not in `build.yml`'s `ci.needs`.
   `host-text`, `missed-partner` and `mutation-score` are full-report-only and never
   count as a change: a mutation score comes from a stored run, so it landed on
   whichever PR came next; the missed-partner warnings left on PRs were mostly judged
-  false or not judged; and the change-coupling and host-text rows were rarely true and
-  rarely fixed in their PR (see below).
+  false or not judged; change-coupling and host-text as decided below.
 - The job summary carries every row. The PR comment is a capped copy
   (`--capped-out --max-characters 60000`, under GitHub's 65,536 limit): every
   function gets the same row limit, new rows before resolved, and no table or
@@ -287,11 +286,11 @@ only lists it. `repeated-value-sets` and `contract-suites` stay; `contract-suite
 stays against the written rules, which count its render-only group as false although
 two of those rows led to a suite. `change-coupling` and `host-text` moved to the full
 report (#2743, #2744): in the trial's window none of their new rows was fixed and all
-but one were false, and the review, which reads the full report, keeps them. Their
-`reportsWrongly` entries name the false cases the trial found. `hotspots` is to stop
-ranking modules that run no code (#2708). The grown-files list is to show a row only
-when it grew by at least 11 code lines, its complexity rose or its trend rose twice
-in a row (#2745), which leaves about a quarter of the grown rows out of the comment.
+but one were false, and the review, which reads the full report, keeps them.
+`hotspots` is to stop ranking modules that run no code (#2708). The grown-files list
+is to show a row only when it grew by at least 11 code lines, its complexity rose or
+its trend rose twice in a row (#2745), which leaves about a quarter of the grown rows
+out of the comment.
 The written rule gave no threshold, because five smaller rows were fixed in their PR,
 but four of those went with nothing written about the row. Each of these issues
 replaces the text above that describes today's comment.

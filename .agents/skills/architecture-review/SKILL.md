@@ -19,12 +19,11 @@ this repository, unless Dependabot opened it, has at most one comment with a
 capped copy, posted once there is a change
 ([ADR](../../../docs/adr/architecture-enforcement.md#fitness-function-report)).
 For `size-and-complexity` it lists the existing files that grew and only
-counts the new ones; `change-coupling`, `host-text`, `missed-partner` and
-`mutation-score` are in the full report only, so the comment never shows their
-rows. It measures GitHub's test merge, so the whole PR counts as one change,
-which the PR row below does not. Read it for an overview; the review still
-measures here, because only the JSON holds the existing findings, the trends
-and the rows of the functions in the full report only.
+counts the new ones; the functions whose `changesView` is `full-report-only`
+(step 2 lists them) never show their rows there. It measures GitHub's test
+merge, so the whole PR counts as one change, which the PR row below does not.
+Read it for an overview; the review still measures here, because only the JSON
+holds the existing findings, the trends and the rows of those functions.
 
 Run every block from this checkout. `OUT` lies outside it: an untracked file
 in the checkout would count as a change. Two reviews at once need their own
@@ -159,7 +158,7 @@ the registry grows, so never assume which functions exist.
 OUT="${TMPDIR:-/tmp}/architecture-review"; TREE=$(cat "$OUT/tree.txt"); R="$OUT/report.json"
 # id, version, outcome, new, resolved, why unmeasurable, why unmeasurable at the merge base
 jq -r '.functions[] | [.id, .version, .outcome.kind, ([.outcome.findings[]? | select(.status == "new")] | length), (.outcome.resolved // [] | length), (.outcome.reason // ""), (.base.unmeasurable // "")] | @tsv' "$R"
-jq '.functions[] | {id, version, misses, reportsWrongly}' "$R"
+jq '.functions[] | {id, version, changesView, misses, reportsWrongly}' "$R"
 jq -r --arg id '<id>' '.functions[] | select(.id == $id) | .measures' "$R"
 # new and resolved findings, and every finding whose key names a touched file
 jq -r --rawfile touched "$OUT/touched.txt" '

@@ -26,6 +26,9 @@ export const CODE_MAAT_THRESHOLDS: CouplingThresholds = {
     maxChangesetSize: 30,
 };
 
+/** This repository's rule, not code-maat's: a shared import explains a pair it changed with this often. */
+export const MIN_EXPLAINING_SHARE_PERCENT = 50;
+
 type HiddenGroup = "kotlin-only" | "across-languages" | "across-workspaces" | "within-workspace";
 
 type Coupling =
@@ -167,7 +170,7 @@ function couplingOf(
             by: file,
             coChanges: together.filter((files) => files.includes(file)).length,
         }))
-        .filter(({ coChanges }) => coChanges * 2 >= sharedChanges)
+        .filter(({ coChanges }) => coChanges * 100 >= sharedChanges * MIN_EXPLAINING_SHARE_PERCENT)
         .sort(
             (first, second) =>
                 second.coChanges - first.coChanges || compareText(first.by, second.by),
