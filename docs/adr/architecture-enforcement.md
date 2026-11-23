@@ -250,12 +250,13 @@ two derivations of one state, logic in the wrong layer, wiring per host, a new
 workspace without its siblings' guards, silently ignored commands. It searches a
 touched list, union or enum by two or three of its members to find copies with other
 names. For a PR whose head conflicts with its base, as a stacked PR's often does, it
-takes the PR's own change from the head's newest merge of the base. A whole tree is
-reviewed one area per run, and the run names what it did not cover. The reviewer runs
-its commands under bash, because zsh and the regex of macOS broke them. Each finding
-names `path:line`, evidence and the function or limit that applies. "Already
-duplicated before this PR" is never a reason to keep a copy: the PR fixes it or an
-issue names each copy. It also checks each report row in the code before it reports
+takes the PR's own change from the head's newest merge of the base. A survey takes
+one area of the tree per run, and the run names what it did not cover. The reviewer
+runs its commands under bash, because zsh and the regex of macOS broke them. Each
+finding names `path:line`, evidence, the function or limit that applies and, in a
+change review, its origin. A copy the change adds or extends is a finding even when
+its original predates the change; a problem the change leaves as it was is listed in
+one line without a proposal. It also checks each report row in the code before it reports
 or drops it, and proposes narrower rules or `reportsWrongly`/`misses` entries for
 what the functions got wrong; a proposal that changes a function's rule bumps its
 version and needs a measured trial.
@@ -265,6 +266,19 @@ comments and never blocks. It reliably finds a rule written twice in different
 spellings and text built per host, and misses second copies it must discover rather
 than follow from the diff, guards a new workspace lacks, and most of a whole tree.
 The author triages its findings.
+
+**A fixed walk and a check before each finding** (2026-11-23). Three runs on each of
+six merged PRs, with one frozen report, read the same files and reported different
+findings, and two judges per finding rejected 2 of 30, one reported by all three
+runs. The review now walks each source file in path order through eight closed
+questions, lists its answers per file, checks each finding against the code and the
+recorded decisions before writing it, and lists a problem that predates the change
+without a proposal, so a follow-up PR no longer turns every older problem into an
+issue. Replayed, the judges rejected none of 24 findings, but runs agreed no more (one
+run found about 61 % of three runs' union, before 63 %): what a run notices in an open
+file varies. The cost: a tenth more time per run and four problems found before and
+not now. More agreement needs two runs merged, or a recurring finding made a fitness
+function or a spec.
 
 **On demand, no CI job** (decided on #2238, 2026-11-12). The review stays a skill run
 by hand, on PRs that move rules between layers, add a host feature or add a workspace.
@@ -289,12 +303,8 @@ stays against the written rules, which count its render-only group as false alth
 two of those rows led to a suite. `change-coupling` and `host-text` moved to the full
 report (#2743, #2744): in the trial's window none of their new rows was fixed and all
 but one were false, and the review, which reads the full report, keeps them.
-`hotspots` no longer ranks a module that runs no code (#2708, version 4): at
-`d55b8732` 13 of its top 20 were translation tables and the bridge's type-only
-protocol file, and over the 738 stored snapshots of version 3 the rule changes every
-top 20, by 1 to 13 files, in favour of files that run code; message classes and
-tables beside a helper or built by a call still rank (its `reportsWrongly`). The
-grown-files list has a threshold (#2745) although by the letter of the trial's rule
+`hotspots` no longer ranks a module that runs no code (#2708): at `d55b8732` 13 of
+its top 20 ran none. The grown-files list has a threshold (#2745) although by the letter of the trial's rule
 it gets none, since five rows below it were fixed in their PR: four of those went
 with nothing written about the row. Of the 25 rows fixed after the window the rule
 leaves 4 out of the comment, against 8 with three rising steps instead of two.
