@@ -5,6 +5,7 @@ vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     bpmnElementIdOf: (element: { id: string }) => `bpmn-id-of:${element.id}`,
 }));
 
+import { connectionPadPlacementModule } from "./connectionPadPlacement";
 import {
     createElementXmlChangesModule,
     ElementXmlChangesContextPadProvider,
@@ -12,6 +13,14 @@ import {
 
 const ROOT = { id: "Process_1", businessObject: { id: "Process_1" } };
 const TASK = { id: "Task_1", businessObject: { id: "Task_1" } };
+const FLOW = {
+    id: "Flow_1",
+    businessObject: { id: "Flow_1" },
+    waypoints: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+    ],
+};
 
 function build(available = true) {
     const contextPad = { registerProvider: vi.fn() };
@@ -72,6 +81,26 @@ describe("ElementXmlChangesContextPadProvider", () => {
     });
 });
 
+describe("the pad a connection opens alone", () => {
+    it("offers the button on the connection the pad opened for", () => {
+        const { provider, entryConfig } = build();
+
+        provider
+            .getMultiElementContextPadEntries([FLOW])
+            ["element-xml-changes"].action.click(new Event("click"), [FLOW]);
+
+        expect(entryConfig.showElementXmlChanges).toHaveBeenCalledExactlyOnceWith(
+            "bpmn-id-of:Flow_1",
+        );
+    });
+
+    it("offers nothing on a pad for several elements", () => {
+        const { provider } = build();
+
+        expect(provider.getMultiElementContextPadEntries([FLOW, TASK])).toEqual({});
+    });
+});
+
 describe("createElementXmlChangesModule", () => {
     it("hands the provider the diff pane's callbacks", () => {
         const entryConfig = {
@@ -83,5 +112,6 @@ describe("createElementXmlChangesModule", () => {
 
         expect(module.elementXmlChangesEntryConfig).toEqual(["value", entryConfig]);
         expect(module.__init__).toEqual(["elementXmlChangesContextPadProvider"]);
+        expect(module.__depends__).toContain(connectionPadPlacementModule);
     });
 });

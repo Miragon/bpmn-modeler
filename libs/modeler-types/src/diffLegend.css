@@ -88,6 +88,7 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
     background: var(--diff-legend-surface);
     border-bottom: 1px solid var(--diff-legend-border);
     user-select: none;
+    container-type: inline-size;
 }
 
 .diff-legend[hidden],
@@ -104,13 +105,29 @@ body.vscode-high-contrast :is(.diff-legend, .diff-legend-theme) {
     white-space: nowrap;
 }
 
+/* One row in every pane, so the halves of a bar split across two panes keep one height. */
 .diff-legend__counts {
     display: flex;
     flex: 1 1 auto;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 4px 16px;
+    gap: 16px;
     min-width: 0;
+    overflow: hidden;
+}
+
+/* Too narrow for the words: the swatch and the count stay, the slot's title names it. */
+@container (max-width: 380px) {
+    .diff-legend__counts {
+        gap: 12px;
+    }
+
+    .diff-legend__counts > .diff-legend__slot:not(.diff-legend__slot--status) .diff-legend__label {
+        font-size: 0;
+    }
+
+    .diff-legend__counts > .diff-legend__slot:not(.diff-legend__slot--status) .diff-legend__count {
+        font-size: 13px;
+    }
 }
 
 .diff-legend__slot {

@@ -129,15 +129,18 @@ describe("DiffLegend", () => {
         expect(q(".diff-legend__next-btn").title).toBe("Nächste Änderung");
     });
 
-    it("hands the position and an empty bar through to the shared legend", () => {
+    it("hands the position and either half of a split bar through to the shared legend", () => {
         const { legend, q } = mount();
 
         legend.update({ counts: SOME_CHANGES, position: { index: 0, total: 3 } });
         const position = q(".diff-legend__position").textContent;
         legend.update({ counts: SOME_CHANGES, showChanges: false });
+        const countsInControlsHalf = !q(".diff-legend__counts").hidden;
+        legend.update({ counts: SOME_CHANGES, showControls: false });
 
         expect(position).toBe("1/3");
-        expect(q(".diff-legend__counts").hidden).toBe(true);
+        expect(countsInControlsHalf).toBe(false);
+        expect(q(".diff-legend__nav").hidden).toBe(true);
     });
 
     it("removes itself from the DOM on destroy", () => {

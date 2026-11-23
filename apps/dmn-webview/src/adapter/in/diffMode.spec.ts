@@ -193,14 +193,8 @@ describe("DiffMode", () => {
         expect(viewer.called("setMarks")).toEqual([]);
         await mode.handle(new DmnFileQuery("<definitions />"));
 
-        expect(viewer.called("setMarks")).toEqual([[VIEW, { countBadges: true }]]);
+        expect(viewer.called("setMarks")).toEqual([[VIEW]]);
         expect(document.body.dataset.diffSide).toBe("after");
-    });
-
-    it("puts the table counts on the DRD only on the after side", async () => {
-        await readyPane("before");
-
-        expect(viewer.called("setMarks")).toEqual([[VIEW, { countBadges: false }]]);
     });
 
     it("shows the DRD's counts in the legend", async () => {

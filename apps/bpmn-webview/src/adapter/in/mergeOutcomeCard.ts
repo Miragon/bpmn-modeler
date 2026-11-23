@@ -17,6 +17,7 @@ import {
     mergeOutcomeCardScroll,
 } from "../../domain/mergeOutcomeCardPlace";
 
+import { ConnectionPadPlacement, connectionPadPlacementModule } from "./connectionPadPlacement";
 import "./mergeOutcomeCard.css";
 
 /** How a merge pane reaches its outcome card, once diagram-js built it. */
@@ -103,6 +104,7 @@ export class MergeOutcomeCard {
         "eventBus",
         "contextPad",
         "mergeOutcomeCardConfig",
+        "connectionPadPlacement",
     ];
 
     private shown: { readonly element: CardElement; readonly html: HTMLElement } | undefined;
@@ -120,6 +122,7 @@ export class MergeOutcomeCard {
         eventBus: EventBus,
         private readonly contextPad: ContextPad,
         config: MergeOutcomeCardConfig,
+        private readonly padPlacement: ConnectionPadPlacement,
     ) {
         this.status.setAttribute("role", "status");
         this.alert.setAttribute("role", "alert");
@@ -198,7 +201,7 @@ export class MergeOutcomeCard {
     }
 
     private padSize(element: CardElement) {
-        if (!this.contextPad.isOpen(element)) return undefined;
+        if (!this.contextPad.isOpen(this.padPlacement.padTargetOf(element))) return undefined;
         const pad = this.canvas.getContainer().querySelector(".djs-context-pad");
         if (pad === null) return undefined;
         const { width, height } = pad.getBoundingClientRect();
@@ -316,7 +319,7 @@ function targetOf(element: CardElement): MergeCardTarget {
 /** The merge pane's outcome card, which hands itself to `config` once the pane's canvas exists. */
 export function createMergeOutcomeCardModule(config: MergeOutcomeCardConfig) {
     return {
-        __depends__: [OverlaysModule, ContextPadModule],
+        __depends__: [OverlaysModule, ContextPadModule, connectionPadPlacementModule],
         __init__: ["mergeOutcomeCard"],
         mergeOutcomeCard: ["type", MergeOutcomeCard],
         mergeOutcomeCardConfig: ["value", config],

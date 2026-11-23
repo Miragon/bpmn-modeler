@@ -95,58 +95,52 @@
     stroke-width: 3px !important;
 }
 
-/* Requirement edges keep their width, since dmn-js scales an arrowhead with its
-   edge. In light mode an added one is dark with a green glow, as in the BPMN diff. */
+/* Requirement edges keep their own width, since dmn-js scales an arrowhead with
+   its edge: a tight shadow in the edge's colour draws them as heavy as a BPMN
+   connection. As in Diagit, an added one is dark in light mode, without a glow. */
+.dmn-diff .djs-connection.diff-layout-changed {
+    --dmn-diff-edge: #1d1d1d;
+}
+
+.dmn-diff .djs-connection.diff-added {
+    --dmn-diff-edge: #1d1d1d;
+}
+
+.dmn-diff .djs-connection.diff-removed {
+    --dmn-diff-edge: #cd1839;
+}
+
+.dmn-diff .djs-connection.diff-changed {
+    --dmn-diff-edge: #335de5;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
+    .djs-connection.diff-layout-changed {
+    --dmn-diff-edge: #ffb000;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *) .djs-connection.diff-added {
+    --dmn-diff-edge: #00e676;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *) .djs-connection.diff-removed {
+    --dmn-diff-edge: #fb6d73;
+}
+
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *) .djs-connection.diff-changed {
+    --dmn-diff-edge: #6b8aff;
+}
+
+.dmn-diff
+    .djs-connection:is(.diff-added, .diff-removed, .diff-changed, .diff-layout-changed)
+    .djs-visual
+    path {
+    stroke: var(--dmn-diff-edge) !important;
+    filter: drop-shadow(0 0 0.5px var(--dmn-diff-edge)) drop-shadow(0 0 0.5px var(--dmn-diff-edge));
+}
+
 .dmn-diff .djs-connection.diff-layout-changed .djs-visual path {
-    stroke: #1d1d1d !important;
     stroke-dasharray: 6 4 !important;
-}
-
-.dmn-diff .djs-connection.diff-added .djs-visual path {
-    stroke: #1d1d1d !important;
-}
-
-.dmn-diff:not([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
-    .djs-connection.diff-added
-    .djs-visual
-    path {
-    filter: drop-shadow(0 0 1.5px #00e676) drop-shadow(0 0 1.5px #00e676);
-}
-
-.dmn-diff .djs-connection.diff-removed .djs-visual path {
-    stroke: var(--dmn-diff-removed) !important;
-}
-
-.dmn-diff .djs-connection.diff-changed .djs-visual path {
-    stroke: var(--dmn-diff-changed) !important;
-}
-
-.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
-    .djs-connection.diff-layout-changed
-    .djs-visual
-    path {
-    stroke: #ffb000 !important;
-}
-
-.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
-    .djs-connection.diff-added
-    .djs-visual
-    path {
-    stroke: #00e676 !important;
-}
-
-.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
-    .djs-connection.diff-removed
-    .djs-visual
-    path {
-    stroke: #fb6d73 !important;
-}
-
-.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *)
-    .djs-connection.diff-changed
-    .djs-visual
-    path {
-    stroke: #6b8aff !important;
 }
 
 .dmn-diff .djs-element.diff-selected .djs-visual {
@@ -154,50 +148,14 @@
         drop-shadow(0 0 3px var(--dmn-diff-current));
 }
 
-/* A decision whose table changed: its counts, top right. */
-.dmn-diff .dmn-diff-counts {
-    display: inline-flex;
-    gap: 7px;
-    padding: 1px 8px;
-    border: 1.5px solid var(--dmn-diff-changed);
-    border-radius: 999px;
-    font:
-        600 11px/16px "Geist Variable",
-        "Geist",
-        var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
-    white-space: nowrap;
-    color: var(--dt-surface-a70, #1d1d1d);
-    background: var(--dt-surface-a10, #fff);
+/* A decision's drill-down as a dark outline icon, not dmn-js's accent square. */
+.dmn-diff .dmn-drd-container {
+    --drill-down-overlay-background-color: transparent;
+    --drill-down-overlay-color: #1d1d1d;
 }
 
-.dmn-diff .dmn-diff-counts > span::before {
-    content: "";
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 3px;
-    border-radius: 50%;
-}
-
-/* The status green stays below 3:1 on white: a dark contour carries the dot. */
-.dmn-diff .dmn-diff-counts__added::before {
-    background: var(--dmn-diff-added);
-    box-shadow: 0 0 0 1px #1d1d1d;
-}
-
-.dmn-diff .dmn-diff-counts__removed::before {
-    background: var(--dmn-diff-removed);
-}
-
-.dmn-diff .dmn-diff-counts__changed::before {
-    background: var(--dmn-diff-changed);
-}
-
-.dmn-diff .dmn-diff-counts .dmn-diff-counts__layoutChanged::before {
-    content: "↕";
-    width: auto;
-    height: auto;
-    color: inherit;
+.dmn-diff:is([data-dmn-theme="dark"], [data-dmn-theme="dark"] *) .dmn-drd-container {
+    --drill-down-overlay-color: var(--dt-surface-a70);
 }
 
 /* ─── Decision tables ─────────────────────────────────────────────────── */

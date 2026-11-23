@@ -74,7 +74,7 @@ function mount(withSwap = true, withShowAll = true) {
 
 const find = <T extends HTMLElement = HTMLElement>(selector: string) =>
     parent.querySelector<T>(selector)!;
-const visible = (selector: string) => !find(selector).hidden;
+const visible = (selector: string) => !find(selector).closest("[hidden]");
 const visibleSlots = () =>
     [...parent.querySelectorAll<HTMLElement>(".diff-legend__slot")].filter((slot) => !slot.hidden);
 const visibleSlotTexts = () => visibleSlots().map((slot) => slot.textContent);
@@ -205,13 +205,39 @@ describe("DiffLegendView", () => {
         expect(visible(".diff-legend__show-all-btn")).toBe(false);
     });
 
-    it("can stay an empty bar, for a pane whose partner's bar shows the changes", () => {
+    it("can show only the controls, for a pane whose partner's bar shows the changes", () => {
         const { view } = mount();
 
         view.update({ ...SHOWN, showSwap: true, showChanges: false });
 
         expect(view.element.hidden).toBe(false);
         expect(visible(".diff-legend__counts")).toBe(false);
+        expect(visible(".diff-legend__nav")).toBe(true);
+        expect(visible(".diff-legend__swap-group")).toBe(true);
+    });
+
+    it("can show only the changes, for a pane whose partner's bar holds the controls", () => {
+        const { view } = mount();
+
+        view.update({ ...SHOWN, showSwap: true, showControls: false });
+
+        expect(visibleSlotTexts()).toEqual(["Added 3", "Removed 1", "Changed 2", "Moved 4"]);
+        expect(visible(".diff-legend__nav")).toBe(false);
+        expect(visible(".diff-legend__swap-group")).toBe(false);
+    });
+
+    it("names each category on its slot, so a pane too narrow for the words still tells them", () => {
+        const { view } = mount();
+
+        view.update(SHOWN);
+        translator.speakGerman();
+
+        expect(visibleSlots().map((slot) => slot.title)).toEqual([
+            "Hinzugefügt",
+            "Entfernt",
+            "Geändert",
+            "Verschoben",
+        ]);
     });
 
     it("names the file before the counts only when it has one", () => {
@@ -357,6 +383,8 @@ describe("DiffLegendView", () => {
         expect([...view.element.children].map((child) => child.className)).toEqual([
             "diff-legend__filename",
             "diff-legend__counts",
+            "diff-legend__nav",
+            "diff-legend__swap-group",
         ]);
     });
 

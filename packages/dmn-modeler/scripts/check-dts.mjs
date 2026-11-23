@@ -19,7 +19,6 @@ const PRIVATE_LIBS = [
 // `@internal` on a re-export does nothing; these must stay trimmed by the tag on their declaration.
 const INTERNAL_DECLARATIONS = [
     "createDiffViewer",
-    "DmnDiffMarkOptions",
     "DmnDiffMarks",
     "DmnDiffViewerHandle",
     "DmnDiffViewerOptions",

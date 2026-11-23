@@ -98,7 +98,7 @@ describe("mergeOutcomeCardPlace", () => {
             );
         });
 
-        it("moves away from the pad at the last waypoint where it would cover it", () => {
+        it("moves away from the pad above the flow's right end where it would cover it", () => {
             const short = [
                 { x: 100, y: 300 },
                 { x: 200, y: 300 },
@@ -113,7 +113,22 @@ describe("mergeOutcomeCardPlace", () => {
             ).toStrictEqual({ left: 108 - 10 - 240, top: 10, arrowLeft: 192 });
         });
 
-        it("moves right of a pad that lies left of the flow's middle", () => {
+        it("stays centred below a flow whose pad, above its right end, ends above the card", () => {
+            const downwards = [
+                { x: 100, y: 200 },
+                { x: 200, y: 300 },
+            ];
+
+            // The pad spans 0 to 50 below the box's top; the card starts 60 below it.
+            expect(
+                mergeOutcomeCardPlace(
+                    { kind: "flow", waypoints: downwards },
+                    view({ pad: { width: 30, height: 50 } }),
+                ).left,
+            ).toBe(50 - 120);
+        });
+
+        it("moves left of the pad on a flow drawn backwards too", () => {
             const backwards = [
                 { x: 200, y: 300 },
                 { x: 100, y: 300 },
@@ -124,7 +139,7 @@ describe("mergeOutcomeCardPlace", () => {
                     { kind: "flow", waypoints: backwards },
                     view({ pad: { width: 30, height: 100 } }),
                 ).left,
-            ).toBe(8 + 30 + 10);
+            ).toBe(108 - 10 - 240);
         });
     });
 });

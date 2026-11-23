@@ -57,8 +57,8 @@ const SCROLL_MARGIN_PX = 16;
  * The card's fixed place: below a shape, its external label and boundary
  * events, from the shape's left edge, and below the pad where the pad,
  * right of the shape, reaches lower and the card would reach under it.
- * Below a flow's label or its middle, centred, and moved aside, away from
- * the pad at the last waypoint, where it would cover it.
+ * Below a flow's label or its middle, centred, and moved left of the pad,
+ * which opens above the right edge of the flow's box, where it would cover it.
  */
 export function mergeOutcomeCardPlace(
     target: MergeCardTarget,
@@ -104,8 +104,9 @@ function belowShape(
 
 function belowFlow(
     target: Extract<MergeCardTarget, { kind: "flow" }>,
-    { scale, card, pad }: MergeCardView,
+    view: MergeCardView,
 ): MergeCardPlace {
+    const { scale } = view;
     const { waypoints, label } = target;
     const { x: originX, y: originY } = mergeCardAnchor(target);
     const anchor =
@@ -113,25 +114,29 @@ function belowFlow(
             ? polylineMidpoint(waypoints)
             : { x: label.x + label.width / 2, y: label.y + label.height };
     const centre = (anchor.x - originX) * scale;
-    const top = (anchor.y - originY) * scale + GAP_PX;
-    let left = centre - card.width / 2;
-    const last = waypoints[waypoints.length - 1];
-    if (pad !== undefined && last !== undefined) {
-        const padLeft = (last.x - originX + PAD_MARGIN) * scale;
-        const padTop = (last.y - originY) * scale;
-        const covers =
-            left < padLeft + pad.width &&
-            padLeft < left + card.width &&
-            top < padTop + pad.height &&
-            padTop < top + card.height;
-        if (covers) {
-            left =
-                padLeft + pad.width / 2 >= centre
-                    ? padLeft - GAP_PX - card.width
-                    : padLeft + pad.width + GAP_PX;
-        }
-    }
-    return { left, top, arrowLeft: arrowAt(centre - left, card.width) };
+    const centred = {
+        left: centre - view.card.width / 2,
+        top: (anchor.y - originY) * scale + GAP_PX,
+    };
+    const flowRight = (Math.max(...waypoints.map(({ x }) => x)) - originX) * scale;
+    const left = leftOfPad(centred, flowRight, view);
+    return { left, top: centred.top, arrowLeft: arrowAt(centre - left, view.card.width) };
+}
+
+/**
+ * The card's left edge, moved left of the pad where it would cover it. The pad
+ * opens above the right end of the flow's box, `flowRight` in pixels from it.
+ */
+function leftOfPad(
+    centred: { readonly left: number; readonly top: number },
+    flowRight: number,
+    { scale, card: { width }, pad }: MergeCardView,
+): number {
+    if (!pad) return centred.left;
+    const padLeft = flowRight + PAD_MARGIN * scale;
+    const besidePad = centred.left < padLeft + pad.width && padLeft < centred.left + width;
+    const belowPad = centred.top >= pad.height;
+    return besidePad && !belowPad ? padLeft - GAP_PX - width : centred.left;
 }
 
 function arrowAt(along: number, cardWidth: number): number {

@@ -149,7 +149,8 @@ export class DiffMode {
 
     /**
      * Both panes draw the bar, so the two halves read as one across VS Code's
-     * sash; the after pane's half carries the changes, stepping and swapping.
+     * sash: the before pane's half carries the changes, the after pane's
+     * stepping and swapping.
      */
     private updateLegend(query: ApplyDiffHighlightsQuery): void {
         const isAfter = query.side === "after";
@@ -157,7 +158,8 @@ export class DiffMode {
             counts: query.counts,
             showSwap: isAfter && diffOriginSupports(query.origin, "swapsSides"),
             canStep: this.navigator.canStep,
-            showChanges: isAfter,
+            showChanges: !isAfter,
+            showControls: isAfter,
         };
         this.legend.update(this.legendContext);
         this.comparison.update(isAfter ? query.comparison : undefined);

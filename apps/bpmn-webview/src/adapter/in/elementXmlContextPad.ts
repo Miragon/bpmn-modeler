@@ -5,6 +5,7 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { bpmnElementIdOf, type BpmnDiagramElement } from "@miragon/bpmn-modeler/viewer";
 
 import { ELEMENT_XML_CHANGES_TITLE } from "../../domain/elementXmlTexts";
+import { ConnectionPadPlacement, connectionPadPlacementModule } from "./connectionPadPlacement";
 import { CODE_ICON_SVG } from "./elementXmlEntry";
 
 import "./elementXmlContextPad.css";
@@ -20,8 +21,10 @@ interface ContextPadEntry {
     group: string;
     html: string;
     title: string;
-    action: { click: (event: Event, element: BpmnDiagramElement) => void };
+    action: { click: (event: Event, target: PadTarget) => void };
 }
+
+type PadTarget = BpmnDiagramElement | readonly BpmnDiagramElement[];
 
 type ContextPadEntries = Record<string, ContextPadEntry>;
 
@@ -48,6 +51,12 @@ export class ElementXmlChangesContextPadProvider {
         contextPad.registerProvider(this);
     }
 
+    /** A connection's pad, which {@link ConnectionPadPlacement} opens for it alone. */
+    getMultiElementContextPadEntries(elements: BpmnDiagramElement[]): ContextPadEntries {
+        const element = ConnectionPadPlacement.elementOf(elements);
+        return element ? this.getContextPadEntries(element) : {};
+    }
+
     getContextPadEntries(element: BpmnDiagramElement): ContextPadEntries {
         if (
             !this.entryConfig.canShowElementXmlChanges() ||
@@ -62,8 +71,10 @@ export class ElementXmlChangesContextPadProvider {
                 html: `<button type="button" class="entry element-xml-changes-action" aria-label="${escapeHTML(title)}">${CODE_ICON_SVG}</button>`,
                 title,
                 action: {
-                    click: (_event, clickedElement) =>
-                        this.entryConfig.showElementXmlChanges(bpmnElementIdOf(clickedElement)),
+                    click: (_event, target) =>
+                        this.entryConfig.showElementXmlChanges(
+                            bpmnElementIdOf(ConnectionPadPlacement.elementOf(target)!),
+                        ),
                 },
             },
         };
@@ -71,12 +82,18 @@ export class ElementXmlChangesContextPadProvider {
 }
 
 /**
- * The diff pane's context pad: diagram-js's (bpmn-js's needs modeling), the
- * outline that shows the selection, and the shared translator for the entry.
+ * The diff pane's context pad: diagram-js's (bpmn-js's needs modeling), placed
+ * above a connection as above a shape, the outline that shows the selection,
+ * and the shared translator for the entry.
  */
 export function createElementXmlChangesModule(entryConfig: ElementXmlChangesEntryConfig) {
     return {
-        __depends__: [ContextPadModule, OutlineModule, TranslateModule],
+        __depends__: [
+            ContextPadModule,
+            connectionPadPlacementModule,
+            OutlineModule,
+            TranslateModule,
+        ],
         __init__: ["elementXmlChangesContextPadProvider"],
         elementXmlChangesContextPadProvider: ["type", ElementXmlChangesContextPadProvider],
         elementXmlChangesEntryConfig: ["value", entryConfig],

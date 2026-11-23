@@ -152,7 +152,7 @@ export class DiffMode {
     private paint(highlights: PaneHighlights): void {
         // diff.css draws the divider on the edge that faces the partner pane.
         document.body.dataset.diffSide = highlights.side;
-        this.viewer.setMarks(highlights.view, { countBadges: highlights.side === "after" });
+        this.viewer.setMarks(highlights.view);
         this.label(highlights);
     }
 

@@ -245,7 +245,8 @@ describe("legendOf", () => {
             status: undefined,
             showSwap: false,
             canStep: true,
-            showChanges: true,
+            showChanges: false,
+            showControls: true,
         });
     });
 
@@ -273,12 +274,13 @@ describe("legendOf", () => {
         });
     });
 
-    it("leaves the changes to the after pane's bar, so both bars read as one", () => {
+    it("splits one bar across both panes: the changes left, the controls right", () => {
         const state = stateAfter(imported(), highlighted("before", "compare-files"));
 
         expect(legendOf(state, undefined)).toMatchObject({
             showSwap: false,
-            showChanges: false,
+            showChanges: true,
+            showControls: false,
         });
     });
 

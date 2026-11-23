@@ -67,11 +67,16 @@ describe("the DMN diff palette", () => {
     it.each(["added", "removed", "changed", "layout-changed"])(
         "colours a %s requirement in dark mode like a BPMN connection",
         (kind) => {
-            const edge = `.djs-connection.diff-${kind} .djs-visual path`;
-            const bpmnDark = ruleFor(bpmnCss, `[data-bpmn-theme="dark"] ${edge}`);
+            const bpmnDark = ruleFor(
+                bpmnCss,
+                `[data-bpmn-theme="dark"] .djs-connection.diff-${kind} .djs-visual path`,
+            );
+            const bpmnColor = /^stroke: (#[0-9a-f]+) !important;$/i.exec(bpmnDark ?? "")?.[1];
 
-            expect(bpmnDark).toBeDefined();
-            expect(ruleFor(dmnCss, `${DMN_IN_DARK} ${edge}`)).toBe(bpmnDark);
+            expect(bpmnColor).toBeDefined();
+            expect(ruleFor(dmnCss, `${DMN_IN_DARK} .djs-connection.diff-${kind}`)).toBe(
+                `--dmn-diff-edge: ${bpmnColor};`,
+            );
         },
     );
 

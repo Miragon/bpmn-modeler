@@ -28,8 +28,6 @@ Both panes open on the DRD. Decisions, input data, business knowledge models, kn
 | Blue | Both panes | Changed: a name or property, or the decision's table or expression |
 | Amber, dashed requirements | Both panes | Moved: only the layout changed |
 
-In the after pane, a decision whose table changed carries a badge that counts the table's changes.
-
 ## Read a decision table
 
 Click the table icon of a decision to open its table; the other pane opens the same table. **View DRD** takes both panes back.

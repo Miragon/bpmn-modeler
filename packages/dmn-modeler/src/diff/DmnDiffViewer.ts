@@ -7,7 +7,6 @@ import {
     DIFF_CATEGORIES,
     DIFF_MARKERS,
     DIFF_SELECTED_MARKER,
-    type DiffCounts,
     DisposableStore,
     observeCanvasSize,
     type ResizableCanvas,
@@ -32,12 +31,6 @@ import {
 
 export type { DmnDiffMarks } from "./diffMarks";
 
-/** @internal */
-export interface DmnDiffMarkOptions {
-    /** Puts each changed table's counts on its decision in the DRD. */
-    readonly countBadges?: boolean;
-}
-
 /**
  * A read-only DMN view of one side of a diff: the DRD with pan and zoom, and
  * the decision tables and expressions dmn-js opens from it.
@@ -46,7 +39,7 @@ export interface DmnDiffMarkOptions {
 export interface DmnDiffViewerHandle {
     importXML(xml: string): Promise<void>;
     /** Marks this pane's changes; every view it opens shows them. */
-    setMarks(marks: DmnDiffMarks, options?: DmnDiffMarkOptions): void;
+    setMarks(marks: DmnDiffMarks): void;
     /**
      * Opens the DRD (`null`) or the view of a decision or business knowledge
      * model. Resolves `false` when this version has no such element.
@@ -98,10 +91,6 @@ interface DrdCanvas extends ResizableCanvas {
 interface DrdServices {
     canvas: DrdCanvas;
     elementRegistry: { get(id: string): Element | undefined };
-    overlays: {
-        add(id: string, type: string, overlay: { position: object; html: HTMLElement }): void;
-        remove(filter: { type: string }): void;
-    };
     eventBus: { on(event: string, callback: () => void): void };
 }
 
@@ -112,8 +101,6 @@ interface ViewElement {
         readonly output?: readonly { id: string }[];
     };
 }
-
-const BADGE_OVERLAY = "dmn-diff-counts";
 
 const VIEWPORT_DEBOUNCE_MS = 80;
 
@@ -129,7 +116,6 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
     private readonly scrollListeners = new Set<(scroll: TableScroll) => void>();
     private readonly boundDrdBuses = new WeakSet<object>();
     private marks?: DmnDiffMarks;
-    private markOptions: DmnDiffMarkOptions = {};
     private focused?: string;
     private selectedOnCanvas?: string;
     /** The view the partner pane knows: the last one reported or opened for it. */
@@ -193,9 +179,8 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         this.announcedView = this.getActiveElementId();
     }
 
-    setMarks(marks: DmnDiffMarks, options: DmnDiffMarkOptions = {}): void {
+    setMarks(marks: DmnDiffMarks): void {
         this.marks = marks;
-        this.markOptions = options;
         this.applyMarks();
     }
 
@@ -351,7 +336,6 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         return {
             canvas: viewer.get<DrdCanvas>("canvas"),
             elementRegistry: viewer.get<DrdServices["elementRegistry"]>("elementRegistry"),
-            overlays: viewer.get<DrdServices["overlays"]>("overlays"),
             eventBus: viewer.get<DrdServices["eventBus"]>("eventBus"),
         };
     }
@@ -389,16 +373,6 @@ class DmnDiffViewer implements DmnDiffViewerHandle {
         if (this.focused && drd.elementRegistry.get(this.focused)) {
             drd.canvas.addMarker(this.focused, DIFF_SELECTED_MARKER);
             this.selectedOnCanvas = this.focused;
-        }
-        drd.overlays.remove({ type: BADGE_OVERLAY });
-        if (!this.markOptions.countBadges) return;
-        for (const [id, table] of Object.entries(marks.tables)) {
-            if (drd.elementRegistry.get(id)) {
-                drd.overlays.add(id, BADGE_OVERLAY, {
-                    position: { top: -11, right: 8 },
-                    html: countBadge(table.counts),
-                });
-            }
         }
     }
 
@@ -568,18 +542,6 @@ function rowTop(scroller: HTMLElement, cell: HTMLElement): number {
     return (
         cell.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
     );
-}
-
-function countBadge(counts: DiffCounts): HTMLElement {
-    const badge = document.createElement("div");
-    badge.className = "dmn-diff-counts";
-    for (const category of DIFF_CATEGORIES) {
-        const count = document.createElement("span");
-        count.className = `dmn-diff-counts__${category}`;
-        count.textContent = String(counts[category]);
-        badge.append(count);
-    }
-    return badge;
 }
 
 function subscribe<T>(listeners: Set<T>, listener: T): () => void {
