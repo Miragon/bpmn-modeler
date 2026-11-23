@@ -1,8 +1,4 @@
-import { isTestOrDeclarationFile, TYPESCRIPT_FILE } from "@miragon/architecture-testing";
-
-function isMeasuredTypeScript(pathInWorkspace: string): boolean {
-    return TYPESCRIPT_FILE.test(pathInWorkspace) && !isTestOrDeclarationFile(pathInWorkspace);
-}
+import { isTypeScriptSource } from "@miragon/architecture-testing";
 
 /** Every workspace's TypeScript, without specs, declaration files and test folders. */
 export function measuredTypeScriptFiles(
@@ -11,6 +7,6 @@ export function measuredTypeScriptFiles(
 ): string[] {
     return files.filter((path) => {
         const dir = workspaceDirs.find((workspaceDir) => path.startsWith(`${workspaceDir}/`));
-        return dir !== undefined && isMeasuredTypeScript(path.slice(dir.length + 1));
+        return dir !== undefined && isTypeScriptSource(path.slice(dir.length + 1));
     });
 }

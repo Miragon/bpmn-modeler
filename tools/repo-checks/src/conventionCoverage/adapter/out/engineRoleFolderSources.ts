@@ -1,11 +1,10 @@
 import {
     buildImportGraph,
     findImplementations,
-    isTestOrDeclarationFile,
+    isTypeScriptSource,
     readPathAliases,
     readWorkspaces,
     type SourceFile,
-    TYPESCRIPT_FILE,
 } from "@miragon/architecture-testing";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,9 +15,7 @@ import type { RoleFolderSources } from "../../port/RoleFolderSources";
 
 export class EngineRoleFolderSources implements RoleFolderSources {
     read(repoRoot: string): readonly HexagonalWorkspaceSources[] {
-        const files = trackedFiles(repoRoot).filter(
-            (path) => TYPESCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path),
-        );
+        const files = trackedFiles(repoRoot);
         const tsconfig = join(repoRoot, "tsconfig.base.json");
         const aliases = existsSync(tsconfig) ? readPathAliases(readFileSync(tsconfig, "utf8")) : [];
         const workspaces = readWorkspaces(repoRoot)
@@ -26,7 +23,11 @@ export class EngineRoleFolderSources implements RoleFolderSources {
             .map(({ dir }) => {
                 const sourceRoot = `${dir}/src/`;
                 const tree = files
-                    .filter((path) => path.startsWith(sourceRoot))
+                    .filter(
+                        (path) =>
+                            path.startsWith(sourceRoot) &&
+                            isTypeScriptSource(path.slice(dir.length + 1)),
+                    )
                     .map((path): SourceFile => ({
                         path,
                         text: readFileSync(join(repoRoot, path), "utf8"),

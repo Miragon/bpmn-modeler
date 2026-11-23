@@ -1,9 +1,9 @@
 import {
     DECLARATION_FILE,
     isBuildConfig,
+    isTestOrDeclarationFile,
     SCRIPT_FILE,
     SPEC_FILE,
-    TEST_FOLDERS,
     TYPESCRIPT_FILE,
 } from "@miragon/architecture-testing";
 
@@ -74,11 +74,10 @@ function isMeasured(path: string, workspaces: readonly WorkspaceLayout[]): boole
     if (inWorkspace === "package.json") {
         return workspace.contributesToHost;
     }
-    const segments = inWorkspace.split("/");
-    const name = segments.pop() as string;
-    if (segments.some((folder) => TEST_FOLDERS.has(folder)) || SPEC_FILE.test(name)) {
+    if (isTestOrDeclarationFile(inWorkspace)) {
         return false;
     }
+    const name = inWorkspace.split("/").pop() as string;
     if (name.endsWith(".json")) {
         return inWorkspace.startsWith("src/");
     }
@@ -89,7 +88,5 @@ function isMeasured(path: string, workspaces: readonly WorkspaceLayout[]): boole
     if (name.endsWith(".kt")) {
         return inWorkspace.startsWith("src/main/");
     }
-    return (
-        TYPESCRIPT_FILE.test(name) && !DECLARATION_FILE.test(name) && inWorkspace.startsWith("src/")
-    );
+    return TYPESCRIPT_FILE.test(name) && inWorkspace.startsWith("src/");
 }

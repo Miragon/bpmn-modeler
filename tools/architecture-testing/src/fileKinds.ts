@@ -31,3 +31,8 @@ export function isTestOrDeclarationFile(path: string): boolean {
         folders.some((folder) => TEST_FOLDERS.has(folder))
     );
 }
+
+/** TypeScript that runs. A test folder counts anywhere in `path`, so a caller that scopes by workspace passes the path inside it. */
+export function isTypeScriptSource(path: string): boolean {
+    return TYPESCRIPT_FILE.test(path) && !isTestOrDeclarationFile(path);
+}

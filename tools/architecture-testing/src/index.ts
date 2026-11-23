@@ -29,6 +29,7 @@ export {
     isBuildConfig,
     isSpecOrSpecData,
     isTestOrDeclarationFile,
+    isTypeScriptSource,
     SCRIPT_FILE,
     SPEC_FILE,
     TEST_FOLDERS,

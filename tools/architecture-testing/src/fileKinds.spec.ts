@@ -4,6 +4,7 @@ import {
     isBuildConfig,
     isSpecOrSpecData,
     isTestOrDeclarationFile,
+    isTypeScriptSource,
     SCRIPT_FILE,
     TYPESCRIPT_FILE,
 } from "./fileKinds";
@@ -63,6 +64,22 @@ describe("a TypeScript file and a script file", () => {
             });
         },
     );
+});
+
+describe("a TypeScript source", () => {
+    it.each([
+        { path: "src/a.ts", source: true },
+        { path: "src/View.tsx", source: true },
+        { path: "bin/run.mts", source: true },
+        { path: "vitest.config.ts", source: true },
+        { path: "src/a.spec.ts", source: false },
+        { path: "src/env.d.mts", source: false },
+        { path: "src/__fixtures__/fake.ts", source: false },
+        { path: "test/harness.ts", source: false },
+        { path: "src/a.js", source: false },
+    ])("reads $path as a TypeScript source: $source", ({ path, source }) => {
+        expect(isTypeScriptSource(path)).toBe(source);
+    });
 });
 
 describe("a spec or a module only specs read", () => {

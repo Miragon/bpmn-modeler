@@ -97,6 +97,22 @@ describe("the engine role folder sources", () => {
         ]);
     });
 
+    it("read a test folder name only inside the workspace", () => {
+        repository.write(
+            "libs/tests/package.json",
+            JSON.stringify({ name: "tests", architecture: "hexagonal" }),
+        );
+        repository.write("libs/tests/src/index.ts", "export const harness = 1;");
+        repository.git("add", "libs/tests");
+        repository.git("commit", "--quiet", "-m", "workspace in a folder named tests");
+
+        const workspaces = new EngineRoleFolderSources().read(repository.root);
+
+        expect(workspaces.find(({ dir }) => dir === "libs/tests")?.graph.files).toEqual([
+            "index.ts",
+        ]);
+    });
+
     it("read a tree without path aliases", () => {
         repository.git("rm", "--quiet", "tsconfig.base.json");
 

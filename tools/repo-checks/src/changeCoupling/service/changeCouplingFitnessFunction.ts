@@ -37,7 +37,7 @@ export function createChangeCouplingFitnessFunction({
         misses: [
             "Drifted copies: a copy that changed without the other has low co-change. Recall on 9 known copies was 1 of 9 in the trial of 2026-10-31.",
             "Copies in a frequently changed file: its revisions dilute the degree (the auth types in libs/shared/src/lib/modeler.ts).",
-            "Copies in build configs (*.config.*), which are not read.",
+            "Copies in build configs (*.config.* outside a workspace's src/, and .mjs ones anywhere), which are not read.",
             "A copy between two declarations of one file: it measures whole files.",
             "A pair whose shared changes come from a stack of several PRs below the branch: the stack counts as one change where main gets one squash each, so the pair can be missing on the stacked PR and enter after the retarget.",
         ],
