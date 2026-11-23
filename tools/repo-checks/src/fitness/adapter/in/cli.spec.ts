@@ -28,13 +28,17 @@ function useCases(
     history = new InMemoryHistory([HEAD, BASE]),
 ): FitnessUseCases {
     return {
-        report: ({ baseRef }) =>
-            createFitnessReport(functions, baseRef, {
-                repoRoot: WORKING_TREE,
-                history,
-                snapshots: new InMemorySnapshots([baseSnapshot]),
-                checkout: new InMemoryCheckout(),
-            }),
+        report: ({ baseRef, defaultBranchRef }) =>
+            createFitnessReport(
+                functions,
+                { baseRef, defaultBranchRef },
+                {
+                    repoRoot: WORKING_TREE,
+                    history,
+                    snapshots: new InMemorySnapshots([baseSnapshot]),
+                    checkout: new InMemoryCheckout(),
+                },
+            ),
         recordSnapshots: () => [baseSnapshot],
     };
 }
@@ -129,7 +133,12 @@ describe("the fitness command", () => {
         [["--out", "/tmp/fitness"], "report does not take --out"],
         [["snapshot", "--out", "/tmp/fitness", "--base", "v1"], "snapshot does not take --base"],
         [["snapshot", "--out", "/tmp/fitness", "--repo", "/old"], "snapshot does not take --repo"],
+        [
+            ["snapshot", "--out", "/tmp/fitness", "--default-branch", "origin/trunk"],
+            "snapshot does not take --default-branch",
+        ],
         [["--base", ""], "--base needs a revision"],
+        [["--default-branch", ""], "--default-branch needs a revision"],
         [["--repo", ""], "--repo needs a directory"],
         [["report", "extra"], "unexpected argument extra"],
         [["--colour"], "--colour"],
@@ -137,6 +146,10 @@ describe("the fitness command", () => {
         [
             ["snapshot", "--out", "/tmp/fitness", "--changes-only"],
             "snapshot does not take --changes-only",
+        ],
+        [
+            ["snapshot", "--max-characters", "100", "--out", "/tmp/fitness"],
+            "snapshot does not take --max-characters",
         ],
         [["--head-label", "merge"], "--head-label needs --changes-only"],
         [["--changes-only", "--head-label", ""], "--head-label needs a text"],
@@ -171,13 +184,21 @@ describe("the fitness command", () => {
     });
 
     it.each<[readonly string[], ReportRequest]>([
-        [[], { baseRef: "origin/main" }],
-        [["--base", "v1.2.0"], { baseRef: "v1.2.0" }],
+        [[], { baseRef: "origin/main", defaultBranchRef: "origin/main" }],
+        [["--base", "v1.2.0"], { baseRef: "v1.2.0", defaultBranchRef: "origin/main" }],
         [
             ["report", "--repo", "/checkouts/old", "--base", "452b6440"],
-            { baseRef: "452b6440", repo: "/checkouts/old" },
+            { baseRef: "452b6440", defaultBranchRef: "origin/main", repo: "/checkouts/old" },
         ],
-    ])("measures the tree and base %j names", (args, request) => {
+        [
+            ["--default-branch", "upstream/trunk"],
+            { baseRef: "upstream/trunk", defaultBranchRef: "upstream/trunk" },
+        ],
+        [
+            ["--base", "origin/stack", "--default-branch", "upstream/trunk"],
+            { baseRef: "origin/stack", defaultBranchRef: "upstream/trunk" },
+        ],
+    ])("measures the tree, base and default branch %j names", (args, request) => {
         const requests: ReportRequest[] = [];
         const cases = useCases();
 
@@ -210,6 +231,18 @@ describe("the fitness command", () => {
         expect(exitCode).toBe(1);
         expect(out).toBe("");
         expect(error).toBe("fitness: no-such-rev not found\n");
+    });
+
+    it("exits 1 and names a default branch that is no commit", () => {
+        const history = new InMemoryHistory([HEAD, BASE], BASE, false, ["origin/main"]);
+
+        const { exitCode, error } = run(
+            ["--default-branch", "no-such-branch", "--base", "origin/main"],
+            useCases([fake], history),
+        );
+
+        expect(exitCode).toBe(1);
+        expect(error).toBe("fitness: no-such-branch not found\n");
     });
 
     it("prints only the new and resolved rows with --changes-only", () => {

@@ -27,4 +27,10 @@ export const MISSED_PARTNER_EVIDENCE = [
         commit: "c001a82f",
         outcome: `version 2, which reads every .json file under src/ and skips declared generated files, against version 1 in fitness missed-partner replay, 192 of ${REPLAYED_COMMITS} commits not mechanical: at the chosen thresholds 103 to 107 warnings, 27 to 28 hits, precision 26.2 % both, chance 20.1 % to 20.8 %, margin 6.1 to 5.4 points; lift 8 85 to 89 warnings, margin 8.6 to 8.8. No change on main, so 0 warnings in either version and a return in 0.01 s; a branch run, the PR's tree against c001a82f, 0.38 to 0.50 s warm, version 1 0.37 to 0.39 s in the same session`,
     },
+    {
+        kind: "trial",
+        commit: "bb4be688",
+        outcome:
+            "version 3 against version 2 in the full report, which no comment shows: the comment versions of trial 2398 on PRs 2382, 2518, 2521, 2527, 2528 and 2530, each head against the base its comment named, default branch origin/main. New warnings on the 24 stacked heads 28 → 2: PR 2518 1 → 0 on each of 4 heads (diffPaneRouter.ts → diffPaneCommands.ts, in 6 of 9 changes), PR 2382 1 → 0 at 73c0da1e (viewState.ts → catalogFilter.ts), PR 2527 3 → 0 on each of 5 (mergeMode.ts → mergeTexts.ts, MergeDecisionService.ts → BpmnDiffService.ts and → diffPaneRouter.ts), PRs 2528 and 2521 1 → 0 on each of 5 and 3 (mergePaneMessages.ts → MergeDecisionService.ts); PR 2530 at 1ece3da8 0 → 2: mergeTexts.ts → mergePaneMessages.ts, which its last version against main warns too, and mergeTexts.ts → mergeMode.ts, changed by PRs 2528 and 2529, one change on that stack. The 8 runs against main keep their warnings",
+    },
 ] as const satisfies EvidenceList;

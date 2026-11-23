@@ -121,7 +121,12 @@ function commitFiles(files: Readonly<Record<string, string>>): void {
 }
 
 function measureTree(commit: string) {
-    return measure(contractSuites, { repoRoot: repository.root, commit, changeBase: commit });
+    return measure(contractSuites, {
+        repoRoot: repository.root,
+        commit,
+        changeBase: commit,
+        defaultBranchBase: commit,
+    });
 }
 
 function findingsOf(files: Readonly<Record<string, string>>) {

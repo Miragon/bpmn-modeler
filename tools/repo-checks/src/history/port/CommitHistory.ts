@@ -5,4 +5,6 @@ export interface CommitHistory {
     firstParentCommits(repoRoot: string, commit: string, depth: number): readonly CommitRecord[];
     /** The working tree's tracked changes against `commit`. */
     changesSince(repoRoot: string, commit: string): readonly FileChange[];
+    /** `to`'s files against `from`'s. */
+    changesBetween(repoRoot: string, from: string, to: string): readonly FileChange[];
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { InsufficientHistory } from "../../fitness/domain/fitnessFunction";
 import { measure } from "../../fitness/service/measurement";
+import { InMemoryCommitGraph } from "../../history/__fixtures__/inMemoryCommitGraph";
 import { InMemoryCommitHistory } from "../../history/__fixtures__/inMemoryCommitHistory";
 import {
     type CommitRecord,
@@ -44,25 +45,35 @@ class InMemorySourceStructure implements SourceStructure {
     }
 }
 
-// The pair changed together in 6 of 7 changes to LintConfig.ts, between fillers.
-function history(length = HISTORY_WINDOW + 1): CommitRecord[] {
-    return Array.from({ length }, (_, index): CommitRecord => {
-        let paths = [FILLER];
-        if (index < 6) {
-            paths = [LINT_CONFIG, CORE_LINT_CONFIG];
-        } else if (index === 6) {
-            paths = [LINT_CONFIG];
-        }
-        return {
-            commit: `c${index}`,
-            subject: "feat: change",
-            changes: paths.map((path) => ({ kind: "modified", path })),
-        };
-    });
+const modified = (...paths: string[]): FileChange[] =>
+    paths.map((path) => ({ kind: "modified", path }));
+
+function historyStartingWith(
+    newestPaths: readonly (readonly string[])[],
+    length = HISTORY_WINDOW + 1,
+): CommitRecord[] {
+    return Array.from({ length }, (_, index) => ({
+        commit: `c${index}`,
+        subject: "feat: change",
+        changes: modified(...(newestPaths[index] ?? [FILLER])),
+    }));
 }
 
-const LINT_CONFIG_CHANGED: FileChange[] = [{ kind: "modified", path: LINT_CONFIG }];
-const CONTEXT = { repoRoot: "/repo", commit: "head", changeBase: "base" };
+// The pair changed together in 6 of 7 changes to LintConfig.ts, between fillers.
+function history(length = HISTORY_WINDOW + 1): CommitRecord[] {
+    return historyStartingWith(
+        [...Array(6).fill([LINT_CONFIG, CORE_LINT_CONFIG]), [LINT_CONFIG]],
+        length,
+    );
+}
+
+const LINT_CONFIG_CHANGED = modified(LINT_CONFIG);
+const CONTEXT = {
+    repoRoot: "/repo",
+    commit: "head",
+    changeBase: "base",
+    defaultBranchBase: "base",
+};
 
 describe("the missed partner fitness function", () => {
     it("reads the change and the window at the change base", () => {
@@ -96,12 +107,54 @@ describe("the missed partner fitness function", () => {
 
         const measurement = measure(
             createMissedPartnerFitnessFunction({ history: commits, sources }),
-            { repoRoot: "/repo", commit: "base", changeBase: "base" },
+            { repoRoot: "/repo", commit: "base", changeBase: "base", defaultBranchBase: "base" },
         );
 
         expect(measurement).toEqual({ findings: [] });
         expect(commits.requests).toEqual([]);
         expect(sources.reads).toEqual([]);
+    });
+
+    it("mines a stacked PR's base branch as the one change its squash adds, so no warning comes that the retarget drops", () => {
+        // On main the pair shares 4 of 8 changes to LintConfig.ts; the base branch's 3 commits change both.
+        const mainUpToFork = historyStartingWith([
+            ...Array(4).fill([LINT_CONFIG, CORE_LINT_CONFIG]),
+            ...Array(4).fill([LINT_CONFIG]),
+        ]);
+        const baseBranch = [1, 2, 3].map((index) => ({
+            commit: `baseBranch${index}`,
+            subject: "feat: change",
+            changes: modified(LINT_CONFIG, CORE_LINT_CONFIG),
+        }));
+        const graph = new InMemoryCommitGraph(
+            {
+                fork: mainUpToFork,
+                stackBase: [...baseBranch, ...mainUpToFork],
+                baseSquash: [
+                    {
+                        commit: "baseSquash",
+                        subject: "feat: change",
+                        changes: modified(LINT_CONFIG, CORE_LINT_CONFIG),
+                    },
+                    ...mainUpToFork,
+                ],
+            },
+            { stackBase: LINT_CONFIG_CHANGED, baseSquash: LINT_CONFIG_CHANGED },
+            { "fork..stackBase": modified(LINT_CONFIG, CORE_LINT_CONFIG) },
+        );
+        const findingsAt = (changeBase: string, defaultBranchBase: string) =>
+            measure(
+                createMissedPartnerFitnessFunction({
+                    history: graph,
+                    sources: new InMemorySourceStructure(),
+                }),
+                { repoRoot: "/repo", commit: "head", changeBase, defaultBranchBase },
+            );
+
+        const onStack = findingsAt("stackBase", "fork");
+
+        expect(onStack).toEqual({ findings: [] });
+        expect(onStack).toEqual(findingsAt("baseSquash", "baseSquash"));
     });
 
     it("ends its series where the history is shorter than the window and its parent", () => {

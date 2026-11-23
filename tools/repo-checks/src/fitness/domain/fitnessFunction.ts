@@ -16,6 +16,11 @@ export interface MeasurementContext {
     readonly commit: string;
     /** The merge base for HEAD; the commit itself for the base and a snapshot, which measure no change. */
     readonly changeBase: string;
+    /**
+     * Where `changeBase` meets the default branch, whose first-parent commits are one squash-merged
+     * PR each: `changeBase` itself unless it is on a stacked PR's base branch, and for a snapshot.
+     */
+    readonly defaultBranchBase: string;
 }
 
 type NonEmptyList<T> = readonly [T, ...T[]];

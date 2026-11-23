@@ -7,6 +7,8 @@ import {
     HISTORY_WINDOW,
     historyWindow,
     isMechanicalCommit,
+    MECHANICAL_COMMIT_KINDS,
+    withBaseBranchAsOneChange,
     withBranchAsOneChange,
 } from "./commitHistory";
 
@@ -132,6 +134,13 @@ describe("a mechanical commit", () => {
     ])("is $subject: $mechanical", ({ subject, mechanical }) => {
         expect(isMechanicalCommit(subject)).toBe(mechanical);
     });
+
+    it.each(MECHANICAL_COMMIT_KINDS.split(/, | or /))(
+        "is every kind a function's limits name: %s",
+        (kind) => {
+            expect(isMechanicalCommit(`${kind}: reorder imports`)).toBe(true);
+        },
+    );
 });
 
 describe("a branch as one change", () => {
@@ -158,6 +167,31 @@ describe("a branch as one change", () => {
         const [branchRecord] = withBranchAsOneChange(baseWindow, [modified("a.ts")]);
 
         expect(isMechanicalCommit(branchRecord.subject)).toBe(false);
+    });
+});
+
+describe("a stacked PR's base branch as one change", () => {
+    const defaultBranchWindow = [commit("c1", modified("a.ts")), commit("c0", modified("b.ts"))];
+
+    it("goes in front of the default branch's window as one record, keeping every commit of it", () => {
+        expect(withBaseBranchAsOneChange(defaultBranchWindow, [modified("a.ts")])).toEqual([
+            { commit: "base branch", subject: "base branch", changes: [modified("a.ts")] },
+            ...defaultBranchWindow,
+        ]);
+    });
+
+    it("adds no record when the base is on the default branch", () => {
+        expect(withBaseBranchAsOneChange(defaultBranchWindow, [])).toEqual(defaultBranchWindow);
+    });
+
+    it("goes behind the branch's change, as the base branch lands first", () => {
+        const history = withBranchAsOneChange(
+            withBaseBranchAsOneChange(defaultBranchWindow, [modified("b.ts")]),
+            [modified("a.ts")],
+        );
+
+        expect(history.map(({ commit }) => commit)).toEqual(["branch", "base branch", "c1", "c0"]);
+        expect(history.some(({ subject }) => isMechanicalCommit(subject))).toBe(false);
     });
 });
 

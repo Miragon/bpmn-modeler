@@ -47,6 +47,7 @@ export function recordSnapshots(
                             repoRoot: root,
                             commit: step.commit,
                             changeBase: step.commit,
+                            defaultBranchBase: step.commit,
                         }),
                     }),
                 snapshots.get(step.commit) ?? emptySnapshot(step.commit),

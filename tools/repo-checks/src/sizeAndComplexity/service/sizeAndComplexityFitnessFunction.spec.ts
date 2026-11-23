@@ -19,6 +19,7 @@ describe("the size and complexity fitness function", () => {
             repoRoot: "/checkout/c1",
             commit: "c1",
             changeBase: "c1",
+            defaultBranchBase: "c1",
         });
 
         expect(measured).toEqual({

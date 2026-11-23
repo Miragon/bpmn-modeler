@@ -70,6 +70,18 @@ export function historyWindow(commitsNewestFirst: readonly CommitRecord[]): Hist
 
 // Not the PR title, which only CI knows, so a branch always counts, even one whose squash would not.
 const BRANCH_CHANGE = "branch";
+const BASE_BRANCH_CHANGE = "base branch";
+
+function withChangeInFront(
+    name: string,
+    windowNewestFirst: readonly CommitRecord[],
+    change: readonly FileChange[],
+): readonly CommitRecord[] {
+    if (change.length === 0) {
+        return windowNewestFirst;
+    }
+    return [{ commit: name, subject: name, changes: change }, ...windowNewestFirst];
+}
 
 /**
  * The branch counts as the one squashed commit it lands as. Every base commit stays, so no row
@@ -79,17 +91,25 @@ export function withBranchAsOneChange(
     baseWindowNewestFirst: readonly CommitRecord[],
     branchChange: readonly FileChange[],
 ): readonly CommitRecord[] {
-    if (branchChange.length === 0) {
-        return baseWindowNewestFirst;
-    }
-    return [
-        { commit: BRANCH_CHANGE, subject: BRANCH_CHANGE, changes: branchChange },
-        ...baseWindowNewestFirst,
-    ];
+    return withChangeInFront(BRANCH_CHANGE, baseWindowNewestFirst, branchChange);
+}
+
+/**
+ * A stacked PR's base branch counts as the one squashed commit it lands as on the default branch,
+ * so its commits push none of the default branch's window out.
+ */
+export function withBaseBranchAsOneChange(
+    defaultBranchWindowNewestFirst: readonly CommitRecord[],
+    baseBranchChange: readonly FileChange[],
+): readonly CommitRecord[] {
+    return withChangeInFront(BASE_BRANCH_CHANGE, defaultBranchWindowNewestFirst, baseBranchChange);
 }
 
 // Release, dependency and formatting commits touch many files for no shared reason.
 const MECHANICAL_SUBJECT = /^(chore\((deps|main|format)\)|style(\([^)]*\))?)!?:/;
+
+/** The commit kinds `MECHANICAL_SUBJECT` matches, worded for a function's limits. */
+export const MECHANICAL_COMMIT_KINDS = "chore(deps), chore(main), chore(format) or style";
 
 export function isMechanicalCommit(subject: string): boolean {
     return MECHANICAL_SUBJECT.test(subject);

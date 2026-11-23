@@ -5,10 +5,9 @@ import { jsonReport } from "../../domain/jsonReport";
 import { markdownReport } from "../../domain/markdownReport";
 import type { FitnessReport } from "../../domain/report";
 import type { Snapshot } from "../../domain/snapshot";
+import type { ReportRefs } from "../../service/fitnessReportService";
 
-export interface ReportRequest {
-    /** The report compares with `git merge-base HEAD <baseRef>`. */
-    readonly baseRef: string;
+export interface ReportRequest extends ReportRefs {
     /** A checkout of this repository; the one that holds the code when left out. */
     readonly repo?: string;
 }
@@ -24,12 +23,14 @@ export interface CliOutput {
     writeFile(path: string, text: string): void;
 }
 
-const DEFAULT_BASE_REF = "origin/main";
+const DEFAULT_BRANCH_REF = "origin/main";
 
 const USAGE = [
-    "usage: fitness [report] [--format markdown|json] [--base <rev>] [--repo <dir>]",
+    "usage: fitness [report] [--format markdown|json]",
+    "               [--base <rev>] [--default-branch <rev>] [--repo <dir>]",
     "       fitness [report] --changes-only [--head-label <text>]",
-    "               [--capped-out <file> --max-characters <n>] [--base <rev>] [--repo <dir>]",
+    "               [--capped-out <file> --max-characters <n>]",
+    "               [--base <rev>] [--default-branch <rev>] [--repo <dir>]",
     "       fitness snapshot --out <dir>",
     "       fitness mutation record|summary ...",
     "       fitness missed-partner replay",
@@ -104,6 +105,7 @@ function parseCommand(args: readonly string[]) {
                 "format": { type: "string" },
                 "out": { type: "string" },
                 "base": { type: "string" },
+                "default-branch": { type: "string" },
                 "repo": { type: "string" },
                 "changes-only": { type: "boolean" },
                 "head-label": { type: "string" },
@@ -131,28 +133,25 @@ function parseCommand(args: readonly string[]) {
         if (values.base === "") {
             throw new UsageError("--base needs a revision");
         }
+        if (values["default-branch"] === "") {
+            throw new UsageError("--default-branch needs a revision");
+        }
         if (values.repo === "") {
             throw new UsageError("--repo needs a directory");
         }
+        const defaultBranchRef = values["default-branch"] ?? DEFAULT_BRANCH_REF;
         const request: ReportRequest = {
-            baseRef: values.base ?? DEFAULT_BASE_REF,
+            baseRef: values.base ?? defaultBranchRef,
+            defaultBranchRef,
             ...(values.repo === undefined ? {} : { repo: values.repo }),
         };
         return { command, format, request, changes: parseChangesOptions(values, format) } as const;
     }
     if (command === "snapshot") {
-        for (const option of [
-            "format",
-            "base",
-            "repo",
-            "changes-only",
-            "head-label",
-            "capped-out",
-            "max-characters",
-        ] as const) {
-            if (values[option] !== undefined) {
-                throw new UsageError(`snapshot does not take --${option}`);
-            }
+        // No option has a default, so `values` holds only the options given.
+        const reportOption = Object.keys(values).find((option) => option !== "out");
+        if (reportOption !== undefined) {
+            throw new UsageError(`snapshot does not take --${reportOption}`);
         }
         if (values.out === undefined) {
             throw new UsageError("snapshot needs --out <dir>");
