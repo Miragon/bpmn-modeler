@@ -1,8 +1,10 @@
 import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
+import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 import { BpmnModdle } from "bpmn-moddle";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { LintConfigService, type LintTierInit } from "./LintConfigService";
+import type { ModdleDefinitions } from "../executionPlatformAttributes";
 
 // The tier rules are pinned in lintTierMachine.spec.ts, which never sees what the
 // adapter feeds in. These rows cover that wiring (the live diagram state, the
@@ -22,14 +24,33 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
+const CAMUNDA_87_SECRET_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.7.0">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:serviceTask id="Task_1" name="Call API">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="call-api" />
+        <zeebe:ioMapping>
+          <zeebe:input source="{{secrets.MY_SECRET}}" target="token" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+  </bpmn:process>
+</bpmn:definitions>`;
+
 const LABEL_RULES: BpmnlintConfig = { rules: { "label-required": "error" } };
 const END_EVENT_RULES: BpmnlintConfig = { rules: { "end-event-required": "error" } };
 const PUSHED: LintResults = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
 
-let definitions: unknown;
+let definitions: ModdleDefinitions;
+let camunda87Definitions: ModdleDefinitions;
 
 beforeAll(async () => {
-    ({ rootElement: definitions } = await BpmnModdle().fromXML(XML));
+    const { rootElement } = await BpmnModdle().fromXML(XML);
+    definitions = rootElement as unknown as ModdleDefinitions;
+    const zeebe = getDefaultLintConfig({ engine: "c8" }).moddleExtensions;
+    const camunda87 = await BpmnModdle(zeebe).fromXML(CAMUNDA_87_SECRET_XML);
+    camunda87Definitions = camunda87.rootElement as unknown as ModdleDefinitions;
 });
 
 /** Minimal stand-in for the bpmn-js-bpmnlint `linting` DI service. */
@@ -85,6 +106,8 @@ function makeService(opts: {
     tier: LintTierInit["tier"];
     config?: LintTierInit["config"];
     imported?: boolean;
+    engine?: LintTierInit["engine"];
+    diagram?: ModdleDefinitions;
 }) {
     const linting = fakeLinting();
     const canvas = fakeCanvas();
@@ -95,14 +118,14 @@ function makeService(opts: {
     let imported = opts.imported ?? false;
     const service = new LintConfigService(
         linting,
-        { tier: opts.tier, engine: "c7", mode: "implement", config: opts.config },
+        { tier: opts.tier, engine: opts.engine ?? "c7", mode: "implement", config: opts.config },
         {
             onLintResults: (event) => lintRuns.push(event),
             onLintingToggled: (enabled) => toggles.push(enabled),
         },
         (template) => template,
         canvas,
-        { getDefinitions: () => (imported ? definitions : undefined) },
+        { getDefinitions: () => (imported ? (opts.diagram ?? definitions) : undefined) },
         bus,
     );
     const container = canvas.getContainer();
@@ -170,6 +193,18 @@ describe("LintConfigService: in-page tier", () => {
 
         expect(linting.updates).toBe(updatesBefore + 1);
         expect(ruleNames(await linting.lint())).toEqual(["end-event-required"]);
+    });
+
+    it("lints an imported diagram against the engine version it targets", async () => {
+        const { linting, importDiagram } = makeService({
+            tier: "in-page",
+            engine: "c8",
+            diagram: camunda87Definitions,
+        });
+
+        importDiagram();
+
+        expect((await linting.lint())["camunda-compat/secrets"] ?? []).toEqual([]);
     });
 });
 

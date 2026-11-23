@@ -38,3 +38,12 @@ export function executionPlatformAttributes(
     }
     return attributes;
 }
+
+/** The engine version a moddle `bpmn:Definitions` targets, from its `executionPlatformVersion`. */
+export function executionPlatformVersion(definitions: ModdleDefinitions): string | undefined {
+    const attributes = executionPlatformAttributes(definitions);
+    const names = executionPlatformAttributeNames(
+        Object.entries(attributes).map(([name, value]) => ({ name, value })),
+    );
+    return attributes[names.version];
+}

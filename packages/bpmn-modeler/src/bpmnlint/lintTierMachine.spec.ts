@@ -29,6 +29,13 @@ const IN_PAGE: LintTierState = {
 const EXTERNAL: LintTierState = { ...IN_PAGE, tier: "external" };
 const DISABLED: LintTierState = { ...IN_PAGE, tier: "in-page-disabled" };
 const COVERED_V1 = { hostConfig: WORKSPACE_V1, configToken: "cfg-v1" } as const;
+const C8_DEFAULT: LintTierState = { tier: "in-page", mode: "implement", engine: "c8" };
+const C8_87_DEFAULT: LintTierState = { ...C8_DEFAULT, engineVersion: "8.7.0" };
+const C8_87_RULES = getDefaultLintConfig({
+    engine: "c8",
+    engineVersion: "8.7.0",
+    preset: "modeling",
+});
 
 const ACTIVATE: LintTierEffect = { kind: "activateInPage" };
 const RENDER_DISABLED: LintTierEffect = { kind: "renderDisabled" };
@@ -116,6 +123,34 @@ const DIAGRAM_IMPORTS: TransitionRow[] = [
         from: DISABLED,
         event: { type: "diagramImported" },
         to: DISABLED,
+        effects: [],
+    },
+    {
+        behaviour: "lints an imported diagram against the engine version it targets",
+        from: C8_DEFAULT,
+        event: { type: "diagramImported", engineVersion: "8.7.0" },
+        to: C8_87_DEFAULT,
+        effects: [build(C8_87_RULES), ACTIVATE],
+    },
+    {
+        behaviour: "keeps the linter when a re-import targets the same engine version",
+        from: C8_87_DEFAULT,
+        event: { type: "diagramImported", engineVersion: "8.7.0" },
+        to: C8_87_DEFAULT,
+        effects: [ACTIVATE],
+    },
+    {
+        behaviour: "keeps a workspace config when the engine version changes",
+        from: { ...C8_DEFAULT, ...COVERED_V1 },
+        event: { type: "diagramImported", engineVersion: "8.7.0" },
+        to: { ...C8_87_DEFAULT, ...COVERED_V1 },
+        effects: [ACTIVATE],
+    },
+    {
+        behaviour: "remembers the engine version of a diagram imported while off",
+        from: { ...C8_DEFAULT, tier: "in-page-disabled" },
+        event: { type: "diagramImported", engineVersion: "8.7.0" },
+        to: { ...C8_87_DEFAULT, tier: "in-page-disabled" },
         effects: [],
     },
 ];
@@ -377,6 +412,13 @@ const USER_TOGGLES: TransitionRow[] = [
         event: { type: "userTurnedLintingOn" },
         to: EXTERNAL,
         effects: [],
+    },
+    {
+        behaviour: "turns back on against the engine version imported while off",
+        from: { ...C8_87_DEFAULT, tier: "in-page-disabled" },
+        event: { type: "userTurnedLintingOn" },
+        to: C8_87_DEFAULT,
+        effects: [build(C8_87_RULES), ACTIVATE],
     },
     {
         behaviour: "ignores turning on a linter that is already on",

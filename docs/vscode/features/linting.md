@@ -9,7 +9,7 @@ Findings appear as overlays on the affected elements, as error and warning count
 Without a `.bpmnlintrc` the modeler lints against a bundled default, offline and without installing anything:
 
 - `bpmnlint:recommended` for every diagram (missing start or end event, disconnected elements, implicit splits and joins, …).
-- For Camunda 7 and Camunda 8 diagrams, the [`bpmnlint-plugin-camunda-compat`](https://github.com/camunda/bpmnlint-plugin-camunda-compat) rules for the target engine, so constructs it cannot run are flagged while you model.
+- For Camunda 7 and Camunda 8 diagrams, the [`bpmnlint-plugin-camunda-compat`](https://github.com/camunda/bpmnlint-plugin-camunda-compat) rules for the engine version the diagram targets (`modeler:executionPlatformVersion`, the latest when it names none), so constructs it cannot run are flagged while you model.
 
 Any `.bpmnlintrc` replaces the default completely, even an empty `{}`.
 
