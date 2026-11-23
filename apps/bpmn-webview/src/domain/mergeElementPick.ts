@@ -1,12 +1,13 @@
 import type {
     MergeHostOffers,
+    MergePaneHandMergeStart,
     MergePanePick,
     MergePanePickable,
     MergePaneStates,
 } from "@miragon/bpmn-modeler-shared";
 
-/** The user's pick of one element and whether its XML can be merged by hand, as the panes show it. */
-export type MergeElementPick = Pick<MergePanePickable, "pick" | "handMergeable">;
+/** The user's pick of one element and how its XML can be merged by hand, as the panes show it. */
+export type MergeElementPick = Pick<MergePanePickable, "pick" | "handMerge">;
 
 /** What {@link elementPickOf} and {@link panePicks} read of the host's states. */
 export type MergeElementPickStates = Pick<MergePaneStates, "pickable">;
@@ -34,14 +35,26 @@ export function panePicks(states: MergeElementPickStates): readonly MergePickedE
 export function ownPickOf(element: MergeElementPick | undefined): MergeElementPick {
     return {
         ...(element?.pick === undefined ? {} : { pick: element.pick }),
-        ...(element?.handMergeable === undefined ? {} : { handMergeable: element.handMergeable }),
+        ...(element?.handMerge === undefined ? {} : { handMerge: element.handMerge }),
     };
 }
 
-/** Merge XML can be offered on the element: its pick allows a merge by hand and the host has a merge editor. */
-export function offersMergeXml(
-    element: Pick<MergeElementPick, "handMergeable">,
+/**
+ * How Merge XML starts on the element: on the version the user's pick keeps,
+ * or with a pick of its own where none decides the element yet. Not offered
+ * where its three texts do not differ or the host has no merge editor.
+ */
+export function mergeXmlStartOf(
+    element: Pick<MergeElementPick, "handMerge">,
+    offers: MergePadOffers,
+): MergePaneHandMergeStart | undefined {
+    return offers.elementXmlMerge ? element.handMerge : undefined;
+}
+
+/** Merge XML opens on the version the user's pick keeps, which Edit again needs still to stand. */
+export function mergesPickedXml(
+    element: Pick<MergeElementPick, "handMerge">,
     offers: MergePadOffers,
 ): boolean {
-    return element.handMergeable === true && offers.elementXmlMerge;
+    return mergeXmlStartOf(element, offers) === "pickedVersion";
 }

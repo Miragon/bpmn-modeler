@@ -18,6 +18,8 @@ export type MergeActedDecision =
           readonly scope: MergePickScope;
           readonly side: MergeSide;
           readonly origin: MergeDecisionOrigin;
+          /** Merge XML on an element no pick decided: the host opens the merge editor where the keep applied. */
+          readonly mergesXml?: true;
       }
     | {
           readonly kind: "leaveOut";
@@ -74,9 +76,24 @@ function request(
     decision: MergePadDecision,
     origin: MergeDecisionOrigin,
 ): MergePaneRequest {
-    return decision.kind === "mergeXml"
-        ? { kind: "mergeXml", elementId, origin }
-        : acted(elementId, decision, origin);
+    if (decision.kind !== "mergeXml") return acted(elementId, decision, origin);
+    return decision.mode === "keepAndOpen"
+        ? {
+              kind: "keep",
+              elementId,
+              scope: "element",
+              side: decision.side,
+              origin,
+              mergesXml: true,
+          }
+        : { kind: "mergeXml", elementId, origin };
+}
+
+/** The merge a keep that asks for Merge XML starts once it applied, whose finish the pane then awaits. */
+export function mergeStartedBy(sent: MergeActedDecision): MergeXmlRequest | undefined {
+    return sent.kind === "keep" && sent.mergesXml
+        ? { kind: "mergeXml", elementId: sent.elementId, origin: sent.origin }
+        : undefined;
 }
 
 /** Keeping what the other side removed with the element keeps the element from `side` with it, from the pad or the card. */
@@ -119,6 +136,7 @@ export type MergeDecisionCommand =
           readonly scope: MergePickScope;
           readonly side: MergeSide;
           readonly dropsHandMerges?: true;
+          readonly mergesXml?: true;
       }
     | {
           readonly kind: "unpick";
@@ -146,6 +164,7 @@ export function mergeDecisionCommandOf(
                 elementId,
                 scope: request.scope,
                 side: request.side,
+                ...(request.mergesXml ? { mergesXml: true } : {}),
                 ...dropping,
             };
         case "leaveOut":

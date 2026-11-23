@@ -42,8 +42,19 @@ export class MergeViewMemory {
         });
     }
 
-    /** Remembers the finish of an element's merge editor; it changes no pick, so the refusal stays. */
-    finishedHandMerge(elementId: string, finish: HandMergeOutcome | "discarded"): void {
-        this.lastFeedback = handMergeFeedback(elementId, finish, this.lastFeedback);
+    /**
+     * Remembers the finish of an element's merge editor. It changes no pick,
+     * so the refusal and the last pick's offer stay, unless a discard took
+     * the merge's own pick back: an undo no pane sent, newer than both.
+     */
+    finishedHandMerge(
+        elementId: string,
+        finish: HandMergeOutcome | "discarded",
+        { tookPickBack = false }: { readonly tookPickBack?: boolean } = {},
+    ): void {
+        if (tookPickBack) this.refusal = undefined;
+        this.lastFeedback = handMergeFeedback(elementId, finish, this.lastFeedback, {
+            keepsOffer: !tookPickBack,
+        });
     }
 }

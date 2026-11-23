@@ -7,6 +7,7 @@ import {
     mergePaneView,
     type PickOutcome,
     type ScopedDecision,
+    takeBackHandMergePick,
 } from "@miragon/bpmn-modeler-merge";
 import {
     ApplyMergeStatesQuery,
@@ -62,18 +63,18 @@ export class MergeDecisionService {
      * Keeps the element from the pick's side, or the pane's when it names
      * none, as far as `scope` reaches, and sends every pane of the view its
      * states. A pick that would move a version merged by hand off its side
-     * drops it only when the request says so.
+     * drops it only when the request says so. Answers whether it applied.
      */
     async pick(
         armed: ArmedDiff,
         pane: DiffPaneHandle,
         { elementId, scope, side: namedSide, dropsHandMerges }: MergePickRequest,
-    ): Promise<void> {
+    ): Promise<boolean> {
         const session = this.sessions.ofDiffSession(armed.session);
         const paneSide = armed.session.sideFor(pane.uri);
-        if (!session || !paneSide) return;
+        if (!session || !paneSide) return false;
         const side = namedSide ?? mergeSideOfPane(paneSide);
-        await this.decide(session, (decisions) => ({
+        const outcome = await this.decide(session, (decisions) => ({
             pane: { tab: armed.session, side: paneSide },
             action: decisions.holds(elementId, side) ? "pick" : "leaveOut",
             decision: {
@@ -84,6 +85,7 @@ export class MergeDecisionService {
                 options: { dropHandMerges: dropsHandMerges === true },
             },
         }));
+        return outcome?.applied === true;
     }
 
     /** Takes the user's pick back, as far as `scope` reaches, and sends every pane of the view its states; a stale Undo of no pick changes nothing. */
@@ -129,9 +131,23 @@ export class MergeDecisionService {
         return outcome;
     }
 
-    /** Shows every pane of the view that the user closed the element's merge editor without saving. */
-    async discardHandMerge(session: MergeSession, elementId: string): Promise<void> {
-        this.memoryOf(session).finishedHandMerge(elementId, "discarded");
+    /**
+     * Shows every pane of the view that the user closed the element's merge
+     * editor without saving. A merge that made the pick of `pickToTakeBack`
+     * itself takes it back while the element is still picked there, so
+     * closing the editor leaves the element as it was before the merge.
+     */
+    async discardHandMerge(
+        session: MergeSession,
+        elementId: string,
+        pickToTakeBack?: MergeSide,
+    ): Promise<void> {
+        const { decisions, sources } = session;
+        const tookPickBack =
+            pickToTakeBack !== undefined &&
+            takeBackHandMergePick(decisions, sources.handMergeTexts, elementId, pickToTakeBack);
+        this.memoryOf(session).finishedHandMerge(elementId, "discarded", { tookPickBack });
+        if (tookPickBack) this.tellDecided(session);
         await this.broadcastSession(session);
     }
 
@@ -172,24 +188,27 @@ export class MergeDecisionService {
     private async decide(
         session: MergeSession,
         decisionOf: (decisions: MergeDecisions) => PaneDecision | undefined,
-    ): Promise<void> {
+    ): Promise<PickOutcome | undefined> {
         const { decisions } = session;
         const openBefore = openConflictIds(decisions);
         let decided: PaneDecision | undefined;
         let outcome: PickOutcome;
         try {
             decided = decisionOf(decisions);
-            if (decided === undefined) return;
+            if (decided === undefined) return undefined;
             outcome = decisions.decide(decided.decision);
         } catch (error) {
             this.logger.logError(error as Error);
-            return;
+            return undefined;
         }
         this.memoryOf(session).decided(decided, outcome, decisions, openBefore);
-        if (outcome.applied) {
-            for (const listener of this.decidedListeners) listener(session);
-        }
+        if (outcome.applied) this.tellDecided(session);
         await this.broadcastSession(session);
+        return outcome;
+    }
+
+    private tellDecided(session: MergeSession): void {
+        for (const listener of this.decidedListeners) listener(session);
     }
 
     /** Sends the panes of every tab of the merge view the full state of its decisions. */

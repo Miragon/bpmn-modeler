@@ -173,6 +173,71 @@ describe("merging an element's XML by hand", () => {
         });
     });
 
+    describe("on an element no pick decides yet", () => {
+        const keepAndMerge: MergePadDecision = {
+            kind: "mergeXml",
+            mode: "keepAndOpen",
+            side: "current",
+        };
+
+        it.each<[string, MergePaneRequest, MergeActedDecision]>([
+            [
+                "the pad",
+                requestOnPad("Task_1", keepAndMerge),
+                {
+                    kind: "keep",
+                    elementId: "Task_1",
+                    scope: "element",
+                    side: "current",
+                    origin: "canvas",
+                    mergesXml: true,
+                },
+            ],
+            [
+                "a menu row",
+                requestInMenu("Message_1", keepAndMerge),
+                {
+                    kind: "keep",
+                    elementId: "Message_1",
+                    scope: "element",
+                    side: "current",
+                    origin: "menu",
+                    mergesXml: true,
+                },
+            ],
+        ])(
+            "is a keep of the element alone that asks for the merge, from %s",
+            (_case, request, acted) => {
+                expect(request).toStrictEqual(acted);
+            },
+        );
+
+        it("sends one pick that asks the host to open the merge editor", () => {
+            expect(mergeDecisionCommandOf(requestOnPad("Task_1", keepAndMerge))).toStrictEqual({
+                kind: "pick",
+                elementId: "Task_1",
+                scope: "element",
+                side: "current",
+                mergesXml: true,
+            });
+        });
+
+        it("still asks for the merge when resent agreeing to drop the XML merged by hand elsewhere", () => {
+            expect(
+                mergeDecisionCommandOf(requestOnPad("Task_1", keepAndMerge), {
+                    dropsHandMerges: true,
+                }),
+            ).toStrictEqual({
+                kind: "pick",
+                elementId: "Task_1",
+                scope: "element",
+                side: "current",
+                mergesXml: true,
+                dropsHandMerges: true,
+            });
+        });
+    });
+
     it("sends a pick decision as actedOnPad remembers it", () => {
         const keep: MergePadDecision = { kind: "keep", scope: "element", side: "current" };
 

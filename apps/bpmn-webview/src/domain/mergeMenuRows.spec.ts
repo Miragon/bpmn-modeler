@@ -36,6 +36,7 @@ const ROWS: readonly MergePaneShapelessRow[] = [
 ];
 
 const rowStates = (shapelessRows: readonly MergePaneShapelessRow[]): MergeMenuRowStates => ({
+    caption: { side: "current", role: "branch" },
     pickable: shapelessRows,
     shapelessRows,
 });
@@ -154,8 +155,23 @@ describe("mergeMenuRows", () => {
         expect(rows.find(({ id }) => id === "Message_1")?.outcome).toBeUndefined();
     });
 
+    it("offers an open row merging its XML by hand with a pick of the pane's side", () => {
+        const openConflict = { ...ROWS[0], handMerge: "withPick" } as const;
+
+        const [offered] = mergeMenuRows(rowStates([openConflict]), undefined, {
+            ...context,
+            offers: { elementXmlChanges: false, elementXmlMerge: true },
+        });
+
+        expect(offered?.decisions).toStrictEqual([
+            { kind: "keep", scope: "element", side: "current" },
+            { kind: "keep", scope: "element", side: "incoming" },
+            { kind: "mergeXml", mode: "keepAndOpen", side: "current" },
+        ]);
+    });
+
     it("offers a row merging its XML by hand where the host has the editor", () => {
-        const handMergeable = { ...ROWS[1], handMergeable: true } as const;
+        const handMergeable = { ...ROWS[1], handMerge: "pickedVersion" } as const;
 
         const [offered] = mergeMenuRows(rowStates([handMergeable]), undefined, {
             ...context,
@@ -170,7 +186,7 @@ describe("mergeMenuRows", () => {
     });
 
     it("gives the row of a refused merge by hand the card's choices", () => {
-        const handMergeable = { ...ROWS[1], handMergeable: true } as const;
+        const handMergeable = { ...ROWS[1], handMerge: "pickedVersion" } as const;
         const refused: MergeRememberedOutcome = {
             outcome: {
                 applied: false,
@@ -205,7 +221,7 @@ describe("a row's outcome and the pane's card", () => {
             {
                 ...ROWS[1],
                 pick: { keptSide: "incoming", scope: "element", mergedByHand: true },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             },
         ]);
         const refused: MergeRememberedOutcome = {

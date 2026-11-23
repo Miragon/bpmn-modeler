@@ -1,8 +1,9 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type {
     ContainerReach,
     ElementPick,
+    HandMergeStart,
     LackingSide,
     MergeStep,
     PickableElement,
@@ -18,6 +19,7 @@ import {
     type MergeObstacleWithMissing,
     type MergePaneBadge,
     type MergePaneContainerReach,
+    type MergePaneHandMergeStart,
     type MergePaneLackingSide,
     type MergePanePick,
     type MergePanePickable,
@@ -55,6 +57,20 @@ const URIS = {
     incoming: "bpmn-merge:/repo/order.incoming.bpmn?side%3Dincoming%26opening%3D1",
 };
 
+/** As ORDER_REMOVAL_STAGES, with the check named by both sides, so its three texts differ and it can be merged by hand. */
+const REMOVAL_AND_CHECK_STAGES = {
+    base: orderProcessXml(),
+    current: orderProcessXml({ withoutPack: true, check: "Check order now" }),
+    incoming: orderProcessXml({ check: "Check order" }),
+} as const;
+
+/** As ORDER_REMOVED_FLOW_STAGES, with the process named by both sides, so its three texts differ. */
+const REMOVED_FLOW_AND_PROCESS_STAGES = {
+    base: orderProcessXml(),
+    current: orderProcessXml({ withoutPack: true, process: "Order A" }),
+    incoming: orderProcessXml({ packFlow: "Ready to pack", process: "Order B" }),
+} as const;
+
 const CAPTIONS = {
     current: { side: "current", role: "branch", ref: "main" },
     incoming: { side: "incoming", role: "upstream", ref: "feature" },
@@ -67,7 +83,7 @@ function mergeHost(offers?: () => Promise<MergeHostOffers>) {
     const sessions = new MergeSessionStore(store, new RecordingMergeSidesView());
     const decisions = new MergeDecisionService(sessions, notifier, offers);
     const diffService = new BpmnDiffService(notifier, settings, store, undefined, decisions);
-    return { store, sessions, decisions, diffService };
+    return { store, sessions, decisions, diffService, notifier };
 }
 
 /** A merge view of `stages` whose two panes are attached but not yet ready. */
@@ -238,6 +254,7 @@ describe("MergeDecisionService", () => {
                     current: { name: "Order A" },
                     incoming: { name: "Order B" },
                     differences: [{ attribute: "name", current: "Order A", incoming: "Order B" }],
+                    handMerge: "withPick",
                 },
             ]);
             expect(lastStatesOf(pane).states.names).toStrictEqual({ Process_1: "Order A" });
@@ -386,6 +403,7 @@ describe("MergeDecisionService", () => {
         expectTypeOf<MergePaneLackingSide>().toEqualTypeOf<LackingSide>();
         expectTypeOf<MergePaneBadge>().toEqualTypeOf<PickBadge>();
         expectTypeOf<MergePanePickable>().toEqualTypeOf<PickableElement>();
+        expectTypeOf<MergePaneHandMergeStart>().toEqualTypeOf<HandMergeStart>();
         expectTypeOf<MergePaneContainerReach>().toEqualTypeOf<ContainerReach>();
         expectTypeOf<MergeObstacleKind>().toEqualTypeOf<RequirementObstacle["kind"]>();
         expectTypeOf<MergeObstacleWithMissing>().toEqualTypeOf<
@@ -424,7 +442,7 @@ describe("MergeDecisionService", () => {
                 id: "Task_Pack",
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "element" },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             });
             expect(incomingStates.lastOutcome).toStrictEqual({
                 applied: true,
@@ -480,9 +498,39 @@ describe("MergeDecisionService", () => {
             expect(lastStatesOf(incoming).states.lastOutcome?.applied).toBe(false);
         });
 
+        it("picks nothing and says why when a pane asks for Merge XML on a host without the merge editor", async () => {
+            const view = await openMergeView();
+            await view.bothReady();
+            const postedBefore = view.current.posted.length;
+
+            await view.diffService.pickMergeSideThenMergeXml(view.current, {
+                elementId: "Task_Pack",
+                scope: "element",
+            });
+
+            expect(view.current.posted).toHaveLength(postedBefore);
+            expect(view.host.notifier.logged("info")).toContain(
+                "Merge XML of Task_Pack not opened: the host offers no XML merge editor.",
+            );
+        });
+
+        it("answers whether a pick applied, which a merge that starts with it waits for", async () => {
+            const view = await openMergeView(ORDER_REMOVED_FLOW_STAGES);
+            await view.bothReady();
+            const tab = view.store.sessionOf(view.current);
+            const panes = tab?.armedPanes();
+            if (!tab || !panes) throw new Error("the merge view's panes are not ready");
+            const armed = { session: tab, ...panes };
+            const pickOf = (pane: FakeDiffPaneHandle, elementId: string) =>
+                view.host.decisions.pick(armed, pane, { elementId, scope: "element" });
+
+            expect(await pickOf(view.incoming, "Flow_2")).toBe(true);
+            expect(await pickOf(view.current, "Task_Pack")).toBe(false);
+        });
+
         describe("an undo that frees the pane's refused decision", () => {
-            async function refusedLeaveOut() {
-                const view = await openMergeView(ORDER_REMOVED_FLOW_STAGES);
+            async function refusedLeaveOut(stages: ResolvableStages = ORDER_REMOVED_FLOW_STAGES) {
+                const view = await openMergeView(stages);
                 await view.bothReady();
                 await view.pick(view.current, "Flow_2", "element", "incoming");
                 await view.pick(view.current, "Task_Pack");
@@ -555,6 +603,19 @@ describe("MergeDecisionService", () => {
                     action: "leaveOut",
                     elementId: "Task_Pack",
                 });
+            });
+
+            it("forgets the refusal when a merge editor closed without a save takes its own pick back, an undo no pane sent", async () => {
+                const view = await refusedLeaveOut(REMOVED_FLOW_AND_PROCESS_STAGES);
+                const session = view.sessions.of("file:///repo/order.bpmn");
+                if (!session) throw new Error("no merge view");
+                session.decisions.pick("Process_1", "current");
+
+                await view.host.decisions.discardHandMerge(session, "Process_1", "current");
+                expect(session.decisions.originOf("Process_1")).toBeUndefined();
+                await view.unpick(view.current, "Flow_2");
+
+                expect(freedOf(view.current)).toBeUndefined();
             });
 
             it("leaves the partner's refusal to the partner, which forgets it on the newer decision", async () => {
@@ -683,6 +744,31 @@ describe("MergeDecisionService", () => {
                 expect(states.restoreOffer).toStrictEqual(offered);
             },
         );
+
+        it("drops a pick's restore offer when a merge editor closed without a save takes its own pick back", async () => {
+            const { host, incoming, bothReady, pick, sessions } =
+                await openMergeView(REMOVAL_AND_CHECK_STAGES);
+            await bothReady();
+            await pick(incoming, "Task_Pack");
+            expect(lastStatesOf(incoming).states.restoreOffer).toBeDefined();
+            const session = sessions.of("file:///repo/order.bpmn");
+            if (!session) throw new Error("no merge view");
+            const decided = vi.fn();
+            host.decisions.onDecided(decided);
+            session.decisions.pick("Task_Check", "incoming");
+
+            await host.decisions.discardHandMerge(session, "Task_Check", "incoming");
+
+            const { states } = lastStatesOf(incoming);
+            expect(session.decisions.originOf("Task_Check")).toBeUndefined();
+            expect(states.lastOutcome).toMatchObject({
+                action: "mergeByHand",
+                elementId: "Task_Check",
+                discarded: true,
+            });
+            expect(states.restoreOffer).toBeUndefined();
+            expect(decided).toHaveBeenCalledExactlyOnceWith(session);
+        });
 
         it("takes back an element with the flows kept with it", async () => {
             const { current, incoming, bothReady, pick, unpick } =

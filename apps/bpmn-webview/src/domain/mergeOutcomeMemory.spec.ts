@@ -347,6 +347,81 @@ describe("a merge by hand this pane asked for", () => {
         ).toBe("forget");
     });
 
+    describe("with a pick of its own, on an element no pick decided", () => {
+        const keepAndMerge: MergeActedDecision = { ...keepTask, mergesXml: true };
+        const discarded: MergePaneOutcome = {
+            applied: false,
+            action: "mergeByHand",
+            elementId: "Task_Remind",
+            blockedBy: [],
+            discarded: true,
+            finish: 1,
+        };
+
+        it("shows the applied pick first, then awaits the editor's finish as a merge it asked for", () => {
+            const kept = applied("pick", "Task_Remind");
+
+            const { memory, answer } = sendAndAnswer(EMPTY_OUTCOME_MEMORY, keepAndMerge, kept, {
+                pickable: [pickedEntry("Task_Remind")],
+            });
+
+            expect(answer).toBe("show");
+            expect(memory.latest).toStrictEqual({ outcome: kept, acted: keepAndMerge });
+            expect(memory.handMergesSent).toStrictEqual([mergeXml]);
+        });
+
+        it("shows the editor closed without a save, which took the pick back, as its own answer", () => {
+            const opened = sendAndAnswer(
+                EMPTY_OUTCOME_MEMORY,
+                keepAndMerge,
+                applied("pick", "Task_Remind"),
+                { pickable: [pickedEntry("Task_Remind")] },
+            ).memory;
+
+            const { memory, answer } = answerStates(opened, states({ lastOutcome: discarded }));
+
+            expect(answer).toBe("show");
+            expect(memory.latest).toStrictEqual({ outcome: discarded, acted: mergeXml });
+            expect(memory.handMergesSent).toStrictEqual([]);
+        });
+
+        it("awaits no editor where the pick was refused, so a partner's later merge stays the partner's", () => {
+            const refused = sendAndAnswer(
+                EMPTY_OUTCOME_MEMORY,
+                keepAndMerge,
+                refusedLeaveOut([picked("Flow_1")]),
+            );
+
+            expect(refused.answer).toBe("show");
+            expect(refused.memory.handMergesSent ?? []).toStrictEqual([]);
+            expect(answerStates(refused.memory, states({ lastOutcome: discarded })).answer).toBe(
+                "forget",
+            );
+        });
+
+        it("keeps where the merge was asked for, so a row's merge is said in its row", () => {
+            const fromRow = sendAndAnswer(
+                EMPTY_OUTCOME_MEMORY,
+                { ...keepAndMerge, origin: "menu" },
+                applied("pick", "Task_Remind"),
+                { pickable: [pickedEntry("Task_Remind")] },
+            ).memory;
+
+            expect(fromRow.handMergesSent).toStrictEqual([{ ...mergeXml, origin: "menu" }]);
+        });
+
+        it("leaves a plain keep with no editor to await", () => {
+            const { memory } = sendAndAnswer(
+                EMPTY_OUTCOME_MEMORY,
+                keepTask,
+                applied("pick", "Task_Remind"),
+                { pickable: [pickedEntry("Task_Remind")] },
+            );
+
+            expect(memory.handMergesSent ?? []).toStrictEqual([]);
+        });
+    });
+
     it("shows a merge asked for in a menu row in that row, not on the card", () => {
         const fromRow = answerStates(
             rememberSent(EMPTY_OUTCOME_MEMORY, { ...mergeXml, origin: "menu" }),

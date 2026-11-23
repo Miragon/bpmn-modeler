@@ -77,20 +77,22 @@ export function mergePickFeedback({
 
 /**
  * What the finish of an element's merge editor did, as the panes show it:
- * taken, refused, or closed without a save. No finish changes a pick, so the
- * restore offer of the last pick stays. Each finish counts on from the last
- * one's, so a finish that repeats it word for word still reads as new.
+ * taken, refused, or closed without a save. The restore offer of the last
+ * pick stays while `keepsOffer` holds, as a finish that changed no pick
+ * says. Each finish counts on from the last one's, so a finish that repeats
+ * it word for word still reads as new.
  */
 export function handMergeFeedback(
     elementId: string,
     finish: HandMergeOutcome | "discarded",
     last?: MergePickFeedback,
+    { keepsOffer = true }: { readonly keepsOffer?: boolean } = {},
 ): MergePickFeedback {
     const outcome = {
         ...handMergeOutcome(elementId, finish),
         finish: (last?.outcome.finish ?? 0) + 1,
     };
-    return last?.offer === undefined ? { outcome } : { outcome, offer: last.offer };
+    return last?.offer === undefined || !keepsOffer ? { outcome } : { outcome, offer: last.offer };
 }
 
 function handMergeOutcome(

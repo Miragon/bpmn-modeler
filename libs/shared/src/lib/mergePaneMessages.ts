@@ -106,9 +106,15 @@ export interface MergePanePickable {
     readonly pick?: MergePanePick;
     /** Set where one side lacks the element, the same on both panes; a pick of that side leaves it out. */
     readonly lackingSide?: MergePaneLackingSide;
-    /** Set where the user's pick decides it and its three texts differ, so its version can be merged by hand. */
-    readonly handMergeable?: true;
+    /** Set where its three texts differ, so its XML can be merged by hand: how that merge starts. */
+    readonly handMerge?: MergePaneHandMergeStart;
 }
+
+/**
+ * How a merge of an element's XML by hand starts: on the version the user's
+ * pick keeps, or with a pick, where none decides the element yet.
+ */
+export type MergePaneHandMergeStart = "pickedVersion" | "withPick";
 
 /** Why a pick was refused, as the merge names it. */
 export type MergeObstacleKind =
@@ -207,7 +213,7 @@ export type MergePaneOutcome =
           readonly handMergesAtStake?: readonly string[];
           /** Set when the merge refused a hand-merged text; the element keeps its version. */
           readonly handMergeRefusal?: MergePaneHandMergeRefusal;
-          /** Set when the user closed the element's merge editor without saving: nothing changed. */
+          /** Set when the user closed the element's merge editor without saving: the element is as before the merge, a pick the merge made itself taken back. */
           readonly discarded?: true;
           /** A merge by hand's count of the finishes in a row: a finish that repeats the last one word for word differs from it here. */
           readonly finish?: number;
@@ -264,7 +270,7 @@ export interface MergePaneStates {
 export interface MergeHostOffers {
     /** It opens an element's XML changes, as on any BPMN diff pane. */
     readonly elementXmlChanges: boolean;
-    /** It opens a picked element's XML in a merge editor, to merge it by hand. */
+    /** It opens an element's XML in a merge editor, to merge it by hand. */
     readonly elementXmlMerge: boolean;
 }
 
@@ -330,19 +336,30 @@ export class PickMergeSideCommand extends Command<"PickMergeSideCommand"> {
     /** The user agreed to drop the versions merged by hand that the pick moves off their side. */
     public readonly dropsHandMerges?: true;
 
+    /**
+     * Merge XML on an element no pick decides yet: where the pick applied,
+     * the host opens the element's XML in its merge editor, and takes the
+     * pick back if the user closes that editor without saving.
+     */
+    public readonly mergesXml?: true;
+
     constructor(
         elementId: string,
         scope: MergePickScope,
         side?: MergeSide,
-        dropsHandMerges?: true,
+        { dropsHandMerges, mergesXml }: MergePickOptions = {},
     ) {
         super("PickMergeSideCommand");
         this.elementId = elementId;
         this.scope = scope;
         if (side !== undefined) this.side = side;
         if (dropsHandMerges) this.dropsHandMerges = dropsHandMerges;
+        if (mergesXml) this.mergesXml = mergesXml;
     }
 }
+
+/** What a {@link PickMergeSideCommand} asks besides the pick. */
+export type MergePickOptions = Partial<Pick<PickMergeSideCommand, "dropsHandMerges" | "mergesXml">>;
 
 /**
  * Sent from a merge pane when the user takes a pick back, with the reach the

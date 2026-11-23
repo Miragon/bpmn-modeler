@@ -1688,11 +1688,11 @@ describe("MergeMode", () => {
             pick: { ...keptPack.pick, mergedByHand: true },
         } as const;
         const HAND_MERGEABLE: Partial<MergePaneStates> = {
-            pickable: [{ id: "Task_Pack", pick: keptPack.pick, handMergeable: true }],
+            pickable: [{ id: "Task_Pack", pick: keptPack.pick, handMerge: "pickedVersion" }],
             badges: [keptPack],
         };
         const MERGED_BY_HAND: Partial<MergePaneStates> = {
-            pickable: [{ id: "Task_Pack", pick: mergedPack.pick, handMergeable: true }],
+            pickable: [{ id: "Task_Pack", pick: mergedPack.pick, handMerge: "pickedVersion" }],
             badges: [mergedPack],
         };
         const offered = (states: Partial<MergePaneStates> = {}) =>
@@ -1725,6 +1725,82 @@ describe("MergeMode", () => {
             ]);
             expect(opensPosted()[0]).not.toHaveProperty("resume");
             expect(picksPosted()).toEqual([]);
+        });
+
+        describe("on an element no pick decides yet", () => {
+            const OPEN_CONFLICT: Partial<MergePaneStates> = {
+                pickable: [{ id: "Task_Pack", handMerge: "withPick" }],
+            };
+            const keepAndMerge = { kind: "mergeXml", mode: "keepAndOpen", side: "incoming" };
+            const openConflict = (states: Partial<MergePaneStates> = {}) =>
+                mergeStates({ ...OPEN_CONFLICT, ...states }, false, true);
+
+            it("offers Merge XML that keeps the pane's side, and sends one pick that asks for the merge editor", async () => {
+                await startMergePane();
+                dispatch(mergeStates(OPEN_CONFLICT));
+                expect(pad().decisionsOf("Task_Pack")).toEqual([
+                    { kind: "keep", scope: "element", side: "incoming" },
+                ]);
+
+                dispatch(openConflict());
+                const mergeXml = pad()
+                    .decisionsOf("Task_Pack")
+                    .find((decision) => (decision as MergePadDecision).kind === "mergeXml");
+                pad().decide("Task_Pack", mergeXml);
+
+                expect(mergeXml).toEqual(keepAndMerge);
+                expect(picksPosted()).toEqual([
+                    expect.objectContaining({
+                        type: "PickMergeSideCommand",
+                        elementId: "Task_Pack",
+                        scope: "element",
+                        side: "incoming",
+                        mergesXml: true,
+                    }),
+                ]);
+                expect(opensPosted()).toEqual([]);
+            });
+
+            it("says the kept side on the card, then that the editor closed without saving, with Merge XML offered as before", async () => {
+                await startMergePane();
+                dispatch(openConflict());
+                next();
+                pad().decide("Task_Pack", keepAndMerge);
+
+                dispatch(
+                    offered({
+                        lastOutcome: {
+                            applied: true,
+                            action: "pick",
+                            elementId: "Task_Pack",
+                            pulledIn: [],
+                            dropped: [],
+                            reopened: [],
+                        },
+                    }),
+                );
+                expect(card().show.mock.lastCall![0].headline).toBe(
+                    "Kept from incoming: Pack parcel",
+                );
+
+                dispatch(
+                    openConflict({
+                        lastOutcome: {
+                            applied: false,
+                            action: "mergeByHand",
+                            elementId: "Task_Pack",
+                            blockedBy: [],
+                            discarded: true,
+                            finish: 1,
+                        },
+                    }),
+                );
+
+                expect(card().show.mock.lastCall![0].headline).toBe(
+                    "Closed without saving: Pack parcel is unchanged",
+                );
+                expect(pad().decisionsOf("Task_Pack")).toContainEqual(keepAndMerge);
+            });
         });
 
         it("offers editing the merged XML once the element is merged by hand", async () => {
@@ -1823,11 +1899,16 @@ describe("MergeMode", () => {
                 marker: "takenFromThisSide",
                 takenSide: "incoming",
                 pick: { keptSide: "incoming", scope: "element" },
-                handMergeable: true,
+                handMerge: "pickedVersion",
             } as const;
             const pickable = STATES.pickable.map((entry): MergePanePickable =>
                 entry.id === picked.id
-                    ? { ...entry, takenSide: "incoming", pick: picked.pick, handMergeable: true }
+                    ? {
+                          ...entry,
+                          takenSide: "incoming",
+                          pick: picked.pick,
+                          handMerge: "pickedVersion",
+                      }
                     : entry,
             );
             dispatch(mergeStates({ shapelessRows: [picked], pickable }, false, true));
@@ -1972,7 +2053,7 @@ describe("MergeMode", () => {
                             {
                                 id: "Task_Pack",
                                 pick: { keptSide: "incoming", scope: "element" },
-                                handMergeable: true,
+                                handMerge: "pickedVersion",
                             },
                         ],
                         badges: [
@@ -2002,6 +2083,37 @@ describe("MergeMode", () => {
                 posted().filter((message) => message.type === "OpenElementXmlMergeCommand"),
             ).toEqual([expect.objectContaining({ elementId: "Task_Pack" })]);
             expect(decisionsPosted()).toEqual([]);
+        });
+
+        it("keeps an open conflict from this pane's side and asks for its XML merge with mergeXml, as the pad's entry does", async () => {
+            await startMergePane();
+            dispatch(
+                mergeStates(
+                    { pickable: [{ id: "Task_Pack", handMerge: "withPick" }] },
+                    false,
+                    true,
+                ),
+            );
+            selectOnCanvas("Task_Pack");
+
+            run("mergeXml");
+
+            expect(commandsPosted().at(-1)).toEqual([
+                "keep",
+                "mergeXml",
+                "next",
+                "previous",
+                "build",
+            ]);
+            expect(decisionsPosted()).toEqual([
+                expect.objectContaining({
+                    type: "PickMergeSideCommand",
+                    elementId: "Task_Pack",
+                    scope: "element",
+                    side: "incoming",
+                    mergesXml: true,
+                }),
+            ]);
         });
 
         it("picks nothing with nothing selected or where the pad does not offer the decision", async () => {

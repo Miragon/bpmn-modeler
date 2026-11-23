@@ -1,7 +1,7 @@
 # Merge XML editor
 
 - Status: accepted
-- Last reviewed: 2026-11-20
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -58,6 +58,23 @@ changed different parts to a whole pick.
   `ElementXmlMergeService.finish`; the panes' offers come from the source
   `MergeDecisionService` is built with. `describeElementXmlMergeEditorContract` holds the
   VS Code adapter and the test kit's fake.
+- *On an open conflict the merge makes its own pick, and a discard takes it back.* A merge
+  replaces the version of a picked side, so with Merge XML offered only after a pick, the
+  pen was absent on exactly the elements it is for, and users did not find it. Where the
+  three texts differ and no pick of the user's decides the element (`handMerge:
+  "withPick"`), the entry keeps the pane's side and opens the editor in one request:
+  `PickMergeSideCommand.mergesXml`, so the pick's own feedback (a refusal, the consent to
+  drop a hand merge, what it pulled in) reaches the pane as for any pick.
+  `ElementXmlMergeService.openWithPick` checks the host and the texts before it picks, so
+  nothing is picked where no editor can open. The editor remembers that it made the pick
+  (`ElementXmlMerges`, `takesBackPick`): closing it without a save takes the pick back
+  while the element is still picked on that side (the library's `takeBackHandMergePick`,
+  by the rule that refuses a saved text), so a cancel leaves the conflict open instead of
+  resolving it to one side unmerged. A saved text keeps the pick, taken or
+  refused, since Edit again needs it. Rejected: picking only when the text is accepted,
+  which would refuse a blocked pick after the user's work in the editor and has no place
+  to ask for a consent; keeping the pick after a discard, which resolves a conflict by a
+  cancel.
 - *Only for an element the base holds.* Without a base, 1.76 does not open, and from 1.99
   the whole element is one conflict block, which is no more than the whole pick. An
   element both sides added is picked whole.
@@ -110,8 +127,9 @@ changed different parts to a whole pick.
 
 - *The panes offer it and word the answer.* The pad, a shape-less row and the keyboard
   command `bpmn-modeler.mergeXml` (Ctrl+K X, `mergePane.canMergeXml`) offer Merge XML where
-  `handMergeable` and `MergeHostOffers.elementXmlMerge` both hold (`mergeElementPick`, which
-  also reads the pick the pad, the row and the card's Edit again share);
+  the library names a start for it (`handMerge`, its `handMergeStartOf`) and
+  `MergeHostOffers.elementXmlMerge` holds (`mergeElementPick`, which also reads the pick
+  the pad, the row and the card's Edit again share);
   the badge marks a version merged by hand with a pen and "by hand", a cue no colour
   carries. The pane that asked words the finished merge on its card or row: one headline
   and one detail per refusal kind, composed and translated in the webview from the
@@ -154,7 +172,11 @@ side's change from a conflict.
   after a pick or an undo, whose outcome already differs from the last finish.
 - `merge-xml.smoke.test.ts` runs the pad, the key, the merge editor below the diagrams,
   accepting, Don't Save, a refusal with Edit again, the question before a pick drops a
-  merge, and an XML diff that follows a step beside an open merge editor.
+  merge, an XML diff that follows a step beside an open merge editor, and Merge XML on an
+  open conflict, accepted and closed without a save.
+- A pick the merge made is taken back as an undo no pane sent: it drops the last pick's
+  restore offer and the pane's remembered refusal, and it does not bring back a hand merge
+  the pick dropped with the user's consent.
 - `test/e2e/mergeXmlEditor.e2e.test.ts` runs the editor on 1.76.0 and stable through the
   core, on a picked element of a real merge view; the test API's `mergeXml` probe opens it
   through `ElementXmlMergeService` and reads the hand merge back.

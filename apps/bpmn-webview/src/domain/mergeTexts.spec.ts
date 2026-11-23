@@ -274,6 +274,22 @@ describe("the words of a merge by hand", () => {
                 tooltip: "Edit merged XML: Change the XML you merged by hand",
             },
         ],
+        [
+            { kind: "mergeXml", mode: "keepAndOpen", side: "current" },
+            {
+                label: "Keep current and merge XML",
+                tooltip:
+                    "Keep current and merge XML: Merge both sides' changes to its XML by hand in a merge editor",
+            },
+        ],
+        [
+            { kind: "mergeXml", mode: "keepAndOpen", side: "incoming" },
+            {
+                label: "Keep incoming and merge XML",
+                tooltip:
+                    "Keep incoming and merge XML: Merge both sides' changes to its XML by hand in a merge editor",
+            },
+        ],
     ])("words the pad's %o", (decision, expected) => {
         expect(padDecisionText(decision, untranslated)).toStrictEqual(expected);
     });

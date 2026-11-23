@@ -771,16 +771,24 @@ describe("mergePaneView", () => {
             return { decisions: MergeDecisions.from(result), sources };
         }
 
-        it("offers a hand merge on both panes only for a picked element with three differing texts", async () => {
+        it("says on both panes how a hand merge of an element with three differing texts starts: on the picked version, or with a pick", async () => {
             const { decisions, sources } = await opened(handMergeVersions());
             decisions.pick("Task_Check", "current");
             decisions.pick("Task_Reject", "incoming");
 
             for (const side of ["current", "incoming"] as const) {
-                const offered = mergePaneView(decisions, side, sources)
-                    .pickable.filter(({ handMergeable }) => handMergeable)
-                    .map(({ id }) => id);
-                expect(offered).toEqual(["Task_Check"]);
+                const starts = Object.fromEntries(
+                    mergePaneView(decisions, side, sources).pickable.flatMap(({ id, handMerge }) =>
+                        handMerge === undefined ? [] : [[id, handMerge]],
+                    ),
+                );
+                expect(starts).toEqual({
+                    Task_Check: "pickedVersion",
+                    Sub_Ship: "withPick",
+                    Task_Pack: "withPick",
+                    Start_Order: "withPick",
+                    Flow_Yes: "withPick",
+                });
             }
         });
 
@@ -829,7 +837,7 @@ describe("mergePaneView", () => {
             });
             expect(view.shapelessRows.find(({ id }) => id === "Process_1")).toMatchObject({
                 pick: { keptSide: "current", mergedByHand: true },
-                handMergeable: true,
+                handMerge: "pickedVersion",
                 differences: [
                     { attribute: "camunda:historyTimeToLive", current: "60", incoming: "90" },
                 ],
