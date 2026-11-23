@@ -1,21 +1,20 @@
-import type { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
+import {
+    surfaceModeSupports,
+    type BpmnlintConfig,
+    type Engine,
+    type LintResults,
+} from "@miragon/bpmn-modeler-types";
+import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
-import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
+import type { LintConfigByMode, LintConfigOption } from "./lintConfigResolution";
 import type { ModelerMode } from "../mode/mode";
 
 /**
- * The per-instance tier decision, registered as the `lintTier` DI value by
- * {@link createLintModule}. `"external"` renders host-pushed results;
- * `"in-page"` runs bpmnlint in the webview against the config
- * `resolveLintConfig` picks from `mode`, `engine`, and the optional `config`.
- * `false`/off never reaches here — a disabled instance registers no lint module
- * at all.
- *
+ * What {@link createLintModule} registers as the `lintTier` DI value.
  * `engine` is optional: the engine-neutral Design surface (`/design`) has no
- * execution platform, and its mode default already drops the engine layer. A
- * `config` may be a single {@link BpmnlintConfig} or a per-mode map, so one
- * Camunda-tagged instance can lint Design and Implement differently and
- * re-resolve on a live mode switch.
+ * execution platform. A `config` may be a single {@link BpmnlintConfig} or a
+ * per-mode map, so one Camunda-tagged instance can lint Design and Implement
+ * differently and re-resolve on a live mode switch.
  */
 export interface LintTierInit {
     tier: "external" | "in-page";
@@ -58,130 +57,173 @@ export type LintTierEffect =
     | { readonly kind: "renderDisabled" };
 
 export interface LintTierTransition {
-    readonly state: LintTierState;
+    readonly machine: LintTierMachine;
     readonly effects: readonly LintTierEffect[];
 }
 
-const ACTIVATE_IN_PAGE: LintTierEffect = { kind: "activateInPage" };
+/**
+ * The per-instance tier decision and the config it lints with. `"external"`
+ * renders host-pushed results; `"in-page"` runs bpmnlint in the webview. A
+ * disabled instance registers no lint module at all, so it never reaches here.
+ *
+ * In-page, a host config wins; otherwise a single `config` applies verbatim in
+ * both modes, a by-mode map gives the entry for the mode, and everything else
+ * falls back to the mode default.
+ */
+export class LintTierMachine {
+    private static readonly ACTIVATE_IN_PAGE: LintTierEffect = { kind: "activateInPage" };
 
-const RENDER_DISABLED: LintTierEffect = { kind: "renderDisabled" };
+    private static readonly RENDER_DISABLED: LintTierEffect = { kind: "renderDisabled" };
 
-export function startLintTier(init: LintTierInit, diagramLoaded: boolean): LintTierTransition {
-    const state: LintTierState = {
-        // Untyped consumers can pass any tier; everything but "in-page" paints host results.
-        tier: init.tier === "in-page" ? "in-page" : "external",
-        mode: init.mode,
-        engine: init.engine,
-        explicitConfig: init.config,
-    };
-    return { state, effects: state.tier === "in-page" ? lintInPage(state, diagramLoaded) : [] };
-}
+    constructor(readonly state: LintTierState) {}
 
-// Every other tier replays what was rendered last: host results, or nothing once disabled.
-export function lintsInPage(state: LintTierState): boolean {
-    return state.tier === "in-page";
-}
-
-export function reduceLintTier(
-    state: LintTierState,
-    event: LintTierEvent,
-    diagramLoaded: boolean,
-): LintTierTransition {
-    switch (event.type) {
-        case "diagramImported":
-            return importDiagram(state, event.engineVersion);
-        case "inPageLintingRequested":
-            return requestInPageLinting(state, event.config, event.configToken, diagramLoaded);
-        case "modeChanged":
-            return changeMode(state, event.mode, diagramLoaded);
-        case "hostResultsPushed":
-            return {
-                state: { ...state, tier: "external" },
-                effects: [{ kind: "renderResults", results: event.results }],
-            };
-        case "hostDisabledLinting":
-            return { state: { ...state, tier: "external" }, effects: [RENDER_DISABLED] };
-        case "userTurnedLintingOff":
-            return state.tier === "in-page"
-                ? { state: { ...state, tier: "in-page-disabled" }, effects: [RENDER_DISABLED] }
-                : { state, effects: [] };
-        case "userTurnedLintingOn":
-            return state.tier === "in-page-disabled" ? turnOnInPage(state) : { state, effects: [] };
+    static start(init: LintTierInit, diagramLoaded: boolean): LintTierTransition {
+        const machine = new LintTierMachine({
+            // Untyped consumers can pass any tier; everything but "in-page" paints host results.
+            tier: init.tier === "in-page" ? "in-page" : "external",
+            mode: init.mode,
+            engine: init.engine,
+            explicitConfig: init.config,
+        });
+        return { machine, effects: machine.lintsInPage() ? machine.lintInPage(diagramLoaded) : [] };
     }
-}
 
-function importDiagram(
-    state: LintTierState,
-    engineVersion: string | undefined,
-): LintTierTransition {
-    if (state.tier !== "in-page") {
-        return { state: { ...state, engineVersion }, effects: [] };
+    // Every other tier replays what was rendered last: host results, or nothing once disabled.
+    lintsInPage(): boolean {
+        return this.state.tier === "in-page";
     }
-    if (engineVersion === state.engineVersion) {
-        return { state, effects: [ACTIVATE_IN_PAGE] };
+
+    reduce(event: LintTierEvent, diagramLoaded: boolean): LintTierTransition {
+        switch (event.type) {
+            case "diagramImported":
+                return this.importDiagram(event.engineVersion);
+            case "inPageLintingRequested":
+                return this.requestInPageLinting(event.config, event.configToken, diagramLoaded);
+            case "modeChanged":
+                return this.changeMode(event.mode, diagramLoaded);
+            case "hostResultsPushed":
+                return this.moveTo({ tier: "external" }, [
+                    { kind: "renderResults", results: event.results },
+                ]);
+            case "hostDisabledLinting":
+                return this.moveTo({ tier: "external" }, [LintTierMachine.RENDER_DISABLED]);
+            case "userTurnedLintingOff":
+                return this.lintsInPage()
+                    ? this.moveTo({ tier: "in-page-disabled" }, [LintTierMachine.RENDER_DISABLED])
+                    : this.stay();
+            case "userTurnedLintingOn":
+                return this.state.tier === "in-page-disabled" ? this.turnOnInPage() : this.stay();
+        }
     }
-    const next: LintTierState = { ...state, engineVersion };
-    const followsVersion = next.hostConfig === undefined;
-    return { state: next, effects: followsVersion ? lintInPage(next, true) : [ACTIVATE_IN_PAGE] };
-}
 
-function requestInPageLinting(
-    state: LintTierState,
-    config: BpmnlintConfig | undefined,
-    configToken: string | undefined,
-    diagramLoaded: boolean,
-): LintTierTransition {
-    if (state.tier === "in-page-disabled") {
-        // Only the user re-enables a user-disabled linter; the re-enable lints this config.
-        return { state: { ...state, hostConfig: config, configToken }, effects: [] };
+    private importDiagram(engineVersion: string | undefined): LintTierTransition {
+        if (!this.lintsInPage()) {
+            return this.moveTo({ engineVersion }, []);
+        }
+        if (engineVersion === this.state.engineVersion) {
+            return this.stay([LintTierMachine.ACTIVATE_IN_PAGE]);
+        }
+        const next = this.with({ engineVersion });
+        const effects = next.resolvesOwnConfig()
+            ? next.lintInPage(true)
+            : [LintTierMachine.ACTIVATE_IN_PAGE];
+        return { machine: next, effects };
     }
-    if (state.tier === "in-page" && repeatsLiveConfig(state, config, configToken)) {
-        return { state, effects: [] };
+
+    private requestInPageLinting(
+        config: BpmnlintConfig | undefined,
+        configToken: string | undefined,
+        diagramLoaded: boolean,
+    ): LintTierTransition {
+        if (this.state.tier === "in-page-disabled") {
+            // Only the user re-enables a user-disabled linter; the re-enable lints this config.
+            return this.moveTo({ hostConfig: config, configToken }, []);
+        }
+        if (this.lintsInPage() && this.repeatsLiveConfig(config, configToken)) {
+            return this.stay();
+        }
+        const next = this.with({ tier: "in-page", hostConfig: config, configToken });
+        return { machine: next, effects: next.lintInPage(diagramLoaded) };
     }
-    const next: LintTierState = { ...state, tier: "in-page", hostConfig: config, configToken };
-    return { state: next, effects: lintInPage(next, diagramLoaded) };
-}
 
-// A token names one config version; without one, only a second payload-free reset repeats.
-function repeatsLiveConfig(
-    state: LintTierState,
-    config: BpmnlintConfig | undefined,
-    configToken: string | undefined,
-): boolean {
-    if (configToken !== undefined) {
-        return configToken === state.configToken;
+    // A token names one config version; without one, only a second payload-free reset repeats.
+    private repeatsLiveConfig(
+        config: BpmnlintConfig | undefined,
+        configToken: string | undefined,
+    ): boolean {
+        if (configToken !== undefined) {
+            return configToken === this.state.configToken;
+        }
+        return config === undefined && this.state.hostConfig === undefined;
     }
-    return config === undefined && state.hostConfig === undefined;
-}
 
-function changeMode(
-    state: LintTierState,
-    mode: ModelerMode,
-    diagramLoaded: boolean,
-): LintTierTransition {
-    if (mode === state.mode) {
-        return { state, effects: [] };
+    private changeMode(mode: ModelerMode, diagramLoaded: boolean): LintTierTransition {
+        if (mode === this.state.mode) {
+            return this.stay();
+        }
+        const next = this.with({ mode });
+        const followsMode = next.lintsInPage() && next.resolvesOwnConfig();
+        return { machine: next, effects: followsMode ? next.lintInPage(diagramLoaded) : [] };
     }
-    const next: LintTierState = { ...state, mode };
-    const followsMode = next.tier === "in-page" && next.hostConfig === undefined;
-    return { state: next, effects: followsMode ? lintInPage(next, diagramLoaded) : [] };
-}
 
-// Rebuild so a mode or host config change made while off takes effect.
-function turnOnInPage(state: LintTierState): LintTierTransition {
-    const next: LintTierState = { ...state, tier: "in-page" };
-    return { state: next, effects: [buildLinter(next), ACTIVATE_IN_PAGE] };
-}
+    // Rebuild so a mode or host config change made while off takes effect.
+    private turnOnInPage(): LintTierTransition {
+        const next = this.with({ tier: "in-page" });
+        return { machine: next, effects: [next.buildLinter(), LintTierMachine.ACTIVATE_IN_PAGE] };
+    }
 
-function lintInPage(state: LintTierState, diagramLoaded: boolean): LintTierEffect[] {
-    return diagramLoaded ? [buildLinter(state), ACTIVATE_IN_PAGE] : [buildLinter(state)];
-}
+    private lintInPage(diagramLoaded: boolean): LintTierEffect[] {
+        return diagramLoaded
+            ? [this.buildLinter(), LintTierMachine.ACTIVATE_IN_PAGE]
+            : [this.buildLinter()];
+    }
 
-function buildLinter(state: LintTierState): LintTierEffect {
-    return {
-        kind: "buildLinter",
-        config:
-            state.hostConfig ??
-            resolveLintConfig(state.mode, state.engine, state.explicitConfig, state.engineVersion),
-    };
+    private buildLinter(): LintTierEffect {
+        return { kind: "buildLinter", config: this.state.hostConfig ?? this.resolveConfig() };
+    }
+
+    private resolvesOwnConfig(): boolean {
+        return this.state.hostConfig === undefined;
+    }
+
+    private resolveConfig(): BpmnlintConfig {
+        return this.explicitConfigForMode() ?? this.defaultConfig();
+    }
+
+    private explicitConfigForMode(): BpmnlintConfig | undefined {
+        const { explicitConfig, mode } = this.state;
+        if (explicitConfig === undefined) {
+            return undefined;
+        }
+        return LintTierMachine.isByMode(explicitConfig) ? explicitConfig[mode] : explicitConfig;
+    }
+
+    // Design has no execution platform to bind, so its default drops the engine layer.
+    private defaultConfig(): BpmnlintConfig {
+        const { mode, engine, engineVersion } = this.state;
+        if (!surfaceModeSupports(mode, "engineLintRules")) {
+            return getDefaultLintConfig({ preset: "modeling" });
+        }
+        return getDefaultLintConfig({ engine, engineVersion, preset: "modeling" });
+    }
+
+    // A BpmnlintConfig has neither key, so either one marks the by-mode map.
+    private static isByMode(config: LintConfigOption): config is LintConfigByMode {
+        return "design" in config || "implement" in config;
+    }
+
+    private with(changes: Partial<LintTierState>): LintTierMachine {
+        return new LintTierMachine({ ...this.state, ...changes });
+    }
+
+    private moveTo(
+        changes: Partial<LintTierState>,
+        effects: readonly LintTierEffect[],
+    ): LintTierTransition {
+        return { machine: this.with(changes), effects };
+    }
+
+    private stay(effects: readonly LintTierEffect[] = []): LintTierTransition {
+        return { machine: this, effects };
+    }
 }

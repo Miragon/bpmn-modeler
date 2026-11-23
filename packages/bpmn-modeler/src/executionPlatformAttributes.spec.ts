@@ -2,11 +2,7 @@ import { BpmnModdle } from "bpmn-moddle";
 import { describe, expect, it } from "vitest";
 
 import { deriveEngines } from "./engines";
-import {
-    executionPlatformAttributes,
-    executionPlatformVersion,
-    type ModdleDefinitions,
-} from "./executionPlatformAttributes";
+import { ExecutionPlatformAttributes, type ModdleDefinitions } from "./executionPlatformAttributes";
 import { MODELER_MODDLE, declaringCamunda87Under } from "./__fixtures__/modelerModdle";
 
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -39,7 +35,7 @@ const MODDLE_CASES: ModdleCase[] = [
     { prefix: "cm", registers: "a modeler package", packages: { modeler: MODELER_MODDLE } },
 ];
 
-describe("executionPlatformAttributes", () => {
+describe("ExecutionPlatformAttributes.read", () => {
     it.each<ModdleCase>(MODDLE_CASES)(
         "reads the engine profile under the $prefix prefix when moddle registers $registers",
         async ({ prefix, packages }) => {
@@ -48,7 +44,9 @@ describe("executionPlatformAttributes", () => {
                 packages,
             );
 
-            expect(deriveEngines(executionPlatformAttributes(definitions))).toStrictEqual({
+            expect(
+                deriveEngines(new ExecutionPlatformAttributes(definitions).read()),
+            ).toStrictEqual({
                 camunda: "8.7.0",
             });
         },
@@ -57,13 +55,13 @@ describe("executionPlatformAttributes", () => {
     it("reads no platform from a diagram that declares none under a registered package", async () => {
         const definitions = await definitionsOf(PROCESS_XML, { modeler: MODELER_MODDLE });
 
-        expect(executionPlatformAttributes(definitions)).toStrictEqual({
+        expect(new ExecutionPlatformAttributes(definitions).read()).toStrictEqual({
             "xmlns:modeler": MODELER_MODDLE.uri,
         });
     });
 });
 
-describe("executionPlatformVersion", () => {
+describe("ExecutionPlatformAttributes.version", () => {
     it.each<ModdleCase>(MODDLE_CASES)(
         "reads the engine version under the $prefix prefix when moddle registers $registers",
         async ({ prefix, packages }) => {
@@ -72,13 +70,13 @@ describe("executionPlatformVersion", () => {
                 packages,
             );
 
-            expect(executionPlatformVersion(definitions)).toBe("8.7.0");
+            expect(new ExecutionPlatformAttributes(definitions).version()).toBe("8.7.0");
         },
     );
 
     it("reads no engine version from a diagram that declares none", async () => {
         const definitions = await definitionsOf(PROCESS_XML);
 
-        expect(executionPlatformVersion(definitions)).toBeUndefined();
+        expect(new ExecutionPlatformAttributes(definitions).version()).toBeUndefined();
     });
 });

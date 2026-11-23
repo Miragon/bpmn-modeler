@@ -7,10 +7,8 @@ import {
     type LintTierEffect,
     type LintTierEvent,
     type LintTierInit,
+    LintTierMachine,
     type LintTierState,
-    lintsInPage,
-    reduceLintTier,
-    startLintTier,
 } from "./lintTierMachine";
 
 const DESIGN_RULES: BpmnlintConfig = { rules: { "label-required": "warn" } };
@@ -429,9 +427,11 @@ const USER_TOGGLES: TransitionRow[] = [
     },
 ];
 
-describe("startLintTier", () => {
+describe("LintTierMachine.start", () => {
     it.each(STARTS)("$behaviour", ({ init, diagramLoaded, state, effects }) => {
-        expect(startLintTier(init, diagramLoaded)).toEqual({ state, effects });
+        const start = LintTierMachine.start(init, diagramLoaded);
+
+        expect({ state: start.machine.state, effects: start.effects }).toEqual({ state, effects });
     });
 });
 
@@ -441,18 +441,98 @@ describe.each([
     { trigger: "a mode change", rows: MODE_CHANGES },
     { trigger: "a host push", rows: HOST_PUSHES },
     { trigger: "a user toggle", rows: USER_TOGGLES },
-])("reduceLintTier on $trigger", ({ rows }) => {
+])("LintTierMachine.reduce on $trigger", ({ rows }) => {
     it.each(rows)("$behaviour", ({ from, event, diagramLoaded = true, to, effects }) => {
-        expect(reduceLintTier(from, event, diagramLoaded)).toEqual({ state: to, effects });
+        const transition = new LintTierMachine(from).reduce(event, diagramLoaded);
+
+        expect({ state: transition.machine.state, effects: transition.effects }).toEqual({
+            state: to,
+            effects,
+        });
     });
 });
 
-describe("lintsInPage", () => {
+describe("LintTierMachine.lintsInPage", () => {
     it.each([
         { tier: "in-page", state: IN_PAGE, expected: true },
         { tier: "external", state: EXTERNAL, expected: false },
         { tier: "in-page-disabled", state: DISABLED, expected: false },
     ])("is $expected in the $tier tier", ({ state, expected }) => {
-        expect(lintsInPage(state)).toBe(expected);
+        expect(new LintTierMachine(state).lintsInPage()).toBe(expected);
+    });
+});
+
+/** Whether a config pulls in the Camunda engine (deployability) layer. */
+function hasCamundaLayer(config: BpmnlintConfig): boolean {
+    return JSON.stringify(config).includes("camunda-compat");
+}
+
+function builtConfig(effects: readonly LintTierEffect[]): BpmnlintConfig {
+    const built = effects.find((effect) => effect.kind === "buildLinter");
+    if (built?.kind !== "buildLinter") {
+        throw new Error("no linter was built");
+    }
+    return built.config;
+}
+
+function configAtStart(init: Omit<LintTierInit, "tier">): BpmnlintConfig {
+    return builtConfig(LintTierMachine.start({ ...init, tier: "in-page" }, false).effects);
+}
+
+function configAfterImport(
+    init: Omit<LintTierInit, "tier">,
+    engineVersion: string,
+): BpmnlintConfig {
+    const { machine } = LintTierMachine.start({ ...init, tier: "in-page" }, false);
+    return builtConfig(machine.reduce({ type: "diagramImported", engineVersion }, true).effects);
+}
+
+describe("LintTierMachine: the config it lints with", () => {
+    it("applies a single config verbatim in both modes", () => {
+        const config: BpmnlintConfig = { rules: { "label-required": "warn" } };
+        expect(configAtStart({ mode: "design", engine: "c7", config })).toBe(config);
+        expect(configAtStart({ mode: "implement", engine: "c7", config })).toBe(config);
+    });
+
+    it("applies an empty config verbatim instead of reading it as a by-mode map", () => {
+        const empty: BpmnlintConfig = {};
+        expect(configAtStart({ mode: "implement", engine: "c7", config: empty })).toBe(empty);
+    });
+
+    it("picks the by-mode entry for the active mode", () => {
+        const design: BpmnlintConfig = { extends: "bpmnlint:recommended" };
+        const implement: BpmnlintConfig = { extends: "bpmnlint:all" };
+        const config = { design, implement };
+        expect(configAtStart({ mode: "design", engine: "c7", config })).toBe(design);
+        expect(configAtStart({ mode: "implement", engine: "c7", config })).toBe(implement);
+    });
+
+    it("falls back to the mode default for a missing by-mode entry", () => {
+        const implement: BpmnlintConfig = { extends: "bpmnlint:all" };
+        const resolved = configAtStart({ mode: "design", engine: "c7", config: { implement } });
+        expect(resolved).not.toBe(implement);
+        expect(hasCamundaLayer(resolved)).toBe(false);
+    });
+
+    it("adds the Camunda engine layer only for the implement default", () => {
+        expect(hasCamundaLayer(configAtStart({ mode: "implement", engine: "c7" }))).toBe(true);
+        expect(hasCamundaLayer(configAtStart({ mode: "design", engine: "c7" }))).toBe(false);
+    });
+
+    it("lints the implement default against the engine version the diagram targets", () => {
+        expect(configAfterImport({ mode: "implement", engine: "c8" }, "8.7.0").extends).toContain(
+            "plugin:camunda-compat/camunda-cloud-8-7",
+        );
+    });
+
+    it("keeps the engine version out of the design default", () => {
+        expect(hasCamundaLayer(configAfterImport({ mode: "design", engine: "c8" }, "8.7.0"))).toBe(
+            false,
+        );
+    });
+
+    it("never adds the engine layer when no engine is given", () => {
+        expect(hasCamundaLayer(configAtStart({ mode: "implement" }))).toBe(false);
+        expect(hasCamundaLayer(configAtStart({ mode: "design" }))).toBe(false);
     });
 });

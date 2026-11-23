@@ -3,7 +3,6 @@ import { loadBpmnModdle } from "@miragon/bpmn-modeler-diff";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import { BrowserLinter } from "./browserLinter";
-import { resolveLintConfig } from "./lintConfigResolution";
 
 // The engine-aware default the resolver would hand the linter in Implement mode;
 // BrowserLinter now takes the resolved config, not the engine.
@@ -53,7 +52,7 @@ async function parse(xml: string, packages: Record<string, unknown> = {}): Promi
 }
 
 async function lintAgainstTargetVersion(engineVersion: string) {
-    const config = resolveLintConfig("implement", "c8", undefined, engineVersion);
+    const config = getDefaultLintConfig({ engine: "c8", engineVersion, preset: "modeling" });
     const definitions = await parse(SECRET_TASK_XML(engineVersion), config.moddleExtensions);
     return new BrowserLinter(config).run(definitions);
 }

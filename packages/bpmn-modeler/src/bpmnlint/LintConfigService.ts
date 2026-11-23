@@ -5,12 +5,12 @@ import {
     type LintTierEffect,
     type LintTierEvent,
     type LintTierInit,
-    type LintTierState,
-    lintsInPage,
-    reduceLintTier,
-    startLintTier,
+    LintTierMachine,
 } from "./lintTierMachine";
-import { executionPlatformVersion, type ModdleDefinitions } from "../executionPlatformAttributes";
+import {
+    ExecutionPlatformAttributes,
+    type ModdleDefinitions,
+} from "../executionPlatformAttributes";
 import type { ModelerMode } from "../mode/mode";
 
 // bpmn-js-bpmnlint ships no types for this service.
@@ -48,8 +48,6 @@ export interface LintCallbacks {
     onLintingToggled?: (enabled: boolean) => void;
 }
 
-const OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="4" x2="12" y2="12"/></svg>`;
-
 // Override vendor lint() so every tier reuses its overlay rendering and update lifecycle.
 export class LintConfigService {
     static $inject = [
@@ -62,7 +60,9 @@ export class LintConfigService {
         "eventBus",
     ];
 
-    private state: LintTierState;
+    private static readonly OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="4" x2="12" y2="12"/></svg>`;
+
+    private machine: LintTierMachine;
 
     private browserLinter?: BrowserLinter;
 
@@ -83,8 +83,8 @@ export class LintConfigService {
         private readonly bpmnjs: Bpmnjs,
         eventBus: EventBus,
     ) {
-        const start = startLintTier(tierInit, this.isDiagramLoaded());
-        this.state = start.state;
+        const start = LintTierMachine.start(tierInit, this.isDiagramLoaded());
+        this.machine = start.machine;
 
         this.linting.lint = () => this.runLint();
 
@@ -112,8 +112,8 @@ export class LintConfigService {
     }
 
     private dispatch(event: LintTierEvent): void {
-        const transition = reduceLintTier(this.state, event, this.isDiagramLoaded());
-        this.state = transition.state;
+        const transition = this.machine.reduce(event, this.isDiagramLoaded());
+        this.machine = transition.machine;
         this.runEffects(transition.effects);
     }
 
@@ -142,11 +142,11 @@ export class LintConfigService {
 
     private importedEngineVersion(): string | undefined {
         const definitions = this.bpmnjs.getDefinitions();
-        return definitions ? executionPlatformVersion(definitions) : undefined;
+        return definitions ? new ExecutionPlatformAttributes(definitions).version() : undefined;
     }
 
     private async runLint(): Promise<LintResults> {
-        if (lintsInPage(this.state) && this.browserLinter) {
+        if (this.machine.lintsInPage() && this.browserLinter) {
             const event = await this.browserLinter.run(this.bpmnjs.getDefinitions());
             this.callbacks.onLintResults?.(event);
             return event.results;
@@ -241,7 +241,7 @@ export class LintConfigService {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "lint-off-button";
-            button.innerHTML = OFF_ICON;
+            button.innerHTML = LintConfigService.OFF_ICON;
             const label = this.translate("Turn off linting");
             button.title = label;
             button.setAttribute("aria-label", label);
