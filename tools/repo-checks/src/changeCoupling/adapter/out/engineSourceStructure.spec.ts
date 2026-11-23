@@ -66,6 +66,26 @@ describe("the engine source structure", () => {
         expect(links.some(({ from }) => from.endsWith(".spec.ts"))).toBe(false);
     });
 
+    it("links no declaration file, whichever module kind it types", () => {
+        const declarations = [
+            "apps/host/src/legacy.d.ts",
+            "apps/host/scripts/check.d.mts",
+            "apps/host/scripts/check.d.cts",
+        ];
+        for (const path of declarations) {
+            repository.write(
+                path,
+                'import type { StatusBar } from "@scope/core";\nexport declare const bar: StatusBar;',
+            );
+        }
+        repository.git("add", "--all");
+        repository.git("commit", "--quiet", "-m", "declarations");
+
+        const { links } = new EngineSourceStructure().read(repository.root);
+
+        expect(links.filter(({ from }) => declarations.includes(from))).toEqual([]);
+    });
+
     it("finds barrels from their content", () => {
         expect(new EngineSourceStructure().read(repository.root).barrels).toEqual([
             "libs/core/src/index.ts",

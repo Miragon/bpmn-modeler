@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { compositionRoots, measuredFiles, type SourceLayout } from "./sourceLayout";
+import {
+    compositionRoots,
+    isDataFile,
+    isParsedIntoDeclarationGraph,
+    measuredFiles,
+    type SourceLayout,
+} from "./sourceLayout";
 
 const WORKSPACES: SourceLayout["workspaces"] = [
     {
@@ -51,6 +57,8 @@ describe("the files change coupling reads", () => {
         { path: "libs/shared/stryker.config.mjs", read: false },
         { path: "apps/vscode-plugin/vitest.config.ts", read: false },
         { path: "apps/vscode-plugin/src/types.d.ts", read: false },
+        { path: "apps/vscode-plugin/src/plugin.d.mts", read: false },
+        { path: "apps/vscode-plugin/src/legacy.d.cts", read: false },
         { path: "apps/vscode-plugin/scripts/bundle.ts", read: false },
         { path: "scripts/perf/bench-webview.mjs", read: false },
     ])("$path: $read", ({ path, read }) => {
@@ -71,6 +79,37 @@ describe("the files change coupling reads", () => {
         expect(
             measuredFiles(layoutOf([generated], { generatedFiles: [generated] })).has(generated),
         ).toBe(false);
+    });
+});
+
+describe("the files parsed into the declaration graph", () => {
+    it.each([
+        { path: "apps/vscode-plugin/src/feature/Service.ts", parsed: true },
+        { path: "apps/vscode-plugin/src/view/Panel.tsx", parsed: true },
+        { path: ".github/scripts/release-check.mjs", parsed: true },
+        { path: "apps/vscode-plugin/scripts/bundle.cjs", parsed: true },
+        { path: "apps/vscode-plugin/src/__fixtures__/fakeHost.ts", parsed: true },
+        { path: "apps/vscode-plugin/src/types.d.ts", parsed: false },
+        { path: ".github/scripts/release-check.d.mts", parsed: false },
+        { path: "apps/vscode-plugin/scripts/bundle.d.cts", parsed: false },
+        { path: "apps/vscode-plugin/src/feature/Service.spec.ts", parsed: false },
+        { path: ".github/scripts/release-check.test.mjs", parsed: false },
+        { path: "libs/shared/src/lib/targets.schema.json", parsed: false },
+        { path: "apps/intellij-plugin/src/main/kotlin/io/x/Editor.kt", parsed: false },
+    ])("$path: $parsed", ({ path, parsed }) => {
+        expect(isParsedIntoDeclarationGraph(path)).toBe(parsed);
+    });
+});
+
+describe("the files an import reaches as data", () => {
+    it.each([
+        { path: "libs/shared/src/lib/targets.schema.json", data: true },
+        { path: "apps/intellij-plugin/src/main/kotlin/io/x/Editor.kt", data: true },
+        { path: "apps/vscode-plugin/src/feature/Service.ts", data: false },
+        { path: ".github/scripts/release-check.mjs", data: false },
+        { path: ".github/scripts/release-check.d.mts", data: false },
+    ])("$path: $data", ({ path, data }) => {
+        expect(isDataFile(path)).toBe(data);
     });
 });
 
