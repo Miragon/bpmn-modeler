@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-20
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -53,10 +53,15 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   pane's top edge with only the categories that changed, icon buttons for stepping with
   the position and Show all, and markers in the CI status colours (tinted fills with a
   dark contour in light mode, the status colour on the stroke in dark mode; an added
-  connection is dark with a green glow). Where two webviews hold the panes, both draw
-  the bar and only the after pane's half carries the changes, so the halves read as one
-  across the sash; this holds for the DMN diff too, whose before pane still shows the
-  card for a view it lacks. `DiffSideLabelView` names each pane's version, or its file
+  connection is dark and heavier). Nothing else sits on the canvas: the DMN diff puts
+  no counts on a decision whose table changed and draws dmn-js's drill-down as a dark
+  outline icon. A marked edge is thickened with a tight shadow in its own colour, since
+  a wider stroke would scale its arrowhead. Where two webviews hold the panes, both draw
+  the bar and split it as Diagit's one bar reads: the before pane's half carries the
+  changes (`showControls: false`), the after pane's stepping, Show all and swap
+  (`showChanges: false`). Neither half wraps, so both keep one height and the bar runs
+  through across the sash; a pane too narrow for the category words keeps the swatches
+  and counts and names each on its slot's title. This holds for the DMN diff too. `DiffSideLabelView` names each pane's version, or its file
   on a compare-files pane, in both diffs.
 - The bar covers its parent's top edge. `DiffLegendView.reserveRoomOn` keeps its
   height in `--diff-legend-height` on a target, and a consumer starts its canvas that
@@ -178,6 +183,16 @@ resolving merge conflicts on the diagram (#2459), whose library is in
   not move. Show all keeps the selection, as the merge view's does, except where leaving
   a sub-process plane drops it. The cost: two webview callers that each read the stepped
   change their own way, and a core that cannot tell a step's selection from a click's.
+- *A connection's pad stands centred above its middle*, where it plainly belongs to the
+  connection: diagram-js puts it on the arrowhead, over the shape the connection points
+  to. `ConnectionPadPlacement` reopens a selected connection's pad for the connection
+  alone, which diagram-js places at the top right of its bounds, and moves it from there
+  by an offset to the polyline's midpoint that it recomputes on every zoom, so the merge
+  card below a flow never meets it. It uses only the public `selection.changed`,
+  `contextPad.open`, `contextPad.close`, `canvas.viewbox.changed` and
+  `contextPad.open(target)`. The cost: every pad provider of a diff or merge pane also
+  answers `getMultiElementContextPadEntries` for that one-element pad, and the offset
+  assumes diagram-js's 8-unit margin and bounds-based place.
 - *Resize.* Opening the group below takes the panes' lower half. diagram-js's
   KeepSelectionVisible is replaced in every `DiffViewer` by its own rule in one pane:
   the one the user selected in, or for a step the stepping pane, or the partner when

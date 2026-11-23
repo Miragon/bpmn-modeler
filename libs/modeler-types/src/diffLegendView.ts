@@ -85,8 +85,10 @@ export interface DiffLegendState<Key extends string = DiffCategory> {
     readonly filename?: string;
     readonly showSwap: boolean;
     readonly canStep: boolean;
-    /** `false` leaves an empty bar, for a pane whose partner's bar shows the changes. */
+    /** `false` leaves the changes to a partner pane's bar, as the right half of a bar split across two panes. */
     readonly showChanges?: boolean;
+    /** `false` leaves stepping, Show all and swap to a partner pane's bar, as the left half of a split bar. */
+    readonly showControls?: boolean;
     /** The change the stepper is on, counted from 0; omitted before the first step. */
     readonly position?: { readonly index: number; readonly total: number };
 }
@@ -150,6 +152,7 @@ export class DiffLegendView<Key extends string = DiffCategory> {
     private readonly nextButton: HTMLButtonElement;
     private readonly position = createElement("span", "diff-legend__position");
     private readonly showAllButton: HTMLButtonElement;
+    private readonly nav = createElement("div", "diff-legend__nav");
     private readonly swapGroup = createElement("div", "diff-legend__swap-group");
     // Shares the nav buttons' class so both groups align and theme alike.
     private readonly swapButton: HTMLButtonElement;
@@ -203,8 +206,9 @@ export class DiffLegendView<Key extends string = DiffCategory> {
         this.state = state;
         this.element.hidden = false;
         this.countsRow.hidden = state.showChanges === false;
+        this.nav.hidden = state.showControls === false;
         this.enableStepping(state.canStep);
-        this.swapGroup.hidden = !(state.showSwap && this.actions.onSwap);
+        this.swapGroup.hidden = !(state.showSwap && this.actions.onSwap) || this.nav.hidden;
         this.filename.hidden = !state.filename;
         this.filename.textContent = state.filename ?? "";
         this.showStatus(state.status);
@@ -233,15 +237,9 @@ export class DiffLegendView<Key extends string = DiffCategory> {
         this.showAllButton.hidden = !this.actions.onShowAll;
         this.swapGroup.hidden = true;
         this.swapGroup.append(this.swapButton);
-        const nav = createElement("div", "diff-legend__nav");
-        nav.append(this.previousButton, this.nextButton, this.position, this.showAllButton);
-        this.countsRow.append(
-            ...this.countSlots.map(({ slot }) => slot),
-            this.none,
-            nav,
-            this.swapGroup,
-        );
-        this.element.append(this.filename, this.countsRow);
+        this.nav.append(this.previousButton, this.nextButton, this.position, this.showAllButton);
+        this.countsRow.append(...this.countSlots.map(({ slot }) => slot), this.none);
+        this.element.append(this.filename, this.countsRow, this.nav, this.swapGroup);
     }
 
     private enableStepping(canStep: boolean): void {
@@ -287,8 +285,9 @@ export class DiffLegendView<Key extends string = DiffCategory> {
     private renderWords(): void {
         const translate = (key: string) => this.translator.translate(key);
         this.element.setAttribute("aria-label", translate(DIFF_LEGEND_TEXTS.changes));
-        for (const { definition, label } of this.countSlots) {
-            label.data = `${translate(definition.label)} `;
+        for (const { definition, slot, label } of this.countSlots) {
+            slot.title = translate(definition.label);
+            label.data = `${slot.title} `;
         }
         const status = this.state?.status;
         if (this.status) {

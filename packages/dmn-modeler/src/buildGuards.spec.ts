@@ -37,7 +37,6 @@ describe("declaration roll-up guard", () => {
     });
 
     it.each([
-        ["DmnDiffMarkOptions", "export declare interface DmnDiffMarkOptions {}\n"],
         ["DmnDiffMarks", "export declare interface DmnDiffMarks {}\n"],
         ["DmnDiffViewerHandle", "declare interface DmnDiffViewerHandle {}\n"],
         ["DmnDiffViewerOptions", "export declare interface DmnDiffViewerOptions {}\n"],

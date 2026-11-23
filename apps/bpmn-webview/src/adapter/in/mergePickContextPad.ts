@@ -9,6 +9,7 @@ import { padEntryOf } from "../../domain/mergePaneCommands";
 import type { MergePadDecision } from "../../domain/mergePadDecisions";
 import { padDecisionText } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
+import { ConnectionPadPlacement, connectionPadPlacementModule } from "./connectionPadPlacement";
 import { MERGE_DECISION_ICONS } from "./mergeDecisionIcons";
 import { installMergeTooltips, MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
@@ -25,10 +26,12 @@ export interface MergePickEntryConfig {
     selectionChanged(): void;
 }
 
+type PadTarget = BpmnDiagramElement | readonly BpmnDiagramElement[];
+
 interface ContextPadEntry {
     group: string;
     html: string;
-    action: { click: (event: Event, element: BpmnDiagramElement) => void };
+    action: { click: (event: Event, target: PadTarget) => void };
 }
 
 type ContextPadEntries = Record<string, ContextPadEntry>;
@@ -36,7 +39,7 @@ type ContextPadEntries = Record<string, ContextPadEntry>;
 interface ContextPad {
     registerProvider(provider: MergePickContextPadProvider): void;
     isOpen(): boolean;
-    open(target: BpmnDiagramElement, force: boolean): void;
+    open(target: PadTarget, force: boolean): void;
 }
 
 interface Selection {
@@ -76,6 +79,7 @@ export class MergePickContextPadProvider {
         "eventBus",
         "translate",
         "mergePickEntryConfig",
+        "connectionPadPlacement",
     ];
 
     constructor(
@@ -85,6 +89,7 @@ export class MergePickContextPadProvider {
         eventBus: EventBus,
         private readonly translate: MergeTranslate,
         private readonly entryConfig: MergePickEntryConfig,
+        private readonly padPlacement: ConnectionPadPlacement,
     ) {
         contextPad.registerProvider(this);
         installMergeTooltips(document);
@@ -105,7 +110,13 @@ export class MergePickContextPadProvider {
     refresh(): void {
         const [selected] = this.selection.get();
         if (selected !== undefined && this.contextPad.isOpen())
-            this.contextPad.open(selected, true);
+            this.contextPad.open(this.padPlacement.padTargetOf(selected), true);
+    }
+
+    /** A connection's pad, which {@link ConnectionPadPlacement} opens for it alone. */
+    getMultiElementContextPadEntries(elements: BpmnDiagramElement[]): ContextPadEntries {
+        const element = ConnectionPadPlacement.elementOf(elements);
+        return element ? this.getContextPadEntries(element) : {};
     }
 
     getContextPadEntries(element: BpmnDiagramElement): ContextPadEntries {
@@ -123,8 +134,11 @@ export class MergePickContextPadProvider {
             group: "merge-pick",
             html: `<button type="button" class="entry merge-pick-action" aria-label="${escapeHTML(label)}" ${MERGE_TOOLTIP_ATTRIBUTE}="${escapeHTML(tooltip)}">${MERGE_DECISION_ICONS[padEntryOf(decision)]}</button>`,
             action: {
-                click: (_event, clicked) =>
-                    this.entryConfig.decide(bpmnElementIdOf(clicked), decision),
+                click: (_event, target) =>
+                    this.entryConfig.decide(
+                        bpmnElementIdOf(ConnectionPadPlacement.elementOf(target)!),
+                        decision,
+                    ),
             },
         };
     }
@@ -133,7 +147,12 @@ export class MergePickContextPadProvider {
 /** The merge pane's decision entries on diagram-js's context pad, with the shared translator. */
 export function createMergePickModule(entryConfig: MergePickEntryConfig) {
     return {
-        __depends__: [ContextPadModule, SelectionModule, TranslateModule],
+        __depends__: [
+            ContextPadModule,
+            connectionPadPlacementModule,
+            SelectionModule,
+            TranslateModule,
+        ],
         __init__: ["mergePickContextPadProvider"],
         mergePickContextPadProvider: ["type", MergePickContextPadProvider],
         mergePickEntryConfig: ["value", entryConfig],

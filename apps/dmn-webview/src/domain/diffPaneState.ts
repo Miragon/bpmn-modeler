@@ -136,15 +136,16 @@ export function legendOf(
 ): DiffLegendState | undefined {
     const highlights = state.highlights;
     if (!state.imported || !highlights) return undefined;
-    // Both panes draw the bar; the after pane's half carries the changes, and the
-    // before pane's missing view still shows its card.
+    // Both panes draw the bar: the before pane's half carries the changes, the
+    // after pane's the controls.
     const isAfter = highlights.side === "after";
     return {
         counts: state.missing ? undefined : countsOf(highlights.view, state.openElement),
         status: missingCardOf(state) ?? (state.openElement === null ? undefined : openViewStatus),
         showSwap: diffOriginSupports(highlights.origin, "swapsSides") && isAfter,
         canStep: canStep(stepsInView(state)),
-        showChanges: isAfter,
+        showChanges: !isAfter,
+        showControls: isAfter,
         position:
             state.cursor < 0
                 ? undefined

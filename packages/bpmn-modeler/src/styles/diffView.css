@@ -77,9 +77,10 @@
     stroke-width: 2px !important;
 }
 
-/* An added connection is dark like any other; a green glow tells it apart. */
+/* An added connection is dark like any other and, as in Diagit, heavier: a tight
+   shadow thickens it without scaling its arrowhead the way a wider stroke would. */
 .djs-connection.diff-added:not([data-bpmn-theme="dark"] *) .djs-visual > path {
-    filter: drop-shadow(0 0 1.5px #00e676) drop-shadow(0 0 1.5px #00e676);
+    filter: drop-shadow(0 0 0.5px #1d1d1d) drop-shadow(0 0 0.5px #1d1d1d);
 }
 
 .djs-connection.diff-layout-changed .djs-visual > path {

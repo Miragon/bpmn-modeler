@@ -113,6 +113,63 @@ async function textDiffLines(page: Page): Promise<string> {
     return sides.join("\n").replaceAll(" ", " ");
 }
 
+/**
+ * Whether the pane's open context pad sits where it belongs: right of a
+ * selected shape, level with its top, or centred just above a selected
+ * connection's middle, and never over another shape. No pad and no selection
+ * count as placed.
+ */
+function padPlacement(webview: FrameLocator): Promise<string> {
+    return webview.locator("body").evaluate(() => {
+        const entries = [...document.querySelectorAll(".djs-context-pad.open .entry")];
+        const selected = document.querySelector(".djs-element.selected");
+        if (!selected) return entries.length > 0 ? "a pad without a selection" : "placed";
+        if (entries.length === 0) return "no pad on the selection";
+        const pad = entries
+            .map((entry) => entry.getBoundingClientRect())
+            .map(({ left, top, right, bottom }) => ({ left, top, right, bottom }))
+            .reduce((all, box) => ({
+                left: Math.min(all.left, box.left),
+                top: Math.min(all.top, box.top),
+                right: Math.max(all.right, box.right),
+                bottom: Math.max(all.bottom, box.bottom),
+            }));
+        const box = selected.getBoundingClientRect();
+        const covered = [...document.querySelectorAll(".djs-shape:not(.djs-label)")]
+            .filter((shape) => shape !== selected)
+            .map((shape) => shape.querySelector(".djs-visual")!.getBoundingClientRect())
+            .some(
+                (shape) =>
+                    shape.width > 0 &&
+                    pad.left < shape.right &&
+                    shape.left < pad.right &&
+                    pad.top < shape.bottom &&
+                    shape.top < pad.bottom,
+            );
+        if (covered) return "over another shape";
+        const round = (value: number) => Math.round(value);
+        if (selected.classList.contains("djs-connection")) {
+            // The first path in the visual is the arrowhead in the connection's own defs.
+            const line = selected.querySelector<SVGPathElement>(".djs-visual > path")!;
+            const half = line.getPointAtLength(line.getTotalLength() / 2);
+            const viewport = document.querySelector<SVGGElement>("svg > .viewport")!;
+            const { a: scale, e, f } = viewport.transform.baseVal.consolidate()!.matrix;
+            const svg = viewport.ownerSVGElement!.getBoundingClientRect();
+            const middle = { x: svg.left + e + half.x * scale, y: svg.top + f + half.y * scale };
+            const offCentre = (pad.left + pad.right) / 2 - middle.x;
+            const gap = middle.y - pad.bottom;
+            return Math.abs(offCentre) <= 4 && gap >= 0 && gap <= 16
+                ? "placed"
+                : `connection pad ${round(offCentre)} off centre, ${round(gap)} above the line`;
+        }
+        const dx = pad.left - box.right;
+        const dy = pad.top - box.top;
+        return dx >= 0 && dx <= 24 && Math.abs(dy) <= 4
+            ? "placed"
+            : `shape pad ${round(dx)} right of it, ${round(dy)} below its top`;
+    });
+}
+
 const suite = smokeSuite({
     name: "bpmn-diff",
     workspace: compareFixtures({
@@ -156,6 +213,18 @@ describe("the BPMN visual diff in a real VS Code", () => {
             .toBeGreaterThan(0);
         await settle(after);
         await suite.screenshot("bpmn-diff");
+    });
+
+    it("opens the context pad of each change it steps to right of a shape or above a connection's middle, clear of every shape", async () => {
+        const { before, after } = await compareFromExplorer(BEFORE_FILE, AFTER_FILE);
+        await expectMarked(after, "Activity_review", "diff-added");
+
+        for (let step = 1; step <= 5; step += 1) {
+            await after.locator(".diff-legend__next-btn").click();
+            for (const pane of [before, after]) {
+                await expect.poll(() => padPlacement(pane)).toBe("placed");
+            }
+        }
     });
 
     it("shows an element's XML changes in a text diff below the BPMN diff that follows the selection", async () => {

@@ -7,12 +7,21 @@ vi.mock("@miragon/bpmn-modeler/viewer", () => ({
     bpmnElementIdOf: (element: { businessObject: { id: string } }) => element.businessObject.id,
 }));
 
+import { ConnectionPadPlacement } from "./connectionPadPlacement";
 import { createMergePickModule, MergePickContextPadProvider } from "./mergePickContextPad";
 import { MERGE_TOOLTIP_ATTRIBUTE } from "./mergeTooltip";
 
 const ROOT = { id: "Process_1", businessObject: { id: "Process_1" } };
 const TASK = { id: "Task_1", businessObject: { id: "Task_1" } };
 const TASK_LABEL = { id: "Task_1_label", businessObject: { id: "Task_1" } };
+const FLOW = {
+    id: "Flow_1",
+    businessObject: { id: "Flow_1" },
+    waypoints: [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+    ],
+};
 
 const OFFER = { elementId: "Task_1", connections: ["Flow_1", "Flow_2"], removedBy: "current" };
 
@@ -29,7 +38,10 @@ const untranslated = (key: string, replacements: Record<string, string> = {}) =>
 
 function build(
     decisions: readonly MergePadDecision[],
-    { open = false, selected = [TASK] as readonly (typeof TASK)[] } = {},
+    {
+        open = false,
+        selected = [TASK] as readonly { id: string; businessObject: { id: string } }[],
+    } = {},
 ) {
     const contextPad = {
         registerProvider: vi.fn(),
@@ -43,7 +55,7 @@ function build(
         on: vi.fn((event: string, listener: () => void) => listeners.set(event, listener)),
     };
     const entryConfig = {
-        decisionsOf: vi.fn((id: string) => (id === "Task_1" ? decisions : [])),
+        decisionsOf: vi.fn((id: string) => (id === "Task_1" || id === "Flow_1" ? decisions : [])),
         decide: vi.fn(),
         attach: vi.fn(),
         selectionChanged: vi.fn(),
@@ -55,6 +67,7 @@ function build(
         eventBus,
         untranslated,
         entryConfig,
+        new ConnectionPadPlacement({ open: vi.fn() }, { on: vi.fn() }, { zoom: () => 1 }),
     );
     const fire = (event: string) => listeners.get(event)?.();
     return { provider, contextPad, entryConfig, fire };
@@ -104,6 +117,32 @@ describe("MergePickContextPadProvider", () => {
         fire("selection.changed");
 
         expect(entryConfig.selectionChanged).toHaveBeenCalledOnce();
+    });
+
+    it("reopens a connection's pad for the connection alone, so it stays above its right end", () => {
+        const { provider, contextPad } = build([], { open: true, selected: [FLOW] });
+
+        provider.refresh();
+
+        expect(contextPad.open).toHaveBeenCalledExactlyOnceWith([FLOW], true);
+    });
+
+    it("offers its decisions on a connection's pad, which opens for the connection alone", () => {
+        const { provider, entryConfig } = build(EVERY_DECISION);
+
+        const entries = provider.getMultiElementContextPadEntries([FLOW]);
+        entries["merge-undo"].action.click(new Event("click"), [FLOW]);
+
+        expect(Object.keys(entries)).toStrictEqual(
+            Object.keys(provider.getContextPadEntries(FLOW)),
+        );
+        expect(entryConfig.decide).toHaveBeenCalledExactlyOnceWith("Flow_1", EVERY_DECISION[4]);
+    });
+
+    it("offers nothing on a pad for several elements", () => {
+        const { provider } = build(EVERY_DECISION);
+
+        expect(provider.getMultiElementContextPadEntries([FLOW, TASK])).toEqual({});
     });
 
     it("leaves a closed pad closed", () => {

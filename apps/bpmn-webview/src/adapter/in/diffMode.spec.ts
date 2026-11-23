@@ -295,8 +295,16 @@ describe("DiffMode", () => {
             dispatch(highlights("scm"));
 
             expect(legend().update.mock.calls).toEqual([
-                [{ counts, showSwap: true, canStep: true, showChanges: true }],
-                [{ counts, showSwap: false, canStep: true, showChanges: true }],
+                [{ counts, showSwap: true, canStep: true, showChanges: false, showControls: true }],
+                [
+                    {
+                        counts,
+                        showSwap: false,
+                        canStep: true,
+                        showChanges: false,
+                        showControls: true,
+                    },
+                ],
             ]);
         });
 
@@ -313,13 +321,17 @@ describe("DiffMode", () => {
             expect(sideLabel()?.showFilename.mock.calls).toEqual([["after.bpmn"], [undefined]]);
         });
 
-        it("leaves the changes to the after pane's bar, so both bars read as one", async () => {
+        it("splits one bar across both panes: the changes left, the controls right", async () => {
             await startDiffPane();
 
             dispatch(highlights("compare-files", "before"));
 
             expect(legend().update).toHaveBeenCalledWith(
-                expect.objectContaining({ showChanges: false, showSwap: false }),
+                expect.objectContaining({
+                    showChanges: true,
+                    showControls: false,
+                    showSwap: false,
+                }),
             );
         });
     });

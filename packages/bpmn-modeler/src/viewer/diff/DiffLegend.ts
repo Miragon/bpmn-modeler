@@ -41,8 +41,10 @@ export interface DiffLegendContext {
      * counts and enables the buttons whenever any count is above zero.
      */
     readonly canStep?: boolean;
-    /** `false` leaves an empty bar, for a pane whose partner's bar shows the changes. */
+    /** `false` leaves the changes to a partner pane's bar, as the right half of a bar split across two panes. */
     readonly showChanges?: boolean;
+    /** `false` leaves stepping, Show all and swap to a partner pane's bar, as the left half of a split bar. */
+    readonly showControls?: boolean;
     /** The change the stepper is on, counted from 0, e.g. a `DiffNavigator`'s `cursor`. */
     readonly position?: { readonly index: number; readonly total: number };
 }
@@ -71,13 +73,15 @@ export class DiffLegend {
     }
 
     update(context: DiffLegendContext): void {
-        const { counts, filename, showSwap, canStep, showChanges, position } = context;
+        const { counts, filename, showSwap, canStep, showChanges, showControls, position } =
+            context;
         this.view.update({
             counts,
             filename,
             showSwap: showSwap ?? false,
             canStep: canStep ?? DIFF_CATEGORIES.some((category) => counts[category] > 0),
             showChanges,
+            showControls,
             position,
         });
     }

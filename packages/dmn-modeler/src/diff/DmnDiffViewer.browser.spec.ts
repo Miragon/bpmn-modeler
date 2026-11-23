@@ -56,32 +56,30 @@ afterEach(() => {
 });
 
 describe("DMN diff pane (real dmn-js)", () => {
-    it("marks the DRD's changes and puts a changed table's counts on its decision", async () => {
+    it("marks the DRD's changes and puts no counts on a changed table's decision", async () => {
         const { viewer, container } = await pane();
 
-        viewer.setMarks(MARKS, { countBadges: true });
+        viewer.setMarks(MARKS);
 
         const element = (id: string) =>
             container.querySelector(`.djs-element[data-element-id="${id}"]`);
         expect(element("Input_1")?.classList).toContain("diff-added");
         expect(element("Decision_1")?.classList).toContain("diff-changed");
         expect(element("IR_1")?.classList).toContain("diff-layout-changed");
-        expect(container.querySelector(".dmn-diff-counts")?.textContent).toBe("2021");
+        expect(
+            container.querySelector(".djs-overlays .djs-overlay:not(:has(.drill-down-overlay))"),
+        ).toBeNull();
     });
 
-    it("sets a changed table's counts in its own small, bold type without a host font", async () => {
-        const { viewer, container } = await pane();
+    it("draws a decision's drill-down as a dark outline icon, not a filled accent square", async () => {
+        const { container } = await pane();
 
-        viewer.setMarks(MARKS, { countBadges: true });
-
-        const badge = styleOf(container, ".dmn-diff-counts");
-        expect(badge.fontWeight).toBe("600");
-        expect(badge.fontSize).toBe("11px");
-        expect(badge.lineHeight).toBe("16px");
-        expect(badge.fontFamily).toMatch(/^"Geist Variable", Geist, .*sans-serif$/);
+        const button = styleOf(container, ".drill-down-overlay > *");
+        expect(button.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        expect(button.color).toBe("rgb(29, 29, 29)");
     });
 
-    it("marks a requirement at its own width, so its arrowhead keeps its size", async () => {
+    it("draws a marked requirement heavier with a shadow at its own width, so its arrowhead keeps its size", async () => {
         const { viewer, container } = await pane();
         const edge = '.djs-element[data-element-id="IR_1"] .djs-visual path';
         const ownWidth = styleOf(container, edge).strokeWidth;
@@ -96,7 +94,8 @@ describe("DMN diff pane (real dmn-js)", () => {
         const { strokeWidth: movedWidth, strokeDasharray } = styleOf(container, edge);
 
         expect(stroke).toBe("rgb(29, 29, 29)");
-        expect(filter).toContain(ADDED);
+        expect(filter).toContain("drop-shadow(rgb(29, 29, 29)");
+        expect(filter).not.toContain(ADDED);
         expect(addedWidth).toBe(ownWidth);
         expect(shapeWidth).toBe("2px");
         expect(movedWidth).toBe(ownWidth);
