@@ -3236,7 +3236,7 @@ __metadata:
     "@miragon/bpmn-modeler-merge": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.23.0"
     "@miragon/dmn-modeler-diff": "workspace:*"
     "@stryker-mutator/core": "npm:10.1.1"
     "@stryker-mutator/vitest-runner": "npm:10.1.1"
@@ -3334,7 +3334,7 @@ __metadata:
   dependencies:
     "@bpmn-io/properties-panel": "npm:3.57.0"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.23.0"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
     bpmn-moddle: "npm:10.3.1"
@@ -3666,7 +3666,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.23.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.0"
@@ -3713,7 +3713,7 @@ __metadata:
     "@miragon/bpmn-modeler-layout": "workspace:*"
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.22.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.23.0"
     "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
@@ -3763,9 +3763,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmnlint-plugin-rules@npm:0.22.0":
-  version: 0.22.0
-  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.22.0"
+"@miragon/bpmnlint-plugin-rules@npm:0.23.0":
+  version: 0.23.0
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.23.0"
   dependencies:
     bpmnlint-plugin-camunda-compat: "npm:2.63.0"
     bpmnlint-utils: "npm:1.1.1"
@@ -3773,7 +3773,7 @@ __metadata:
     zeebe-bpmn-moddle: "npm:2.0.0"
   peerDependencies:
     bpmnlint: ">=11.14.0"
-  checksum: 10c0/aef659a44e529a3f200882bbbda2b18d4563fffe42ea87f6361e26cbecd8f5cef31a7a618099c01772038e79b19c64d2a6885f917a804f3f5790f48cf251592f
+  checksum: 10c0/9f313d6a110b5ca264764117110cc66f75c94a9d58188a7f96627ee8f3ac938fae281921f0671d2a65ab5f3462a76040710b754d91d862e98bab873d279b7c37
   languageName: node
   linkType: hard
 
