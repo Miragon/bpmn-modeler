@@ -1,24 +1,17 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import ts from "typescript";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
-// Private workspace libraries must be inlined because consumers cannot install them.
-const INLINED_LIBS = [
-    "@miragon/bpmn-modeler-types",
-    "@miragon/bpmn-modeler-browser",
-    "@miragon/bpmn-modeler-diff",
-    "@miragon/bpmn-modeler-i18n-extras",
-];
-
+// Private workspace libraries must be inlined because consumers cannot install them; check-dts reads the same list.
+const inlinedLibraries = JSON.parse(
+    readFileSync(new URL("./inlined-libraries.json", import.meta.url), "utf8"),
+) as { name: string; sourceRoot: string }[];
+const INLINED_LIBS = inlinedLibraries.map(({ name }) => name);
 // Emit private-library declarations so API Extractor can inline their types.
-const INLINED_LIB_SRC = [
-    "../../libs/modeler-types/src",
-    "../../libs/modeler-browser/src",
-    "../../libs/bpmn-diff/src",
-    "../../libs/bpmn-i18n-extras/src",
-];
+const INLINED_LIB_SRC = inlinedLibraries.map(({ sourceRoot }) => sourceRoot);
 
 function isInlined(id: string): boolean {
     return INLINED_LIBS.some((name) => id === name || id.startsWith(`${name}/`));

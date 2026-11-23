@@ -320,6 +320,7 @@
                 ".github/workflows/publish-intellij.yml",
                 ".github/workflows/vscode-smoke.yml",
                 "packages/bpmn-modeler/inlined-libraries.json",
+                "packages/dmn-modeler/inlined-libraries.json",
                 "{apps,packages}/*/vite*.mts",
                 "vite.shared.ts",
                 "apps/vscode-plugin/webpack.config.js",

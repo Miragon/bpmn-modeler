@@ -1,5 +1,6 @@
 export interface CheckDtsOptions {
     distDir?: string;
+    configPath?: string;
     entries?: string[];
 }
 
