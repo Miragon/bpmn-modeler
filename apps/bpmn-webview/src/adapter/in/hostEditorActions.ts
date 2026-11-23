@@ -1,4 +1,4 @@
-import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
+import { isTextEditingSurface } from "@miragon/bpmn-modeler-browser";
 
 /** bpmn-js editor actions a host may drive programmatically. */
 export type HostEditorAction = "undo" | "redo";

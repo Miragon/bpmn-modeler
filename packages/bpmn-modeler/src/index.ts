@@ -8,7 +8,7 @@
 // Load theme overrides last so they take precedence over the base styles.
 import "./styles/default.css";
 import "./styles/diff.css";
-import "../../../libs/modeler-types/src/canvasOverlays.css";
+import "../../../libs/modeler-browser/src/canvasOverlays.css";
 import "./styles/themes.css";
 
 export { createModeler } from "./createModeler";

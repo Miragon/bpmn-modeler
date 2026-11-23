@@ -27,6 +27,7 @@
                 "libs/modeler-core/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
@@ -50,6 +51,7 @@
                 "libs/modeler-core/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
@@ -78,6 +80,7 @@
                 "packages/bpmn-modeler/**",
                 "scripts/perf/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-clipboard/**",
                 "libs/bpmn-i18n-extras/**",
@@ -111,6 +114,7 @@
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/dmn-diff/**",
                 "libs/bpmn-i18n-extras/**"
@@ -139,6 +143,7 @@
                 "packages/dmn-modeler/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-clipboard/**",
                 "libs/bpmn-i18n-extras/**",
@@ -166,7 +171,8 @@
             "paths": [
                 "apps/form-webview/**",
                 "libs/shared/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "libs/modeler-browser/**"
             ],
             "typecheck": "typecheck"
         },
@@ -178,6 +184,7 @@
                 ".miragon/brand-assets.sha256",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/modeler-core/src/addOns/domain/**"
             ],
             "typecheck": "typecheck"
@@ -188,7 +195,8 @@
             "paths": [
                 "apps/deployment-webview/**",
                 "libs/shared/**",
-                "libs/modeler-types/**"
+                "libs/modeler-types/**",
+                "libs/modeler-browser/**"
             ],
             "typecheck": "typecheck"
         },
@@ -205,6 +213,7 @@
                 "libs/*/src/**",
                 "scripts/perf/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-clipboard/**",
                 "libs/bpmn-i18n-extras/**",
@@ -235,6 +244,7 @@
                 "tools/architecture-testing/**",
                 "libs/*/src/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-i18n-extras/**"
             ],
             "typecheck": "typecheck",
@@ -254,6 +264,7 @@
                 "tools/architecture-testing/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/bpmn-diff/**",
                 "libs/bpmn-merge/**",
                 "libs/dmn-diff/**",
@@ -341,6 +352,7 @@
             "paths": [
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "apps/*/src/adapter/out/browserPreview/**"
             ],
             "typecheck": "typecheck"
@@ -349,6 +361,17 @@
             "dir": "libs/modeler-types",
             "package": "@miragon/bpmn-modeler-types",
             "paths": [
+                "libs/modeler-types/**",
+                "libs/bpmn-diff/**",
+                "yarn.lock"
+            ],
+            "typecheck": "build"
+        },
+        "modeler-browser": {
+            "dir": "libs/modeler-browser",
+            "package": "@miragon/bpmn-modeler-browser",
+            "paths": [
+                "libs/modeler-browser/**",
                 "libs/modeler-types/**",
                 "libs/bpmn-diff/**",
                 "yarn.lock"
@@ -526,6 +549,7 @@
                 "libs/standalone-extension/**",
                 "libs/shared/**",
                 "libs/modeler-types/**",
+                "libs/modeler-browser/**",
                 "libs/properties-panel/**",
                 "apps/standalone/package.json",
                 "yarn.lock"

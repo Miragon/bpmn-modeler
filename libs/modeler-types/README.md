@@ -1,10 +1,15 @@
 # `@miragon/bpmn-modeler-types`
 
 The publishable half of the shared code: model types (engine, lint, settings, scripting, implementation,
-diff), browser utilities (canvas resize, the text-editing predicate, the flushable input debounce) and
-pure rules that browser code and `@miragon/bpmn-modeler-core` both apply (`scriptSurface.ts`,
-`workspaceDefinitions.ts`, `xmlMarkup.ts`, `processVariables.ts`) or that two browser workspaces apply
-(`polyline.ts`). Nearly every workspace imports it; both npm packages inline it.
+diff, the diff legend's state), the flushable input debounce and pure rules that browser code and
+`@miragon/bpmn-modeler-core` both apply (`scriptSurface.ts`, `workspaceDefinitions.ts`, `xmlMarkup.ts`,
+`processVariables.ts`, `canvasSize.ts`) or that two browser workspaces apply (`polyline.ts`). Nearly every
+workspace imports it; both npm packages inline it.
+
+It compiles without the DOM (`tsconfig.lib.json` and `tsconfig.spec.json` set `lib: ["ES2021"]`), which
+makes it a pure module the core's `domain/` may import
+([domain imports](../../docs/adr/role-folders.md#domain-imports)). The DOM widgets and helpers live in
+[`@miragon/bpmn-modeler-browser`](../modeler-browser/README.md).
 
 Internal workspace, not published on its own.
 
@@ -13,7 +18,7 @@ Internal workspace, not published on its own.
 Everything here may ship in the npm packages. The webview ↔ host protocol (`Query`, `Command`, `HostApi`,
 document flush) stays private in [`@miragon/bpmn-modeler-shared`](../shared/README.md).
 
-- This package, the bpmn-js modules (`append-menu`, `bpmn-clipboard`, `code-link`, `definition-search`,
+- This package, `modeler-browser`, the bpmn-js modules (`append-menu`, `bpmn-clipboard`, `code-link`, `definition-search`,
   `element-template-builder`, `element-template-chooser`, `flow-navigation`, `inline-scripting`,
   `model-navigation`, `properties-panel`) and both npm packages must never import
   `@miragon/bpmn-modeler-shared`. The ESLint rule `BND-PROTOCOL-PRIVATE` in `eslint.config.cjs` fails
@@ -27,7 +32,7 @@ document flush) stays private in [`@miragon/bpmn-modeler-shared`](../shared/READ
 ## Usage
 
 ```ts
-import { type Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-modeler-types";
+import { type Engine, isUsableViewbox } from "@miragon/bpmn-modeler-types";
 ```
 
 ### The `/engine` entry point
@@ -40,9 +45,10 @@ import {
 ```
 
 `@miragon/bpmn-modeler-types/engine` (a path in `tsconfig.base.json`) is `src/engine.ts` alone: the
-engine vocabulary and its detection. It exists because the barrel also exports DOM helpers (`dom.ts`,
-`canvasResize.ts`, …), which a workspace compiled without the DOM lib, such as the merge (#2450), cannot
-type-check. `domFreeEntries.spec.ts` therefore reads every `@miragon/bpmn-modeler-types/<entry>`
+engine vocabulary and its detection. It was added while the barrel still exported DOM helpers, which a
+workspace compiled without the DOM lib, such as the merge (#2450), could not type-check; they left for
+`@miragon/bpmn-modeler-browser` (#2776), and the entry still loads one file instead of the barrel and its
+runtime imports. `domFreeEntries.spec.ts` therefore reads every `@miragon/bpmn-modeler-types/<entry>`
 path in `tsconfig.base.json` and fails on any runtime import in its file; `import type` is erased and
 stays allowed. A new entry point is checked once its path is there.
 

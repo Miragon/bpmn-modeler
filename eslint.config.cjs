@@ -214,6 +214,7 @@ module.exports = [
     {
         files: [
             "libs/modeler-types/**",
+            "libs/modeler-browser/**",
             "libs/append-menu/**",
             "libs/bpmn-clipboard/**",
             "libs/code-link/**",
@@ -288,6 +289,7 @@ module.exports = [
             "libs/inline-scripting/**/*.tsx",
             "libs/modeler-types/**/*.ts",
             "libs/modeler-types/**/*.tsx",
+            "libs/modeler-browser/**/*.ts",
             "libs/properties-panel/src/modeFilter/**/*.ts",
             "libs/properties-panel/src/modeFilter/**/*.tsx",
         ],

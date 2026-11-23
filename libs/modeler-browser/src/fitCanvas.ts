@@ -1,4 +1,4 @@
-import { MIN_CANVAS_SIZE_PX } from "./canvasResize";
+import { isCanvasSized } from "@miragon/bpmn-modeler-types";
 
 const FIT_MARGIN = 40;
 // Keeps the former 50px palette + 20px margin when there is no palette to measure.
@@ -17,15 +17,6 @@ export interface FittableCanvas {
     viewbox(box: Box): void;
     zoom(target: "fit-viewport"): void;
     getContainer(): HTMLElement;
-}
-
-/**
- * Whether the host has laid the canvas out at a size worth fitting into. An
- * unlaid-out container yields a NaN transform, which SVG renders as nothing.
- */
-export function isCanvasSized(canvas: FittableCanvas): boolean {
-    const { outer } = canvas.viewbox();
-    return outer.width >= MIN_CANVAS_SIZE_PX && outer.height >= MIN_CANVAS_SIZE_PX;
 }
 
 /**

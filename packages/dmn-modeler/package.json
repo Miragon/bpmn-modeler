@@ -67,6 +67,7 @@
     "devDependencies": {
         "@microsoft/api-extractor": "7.60.1",
         "@miragon/architecture-testing": "workspace:*",
+        "@miragon/bpmn-modeler-browser": "workspace:*",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@types/node": "26.6.6",

@@ -1,5 +1,5 @@
 /** @internal */
-import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
+import { isTextEditingSurface } from "@miragon/bpmn-modeler-browser";
 
 export interface TextClipboardCallbacks {
     requestClipboard(): Promise<string>;

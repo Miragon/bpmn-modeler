@@ -1,18 +1,20 @@
 import type { MergePaneBuild } from "@miragon/bpmn-modeler-shared";
 import {
-    createElement,
     DIFF_LEGEND_CHEVRONS,
     DIFF_LEGEND_TEXTS,
     DIFF_PLANE_MISSING_TEXT,
-    diffLegendIconButton,
     type DiffLegendIconShape,
     type DiffLegendTranslator,
     MERGE_MARKER_CLASSES,
     MERGE_MARKERS,
     type MergeMarker,
     type MergeSideCaption,
-    reserveLegendHeight,
 } from "@miragon/bpmn-modeler-types";
+import {
+    createElement,
+    diffLegendIconButton,
+    reserveLegendHeight,
+} from "@miragon/bpmn-modeler-browser";
 
 import { type MergeBarFit, mergeBarFit, mergeBarFitEffects } from "../../domain/mergeBarFit";
 import { type MergeStepList, mergeStepPositionText } from "../../domain/mergeStepper";

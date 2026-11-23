@@ -1,11 +1,12 @@
 /**
- * Public, host-agnostic types and browser utilities for the BPMN/DMN modeler.
+ * Public, host-agnostic types and pure rules for the BPMN/DMN modeler.
  *
  * This barrel is the publishable half of the modeler's shared code: the
- * domain/model types and DOM helpers the `@miragon/bpmn-modeler` npm package
- * needs, with **no** dependency on the Query/Command host protocol or `HostApi`,
- * which stay private in `@miragon/bpmn-modeler-shared`. The boundary is enforced
- * by eslint (`BND-PROTOCOL-PRIVATE`), not convention.
+ * domain/model types and rules the `@miragon/bpmn-modeler` npm package needs,
+ * compiled without the DOM (the DOM widgets are `@miragon/bpmn-modeler-browser`),
+ * with **no** dependency on the Query/Command host protocol or `HostApi`, which
+ * stay private in `@miragon/bpmn-modeler-shared`. The boundary is enforced by
+ * eslint (`BND-PROTOCOL-PRIVATE`), not convention.
  */
 export * from "./asyncDebounce";
 export * from "./flushableDebounceInput";
@@ -22,9 +23,7 @@ export * from "./processVariables";
 export * from "./implementation";
 export * from "./referenceKind";
 export * from "./diff";
-export * from "./diffLegendView";
-export * from "./diffSideLabelView";
-export * from "./dom";
+export * from "./diffLegend";
 export * from "./diffStepper";
 export * from "./diffVocabulary";
 export * from "./mergeVocabulary";
@@ -35,18 +34,12 @@ export * from "./elementTypeNames";
 export * from "./translate";
 export * from "./layout";
 export * from "./errors";
-export * from "./canvasResize";
+export * from "./canvasSize";
 export * from "./disposableStore";
-export * from "./fitCanvas";
-export * from "./focusCanvasFromKeystroke";
-export * from "./fitViewportButton";
-export * from "./surfaceTheme";
 export * from "./surfaceThemeMode";
-export * from "./textEditingSurface";
 export * from "./workspaceDefinitions";
 export * from "./xmlMarkup";
 export * from "./formPreview";
-export * from "./formRuntimeCompatibility";
 export * from "./blankDocument";
 export * from "./emptyDmn";
 export * from "./pluginLoadReport";

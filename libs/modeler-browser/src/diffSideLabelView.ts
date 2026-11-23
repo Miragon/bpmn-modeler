@@ -1,5 +1,9 @@
-import type { DiffLegendTranslator } from "./diffLegendView";
-import { DIFF_PLANE_MISSING_TEXT, DIFF_SIDE_TEXTS } from "./diffVocabulary";
+import {
+    DIFF_PLANE_MISSING_TEXT,
+    DIFF_SIDE_TEXTS,
+    type DiffLegendTranslator,
+} from "@miragon/bpmn-modeler-types";
+
 import { createElement } from "./dom";
 
 /**

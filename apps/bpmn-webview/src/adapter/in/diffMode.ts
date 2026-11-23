@@ -11,9 +11,9 @@ import {
     DIFF_CATEGORIES,
     DIFF_MARKERS,
     type DiffLegendState,
-    DiffLegendView,
     diffOriginSupports,
 } from "@miragon/bpmn-modeler-types";
+import { DiffLegendView } from "@miragon/bpmn-modeler-browser";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";

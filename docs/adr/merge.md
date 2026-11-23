@@ -89,8 +89,7 @@ each reads the other's model.
 - **Cost:** synchronous rules beside the parse they need, or inline in the function that awaits
   it, stay in `service/` files (`mergeVersions.ts`, `buildChecks.ts`, `handMergeText.ts`,
   `handMergeTexts.ts`, `buildMergedSources.ts`, `buildMerged.ts` and `acceptHandMerge.ts`), and
-  no rule finds them (#2730). The `domain/` imports of `@miragon/bpmn-modeler-types` subpaths run
-  under a known exception for the same issue as the core's (#2776).
+  no rule finds them (#2730).
 
 ### Merge elements
 

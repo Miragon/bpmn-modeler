@@ -1,5 +1,5 @@
 import type { MergeResultComparison } from "@miragon/bpmn-modeler-shared";
-import { createButton, createElement } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import { compareWithText, comparisonText } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";

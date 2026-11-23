@@ -118,8 +118,8 @@ vi.mock("@emaarco/dmn-js-simulation", () => ({
     },
 }));
 
-vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-types")>()),
+vi.mock("@miragon/bpmn-modeler-browser", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@miragon/bpmn-modeler-browser")>()),
     observeCanvasSize: vi.fn((canvas: { resized(): void }, _container: Element) => {
         const dispose = vi.fn();
         mocks.resizeCanvases.push(canvas);

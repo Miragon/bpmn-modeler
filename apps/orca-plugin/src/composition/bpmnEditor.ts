@@ -2,7 +2,7 @@
 import "../../../../packages/bpmn-modeler/src/styles/default.css";
 import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/diff.css";
-import "../../../../libs/modeler-types/src/canvasOverlays.css";
+import "../../../../libs/modeler-browser/src/canvasOverlays.css";
 import "../../../../packages/bpmn-modeler/src/styles/themes.css";
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 import "./orcaEditor.css";

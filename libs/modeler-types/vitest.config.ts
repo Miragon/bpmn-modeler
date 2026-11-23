@@ -6,7 +6,7 @@ export default defineConfig({
     resolve: { alias: workspaceAliases },
     test: {
         name: "modeler-types",
-        environment: "jsdom",
+        environment: "node",
         include: ["src/**/*.{spec,test}.{ts,tsx}"],
         coverage: {
             ...coveragePreset(__dirname),

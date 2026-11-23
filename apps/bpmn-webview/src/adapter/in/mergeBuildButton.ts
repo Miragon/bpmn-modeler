@@ -1,5 +1,5 @@
 import type { MergePaneBuild } from "@miragon/bpmn-modeler-shared";
-import { createButton, createElement } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import { buildBlockedText } from "../../domain/mergeBarTexts";
 import { MERGE_BUILD_TEXTS } from "../../domain/mergeTexts";

@@ -123,13 +123,7 @@ function libraryRules(isPureModule: ModulePurity): readonly LibraryRule[] {
         {
             rule: "domain imports no package but a pure module",
             violations: domainPackageViolations(isPureModule),
-            exceptions: [
-                {
-                    from: "*",
-                    to: "@miragon/bpmn-modeler-types",
-                    until: "#2776: the types library compiles with the DOM for ten canvas and chrome modules",
-                },
-            ],
+            exceptions: [],
         },
     ];
 }

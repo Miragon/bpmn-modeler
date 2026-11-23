@@ -27,7 +27,7 @@ and guarded.
   `apps/bpmn-webview/src/domain/diffTextsHarvest.spec.ts` and
   `apps/dmn-webview/src/domain/diffTextsHarvest.spec.ts`, which fail until the records are current;
   rewrite them with `-u` on those specs as for the merge record. Both take the shared diff views' keys
-  from `DIFF_VIEW_KEYS` (`@miragon/bpmn-modeler-types`), which `diffVocabulary.spec.ts` checks against
+  from `DIFF_VIEW_KEYS` (`@miragon/bpmn-modeler-types`), which `libs/modeler-browser/src/diffViewKeys.spec.ts` checks against
   what the legend and side label translate; a pane's own text is added to its record spec by hand.
 - `libs/bpmn-i18n-extras/tools/harvested-modeler-features.json`: the keys of the modeler package's
   features no browser driver reaches, recorded by `packages/bpmn-modeler/src/featureTextsHarvest.spec.ts`.

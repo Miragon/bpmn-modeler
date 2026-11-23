@@ -35,7 +35,8 @@ libraries import neither applications nor modeler packages.
 | --- | --- |
 | `packages/bpmn-modeler`, `packages/dmn-modeler` | Published, host-free browser composition and deliberately designed factory/handle APIs |
 | Private feature libraries in `libs/` | Reusable behavior, inlined into published packages where needed |
-| `libs/modeler-types` | Public, host-agnostic concepts and browser utilities suitable for publication, and pure rules browser code shares with the core |
+| `libs/modeler-types` | Public, host-agnostic concepts suitable for publication and pure rules browser code shares with the core, compiled without the DOM |
+| `libs/modeler-browser` | The DOM widgets and helpers both packages and the webviews share, suitable for publication |
 | `libs/shared` | Private Query/Command protocol, host channel, document-flush plumbing and webview chrome |
 | `libs/modeler-core` | Host-independent services around a pure core (`domain/`), and shared editor, routing and diff registries |
 | Host applications and webview bootstraps | Concrete adapters, composition, transport, editor lifecycle and page integration |
@@ -49,7 +50,7 @@ each private library as an independently versioned API.
 
 **`modeler-types`.** A module belongs here only if it is free of the private protocol
 and is either a surface worth publishing (portable mode types, disposable primitives,
-engine versions, canvas utilities) or a pure rule that both browser code and the core
+engine versions, viewbox checks) or a pure rule that both browser code and the core
 apply (script-surface addressing, the XML comment/CDATA scan, process-variable
 extraction, element-template folder rules). Browser code cannot import the core, whose
 barrel exports Node-only modules, so such a rule has no other common home. The same holds
@@ -57,11 +58,13 @@ for a pure rule two browser workspaces apply where neither should depend on the 
 such as the polyline midpoint that bpmn-layout's label follow and the BPMN webview's
 merge card both place by. A rule only the core applies stays in the core's `domain/`.
 The package is private and inlined, and its modules have no top-level side effects so
-a bundle that does not use one leaves it out. `libs/shared` also holds the editor page
-chrome and the VS Code body-class theme adapter, deliberately mixing private browser
-chrome with the protocol to avoid a workspace for a few helpers. Every editor page mounts
-`mountPanelChrome`, so host shells ship only an empty `#app` and the modeler packages'
-stylesheets do not lay out the page.
+a bundle that does not use one leaves it out. It compiles without the DOM, so the core's
+`domain/` imports it as a [pure module](role-folders.md#domain-imports); DOM code goes to
+`libs/modeler-browser`, which both packages inline, and only its types and rules stay here.
+`libs/shared` also holds the editor page chrome and the VS Code body-class theme adapter,
+deliberately mixing private browser chrome with the protocol to avoid a workspace for a few
+helpers. Every editor page mounts `mountPanelChrome`, so host shells ship only an empty
+`#app` and the modeler packages' stylesheets do not lay out the page.
 
 A public type that references a declaration in a private library publishes that
 declaration too, even unnamed. A consumer cannot import it, but editing it changes the
@@ -104,9 +107,8 @@ imports only its own `domain/`, that of the shared two, pure modules and `path`
   `kernel/` names no feature. A store that holds application state and reaches the host
   only through ports (`MarketplaceCache`, `DiffPaneStore`, `DiffSession`) lives in
   `service/` with no port of its own ([placement](role-folders.md#placement)).
-- The core architecture test lists one exception: the domain imports `modeler-types`
-  until its DOM modules leave it (#2776). A new one names the issue that removes it,
-  and the test fails when it is no longer needed, so the lists only shrink.
+- The core architecture test lists no exception. A new one names the issue that
+  removes it, and the test fails when it is no longer needed, so the lists only shrink.
 
 The core/host seam and the host/webview seam are distinct. The core reaches documents,
 settings, notifications, pickers, secrets and other host facilities through ports and
@@ -287,6 +289,9 @@ cached result must equal an uncached run.
   edits for a few hundred lines). They live in `modeler-types` instead, at two costs: a
   `feat` or `fix` there triggers both npm release lines ([release](release-and-publishing.md)),
   and the core's [mutation run](testing.md#mutation-testing) does not cover them.
+- The DOM modules of `modeler-types` did get a library of their own (#2776), at those config
+  edits: the npm packages may not import `libs/shared` (`BND-PROTOCOL-PRIVATE`), and left in
+  `modeler-types` they made it impure, behind a blanket exception for the core's `domain/`.
 - `kernel/` and `editorSession/` as workspaces would turn their direction into package
   dependencies at the price of manifests, aliases and Vitest targets for code only the core
   imports; they stay folders whose import direction the core architecture test enforces.

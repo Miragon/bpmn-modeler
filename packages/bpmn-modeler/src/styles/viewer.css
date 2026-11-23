@@ -17,7 +17,7 @@
 @import "diagram-js-minimap/assets/diagram-js-minimap.css";
 @import "../../../../libs/model-navigation/src/style.css";
 @import "bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css";
-@import "../../../../libs/modeler-types/src/canvasOverlays.css";
+@import "../../../../libs/modeler-browser/src/canvasOverlays.css";
 @import "./dark-theme/diagram-js.css";
 @import "./dark-theme/properties-panel.css";
 @import "./dark-theme/minimap.css";

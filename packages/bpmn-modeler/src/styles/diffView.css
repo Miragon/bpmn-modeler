@@ -9,7 +9,7 @@
  *
  * Element markers follow Diagit's diff panel, in the Miragon CI status colours.
  */
-@import "../../../../libs/modeler-types/src/diffLegend.css";
+@import "../../../../libs/modeler-browser/src/diffLegend.css";
 
 /* ─── Element markers ──────────────────────────────────────────────────── */
 

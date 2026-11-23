@@ -75,7 +75,7 @@ that fails its checks instead of repairing it.
   `node` environment.
 - Parse only through `@miragon/bpmn-modeler-diff`, which loads the parser and the engine descriptors
   lazily; a `domain/` file imports `@miragon/bpmn-modeler-diff/domain`. Import the engine rule from `@miragon/bpmn-modeler-types/engine` and the waypoint walk from
-  `@miragon/bpmn-modeler-types/polyline`, never the barrel, whose modules are DOM-typed.
+  `@miragon/bpmn-modeler-types/polyline`, never the barrel, which loads every module and its runtime imports.
 - `mergeDecisions.ts` and its helpers import no parser: `mergeDecisionsPurity.spec.ts` mocks the parser
   and loads them.
 - Fixtures are generated in `src/__fixtures__/` from a plain model and must equal a moddle round trip

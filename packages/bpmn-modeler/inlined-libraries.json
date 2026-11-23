@@ -4,6 +4,10 @@
         "sourceRoot": "../../libs/modeler-types/src"
     },
     {
+        "name": "@miragon/bpmn-modeler-browser",
+        "sourceRoot": "../../libs/modeler-browser/src"
+    },
+    {
         "name": "@miragon/bpmn-modeler-diff",
         "sourceRoot": "../../libs/bpmn-diff/src"
     },

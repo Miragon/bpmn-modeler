@@ -8,12 +8,14 @@ import {
     DIFF_MARKERS,
     DIFF_SELECTED_MARKER,
     DisposableStore,
-    observeCanvasSize,
-    type ResizableCanvas,
     type TableScroll,
-    ThemeController,
     type Viewport,
 } from "@miragon/bpmn-modeler-types";
+import {
+    observeCanvasSize,
+    type ResizableCanvas,
+    ThemeController,
+} from "@miragon/bpmn-modeler-browser";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 

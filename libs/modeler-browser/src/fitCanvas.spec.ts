@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { type FittableCanvas, fitCanvasToContent, isCanvasSized } from "./fitCanvas";
+import { type FittableCanvas, fitCanvasToContent } from "./fitCanvas";
 
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -36,19 +36,6 @@ function project(point: number, boxOrigin: number, scale: number): number {
 
 afterEach(() => {
     vi.restoreAllMocks();
-});
-
-describe("isCanvasSized", () => {
-    it.each([
-        [{ width: 0, height: 0 }, false],
-        [{ width: 1, height: 1 }, false],
-        [{ width: 1200, height: 8 }, false],
-        [{ width: 1000, height: 800 }, true],
-    ])("reports %o as sized: %s", (outer, sized) => {
-        const { canvas } = setup({ x: 0, y: 0, width: 10, height: 10 }, outer);
-
-        expect(isCanvasSized(canvas)).toBe(sized);
-    });
 });
 
 describe("fitCanvasToContent", () => {

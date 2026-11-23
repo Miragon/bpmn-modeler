@@ -24,7 +24,7 @@ and document adaptation. Dependency direction and the public/private boundary ar
 
 Externalize dmn-js, diagram-js, the DMN properties panel, Camunda moddle, simulation
 and upstream primitives as declared dependencies; inline only the private
-`modeler-types`, `bpmn-diff` and `bpmn-i18n-extras` libraries (`bpmn-diff` for the
+`modeler-types`, `modeler-browser`, `bpmn-diff` and `bpmn-i18n-extras` libraries (`bpmn-diff` for the
 `DiffCounts` and `DiffCategory` types the diff marks expose). A separate package keeps dmn-js
 installation weight out of BPMN-only consumers and allows its own release cadence;
 publishing the webview or folding DMN into the BPMN package would defeat both. Both
@@ -74,7 +74,7 @@ the unscoped legacy light/dark sheets are derived from it by stripping the scope
 controller still mirrors a legacy `#theme-link` when present. The canvas container is
 the `feelPopupContainer`, so the FEEL popup stays inside the theme scope.
 
-The theme controller is the one BPMN uses, shared through `modeler-types` with the
+The theme controller is the one BPMN uses, shared through `modeler-browser` with the
 attribute name as a parameter, so a theme fix lands in both packages; `DmnThemeMode`
 aliases `SurfaceThemeMode` and `publicApi.spec.ts` pins it
 ([BPMN modeler](bpmn-modeler-features.md#themes-and-locale)).
@@ -96,9 +96,8 @@ translation package.
 
 - Inlining `bpmn-diff` for two types ties the package's release line to every change
   under `libs/bpmn-diff`, though the bundle carries none of its code. Moving the types
-  to `modeler-types` would end that. It is not done yet: the `modeler-types` barrel
-  carries DOM helpers, and `bpmn-diff` and `dmn-diff` compile without the DOM library to
-  prove they need no DOM, so the move needs a DOM-free entry of `modeler-types` first.
+  to `modeler-types` would end that. Nothing blocks it since the DOM helpers left
+  `modeler-types` (#2776); it is not done yet.
 
 - A per-instance translator would need separate bindings for each view; page-global
   locale accepts that instances cannot have independent languages while themes stay

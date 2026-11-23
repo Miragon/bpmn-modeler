@@ -1,10 +1,6 @@
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import {
-    createButton,
-    createElement,
-    type DiffLegendActions as SharedDiffLegendActions,
-    DiffLegendView,
-} from "@miragon/bpmn-modeler-types";
+import { type DiffLegendActions as SharedDiffLegendActions } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement, DiffLegendView } from "@miragon/bpmn-modeler-browser";
 
 import type { DiffLegendState } from "../../domain/diffPaneState";
 import type { DmnMissingStatus } from "../../domain/diffSteps";

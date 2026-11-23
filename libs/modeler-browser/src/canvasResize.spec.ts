@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { isUsableViewbox, observeCanvasSize } from "./canvasResize";
+import { observeCanvasSize } from "./canvasResize";
 
 /**
  * Wires `observeCanvasSize` to a fake canvas and an observer the test fires by
@@ -88,25 +88,5 @@ describe("observeCanvasSize", () => {
         expect(globalThis.ResizeObserver).toBeUndefined();
         expect(resized).not.toHaveBeenCalled();
         expect(applyInitialViewport).not.toHaveBeenCalled();
-    });
-});
-
-describe("isUsableViewbox", () => {
-    it.each([
-        ["a plain box", { x: 0, y: 0, width: 800, height: 600 }, true],
-        ["negative origins", { x: -100, y: -50, width: 800, height: 600 }, true],
-        ["undefined", undefined, false],
-        // The shape a persisted NaN viewbox comes back in after JSON.
-        ["null members", { x: null, y: null, width: null, height: null }, false],
-        ["NaN members", { x: NaN, y: NaN, width: NaN, height: NaN }, false],
-        ["an infinite scale", { x: 0, y: 0, width: Infinity, height: Infinity }, false],
-        ["zero area", { x: 0, y: 0, width: 0, height: 0 }, false],
-        ["a negative extent", { x: 0, y: 0, width: -800, height: 600 }, false],
-    ])("returns %s -> %s", (_case, viewbox, expected) => {
-        // Cases deliberately include malformed viewboxes (null/NaN members) the
-        // typed parameter rejects, so coerce through `unknown`.
-        expect(isUsableViewbox(viewbox as unknown as Parameters<typeof isUsableViewbox>[0])).toBe(
-            expected,
-        );
     });
 });

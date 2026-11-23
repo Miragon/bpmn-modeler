@@ -12,6 +12,7 @@ const FORBIDDEN_CONTENT =
 // The diff package is reachable transitively through the modeler-types barrel.
 const PRIVATE_LIBS = [
     "@miragon/bpmn-modeler-types",
+    "@miragon/bpmn-modeler-browser",
     "@miragon/bpmn-modeler-i18n-extras",
     "@miragon/bpmn-modeler-diff",
 ];

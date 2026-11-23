@@ -1,4 +1,5 @@
-import { createButton, createElement, MERGE_MARKER_CLASSES } from "@miragon/bpmn-modeler-types";
+import { MERGE_MARKER_CLASSES } from "@miragon/bpmn-modeler-types";
+import { createButton, createElement } from "@miragon/bpmn-modeler-browser";
 
 import type { MergeMenuRowContent } from "../../domain/mergeMenuRows";
 import type { MergeCardAction } from "../../domain/mergeCardContent";

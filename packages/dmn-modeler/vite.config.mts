@@ -7,6 +7,7 @@ import dts from "unplugin-dts/vite";
 // Private workspace libraries must be inlined because consumers cannot install them.
 const INLINED_LIBS = [
     "@miragon/bpmn-modeler-types",
+    "@miragon/bpmn-modeler-browser",
     "@miragon/bpmn-modeler-diff",
     "@miragon/bpmn-modeler-i18n-extras",
 ];
@@ -14,6 +15,7 @@ const INLINED_LIBS = [
 // Emit private-library declarations so API Extractor can inline their types.
 const INLINED_LIB_SRC = [
     "../../libs/modeler-types/src",
+    "../../libs/modeler-browser/src",
     "../../libs/bpmn-diff/src",
     "../../libs/bpmn-i18n-extras/src",
 ];

@@ -2,11 +2,10 @@ import type BaseViewer from "bpmn-js/lib/BaseViewer";
 import {
     type DisposableStore,
     type FlushableDebounceInput,
-    installFitViewportButton,
     NoModelerError,
-    ThemeController,
     type Translate,
 } from "@miragon/bpmn-modeler-types";
+import { installFitViewportButton, ThemeController } from "@miragon/bpmn-modeler-browser";
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
 import type { ThemeMode } from "./publicApi";

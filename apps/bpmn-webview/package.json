@@ -20,6 +20,7 @@
         "@bpmn-io/svg-to-image": "1.0.1",
         "@fontsource-variable/geist": "5.3.0",
         "@miragon/bpmn-modeler": "workspace:*",
+        "@miragon/bpmn-modeler-browser": "workspace:*",
         "@miragon/bpmn-modeler-element-template-builder": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",

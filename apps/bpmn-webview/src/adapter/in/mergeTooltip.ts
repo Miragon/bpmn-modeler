@@ -1,4 +1,4 @@
-import { createElement } from "@miragon/bpmn-modeler-types";
+import { createElement } from "@miragon/bpmn-modeler-browser";
 
 import "./mergeTooltip.css";
 

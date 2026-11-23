@@ -1,6 +1,6 @@
 import type { FormPreviewHandle, FormPreviewRequest } from "@miragon/bpmn-modeler";
 import type { FormPreviewResult } from "@miragon/bpmn-modeler-types";
-import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-types";
+import { ensureArrayToSorted, ensureUrlCanParse } from "@miragon/bpmn-modeler-browser";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { parsePreviewSchema } from "../../domain/formPreviewSchema";

@@ -8,7 +8,7 @@ const bpmnCss = readFileSync(
     "utf8",
 );
 const legendCss = readFileSync(
-    join(__dirname, "../../../../libs/modeler-types/src/diffLegend.css"),
+    join(__dirname, "../../../../libs/modeler-browser/src/diffLegend.css"),
     "utf8",
 );
 
