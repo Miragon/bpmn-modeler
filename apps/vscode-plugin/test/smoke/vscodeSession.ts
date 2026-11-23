@@ -6,14 +6,9 @@ import { basename, join } from "node:path";
 import { promisify } from "node:util";
 
 import { downloadAndUnzipVSCode, type ProgressReport } from "@vscode/test-electron";
-import {
-    _electron as electron,
-    type ElectronApplication,
-    type FrameLocator,
-    type Locator,
-    type Page,
-} from "playwright-core";
+import type { FrameLocator, Locator, Page } from "playwright-core";
 
+import { type CloseOutcome, ElectronMainProcess } from "./support/electronMainProcess";
 import { type OpenDocumentText, VsCodeDriver, fileUri } from "./support/vscodeDriver";
 
 const runFile = promisify(execFile);
@@ -27,7 +22,6 @@ const MENU_MOUSE_DELAY_MS = 150;
 
 const WINDOW_SIZE = { width: 1280, height: 800 };
 const REOPEN_INTERVAL_MS = 2_000;
-const CLOSE_TIMEOUT_MS = 10_000;
 const EXPLORER_SCROLLS = 20;
 const MENU_RETRY_INTERVAL_MS = 200;
 /** `vscode.ViewColumn.Beside` */
@@ -36,9 +30,6 @@ const RELOAD_PENDING_ATTRIBUTE = "data-smoke-reload-pending";
 /** The reset goes on after this long: a webview that never loads must not hold up the next test. */
 const WEBVIEW_LOAD_MS = 10_000;
 const WEBVIEW_PROBE_MS = 1_000;
-/** Playwright's text for the inspector's "Promise was collected". */
-const COLLECTED_PROMISE = "Resulting promise was garbage collected";
-const COLLECTED_PROMISE_ATTEMPTS = 10;
 
 /** Bypass Codium's Node CLI shim so Playwright attaches to the actual Electron process. */
 export async function flatpakVSCodium(rootDirectory: string): Promise<string> {
@@ -143,7 +134,7 @@ export class VsCodeSession {
     private readonly reportedCspViolations: string[] = [];
 
     private constructor(
-        private readonly app: ElectronApplication,
+        private readonly mainProcess: ElectronMainProcess,
         readonly page: Page,
         private readonly options: VsCodeLaunchOptions,
         private changingSettings: ChangingUserSettings,
@@ -179,7 +170,7 @@ export class VsCodeSession {
         await writeUserSettings(options, changingSettings);
         const driver = await VsCodeDriver.install(options.rootDirectory, options.timeoutMs);
 
-        const app = await electron.launch({
+        const mainProcess = await ElectronMainProcess.launch({
             executablePath: options.executablePath,
             args: [
                 // https://github.com/microsoft/vscode/issues/84238
@@ -205,17 +196,13 @@ export class VsCodeSession {
             timeout: options.timeoutMs,
         });
         try {
-            const page = await app.firstWindow({ timeout: options.timeoutMs });
+            const page = await mainProcess.firstWindow(options.timeoutMs);
             page.setDefaultTimeout(options.timeoutMs);
             await page.waitForSelector(".monaco-workbench");
-            await repeatWhileInspectorCollectsPromise(() =>
-                app.evaluate(({ BrowserWindow }, { width, height }) => {
-                    BrowserWindow.getAllWindows()[0]?.setContentSize(width, height);
-                }, WINDOW_SIZE),
-            );
-            return new VsCodeSession(app, page, options, changingSettings, driver);
+            await mainProcess.resizeFirstWindow(WINDOW_SIZE);
+            return new VsCodeSession(mainProcess, page, options, changingSettings, driver);
         } catch (error) {
-            await closeApplication(app);
+            await mainProcess.close();
             throw error;
         }
     }
@@ -405,15 +392,7 @@ export class VsCodeSession {
                     : null,
             };
         };
-        const windows = await this.app
-            .evaluate(({ BrowserWindow }) =>
-                BrowserWindow.getAllWindows().map((window) => ({
-                    focused: window.isFocused(),
-                    visible: window.isVisible(),
-                    webContentsFocused: window.webContents.isFocused(),
-                })),
-            )
-            .catch(unavailable);
+        const windows = await this.mainProcess.windowStates().catch(unavailable);
         const workbench = await this.page
             .evaluate(() => {
                 const active = document.activeElement;
@@ -665,9 +644,7 @@ export class VsCodeSession {
     }
 
     clipboardText(): Promise<string> {
-        return repeatWhileInspectorCollectsPromise(() =>
-            this.app.evaluate(({ clipboard }) => clipboard.readText()),
-        );
+        return this.mainProcess.clipboardText();
     }
 
     isActiveTabDirty(): Promise<boolean> {
@@ -834,8 +811,8 @@ export class VsCodeSession {
         });
     }
 
-    close(): Promise<"quit" | "killed"> {
-        return closeApplication(this.app);
+    close(): Promise<CloseOutcome> {
+        return this.mainProcess.close();
     }
 }
 
@@ -898,40 +875,4 @@ function environmentWithoutParentVsCode(): Record<string, string> {
                 entry[0] !== "ELECTRON_RUN_AS_NODE",
         ),
     );
-}
-
-/**
- * V8 before 15.2 holds the promise of an evaluate only weakly: a garbage collection
- * in Electron's main process before it settles rejects a call that already ran.
- * Only for an evaluation that may run twice.
- */
-async function repeatWhileInspectorCollectsPromise<T>(evaluate: () => Promise<T>): Promise<T> {
-    for (let attempt = 1; ; attempt++) {
-        try {
-            return await evaluate();
-        } catch (error) {
-            const collected = error instanceof Error && error.message.includes(COLLECTED_PROMISE);
-            if (!collected || attempt === COLLECTED_PROMISE_ATTEMPTS) throw error;
-            console.log(`[vscode-smoke] ${COLLECTED_PROMISE}, attempt ${attempt + 1}`);
-        }
-    }
-}
-
-/**
- * A modal dialog left by a failed step blocks a graceful quit. A killed VS Code
- * may not have flushed its global state, so the caller learns which it was.
- */
-async function closeApplication(app: ElectronApplication): Promise<"quit" | "killed"> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const closed = await Promise.race([
-        app.close().then(
-            () => true,
-            () => true,
-        ),
-        new Promise<false>((done) => (timer = setTimeout(() => done(false), CLOSE_TIMEOUT_MS))),
-    ]);
-    clearTimeout(timer);
-    if (closed) return "quit";
-    app.process().kill("SIGKILL");
-    return "killed";
 }
