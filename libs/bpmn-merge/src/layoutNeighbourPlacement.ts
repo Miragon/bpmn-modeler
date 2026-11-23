@@ -1,9 +1,16 @@
 import { type Axis, across, along, crossAxisOf, farSideOf, nearSideOf } from "./layoutAxis";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import { type DiagramBounds, type Offset, centerOf } from "./layoutGeometry";
-import { type LayoutEdge, type LayoutModel, type NodeShape, nodeShapeIn } from "./layoutModel";
+import {
+    FLOW_ENDS,
+    type LayoutEdge,
+    type LayoutModel,
+    type NodeShape,
+    inSameContainer,
+    nodeShapeIn,
+    translatedEdge,
+} from "./layoutModel";
 import { ShapeGroups } from "./layoutShapeGroups";
-import { sameLanes } from "./mergeResult";
 import { drawnByOneSideOnly, drawsAt } from "./sideDrawings";
 
 /** A shape only one side draws, still where that side drew it, with its neighbours there. */
@@ -25,40 +32,115 @@ interface Neighbour {
 /**
  * Keeps each shape only one side draws beside the flow neighbour that side
  * drew it at: where the result draws the neighbour elsewhere, the shape moves
- * by as much with its boundary events and contents. The neighbour is one both
- * sides draw on the shape's plane and in its sub-process and lanes, read from
- * the side's flows, so a flow the result dropped still counts: sequence flows
- * before associations, predecessors first. A shape without such a neighbour
- * follows the first of its neighbours placed so. The shape keeps its gap to
- * the border of the neighbour it faces and its offset from the neighbour's
- * middle across the flow.
+ * by as much with its boundary events and contents. The neighbours are read
+ * from the side's flows, so a flow the result dropped still counts: sequence
+ * flows before associations, predecessors first. The first of them on the
+ * shape's plane and in its sub-process and lanes places it: one both sides
+ * draw, or one the side added with the shape, which the shape then follows,
+ * so a chain of added shapes stays as its side drew it behind its first one.
+ * Added shapes that lead only to each other follow the first neighbour both
+ * sides draw. The shape keeps its gap to the border of the neighbour it
+ * faces and its offset from the neighbour's middle across the flow, and a
+ * flow between shapes that move alike moves with them.
  */
 export function placeBesideNeighbours(
     layout: LayoutModel,
     sides: readonly LayoutModel[],
 ): LayoutModel {
-    const drawnByAll = (id: string) => sides.every((side) => side.shapes.has(id));
-    const shapes = oneSidedShapesOf(layout, sides);
-    const offsets = new Map<string, Offset>();
-    for (const shape of shapes) {
-        const offset = offsetBesideKept(layout, shape, drawnByAll);
-        if (offset !== undefined) offsets.set(shape.node.id, offset);
+    return translatedBy(layout, NeighbourOffsets.of(layout, sides));
+}
+
+/** How far each shape only one side draws moves to stay beside its neighbours, found shape by shape. */
+class NeighbourOffsets {
+    private readonly offsets = new Map<string, Offset>();
+    private readonly added: ReadonlyMap<string, OneSidedShape>;
+
+    private constructor(
+        private readonly layout: LayoutModel,
+        private readonly sides: readonly LayoutModel[],
+        private readonly shapes: readonly OneSidedShape[],
+    ) {
+        this.added = new Map(shapes.map((shape) => [shape.node.id, shape]));
     }
-    let progressed = true;
-    while (progressed) {
-        progressed = false;
-        for (const shape of shapes) {
-            if (offsets.has(shape.node.id)) continue;
-            const placed = shape.neighbours.find(({ id }) => {
-                const neighbour = nodeShapeIn(layout, id);
-                return offsets.has(id) && inSameContainer(neighbour!, shape.node);
-            });
-            if (placed === undefined) continue;
-            offsets.set(shape.node.id, offsets.get(placed.id)!);
-            progressed = true;
+
+    static of(layout: LayoutModel, sides: readonly LayoutModel[]): ReadonlyMap<string, Offset> {
+        const found = new NeighbourOffsets(layout, sides, oneSidedShapesOf(layout, sides));
+        found.placeWhilePossible((shape) => found.besideFirstNeighbour(shape));
+        // What is left waits for added shapes that wait for it in turn.
+        found.placeWhilePossible((shape) =>
+            firstDefined(shape.neighbours, ({ id }) => found.besideKept(shape, id)),
+        );
+        found.placeWhilePossible((shape) =>
+            firstDefined(shape.neighbours, ({ id }) => found.behindAdded(shape, id)),
+        );
+        return found.offsets;
+    }
+
+    private placeWhilePossible(offsetOf: (shape: OneSidedShape) => Offset | undefined): void {
+        for (let progressed = true; progressed;) {
+            progressed = false;
+            for (const shape of this.shapes) {
+                const offset = this.offsets.has(shape.node.id) ? undefined : offsetOf(shape);
+                if (offset === undefined) continue;
+                this.offsets.set(shape.node.id, offset);
+                progressed = true;
+            }
         }
     }
-    return translatedBy(layout, offsets);
+
+    /** The offset the shape's first neighbour gives it; undefined while that one is an added shape not placed yet. */
+    private besideFirstNeighbour(shape: OneSidedShape): Offset | undefined {
+        for (const { id } of shape.neighbours) {
+            const offset = this.besideKept(shape, id);
+            if (offset !== undefined) return offset;
+            if (this.addedWith(shape, id)) return this.offsets.get(id);
+        }
+        return undefined;
+    }
+
+    /** The offset of a shape the side added with the shape, once that one is placed. */
+    private behindAdded(shape: OneSidedShape, id: string): Offset | undefined {
+        return this.addedWith(shape, id) ? this.offsets.get(id) : undefined;
+    }
+
+    private addedWith(shape: OneSidedShape, id: string): boolean {
+        const neighbour = this.added.get(id);
+        return neighbour !== undefined && inSameContainer(neighbour.node, shape.node);
+    }
+
+    /**
+     * How far the result draws the neighbour from where the shape's side
+     * draws it, along the flow by the border the shape faces and across it
+     * by the middle; undefined unless both sides draw the neighbour in the
+     * shape's container.
+     */
+    private besideKept(shape: OneSidedShape, id: string): Offset | undefined {
+        if (!this.sides.every((side) => side.shapes.has(id))) return undefined;
+        const here = nodeShapeIn(this.layout, id);
+        const there = nodeShapeIn(shape.side, id);
+        if (here === undefined || there === undefined) return undefined;
+        if (!inSameContainer(here, shape.node) || !inSameContainer(there, shape.node)) {
+            return undefined;
+        }
+        const axis = flowAxisOf(shape.node.bounds, there.bounds);
+        const liesAfter =
+            along(axis, centerOf(shape.node.bounds)) > along(axis, centerOf(there.bounds));
+        const facing = liesAfter ? farSideOf : nearSideOf;
+        const byAlong = facing(axis, here.bounds) - facing(axis, there.bounds);
+        const byAcross = across(axis, centerOf(here.bounds)) - across(axis, centerOf(there.bounds));
+        return axis === "x" ? { dx: byAlong, dy: byAcross } : { dx: byAcross, dy: byAlong };
+    }
+}
+
+function firstDefined<Item, Value>(
+    items: readonly Item[],
+    valueOf: (item: Item) => Value | undefined,
+): Value | undefined {
+    for (const item of items) {
+        const value = valueOf(item);
+        if (value !== undefined) return value;
+    }
+    return undefined;
 }
 
 function oneSidedShapesOf(layout: LayoutModel, sides: readonly LayoutModel[]): OneSidedShape[] {
@@ -94,38 +176,6 @@ function ordersNeighbours(edge: LayoutEdge): boolean {
     return edge.kind !== "messageFlow";
 }
 
-/** How far the first neighbour both sides draw lies in the result from where the shape's side draws it. */
-function offsetBesideKept(
-    layout: LayoutModel,
-    shape: OneSidedShape,
-    drawnByAll: (id: string) => boolean,
-): Offset | undefined {
-    for (const { id } of shape.neighbours) {
-        if (!drawnByAll(id)) continue;
-        const here = nodeShapeIn(layout, id);
-        const there = nodeShapeIn(shape.side, id);
-        if (here === undefined || there === undefined) continue;
-        if (!inSameContainer(here, shape.node) || !inSameContainer(there, shape.node)) continue;
-        const axis = flowAxisOf(shape.node.bounds, there.bounds);
-        const liesAfter =
-            along(axis, centerOf(shape.node.bounds)) > along(axis, centerOf(there.bounds));
-        const facing = liesAfter ? farSideOf : nearSideOf;
-        const byAlong = facing(axis, here.bounds) - facing(axis, there.bounds);
-        const byAcross = across(axis, centerOf(here.bounds)) - across(axis, centerOf(there.bounds));
-        return axis === "x" ? { dx: byAlong, dy: byAcross } : { dx: byAcross, dy: byAlong };
-    }
-    return undefined;
-}
-
-/** A neighbour in another sub-process or lane goes where that container takes it, not beside the shape. */
-function inSameContainer(neighbour: NodeShape, shape: NodeShape): boolean {
-    return (
-        neighbour.slot.equals(shape.slot) &&
-        neighbour.subProcesses[0] === shape.subProcesses[0] &&
-        sameLanes(neighbour.lanes, shape.lanes)
-    );
-}
-
 /** The axis the two shapes lie apart along, as the side drew them: beside each other where they overlap across it, else where their middles lie farther apart. */
 function flowAxisOf(shape: DiagramBounds, neighbour: DiagramBounds): Axis {
     const besideAlongX = overlapAcross("x", shape, neighbour);
@@ -142,12 +192,25 @@ function overlapAcross(axis: Axis, first: DiagramBounds, second: DiagramBounds):
     );
 }
 
+/** Moves each shape with what it carries, and each flow between shapes that move alike with them. */
 function translatedBy(layout: LayoutModel, offsets: ReadonlyMap<string, Offset>): LayoutModel {
     const draft = DrawingDraft.of(layout);
     const groups = new ShapeGroups(layout);
-    for (const [id, { dx, dy }] of offsets) {
-        if (dx === 0 && dy === 0) continue;
-        draft.translate(groups.of(draft, draft.node(id)!), dx, dy);
+    const movedBy = new Map<string, Offset>();
+    const attached = new Set<string>();
+    for (const [id, offset] of offsets) {
+        if (offset.dx === 0 && offset.dy === 0) continue;
+        const group = groups.of(draft, draft.node(id)!);
+        draft.translate(group, offset.dx, offset.dy);
+        for (const member of group.members) movedBy.set(member, offset);
+        for (const edge of group.attachedEdges) attached.add(edge);
+    }
+    for (const id of attached) {
+        const edge = draft.edges.get(id)!;
+        const [source, target] = FLOW_ENDS.map((end) => movedBy.get(edge[end] ?? ""));
+        if (source !== undefined && source.dx === target?.dx && source.dy === target.dy) {
+            draft.replaceEdge(translatedEdge(edge, source.dx, source.dy));
+        }
     }
     return draft.changedOrOriginal;
 }

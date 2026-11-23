@@ -9,10 +9,16 @@ import {
     isFrame,
     liesOnAnotherPool,
 } from "./layoutModel";
-import { RoomPush } from "./layoutRoomPush";
+import { ROOM_GAP, RoomPush } from "./layoutRoomPush";
 import type { RoomRequest } from "./layoutRoomRequest";
 import { type RoomSlot, slotOffsetsOf, slotShapeOf } from "./layoutRoomSlots";
-import { type ShapeGroup, type ShapeGroups, groupBoundsIn, ownEdgesOf } from "./layoutShapeGroups";
+import {
+    type ShapeGroup,
+    type ShapeGroups,
+    groupBoundsIn,
+    groupPartsIn,
+    ownEdgesOf,
+} from "./layoutShapeGroups";
 import { SpaceTool, leadAlong } from "./layoutSpaceTool";
 import { crampsNoFlow, foreignFlowsNear } from "./layoutFlowClearance";
 import { SHAPE_CLEARANCE } from "./layoutShapePlacement";
@@ -28,6 +34,9 @@ export interface RoomMade {
     /** How far the frames grew in all, across both axes. */
     readonly growth: number;
 }
+
+/** Room made, with the group it was made for. */
+export type RoomForGroup = RoomMade & { readonly group: ShapeGroup };
 
 /** The room of a slot that was free: the draft with the shape moved there, nothing shifted or grown. */
 export function freeRoom(draft: DrawingDraft): RoomMade {
@@ -195,4 +204,49 @@ export function breaksNothing(draft: LayoutModel, trial: LayoutModel): boolean {
         introducedLayoutSpots(trial, [draft]).every(isFlowSpot) &&
         !changedPools.some((pool) => liesOnAnotherPool(trial, pool))
     );
+}
+
+/**
+ * Makes room for the groups in line along the flow, each as it is drawn: the
+ * one ahead stays, the one behind goes right of it a room gap apart in its
+ * rows, and everything at or past the line gives way as one band, as the
+ * modeler's space tool opens it, far enough to clear them. The flows the band
+ * stretches through them are left to the flow repair. Undefined when the
+ * group behind lies behind already, when a single group makes nothing give
+ * way, when a shape before the line lies where the leading shape of the last
+ * group goes, or when the room breaks the drawing anywhere else.
+ */
+export function makeRoomInLine(
+    draft: DrawingDraft,
+    context: RoomContext,
+    line: number,
+    ahead: ShapeGroup,
+    behind?: ShapeGroup,
+): RoomMade | undefined {
+    const trial = draft.fork();
+    if (behind !== undefined) {
+        const far = Math.max(...groupPartsIn(draft, ahead).map((part) => rightOf(part)));
+        const dx = far + ROOM_GAP - groupBoundsIn(draft, behind).x;
+        if (dx <= 0) return undefined;
+        trial.translate(behind, dx, 0);
+    }
+    const groups = behind === undefined ? [ahead] : [ahead, behind];
+    const last = behind ?? ahead;
+    const lead = trial.node(last.node.id)!;
+    const push = pushIn(context, draft, trial, "x", last, lead.id, {
+        box: lead.bounds,
+        column: groups.flatMap((group) => groupPartsIn(trial, group)),
+        line,
+        exclude: new Set(groups.flatMap((group) => group.members)),
+        band: true,
+    });
+    if (push === undefined || !breaksNothing(draft, trial)) return undefined;
+    if (behind === undefined && push.shifted.length === 0) return undefined;
+    const grown = grownFrames(draft, trial);
+    return {
+        draft: trial,
+        shifted: push.shifted,
+        grown: grown.map(({ id }) => id),
+        growth: grown.reduce((sum, { by }) => sum + by, 0),
+    };
 }

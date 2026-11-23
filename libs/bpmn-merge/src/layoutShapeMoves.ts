@@ -1,14 +1,15 @@
 import { isNonEmpty } from "@miragon/bpmn-modeler-types/mergeBuildNoteReaders";
 
+import { CHAIN_ROOMS, type ChainRoomAttempt } from "./layoutChainRoom";
 import { DrawingDraft } from "./layoutDrawingDraft";
 import type { FlowRepairPlanner } from "./layoutFlowRepair";
 import { FlowTopology } from "./layoutFlowTopology";
+import type { RoomForGroup } from "./layoutMakeRoom";
 import type { LayoutModel, NodeShape } from "./layoutModel";
 import { placedByBuild } from "./sideDrawings";
 import { type ShapeGroup, ShapeGroups } from "./layoutShapeGroups";
 import {
     type AttemptContext,
-    type GroupRoom,
     type Move,
     nearestFreePlace,
     otherSidesPlace,
@@ -43,7 +44,9 @@ export interface ShapeMovePlan {
  * its label, boundary events and contents to the first place
  * `OverlapRepairer.repair` finds, a room weighed by where the build's flow
  * repair re-routes the moved shape's flows. A move of one shape that
- * resolves several spots counts for each.
+ * resolves several spots counts for each. Before any of that, the chains of
+ * shapes one side added get room as one piece (`CHAIN_ROOMS`), which a
+ * repair shape by shape would take apart.
  */
 export function planShapeMoves(
     layout: LayoutModel,
@@ -57,7 +60,11 @@ export function planShapeMoves(
     );
     if (overlaps.length === 0) return { layout, repairs: [] };
     const repairer = new OverlapRepairer(layout, sides, repairFlows, framing);
-    const repairs = overlaps.map((spot) => ({ spot, repair: repairer.repair(spot) }));
+    const chainRepairs = repairer.repairChains(overlaps);
+    const repairs = overlaps.map((spot) => ({
+        spot,
+        repair: chainRepairs.get(spot) ?? repairer.repair(spot),
+    }));
     return { layout: repairer.layout, repairs };
 }
 
@@ -113,6 +120,37 @@ class OverlapRepairer {
         );
     }
 
+    /**
+     * Gives the chains of shapes one side added room as one piece, each kind
+     * of room tried over every overlap before the next; the repair of each
+     * overlap that got one.
+     */
+    repairChains(
+        overlaps: readonly SpotOf<"shapesOverlap">[],
+    ): ReadonlyMap<LayoutSpot, MoveRepair> {
+        const repairs = new Map<LayoutSpot, MoveRepair>();
+        for (const roomFor of CHAIN_ROOMS) {
+            for (const spot of overlaps) {
+                const repair = this.repairChain(spot, roomFor);
+                if (repair !== undefined) repairs.set(spot, repair);
+            }
+        }
+        return repairs;
+    }
+
+    /** Gives the chain a shape of the overlap belongs to the room the attempt makes; undefined when it makes none or the two lie apart by now. */
+    private repairChain(
+        { shapes }: SpotOf<"shapesOverlap">,
+        roomFor: ChainRoomAttempt,
+    ): MoveRepair | undefined {
+        const [first, second] = shapes.map((id) => this.draft.node(id));
+        if (first === undefined || second === undefined) return undefined;
+        const pair = [first, second] as const;
+        return endedEarlier(pair)
+            ? undefined
+            : this.roomOf(roomFor(this.draft, this.context, pair));
+    }
+
     /** The repair that moves the group with every shape it carries. */
     private moveOf(move: Move | undefined): MoveRepair | undefined {
         if (move === undefined) return undefined;
@@ -124,7 +162,7 @@ class OverlapRepairer {
     }
 
     /** The repair that takes the draft the room was made on. */
-    private roomOf(room: GroupRoom | undefined): MoveRepair | undefined {
+    private roomOf(room: RoomForGroup | undefined): MoveRepair | undefined {
         if (room === undefined) return undefined;
         const repair = roomRepairOf(room);
         this.record(repair, room.group, room.draft.shapesChangedFrom(this.draft));
@@ -144,7 +182,7 @@ function endedEarlier([first, second]: readonly [NodeShape, NodeShape]): boolean
     return !shapesOverlap(first, second);
 }
 
-function roomRepairOf(room: GroupRoom): MoveRepair {
+function roomRepairOf(room: RoomForGroup): MoveRepair {
     const moved = room.group.node.id;
     const { shifted, grown } = room;
     if (isNonEmpty(grown)) {

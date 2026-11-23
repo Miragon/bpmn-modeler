@@ -1,5 +1,5 @@
 import { centerOf } from "./layoutGeometry";
-import { type LayoutModel, carriesSequence, nodeShapeIn } from "./layoutModel";
+import { type LayoutModel, carriesSequence, flowOwnerOf, nodeShapeIn } from "./layoutModel";
 
 /**
  * How a moved shape stands to the shape it lay on by the sequence flows: it
@@ -82,7 +82,7 @@ export class FlowTopology {
     }
 
     private ownerOf(id: string): string {
-        return nodeShapeIn(this.layout, id)?.host ?? id;
+        return flowOwnerOf(this.layout, id);
     }
 }
 

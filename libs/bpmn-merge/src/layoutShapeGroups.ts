@@ -65,14 +65,17 @@ export function ownEdgesOf(group: ShapeGroup): ReadonlySet<string> {
     return new Set([...group.innerEdges, ...group.attachedEdges]);
 }
 
+/** Each member's shape and label as the layout draws them. */
+export function groupPartsIn(layout: LayoutModel, group: ShapeGroup): DiagramBounds[] {
+    return group.members.flatMap((id) => {
+        const member = nodeShapeIn(layout, id);
+        return member === undefined ? [] : drawnPartsOf(member);
+    });
+}
+
 /** The members' shapes and labels as the layout draws them. */
 export function groupBoundsIn(layout: LayoutModel, group: ShapeGroup): DiagramBounds {
-    return boundsAround(
-        group.members.flatMap((id) => {
-            const member = nodeShapeIn(layout, id);
-            return member === undefined ? [] : drawnPartsOf(member);
-        }),
-    );
+    return boundsAround(groupPartsIn(layout, group));
 }
 
 /** The members' shapes as the layout draws them, without their labels. */

@@ -26,6 +26,12 @@ export interface RoomRequest {
      * before it grew.
      */
     readonly frameGrowth?: number;
+    /**
+     * Set to open a band as the space tool does: once something at or past
+     * the line is in the way, everything there gives way as one, far enough
+     * to clear the whole box and column.
+     */
+    readonly band?: boolean;
 }
 
 /** Room asked in the frames a shape lies in, on its plane. */

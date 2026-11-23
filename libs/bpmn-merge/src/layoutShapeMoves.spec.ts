@@ -386,6 +386,134 @@ describe("planShapeMoves", () => {
         });
     });
 
+    describe("chains of shapes each side added, drawn on each other", () => {
+        const frames = [POOL, lane(70, 200)];
+        const kept = [node("Task_A", box(100, 130)), node("Task_B", box(560, 130))];
+        const chainOfCurrent = [node("Task_X1", box(250, 130)), node("Task_X2", box(400, 130))];
+        const chainOfIncoming = [node("Task_Y1", box(260, 130)), node("Task_Y2", box(410, 130))];
+        const flowsOfCurrent = [
+            flow("Flow_AX", "Task_A", "Task_X1"),
+            flow("Flow_X", "Task_X1", "Task_X2"),
+            flow("Flow_XB", "Task_X2", "Task_B"),
+        ];
+        const flowsOfIncoming = [
+            flow("Flow_Y", "Task_Y1", "Task_Y2"),
+            flow("Flow_YB", "Task_Y2", "Task_B"),
+        ];
+        const sides = [
+            layoutOf([...kept, ...chainOfCurrent], flowsOfCurrent, frames),
+            layoutOf(
+                [...kept, ...chainOfIncoming],
+                [flow("Flow_AY", "Task_A", "Task_Y1"), ...flowsOfIncoming],
+                frames,
+            ),
+        ];
+        /** The flow out of Task_A kept from current, so nothing leads into incoming's chain. */
+        const result = layoutOf(
+            [...kept, ...chainOfCurrent, ...chainOfIncoming],
+            [...flowsOfCurrent, ...flowsOfIncoming],
+            frames,
+        );
+        const inLine = {
+            Task_X1: box(250, 130),
+            Task_X2: box(400, 130),
+            Task_Y1: box(550, 130),
+            Task_Y2: box(700, 130),
+            Task_B: box(850, 130),
+        };
+        const boundsOfAll = (plan: ShapeMovePlan) =>
+            Object.fromEntries(Object.keys(inLine).map((id) => [id, boundsIn(plan, id)]));
+
+        it("puts the chains one after the other, each whole, and names the chain's move for every overlap it ends", () => {
+            const plan = planShapeMoves(result, overlapsOf(result), sides, planFlowRepairs);
+
+            expect(boundsOfAll(plan)).toEqual(inLine);
+            expect(pairRepairsOf(plan)).toEqual([
+                {
+                    kind: "madeRoomByShifting",
+                    shapes: ["Task_X1", "Task_Y1"],
+                    moved: "Task_Y1",
+                    shifted: ["Task_B"],
+                },
+                { kind: "movedByBuild", shapes: ["Task_X2", "Task_Y2"], moved: "Task_Y2" },
+            ]);
+        });
+
+        it("names the chain and everything it shifted for a chain that stays on the shape it leads into", () => {
+            const flows = [
+                flow("Flow_AY", "Task_A", "Task_Y1"),
+                ...flowsOfIncoming,
+                flow("Flow_BC", "Task_B", "Task_C"),
+            ];
+            const shapesWith = (bAt: number, chain: readonly NodeShape[]) => [
+                kept[0]!,
+                node("Task_B", box(bAt, 130)),
+                node("Task_C", box(bAt + 300, 130)),
+                ...chain,
+            ];
+            const chainOnNext = layoutOf(shapesWith(300, chainOfIncoming), flows, frames);
+            const drawings = [
+                layoutOf(shapesWith(300, []), [flow("Flow_BC", "Task_B", "Task_C")], frames),
+                layoutOf(shapesWith(560, chainOfIncoming), flows, frames),
+            ];
+
+            const plan = planShapeMoves(
+                chainOnNext,
+                overlapsOf(chainOnNext),
+                drawings,
+                planFlowRepairs,
+            );
+
+            expect(pairRepairsOf(plan)).toEqual([
+                {
+                    kind: "madeRoomByShifting",
+                    shapes: ["Task_B", "Task_Y1"],
+                    moved: "Task_Y1",
+                    shifted: ["Task_B", "Task_C"],
+                },
+            ]);
+            expect(boundsIn(plan, "Task_B")).toEqual(box(560, 130));
+            expect(boundsIn(plan, "Task_C")).toEqual(box(860, 130));
+        });
+
+        it("puts the chains in line before it repairs an overlap listed first, which would move a shape of a chain alone", () => {
+            const onTaskB = node("Task_Y2", box(520, 130));
+            const withLastOnTaskB = layoutOf(
+                [...kept, ...chainOfCurrent, chainOfIncoming[0]!, onTaskB],
+                [...flowsOfCurrent, ...flowsOfIncoming],
+                frames,
+            );
+            const sidesWithLastOnTaskB = [
+                sides[0]!,
+                layoutOf(
+                    [
+                        node("Task_A", box(100, 130)),
+                        node("Task_B", box(670, 130)),
+                        chainOfIncoming[0]!,
+                        onTaskB,
+                    ],
+                    [flow("Flow_AY", "Task_A", "Task_Y1"), ...flowsOfIncoming],
+                    frames,
+                ),
+            ];
+            const overlaps = overlapsOf(withLastOnTaskB);
+
+            const plan = planShapeMoves(
+                withLastOnTaskB,
+                overlaps,
+                sidesWithLastOnTaskB,
+                planFlowRepairs,
+            );
+
+            expect(overlaps[0]).toMatchObject({ shapes: ["Task_B", "Task_Y2"] });
+            expect(boundsOfAll(plan)).toEqual({
+                ...inLine,
+                Task_Y2: box(810, 130),
+                Task_B: box(960, 130),
+            });
+        });
+    });
+
     describe("without a free place nearby", () => {
         const frames = [POOL, lane(70, 120)];
         /** Eight tasks 20 px apart along the lane, each flow docked between two of them. */

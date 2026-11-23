@@ -4,6 +4,7 @@ import { type FlowRepairPlanner, withFlowRepairs } from "./layoutFlowRepair";
 import { type Offset, offsetBetween, offsetLength, sameBounds } from "./layoutGeometry";
 import {
     type RoomContext,
+    type RoomForGroup,
     type RoomMade,
     freeRoom,
     makeRoom,
@@ -27,8 +28,7 @@ export interface Move extends Offset {
     readonly group: ShapeGroup;
 }
 
-export type GroupRoom = RoomMade & {
-    readonly group: ShapeGroup;
+export type GroupRoom = RoomForGroup & {
     /** How often the group's flows cross or run on another flow once the flow repair re-routed them. */
     readonly flowClashes: number;
 };
