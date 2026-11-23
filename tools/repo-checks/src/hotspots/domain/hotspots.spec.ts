@@ -1,3 +1,4 @@
+import { readCodeLines, readFunctionComplexities, runsNoCode } from "@miragon/architecture-testing";
 import { describe, expect, it } from "vitest";
 
 import type { CommitRecord, FileChange } from "../../history/domain/commitHistory";
@@ -24,14 +25,21 @@ function file(path: string, codeLines: number, complexity?: number): FileMeasure
         path,
         codeLines,
         functions: complexity === undefined ? [] : [{ name: "handle", line: 7, complexity }],
-        barrel: false,
         runsNoCode: false,
     };
 }
 
-function barrel(path: string, codeLines: number): FileMeasure {
-    return { ...file(path, codeLines), barrel: true };
+function measured(path: string, source: string): FileMeasure {
+    return {
+        path,
+        codeLines: readCodeLines(path, source),
+        functions: readFunctionComplexities(path, source),
+        runsNoCode: runsNoCode(path, source),
+    };
 }
+
+const MODULE = "libs/core/src/module.ts";
+const LABELS = 'export const LABELS = {\n    save: "Save",\n    close: "Close",\n};\n';
 
 describe("the hotspot ranking", () => {
     it("ranks a file changed in 6 of 7 commits above a larger file changed once", () => {
@@ -111,19 +119,58 @@ describe("the hotspot ranking", () => {
         ).toEqual([paths[2], paths[1]]);
     });
 
-    it("leaves out a barrel with the top score, so the next file takes the last place", () => {
-        const index = "libs/core/src/index.ts";
-        const window = Array.from({ length: 6 }, () => changed(index, OFTEN, LARGE, SMALL));
+    const moduleChangedMost = [
+        ...Array.from({ length: 6 }, () => changed(MODULE)),
+        changed(OFTEN, LARGE, SMALL),
+    ];
 
+    it.each([
+        { form: "a table of constants", source: LABELS },
+        {
+            form: "a type-only file",
+            source: 'export interface Message {\n    kind: "save";\n}\nexport type Reply = Message | undefined;\n',
+        },
+        {
+            form: "a barrel",
+            source: 'export * from "./labels";\nexport { Message } from "./message";\n',
+        },
+    ])(
+        "leaves out a module that runs no code, $form, with the top score, so the next file takes the last place",
+        ({ source }) => {
+            expect(
+                rankHotspots(
+                    moduleChangedMost,
+                    [measured(MODULE, source), file(OFTEN, 10), file(LARGE, 9), file(SMALL, 8)],
+                    2,
+                ).map(({ file, rank }) => [file.path, rank]),
+            ).toEqual([
+                [OFTEN, 1],
+                [LARGE, 2],
+            ]);
+        },
+    );
+
+    it.each([
+        {
+            form: "a function beside a table of constants",
+            source: `${LABELS}export function label(key: keyof typeof LABELS): string {\n    return LABELS[key];\n}\n`,
+        },
+        {
+            form: "a class that only holds its fields",
+            source: "export class SaveCommand {\n    constructor(readonly content: string) {}\n}\n",
+        },
+        {
+            form: "a table built by a call, with no function",
+            source: 'export const KEYS = new Set([\n    "save",\n    "close",\n]);\n',
+        },
+    ])("ranks a module that runs code, $form", ({ source }) => {
         expect(
-            rankHotspots(
-                window,
-                [barrel(index, 160), file(OFTEN, 100), file(LARGE, 90), file(SMALL, 80)],
-                2,
-            ).map(({ file, rank }) => [file.path, rank]),
+            rankHotspots(moduleChangedMost, [measured(MODULE, source), file(OFTEN, 10)]).map(
+                ({ file, rank }) => [file.path, rank],
+            ),
         ).toEqual([
-            [OFTEN, 1],
-            [LARGE, 2],
+            [MODULE, 1],
+            [OFTEN, 2],
         ]);
     });
 });

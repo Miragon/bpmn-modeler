@@ -55,8 +55,8 @@ export function rankHotspots(
     return files
         .flatMap((file): UnrankedHotspot[] => {
             const count = revisions.get(file.path) ?? 0;
-            // A barrel changes whenever its exports change and holds no rule to find.
-            return count === 0 || file.barrel
+            // The size of a module that runs no code is no sign of logic.
+            return count === 0 || file.runsNoCode
                 ? []
                 : [{ file, revisions: count, score: count * file.codeLines }];
         })

@@ -1,7 +1,7 @@
 # Architecture enforcement
 
 - Status: accepted
-- Last reviewed: 2026-11-22
+- Last reviewed: 2026-11-23
 
 ## Context
 
@@ -229,7 +229,7 @@ that are not visible there. Source lives in `tools/repo-checks/src/<id>/`.
 | `convention-coverage` (#2127) | Files outside a role folder, imports that contradict their folder, a port implemented outside `adapter/out/` | Runs the role-folder rules without the blanket exceptions, so it reports migration work; the port-implementation rule is reported, not blocking, because detecting a role by type is what folders were chosen over |
 | `repeated-value-sets` (#2050, #2682) | A set of allowed values written in two or more files | A regular expression's alternation of words is a set too, and an optional character or class inside it is expanded, because the copies that drifted in `tools/` were spelled `([mc]?ts\|tsx)` beside `(ts\|tsx\|mts\|cts)`; such a set gets no order note, since no type pin can hold a pattern. A copy pinned with `expectTypeOf<Copy>().toEqualTypeOf<Home>()` counts as one place; Kotlin, JSON, specs and test folders are not read, so a copy whose other half sits in a spec gives no finding. A finding names copies that list the values in another order, and the remedy is to pin the copy to the home's type: deriving a copy from its home fits only where the order is the same concern. A set that drifts shows as *resolved*, not new (a documented false report: a resolved set is a fix only where its copies are gone, import the home or are pinned) |
 | `size-and-complexity` (#2057) | Per file, code lines and the highest cyclomatic complexity of a function, with trend | A report, not ESLint `max-lines`/`complexity`: line count is a weak sign of a rule and a limit would fire on a long value table. Complexity mirrors ESLint's classic `complexity` rule. A module that runs no code (imports, exports, types and constants that compute nothing) is not measured, told by its syntax and not by a list of names (#2681): its size is no logic. Type-only files and barrels fall under the same rule |
-| `hotspots` (#2057) | Top 20 files by revisions × code lines: a place to look for a rule in the wrong home | Barrels (no statement besides imports and re-exports) are not ranked. The product is ours, not Tornhill's script's. A branch adds one revision to each file it changed, as its squash will |
+| `hotspots` (#2057) | Top 20 files by revisions × code lines: a place to look for a rule in the wrong home | A module that runs no code (a table of constants, a type-only file, a barrel) is not ranked, by `size-and-complexity`'s test, so its size cannot crowd logic out of the top 20. The cost: a rule written as a table or in types, in a module that runs no code, is no longer ranked however often it changes. Message classes run code, their constructors, and stay ranked. The product is ours, not Tornhill's script's. A branch adds one revision to each file it changed, as its squash will |
 | `host-text` (#2052, #2167) | User-visible text written in host code, TypeScript and Kotlin | A text is a literal with two words; markup, error and log arguments and the messages of Kotlin's preconditions are not read; Kotlin is read by a small lexer in `tools/architecture-testing` instead of a new parser dependency. Kotlin loggers are derived from their declarations, not from variable names. Two names stay (`log…`, the members of the core's `LoggerPort`, and the global `Error`), each guarded by `hostTextNames.spec.ts`, which fails when one no longer takes a text in host code; deciding them by type took ten times as long and changed no finding. `console` is no logger: host code logs through `LoggerPort`. Host chrome and host-failure messages are correct host text, so it never blocks and has no allowlist (the delta shows what is new) |
 | `contract-suites` (#2054) | Each adapter of a core port whose specs run no contract suite of that port | Resolved by types, not names. A class without `implements` is an adapter when production code hands it over where the port is expected (a handover is the composition's own statement; structural assignability to every port would make any `dispose()` holder an adapter). Implementers inside the core count like a host's. Render-only ports (every member returns `void`) and ports with one adapter are set aside in collapsed groups; the types cannot see a value the core reads back through another port, so such a port needs a suite of its own ([testing](testing.md#test-environments)) |
 | `mutation-score` (#2057) | Mutation score per domain folder from stored full Stryker runs | No floors; see [testing](testing.md#mutation-testing) |
@@ -287,10 +287,14 @@ stays against the written rules, which count its render-only group as false alth
 two of those rows led to a suite. `change-coupling` and `host-text` moved to the full
 report (#2743, #2744): in the trial's window none of their new rows was fixed and all
 but one were false, and the review, which reads the full report, keeps them.
-`hotspots` is to stop ranking modules that run no code (#2708). The grown-files list
-is to show a row only when it grew by at least 11 code lines, its complexity rose or
-its trend rose twice in a row (#2745), which leaves about a quarter of the grown rows
-out of the comment.
+`hotspots` no longer ranks a module that runs no code (#2708, version 4): at
+`d55b8732` 13 of its top 20 were translation tables and the bridge's type-only
+protocol file, and over the 738 stored snapshots of version 3 the rule changes every
+top 20, by 1 to 13 files, in favour of files that run code; message classes and
+tables beside a helper or built by a call still rank (its `reportsWrongly`). The
+grown-files list is to show a row only when it grew by at least 11 code lines, its
+complexity rose or its trend rose twice in a row (#2745), which leaves about a
+quarter of the grown rows out of the comment.
 The written rule gave no threshold, because five smaller rows were fixed in their PR,
 but four of those went with nothing written about the row. Each of these issues
 replaces the text above that describes today's comment.

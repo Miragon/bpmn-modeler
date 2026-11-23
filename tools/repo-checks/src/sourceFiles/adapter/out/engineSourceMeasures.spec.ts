@@ -29,18 +29,17 @@ describe("the engine's source measures", () => {
         repository.write("libs/core/src/untracked.ts", "export const c = 3;");
 
         expect(new EngineSourceMeasures().read(repository.root)).toEqual([
-            { path: "libs/core/src/a.ts", codeLines: 1, functions: [], barrel: false, runsNoCode: true },
+            { path: "libs/core/src/a.ts", codeLines: 1, functions: [], runsNoCode: true },
             {
                 path: "libs/core/src/b.ts",
                 codeLines: 3,
                 functions: [{ name: "f", line: 2, complexity: 2 }],
-                barrel: false,
                 runsNoCode: false,
             },
         ]);
     });
 
-    it("tells a barrel from a file of type declarations, and both from a file that runs code", () => {
+    it("tells a barrel and a file of type declarations, which run no code, from a file that runs code", () => {
         const files: Record<string, string> = {
             "package.json": JSON.stringify({ name: "root", workspaces: ["libs/*"] }),
             "libs/core/src/index.ts":
@@ -56,11 +55,11 @@ describe("the engine's source measures", () => {
         expect(
             new EngineSourceMeasures()
                 .read(repository.root)
-                .map(({ path, barrel, runsNoCode }) => [path, { barrel, runsNoCode }]),
+                .map(({ path, runsNoCode }) => [path, runsNoCode]),
         ).toEqual([
-            ["libs/core/src/index.ts", { barrel: true, runsNoCode: true }],
-            ["libs/core/src/start.ts", { barrel: false, runsNoCode: false }],
-            ["libs/core/src/types.ts", { barrel: false, runsNoCode: true }],
+            ["libs/core/src/index.ts", true],
+            ["libs/core/src/start.ts", false],
+            ["libs/core/src/types.ts", true],
         ]);
     });
 });
