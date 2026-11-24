@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createElementIdConvention } from "./bpmnlint";
-import { createModeler } from "./createModeler";
-import { createDesigner } from "./design/createDesigner";
-import type { BpmnDesigner } from "./design/designer";
-import type { BpmnModeler } from "./modeler";
-import type { ElementIdConvention } from "./publicApi";
+import { createElementIdConvention } from "./lint";
+import { createModeler } from "./composition/createModeler";
+import { createDesigner } from "./composition/createDesigner";
+import type { BpmnDesigner } from "./design/service/designer";
+import type { BpmnModeler } from "./modeler/service/modeler";
+import type { ElementIdConvention } from "./modeler/port/publicApi";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 const miragon = createElementIdConvention();
@@ -347,7 +347,7 @@ describe("generating element IDs from names", () => {
         const handle = (await createModeler(container, {
             engine: "c7",
             propertiesPanel: { parent: panel },
-            linting: { module: await import("./bpmnlint"), results: "external" },
+            linting: { module: await import("./lint"), results: "external" },
         })) as BpmnModeler;
         handles.push(handle);
         await handle.loadDiagram(ORDER_PROCESS);
@@ -492,7 +492,7 @@ describe("generating element IDs from names", () => {
             const { container, panel } = mountWithPanel(1200, 800);
             const designer = (await createDesigner(container, {
                 propertiesPanel: { parent: panel },
-                linting: { module: await import("./bpmnlint"), results: "external" },
+                linting: { module: await import("./lint"), results: "external" },
             })) as BpmnDesigner;
             handles.push(designer);
             await designer.loadDiagram(ORDER_PROCESS);

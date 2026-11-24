@@ -6,11 +6,11 @@ import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { MESSY_LANES_BOUNDARY_SUBPROCESS } from "../../../libs/bpmn-layout/src/__fixtures__/integrationDiagrams";
 import { DIAGRAM_WITH_REAL_GARBAGE } from "../../../libs/bpmn-layout/src/cleanup/__fixtures__/models";
-import * as lintModule from "./bpmnlint/index";
-import { createModeler } from "./createModeler";
-import { createDesigner } from "./design/createDesigner";
-import type { BpmnDesignerHandle, DesignerOptions } from "./design/publicApi";
-import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
+import * as lintModule from "./lint";
+import { createModeler } from "./composition/createModeler";
+import { createDesigner } from "./composition/createDesigner";
+import type { BpmnDesignerHandle, DesignerOptions } from "./design/port/publicApi";
+import type { PendingInputHandle, PendingSaveHandle } from "./kernel/service/surfaceHandle";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     afterPaint,

@@ -44,8 +44,82 @@ const SKIP_DIRS = ["node_modules", "dist", "coverage"];
 /** Keyed by workspace dir; each names the issue that removes it. */
 const STABILITY_EXCEPTIONS: readonly KnownException[] = [];
 
-/** One per workspace not yet moved into role folders, naming the issue that moves it. */
-const ROLE_EXCEPTIONS: readonly KnownException[] = [];
+const BPMN_MODELER = "packages/bpmn-modeler/src";
+const CONSTRUCTION_OUT_OF_THE_FACADES = "#2249 step 2: construction out of the facades";
+const KERNEL_DOM_FEATURES_AS_VALUES =
+    "#2249 step 2: the kernel takes its DOM features as values, as it takes its module lists";
+const PORT_CONTRACTS_APART_FROM_HANDLE_TYPES =
+    "#2249 step 2: the port contracts split from the handle types they share a file with";
+
+function bpmnModelerException(from: string, to: string, until: string): KnownException {
+    return { from: `${BPMN_MODELER}/${from}`, to: `${BPMN_MODELER}/${to}`, until };
+}
+
+/**
+ * One blanket entry per workspace not yet moved into role folders, naming the issue that moves
+ * it; pairs of files for one that moved without splitting a file, each naming the issue or the
+ * step of it that removes it.
+ */
+const ROLE_EXCEPTIONS: readonly KnownException[] = [
+    ...[
+        "composition/lintModules.ts",
+        "popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule.ts",
+    ].map((to) =>
+        bpmnModelerException("design/service/designer.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),
+    ),
+    ...[
+        "composition/lintModules.ts",
+        "composition/capabilityModules.ts",
+        "composition/engineStacks/index.ts",
+        "popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule.ts",
+        "mode/adapter/in/modeModules.ts",
+        "elementTemplateOffer/adapter/in/elementTemplateOfferModule.ts",
+    ].map((to) =>
+        bpmnModelerException("modeler/service/modeler.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),
+    ),
+    bpmnModelerException(
+        "kernel/service/editableSurface.ts",
+        "kernel/adapter/in/propertiesPanelClipboard.ts",
+        KERNEL_DOM_FEATURES_AS_VALUES,
+    ),
+    bpmnModelerException(
+        "kernel/service/focusFeatures.ts",
+        "kernel/adapter/in/keyboardFocus.ts",
+        KERNEL_DOM_FEATURES_AS_VALUES,
+    ),
+    ...["design", "viewer", "modeler"].map((surface) =>
+        bpmnModelerException(
+            `${surface}/port/publicApi.ts`,
+            "kernel/service/surfaceHandle.ts",
+            PORT_CONTRACTS_APART_FROM_HANDLE_TYPES,
+        ),
+    ),
+    bpmnModelerException(
+        "modeler/port/publicApi.ts",
+        "kernel/service/coreServices.ts",
+        PORT_CONTRACTS_APART_FROM_HANDLE_TYPES,
+    ),
+    bpmnModelerException(
+        "modeler/port/publicApi.ts",
+        "bpmnlint/service/LintConfigService.ts",
+        "#2249 step 2: LintCallbacks split from LintConfigService into the LintModule port",
+    ),
+    bpmnModelerException(
+        "modeSession/domain/servingSurfaces.ts",
+        "modeSession/port/publicApi.ts",
+        "#2249 step 2: servingSurfaces decides on values, not on the SurfaceFactories port",
+    ),
+    bpmnModelerException(
+        "bpmnlint/service/LintConfigService.ts",
+        "bpmnlint/adapter/out/browserLinter.ts",
+        "#2249 step 2: the linter injected into LintConfigService",
+    ),
+    bpmnModelerException(
+        "templatePreview/service/createTemplatePreview.ts",
+        "composition/createModeler.ts",
+        "#2249 step 2: the template preview a preset of its own in composition/",
+    ),
+];
 
 /** Keyed by file and `<form> <name>`, such as `const OPEN`; each names the issue that removes it. */
 const PORT_VALUE_EXCEPTIONS: readonly KnownException[] = [];

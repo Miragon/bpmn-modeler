@@ -1,8 +1,8 @@
 import type { Element, Shape } from "bpmn-js/lib/model/Types";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "./composition/createModeler";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 

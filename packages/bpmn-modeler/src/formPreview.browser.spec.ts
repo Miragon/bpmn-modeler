@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import zeebeModdle from "zeebe-bpmn-moddle/resources/zeebe.json";
 import type { FormPreviewRequest, ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 
-import { createModeler } from "./createModeler";
-import { createDesigner } from "./design/createDesigner";
-import { createViewer } from "./viewer/createViewer";
+import { createModeler } from "./composition/createModeler";
+import { createDesigner } from "./composition/createDesigner";
+import { createViewer } from "./composition/createViewer";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 

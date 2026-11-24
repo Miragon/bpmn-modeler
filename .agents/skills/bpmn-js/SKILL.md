@@ -9,13 +9,13 @@ This skill covers how the BPMN webview (`apps/bpmn-webview/`) uses the bpmn-js l
 
 ## Modeler Initialization
 
-The modeler is encapsulated in `packages/bpmn-modeler/src/modeler.ts` as a `BpmnModeler` class, created through the public `createModeler(container, options)` factory (`createModeler.ts`). `BpmnModeler.init()` constructs `bpmn-js/lib/Modeler` itself from the selected engine stack.
+The modeler is encapsulated in `packages/bpmn-modeler/src/modeler/service/modeler.ts` as a `BpmnModeler` class, created through the public `createModeler(container, options)` factory (`composition/createModeler.ts`). `BpmnModeler.init()` constructs `bpmn-js/lib/Modeler` itself from the selected engine stack.
 
 ### Engine Variants
 
 The modeler supports two Camunda engine variants, selected by the `engine` option:
 
-Each engine stack (`packages/bpmn-modeler/src/engineStacks/c7.ts`, `c8.ts`) is data: the upstream plugin modules (wrapped by `composeUpstreamModules` with the shared leading/trailing modules), the engine-only modules, the engine moddle extension, the properties-panel option defaults, and the engine's popup-menu annotation overrides. Popup-menu descriptions, search keywords and the replace-menu Templates tab come from `src/popupMenuAnnotations/`: an engine-neutral base set that Design loads as is and each engine overrides where its semantics differ. `loadEngineStack(engine)` imports it dynamically, so a page only parses the stack it opens.
+Each engine stack (`packages/bpmn-modeler/src/composition/engineStacks/c7.ts`, `c8.ts`) is data: the upstream plugin modules (wrapped by `composeUpstreamModules` with the shared leading/trailing modules), the engine-only modules, the engine moddle extension, the properties-panel option defaults, and the engine's popup-menu annotation overrides. Popup-menu descriptions, search keywords and the replace-menu Templates tab come from `src/popupMenuAnnotations/`: an engine-neutral base set that Design loads as is and each engine overrides where its semantics differ. `loadEngineStack(engine)` imports it dynamically, so a page only parses the stack it opens.
 
 - **Camunda 7** — `camunda` moddle extension. Engine modules: `CreateAppendElementTemplatesModule`, `CreateAppendC7ElementTemplatesModule`, `TransactionBoundariesModule`.
 - **Camunda 8** — `zeebe` moddle extension. No engine modules beyond its upstream set.
@@ -63,12 +63,12 @@ Services are accessed via `modeler.get('serviceName')`. Key services used:
 
 | Event                      | Where                                                                    | Purpose                                                                                                          |
 |----------------------------|--------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| `commandStack.changed`     | `packages/bpmn-modeler/src/editableSurface.ts` (`onCommandStackChanged`) | Triggered after any modeler command. The webview's `bindSurface` subscribes through the handle; the session's shared `WebviewDocumentSync` exports XML and sends a debounced `SyncDocumentCommand` to host. |
-| `layout.formatted`         | `packages/bpmn-modeler/src/editableSurface.ts` (`onFormatted`)           | Triggered once per format run (host command, palette, canvas shortcut); a call joining a run in flight adds none. `bindSurface` reports the outcome to the host as `DiagramFormattedCommand`. |
-| `canvas.viewbox.changed`   | `packages/bpmn-modeler/src/viewport.ts`                                  | Triggered on scroll/zoom. Debounced (100ms); `WebviewStateManager` (`service/state.ts`) persists it through its injected `WebviewStateStore.merge`, which calls `host.updateState()`. |
+| `commandStack.changed`     | `packages/bpmn-modeler/src/kernel/service/editableSurface.ts` (`onCommandStackChanged`) | Triggered after any modeler command. The webview's `bindSurface` subscribes through the handle; the session's shared `WebviewDocumentSync` exports XML and sends a debounced `SyncDocumentCommand` to host. |
+| `layout.formatted`         | `packages/bpmn-modeler/src/kernel/service/editableSurface.ts` (`onFormatted`)           | Triggered once per format run (host command, palette, canvas shortcut); a call joining a run in flight adds none. `bindSurface` reports the outcome to the host as `DiagramFormattedCommand`. |
+| `canvas.viewbox.changed`   | `packages/bpmn-modeler/src/kernel/service/viewport.ts`                                  | Triggered on scroll/zoom. Debounced (100ms); `WebviewStateManager` (`service/state.ts`) persists it through its injected `WebviewStateStore.merge`, which calls `host.updateState()`. |
 | `copyPaste.elementsCopied` | `libs/bpmn-clipboard/src/BridgedClipboardModule.ts`                      | Triggered when elements are copied. Intercepted to write descriptor JSON to system clipboard via extension host. |
 | `copyPaste.pasteElements`  | `libs/bpmn-clipboard/src/BridgedClipboardModule.ts`                      | Triggered when paste occurs. Intercepted to read descriptor JSON from system clipboard via extension host.       |
-| `elementTemplates.errors`  | `packages/bpmn-modeler/src/modeler.ts`                                   | Triggered when element template loading produces errors. Forwarded to the `onElementTemplatesErrors` callback.   |
+| `elementTemplates.errors`  | `packages/bpmn-modeler/src/modeler/service/modeler.ts`                                   | Triggered when element template loading produces errors. Forwarded to the `onElementTemplatesErrors` callback.   |
 
 ### Event Priority System
 
@@ -144,7 +144,7 @@ For Cmd/Ctrl+C it reads `window.getSelection()` and writes via the injected `tex
 
 ### Layer 3: FEEL Editor Polyfill + Select-All Guard (`propertiesPanelClipboard.ts`)
 
-The C8 properties panel's FEEL expression editor is **CodeMirror 6**, which lives *outside* the bpmn-js DI context — so the two DI modules above can't reach it. `installContentEditableClipboardPolyfill(roots, { requestClipboard, writeClipboard })` (in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`, installed by `BpmnModeler.init()` / `BpmnDesigner.init()`) fills that gap: a capture-phase `keydown` listener that bridges Cmd/Ctrl+C/V on any contenteditable/text-editing surface through the host **text** clipboard. It is a per-instance root registry — each `init()` registers its `[container, propertiesPanel.parent]` roots and returns a disposer that `destroy()` (and the next `init()`) calls; the document listeners and the `execCommand` patch install on the first registration and tear down on the last. Clipboard operations resolve against the root containing `document.activeElement`, so sibling instances route to their own bridge. Direct-editing labels (`.djs-direct-editing-content`) are excluded from the capture keydown so `LabelClipboardModule` owns them without a double paste.
+The C8 properties panel's FEEL expression editor is **CodeMirror 6**, which lives *outside* the bpmn-js DI context — so the two DI modules above can't reach it. `installContentEditableClipboardPolyfill(roots, { requestClipboard, writeClipboard })` (in `packages/bpmn-modeler/src/kernel/adapter/in/propertiesPanelClipboard.ts`, installed by `BpmnModeler.init()` / `BpmnDesigner.init()`) fills that gap: a capture-phase `keydown` listener that bridges Cmd/Ctrl+C/V on any contenteditable/text-editing surface through the host **text** clipboard. It is a per-instance root registry — each `init()` registers its `[container, propertiesPanel.parent]` roots and returns a disposer that `destroy()` (and the next `init()`) calls; the document listeners and the `execCommand` patch install on the first registration and tear down on the last. Clipboard operations resolve against the root containing `document.activeElement`, so sibling instances route to their own bridge. Direct-editing labels (`.djs-direct-editing-content`) are excluded from the capture keydown so `LabelClipboardModule` owns them without a double paste.
 
 It also guards **Cmd/Ctrl+A**: without it, bpmn-js's `Keyboard` service steals Ctrl+A in a text field and selects all diagram shapes. The polyfill lets Ctrl+A select text within the focused editable element (canvas Ctrl+A stays owned by bpmn-js's `SelectionKeyBindings`).
 
@@ -193,8 +193,8 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 
 ## Key Files
 
-- **Public factory**: `packages/bpmn-modeler/src/createModeler.ts`
-- **Modeler wrapper** (builds the clipboard modules via `createClipboardModules`): `packages/bpmn-modeler/src/modeler.ts` (engine stacks in `packages/bpmn-modeler/src/engineStacks/`)
+- **Public factory**: `packages/bpmn-modeler/src/composition/createModeler.ts`
+- **Modeler wrapper** (builds the clipboard modules via `createClipboardModules`): `packages/bpmn-modeler/src/modeler/service/modeler.ts` (engine stacks in `packages/bpmn-modeler/src/composition/engineStacks/`)
 - **Webview composition root and boot phases**: `apps/bpmn-webview/src/composition/bootstrap.ts` (entry: `main.ts`)
 - **Document session** (engine-reload latch, deferred language refresh and focus): `apps/bpmn-webview/src/service/documentSession.ts`, on top of the `WebviewDocumentSync` it shares with the DMN webview (host revisions, the serialized modeler-operation queue every import, refresh, mode switch and the engine-reload teardown runs on, debounced host import and outbound sync, flush handshake): `libs/shared/src/lib/webviewDocumentSync.ts`
 - **Surface document adapter** (view-preserving re-import, blank diagram, import warnings, align-to-origin after a sync): `apps/bpmn-webview/src/adapter/out/surfaceDocument.ts`
@@ -207,6 +207,6 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 - **Editor chrome** (canvas, resizer, panel mount, saved panel width and visibility, panel shortcuts): `libs/shared/src/lib/panelChrome.ts`; the BPMN page's mode strip and the shortcut gate that opens after the restore: `apps/bpmn-webview/src/adapter/in/editorChrome.ts`
 - **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/BridgedClipboardModule.ts` (built via `createClipboardModules`)
 - **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
-- **FEEL editor + Ctrl+A polyfill** (per-instance root registry + disposer): `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`
+- **FEEL editor + Ctrl+A polyfill** (per-instance root registry + disposer): `packages/bpmn-modeler/src/kernel/adapter/in/propertiesPanelClipboard.ts`
 - **Barrel exports**: `apps/bpmn-webview/src/index.ts`
 - **Host API wrapper + dev mock** (`getHostApi`/`PreviewHost`): `apps/bpmn-webview/src/adapter/out/host.ts`, `apps/bpmn-webview/src/adapter/out/browserPreview/previewHost.ts`

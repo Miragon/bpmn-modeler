@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
-import { createModeler } from "./createModeler";
-import { BpmnModeler } from "./modeler";
-import type { ThemeMode } from "./publicApi";
-import { createDesigner } from "./design/createDesigner";
-import type { BpmnDesigner } from "./design/designer";
-import { createViewer } from "./viewer/createViewer";
-import type { BpmnViewer } from "./viewer/viewer";
-import { DiffViewer } from "./viewer/diff/DiffViewer";
+import { createModeler } from "./composition/createModeler";
+import { BpmnModeler } from "./modeler/service/modeler";
+import type { ThemeMode } from "./modeler/port/publicApi";
+import { createDesigner } from "./composition/createDesigner";
+import type { BpmnDesigner } from "./design/service/designer";
+import { createViewer } from "./composition/createViewer";
+import type { BpmnViewer } from "./viewer/service/viewer";
+import { DiffViewer } from "./diff/service/DiffViewer";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     mountCanvas,

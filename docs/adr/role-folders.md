@@ -20,8 +20,8 @@ missing or unknown kind.
 
 | Kind | Workspaces |
 | --- | --- |
-| `hexagonal` | `libs/modeler-core`, `libs/bpmn-merge`, `libs/bpmn-diff`, `libs/modeler-types`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
-| `diagram-js` | the diagram-js feature libraries in `libs/`, `packages/bpmn-modeler`, `packages/dmn-modeler` (bpmn-js module layout) |
+| `hexagonal` | `libs/modeler-core`, `libs/bpmn-merge`, `libs/bpmn-diff`, `libs/modeler-types`, `packages/bpmn-modeler`, `apps/vscode-plugin`, `apps/modeler-bridge`, the five webviews, the template builder, `apps/orca-plugin`, `tools/repo-checks` |
+| `diagram-js` | the diagram-js feature libraries in `libs/`, `packages/dmn-modeler` (bpmn-js module layout) |
 | `flat` | `modeler-browser`, `shared`, `dmn-diff`, `bpmn-i18n-extras`, `standalone-extension`, `tools/architecture-testing`, `docs`, `apps/standalone` |
 
 A `diagram-js` or `flat` workspace holds no role folder, so no folder there
@@ -136,7 +136,8 @@ last use.
   be followed. The importer need not be a `domain/` file: `dmn-diff` imports
   `@miragon/bpmn-modeler-diff/domain` so that its own entry stays pure, and `modeler-types`'
   `engine.ts` does because the merge's domain entry reaches it.
-- **Scope:** only the core's spec and the merge, diff and types libraries' apply the rule. The other
+- **Scope:** only the core's spec, the merge, diff and types libraries' and the modeler package's
+  apply the rule. The other
   hexagonal workspaces have no package rule for `domain/`; there it would flag 64
   imports in 57 files, most of them `@miragon/bpmn-modeler-shared` (37) and
   `@miragon/bpmn-modeler-core` (12). That rule is open (#2562, B10).
@@ -202,11 +203,55 @@ subpaths, which kept the DOM helpers (#2776) and lodash out of the merge.
   merge, diff and types libraries no spec catches a `domain/` file that imports the root
   entry (#2562, B10).
 
+### Modeler package layout
+
+`packages/bpmn-modeler` is `hexagonal` (#2249, decided 2026-11-23). The entries of its export
+map sit directly in `src/` (`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`,
+`mode.ts`, `plugins.ts`). `kernel/` is a feature folder of its own: `SurfaceCore`, the surface
+handle, the shared editable-surface helpers, the canvas managers and the surface reporter,
+which the kernel and both facades warn through. The features (`modeler`,
+`design`, `viewer`, `diff`, `mode`, `modeSession`, `bpmnlint`, `elementTemplateOffer`,
+`popupMenuAnnotations`, `plugins`, `templatePreview`) have role folders inside;
+diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` holds the presets
+`createModeler`, `createDesigner` and `createViewer`, the module lists and the engine stacks.
+`styles/` and `types/` hold CSS and declarations, which no rule reads.
+
+- **Ports:** the goal is that `port/` holds only a contract a host or an embedder supplies: the
+  clipboard and lint injection options, `SurfaceFactories` and the capability ports.
+  `ViewportManager`, `SelectionManager` and `RootElementManager` are handle types hosts call,
+  with one implementation each, so they stay beside it in `kernel/service/`. Until step 2
+  splits the files, each surface's `port/publicApi.ts` also carries the handle, option and
+  factory types it shares a file with (`BpmnModelerHandle`, `ModelerOptions`, `CreateModeler`,
+  `BpmnDesignerHandle`, `BpmnViewerHandle`, `ModeSessionOptions`, `ModeSession`); the 4 "port
+  contracts split from the handle types" exceptions mark this. `SurfaceFactories` names the
+  handle types, so where they land after the split depends on #2249's open question 1. No
+  technology rule reads `service/`, because the kernel builds bpmn-js.
+- **Why:** as `diagram-js` the package was checked only for holding no role folder, and
+  `convention-coverage` skipped it. A kind of its own would need rules of its own; these rules,
+  `convention-coverage` and the purity rule exist already for the core.
+- **Cost:** the move split no file, so 18 pairs stay role exceptions (30 violations, against
+  the trial's 42 with the facades as services) and one a purity exception, each naming the
+  step-2 change of #2249 that removes it: construction out of the facades (8), the kernel's
+  DOM features as values (2), the port contracts apart from the handle types they share a
+  file with (4), `LintCallbacks` into the `LintModule` port (1), `servingSurfaces` on values
+  (1), the linter injected into `LintConfigService` (1), the template preview as a preset (1)
+  and, for purity, the default lint config as a value (1). `ViewState` and `ViewportData`
+  stay in `kernel/service/` with no rule firing until step 2 splits `viewState.ts` (its async
+  `keepAcross` stays out of `domain/`) and `viewport.ts`. The kernel keeps type imports from
+  `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
+  `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A `new Modeler()` in a feature's
+  `service/` passes every import rule; only review and the browser specs catch it. The
+  bundle checks read `bpmnlint` anywhere in a chunk, its source path comments included, so a
+  file the root, `/design` or `/mode` entry reaches stays out of `bpmnlint/`: the lint handle
+  sits in `kernel/`.
+
 ### Migration
 
 A `hexagonal` workspace not yet moved into role folders carries one blanket
 `KnownException` (`from: <dir>, to: "*"`) that names the issue moving it; the
-stale-exception check removes it once the workspace passes. The
+stale-exception check removes it once the workspace passes. A workspace that moves without
+splitting a file lists, instead, each pair of files the move cannot fix, as the modeler
+package does. The
 `convention-coverage` fitness function runs the same rules without exceptions
 and so reports what the list excuses as remaining work
 ([architecture enforcement](architecture-enforcement.md#fitness-functions)).
@@ -248,5 +293,6 @@ through `readModulePurity`, contexts), the
 [merge library's spec](../../libs/bpmn-merge/src/architecture.spec.ts) (domain imports,
 stages), the [diff library's spec](../../libs/bpmn-diff/src/architecture.spec.ts) (domain
 imports, folders), the [types library's spec](../../libs/modeler-types/src/architecture.spec.ts)
-(domain imports, folders) and the ESLint override that bans an empty
+(domain imports, folders), the [modeler package's spec](../../packages/bpmn-modeler/src/architecture.spec.ts)
+(domain imports, subpath gates) and the ESLint override that bans an empty
 function in an adapter (`**/src/**/adapter/**`, #2053).

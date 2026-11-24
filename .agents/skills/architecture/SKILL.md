@@ -14,7 +14,7 @@ verify details against source because older guides and ADRs may be outdated.
 
 | Concern | Owner and starting point |
 | --- | --- |
-| Embeddable BPMN behavior and public API | `packages/bpmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. Viewer, designer, mode-session, diff, and lint have separate subpaths. |
+| Embeddable BPMN behavior and public API | `packages/bpmn-modeler/src/`; start with `index.ts` and `modeler/port/publicApi.ts`. Viewer, designer, mode-session, diff, and lint have separate subpaths, each an entry directly in `src/`. |
 | Embeddable DMN behavior and public API | `packages/dmn-modeler/src/`; start with `index.ts` and `publicApi.ts`. |
 | Reusable browser features | Feature libraries under `libs/`, composed by the modeler packages. |
 | Public-facing types and pure rules browser code shares with the core or across browser workspaces | `libs/modeler-types`, compiled without the DOM; keep the surface suitable for publication. |
@@ -203,9 +203,10 @@ command that is on no list.
 ## Put each file in its role folder
 
 Each workspace declares its kind in the `"architecture"` field of its
-`package.json`: `hexagonal` (core, merge, diff and types libraries, VS Code host, bridge,
-webviews, template builder, `tools/repo-checks`), `diagram-js` (feature
-libraries and the modeler packages) or `flat` (protocol, browser helpers and the
+`package.json`: `hexagonal` (core, merge, diff and types libraries, the BPMN
+modeler package, VS Code host, bridge, webviews, template builder,
+`tools/repo-checks`), `diagram-js` (feature libraries and the DMN modeler
+package) or `flat` (protocol, browser helpers and the
 rest of the tooling). A new workspace declares one too. Only a `hexagonal` workspace
 has role folders; the first one in a file's path is its role:
 
@@ -278,9 +279,24 @@ disposable store) is `service/`, so its root entry is not pure. A `domain/` file
 in any workspace imports `@miragon/bpmn-modeler-types/domain`, never the root
 entry ([README](../../../libs/modeler-types/README.md#layout)).
 
+The BPMN modeler package keeps its subpath entries directly in `src/`
+(`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`, `mode.ts`,
+`plugins.ts`). `kernel/` holds `SurfaceCore`, the surface handle and the canvas
+managers in `service/`; each feature (`modeler`, `design`, `viewer`, `diff`,
+`bpmnlint`, `modeSession`, …) has role folders, with diagram-js and bpmn-js
+modules and DOM UI in `adapter/in/`; `composition/` holds the presets and the
+module lists. A new `port/` file holds only a contract a host or an embedder
+supplies. Until step 2 of #2249 splits them, the surfaces' `port/publicApi.ts`
+files also carry the handle, option and factory types they share a file with,
+and the "port contracts split from the handle types" exceptions mark this. Each
+known exception names the step-2 change of #2249 that removes it
+([modeler package layout](../../../docs/adr/role-folders.md#modeler-package-layout)).
+
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint
 bans `() => {}` in `adapter/` (`eslint.config.cjs`). A workspace not yet moved
-has one blanket exception in the repo-level spec naming its migration issue.
+has one blanket exception in the repo-level spec naming its migration issue; one
+that moved without splitting a file lists each pair of files the move cannot
+fix, each naming the change that removes it.
 
 A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it, and runs

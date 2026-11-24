@@ -1,0 +1,280 @@
+import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
+import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
+import type {
+    BpmnlintConfig,
+    CleanupOutcome,
+    ElementIdProposals,
+    LintResults,
+    LintRunEvent,
+} from "@miragon/bpmn-modeler-types";
+import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import type {
+    ClipboardOptions,
+    ContentSavedEvent,
+    CoreModelerServices,
+    ElementIdOptions,
+    LintingOptions,
+    ThemeMode,
+} from "../../modeler/port/publicApi";
+import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/service/surfaceHandle";
+
+/**
+ * The public TypeScript surface of `@miragon/bpmn-modeler/design`: an
+ * engine-neutral, editable BPMN surface for documentation / conceptual modelling.
+ *
+ * Design mode sits between the full {@link BpmnModelerHandle} (Camunda 7/8, with
+ * an engine-bound properties panel) and the readonly {@link BpmnViewerHandle}: it
+ * is fully editable — palette, context pad, modelling, copy-paste — but carries
+ * only plain-BPMN properties (general / documentation groups), none of the
+ * Camunda stack. It never loads the Camunda moddles or behaviors, element
+ * templates, or transaction boundaries. Linting is injection-only exactly as on the root
+ * {@link createModeler} (see {@link DesignerOptions.linting}): omitted/`false`
+ * pulls no lint bytes; a `module` from `@miragon/bpmn-modeler/lint` opts in with
+ * the engine-neutral Design config.
+ *
+ * **The mode marker is the absence of `modeler:executionPlatform` on
+ * `bpmn:Definitions`.** A host routes a document with `detectEngine(xml) ===
+ * undefined` here (editable Design), and one with a detected engine to
+ * {@link createModeler}. A tagged diagram uses that engine modeler's live
+ * Design/Implement toggle so engine data and undo history survive. This neutral
+ * designer does not supply engine-conversion helpers or stamp XML on load.
+ *
+ * Leanness holds at the *module-graph* level, not a runtime flag, so it survives
+ * single-file bundlers (`vite-plugin-singlefile`) that inline everything
+ * reachable — hence a separate subpath. See the
+ * [surfaces decision](../../../../docs/adr/bpmn-modeler.md#surfaces-and-modes).
+ */
+
+/**
+ * The core diagram-js/bpmn-js services a designer exposes through
+ * {@link BpmnDesignerHandle.getService}. Identical to {@link CoreModelerServices}
+ * — Design mode is fully editable, so `modeling` and `commandStack`
+ * are present, unlike the readonly viewer's `Pick`.
+ */
+export type CoreDesignerServices = CoreModelerServices;
+
+/**
+ * The host capabilities a designer can opt into. Unlike the root
+ * {@link ModelerCapabilities}, only the engine-neutral ports: `modelNavigation`
+ * ("Navigate to referenced model" on Call Activities / Business Rule Tasks /
+ * linked forms) and `definitionSearch` (messages, signals, errors and
+ * escalations of other models). The engine-bound ports (`codeLink`, `scripting`) are deliberately absent so they
+ * are compile-time-rejected here, mirroring how {@link DesignerOptions} rejects
+ * `engine` / `elementTemplates`.
+ *
+ * Present ⇒ the feature's DI module is registered and its context-pad entry
+ * appears; absent ⇒ no provider is registered and no entry renders.
+ */
+export interface DesignerCapabilities {
+    modelNavigation?: ModelNavigationPort;
+    definitionSearch?: DefinitionSearchPort;
+}
+
+/**
+ * Per-instance configuration for {@link createDesigner}. Deliberately minimal:
+ * Design mode has no engine (there is no execution platform to bind) and no
+ * element templates — every field that survives is engine-neutral. Linting is
+ * available on the same injection-only seam as the root modeler (omit for none).
+ * Its host capabilities are the engine-neutral ones (see
+ * {@link DesignerCapabilities}).
+ */
+export interface DesignerOptions {
+    /**
+     * The panel host. Required (as in {@link createModeler}): each instance owns
+     * its own properties-panel parent so several surfaces can coexist on a page.
+     * The panel shows only the engine-neutral general / documentation groups.
+     */
+    propertiesPanel: { parent: HTMLElement };
+
+    /**
+     * Colour theme — defaults to `"automatic"`. Theming always engages: the
+     * instance gets a `data-bpmn-theme` attribute from the first frame.
+     */
+    theme?: ThemeMode;
+
+    /** UI locale (BCP-47-ish tag) — Design mode has translatable UI. Defaults to `"en"`. */
+    locale?: string;
+
+    /**
+     * Element types offered first in the append/create menu — the neutral
+     * counterpart of the modeler setting of the same name, lifted to a
+     * first-class option (Design mode has no `settings`). Change them live
+     * with {@link BpmnDesignerHandle.setFavouriteBpmnElements}.
+     */
+    favouriteBpmnElements?: string[];
+
+    /**
+     * The convention IDs generated from names follow and whether they follow
+     * names, the counterpart of the modeler setting `elementIdsFollowName`.
+     * Change them live with {@link BpmnDesignerHandle.setElementIdSettings}.
+     */
+    elementIdSettings?: ElementIdOptions;
+
+    /** Clipboard override — omit for the native browser clipboard. */
+    clipboard?: ClipboardOptions;
+
+    /**
+     * Escape hatch: extra moddle extensions for a host's own BPMN namespace.
+     * Matches bpmn-js's own `moddleExtensions`.
+     */
+    moddleExtensions?: Record<string, object>;
+
+    /**
+     * Escape hatch: extra bpmn-js DI modules. Matches bpmn-js's own
+     * `additionalModules`.
+     */
+    additionalModules?: unknown[];
+
+    /**
+     * Engine-neutral host capabilities to opt into — `modelNavigation` and
+     * `definitionSearch`. Omit a capability and its DI module is never
+     * registered, so its UI never renders. See
+     * {@link DesignerCapabilities}.
+     */
+    capabilities?: DesignerCapabilities;
+
+    /**
+     * Linting tier — see {@link LintingOptions}. Injection-only, exactly as on
+     * {@link createModeler}: an on-tier supplies a `module` from
+     * `@miragon/bpmn-modeler/lint`. Omit (or `false`) for no linting. The
+     * engine-neutral Design config applies (no Camunda engine layer); a per-mode
+     * `config` map resolves its `design` entry.
+     */
+    linting?: LintingOptions;
+
+    /** Debounced diagram content — see {@link ContentSavedEvent}. */
+    onContentSaved?: (event: ContentSavedEvent) => void | Promise<void>;
+
+    /**
+     * One in-page lint pass completed — findings + gracefully-degraded rules.
+     * Passes are debounced and run when the browser is idle, so a burst of
+     * edits (or an import) yields one call shortly after it settles, not one
+     * per change.
+     */
+    onLintResults?: (event: LintRunEvent) => void;
+
+    /** The in-canvas lint chip was toggled on/off. */
+    onLintingToggled?: (enabled: boolean) => void;
+
+    /**
+     * A failing debounced save — export failure, or an error thrown by (or a
+     * rejected promise returned from) `onContentSaved`. Fires exactly once per
+     * debounced execution, never after `destroy()`; later edits keep saving.
+     * When unset, failures fall back to `console.error`.
+     */
+    onError?: (error: unknown) => void;
+}
+
+/**
+ * The instance handle {@link createDesigner} resolves to — the editable,
+ * engine-neutral analogue of {@link BpmnModelerHandle}. Every member is
+ * signature-identical to its modeler counterpart (subset compatibility is
+ * asserted in `publicApi.spec.ts`).
+ */
+export interface BpmnDesignerHandle extends BpmnSurfaceHandle, PendingInputHandle {
+    /**
+     * Replace the diagram with a new empty one and fit it to view. The base
+     * bpmn-js template carries no `modeler:executionPlatform`, so a fresh Design
+     * diagram stays in Design mode by the mode-marker semantics above.
+     */
+    newDiagram(): Promise<ImportXMLResult>;
+
+    /**
+     * Rearrange the diagram left to right and reroute its connections.
+     *
+     * Touches only diagram interchange, and lands as one undoable step.
+     * Available here as well as on the modeler because layout is pure
+     * geometry, and therefore engine-neutral.
+     */
+    formatDiagram(): Promise<LayoutOutcome>;
+
+    /** Report — or, with `apply`, remove — orphan DI and other leftovers. */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
+
+    /**
+     * The rows of a review of IDs generated from names for a host's own panel,
+     * as {@link BpmnModelerHandle.proposeElementIds} lists them. Engine-neutral
+     * like formatting.
+     */
+    proposeElementIds(unchecked?: readonly string[]): ElementIdProposals;
+
+    /** Rename the checked rows in one undo step, as {@link BpmnModelerHandle.renameElementIds} does. */
+    renameElementIds(unchecked: readonly string[]): number;
+
+    /**
+     * Set how IDs generated from names are spelled, and whether a still random
+     * or generated ID follows its element's name and type.
+     */
+    setElementIdSettings(options: ElementIdOptions): void;
+
+    /**
+     * Replace the element types pinned at the top of the append/create menu —
+     * the live counterpart of {@link DesignerOptions.favouriteBpmnElements}.
+     * Only the first six types count, shown in the given order; of those, types
+     * without a plain menu entry are skipped, and an empty list clears the row.
+     * Takes effect the next time the menu opens.
+     */
+    setFavouriteBpmnElements(types: readonly string[]): void;
+
+    /**
+     * Resolve a core diagram-js/bpmn-js service by name. The
+     * {@link CoreDesignerServices} names are semver-stable; every other name is an
+     * unstable escape hatch.
+     */
+    getService<K extends keyof CoreDesignerServices>(name: K): CoreDesignerServices[K];
+    getService<T = unknown>(name: string): T;
+
+    /**
+     * Render host-computed lint results, or clear them with `null`. A no-op with
+     * a warning when the designer was created without a lint module.
+     */
+    applyLintResults(results: LintResults | null): void;
+
+    /** Turn off the in-webview linter and clear its overlay. */
+    applyLintingDisabled(): void;
+
+    /**
+     * Start (or restart) the in-webview linter. Optional `config` overrides the
+     * Design default; a config-less call resets a previously handed-back config
+     * to the resolved default rules. Optional `configToken` dedups a repeat
+     * instruction. Never re-enables a user-disabled linter.
+     */
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
+
+    /**
+     * Subscribe to every command-stack change, undebounced: each executed,
+     * undone or redone edit. An import resets the stack without a
+     * notification. The listener's return value is ignored. Returns a function
+     * that removes the listener; `destroy()` removes it too, and subscribing
+     * after `destroy()` throws `NoModelerError`. For the debounced XML, use
+     * {@link DesignerOptions.onContentSaved}.
+     */
+    onCommandStackChanged(listener: () => void): () => void;
+
+    /**
+     * Subscribe to the outcome of every format run, failures included:
+     * {@link formatDiagram} as well as the palette entry and the canvas
+     * shortcut. The listener receives the same {@link LayoutOutcome}
+     * `formatDiagram` resolves. A call made while a run is in flight joins
+     * that run and gets no extra notification. Returns a function that
+     * removes the listener; subscribing after `destroy()` throws
+     * `NoModelerError`.
+     */
+    onFormatted(listener: (outcome: LayoutOutcome) => void): () => void;
+}
+
+/**
+ * The `@miragon/bpmn-modeler/design` entry point: stand up one engine-neutral,
+ * editable designer bound to `container` and resolve its
+ * {@link BpmnDesignerHandle}. Async for API-stability symmetry with
+ * {@link createModeler}.
+ *
+ * On any initialisation failure after allocation the factory destroys the
+ * partial instance (owned DOM and document listeners removed) before rejecting,
+ * so the same container and panel roots can be reused for a retry.
+ */
+export type CreateDesigner = (
+    container: HTMLElement,
+    options: DesignerOptions,
+) => Promise<BpmnDesignerHandle>;

@@ -15,7 +15,7 @@ const VERIFICATION_SERVICE =
     "libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts";
 const DEPLOYMENT_PROMPTS = "libs/modeler-core/src/deployment/domain/deploymentPrompts.ts";
 const DEPLOYMENT_SERVICE = "libs/modeler-core/src/deployment/service/DeploymentService.ts";
-const CAPABILITY_MODULES = "packages/bpmn-modeler/src/capabilityModules.ts";
+const CAPABILITY_MODULES = "packages/bpmn-modeler/src/composition/capabilityModules.ts";
 
 // The first lint builds the type program of the whole repository.
 const FIRST_PROGRAM_BUILD_MS = 60_000;

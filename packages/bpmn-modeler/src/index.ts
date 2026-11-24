@@ -11,13 +11,13 @@ import "./styles/diff.css";
 import "../../../libs/modeler-browser/src/canvasOverlays.css";
 import "./styles/themes.css";
 
-export { createModeler } from "./createModeler";
-export { createTemplatePreview } from "./templatePreview/createTemplatePreview";
+export { createModeler } from "./composition/createModeler";
+export { createTemplatePreview } from "./templatePreview/service/createTemplatePreview";
 export type {
     TemplatePreviewHandle,
     TemplatePreviewOptions,
     TemplatePreviewOutcome,
-} from "./templatePreview/createTemplatePreview";
+} from "./templatePreview/service/createTemplatePreview";
 export type {
     ThemeMode,
     ModelerMode,
@@ -34,11 +34,11 @@ export type {
     CoreModelerServices,
     CreateModeler,
     StableModelerSurface,
-} from "./publicApi";
-export type { BpmnSurfaceHandle, PendingInputHandle } from "./surfaceHandle";
-export { isEditableSurface, isModelerSurface } from "./modeSession/surfaceCapabilities";
-export type { EditableSurfaceHandle } from "./modeSession/surfaceCapabilities";
-export type { ModelerCapabilities } from "./capabilities";
+} from "./modeler/port/publicApi";
+export type { BpmnSurfaceHandle, PendingInputHandle } from "./kernel/service/surfaceHandle";
+export { isEditableSurface, isModelerSurface } from "./modeSession/service/surfaceCapabilities";
+export type { EditableSurfaceHandle } from "./modeSession/service/surfaceCapabilities";
+export type { ModelerCapabilities } from "./modeler/port/capabilities";
 export type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
 export type {
     ModelNavigationPort,
@@ -66,9 +66,9 @@ export type {
     WorkspaceDefinition,
 } from "@miragon/bpmn-modeler-types";
 export { NoModelerError, UnsupportedEngineError } from "@miragon/bpmn-modeler-types";
-export { extractModelDefinitions } from "./extractModelDefinitions";
-export { detectEngine } from "./detectEngine";
-export type { DetectedEngine } from "./detectEngine";
+export { extractModelDefinitions } from "./kernel/domain/extractModelDefinitions";
+export { detectEngine } from "./kernel/domain/detectEngine";
+export type { DetectedEngine } from "./kernel/domain/detectEngine";
 export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 export type {
@@ -90,22 +90,22 @@ export type {
     ElementIdSettings,
 } from "@miragon/bpmn-modeler-types";
 
-export type { ViewportManager } from "./viewport";
-export type { ViewportData } from "./viewport";
-export type { SelectionManager } from "./selection";
-export type { RootElementManager } from "./rootElement";
-export type { ViewState } from "./viewState";
+export type { ViewportManager } from "./kernel/service/viewport";
+export type { ViewportData } from "./kernel/service/viewport";
+export type { SelectionManager } from "./kernel/service/selection";
+export type { RootElementManager } from "./kernel/service/rootElement";
+export type { ViewState } from "./kernel/service/viewState";
 
 // Local aliases preserve @deprecated in the declaration rollup; API Extractor drops it on bare re-exports.
-import { DiffViewer as DiffViewerImpl } from "./viewer/diff/DiffViewer";
-import type { DiffMarkerClass as DiffMarkerClassImpl } from "./viewer/diff/DiffViewer";
-import { DiffLegend as DiffLegendImpl } from "./viewer/diff/DiffLegend";
+import { DiffViewer as DiffViewerImpl } from "./diff/service/DiffViewer";
+import type { DiffMarkerClass as DiffMarkerClassImpl } from "./diff/service/DiffViewer";
+import { DiffLegend as DiffLegendImpl } from "./diff/adapter/in/DiffLegend";
 import type {
     DiffLegendCallbacks as DiffLegendCallbacksImpl,
     DiffLegendContext as DiffLegendContextImpl,
-} from "./viewer/diff/DiffLegend";
-import { DiffNavigator as DiffNavigatorImpl } from "./viewer/diff/DiffNavigator";
-import { DiffPaneCoordinator as DiffPaneCoordinatorImpl } from "./viewer/diff/DiffPaneCoordinator";
+} from "./diff/adapter/in/DiffLegend";
+import { DiffNavigator as DiffNavigatorImpl } from "./diff/service/DiffNavigator";
+import { DiffPaneCoordinator as DiffPaneCoordinatorImpl } from "./diff/service/DiffPaneCoordinator";
 
 /** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
 export const DiffViewer = DiffViewerImpl;
@@ -131,6 +131,6 @@ export const DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 
 /** @internal */
-export { BpmnModeler } from "./modeler";
+export { BpmnModeler } from "./modeler/service/modeler";
 /** @internal */
-export type { CreateModelerOptions } from "./publicApi";
+export type { CreateModelerOptions } from "./modeler/port/publicApi";

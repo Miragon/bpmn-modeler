@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
-import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "./composition/createModeler";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { START_EVENT_XML } from "./__fixtures__/bpmnXml";
 import { mountWithPanel, removeMounts, trackDocumentListeners } from "./__fixtures__/surfaceMount";
 

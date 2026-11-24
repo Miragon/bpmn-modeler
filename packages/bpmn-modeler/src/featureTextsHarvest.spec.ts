@@ -13,9 +13,9 @@ import {
 import { MODEL_NAVIGATION_KEYS } from "@miragon/bpmn-model-navigation";
 import { ENGINES, SURFACE_MODES, type DetectedEngine } from "@miragon/bpmn-modeler-types";
 
-import { C7_POPUP_MENU_ANNOTATIONS, C8_POPUP_MENU_ANNOTATIONS } from "./engineStacks";
-import { mountModeStrip } from "./modeSession/modeStrip";
-import { BASE_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotations/baseAnnotations";
+import { C7_POPUP_MENU_ANNOTATIONS, C8_POPUP_MENU_ANNOTATIONS } from "./composition/engineStacks";
+import { mountModeStrip } from "./modeSession/adapter/in/modeStrip";
+import { BASE_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotations/domain/baseAnnotations";
 
 // The overlay keeps these texts because this record names them; the browser drivers open none of these features.
 const FEATURE_HARVEST_FILE: HarvestFile = "harvested-modeler-features.json";

@@ -87,7 +87,7 @@ val elementIdReviewViewCases =
 val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/surfaceMode.ts")
 val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/settings.ts")
 val modelerSettings = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/modelerSettings.ts")
-val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/modeStrip.ts")
+val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/adapter/in/modeStrip.ts")
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/documents/domain/emptyDmn.ts")
 val scriptCompletionCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")

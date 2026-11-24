@@ -1,9 +1,9 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { ElementIdOptions as LibraryElementIdOptions } from "@miragon/bpmn-modeler-element-ids";
-import { BpmnModeler } from "./modeler";
-import { BpmnViewer } from "./viewer/viewer";
-import { BpmnDesigner } from "./design/designer";
+import { BpmnModeler } from "./modeler/service/modeler";
+import { BpmnViewer } from "./viewer/service/viewer";
+import { BpmnDesigner } from "./design/service/designer";
 import type {
     BpmnModelerHandle,
     ClipboardOptions,
@@ -18,22 +18,22 @@ import type {
     ModelerOptions,
     StableModelerSurface,
     ThemeMode,
-} from "./publicApi";
-import type { ViewState } from "./viewState";
-import type { PendingInputHandle, PendingSaveHandle } from "./surfaceHandle";
-import { isEditableSurface, isModelerSurface } from "./modeSession";
+} from "./modeler/port/publicApi";
+import type { ViewState } from "./kernel/service/viewState";
+import type { PendingInputHandle, PendingSaveHandle } from "./kernel/service/surfaceHandle";
+import { isEditableSurface, isModelerSurface } from "./mode";
 import type {
     BpmnViewerHandle,
     CoreViewerServices,
     ViewerCapabilities,
     ViewerOptions,
-} from "./viewer/publicApi";
+} from "./viewer/port/publicApi";
 import type {
     BpmnDesignerHandle,
     CoreDesignerServices,
     DesignerCapabilities,
     DesignerOptions,
-} from "./design/publicApi";
+} from "./design/port/publicApi";
 import type {
     CleanupOutcome,
     CleanupStatus,
@@ -55,19 +55,19 @@ import type {
     ModelNavigationPort as ModelNavigationPortFromDesign,
     ModelReference as ModelReferenceFromDesign,
     ReferenceKind as ReferenceKindFromDesign,
-} from "./design/index";
+} from "./design";
 import type {
     ModelNavigationPort as ModelNavigationPortFromViewer,
     ModelReference as ModelReferenceFromViewer,
     ReferenceKind as ReferenceKindFromViewer,
-} from "./viewer/index";
+} from "./viewer";
 import type {
     ModeSessionOptions,
     ModelerSurfaceContext,
     SurfaceContext,
     SurfaceFactories,
     SurfaceHandle,
-} from "./modeSession/publicApi";
+} from "./modeSession/port/publicApi";
 
 const _lintModule: LintModule = { createLintModule: () => ({}) };
 
@@ -210,7 +210,7 @@ const _lintExternalMissingModule = {
 } satisfies ModelerOptions;
 void _lintExternalMissingModule;
 
-type _EntryConformsToLintModule = typeof import("./bpmnlint") extends LintModule ? true : never;
+type _EntryConformsToLintModule = typeof import("./lint") extends LintModule ? true : never;
 const _entryConforms: _EntryConformsToLintModule = true;
 void _entryConforms;
 
@@ -653,7 +653,7 @@ const _modeSessionOptions = {
 } satisfies ModeSessionOptions;
 void _modeSessionOptions;
 
-type _ModeBarrel = typeof import("./modeSession");
+type _ModeBarrel = typeof import("./mode");
 const _modeBarrelExports = (b: _ModeBarrel) => {
     void b.createModeSession;
     void b.mountModeStrip;

@@ -46,7 +46,7 @@ jobs:
               - 'apps/vscode-plugin/package.json'
               - 'libs/modeler-types/src/surface/domain/surfaceMode.ts'
               - 'libs/modeler-types/src/surface/domain/settings.ts'
-              - 'packages/bpmn-modeler/src/modeSession/modeStrip.ts'
+              - 'packages/bpmn-modeler/src/modeSession/adapter/in/modeStrip.ts'
               # StatusSlotPlacementTest checks every status slot and view value has a Kotlin home.
               - 'libs/modeler-core/src/kernel/domain/statusView.ts'
               # ElementTemplateFilesTest and ElementTemplatePreviewMessagesTest run these rows.

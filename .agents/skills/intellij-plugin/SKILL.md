@@ -182,7 +182,7 @@ manifest's `miragon.bpmnModeler.language` codes and labels, which
 `ModelerSettingsConfigurableTest` renders the page's Default mode box and holds
 its modes and labels to the manifest's `miragon.bpmnModeler.defaultMode`, in
 order, and its labels to `MODE_LABEL` in
-`packages/bpmn-modeler/src/modeSession/modeStrip.ts`.
+`packages/bpmn-modeler/src/modeSession/adapter/in/modeStrip.ts`.
 
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
 `EditorHandle.getContent()` _synchronously_ — impossible over async RPC. The host

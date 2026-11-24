@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-13
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -28,6 +28,7 @@ the [allowance](code-allowance.md) workspace code runs under.
 - [Surfaces and modes](#surfaces-and-modes)
 - [Document identity and creation](#document-identity-and-creation)
 - [Mode session and lifecycle](#mode-session-and-lifecycle)
+- [Source layout](#source-layout)
 - [Consequences and enforcement](#consequences-and-enforcement)
 
 ## Decision
@@ -132,7 +133,7 @@ ours ([`popupMenuAnnotations/`](../../packages/bpmn-modeler/src/popupMenuAnnotat
 engine-neutral base set (`/design` loads it as is) plus per-engine overrides only where semantics
 differ (service-task wording), attached by one provider; keywords are spelled as i18n dictionary
 keys because the translator looks keys up verbatim. A
-[coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/popupMenuAnnotations.coverage.browser.spec.ts)
+[coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/adapter/in/popupMenuAnnotations.coverage.browser.spec.ts)
 requires every bpmn-js replace action and create option to have a description on all three
 surfaces and every description and keyword a translation in every locale, so a bpmn-js bump that
 adds an element fails until it is described. Copying upstream's implementation would have carried
@@ -232,6 +233,16 @@ undebounced for the IDE webview's document sync. Both editable surfaces swap the
 public `hasPendingInput()`/`flushPendingInput()`. `flushContentSaved()` is the one capability that
 stays internal: only the session needs it.
 
+### Source layout
+
+The package is a `hexagonal` workspace laid out like the core: the subpath entries directly in
+`src/`, `kernel/` for `SurfaceCore` and the surface handle, feature folders with role folders
+inside, and the presets and module lists in `composition/`
+([modeler package layout](role-folders.md#modeler-package-layout)). The export map and every
+exported name stayed as they were. The facades still build their bpmn-js instance and
+orchestrate it, so the role-folder rules list them as known exceptions until #2249's step 2
+gives the modeler and the designer one editable-surface orchestration in the kernel.
+
 ## Consequences and enforcement
 
 The public facade, signatures and declared subpaths need compatibility discipline; IDE
@@ -246,13 +257,13 @@ Enforced by [API conformance tests](../../packages/bpmn-modeler/src/publicApi.sp
 [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs),
 [mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) and
 [plugins-free](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs) import
-checks, the [plugin loader browser tests](../../packages/bpmn-modeler/src/plugins/loadPlugins.browser.spec.ts)
+checks, the [plugin loader browser tests](../../packages/bpmn-modeler/src/plugins/service/loadPlugins.browser.spec.ts)
 ([BPMN plugins](bpmn-plugins.md)),
 the [lifecycle](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts) and
 [editable-surface](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
 contract tests (all four surfaces; post-destroy lint pushes throw; what the command-stack
 and format subscriptions deliver) and the
-[session tests](../../packages/bpmn-modeler/src/modeSession/modeSession.spec.ts)
+[session tests](../../packages/bpmn-modeler/src/modeSession/service/modeSession.spec.ts)
 (transition failures and teardown). Test-environment limits are in
 [Testing](testing.md) and upstream shape gates in
 [Dependencies](dependencies.md#private-upstream-apis).

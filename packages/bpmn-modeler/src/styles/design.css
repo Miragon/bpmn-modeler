@@ -18,7 +18,7 @@
 @import "../../../../libs/model-navigation/src/style.css";
 @import "bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css";
 @import "bpmn-js-bpmnlint/dist/assets/css/bpmn-js-bpmnlint.css";
-@import "../bpmnlint/bpmnlint.css";
+@import "../bpmnlint/adapter/in/bpmnlint.css";
 @import "../../../../libs/append-menu/src/append-menu.css";
 @import "../../../../libs/definition-search/src/definitionSearch.css";
 @import "../../../../libs/element-ids/src/elementIds.css";
