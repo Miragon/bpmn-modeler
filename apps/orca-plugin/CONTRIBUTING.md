@@ -2,8 +2,9 @@
 
 For developers of `apps/orca-plugin`: how the plugin is built, tested and released. What it does for its users is in [README.md](README.md); the setup of the whole repository is in the root [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-The [Orca](https://www.onorca.dev) plugin `bpmn-modeler`: `.bpmn` files open in the BPMN mode session (View, Design,
-Implement) with the properties panel, token simulation and linting; `.dmn` files open in the DMN modeler with its
+The [Orca](https://www.onorca.dev) plugin `bpmn-modeler`: `.bpmn` files open in the BPMN mode session without its mode
+switch (Implement for a model with an execution platform, Design without one, View in a read-only tab) with the
+properties panel, token simulation and linting; `.dmn` files open in the DMN modeler with its
 DRD, decision tables, properties panel and simulation. Orca keeps the file, its dirty state, saving and read-only
 tabs; the editor owns undo. An agent's write to a clean tab shows at once; under unsaved edits Orca shows its
 Reload/Overwrite banner. Users install it from the [Miragon/orca-plugins](https://github.com/Miragon/orca-plugins)

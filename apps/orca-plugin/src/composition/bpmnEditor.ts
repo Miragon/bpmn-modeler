@@ -4,6 +4,7 @@ import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/diff.css";
 import "../../../../libs/modeler-browser/src/canvasOverlays.css";
 import "../../../../packages/bpmn-modeler/src/styles/themes.css";
+// Also lays out the `.panel-host` column and the panel's scroll area.
 import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 import "./orcaEditor.css";
 
@@ -21,7 +22,7 @@ import {
 import { syncDocument, type DocumentSync } from "../service/documentSync";
 import { mountEditorLayout } from "./editorLayout";
 
-/** Opens the tab's `.bpmn` file in the mode session, kept in step with Orca's document. */
+/** Opens the tab's `.bpmn` file in the BPMN canvas, kept in step with Orca's document. */
 export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> {
     i18n.extend(extras);
     i18n.setLanguage(orcaLanguage() as SupportedLocale);
@@ -33,14 +34,10 @@ export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> 
         isCanvasFocused: () => shortcuts.target?.isCanvasFocused() ?? false,
     });
     layout.panelHost.classList.add("panel-host");
-    const strip = document.createElement("div");
-    strip.className = "mode-strip";
-    layout.canvas.prepend(strip);
 
     const canvas = createBpmnCanvas({
         container: layout.canvas,
         panelParent: layout.panelMount,
-        strip: { el: strip, host: layout.panelHost },
         readOnly: session.readOnly,
         theme: currentOrcaTheme(),
     });

@@ -2,14 +2,10 @@ import type { ClipboardOptions } from "@miragon/bpmn-modeler";
 import {
     createModeSession,
     isEditableSurface,
-    mountModeStrip,
-    SURFACE_MODES,
     type DetectedEngine,
     type ModeSession,
-    type ModeStrip,
     type SurfaceFactories,
 } from "@miragon/bpmn-modeler/mode";
-import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { HostThemeKind } from "@miragon/bpmn-modeler-shared";
 import { detectEngine, isBlankDocument } from "@miragon/bpmn-modeler-types";
 
@@ -19,8 +15,6 @@ import { memoryClipboard } from "./memoryClipboard";
 export interface BpmnCanvasOptions {
     container: HTMLElement;
     panelParent: HTMLElement;
-    /** The mode strip's element and the panel host that carries its state. */
-    strip: { el: HTMLElement; host: HTMLElement };
     readOnly: boolean;
     theme: HostThemeKind;
 }
@@ -67,24 +61,26 @@ function surfaceFactories(panelParent: HTMLElement, clipboard: ClipboardOptions)
 }
 
 /**
- * The BPMN mode session (View, Design, Implement) as a canvas. The engine is
- * read from each text Orca hands over; a text for another engine rebuilds the
- * session, since a surface's engine is fixed when it is created.
+ * The BPMN mode session as a canvas, without a mode switch: a read-only tab is
+ * viewed, an editable one lands in Implement when the model names an execution
+ * platform and in Design when it does not. The engine is read from each text
+ * Orca hands over; a text for another engine rebuilds the session, since a
+ * surface's engine is fixed when it is created.
  */
 export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
-    const factories = surfaceFactories(options.panelParent, { bridge: memoryClipboard() });
-    const surfaces = options.readOnly ? { view: factories.view } : factories;
+    const { view, design, implement } = surfaceFactories(options.panelParent, {
+        bridge: memoryClipboard(),
+    });
+    // An untagged model has no engine for the modeler, so Design serves it;
+    // a tagged one gets both modes from the modeler.
+    const surfaces: SurfaceFactories = options.readOnly ? { view } : { design, implement };
     const editListeners = new Set<() => void>();
     let theme = options.theme;
     let engine: DetectedEngine;
     let session: ModeSession | undefined;
-    let strip: ModeStrip | undefined;
 
     const canvasFocus = (): CanvasFocus | undefined =>
         session?.getHandle().getService<CanvasFocus>("canvas");
-    const renderStrip = (busy: boolean): void => {
-        if (session) strip?.render({ mode: session.getMode(), engine, busy });
-    };
 
     async function startSession(nextEngine: DetectedEngine): Promise<ModeSession> {
         await session?.destroy();
@@ -94,21 +90,9 @@ export function createBpmnCanvas(options: BpmnCanvasOptions): BpmnCanvas {
             engine,
             surfaces,
             theme,
-            onModeChanged: () => renderStrip(false),
-            onSwitchStateChanged: renderStrip,
-            onError: (error) => console.warn("Unable to switch the BPMN mode", error),
         });
         const liveSession = session;
         liveSession.onContentChanged(() => editListeners.forEach((listener) => listener()));
-        strip ??= mountModeStrip({
-            host: options.strip.host,
-            stripEl: options.strip.el,
-            modes: SURFACE_MODES,
-            translate: (template, replacements) => i18n.translate(template, replacements),
-            onLabelChange: (apply) => i18n.onChange(apply),
-            onSelect: (mode) => void session?.requestMode(mode),
-        });
-        renderStrip(false);
         return liveSession;
     }
 
