@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.21.0...intellij-v1.22.0) (2026-11-24)
+
+
+### 🎉 New Features
+
+* **intellij-plugin:** open bpmn without the mode switch ([#2801](https://github.com/Miragon/bpmn-modeler/issues/2801)) [sync 555171b] ([353b043](https://github.com/Miragon/bpmn-modeler/commit/353b043ecceabc5aa9e31d9319b03deb7d4eb659))
+
 ## [1.21.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.20.0...intellij-v1.21.0) (2026-11-23)
 
 
