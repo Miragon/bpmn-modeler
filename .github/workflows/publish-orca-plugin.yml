@@ -60,7 +60,7 @@ jobs:
       - run: yarn workspace @miragon/bpmn-modeler-orca build
 
       - id: orca
-        uses: Miragon/orca-plugin-kit/actions/setup-orca@245eb67fd57c4aeb5c163fce5553be0a27b1311c # v2.0.0
+        uses: Miragon/orca-plugin-kit/actions/setup-orca@342bd3cace64773b2502531cd8e12c08baac61a2 # v2.1.0
         with:
           channel: latest
       - name: Smoke-test exactly this plugin folder in Orca
@@ -86,7 +86,7 @@ jobs:
           jq -n --arg tag "$TAG" --arg changelog "$section" '{tag: $tag, changelog: $changelog}' > "$RELEASE_DIR/release.json"
 
       - if: env.EFFECTIVE_DRY_RUN == 'false'
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: app-token
         with:
           client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
@@ -94,7 +94,7 @@ jobs:
           owner: miragon
           repositories: orca-plugins
       - if: env.EFFECTIVE_DRY_RUN == 'false'
-        uses: Miragon/orca-plugin-kit/actions/publish-plugin@245eb67fd57c4aeb5c163fce5553be0a27b1311c # v2.0.0
+        uses: Miragon/orca-plugin-kit/actions/publish-plugin@342bd3cace64773b2502531cd8e12c08baac61a2 # v2.1.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           plugins-dir: orca-plugins
