@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DiffRevision, revisionName, scmSides } from "./DiffRevision";
+import { DiffRevision, readsHead, revisionName, scmSides } from "./DiffRevision";
 
 const pane = (name: string, revision: DiffRevision) => ({ name, revision });
 const WORKING_TREE: DiffRevision = { kind: "working-tree" };
@@ -96,12 +96,65 @@ describe("revisionName", () => {
     it.each<[string, DiffRevision, string | undefined]>([
         ["the working tree", WORKING_TREE, "Working Tree"],
         ["the index", INDEX, "Index"],
-        ["the base of a working tree change, which reads the index", INDEX_OR_HEAD, "Index"],
+        [
+            "the base of a working tree change of a file with nothing staged, which reads HEAD",
+            { kind: "index-or-head", staged: false },
+            "HEAD",
+        ],
+        [
+            "the base of a working tree change of a file with staged changes, which reads the index",
+            { kind: "index-or-head", staged: true },
+            "Index",
+        ],
+        [
+            "the base of a working tree change where the host cannot tell what is staged",
+            INDEX_OR_HEAD,
+            "Index",
+        ],
         ["a symbolic ref", HEAD, "HEAD"],
         ["a branch", { kind: "ref", ref: "release/2.0" }, "release/2.0"],
         ["a commit's parent", { kind: "ref", ref: "1a2b3c4^" }, "1a2b3c4^"],
         ["a version the host does not tell", { kind: "unknown" }, undefined],
     ])("names %s as Git and VS Code's diff titles do", (_case, revision, expected) => {
         expect(revisionName(revision)).toBe(expected);
+    });
+});
+
+describe("readsHead", () => {
+    it.each<[string, DiffRevision, boolean]>([
+        ["the ref HEAD", HEAD, true],
+        [
+            "a change's base of a file with nothing staged",
+            { kind: "index-or-head", staged: false },
+            true,
+        ],
+        [
+            "a change's base of a file with staged changes",
+            { kind: "index-or-head", staged: true },
+            false,
+        ],
+        ["a change's base where the host cannot tell", INDEX_OR_HEAD, false],
+        ["another ref", { kind: "ref", ref: "HEAD~1" }, false],
+        ["the index", INDEX, false],
+        ["the working tree", WORKING_TREE, false],
+        ["a version the host does not tell", { kind: "unknown" }, false],
+    ])("%s: %j reads HEAD → %s", (_case, revision, expected) => {
+        expect(readsHead(revision)).toBe(expected);
+    });
+});
+
+describe("scmSides, of a change's base", () => {
+    it.each<[string, DiffRevision]>([
+        ["that reads HEAD", { kind: "index-or-head", staged: false }],
+        ["that reads the index", { kind: "index-or-head", staged: true }],
+    ])("puts a base %s before the working tree, whichever resolves first", (_case, base) => {
+        expect(scmSides(pane("tree", WORKING_TREE), pane("base", base))).toMatchObject({
+            before: { name: "base" },
+            after: { name: "tree" },
+        });
+        expect(scmSides(pane("base", base), pane("tree", WORKING_TREE))).toMatchObject({
+            before: { name: "base" },
+            after: { name: "tree" },
+        });
     });
 });

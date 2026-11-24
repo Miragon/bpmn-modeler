@@ -674,15 +674,17 @@ export class VsCodeSession {
 
     /**
      * Opens the change of `fileName` from the Source Control view, as a click on its
-     * row does. The row appears once Git has scanned the repository.
+     * row does. The row appears once Git has scanned the repository. A file with
+     * staged and unstaged changes has two rows, the staged change first; `change`
+     * picks one, once Git lists both.
      */
-    async openSourceControlChange(fileName: string): Promise<void> {
+    async openSourceControlChange(fileName: string, change?: "staged" | "unstaged"): Promise<void> {
         await this.executeCommand("workbench.view.scm");
-        await this.page
+        const rows = this.page
             .locator(".scm-view .monaco-list-row .resource")
-            .filter({ hasText: fileName })
-            .first()
-            .click();
+            .filter({ hasText: fileName });
+        if (change !== undefined) await rows.nth(1).waitFor();
+        await (change === "unstaged" ? rows.nth(1) : rows.first()).click();
         await this.movePointerAway();
     }
 
