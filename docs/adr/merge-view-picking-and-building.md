@@ -89,7 +89,8 @@ the kept side's word as the caption has it ("✓ Incoming"), its full words as `
 filled on the side that kept it and outlined on the side whose version it replaced; a container
 kept with everything inside adds a nested box; a version merged by hand adds a pen and "by hand",
 and a flow's round badge shows the pen in place of the check. A flow gets the check alone
-(`flowBadgePlace`).
+(`flowBadgePlace`). The element under such a badge is drawn woven on both panes, not by its
+side's marker ([merge view](merge-view.md)).
 diagram-js's overlays throw on an id the canvas lacks, so a pane badges only ids its registry
 holds, and a pick it cannot draw (removed on its side, or shape-less) is undone in the pad of
 the pane that draws it, or in its menu row. Consequences get a dotted outline and no badge;

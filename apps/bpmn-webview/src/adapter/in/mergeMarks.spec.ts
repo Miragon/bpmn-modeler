@@ -16,7 +16,8 @@ const NO_MARKS = { takenFromThisSide: [], takenFromOtherSide: [], conflict: [] }
 const view = (
     marks: Readonly<Record<MergeMarker, readonly string[]>>,
     picks: Pick<MergeMarksView, "badges" | "consequences"> = { badges: [], consequences: [] },
-): MergeMarksView => ({ marks, ...picks });
+    mergedByHand: readonly string[] = [],
+): MergeMarksView => ({ marks: { ...marks, mergedByHand }, ...picks });
 
 const labels = (conflict: string): MergeMarksLabels => ({
     conflict,
@@ -80,10 +81,12 @@ function fakeCanvas(ids: readonly string[]) {
         id in WAYPOINTS ? { id, waypoints: WAYPOINTS[id] } : { id, width: 100, height: 80 },
     );
     const overlays: RecordedOverlay[] = [];
+    const container = document.createElement("div");
+    container.innerHTML = "<svg></svg>";
     const canvas = {
         addMarker: (id: string, marker: string) => markers.get(id)?.add(marker),
         removeMarker: (id: string, marker: string) => markers.get(id)?.delete(marker),
-        getContainer: () => document.createElement("div"),
+        getContainer: () => container,
     };
     const registry = {
         get: (id: string) => elements.find((element) => element.id === id),
@@ -108,7 +111,10 @@ function fakeCanvas(ids: readonly string[]) {
     let attached: MergeMarks | undefined;
     new MergeMarks(canvas, registry, overlayService, { attach: (marks) => (attached = marks) });
     const markersOf = (id: string) => [...(markers.get(id) ?? [])];
-    return { marks: () => attached as MergeMarks, markersOf, overlays };
+    const patternsOf = (id: string) => container.querySelectorAll(`svg > defs > pattern#${id}`);
+    const paintsTwice = () =>
+        new MergeMarks(canvas, registry, overlayService, { attach: () => undefined });
+    return { marks: () => attached as MergeMarks, markersOf, overlays, patternsOf, paintsTwice };
 }
 
 describe("MergeMarks", () => {
@@ -127,6 +133,29 @@ describe("MergeMarks", () => {
         expect(markersOf("Task_Check")).toEqual([MERGE_MARKER_CLASSES.takenFromThisSide]);
         expect(markersOf("Flow_1")).toEqual([MERGE_MARKER_CLASSES.takenFromOtherSide]);
         expect(markersOf("Task_Pack")).toEqual([MERGE_MARKER_CLASSES.conflict]);
+    });
+
+    it("paints a version merged by hand with a class of its own, and takes it off on a repaint", () => {
+        const { marks, markersOf } = fakeCanvas(["Task_Check", "Task_Pack"]);
+
+        marks().paint(
+            view({ ...NO_MARKS, takenFromThisSide: ["Task_Pack"] }, undefined, ["Task_Check"]),
+            labels("Conflict"),
+        );
+        const painted = markersOf("Task_Check");
+        marks().paint(view({ ...NO_MARKS, takenFromThisSide: ["Task_Check"] }), labels("Conflict"));
+
+        expect(painted).toEqual(["merge-merged-by-hand"]);
+        expect(markersOf("Task_Check")).toEqual([MERGE_MARKER_CLASSES.takenFromThisSide]);
+    });
+
+    it("gives the canvas the hatch and the weave its marks fill shapes with, each once", () => {
+        const { patternsOf, paintsTwice } = fakeCanvas(["Task_Check"]);
+
+        paintsTwice();
+
+        expect(patternsOf("merge-hatch")).toHaveLength(1);
+        expect(patternsOf("merge-weave")).toHaveLength(1);
     });
 
     it("gives every conflict a badge besides its colour, named for screen readers", () => {

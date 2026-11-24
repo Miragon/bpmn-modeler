@@ -346,7 +346,7 @@ describe("MergeMode", () => {
             dispatch(mergeStates());
 
             expect(fakes.marks.paint).toHaveBeenCalledWith(
-                { marks: STATES.marks, badges: [], consequences: [] },
+                { marks: { ...STATES.marks, mergedByHand: [] }, badges: [], consequences: [] },
                 expect.objectContaining({ conflict: "Conflict" }),
             );
             expect(document.body.dataset.diffSide).toBe("after");
@@ -1369,13 +1369,31 @@ describe("MergeMode", () => {
 
             const [view, labels] = fakes.marks.paint.mock.lastCall!;
             expect(view).toEqual({
-                marks: STATES.marks,
+                marks: { ...STATES.marks, mergedByHand: [] },
                 badges: [badge],
                 consequences: ["Flow_1"],
             });
             expect(labels.badge(badge)).toEqual({
                 side: "Current",
                 label: "Kept from current, your pick",
+            });
+        });
+
+        it("draws a version merged by hand as one, not as taken from this pane's side", async () => {
+            await startMergePane();
+            const badge = {
+                id: "Task_Check",
+                kind: "keptHere",
+                pick: { keptSide: "incoming", scope: "element", mergedByHand: true },
+            } as const;
+
+            dispatch(mergeStates({ badges: [badge] }));
+
+            const [view] = fakes.marks.paint.mock.lastCall!;
+            expect(view.marks).toEqual({
+                ...STATES.marks,
+                takenFromThisSide: [],
+                mergedByHand: ["Task_Check"],
             });
         });
 

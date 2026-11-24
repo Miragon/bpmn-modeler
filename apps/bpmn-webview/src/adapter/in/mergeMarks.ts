@@ -1,14 +1,10 @@
 import OverlaysModule from "diagram-js/lib/features/overlays";
 import { escapeHTML } from "diagram-js/lib/util/EscapeUtil";
 import type { MergePaneBadge, MergePickScope } from "@miragon/bpmn-modeler-shared";
-import {
-    MERGE_MARKER_CLASSES,
-    MERGE_MARKERS,
-    type MergeMarker,
-    type PolylinePoint,
-} from "@miragon/bpmn-modeler-types";
+import { MERGE_MARKER_CLASSES, type PolylinePoint } from "@miragon/bpmn-modeler-types";
 
 import { flowBadgePlace } from "../../domain/mergeFlowBadgePlace";
+import { MERGE_MARK_LOOKS, type MergeMarkLook } from "../../domain/mergeMarkLooks";
 import { PEN_PATHS } from "./mergeDecisionIcons";
 
 import "./mergeMarks.css";
@@ -43,9 +39,9 @@ interface Overlays {
     remove(filter: { type: string }): void;
 }
 
-/** What a merge pane's canvas paints: the markers, the user's picks and their consequences. */
+/** What a merge pane's canvas paints: each element's look, the user's picks and their consequences. */
 export interface MergeMarksView {
-    readonly marks: Readonly<Record<MergeMarker, readonly string[]>>;
+    readonly marks: Readonly<Record<MergeMarkLook, readonly string[]>>;
     readonly badges: readonly MergePaneBadge[];
     readonly consequences: readonly string[];
 }
@@ -68,6 +64,12 @@ const CONFLICT_BADGE = "merge-conflict-badge";
 const PICK_BADGE = "merge-pick";
 
 const CONSEQUENCE = "merge-consequence";
+
+/** The canvas marker, and CSS class, of each look; a marker's is the vocabulary's. */
+const LOOK_CLASSES: Readonly<Record<MergeMarkLook, string>> = {
+    ...MERGE_MARKER_CLASSES,
+    mergedByHand: "merge-merged-by-hand",
+};
 
 const BADGE_KIND_CLASSES: Record<MergePaneBadge["kind"], string> = {
     keptHere: "merge-pick-badge--kept-here",
@@ -93,20 +95,22 @@ const PEN_MARK = `<svg class="merge-pick-badge__pen" width="10" height="10" view
 
 const CHECK_MARK = `<svg class="merge-pick-badge__check" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`;
 
-// The hatch of "taken from the other side", its non-colour cue; mergeMarks.css fills shapes with it.
-const HATCH_PATTERN = `<defs><pattern id="merge-hatch" class="merge-hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect class="merge-hatch__ground" width="8" height="8"/><line class="merge-hatch__line" x1="0" y1="0" x2="0" y2="8"/></pattern></defs>`;
+// The non-colour cues mergeMarks.css fills shapes with: the hatch of "taken from the other side", and the
+// weave of a version merged by hand, the hatch in both directions, as its lines come from both sides.
+const FILL_PATTERNS = `<defs><pattern id="merge-hatch" class="merge-hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect class="merge-hatch__ground" width="8" height="8"/><line class="merge-hatch__line" x1="0" y1="0" x2="0" y2="8"/></pattern><pattern id="merge-weave" class="merge-weave" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)"><rect class="merge-weave__ground" width="10" height="10"/><line class="merge-weave__line" x1="0" y1="0" x2="0" y2="10"/><line class="merge-weave__line" x1="0" y1="0" x2="10" y2="0"/></pattern></defs>`;
 
 /**
- * Paints a merge pane's markers: one class per marker on the elements this
+ * Paints a merge pane's marks: one class per look on the elements this
  * canvas holds, plus a cue that is no colour (a "!" badge on a conflict, a
  * hatch on an element taken from the other side, a heavy contour on one
- * taken from this side); a badge on each element the user picked, naming
+ * taken from this side, a weave on a version merged by hand); a badge on each
+ * element the user picked, naming
  * the kept side ("✓ Incoming") above a shape's top edge, clear of its type
  * icon, as a check alone at small zoom and on a flow, where a word would hide
  * the shapes it joins, with a pen and "by hand" on a version merged by hand;
  * and a dotted outline on what a pick pulled in or
- * dropped. Each paint replaces the last one; it decides nothing, the host
- * sent which element gets what.
+ * dropped. Each paint replaces the last one; it decides nothing: it is
+ * handed which element takes which look.
  */
 export class MergeMarks {
     static $inject = ["canvas", "elementRegistry", "overlays", "mergeMarksConfig"];
@@ -117,7 +121,7 @@ export class MergeMarks {
         private readonly overlays: Overlays,
         config: MergeMarksConfig,
     ) {
-        this.addHatchPattern();
+        this.addFillPatterns();
         config.attach(this);
     }
 
@@ -125,10 +129,10 @@ export class MergeMarks {
         this.clear();
         // Overlays throw on an id the canvas lacks, and the partner pane may hold it alone.
         const held = (id: string) => this.registry.get(id) !== undefined;
-        for (const marker of MERGE_MARKERS) {
-            for (const id of view.marks[marker].filter(held)) {
-                this.canvas.addMarker(id, MERGE_MARKER_CLASSES[marker]);
-                if (marker === "conflict") this.addConflictBadge(id, labels.conflict);
+        for (const look of MERGE_MARK_LOOKS) {
+            for (const id of view.marks[look].filter(held)) {
+                this.canvas.addMarker(id, LOOK_CLASSES[look]);
+                if (look === "conflict") this.addConflictBadge(id, labels.conflict);
             }
         }
         for (const id of view.consequences.filter(held)) this.canvas.addMarker(id, CONSEQUENCE);
@@ -141,8 +145,8 @@ export class MergeMarks {
         this.overlays.remove({ type: CONFLICT_BADGE });
         this.overlays.remove({ type: PICK_BADGE });
         this.registry.forEach(({ id }) => {
-            for (const marker of MERGE_MARKERS) {
-                this.canvas.removeMarker(id, MERGE_MARKER_CLASSES[marker]);
+            for (const look of MERGE_MARK_LOOKS) {
+                this.canvas.removeMarker(id, LOOK_CLASSES[look]);
             }
             this.canvas.removeMarker(id, CONSEQUENCE);
         });
@@ -199,10 +203,10 @@ export class MergeMarks {
         });
     }
 
-    private addHatchPattern(): void {
+    private addFillPatterns(): void {
         const svg = this.canvas.getContainer().querySelector("svg");
         if (svg && !svg.querySelector("#merge-hatch")) {
-            svg.insertAdjacentHTML("afterbegin", HATCH_PATTERN);
+            svg.insertAdjacentHTML("afterbegin", FILL_PATTERNS);
         }
     }
 }
