@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DiffRevision, scmSides } from "./DiffRevision";
+import { DiffRevision, revisionName, scmSides } from "./DiffRevision";
 
 const pane = (name: string, revision: DiffRevision) => ({ name, revision });
 const WORKING_TREE: DiffRevision = { kind: "working-tree" };
@@ -89,5 +89,19 @@ describe("scmSides", () => {
         const sides = scmSides(pane("first", firstRevision), pane("second", secondRevision));
 
         expect([sides.before.name, sides.after.name]).toStrictEqual([before, after]);
+    });
+});
+
+describe("revisionName", () => {
+    it.each<[string, DiffRevision, string | undefined]>([
+        ["the working tree", WORKING_TREE, "Working Tree"],
+        ["the index", INDEX, "Index"],
+        ["the base of a working tree change, which reads the index", INDEX_OR_HEAD, "Index"],
+        ["a symbolic ref", HEAD, "HEAD"],
+        ["a branch", { kind: "ref", ref: "release/2.0" }, "release/2.0"],
+        ["a commit's parent", { kind: "ref", ref: "1a2b3c4^" }, "1a2b3c4^"],
+        ["a version the host does not tell", { kind: "unknown" }, undefined],
+    ])("names %s as Git and VS Code's diff titles do", (_case, revision, expected) => {
+        expect(revisionName(revision)).toBe(expected);
     });
 });

@@ -1,4 +1,4 @@
-import type { DiffCategory } from "./diff";
+import { type DiffCategory, type DiffOrigin, diffOriginSupports } from "./diff";
 
 // Typed as the home type, not `as const`: the published packages' declaration
 // roll-up fails on a public type derived from a const list.
@@ -77,3 +77,29 @@ export const DIFF_VIEW_KEYS: readonly string[] = [
     ...Object.values(DIFF_SIDE_TEXTS),
     DIFF_PLANE_MISSING_TEXT,
 ];
+
+/** What a diff pane's label is worded from: its side, how the diff was opened, and what the host tells of its document. */
+export interface DiffPaneLabelFacts {
+    readonly side: keyof typeof DIFF_SIDE_TEXTS;
+    readonly origin: DiffOrigin;
+    readonly paneFilename: string;
+    /** The version of its file the pane shows, as Git names it; absent where the host tells none. */
+    readonly paneVersion?: string;
+}
+
+/**
+ * What a diff pane's label says in place of its side alone: its file where
+ * the diff compares two files, which the tab title does not tell apart; its
+ * side and the version it shows where both panes show one file. The version
+ * stays as Git names it. None where the side alone names the pane.
+ */
+export function diffPaneLabel(
+    { side, origin, paneFilename, paneVersion }: DiffPaneLabelFacts,
+    translate: (key: string) => string,
+): string | undefined {
+    if (diffOriginSupports(origin, "namesFiles")) return paneFilename;
+    if (paneVersion === undefined || !diffOriginSupports(origin, "namesVersions")) {
+        return undefined;
+    }
+    return `${translate(DIFF_SIDE_TEXTS[side])}: ${paneVersion}`;
+}

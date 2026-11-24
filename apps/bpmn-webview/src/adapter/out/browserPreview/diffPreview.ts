@@ -37,7 +37,7 @@ export class DiffPreview {
             "compare-files",
             side === "before" ? "before.bpmn" : "after.bpmn",
             // Shows the context pad's "Show XML changes" entry in the preview.
-            true,
+            { elementXmlChanges: true },
         );
     }
 

@@ -54,12 +54,22 @@ export class ApplyDmnDiffHighlightsQuery extends Query<"ApplyDmnDiffHighlightsQu
 
     public readonly paneFilename: string;
 
-    constructor(side: DiffSide, view: DmnDiffView, origin: DiffOrigin, paneFilename: string) {
+    /** The version of its file this pane shows, as Git names it; absent where the host tells none. */
+    public readonly paneVersion?: string;
+
+    constructor(
+        side: DiffSide,
+        view: DmnDiffView,
+        origin: DiffOrigin,
+        paneFilename: string,
+        paneVersion?: string,
+    ) {
         super("ApplyDmnDiffHighlightsQuery");
         this.side = side;
         this.view = view;
         this.origin = origin;
         this.paneFilename = paneFilename;
+        if (paneVersion !== undefined) this.paneVersion = paneVersion;
     }
 }
 

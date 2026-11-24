@@ -11,6 +11,7 @@ import { DmnDiffResult, computeDmnDiff, dmnSideView } from "@miragon/dmn-modeler
 
 import { NotifierPort, SettingsPort } from "../../kernel/port/hostPorts";
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
+import { revisionName } from "../domain/DiffRevision";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffPaneRelay } from "./DiffPaneRelay";
 import { DiffPaneStore } from "./DiffPaneStore";
@@ -63,6 +64,7 @@ export class DmnDiffService {
                 dmnSideView(result, side),
                 armed.session.origin,
                 uriDisplayName(pane.uri),
+                revisionName(pane.revision),
             );
             await this.relay.post(pane, query, "ApplyDmnDiffHighlights");
         }

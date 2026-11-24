@@ -1588,6 +1588,13 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
     public readonly paneFilename: string;
 
     /**
+     * The version of its file this pane shows, as Git names it (`Working Tree`,
+     * `Index`, a ref or a commit); absent where the host tells none. The pane
+     * decides by {@link origin} whether its label shows it.
+     */
+    public readonly paneVersion?: string;
+
+    /**
      * Whether the host opens an element's XML changes, so the pane offers
      * {@link ShowElementXmlChangesCommand} on an element's context pad.
      */
@@ -1609,8 +1616,7 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         navigationOrder: readonly string[],
         origin: DiffOrigin,
         paneFilename: string,
-        elementXmlChanges = false,
-        comparison?: MergeResultComparison,
+        { elementXmlChanges = false, comparison, paneVersion }: DiffHighlightsOptions = {},
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -1624,7 +1630,15 @@ export class ApplyDiffHighlightsQuery extends Query<"ApplyDiffHighlightsQuery"> 
         this.paneFilename = paneFilename;
         this.elementXmlChanges = elementXmlChanges;
         if (comparison !== undefined) this.comparison = comparison;
+        if (paneVersion !== undefined) this.paneVersion = paneVersion;
     }
+}
+
+/** What {@link ApplyDiffHighlightsQuery} carries only for some diffs. */
+export interface DiffHighlightsOptions {
+    readonly elementXmlChanges?: boolean;
+    readonly comparison?: MergeResultComparison | undefined;
+    readonly paneVersion?: string | undefined;
 }
 
 /** Which side a built merge result is compared with, and which side its switch opens. */

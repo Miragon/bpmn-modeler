@@ -25,6 +25,7 @@ export interface PaneHighlights {
     readonly view: DmnDiffView;
     readonly origin: DiffOrigin;
     readonly paneFilename: string;
+    readonly paneVersion?: string;
 }
 
 export interface DiffPaneState {

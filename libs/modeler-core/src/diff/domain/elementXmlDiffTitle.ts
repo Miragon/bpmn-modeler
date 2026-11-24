@@ -1,7 +1,7 @@
 import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types/domain";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
-import { DiffRevision, DiffSideVersion } from "./DiffRevision";
+import { DiffRevision, DiffSideVersion, revisionName } from "./DiffRevision";
 import { ELEMENT_XML_TITLE_INFIX, compareTabLabel } from "./diffTabLabel";
 
 /**
@@ -28,40 +28,23 @@ function versionsLabel(
     if (diffOriginSupports(origin, "namesFiles") || beforeName !== afterName) {
         return compareTabLabel(beforeName, afterName);
     }
-    const beforeVersion = revisionLabel(before.revision);
-    const afterVersion = revisionLabel(after.revision);
-    if (!beforeVersion || !afterVersion) {
+    const beforeVersion = revisionName(before.revision);
+    const afterVersion = revisionName(after.revision);
+    if (!diffOriginSupports(origin, "namesVersions") || !beforeVersion || !afterVersion) {
         return beforeName;
     }
-    const newerSideOnly = newerSideLabel(before.revision, after.revision);
-    if (newerSideOnly) {
-        return `${beforeName} (${newerSideOnly})`;
+    if (namesNewerSideOnly(before.revision, after.revision)) {
+        return `${beforeName} (${afterVersion})`;
     }
     return compareTabLabel(`${beforeName} (${beforeVersion})`, `${afterName} (${afterVersion})`);
 }
 
-// Mirrors the VS Code Git extension's own diff titles (resolveTimelineOpenDiffCommand).
-function newerSideLabel(before: DiffRevision, after: DiffRevision): string | undefined {
+// Mirrors the VS Code Git extension's own diff titles (resolveTimelineOpenDiffCommand): the working tree
+// against HEAD or the index, and the index against HEAD, are titled by the newer side alone.
+function namesNewerSideOnly(before: DiffRevision, after: DiffRevision): boolean {
     const beforeIsHead = before.kind === "ref" && before.ref === "HEAD";
-    if (after.kind === "working-tree" && (beforeIsHead || before.kind === "index-or-head")) {
-        return "Working Tree";
+    if (after.kind === "working-tree") {
+        return beforeIsHead || before.kind === "index-or-head";
     }
-    if ((after.kind === "index" || after.kind === "index-or-head") && beforeIsHead) {
-        return "Index";
-    }
-    return undefined;
-}
-
-function revisionLabel(revision: DiffRevision): string | undefined {
-    switch (revision.kind) {
-        case "working-tree":
-            return "Working Tree";
-        case "index":
-        case "index-or-head":
-            return "Index";
-        case "ref":
-            return revision.ref;
-        case "unknown":
-            return undefined;
-    }
+    return (after.kind === "index" || after.kind === "index-or-head") && beforeIsHead;
 }

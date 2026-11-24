@@ -42,3 +42,21 @@ export function scmSides<Pane extends { readonly revision: DiffRevision }>(
         ? { before: second, after: first }
         : { before: first, after: second };
 }
+
+/**
+ * A version as Git and VS Code's diff titles name it: the working tree, the
+ * index, or the ref. None where the host tells no version.
+ */
+export function revisionName(revision: DiffRevision): string | undefined {
+    switch (revision.kind) {
+        case "working-tree":
+            return "Working Tree";
+        case "index":
+        case "index-or-head":
+            return "Index";
+        case "ref":
+            return revision.ref;
+        case "unknown":
+            return undefined;
+    }
+}
