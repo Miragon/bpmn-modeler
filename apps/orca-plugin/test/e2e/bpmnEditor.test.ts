@@ -154,6 +154,32 @@ describe("the BPMN editor in Orca", () => {
         expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
     });
 
+    it("scrolls the properties panel inside the page, down to its last group", async () => {
+        const editor = await open();
+        expect(await showsEngineProperties(editor)).toBe(true);
+        await editor.page.setViewportSize({ width: 1200, height: 240 });
+
+        const layout = await editor.page.evaluate(() => {
+            const host = document.getElementById("js-properties-panel")!;
+            const scrolling = [host, ...host.querySelectorAll<HTMLElement>("*")].find(
+                (element) =>
+                    element.scrollHeight > element.clientHeight &&
+                    /auto|scroll/.test(getComputedStyle(element).overflowY),
+            );
+            if (scrolling) scrolling.scrollTop = scrolling.scrollHeight;
+            const groups = host.querySelectorAll(".bio-properties-panel-group");
+            const lastGroup = groups[groups.length - 1].getBoundingClientRect();
+            const hostBox = host.getBoundingClientRect();
+            return {
+                scrolls: scrolling !== undefined,
+                hostFitsPage: hostBox.bottom <= window.innerHeight,
+                lastGroupVisible: lastGroup.bottom <= hostBox.bottom,
+            };
+        });
+
+        expect(layout).toEqual({ scrolls: true, hostFitsPage: true, lastGroupVisible: true });
+    });
+
     it("closes and reopens the properties panel with Shift+P", async () => {
         const editor = await open();
         await editor.page.mouse.click(...BLANK_POINT);

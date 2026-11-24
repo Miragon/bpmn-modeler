@@ -4,8 +4,6 @@ import "../../../../libs/shared/src/lib/panelChrome.css";
 import "../../../../packages/bpmn-modeler/src/styles/diff.css";
 import "../../../../libs/modeler-browser/src/canvasOverlays.css";
 import "../../../../packages/bpmn-modeler/src/styles/themes.css";
-// Also lays out the `.panel-host` column and the panel's scroll area.
-import "../../../../packages/bpmn-modeler/src/styles/mode.css";
 import "./orcaEditor.css";
 
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -33,7 +31,6 @@ export async function startBpmnEditor(root: HTMLElement): Promise<DocumentSync> 
         focusCanvas: () => shortcuts.target?.focusCanvas(),
         isCanvasFocused: () => shortcuts.target?.isCanvasFocused() ?? false,
     });
-    layout.panelHost.classList.add("panel-host");
 
     const canvas = createBpmnCanvas({
         container: layout.canvas,
