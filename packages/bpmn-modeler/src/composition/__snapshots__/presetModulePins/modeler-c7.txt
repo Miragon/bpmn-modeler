@@ -1,0 +1,734 @@
+# createModeler (c7), default options
+
+DOM nodes print as `#n`, numbered by first appearance: config key paths, then DI names, each sorted.
+
+## modules (registration order)
+config=value(Object)
+defaultRenderer=type(DefaultRenderer) styles=type(Styles) init[defaultRenderer]
+canvas=type(Canvas) elementRegistry=type(ElementRegistry) elementFactory=type(ElementFactory) eventBus=type(EventBus) graphicsFactory=type(GraphicsFactory) init[canvas]
+bpmnjs=value(Modeler) moddle=value(Moddle)
+bpmnRenderer=type(BpmnRenderer) textRenderer=type(TextRenderer) pathMap=type(PathMap) init[bpmnRenderer]
+translate=value(fn translate)
+bpmnImporter=type(BpmnImporter)
+depends[bpmnRenderer, bpmnImporter]
+overlays=type(Overlays) init[overlays]
+changeSupport=type(ChangeSupport) init[changeSupport]
+rootElementsBehavior=type(RootElementsBehavior) init[rootElementsBehavior]
+drilldownBreadcrumbs=type(DrilldownBreadcrumbs) drilldownCentering=type(DrilldownCentering) drilldownOverlayBehavior=type(DrilldownOverlayBehavior) subprocessCompatibility=type(SubprocessCompatibility) init[drilldownBreadcrumbs, drilldownOverlayBehavior, drilldownCentering, subprocessCompatibility]
+interactionEvents=type(InteractionEvents) init[interactionEvents]
+selection=type(Selection) selectionVisuals=type(SelectionVisuals) selectionBehavior=type(SelectionBehavior) init[selectionVisuals, selectionBehavior]
+keepSelectionVisible=type(KeepSelectionVisible) init[keepSelectionVisible]
+keyboard=type(Keyboard) keyboardBindings=type(KeyboardBindings) init[keyboard, keyboardBindings]
+keyboardMove=type(KeyboardMove) init[keyboardMove]
+moveCanvas=type(MoveCanvas) init[moveCanvas]
+zoomScroll=type(ZoomScroll) init[zoomScroll]
+alignElements=type(AlignElements) init[alignElements]
+scheduler=type(Scheduler)
+contextPad=type(ContextPad)
+search=value(fn search)
+popupMenu=type(PopupMenu) init[popupMenu]
+alignElementsContextPadProvider=type(AlignElementsContextPadProvider) alignElementsMenuProvider=type(AlignElementsMenuProvider) bpmnAlignElements=type(BpmnAlignElements) init[alignElementsContextPadProvider, alignElementsMenuProvider, bpmnAlignElements]
+autoPlace=type(AutoPlace) autoPlaceSelectionBehavior=type(AutoPlaceSelectionBehavior) init[autoPlaceSelectionBehavior]
+bpmnAutoPlace=type(AutoPlace) init[bpmnAutoPlace]
+hoverFix=type(HoverFix) init[hoverFix]
+dragging=type(Dragging)
+autoScroll=type(AutoScroll) init[autoScroll]
+bpmnAutoResize=type(BpmnAutoResize) bpmnAutoResizeProvider=type(BpmnAutoResizeProvider) init[bpmnAutoResize, bpmnAutoResizeProvider]
+rules=type(Rules) init[rules]
+bendpoints=type(Bendpoints) bendpointMove=type(BendpointMove) bendpointMovePreview=type(BendpointMovePreview) connectionSegmentMove=type(ConnectionSegmentMove) bendpointSnapping=type(BendpointSnapping) init[bendpoints, bendpointSnapping, bendpointMovePreview]
+connect=type(Connect) connectPreview=type(ConnectPreview) init[connectPreview]
+connectionPreview=type(ConnectionPreview) init[connectionPreview]
+previewSupport=type(PreviewSupport) init[previewSupport]
+complexPreview=type(ComplexPreview) init[complexPreview]
+adaptiveLabelPositioningBehavior=type(AdaptiveLabelPositioningBehavior) appendBehavior=type(AppendBehavior) associationBehavior=type(AssociationBehavior) attachEventBehavior=type(AttachEventBehavior) artifactBehavior=type(ArtifactBehavior) boundaryEventBehavior=type(BoundaryEventBehavior) categoryRootElementReferenceBehavior=type(CategoryRootElementReferenceBehavior) compensateBoundaryEventBehaviour=type(CompensateBoundaryEventBehavior) createBehavior=type(CreateBehavior) createDataObjectBehavior=type(CreateDataObjectBehavior) createParticipantBehavior=type(CreateParticipantBehavior) dataInputAssociationBehavior=type(DataInputAssociationBehavior) dataStoreBehavior=type(DataStoreBehavior) deleteLaneBehavior=type(DeleteLaneBehavior) detachEventBehavior=type(DetachEventBehavior) dropOnFlowBehavior=type(DropOnFlowBehavior) eventBasedGatewayBehavior=type(EventBasedGatewayBehavior) fixHoverBehavior=type(FixHoverBehavior) groupBehavior=type(GroupBehavior) importDockingFix=type(ImportDockingFix) isHorizontalFix=type(IsHorizontalFix) labelBehavior=type(LabelBehavior) layoutConnectionBehavior=type(LayoutConnectionBehavior) messageFlowBehavior=type(MessageFlowBehavior) nonInterruptingBehavior=type(NonInterruptingBehavior) removeElementBehavior=type(RemoveElementBehavior) removeEmbeddedLabelBoundsBehavior=type(RemoveEmbeddedLabelBoundsBehavior) removeParticipantBehavior=type(RemoveParticipantBehavior) replaceConnectionBehavior=type(ReplaceConnectionBehavior) replaceElementBehaviour=type(ReplaceElementBehaviour) resizeBehavior=type(ResizeBehavior) resizeLaneBehavior=type(ResizeLaneBehavior) rootElementReferenceBehavior=type(RootElementReferenceBehavior) spaceToolBehavior=type(SpaceToolBehavior) subProcessPlaneBehavior=type(SubProcessPlaneBehavior) subProcessStartEventBehavior=type(SubProcessStartEventBehavior) textAnnotationBehavior=type(TextAnnotationBehavior) toggleCollapseConnectionBehaviour=type(ToggleCollapseConnectionBehaviour) toggleElementCollapseBehaviour=type(ToggleElementCollapseBehaviour) unclaimIdBehavior=type(UnclaimIdBehavior) unsetDefaultFlowBehavior=type(DeleteSequenceFlowBehavior) updateFlowNodeRefsBehavior=type(UpdateFlowNodeRefsBehavior) updateCategoryValueRefsBehavior=type(UpdateCategoryValueRefsBehavior) setCompensationActivityAfterPasteBehavior=type(SetCompensationActivityAfterPasteBehavior) init[adaptiveLabelPositioningBehavior, appendBehavior, artifactBehavior, associationBehavior, attachEventBehavior, boundaryEventBehavior, categoryRootElementReferenceBehavior, compensateBoundaryEventBehaviour, createBehavior, createDataObjectBehavior, createParticipantBehavior, dataInputAssociationBehavior, dataStoreBehavior, deleteLaneBehavior, detachEventBehavior, dropOnFlowBehavior, eventBasedGatewayBehavior, fixHoverBehavior, groupBehavior, importDockingFix, isHorizontalFix, labelBehavior, layoutConnectionBehavior, messageFlowBehavior, nonInterruptingBehavior, removeElementBehavior, removeEmbeddedLabelBoundsBehavior, removeParticipantBehavior, replaceConnectionBehavior, replaceElementBehaviour, resizeBehavior, resizeLaneBehavior, rootElementReferenceBehavior, spaceToolBehavior, subProcessPlaneBehavior, subProcessStartEventBehavior, textAnnotationBehavior, toggleCollapseConnectionBehaviour, toggleElementCollapseBehaviour, unclaimIdBehavior, updateFlowNodeRefsBehavior, updateCategoryValueRefsBehavior, unsetDefaultFlowBehavior, setCompensationActivityAfterPasteBehavior]
+bpmnRules=type(BpmnRules) init[bpmnRules]
+bpmnDiOrdering=type(BpmnDiOrdering) init[bpmnDiOrdering]
+bpmnOrderingProvider=type(BpmnOrderingProvider) init[bpmnOrderingProvider]
+clipboard=type(Clipboard)
+create=type(Create) createPreview=type(CreatePreview) init[create, createPreview]
+mouse=type(Mouse) init[mouse]
+copyPaste=type(CopyPaste) init[copyPaste]
+bpmnCopyPaste=type(BpmnCopyPaste) moddleCopy=type(ModdleCopy) init[bpmnCopyPaste, moddleCopy]
+replaceSelectionBehavior=type(ReplaceSelectionBehavior) replace=type(Replace) init[replace, replaceSelectionBehavior]
+bpmnReplace=type(BpmnReplace)
+commandStack=type(CommandStack)
+labelSupport=type(LabelSupport) init[labelSupport]
+attachSupport=type(AttachSupport) init[attachSupport]
+toolManager=type(ToolManager) init[toolManager]
+spaceTool=type(SpaceTool) spaceToolPreview=type(SpaceToolPreview) init[spaceToolPreview]
+spaceTool=type(BpmnSpaceTool)
+bpmnFactory=type(BpmnFactory) bpmnUpdater=type(BpmnUpdater) elementFactory=type(ElementFactory) modeling=type(Modeling) layouter=type(BpmnLayouter) connectionDocking=type(CroppingConnectionDocking) init[modeling, bpmnUpdater]
+appendPreview=type(AppendPreview) init[appendPreview]
+directEditing=type(DirectEditing) init[directEditing]
+replaceMenuProvider=type(ReplaceMenuProvider) init[replaceMenuProvider]
+contextPadProvider=type(ContextPadProvider) init[contextPadProvider]
+distributeElements=type(DistributeElements) init[distributeElements]
+bpmnDistributeElements=type(BpmnDistributeElements) distributeElementsMenuProvider=type(DistributeElementsMenuProvider) init[bpmnDistributeElements, distributeElementsMenuProvider]
+editorActions=type(EditorActions) init[editorActions]
+editorActions=type(BpmnEditorActions)
+gridSnappingResizeBehavior=type(ResizeBehavior) gridSnappingSpaceToolBehavior=type(SpaceToolBehavior) init[gridSnappingResizeBehavior, gridSnappingSpaceToolBehavior]
+gridSnapping=type(GridSnapping) init[gridSnapping]
+gridSnappingAutoPlaceBehavior=type(GridSnappingAutoPlaceBehavior) gridSnappingParticipantBehavior=type(GridSnappingParticipantBehavior) gridSnappingLayoutConnectionBehavior=type(GridSnappingLayoutConnectionBehavior) init[gridSnappingAutoPlaceBehavior, gridSnappingParticipantBehavior, gridSnappingLayoutConnectionBehavior]
+bpmnGridSnapping=type(BpmnGridSnapping) init[bpmnGridSnapping]
+bpmnInteractionEvents=type(BpmnInteractionEvents) init[bpmnInteractionEvents]
+keyboardBindings=type(BpmnKeyboardBindings) init[keyboardBindings]
+keyboardMoveSelection=type(KeyboardMoveSelection) init[keyboardMoveSelection]
+resize=type(Resize) resizePreview=type(ResizePreview) resizeHandles=type(ResizeHandles) init[resize, resizePreview, resizeHandles]
+labelEditingProvider=type(LabelEditingProvider) labelEditingPreview=type(LabelEditingPreview) init[labelEditingProvider, labelEditingPreview]
+outline=type(Outline) multiSelectionOutline=type(MultiSelectionOutline) init[outline, multiSelectionOutline]
+labelLink=type(LabelLink) init[labelLink]
+tooltips=type(Tooltips) init[tooltips]
+modelingFeedback=type(ModelingFeedback) init[modelingFeedback]
+move=type(MoveEvents) movePreview=type(MovePreview) init[move, movePreview]
+hoverTooltip=type(HoverTooltip) init[hoverTooltip]
+palette=type(Palette) paletteTooltip=type(PaletteTooltip) init[palette, paletteTooltip]
+lassoTool=type(LassoTool) init[lassoTool]
+handTool=type(HandTool) init[handTool]
+globalConnect=type(GlobalConnect)
+paletteProvider=type(PaletteProvider) init[paletteProvider]
+bpmnReplacePreview=type(BpmnReplacePreview) init[bpmnReplacePreview]
+createMoveSnapping=type(CreateMoveSnapping) resizeSnapping=type(ResizeSnapping) snapping=type(Snapping) init[createMoveSnapping, resizeSnapping, snapping]
+connectSnapping=type(BpmnConnectSnapping) createMoveSnapping=type(BpmnCreateMoveSnapping) init[connectSnapping, createMoveSnapping]
+searchPad=type(SearchPad)
+bpmnSearch=type(BpmnSearchProvider) init[bpmnSearch]
+outlineProvider=type(OutlineProvider) init[outlineProvider]
+minimap=type(Minimap) init[minimap]
+init[fn fixIsExecutable]
+nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
+init[fn CommandInitializer]
+debounceInput=factory(debounceInput)
+feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer]
+propertiesPanel=type(BpmnPropertiesPanelRenderer) init[propertiesPanel]
+bpmnPropertiesProvider=type(BpmnPropertiesProvider) init[bpmnPropertiesProvider]
+elementsRenderer=type(ElementsRenderer)
+copyAsImageEditorActions=type(CopyAsImageEditorActions) copyAsImageKeyboardBindings=type(CopyAsImageKeyboardBindings) init[copyAsImageEditorActions, copyAsImageKeyboardBindings]
+copyPasteBehavior=type(CopyPasteBehavior) copyPasteRootElementBehavior=type(CopyPasteRootElementBehavior) deleteErrorEventDefinitionBehavior=type(DeleteErrorEventDefinitionBehavior) deleteParticipantBehaviour=type(DeleteParticipantBehaviour) deleteRetryTimeCycleBehavior=type(DeleteRetryTimeCycleBehavior) orderExtensionElementsBehavior=type(OrderExtensionElementsBehavior) removeInitiatorBehaviour=type(RemoveInitiatorBehaviour) removeVariableEventBehaviour=type(RemoveVariableEventBehaviour) updateCamundaExclusiveBehavior=type(UpdateCamundaExclusiveBehavior) updateResultVariableBehavior=type(UpdateResultVariableBehavior) updateInputOutputBehavior=type(UpdateInputOutputBehavior) userTaskFormsBehavior=type(UserTaskFormsBehavior) userTaskGeneratedFormsBehavior=type(UserTaskFormsBehavior) init[copyPasteBehavior, copyPasteRootElementBehavior, deleteErrorEventDefinitionBehavior, deleteParticipantBehaviour, deleteRetryTimeCycleBehavior, orderExtensionElementsBehavior, removeInitiatorBehaviour, removeVariableEventBehaviour, updateCamundaExclusiveBehavior, updateResultVariableBehavior, updateInputOutputBehavior, userTaskFormsBehavior, userTaskGeneratedFormsBehavior]
+camundaPlatformPropertiesProvider=type(CamundaPlatformPropertiesProvider) init[camundaPlatformPropertiesProvider]
+elementTemplateCommands=type(ElementTemplatesCommands) init[elementTemplateCommands]
+elementTemplatesReplaceBehavior=type(ReplaceBehavior) init[elementTemplatesReplaceBehavior]
+elementTemplates=type(ElementTemplates) elementTemplatesLoader=type(ElementTemplatesLoader) init[elementTemplatesLoader]
+elementTemplatesPropertiesProvider=type(ElementTemplatesPropertiesProvider) init[elementTemplatesPropertiesProvider]
+depends[elementTemplates, elementTemplatesPropertiesProvider]
+colorContextPadProvider=type(ColorContextPadProvider) colorPopupProvider=type(ColorPopupProvider) init[colorContextPadProvider, colorPopupProvider]
+appendMenuProvider=type(AppendMenuProvider) appendContextPadProvider=type(AppendContextPadProvider) appendRules=type(AppendRules) init[appendMenuProvider, appendContextPadProvider, appendRules]
+createMenuProvider=type(CreateMenuProvider) createPaletteProvider=type(CreatePaletteProvider) init[createMenuProvider, createPaletteProvider]
+createAppendEditorActions=type(CreateAppendEditorActions) init[createAppendEditorActions]
+createAppendKeyboardBindings=type(CreateAppendKeyboardBindings) init[createAppendKeyboardBindings]
+depends[appendMenuProvider, createMenuProvider, createAppendEditorActions, createAppendKeyboardBindings]
+variableResolver=type(CamundaVariableResolver) init[variableResolver]
+removeTemplateReplaceProvider=type(RemoveTemplateReplaceProvider) init[removeTemplateReplaceProvider]
+alignToOrigin=type(AlignToOrigin) init[alignToOrigin]
+grid=type(Grid) init[grid]
+customTranslator=value(CustomTranslator) translate=factory(translateFactory) init[customTranslator]
+startEventBehavior=type(StartEventBehavior) endEventBehavior=type(EndEventBehavior) boundaryEventBehavior=type(BoundaryEventBehavior) intermediateCatchEventBehavior=type(IntermediateCatchEventBehavior) intermediateThrowEventBehavior=type(IntermediateThrowEventBehavior) exclusiveGatewayBehavior=type(ExclusiveGatewayBehavior) parallelGatewayBehavior=type(ParallelGatewayBehavior) eventBasedGatewayBehavior=type(EventBasedGatewayBehavior) inclusiveGatewayBehavior=type(InclusiveGatewayBehavior) activityBehavior=type(ActivityBehavior) subProcessBehavior=type(SubProcessBehavior) sequenceFlowBehavior=type(SequenceFlowBehavior) messageFlowBehavior=type(MessageFlowBehavior) eventBehaviors=type(EventBehaviors) scopeBehavior=type(ScopeBehavior) processBehavior=type(ProcessBehavior) transactionBehavior=type(TransactionBehavior) init[startEventBehavior, endEventBehavior, boundaryEventBehavior, intermediateCatchEventBehavior, intermediateThrowEventBehavior, exclusiveGatewayBehavior, parallelGatewayBehavior, eventBasedGatewayBehavior, inclusiveGatewayBehavior, subProcessBehavior, sequenceFlowBehavior, messageFlowBehavior, processBehavior]
+simulator=type(Simulator) init[fn <anonymous>(eventBus, simulator)]
+sequenceFlowBehavior=type(AnimatedSequenceFlowBehavior) messageFlowBehavior=type(AnimatedMessageFlowBehavior)
+scopeFilter=type(ScopeFilter)
+simulationStyles=type(SimulationStyles) init[simulationStyles]
+animation=type(Animation)
+coloredScopes=type(ColoredScopes) init[coloredScopes]
+contextPads=type(ContextPads) init[contextPads]
+elementNotifications=type(ElementNotifications)
+notifications=type(Notifications)
+simulationState=type(SimulationState) init[simulationState]
+showScopes=type(ShowScopes) init[showScopes]
+log=type(Log) init[log]
+elementSupport=type(ElementSupport) init[elementSupport]
+pauseSimulation=type(PauseSimulation) init[pauseSimulation]
+resetSimulation=type(ResetSimulation) init[resetSimulation]
+tokenCount=type(TokenCount) init[tokenCount]
+setAnimationSpeed=type(SetAnimationSpeed) init[setAnimationSpeed]
+elementColors=type(ElementColors)
+exclusiveGatewaySettings=type(ExclusiveGatewaySettings)
+neutralElementColors=type(NeutralElementColors) init[neutralElementColors]
+inclusiveGatewaySettings=type(InclusiveGatewaySettings)
+tokenSimulationPalette=type(Palette) init[tokenSimulationPalette]
+depends[simulator, animation, coloredScopes, contextPads, simulationState, showScopes, log, elementSupport, pauseSimulation, resetSimulation, tokenCount, setAnimationSpeed, exclusiveGatewaySettings, neutralElementColors, inclusiveGatewaySettings, tokenSimulationPalette]
+canvasLock=type(CanvasLock) canvasLockBehavior=type(CanvasLockBehavior) init[canvasLock, canvasLockBehavior]
+disableModeling=type(DisableModeling) init[disableModeling]
+toggleMode=type(ToggleMode) init[toggleMode]
+tokenSimulationEditorActions=type(EditorActions) init[tokenSimulationEditorActions]
+tokenSimulationKeyboardBindings=type(KeyboardBindings) init[tokenSimulationKeyboardBindings]
+depends[[…, tokenSimulationPalette], canvasLock, disableModeling, toggleMode, tokenSimulationEditorActions, tokenSimulationKeyboardBindings]
+elementTemplateChooser=type(ElementTemplateChooser) init[elementTemplateChooser]
+appendMenuOverride=type(AppendMenuOverride) init[appendMenuOverride]
+popupMenuAnnotations=value(PopupMenuAnnotations) popupMenuAnnotationProvider=type(PopupMenuAnnotationProvider) init[popupMenuAnnotationProvider]
+replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTemplatesTabProvider]
+flowNavigation=type(FlowNavigation) deleteSelectionBehavior=type(DeleteSelectionBehavior) contextPadKeyboard=type(ContextPadKeyboard) planeNavigation=type(PlaneNavigation) linkNavigation=type(LinkNavigation) init[flowNavigation, deleteSelectionBehavior, contextPadKeyboard, planeNavigation, linkNavigation]
+bpmnLayoutCommands=type(LayoutCommandInitializer) bpmnLayouter=type(Layouter) bpmnCleanup=type(CleanupService) layoutEngine=value(BpmnAutoLayoutEngine) layoutKeyboard=type(LayoutKeyboard) layoutPaletteProvider=type(LayoutPaletteProvider) init[bpmnLayoutCommands, layoutKeyboard, layoutPaletteProvider]
+elementIdCommands=type(ElementIdCommands) elementIds=type(ElementIdsService) followNameBehavior=type(FollowNameBehavior) idFromNamePropertiesProvider=type(IdFromNamePropertiesProvider) init[elementIdCommands, followNameBehavior, idFromNamePropertiesProvider]
+propertiesPanelRoot=value(HTMLDivElement#3)
+propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter]
+customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups]
+debounceInput=factory(debounceInputFactory)
+popupMenuModeFilter=type(PopupMenuModeFilter) init[popupMenuModeFilter]
+elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
+drilldownFit=type(DrilldownFit) init[drilldownFit]
+elementTemplatesAppendProvider=type(ElementTemplatesAppendProvider) init[elementTemplatesAppendProvider]
+elementTemplatesCreateProvider=type(ElementTemplatesCreateProvider) init[elementTemplatesCreateProvider]
+elementTemplatesReplaceProvider=type(ElementTemplatesReplaceProvider) init[elementTemplatesReplaceProvider]
+depends[elementTemplatesAppendProvider, elementTemplatesCreateProvider, elementTemplatesReplaceProvider, removeTemplateReplaceProvider]
+c7ExtendedElementTemplates=type(ExtendElementTemplates) c7TemplateElementFactory=type(TemplateElementFactory) c7ApplyTemplateOnShapeCreateBehavior=type(ApplyTemplateOnShapeCreateBehavior) init[c7ExtendedElementTemplates]
+transactionBoundaries=type(TransactionBoundaries) init[transactionBoundaries]
+
+## providers (by DI name)
+activityBehavior: type(ActivityBehavior)
+adaptiveLabelPositioningBehavior: type(AdaptiveLabelPositioningBehavior)
+alignElements: type(AlignElements)
+alignElementsContextPadProvider: type(AlignElementsContextPadProvider)
+alignElementsMenuProvider: type(AlignElementsMenuProvider)
+alignToOrigin: type(AlignToOrigin)
+animation: type(Animation)
+appendBehavior: type(AppendBehavior)
+appendContextPadProvider: type(AppendContextPadProvider)
+appendMenuOverride: type(AppendMenuOverride)
+appendMenuProvider: type(AppendMenuProvider)
+appendPreview: type(AppendPreview)
+appendRules: type(AppendRules)
+artifactBehavior: type(ArtifactBehavior)
+associationBehavior: type(AssociationBehavior)
+attachEventBehavior: type(AttachEventBehavior)
+attachSupport: type(AttachSupport)
+autoPlace: type(AutoPlace)
+autoPlaceSelectionBehavior: type(AutoPlaceSelectionBehavior)
+autoScroll: type(AutoScroll)
+bendpointMove: type(BendpointMove)
+bendpointMovePreview: type(BendpointMovePreview)
+bendpointSnapping: type(BendpointSnapping)
+bendpoints: type(Bendpoints)
+boundaryEventBehavior: type(BoundaryEventBehavior) @startEventBehavior ×2 over type(BoundaryEventBehavior) @adaptiveLabelPositioningBehavior
+bpmnAlignElements: type(BpmnAlignElements)
+bpmnAutoPlace: type(AutoPlace)
+bpmnAutoResize: type(BpmnAutoResize)
+bpmnAutoResizeProvider: type(BpmnAutoResizeProvider)
+bpmnCleanup: type(CleanupService)
+bpmnCopyPaste: type(BpmnCopyPaste)
+bpmnDiOrdering: type(BpmnDiOrdering)
+bpmnDistributeElements: type(BpmnDistributeElements)
+bpmnFactory: type(BpmnFactory)
+bpmnGridSnapping: type(BpmnGridSnapping)
+bpmnImporter: type(BpmnImporter)
+bpmnInteractionEvents: type(BpmnInteractionEvents)
+bpmnLayoutCommands: type(LayoutCommandInitializer)
+bpmnLayouter: type(Layouter)
+bpmnOrderingProvider: type(BpmnOrderingProvider)
+bpmnPropertiesProvider: type(BpmnPropertiesProvider)
+bpmnRenderer: type(BpmnRenderer)
+bpmnReplace: type(BpmnReplace)
+bpmnReplacePreview: type(BpmnReplacePreview)
+bpmnRules: type(BpmnRules)
+bpmnSearch: type(BpmnSearchProvider)
+bpmnUpdater: type(BpmnUpdater)
+bpmnjs: value(Modeler)
+c7ApplyTemplateOnShapeCreateBehavior: type(ApplyTemplateOnShapeCreateBehavior)
+c7ExtendedElementTemplates: type(ExtendElementTemplates)
+c7TemplateElementFactory: type(TemplateElementFactory)
+camundaPlatformPropertiesProvider: type(CamundaPlatformPropertiesProvider)
+canvas: type(Canvas)
+canvasLock: type(CanvasLock)
+canvasLockBehavior: type(CanvasLockBehavior)
+categoryRootElementReferenceBehavior: type(CategoryRootElementReferenceBehavior)
+changeSupport: type(ChangeSupport)
+clipboard: type(Clipboard)
+colorContextPadProvider: type(ColorContextPadProvider)
+colorPopupProvider: type(ColorPopupProvider)
+coloredScopes: type(ColoredScopes)
+commandStack: type(CommandStack)
+compensateBoundaryEventBehaviour: type(CompensateBoundaryEventBehavior)
+complexPreview: type(ComplexPreview)
+config: value(Object)
+connect: type(Connect)
+connectPreview: type(ConnectPreview)
+connectSnapping: type(BpmnConnectSnapping)
+connectionDocking: type(CroppingConnectionDocking)
+connectionPreview: type(ConnectionPreview)
+connectionSegmentMove: type(ConnectionSegmentMove)
+contextPad: type(ContextPad)
+contextPadKeyboard: type(ContextPadKeyboard)
+contextPadProvider: type(ContextPadProvider)
+contextPads: type(ContextPads)
+copyAsImageEditorActions: type(CopyAsImageEditorActions)
+copyAsImageKeyboardBindings: type(CopyAsImageKeyboardBindings)
+copyPaste: type(CopyPaste)
+copyPasteBehavior: type(CopyPasteBehavior)
+copyPasteRootElementBehavior: type(CopyPasteRootElementBehavior)
+create: type(Create)
+createAppendEditorActions: type(CreateAppendEditorActions)
+createAppendKeyboardBindings: type(CreateAppendKeyboardBindings)
+createBehavior: type(CreateBehavior)
+createDataObjectBehavior: type(CreateDataObjectBehavior)
+createMenuProvider: type(CreateMenuProvider)
+createMoveSnapping: type(BpmnCreateMoveSnapping) @connectSnapping ×2 over type(CreateMoveSnapping) @createMoveSnapping
+createPaletteProvider: type(CreatePaletteProvider)
+createParticipantBehavior: type(CreateParticipantBehavior)
+createPreview: type(CreatePreview)
+customPropertiesGroups: type(CustomGroupsRegistry)
+customTranslator: value(CustomTranslator)
+dataInputAssociationBehavior: type(DataInputAssociationBehavior)
+dataStoreBehavior: type(DataStoreBehavior)
+debounceInput: factory(debounceInputFactory) @debounceInput ×2 over factory(debounceInput) @debounceInput
+defaultRenderer: type(DefaultRenderer)
+deleteErrorEventDefinitionBehavior: type(DeleteErrorEventDefinitionBehavior)
+deleteLaneBehavior: type(DeleteLaneBehavior)
+deleteParticipantBehaviour: type(DeleteParticipantBehaviour)
+deleteRetryTimeCycleBehavior: type(DeleteRetryTimeCycleBehavior)
+deleteSelectionBehavior: type(DeleteSelectionBehavior)
+detachEventBehavior: type(DetachEventBehavior)
+directEditing: type(DirectEditing)
+disableModeling: type(DisableModeling)
+distributeElements: type(DistributeElements)
+distributeElementsMenuProvider: type(DistributeElementsMenuProvider)
+dragging: type(Dragging)
+drilldownBreadcrumbs: type(DrilldownBreadcrumbs)
+drilldownCentering: type(DrilldownCentering)
+drilldownFit: type(DrilldownFit)
+drilldownOverlayBehavior: type(DrilldownOverlayBehavior)
+dropOnFlowBehavior: type(DropOnFlowBehavior)
+editorActions: type(BpmnEditorActions) @editorActions ×2 over type(EditorActions) @editorActions
+elementColors: type(ElementColors)
+elementFactory: type(ElementFactory) @bpmnFactory ×2 over type(ElementFactory) @canvas
+elementIdCommands: type(ElementIdCommands)
+elementIds: type(ElementIdsService)
+elementNotifications: type(ElementNotifications)
+elementRegistry: type(ElementRegistry)
+elementSupport: type(ElementSupport)
+elementTemplateChooser: type(ElementTemplateChooser)
+elementTemplateCommands: type(ElementTemplatesCommands)
+elementTemplateOffer: type(ElementTemplateOffer)
+elementTemplates: type(ElementTemplates)
+elementTemplatesAppendProvider: type(ElementTemplatesAppendProvider)
+elementTemplatesCreateProvider: type(ElementTemplatesCreateProvider)
+elementTemplatesLoader: type(ElementTemplatesLoader)
+elementTemplatesPropertiesProvider: type(ElementTemplatesPropertiesProvider)
+elementTemplatesReplaceBehavior: type(ReplaceBehavior)
+elementTemplatesReplaceProvider: type(ElementTemplatesReplaceProvider)
+elementsRenderer: type(ElementsRenderer)
+endEventBehavior: type(EndEventBehavior)
+eventBasedGatewayBehavior: type(EventBasedGatewayBehavior) @startEventBehavior ×2 over type(EventBasedGatewayBehavior) @adaptiveLabelPositioningBehavior
+eventBehaviors: type(EventBehaviors)
+eventBus: type(EventBus)
+exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
+exclusiveGatewaySettings: type(ExclusiveGatewaySettings)
+feelPopup: type(Popup)
+feelPopupRenderer: type(PopupRenderer)
+fixHoverBehavior: type(FixHoverBehavior)
+flowNavigation: type(FlowNavigation)
+followNameBehavior: type(FollowNameBehavior)
+globalConnect: type(GlobalConnect)
+graphicsFactory: type(GraphicsFactory)
+grid: type(Grid)
+gridSnapping: type(GridSnapping)
+gridSnappingAutoPlaceBehavior: type(GridSnappingAutoPlaceBehavior)
+gridSnappingLayoutConnectionBehavior: type(GridSnappingLayoutConnectionBehavior)
+gridSnappingParticipantBehavior: type(GridSnappingParticipantBehavior)
+gridSnappingResizeBehavior: type(ResizeBehavior)
+gridSnappingSpaceToolBehavior: type(SpaceToolBehavior)
+groupBehavior: type(GroupBehavior)
+handTool: type(HandTool)
+hiddenTemplatePopupFilter: type(HiddenTemplatePopupFilter)
+hoverFix: type(HoverFix)
+hoverTooltip: type(HoverTooltip)
+idFromNamePropertiesProvider: type(IdFromNamePropertiesProvider)
+importDockingFix: type(ImportDockingFix)
+inclusiveGatewayBehavior: type(InclusiveGatewayBehavior)
+inclusiveGatewaySettings: type(InclusiveGatewaySettings)
+interactionEvents: type(InteractionEvents)
+intermediateCatchEventBehavior: type(IntermediateCatchEventBehavior)
+intermediateThrowEventBehavior: type(IntermediateThrowEventBehavior)
+isHorizontalFix: type(IsHorizontalFix)
+keepSelectionVisible: type(KeepSelectionVisible)
+keyboard: type(Keyboard)
+keyboardBindings: type(BpmnKeyboardBindings) @keyboardBindings ×2 over type(KeyboardBindings) @keyboard
+keyboardMove: type(KeyboardMove)
+keyboardMoveSelection: type(KeyboardMoveSelection)
+labelBehavior: type(LabelBehavior)
+labelEditingPreview: type(LabelEditingPreview)
+labelEditingProvider: type(LabelEditingProvider)
+labelLink: type(LabelLink)
+labelSupport: type(LabelSupport)
+lassoTool: type(LassoTool)
+layoutConnectionBehavior: type(LayoutConnectionBehavior)
+layoutEngine: value(BpmnAutoLayoutEngine)
+layoutKeyboard: type(LayoutKeyboard)
+layoutPaletteProvider: type(LayoutPaletteProvider)
+layouter: type(BpmnLayouter)
+linkNavigation: type(LinkNavigation)
+log: type(Log)
+messageFlowBehavior: type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior ×3 over type(MessageFlowBehavior) @startEventBehavior, type(MessageFlowBehavior) @adaptiveLabelPositioningBehavior
+minimap: type(Minimap)
+moddle: value(Moddle)
+moddleCopy: type(ModdleCopy)
+modeling: type(Modeling)
+modelingFeedback: type(ModelingFeedback)
+mouse: type(Mouse)
+move: type(MoveEvents)
+moveCanvas: type(MoveCanvas)
+movePreview: type(MovePreview)
+multiSelectionOutline: type(MultiSelectionOutline)
+nativeCopyPaste: type(NativeCopyPaste)
+neutralElementColors: type(NeutralElementColors)
+nonInterruptingBehavior: type(NonInterruptingBehavior)
+notifications: type(Notifications)
+orderExtensionElementsBehavior: type(OrderExtensionElementsBehavior)
+outline: type(Outline)
+outlineProvider: type(OutlineProvider)
+overlays: type(Overlays)
+palette: type(Palette)
+paletteProvider: type(PaletteProvider)
+paletteTooltip: type(PaletteTooltip)
+parallelGatewayBehavior: type(ParallelGatewayBehavior)
+pathMap: type(PathMap)
+pauseSimulation: type(PauseSimulation)
+planeNavigation: type(PlaneNavigation)
+popupMenu: type(PopupMenu)
+popupMenuAnnotationProvider: type(PopupMenuAnnotationProvider)
+popupMenuAnnotations: value(PopupMenuAnnotations)
+popupMenuModeFilter: type(PopupMenuModeFilter)
+previewSupport: type(PreviewSupport)
+processBehavior: type(ProcessBehavior)
+propertiesPanel: type(BpmnPropertiesPanelRenderer)
+propertiesPanelModeFilter: type(ModeFilterProvider)
+propertiesPanelRoot: value(HTMLDivElement#3)
+removeElementBehavior: type(RemoveElementBehavior)
+removeEmbeddedLabelBoundsBehavior: type(RemoveEmbeddedLabelBoundsBehavior)
+removeInitiatorBehaviour: type(RemoveInitiatorBehaviour)
+removeParticipantBehavior: type(RemoveParticipantBehavior)
+removeTemplateReplaceProvider: type(RemoveTemplateReplaceProvider)
+removeVariableEventBehaviour: type(RemoveVariableEventBehaviour)
+replace: type(Replace)
+replaceConnectionBehavior: type(ReplaceConnectionBehavior)
+replaceElementBehaviour: type(ReplaceElementBehaviour)
+replaceMenuProvider: type(ReplaceMenuProvider)
+replaceSelectionBehavior: type(ReplaceSelectionBehavior)
+replaceTemplatesTabProvider: type(ReplaceTemplatesTabProvider)
+resetSimulation: type(ResetSimulation)
+resize: type(Resize)
+resizeBehavior: type(ResizeBehavior)
+resizeHandles: type(ResizeHandles)
+resizeLaneBehavior: type(ResizeLaneBehavior)
+resizePreview: type(ResizePreview)
+resizeSnapping: type(ResizeSnapping)
+rootElementReferenceBehavior: type(RootElementReferenceBehavior)
+rootElementsBehavior: type(RootElementsBehavior)
+rules: type(Rules)
+scheduler: type(Scheduler)
+scopeBehavior: type(ScopeBehavior)
+scopeFilter: type(ScopeFilter)
+search: value(fn search)
+searchPad: type(SearchPad)
+selection: type(Selection)
+selectionBehavior: type(SelectionBehavior)
+selectionVisuals: type(SelectionVisuals)
+sequenceFlowBehavior: type(AnimatedSequenceFlowBehavior) @sequenceFlowBehavior ×2 over type(SequenceFlowBehavior) @startEventBehavior
+setAnimationSpeed: type(SetAnimationSpeed)
+setCompensationActivityAfterPasteBehavior: type(SetCompensationActivityAfterPasteBehavior)
+showScopes: type(ShowScopes)
+simulationState: type(SimulationState)
+simulationStyles: type(SimulationStyles)
+simulator: type(Simulator)
+snapping: type(Snapping)
+spaceTool: type(BpmnSpaceTool) @spaceTool ×2 over type(SpaceTool) @spaceTool
+spaceToolBehavior: type(SpaceToolBehavior)
+spaceToolPreview: type(SpaceToolPreview)
+startEventBehavior: type(StartEventBehavior)
+styles: type(Styles)
+subProcessBehavior: type(SubProcessBehavior)
+subProcessPlaneBehavior: type(SubProcessPlaneBehavior)
+subProcessStartEventBehavior: type(SubProcessStartEventBehavior)
+subprocessCompatibility: type(SubprocessCompatibility)
+textAnnotationBehavior: type(TextAnnotationBehavior)
+textRenderer: type(TextRenderer)
+toggleCollapseConnectionBehaviour: type(ToggleCollapseConnectionBehaviour)
+toggleElementCollapseBehaviour: type(ToggleElementCollapseBehaviour)
+toggleMode: type(ToggleMode)
+tokenCount: type(TokenCount)
+tokenSimulationEditorActions: type(EditorActions)
+tokenSimulationKeyboardBindings: type(KeyboardBindings)
+tokenSimulationPalette: type(Palette)
+toolManager: type(ToolManager)
+tooltips: type(Tooltips)
+transactionBehavior: type(TransactionBehavior)
+transactionBoundaries: type(TransactionBoundaries)
+translate: factory(translateFactory) @customTranslator ×2 over value(fn translate) @translate
+unclaimIdBehavior: type(UnclaimIdBehavior)
+unsetDefaultFlowBehavior: type(DeleteSequenceFlowBehavior)
+updateCamundaExclusiveBehavior: type(UpdateCamundaExclusiveBehavior)
+updateCategoryValueRefsBehavior: type(UpdateCategoryValueRefsBehavior)
+updateFlowNodeRefsBehavior: type(UpdateFlowNodeRefsBehavior)
+updateInputOutputBehavior: type(UpdateInputOutputBehavior)
+updateResultVariableBehavior: type(UpdateResultVariableBehavior)
+userTaskFormsBehavior: type(UserTaskFormsBehavior)
+userTaskGeneratedFormsBehavior: type(UserTaskFormsBehavior)
+variableResolver: type(CamundaVariableResolver)
+zoomScroll: type(ZoomScroll)
+
+## __init__ (run order)
+defaultRenderer
+canvas
+bpmnRenderer
+overlays
+changeSupport
+rootElementsBehavior
+drilldownBreadcrumbs
+drilldownOverlayBehavior @drilldownBreadcrumbs
+drilldownCentering @drilldownBreadcrumbs
+subprocessCompatibility @drilldownBreadcrumbs
+interactionEvents
+selectionVisuals @selection
+selectionBehavior @selection
+keepSelectionVisible
+keyboard
+keyboardBindings @keyboard
+keyboardMove
+moveCanvas
+zoomScroll
+alignElements
+popupMenu
+alignElementsContextPadProvider
+alignElementsMenuProvider @alignElementsContextPadProvider
+bpmnAlignElements @alignElementsContextPadProvider
+autoPlaceSelectionBehavior @autoPlace
+bpmnAutoPlace
+hoverFix
+autoScroll
+bpmnAutoResize
+bpmnAutoResizeProvider @bpmnAutoResize
+rules
+bendpoints
+bendpointSnapping @bendpoints
+bendpointMovePreview @bendpoints
+connectPreview @connect
+connectionPreview
+previewSupport
+complexPreview
+adaptiveLabelPositioningBehavior
+appendBehavior @adaptiveLabelPositioningBehavior
+artifactBehavior @adaptiveLabelPositioningBehavior
+associationBehavior @adaptiveLabelPositioningBehavior
+attachEventBehavior @adaptiveLabelPositioningBehavior
+boundaryEventBehavior @adaptiveLabelPositioningBehavior
+categoryRootElementReferenceBehavior @adaptiveLabelPositioningBehavior
+compensateBoundaryEventBehaviour @adaptiveLabelPositioningBehavior
+createBehavior @adaptiveLabelPositioningBehavior
+createDataObjectBehavior @adaptiveLabelPositioningBehavior
+createParticipantBehavior @adaptiveLabelPositioningBehavior
+dataInputAssociationBehavior @adaptiveLabelPositioningBehavior
+dataStoreBehavior @adaptiveLabelPositioningBehavior
+deleteLaneBehavior @adaptiveLabelPositioningBehavior
+detachEventBehavior @adaptiveLabelPositioningBehavior
+dropOnFlowBehavior @adaptiveLabelPositioningBehavior
+eventBasedGatewayBehavior @adaptiveLabelPositioningBehavior
+fixHoverBehavior @adaptiveLabelPositioningBehavior
+groupBehavior @adaptiveLabelPositioningBehavior
+importDockingFix @adaptiveLabelPositioningBehavior
+isHorizontalFix @adaptiveLabelPositioningBehavior
+labelBehavior @adaptiveLabelPositioningBehavior
+layoutConnectionBehavior @adaptiveLabelPositioningBehavior
+messageFlowBehavior @adaptiveLabelPositioningBehavior
+nonInterruptingBehavior @adaptiveLabelPositioningBehavior
+removeElementBehavior @adaptiveLabelPositioningBehavior
+removeEmbeddedLabelBoundsBehavior @adaptiveLabelPositioningBehavior
+removeParticipantBehavior @adaptiveLabelPositioningBehavior
+replaceConnectionBehavior @adaptiveLabelPositioningBehavior
+replaceElementBehaviour @adaptiveLabelPositioningBehavior
+resizeBehavior @adaptiveLabelPositioningBehavior
+resizeLaneBehavior @adaptiveLabelPositioningBehavior
+rootElementReferenceBehavior @adaptiveLabelPositioningBehavior
+spaceToolBehavior @adaptiveLabelPositioningBehavior
+subProcessPlaneBehavior @adaptiveLabelPositioningBehavior
+subProcessStartEventBehavior @adaptiveLabelPositioningBehavior
+textAnnotationBehavior @adaptiveLabelPositioningBehavior
+toggleCollapseConnectionBehaviour @adaptiveLabelPositioningBehavior
+toggleElementCollapseBehaviour @adaptiveLabelPositioningBehavior
+unclaimIdBehavior @adaptiveLabelPositioningBehavior
+updateFlowNodeRefsBehavior @adaptiveLabelPositioningBehavior
+updateCategoryValueRefsBehavior @adaptiveLabelPositioningBehavior
+unsetDefaultFlowBehavior @adaptiveLabelPositioningBehavior
+setCompensationActivityAfterPasteBehavior @adaptiveLabelPositioningBehavior
+bpmnRules
+bpmnDiOrdering
+bpmnOrderingProvider
+create
+createPreview @create
+mouse
+copyPaste
+bpmnCopyPaste
+moddleCopy @bpmnCopyPaste
+replace @replaceSelectionBehavior
+replaceSelectionBehavior
+labelSupport
+attachSupport
+toolManager
+spaceToolPreview @spaceTool
+modeling @bpmnFactory
+bpmnUpdater @bpmnFactory
+appendPreview
+directEditing
+replaceMenuProvider
+contextPadProvider
+distributeElements
+bpmnDistributeElements
+distributeElementsMenuProvider @bpmnDistributeElements
+editorActions
+gridSnappingResizeBehavior
+gridSnappingSpaceToolBehavior @gridSnappingResizeBehavior
+gridSnapping
+gridSnappingAutoPlaceBehavior
+gridSnappingParticipantBehavior @gridSnappingAutoPlaceBehavior
+gridSnappingLayoutConnectionBehavior @gridSnappingAutoPlaceBehavior
+bpmnGridSnapping
+bpmnInteractionEvents
+keyboardBindings
+keyboardMoveSelection
+resize
+resizePreview @resize
+resizeHandles @resize
+labelEditingProvider
+labelEditingPreview @labelEditingProvider
+outline
+multiSelectionOutline @outline
+labelLink
+tooltips
+modelingFeedback
+move
+movePreview @move
+hoverTooltip
+palette
+paletteTooltip @palette
+lassoTool
+handTool
+paletteProvider
+bpmnReplacePreview
+createMoveSnapping
+resizeSnapping @createMoveSnapping
+snapping @createMoveSnapping
+connectSnapping
+createMoveSnapping @connectSnapping
+bpmnSearch
+outlineProvider
+minimap
+fn fixIsExecutable
+nativeCopyPaste
+fn CommandInitializer
+feelPopup
+feelPopupRenderer @feelPopup
+propertiesPanel
+bpmnPropertiesProvider
+copyAsImageEditorActions
+copyAsImageKeyboardBindings @copyAsImageEditorActions
+copyPasteBehavior
+copyPasteRootElementBehavior @copyPasteBehavior
+deleteErrorEventDefinitionBehavior @copyPasteBehavior
+deleteParticipantBehaviour @copyPasteBehavior
+deleteRetryTimeCycleBehavior @copyPasteBehavior
+orderExtensionElementsBehavior @copyPasteBehavior
+removeInitiatorBehaviour @copyPasteBehavior
+removeVariableEventBehaviour @copyPasteBehavior
+updateCamundaExclusiveBehavior @copyPasteBehavior
+updateResultVariableBehavior @copyPasteBehavior
+updateInputOutputBehavior @copyPasteBehavior
+userTaskFormsBehavior @copyPasteBehavior
+userTaskGeneratedFormsBehavior @copyPasteBehavior
+camundaPlatformPropertiesProvider
+elementTemplateCommands
+elementTemplatesReplaceBehavior
+elementTemplatesLoader @elementTemplates
+elementTemplatesPropertiesProvider
+colorContextPadProvider
+colorPopupProvider @colorContextPadProvider
+appendMenuProvider
+appendContextPadProvider @appendMenuProvider
+appendRules @appendMenuProvider
+createMenuProvider
+createPaletteProvider @createMenuProvider
+createAppendEditorActions
+createAppendKeyboardBindings
+variableResolver
+removeTemplateReplaceProvider
+alignToOrigin
+grid
+customTranslator
+startEventBehavior
+endEventBehavior @startEventBehavior
+boundaryEventBehavior @startEventBehavior
+intermediateCatchEventBehavior @startEventBehavior
+intermediateThrowEventBehavior @startEventBehavior
+exclusiveGatewayBehavior @startEventBehavior
+parallelGatewayBehavior @startEventBehavior
+eventBasedGatewayBehavior @startEventBehavior
+inclusiveGatewayBehavior @startEventBehavior
+subProcessBehavior @startEventBehavior
+sequenceFlowBehavior @startEventBehavior
+messageFlowBehavior @startEventBehavior
+processBehavior @startEventBehavior
+fn <anonymous>(eventBus, simulator) @simulator
+simulationStyles
+coloredScopes
+contextPads
+simulationState
+showScopes
+log
+elementSupport
+pauseSimulation
+resetSimulation
+tokenCount
+setAnimationSpeed
+neutralElementColors
+tokenSimulationPalette
+canvasLock
+canvasLockBehavior @canvasLock
+disableModeling
+toggleMode
+tokenSimulationEditorActions
+tokenSimulationKeyboardBindings
+elementTemplateChooser
+appendMenuOverride
+popupMenuAnnotationProvider @popupMenuAnnotations
+replaceTemplatesTabProvider
+flowNavigation
+deleteSelectionBehavior @flowNavigation
+contextPadKeyboard @flowNavigation
+planeNavigation @flowNavigation
+linkNavigation @flowNavigation
+bpmnLayoutCommands
+layoutKeyboard @bpmnLayoutCommands
+layoutPaletteProvider @bpmnLayoutCommands
+elementIdCommands
+followNameBehavior @elementIdCommands
+idFromNamePropertiesProvider @elementIdCommands
+propertiesPanelModeFilter
+customPropertiesGroups
+popupMenuModeFilter
+elementTemplateOffer
+hiddenTemplatePopupFilter @elementTemplateOffer
+drilldownFit
+elementTemplatesAppendProvider
+elementTemplatesCreateProvider
+elementTemplatesReplaceProvider
+c7ExtendedElementTemplates
+transactionBoundaries
+
+## config (by key path, without `modules` and `moddleExtensions`)
+alignToOrigin.alignOnSave: false
+alignToOrigin.offset: 150
+alignToOrigin.tolerance: 50
+canvas.container: HTMLDivElement#1
+container: HTMLDivElement#2
+height: "100%"
+popupMenu.defaultTab.id: "bpmn"
+popupMenu.defaultTab.label: "BPMN"
+position: "relative"
+propertiesPanel.feelPopupContainer: HTMLDivElement#2
+propertiesPanel.parent: HTMLDivElement#3
+propertiesPanel.tooltip.historyTimeToLive: fn historyTimeToLive
+propertiesPanelMode: "implement"
+width: "100%"
+
+## moddle packages (registration order)
+bpmn http://www.omg.org/spec/BPMN/20100524/MODEL
+bpmndi http://www.omg.org/spec/BPMN/20100524/DI
+dc http://www.omg.org/spec/DD/20100524/DC
+di http://www.omg.org/spec/DD/20100524/DI
+bioc http://bpmn.io/schema/bpmn/biocolor/1.0
+color http://www.omg.org/spec/BPMN/non-normative/color/1.0
+camunda http://camunda.org/schema/1.0/bpmn

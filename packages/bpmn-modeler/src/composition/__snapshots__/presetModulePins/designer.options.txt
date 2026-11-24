@@ -1,0 +1,163 @@
+# createDesigner: what each option adds, removes or replaces against the defaults
+
+## linting: false
+(no change)
+
+## linting: { module } (in-page tier)
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"mode":"design","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value({})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"mode":"design","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+
+## linting: { module, results: "external" }
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"mode":"design","tier":"external"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value({})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"mode":"design","tier":"external"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+
+## linting: { module }, onLintResults and onLintingToggled
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"mode":"design","tier":"in-page"}) lintCallbacks=value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"mode":"design","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+
+## capabilities.modelNavigation
+modules:
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after […, tokenSimulationKeyboardBindings])
+providers:
++ formPreviewController: type(FormPreviewController)
++ formReferenceStatusClient: type(FormReferenceStatusClient)
++ modelNavigationPort: value(Object: modelNavigation port)
++ navigateContextPadProvider: type(NavigateContextPadProvider)
+__init__:
++ formReferenceStatusClient @formPreviewController (after tokenSimulationKeyboardBindings)
++ formPreviewController (after formReferenceStatusClient)
++ navigateContextPadProvider @formPreviewController (after formPreviewController)
+
+## capabilities.definitionSearch
+modules:
++ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object: definitionSearch port) init[definitionSearchPropertiesProvider] (after […, tokenSimulationKeyboardBindings])
+providers:
++ definitionSearchPort: value(Object: definitionSearch port)
++ definitionSearchPropertiesProvider: type(DefinitionSearchPropertiesProvider)
+__init__:
++ definitionSearchPropertiesProvider (after tokenSimulationKeyboardBindings)
+
+## clipboard: { bridge }
+modules:
++ bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
++ labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
+providers:
++ bridgedClipboard: type(BridgedClipboard)
++ elementClipboardBridge: value(Object: clipboard bridge)
++ labelClipboard: type(LabelClipboard)
++ textClipboardBridge: value(Object: clipboard bridge)
+__init__:
++ bridgedClipboard (after the defaults)
++ labelClipboard (after bridgedClipboard)
+
+## clipboard: { bridge, text }
+modules:
++ bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
++ labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard text bridge) (after labelClipboard)
+providers:
++ bridgedClipboard: type(BridgedClipboard)
++ elementClipboardBridge: value(Object: clipboard bridge)
++ labelClipboard: type(LabelClipboard)
++ textClipboardBridge: value(Object: clipboard text bridge)
+__init__:
++ bridgedClipboard (after the defaults)
++ labelClipboard (after bridgedClipboard)
+
+## moddleExtensions
+moddle packages:
++ acme http://acme.example/bpmn (after the defaults)
+
+## additionalModules
+modules:
++ callerProbe=value("caller") (after the defaults)
+providers:
++ callerProbe: value("caller")
+
+## in-page linting, every capability, clipboard and additionalModules at once
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"mode":"design","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after lintUpdate)
++ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object: definitionSearch port) init[definitionSearchPropertiesProvider] (after formPreviewController)
++ bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
++ labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
++ callerProbe=value("caller") (after elementClipboardBridge)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ bridgedClipboard: type(BridgedClipboard)
++ callerProbe: value("caller")
++ definitionSearchPort: value(Object: definitionSearch port)
++ definitionSearchPropertiesProvider: type(DefinitionSearchPropertiesProvider)
++ elementClipboardBridge: value(Object: clipboard bridge)
++ formPreviewController: type(FormPreviewController)
++ formReferenceStatusClient: type(FormReferenceStatusClient)
++ labelClipboard: type(LabelClipboard)
++ lintCallbacks: value({})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"mode":"design","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
++ modelNavigationPort: value(Object: modelNavigation port)
++ navigateContextPadProvider: type(NavigateContextPadProvider)
++ textClipboardBridge: value(Object: clipboard bridge)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
++ formReferenceStatusClient @formPreviewController (after lintIssuePopover)
++ formPreviewController (after formReferenceStatusClient)
++ navigateContextPadProvider @formPreviewController (after formPreviewController)
++ definitionSearchPropertiesProvider (after navigateContextPadProvider)
++ bridgedClipboard (after the defaults)
++ labelClipboard (after bridgedClipboard)
