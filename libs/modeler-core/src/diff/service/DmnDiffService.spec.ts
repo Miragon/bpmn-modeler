@@ -128,6 +128,28 @@ describe("DmnDiffService", () => {
         expect(highlightsOf(unversioned.after)).not.toHaveProperty("paneVersion");
     });
 
+    it("tells a pane its version beside a partner whose version the host does not tell", async () => {
+        const { service, store } = createService();
+        const unnamed = new FakeDiffPaneHandle("gitfs:/repo/shipping.dmn", BEFORE_DMN);
+        const workingTree = new FakeDiffPaneHandle("file:///repo/shipping.dmn", AFTER_DMN, {
+            kind: "working-tree",
+        });
+        const scm = DiffSession.forScm(unnamed, workingTree);
+        scm.attachPane(unnamed);
+        scm.attachPane(workingTree);
+        store.index(scm);
+
+        await service.markReady(unnamed);
+        await service.markReady(workingTree);
+
+        expect(highlightsOf(unnamed)).toMatchObject({ side: "before" });
+        expect(highlightsOf(unnamed)).not.toHaveProperty("paneVersion");
+        expect(highlightsOf(workingTree)).toMatchObject({
+            side: "after",
+            paneVersion: "Working Tree",
+        });
+    });
+
     it("logs a version it cannot compare and highlights nothing", async () => {
         const { service, store, notifier } = createService();
         const { before, after } = attachedPair(store, "not a DMN file");

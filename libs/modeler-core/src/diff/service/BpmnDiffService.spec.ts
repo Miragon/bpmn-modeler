@@ -257,6 +257,32 @@ describe("BpmnDiffService", () => {
         expect(versionOf(unversioned.after)).not.toHaveProperty("paneVersion");
     });
 
+    it("tells a pane its version beside a partner whose version the host does not tell", async () => {
+        const { service, store } = createService();
+        const unnamed = new FakeDiffPaneHandle("gitfs:/repo/scm.bpmn", beforeBpmn);
+        const workingTree = new FakeDiffPaneHandle("file:///repo/scm.bpmn", afterBpmn, {
+            kind: "working-tree",
+        });
+        const scm = DiffSession.forScm(unnamed, workingTree);
+        scm.attachPane(unnamed);
+        scm.attachPane(workingTree);
+        store.index(scm);
+
+        await service.markReady(unnamed);
+        await service.markReady(workingTree);
+
+        const highlightsOf = (handle: FakeDiffPaneHandle) =>
+            handle.posted
+                .map((m) => m as { type: string; side?: string; paneVersion?: string })
+                .find((m) => m.type === "ApplyDiffHighlightsQuery");
+        expect(highlightsOf(unnamed)).toMatchObject({ side: "before" });
+        expect(highlightsOf(unnamed)).not.toHaveProperty("paneVersion");
+        expect(highlightsOf(workingTree)).toMatchObject({
+            side: "after",
+            paneVersion: "Working Tree",
+        });
+    });
+
     it("serves a merge pane in merge viewer mode", async () => {
         const { service, current } = await mergeView();
 

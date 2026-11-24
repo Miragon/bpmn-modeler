@@ -48,7 +48,8 @@ const REVISION = "git:/repo/order.bpmn?ref=HEAD";
  * panes, and forwards viewport and cursor to the partner; a host detaches a pane
  * from its session as the pane is disposed.
  *
- * The element XML diff names both panes' revisions in its title.
+ * The element XML diff names both panes' revisions in its title, and each pane
+ * of a Git diff is told its own for its label.
  *
  * Left out, because the hosts differ and the core relies on none of it:
  * - Which revision a pane reports. VS Code reads it from the URI of the Git

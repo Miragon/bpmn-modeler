@@ -14,7 +14,7 @@ import { DiffRevision } from "../domain/DiffRevision";
  */
 export interface DiffPaneHandle {
     readonly uri: string;
-    /** Which version of its file the pane shows; it names the versions in a title. */
+    /** Which version of its file the pane shows; a Git diff's pane label and an element XML diff's title name it. */
     readonly revision: DiffRevision;
     /**
      * `true` once the webview has imported its XML and emitted
