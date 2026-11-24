@@ -1,0 +1,90 @@
+# createViewer: what each option adds, removes or replaces against the defaults
+
+## propertiesPanel
+modules:
++ init[fn CommandInitializer] (after the defaults)
++ debounceInput=factory(debounceInputFactory) (after fn CommandInitializer)
++ feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer] (after debounceInput)
++ propertiesPanel=type(PropertiesPanelRenderer) init[propertiesPanel] (after feelPopup)
++ neutralPropertiesProvider=type(NeutralPropertiesProvider) init[neutralPropertiesProvider] (after propertiesPanel)
++ propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter] (after neutralPropertiesProvider)
++ customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups] (after propertiesPanelModeFilter)
+providers:
++ customPropertiesGroups: type(CustomGroupsRegistry)
++ debounceInput: factory(debounceInputFactory)
++ feelPopup: type(Popup)
++ feelPopupRenderer: type(PopupRenderer)
++ neutralPropertiesProvider: type(NeutralPropertiesProvider)
++ propertiesPanel: type(PropertiesPanelRenderer)
++ propertiesPanelModeFilter: type(ModeFilterProvider)
+__init__:
++ fn CommandInitializer (after the defaults)
++ feelPopup (after fn CommandInitializer)
++ feelPopupRenderer @feelPopup (after feelPopup)
++ propertiesPanel (after feelPopupRenderer)
++ neutralPropertiesProvider (after propertiesPanel)
++ propertiesPanelModeFilter (after neutralPropertiesProvider)
++ customPropertiesGroups (after propertiesPanelModeFilter)
+
+## capabilities.modelNavigation
+modules:
++ scheduler=type(Scheduler) (after the defaults)
++ contextPad=type(ContextPad) (after scheduler)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
+providers:
++ contextPad: type(ContextPad)
++ formPreviewController: type(FormPreviewController)
++ formReferenceStatusClient: type(FormReferenceStatusClient)
++ modelNavigationPort: value(Object)
++ navigateContextPadProvider: type(NavigateContextPadProvider)
++ scheduler: type(Scheduler)
+__init__:
++ formReferenceStatusClient @formPreviewController (after the defaults)
++ formPreviewController (after formReferenceStatusClient)
++ navigateContextPadProvider @formPreviewController (after formPreviewController)
+
+## additionalModules
+modules:
++ callerProbe=value("caller") (after the defaults)
+providers:
++ callerProbe: value("caller")
+
+## propertiesPanel, capabilities.modelNavigation and additionalModules at once
+modules:
++ init[fn CommandInitializer] (after the defaults)
++ debounceInput=factory(debounceInputFactory) (after fn CommandInitializer)
++ feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer] (after debounceInput)
++ propertiesPanel=type(PropertiesPanelRenderer) init[propertiesPanel] (after feelPopup)
++ neutralPropertiesProvider=type(NeutralPropertiesProvider) init[neutralPropertiesProvider] (after propertiesPanel)
++ propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter] (after neutralPropertiesProvider)
++ customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups] (after propertiesPanelModeFilter)
++ scheduler=type(Scheduler) (after customPropertiesGroups)
++ contextPad=type(ContextPad) (after scheduler)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
++ callerProbe=value("caller") (after formPreviewController)
+providers:
++ callerProbe: value("caller")
++ contextPad: type(ContextPad)
++ customPropertiesGroups: type(CustomGroupsRegistry)
++ debounceInput: factory(debounceInputFactory)
++ feelPopup: type(Popup)
++ feelPopupRenderer: type(PopupRenderer)
++ formPreviewController: type(FormPreviewController)
++ formReferenceStatusClient: type(FormReferenceStatusClient)
++ modelNavigationPort: value(Object)
++ navigateContextPadProvider: type(NavigateContextPadProvider)
++ neutralPropertiesProvider: type(NeutralPropertiesProvider)
++ propertiesPanel: type(PropertiesPanelRenderer)
++ propertiesPanelModeFilter: type(ModeFilterProvider)
++ scheduler: type(Scheduler)
+__init__:
++ fn CommandInitializer (after the defaults)
++ feelPopup (after fn CommandInitializer)
++ feelPopupRenderer @feelPopup (after feelPopup)
++ propertiesPanel (after feelPopupRenderer)
++ neutralPropertiesProvider (after propertiesPanel)
++ propertiesPanelModeFilter (after neutralPropertiesProvider)
++ customPropertiesGroups (after propertiesPanelModeFilter)
++ formReferenceStatusClient @formPreviewController (after customPropertiesGroups)
++ formPreviewController (after formReferenceStatusClient)
++ navigateContextPadProvider @formPreviewController (after formPreviewController)

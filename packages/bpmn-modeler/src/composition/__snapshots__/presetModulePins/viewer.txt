@@ -1,0 +1,181 @@
+# createViewer, default options
+
+## modules (registration order)
+config=value(Object)
+defaultRenderer=type(DefaultRenderer) styles=type(Styles) init[defaultRenderer]
+canvas=type(Canvas) elementRegistry=type(ElementRegistry) elementFactory=type(ElementFactory) eventBus=type(EventBus) graphicsFactory=type(GraphicsFactory) init[canvas]
+bpmnjs=value(NavigatedViewer) moddle=value(Moddle)
+bpmnRenderer=type(BpmnRenderer) textRenderer=type(TextRenderer) pathMap=type(PathMap) init[bpmnRenderer]
+translate=value(fn translate)
+bpmnImporter=type(BpmnImporter)
+depends[bpmnRenderer, bpmnImporter]
+overlays=type(Overlays) init[overlays]
+changeSupport=type(ChangeSupport) init[changeSupport]
+rootElementsBehavior=type(RootElementsBehavior) init[rootElementsBehavior]
+drilldownBreadcrumbs=type(DrilldownBreadcrumbs) drilldownCentering=type(DrilldownCentering) drilldownOverlayBehavior=type(DrilldownOverlayBehavior) subprocessCompatibility=type(SubprocessCompatibility) init[drilldownBreadcrumbs, drilldownOverlayBehavior, drilldownCentering, subprocessCompatibility]
+interactionEvents=type(InteractionEvents) init[interactionEvents]
+selection=type(Selection) selectionVisuals=type(SelectionVisuals) selectionBehavior=type(SelectionBehavior) init[selectionVisuals, selectionBehavior]
+keepSelectionVisible=type(KeepSelectionVisible) init[keepSelectionVisible]
+keyboard=type(Keyboard) keyboardBindings=type(KeyboardBindings) init[keyboard, keyboardBindings]
+keyboardMove=type(KeyboardMove) init[keyboardMove]
+moveCanvas=type(MoveCanvas) init[moveCanvas]
+zoomScroll=type(ZoomScroll) init[zoomScroll]
+outline=type(Outline) multiSelectionOutline=type(MultiSelectionOutline) init[outline, multiSelectionOutline]
+outlineProvider=type(OutlineProvider) init[outlineProvider]
+minimap=type(Minimap) init[minimap]
+startEventBehavior=type(StartEventBehavior) endEventBehavior=type(EndEventBehavior) boundaryEventBehavior=type(BoundaryEventBehavior) intermediateCatchEventBehavior=type(IntermediateCatchEventBehavior) intermediateThrowEventBehavior=type(IntermediateThrowEventBehavior) exclusiveGatewayBehavior=type(ExclusiveGatewayBehavior) parallelGatewayBehavior=type(ParallelGatewayBehavior) eventBasedGatewayBehavior=type(EventBasedGatewayBehavior) inclusiveGatewayBehavior=type(InclusiveGatewayBehavior) activityBehavior=type(ActivityBehavior) subProcessBehavior=type(SubProcessBehavior) sequenceFlowBehavior=type(SequenceFlowBehavior) messageFlowBehavior=type(MessageFlowBehavior) eventBehaviors=type(EventBehaviors) scopeBehavior=type(ScopeBehavior) processBehavior=type(ProcessBehavior) transactionBehavior=type(TransactionBehavior) init[startEventBehavior, endEventBehavior, boundaryEventBehavior, intermediateCatchEventBehavior, intermediateThrowEventBehavior, exclusiveGatewayBehavior, parallelGatewayBehavior, eventBasedGatewayBehavior, inclusiveGatewayBehavior, subProcessBehavior, sequenceFlowBehavior, messageFlowBehavior, processBehavior]
+simulator=type(Simulator) init[fn <anonymous>(eventBus, simulator)]
+sequenceFlowBehavior=type(AnimatedSequenceFlowBehavior) messageFlowBehavior=type(AnimatedMessageFlowBehavior)
+scopeFilter=type(ScopeFilter)
+simulationStyles=type(SimulationStyles) init[simulationStyles]
+animation=type(Animation)
+coloredScopes=type(ColoredScopes) init[coloredScopes]
+contextPads=type(ContextPads) init[contextPads]
+elementNotifications=type(ElementNotifications)
+notifications=type(Notifications)
+simulationState=type(SimulationState) init[simulationState]
+showScopes=type(ShowScopes) init[showScopes]
+log=type(Log) init[log]
+elementSupport=type(ElementSupport) init[elementSupport]
+pauseSimulation=type(PauseSimulation) init[pauseSimulation]
+resetSimulation=type(ResetSimulation) init[resetSimulation]
+tokenCount=type(TokenCount) init[tokenCount]
+setAnimationSpeed=type(SetAnimationSpeed) init[setAnimationSpeed]
+elementColors=type(ElementColors)
+exclusiveGatewaySettings=type(ExclusiveGatewaySettings)
+neutralElementColors=type(NeutralElementColors) init[neutralElementColors]
+inclusiveGatewaySettings=type(InclusiveGatewaySettings)
+tokenSimulationPalette=type(Palette) init[tokenSimulationPalette]
+depends[simulator, animation, coloredScopes, contextPads, simulationState, showScopes, log, elementSupport, pauseSimulation, resetSimulation, tokenCount, setAnimationSpeed, exclusiveGatewaySettings, neutralElementColors, inclusiveGatewaySettings, tokenSimulationPalette]
+toggleMode=type(ToggleMode) init[toggleMode]
+depends[[…, tokenSimulationPalette], toggleMode]
+
+## providers (by DI name)
+activityBehavior: type(ActivityBehavior)
+animation: type(Animation)
+boundaryEventBehavior: type(BoundaryEventBehavior)
+bpmnImporter: type(BpmnImporter)
+bpmnRenderer: type(BpmnRenderer)
+bpmnjs: value(NavigatedViewer)
+canvas: type(Canvas)
+changeSupport: type(ChangeSupport)
+coloredScopes: type(ColoredScopes)
+config: value(Object)
+contextPads: type(ContextPads)
+defaultRenderer: type(DefaultRenderer)
+drilldownBreadcrumbs: type(DrilldownBreadcrumbs)
+drilldownCentering: type(DrilldownCentering)
+drilldownOverlayBehavior: type(DrilldownOverlayBehavior)
+elementColors: type(ElementColors)
+elementFactory: type(ElementFactory)
+elementNotifications: type(ElementNotifications)
+elementRegistry: type(ElementRegistry)
+elementSupport: type(ElementSupport)
+endEventBehavior: type(EndEventBehavior)
+eventBasedGatewayBehavior: type(EventBasedGatewayBehavior)
+eventBehaviors: type(EventBehaviors)
+eventBus: type(EventBus)
+exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
+exclusiveGatewaySettings: type(ExclusiveGatewaySettings)
+graphicsFactory: type(GraphicsFactory)
+inclusiveGatewayBehavior: type(InclusiveGatewayBehavior)
+inclusiveGatewaySettings: type(InclusiveGatewaySettings)
+interactionEvents: type(InteractionEvents)
+intermediateCatchEventBehavior: type(IntermediateCatchEventBehavior)
+intermediateThrowEventBehavior: type(IntermediateThrowEventBehavior)
+keepSelectionVisible: type(KeepSelectionVisible)
+keyboard: type(Keyboard)
+keyboardBindings: type(KeyboardBindings)
+keyboardMove: type(KeyboardMove)
+log: type(Log)
+messageFlowBehavior: type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior ×2 over type(MessageFlowBehavior) @startEventBehavior
+minimap: type(Minimap)
+moddle: value(Moddle)
+moveCanvas: type(MoveCanvas)
+multiSelectionOutline: type(MultiSelectionOutline)
+neutralElementColors: type(NeutralElementColors)
+notifications: type(Notifications)
+outline: type(Outline)
+outlineProvider: type(OutlineProvider)
+overlays: type(Overlays)
+parallelGatewayBehavior: type(ParallelGatewayBehavior)
+pathMap: type(PathMap)
+pauseSimulation: type(PauseSimulation)
+processBehavior: type(ProcessBehavior)
+resetSimulation: type(ResetSimulation)
+rootElementsBehavior: type(RootElementsBehavior)
+scopeBehavior: type(ScopeBehavior)
+scopeFilter: type(ScopeFilter)
+selection: type(Selection)
+selectionBehavior: type(SelectionBehavior)
+selectionVisuals: type(SelectionVisuals)
+sequenceFlowBehavior: type(AnimatedSequenceFlowBehavior) @sequenceFlowBehavior ×2 over type(SequenceFlowBehavior) @startEventBehavior
+setAnimationSpeed: type(SetAnimationSpeed)
+showScopes: type(ShowScopes)
+simulationState: type(SimulationState)
+simulationStyles: type(SimulationStyles)
+simulator: type(Simulator)
+startEventBehavior: type(StartEventBehavior)
+styles: type(Styles)
+subProcessBehavior: type(SubProcessBehavior)
+subprocessCompatibility: type(SubprocessCompatibility)
+textRenderer: type(TextRenderer)
+toggleMode: type(ToggleMode)
+tokenCount: type(TokenCount)
+tokenSimulationPalette: type(Palette)
+transactionBehavior: type(TransactionBehavior)
+translate: value(fn translate)
+zoomScroll: type(ZoomScroll)
+
+## __init__ (run order)
+defaultRenderer
+canvas
+bpmnRenderer
+overlays
+changeSupport
+rootElementsBehavior
+drilldownBreadcrumbs
+drilldownOverlayBehavior @drilldownBreadcrumbs
+drilldownCentering @drilldownBreadcrumbs
+subprocessCompatibility @drilldownBreadcrumbs
+interactionEvents
+selectionVisuals @selection
+selectionBehavior @selection
+keepSelectionVisible
+keyboard
+keyboardBindings @keyboard
+keyboardMove
+moveCanvas
+zoomScroll
+outline
+multiSelectionOutline @outline
+outlineProvider
+minimap
+startEventBehavior
+endEventBehavior @startEventBehavior
+boundaryEventBehavior @startEventBehavior
+intermediateCatchEventBehavior @startEventBehavior
+intermediateThrowEventBehavior @startEventBehavior
+exclusiveGatewayBehavior @startEventBehavior
+parallelGatewayBehavior @startEventBehavior
+eventBasedGatewayBehavior @startEventBehavior
+inclusiveGatewayBehavior @startEventBehavior
+subProcessBehavior @startEventBehavior
+sequenceFlowBehavior @startEventBehavior
+messageFlowBehavior @startEventBehavior
+processBehavior @startEventBehavior
+fn <anonymous>(eventBus, simulator) @simulator
+simulationStyles
+coloredScopes
+contextPads
+simulationState
+showScopes
+log
+elementSupport
+pauseSimulation
+resetSimulation
+tokenCount
+setAnimationSpeed
+neutralElementColors
+tokenSimulationPalette
+toggleMode
