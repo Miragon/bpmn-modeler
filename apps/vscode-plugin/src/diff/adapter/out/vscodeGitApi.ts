@@ -27,6 +27,7 @@ interface RepositoryState {
     readonly HEAD: Branch | undefined;
     readonly rebaseCommit: Commit | undefined;
     readonly mergeChanges: Change[];
+    readonly indexChanges: Change[];
     readonly onDidChange: Event<void>;
 }
 

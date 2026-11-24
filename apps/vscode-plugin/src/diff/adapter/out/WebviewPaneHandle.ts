@@ -5,7 +5,7 @@ import {
     bootstrapWebview,
     DiffPaneSurface,
 } from "../../../shared/adapter/out/bootstrapWebview";
-import { revisionOfDocument } from "../../domain/documentRevision";
+import { revisionOfDocument, type StagedChangesLookup } from "../../domain/documentRevision";
 
 /**
  * Outbound adapter that wraps a real `WebviewPanel` + `TextDocument`
@@ -18,19 +18,24 @@ import { revisionOfDocument } from "../../domain/documentRevision";
 export class WebviewPaneHandle implements DiffPaneHandle {
     private readyFlag = false;
 
-    /** @param surface The diff-pane page the panel loads. */
+    /**
+     * @param surface The diff-pane page the panel loads.
+     * @param hasStagedChanges Tells whether a working tree change's base reads the index or HEAD.
+     */
     constructor(
         readonly panel: WebviewPanel,
         readonly document: TextDocument,
         private readonly surface: DiffPaneSurface,
+        private readonly hasStagedChanges: StagedChangesLookup,
     ) {}
 
     get uri(): string {
         return this.document.uri.toString();
     }
 
+    /** Read anew each time: staging or unstaging the file changes what its base reads. */
     get revision(): DiffRevision {
-        return revisionOfDocument(this.document.uri);
+        return revisionOfDocument(this.document.uri, this.hasStagedChanges);
     }
 
     isReady(): boolean {

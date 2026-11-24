@@ -47,6 +47,8 @@ class FakeWebviewPanel {
     }
 }
 
+const GIT_CANNOT_TELL = () => undefined;
+
 describeDiffPaneContract("WebviewPaneHandle", (sides) => {
     const panels = { before: new FakeWebviewPanel(), after: new FakeWebviewPanel() };
     const paneFor = (side: "before" | "after") =>
@@ -57,6 +59,7 @@ describeDiffPaneContract("WebviewPaneHandle", (sides) => {
                 getText: () => sides[side].text,
             } as unknown as TextDocument,
             "bpmnDiffPane",
+            GIT_CANNOT_TELL,
         );
     return {
         before: paneFor("before"),
@@ -71,9 +74,37 @@ describe("WebviewPaneHandle.bootstrap", () => {
         (surface) => {
             const panel = new FakeWebviewPanel() as unknown as WebviewPanel;
 
-            new WebviewPaneHandle(panel, {} as TextDocument, surface).bootstrap();
+            new WebviewPaneHandle(panel, {} as TextDocument, surface, GIT_CANNOT_TELL).bootstrap();
 
             expect(bootstrapWebview).toHaveBeenLastCalledWith(panel, { diffPane: surface });
         },
     );
+});
+
+describe("WebviewPaneHandle.revision", () => {
+    it("reads a working tree change's base by what Git has staged, each time it is asked", () => {
+        const stagedFiles = new Set<string>();
+        const asked: string[] = [];
+        const base = new WebviewPaneHandle(
+            new FakeWebviewPanel() as unknown as WebviewPanel,
+            {
+                uri: {
+                    scheme: "git",
+                    query: JSON.stringify({ path: "/repo/order.bpmn", ref: "~" }),
+                },
+            } as unknown as TextDocument,
+            "bpmnDiffPane",
+            (filePath) => {
+                asked.push(filePath);
+                return stagedFiles.has(filePath);
+            },
+        );
+
+        const unstaged = base.revision;
+        stagedFiles.add("/repo/order.bpmn");
+
+        expect(unstaged).toStrictEqual({ kind: "index-or-head", staged: false });
+        expect(base.revision).toStrictEqual({ kind: "index-or-head", staged: true });
+        expect(asked).toStrictEqual(["/repo/order.bpmn", "/repo/order.bpmn"]);
+    });
 });

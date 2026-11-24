@@ -13,7 +13,7 @@ See what changed between two versions of a `.bpmn` file as two diagrams side by 
 - Select two `.bpmn` files, right-click, **Compare Selected (BPMN)**. The first selected file is the before side.
 - Or right-click one file, **Select for Compare (BPMN)**, then right-click the other, **Compare with Selected (BPMN)**. The pick is kept until you compare or reload the window.
 
-Each pane names its version in its top left corner: **Old version** on the left, **New version** on the right. In a Git diff it adds which version that is, as Git and the tab title name it: **Old version: Index** and **New version: Working Tree** for a change in Source Control, a commit such as **1a2b3c4** or a branch for other Git diffs. File comparisons name each file there instead and add a ⇄ button that swaps the sides (its tooltip reads **Swap sides**).
+Each pane names its version in its top left corner: **Old version** on the left, **New version** on the right. In a Git diff it adds which version that is, as Git and the tab title name it: **Old version: HEAD** and **New version: Working Tree** for a change in Source Control, a commit such as **1a2b3c4** or a branch for other Git diffs. HEAD is your last commit. Once the file has staged changes, the left pane shows what is staged and reads **Old version: Index**. File comparisons name each file there instead and add a ⇄ button that swaps the sides (its tooltip reads **Swap sides**).
 
 If a Git diff still opens as XML, check `workbench.diffEditorAssociations` in your settings: a `*.bpmn` entry there overrides the modeler.
 

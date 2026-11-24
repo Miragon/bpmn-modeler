@@ -2,8 +2,11 @@
 export type DiffRevision =
     | { readonly kind: "working-tree" }
     | { readonly kind: "index" }
-    /** The base of a working tree change in Source Control: the index, or HEAD when nothing is staged. */
-    | { readonly kind: "index-or-head" }
+    /**
+     * The base of a working tree change in Source Control: the index, or HEAD
+     * while the file has nothing staged; `staged` where the host can tell which.
+     */
+    | { readonly kind: "index-or-head"; readonly staged?: boolean }
     | { readonly kind: "ref"; readonly ref: string }
     | { readonly kind: "unknown" };
 
@@ -45,15 +48,18 @@ export function scmSides<Pane extends { readonly revision: DiffRevision }>(
 
 /**
  * A version as Git and VS Code's diff titles name it: the working tree, the
- * index, or the ref. None where the host tells no version.
+ * index, or the ref. The base of a working tree change is HEAD only where the
+ * host knows the file has nothing staged; the index holds the same text then,
+ * so "Index" is right where it cannot tell. None where the host tells no version.
  */
 export function revisionName(revision: DiffRevision): string | undefined {
     switch (revision.kind) {
         case "working-tree":
             return "Working Tree";
         case "index":
-        case "index-or-head":
             return "Index";
+        case "index-or-head":
+            return revision.staged === false ? "HEAD" : "Index";
         case "ref":
             return revision.ref;
         case "unknown":

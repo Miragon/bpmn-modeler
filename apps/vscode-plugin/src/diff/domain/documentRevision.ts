@@ -1,12 +1,6 @@
 import { DiffRevision, isFullCommitHash, shortCommitHash } from "@miragon/bpmn-modeler-core";
 
 /**
- * Which version a diff pane's document shows, read from its URI as VS Code's
- * Git extension writes it (`toGitUri`): a `file:` document is the working
- * tree, and a `git:` document's JSON query names its ref: `""` reads the
- * index, `"~"` the index or HEAD when nothing is staged.
- */
-/**
  * URI schemes of Git providers' ref, index and working-tree documents: VS Code's
  * Git extension, which the standalone desktop shell ships too, uses `git:`;
  * Theia's own Git integration (`@theia/git`) uses `gitfs:`. Such a document is
@@ -27,27 +21,44 @@ export function isMergeSideDocument(uri: { readonly scheme: string }): boolean {
     return uri.scheme === MERGE_SIDE_SCHEME;
 }
 
-export function revisionOfDocument(uri: {
-    readonly scheme: string;
-    readonly query: string;
-}): DiffRevision {
+/** Whether the file at a path has staged changes; `undefined` where Git cannot tell. */
+export type StagedChangesLookup = (filePath: string) => boolean | undefined;
+
+const CANNOT_TELL: StagedChangesLookup = () => undefined;
+
+/**
+ * Which version a diff pane's document shows, read from its URI as VS Code's
+ * Git extension writes it (`toGitUri`): a `file:` document is the working
+ * tree, and a `git:` document's JSON query names its file and its ref: `""`
+ * reads the index, `"~"` the index while the file has staged changes and HEAD
+ * otherwise, which `hasStagedChanges` tells.
+ */
+export function revisionOfDocument(
+    uri: { readonly scheme: string; readonly query: string },
+    hasStagedChanges: StagedChangesLookup = CANNOT_TELL,
+): DiffRevision {
     if (uri.scheme === "file") {
         return { kind: "working-tree" };
     }
-    const ref = uri.scheme === "git" ? gitRefOf(uri.query) : undefined;
+    const { ref, path } = uri.scheme === "git" ? gitQueryOf(uri.query) : {};
     if (ref === undefined) {
         return { kind: "unknown" };
     }
     if (ref === "") return { kind: "index" };
-    return ref === "~" ? { kind: "index-or-head" } : { kind: "ref", ref: shortRef(ref) };
+    if (ref !== "~") return { kind: "ref", ref: shortRef(ref) };
+    const staged = path === undefined ? undefined : hasStagedChanges(path);
+    return staged === undefined ? { kind: "index-or-head" } : { kind: "index-or-head", staged };
 }
 
-function gitRefOf(query: string): string | undefined {
+function gitQueryOf(query: string): { readonly ref?: string; readonly path?: string } {
     try {
-        const { ref } = JSON.parse(query) as { ref?: unknown };
-        return typeof ref === "string" ? ref : undefined;
+        const { ref, path } = JSON.parse(query) as { ref?: unknown; path?: unknown };
+        return {
+            ...(typeof ref === "string" ? { ref } : {}),
+            ...(typeof path === "string" ? { path } : {}),
+        };
     } catch {
-        return undefined;
+        return {};
     }
 }
 

@@ -96,7 +96,21 @@ describe("revisionName", () => {
     it.each<[string, DiffRevision, string | undefined]>([
         ["the working tree", WORKING_TREE, "Working Tree"],
         ["the index", INDEX, "Index"],
-        ["the base of a working tree change, which reads the index", INDEX_OR_HEAD, "Index"],
+        [
+            "the base of a working tree change of a file with nothing staged, which reads HEAD",
+            { kind: "index-or-head", staged: false },
+            "HEAD",
+        ],
+        [
+            "the base of a working tree change of a file with staged changes, which reads the index",
+            { kind: "index-or-head", staged: true },
+            "Index",
+        ],
+        [
+            "the base of a working tree change where the host cannot tell what is staged",
+            INDEX_OR_HEAD,
+            "Index",
+        ],
         ["a symbolic ref", HEAD, "HEAD"],
         ["a branch", { kind: "ref", ref: "release/2.0" }, "release/2.0"],
         ["a commit's parent", { kind: "ref", ref: "1a2b3c4^" }, "1a2b3c4^"],

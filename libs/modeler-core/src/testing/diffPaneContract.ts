@@ -53,7 +53,8 @@ const REVISION = "git:/repo/order.bpmn?ref=HEAD";
  *
  * Left out, because the hosts differ and the core relies on none of it:
  * - Which revision a pane reports. VS Code reads it from the URI of the Git
- *   extension's document, the bridge cannot tell and reports it as unknown.
+ *   extension's document and from what Git has staged, the bridge cannot tell
+ *   and reports it as unknown.
  * - What `postMessage` resolves to. VS Code answers whether the webview took the
  *   message, the bridge always `true`; the core awaits it only for a rejection.
  * - Whether a post has arrived once `postMessage` resolves. The bridge resolves

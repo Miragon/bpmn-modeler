@@ -305,7 +305,7 @@ describe("the BPMN visual diff in a real VS Code", () => {
         const before = await vscode().editorWebview('body[data-diff-side="before"]');
         await expect
             .poll(() => before.locator(".diff-side-label").textContent())
-            .toBe("Old version: Index");
+            .toBe("Old version: HEAD");
         await expect
             .poll(() => after.locator(".diff-side-label").textContent())
             .toBe("New version: Working Tree");
@@ -326,5 +326,23 @@ describe("the BPMN visual diff in a real VS Code", () => {
         await settle(after);
         await settle(page);
         await suite.screenshot("bpmn-scm-diff-element-xml");
+
+        // Once the file has staged changes, Git reads a working tree change's base from the index.
+        await runGit(repository, "add", SCM_DIFF_FILE);
+        await copyCompareFixture("invoice.bpmn", join(repository, SCM_DIFF_FILE));
+        for (const [change, oldVersion, newVersion] of [
+            ["unstaged", "Old version: Index", "New version: Working Tree"],
+            ["staged", "Old version: HEAD", "New version: Index"],
+        ] as const) {
+            // An open diff keeps the versions it opened with, so each change opens anew.
+            await vscode().executeCommand("workbench.action.closeAllEditors");
+            await vscode().openSourceControlChange(SCM_DIFF_FILE, change);
+            const labelOf = async (side: "before" | "after") =>
+                (await vscode().editorWebview(`body[data-diff-side="${side}"]`))
+                    .locator(".diff-side-label")
+                    .textContent();
+            await expect.poll(() => labelOf("before")).toBe(oldVersion);
+            await expect.poll(() => labelOf("after")).toBe(newVersion);
+        }
     });
 });

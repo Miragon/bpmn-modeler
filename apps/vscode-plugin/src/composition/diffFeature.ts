@@ -15,6 +15,7 @@ import {
 import { DiffController, DiffPaneFormat } from "../diff/adapter/in/DiffController";
 import { VsCodeElementXmlDiffView } from "../diff/adapter/out/VsCodeElementXmlDiffView";
 import { VsCodeMergeEditorAvailability } from "../diff/adapter/out/VsCodeMergeEditorAvailability";
+import { gitStagedChanges } from "../diff/adapter/out/vscodeGitStagedChanges";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import * as elementXmlMergeFeature from "./elementXmlMergeFeature";
 import * as mergeViewFeature from "./mergeViewFeature";
@@ -68,7 +69,8 @@ export function register(
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
-        (panel, document) => new WebviewPaneHandle(panel, document, "bpmnDiffPane"),
+        (panel, document) =>
+            new WebviewPaneHandle(panel, document, "bpmnDiffPane", gitStagedChanges),
         deps.preferences,
         bpmnDiffFormat(bpmnDiffService, merge.paneCommands),
         merge.opener,
@@ -77,7 +79,8 @@ export function register(
     const dmnDiffController = new DiffController(
         dmnDiffStore,
         deps.notifier,
-        (panel, document) => new WebviewPaneHandle(panel, document, "dmnDiffPane"),
+        (panel, document) =>
+            new WebviewPaneHandle(panel, document, "dmnDiffPane", gitStagedChanges),
         deps.preferences,
         dmnDiffFormat(new DmnDiffService(deps.notifier, deps.vsSettings, dmnDiffStore)),
     );

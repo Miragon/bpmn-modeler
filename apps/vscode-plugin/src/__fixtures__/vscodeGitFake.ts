@@ -77,6 +77,8 @@ export enum FileType {
 
 class FakeRepository {
     readonly conflicts = new Map<string, StagedConflict>();
+    /** The files with staged changes, by URI. */
+    readonly staged = new Set<string>();
     readonly changes = new Emitter<void>();
     refs: NonNullable<StagedConflict["refs"]> = {};
     opened = true;
@@ -94,6 +96,7 @@ class FakeRepository {
             HEAD: { name: this.refs.headName, commit: this.refs.head?.hash },
             rebaseCommit: commit(this.refs.rebaseCommit),
             mergeChanges: this.published.map(({ fileUri }) => ({ uri: Uri.parse(fileUri) })),
+            indexChanges: [...this.staged].map((fileUri) => ({ uri: Uri.parse(fileUri) })),
             onDidChange: this.changes.event,
         };
     }
@@ -154,6 +157,8 @@ const gitFileAt = (uri: Uri): { repository: FakeRepository; type: FileType } | u
 
 const git = {
     present: true,
+    /** Whether the extension runs already, or only once `activate()` is awaited. */
+    active: false,
     enabled: true,
     enablements: new Emitter<boolean>(),
     initialized: true,
@@ -255,6 +260,25 @@ export function removeGit(): void {
     git.present = false;
 }
 
+/** The Git extension runs already, as it does while one of its documents is open. */
+export function runGit(): void {
+    git.active = true;
+}
+
+/** The Git extension is installed but not started, with its repositories as they are. */
+export function stopGit(): void {
+    git.active = false;
+}
+
+/** The user stages changes of a file, or unstages them. */
+export function stageInGit(root: string, fileUri: string): void {
+    repositoryAt(root).staged.add(fileUri);
+}
+
+export function unstageInGit(root: string, fileUri: string): void {
+    repositoryAt(root).staged.delete(fileUri);
+}
+
 /** `git.enabled` is off, as the smoke test starts VS Code. */
 export function disableGit(): void {
     git.enabled = false;
@@ -297,6 +321,7 @@ export const commandCalls: unknown[][] = [];
 
 export function resetVscodeGit(): void {
     git.present = true;
+    git.active = false;
     git.enabled = true;
     git.enablements = new Emitter();
     git.initialized = true;
@@ -324,7 +349,7 @@ export const extensions = {
                 return api;
             },
         };
-        return { isActive: false, exports, activate: async () => exports };
+        return { isActive: git.active, exports, activate: async () => exports };
     },
 };
 

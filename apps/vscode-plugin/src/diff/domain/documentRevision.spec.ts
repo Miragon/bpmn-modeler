@@ -46,6 +46,43 @@ describe("revisionOfDocument", () => {
     });
 });
 
+describe("revisionOfDocument, of the base of a working tree change", () => {
+    const base = { scheme: "git", query: gitQuery("~") };
+
+    it.each<[string, boolean | undefined, DiffRevision]>([
+        ["HEAD while the file has nothing staged", false, { kind: "index-or-head", staged: false }],
+        [
+            "the index once the file has staged changes",
+            true,
+            { kind: "index-or-head", staged: true },
+        ],
+        ["either where Git cannot tell", undefined, { kind: "index-or-head" }],
+    ])("reads it as %s", (_case, staged, expected) => {
+        expect(revisionOfDocument(base, () => staged)).toStrictEqual(expected);
+    });
+
+    it("asks for the file the Git document names, and only for that base", () => {
+        const asked: string[] = [];
+        const lookup = (filePath: string) => {
+            asked.push(filePath);
+            return false;
+        };
+
+        revisionOfDocument(base, lookup);
+        revisionOfDocument({ scheme: "git", query: gitQuery("HEAD") }, lookup);
+        revisionOfDocument({ scheme: "git", query: gitQuery("") }, lookup);
+        revisionOfDocument({ scheme: "file", query: "" }, lookup);
+
+        expect(asked).toStrictEqual(["/repo/order.bpmn"]);
+    });
+
+    it("reads either where the Git document names no file", () => {
+        const noPath = { scheme: "git", query: JSON.stringify({ ref: "~" }) };
+
+        expect(revisionOfDocument(noPath, () => false)).toStrictEqual({ kind: "index-or-head" });
+    });
+});
+
 describe("isGitProvidedDocument", () => {
     it.each([
         ["git", true],

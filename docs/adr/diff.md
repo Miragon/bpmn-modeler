@@ -82,6 +82,12 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   side. The core names each pane's version as Git and VS Code's diff titles do
   (`revisionName`: Working Tree, Index, a ref or a commit; the element XML diff's title
   words its versions with it) and sends it as `paneVersion` of both highlight queries.
+  The base of a working tree change is HEAD while the file has nothing staged and the
+  index once it has, which is how the Git extension reads its `~` document
+  (`sanitizeRef`); HEAD is the word users know, and "Index" for an unstaged file named a
+  version they never made. The host tells which (`staged`): VS Code asks the Git API's
+  `indexChanges` each time the pane's version is read, and where it cannot tell the name
+  stays Index, whose text is the same then.
   Which diff names versions is an origin rule (`namesVersions`, an SCM diff only) that the
   label and the title both ask, and both webviews word the label with `diffPaneLabel` in
   `@miragon/bpmn-modeler-types`. Git's names stay as Git writes them, untranslated like a
