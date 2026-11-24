@@ -25,6 +25,9 @@ __init__:
 + neutralPropertiesProvider (after propertiesPanel)
 + propertiesPanelModeFilter (after neutralPropertiesProvider)
 + customPropertiesGroups (after propertiesPanelModeFilter)
+config:
++ propertiesPanel.feelPopupContainer: HTMLDivElement
++ propertiesPanel.parent: HTMLDivElement
 
 ## capabilities.modelNavigation
 modules:
@@ -88,3 +91,6 @@ __init__:
 + formReferenceStatusClient @formPreviewController (after customPropertiesGroups)
 + formPreviewController (after formReferenceStatusClient)
 + navigateContextPadProvider @formPreviewController (after formPreviewController)
+config:
++ propertiesPanel.feelPopupContainer: HTMLDivElement
++ propertiesPanel.parent: HTMLDivElement

@@ -1,25 +1,54 @@
-import { Injector, type ModuleDeclaration } from "didi";
+import type { Injector, ModuleDeclaration } from "didi";
+import Diagram from "diagram-js/lib/Diagram";
 import { describe, expect, it } from "vitest";
 
 import {
     assembleModules,
+    configLeaves,
     disagreementsWithInjector,
     flattenModules,
+    moddlePackageLines,
     optionDelta,
     overridesOf,
+    renderPins,
     winningValueOf,
     type DidiInjector,
     type DiModule,
+    type SurfacePins,
 } from "./diModuleAssembly";
 
 class First {}
 class Second {}
 class Third {}
 
+// The surfaces run on the didi diagram-js resolves, which need not be the root `didi`.
+function injectorClassOfDiagramJs(): typeof Injector {
+    const diagram = new Diagram();
+    try {
+        return diagram.get<object>("injector").constructor as typeof Injector;
+    } finally {
+        diagram.destroy();
+    }
+}
+
+const DiagramJsInjector = injectorClassOfDiagramJs();
+
 function builtInjector(modules: DiModule[]): DidiInjector & { init(): void } {
-    const injector = new Injector(modules as ModuleDeclaration[]);
+    const injector = new DiagramJsInjector(modules as ModuleDeclaration[]);
     injector.init();
     return injector as unknown as DidiInjector & { init(): void };
+}
+
+function pinsOf(
+    modules: readonly DiModule[],
+    config: object = { modules },
+    moddlePackages: readonly { prefix: string; uri: string }[] = [],
+): SurfacePins {
+    return {
+        assembly: assembleModules(modules),
+        config: configLeaves(config),
+        moddlePackages: moddlePackageLines(moddlePackages),
+    };
 }
 
 describe("diModuleAssembly against didi's own injector", () => {
@@ -134,9 +163,95 @@ describe("diModuleAssembly against didi's own injector", () => {
         const two: DiModule = { two: ["value", 2] };
         const three: DiModule = { three: ["value", 3] };
 
+        expect(optionDelta(pinsOf([one, two, three]), pinsOf([two, one, three]))).toEqual([
+            "modules:",
+            "+ two=value(2) (first)",
+            "- two=value(2)",
+        ]);
+    });
+
+    it("prints each config leaf by key path, walking plain objects, and leaves out what is pinned elsewhere", () => {
+        const container = document.createElement("div");
+        const tooltip = { "group-general": (element: unknown) => element };
+
+        expect([
+            ...configLeaves({
+                modules: [{ one: ["value", 1] }],
+                moddleExtensions: { camunda: { prefix: "camunda" } },
+                propertiesPanel: { parent: container, tooltip, layout: {} },
+                popupMenu: { defaultTab: "bpmn" },
+                alignToOrigin: { offset: 150, tolerance: 50 },
+                names: ["b", "a"],
+                propertiesPanelMode: "implement",
+                getFeelPopupLinks: (type: string) => type,
+                instance: new First(),
+            }),
+        ]).toEqual([
+            ["alignToOrigin.offset", "150"],
+            ["alignToOrigin.tolerance", "50"],
+            ["getFeelPopupLinks", "fn getFeelPopupLinks"],
+            ["instance", "First"],
+            ["names", '["b","a"]'],
+            ["popupMenu.defaultTab", '"bpmn"'],
+            ["propertiesPanel.layout", "{}"],
+            ["propertiesPanel.parent", "HTMLDivElement"],
+            ["propertiesPanel.tooltip.group-general", "fn group-general"],
+            ["propertiesPanelMode", '"implement"'],
+        ]);
+    });
+
+    it("prints a config object that holds itself once, by type", () => {
+        const looped: Record<string, unknown> = { flag: true };
+        looped.self = looped;
+
+        expect([...configLeaves({ looped })]).toEqual([
+            ["looped.flag", "true"],
+            ["looped.self", "Object"],
+        ]);
+    });
+
+    it("pins the config and the moddle packages after the modules", () => {
+        const pins = pinsOf([{ one: ["value", 1] }], { mode: "design" }, [
+            { prefix: "bpmn", uri: "http://www.omg.org/spec/BPMN/20100524/MODEL" },
+            { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
+        ]);
+
+        const rendered = renderPins("probe", pins);
+
+        expect(rendered.slice(rendered.indexOf("## __init__"))).toBe(
+            [
+                "## __init__ (run order)",
+                "",
+                "## config (by key path, without `modules` and `moddleExtensions`)",
+                'mode: "design"',
+                "",
+                "## moddle packages (registration order)",
+                "bpmn http://www.omg.org/spec/BPMN/20100524/MODEL",
+                "camunda http://camunda.org/schema/1.0/bpmn",
+                "",
+            ].join("\n"),
+        );
+    });
+
+    it("shows what an option adds, removes or replaces in the config and the moddle packages", () => {
+        const bpmn = { prefix: "bpmn", uri: "bpmn-uri" };
+        const zeebe = { prefix: "zeebe", uri: "zeebe-uri" };
+        const camunda = { prefix: "camunda", uri: "camunda-uri" };
+
         expect(
-            optionDelta(assembleModules([one, two, three]), assembleModules([two, one, three])),
-        ).toEqual(["modules:", "+ two=value(2) (first)", "- two=value(2)"]);
+            optionDelta(
+                pinsOf([], { mode: "implement", minimap: { open: false } }, [bpmn, zeebe]),
+                pinsOf([], { mode: "design", extra: 1 }, [bpmn, camunda]),
+            ),
+        ).toEqual([
+            "config:",
+            "+ extra: 1",
+            "- minimap.open: false",
+            '~ mode: "implement" → "design"',
+            "moddle packages:",
+            "+ camunda camunda-uri (after bpmn)",
+            "- zeebe zeebe-uri",
+        ]);
     });
 
     it("anchors an addition behind the last default to the defaults, not to that module", () => {
@@ -149,8 +264,8 @@ describe("diModuleAssembly against didi's own injector", () => {
 
         expect(
             optionDelta(
-                assembleModules([group, last]),
-                assembleModules([group, inserted, last, appended]),
+                pinsOf([group, last], {}),
+                pinsOf([group, inserted, last, appended], {}),
             ).filter((line) => line.startsWith("+") && line.includes("=")),
         ).toEqual([
             "+ inserted=value(3) (after […, two])",

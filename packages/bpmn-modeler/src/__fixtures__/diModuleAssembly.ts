@@ -3,7 +3,8 @@
  * bpmn-js handed diagram-js and flattened the way the injector diagram-js
  * builds does it: `__depends__` depth first, each module once at its first
  * position, the last registration of a name wins, `__init__` entries run in
- * flattened module order.
+ * flattened module order. Beside the modules: the rest of the config and the
+ * moddle packages bpmn-js was built with.
  */
 import DiagramCoreModule from "diagram-js/lib/core";
 
@@ -36,12 +37,23 @@ export interface ModuleAssembly {
     readonly inits: readonly PinnedLine[];
 }
 
+/** Everything a preset hands bpmn-js: its modules, its config and the moddle packages. */
+export interface SurfacePins {
+    readonly assembly: ModuleAssembly;
+    /** Each config leaf by key path, sorted. */
+    readonly config: ReadonlyMap<string, string>;
+    /** `prefix uri` per moddle package, in registration order. */
+    readonly moddlePackages: readonly PinnedLine[];
+}
+
 export interface Override {
     readonly winner: string;
     readonly over: readonly string[];
 }
 
 const DIDI_KEYS = new Set(["__depends__", "__init__"]);
+// The modules are pinned as the assembly; the moddle extensions as the packages they build.
+const CONFIG_KEYS_PINNED_ELSEWHERE = new Set(["modules", "moddleExtensions"]);
 // Rolldown renames a class whose name clashes in a chunk; which copy gets `$1` is bundler output.
 const BUNDLER_SUFFIX = /\$\d+$/;
 
@@ -167,7 +179,41 @@ export function overridesOf(assembly: ModuleAssembly): Record<string, Override> 
     return overrides;
 }
 
-export function renderPins(title: string, assembly: ModuleAssembly): string {
+/**
+ * The config bpmn-js hands diagram-js, one leaf per key path: plain objects are
+ * walked, anything else prints as a provider value does.
+ */
+export function configLeaves(config: object): Map<string, string> {
+    const leaves: [string, string][] = [];
+    const visit = (value: unknown, path: string, ancestors: readonly object[]): void => {
+        const walkable =
+            isPlainObject(value) && Object.keys(value).length > 0 && !ancestors.includes(value);
+        if (!walkable) {
+            leaves.push([path, valueIdentity(value)]);
+            return;
+        }
+        for (const [key, item] of Object.entries(value)) {
+            visit(item, `${path}.${key}`, [...ancestors, value]);
+        }
+    };
+    for (const [key, value] of Object.entries(config)) {
+        if (!CONFIG_KEYS_PINNED_ELSEWHERE.has(key)) {
+            visit(value, key, [config]);
+        }
+    }
+    return new Map(leaves.sort(([left], [right]) => byCodeUnit(left, right)));
+}
+
+export function moddlePackageLines(
+    packages: readonly { readonly prefix: string; readonly uri: string }[],
+): PinnedLine[] {
+    return packages.map(({ prefix, uri }) => ({ text: `${prefix} ${uri}`, label: prefix }));
+}
+
+export function renderPins(
+    title: string,
+    { assembly, config, moddlePackages }: SurfacePins,
+): string {
     const providers = sortedRegistrations(assembly).map(
         ([name, list]) => `${name}: ${winnerText(list)}`,
     );
@@ -183,33 +229,58 @@ export function renderPins(title: string, assembly: ModuleAssembly): string {
         "## __init__ (run order)",
         ...assembly.inits.map(({ text }) => text),
         "",
+        "## config (by key path, without `modules` and `moddleExtensions`)",
+        ...[...config].map(([path, value]) => `${path}: ${value}`),
+        "",
+        "## moddle packages (registration order)",
+        ...moddlePackages.map(({ text }) => text),
+        "",
     ].join("\n");
 }
 
 /** What `variant` adds (+), removes (-) or replaces (~) against `base`; empty when it changes nothing. */
-export function optionDelta(base: ModuleAssembly, variant: ModuleAssembly): string[] {
-    const providerLines: string[] = [];
-    const names = [...new Set([...base.registrations.keys(), ...variant.registrations.keys()])];
-    for (const name of names.sort(byCodeUnit)) {
-        const before = base.registrations.get(name);
-        const after = variant.registrations.get(name);
-        if (!before && after) {
-            providerLines.push(`+ ${name}: ${winnerText(after)}`);
-        } else if (before && !after) {
-            providerLines.push(`- ${name}: ${winnerText(before)}`);
-        } else if (before && after && winnerText(before) !== winnerText(after)) {
-            providerLines.push(`~ ${name}: ${winnerText(before)} → ${winnerText(after)}`);
-        }
-    }
+export function optionDelta(base: SurfacePins, variant: SurfacePins): string[] {
+    const winners = (assembly: ModuleAssembly): Map<string, string> =>
+        new Map([...assembly.registrations].map(([name, list]) => [name, winnerText(list)]));
     return [
-        ...section("modules", sequenceDelta(base.modules, variant.modules)),
-        ...section("providers", providerLines),
-        ...section("__init__", sequenceDelta(base.inits, variant.inits)),
+        ...section("modules", sequenceDelta(base.assembly.modules, variant.assembly.modules)),
+        ...section("providers", keyedDelta(winners(base.assembly), winners(variant.assembly))),
+        ...section("__init__", sequenceDelta(base.assembly.inits, variant.assembly.inits)),
+        ...section("config", keyedDelta(base.config, variant.config)),
+        ...section("moddle packages", sequenceDelta(base.moddlePackages, variant.moddlePackages)),
     ];
 }
 
 function section(heading: string, lines: readonly string[]): string[] {
     return lines.length === 0 ? [] : [`${heading}:`, ...lines];
+}
+
+function keyedDelta(
+    before: ReadonlyMap<string, string>,
+    after: ReadonlyMap<string, string>,
+): string[] {
+    const lines: string[] = [];
+    const keys = [...new Set([...before.keys(), ...after.keys()])].sort(byCodeUnit);
+    for (const key of keys) {
+        const old = before.get(key);
+        const current = after.get(key);
+        if (old === undefined && current !== undefined) {
+            lines.push(`+ ${key}: ${current}`);
+        } else if (old !== undefined && current === undefined) {
+            lines.push(`- ${key}: ${old}`);
+        } else if (old !== current) {
+            lines.push(`~ ${key}: ${old} → ${current}`);
+        }
+    }
+    return lines;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    if (value === null || typeof value !== "object") {
+        return false;
+    }
+    const prototype: unknown = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
 }
 
 function sortedRegistrations(assembly: ModuleAssembly): [string, readonly Registration[]][] {
@@ -335,8 +406,7 @@ function isPlainData(value: unknown, ancestors: readonly object[] = []): boolean
     if (typeof value !== "object" || ancestors.includes(value)) {
         return false;
     }
-    const prototype: unknown = Object.getPrototypeOf(value);
-    if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+    if (!Array.isArray(value) && !isPlainObject(value)) {
         return false;
     }
     return Object.values(value).every(

@@ -4,7 +4,7 @@ import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-sear
 import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
-import type { Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINES, type Engine } from "@miragon/bpmn-modeler-types";
 
 import * as lintModule from "../lint";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../popupMenuAnnotations/domain/baseAnnotations";
@@ -26,8 +26,10 @@ import {
 } from "../__fixtures__/surfaceMount";
 import {
     assembleModules,
+    configLeaves,
     disagreementsWithInjector,
     injectorModulesOf,
+    moddlePackageLines,
     optionDelta,
     overridesOf,
     renderPins,
@@ -36,13 +38,15 @@ import {
     type DiModule,
     type ModuleAssembly,
     type Override,
+    type SurfacePins,
 } from "../__fixtures__/diModuleAssembly";
 
 /**
  * Pins what each preset hands bpmn-js, read from the built instance: bpmn-js
  * passes its options to diagram-js as `config`, whose `modules` hold the static,
- * base and additional modules. A reorder or a provider that newly wins a DI name
- * shows as a changed line in the pins; an added module as added lines.
+ * base and additional modules, and builds its moddle from the moddle extensions.
+ * A reorder, a provider that newly wins a DI name or a changed config leaf shows
+ * as a changed line in the pins; an added module or key as added lines.
  */
 
 interface BuiltSurface {
@@ -53,7 +57,6 @@ interface BuiltSurface {
 type Build<O> = (mount: SurfaceMount, options: Partial<O>) => Promise<BuiltSurface>;
 type OptionVariant<O> = readonly [label: string, options: Partial<O>];
 
-const ENGINES: readonly Engine[] = ["c7", "c8"];
 const PINS = "./__snapshots__/presetModulePins";
 
 const modelNavigation: ModelNavigationPort = { openReference: vi.fn() };
@@ -166,19 +169,26 @@ const viewerBuild: Build<ViewerOptions & { withPanel: true }> = (
         ...(withPanel && { propertiesPanel: { parent: panel } }),
     });
 
-function assemblyOfSurface(surface: BuiltSurface): ModuleAssembly {
+function pinsOfSurface(surface: BuiltSurface): SurfacePins {
     const config = surface.getService<{ modules: DiModule[] }>("config");
     const assembly = assembleModules(injectorModulesOf(config));
     expect(
         disagreementsWithInjector(assembly, surface.getService<DidiInjector>("injector")),
     ).toEqual([]);
-    return assembly;
+    const moddle = surface.getService<{ getPackages(): { prefix: string; uri: string }[] }>(
+        "moddle",
+    );
+    return {
+        assembly,
+        config: configLeaves(config),
+        moddlePackages: moddlePackageLines(moddle.getPackages()),
+    };
 }
 
-async function assemblyOf<O>(build: Build<O>, options: Partial<O> = {}): Promise<ModuleAssembly> {
+async function pinsOf<O>(build: Build<O>, options: Partial<O> = {}): Promise<SurfacePins> {
     const surface = await build(mountWithPanel(), options);
     try {
-        return assemblyOfSurface(surface);
+        return pinsOfSurface(surface);
     } finally {
         await afterPaint();
         surface.destroy();
@@ -190,17 +200,17 @@ async function optionDeltas<O>(
     build: Build<O>,
     variants: readonly OptionVariant<O>[],
 ): Promise<string> {
-    const base = await assemblyOf(build);
+    const base = await pinsOf(build);
     const lines = [`# ${title}: what each option adds, removes or replaces against the defaults`];
     for (const [label, options] of variants) {
-        const delta = optionDelta(base, await assemblyOf(build, options));
+        const delta = optionDelta(base, await pinsOf(build, options));
         lines.push("", `## ${label}`, ...(delta.length > 0 ? delta : ["(no change)"]));
     }
     return `${lines.join("\n")}\n`;
 }
 
-async function expectPins(file: string, title: string, assembly: ModuleAssembly): Promise<void> {
-    await expect(renderPins(title, assembly)).toMatchFileSnapshot(`${PINS}/${file}.txt`);
+async function expectPins(file: string, title: string, pins: SurfacePins): Promise<void> {
+    await expect(renderPins(title, pins)).toMatchFileSnapshot(`${PINS}/${file}.txt`);
 }
 
 // The pins print a class instance by its type, so this engine-specific value is checked by content.
@@ -286,15 +296,15 @@ describe("preset module pins", () => {
     afterEach(removeMounts);
 
     describe.each(ENGINES)("createModeler (%s)", (engine) => {
-        it("pins the module order, winning providers and __init__ order of the defaults", async () => {
-            const assembly = await assemblyOf(modelerBuild(engine));
+        it("pins the module order, winning providers, __init__ order, config and moddle of the defaults", async () => {
+            const pins = await pinsOf(modelerBuild(engine));
 
-            expect.soft(overridesOf(assembly)).toEqual(MODELER_OVERRIDES);
-            expectPopupMenuAnnotationsOf(assembly, engine);
+            expect.soft(overridesOf(pins.assembly)).toEqual(MODELER_OVERRIDES);
+            expectPopupMenuAnnotationsOf(pins.assembly, engine);
             await expectPins(
                 `modeler-${engine}`,
                 `createModeler (${engine}), default options`,
-                assembly,
+                pins,
             );
         });
 
@@ -310,12 +320,12 @@ describe("preset module pins", () => {
     });
 
     describe("createDesigner", () => {
-        it("pins the module order, winning providers and __init__ order of the defaults", async () => {
-            const assembly = await assemblyOf(designerBuild);
+        it("pins the module order, winning providers, __init__ order, config and moddle of the defaults", async () => {
+            const pins = await pinsOf(designerBuild);
 
-            expect.soft(overridesOf(assembly)).toEqual(EDITING_OVERRIDES);
-            expectPopupMenuAnnotationsOf(assembly);
-            await expectPins("designer", "createDesigner, default options", assembly);
+            expect.soft(overridesOf(pins.assembly)).toEqual(EDITING_OVERRIDES);
+            expectPopupMenuAnnotationsOf(pins.assembly);
+            await expectPins("designer", "createDesigner, default options", pins);
         });
 
         it("pins what each option adds, removes or replaces", async () => {
@@ -326,11 +336,11 @@ describe("preset module pins", () => {
     });
 
     describe("createViewer", () => {
-        it("pins the module order, winning providers and __init__ order of the defaults", async () => {
-            const assembly = await assemblyOf(viewerBuild);
+        it("pins the module order, winning providers, __init__ order, config and moddle of the defaults", async () => {
+            const pins = await pinsOf(viewerBuild);
 
-            expect.soft(overridesOf(assembly)).toEqual(VIEWER_OVERRIDES);
-            await expectPins("viewer", "createViewer, default options", assembly);
+            expect.soft(overridesOf(pins.assembly)).toEqual(VIEWER_OVERRIDES);
+            await expectPins("viewer", "createViewer, default options", pins);
         });
 
         it("pins what each option adds, removes or replaces", async () => {
@@ -341,20 +351,20 @@ describe("preset module pins", () => {
     });
 
     describe.each(ENGINES)("createTemplatePreview (%s)", (engine) => {
-        it("pins the module order, winning providers and __init__ order of its modeler", async () => {
+        it("pins the module order, winning providers, __init__ order, config and moddle of its modeler", async () => {
             const init = vi.spyOn(BpmnModeler.prototype, "init");
             const preview = await createTemplatePreview(mountWithPanel().panel);
             try {
                 await preview.show(PREVIEW_TEMPLATES[engine], engine);
                 const [modeler] = init.mock.contexts as BpmnModeler[];
-                const assembly = assemblyOfSurface(modeler);
+                const pins = pinsOfSurface(modeler);
 
-                expect.soft(overridesOf(assembly)).toEqual(MODELER_OVERRIDES);
-                expectPopupMenuAnnotationsOf(assembly, engine);
+                expect.soft(overridesOf(pins.assembly)).toEqual(MODELER_OVERRIDES);
+                expectPopupMenuAnnotationsOf(pins.assembly, engine);
                 await expectPins(
                     `template-preview-${engine}`,
                     `createTemplatePreview (${engine})`,
-                    assembly,
+                    pins,
                 );
             } finally {
                 await afterPaint();

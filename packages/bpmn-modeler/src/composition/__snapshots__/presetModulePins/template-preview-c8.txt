@@ -747,3 +747,62 @@ popupMenuModeFilter
 elementTemplateOffer
 hiddenTemplatePopupFilter @elementTemplateOffer
 drilldownFit
+
+## config (by key path, without `modules` and `moddleExtensions`)
+alignToOrigin.alignOnSave: false
+alignToOrigin.offset: 150
+alignToOrigin.tolerance: 50
+canvas.container: HTMLDivElement
+container: HTMLDivElement
+height: "100%"
+popupMenu.defaultTab.id: "bpmn"
+popupMenu.defaultTab.label: "BPMN"
+position: "relative"
+propertiesPanel.feelPopupContainer: HTMLDivElement
+propertiesPanel.getFeelPopupLinks: fn getFeelPopupLinks
+propertiesPanel.parent: HTMLDivElement
+propertiesPanel.tooltip.bindingType: fn bindingType
+propertiesPanel.tooltip.condition: fn condition
+propertiesPanel.tooltip.group-Zeebe__ExecutionListeners: fn group-Zeebe__ExecutionListeners
+propertiesPanel.tooltip.group-Zeebe__ExtensionProperties: fn group-Zeebe__ExtensionProperties
+propertiesPanel.tooltip.group-Zeebe__TaskListeners: fn group-Zeebe__TaskListeners
+propertiesPanel.tooltip.group-activeElements: fn group-activeElements
+propertiesPanel.tooltip.group-adHocCompletion: fn group-adHocCompletion
+propertiesPanel.tooltip.group-adHocSubProcessImplementation: fn group-adHocSubProcessImplementation
+propertiesPanel.tooltip.group-assignmentDefinition: fn group-assignmentDefinition
+propertiesPanel.tooltip.group-businessId: fn group-businessId
+propertiesPanel.tooltip.group-businessRuleImplementation: fn group-businessRuleImplementation
+propertiesPanel.tooltip.group-calledDecision: fn group-calledDecision
+propertiesPanel.tooltip.group-calledElement: fn group-calledElement
+propertiesPanel.tooltip.group-condition: fn group-condition
+propertiesPanel.tooltip.group-error: fn group-error
+propertiesPanel.tooltip.group-event-condition: fn group-event-condition
+propertiesPanel.tooltip.group-form: fn group-form
+propertiesPanel.tooltip.group-headers: fn group-headers
+propertiesPanel.tooltip.group-inputs: fn group-inputs
+propertiesPanel.tooltip.group-jobPriorityDefinition: fn group-jobPriorityDefinition
+propertiesPanel.tooltip.group-message: fn group-message
+propertiesPanel.tooltip.group-multiInstance: fn group-multiInstance
+propertiesPanel.tooltip.group-outputCollection: fn group-outputCollection
+propertiesPanel.tooltip.group-outputPropagation: fn group-outputPropagation
+propertiesPanel.tooltip.group-outputs: fn group-outputs
+propertiesPanel.tooltip.group-script: fn group-script
+propertiesPanel.tooltip.group-scriptImplementation: fn group-scriptImplementation
+propertiesPanel.tooltip.group-taskDefinition: fn group-taskDefinition
+propertiesPanel.tooltip.group-userTaskImplementation: fn group-userTaskImplementation
+propertiesPanel.tooltip.messageSubscriptionCorrelationKey: fn messageSubscriptionCorrelationKey
+propertiesPanel.tooltip.priorityDefinitionPriority: fn priorityDefinitionPriority
+propertiesPanel.tooltip.taskDefinitionRetries: fn taskDefinitionRetries
+propertiesPanel.tooltip.variableEvents: fn variableEvents
+propertiesPanel.tooltip.versionTag: fn versionTag
+propertiesPanelMode: "implement"
+width: "100%"
+
+## moddle packages (registration order)
+bpmn http://www.omg.org/spec/BPMN/20100524/MODEL
+bpmndi http://www.omg.org/spec/BPMN/20100524/DI
+dc http://www.omg.org/spec/DD/20100524/DC
+di http://www.omg.org/spec/DD/20100524/DI
+bioc http://bpmn.io/schema/bpmn/biocolor/1.0
+color http://www.omg.org/spec/BPMN/non-normative/color/1.0
+zeebe http://camunda.org/schema/zeebe/1.0

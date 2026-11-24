@@ -42,7 +42,8 @@ __init__:
 + lintIssuePopover @lintUpdate (after bpmnLintConfig)
 
 ## mode: "design"
-(no change)
+config:
+~ propertiesPanelMode: "implement" → "design"
 
 ## capabilities.modelNavigation
 modules:
