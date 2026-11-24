@@ -12,13 +12,13 @@ import {
     DIFF_MARKERS,
     type DiffLegendState,
     diffOriginSupports,
+    diffPaneLabel,
 } from "@miragon/bpmn-modeler-types";
 import { DiffLegendView } from "@miragon/bpmn-modeler-browser";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { DiffNavigator } from "@miragon/bpmn-modeler/viewer";
 
-import { diffPaneLabel } from "../../domain/diffPaneLabel";
 import { changesOnlyThisSideHas, diffStepSelection } from "../../domain/diffStepSelection";
 import { comparisonPaneText } from "../../domain/mergeTexts";
 import type { MergeTranslate } from "../../domain/mergeTranslate";
@@ -142,7 +142,7 @@ export class DiffMode {
         this.pane.label(query.side, () =>
             comparison
                 ? comparisonPaneText(query.side, comparison.against, translate)
-                : diffPaneLabel(query),
+                : diffPaneLabel(query, translate),
         );
         this.updateLegend(query);
     }

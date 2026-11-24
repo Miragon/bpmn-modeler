@@ -288,7 +288,7 @@ describe("the BPMN visual diff in a real VS Code", () => {
         expect(await editorGroupsTopToBottom(page)).toHaveLength(2);
     });
 
-    it("shows an element's XML changes from a Source Control diff under a title that names both versions", async () => {
+    it("names both versions of a Source Control diff on its panes and in the title of an element's XML changes", async () => {
         const page = vscode().page;
         const repository = suite.file(SCM_REPOSITORY_FOLDER);
         await mkdir(repository);
@@ -302,6 +302,13 @@ describe("the BPMN visual diff in a real VS Code", () => {
         await vscode().openSourceControlChange(SCM_DIFF_FILE);
         const after = await vscode().editorWebview('body[data-diff-side="after"]');
         await expectMarked(after, CHECK_INVOICE_TASK_ID, "diff-changed");
+        const before = await vscode().editorWebview('body[data-diff-side="before"]');
+        await expect
+            .poll(() => before.locator(".diff-side-label").textContent())
+            .toBe("Old version: Index");
+        await expect
+            .poll(() => after.locator(".diff-side-label").textContent())
+            .toBe("New version: Working Tree");
 
         await selectElement(after, CHECK_INVOICE_TASK_ID);
         await after.locator(SHOW_XML_CHANGES_ENTRY).click();

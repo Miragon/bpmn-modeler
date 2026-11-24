@@ -1,7 +1,7 @@
 # Diff
 
 - Status: accepted
-- Last reviewed: 2026-11-23
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -77,6 +77,16 @@ ordering heuristics are not. Failures throw and hosts own their error reporting.
   through across the sash; a pane too narrow for the category words keeps the swatches
   and counts and names each on its slot's title. This holds for the DMN diff too. `DiffSideLabelView` names each pane's version, or its file
   on a compare-files pane, in both diffs.
+- A Git diff's pane names which version it shows. "Old version" and "New version" told the
+  sides apart but not what each is, which only the tab title said, and only for the newer
+  side. The core names each pane's version as Git and VS Code's diff titles do
+  (`revisionName`: Working Tree, Index, a ref or a commit; the element XML diff's title
+  reads the same rule) and sends it as `paneVersion` of both highlight queries. Whether a
+  pane shows it is an origin rule (`namesVersions`, an SCM diff only), and both webviews
+  word the label with `diffPaneLabel` in `@miragon/bpmn-modeler-types`. Git's names stay
+  as Git writes them, untranslated like a branch; the side's word is translated. Only a
+  host that tells a pane's version gets the addition: VS Code reads it from the document's
+  `git:` URI, IntelliJ sends none, so its panes keep the side alone.
 - The bar covers its parent's top edge. `DiffLegendView.reserveRoomOn` keeps its
   height in `--diff-legend-height` on a target, and a consumer starts its canvas that
   much lower (40px before the bar shows), as both webviews do. That one property is

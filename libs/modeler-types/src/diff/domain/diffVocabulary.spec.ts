@@ -8,6 +8,8 @@ import {
     DIFF_MARKERS,
     DIFF_SELECTED_MARKER,
     DIFF_VIEW_KEYS,
+    type DiffPaneLabelFacts,
+    diffPaneLabel,
 } from "./diffVocabulary";
 
 const EVERY_CATEGORY: Record<DiffCategory, true> = {
@@ -82,5 +84,64 @@ describe("DIFF_CATEGORY_LABELS", () => {
 describe("DIFF_VIEW_KEYS", () => {
     it("names each key once", () => {
         expect(new Set(DIFF_VIEW_KEYS).size).toBe(DIFF_VIEW_KEYS.length);
+    });
+});
+
+describe("diffPaneLabel", () => {
+    const inGerman = (key: string) => (key === "Old version" ? "Alte Version" : key);
+
+    it.each<[string, DiffPaneLabelFacts, string | undefined]>([
+        [
+            "names a pane that compares two files by its file",
+            { side: "after", origin: "compare-files", paneFilename: "b.bpmn" },
+            "b.bpmn",
+        ],
+        [
+            "names such a pane by its file, whatever version the host tells",
+            {
+                side: "after",
+                origin: "compare-files",
+                paneFilename: "b.bpmn",
+                paneVersion: "Working Tree",
+            },
+            "b.bpmn",
+        ],
+        [
+            "names a Git diff's pane by its side and the version it shows",
+            {
+                side: "after",
+                origin: "scm",
+                paneFilename: "order.bpmn",
+                paneVersion: "Working Tree",
+            },
+            "New version: Working Tree",
+        ],
+        [
+            "translates the side and keeps the version as Git names it",
+            { side: "before", origin: "scm", paneFilename: "order.bpmn", paneVersion: "HEAD" },
+            "Alte Version: HEAD",
+        ],
+        [
+            "leaves a Git diff's pane to its side where the host tells no version",
+            { side: "before", origin: "scm", paneFilename: "order.bpmn" },
+            undefined,
+        ],
+        [
+            "leaves a merge pane to its bar",
+            { side: "after", origin: "merge", paneFilename: "order.bpmn", paneVersion: "Index" },
+            undefined,
+        ],
+        [
+            "leaves a built merge result's pane to its comparison",
+            {
+                side: "after",
+                origin: "merge-result",
+                paneFilename: "order.bpmn",
+                paneVersion: "Working Tree",
+            },
+            undefined,
+        ],
+    ])("%s", (_case, facts, expected) => {
+        expect(diffPaneLabel(facts, inGerman)).toBe(expected);
     });
 });

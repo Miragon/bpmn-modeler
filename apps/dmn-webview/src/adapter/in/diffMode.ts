@@ -12,7 +12,7 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { diffOriginSupports } from "@miragon/bpmn-modeler-types";
+import { diffPaneLabel } from "@miragon/bpmn-modeler-types";
 import { DiffSideLabelView } from "@miragon/bpmn-modeler-browser";
 import type { DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
@@ -77,8 +77,10 @@ export class DiffMode {
         const listener = (event: MessageEvent<Query>) => void this.handle(event.data);
         window.addEventListener("message", listener);
         this.host.postMessage(new GetDmnFileCommand());
+        const stopRelabelling = i18n.onChange(() => this.relabel());
         return () => {
             window.removeEventListener("message", listener);
+            stopRelabelling();
             this.legend.dispose();
             this.emptyState.dispose();
             this.sideLabel?.destroy();
@@ -157,14 +159,16 @@ export class DiffMode {
         this.label(highlights);
     }
 
-    /** Names the pane's side, or on compare-files panes its file, which the tab title does not tell apart. */
+    /** Names the pane's side, with the version it shows or, on a compare-files pane, its file instead. */
     private label(highlights: PaneHighlights): void {
         this.sideLabel ??= new DiffSideLabelView(this.chromeParent, highlights.side, i18n);
-        this.sideLabel.showFilename(
-            diffOriginSupports(highlights.origin, "namesFiles")
-                ? highlights.paneFilename
-                : undefined,
-        );
+        this.sideLabel.showFilename(diffPaneLabel(highlights, (key) => i18n.translate(key)));
+    }
+
+    /** The label holds the side's word, so a new language words it again. */
+    private relabel(): void {
+        const { highlights } = this.state;
+        if (highlights && this.sideLabel) this.label(highlights);
     }
 
     private enterView(elementId: string | null, found: boolean): void {

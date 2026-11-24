@@ -45,6 +45,8 @@ export interface TableScroll {
 export interface DiffOriginCapabilities {
     /** The panes name their files, which the tab title does not tell apart. */
     readonly namesFiles: boolean;
+    /** The panes show two versions of one file, so each names the version it shows where the host tells it. */
+    readonly namesVersions: boolean;
     /** The user may swap the two sides. */
     readonly swapsSides: boolean;
 }
@@ -52,10 +54,10 @@ export interface DiffOriginCapabilities {
 export type DiffOriginCapability = keyof DiffOriginCapabilities;
 
 const DIFF_ORIGIN_CAPABILITIES: Record<DiffOrigin, DiffOriginCapabilities> = {
-    "scm": { namesFiles: false, swapsSides: false },
-    "compare-files": { namesFiles: true, swapsSides: true },
-    "merge": { namesFiles: false, swapsSides: false },
-    "merge-result": { namesFiles: false, swapsSides: false },
+    "scm": { namesFiles: false, namesVersions: true, swapsSides: false },
+    "compare-files": { namesFiles: true, namesVersions: false, swapsSides: true },
+    "merge": { namesFiles: false, namesVersions: false, swapsSides: false },
+    "merge-result": { namesFiles: false, namesVersions: false, swapsSides: false },
 };
 
 export function diffOriginSupports(origin: DiffOrigin, capability: DiffOriginCapability): boolean {

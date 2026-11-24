@@ -5,6 +5,7 @@ import type { DmnDiffResult } from "@miragon/dmn-modeler-diff";
 
 import { createTestHost, FakeDiffPaneHandle } from "../../testing";
 import { DiffPaneStore } from "./DiffPaneStore";
+import { DiffSession } from "./DiffSession";
 import { DmnDiffService } from "./DmnDiffService";
 
 const DMN = (inputs: string, shapes: string) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -100,6 +101,31 @@ describe("DmnDiffService", () => {
             },
             paneFilename: "shipping-v2.dmn",
         });
+    });
+
+    it("tells each pane the Git version it shows, and none where the host tells none", async () => {
+        const { service, store } = createService();
+        const before = new FakeDiffPaneHandle("git:/repo/shipping.dmn?ref=HEAD", BEFORE_DMN, {
+            kind: "ref",
+            ref: "HEAD",
+        });
+        const after = new FakeDiffPaneHandle("git:/repo/shipping.dmn?ref=", AFTER_DMN, {
+            kind: "index",
+        });
+        const scm = DiffSession.forScm(before, after);
+        scm.attachPane(before);
+        scm.attachPane(after);
+        store.index(scm);
+        const unversioned = attachedPair(store);
+
+        for (const pane of [before, after, unversioned.before, unversioned.after]) {
+            await service.markReady(pane);
+        }
+
+        expect(highlightsOf(before)?.paneVersion).toBe("HEAD");
+        expect(highlightsOf(after)?.paneVersion).toBe("Index");
+        expect(highlightsOf(unversioned.before)).not.toHaveProperty("paneVersion");
+        expect(highlightsOf(unversioned.after)).not.toHaveProperty("paneVersion");
     });
 
     it("logs a version it cannot compare and highlights nothing", async () => {

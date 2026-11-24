@@ -10,6 +10,7 @@ import {
     SyncDmnDiffViewQuery,
     SyncViewportQuery,
 } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 import type { TableScroll, Viewport } from "@miragon/bpmn-modeler-types";
 import type { DmnDiffStatus, DmnDiffViewerHandle } from "@miragon/dmn-modeler";
 
@@ -153,6 +154,7 @@ beforeEach(() => {
 
 afterEach(() => {
     stop?.();
+    i18n.setLanguage("en");
     chrome.remove();
     document.body.className = "";
     delete document.body.dataset.diffSide;
@@ -226,6 +228,38 @@ describe("DiffMode", () => {
 
         expect(viewer.called("showWholeView")).toHaveLength(1);
         expect(posted).toEqual([]);
+    });
+
+    it("names a Git diff's pane by its side and the version it shows, in the user's language", async () => {
+        i18n.extend({ de: { "Old version": "Alte Version" } });
+        const mode = startPane();
+        await mode.handle(new DmnFileQuery("<definitions />"));
+        const label = () => chrome.querySelector(".diff-side-label")?.textContent;
+
+        await mode.handle(
+            new ApplyDmnDiffHighlightsQuery("before", VIEW, "scm", "shipping.dmn", "HEAD"),
+        );
+        const inEnglish = label();
+        i18n.setLanguage("de");
+
+        expect(inEnglish).toBe("Old version: HEAD");
+        expect(label()).toBe("Alte Version: HEAD");
+    });
+
+    it("stops relabelling once the pane is disposed", async () => {
+        const mode = startPane();
+        await mode.handle(new DmnFileQuery("<definitions />"));
+        await mode.handle(
+            new ApplyDmnDiffHighlightsQuery("before", VIEW, "scm", "shipping.dmn", "HEAD"),
+        );
+        const label = chrome.querySelector(".diff-side-label");
+
+        stop();
+        stop = () => undefined;
+        i18n.extend({ de: { "Old version": "Alte Version" } });
+        i18n.setLanguage("de");
+
+        expect(label?.textContent).toBe("Old version: HEAD");
     });
 
     it("names the file and swaps the sides on a compare-files pane", async () => {

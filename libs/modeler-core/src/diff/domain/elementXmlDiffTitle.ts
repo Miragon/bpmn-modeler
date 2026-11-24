@@ -1,7 +1,7 @@
 import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types/domain";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
-import { DiffRevision, DiffSideVersion } from "./DiffRevision";
+import { DiffRevision, DiffSideVersion, revisionName } from "./DiffRevision";
 import { ELEMENT_XML_TITLE_INFIX, compareTabLabel } from "./diffTabLabel";
 
 /**
@@ -28,8 +28,8 @@ function versionsLabel(
     if (diffOriginSupports(origin, "namesFiles") || beforeName !== afterName) {
         return compareTabLabel(beforeName, afterName);
     }
-    const beforeVersion = revisionLabel(before.revision);
-    const afterVersion = revisionLabel(after.revision);
+    const beforeVersion = revisionName(before.revision);
+    const afterVersion = revisionName(after.revision);
     if (!beforeVersion || !afterVersion) {
         return beforeName;
     }
@@ -50,18 +50,4 @@ function newerSideLabel(before: DiffRevision, after: DiffRevision): string | und
         return "Index";
     }
     return undefined;
-}
-
-function revisionLabel(revision: DiffRevision): string | undefined {
-    switch (revision.kind) {
-        case "working-tree":
-            return "Working Tree";
-        case "index":
-        case "index-or-head":
-            return "Index";
-        case "ref":
-            return revision.ref;
-        case "unknown":
-            return undefined;
-    }
 }

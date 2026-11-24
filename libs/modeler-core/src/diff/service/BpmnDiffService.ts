@@ -13,6 +13,7 @@ import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 import type { DiffSide, MergeSide } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../kernel/domain/BpmnDocument";
+import { revisionName } from "../domain/DiffRevision";
 import { elementXmlMergeNotOpened, NO_ELEMENT_XML_MERGE_EDITOR } from "../domain/elementXmlMerge";
 import { DiffPaneHandle } from "../port/DiffPaneHandle";
 import { DiffSession } from "./DiffSession";
@@ -310,8 +311,11 @@ export class BpmnDiffService {
                 result.navigationOrder,
                 session.origin,
                 uriDisplayName(pane.uri),
-                this.showsElementXmlChanges,
-                comparison,
+                {
+                    elementXmlChanges: this.showsElementXmlChanges,
+                    comparison,
+                    paneVersion: revisionName(pane.revision),
+                },
             );
         };
 

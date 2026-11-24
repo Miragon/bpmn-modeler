@@ -166,6 +166,7 @@ function highlights(
     side: "before" | "after" = "after",
     elementXmlChanges = false,
     comparison?: MergeResultComparison,
+    paneVersion?: string,
 ) {
     return new ApplyDiffHighlightsQuery(
         side,
@@ -177,8 +178,7 @@ function highlights(
         ["Changed_1", "Added_1", "Removed_1"],
         origin,
         "after.bpmn",
-        elementXmlChanges,
-        comparison,
+        { elementXmlChanges, comparison, paneVersion },
     );
 }
 
@@ -319,6 +319,14 @@ describe("DiffMode", () => {
             expect(sideLabel()?.parent).toBe(canvas);
             expect(sideLabel()?.side).toBe("before");
             expect(sideLabel()?.showFilename.mock.calls).toEqual([["after.bpmn"], [undefined]]);
+        });
+
+        it("labels a Git diff's pane with its side and the version it shows", async () => {
+            await startDiffPane();
+
+            dispatch(highlights("scm", "before", false, undefined, "HEAD"));
+
+            expect(sideLabel()?.showFilename).toHaveBeenLastCalledWith("Old version: HEAD");
         });
 
         it("splits one bar across both panes: the changes left, the controls right", async () => {
