@@ -1,7 +1,7 @@
 import type { Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { withBpmnTask } from "../fixtures/agentWrites";
+import { withBpmnTask, withoutExecutionPlatform } from "../fixtures/agentWrites";
 import { BLANK_POINT, BPMN_DELETION } from "../fixtures/smokePoints";
 import { EditorPage, fixture, launch } from "./orcaEditorPage";
 
@@ -21,6 +21,18 @@ const open = (
 async function deletePlaceOrder(editor: EditorPage): Promise<void> {
     await editor.page.mouse.click(...BPMN_DELETION.at);
     await editor.page.keyboard.press("Delete");
+}
+
+const modeSwitches = (editor: EditorPage): Promise<number> =>
+    editor.page.locator(".mode-strip, .mode-chip").count();
+
+/** Whether "Place Order" shows the engine's own group in the properties panel, which only Implement offers. */
+async function showsEngineProperties(editor: EditorPage): Promise<boolean> {
+    await editor.page.mouse.click(...BPMN_DELETION.at);
+    const header = (title: string) =>
+        editor.page.locator(".bio-properties-panel-group-header", { hasText: title });
+    await header("General").waitFor({ state: "visible" });
+    return (await header("Task definition").count()) > 0;
 }
 
 describe("the BPMN editor in Orca", () => {
@@ -87,22 +99,35 @@ describe("the BPMN editor in Orca", () => {
         expect((await editor.stub()).disk.match(/name="Place Order"/g)).toHaveLength(2);
     });
 
-    it("switches to View and back to Design, and saves an edit there", async () => {
+    it("opens a model with an execution platform in Implement, without a mode switch", async () => {
         const editor = await open();
-        const choose = async (mode: string) => {
-            await editor.page.locator(".mode-chip").click();
-            await editor.page.locator(".mode-menu-item", { hasText: mode }).click();
-        };
-        await choose("View");
-        await editor.page.locator(".djs-palette").waitFor({ state: "detached" });
-        await choose("Design");
+        expect(await modeSwitches(editor)).toBe(0);
+        expect(await showsEngineProperties(editor)).toBe(true);
+    });
+
+    it("opens a model without an execution platform in Design, without a mode switch", async () => {
+        const editor = await open({ text: withoutExecutionPlatform(smoke) });
+        expect(await modeSwitches(editor)).toBe(0);
         await editor.page.locator(".djs-palette").waitFor({ state: "visible" });
+        expect(await showsEngineProperties(editor)).toBe(false);
+    });
+
+    it("saves an edit to a model without an execution platform", async () => {
+        const editor = await open({ text: withoutExecutionPlatform(smoke) });
         await deletePlaceOrder(editor);
         await editor.settle();
         await editor.save();
         const disk = (await editor.stub()).disk;
         expect(disk).not.toContain(BPMN_DELETION.label);
         expect(disk).toContain("zeebe:taskDefinition");
+    });
+
+    it("moves to Implement when an agent gives the model an execution platform", async () => {
+        const editor = await open({ text: withoutExecutionPlatform(smoke) });
+        await editor.replace(smoke);
+        await editor.settle();
+        expect(await showsEngineProperties(editor)).toBe(true);
+        expect((await editor.stub()).edits).toBe(0);
     });
 
     it("follows Orca between dark and light", async () => {
@@ -116,6 +141,7 @@ describe("the BPMN editor in Orca", () => {
 
     it("only shows a read-only tab", async () => {
         const editor = await open({ readOnly: true });
+        expect(await modeSwitches(editor)).toBe(0);
         expect(await editor.page.locator(".djs-palette").count()).toBe(0);
         await deletePlaceOrder(editor);
         await editor.settle();
@@ -126,6 +152,32 @@ describe("the BPMN editor in Orca", () => {
     it("draws no focus ring and selects no text on the canvas of a read-only tab", async () => {
         const editor = await open({ readOnly: true });
         expect(await editor.canvasSvgStyle()).toEqual({ outlineStyle: "none", userSelect: "none" });
+    });
+
+    it("scrolls the properties panel inside the page, down to its last group", async () => {
+        const editor = await open();
+        expect(await showsEngineProperties(editor)).toBe(true);
+        await editor.page.setViewportSize({ width: 1200, height: 240 });
+
+        const layout = await editor.page.evaluate(() => {
+            const host = document.getElementById("js-properties-panel")!;
+            const scrolling = [host, ...host.querySelectorAll<HTMLElement>("*")].find(
+                (element) =>
+                    element.scrollHeight > element.clientHeight &&
+                    /auto|scroll/.test(getComputedStyle(element).overflowY),
+            );
+            if (scrolling) scrolling.scrollTop = scrolling.scrollHeight;
+            const groups = host.querySelectorAll(".bio-properties-panel-group");
+            const lastGroup = groups[groups.length - 1].getBoundingClientRect();
+            const hostBox = host.getBoundingClientRect();
+            return {
+                scrolls: scrolling !== undefined,
+                hostFitsPage: hostBox.bottom <= window.innerHeight,
+                lastGroupVisible: lastGroup.bottom <= hostBox.bottom,
+            };
+        });
+
+        expect(layout).toEqual({ scrolls: true, hostFitsPage: true, lastGroupVisible: true });
     });
 
     it("closes and reopens the properties panel with Shift+P", async () => {

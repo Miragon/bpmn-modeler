@@ -11,6 +11,14 @@ export function withBpmnTask(text: string, label: string): string {
         );
 }
 
+/** `smoke.bpmn` without its execution platform: a model no engine is assigned to. */
+export function withoutExecutionPlatform(text: string): string {
+    return text.replace(
+        ' modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.6.0"',
+        "",
+    );
+}
+
 /** An agent adds a decision where "Check Credit" stands in `smoke.dmn`, inside the diagram's bounds. */
 export function withDmnDecision(text: string, label: string): string {
     return text

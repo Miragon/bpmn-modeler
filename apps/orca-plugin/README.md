@@ -14,7 +14,7 @@ In [Orca](https://www.onorca.dev), a `.bpmn` or `.dmn` file opens as a diagram i
 - **Live while your agent writes.** Each change your agent makes to the file shows up on the canvas right away; if you have unsaved edits, Orca asks whether to reload or keep yours.
 - **Private by design.** The plugin runs in Orca's sandbox, with no file or network access and no account.
 
-**Processes for Camunda 7 and Camunda 8.** `.bpmn` files open in the View, Design and Implement modes with the properties panel.
+**Processes for Camunda 7 and Camunda 8.** `.bpmn` files open with the properties panel and without a mode switch: a process that names its Camunda execution platform opens in Implement mode with that engine's properties, one without opens in Design mode.
 
 ![Orca with order-fulfilment.bpmn open, the user task Pack order selected and its implementation, assignment and form groups in the properties panel](images/feature-properties.webp)
 

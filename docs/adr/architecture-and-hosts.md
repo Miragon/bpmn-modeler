@@ -134,6 +134,10 @@ document session is the document authority
 at a time, an edit's export is sent only while no newer import replaced its source, and
 pending panel input is applied on Orca's `editor.flush` before a save. A read-only tab
 gets the BPMN viewer only; the DMN modeler has no read-only mode, so its frame is inert.
+An editable BPMN tab has no mode switch and lands on `defaultMode`: Implement with an
+execution platform, else Design. Beside an agent, a viewer or a design-only mode adds
+little, so the switch was noise; the cost is no engine-neutral Design for a tagged file
+and no View for an editable one.
 
 **One feature, built once in the core.** A feature both hosts offer is built from ports in
 the core, never wired per host. Per-host wiring kept hosts simple to read but let copies

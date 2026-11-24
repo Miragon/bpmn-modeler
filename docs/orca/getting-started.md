@@ -27,7 +27,7 @@ from an example.
 
 | `.bpmn` | `.dmn` |
 |---|---|
-| View, Design and Implement modes (Camunda 7 and 8) | Decision requirements diagram |
+| Implement (Camunda 7 and 8) or Design mode, chosen by the file | Decision requirements diagram |
 | Properties panel | Decision tables, literal and boxed expressions |
 | Token simulation | Properties panel |
 | Linting | Decision simulation |
@@ -40,6 +40,9 @@ Light and dark follow Orca's theme, and the language follows Orca's.
   unsaved edits, Orca asks whether to reload or keep yours.
 - **Undo and save as usual.** The editor keeps its own undo history; a save also takes the value you are still typing
   into the properties panel or a table cell.
+- **The mode follows the file.** There is no mode switch: a process that names its Camunda execution platform opens
+  in Implement mode, one without opens in Design mode. When your agent adds the execution platform, the open tab
+  moves to Implement.
 - **Read-only tabs.** An agent transcript or a remote file opens in View mode (BPMN) or locked (DMN).
 
 ## Limits
