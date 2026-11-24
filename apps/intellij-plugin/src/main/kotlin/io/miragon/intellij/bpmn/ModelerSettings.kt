@@ -6,6 +6,7 @@ package io.miragon.intellij.bpmn
  * Field names and value shapes mirror the VS Code settings 1:1 — the same
  * snapshot crosses the RPC boundary into the shared modeler core regardless of
  * host, so any divergence here would silently change behaviour on only one IDE.
+ * VS Code's `defaultMode` has no field: IntelliJ offers no mode switch.
  */
 data class ModelerSettings(
     val alignToOrigin: Boolean,
@@ -14,7 +15,6 @@ data class ModelerSettings(
     val persistCodeLinkMap: Boolean,
     val c8ApiVersion: String,
     val colorTheme: String,
-    val defaultMode: String,
     val favouriteBpmnElements: List<String>,
     val language: String,
     val scriptingSpin: Boolean,
@@ -41,7 +41,6 @@ data class ModelerSettings(
             persistCodeLinkMap = editedOrStored { persistCodeLinkMap },
             c8ApiVersion = editedOrStored { c8ApiVersion },
             colorTheme = editedOrStored { colorTheme },
-            defaultMode = editedOrStored { defaultMode },
             favouriteBpmnElements = editedOrStored { favouriteBpmnElements },
             language = editedOrStored { language },
             scriptingSpin = editedOrStored { scriptingSpin },

@@ -98,6 +98,30 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 
+    it("tells the editor that IntelliJ offers no mode switch", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML),
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnFileCommand" } },
+            }),
+        );
+        await settle();
+
+        const render = frames.find(
+            (f) => f.method === "editor/postMessage" && f.params.message.type === "BpmnFileQuery",
+        );
+        expect(render.params.message.modeSwitch).toBe(false);
+    });
+
     it("preserves the host session and document revision across render traffic", async () => {
         const { rpc, frames, root, bpmnPath } = await setup();
         const editorId = `file://${bpmnPath}`;

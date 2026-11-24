@@ -50,6 +50,7 @@ import { createSurfaceFactories } from "../adapter/out/surfaceFactories";
 import { loadSurfacePlugins, pluginsWithoutHostAnswer } from "../adapter/out/surfacePlugins";
 import { createSurfaceRequests } from "../adapter/in/surfaceRequests";
 import { readSavedMode } from "../service/state";
+import { modeEntry } from "../domain/modeEntry";
 import { prefetchSurfaceModules } from "../adapter/out/surfaceModules";
 import type { WebviewState } from "../port/webviewState";
 import "../../../../libs/shared/src/lib/panelChrome.css";
@@ -288,18 +289,22 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                     : pluginsWithoutHostAnswer(editorHost),
             );
 
-        const chrome = mountEditorChrome(editorHost, {
-            focusCanvas,
-            isCanvasFocused: () =>
-                getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
-        });
-        if (!chrome) return;
-
         // The engine may be undefined here — an untagged (engine-neutral) model
-        // is first-class now and opens in Design. The initial mode resolves from
-        // this editor's saved mode, then the host's default, then the engine's
-        // own default — the mode session vets it against availability.
+        // is first-class now and opens in Design. The mode session vets the
+        // requested mode against availability.
         const engine = bpmnFileQuery?.engine;
+        const entry = modeEntry(bpmnFileQuery, savedMode);
+
+        const chrome = mountEditorChrome(
+            editorHost,
+            {
+                focusCanvas,
+                isCanvasFocused: () =>
+                    getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            },
+            { modeStrip: entry.showsModeSwitch },
+        );
+        if (!chrome) return;
 
         const capabilities = opts.capabilities ?? protocolCapabilities.capabilities;
 
@@ -328,9 +333,9 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                     : undefined,
                 onModelerModeChanged: modeController.followModelerToggle,
             }),
-            initialMode: savedMode ?? bpmnFileQuery?.defaultMode ?? null,
+            initialMode: entry.requestedMode,
             theme: resolveHostThemeKind(),
-            strip: { host: chrome.panelHost, stripEl: chrome.stripEl },
+            strip: chrome.stripEl && { host: chrome.panelHost, stripEl: chrome.stripEl },
         });
         if (!started) return;
 

@@ -29,6 +29,10 @@ Each editor remembers its mode: leave a tab in Design and it reopens in Design. 
 
 On an engine-neutral model `implement` falls back to **Design**.
 
+## IntelliJ
+
+IntelliJ shows no mode chip and has no default mode setting. A model with an execution platform opens in **Implement**, one without in **Design**. A text edit that adds or removes the platform reopens the editor in the matching mode.
+
 ## Create an engine-neutral file
 
 **Miragon BPMN Modeler: New BPMN Model** offers **Camunda 7**, **Camunda 8** and **Engine-neutral**. Engine-neutral creates a model without a platform, which opens in Design. Pick Camunda 7 or Camunda 8 if you want Implement from the start.

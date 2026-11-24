@@ -123,10 +123,12 @@ function controllerWith({
     engine = "c7",
     initialMode = "implement",
     surfaces = {},
+    withStrip = true,
 }: {
     engine?: DetectedEngine;
     initialMode?: SurfaceMode;
     surfaces?: Partial<SurfaceFactories>;
+    withStrip?: boolean;
 } = {}) {
     const host = createHost();
     const session = fakeSession();
@@ -155,7 +157,7 @@ function controllerWith({
             surfaces: factories,
             initialMode,
             theme: "light",
-            strip: { host: stripHost, stripEl },
+            strip: withStrip ? { host: stripHost, stripEl } : undefined,
         });
     // The boot order the webview follows: build, import, bind, restore, open the strip.
     const boot = async () => {
@@ -264,6 +266,19 @@ describe("createModeController", () => {
             modes.disposeSurfaceBinding();
 
             expect(binder.bindings[0].dispose).toHaveBeenCalledOnce();
+        });
+
+        it("binds and persists the landed mode without a strip", async () => {
+            const { binder, stripHost, stripEl, modeler, boot } = controllerWith({
+                withStrip: false,
+            });
+
+            const viewState = await boot();
+
+            expect(binder.bindSurface).toHaveBeenCalledExactlyOnceWith(modeler);
+            expect(viewState.persistMode).toHaveBeenCalledExactlyOnceWith("implement");
+            expect(stripEl.childElementCount).toBe(0);
+            expect(stripHost.hasAttribute("data-surface-mode")).toBe(false);
         });
     });
 

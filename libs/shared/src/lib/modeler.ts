@@ -132,6 +132,12 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
     /** The host shows the element ID review in its own panel, so the ID field's link asks it to. */
     public readonly hostElementIdReview?: boolean;
 
+    /**
+     * `false`: the host offers no View / Design / Implement switch, so the
+     * editor opens at the engine's default mode. Absent: it offers one.
+     */
+    public readonly modeSwitch?: boolean;
+
     constructor(
         content: string,
         engine: DetectedEngine,
@@ -140,6 +146,7 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
         defaultMode?: SurfaceMode,
         locale?: string,
         hostElementIdReview?: boolean,
+        modeSwitch?: boolean,
     ) {
         super("BpmnFileQuery");
         this.content = content;
@@ -149,6 +156,7 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
         this.defaultMode = defaultMode;
         this.locale = locale;
         this.hostElementIdReview = hostElementIdReview;
+        this.modeSwitch = modeSwitch;
     }
 }
 

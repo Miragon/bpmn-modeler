@@ -55,10 +55,19 @@ describe("mountEditorChrome", () => {
         const chrome = mount();
 
         expect(chrome.canvas.firstElementChild).toBe(chrome.stripEl);
-        expect(chrome.stripEl.id).toBe("js-mode-strip");
-        expect(chrome.stripEl.className).toBe("mode-strip");
+        expect(chrome.stripEl?.id).toBe("js-mode-strip");
+        expect(chrome.stripEl?.className).toBe("mode-strip");
         expect(chrome.panelHost.classList).toContain("panel-host");
         expect(chrome.panelMount.id).toBe("js-properties-panel-mount");
+    });
+
+    it("puts no mode strip on the canvas when the editor offers no mode switch", () => {
+        document.body.innerHTML = `<div id="app"></div>`;
+        const chrome = mountEditorChrome(createHost(), focus, { modeStrip: false })!;
+        mounted.push(chrome);
+
+        expect(chrome.stripEl).toBeUndefined();
+        expect(chrome.canvas.querySelector(".mode-strip")).toBeNull();
     });
 
     it("relabels the panel toggle in the language the page switches to", () => {

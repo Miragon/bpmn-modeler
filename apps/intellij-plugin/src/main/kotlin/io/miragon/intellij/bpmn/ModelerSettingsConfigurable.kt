@@ -34,7 +34,6 @@ class ModelerSettingsConfigurable : Configurable {
         var persistCodeLinkMap: Boolean,
         var c8ApiVersion: String,
         var colorTheme: String,
-        var defaultMode: String,
         var favouritesText: String,
         var language: String,
         var scriptingSpin: Boolean,
@@ -102,20 +101,6 @@ class ModelerSettingsConfigurable : Configurable {
                         { state.colorTheme },
                         { state.colorTheme = it ?: ModelerSettingsStore.DEFAULT_COLOR_THEME },
                     )
-                }
-                row("Default mode:") {
-                    comboBox(
-                        ModelerSettingsStore.DEFAULT_MODES,
-                        textListCellRenderer<String?> { mode -> mode?.let { MODE_LABELS[it] ?: it } ?: "" },
-                    ).bindItem(
-                        { state.defaultMode },
-                        { state.defaultMode = it ?: ModelerSettingsStore.DEFAULT_DEFAULT_MODE },
-                    )
-                        .comment(
-                            "The mode a BPMN editor opens in when it has no remembered mode. On an " +
-                                "untagged (engine-neutral) model, <b>Implement</b> is unavailable and " +
-                                "falls back to <b>Design</b>.",
-                        )
                 }
                 row("Language:") {
                     comboBox(
@@ -212,7 +197,6 @@ class ModelerSettingsConfigurable : Configurable {
             persistCodeLinkMap = persistCodeLinkMap,
             c8ApiVersion = c8ApiVersion.trim(),
             colorTheme = colorTheme,
-            defaultMode = defaultMode,
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
@@ -228,7 +212,6 @@ class ModelerSettingsConfigurable : Configurable {
         persistCodeLinkMap = other.persistCodeLinkMap
         c8ApiVersion = other.c8ApiVersion
         colorTheme = other.colorTheme
-        defaultMode = other.defaultMode
         favouritesText = other.favouritesText
         language = other.language
         scriptingSpin = other.scriptingSpin
@@ -245,7 +228,6 @@ class ModelerSettingsConfigurable : Configurable {
             persistCodeLinkMap = settings.persistCodeLinkMap,
             c8ApiVersion = settings.c8ApiVersion,
             colorTheme = settings.colorTheme,
-            defaultMode = settings.defaultMode,
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
@@ -267,7 +249,5 @@ class ModelerSettingsConfigurable : Configurable {
         const val MARKETPLACES_GROUP = "Template Marketplaces"
         private const val FAVOURITES_ROWS = 5
         private const val MARKETPLACES_ROWS = 4
-
-        private val MODE_LABELS = mapOf("implement" to "Implement", "design" to "Design", "view" to "View")
     }
 }

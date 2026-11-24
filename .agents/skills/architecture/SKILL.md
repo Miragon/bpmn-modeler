@@ -67,7 +67,7 @@ manifest, a JSON schema, Kotlin) is pinned by a spec that reads it and compares
 it with the home's runtime list, as `apps/vscode-plugin/src/manifest.contract.spec.ts`
 pins the languages and the default modes, and `deploymentTargetsSchema.spec.ts`
 the schema's engines and auth types. A Kotlin test reads the home's file, as
-`ModelerSettingsStoreTest` reads `SURFACE_MODES`:
+`ModelerSettingsStoreTest` reads `COLOR_THEMES`:
 `apps/intellij-plugin/build.gradle.kts` passes the file to `tasks.test` as a
 declared input, and the `intellij-plugin` filter in
 `.github/workflows/build.yml` lists it, or a PR that changes only the home

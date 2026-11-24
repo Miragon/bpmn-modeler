@@ -84,10 +84,8 @@ val elementTemplatePreviewMessages =
     layout.projectDirectory.file("../../libs/shared/src/lib/elementTemplatePreviewMessages.cases.json")
 val elementIdReviewViewCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/modeler/bpmn/domain/elementIdReviewView.cases.json")
-val surfaceModes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/surfaceMode.ts")
 val colorThemes = layout.projectDirectory.file("../../libs/modeler-types/src/surface/domain/settings.ts")
 val modelerSettings = layout.projectDirectory.file("../../libs/modeler-core/src/kernel/domain/modelerSettings.ts")
-val modeLabels = layout.projectDirectory.file("../../packages/bpmn-modeler/src/modeSession/adapter/in/modeStrip.ts")
 val emptyDmn = layout.projectDirectory.file("../../libs/modeler-types/src/documents/domain/emptyDmn.ts")
 val scriptCompletionCases =
     layout.projectDirectory.file("../../libs/modeler-core/src/scriptTask/domain/scriptCompletion.cases.json")
@@ -122,9 +120,8 @@ tasks.test {
     useJUnitPlatform()
     // The tests read these TypeScript-side files: ProtocolHandlerCoverageTest the bridge's
     // protocol descriptor, ModelerSettingsStoreTest the core's settings rows, the VS Code
-    // manifest's defaults under the core's snapshot names, the surface modes and the colour
-    // themes, ModelerLocalesTest the manifest's languages, ModelerSettingsConfigurableTest the
-    // manifest's default modes and the mode strip's labels, StatusSlotPlacementTest the core's status slots and view values,
+    // manifest's defaults under the core's snapshot names and the colour themes,
+    // ModelerLocalesTest the manifest's languages, StatusSlotPlacementTest the core's status slots and view values,
     // ElementTemplateFilesTest the rows the TypeScript template rule runs,
     // ElementIdReviewViewTest the view of the core's element ID review,
     // ElementTemplatePreviewMessagesTest the preview page's messages, EmptyDmnDiagramTest the
@@ -149,10 +146,8 @@ tasks.test {
         "elementTemplateFileCases" to elementTemplateFileCases,
         "elementTemplatePreviewMessages" to elementTemplatePreviewMessages,
         "elementIdReviewViewCases" to elementIdReviewViewCases,
-        "surfaceModes" to surfaceModes,
         "colorThemes" to colorThemes,
         "modelerSettings" to modelerSettings,
-        "modeLabels" to modeLabels,
         "emptyDmn" to emptyDmn,
         "newModelFilePrompt" to newModelFilePrompt,
         "scriptCompletionCases" to scriptCompletionCases,

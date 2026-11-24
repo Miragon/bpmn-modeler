@@ -6,6 +6,7 @@ import com.intellij.ide.util.PropertiesComponent
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Named
@@ -50,15 +51,15 @@ class ModelerSettingsStoreTest {
     @Test
     fun `stored values outside the core's accepted set are normalised on read`() {
         appProperties.setValue("miragon.bpmnModeler.colorTheme", "dark")
-        appProperties.setValue("miragon.bpmnModeler.defaultMode", "edit")
 
         assertEquals("automatic", store.current().colorTheme)
-        assertEquals("implement", store.current().defaultMode)
     }
 
     @Test
-    fun `offers and keeps exactly the surface modes the core reads as a default mode`() {
-        assertEquals(coreSurfaceModes().sorted(), ModelerSettingsStore.DEFAULT_MODES.sorted())
+    fun `sends no default mode an earlier version stored, as the editor offers no mode switch`() {
+        appProperties.setValue("${NAMESPACE}defaultMode", "view")
+
+        assertFalse(store.snapshotMap(projectFixture.get()).containsKey("defaultMode"))
     }
 
     @Test
@@ -156,7 +157,6 @@ class ModelerSettingsStoreTest {
                 "persistCodeLinkMap",
                 "c8ApiVersion",
                 "colorTheme",
-                "defaultMode",
                 "favouriteBpmnElements",
                 "language",
                 "scriptingSpin",
@@ -190,6 +190,9 @@ class ModelerSettingsStoreTest {
         private const val MARKETPLACES_KEY = "${NAMESPACE}marketplaces"
 
         private val LIST_KEYS = listOf("${NAMESPACE}favouriteBpmnElements", MARKETPLACES_KEY)
+
+        /** The default mode picks where VS Code's mode switch starts; IntelliJ offers no switch. */
+        private val VSCODE_ONLY_SNAPSHOT_KEYS = setOf("defaultMode")
 
         private val SCALAR_KEYS =
             listOf(
@@ -241,12 +244,28 @@ class ModelerSettingsStoreTest {
 
         @JvmStatic
         fun settingsNormalizationCases(): List<Named<SettingsNormalizationCase>> =
-            readTypeScriptJson("miragon.settingsNormalizationCases").asJsonObject.getAsJsonArray("cases").map { row ->
-                val case = row.asJsonObject
-                Named.of(
-                    case.get("name").asString,
-                    SettingsNormalizationCase(case.getAsJsonObject("raw"), case.getAsJsonObject("normalized")),
-                )
+            readTypeScriptJson("miragon.settingsNormalizationCases").asJsonObject.getAsJsonArray("cases")
+                .map { it.asJsonObject }
+                // A row on VS Code-only keys alone would pass here without checking anything.
+                .filterNot { case ->
+                    val rawKeys = case.getAsJsonObject("raw").keySet()
+                    rawKeys.isNotEmpty() && rawKeys.all { it in VSCODE_ONLY_SNAPSHOT_KEYS }
+                }
+                .map { case ->
+                    Named.of(
+                        case.get("name").asString,
+                        SettingsNormalizationCase(
+                            case.getAsJsonObject("raw").withoutVsCodeOnlyKeys(),
+                            case.getAsJsonObject("normalized").withoutVsCodeOnlyKeys(),
+                        ),
+                    )
+                }
+
+        private fun JsonObject.withoutVsCodeOnlyKeys(): JsonObject =
+            JsonObject().also { kept ->
+                entrySet()
+                    .filterNot { (key, _) -> key in VSCODE_ONLY_SNAPSHOT_KEYS }
+                    .forEach { (key, value) -> kept.add(key, value) }
             }
 
         /** The manifest's `miragon.bpmnModeler.*` defaults under their snapshot names. */
@@ -265,13 +284,10 @@ class ModelerSettingsStoreTest {
                         val name = requireNotNull(snapshotNames[section]) { "the core names no snapshot key for $section" }
                         name to property.asJsonObject.get("default")
                     }
+                    .filterNot { (name, _) -> name in VSCODE_ONLY_SNAPSHOT_KEYS }
                     .forEach { (name, default) -> add(name, default) }
             }
         }
-
-        /** `SURFACE_MODES` in `surfaceMode.ts`, the modes the core's `normalizeSettings` keeps. */
-        private fun coreSurfaceModes(): List<String> =
-            readTypeScriptStringArray("miragon.surfaceModes", "SURFACE_MODES")
 
         /** `COLOR_THEMES` in the types' `settings.ts`, the themes the core's `normalizeSettings` keeps. */
         private fun coreColorThemes(): List<String> =

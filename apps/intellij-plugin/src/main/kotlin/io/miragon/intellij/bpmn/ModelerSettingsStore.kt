@@ -35,7 +35,6 @@ class ModelerSettingsStore {
             persistCodeLinkMap = props.getBoolean(PERSIST_CODE_LINK_MAP, DEFAULT_PERSIST_CODE_LINK_MAP),
             c8ApiVersion = props.getValue(C8_API_VERSION, DEFAULT_C8_API_VERSION),
             colorTheme = props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME),
-            defaultMode = props.getValue(DEFAULT_MODE, DEFAULT_DEFAULT_MODE),
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
@@ -59,7 +58,6 @@ class ModelerSettingsStore {
             props.setValue(PERSIST_CODE_LINK_MAP, normalized.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
             props.setValue(C8_API_VERSION, normalized.c8ApiVersion, DEFAULT_C8_API_VERSION)
             props.setValue(COLOR_THEME, normalized.colorTheme, DEFAULT_COLOR_THEME)
-            props.setValue(DEFAULT_MODE, normalized.defaultMode, DEFAULT_DEFAULT_MODE)
             props.setList(FAVOURITE_ELEMENTS, normalized.favouriteBpmnElements)
             props.setValue(LANGUAGE, normalized.language, DEFAULT_LANGUAGE)
             props.setValue(SCRIPTING_SPIN, normalized.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
@@ -90,7 +88,6 @@ class ModelerSettingsStore {
             "persistCodeLinkMap" to current.persistCodeLinkMap,
             "c8ApiVersion" to current.c8ApiVersion,
             "colorTheme" to current.colorTheme,
-            "defaultMode" to current.defaultMode,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
             "language" to current.language,
             // The RPC key is the camelCase field name matching the core's
@@ -158,7 +155,6 @@ class ModelerSettingsStore {
             // A blank folder would make discovery scan the whole tree.
             configFolder = configFolder.ifBlank { DEFAULT_CONFIG_FOLDER },
             colorTheme = colorTheme.takeIf { it in COLOR_THEMES } ?: DEFAULT_COLOR_THEME,
-            defaultMode = defaultMode.takeIf { it in DEFAULT_MODES } ?: DEFAULT_DEFAULT_MODE,
             favouriteBpmnElements = favouriteBpmnElements.take(MAX_FAVOURITES),
         )
 
@@ -171,7 +167,6 @@ class ModelerSettingsStore {
 
         /** In the order the Settings page offers them. */
         internal val COLOR_THEMES = listOf("automatic", "light")
-        internal val DEFAULT_MODES = listOf("implement", "design", "view")
 
         // Keys mirror the VS Code `miragon.bpmnModeler.*` namespace.
         private const val ALIGN_TO_ORIGIN = "miragon.bpmnModeler.alignToOrigin"
@@ -180,7 +175,6 @@ class ModelerSettingsStore {
         private const val PERSIST_CODE_LINK_MAP = "miragon.bpmnModeler.persistCodeLinkMap"
         private const val C8_API_VERSION = "miragon.bpmnModeler.c8ApiVersion"
         private const val COLOR_THEME = "miragon.bpmnModeler.colorTheme"
-        private const val DEFAULT_MODE = "miragon.bpmnModeler.defaultMode"
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
@@ -196,7 +190,6 @@ class ModelerSettingsStore {
         private const val DEFAULT_PERSIST_CODE_LINK_MAP = false
         private const val DEFAULT_C8_API_VERSION = "v2"
         internal const val DEFAULT_COLOR_THEME = "automatic"
-        internal const val DEFAULT_DEFAULT_MODE = "implement"
         internal const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private const val DEFAULT_LINTING_ENABLED = true

@@ -52,7 +52,8 @@ interface ModeControllerStart {
     surfaces: SurfaceFactories;
     initialMode: string | null;
     theme: HostThemeKind;
-    strip: ModeStripMount;
+    /** Absent: the host offers no mode switch. */
+    strip?: ModeStripMount;
 }
 
 export interface ModeController {
@@ -199,7 +200,7 @@ export function createModeController(
             modeSession = liveSession;
             surfaceMode = liveSession.getMode();
             binder.requestSurfaceResources(surface);
-            strip = mountStrip(options.strip, liveSession);
+            strip = options.strip && mountStrip(options.strip, liveSession);
             renderStrip(true);
             return true;
         },

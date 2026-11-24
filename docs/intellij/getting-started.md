@@ -21,8 +21,10 @@ You can also open the
 
 ## Open a file
 
-Open any `.bpmn` or `.bpmn20.xml` file. The modeler is its default editor. To start from scratch, use
-**New BPMN Model…** in the project view under **New**, then pick **Camunda 7**, **Camunda 8** or **Engine-neutral**
+Open any `.bpmn` or `.bpmn20.xml` file. The modeler is its default editor. A model with a Camunda 7 or Camunda 8
+execution platform opens in the [Implement mode](/vscode/features/modes#intellij), with the Camunda properties, element templates
+and engine checks; a model without one opens in the Design mode. IntelliJ shows no mode switch. To start from scratch,
+use **New BPMN Model…** in the project view under **New**, then pick **Camunda 7**, **Camunda 8** or **Engine-neutral**
 (an untagged model that opens in the Design mode).
 
 The plugin edits BPMN only. **New DMN Model…** creates a `.dmn` file, which opens in the IDE's own editor.
@@ -123,7 +125,7 @@ targets or, for Camunda 7, verify against the engine.
 
 ## Settings
 
-The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: default mode, language, colour theme, config
+The settings live under **Settings ▸ Tools ▸ Miragon BPMN Modeler**: language, colour theme, config
 folder, Camunda 8 API version, align to origin, transaction boundaries, SPIN completion, the code-link map, favourite
 elements, template marketplaces, and whether IDs follow names for [IDs from names](/vscode/features/element-ids). They mean the same as the [VS Code settings](/vscode/configuration). The language
 list offers every language under [Language support](/vscode/features/language-support). Linting has no field there:
@@ -137,5 +139,5 @@ all projects. The context-pad eye still opens an available form manually.
 ## Next steps
 
 - [Features](/vscode/features/): the feature pages live under VS Code, but the modeler is the same.
-- [Editor modes](/vscode/features/modes): View, Design and Implement.
+- [Editor modes](/vscode/features/modes): what Design and Implement offer.
 - [Jump to code and models](/vscode/features/code-navigation): from a task to its implementation.
