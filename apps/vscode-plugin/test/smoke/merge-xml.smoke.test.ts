@@ -409,6 +409,15 @@ describe("Merge XML", () => {
                 .toEqual(["Kept from incoming and merged by hand, your pick"]);
         }
         expect(await panes.incoming.locator(".merge-pick-badge__by-hand:visible").count()).toBe(1);
+        // Its lines come from both sides, so neither pane draws it as taken from one.
+        for (const pane of [panes.current, panes.incoming]) {
+            const classes = await pane
+                .locator('.djs-element[data-element-id="Task_Check"]')
+                .first()
+                .getAttribute("class");
+            expect(classes).toContain("merge-merged-by-hand");
+            expect(classes).not.toContain("merge-taken-from");
+        }
         await expect
             .poll(() => outcomeCard(panes.incoming).innerText())
             .toContain("Merged by hand: Check order");

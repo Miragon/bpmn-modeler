@@ -3,7 +3,9 @@
  * status colours. Each marker has a cue that is no colour: a heavy solid
  * contour for "taken from this side", a hatch for "taken from the other side"
  * (also when the other side removed it), a dashed contour and a "!" badge for
- * a conflict. Dark mode tints no surface: the colour goes on the stroke.
+ * a conflict. A version merged by hand is no marker of a side: it is woven,
+ * in the neutral ink of the user's picks. Dark mode tints no surface: the
+ * colour goes on the stroke.
  */
 
 /* ─── Taken from this side ─────────────────────────────────────────────── */
@@ -78,6 +80,58 @@
 }
 
 [data-bpmn-theme="dark"] .djs-shape.merge-taken-from-other-side .djs-visual text {
+    stroke: var(--canvas-fill-color, #1d1d1d);
+}
+
+/* ─── Merged by hand ───────────────────────────────────────────────────── */
+
+/*
+ * The same on both panes and in the neutral ink of the user's picks, not a
+ * side's colour: its lines come from both. Its cue is a weave, the hatch in
+ * both directions; a flow, which has no fill, is stitched.
+ */
+.djs-shape.merge-merged-by-hand .djs-visual > :nth-child(1) {
+    stroke: #22242a !important;
+    stroke-width: 3px !important;
+    fill: url(#merge-weave) !important;
+}
+
+.merge-weave__ground {
+    fill: #ffffff;
+}
+
+.merge-weave__line {
+    stroke: #8f8a8a;
+    stroke-width: 1;
+}
+
+.djs-connection.merge-merged-by-hand .djs-visual path {
+    stroke: #22242a !important;
+}
+
+.djs-connection.merge-merged-by-hand .djs-visual > path {
+    stroke-width: 3px !important;
+    stroke-dasharray: 10 3 2 3 !important;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-merged-by-hand .djs-visual > :nth-child(1),
+[data-bpmn-theme="dark"] .djs-connection.merge-merged-by-hand .djs-visual path {
+    stroke: #e8e8e8 !important;
+}
+
+[data-bpmn-theme="dark"] .merge-weave__ground {
+    fill: transparent;
+}
+
+/* A halo of the weave's ground keeps the weave behind the label. */
+.djs-shape.merge-merged-by-hand .djs-visual text {
+    paint-order: stroke;
+    stroke: #ffffff;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+[data-bpmn-theme="dark"] .djs-shape.merge-merged-by-hand .djs-visual text {
     stroke: var(--canvas-fill-color, #1d1d1d);
 }
 

@@ -14,6 +14,7 @@ import {
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import { requestInMenu, requestOnPad } from "../../domain/mergeActedDecision";
+import { mergeMarkLooks } from "../../domain/mergeMarkLooks";
 import { openShapelessConflicts } from "../../domain/mergeMenuRows";
 import { type MergePadDecision, mergePadDecisions } from "../../domain/mergePadDecisions";
 import {
@@ -235,7 +236,7 @@ export class MergeMode {
         if (!this.states) return;
         const { marks, badges, consequences } = this.states.states;
         this.marks?.paint(
-            { marks, badges, consequences },
+            { marks: mergeMarkLooks(marks, badges), badges, consequences },
             {
                 conflict: translate(MERGE_MARK_TEXTS.conflictBadge),
                 badge: (badge) => pickBadgeText(badge.pick, translate),

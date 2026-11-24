@@ -1,7 +1,7 @@
 # Merge view
 
 - Status: accepted
-- Last reviewed: 2026-11-21
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -122,6 +122,17 @@ and notes a layout both sides changed differently. Each marker has a cue that is
 heavy contour, a hatch, a dashed contour with a "!" badge) and a stroke of its own in the dark
 theme, which tints no surface; a halo of the hatch's ground keeps the hatch behind the label.
 `mergeMarksStyle.spec.ts` pins all three.
+
+**A version merged by hand takes none of the three markers.** Its text holds lines of both
+sides, yet the pane of the kept side drew it as taken from this side and the other pane as
+taken from the other one, which read as "this side won". Both panes now draw it alike: woven,
+the hatch in both directions, in the neutral ink of the user's picks and not in a side's
+colour; a flow, which has no fill, is stitched. It is a look the pane derives from the badges
+it already gets (`mergeMarkLooks`), not a fourth `MergeMarker`: the library, the protocol and
+the bar's counts stay as they are. The cost: the bar still counts the element under the marker
+of the side its pick kept, with no swatch for the look, and the look starts once a text is
+accepted, so while the merge editor is open the element still shows the pick. A category of
+its own in the bar would need the marker, its count and tooltip in twelve languages.
 
 **One bar per pane in the diff legend's look, the rest in a "…" menu.** Each pane's `MergeBar`
 is one line of one height (`--diff-legend-height`), so the diagrams stay level: caption and

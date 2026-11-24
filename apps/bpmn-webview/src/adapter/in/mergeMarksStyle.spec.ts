@@ -45,6 +45,33 @@ describe("mergeMarks.css", () => {
         },
     );
 
+    it("gives a version merged by hand a cue that is no colour, a weave, and the neutral ink of the user's picks", () => {
+        const shape = ".djs-shape.merge-merged-by-hand";
+        const flow = ".djs-connection.merge-merged-by-hand";
+        const ink = (dark: boolean) =>
+            declarationsFor(".merge-pick-badge--kept-here", dark).match(
+                /background:\s*(#\w+)/,
+            )?.[1];
+
+        expect(declarationsFor(shape, false)).toMatch(/fill:\s*url\(#merge-weave\)/);
+        expect(declarationsFor(flow, false)).toMatch(/stroke-dasharray:\s*10 3 2 3/);
+        for (const dark of [false, true]) {
+            expect(declarationsFor(shape, dark)).toContain(`stroke: ${ink(dark)}`);
+            expect(declarationsFor(flow, dark)).toContain(`stroke: ${ink(dark)}`);
+        }
+    });
+
+    it("keeps the weave behind the label with a halo of its ground, in both themes", () => {
+        const label = ".djs-shape.merge-merged-by-hand .djs-visual text";
+        const ground = declarationsFor(".merge-weave__ground", false).match(/fill:\s*(#\w+)/)?.[1];
+
+        expect(ground).toBeDefined();
+        expect(declarationsFor(label, false)).toMatch(/paint-order:\s*stroke/);
+        expect(declarationsFor(label, false)).toContain(`stroke: ${ground}`);
+        expect(declarationsFor(label, true)).toMatch(/stroke:\s*var\(--canvas-fill-color/);
+        expect(declarationsFor(".merge-weave__ground", true)).toMatch(/fill:\s*transparent/);
+    });
+
     it("styles the conflict badge in both themes", () => {
         expect(declarationsFor(".merge-conflict-badge", false)).toMatch(/background:/);
         expect(declarationsFor(".merge-conflict-badge", true)).toMatch(/background:/);
