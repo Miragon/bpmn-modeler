@@ -41,7 +41,7 @@ import {
     subscribeFormatted,
 } from "../../kernel/service/editableSurface";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
-import { createReporter, type SurfaceReporter } from "../../reporting/service/reporting";
+import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import type {
     BpmnlintConfig,
     CleanupOutcome,

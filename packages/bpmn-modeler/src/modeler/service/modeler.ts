@@ -63,7 +63,7 @@ import {
     subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../../kernel/service/editableSurface";
-import { createReporter, type SurfaceReporter } from "../../reporting/service/reporting";
+import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
 import type { ViewportManager } from "../../kernel/service/viewport";
 import type { SelectionManager } from "../../kernel/service/selection";

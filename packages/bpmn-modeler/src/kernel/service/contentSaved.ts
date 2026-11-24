@@ -5,7 +5,7 @@ import {
     type MinimalEventBus,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
-import type { SurfaceReporter } from "../../reporting/service/reporting";
+import type { SurfaceReporter } from "./reporting";
 import type { ContentSavedEvent } from "../../modeler/port/publicApi";
 
 export interface ContentSavedWiring {

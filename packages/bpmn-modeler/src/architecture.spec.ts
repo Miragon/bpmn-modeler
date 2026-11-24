@@ -489,10 +489,14 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
 });
 
 describe("bpmn-modeler warning sink", TREE_PARSE, () => {
-    it("only reporting/ writes console.warn, so every facade warning reaches onWarning", () => {
-        sourcesIn("reporting");
+    it("only the surface reporter writes console.warn, so every facade warning reaches onWarning", () => {
+        const REPORTER = "kernel/service/reporting.ts";
+        requireMatches(
+            REPORTER,
+            packageSources.filter(({ path }) => path === REPORTER),
+        );
         const offenders = packageSources
-            .filter(({ path }) => !path.startsWith("reporting/"))
+            .filter(({ path }) => path !== REPORTER)
             .filter(({ path, text }) => /\bconsole\.warn\s*\(/.test(stripComments(path, text)))
             .map(({ path }) => path);
         expect(

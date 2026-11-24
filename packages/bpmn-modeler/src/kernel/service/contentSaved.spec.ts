@@ -6,7 +6,7 @@ import {
     wireContentSaved,
     type ContentSavedWiring,
 } from "./contentSaved";
-import { createReporter } from "../../reporting/service/reporting";
+import { createReporter } from "./reporting";
 
 beforeEach(() => {
     vi.useFakeTimers();

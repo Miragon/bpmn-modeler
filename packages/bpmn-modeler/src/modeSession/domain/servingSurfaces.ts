@@ -1,5 +1,8 @@
-import type { DetectedEngine, SurfaceMode } from "@miragon/bpmn-modeler-types/domain";
-import type { ModelerMode } from "../../modeler/port/publicApi";
+import type {
+    DetectedEngine,
+    EditableSurfaceMode,
+    SurfaceMode,
+} from "@miragon/bpmn-modeler-types/domain";
 import type { SurfaceContext, SurfaceFactories, SurfaceHandle } from "../port/publicApi";
 
 export type SurfaceBuilder = (context: SurfaceContext) => Promise<SurfaceHandle>;
@@ -14,7 +17,7 @@ export function servingSurfaces(
     engine: DetectedEngine,
 ): Record<SurfaceMode, SurfaceBuilder | undefined> {
     const { view, design, implement } = surfaces;
-    const onModeler = (mode: ModelerMode): SurfaceBuilder | undefined =>
+    const onModeler = (mode: EditableSurfaceMode): SurfaceBuilder | undefined =>
         engine !== undefined && implement !== undefined
             ? (context) => implement({ ...context, engine, mode })
             : undefined;

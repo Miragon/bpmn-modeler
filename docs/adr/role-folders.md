@@ -208,9 +208,10 @@ subpaths, which kept the DOM helpers (#2776) and lodash out of the merge.
 `packages/bpmn-modeler` is `hexagonal` (#2249, decided 2026-11-23). The entries of its export
 map sit directly in `src/` (`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`,
 `mode.ts`, `plugins.ts`). `kernel/` is a feature folder of its own: `SurfaceCore`, the surface
-handle, the shared editable-surface helpers and the canvas managers. The features (`modeler`,
+handle, the shared editable-surface helpers, the canvas managers and the surface reporter,
+which the kernel and both facades warn through. The features (`modeler`,
 `design`, `viewer`, `diff`, `mode`, `modeSession`, `bpmnlint`, `elementTemplateOffer`,
-`popupMenuAnnotations`, `plugins`, `templatePreview`, `reporting`) have role folders inside;
+`popupMenuAnnotations`, `plugins`, `templatePreview`) have role folders inside;
 diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` holds the presets
 `createModeler`, `createDesigner` and `createViewer`, the module lists and the engine stacks.
 `styles/` and `types/` hold CSS and declarations, which no rule reads.
@@ -228,15 +229,17 @@ diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` hold
 - **Why:** as `diagram-js` the package was checked only for holding no role folder, and
   `convention-coverage` skipped it. A kind of its own would need rules of its own; these rules,
   `convention-coverage` and the purity rule exist already for the core.
-- **Cost:** the move split no file, so 19 pairs stay role exceptions (31 violations, against
+- **Cost:** the move split no file, so 18 pairs stay role exceptions (30 violations, against
   the trial's 42 with the facades as services) and one a purity exception, each naming the
   step-2 change of #2249 that removes it: construction out of the facades (8), the kernel's
   DOM features as values (2), the port contracts apart from the handle types they share a
   file with (4), `LintCallbacks` into the `LintModule` port (1), `servingSurfaces` on values
-  (2), the linter injected into `LintConfigService` (1), the template preview as a preset (1)
+  (1), the linter injected into `LintConfigService` (1), the template preview as a preset (1)
   and, for purity, the default lint config as a value (1). `ViewState` and `ViewportData`
   stay in `kernel/service/` with no rule firing until step 2 splits `viewState.ts` (its async
-  `keepAcross` stays out of `domain/`) and `viewport.ts`. A `new Modeler()` in a feature's
+  `keepAcross` stays out of `domain/`) and `viewport.ts`. The kernel keeps type imports from
+  `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
+  `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A `new Modeler()` in a feature's
   `service/` passes every import rule; only review and the browser specs catch it. The
   bundle checks read `bpmnlint` anywhere in a chunk, its source path comments included, so a
   file the root, `/design` or `/mode` entry reaches stays out of `bpmnlint/`: the lint handle

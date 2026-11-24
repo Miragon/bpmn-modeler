@@ -8,7 +8,7 @@ import {
 import { installFitViewportButton, ThemeController } from "@miragon/bpmn-modeler-browser";
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
-import type { ThemeMode } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../domain/themeMode";
 import type { RootElementManager } from "./rootElement";
 import type { SelectionManager } from "./selection";
 import { SurfaceView, type ViewState } from "./viewState";
