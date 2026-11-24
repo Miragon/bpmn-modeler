@@ -12,8 +12,7 @@ import type { WebviewState } from "../../port/webviewState";
 import type { HostChannel } from "../../port/hostChannel";
 
 export interface EditorChrome extends PanelChrome {
-    /** Absent when the editor offers no mode switch. */
-    stripEl?: HTMLElement;
+    stripEl: HTMLElement;
     /** Opens the panel shortcuts once the editor's surface is ready for them. */
     enableShortcuts(): void;
 }
@@ -30,7 +29,6 @@ export interface EditorChromeFocus {
 export function mountEditorChrome(
     host: HostChannel & WebviewStateHost<WebviewState>,
     focus: EditorChromeFocus,
-    { modeStrip = true }: { modeStrip?: boolean } = {},
 ): EditorChrome | undefined {
     const root = document.getElementById("app");
     if (!root) {
@@ -52,20 +50,16 @@ export function mountEditorChrome(
     });
 
     chrome.panelHost.classList.add("panel-host");
+    const stripEl = document.createElement("div");
+    stripEl.id = "js-mode-strip";
+    stripEl.className = "mode-strip";
+    chrome.canvas.prepend(stripEl);
 
     return {
         ...chrome,
-        stripEl: modeStrip ? mountStripAnchor(chrome.canvas) : undefined,
+        stripEl,
         enableShortcuts: () => {
             shortcutsEnabled = true;
         },
     };
-}
-
-function mountStripAnchor(canvas: HTMLElement): HTMLElement {
-    const stripEl = document.createElement("div");
-    stripEl.id = "js-mode-strip";
-    stripEl.className = "mode-strip";
-    canvas.prepend(stripEl);
-    return stripEl;
 }

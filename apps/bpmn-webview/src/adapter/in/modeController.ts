@@ -52,8 +52,9 @@ interface ModeControllerStart {
     surfaces: SurfaceFactories;
     initialMode: string | null;
     theme: HostThemeKind;
-    /** Absent: the host offers no mode switch. */
-    strip?: ModeStripMount;
+    /** `false`: the strip offers only the landed mode, so it shows no control but still stamps its host. */
+    showsModeSwitch: boolean;
+    strip: ModeStripMount;
 }
 
 export interface ModeController {
@@ -164,17 +165,20 @@ export function createModeController(
         });
     }
 
-    // Always offer all three modes, greying out the ones the current engine
-    // can't reach (Implement on an untagged model) so the mode is discoverable —
-    // the strip ignores clicks on an aria-disabled entry. A click is also dropped
-    // until the initial surface is ready and while a switch or engine reload is
-    // in flight, and otherwise queues behind the other modeler operations so it
-    // never interleaves with an import.
-    function mountStrip(mount: ModeStripMount, liveSession: ModeSession): ModeStrip {
+    // With a switch, always offer all three modes, greying out the ones the
+    // current engine can't reach (Implement on an untagged model) so the mode is
+    // discoverable — the strip ignores clicks on an aria-disabled entry. A click
+    // is also dropped until the initial surface is ready and while a switch or
+    // engine reload is in flight, and otherwise queues behind the other modeler
+    // operations so it never interleaves with an import.
+    function mountStrip(
+        { strip: mount, showsModeSwitch }: ModeControllerStart,
+        liveSession: ModeSession,
+    ): ModeStrip {
         return mountModeStrip({
             host: mount.host,
             stripEl: mount.stripEl,
-            modes: SURFACE_MODES,
+            modes: showsModeSwitch ? SURFACE_MODES : [liveSession.getMode()],
             translate: (template, replacements) => i18n.translate(template, replacements),
             onLabelChange: (apply) => i18n.onChange(apply),
             onSelect: (mode) => {
@@ -200,7 +204,7 @@ export function createModeController(
             modeSession = liveSession;
             surfaceMode = liveSession.getMode();
             binder.requestSurfaceResources(surface);
-            strip = options.strip && mountStrip(options.strip, liveSession);
+            strip = mountStrip(options, liveSession);
             renderStrip(true);
             return true;
         },

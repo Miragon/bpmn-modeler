@@ -28,14 +28,5 @@ export function previewDocument(mode: PreviewMode, search: string): BpmnFileQuer
     // Untagged model: no engine, so the webview opens it in Design.
     const [xml, engine] =
         mode === "neutral" ? [MOCK_NEUTRAL_BPMN_XML, undefined] : [MOCK_BPMN_XML, "c7" as const];
-    return new BpmnFileQuery(
-        xml,
-        engine,
-        "modeler",
-        0,
-        undefined,
-        undefined,
-        undefined,
-        offersModeSwitch(search),
-    );
+    return new BpmnFileQuery(xml, engine, "modeler", 0, { modeSwitch: offersModeSwitch(search) });
 }

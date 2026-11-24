@@ -79,16 +79,12 @@ export class BpmnModelerService {
                 const engine = doc.detectEngine();
                 const outcome = await this.editorStore.postUnlessHidden(
                     editorId,
-                    new BpmnFileQuery(
-                        doc.xml,
-                        engine,
-                        "modeler",
-                        snapshot.revision,
-                        this.settings.getDefaultMode(),
-                        this.settings.getLanguage(),
-                        this.options.hostElementIdReview ?? false,
-                        this.options.modeSwitch ?? true,
-                    ),
+                    new BpmnFileQuery(doc.xml, engine, "modeler", snapshot.revision, {
+                        defaultMode: this.settings.getDefaultMode(),
+                        locale: this.settings.getLanguage(),
+                        hostElementIdReview: this.options.hostElementIdReview ?? false,
+                        modeSwitch: this.options.modeSwitch ?? true,
+                    }),
                 );
                 if (outcome === "hidden") {
                     return false;

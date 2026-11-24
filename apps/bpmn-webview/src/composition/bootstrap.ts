@@ -289,22 +289,18 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
                     : pluginsWithoutHostAnswer(editorHost),
             );
 
+        const chrome = mountEditorChrome(editorHost, {
+            focusCanvas,
+            isCanvasFocused: () =>
+                getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
+        });
+        if (!chrome) return;
+
         // The engine may be undefined here — an untagged (engine-neutral) model
         // is first-class now and opens in Design. The mode session vets the
         // requested mode against availability.
         const engine = bpmnFileQuery?.engine;
         const entry = modeEntry(bpmnFileQuery, savedMode);
-
-        const chrome = mountEditorChrome(
-            editorHost,
-            {
-                focusCanvas,
-                isCanvasFocused: () =>
-                    getSurface().getService<{ isFocused(): boolean }>("canvas").isFocused(),
-            },
-            { modeStrip: entry.showsModeSwitch },
-        );
-        if (!chrome) return;
 
         const capabilities = opts.capabilities ?? protocolCapabilities.capabilities;
 
@@ -335,7 +331,8 @@ export function bootstrap(host: BpmnWebviewHost, opts: BootstrapOptions = {}): v
             }),
             initialMode: entry.requestedMode,
             theme: resolveHostThemeKind(),
-            strip: chrome.stripEl && { host: chrome.panelHost, stripEl: chrome.stripEl },
+            showsModeSwitch: entry.showsModeSwitch,
+            strip: { host: chrome.panelHost, stripEl: chrome.stripEl },
         });
         if (!started) return;
 

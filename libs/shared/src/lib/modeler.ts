@@ -143,20 +143,20 @@ export class BpmnFileQuery extends Query<"BpmnFileQuery"> {
         engine: DetectedEngine,
         viewerMode: BpmnViewerMode = "modeler",
         documentRevision = 0,
-        defaultMode?: SurfaceMode,
-        locale?: string,
-        hostElementIdReview?: boolean,
-        modeSwitch?: boolean,
+        hostOffer: Pick<
+            BpmnFileQuery,
+            "defaultMode" | "locale" | "hostElementIdReview" | "modeSwitch"
+        > = {},
     ) {
         super("BpmnFileQuery");
         this.content = content;
         this.engine = engine;
         this.viewerMode = viewerMode;
         this.documentRevision = documentRevision;
-        this.defaultMode = defaultMode;
-        this.locale = locale;
-        this.hostElementIdReview = hostElementIdReview;
-        this.modeSwitch = modeSwitch;
+        this.defaultMode = hostOffer.defaultMode;
+        this.locale = hostOffer.locale;
+        this.hostElementIdReview = hostOffer.hostElementIdReview;
+        this.modeSwitch = hostOffer.modeSwitch;
     }
 }
 

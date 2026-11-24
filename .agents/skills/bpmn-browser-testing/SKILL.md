@@ -48,8 +48,9 @@ each serves (an untagged model in Design, diff panes with real
 has no partner for synchronized navigation. `?plugins` loads the sample
 plugins (`?plugins=broken` adds one that throws), `&mergeXml=accept|refuse`
 starts a merge pane with Merge XML offered, and `?modeSwitch=none` plays a
-host without a mode switch, as IntelliJ is: no strip, and the model opens at
-its engine's default mode. Workspace definition search answers from
+host without a mode switch, as IntelliJ is: no mode chip, and the model opens
+at its engine's default mode; the panel host still carries `data-surface-mode`
+and `aria-busy`. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview's hosts in
 `apps/dmn-webview/src/adapter/out/browserPreview/` serve one sample decision,
 and `?mode=diff-before|diff-after` one pane of the shipping change with its
