@@ -21,7 +21,7 @@ describe("revisionOfDocument", () => {
         ],
         ["a Git document in the index", { scheme: "git", query: gitQuery("") }, { kind: "index" }],
         [
-            "the base of a working tree change, the index or HEAD when nothing is staged",
+            "the base of a working tree change, the index or HEAD, where nothing tells what is staged",
             { scheme: "git", query: gitQuery("~") },
             { kind: "index-or-head" },
         ],

@@ -1,7 +1,7 @@
 import { type DiffOrigin, diffOriginSupports } from "@miragon/bpmn-modeler-types/domain";
 
 import { uriDisplayName } from "../../kernel/domain/workspacePath";
-import { DiffRevision, DiffSideVersion, revisionName } from "./DiffRevision";
+import { DiffRevision, DiffSideVersion, readsHead, revisionName } from "./DiffRevision";
 import { ELEMENT_XML_TITLE_INFIX, compareTabLabel } from "./diffTabLabel";
 
 /**
@@ -42,7 +42,7 @@ function versionsLabel(
 // Mirrors the VS Code Git extension's own diff titles (resolveTimelineOpenDiffCommand): the working tree
 // against HEAD or the index, and the index against HEAD, are titled by the newer side alone.
 function namesNewerSideOnly(before: DiffRevision, after: DiffRevision): boolean {
-    const beforeIsHead = before.kind === "ref" && before.ref === "HEAD";
+    const beforeIsHead = readsHead(before);
     if (after.kind === "working-tree") {
         return beforeIsHead || before.kind === "index-or-head";
     }

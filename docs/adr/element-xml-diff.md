@@ -114,7 +114,8 @@ The [diff](diff.md) record owns the diagram diff and its data library, which com
 - *The title names the versions.* Each pane handle reports the version it shows
   (`DiffRevision`), and the core titles the XML diff as the VS Code Git extension titles
   its own diffs: both files of a compare, `order.bpmn (Working Tree)` against HEAD or
-  `~` (the index, or HEAD when nothing is staged), `order.bpmn (Index)` against HEAD, and
+  `~` (the index while the file has staged changes, else HEAD; see [Diff](diff.md)),
+  `order.bpmn (Index)` against HEAD, and
   otherwise `order.bpmn (3f2a1b4) ↔ order.bpmn (HEAD)`; the file name alone when a
   version is unknown. The core shows a ref as the host names it: VS Code's
   `documentRevision` is the one home of what the plugin knows about Git URIs, and commit

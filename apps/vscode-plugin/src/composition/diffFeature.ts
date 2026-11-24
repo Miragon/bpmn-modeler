@@ -1,4 +1,4 @@
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, TextDocument, WebviewPanel } from "vscode";
 
 import {
     BpmnDiffService,
@@ -19,6 +19,7 @@ import { gitStagedChanges } from "../diff/adapter/out/vscodeGitStagedChanges";
 import { WebviewPaneHandle } from "../diff/adapter/out/WebviewPaneHandle";
 import * as elementXmlMergeFeature from "./elementXmlMergeFeature";
 import * as mergeViewFeature from "./mergeViewFeature";
+import type { DiffPaneSurface } from "../shared/adapter/out/bootstrapWebview";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -69,8 +70,7 @@ export function register(
     const diffController = new DiffController(
         diffStore,
         deps.notifier,
-        (panel, document) =>
-            new WebviewPaneHandle(panel, document, "bpmnDiffPane", gitStagedChanges),
+        diffPaneOf("bpmnDiffPane"),
         deps.preferences,
         bpmnDiffFormat(bpmnDiffService, merge.paneCommands),
         merge.opener,
@@ -79,8 +79,7 @@ export function register(
     const dmnDiffController = new DiffController(
         dmnDiffStore,
         deps.notifier,
-        (panel, document) =>
-            new WebviewPaneHandle(panel, document, "dmnDiffPane", gitStagedChanges),
+        diffPaneOf("dmnDiffPane"),
         deps.preferences,
         dmnDiffFormat(new DmnDiffService(deps.notifier, deps.vsSettings, dmnDiffStore)),
     );
@@ -100,6 +99,12 @@ export function register(
 }
 
 /** The element XML diffs below the diagram diffs. */
+/** Builds a diff pane of `surface`, whose version follows what Git has staged. */
+function diffPaneOf(surface: DiffPaneSurface) {
+    return (panel: WebviewPanel, document: TextDocument) =>
+        new WebviewPaneHandle(panel, document, surface, gitStagedChanges);
+}
+
 function elementXmlDiffs(
     context: ExtensionContext,
     diffStore: DiffPaneStore,

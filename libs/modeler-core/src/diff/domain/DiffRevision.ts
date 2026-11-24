@@ -59,10 +59,16 @@ export function revisionName(revision: DiffRevision): string | undefined {
         case "index":
             return "Index";
         case "index-or-head":
-            return revision.staged === false ? "HEAD" : "Index";
+            return readsHead(revision) ? "HEAD" : "Index";
         case "ref":
             return revision.ref;
         case "unknown":
             return undefined;
     }
+}
+
+/** Whether a version is HEAD: the ref of that name, or a working tree change's base of a file with nothing staged. */
+export function readsHead(revision: DiffRevision): boolean {
+    if (revision.kind === "ref") return revision.ref === "HEAD";
+    return revision.kind === "index-or-head" && revision.staged === false;
 }

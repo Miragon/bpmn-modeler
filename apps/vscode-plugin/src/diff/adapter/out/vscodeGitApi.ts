@@ -3,8 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-// The members of extensions/git/src/api/git.d.ts@1.76.0, the engines floor, that the adapter
-// reads; types only. `Change.status` is left out on purpose: `Status` is a const enum whose
+// The members of extensions/git/src/api/git.d.ts@1.76.0, the engines floor, that the adapters
+// read; types only. `Change.status` is left out on purpose: `Status` is a const enum whose
 // numbers moved in 1.79 and 1.81, so no code may compare it.
 
 import type { Event, Uri } from "vscode";
