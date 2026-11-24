@@ -41,6 +41,25 @@ __init__:
 + bpmnLintConfig @lintUpdate (after lintUpdate)
 + lintIssuePopover @lintUpdate (after bpmnLintConfig)
 
+## linting: { module }, onLintResults and onLintingToggled
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"mode":"design","tier":"in-page"}) lintCallbacks=value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"mode":"design","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+
 ## capabilities.modelNavigation
 modules:
 + formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after […, tokenSimulationKeyboardBindings])

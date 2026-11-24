@@ -62,13 +62,13 @@ __init__:
 config:
 ~ propertiesPanelMode: "implement" → "design"
 
-## linting: { module, config }, onLintResults and elementTemplates
+## linting: { module, config }, onLintResults, onLintingToggled and elementTemplates
 modules:
 + linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
-+ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value(Object) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 providers:
 + bpmnLintConfig: type(LintConfigService)
-+ lintCallbacks: value(Object)
++ lintCallbacks: value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled})
 + lintIssuePopover: type(LintIssuePopover)
 + lintTier: value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"})
 + lintUpdate: type(LintUpdateService)

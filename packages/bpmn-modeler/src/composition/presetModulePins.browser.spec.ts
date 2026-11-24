@@ -99,7 +99,9 @@ const ENGINE_MODDLE: Record<Engine, { readonly prefix: string; readonly moddle: 
     c8: { prefix: "zeebe", moddle: zeebeModdle },
 };
 const LINT_CONFIG: BpmnlintConfig = { rules: { "label-required": "off" } };
-const onLintResults = vi.fn();
+// Named after their slots, so crossed callbacks read as crossed in the pins.
+const onLintResults = (): undefined => undefined;
+const onLintingToggled = (): undefined => undefined;
 
 const LINT_VARIANTS = [
     ["linting: false", { linting: false }],
@@ -137,10 +139,11 @@ function modelerVariants(engine: Engine): readonly OptionVariant<CreateModelerOp
             { linting: { module: lintModule }, mode: "design" },
         ],
         [
-            "linting: { module, config }, onLintResults and elementTemplates",
+            "linting: { module, config }, onLintResults, onLintingToggled and elementTemplates",
             {
                 linting: { module: lintModule, config: LINT_CONFIG },
                 onLintResults,
+                onLintingToggled,
                 elementTemplates: [PREVIEW_TEMPLATES[engine]],
             },
         ],
@@ -177,6 +180,10 @@ function modelerVariants(engine: Engine): readonly OptionVariant<CreateModelerOp
 
 const DESIGNER_VARIANTS: readonly OptionVariant<DesignerOptions>[] = [
     ...LINT_VARIANTS,
+    [
+        "linting: { module }, onLintResults and onLintingToggled",
+        { linting: { module: lintModule }, onLintResults, onLintingToggled },
+    ],
     ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
     ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
     ["clipboard: { bridge }", { clipboard: { bridge } }],

@@ -5,6 +5,7 @@ import {
     byCodeUnit,
     injectorModulesOf,
     isPlainObject,
+    printedItems,
     sortedRegistrations,
     valueIdentity,
     winnerText,
@@ -56,8 +57,11 @@ export function surfacePinsOf(
 function domNodeNumbers(config: object, topLevel: readonly DiModule[]): Map<object, string> {
     const nodes: Node[] = [];
     const note = (value: unknown): void => {
-        if (value instanceof Node && !nodes.includes(value)) {
-            nodes.push(value);
+        const items = (printedItems(value) ?? []).map(([, item]) => item);
+        for (const candidate of [value, ...items]) {
+            if (candidate instanceof Node && !nodes.includes(candidate)) {
+                nodes.push(candidate);
+            }
         }
     };
     configEntries(config).forEach(([, value]) => note(value));
@@ -111,6 +115,8 @@ export function renderPins(
     );
     return [
         `# ${title}`,
+        "",
+        "DOM nodes print as `#n`, numbered by first appearance: config key paths, then DI names, each sorted.",
         "",
         "## modules (registration order)",
         ...assembly.modules.map(({ text }) => text),

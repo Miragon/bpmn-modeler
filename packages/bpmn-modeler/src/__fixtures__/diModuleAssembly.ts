@@ -272,8 +272,39 @@ export function valueIdentity(value: unknown, names: ValueNames = NO_NAMES): str
     if (typeof value !== "object" || value === null) {
         return typeof value;
     }
+    const role = names.get(value);
+    const items = role === undefined ? printedItems(value) : undefined;
+    if (items) {
+        const texts = items.map(([key, item]) =>
+            Array.isArray(value)
+                ? valueIdentity(item, names)
+                : `${key}: ${valueIdentity(item, names)}`,
+        );
+        return Array.isArray(value) ? `[${texts.join(", ")}]` : `{${texts.join(", ")}}`;
+    }
     const constructorName = Object.getPrototypeOf(value)?.constructor?.name ?? "";
-    return `${constructorName.replace(BUNDLER_SUFFIX, "") || "Object"}${names.get(value) ?? ""}`;
+    return `${constructorName.replace(BUNDLER_SUFFIX, "") || "Object"}${role ?? ""}`;
+}
+
+/**
+ * An array or plain object that is not plain data but holds only leaves, such as DOM nodes
+ * or callbacks, prints item by item, so the pins show which one sits where; deeper nesting
+ * prints by type. A plain object's items come keyed and sorted.
+ */
+export function printedItems(value: unknown): [key: string, item: unknown][] | undefined {
+    if (isPlainData(value)) {
+        return undefined;
+    }
+    const entries = Array.isArray(value)
+        ? value.map((item, index): [string, unknown] => [String(index), item])
+        : isPlainObject(value)
+          ? Object.entries(value)
+                .filter(([, item]) => item !== undefined)
+                .sort(([left], [right]) => byCodeUnit(left, right))
+          : undefined;
+    const isLeaf = (item: unknown): boolean =>
+        isPlainData(item) || !(Array.isArray(item) || isPlainObject(item));
+    return entries?.every(([, item]) => isLeaf(item)) ? entries : undefined;
 }
 
 function registrationText({ provider, module }: Registration): string {

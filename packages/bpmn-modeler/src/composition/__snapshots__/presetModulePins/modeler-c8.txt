@@ -1,5 +1,7 @@
 # createModeler (c8), default options
 
+DOM nodes print as `#n`, numbered by first appearance: config key paths, then DI names, each sorted.
+
 ## modules (registration order)
 config=value(Object)
 defaultRenderer=type(DefaultRenderer) styles=type(Styles) init[defaultRenderer]

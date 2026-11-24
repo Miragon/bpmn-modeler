@@ -54,6 +54,30 @@ describe("presetPinText", () => {
         ]);
     });
 
+    it("prints a list of DOM nodes or a record of callbacks item by item, numbering the nodes inside", () => {
+        const container = document.createElement("div");
+        const panel = document.createElement("div");
+        const onLintResults = (): undefined => undefined;
+
+        const pins = surfacePinsOf(
+            {
+                modules: [
+                    { surfaceRoots: ["value", [container, panel]] },
+                    { crossedRoots: ["value", [container, container]] },
+                    { lintCallbacks: ["value", { onLintResults, onLintingToggled: undefined }] },
+                ],
+            },
+            [],
+            new Map(),
+        );
+
+        expect(pins.assembly.modules.slice(-3).map(({ text }) => text)).toEqual([
+            "surfaceRoots=value([HTMLDivElement#1, HTMLDivElement#2])",
+            "crossedRoots=value([HTMLDivElement#1, HTMLDivElement#1])",
+            "lintCallbacks=value({onLintResults: fn onLintResults})",
+        ]);
+    });
+
     it("shows a moved module as a removal and an addition at its new position", () => {
         const one: DiModule = { one: ["value", 1] };
         const two: DiModule = { two: ["value", 2] };
@@ -114,6 +138,15 @@ describe("presetPinText", () => {
 
         const rendered = renderPins("probe", pins);
 
+        expect(rendered.slice(0, rendered.indexOf("## modules"))).toBe(
+            [
+                "# probe",
+                "",
+                "DOM nodes print as `#n`, numbered by first appearance: config key paths, then DI names, each sorted.",
+                "",
+                "",
+            ].join("\n"),
+        );
         expect(rendered.slice(rendered.indexOf("## __init__"))).toBe(
             [
                 "## __init__ (run order)",

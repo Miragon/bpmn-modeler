@@ -187,11 +187,12 @@ describe("diModuleAssembly", () => {
             ]);
         });
 
-        it("prints plain data by its content with sorted keys, anything else by its type", () => {
+        it("prints plain data by its content with sorted keys, a record of leaves item by item, anything else by its type", () => {
             const list: DiModule[] = [
                 { tier: ["value", { mode: "design", tier: "in-page", engine: undefined }] },
                 { names: ["value", ["b", "a"]] },
-                { port: ["value", { open: () => undefined }] },
+                { port: ["value", { open: () => undefined, flag: true, closed: undefined }] },
+                { nested: ["value", { port: { open: () => undefined } }] },
                 { instance: ["value", new First()] },
                 { node: ["value", document.createElement("div")] },
             ];
@@ -199,7 +200,8 @@ describe("diModuleAssembly", () => {
             expect(assembleModules(list).modules.map(({ text }) => text)).toEqual([
                 'tier=value({"mode":"design","tier":"in-page"})',
                 'names=value(["b","a"])',
-                "port=value(Object)",
+                "port=value({flag: true, open: fn open})",
+                "nested=value(Object)",
                 "instance=value(First)",
                 "node=value(HTMLDivElement)",
             ]);
@@ -225,7 +227,7 @@ describe("diModuleAssembly", () => {
                     names,
                 ).modules.map(({ text }) => text),
             ).toEqual([
-                "port=value(Object: probe port) other=value(Object) node=value(HTMLDivElement#1)",
+                "port=value(Object: probe port) other=value({open: fn open}) node=value(HTMLDivElement#1)",
             ]);
         });
 
