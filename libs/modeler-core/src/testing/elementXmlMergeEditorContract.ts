@@ -6,9 +6,11 @@ import {
     ElementXmlMergeRequest,
 } from "../diff/port/ElementXmlMergeEditor";
 
-/** One side of a merge as the editor shows it: its text under its label. */
+/** One side of a merge as the editor shows it: its text under its position, branch and commit. */
 interface ShownSide {
-    readonly label: string;
+    readonly title: string;
+    readonly ref?: string;
+    readonly shortHash?: string;
     readonly text: string;
 }
 
@@ -39,7 +41,10 @@ export interface ElementXmlMergeEditorContractFixture {
 const requestFor = (elementId: string, key = `merge:${elementId}`): ElementXmlMergeRequest => ({
     key,
     elementId,
-    labels: { current: "main", incoming: "feature" },
+    sides: {
+        current: { title: "Current", ref: "main", shortHash: "1a2b3c4" },
+        incoming: { title: "Incoming", ref: "feature" },
+    },
     base: `<bpmn:task id="${elementId}" />\n`,
     current: `<bpmn:task id="${elementId}" name="main" />\n`,
     incoming: `<bpmn:task id="${elementId}" name="feature" />\n`,
@@ -88,15 +93,20 @@ export function describeElementXmlMergeEditorContract(
             expect(finished).toStrictEqual([{ key: PACK.key, written: shownOnOpen }]);
         });
 
-        it("shows the base, and each side's text under its own label", async () => {
+        it("shows the base, and each side's text under its position, with the branch and commit it has", async () => {
             const { editor, inputs } = fixtureReportingFinishes();
 
             await editor.open(PACK);
 
             expect(inputs("Task_Pack")).toStrictEqual({
                 base: PACK.base,
-                current: { label: "main", text: PACK.current },
-                incoming: { label: "feature", text: PACK.incoming },
+                current: {
+                    title: "Current",
+                    ref: "main",
+                    shortHash: "1a2b3c4",
+                    text: PACK.current,
+                },
+                incoming: { title: "Incoming", ref: "feature", text: PACK.incoming },
             });
         });
 

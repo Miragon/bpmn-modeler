@@ -18,6 +18,22 @@ export function mergeSideName(caption: MergeSideCaption): string {
     return caption.ref ?? caption.shortHash ?? MERGE_SIDE_WORDS[caption.side];
 }
 
+/** How a host titles one side of a merge: its position, then the branch and commit Git names it by. */
+export interface MergeSideTitle {
+    readonly title: string;
+    readonly ref?: string;
+    readonly shortHash?: string;
+}
+
+/** A side by its position first, the word the panes name it by, so a title and a pane name the same side alike. */
+export function mergeSideTitle({ side, ref, shortHash }: MergeSideCaption): MergeSideTitle {
+    return {
+        title: MERGE_SIDE_WORDS[side],
+        ...(ref === undefined ? {} : { ref }),
+        ...(shortHash === undefined ? {} : { shortHash }),
+    };
+}
+
 /** A merge tab's title: the working file and each side's branch, commit or position. */
 export function mergeTabLabel(
     fileName: string,

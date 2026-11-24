@@ -16,6 +16,7 @@ import {
     editorMergesStartTextTo,
     failNextMergeEditorOpen,
     failToSplitGroups,
+    type FakeMergeInputTitle,
     finishMergeEditorLoading,
     focusGroupByUser,
     holdMergeEditorLoading,
@@ -43,10 +44,20 @@ const START = "<<<<<<< Current\ncurrent\n=======\nincoming\n>>>>>>> Incoming\n";
 const MERGED = "merged by the editor\n";
 const dropMarkerLines = (start: string) => start.replace(/^(<<<<<<<|=======|>>>>>>>).*\n/gm, "");
 
+/** What the editor's title says of a side: the branch is its detail, the commit its description behind the commit icon. */
+const shownTitle = ({ title, description, detail }: FakeMergeInputTitle) => ({
+    title,
+    ...(detail === undefined ? {} : { ref: detail }),
+    ...(description === undefined ? {} : { shortHash: description.replace("$(git-commit) ", "") }),
+});
+
 const REQUEST: ElementXmlMergeRequest = {
     key: "merge-1",
     elementId: "Task_Check",
-    labels: { current: "Current", incoming: "Incoming" },
+    sides: {
+        current: { title: "Current", ref: "main", shortHash: "1a2b3c4" },
+        incoming: { title: "Incoming", ref: "feature" },
+    },
     base: "base\n",
     current: "current\n",
     incoming: "incoming\n",
@@ -85,8 +96,8 @@ describeElementXmlMergeEditorContract("VsCodeElementXmlMergeEditor", (onFinished
                 new TextDecoder().decode(inputs.readFile(Uri.parse(uri.toString())));
             return {
                 base: served(tab.input.base),
-                current: { label: tab.titles.input1, text: served(tab.input.input1) },
-                incoming: { label: tab.titles.input2, text: served(tab.input.input2) },
+                current: { ...shownTitle(tab.titles.input1), text: served(tab.input.input1) },
+                incoming: { ...shownTitle(tab.titles.input2), text: served(tab.input.input2) },
             };
         },
         focused: () => {
@@ -136,6 +147,15 @@ describe("VsCodeElementXmlMergeEditor", () => {
         expect(mergeTabs().map((tab) => tab.label)).toEqual(["Merging: Task_Check.xml"]);
         const [, , , result] = servedUris();
         expect(new TextDecoder().decode(results.readFile(result))).toBe(START);
+    });
+
+    it("titles each side as VS Code's Git merge editor does: its position, its commit beside the commit icon, its branch", async () => {
+        await editor.open(REQUEST);
+
+        expect(mergeTabs()[0].titles).toStrictEqual({
+            input1: { title: "Current", description: "$(git-commit) 1a2b3c4", detail: "main" },
+            input2: { title: "Incoming", detail: "feature" },
+        });
     });
 
     it("finishes with the text a manual save wrote once the merge tab closes", async () => {

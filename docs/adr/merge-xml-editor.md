@@ -1,7 +1,7 @@
 # Merge XML editor
 
 - Status: accepted
-- Last reviewed: 2026-11-23
+- Last reviewed: 2026-11-24
 
 ## Context
 
@@ -97,6 +97,15 @@ changed different parts to a whole pick.
   the merges already open. Bringing one to the front focuses its group by grid index
   (`workbench.action.focus…EditorGroup`, eight at most) and runs the command again, which
   shows the open editor instead of a second one.
+- *The sides are titled by position, as the panes name them.* Titled by its branch alone,
+  a side of the editor matched no pane above it, whose bars say Current and Incoming, and
+  a rebase gave both sides a commit hash. Each side's title is **Current** or **Incoming**
+  (`mergeSideTitle`), which the editor also puts in its "Accept …" actions; the commit is
+  the description beside the commit icon and the branch the detail, the fields
+  `_open.mergeEditor` takes from 1.76 on and VS Code's Git extension fills the same way
+  (`mergeEditorInputTitle`). The words are the core's English, as in the tab titles; what
+  a side is to the user (your branch, your commit) stays in the pane's bar, which
+  translates it.
 - *Offered only where the command is.* A leading underscore marks a command VS Code may
   change without notice; this shape held from 1.69 to 1.146. The entry shows only when
   `commands.getCommands(false)` lists it (the filtered list hides it); otherwise the

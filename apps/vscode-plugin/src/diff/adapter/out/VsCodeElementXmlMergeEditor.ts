@@ -21,6 +21,7 @@ import { mergeEditorUsesWorkingCopy } from "../../../shared/adapter/out/modelerC
 import { untilTabsSatisfy } from "../../../shared/adapter/out/tabWait";
 import { closeUnservedTabs } from "../../../shared/adapter/out/unservedTabs";
 import { EditorWrittenTextFiles, ServedTextFiles } from "../../../shared/port/ServedTextFiles";
+import { mergeEditorInputTitle } from "../../domain/mergeEditorInputTitle";
 import { mergeEditorIsReady } from "../../domain/mergeEditorReadiness";
 import { MergeTabAnswer } from "../../domain/mergeTabAnswer";
 
@@ -228,8 +229,8 @@ export class VsCodeElementXmlMergeEditor implements ElementXmlMergeEditor {
 async function showMergeEditor(merge: OpenMerge): Promise<void> {
     await commands.executeCommand(OPEN_MERGE_EDITOR, {
         base: merge.base,
-        input1: { uri: merge.current, title: merge.request.labels.current },
-        input2: { uri: merge.incoming, title: merge.request.labels.incoming },
+        input1: { uri: merge.current, ...mergeEditorInputTitle(merge.request.sides.current) },
+        input2: { uri: merge.incoming, ...mergeEditorInputTitle(merge.request.sides.incoming) },
         output: merge.result,
     });
 }

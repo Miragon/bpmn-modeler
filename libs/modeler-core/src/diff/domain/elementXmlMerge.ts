@@ -4,7 +4,7 @@ import {
     writeConflictMarkers,
 } from "@miragon/bpmn-modeler-types/domain";
 
-import { mergeSideName } from "./diffTabLabel";
+import { type MergeSideTitle, mergeSideName, mergeSideTitle } from "./diffTabLabel";
 
 /** Why a host without a merge editor opens no element XML merge, as the router and the log say it. */
 export const NO_ELEMENT_XML_MERGE_EDITOR = "the host offers no XML merge editor";
@@ -25,7 +25,8 @@ interface ElementXmlMergeTexts {
 export interface ElementXmlMergeRequest {
     readonly key: string;
     readonly elementId: string;
-    readonly labels: Readonly<Record<MergeSide, string>>;
+    /** How the editor titles each side beside its text. */
+    readonly sides: Readonly<Record<MergeSide, MergeSideTitle>>;
     readonly base: string;
     readonly current: string;
     readonly incoming: string;
@@ -107,15 +108,15 @@ export class ElementXmlMerges {
             side: element.side,
             startedByPick: element.startedByPick === true,
         });
-        const labels = elementXmlMergeLabels(element.captions);
+        const { current, incoming } = element.captions;
         return {
             kind: "open",
             request: {
                 key,
                 elementId: element.elementId,
-                labels,
+                sides: { current: mergeSideTitle(current), incoming: mergeSideTitle(incoming) },
                 ...element.texts,
-                start: this.startOf(element, labels),
+                start: this.startOf(element),
             },
         };
     }
@@ -147,19 +148,16 @@ export class ElementXmlMerges {
         return [...this.openByKey.keys()];
     }
 
-    private startOf(
-        element: ElementXmlMergeOpen,
-        labels: Readonly<Record<MergeSide, string>>,
-    ): string {
+    private startOf(element: ElementXmlMergeOpen): string {
         const refused = this.refusedByElement.get(element.elementId);
         if (element.resume && refused?.side === element.side) return refused.text;
         if (element.handMergedText !== undefined) return element.handMergedText;
-        return writeConflictMarkers(element.texts, labels);
+        return writeConflictMarkers(element.texts, elementXmlMergeMarkerLabels(element.captions));
     }
 }
 
-/** The editor's names of both sides, as the merge tab names them. */
-export function elementXmlMergeLabels(
+/** The conflict markers' names of both sides, as Git labels its own and the merge tab names them. */
+export function elementXmlMergeMarkerLabels(
     captions: Readonly<Record<MergeSide, MergeSideCaption>>,
 ): Readonly<Record<MergeSide, string>> {
     return { current: mergeSideName(captions.current), incoming: mergeSideName(captions.incoming) };

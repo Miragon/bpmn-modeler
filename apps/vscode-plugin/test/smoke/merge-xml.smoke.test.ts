@@ -180,6 +180,35 @@ async function openMergeXml(
     await expect.poll(() => resultText(elementId)).toBeDefined();
 }
 
+interface SideTitle {
+    readonly title: string;
+    readonly description: string;
+    readonly detail: string;
+}
+
+/** What VS Code's merge editor shows above each side's text: its title, then its description and its detail. */
+async function sideTitles(): Promise<SideTitle[]> {
+    const headers = await vscode()
+        .page.locator(".code-view .header")
+        .evaluateAll((elements) =>
+            elements.map((header) => {
+                const part = (name: string) =>
+                    header.querySelector(`.${name}`)?.textContent?.trim() ?? "";
+                return {
+                    title: part("title"),
+                    description: part("description"),
+                    detail: part("detail"),
+                };
+            }),
+        );
+    return headers.filter(({ title }) => title === "Current" || title === "Incoming");
+}
+
+/** A pane's caption in its bar, in full: a narrow bar hides the branch and commit, not the text. */
+async function paneCaption(pane: FrameLocator): Promise<string> {
+    return (await pane.locator(".merge-bar__caption").textContent()) ?? "";
+}
+
 function editorGroupOf(tabText: string): Locator {
     return vscode()
         .page.locator(".editor-group-container")
@@ -317,6 +346,34 @@ describe("Merge XML", () => {
         expect(mergeEditor!.y).toBeGreaterThanOrEqual(mergeView!.y + mergeView!.height - 1);
         await acceptButton().waitFor({ state: "visible" });
         await shot("merge-xml-editor");
+    });
+
+    it("titles the editor's sides as the panes name them: Current and Incoming, each with its branch and commit", async () => {
+        const panes = await openMergeView();
+        await keepCheckFromIncoming(panes);
+        await press(panes.incoming, "Next change");
+        await openMergeXml(panes.incoming, "Task_Ship", KEEP_INCOMING_AND_MERGE_XML);
+
+        await expect
+            .poll(async () => (await sideTitles()).map(({ title }) => title))
+            .toEqual(["Current", "Incoming"]);
+        const [current, incoming] = await sideTitles();
+        expect(current.detail).toBe("main");
+        expect(incoming.detail).toBe("feature");
+        for (const [side, pane] of [
+            [current, panes.current],
+            [incoming, panes.incoming],
+        ] as const) {
+            expect(side.description).toMatch(/^[0-9a-f]{7}$/);
+            const caption = await paneCaption(pane);
+            expect(caption).toMatch(new RegExp(`^${side.title}: `));
+            expect(caption).toContain(`${side.detail} · ${side.description}`);
+        }
+        // Ship order's name is a true conflict, so the editor offers each side by its title.
+        for (const action of ["Accept Current", "Accept Incoming"]) {
+            await vscode().page.getByText(action, { exact: true }).first().waitFor();
+        }
+        await shot("merge-xml-side-titles");
     });
 
     it("opens the selected element's merge editor by its key", async () => {

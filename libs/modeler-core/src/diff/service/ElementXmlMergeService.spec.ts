@@ -153,7 +153,10 @@ describe("ElementXmlMergeService", () => {
         await host.openMerge("Task_Pack");
 
         const request = host.openRequest();
-        expect(request.labels).toStrictEqual({ current: "main", incoming: "feature" });
+        expect(request.sides).toStrictEqual({
+            current: { title: "Current", ref: "main" },
+            incoming: { title: "Incoming", ref: "feature" },
+        });
         expect(request.current).toContain('name="Pack parcel"');
         expect(request.incoming).toContain('name="Pack box"');
         expect(readConflictMarkers(request.start).hasMarkers).toBe(true);
