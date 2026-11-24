@@ -26,25 +26,29 @@ __init__:
 + propertiesPanelModeFilter (after neutralPropertiesProvider)
 + customPropertiesGroups (after propertiesPanelModeFilter)
 config:
-+ propertiesPanel.feelPopupContainer: HTMLDivElement
-+ propertiesPanel.parent: HTMLDivElement
++ propertiesPanel.feelPopupContainer: HTMLDivElement#2
++ propertiesPanel.parent: HTMLDivElement#3
 
 ## capabilities.modelNavigation
 modules:
 + scheduler=type(Scheduler) (after the defaults)
 + contextPad=type(ContextPad) (after scheduler)
-+ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
 providers:
 + contextPad: type(ContextPad)
 + formPreviewController: type(FormPreviewController)
 + formReferenceStatusClient: type(FormReferenceStatusClient)
-+ modelNavigationPort: value(Object)
++ modelNavigationPort: value(Object: modelNavigation port)
 + navigateContextPadProvider: type(NavigateContextPadProvider)
 + scheduler: type(Scheduler)
 __init__:
 + formReferenceStatusClient @formPreviewController (after the defaults)
 + formPreviewController (after formReferenceStatusClient)
 + navigateContextPadProvider @formPreviewController (after formPreviewController)
+
+## moddleExtensions
+moddle packages:
++ acme http://acme.example/bpmn (after the defaults)
 
 ## additionalModules
 modules:
@@ -63,7 +67,7 @@ modules:
 + customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups] (after propertiesPanelModeFilter)
 + scheduler=type(Scheduler) (after customPropertiesGroups)
 + contextPad=type(ContextPad) (after scheduler)
-+ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after contextPad)
 + callerProbe=value("caller") (after formPreviewController)
 providers:
 + callerProbe: value("caller")
@@ -74,7 +78,7 @@ providers:
 + feelPopupRenderer: type(PopupRenderer)
 + formPreviewController: type(FormPreviewController)
 + formReferenceStatusClient: type(FormReferenceStatusClient)
-+ modelNavigationPort: value(Object)
++ modelNavigationPort: value(Object: modelNavigation port)
 + navigateContextPadProvider: type(NavigateContextPadProvider)
 + neutralPropertiesProvider: type(NeutralPropertiesProvider)
 + propertiesPanel: type(PropertiesPanelRenderer)
@@ -92,5 +96,5 @@ __init__:
 + formPreviewController (after formReferenceStatusClient)
 + navigateContextPadProvider @formPreviewController (after formPreviewController)
 config:
-+ propertiesPanel.feelPopupContainer: HTMLDivElement
-+ propertiesPanel.parent: HTMLDivElement
++ propertiesPanel.feelPopupContainer: HTMLDivElement#2
++ propertiesPanel.parent: HTMLDivElement#3

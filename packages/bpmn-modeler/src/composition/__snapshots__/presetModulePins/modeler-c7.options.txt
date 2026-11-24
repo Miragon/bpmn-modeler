@@ -41,17 +41,57 @@ __init__:
 + bpmnLintConfig @lintUpdate (after lintUpdate)
 + lintIssuePopover @lintUpdate (after bpmnLintConfig)
 
+## linting: { module } (in-page tier) with mode: "design"
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"design","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value({})
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"engine":"c7","mode":"design","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+config:
+~ propertiesPanelMode: "implement" → "design"
+
+## linting: { module, config }, onLintResults and elementTemplates
+modules:
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value(Object) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
+providers:
++ bpmnLintConfig: type(LintConfigService)
++ lintCallbacks: value(Object)
++ lintIssuePopover: type(LintIssuePopover)
++ lintTier: value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"})
++ lintUpdate: type(LintUpdateService)
++ linting: type(Linting)
++ lintingEditorActions: type(EditorActions)
+__init__:
++ linting (after tokenSimulationKeyboardBindings)
++ lintingEditorActions @linting (after linting)
++ lintUpdate (after lintingEditorActions)
++ bpmnLintConfig @lintUpdate (after lintUpdate)
++ lintIssuePopover @lintUpdate (after bpmnLintConfig)
+
 ## mode: "design"
 config:
 ~ propertiesPanelMode: "implement" → "design"
 
 ## capabilities.modelNavigation
 modules:
-+ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after the defaults)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after the defaults)
 providers:
 + formPreviewController: type(FormPreviewController)
 + formReferenceStatusClient: type(FormReferenceStatusClient)
-+ modelNavigationPort: value(Object)
++ modelNavigationPort: value(Object: modelNavigation port)
 + navigateContextPadProvider: type(NavigateContextPadProvider)
 __init__:
 + formReferenceStatusClient @formPreviewController (after the defaults)
@@ -60,20 +100,20 @@ __init__:
 
 ## capabilities.codeLink
 modules:
-+ codeLinkMapClient=type(CodeLinkMapClient) codeLinkContextPadProvider=type(CodeLinkContextPadProvider) codeLinkPort=value(Object) init[codeLinkMapClient, codeLinkContextPadProvider] (after the defaults)
++ codeLinkMapClient=type(CodeLinkMapClient) codeLinkContextPadProvider=type(CodeLinkContextPadProvider) codeLinkPort=value(Object: codeLink port) init[codeLinkMapClient, codeLinkContextPadProvider] (after the defaults)
 providers:
 + codeLinkContextPadProvider: type(CodeLinkContextPadProvider)
 + codeLinkMapClient: type(CodeLinkMapClient)
-+ codeLinkPort: value(Object)
++ codeLinkPort: value(Object: codeLink port)
 __init__:
 + codeLinkMapClient (after the defaults)
 + codeLinkContextPadProvider @codeLinkMapClient (after codeLinkMapClient)
 
 ## capabilities.definitionSearch
 modules:
-+ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object) init[definitionSearchPropertiesProvider] (after the defaults)
++ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object: definitionSearch port) init[definitionSearchPropertiesProvider] (after the defaults)
 providers:
-+ definitionSearchPort: value(Object)
++ definitionSearchPort: value(Object: definitionSearch port)
 + definitionSearchPropertiesProvider: type(DefinitionSearchPropertiesProvider)
 __init__:
 + definitionSearchPropertiesProvider (after the defaults)
@@ -87,9 +127,9 @@ modules:
 + openScriptEditorsStore=type(OpenScriptEditorsStore) init[openScriptEditorsStore] (after scriptEditorKeyboard)
 + scriptLockPropertiesProvider=type(ScriptLockPropertiesProvider) init[scriptLockPropertiesProvider] (after openScriptEditorsStore)
 + scriptSourceWatcher=type(ScriptSourceWatcher) init[scriptSourceWatcher] (after scriptLockPropertiesProvider)
-+ inlineScriptingPortForwarder=type(InlineScriptingPortForwarder) inlineScriptingPort=value(Object) init[inlineScriptingPortForwarder] (after scriptSourceWatcher)
++ inlineScriptingPortForwarder=type(InlineScriptingPortForwarder) inlineScriptingPort=value(Object: scripting port) init[inlineScriptingPortForwarder] (after scriptSourceWatcher)
 providers:
-+ inlineScriptingPort: value(Object)
++ inlineScriptingPort: value(Object: scripting port)
 + inlineScriptingPortForwarder: type(InlineScriptingPortForwarder)
 + openScriptEditorsStore: type(OpenScriptEditorsStore)
 + scriptEditorButtons: type(ScriptEditorButtons)
@@ -111,15 +151,35 @@ __init__:
 modules:
 + bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
 + labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
-+ elementClipboardBridge=value(Object) textClipboardBridge=value(Object) (after labelClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
 providers:
 + bridgedClipboard: type(BridgedClipboard)
-+ elementClipboardBridge: value(Object)
++ elementClipboardBridge: value(Object: clipboard bridge)
 + labelClipboard: type(LabelClipboard)
-+ textClipboardBridge: value(Object)
++ textClipboardBridge: value(Object: clipboard bridge)
 __init__:
 + bridgedClipboard (after the defaults)
 + labelClipboard (after bridgedClipboard)
+
+## clipboard: { bridge, text }
+modules:
++ bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
++ labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard text bridge) (after labelClipboard)
+providers:
++ bridgedClipboard: type(BridgedClipboard)
++ elementClipboardBridge: value(Object: clipboard bridge)
++ labelClipboard: type(LabelClipboard)
++ textClipboardBridge: value(Object: clipboard text bridge)
+__init__:
++ bridgedClipboard (after the defaults)
++ labelClipboard (after bridgedClipboard)
+
+## moddleExtensions (a new prefix, and the engine's prefix replaced)
+moddle packages:
++ camunda http://override.example/camunda (after color)
++ acme http://acme.example/bpmn (after camunda)
+- camunda http://camunda.org/schema/1.0/bpmn
 
 ## additionalModules
 modules:
@@ -131,9 +191,9 @@ providers:
 modules:
 + linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
-+ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after the defaults)
-+ codeLinkMapClient=type(CodeLinkMapClient) codeLinkContextPadProvider=type(CodeLinkContextPadProvider) codeLinkPort=value(Object) init[codeLinkMapClient, codeLinkContextPadProvider] (after formPreviewController)
-+ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object) init[definitionSearchPropertiesProvider] (after codeLinkMapClient)
++ formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after the defaults)
++ codeLinkMapClient=type(CodeLinkMapClient) codeLinkContextPadProvider=type(CodeLinkContextPadProvider) codeLinkPort=value(Object: codeLink port) init[codeLinkMapClient, codeLinkContextPadProvider] (after formPreviewController)
++ definitionSearchPropertiesProvider=type(DefinitionSearchPropertiesProvider) definitionSearchPort=value(Object: definitionSearch port) init[definitionSearchPropertiesProvider] (after codeLinkMapClient)
 + scriptTaskContextPadProvider=type(ScriptTaskContextPadProvider) init[scriptTaskContextPadProvider] (after definitionSearchPropertiesProvider)
 + scriptEditorOpener=type(ScriptEditorOpener) (after scriptTaskContextPadProvider)
 + scriptEditorButtons=type(ScriptEditorButtons) init[scriptEditorButtons] (after scriptEditorOpener)
@@ -141,10 +201,10 @@ modules:
 + openScriptEditorsStore=type(OpenScriptEditorsStore) init[openScriptEditorsStore] (after scriptEditorKeyboard)
 + scriptLockPropertiesProvider=type(ScriptLockPropertiesProvider) init[scriptLockPropertiesProvider] (after openScriptEditorsStore)
 + scriptSourceWatcher=type(ScriptSourceWatcher) init[scriptSourceWatcher] (after scriptLockPropertiesProvider)
-+ inlineScriptingPortForwarder=type(InlineScriptingPortForwarder) inlineScriptingPort=value(Object) init[inlineScriptingPortForwarder] (after scriptSourceWatcher)
++ inlineScriptingPortForwarder=type(InlineScriptingPortForwarder) inlineScriptingPort=value(Object: scripting port) init[inlineScriptingPortForwarder] (after scriptSourceWatcher)
 + bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after inlineScriptingPortForwarder)
 + labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
-+ elementClipboardBridge=value(Object) textClipboardBridge=value(Object) (after labelClipboard)
++ elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
 + callerProbe=value("caller") (after elementClipboardBridge)
 providers:
 + bpmnLintConfig: type(LintConfigService)
@@ -152,13 +212,13 @@ providers:
 + callerProbe: value("caller")
 + codeLinkContextPadProvider: type(CodeLinkContextPadProvider)
 + codeLinkMapClient: type(CodeLinkMapClient)
-+ codeLinkPort: value(Object)
-+ definitionSearchPort: value(Object)
++ codeLinkPort: value(Object: codeLink port)
++ definitionSearchPort: value(Object: definitionSearch port)
 + definitionSearchPropertiesProvider: type(DefinitionSearchPropertiesProvider)
-+ elementClipboardBridge: value(Object)
++ elementClipboardBridge: value(Object: clipboard bridge)
 + formPreviewController: type(FormPreviewController)
 + formReferenceStatusClient: type(FormReferenceStatusClient)
-+ inlineScriptingPort: value(Object)
++ inlineScriptingPort: value(Object: scripting port)
 + inlineScriptingPortForwarder: type(InlineScriptingPortForwarder)
 + labelClipboard: type(LabelClipboard)
 + lintCallbacks: value({})
@@ -167,7 +227,7 @@ providers:
 + lintUpdate: type(LintUpdateService)
 + linting: type(Linting)
 + lintingEditorActions: type(EditorActions)
-+ modelNavigationPort: value(Object)
++ modelNavigationPort: value(Object: modelNavigation port)
 + navigateContextPadProvider: type(NavigateContextPadProvider)
 + openScriptEditorsStore: type(OpenScriptEditorsStore)
 + scriptEditorButtons: type(ScriptEditorButtons)
@@ -176,7 +236,7 @@ providers:
 + scriptLockPropertiesProvider: type(ScriptLockPropertiesProvider)
 + scriptSourceWatcher: type(ScriptSourceWatcher)
 + scriptTaskContextPadProvider: type(ScriptTaskContextPadProvider)
-+ textClipboardBridge: value(Object)
++ textClipboardBridge: value(Object: clipboard bridge)
 __init__:
 + linting (after tokenSimulationKeyboardBindings)
 + lintingEditorActions @linting (after linting)

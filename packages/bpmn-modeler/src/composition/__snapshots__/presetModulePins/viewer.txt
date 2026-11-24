@@ -181,8 +181,8 @@ tokenSimulationPalette
 toggleMode
 
 ## config (by key path, without `modules` and `moddleExtensions`)
-canvas.container: HTMLDivElement
-container: HTMLDivElement
+canvas.container: HTMLDivElement#1
+container: HTMLDivElement#2
 height: "100%"
 minimap.open: false
 position: "relative"

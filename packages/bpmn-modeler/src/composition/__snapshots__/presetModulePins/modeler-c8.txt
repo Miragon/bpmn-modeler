@@ -164,7 +164,7 @@ replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTempla
 flowNavigation=type(FlowNavigation) deleteSelectionBehavior=type(DeleteSelectionBehavior) contextPadKeyboard=type(ContextPadKeyboard) planeNavigation=type(PlaneNavigation) linkNavigation=type(LinkNavigation) init[flowNavigation, deleteSelectionBehavior, contextPadKeyboard, planeNavigation, linkNavigation]
 bpmnLayoutCommands=type(LayoutCommandInitializer) bpmnLayouter=type(Layouter) bpmnCleanup=type(CleanupService) layoutEngine=value(BpmnAutoLayoutEngine) layoutKeyboard=type(LayoutKeyboard) layoutPaletteProvider=type(LayoutPaletteProvider) init[bpmnLayoutCommands, layoutKeyboard, layoutPaletteProvider]
 elementIdCommands=type(ElementIdCommands) elementIds=type(ElementIdsService) followNameBehavior=type(FollowNameBehavior) idFromNamePropertiesProvider=type(IdFromNamePropertiesProvider) init[elementIdCommands, followNameBehavior, idFromNamePropertiesProvider]
-propertiesPanelRoot=value(HTMLDivElement)
+propertiesPanelRoot=value(HTMLDivElement#3)
 propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter]
 customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups]
 debounceInput=factory(debounceInputFactory)
@@ -411,7 +411,7 @@ previewSupport: type(PreviewSupport)
 processBehavior: type(ProcessBehavior)
 propertiesPanel: type(BpmnPropertiesPanelRenderer)
 propertiesPanelModeFilter: type(ModeFilterProvider)
-propertiesPanelRoot: value(HTMLDivElement)
+propertiesPanelRoot: value(HTMLDivElement#3)
 removeAssignmentDefinitionBehavior: type(RemoveAssignmentDefinitionBehavior)
 removeElementBehavior: type(RemoveElementBehavior)
 removeEmbeddedLabelBoundsBehavior: type(RemoveEmbeddedLabelBoundsBehavior)
@@ -752,15 +752,15 @@ drilldownFit
 alignToOrigin.alignOnSave: false
 alignToOrigin.offset: 150
 alignToOrigin.tolerance: 50
-canvas.container: HTMLDivElement
-container: HTMLDivElement
+canvas.container: HTMLDivElement#1
+container: HTMLDivElement#2
 height: "100%"
 popupMenu.defaultTab.id: "bpmn"
 popupMenu.defaultTab.label: "BPMN"
 position: "relative"
-propertiesPanel.feelPopupContainer: HTMLDivElement
+propertiesPanel.feelPopupContainer: HTMLDivElement#2
 propertiesPanel.getFeelPopupLinks: fn getFeelPopupLinks
-propertiesPanel.parent: HTMLDivElement
+propertiesPanel.parent: HTMLDivElement#3
 propertiesPanel.tooltip.bindingType: fn bindingType
 propertiesPanel.tooltip.condition: fn condition
 propertiesPanel.tooltip.group-Zeebe__ExecutionListeners: fn group-Zeebe__ExecutionListeners

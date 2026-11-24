@@ -599,13 +599,13 @@ tokenSimulationKeyboardBindings
 nativeCopyPaste
 
 ## config (by key path, without `modules` and `moddleExtensions`)
-canvas.container: HTMLDivElement
-container: HTMLDivElement
+canvas.container: HTMLDivElement#1
+container: HTMLDivElement#2
 height: "100%"
 minimap.open: false
 position: "relative"
-propertiesPanel.feelPopupContainer: HTMLDivElement
-propertiesPanel.parent: HTMLDivElement
+propertiesPanel.feelPopupContainer: HTMLDivElement#2
+propertiesPanel.parent: HTMLDivElement#3
 width: "100%"
 
 ## moddle packages (registration order)

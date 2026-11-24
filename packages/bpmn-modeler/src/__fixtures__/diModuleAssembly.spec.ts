@@ -1,20 +1,16 @@
-import type { Injector, ModuleDeclaration } from "didi";
+import type { Injector } from "didi";
 import Diagram from "diagram-js/lib/Diagram";
 import { describe, expect, it } from "vitest";
 
 import {
     assembleModules,
-    configLeaves,
     disagreementsWithInjector,
     flattenModules,
-    moddlePackageLines,
-    optionDelta,
+    injectorModulesOf,
     overridesOf,
-    renderPins,
     winningValueOf,
     type DidiInjector,
     type DiModule,
-    type SurfacePins,
 } from "./diModuleAssembly";
 
 class First {}
@@ -33,243 +29,221 @@ function injectorClassOfDiagramJs(): typeof Injector {
 
 const DiagramJsInjector = injectorClassOfDiagramJs();
 
-function builtInjector(modules: DiModule[]): DidiInjector & { init(): void } {
-    const injector = new DiagramJsInjector(modules as ModuleDeclaration[]);
+function builtInjector(modules: DiModule[]): DidiInjector {
+    const injector = new DiagramJsInjector(modules);
     injector.init();
-    return injector as unknown as DidiInjector & { init(): void };
+    return injector as unknown as DidiInjector;
 }
 
-function pinsOf(
-    modules: readonly DiModule[],
-    config: object = { modules },
-    moddlePackages: readonly { prefix: string; uri: string }[] = [],
-): SurfacePins {
-    return {
-        assembly: assembleModules(modules),
-        config: configLeaves(config),
-        moddlePackages: moddlePackageLines(moddlePackages),
-    };
-}
+describe("diModuleAssembly", () => {
+    describe("resolves modules as the injector diagram-js builds does", () => {
+        it("flattens dependencies first, registers a module once and runs __init__ in that order", () => {
+            const ran: string[] = [];
+            const shared: DiModule = { shared: ["value", 1], __init__: [() => ran.push("shared")] };
+            const middle: DiModule = {
+                __depends__: [shared],
+                middle: ["value", 2],
+                __init__: [() => ran.push("middle")],
+            };
+            const top: DiModule = {
+                __depends__: [shared, middle],
+                top: ["value", 3],
+                __init__: ["middle", () => ran.push("top")],
+            };
+            const list = [top, middle, shared];
 
-describe("diModuleAssembly against didi's own injector", () => {
-    it("flattens dependencies first, registers a module once and runs __init__ in that order", () => {
-        const ran: string[] = [];
-        const shared: DiModule = { shared: ["value", 1], __init__: [() => ran.push("shared")] };
-        const middle: DiModule = {
-            __depends__: [shared],
-            middle: ["value", 2],
-            __init__: [() => ran.push("middle")],
-        };
-        const top: DiModule = {
-            __depends__: [shared, middle],
-            top: ["value", 3],
-            __init__: ["middle", () => ran.push("top")],
-        };
-        const list = [top, middle, shared];
+            builtInjector(list);
 
-        builtInjector(list);
-
-        expect(flattenModules(list)).toEqual([shared, middle, top]);
-        expect(ran).toEqual(["shared", "middle", "top"]);
-        expect(assembleModules(list).inits.map(({ text }) => text)).toEqual([
-            "fn <anonymous>() @shared",
-            "fn <anonymous>() @middle",
-            "middle @top",
-            "fn <anonymous>() @top",
-        ]);
-    });
-
-    it("names the last registration of a DI name as its winner, as the injector resolves it", () => {
-        const list: DiModule[] = [
-            { service: ["type", First] },
-            { __depends__: [{ service: ["type", Second] }], other: ["value", "x"] },
-            { service: ["type", Third] },
-        ];
-
-        expect(overridesOf(assembleModules(list))).toEqual({
-            service: {
-                winner: "type(Third) @service",
-                over: ["type(Second) @service", "type(First) @service"],
-            },
+            expect(flattenModules(list)).toEqual([shared, middle, top]);
+            expect(ran).toEqual(["shared", "middle", "top"]);
+            expect(assembleModules(list).inits.map(({ text }) => text)).toEqual([
+                "fn <anonymous>() @shared",
+                "fn <anonymous>() @middle",
+                "middle @top",
+                "fn <anonymous>() @top",
+            ]);
         });
-        expect(disagreementsWithInjector(assembleModules(list), builtInjector(list))).toEqual([]);
+
+        it("walks sibling dependencies left to right", () => {
+            const ran: string[] = [];
+            const left: DiModule = { left: ["value", 1], __init__: [() => ran.push("left")] };
+            const right: DiModule = { right: ["value", 2], __init__: [() => ran.push("right")] };
+            const both: DiModule = { __depends__: [left, right] };
+
+            const injector = builtInjector([both]);
+
+            expect(flattenModules([both])).toEqual([left, right, both]);
+            expect(ran).toEqual(["left", "right"]);
+            expect(disagreementsWithInjector(assembleModules([both]), injector)).toEqual([]);
+        });
+
+        it("names the last registration of a DI name as its winner, as the injector resolves it", () => {
+            const list: DiModule[] = [
+                { service: ["type", First] },
+                { __depends__: [{ service: ["type", Second] }], other: ["value", "x"] },
+                { service: ["type", Third] },
+            ];
+
+            expect(overridesOf(assembleModules(list))).toEqual({
+                service: {
+                    winner: "type(Third) @service",
+                    over: ["type(Second) @service", "type(First) @service"],
+                },
+            });
+            expect(disagreementsWithInjector(assembleModules(list), builtInjector(list))).toEqual(
+                [],
+            );
+        });
+
+        it("lists the modules diagram-js hands its injector", () => {
+            const probe: DiModule = { probe: ["value", "probe"], __init__: ["probe"] };
+            const diagram = new Diagram({ modules: [probe] });
+            try {
+                const config = diagram.get<{ modules: DiModule[] }>("config");
+
+                expect(
+                    disagreementsWithInjector(
+                        assembleModules(injectorModulesOf(config)),
+                        diagram.get<DidiInjector>("injector"),
+                    ),
+                ).toEqual([]);
+            } finally {
+                diagram.destroy();
+            }
+        });
+
+        it("reports a winner the injector does not hold", () => {
+            const first: DiModule = { service: ["type", First] };
+            const second: DiModule = { service: ["type", Second] };
+
+            expect(
+                disagreementsWithInjector(
+                    assembleModules([first, second]),
+                    builtInjector([second, first]),
+                ),
+            ).toEqual(["service: the injector stores another provider than type(Second)"]);
+        });
+
+        it("reports a DI name only the injector or only the assembly knows", () => {
+            const one: DiModule = { one: ["value", 1] };
+            const two: DiModule = { two: ["value", 2] };
+
+            expect(
+                disagreementsWithInjector(assembleModules([one]), builtInjector([one, two])),
+            ).toEqual(["two: registered, but not in the assembly"]);
+            expect(
+                disagreementsWithInjector(assembleModules([one, two]), builtInjector([one])),
+            ).toEqual(["two: in the assembly, but not registered"]);
+        });
+
+        it("reports DI names first registered in another order than the injector's", () => {
+            const one: DiModule = { one: ["value", 1] };
+            const two: DiModule = { two: ["value", 2] };
+
+            expect(
+                disagreementsWithInjector(assembleModules([one, two]), builtInjector([two, one])),
+            ).toEqual([
+                "first registration order: the assembly has one where the injector has two",
+            ]);
+        });
+
+        it("reports an __init__ order the injector does not run for the same modules", () => {
+            const module: DiModule = {
+                one: ["value", 1],
+                two: ["value", 2],
+                __init__: ["one", "two"],
+            };
+            const assembly = assembleModules([module]);
+
+            expect(
+                disagreementsWithInjector(
+                    { ...assembly, inits: [...assembly.inits].reverse() },
+                    builtInjector([module]),
+                ),
+            ).toEqual(["__init__ order: the assembly has two @one where the injector has one"]);
+        });
+
+        it("names the cause when didi no longer exposes its provider table", () => {
+            expect(() =>
+                disagreementsWithInjector(assembleModules([]), {} as DidiInjector),
+            ).toThrow("didi no longer exposes _providers");
+        });
     });
 
-    it("reports a winner the injector does not hold", () => {
-        const first: DiModule = { service: ["type", First] };
-        const second: DiModule = { service: ["type", Second] };
+    describe("prints what each module registers", () => {
+        it("prints a renamed class by its source name, an anonymous factory by what it injects", () => {
+            class Renamed$1 {}
+            const list: DiModule[] = [
+                { __depends__: [{ renamed: ["type", Renamed$1] }] },
+                { made: ["factory", ["eventBus", (bus: unknown) => bus]] },
+                { parsed: ["factory", (canvas: unknown, overlays: unknown) => [canvas, overlays]] },
+            ];
 
-        expect(
-            disagreementsWithInjector(
-                assembleModules([first, second]),
-                builtInjector([second, first]),
-            ),
-        ).toEqual(["service: the injector stores another provider than type(Second)"]);
-    });
+            expect(assembleModules(list).modules.map(({ text }) => text)).toEqual([
+                "renamed=type(Renamed)",
+                "depends[renamed]",
+                "made=factory(<anonymous>(eventBus))",
+                "parsed=factory(<anonymous>(canvas, overlays))",
+            ]);
+        });
 
-    it("prints a renamed class by its source name, an anonymous factory by what it injects", () => {
-        class Renamed$1 {}
-        const list: DiModule[] = [
-            { __depends__: [{ renamed: ["type", Renamed$1] }] },
-            { made: ["factory", ["eventBus", (bus: unknown) => bus]] },
-            { parsed: ["factory", (canvas: unknown, overlays: unknown) => [canvas, overlays]] },
-        ];
+        it("prints plain data by its content with sorted keys, anything else by its type", () => {
+            const list: DiModule[] = [
+                { tier: ["value", { mode: "design", tier: "in-page", engine: undefined }] },
+                { names: ["value", ["b", "a"]] },
+                { port: ["value", { open: () => undefined }] },
+                { instance: ["value", new First()] },
+                { node: ["value", document.createElement("div")] },
+            ];
 
-        expect(assembleModules(list).modules.map(({ text }) => text)).toEqual([
-            "renamed=type(Renamed)",
-            "depends[renamed]",
-            "made=factory(<anonymous>(eventBus))",
-            "parsed=factory(<anonymous>(canvas, overlays))",
-        ]);
-    });
+            expect(assembleModules(list).modules.map(({ text }) => text)).toEqual([
+                'tier=value({"mode":"design","tier":"in-page"})',
+                'names=value(["b","a"])',
+                "port=value(Object)",
+                "instance=value(First)",
+                "node=value(HTMLDivElement)",
+            ]);
+        });
 
-    it("prints plain data by its content with sorted keys, anything else by its type", () => {
-        const list: DiModule[] = [
-            { tier: ["value", { mode: "design", tier: "in-page", engine: undefined }] },
-            { names: ["value", ["b", "a"]] },
-            { port: ["value", { open: () => undefined }] },
-            { instance: ["value", new First()] },
-            { node: ["value", document.createElement("div")] },
-        ];
+        it("appends a value's name to its type, so two values of one type tell apart", () => {
+            const port = { open: () => undefined };
+            const node = document.createElement("div");
+            const names = new Map<object, string>([
+                [port, ": probe port"],
+                [node, "#1"],
+            ]);
 
-        expect(assembleModules(list).modules.map(({ text }) => text)).toEqual([
-            'tier=value({"mode":"design","tier":"in-page"})',
-            'names=value(["b","a"])',
-            "port=value(Object)",
-            "instance=value(First)",
-            "node=value(HTMLDivElement)",
-        ]);
-    });
+            expect(
+                assembleModules(
+                    [
+                        {
+                            port: ["value", port],
+                            other: ["value", { open: () => undefined }],
+                            node: ["value", node],
+                        },
+                    ],
+                    names,
+                ).modules.map(({ text }) => text),
+            ).toEqual([
+                "port=value(Object: probe port) other=value(Object) node=value(HTMLDivElement#1)",
+            ]);
+        });
 
-    it("reads the value a DI name resolves to", () => {
-        const annotations = new First();
-        const assembly = assembleModules([
-            { annotations: ["value", new Second()] },
-            { annotations: ["value", annotations] },
-        ]);
+        it("reads the value a DI name resolves to", () => {
+            const annotations = new First();
+            const assembly = assembleModules([
+                { annotations: ["value", new Second()] },
+                { annotations: ["value", annotations] },
+            ]);
 
-        expect(winningValueOf(assembly, "annotations")).toBe(annotations);
-        expect(() => winningValueOf(assembly, "missing")).toThrow("missing");
-    });
+            expect(winningValueOf(assembly, "annotations")).toBe(annotations);
+            expect(() => winningValueOf(assembly, "missing")).toThrow("missing");
+        });
 
-    it("refuses a private didi module", () => {
-        expect(() => assembleModules([{ __exports__: ["a"], a: ["value", 1] }])).toThrow(
-            "private didi modules",
-        );
-    });
-
-    it("shows a moved module as a removal and an addition at its new position", () => {
-        const one: DiModule = { one: ["value", 1] };
-        const two: DiModule = { two: ["value", 2] };
-        const three: DiModule = { three: ["value", 3] };
-
-        expect(optionDelta(pinsOf([one, two, three]), pinsOf([two, one, three]))).toEqual([
-            "modules:",
-            "+ two=value(2) (first)",
-            "- two=value(2)",
-        ]);
-    });
-
-    it("prints each config leaf by key path, walking plain objects, and leaves out what is pinned elsewhere", () => {
-        const container = document.createElement("div");
-        const tooltip = { "group-general": (element: unknown) => element };
-
-        expect([
-            ...configLeaves({
-                modules: [{ one: ["value", 1] }],
-                moddleExtensions: { camunda: { prefix: "camunda" } },
-                propertiesPanel: { parent: container, tooltip, layout: {} },
-                popupMenu: { defaultTab: "bpmn" },
-                alignToOrigin: { offset: 150, tolerance: 50 },
-                names: ["b", "a"],
-                propertiesPanelMode: "implement",
-                getFeelPopupLinks: (type: string) => type,
-                instance: new First(),
-            }),
-        ]).toEqual([
-            ["alignToOrigin.offset", "150"],
-            ["alignToOrigin.tolerance", "50"],
-            ["getFeelPopupLinks", "fn getFeelPopupLinks"],
-            ["instance", "First"],
-            ["names", '["b","a"]'],
-            ["popupMenu.defaultTab", '"bpmn"'],
-            ["propertiesPanel.layout", "{}"],
-            ["propertiesPanel.parent", "HTMLDivElement"],
-            ["propertiesPanel.tooltip.group-general", "fn group-general"],
-            ["propertiesPanelMode", '"implement"'],
-        ]);
-    });
-
-    it("prints a config object that holds itself once, by type", () => {
-        const looped: Record<string, unknown> = { flag: true };
-        looped.self = looped;
-
-        expect([...configLeaves({ looped })]).toEqual([
-            ["looped.flag", "true"],
-            ["looped.self", "Object"],
-        ]);
-    });
-
-    it("pins the config and the moddle packages after the modules", () => {
-        const pins = pinsOf([{ one: ["value", 1] }], { mode: "design" }, [
-            { prefix: "bpmn", uri: "http://www.omg.org/spec/BPMN/20100524/MODEL" },
-            { prefix: "camunda", uri: "http://camunda.org/schema/1.0/bpmn" },
-        ]);
-
-        const rendered = renderPins("probe", pins);
-
-        expect(rendered.slice(rendered.indexOf("## __init__"))).toBe(
-            [
-                "## __init__ (run order)",
-                "",
-                "## config (by key path, without `modules` and `moddleExtensions`)",
-                'mode: "design"',
-                "",
-                "## moddle packages (registration order)",
-                "bpmn http://www.omg.org/spec/BPMN/20100524/MODEL",
-                "camunda http://camunda.org/schema/1.0/bpmn",
-                "",
-            ].join("\n"),
-        );
-    });
-
-    it("shows what an option adds, removes or replaces in the config and the moddle packages", () => {
-        const bpmn = { prefix: "bpmn", uri: "bpmn-uri" };
-        const zeebe = { prefix: "zeebe", uri: "zeebe-uri" };
-        const camunda = { prefix: "camunda", uri: "camunda-uri" };
-
-        expect(
-            optionDelta(
-                pinsOf([], { mode: "implement", minimap: { open: false } }, [bpmn, zeebe]),
-                pinsOf([], { mode: "design", extra: 1 }, [bpmn, camunda]),
-            ),
-        ).toEqual([
-            "config:",
-            "+ extra: 1",
-            "- minimap.open: false",
-            '~ mode: "implement" → "design"',
-            "moddle packages:",
-            "+ camunda camunda-uri (after bpmn)",
-            "- zeebe zeebe-uri",
-        ]);
-    });
-
-    it("anchors an addition behind the last default to the defaults, not to that module", () => {
-        const one: DiModule = { one: ["value", 1] };
-        const two: DiModule = { two: ["value", 2] };
-        const group: DiModule = { __depends__: [one, two] };
-        const inserted: DiModule = { inserted: ["value", 3] };
-        const appended: DiModule = { appended: ["value", 4] };
-        const last: DiModule = { last: ["value", 5] };
-
-        expect(
-            optionDelta(
-                pinsOf([group, last], {}),
-                pinsOf([group, inserted, last, appended], {}),
-            ).filter((line) => line.startsWith("+") && line.includes("=")),
-        ).toEqual([
-            "+ inserted=value(3) (after […, two])",
-            "+ appended=value(4) (after the defaults)",
-        ]);
+        it("refuses a private didi module", () => {
+            expect(() => assembleModules([{ __exports__: ["a"], a: ["value", 1] }])).toThrow(
+                "private didi modules",
+            );
+        });
     });
 });

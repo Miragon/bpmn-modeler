@@ -3,47 +3,39 @@
  * bpmn-js handed diagram-js and flattened the way the injector diagram-js
  * builds does it: `__depends__` depth first, each module once at its first
  * position, the last registration of a name wins, `__init__` entries run in
- * flattened module order. Beside the modules: the rest of the config and the
- * moddle packages bpmn-js was built with.
+ * flattened module order.
  */
+import type { ModuleDeclaration, ProviderType } from "didi";
 import DiagramCoreModule from "diagram-js/lib/core";
 
-type Declaration = readonly [kind: string, value: unknown, ...rest: unknown[]];
+export type DiModule = ModuleDeclaration;
 
-export interface DiModule {
-    readonly __depends__?: readonly DiModule[];
-    readonly __init__?: readonly unknown[];
-    readonly [key: string]: unknown;
-}
+type Declaration = readonly [kind: ProviderType, value: unknown, ...rest: unknown[]];
+
+/** Tells apart values that print by their type: the text is appended to the type. */
+export type ValueNames = ReadonlyMap<object, string>;
 
 interface Registration {
     readonly provider: string;
     readonly module: string;
     /** What the injector stores as the provider: the function or the value. */
     readonly target: unknown;
-    readonly kind: string;
+    readonly kind: ProviderType;
 }
 
-interface PinnedLine {
+export interface PinnedLine {
     readonly text: string;
     /** Names the line's position in a delta. */
     readonly label: string;
 }
 
 export interface ModuleAssembly {
+    /** The module list as the injector receives it, before flattening. */
+    readonly topLevel: readonly DiModule[];
     readonly modules: readonly PinnedLine[];
     /** Per DI name, in registration order: the last one wins. */
     readonly registrations: ReadonlyMap<string, readonly Registration[]>;
     readonly inits: readonly PinnedLine[];
-}
-
-/** Everything a preset hands bpmn-js: its modules, its config and the moddle packages. */
-export interface SurfacePins {
-    readonly assembly: ModuleAssembly;
-    /** Each config leaf by key path, sorted. */
-    readonly config: ReadonlyMap<string, string>;
-    /** `prefix uri` per moddle package, in registration order. */
-    readonly moddlePackages: readonly PinnedLine[];
 }
 
 export interface Override {
@@ -51,15 +43,21 @@ export interface Override {
     readonly over: readonly string[];
 }
 
+export interface DidiInjector {
+    /** didi's provider table: `[factory, function or value, kind]` per DI name. */
+    readonly _providers: Readonly<Record<string, readonly unknown[]>>;
+    readonly constructor: new (modules: DiModule[]) => { init(): void };
+}
+
 const DIDI_KEYS = new Set(["__depends__", "__init__"]);
-// The modules are pinned as the assembly; the moddle extensions as the packages they build.
-const CONFIG_KEYS_PINNED_ELSEWHERE = new Set(["modules", "moddleExtensions"]);
 // Rolldown renames a class whose name clashes in a chunk; which copy gets `$1` is bundler output.
+// Namesakes therefore print alike: a lone provider swapped for its namesake changes no line.
 const BUNDLER_SUFFIX = /\$\d+$/;
+const NO_NAMES: ValueNames = new Map();
 
 /** diagram-js prepends its config module and core module to `config.modules` (Diagram.js `createInjector`). */
 export function injectorModulesOf(config: { readonly modules: readonly DiModule[] }): DiModule[] {
-    return [{ config: ["value", config] }, DiagramCoreModule as DiModule, ...config.modules];
+    return [{ config: ["value", config] }, DiagramCoreModule, ...config.modules];
 }
 
 export function flattenModules(topLevel: readonly DiModule[]): DiModule[] {
@@ -69,15 +67,16 @@ export function flattenModules(topLevel: readonly DiModule[]): DiModule[] {
             return;
         }
         (module.__depends__ ?? []).forEach(visit);
-        if (!resolved.includes(module)) {
-            resolved.push(module);
-        }
+        resolved.push(module);
     };
     topLevel.forEach(visit);
     return resolved;
 }
 
-export function assembleModules(topLevel: readonly DiModule[]): ModuleAssembly {
+export function assembleModules(
+    topLevel: readonly DiModule[],
+    names: ValueNames = NO_NAMES,
+): ModuleAssembly {
     const modules = flattenModules(topLevel);
     const registrations = new Map<string, Registration[]>();
     const inits: PinnedLine[] = [];
@@ -91,7 +90,7 @@ export function assembleModules(topLevel: readonly DiModule[]): ModuleAssembly {
         for (const [name, declaration] of providerEntries(module)) {
             const list = registrations.get(name) ?? [];
             list.push({
-                provider: providerIdentity(declaration),
+                provider: providerIdentity(declaration, names),
                 module: label,
                 target: providerTarget(declaration),
                 kind: declaration[0],
@@ -99,13 +98,13 @@ export function assembleModules(topLevel: readonly DiModule[]): ModuleAssembly {
             registrations.set(name, list);
         }
         for (const entry of module.__init__ ?? []) {
-            const init = initIdentity(entry);
-            inits.push({ text: init === label ? init : `${init} @${label}`, label: init });
+            inits.push(initLine(entry, label));
         }
     }
     return {
+        topLevel,
         modules: modules.map((module) => ({
-            text: moduleIdentity(module),
+            text: moduleIdentity(module, names),
             label: labelOf(module),
         })),
         registrations,
@@ -113,22 +112,17 @@ export function assembleModules(topLevel: readonly DiModule[]): ModuleAssembly {
     };
 }
 
-export interface DidiInjector {
-    /** didi's provider table: `[factory, function or value, kind]` per DI name. */
-    readonly _providers: Readonly<Record<string, readonly unknown[]>>;
-    get(name: string): unknown;
-}
-
 /**
  * Where the assembly and the built injector disagree: a DI name only one of them
- * knows, a provider the injector stores other than the assembly's winner, or,
- * for a name registered more than once, a resolved service the winner did not make.
+ * knows, a provider the injector stores other than the assembly's winner, the
+ * order in which DI names are first registered, or the `__init__` order didi runs
+ * for the same modules.
  */
 export function disagreementsWithInjector(
     assembly: ModuleAssembly,
     injector: DidiInjector,
 ): string[] {
-    const stored = injector._providers;
+    const stored = providerTableOf(injector);
     const disagreements = Object.keys(stored)
         .filter((name) => !assembly.registrations.has(name))
         .map((name) => `${name}: registered, but not in the assembly`);
@@ -140,22 +134,83 @@ export function disagreementsWithInjector(
             disagreements.push(
                 `${name}: the injector stores another provider than ${winner.provider}`,
             );
-        } else if (list.length > 1 && !madeBy(injector.get(name), winner)) {
-            disagreements.push(`${name}: resolves to a service ${winner.provider} did not make`);
         }
     }
-    return disagreements;
+    return [
+        ...disagreements,
+        ...registrationOrderDisagreements(assembly, stored),
+        ...initOrderDisagreements(assembly, injector.constructor),
+    ];
 }
 
-function madeBy(service: unknown, { kind, target }: Registration): boolean {
-    if (kind === "type") {
-        return Object.getPrototypeOf(service) === (target as { prototype: unknown }).prototype;
+function providerTableOf(injector: DidiInjector): DidiInjector["_providers"] {
+    const stored: unknown = injector._providers;
+    if (typeof stored !== "object" || stored === null) {
+        throw new Error("didi no longer exposes _providers");
     }
-    // A factory's result carries no trace of the factory; the provider table check covers it.
-    return kind === "factory" || service === target;
+    return injector._providers;
 }
 
-/** What a `value` provider's winning registration hands the injector. */
+// didi adds a DI name to its provider table at the first registration, as the assembly's Map does.
+function registrationOrderDisagreements(
+    assembly: ModuleAssembly,
+    stored: DidiInjector["_providers"],
+): string[] {
+    const injected = Object.keys(stored).filter((name) => assembly.registrations.has(name));
+    const assembled = [...assembly.registrations.keys()].filter((name) =>
+        Object.hasOwn(stored, name),
+    );
+    return firstDifference("first registration order", assembled, injected);
+}
+
+// The provider table keeps no `__init__` order, so a fresh injector of the same class runs
+// the same module graph with initializers that only record their line.
+function initOrderDisagreements(
+    assembly: ModuleAssembly,
+    Injector: DidiInjector["constructor"],
+): string[] {
+    const ran: string[] = [];
+    const clones = new Map<DiModule, DiModule>();
+    const cloneOf = (module: DiModule): DiModule => {
+        const known = clones.get(module);
+        if (known) {
+            return known;
+        }
+        const label = labelOf(module);
+        const clone: DiModule = {
+            __depends__: (module.__depends__ ?? []).map(cloneOf),
+            __init__: (module.__init__ ?? []).map((entry) => {
+                const { text } = initLine(entry, label);
+                return Object.assign(() => ran.push(text), { $inject: [] });
+            }),
+        };
+        clones.set(module, clone);
+        return clone;
+    };
+    new Injector(assembly.topLevel.map(cloneOf)).init();
+    return firstDifference(
+        "__init__ order",
+        assembly.inits.map(({ text }) => text),
+        ran,
+    );
+}
+
+function firstDifference(
+    what: string,
+    assembled: readonly string[],
+    injected: readonly string[],
+): string[] {
+    const length = Math.max(assembled.length, injected.length);
+    for (let index = 0; index < length; index++) {
+        if (assembled[index] !== injected[index]) {
+            return [
+                `${what}: the assembly has ${assembled[index] ?? "nothing"} where the injector has ${injected[index] ?? "nothing"}`,
+            ];
+        }
+    }
+    return [];
+}
+
 export function winningValueOf(assembly: ModuleAssembly, name: string): unknown {
     const winner = assembly.registrations.get(name)?.at(-1);
     if (winner?.kind !== "value") {
@@ -164,7 +219,6 @@ export function winningValueOf(assembly: ModuleAssembly, name: string): unknown 
     return winner.target;
 }
 
-/** Every DI name registered more than once, with the provider that wins and those it replaces. */
 export function overridesOf(assembly: ModuleAssembly): Record<string, Override> {
     const overrides: Record<string, Override> = {};
     for (const [name, list] of sortedRegistrations(assembly)) {
@@ -179,126 +233,11 @@ export function overridesOf(assembly: ModuleAssembly): Record<string, Override> 
     return overrides;
 }
 
-/**
- * The config bpmn-js hands diagram-js, one leaf per key path: plain objects are
- * walked, anything else prints as a provider value does.
- */
-export function configLeaves(config: object): Map<string, string> {
-    const leaves: [string, string][] = [];
-    const visit = (value: unknown, path: string, ancestors: readonly object[]): void => {
-        const walkable =
-            isPlainObject(value) && Object.keys(value).length > 0 && !ancestors.includes(value);
-        if (!walkable) {
-            leaves.push([path, valueIdentity(value)]);
-            return;
-        }
-        for (const [key, item] of Object.entries(value)) {
-            visit(item, `${path}.${key}`, [...ancestors, value]);
-        }
-    };
-    for (const [key, value] of Object.entries(config)) {
-        if (!CONFIG_KEYS_PINNED_ELSEWHERE.has(key)) {
-            visit(value, key, [config]);
-        }
-    }
-    return new Map(leaves.sort(([left], [right]) => byCodeUnit(left, right)));
-}
-
-export function moddlePackageLines(
-    packages: readonly { readonly prefix: string; readonly uri: string }[],
-): PinnedLine[] {
-    return packages.map(({ prefix, uri }) => ({ text: `${prefix} ${uri}`, label: prefix }));
-}
-
-export function renderPins(
-    title: string,
-    { assembly, config, moddlePackages }: SurfacePins,
-): string {
-    const providers = sortedRegistrations(assembly).map(
-        ([name, list]) => `${name}: ${winnerText(list)}`,
-    );
-    return [
-        `# ${title}`,
-        "",
-        "## modules (registration order)",
-        ...assembly.modules.map(({ text }) => text),
-        "",
-        "## providers (by DI name)",
-        ...providers,
-        "",
-        "## __init__ (run order)",
-        ...assembly.inits.map(({ text }) => text),
-        "",
-        "## config (by key path, without `modules` and `moddleExtensions`)",
-        ...[...config].map(([path, value]) => `${path}: ${value}`),
-        "",
-        "## moddle packages (registration order)",
-        ...moddlePackages.map(({ text }) => text),
-        "",
-    ].join("\n");
-}
-
-/** What `variant` adds (+), removes (-) or replaces (~) against `base`; empty when it changes nothing. */
-export function optionDelta(base: SurfacePins, variant: SurfacePins): string[] {
-    const winners = (assembly: ModuleAssembly): Map<string, string> =>
-        new Map([...assembly.registrations].map(([name, list]) => [name, winnerText(list)]));
-    return [
-        ...section("modules", sequenceDelta(base.assembly.modules, variant.assembly.modules)),
-        ...section("providers", keyedDelta(winners(base.assembly), winners(variant.assembly))),
-        ...section("__init__", sequenceDelta(base.assembly.inits, variant.assembly.inits)),
-        ...section("config", keyedDelta(base.config, variant.config)),
-        ...section("moddle packages", sequenceDelta(base.moddlePackages, variant.moddlePackages)),
-    ];
-}
-
-function section(heading: string, lines: readonly string[]): string[] {
-    return lines.length === 0 ? [] : [`${heading}:`, ...lines];
-}
-
-function keyedDelta(
-    before: ReadonlyMap<string, string>,
-    after: ReadonlyMap<string, string>,
-): string[] {
-    const lines: string[] = [];
-    const keys = [...new Set([...before.keys(), ...after.keys()])].sort(byCodeUnit);
-    for (const key of keys) {
-        const old = before.get(key);
-        const current = after.get(key);
-        if (old === undefined && current !== undefined) {
-            lines.push(`+ ${key}: ${current}`);
-        } else if (old !== undefined && current === undefined) {
-            lines.push(`- ${key}: ${old}`);
-        } else if (old !== current) {
-            lines.push(`~ ${key}: ${old} → ${current}`);
-        }
-    }
-    return lines;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    if (value === null || typeof value !== "object") {
-        return false;
-    }
-    const prototype: unknown = Object.getPrototypeOf(value);
-    return prototype === Object.prototype || prototype === null;
-}
-
-function sortedRegistrations(assembly: ModuleAssembly): [string, readonly Registration[]][] {
+export function sortedRegistrations(assembly: ModuleAssembly): [string, readonly Registration[]][] {
     return [...assembly.registrations].sort(([left], [right]) => byCodeUnit(left, right));
 }
 
-function byCodeUnit(left: string, right: string): number {
-    if (left === right) {
-        return 0;
-    }
-    return left < right ? -1 : 1;
-}
-
-function registrationText({ provider, module }: Registration): string {
-    return `${provider} @${module}`;
-}
-
-function winnerText(list: readonly Registration[]): string {
+export function winnerText(list: readonly Registration[]): string {
     const winner = list[list.length - 1];
     if (list.length === 1) {
         return winner.provider;
@@ -307,51 +246,38 @@ function winnerText(list: readonly Registration[]): string {
     return `${registrationText(winner)} ×${list.length} over ${losers.join(", ")}`;
 }
 
-/**
- * An LCS diff, so an inserted line reads as one `+` and a moved one as a `-` and a `+`.
- * A line added behind the last default is placed after the defaults, not after that
- * module, so appending a default or moving the last one leaves such a line alone.
- */
-function sequenceDelta(before: readonly PinnedLine[], after: readonly PinnedLine[]): string[] {
-    const common: number[][] = Array.from({ length: before.length + 1 }, () =>
-        new Array<number>(after.length + 1).fill(0),
-    );
-    for (let i = before.length - 1; i >= 0; i--) {
-        for (let j = after.length - 1; j >= 0; j--) {
-            common[i][j] =
-                before[i].text === after[j].text
-                    ? common[i + 1][j + 1] + 1
-                    : Math.max(common[i + 1][j], common[i][j + 1]);
-        }
+// A consistent comparator returns 0 for equal strings, though today's callers sort unique keys.
+export function byCodeUnit(left: string, right: string): number {
+    if (left === right) {
+        return 0;
     }
-    const lines: string[] = [];
-    let previousIsLastDefault = false;
-    const position = (j: number): string => {
-        if (j === 0) {
-            return "(first)";
-        }
-        return previousIsLastDefault ? "(after the defaults)" : `(after ${after[j - 1].label})`;
-    };
-    let i = 0;
-    let j = 0;
-    while (i < before.length || j < after.length) {
-        if (i < before.length && j < after.length && before[i].text === after[j].text) {
-            i++;
-            j++;
-            previousIsLastDefault = i === before.length;
-        } else if (
-            j < after.length &&
-            (i === before.length || common[i][j + 1] >= common[i + 1][j])
-        ) {
-            lines.push(`+ ${after[j].text} ${position(j)}`);
-            j++;
-            previousIsLastDefault = false;
-        } else {
-            lines.push(`- ${before[i].text}`);
-            i++;
-        }
+    return left < right ? -1 : 1;
+}
+
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+    if (value === null || typeof value !== "object") {
+        return false;
     }
-    return lines;
+    const prototype: unknown = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+}
+
+export function valueIdentity(value: unknown, names: ValueNames = NO_NAMES): string {
+    if (isPlainData(value)) {
+        return JSON.stringify(value, sortKeys);
+    }
+    if (typeof value === "function") {
+        return `fn ${functionIdentity(value)}`;
+    }
+    if (typeof value !== "object" || value === null) {
+        return typeof value;
+    }
+    const constructorName = Object.getPrototypeOf(value)?.constructor?.name ?? "";
+    return `${constructorName.replace(BUNDLER_SUFFIX, "") || "Object"}${names.get(value) ?? ""}`;
+}
+
+function registrationText({ provider, module }: Registration): string {
+    return `${provider} @${module}`;
 }
 
 function providerEntries(module: DiModule): [string, Declaration][] {
@@ -364,9 +290,9 @@ function providerTarget([kind, value]: Declaration): unknown {
     return kind !== "value" && Array.isArray(value) ? value[value.length - 1] : value;
 }
 
-function providerIdentity([kind, value]: Declaration): string {
+function providerIdentity([kind, value]: Declaration, names: ValueNames): string {
     if (kind === "value") {
-        return `value(${valueIdentity(value)})`;
+        return `value(${valueIdentity(value, names)})`;
     }
     return `${kind}(${annotatedIdentity(value)})`;
 }
@@ -376,23 +302,6 @@ function annotatedIdentity(value: unknown): string {
         return functionIdentity(value[value.length - 1], value.slice(0, -1) as string[]);
     }
     return functionIdentity(value);
-}
-
-function valueIdentity(value: unknown): string {
-    if (value === undefined) {
-        return String(value);
-    }
-    if (isPlainData(value)) {
-        return JSON.stringify(value, sortKeys);
-    }
-    if (typeof value === "function") {
-        return `fn ${functionIdentity(value)}`;
-    }
-    if (typeof value !== "object") {
-        return typeof value;
-    }
-    const constructorName = Object.getPrototypeOf(value)?.constructor?.name ?? "";
-    return constructorName.replace(BUNDLER_SUFFIX, "") || "Object";
 }
 
 // Functions, DOM nodes and class instances have no stable text, so they print by type.
@@ -454,9 +363,14 @@ function initIdentity(entry: unknown): string {
     return typeof entry === "string" ? entry : `fn ${annotatedIdentity(entry)}`;
 }
 
-function moduleIdentity(module: DiModule): string {
+function initLine(entry: unknown, moduleLabel: string): PinnedLine {
+    const init = initIdentity(entry);
+    return { text: init === moduleLabel ? init : `${init} @${moduleLabel}`, label: init };
+}
+
+function moduleIdentity(module: DiModule, names: ValueNames): string {
     const parts = providerEntries(module).map(
-        ([name, declaration]) => `${name}=${providerIdentity(declaration)}`,
+        ([name, declaration]) => `${name}=${providerIdentity(declaration, names)}`,
     );
     const inits = module.__init__ ?? [];
     if (inits.length > 0) {

@@ -1,10 +1,19 @@
+// Pins what each preset hands bpmn-js, read from the built instance: bpmn-js passes its
+// options to diagram-js as `config`, whose `modules` hold the static, base and additional
+// modules, and builds its moddle from the moddle extensions. A reorder, a provider that newly
+// wins a DI name or a changed config leaf shows as a changed line in the pins; an added module
+// or key as added lines.
+// A bump of bpmn-js, diagram-js, token simulation or the properties panel updates the pins with
+// `-u` in the bump PR; `yarn.lock` selects this package's test target.
 import { afterEach, describe, expect, it, vi } from "vitest";
+import camundaModdle from "camunda-bpmn-moddle/resources/camunda.json";
+import zeebeModdle from "zeebe-bpmn-moddle/resources/zeebe.json";
 import type { CodeLinkPort } from "@miragon/bpmn-modeler-code-link";
 import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
 import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
-import { ENGINES, type Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINES, type BpmnlintConfig, type Engine } from "@miragon/bpmn-modeler-types";
 
 import * as lintModule from "../lint";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../popupMenuAnnotations/domain/baseAnnotations";
@@ -25,29 +34,21 @@ import {
     type SurfaceMount,
 } from "../__fixtures__/surfaceMount";
 import {
-    assembleModules,
-    configLeaves,
     disagreementsWithInjector,
-    injectorModulesOf,
-    moddlePackageLines,
-    optionDelta,
     overridesOf,
-    renderPins,
     winningValueOf,
     type DidiInjector,
     type DiModule,
     type ModuleAssembly,
     type Override,
-    type SurfacePins,
 } from "../__fixtures__/diModuleAssembly";
-
-/**
- * Pins what each preset hands bpmn-js, read from the built instance: bpmn-js
- * passes its options to diagram-js as `config`, whose `modules` hold the static,
- * base and additional modules, and builds its moddle from the moddle extensions.
- * A reorder, a provider that newly wins a DI name or a changed config leaf shows
- * as a changed line in the pins; an added module or key as added lines.
- */
+import {
+    optionDelta,
+    renderPins,
+    surfacePinsOf,
+    type ModdlePackage,
+    type SurfacePins,
+} from "../__fixtures__/presetPinText";
 
 interface BuiltSurface {
     getService<T = unknown>(name: string): T;
@@ -58,6 +59,17 @@ type Build<O> = (mount: SurfaceMount, options: Partial<O>) => Promise<BuiltSurfa
 type OptionVariant<O> = readonly [label: string, options: Partial<O>];
 
 const PINS = "./__snapshots__/presetModulePins";
+const PIN_FILES = [
+    ...ENGINES.flatMap((engine) => [
+        `modeler-${engine}.txt`,
+        `modeler-${engine}.options.txt`,
+        `template-preview-${engine}.delta.txt`,
+    ]),
+    "designer.txt",
+    "designer.options.txt",
+    "viewer.txt",
+    "viewer.options.txt",
+];
 
 const modelNavigation: ModelNavigationPort = { openReference: vi.fn() };
 const codeLink: CodeLinkPort = { navigateToImplementation: vi.fn(), syncActivities: vi.fn() };
@@ -67,7 +79,27 @@ const bridge: ClipboardBridge = {
     requestClipboard: vi.fn(async () => ""),
     writeClipboard: vi.fn(),
 };
+const textBridge: ClipboardBridge = {
+    requestClipboard: vi.fn(async () => ""),
+    writeClipboard: vi.fn(),
+};
+const VALUE_ROLES = new Map<object, string>([
+    [modelNavigation, "modelNavigation port"],
+    [codeLink, "codeLink port"],
+    [definitionSearch, "definitionSearch port"],
+    [scripting, "scripting port"],
+    [bridge, "clipboard bridge"],
+    [textBridge, "clipboard text bridge"],
+]);
+
 const CALLER_MODULE = { callerProbe: ["value", "caller"] };
+const ACME_MODDLE = { name: "Acme", prefix: "acme", uri: "http://acme.example/bpmn", types: [] };
+const ENGINE_MODDLE: Record<Engine, { readonly prefix: string; readonly moddle: unknown }> = {
+    c7: { prefix: "camunda", moddle: camundaModdle },
+    c8: { prefix: "zeebe", moddle: zeebeModdle },
+};
+const LINT_CONFIG: BpmnlintConfig = { rules: { "label-required": "off" } };
+const onLintResults = vi.fn();
 
 const LINT_VARIANTS = [
     ["linting: false", { linting: false }],
@@ -77,62 +109,6 @@ const LINT_VARIANTS = [
         { linting: { module: lintModule, results: "external" } },
     ],
 ] as const;
-
-const MODELER_VARIANTS: readonly OptionVariant<CreateModelerOptions>[] = [
-    ...LINT_VARIANTS,
-    ['mode: "design"', { mode: "design" }],
-    ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
-    ["capabilities.codeLink", { capabilities: { codeLink } }],
-    ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
-    ["capabilities.scripting", { capabilities: { scripting } }],
-    ["clipboard: { bridge }", { clipboard: { bridge } }],
-    ["additionalModules", { additionalModules: [CALLER_MODULE] }],
-    [
-        "in-page linting, every capability, clipboard and additionalModules at once",
-        {
-            linting: { module: lintModule },
-            capabilities: { modelNavigation, codeLink, definitionSearch, scripting },
-            clipboard: { bridge },
-            additionalModules: [CALLER_MODULE],
-        },
-    ],
-];
-
-const DESIGNER_VARIANTS: readonly OptionVariant<DesignerOptions>[] = [
-    ...LINT_VARIANTS,
-    ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
-    ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
-    ["clipboard: { bridge }", { clipboard: { bridge } }],
-    ["additionalModules", { additionalModules: [CALLER_MODULE] }],
-    [
-        "in-page linting, every capability, clipboard and additionalModules at once",
-        {
-            linting: { module: lintModule },
-            capabilities: { modelNavigation, definitionSearch },
-            clipboard: { bridge },
-            additionalModules: [CALLER_MODULE],
-        },
-    ],
-];
-
-const VIEWER_VARIANTS: readonly OptionVariant<ViewerOptions & { withPanel: true }>[] = [
-    ["propertiesPanel", { withPanel: true }],
-    ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
-    ["additionalModules", { additionalModules: [CALLER_MODULE] }],
-    [
-        "propertiesPanel, capabilities.modelNavigation and additionalModules at once",
-        {
-            withPanel: true,
-            capabilities: { modelNavigation },
-            additionalModules: [CALLER_MODULE],
-        },
-    ],
-];
-
-const ENGINE_POPUP_MENU_ANNOTATIONS: Record<Engine, PopupMenuAnnotationOverrides> = {
-    c7: C7_POPUP_MENU_ANNOTATIONS,
-    c8: C8_POPUP_MENU_ANNOTATIONS,
-};
 
 const PREVIEW_TEMPLATES: Record<Engine, object> = {
     c7: {
@@ -150,6 +126,92 @@ const PREVIEW_TEMPLATES: Record<Engine, object> = {
         appliesTo: ["bpmn:ServiceTask"],
         properties: [],
     },
+};
+
+function modelerVariants(engine: Engine): readonly OptionVariant<CreateModelerOptions>[] {
+    const { prefix, moddle } = ENGINE_MODDLE[engine];
+    return [
+        ...LINT_VARIANTS,
+        [
+            'linting: { module } (in-page tier) with mode: "design"',
+            { linting: { module: lintModule }, mode: "design" },
+        ],
+        [
+            "linting: { module, config }, onLintResults and elementTemplates",
+            {
+                linting: { module: lintModule, config: LINT_CONFIG },
+                onLintResults,
+                elementTemplates: [PREVIEW_TEMPLATES[engine]],
+            },
+        ],
+        ['mode: "design"', { mode: "design" }],
+        ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
+        ["capabilities.codeLink", { capabilities: { codeLink } }],
+        ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
+        ["capabilities.scripting", { capabilities: { scripting } }],
+        ["clipboard: { bridge }", { clipboard: { bridge } }],
+        ["clipboard: { bridge, text }", { clipboard: { bridge, text: textBridge } }],
+        [
+            "moddleExtensions (a new prefix, and the engine's prefix replaced)",
+            {
+                moddleExtensions: {
+                    acme: ACME_MODDLE,
+                    [prefix]: Object.assign({}, moddle, {
+                        uri: `http://override.example/${prefix}`,
+                    }),
+                },
+            },
+        ],
+        ["additionalModules", { additionalModules: [CALLER_MODULE] }],
+        [
+            "in-page linting, every capability, clipboard and additionalModules at once",
+            {
+                linting: { module: lintModule },
+                capabilities: { modelNavigation, codeLink, definitionSearch, scripting },
+                clipboard: { bridge },
+                additionalModules: [CALLER_MODULE],
+            },
+        ],
+    ];
+}
+
+const DESIGNER_VARIANTS: readonly OptionVariant<DesignerOptions>[] = [
+    ...LINT_VARIANTS,
+    ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
+    ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
+    ["clipboard: { bridge }", { clipboard: { bridge } }],
+    ["clipboard: { bridge, text }", { clipboard: { bridge, text: textBridge } }],
+    ["moddleExtensions", { moddleExtensions: { acme: ACME_MODDLE } }],
+    ["additionalModules", { additionalModules: [CALLER_MODULE] }],
+    [
+        "in-page linting, every capability, clipboard and additionalModules at once",
+        {
+            linting: { module: lintModule },
+            capabilities: { modelNavigation, definitionSearch },
+            clipboard: { bridge },
+            additionalModules: [CALLER_MODULE],
+        },
+    ],
+];
+
+const VIEWER_VARIANTS: readonly OptionVariant<ViewerOptions & { withPanel: true }>[] = [
+    ["propertiesPanel", { withPanel: true }],
+    ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
+    ["moddleExtensions", { moddleExtensions: { acme: ACME_MODDLE } }],
+    ["additionalModules", { additionalModules: [CALLER_MODULE] }],
+    [
+        "propertiesPanel, capabilities.modelNavigation and additionalModules at once",
+        {
+            withPanel: true,
+            capabilities: { modelNavigation },
+            additionalModules: [CALLER_MODULE],
+        },
+    ],
+];
+
+const ENGINE_POPUP_MENU_ANNOTATIONS: Record<Engine, PopupMenuAnnotationOverrides> = {
+    c7: C7_POPUP_MENU_ANNOTATIONS,
+    c8: C8_POPUP_MENU_ANNOTATIONS,
 };
 
 function modelerBuild(engine: Engine): Build<CreateModelerOptions> {
@@ -170,19 +232,16 @@ const viewerBuild: Build<ViewerOptions & { withPanel: true }> = (
     });
 
 function pinsOfSurface(surface: BuiltSurface): SurfacePins {
-    const config = surface.getService<{ modules: DiModule[] }>("config");
-    const assembly = assembleModules(injectorModulesOf(config));
-    expect(
-        disagreementsWithInjector(assembly, surface.getService<DidiInjector>("injector")),
-    ).toEqual([]);
-    const moddle = surface.getService<{ getPackages(): { prefix: string; uri: string }[] }>(
-        "moddle",
+    const moddle = surface.getService<{ getPackages(): ModdlePackage[] }>("moddle");
+    const pins = surfacePinsOf(
+        surface.getService<{ modules: DiModule[] }>("config"),
+        moddle.getPackages(),
+        VALUE_ROLES,
     );
-    return {
-        assembly,
-        config: configLeaves(config),
-        moddlePackages: moddlePackageLines(moddle.getPackages()),
-    };
+    expect(
+        disagreementsWithInjector(pins.assembly, surface.getService<DidiInjector>("injector")),
+    ).toEqual([]);
+    return pins;
 }
 
 async function pinsOf<O>(build: Build<O>, options: Partial<O> = {}): Promise<SurfacePins> {
@@ -195,6 +254,10 @@ async function pinsOf<O>(build: Build<O>, options: Partial<O> = {}): Promise<Sur
     }
 }
 
+function deltaLines(delta: readonly string[]): readonly string[] {
+    return delta.length > 0 ? delta : ["(no change)"];
+}
+
 async function optionDeltas<O>(
     title: string,
     build: Build<O>,
@@ -203,8 +266,10 @@ async function optionDeltas<O>(
     const base = await pinsOf(build);
     const lines = [`# ${title}: what each option adds, removes or replaces against the defaults`];
     for (const [label, options] of variants) {
-        const delta = optionDelta(base, await pinsOf(build, options));
-        lines.push("", `## ${label}`, ...(delta.length > 0 ? delta : ["(no change)"]));
+        const variant = await pinsOf(build, options);
+        // An overwrite an option brings shows in its delta only as a `~` line, which `-u` accepts.
+        expect.soft(overridesOf(variant.assembly), label).toEqual(overridesOf(base.assembly));
+        lines.push("", `## ${label}`, ...deltaLines(optionDelta(base, variant)));
     }
     return `${lines.join("\n")}\n`;
 }
@@ -313,7 +378,7 @@ describe("preset module pins", () => {
                 await optionDeltas(
                     `createModeler (${engine})`,
                     modelerBuild(engine),
-                    MODELER_VARIANTS,
+                    modelerVariants(engine),
                 ),
             ).toMatchFileSnapshot(`${PINS}/modeler-${engine}.options.txt`);
         });
@@ -351,7 +416,8 @@ describe("preset module pins", () => {
     });
 
     describe.each(ENGINES)("createTemplatePreview (%s)", (engine) => {
-        it("pins the module order, winning providers, __init__ order, config and moddle of its modeler", async () => {
+        it("pins what its modeler adds, removes or replaces against createModeler's defaults", async () => {
+            const modelerPins = await pinsOf(modelerBuild(engine));
             const init = vi.spyOn(BpmnModeler.prototype, "init");
             const preview = await createTemplatePreview(mountWithPanel().panel);
             try {
@@ -361,16 +427,24 @@ describe("preset module pins", () => {
 
                 expect.soft(overridesOf(pins.assembly)).toEqual(MODELER_OVERRIDES);
                 expectPopupMenuAnnotationsOf(pins.assembly, engine);
-                await expectPins(
-                    `template-preview-${engine}`,
-                    `createTemplatePreview (${engine})`,
-                    pins,
-                );
+                const title = `# createTemplatePreview (${engine}): what its modeler adds, removes or replaces against createModeler (${engine})`;
+                await expect(
+                    `${[title, "", ...deltaLines(optionDelta(modelerPins, pins))].join("\n")}\n`,
+                ).toMatchFileSnapshot(`${PINS}/template-preview-${engine}.delta.txt`);
             } finally {
                 await afterPaint();
                 preview.destroy();
                 init.mockRestore();
             }
         });
+    });
+
+    it("keeps no pin file that no test writes", () => {
+        // Vitest reports obsolete `.snap` keys only, never a file toMatchFileSnapshot stopped writing.
+        const files = Object.keys(import.meta.glob("./__snapshots__/presetModulePins/*")).map(
+            (path) => path.slice(path.lastIndexOf("/") + 1),
+        );
+
+        expect(files.filter((file) => !PIN_FILES.includes(file))).toEqual([]);
     });
 });
