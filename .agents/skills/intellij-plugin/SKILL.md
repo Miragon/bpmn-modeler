@@ -167,9 +167,9 @@ so a new slot, icon, tone or action fails until Kotlin knows it.
 `normalizeSettings`; `ModelerSettingsStore` keeps the Kotlin copy.
 `ModelerSettingsStoreTest` runs the rows of
 `libs/modeler-core/src/kernel/domain/settingsNormalization.cases.json` against
-the store and compares its defaults with `apps/vscode-plugin/package.json`,
-its `DEFAULT_MODES` with `SURFACE_MODES` in
-`libs/modeler-types/src/surface/domain/surfaceMode.ts` and its `COLOR_THEMES` with the array of
+the store and compares its defaults with `apps/vscode-plugin/package.json`
+(except `defaultMode`: IntelliJ offers no mode switch, see the bridge's
+`bpmnEditorFeature.ts`) and its `COLOR_THEMES` with the array of
 that name in `libs/modeler-types/src/surface/domain/settings.ts`, all passed in as Gradle
 system properties. Each such file is a declared input of `tasks.test` in
 `build.gradle.kts` and is listed in the `intellij-plugin` filter of
@@ -179,10 +179,6 @@ one. A rule change edits the rows, the TypeScript rule and the Kotlin copy in
 one PR. `ModelerLocalesTest` holds the language list of `ModelerLocales` to the
 manifest's `miragon.bpmnModeler.language` codes and labels, which
 `manifest.contract.spec.ts` holds to the shipped catalogue.
-`ModelerSettingsConfigurableTest` renders the page's Default mode box and holds
-its modes and labels to the manifest's `miragon.bpmnModeler.defaultMode`, in
-order, and its labels to `MODE_LABEL` in
-`packages/bpmn-modeler/src/modeSession/adapter/in/modeStrip.ts`.
 
 **Host-replicated mirrors.** `BpmnModelerService.display()` reads
 `EditorHandle.getContent()` _synchronously_ — impossible over async RPC. The host

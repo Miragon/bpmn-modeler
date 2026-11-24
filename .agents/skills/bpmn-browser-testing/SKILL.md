@@ -46,8 +46,11 @@ answers, serves a C7 fixture with the C7 and C8 sample element templates.
 each serves (an untagged model in Design, diff panes with real
 `bpmn-js-differ` highlights, merge panes with recorded merge states). A pane
 has no partner for synchronized navigation. `?plugins` loads the sample
-plugins (`?plugins=broken` adds one that throws) and `&mergeXml=accept|refuse`
-starts a merge pane with Merge XML offered. Workspace definition search answers from
+plugins (`?plugins=broken` adds one that throws), `&mergeXml=accept|refuse`
+starts a merge pane with Merge XML offered, and `?modeSwitch=none` plays a
+host without a mode switch, as IntelliJ is: no mode chip, and the model opens
+at its engine's default mode; the panel host still carries `data-surface-mode`
+and `aria-busy`. Workspace definition search answers from
 `__fixtures__/mock-workspace-definitions.ts`. The DMN preview's hosts in
 `apps/dmn-webview/src/adapter/out/browserPreview/` serve one sample decision,
 and `?mode=diff-before|diff-after` one pane of the shipping change with its

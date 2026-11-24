@@ -19,6 +19,12 @@ import { engineVersionStatusView } from "../domain/engineVersionStatusView";
 const VERSION_NOT_CHANGED =
     "The diagram changed while you picked a version, so its engine version was not changed. Try again.";
 
+export interface BpmnModelerServiceOptions {
+    readonly hostElementIdReview?: boolean;
+    /** `false`: the host offers no View / Design / Implement switch. Absent: it offers one. */
+    readonly modeSwitch?: boolean;
+}
+
 /**
  * Displays, initialises and syncs BPMN documents on top of the shared
  * {@link EditorDocumentSync}; adds the engine choice for an empty file and the
@@ -34,7 +40,7 @@ export class BpmnModelerService {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly settings: SettingsPort,
-        private readonly options: { readonly hostElementIdReview?: boolean } = {},
+        private readonly options: BpmnModelerServiceOptions = {},
     ) {
         this.documents = new EditorDocumentSync(editorStore, document);
     }
@@ -73,15 +79,12 @@ export class BpmnModelerService {
                 const engine = doc.detectEngine();
                 const outcome = await this.editorStore.postUnlessHidden(
                     editorId,
-                    new BpmnFileQuery(
-                        doc.xml,
-                        engine,
-                        "modeler",
-                        snapshot.revision,
-                        this.settings.getDefaultMode(),
-                        this.settings.getLanguage(),
-                        this.options.hostElementIdReview ?? false,
-                    ),
+                    new BpmnFileQuery(doc.xml, engine, "modeler", snapshot.revision, {
+                        defaultMode: this.settings.getDefaultMode(),
+                        locale: this.settings.getLanguage(),
+                        hostElementIdReview: this.options.hostElementIdReview ?? false,
+                        modeSwitch: this.options.modeSwitch ?? true,
+                    }),
                 );
                 if (outcome === "hidden") {
                     return false;

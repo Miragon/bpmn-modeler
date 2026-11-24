@@ -7,13 +7,13 @@ import com.intellij.util.ui.UIUtil
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import javax.swing.JComboBox
 import javax.swing.JCheckBox
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JList
 
 @TestApplication
 class ModelerSettingsConfigurableTest {
@@ -118,58 +118,13 @@ class ModelerSettingsConfigurableTest {
     }
 
     @Test
-    fun `offers the default modes of the VS Code setting, labelled as it labels them, in its order`() {
+    fun `offers no default mode, as the editor offers no mode switch`() {
         withSettingsPage { page ->
-            assertEquals(manifestChoices("defaultMode"), labelledChoices(page.createComponent(), "Default mode:"))
+            val labels = UIUtil.findComponentsOfType(page.createComponent(), JLabel::class.java).map { it.text }
+
+            assertTrue("Language:" in labels, "labels: $labels")
+            assertFalse("Default mode:" in labels, "labels: $labels")
         }
-    }
-
-    @Test
-    fun `labels the default modes as the modeler's mode strip labels them`() {
-        withSettingsPage { page ->
-            assertEquals(modeStripLabels(), labelledChoices(page.createComponent(), "Default mode:").toMap())
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun labelledCombo(page: JComponent, label: String): JComboBox<String?> =
-        UIUtil.findComponentsOfType(page, JLabel::class.java)
-            .first { it.text == label }
-            .labelFor as JComboBox<String?>
-
-    /** Each value the box offers, with its label: the DSL renderer's accessible name is its cell text. */
-    private fun labelledChoices(page: JComponent, label: String): List<Pair<String?, String?>> {
-        val combo = labelledCombo(page, label)
-        val list = JList<String?>()
-        return (0 until combo.itemCount).map { index ->
-            val value = combo.getItemAt(index)
-            val cell = combo.renderer.getListCellRendererComponent(list, value, index, false, false)
-            value to cell.accessibleContext.accessibleName
-        }
-    }
-
-    /** `MODE_LABEL` in `modeStrip.ts`, the labels the modeler's mode strip shows. */
-    private fun modeStripLabels(): Map<String, String> {
-        val source = readTypeScriptFile("miragon.modeLabels")
-        val entries =
-            requireNotNull(Regex("""export const MODE_LABEL\b[^=]*=\s*\{([^}]*)}""").find(source)) {
-                "modeStrip.ts declares no MODE_LABEL object literal"
-            }.groupValues[1]
-        return Regex(""""?(\w+)"?\s*:\s*"([^"]*)"""").findAll(entries)
-            .associate { it.groupValues[1] to it.groupValues[2] }
-    }
-
-    /** `manifest.contract.spec.ts` holds these values to the core's: `SURFACE_MODES`. */
-    private fun manifestChoices(section: String): List<Pair<String, String>> {
-        val setting =
-            readTypeScriptJson("miragon.vscodeManifest").asJsonObject
-                .getAsJsonObject("contributes")
-                .getAsJsonObject("configuration")
-                .getAsJsonObject("properties")
-                .getAsJsonObject("miragon.bpmnModeler.$section")
-        val values = setting.getAsJsonArray("enum").map { it.asString }
-        val labels = setting.getAsJsonArray("enumItemLabels").map { it.asString }
-        return values.zip(labels)
     }
 
     private fun languageCombo(page: JComponent): JComboBox<*> =

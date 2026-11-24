@@ -149,6 +149,8 @@ export interface BpmnEditorHostExtensions {
     readonly lintingPreference?: LintingPreferencePort;
     /** Absent: every panel opens visible, and a toggle lasts as long as its webview. */
     readonly propertiesPanelState?: PropertiesPanelStatePort;
+    /** `false`: the editor shows no View / Design / Implement switch. Absent: it offers one. */
+    readonly modeSwitch?: boolean;
 }
 
 /** The other features' handlers and participants, which the hosts' composition hands over. */
@@ -213,7 +215,10 @@ export class BpmnEditorFeature {
             ports.statusBar,
             ports.notifier,
             ports.settings,
-            { hostElementIdReview: ports.elementIdReview !== undefined },
+            {
+                hostElementIdReview: ports.elementIdReview !== undefined,
+                modeSwitch: extensions.modeSwitch,
+            },
         );
         const loadedTemplateDirs = new LoadedTemplateDirs();
         this.templates = new BpmnElementTemplatesService(

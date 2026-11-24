@@ -218,6 +218,18 @@ describe("PreviewHost", () => {
             ]);
         });
 
+        it.each([
+            ["", true],
+            ["?modeSwitch=none", false],
+            ["?mode=neutral&modeSwitch=none", false],
+        ])("offers the mode switch for %j: %s", (search, modeSwitch) => {
+            previewHost(search).postMessage(new GetBpmnFileCommand());
+
+            expect(repliesOfType("BpmnFileQuery")).toEqual([
+                expect.objectContaining({ modeSwitch }),
+            ]);
+        });
+
         it("falls back to the modeler and says so for an unknown mode", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 

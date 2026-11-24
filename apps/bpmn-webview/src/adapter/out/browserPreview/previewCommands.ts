@@ -45,7 +45,7 @@ const NO_SECOND_EDITOR = "the preview has no second editor to compare in";
 const NO_ELEMENT_ID_REVIEW = "the preview has no host to review element ids in";
 
 export const PREVIEW_COMMANDS: PreviewCommandTable<BpmnWebviewCommand, PreviewSession> = {
-    GetBpmnFileCommand: (_, preview) => preview.reply(previewDocument(preview.mode)),
+    GetBpmnFileCommand: (_, preview) => preview.reply(previewDocument(preview.mode, preview.search)),
     GetBpmnPluginsCommand: (_, preview) => preview.reply(previewPlugins(preview.search)),
     GetElementTemplatesCommand: (_, preview) => preview.reply(previewElementTemplates()),
     GetBpmnModelerSettingCommand: (_, preview) => preview.reply(previewModelerSettings()),

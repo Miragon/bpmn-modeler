@@ -605,11 +605,65 @@ describe("bootstrap", () => {
         it("seeds the initial mode from the host defaultMode when nothing is saved", async () => {
             mocks.createViewer.mockResolvedValue(makeViewer());
 
-            boot(makeHost({ file: new BpmnFileQuery("<tagged />", "c7", "modeler", 1, "view") }));
+            boot(
+                makeHost({
+                    file: new BpmnFileQuery("<tagged />", "c7", "modeler", 1, {
+                        defaultMode: "view",
+                    }),
+                }),
+            );
             await settle();
 
             expect(mocks.createViewer).toHaveBeenCalledOnce();
             expect(mocks.createModeler).not.toHaveBeenCalled();
+        });
+
+        describe("on a host without a mode switch", () => {
+            const withoutSwitch = (engine: "c7" | undefined, defaultMode?: "view" | "design") =>
+                new BpmnFileQuery("<model />", engine, "modeler", 1, {
+                    defaultMode,
+                    locale: "en",
+                    hostElementIdReview: false,
+                    modeSwitch: false,
+                });
+
+            it("opens a tagged model in Implement over a saved mode and the host default", async () => {
+                // Saved before the model gained its platform, as after an engine reload.
+                mocks.savedMode = "design";
+                mocks.createModeler.mockResolvedValue(makeModeler());
+
+                boot(makeHost({ file: withoutSwitch("c7", "view") }));
+                await settle();
+
+                expect(mocks.createModeler).toHaveBeenCalledOnce();
+                expect(mocks.createModeler.mock.calls[0][1]).toMatchObject({ mode: "implement" });
+                expect(mocks.createViewer).not.toHaveBeenCalled();
+            });
+
+            it("opens an untagged model in Design over a saved View", async () => {
+                mocks.savedMode = "view";
+                mocks.createDesigner.mockResolvedValue(makeDesigner());
+
+                boot(makeHost({ file: withoutSwitch(undefined) }));
+                await settle();
+
+                expect(mocks.createDesigner).toHaveBeenCalledOnce();
+                expect(mocks.createViewer).not.toHaveBeenCalled();
+            });
+
+            it("shows no mode chip but still marks the settled mode on the panel host", async () => {
+                mocks.createModeler.mockResolvedValue(makeModeler());
+
+                boot(makeHost({ file: withoutSwitch("c7") }));
+                await settle();
+
+                expect(mocks.createModeler).toHaveBeenCalledOnce();
+                expect(document.querySelector(".mode-chip")).toBeNull();
+                expect(modeButtons()).toEqual([]);
+                const panelHost = document.getElementById("js-properties-panel")!;
+                expect(panelHost.getAttribute("data-surface-mode")).toBe("implement");
+                expect(panelHost.getAttribute("aria-busy")).toBe("false");
+            });
         });
 
         it("keeps preference changes received during asynchronous surface creation on the rebuilt surface", async () => {
@@ -650,7 +704,7 @@ describe("bootstrap", () => {
 
             boot(host);
             await settle();
-            dispatch(new BpmnFileQuery("<tagged />", "c7", "modeler", 1, undefined, "de"));
+            dispatch(new BpmnFileQuery("<tagged />", "c7", "modeler", 1, { locale: "de" }));
             await settle();
 
             expect(firstCall(vi.mocked(i18n.setLanguage))).toBeLessThan(
@@ -666,11 +720,11 @@ describe("bootstrap", () => {
 
             boot(
                 makeHost({
-                    file: new BpmnFileQuery("<tagged />", "c7", "modeler", 1, undefined, "de"),
+                    file: new BpmnFileQuery("<tagged />", "c7", "modeler", 1, { locale: "de" }),
                 }),
             );
             await settle();
-            dispatch(new BpmnFileQuery("<pushed />", "c7", "modeler", 2, undefined, "fr"));
+            dispatch(new BpmnFileQuery("<pushed />", "c7", "modeler", 2, { locale: "fr" }));
             await vi.advanceTimersByTimeAsync(HOST_UPDATE_DEBOUNCE_MS);
 
             expect(modeler.loadDiagram).toHaveBeenLastCalledWith("<pushed />");

@@ -11,7 +11,7 @@ A `.bpmn` file opens on a canvas in IntelliJ IDEA, for Camunda 7, Camunda 8, Ope
 
 ## What you get
 
-**Camunda details in the properties panel.** The View, Design and Implement modes show as much engine detail as you need, and the properties panel sets each element's Camunda 7 or Camunda 8 attributes.
+**Camunda details in the properties panel.** A model with a Camunda execution platform opens with every engine detail, and the properties panel sets each element's Camunda 7 or Camunda 8 attributes; an engine-neutral model opens without them.
 
 ![IntelliJ with order-fulfilment.bpmn open, the user task Pack order selected and its implementation, assignment and form groups in the properties panel](../../docs/public/shots/intellij/properties.png)
 

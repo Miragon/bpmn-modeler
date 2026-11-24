@@ -29,7 +29,8 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * `document/didChange` because it owns the document revision, it keeps no
  * properties-panel visibility, and it stores the lint choice that
  * {@link RpcLintingPreference} reports. The element ID review opens in an
- * IntelliJ tool window ({@link RpcElementIdReview}).
+ * IntelliJ tool window ({@link RpcElementIdReview}). IntelliJ offers no mode
+ * switch: its users implement, so a model opens at its engine's default mode.
  */
 export function register(
     deps: BridgeSharedDeps,
@@ -78,6 +79,7 @@ export function register(
             rendering: "host-driven",
             documentSync: { flushes: deps.flushSvc, pendingEdits: deps.pendingEdits },
             lintingPreference,
+            modeSwitch: false,
         },
         {
             navigation: new NavigationFeature(ports).editorContribution,

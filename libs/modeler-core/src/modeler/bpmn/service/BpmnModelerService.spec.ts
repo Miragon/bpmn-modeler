@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { BpmnModelerService } from "./BpmnModelerService";
+import { BpmnModelerService, BpmnModelerServiceOptions } from "./BpmnModelerService";
 import { EngineVersionStatusBarParticipant } from "./EngineVersionStatusBarParticipant";
 import { BpmnDocument } from "../../../kernel/domain/BpmnDocument";
 import { engineVersionPrompt } from "../../../kernel/domain/engineVersions";
@@ -28,7 +28,7 @@ const VERSION_NOT_CHANGED =
 
 function createServiceFor(
     host: TestHost,
-    options: { hostElementIdReview?: boolean } = {},
+    options: BpmnModelerServiceOptions = {},
 ): BpmnModelerService {
     return new BpmnModelerService(
         host.store,
@@ -44,7 +44,7 @@ function createServiceFor(
 function createService(
     content: string,
     promptAnswers: PromptAnswers = {},
-    options: { hostElementIdReview?: boolean } = {},
+    options: BpmnModelerServiceOptions = {},
 ) {
     const host = createTestHost({ settings: { language: "de" }, promptAnswers });
     const editor = host.openEditor(PATH, content);
@@ -107,6 +107,22 @@ describe("BpmnModelerService.display", () => {
 
             const [msg] = editor.postedOfType<BpmnFileQuery>("BpmnFileQuery");
             expect(msg.hostElementIdReview).toBe(hostElementIdReview);
+        },
+    );
+
+    it.each<{ options: BpmnModelerServiceOptions; modeSwitch: boolean }>([
+        { options: {}, modeSwitch: true },
+        { options: { modeSwitch: true }, modeSwitch: true },
+        { options: { modeSwitch: false }, modeSwitch: false },
+    ])(
+        "tells the editor whether the host offers the mode switch ($options)",
+        async ({ options, modeSwitch }) => {
+            const { service, editor } = createService(C8_DOC, {}, options);
+
+            await service.display(editor.id);
+
+            const [msg] = editor.postedOfType<BpmnFileQuery>("BpmnFileQuery");
+            expect(msg.modeSwitch).toBe(modeSwitch);
         },
     );
 

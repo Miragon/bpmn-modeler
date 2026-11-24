@@ -160,6 +160,19 @@ Implement), then the available engine/factory default; an untagged model falls b
 Design and cannot enter Implement. Opening a document must not rewrite it to satisfy a
 viewing preference.
 
+A host may offer no mode switch: IntelliJ does not, because its users implement
+processes and the switch was noise there (#2366). The host says so as a value
+(`BpmnEditorHostExtensions.modeSwitch: false`, carried as `BpmnFileQuery.modeSwitch`);
+the webview never detects its host. Without the switch the webview hands the package's
+strip only the landed mode, whose single-mode path shows no control but keeps the
+`data-surface-mode` / `aria-busy` stamp, so "no control" has one spelling. It ignores
+saved state and the host default, so a tagged model opens in Implement and an untagged
+one in Design, again after an engine reload. A preset or remembered mode would
+trap the user in it with no way out. Nothing in the editor assigns a platform, so an
+untagged model cannot reach Implement with the switch either. The cost: no View on any
+model, and no engine-neutral Design on a tagged one. IntelliJ therefore has no default
+mode setting; VS Code keeps both. The rule lives in the webview's `modeEntry`.
+
 Explicit creation differs: engine-bound `newDiagram()` uses a package-owned template
 with `modeler:executionPlatform`, `modeler:executionPlatformVersion` (`engineVersion`
 verbatim, or the latest known for the engine) and `isExecutable="true"`. The version
