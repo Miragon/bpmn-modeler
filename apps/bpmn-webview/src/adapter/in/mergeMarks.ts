@@ -109,8 +109,8 @@ const FILL_PATTERNS = `<defs><pattern id="merge-hatch" class="merge-hatch" patte
  * icon, as a check alone at small zoom and on a flow, where a word would hide
  * the shapes it joins, with a pen and "by hand" on a version merged by hand;
  * and a dotted outline on what a pick pulled in or
- * dropped. Each paint replaces the last one; it decides nothing, the host
- * sent which element gets what.
+ * dropped. Each paint replaces the last one; it decides nothing: it is
+ * handed which element takes which look.
  */
 export class MergeMarks {
     static $inject = ["canvas", "elementRegistry", "overlays", "mergeMarksConfig"];

@@ -1,5 +1,5 @@
 import type { MergePaneBadge } from "@miragon/bpmn-modeler-shared";
-import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types";
+import { MERGE_MARKERS, type MergeMarker } from "@miragon/bpmn-modeler-types/domain";
 
 /** How a merge pane's canvas draws an element: by one of the three markers, or as a version merged by hand. */
 export type MergeMarkLook = MergeMarker | "mergedByHand";

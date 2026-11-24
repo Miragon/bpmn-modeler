@@ -130,7 +130,8 @@ the hatch in both directions, in the neutral ink of the user's picks and not in 
 colour; a flow, which has no fill, is stitched. It is a look the pane derives from the badges
 it already gets (`mergeMarkLooks`), not a fourth `MergeMarker`: the library, the protocol and
 the bar's counts stay as they are. The cost: the bar still counts the element under the marker
-of the side its pick kept, with no swatch for the look, and the look starts once a text is
+of the side its pick kept, with no swatch for the look, as the row of a shape-less one still
+names that marker; and the look starts once a text is
 accepted, so while the merge editor is open the element still shows the pick. A category of
 its own in the bar would need the marker, its count and tooltip in twelve languages.
 
@@ -156,7 +157,9 @@ nearest predecessor there, both flow orders kept in `MergeSources`), `hasNoShape
 drawn, or the process or collaboration that owns the root plane). The core's `domain/` cannot
 import the library, so `MergeDecisionService` only maps them onto `ApplyMergeStatesQuery`, whose
 step and shape-less copies a spec pins to the library's types. The webview paints and counts
-what it gets: it skips an id its canvas lacks and decides no marker. The menu's own list gives a
+what it gets: it skips an id its canvas lacks and decides no marker. The one look it derives
+itself is that of a version merged by hand (`mergeMarkLooks`, see the markers above). The
+menu's own list gives a
 row to a conflict only current holds, which incoming's counts, from the library, leave out.
 
 **A shape-less row shows what each side holds:** each side's presence and name, the attributes

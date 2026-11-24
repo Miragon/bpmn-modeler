@@ -51,7 +51,8 @@ const translate: MergeTranslate = (key, replacements) => i18n.translate(key, rep
  * Entry point for a webview running as one side of a BPMN merge view.
  *
  * On top of the {@link DiffPanePlumbing} it shares with a diff pane, it paints
- * the markers the host sends ({@link MergeMarks}), counts them in a one-line
+ * the markers the host sends, a version merged by hand in a look of its own
+ * ({@link mergeMarkLooks}, {@link MergeMarks}), counts them in a one-line
  * {@link MergeBar} with the pane's caption and, on the right pane, steps
  * through the host's step lists:
  *   - Incoming {@link ApplyMergeStatesQuery} → repaint everything from it, the
