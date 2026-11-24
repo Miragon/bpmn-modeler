@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { type MergeSide, readConflictMarkers } from "@miragon/bpmn-modeler-types/domain";
 
-import { ElementXmlMerges, elementXmlMergeLabels } from "./elementXmlMerge";
+import { ElementXmlMerges, elementXmlMergeMarkerLabels } from "./elementXmlMerge";
 
 const TEXTS = {
     base: '<bpmn:task id="Task_Pack" />\n',
@@ -46,7 +46,6 @@ describe("ElementXmlMerges", () => {
 
         expect(request).toMatchObject({
             elementId: "Task_Pack",
-            labels: { current: "main", incoming: "feature" },
             base: TEXTS.base,
             current: TEXTS.current,
             incoming: TEXTS.incoming,
@@ -55,6 +54,26 @@ describe("ElementXmlMerges", () => {
             hasMarkers: true,
             currentLabel: "main",
             incomingLabel: "feature",
+        });
+    });
+
+    it("titles each side by its position, with the branch and commit it shows", () => {
+        const request = opened(new ElementXmlMerges("merge-1"), {
+            captions: {
+                current: {
+                    side: "current",
+                    role: "branch",
+                    ref: "main",
+                    shortHash: "1a2b3c4",
+                    subject: "Pack the parcel",
+                },
+                incoming: { side: "incoming", role: "upstream", ref: "feature" },
+            },
+        });
+
+        expect(request.sides).toStrictEqual({
+            current: { title: "Current", ref: "main", shortHash: "1a2b3c4" },
+            incoming: { title: "Incoming", ref: "feature" },
         });
     });
 
@@ -233,7 +252,7 @@ describe("an ElementXmlMerges editor that started with its own pick", () => {
     });
 });
 
-describe("elementXmlMergeLabels", () => {
+describe("elementXmlMergeMarkerLabels", () => {
     it.each([
         ["branches", CAPTIONS, { current: "main", incoming: "feature" }],
         [
@@ -253,6 +272,6 @@ describe("elementXmlMergeLabels", () => {
             { current: "Current", incoming: "Incoming" },
         ],
     ] as const)("names the sides by %s", (_case, captions, expected) => {
-        expect(elementXmlMergeLabels(captions)).toStrictEqual(expected);
+        expect(elementXmlMergeMarkerLabels(captions)).toStrictEqual(expected);
     });
 });

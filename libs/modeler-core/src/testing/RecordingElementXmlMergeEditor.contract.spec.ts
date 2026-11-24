@@ -16,8 +16,8 @@ describeElementXmlMergeEditorContract("RecordingElementXmlMergeEditor", (onFinis
             return (
                 request && {
                     base: request.base,
-                    current: { label: request.labels.current, text: request.current },
-                    incoming: { label: request.labels.incoming, text: request.incoming },
+                    current: { ...request.sides.current, text: request.current },
+                    incoming: { ...request.sides.incoming, text: request.incoming },
                 }
             );
         },

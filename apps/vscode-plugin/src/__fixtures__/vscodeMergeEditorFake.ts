@@ -29,10 +29,17 @@ export enum ViewColumn {
     One = 1,
 }
 
+/** A side's title as the editor shows it above its text: the title, then its description and its detail. */
+export interface FakeMergeInputTitle {
+    readonly title: string;
+    readonly description?: string;
+    readonly detail?: string;
+}
+
 interface MergeEditorArgs {
     readonly base: Uri;
-    readonly input1: { readonly uri: Uri; readonly title: string };
-    readonly input2: { readonly uri: Uri; readonly title: string };
+    readonly input1: FakeMergeInputTitle & { readonly uri: Uri };
+    readonly input2: FakeMergeInputTitle & { readonly uri: Uri };
     readonly output: Uri;
 }
 
@@ -48,7 +55,10 @@ export interface FakeMergeTab {
     readonly input: MergeTabInput;
     readonly group: FakeTabGroup;
     /** The titles the editor shows above input1 and input2, which VS Code's tab API does not report; none on a restored tab. */
-    readonly titles?: { readonly input1: string; readonly input2: string };
+    readonly titles?: {
+        readonly input1: FakeMergeInputTitle;
+        readonly input2: FakeMergeInputTitle;
+    };
     /** As VS Code's merge tab: false while the editor loads, then whether its result is dirty. */
     readonly isDirty: boolean;
 }
@@ -421,6 +431,10 @@ function acceptActiveMerge(): void {
     removeTabs([tab]);
 }
 
+function titleOf({ uri: _uri, ...title }: MergeEditorArgs["input1"]): FakeMergeInputTitle {
+    return title;
+}
+
 function openMergeEditor(args: MergeEditorArgs): void {
     const opening = nextOpen;
     nextOpen = "opens";
@@ -449,7 +463,7 @@ function openMergeEditor(args: MergeEditorArgs): void {
             input2: args.input2.uri,
             result: args.output,
         },
-        titles: { input1: args.input1.title, input2: args.input2.title },
+        titles: { input1: titleOf(args.input1), input2: titleOf(args.input2) },
     });
 }
 
