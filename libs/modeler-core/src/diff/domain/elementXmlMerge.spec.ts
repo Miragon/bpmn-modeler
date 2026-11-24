@@ -57,7 +57,7 @@ describe("ElementXmlMerges", () => {
         });
     });
 
-    it("titles each side by its position, as the panes do, with the branch and commit it shows", () => {
+    it("titles each side by its position, with the branch and commit it shows", () => {
         const request = opened(new ElementXmlMerges("merge-1"), {
             captions: {
                 current: {

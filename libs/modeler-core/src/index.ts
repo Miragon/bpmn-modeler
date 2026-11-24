@@ -175,6 +175,7 @@ export * from "./diff/domain/compareTexts";
 export * from "./diff/domain/conflictFacts";
 export * from "./diff/domain/conflictReading";
 export * from "./diff/domain/diffTabLabel";
+export type { MergeSideTitle } from "./diff/domain/mergeSideNames";
 export * from "./diff/domain/diffFileExtension";
 export * from "./diff/domain/DiffRevision";
 export * from "./diff/domain/mergeEditorHost";

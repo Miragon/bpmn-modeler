@@ -348,7 +348,8 @@ describe("Merge XML", () => {
         await shot("merge-xml-editor");
     });
 
-    it("titles the editor's sides as the panes name them: Current and Incoming, each with its branch and commit", async () => {
+    // The suite runs in English, where the editor's untranslated titles equal the words of the panes' bars.
+    it("titles the editor's sides by the panes' positions, Current and Incoming, each with its pane's branch and commit", async () => {
         const panes = await openMergeView();
         await keepCheckFromIncoming(panes);
         await press(panes.incoming, "Next change");

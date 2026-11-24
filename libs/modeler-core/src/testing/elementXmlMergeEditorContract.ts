@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { MergeSideTitle } from "../diff/domain/mergeSideNames";
 import {
     ElementXmlMergeEditor,
     ElementXmlMergeFinished,
@@ -7,12 +8,7 @@ import {
 } from "../diff/port/ElementXmlMergeEditor";
 
 /** One side of a merge as the editor shows it: its text under its position, branch and commit. */
-interface ShownSide {
-    readonly title: string;
-    readonly ref?: string;
-    readonly shortHash?: string;
-    readonly text: string;
-}
+type ShownSide = MergeSideTitle & { readonly text: string };
 
 /** What an open merge shows beside its result. */
 export interface ElementXmlMergeInputs {

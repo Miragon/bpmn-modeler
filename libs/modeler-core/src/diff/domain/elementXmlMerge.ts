@@ -4,7 +4,7 @@ import {
     writeConflictMarkers,
 } from "@miragon/bpmn-modeler-types/domain";
 
-import { type MergeSideTitle, mergeSideName, mergeSideTitle } from "./diffTabLabel";
+import { type MergeSideTitle, mergeSideName, mergeSideTitle } from "./mergeSideNames";
 
 /** Why a host without a merge editor opens no element XML merge, as the router and the log say it. */
 export const NO_ELEMENT_XML_MERGE_EDITOR = "the host offers no XML merge editor";
