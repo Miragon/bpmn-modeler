@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { detectEngine } from "./detectEngine";
-import { extractModelDefinitions } from "./extractModelDefinitions";
+import { detectEngine } from "./kernel/domain/detectEngine";
+import { extractModelDefinitions } from "./kernel/domain/extractModelDefinitions";
 
 /**
  * Smoke test for the root entry's pure helpers. The local wrappers only exist so

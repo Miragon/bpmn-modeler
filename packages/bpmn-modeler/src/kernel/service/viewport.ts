@@ -1,0 +1,317 @@
+import {
+    type Disposer,
+    type MinimalEventBus,
+    isCanvasSized,
+    isUsableViewbox,
+} from "@miragon/bpmn-modeler-types";
+import { type FittableCanvas, fitCanvasToContent } from "@miragon/bpmn-modeler-browser";
+
+import { centreOf, type PositionedElement, viewboxCentredOn } from "../domain/elementGeometry";
+import type { CoreServiceAccessor } from "./coreServices";
+import { InitialViewportLatch } from "./initialViewport";
+
+/**
+ * A canvas viewbox snapshot — the position and zoom {@link ViewportManager}
+ * reads and restores. The host persists it (VS Code `setState`) alongside the
+ * rest of its webview state.
+ */
+export interface ViewportData {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    /** Persisted so the exact zoom survives a container-size change on restore. */
+    scale?: number;
+}
+
+// Keep focused elements legible without zooming out from the current view.
+const MIN_FOCUS_ZOOM = 0.75;
+
+/**
+ * Reads, restores, and subscribes to canvas viewbox changes.
+ *
+ * Deliberately an interface, not the implementing class: every subpath's d.ts
+ * roll-up carries its own copy of this declaration, and a class with private
+ * members is nominally typed — two copies would be mutually unassignable,
+ * breaking the documented cross-subpath wiring (e.g. a `/viewer` handle passed
+ * to a `/mode` session).
+ */
+export interface ViewportManager {
+    /** Returns the current canvas viewbox (position and zoom level). */
+    getViewport(): ViewportData;
+
+    /**
+     * Whether the host has laid the canvas out at a size worth fitting into.
+     * An unlaid-out container yields a NaN transform, which SVG renders as
+     * nothing.
+     */
+    isCanvasSized(): boolean;
+
+    /**
+     * Restores the canvas to a previously saved viewbox. Falls back to
+     * {@link fitViewport} for a box that cannot be applied safely.
+     *
+     * @param viewport The viewbox to apply.
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    setViewport(viewport: ViewportData): boolean;
+
+    /**
+     * The observer callback driving the initial fit.
+     *
+     * @returns `true` once the initial viewport is decided; `false` while the
+     *   caller should keep retrying.
+     */
+    applyInitialViewportOnce(): boolean;
+
+    /** Re-arms the initial-viewport decision for a fresh diagram. */
+    resetInitialViewportDecision(): void;
+
+    /**
+     * Fits the diagram into the viewport on a fresh file open (no saved
+     * viewbox), clearing the palette/controls chrome. Scale is capped at 1.0 —
+     * never zoom in.
+     *
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    fitViewport(): boolean;
+
+    /**
+     * Centres the viewport on `id`, enforcing a minimum focus zoom. Like
+     * {@link setViewport}, a focus decides the initial viewport, so a focus
+     * right after `loadDiagram` survives the delayed initial fit. Returns
+     * `false`, leaving the viewport untouched, when the element is not on the
+     * canvas (e.g. a stale lint finding) or the canvas has no size yet.
+     */
+    centerOnElement(id: string): boolean;
+
+    /**
+     * Subscribes to canvas viewbox changes with a 100 ms debounce; only the
+     * final position after a pan/zoom gesture is delivered.
+     *
+     * @param cb Callback invoked with the new {@link ViewportData} after each change.
+     * @returns a disposer that unsubscribes the listener and cancels any pending
+     *   debounced callback — call it when tearing the surface down.
+     */
+    onViewportChanged(cb: (viewport: ViewportData) => void): () => void;
+}
+
+export class CanvasViewportManager implements ViewportManager {
+    private readonly latch = new InitialViewportLatch<ViewportData>({
+        applyViewport: (viewport) => this.setViewport(viewport),
+        fitViewport: () => this.fitViewport(),
+    });
+
+    constructor(private readonly getService: CoreServiceAccessor) {}
+
+    /**
+     * Returns the current canvas viewbox (position and zoom level).
+     */
+    getViewport(): ViewportData {
+        const { x, y, width, height, scale } = this.getService("canvas").viewbox();
+        return { x, y, width, height, scale };
+    }
+
+    /**
+     * Whether the host has laid the canvas out at a size worth fitting into.
+     *
+     * Every viewbox operation divides by these dimensions, so an unlaid-out
+     * container yields a NaN transform, which SVG renders as nothing.
+     */
+    isCanvasSized(): boolean {
+        return isCanvasSized(this.fittableCanvas());
+    }
+
+    /**
+     * Restores the canvas to a previously saved viewbox.
+     *
+     * Falls back to {@link fitViewport} for a box that cannot be applied
+     * safely, which also recovers tabs whose persisted viewbox was written
+     * while the canvas had no size.
+     *
+     * @param viewport The viewbox to apply.
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    setViewport(viewport: ViewportData): boolean {
+        if (!isUsableViewbox(viewport)) {
+            const fitted = this.fitViewport();
+            if (fitted) {
+                this.latch.markDecided();
+            }
+            return fitted;
+        }
+        if (!this.isCanvasSized()) {
+            this.latch.hold(viewport);
+            return false;
+        }
+        const canvas = this.getService("canvas");
+        // Pin saved zoom explicitly because the container may have resized since capture.
+        if (viewport.scale !== undefined && Number.isFinite(viewport.scale) && viewport.scale > 0) {
+            const { outer } = canvas.viewbox();
+            canvas.viewbox({
+                x: viewport.x,
+                y: viewport.y,
+                width: outer.width / viewport.scale,
+                height: outer.height / viewport.scale,
+            });
+        } else {
+            canvas.viewbox(viewport);
+        }
+        this.latch.markDecided();
+        return true;
+    }
+
+    /**
+     * The observer callback ({@link observeCanvasSize}) driving the initial fit.
+     * Returns `true` immediately once the viewport has been decided, so an
+     * explicit {@link setViewport}/`applyViewState` restore is never fitted over.
+     * Otherwise it applies a viewport stashed by {@link setViewport} while the
+     * canvas was unsized, or falls back to a fresh {@link fitViewport}.
+     *
+     * @returns `true` once the initial viewport is decided; `false` while the
+     *   caller should keep retrying.
+     */
+    applyInitialViewportOnce(): boolean {
+        return this.latch.applyOnce();
+    }
+
+    /**
+     * Re-arms the initial-viewport decision for a fresh diagram. Called by
+     * `loadDiagram` before installing a new observer: a new diagram is a new
+     * decision.
+     */
+    resetInitialViewportDecision(): void {
+        this.latch.reset();
+    }
+
+    /**
+     * Fits the diagram into the viewport on a fresh file open (no saved
+     * viewbox) so a diagram authored far from the origin is not rendered
+     * off-screen — bpmn-js does not auto-fit on importXML.
+     *
+     * bpmn-js's own `zoom("fit-viewport")` ignores the palette (left) and the
+     * token-simulation / minimap controls (top), which are painted *on top of*
+     * the canvas: centering pushes wide diagrams behind the palette, top-left
+     * anchoring jams the diagram under both. So we fit into an inset area that
+     * clears that chrome and center the diagram within it. The properties panel
+     * is a flex sibling of the canvas, not an overlay, so it is already
+     * excluded from `outer` and needs no inset.
+     *
+     * Scale is capped at 1.0 to match fit-to-page semantics — never zoom in.
+     *
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    fitViewport(): boolean {
+        return fitCanvasToContent(this.fittableCanvas());
+    }
+
+    private fittableCanvas(): FittableCanvas {
+        return this.getService("canvas") as unknown as FittableCanvas;
+    }
+
+    /**
+     * Centres the viewport on `id`, enforcing {@link MIN_FOCUS_ZOOM}, and settles
+     * the initial-viewport decision. Returns `false` when the element is not on
+     * the canvas (e.g. a stale lint finding) or the canvas is unsized, leaving
+     * the viewport untouched. Unlike the diff pane's variant it lets the
+     * `viewbox.changed` event through, so the focused position is persisted.
+     */
+    centerOnElement(id: string): boolean {
+        const canvas = this.getService("canvas");
+        const element = this.getService("elementRegistry").get(id);
+        if (!element) {
+            return false;
+        }
+        const centre = centreOf(element as PositionedElement);
+        if (!centre) {
+            return false;
+        }
+        // Centring against a zero-sized box scales by a non-finite factor.
+        if (!this.isCanvasSized()) {
+            return false;
+        }
+
+        const viewbox = canvas.viewbox();
+        const scale = viewbox.width > 0 ? viewbox.outer.width / viewbox.width : MIN_FOCUS_ZOOM;
+        const width = scale < MIN_FOCUS_ZOOM ? viewbox.outer.width / MIN_FOCUS_ZOOM : viewbox.width;
+        const height =
+            scale < MIN_FOCUS_ZOOM ? viewbox.outer.height / MIN_FOCUS_ZOOM : viewbox.height;
+
+        canvas.viewbox(viewboxCentredOn(centre, { width, height }));
+        this.latch.markDecided();
+        return true;
+    }
+
+    /**
+     * Subscribes to canvas viewbox changes with a 100 ms debounce.
+     *
+     * The debounce prevents a flood of state writes while the user is actively
+     * panning or zooming; only the final position after the gesture is persisted.
+     *
+     * Degenerate viewboxes are dropped: persisting one makes the failure stick,
+     * since every later rebuild of that tab would restore an unusable box.
+     *
+     * @param cb Callback invoked with the new {@link ViewportData} after each change.
+     * @returns a disposer that unsubscribes the listener and cancels any pending
+     *   debounced callback — call it when tearing the surface down.
+     */
+    onViewportChanged(cb: (viewport: ViewportData) => void): () => void {
+        return subscribeViewboxChanged<ViewportData>({
+            // Capture the bus so the disposer works after facade destroy, when the
+            // service accessor would throw NoModelerError.
+            eventBus: this.getService("eventBus"),
+            map: ({ x, y, width, height, scale }) => ({ x, y, width, height, scale }),
+            onChange: cb,
+        });
+    }
+}
+
+/** The `canvas.viewbox.changed` payload slice {@link subscribeViewboxChanged} reads. */
+interface ViewboxChangedEvent {
+    viewbox: { x: number; y: number; width: number; height: number; scale?: number };
+}
+
+/**
+ * Subscribes to debounced `canvas.viewbox.changed` events, mapping each viewbox
+ * to `V` and dropping degenerate boxes (persisting one makes the failure stick).
+ * Self-hooks `diagram.destroy` so the trailing debounce is cancelled even when
+ * the host never unsubscribes.
+ *
+ * @param accept Synchronous gate on the raw event, before debouncing — used by
+ *   the diff panes to swallow the echoes of their own programmatic positioning.
+ *   A rejected event also cancels a pending notification: the canvas has moved
+ *   since, so the held viewport is stale and syncing it would bounce back.
+ * @returns a disposer that unsubscribes and cancels any pending callback.
+ */
+export function subscribeViewboxChanged<
+    V extends { x: number; y: number; width: number; height: number },
+>(options: {
+    eventBus: MinimalEventBus;
+    debounceMs?: number;
+    accept?: (event: ViewboxChangedEvent) => boolean;
+    map: (viewbox: ViewboxChangedEvent["viewbox"]) => V;
+    onChange: (viewport: V) => void;
+}): Disposer {
+    const { eventBus, debounceMs = 100, accept, map, onChange } = options;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const handler = (event: ViewboxChangedEvent): void => {
+        if (accept && !accept(event)) {
+            clearTimeout(timer);
+            return;
+        }
+        const viewport = map(event.viewbox);
+        if (!isUsableViewbox(viewport)) {
+            return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => onChange(viewport), debounceMs);
+    };
+    const dispose = (): void => {
+        clearTimeout(timer);
+        eventBus.off("canvas.viewbox.changed", handler);
+        eventBus.off("diagram.destroy", dispose);
+    };
+    eventBus.on("canvas.viewbox.changed", handler);
+    eventBus.on("diagram.destroy", dispose);
+    return dispose;
+}

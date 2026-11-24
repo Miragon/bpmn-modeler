@@ -44,7 +44,7 @@
                 "libs/modeler-core/src/diff/**",
                 "apps/vscode-plugin/src/diff/**",
                 "packages/bpmn-modeler/src/diff/**",
-                "packages/bpmn-modeler/src/viewer/diff/**",
+                "packages/bpmn-modeler/src/diff.ts",
                 "apps/bpmn-webview/src/adapter/in/diff*"
             ],
             "suites": ["bpmn-diff", "dmn", "merge-view", "merge-xml"]

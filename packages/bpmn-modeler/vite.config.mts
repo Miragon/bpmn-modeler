@@ -63,12 +63,12 @@ export default defineConfig({
         lib: {
             entry: {
                 index: resolve(__dirname, "src/index.ts"),
-                diff: resolve(__dirname, "src/diff/index.ts"),
-                lint: resolve(__dirname, "src/bpmnlint/index.ts"),
-                viewer: resolve(__dirname, "src/viewer/index.ts"),
-                design: resolve(__dirname, "src/design/index.ts"),
-                mode: resolve(__dirname, "src/modeSession/index.ts"),
-                plugins: resolve(__dirname, "src/plugins/index.ts"),
+                diff: resolve(__dirname, "src/diff.ts"),
+                lint: resolve(__dirname, "src/lint.ts"),
+                viewer: resolve(__dirname, "src/viewer.ts"),
+                design: resolve(__dirname, "src/design.ts"),
+                mode: resolve(__dirname, "src/mode.ts"),
+                plugins: resolve(__dirname, "src/plugins.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

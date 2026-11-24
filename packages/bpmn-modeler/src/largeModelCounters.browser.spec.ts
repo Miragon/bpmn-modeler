@@ -2,10 +2,10 @@ import type EventBus from "diagram-js/lib/core/EventBus";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { generateLargeC7Model, largeModelPresets } from "../../../scripts/perf/largeBpmnModel.mjs";
-import { BrowserLinter } from "./bpmnlint/browserLinter";
-import * as lintModule from "./bpmnlint/index";
-import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { BrowserLinter } from "./bpmnlint/adapter/out/browserLinter";
+import * as lintModule from "./lint";
+import { createModeler } from "./composition/createModeler";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { animationFrames, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 // Pinned values are today's behaviour, not targets: a fix that removes redundant work

@@ -13,10 +13,10 @@ import { userEvent } from "vitest/browser";
 
 import { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "@miragon/bpmn-modeler-append-menu";
 
-import { createModeler } from "./createModeler";
-import { createDesigner } from "./design/createDesigner";
-import type { BpmnDesigner } from "./design/designer";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "./composition/createModeler";
+import { createDesigner } from "./composition/createDesigner";
+import type { BpmnDesigner } from "./design/service/designer";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { afterPaint } from "./__fixtures__/surfaceMount";
 
 interface MenuPosition {

@@ -19,7 +19,7 @@ import {
     type LintTierEvent,
     LintTierMachine,
     type LintTierState,
-} from "../../../../../../packages/bpmn-modeler/src/bpmnlint/lintTierMachine";
+} from "../../../../../../packages/bpmn-modeler/src/bpmnlint/domain/lintTierMachine";
 
 function version(config: BpmnlintConfig, configPath = "/work/.bpmnlintrc"): LintConfigVersion {
     return { configPath, rawConfig: JSON.stringify(config), config };

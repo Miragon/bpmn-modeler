@@ -1,13 +1,24 @@
 import {
     buildImportGraph,
+    exceptionsWithoutIssue,
+    impureDomainImports,
     readModuleImports,
+    readModulePurity,
     readSourceTree,
     requireMatches,
+    staleExceptions,
     stripComments,
+    unexcusedViolations,
 } from "@miragon/architecture-testing";
-import type { SourceFile } from "@miragon/architecture-testing";
+import type {
+    ImportGraph,
+    KnownException,
+    ModulePurity,
+    SourceFile,
+    Violation,
+} from "@miragon/architecture-testing";
 import { readFileSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import { dirname, join, normalize, posix, resolve } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
@@ -20,6 +31,11 @@ import { describe, expect, it } from "vitest";
  * the extension engine (`@miragon/bpmn-modeler-core`), or anything under
  * `apps/`. Conversely, no `libs/*` may depend on the package (that would invert
  * the layering `packages → libs`, not `libs → packages`).
+ *
+ * The shared role-folder rules come from the repo-level spec; this one adds
+ * that `domain/` imports only pure modules (docs/adr/role-folders.md#domain-imports).
+ * The subpath gates read a surface as its folders, its entry and its preset in
+ * `composition/`.
  */
 const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
@@ -44,6 +60,45 @@ function sourcesIn(folder: string): SourceFile[] {
     return requireMatches(
         `${folder}/ sources`,
         packageSources.filter(({ path }) => path.startsWith(`${folder}/`)),
+    );
+}
+
+interface Subpath {
+    readonly folders: readonly string[];
+    /** The entry and the preset, which sit outside the folders. */
+    readonly files: readonly string[];
+}
+
+const DESIGN_SUBPATH: Subpath = {
+    folders: ["design"],
+    files: ["design.ts", "composition/createDesigner.ts"],
+};
+const VIEWER_SUBPATH: Subpath = {
+    folders: ["viewer", "diff"],
+    files: ["viewer.ts", "composition/createViewer.ts"],
+};
+const MODE_SESSION_SUBPATH: Subpath = { folders: ["modeSession"], files: ["mode.ts"] };
+
+function inSubpath({ folders, files }: Subpath, path: string): boolean {
+    return files.includes(path) || folders.some((folder) => path.startsWith(`${folder}/`));
+}
+
+function sourcesOf(subpath: Subpath): SourceFile[] {
+    subpath.folders.forEach(sourcesIn);
+    const sources = packageSources.filter(({ path }) => inSubpath(subpath, path));
+    for (const file of subpath.files) {
+        requireMatches(
+            file,
+            sources.filter(({ path }) => path === file),
+        );
+    }
+    return sources;
+}
+
+function resolvesInto(folder: string, { path }: SourceFile, specifier: string): boolean {
+    return (
+        specifier.startsWith(".") &&
+        posix.normalize(posix.join(posix.dirname(path), specifier)).startsWith(`${folder}/`)
     );
 }
 
@@ -164,17 +219,20 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         expect(offenders, offenders.join("\n")).toEqual([]);
     });
 
-    it("only src/bpmnlint/ value-imports the lint stack (#1407)", () => {
+    it("only src/bpmnlint/ and the /lint entry value-import the lint stack (#1407)", () => {
         // The lint stack is injection-only: a host imports `@miragon/bpmn-modeler/lint`
-        // (which resolves to `src/bpmnlint/index.ts`) and hands the module in. No
+        // (which resolves to `src/lint.ts`) and hands the module in. No
         // other package source may pull it into the runtime graph — a reachable
         // value import (static or dynamic) is exactly what a single-file bundler
         // inlines even under `linting: false`. `import type` stays fine.
         const LINT_STACK = (spec: string): boolean =>
-            spec === "bpmnlint" || spec === "bpmn-js-bpmnlint" || /(^|\/)bpmnlint$/.test(spec); // the `./bpmnlint` barrel, not its type subpaths
-        sourcesIn("bpmnlint");
+            spec === "bpmnlint" ||
+            spec === "bpmn-js-bpmnlint" ||
+            /^\.{1,2}\/(\.\.\/)*lint$/.test(spec); // the `/lint` entry
+        const LINT_SUBPATH: Subpath = { folders: ["bpmnlint"], files: ["lint.ts"] };
+        sourcesOf(LINT_SUBPATH);
         const offenders: string[] = [];
-        for (const file of packageSources.filter(({ path }) => !path.startsWith("bpmnlint/"))) {
+        for (const file of packageSources.filter(({ path }) => !inSubpath(LINT_SUBPATH, path))) {
             for (const spec of valueImportedModules(file)) {
                 if (LINT_STACK(spec)) {
                     offenders.push(`${file.path} → ${spec}`);
@@ -183,7 +241,7 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         }
         expect(
             offenders,
-            `the lint stack is injection-only — only src/bpmnlint/ may value-import ` +
+            `the lint stack is injection-only — only src/bpmnlint/ and src/lint.ts may value-import ` +
                 `it (use \`import type\` elsewhere):\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
@@ -237,7 +295,7 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
             // preact and @miragon/bpmn-modeler-types.
             spec === "@miragon/bpmn-modeler-element-ids";
         const offenders: string[] = [];
-        for (const file of sourcesIn("design")) {
+        for (const file of sourcesOf(DESIGN_SUBPATH)) {
             for (const spec of valueImportedModules(file)) {
                 if (!isAllowed(spec)) {
                     offenders.push(`${file.path} → ${spec}`);
@@ -261,7 +319,7 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // `dist/viewer.css` instead; deep (file-level) imports stay fine.
         const BARREL = "@miragon/bpmn-modeler-properties-panel";
         const offenders: string[] = [];
-        for (const file of sourcesIn("viewer")) {
+        for (const file of sourcesOf(VIEWER_SUBPATH)) {
             for (const spec of valueImportedModules(file)) {
                 if (spec === BARREL) {
                     offenders.push(`${file.path} → ${spec}`);
@@ -312,14 +370,14 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
         // design side at the built-graph level; this is the source-level intent.
         const MODE_FOLDER = "mode";
-        const MODE_LESS_SURFACES = ["design", "viewer", "modeSession"];
+        const MODE_LESS_SURFACES = [DESIGN_SUBPATH, VIEWER_SUBPATH, MODE_SESSION_SUBPATH];
         const graph = buildImportGraph(packageSources);
         sourcesIn(MODE_FOLDER);
-        MODE_LESS_SURFACES.forEach(sourcesIn);
+        MODE_LESS_SURFACES.forEach(sourcesOf);
         const offenders = graph.edges
             .filter(
                 ({ from, to }) =>
-                    from.split("/").some((segment) => MODE_LESS_SURFACES.includes(segment)) &&
+                    MODE_LESS_SURFACES.some((surface) => inSubpath(surface, from)) &&
                     to !== undefined &&
                     to.startsWith(`${MODE_FOLDER}/`),
             )
@@ -337,28 +395,29 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // injects, so its own graph must stay free of bpmn-js / Camunda code: a
         // value import here is exactly what a single-file bundler would inline
         // into a mode-only consumer. Only relatives *within* the modeSession dir
-        // (never `../` up into the surface handles), the pure mode model
+        // (never up into the surface handles), the pure mode model
         // (`-types`), and i18n are value-importable; the handle types from
-        // `../publicApi` / `../viewer` / `../design` must stay `import type`. The
+        // the modeler, viewer and design ports must stay `import type`. The
         // built graph is gated separately by `check-mode-pure-entry.mjs`.
-        const isAllowed = (spec: string): boolean =>
-            spec.startsWith("./") ||
+        const isAllowed = (file: SourceFile, spec: string): boolean =>
+            resolvesInto("modeSession", file, spec) ||
             spec === "@miragon/bpmn-modeler-types" ||
+            spec === "@miragon/bpmn-modeler-types/domain" ||
             spec === "@miragon/bpmn-modeler-i18n" ||
             spec === "@miragon/bpmn-modeler-i18n-extras";
         const offenders: string[] = [];
-        for (const file of sourcesIn("modeSession")) {
+        for (const file of sourcesOf(MODE_SESSION_SUBPATH)) {
             for (const spec of valueImportedModules(file)) {
-                if (!isAllowed(spec)) {
+                if (!isAllowed(file, spec)) {
                     offenders.push(`${file.path} → ${spec}`);
                 }
             }
         }
         expect(
             offenders,
-            `the mode subpath must value-import only ./* (within modeSession), the ` +
+            `the mode subpath must value-import only modeSession/, the ` +
                 `mode model (@miragon/bpmn-modeler-types), or i18n — use \`import type\` ` +
-                `for the surface handles (../publicApi, ../viewer, ../design):\n` +
+                `for the surface handles (the modeler, viewer and design ports):\n` +
                 `${offenders.join("\n")}`,
         ).toEqual([]);
     });
@@ -441,5 +500,75 @@ describe("bpmn-modeler warning sink", TREE_PARSE, () => {
             `warn through the surface reporter (createReporter), not console.warn:\n` +
                 offenders.join("\n"),
         ).toEqual([]);
+    });
+});
+
+/** Keyed by file and specifier; each names the change that removes it. */
+const DOMAIN_IMPORT_EXCEPTIONS: readonly KnownException[] = [
+    {
+        from: "bpmnlint/domain/lintTierMachine.ts",
+        to: "@miragon/bpmnlint-plugin-rules",
+        until: "#2249 step 2: lintTierMachine takes the default lint config as a value",
+    },
+];
+
+function impureDomainImportViolations(isPureModule: ModulePurity) {
+    return (graph: ImportGraph): Violation[] =>
+        impureDomainImports(graph, isPureModule).map(({ from, specifier }) => ({
+            from,
+            to: specifier,
+        }));
+}
+
+function describeViolation({ from, to }: Violation): string {
+    return `${from} -> ${to}`;
+}
+
+describe("bpmn-modeler domain imports", TREE_PARSE, () => {
+    const SYNTHETIC_PURE_MODULES: readonly string[] = ["@miragon/bpmn-modeler-types/domain"];
+    const syntheticViolations = (text: string): string[] =>
+        impureDomainImportViolations((specifier) => SYNTHETIC_PURE_MODULES.includes(specifier))(
+            buildImportGraph([{ path: "bpmnlint/domain/x.ts", text }]),
+        ).map(describeViolation);
+
+    it("pass a domain file that imports a pure module", () => {
+        expect(
+            syntheticViolations(
+                'import type { Engine } from "@miragon/bpmn-modeler-types/domain";',
+            ),
+        ).toEqual([]);
+    });
+
+    it.each([
+        {
+            name: "an npm package, even type-only",
+            text: 'import type Canvas from "diagram-js/lib/core/Canvas";',
+            violation: "bpmnlint/domain/x.ts -> diagram-js/lib/core/Canvas",
+        },
+        {
+            name: "the root entry of the types library, which is not pure",
+            text: 'import { asyncDebounce } from "@miragon/bpmn-modeler-types";',
+            violation: "bpmnlint/domain/x.ts -> @miragon/bpmn-modeler-types",
+        },
+    ])("flag a domain file that imports $name", ({ text, violation }) => {
+        expect(syntheticViolations(text)).toEqual([violation]);
+    });
+
+    const violations = impureDomainImportViolations(readModulePurity(REPO_ROOT))(
+        buildImportGraph(packageSources),
+    );
+
+    it("domain/ imports no package but a pure module", () => {
+        expect(
+            unexcusedViolations(violations, DOMAIN_IMPORT_EXCEPTIONS).map(describeViolation),
+        ).toEqual([]);
+    });
+
+    it("lists no exception the code no longer needs", () => {
+        expect(staleExceptions(violations, DOMAIN_IMPORT_EXCEPTIONS)).toEqual([]);
+    });
+
+    it("names the issue that removes each exception", () => {
+        expect(exceptionsWithoutIssue(DOMAIN_IMPORT_EXCEPTIONS)).toEqual([]);
     });
 });

@@ -3,7 +3,7 @@
 Replaces `@bpmn-io/element-template-chooser` with a searchable overlay for picking an element template:
 a filterable list on the left, a preview of the template's description, documentation link, inputs,
 outputs and properties on the right. `@miragon/bpmn-modeler` registers it for both engines (`commonModules`
-in `src/modeler.ts`).
+in `src/modeler/service/modeler.ts`).
 
 Internal workspace, not published on its own.
 

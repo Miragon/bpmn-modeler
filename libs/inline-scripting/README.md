@@ -50,5 +50,5 @@ const modeler = await createModeler(container, {
 });
 ```
 
-`packages/bpmn-modeler/src/capabilityModules.ts` then adds `createInlineScriptingModules(port)`. The
+`packages/bpmn-modeler/src/composition/capabilityModules.ts` then adds `createInlineScriptingModules(port)`. The
 factory carries the port, so the modules cannot be registered without a host.

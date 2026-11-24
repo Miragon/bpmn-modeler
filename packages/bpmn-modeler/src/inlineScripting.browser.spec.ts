@@ -4,8 +4,8 @@ import type {
     OpenScriptEditorEvent,
 } from "@miragon/bpmn-modeler-inline-scripting";
 
-import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "./composition/createModeler";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { C7_SCRIPTS_XML, SCRIPTS_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 

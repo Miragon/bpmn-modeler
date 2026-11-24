@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import "./styles/themes.css";
 
-import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "./composition/createModeler";
+import type { BpmnModeler } from "./modeler/service/modeler";
 import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 interface TransactionBoundariesService {
