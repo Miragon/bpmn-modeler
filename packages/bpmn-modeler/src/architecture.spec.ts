@@ -748,7 +748,8 @@ const KERNEL_DI_NAMES: readonly string[] = [
     DIAGRAM_TEMPLATE,
 ];
 
-const DI_LOOKUP = /\b(?:get|service|optionalService|getService)\s*(?:<[^>()]*>)?\(\s*["']([\w$]+)["']/g;
+const DI_LOOKUP =
+    /\b(?:get|service|optionalService|getService)\s*(?:<[^>()]*>)?\(\s*["']([\w$]+)["']/g;
 const DI_INJECT = /\$inject\s*=\s*\[([^\]]*)\]/g;
 const STRING_LITERAL = /["']([\w$]+)["']/g;
 
