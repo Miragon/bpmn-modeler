@@ -37,6 +37,8 @@ describe("findImplementations", () => {
                 line: 2,
                 className: "A",
                 interfaceFiles: ["core/port/DocumentPort.ts"],
+                constructedIn: [],
+                receivedIn: [],
             },
         ]);
     });
@@ -62,6 +64,8 @@ describe("findImplementations", () => {
                 line: 2,
                 className: "Documents",
                 interfaceFiles: ["core/port/DocumentPort.ts"],
+                constructedIn: [],
+                receivedIn: [],
             },
         ]);
     });
@@ -73,6 +77,8 @@ describe("findImplementations", () => {
                 line: 2,
                 className: "A",
                 interfaceFiles: ["core/service/Documents.ts"],
+                constructedIn: [],
+                receivedIn: [],
             },
         ]);
     });
@@ -139,7 +145,98 @@ describe("findImplementations", () => {
                 path: "core/service/Documents.ts",
                 line: 6,
                 interfaceFiles: ["core/port/DocumentPort.ts"],
+                constructedIn: ["core/service/Documents.ts"],
+                receivedIn: [],
             },
+        ]);
+    });
+
+    it("lists each file that builds a class, through imports, barrels, aliases and namespaces", () => {
+        const tree: SourceFile[] = [
+            PORT,
+            {
+                path: "core/service/Surface.ts",
+                text: [
+                    'import type { DocumentPort } from "../port/DocumentPort";',
+                    "export class Surface implements DocumentPort {}",
+                    "export class Other implements DocumentPort {}",
+                    "export const own = new Surface();",
+                ].join("\n"),
+            },
+            { path: "core/index.ts", text: 'export * from "./service/Surface";' },
+            {
+                path: "core/service/View.ts",
+                text: 'import { Surface as Renamed } from "./Surface";\nnew Renamed();',
+            },
+            {
+                path: "host/composition/wire.ts",
+                text: 'import * as core from "@scope/core";\nnew core.Surface();',
+            },
+            {
+                path: "host/composition/other.ts",
+                text: 'import { Surface } from "@scope/missing";\nnew Surface();\nnew Unknown();\nnew (factory())();',
+            },
+        ];
+
+        expect(
+            findImplementations(tree, {
+                aliases: [{ pattern: "@scope/core", targets: ["core/index.ts"] }],
+            }),
+        ).toEqual([
+            expect.objectContaining({
+                className: "Surface",
+                constructedIn: [
+                    "core/service/Surface.ts",
+                    "core/service/View.ts",
+                    "host/composition/wire.ts",
+                ],
+            }),
+            expect.objectContaining({ className: "Other", constructedIn: [] }),
+        ]);
+    });
+
+    it("lists each file with a parameter typed by an implemented interface, a default or an optional one included", () => {
+        const tree: SourceFile[] = [
+            PORT,
+            {
+                path: "core/service/SystemDocuments.ts",
+                text: 'import type { DocumentPort } from "../port/DocumentPort";\nexport class SystemDocuments implements DocumentPort {}',
+            },
+            {
+                path: "core/service/Scheduler.ts",
+                text: [
+                    'import type { DocumentPort } from "../port/DocumentPort";',
+                    'import { SystemDocuments } from "./SystemDocuments";',
+                    "export class Scheduler {",
+                    "    constructor(private readonly documents: DocumentPort = new SystemDocuments()) {}",
+                    "}",
+                ].join("\n"),
+            },
+            {
+                path: "core/service/locate.ts",
+                text: [
+                    'import * as ports from "../port/DocumentPort";',
+                    "export const locate = (options: { documents?: ports.DocumentPort | undefined }) => options;",
+                ].join("\n"),
+            },
+            {
+                path: "core/service/Other.ts",
+                text: [
+                    'import type { DocumentPort, SavePort } from "../port/DocumentPort";',
+                    "export function save(port: SavePort): DocumentPort {",
+                    "    return port as unknown as DocumentPort;",
+                    "}",
+                    "export class Holder { documents?: DocumentPort; }",
+                ].join("\n"),
+            },
+        ];
+
+        expect(findImplementations(tree)).toEqual([
+            expect.objectContaining({
+                className: "SystemDocuments",
+                constructedIn: ["core/service/Scheduler.ts"],
+                receivedIn: ["core/service/Scheduler.ts", "core/service/locate.ts"],
+            }),
         ]);
     });
 

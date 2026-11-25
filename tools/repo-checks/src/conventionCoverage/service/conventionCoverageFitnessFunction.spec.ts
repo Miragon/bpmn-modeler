@@ -41,6 +41,8 @@ describe("the convention coverage fitness function", () => {
                         line: 1,
                         className: "Documents",
                         interfaceFiles: ["libs/core/src/port/DocumentPort.ts"],
+                        constructedIn: [],
+                        receivedIn: [],
                     },
                 ],
             },

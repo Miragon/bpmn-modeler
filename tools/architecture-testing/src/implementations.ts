@@ -14,6 +14,10 @@ export interface ClassImplementation {
     readonly className?: string;
     /** The files that declare its implemented interfaces; a global or unresolved one adds none. */
     readonly interfaceFiles: readonly string[];
+    /** The files that build it with `new`; an anonymous class is built where it is declared, if at all. */
+    readonly constructedIn: readonly string[];
+    /** The files with a parameter whose type names one of its implemented interfaces, a default value included. */
+    readonly receivedIn: readonly string[];
 }
 
 export interface ImplementationOptions {
@@ -26,60 +30,196 @@ export function findImplementations(
     { aliases = [] }: ImplementationOptions = {},
 ): ClassImplementation[] {
     const declarations = DeclarationFinder.of(tree, { aliases });
-    return tree.flatMap(({ path, text }) => {
+    const files = tree.map(({ path, text }) => {
         const sourceFile = parseSource(path, text);
-        const resolver = new InterfaceResolver(path, sourceFile, declarations);
-        return implementingClasses(sourceFile).map((declaration) => {
-            const interfaceFiles = [
-                ...new Set(implementedExpressions(declaration).flatMap(resolver.declaringFiles)),
-            ].sort(compareText);
+        return { path, sourceFile, resolver: new SymbolResolver(path, sourceFile, declarations) };
+    });
+    const constructions = Constructions.in(files);
+    const parameterTypes = ParameterTypes.in(files);
+    return files.flatMap(({ path, sourceFile, resolver }) =>
+        implementingClasses(sourceFile).map((declaration) => {
+            const interfaces = implementedExpressions(declaration).flatMap((expression) =>
+                resolver.declarations(expression),
+            );
+            const interfaceFiles = [...new Set(interfaces.map(({ file }) => file))].sort(
+                compareText,
+            );
             const line =
                 sourceFile.getLineAndCharacterOfPosition(declaration.getStart(sourceFile)).line + 1;
+            const constructedIn = constructions.of(path, declaration);
+            const receivedIn = parameterTypes.filesNaming(interfaces);
             return declaration.name === undefined
-                ? { path, line, interfaceFiles }
-                : { path, line, className: declaration.name.text, interfaceFiles };
-        });
-    });
+                ? { path, line, interfaceFiles, constructedIn, receivedIn }
+                : {
+                      path,
+                      line,
+                      className: declaration.name.text,
+                      interfaceFiles,
+                      constructedIn,
+                      receivedIn,
+                  };
+        }),
+    );
 }
 
-class InterfaceResolver {
+interface ResolvedFile {
+    readonly path: string;
+    readonly sourceFile: ts.SourceFile;
+    readonly resolver: SymbolResolver;
+}
+
+interface Declaration {
+    readonly file: string;
+    readonly name: string;
+}
+
+class Constructions {
+    private constructor(
+        private readonly filesByDeclaration: ReadonlyMap<string, ReadonlySet<string>>,
+        private readonly builtInPlace: ReadonlySet<ts.Node>,
+    ) {}
+
+    static in(files: readonly ResolvedFile[]): Constructions {
+        const filesByDeclaration = new Map<string, Set<string>>();
+        const builtInPlace = new Set<ts.Node>();
+        for (const { path, sourceFile, resolver } of files) {
+            const visit = (node: ts.Node): void => {
+                if (ts.isNewExpression(node)) {
+                    const built = withoutParentheses(node.expression);
+                    if (ts.isClassExpression(built)) {
+                        builtInPlace.add(built);
+                    }
+                    for (const { file, name } of resolver.declarations(built)) {
+                        const key = declarationKey(file, name);
+                        filesByDeclaration.set(
+                            key,
+                            (filesByDeclaration.get(key) ?? new Set()).add(path),
+                        );
+                    }
+                }
+                ts.forEachChild(node, visit);
+            };
+            visit(sourceFile);
+        }
+        return new Constructions(filesByDeclaration, builtInPlace);
+    }
+
+    of(path: string, declaration: ts.ClassLikeDeclaration): string[] {
+        if (declaration.name === undefined) {
+            return this.builtInPlace.has(declaration) ? [path] : [];
+        }
+        const files = this.filesByDeclaration.get(declarationKey(path, declaration.name.text));
+        return [...(files ?? [])].sort(compareText);
+    }
+}
+
+/** Every type a parameter's annotation names, however nested: a union, an object type or a generic argument. */
+class ParameterTypes {
+    private constructor(
+        private readonly filesByDeclaration: ReadonlyMap<string, ReadonlySet<string>>,
+    ) {}
+
+    static in(files: readonly ResolvedFile[]): ParameterTypes {
+        const filesByDeclaration = new Map<string, Set<string>>();
+        for (const { path, sourceFile, resolver } of files) {
+            const visitType = (node: ts.Node): void => {
+                if (ts.isTypeReferenceNode(node)) {
+                    for (const { file, name } of resolver.typeDeclarations(node.typeName)) {
+                        const key = declarationKey(file, name);
+                        filesByDeclaration.set(
+                            key,
+                            (filesByDeclaration.get(key) ?? new Set()).add(path),
+                        );
+                    }
+                }
+                ts.forEachChild(node, visitType);
+            };
+            const visit = (node: ts.Node): void => {
+                if (ts.isParameter(node) && node.type !== undefined) {
+                    visitType(node.type);
+                }
+                ts.forEachChild(node, visit);
+            };
+            visit(sourceFile);
+        }
+        return new ParameterTypes(filesByDeclaration);
+    }
+
+    filesNaming(declarations: readonly Declaration[]): string[] {
+        const files = declarations.flatMap(({ file, name }) => [
+            ...(this.filesByDeclaration.get(declarationKey(file, name)) ?? []),
+        ]);
+        return [...new Set(files)].sort(compareText);
+    }
+}
+
+function withoutParentheses(expression: ts.Expression): ts.Expression {
+    return ts.isParenthesizedExpression(expression)
+        ? withoutParentheses(expression.expression)
+        : expression;
+}
+
+function declarationKey(file: string, name: string): string {
+    return `${file}#${name}`;
+}
+
+/** Resolves a name in a file, or a member of a namespace import, to where it is declared. */
+class SymbolResolver {
     private readonly bindings: ReadonlyMap<string, ImportedBinding>;
     private readonly localNames: ReadonlySet<string>;
 
     constructor(
         private readonly path: string,
         sourceFile: ts.SourceFile,
-        private readonly declarations: DeclarationFinder,
+        private readonly finder: DeclarationFinder,
     ) {
         this.bindings = importedBindings(sourceFile);
         this.localNames = new Set(sourceFile.statements.flatMap(declaredTypeName));
     }
 
-    readonly declaringFiles = (expression: ts.Expression): string[] => {
+    declarations(expression: ts.Expression): Declaration[] {
         if (ts.isIdentifier(expression)) {
-            return this.identifierFiles(expression.text);
+            return this.identifierDeclarations(expression.text);
         }
         if (ts.isPropertyAccessExpression(expression) && ts.isIdentifier(expression.expression)) {
-            const binding = this.bindings.get(expression.expression.text);
-            return binding === undefined || binding.imported !== undefined
-                ? []
-                : this.declarations.declaringFiles(
-                      this.path,
-                      binding.specifier,
-                      expression.name.text,
-                  );
+            return this.namespaceMemberDeclarations(
+                expression.expression.text,
+                expression.name.text,
+            );
         }
         return [];
-    };
+    }
 
-    private identifierFiles(name: string): string[] {
+    typeDeclarations(name: ts.EntityName): Declaration[] {
+        if (ts.isIdentifier(name)) {
+            return this.identifierDeclarations(name.text);
+        }
+        return ts.isIdentifier(name.left)
+            ? this.namespaceMemberDeclarations(name.left.text, name.right.text)
+            : [];
+    }
+
+    private namespaceMemberDeclarations(namespace: string, member: string): Declaration[] {
+        const binding = this.bindings.get(namespace);
+        return binding === undefined || binding.imported !== undefined
+            ? []
+            : this.imported(binding.specifier, member);
+    }
+
+    private identifierDeclarations(name: string): Declaration[] {
         const binding = this.bindings.get(name);
         if (binding === undefined) {
-            return this.localNames.has(name) ? [this.path] : [];
+            return this.localNames.has(name) ? [{ file: this.path, name }] : [];
         }
         return binding.imported === undefined
             ? []
-            : this.declarations.declaringFiles(this.path, binding.specifier, binding.imported);
+            : this.imported(binding.specifier, binding.imported);
+    }
+
+    private imported(specifier: string, name: string): Declaration[] {
+        return this.finder
+            .declaringFiles(this.path, specifier, name)
+            .map((file) => ({ file, name }));
     }
 }
 

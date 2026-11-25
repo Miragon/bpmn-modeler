@@ -19,6 +19,10 @@ beforeEach(() => {
             'import type { DocumentPort } from "../port/DocumentPort";',
             "export class Documents implements DocumentPort {}",
         ].join("\n"),
+        "libs/core/src/composition/wire.ts": [
+            'import { Documents } from "../service/Documents";',
+            "export const documents = new Documents();",
+        ].join("\n"),
         "libs/core/src/service/Documents.spec.ts":
             'import type { DocumentPort } from "../port/DocumentPort";\nclass Fake implements DocumentPort {}',
         "libs/core/src/__fixtures__/FakeDocuments.ts":
@@ -62,6 +66,7 @@ describe("the engine role folder sources", () => {
             {
                 dir: "libs/core",
                 files: [
+                    "composition/wire.ts",
                     "index.ts",
                     "port/DocumentPort.ts",
                     "service/Documents.ts",
@@ -74,7 +79,7 @@ describe("the engine role folder sources", () => {
         );
     });
 
-    it("resolve each implemented interface across workspaces and path aliases", () => {
+    it("resolve each implemented interface and each file that builds the class across workspaces and path aliases", () => {
         const workspaces = new EngineRoleFolderSources().read(repository.root);
 
         expect(workspaces.map(({ implementations }) => implementations)).toEqual([
@@ -84,6 +89,8 @@ describe("the engine role folder sources", () => {
                     line: 2,
                     className: "HostDocuments",
                     interfaceFiles: ["libs/core/src/port/DocumentPort.ts"],
+                    constructedIn: [],
+                    receivedIn: [],
                 },
             ],
             [
@@ -92,6 +99,8 @@ describe("the engine role folder sources", () => {
                     line: 2,
                     className: "Documents",
                     interfaceFiles: ["libs/core/src/port/DocumentPort.ts"],
+                    constructedIn: ["libs/core/src/composition/wire.ts"],
+                    receivedIn: [],
                 },
             ],
         ]);
