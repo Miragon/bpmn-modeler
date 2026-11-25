@@ -36,12 +36,12 @@ import {
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
     formatSurfaceDiagram,
-    installClipboardSupport,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
-    subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../../kernel/service/editableSurface";
+import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
+import type { PresetWiring } from "../../kernel/port/presetWiring";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import type {
@@ -72,10 +72,12 @@ export class BpmnDesigner {
     /**
      * @param container The canvas host element (bpmn-js `container`).
      * @param options Per-instance config — see {@link DesignerOptions}.
+     * @param wiring The kernel's default modules and the clipboard modules, from composition.
      */
     constructor(
         private readonly container: HTMLElement,
         private readonly options: DesignerOptions,
+        private readonly wiring: PresetWiring,
     ) {
         this.core = new SurfaceCore(container, [container, options.propertiesPanel.parent]);
         this.reporter = createReporter({ onError: options.onError });
@@ -117,11 +119,6 @@ export class BpmnDesigner {
 
     /** @internal */
     async init(): Promise<void> {
-        // Register NativeCopyPaste even with a bridge: the bridge module expects to disable it.
-        const clipModules = installClipboardSupport(this.store, this.options.clipboard, [
-            this.container,
-            this.options.propertiesPanel.parent,
-        ]);
         const extra = (this.options.additionalModules as unknown[]) ?? [];
 
         // capabilityModules imports engine features and CSS, which must stay out of the design entry.
@@ -131,14 +128,7 @@ export class BpmnDesigner {
             ...(definitionSearch ? [createDefinitionSearchModule(definitionSearch)] : []),
         ];
 
-        this.core.allocate(
-            this.store,
-            () => this.constructModeler(clipModules, capModules, extra),
-            {
-                extraRoots: [this.options.propertiesPanel.parent],
-                hasSearchPad: true,
-            },
-        );
+        this.core.allocate(this.store, () => this.constructModeler(capModules, extra));
 
         if (this.options.favouriteBpmnElements) {
             this.setFavouriteBpmnElements(this.options.favouriteBpmnElements);
@@ -161,11 +151,7 @@ export class BpmnDesigner {
         }
     }
 
-    private constructModeler(
-        clipModules: unknown[],
-        capModules: unknown[],
-        extra: unknown[],
-    ): Modeler {
+    private constructModeler(capModules: unknown[], extra: unknown[]): Modeler {
         return new Modeler({
             container: this.container,
             propertiesPanel: {
@@ -176,6 +162,8 @@ export class BpmnDesigner {
             minimap: { open: false },
             moddleExtensions: this.options.moddleExtensions,
             additionalModules: [
+                this.core.rootsModule(),
+                ...this.wiring.defaultModules,
                 TranslateModule,
                 PropertiesPanelModule,
                 NeutralPropertiesProviderModule,
@@ -203,8 +191,9 @@ export class BpmnDesigner {
                     { nudgeWhenOmitted: false },
                 ),
                 ...capModules,
+                // Registered even with a bridge: the bridge module expects to disable it.
                 NativeCopyPasteModule,
-                ...clipModules,
+                ...this.wiring.clipboardModules,
                 ...extra,
             ],
         });

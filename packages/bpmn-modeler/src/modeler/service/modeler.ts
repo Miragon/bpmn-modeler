@@ -34,11 +34,7 @@ import {
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
-import {
-    SURFACE_MODE_CHANGED,
-    SURFACE_MODE_SERVICE,
-    type SurfaceModeChangedEvent,
-} from "@miragon/bpmn-modeler-types/domain";
+import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
 import {
     collectInlineScriptTasks,
     OpenScriptEditorsStore,
@@ -61,15 +57,20 @@ import {
     cleanupSurfaceDiagram,
     createSurfaceLintHandle,
     formatSurfaceDiagram,
-    installClipboardSupport,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
-    subscribeCommandStackChanged,
     subscribeFormatted,
 } from "../../kernel/service/editableSurface";
+import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
-import { createSurfaceModeModule, type KernelSurfaceMode } from "../../kernel/service/surfaceMode";
+import {
+    createSurfaceModeModule,
+    type KernelSurfaceMode,
+    markModeRoots,
+    subscribeModeChanged,
+} from "../../kernel/service/surfaceMode";
+import type { PresetWiring } from "../../kernel/port/presetWiring";
 import type {
     RootElementManager,
     SelectionManager,
@@ -78,7 +79,7 @@ import type {
 import type { ViewState } from "../../kernel/domain/viewState";
 import { loadEngineStack } from "../../composition/engineStacks";
 import { initialDiagram } from "../domain/initialDiagram";
-import { MODE_ATTRIBUTE, normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
+import { normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
 import { ModeUiModule } from "../../mode/adapter/in/modeModules";
 import {
     ElementTemplateEngineRefreshModule,
@@ -111,17 +112,6 @@ interface ScriptModelElement {
 interface ScriptModelElementRegistry {
     get(id: string): ScriptModelElement | undefined;
 }
-interface ModeChangedEventBus {
-    on(
-        event: typeof SURFACE_MODE_CHANGED,
-        priority: number,
-        listener: (event: SurfaceModeChangedEvent) => void,
-    ): void;
-    off(
-        event: typeof SURFACE_MODE_CHANGED,
-        listener: (event: SurfaceModeChangedEvent) => void,
-    ): void;
-}
 interface ScriptModeling {
     updateModdleProperties(
         element: ScriptModelElement,
@@ -135,8 +125,6 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     showTransactionBoundaries: true,
     colorTheme: "automatic",
 };
-
-const MODE_CALLBACK_PRIORITY = 250;
 
 const ALIGN_TO_ORIGIN_OPTIONS = {
     alignOnSave: false,
@@ -170,10 +158,12 @@ export class BpmnModeler {
     /**
      * @param container The canvas host element (bpmn-js `container`).
      * @param options Per-instance config — see {@link CreateModelerOptions}.
+     * @param wiring The kernel's default modules and the clipboard modules, from composition.
      */
     constructor(
         private readonly container: HTMLElement,
         private readonly options: CreateModelerOptions,
+        private readonly wiring: PresetWiring,
     ) {
         this.core = new SurfaceCore(container, [container, options.propertiesPanel.parent]);
         this.reporter = createReporter({ onWarning: options.onWarning, onError: options.onError });
@@ -266,10 +256,6 @@ export class BpmnModeler {
             DrilldownFitModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
-        const clipModules = installClipboardSupport(this.store, this.options.clipboard, [
-            this.container,
-            this.options.propertiesPanel.parent,
-        ]);
         const extra = (this.options.additionalModules as ModuleDeclaration[]) ?? [];
 
         const modelerOptions = {
@@ -291,21 +277,17 @@ export class BpmnModeler {
 
         const additionalModules = [
             createSurfaceModeModule(normalizeMode(this.options.mode)),
+            this.core.rootsModule(),
+            ...this.wiring.defaultModules,
             ...engineStack.upstreamModules,
             ...commonModules,
             ...engineStack.engineModules,
             ...capModules,
-            ...clipModules,
+            ...this.wiring.clipboardModules,
             ...extra,
         ];
-        this.core.allocate(
-            this.store,
-            () => this.constructModeler(modelerOptions, additionalModules),
-            {
-                extraRoots: [this.options.propertiesPanel.parent],
-                handleGlobalEscape: this.options.handleGlobalEscape ?? false,
-                hasSearchPad: true,
-            },
+        this.core.allocate(this.store, () =>
+            this.constructModeler(modelerOptions, additionalModules),
         );
 
         this.applyHiddenElementTemplates();
@@ -340,33 +322,11 @@ export class BpmnModeler {
             });
         }
 
-        this.markModeRoots();
-        this.notifyModeChanges();
-    }
-
-    // From the event, not from setMode, so a change set on the surface's mode service reaches the
-    // host too; below lint's 500, so the host hears of it after the panel, the attribute and lint.
-    private notifyModeChanges(): void {
-        const eventBus = this.core.service<ModeChangedEventBus>("eventBus");
-        const notify = (event: SurfaceModeChangedEvent): void => {
-            this.options.onModeChanged?.(event.mode);
-        };
-        eventBus.on(SURFACE_MODE_CHANGED, MODE_CALLBACK_PRIORITY, notify);
-        this.store.add(() => eventBus.off(SURFACE_MODE_CHANGED, notify));
-    }
-
-    // Set once the instance is built, so a failed construction leaves no attribute, and before
-    // the first paint, so design mode never flashes engine controls; ModeAttribute moves it later.
-    private markModeRoots(): void {
-        const roots = [this.container, this.options.propertiesPanel.parent];
-        for (const root of roots) {
-            root.setAttribute(MODE_ATTRIBUTE, this.getMode());
+        markModeRoots(this.store, this.core.roots, this.getMode());
+        const onModeChanged = this.options.onModeChanged;
+        if (onModeChanged) {
+            this.store.add(subscribeModeChanged(this.core.service("eventBus"), onModeChanged));
         }
-        this.store.add(() => {
-            for (const root of roots) {
-                root.removeAttribute(MODE_ATTRIBUTE);
-            }
-        });
     }
 
     private constructModeler(modelerOptions: object, additionalModules: unknown[]): Modeler {

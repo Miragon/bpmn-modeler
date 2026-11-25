@@ -46,8 +46,6 @@ const STABILITY_EXCEPTIONS: readonly KnownException[] = [];
 
 const BPMN_MODELER = "packages/bpmn-modeler/src";
 const CONSTRUCTION_OUT_OF_THE_FACADES = "#2249 step 2: construction out of the facades";
-const KERNEL_DOM_FEATURES_AS_VALUES =
-    "#2249 step 2: the kernel takes its DOM features as values, as it takes its module lists";
 
 function bpmnModelerException(from: string, to: string, until: string): KnownException {
     return { from: `${BPMN_MODELER}/${from}`, to: `${BPMN_MODELER}/${to}`, until };
@@ -74,16 +72,6 @@ const ROLE_EXCEPTIONS: readonly KnownException[] = [
         "elementTemplateOffer/adapter/in/elementTemplateOfferModule.ts",
     ].map((to) =>
         bpmnModelerException("modeler/service/modeler.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),
-    ),
-    bpmnModelerException(
-        "kernel/service/editableSurface.ts",
-        "kernel/adapter/in/propertiesPanelClipboard.ts",
-        KERNEL_DOM_FEATURES_AS_VALUES,
-    ),
-    bpmnModelerException(
-        "kernel/service/focusFeatures.ts",
-        "kernel/adapter/in/keyboardFocus.ts",
-        KERNEL_DOM_FEATURES_AS_VALUES,
     ),
     bpmnModelerException(
         "modeler/port/publicApi.ts",

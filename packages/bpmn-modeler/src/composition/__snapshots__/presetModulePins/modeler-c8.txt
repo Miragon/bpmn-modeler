@@ -93,6 +93,9 @@ searchPad=type(SearchPad)
 bpmnSearch=type(BpmnSearchProvider) init[bpmnSearch]
 outlineProvider=type(OutlineProvider) init[outlineProvider]
 surfaceMode=factory(surfaceMode)
+surfaceRoots=value([HTMLDivElement#2, HTMLDivElement#3]) init[fn watchConstruction]
+surfaceKeyboardFocus=factory(surfaceKeyboardFocus) init[surfaceKeyboardFocus]
+fitViewportButton=type(FitViewportButton) init[fitViewportButton]
 minimap=type(Minimap) init[minimap]
 init[fn fixIsExecutable]
 nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
@@ -339,6 +342,7 @@ exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
 exclusiveGatewaySettings: type(ExclusiveGatewaySettings)
 feelPopup: type(Popup)
 feelPopupRenderer: type(PopupRenderer)
+fitViewportButton: type(FitViewportButton)
 fixHoverBehavior: type(FixHoverBehavior)
 flowNavigation: type(FlowNavigation)
 followNameBehavior: type(FollowNameBehavior)
@@ -465,7 +469,9 @@ subProcessBehavior: type(SubProcessBehavior)
 subProcessPlaneBehavior: type(SubProcessPlaneBehavior)
 subProcessStartEventBehavior: type(SubProcessStartEventBehavior)
 subprocessCompatibility: type(SubprocessCompatibility)
+surfaceKeyboardFocus: factory(surfaceKeyboardFocus)
 surfaceMode: factory(surfaceMode)
+surfaceRoots: value([HTMLDivElement#2, HTMLDivElement#3])
 templateElementFactory: type(TemplateElementFactory)
 textAnnotationBehavior: type(TextAnnotationBehavior)
 textRenderer: type(TextRenderer)
@@ -633,6 +639,9 @@ connectSnapping
 createMoveSnapping @connectSnapping
 bpmnSearch
 outlineProvider
+fn watchConstruction @surfaceRoots
+surfaceKeyboardFocus
+fitViewportButton
 minimap
 fn fixIsExecutable
 nativeCopyPaste

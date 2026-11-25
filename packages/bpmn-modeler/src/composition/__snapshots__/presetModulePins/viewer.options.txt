@@ -2,6 +2,8 @@
 
 ## propertiesPanel
 modules:
++ surfaceRoots=value([HTMLDivElement#2, HTMLDivElement#3]) init[fn watchConstruction] (after zoomScroll)
+- surfaceRoots=value([HTMLDivElement#2]) init[fn watchConstruction]
 + init[fn CommandInitializer] (after the defaults)
 + debounceInput=factory(debounceInputFactory) (after fn CommandInitializer)
 + feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer] (after debounceInput)
@@ -17,6 +19,7 @@ providers:
 + neutralPropertiesProvider: type(NeutralPropertiesProvider)
 + propertiesPanel: type(PropertiesPanelRenderer)
 + propertiesPanelModeFilter: type(ModeFilterProvider)
+~ surfaceRoots: value([HTMLDivElement#2]) → value([HTMLDivElement#2, HTMLDivElement#3])
 __init__:
 + fn CommandInitializer (after the defaults)
 + feelPopup (after fn CommandInitializer)
@@ -58,6 +61,8 @@ providers:
 
 ## propertiesPanel, capabilities.modelNavigation and additionalModules at once
 modules:
++ surfaceRoots=value([HTMLDivElement#2, HTMLDivElement#3]) init[fn watchConstruction] (after zoomScroll)
+- surfaceRoots=value([HTMLDivElement#2]) init[fn watchConstruction]
 + init[fn CommandInitializer] (after the defaults)
 + debounceInput=factory(debounceInputFactory) (after fn CommandInitializer)
 + feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer] (after debounceInput)
@@ -84,6 +89,7 @@ providers:
 + propertiesPanel: type(PropertiesPanelRenderer)
 + propertiesPanelModeFilter: type(ModeFilterProvider)
 + scheduler: type(Scheduler)
+~ surfaceRoots: value([HTMLDivElement#2]) → value([HTMLDivElement#2, HTMLDivElement#3])
 __init__:
 + fn CommandInitializer (after the defaults)
 + feelPopup (after fn CommandInitializer)

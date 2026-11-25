@@ -1,13 +1,20 @@
 import EventBus from "diagram-js/lib/core/EventBus";
 import { Injector } from "didi";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
 import {
     SURFACE_MODE_CHANGED,
     SURFACE_MODE_SERVICE,
     type SurfaceModeChangedEvent,
 } from "@miragon/bpmn-modeler-types/domain";
 
-import { createSurfaceModeModule, KernelSurfaceMode } from "./surfaceMode";
+import { MODE_ATTRIBUTE } from "../domain/surfaceMode";
+import {
+    createSurfaceModeModule,
+    KernelSurfaceMode,
+    markModeRoots,
+    subscribeModeChanged,
+} from "./surfaceMode";
 
 function surfaceModeOn(eventBus: EventBus, initial: "design" | "implement") {
     const seen: string[] = [];
@@ -74,5 +81,51 @@ describe("createSurfaceModeModule", () => {
         expect(Object.keys(module)).toEqual([SURFACE_MODE_SERVICE]);
         expect(injector.get<KernelSurfaceMode>(SURFACE_MODE_SERVICE).get()).toBe("design");
         expect(injector.get(SURFACE_MODE_SERVICE)).toBe(injector.get(SURFACE_MODE_SERVICE));
+    });
+});
+
+describe("subscribeModeChanged", () => {
+    it("tells the host after the listeners at 1000 (filter, attribute) and 500 (lint)", () => {
+        const eventBus = new EventBus();
+        const { surfaceMode } = surfaceModeOn(eventBus, "implement");
+        const order: string[] = [];
+        subscribeModeChanged(eventBus as never, (mode) => order.push(`host ${mode}`));
+        eventBus.on(SURFACE_MODE_CHANGED, 500, () => {
+            order.push("lint");
+        });
+        eventBus.on(SURFACE_MODE_CHANGED, () => {
+            order.push("filter");
+        });
+
+        surfaceMode.set("design");
+
+        expect(order).toEqual(["filter", "lint", "host design"]);
+    });
+
+    it("stops telling the host once disposed", () => {
+        const eventBus = new EventBus();
+        const { surfaceMode } = surfaceModeOn(eventBus, "implement");
+        const host = vi.fn();
+
+        subscribeModeChanged(eventBus as never, host)();
+        surfaceMode.set("design");
+
+        expect(host).not.toHaveBeenCalled();
+    });
+});
+
+describe("markModeRoots", () => {
+    it("marks every root with the mode until the store is disposed", () => {
+        const roots = [document.createElement("div"), document.createElement("div")];
+        const store = new DisposableStore();
+
+        markModeRoots(store, roots, "design");
+        expect(roots.map((root) => root.getAttribute(MODE_ATTRIBUTE))).toEqual([
+            "design",
+            "design",
+        ]);
+
+        store.dispose();
+        expect(roots.some((root) => root.hasAttribute(MODE_ATTRIBUTE))).toBe(false);
     });
 });

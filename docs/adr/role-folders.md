@@ -1,7 +1,7 @@
 # Role folders
 
 - Status: accepted
-- Last reviewed: 2026-11-24
+- Last reviewed: 2026-11-25
 
 ## Context
 
@@ -207,18 +207,23 @@ subpaths, which kept the DOM helpers (#2776) and lodash out of the merge.
 
 `packages/bpmn-modeler` is `hexagonal` (#2249, decided 2026-11-23). The entries of its export
 map sit directly in `src/` (`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`,
-`mode.ts`, `plugins.ts`). `kernel/` is a feature folder of its own: `SurfaceCore`, the surface
-handle, the shared editable-surface helpers, the canvas managers, the surface reporter,
-which the kernel and both facades warn through, and the vocabulary two features meet on
-(`ThemeMode`, `ELEMENT_POPUP_MENUS`). Vocabulary that `libs/properties-panel` or the core
+`mode.ts`, `plugins.ts`). `kernel/` is a feature folder of its own and imports nothing
+outside itself but `@miragon/bpmn-modeler-types`, `@miragon/bpmn-modeler-browser` and npm (the
+package's architecture spec). It holds the [kernel](bpmn-modeler-kernel.md): the two-phase
+`KernelSurface` and `SurfaceCore` in `service/`, `BpmnFeature`, the pure feature merge and the four
+kernel DI names in `domain/`, the focus/Escape and fit-button modules in `adapter/in/`, the surface
+handle, the canvas managers, the surface reporter, the shared editable-surface helpers and the
+vocabulary two features meet on (`ThemeMode`, `ELEMENT_POPUP_MENUS`). Vocabulary that `libs/properties-panel` or the core
 needs too, the mode type and the `surface.mode.changed` event name, lives in
 `libs/modeler-types`. `ExecutionPlatformAttributes` moves there as well, into `engine/domain`,
 because it reads the platform with the engine detection beside it
 (`executionPlatformAttributeNames`, `MODELER_NAMESPACE_URI`). The features (`modeler`,
-`design`, `viewer`, `diff`, `mode`, `modeSession`, `bpmnlint`, `elementTemplateOffer`,
-`popupMenuAnnotations`, `plugins`, `templatePreview`) have role folders inside;
-diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` holds the presets
-`createModeler`, `createDesigner` and `createViewer`, the module lists and the engine stacks.
+`design`, `viewer`, `diff`, `mode`, `modeSession`, `bpmnlint`, `clipboard`,
+`elementTemplateOffer`, `popupMenuAnnotations`, `plugins`, `templatePreview`) have role folders
+inside; diagram-js and bpmn-js modules and DOM UI are `adapter/in/`, and a feature's factory that
+returns a `BpmnFeature` (`clipboard(bridge)`) sits there too. `composition/` holds `createSurface`,
+the kernel's default modules, the presets `createModeler`, `createDesigner` and `createViewer`, the
+module lists and the engine stacks.
 `styles/` and `types/` hold CSS and declarations, which no rule reads.
 
 - **Ports:** `port/` holds contracts and no code: what a host or an embedder supplies (the
@@ -242,13 +247,13 @@ diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` hold
 - **Why:** as `diagram-js` the package was checked only for holding no role folder, and
   `convention-coverage` skipped it. A kind of its own would need rules of its own; these rules,
   `convention-coverage` and the purity rule exist already for the core.
-- **Cost:** 13 pairs stay role exceptions and one a purity exception, each naming the step-2
-  change of #2249 that removes it: construction out of the facades (8), the kernel's DOM
-  features as values (2), `LintCallbacks` into the `LintModule` port (1), the linter injected
-  into `LintConfigService` (1), the template preview as a preset (1) and, for purity, the
-  default lint config as a value (1). The kernel keeps type imports
-  from `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
-  `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A
+- **Cost:** 11 pairs stay role exceptions and one a purity exception, each naming the change of
+  #2249 step 2 (now #2802) that removes it: construction out of the facades (8),
+  `LintCallbacks` into the `LintModule` port (1), the linter injected into `LintConfigService`
+  (1), the template preview as a preset (1) and, for purity, the default lint config as a value
+  (1). The kernel rule keeps two exceptions until #2802 S4: `editableSurface.ts` imports the
+  layout and element-ID libraries; the [DI-name rule](bpmn-modeler-kernel.md#kernel-di-names)
+  keeps its five lookups there until #2802 S4 and S5. A
   `new Modeler()` in a feature's `service/` passes every import rule; only review and the browser
   specs catch it. The bundle checks read `bpmnlint` anywhere in a chunk, its source path
   comments included, so a file the root, `/design` or `/mode` entry reaches stays out of

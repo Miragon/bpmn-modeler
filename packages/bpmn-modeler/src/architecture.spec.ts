@@ -5,10 +5,12 @@ import {
     readModuleImports,
     readModulePurity,
     readSourceTree,
+    readWorkspaces,
     requireMatches,
     staleExceptions,
     stripComments,
     unexcusedViolations,
+    workspaceOfSpecifier,
 } from "@miragon/architecture-testing";
 import type {
     ImportGraph,
@@ -16,11 +18,22 @@ import type {
     ModulePurity,
     SourceFile,
     Violation,
+    Workspace,
 } from "@miragon/architecture-testing";
+import Modeler from "bpmn-js/lib/Modeler";
+import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
+import DiagramCore from "diagram-js/lib/core";
 import { readFileSync } from "node:fs";
 import { dirname, join, normalize, posix, resolve } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
+
+import {
+    DEBOUNCE_INPUT,
+    DIAGRAM_TEMPLATE,
+    SURFACE_MODE_SERVICE,
+    SURFACE_ROOTS,
+} from "./kernel/domain/kernelNames";
 
 /**
  * Import-direction gate for `@miragon/bpmn-modeler`.
@@ -574,5 +587,274 @@ describe("bpmn-modeler domain imports", TREE_PARSE, () => {
 
     it("names the issue that removes each exception", () => {
         expect(exceptionsWithoutIssue(DOMAIN_IMPORT_EXCEPTIONS)).toEqual([]);
+    });
+});
+
+const KERNEL = "kernel/";
+
+/**
+ * The workspace libraries the kernel may import besides npm: the shared types
+ * and the browser helpers its focus, fit, theme and viewport code run on. Any
+ * other workspace (a feature library, the core, this package) is outside.
+ */
+const KERNEL_LIBRARIES: readonly string[] = [
+    "@miragon/bpmn-modeler-types",
+    "@miragon/bpmn-modeler-browser",
+];
+
+/** Keyed by file and specifier; each names the step that removes it. */
+const KERNEL_IMPORT_EXCEPTIONS: readonly KnownException[] = [
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "@miragon/bpmn-modeler-layout",
+        until: "#2802 S4: format, cleanup and onFormatted move into the layout() feature's accessor",
+    },
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "@miragon/bpmn-modeler-element-ids",
+        until: "#2802 S4: the element-ID helpers move into the elementIds() feature's accessor",
+    },
+];
+
+function kernelImportViolations(workspaces: readonly Workspace[]) {
+    return ({ edges }: ImportGraph): Violation[] =>
+        edges
+            .filter(({ from }) => from.startsWith(KERNEL))
+            .flatMap(({ from, specifier, to }): Violation[] => {
+                if (to !== undefined) {
+                    return to.startsWith(KERNEL) ? [] : [{ from, to }];
+                }
+                const workspace = workspaceOfSpecifier(specifier, workspaces);
+                return workspace && !KERNEL_LIBRARIES.includes(workspace.name)
+                    ? [{ from, to: specifier }]
+                    : [];
+            });
+}
+
+describe("bpmn-modeler kernel imports", TREE_PARSE, () => {
+    const SYNTHETIC_WORKSPACES: readonly Workspace[] = [
+        { name: "@miragon/bpmn-modeler", dir: "packages/bpmn-modeler" },
+        { name: "@miragon/bpmn-modeler-types", dir: "libs/modeler-types" },
+        { name: "@miragon/bpmn-modeler-browser", dir: "libs/modeler-browser" },
+        { name: "@miragon/bpmn-modeler-layout", dir: "libs/bpmn-layout" },
+        { name: "@miragon/bpmn-modeler-diff", dir: "libs/bpmn-diff" },
+    ];
+    // One level deep, so the vitest-target check reads these specifiers as inside the package.
+    const syntheticViolations = (text: string): string[] =>
+        kernelImportViolations(SYNTHETIC_WORKSPACES)(
+            buildImportGraph([
+                { path: "kernel/x.ts", text },
+                { path: "kernel/y.ts", text: "" },
+                { path: "modeler/publicApi.ts", text: "" },
+                { path: "composition/z.ts", text: "" },
+            ]),
+        ).map(describeViolation);
+
+    it.each([
+        { name: "a kernel file", text: 'import type { Y } from "./y";' },
+        {
+            name: "the shared types, by a subpath",
+            text: 'import type { Engine } from "@miragon/bpmn-modeler-types/domain";',
+        },
+        {
+            name: "the browser helpers",
+            text: 'import { ThemeController } from "@miragon/bpmn-modeler-browser";',
+        },
+        { name: "an npm package", text: 'import type Canvas from "diagram-js/lib/core/Canvas";' },
+    ])("pass a kernel file that imports $name", ({ text }) => {
+        expect(syntheticViolations(text)).toEqual([]);
+    });
+
+    it.each([
+        {
+            name: "a port outside the kernel, even type-only",
+            text: 'import type { X } from "../modeler/publicApi";',
+            violation: "kernel/x.ts -> modeler/publicApi.ts",
+        },
+        {
+            name: "composition",
+            text: 'import { z } from "../composition/z";',
+            violation: "kernel/x.ts -> composition/z.ts",
+        },
+        {
+            name: "a feature library",
+            text: 'import { LAYOUT_FORMATTED_EVENT } from "@miragon/bpmn-modeler-layout";',
+            violation: "kernel/x.ts -> @miragon/bpmn-modeler-layout",
+        },
+        {
+            name: "a hexagonal library",
+            text: 'import type { Diff } from "@miragon/bpmn-modeler-diff/domain";',
+            violation: "kernel/x.ts -> @miragon/bpmn-modeler-diff/domain",
+        },
+        {
+            name: "this package by name",
+            text: 'import { createModeler } from "@miragon/bpmn-modeler";',
+            violation: "kernel/x.ts -> @miragon/bpmn-modeler",
+        },
+    ])("flag a kernel file that imports $name", ({ text, violation }) => {
+        expect(syntheticViolations(text)).toEqual([violation]);
+    });
+
+    const violations = kernelImportViolations(readWorkspaces(REPO_ROOT))(
+        buildImportGraph(packageSources),
+    );
+
+    it("kernel/ imports nothing outside kernel/ but the shared types, the browser helpers and npm", () => {
+        expect(
+            unexcusedViolations(violations, KERNEL_IMPORT_EXCEPTIONS).map(describeViolation),
+        ).toEqual([]);
+    });
+
+    it("lists no exception the code no longer needs", () => {
+        expect(staleExceptions(violations, KERNEL_IMPORT_EXCEPTIONS)).toEqual([]);
+    });
+
+    it("names the issue that removes each exception", () => {
+        expect(exceptionsWithoutIssue(KERNEL_IMPORT_EXCEPTIONS)).toEqual([]);
+    });
+});
+
+interface DiModule {
+    readonly [name: string]: unknown;
+    readonly __depends__?: readonly DiModule[];
+}
+
+function providedDiNames(
+    modules: readonly DiModule[],
+    names = new Set<string>(),
+    visited = new Set<DiModule>(),
+): Set<string> {
+    for (const module of modules) {
+        if (visited.has(module)) continue;
+        visited.add(module);
+        Object.keys(module)
+            .filter((key) => !key.startsWith("__"))
+            .forEach((name) => names.add(name));
+        providedDiNames(module.__depends__ ?? [], names, visited);
+    }
+    return names;
+}
+
+const baseModules = (base: { prototype: object }): readonly DiModule[] =>
+    (base.prototype as { _modules: readonly DiModule[] })._modules;
+
+/** didi, diagram-js and bpmn-js register these in their constructors, beside `DiagramCore`. */
+const CONSTRUCTOR_DI_NAMES: readonly string[] = ["injector", "config", "bpmnjs", "moddle"];
+
+const KERNEL_DI_NAMES: readonly string[] = [
+    SURFACE_MODE_SERVICE,
+    SURFACE_ROOTS,
+    DEBOUNCE_INPUT,
+    DIAGRAM_TEMPLATE,
+];
+
+const DI_LOOKUP = /\b(?:get|service|optionalService|getService)\s*(?:<[^>()]*>)?\(\s*["']([\w$]+)["']/g;
+const DI_INJECT = /\$inject\s*=\s*\[([^\]]*)\]/g;
+const STRING_LITERAL = /["']([\w$]+)["']/g;
+
+function literalDiNames({ path, text }: SourceFile): string[] {
+    const code = stripComments(path, text);
+    const looked = [...code.matchAll(DI_LOOKUP)].map(([, name]) => name);
+    const injected = [...code.matchAll(DI_INJECT)].flatMap(([, list]) =>
+        [...list.matchAll(STRING_LITERAL)].map(([, name]) => name),
+    );
+    return [...looked, ...injected];
+}
+
+/** A DI name the kernel spells out that neither a bpmn-js base nor the kernel provides. */
+function kernelDiNameViolations(isAllowed: (name: string) => boolean) {
+    return (sources: readonly SourceFile[]): Violation[] =>
+        sources
+            .filter(({ path }) => path.startsWith(KERNEL))
+            .flatMap((file) =>
+                [...new Set(literalDiNames(file))]
+                    .filter((name) => !isAllowed(name))
+                    .map((name) => ({ from: file.path, to: name })),
+            );
+}
+
+/** Keyed by file and DI name; each names the step that moves the lookup into its feature. */
+const KERNEL_DI_NAME_EXCEPTIONS: readonly KnownException[] = [
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "bpmnLayouter",
+        until: "#2802 S4: format moves into the layout() feature's accessor",
+    },
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "bpmnCleanup",
+        until: "#2802 S4: cleanup moves into the layout() feature's accessor",
+    },
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "elementIds",
+        until: "#2802 S4: the element-ID helpers move into the elementIds() feature's accessor",
+    },
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "appendMenuOverride",
+        until: "#2802 S4: favourites move into the append-menu feature's accessor",
+    },
+    {
+        from: "kernel/service/editableSurface.ts",
+        to: "bpmnLintConfig",
+        until: "#2802 S5: the lint handle methods move into the lint() feature's accessor",
+    },
+];
+
+describe("bpmn-modeler kernel DI names", () => {
+    const syntheticViolations = (text: string): string[] =>
+        kernelDiNameViolations((name) => ["eventBus", SURFACE_ROOTS].includes(name))([
+            { path: "kernel/x.ts", text },
+        ]).map(describeViolation);
+
+    it.each([
+        { name: "a base service", text: 'core.service<EventBus>("eventBus");' },
+        { name: "a kernel name by its constant", text: "core.optionalService(DIAGRAM_TEMPLATE);" },
+        { name: "a name only in a comment", text: '// get("bpmnLayouter", false)' },
+    ])("pass a kernel file that looks up $name", ({ text }) => {
+        expect(syntheticViolations(text)).toEqual([]);
+    });
+
+    it.each([
+        {
+            name: "an optional feature service",
+            text: 'surface.optionalService<Layouter>("bpmnLayouter");',
+        },
+        { name: "a feature service by get", text: 'injector.get("bpmnLayouter", false);' },
+        {
+            name: "a feature service by injection",
+            text: 'Fit.$inject = ["eventBus", "bpmnLayouter"];',
+        },
+    ])("flag a kernel file that names $name", ({ text }) => {
+        expect(syntheticViolations(text)).toEqual(["kernel/x.ts -> bpmnLayouter"]);
+    });
+
+    const baseNames = providedDiNames([
+        DiagramCore as DiModule,
+        ...baseModules(NavigatedViewer),
+        ...baseModules(Modeler),
+    ]);
+    const allowed = new Set([...baseNames, ...CONSTRUCTOR_DI_NAMES, ...KERNEL_DI_NAMES]);
+    const violations = kernelDiNameViolations((name) => allowed.has(name))(sourcesIn("kernel"));
+
+    it("reads the base names from the bpmn-js module tree", () => {
+        expect([...baseNames]).toEqual(
+            expect.arrayContaining(["eventBus", "canvas", "selection", "searchPad"]),
+        );
+    });
+
+    it("kernel/ looks up no DI name but the bases' and its own", () => {
+        expect(
+            unexcusedViolations(violations, KERNEL_DI_NAME_EXCEPTIONS).map(describeViolation),
+        ).toEqual([]);
+    });
+
+    it("lists no exception the code no longer needs", () => {
+        expect(staleExceptions(violations, KERNEL_DI_NAME_EXCEPTIONS)).toEqual([]);
+    });
+
+    it("names the issue that removes each exception", () => {
+        expect(exceptionsWithoutIssue(KERNEL_DI_NAME_EXCEPTIONS)).toEqual([]);
     });
 });

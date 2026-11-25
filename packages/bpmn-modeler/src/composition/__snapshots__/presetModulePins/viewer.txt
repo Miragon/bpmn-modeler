@@ -22,6 +22,9 @@ keyboard=type(Keyboard) keyboardBindings=type(KeyboardBindings) init[keyboard, k
 keyboardMove=type(KeyboardMove) init[keyboardMove]
 moveCanvas=type(MoveCanvas) init[moveCanvas]
 zoomScroll=type(ZoomScroll) init[zoomScroll]
+surfaceRoots=value([HTMLDivElement#2]) init[fn watchConstruction]
+surfaceKeyboardFocus=factory(surfaceKeyboardFocus) init[surfaceKeyboardFocus]
+fitViewportButton=type(FitViewportButton) init[fitViewportButton]
 outline=type(Outline) multiSelectionOutline=type(MultiSelectionOutline) init[outline, multiSelectionOutline]
 outlineProvider=type(OutlineProvider) init[outlineProvider]
 minimap=type(Minimap) init[minimap]
@@ -79,6 +82,7 @@ eventBehaviors: type(EventBehaviors)
 eventBus: type(EventBus)
 exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
 exclusiveGatewaySettings: type(ExclusiveGatewaySettings)
+fitViewportButton: type(FitViewportButton)
 graphicsFactory: type(GraphicsFactory)
 inclusiveGatewayBehavior: type(InclusiveGatewayBehavior)
 inclusiveGatewaySettings: type(InclusiveGatewaySettings)
@@ -121,6 +125,8 @@ startEventBehavior: type(StartEventBehavior)
 styles: type(Styles)
 subProcessBehavior: type(SubProcessBehavior)
 subprocessCompatibility: type(SubprocessCompatibility)
+surfaceKeyboardFocus: factory(surfaceKeyboardFocus)
+surfaceRoots: value([HTMLDivElement#2])
 textRenderer: type(TextRenderer)
 toggleMode: type(ToggleMode)
 tokenCount: type(TokenCount)
@@ -149,6 +155,9 @@ keyboardBindings @keyboard
 keyboardMove
 moveCanvas
 zoomScroll
+fn watchConstruction @surfaceRoots
+surfaceKeyboardFocus
+fitViewportButton
 outline
 multiSelectionOutline @outline
 outlineProvider

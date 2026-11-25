@@ -1,7 +1,8 @@
 import { DEFAULT_THEME_MODE } from "@miragon/bpmn-modeler-types";
 import { BpmnViewer } from "../viewer/service/viewer";
 import type { ViewerOptions } from "../viewer/port/publicApi";
-import { createSurface } from "./createSurface";
+import { initOrTeardown } from "../kernel/service/surfaceLifecycle";
+import { kernelDefaultModules } from "./kernelDefaults";
 
 /**
  * Async for API-stability symmetry with {@link createModeler}.
@@ -10,8 +11,8 @@ export async function createViewer(
     container: HTMLElement,
     options: ViewerOptions = {},
 ): Promise<BpmnViewer> {
-    return createSurface(
-        () => new BpmnViewer(container, options),
+    return initOrTeardown(
+        () => new BpmnViewer(container, options, { defaultModules: kernelDefaultModules() }),
         async (viewer) => {
             await viewer.init();
 

@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-11-24
+- Last reviewed: 2026-11-25
 
 ## Context
 
@@ -17,7 +17,8 @@ are in [Architecture and hosts](architecture-and-hosts.md#package-boundaries);
 element-template authoring (preview, editor, marketplaces) is in
 [Element templates](element-templates.md).
 
-Related topics: [BPMN modeler features](bpmn-modeler-features.md) (properties panel,
+Related topics: [BPMN modeler kernel](bpmn-modeler-kernel.md) (`createSurface`, features and
+plugins, the kernel DI names), [BPMN modeler features](bpmn-modeler-features.md) (properties panel,
 themes and locale, form previews, transaction boundaries, formatting),
 [BPMN linting](bpmn-linting.md), [Diff](diff.md), [BPMN plugins](bpmn-plugins.md) and
 the [allowance](code-allowance.md) workspace code runs under.
@@ -105,8 +106,9 @@ engine modeler, so its moddle, behaviors, command stack and DI graph stay intact
 survives replace and copy-paste, and undo history survives. Routing that document through the
 engine-neutral designer would lose extension data, runtime DI module replacement is unsupported,
 and two synchronized documents would be a merge problem. Design hides engine-template popup and
-chooser chrome but not token simulation; minimap, token simulation, focus and the fit button are
-engine-neutral chrome on every surface.
+chooser chrome but not token simulation; minimap and token simulation are engine-neutral chrome on
+every surface, and focus and the fit button are
+[kernel defaults](bpmn-modeler-kernel.md#defaults-and-failure).
 
 **The kernel owns the mode.** The modeler registers `surfaceMode` (features read `get()`; name and
 type in `modeler-types`, which the panel's library can import). A real change fires
@@ -115,8 +117,8 @@ type in `modeler-types`, which the panel's library can import). A real change fi
 still reaches the host. Lint listens at 500 and the callback at 250, which keeps the facade's old
 order: filter, attribute, lint, callback. Lint takes the initial mode from `lintTier.mode`; the
 filter reads `propertiesPanelMode` only on a surface without `surfaceMode` (designer, viewer). The
-facade still sets the first `data-bpmn-mode` once the instance is built and removes it on destroy,
-so a construction that throws after `diagram.init` leaves the roots clean. Costs: a listener that
+first `data-bpmn-mode` is set on the surface roots once the instance is built and removed on
+destroy, so a construction that throws after `diagram.init` leaves the roots clean. Costs: a listener that
 returns a value stops the event before lint and the callback; `getService("surfaceMode")` is
 reachable before the name is published; the filter's own `setMode`, called through `getService`,
 no longer moves `getMode()`.
@@ -245,7 +247,7 @@ await it.
 
 **Surface lifecycle.** Surfaces compose lifecycle primitives instead of inheriting a base class
 (`DisposableStore`, `MutableDisposable`, `subscribe` from `modeler-types`, so the restricted `/mode`
-graph can reuse them; `createSurface` disposes partial construction on failure). Every surface arms
+graph can reuse them; `initOrTeardown` disposes partial construction on failure). Every surface arms
 one shared initial-viewport policy on every import: it fits once the container has a size, and an
 explicit `setViewport`/`applyViewState` or `centerOnElement` settles it, so the delayed fit never
 overwrites restored state and hosts need no initial fit of their own. After `destroy()` every surface
@@ -269,12 +271,12 @@ stays internal: only the session needs it.
 ### Source layout
 
 The package is a `hexagonal` workspace laid out like the core: the subpath entries directly in
-`src/`, `kernel/` for `SurfaceCore` and the surface handle, feature folders with role folders
+`src/`, [the kernel](bpmn-modeler-kernel.md) in `kernel/`, feature folders with role folders
 inside, and the presets and module lists in `composition/`
 ([modeler package layout](role-folders.md#modeler-package-layout)). The export map and every
 exported name stayed as they were. The facades still build their bpmn-js instance and
-orchestrate it, so the role-folder rules list them as known exceptions until #2249's step 2
-gives the modeler and the designer one editable-surface orchestration in the kernel.
+orchestrate it, so the role-folder rules list them as known exceptions until #2802 S4 puts the
+presets on the kernel.
 
 ## Consequences and enforcement
 
@@ -288,13 +290,14 @@ Enforced by [API conformance tests](../../packages/bpmn-modeler/src/publicApi.sp
 [architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts),
 [declaration checks](../../packages/bpmn-modeler/scripts/check-dts.mjs), the
 [design](../../packages/bpmn-modeler/scripts/check-design-pure-entry.mjs),
-[mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs) and
-[plugins-free](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs) import
+[mode](../../packages/bpmn-modeler/scripts/check-mode-pure-entry.mjs),
+[plugins-free](../../packages/bpmn-modeler/scripts/check-plugins-free-entry.mjs) and
+[viewer-surface](../../packages/bpmn-modeler/scripts/check-viewer-surface-bundle.mjs) import
 checks, the [plugin loader browser tests](../../packages/bpmn-modeler/src/plugins/service/loadPlugins.browser.spec.ts)
 ([BPMN plugins](bpmn-plugins.md)),
 the [lifecycle](../../packages/bpmn-modeler/src/lifecycleContract.browser.spec.ts) and
 [editable-surface](../../packages/bpmn-modeler/src/editableSurfaceContract.browser.spec.ts)
-contract tests (all four surfaces; post-destroy lint pushes throw; what the command-stack
+contract tests (every surface, kernel surfaces included; post-destroy lint pushes throw; what the command-stack
 and format subscriptions deliver) and the
 [session tests](../../packages/bpmn-modeler/src/modeSession/service/modeSession.spec.ts)
 (transition failures and teardown). Test-environment limits are in

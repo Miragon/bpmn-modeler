@@ -1,7 +1,10 @@
 import type BaseViewer from "bpmn-js/lib/BaseViewer";
+import EventBus from "diagram-js/lib/core/EventBus";
+import { Injector, type ModuleDeclaration } from "didi";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DisposableStore, NoModelerError } from "@miragon/bpmn-modeler-types";
 
+import { SURFACE_ROOTS } from "../domain/kernelNames";
 import { SurfaceCore } from "./surfaceCore";
 
 /**
@@ -37,7 +40,7 @@ function mount() {
 
 function allocate(core: SurfaceCore<Instance>, container: HTMLElement, store: DisposableStore) {
     const instance = fakeInstance(container);
-    core.allocate(store, () => instance as unknown as Instance, { hasSearchPad: false });
+    core.allocate(store, () => instance as unknown as Instance);
     return instance;
 }
 
@@ -50,13 +53,9 @@ describe("SurfaceCore", () => {
         const failure = new Error("poison");
 
         expect(() =>
-            core.allocate(
-                new DisposableStore(),
-                () => {
-                    throw failure;
-                },
-                { hasSearchPad: false },
-            ),
+            core.allocate(new DisposableStore(), () => {
+                throw failure;
+            }),
         ).toThrow(failure);
 
         expect(container.childElementCount).toBe(0);
@@ -85,26 +84,77 @@ describe("SurfaceCore", () => {
         }
     });
 
-    it("marks the fit button while the canvas holds the keyboard", () => {
+    it("registers its roots as surfaceRoots, the canvas container first", () => {
+        const { container, panel, core } = mount();
+
+        const injector = new Injector([
+            { eventBus: ["value", new EventBus()] },
+            core.rootsModule() as ModuleDeclaration,
+        ]);
+        injector.init();
+
+        expect(injector.get(SURFACE_ROOTS)).toEqual([container, panel]);
+    });
+
+    it("fires diagram.destroy on a construction that throws after its modules initialised", () => {
+        const { core } = mount();
+        const eventBus = new EventBus();
+        const destroyed = vi.fn();
+        eventBus.on("diagram.destroy", destroyed);
+        const failure = new Error("attach poison");
+
+        expect(() =>
+            core.allocate(new DisposableStore(), () => {
+                new Injector([
+                    { eventBus: ["value", eventBus] },
+                    core.rootsModule() as ModuleDeclaration,
+                ]).init();
+                throw failure;
+            }),
+        ).toThrow(failure);
+
+        expect(destroyed).toHaveBeenCalledOnce();
+    });
+
+    it("rethrows the construction failure even when diagram.destroy throws too", () => {
+        const { core } = mount();
+        const eventBus = new EventBus();
+        eventBus.on("diagram.destroy", () => {
+            throw new Error("secondary");
+        });
+        const failure = new Error("attach poison");
+
+        expect(() =>
+            core.allocate(new DisposableStore(), () => {
+                new Injector([
+                    { eventBus: ["value", eventBus] },
+                    core.rootsModule() as ModuleDeclaration,
+                ]).init();
+                throw failure;
+            }),
+        ).toThrow(failure);
+    });
+
+    it("does not fire diagram.destroy for an earlier instance when the next construction fails first", () => {
         const { container, core } = mount();
-        const store = new DisposableStore();
-        const instance = allocate(core, container, store);
-        const eventBus = instance.get("eventBus") as { on: ReturnType<typeof vi.fn> };
-        const [, onFocusChanged] = eventBus.on.mock.calls.find(
-            ([event]) => event === "canvas.focus.changed",
-        )!;
-        const marked = () =>
-            container.querySelector(".fit-viewport-button")?.hasAttribute("data-canvas-focused") ??
-            false;
+        const eventBus = new EventBus();
+        const destroyed = vi.fn();
+        eventBus.on("diagram.destroy", destroyed);
+        core.allocate(new DisposableStore(), () => {
+            new Injector([
+                { eventBus: ["value", eventBus] },
+                core.rootsModule() as ModuleDeclaration,
+            ]).init();
+            return fakeInstance(container) as unknown as Instance;
+        });
 
-        onFocusChanged({ focused: true });
-        expect(marked()).toBe(true);
+        expect(() =>
+            core.allocate(new DisposableStore(), () => {
+                throw new Error("poison");
+            }),
+        ).toThrow("poison");
 
-        onFocusChanged({ focused: false });
-        expect(marked()).toBe(false);
-
-        store.dispose();
-        expect(container.querySelector(".fit-viewport-button")).toBeNull();
+        expect(destroyed).not.toHaveBeenCalled();
     });
 
     it("resolves a service the instance was built without to undefined", () => {

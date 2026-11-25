@@ -20,6 +20,7 @@ import type { ViewState } from "../../kernel/domain/viewState";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
+import type { PresetWiring } from "../../kernel/port/presetWiring";
 import type { CoreViewerServices, ViewerOptions } from "../port/publicApi";
 
 /**
@@ -34,10 +35,12 @@ export class BpmnViewer {
     /**
      * @param container The canvas host element (bpmn-js `container`).
      * @param options Per-instance config — see {@link ViewerOptions}.
+     * @param wiring The kernel's default modules, from composition.
      */
     constructor(
         private readonly container: HTMLElement,
         private readonly options: ViewerOptions,
+        private readonly wiring: Pick<PresetWiring, "defaultModules">,
     ) {
         const panel = options.propertiesPanel;
         this.core = new SurfaceCore(container, panel ? [container, panel.parent] : [container]);
@@ -86,10 +89,7 @@ export class BpmnViewer {
             ? [ContextPadModule, createModelNavigationModule(navigationPort)]
             : [];
 
-        this.core.allocate(this.store, () => this.constructViewer(panel, capModules), {
-            extraRoots: panel ? [panel.parent] : [],
-            hasSearchPad: false,
-        });
+        this.core.allocate(this.store, () => this.constructViewer(panel, capModules));
     }
 
     private constructViewer(
@@ -109,6 +109,8 @@ export class BpmnViewer {
             }),
             // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
             additionalModules: [
+                this.core.rootsModule(),
+                ...this.wiring.defaultModules,
                 OutlineModule,
                 MinimapModule,
                 // The readonly variant does not require the absent modeling service.

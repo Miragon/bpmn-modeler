@@ -47,6 +47,7 @@
         "packages/bpmn-modeler/scripts/check-dts.d.mts",
         "packages/bpmn-modeler/scripts/check-consumer-types.d.mts",
         "packages/bpmn-modeler/scripts/check-plugins-free-entry.d.mts",
+        "packages/bpmn-modeler/scripts/check-viewer-surface-bundle.d.mts",
         "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
         "packages/dmn-modeler/scripts/check-dts.d.mts",
         "scripts/perf/largeBpmnModel.d.mts",

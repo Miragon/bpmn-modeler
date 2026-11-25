@@ -1,7 +1,15 @@
+import Modeler from "bpmn-js/lib/Modeler";
+import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
+import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
+import { clipboard } from "./clipboard/adapter/in/clipboardFeature";
+import { createSurface } from "./composition/createSurface";
+import type { BpmnSurface, EditingSurface } from "./kernel/port/bpmnSurface";
+
 import { createModeler } from "./composition/createModeler";
+import { kernelDefaultModules } from "./composition/kernelDefaults";
 import { BpmnModeler } from "./modeler/service/modeler";
 import type { ThemeMode } from "./kernel/domain/themeMode";
 import { createDesigner } from "./composition/createDesigner";
@@ -22,10 +30,10 @@ import {
 
 /**
  * One lifecycle contract, run against every surface (modeler, designer, viewer,
- * diff pane). It only reproduces against a real bpmn-js instance and a real
+ * kernel surfaces on both bases, diff pane). It only reproduces against a real bpmn-js instance and a real
  * ResizeObserver — jsdom stands up neither — so it lives in the browser project.
  * Exhaustive per-phase init-failure coverage stays in the jsdom
- * `createSurface.spec.ts`; here each surface is exercised end to end.
+ * `surfaceLifecycle.spec.ts`; here each surface is exercised end to end.
  */
 
 // A bpmn-js DI module whose service throws during construction, so the bpmn-js
@@ -41,6 +49,27 @@ const POISON_MODULE = {
         },
     ],
 };
+
+const WIRING = { defaultModules: kernelDefaultModules(), clipboardModules: [] };
+
+// Throws from bpmn-js's `attach`, which its constructor fires after every module initialised.
+class ThrowsOnAttach {
+    static $inject = ["eventBus"];
+    constructor(eventBus: { on(event: string, listener: () => void): void }) {
+        eventBus.on("attach", () => {
+            throw new Error("attach poison");
+        });
+    }
+}
+const ATTACH_POISON_MODULE = {
+    __init__: ["throwsOnAttach"],
+    throwsOnAttach: ["type", ThrowsOnAttach],
+};
+
+const clipboardBridge = () => ({
+    requestClipboard: vi.fn(async () => ""),
+    writeClipboard: vi.fn(),
+});
 
 type Handle = { destroy(): void };
 
@@ -158,6 +187,58 @@ const surfaces: SurfaceDescriptor[] = [
             () => (h as BpmnViewer).rootElement,
         ],
         setTheme: (h, theme) => (h as BpmnViewer).setTheme(theme),
+    },
+    {
+        name: "kernel surface on the modeler base",
+        mount: mountWithPanelRoots,
+        create: (m) =>
+            createSurface(m.container, { base: Modeler, features: [], extraRoots: [m.panel!] }),
+        createFailing: (m) =>
+            createSurface(m.container, {
+                base: Modeler,
+                features: [{ id: "poison", modules: [POISON_MODULE] }],
+                extraRoots: [m.panel!],
+            }),
+        load: async (h) => void (await (h as BpmnSurface).loadDiagram(FAR_FROM_ORIGIN_XML)),
+        subscribeChannels: (h, onFire) => [
+            (h as BpmnSurface).viewport.onViewportChanged(onFire),
+            (h as BpmnSurface).onCommandStackChanged(onFire),
+        ],
+        triggerViewbox: (h) => (h as EditingSurface).getService("canvas").zoom(2),
+        canvas: (h) => (h as EditingSurface).getService("canvas"),
+        deadAccessors: (h) => [
+            () => (h as BpmnSurface).viewport,
+            () => (h as BpmnSurface).selection,
+            () => (h as BpmnSurface).rootElement,
+        ],
+        setTheme: (h, theme) => (h as BpmnSurface).setTheme(theme),
+    },
+    {
+        name: "kernel surface on the viewer base",
+        mount: mountWithPanelRoots,
+        create: (m) =>
+            createSurface(m.container, {
+                base: NavigatedViewer,
+                features: [],
+                extraRoots: [m.panel!],
+            }),
+        createFailing: (m) =>
+            createSurface(m.container, {
+                base: NavigatedViewer,
+                features: [{ id: "poison", modules: [POISON_MODULE] }],
+                extraRoots: [m.panel!],
+            }),
+        load: async (h) => void (await (h as BpmnSurface).loadDiagram(FAR_FROM_ORIGIN_XML)),
+        subscribeChannels: (h, onFire) => [(h as BpmnSurface).viewport.onViewportChanged(onFire)],
+        triggerViewbox: (h) =>
+            (h as BpmnSurface).getService<{ zoom(n: number): void }>("canvas").zoom(2),
+        canvas: (h) => (h as BpmnSurface).getService<{ resized(): void }>("canvas"),
+        deadAccessors: (h) => [
+            () => (h as BpmnSurface).viewport,
+            () => (h as BpmnSurface).selection,
+            () => (h as BpmnSurface).rootElement,
+        ],
+        setTheme: (h, theme) => (h as BpmnSurface).setTheme(theme),
     },
     {
         name: "diffViewer",
@@ -292,6 +373,95 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
     });
 });
 
+interface AttachFailure {
+    name: string;
+    createFailing(mount: Mount): Promise<unknown>;
+}
+
+const ATTACH_FAILURES: AttachFailure[] = [
+    {
+        name: "modeler",
+        createFailing: (m) =>
+            createModeler(m.container, {
+                engine: "c8",
+                propertiesPanel: { parent: m.panel! },
+                clipboard: { bridge: clipboardBridge() },
+                additionalModules: [ATTACH_POISON_MODULE],
+            }),
+    },
+    {
+        name: "designer",
+        createFailing: (m) =>
+            createDesigner(m.container, {
+                propertiesPanel: { parent: m.panel! },
+                clipboard: { bridge: clipboardBridge() },
+                additionalModules: [ATTACH_POISON_MODULE],
+            }),
+    },
+    {
+        name: "kernel surface",
+        createFailing: (m) =>
+            createSurface(m.container, {
+                base: Modeler,
+                features: [
+                    { id: "nativeCopyPaste", modules: [NativeCopyPasteModule] },
+                    clipboard({ bridge: clipboardBridge() }),
+                    { id: "poison", modules: [ATTACH_POISON_MODULE] },
+                ],
+                extraRoots: [m.panel!],
+            }),
+    },
+];
+
+describe.each(ATTACH_FAILURES)("$name construction failing on attach", (surface) => {
+    it("leaves the page as it found it: no listener, no execCommand patch, clean roots", async () => {
+        const tracker = trackDocumentListeners("keydown");
+        try {
+            const mount = mountWithPanelRoots();
+
+            await expect(surface.createFailing(mount)).rejects.toThrow("attach poison");
+
+            assertClean(mount.roots);
+            expect(Object.hasOwn(document, "execCommand")).toBe(false);
+            const { added, removed } = tracker.counts();
+            expect(removed).toBe(added);
+        } finally {
+            tracker.restore();
+        }
+    });
+});
+
+describe.each([
+    {
+        name: "modeler",
+        create: (m: Mount) =>
+            createModeler(m.container, { engine: "c8", propertiesPanel: { parent: m.panel! } }),
+    },
+    {
+        name: "designer",
+        create: (m: Mount) =>
+            createDesigner(m.container, { propertiesPanel: { parent: m.panel! } }),
+    },
+    { name: "viewer", create: (m: Mount) => createViewer(m.container, {}) },
+    {
+        name: "kernel surface",
+        create: (m: Mount) => createSurface(m.container, { base: Modeler, features: [] }),
+    },
+])("$name fit button", ({ create }) => {
+    // Its place sets the tab order: after the palette and the other canvas chrome.
+    it("is the canvas's last child", async () => {
+        const mount = mountWithPanelRoots();
+        const handle = await create(mount);
+        try {
+            const canvas = mount.container.querySelector(".djs-container");
+
+            expect(canvas?.lastElementChild?.className).toBe("fit-viewport-button");
+        } finally {
+            handle.destroy();
+        }
+    });
+});
+
 describe("BpmnModeler construction failing after diagram.init", () => {
     it("leaves no mode attribute on its roots", async () => {
         class ThrowsOnDiagramInit {
@@ -324,10 +494,14 @@ describe("BpmnModeler construction failing after diagram.init", () => {
 describe("BpmnModeler engine stack loading", () => {
     it("allocates nothing when destroyed while its engine stack loads", async () => {
         const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(mount.container, {
-            engine: "c7",
-            propertiesPanel: { parent: mount.panel! },
-        });
+        const modeler = new BpmnModeler(
+            mount.container,
+            {
+                engine: "c7",
+                propertiesPanel: { parent: mount.panel! },
+            },
+            WIRING,
+        );
 
         const initialized = modeler.init();
         modeler.destroy();
@@ -341,10 +515,14 @@ describe("BpmnModeler engine stack loading", () => {
 describe("BpmnModeler re-entrant init", () => {
     it("keeps setTheme working after init() disposes the previous store", async () => {
         const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(mount.container, {
-            engine: "c8",
-            propertiesPanel: { parent: mount.panel! },
-        });
+        const modeler = new BpmnModeler(
+            mount.container,
+            {
+                engine: "c8",
+                propertiesPanel: { parent: mount.panel! },
+            },
+            WIRING,
+        );
         await modeler.init();
         modeler.setTheme("dark");
 
@@ -360,11 +538,15 @@ describe("BpmnModeler re-entrant init", () => {
 
     it("marks the roots with the new instance's mode and follows its changes", async () => {
         const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(mount.container, {
-            engine: "c8",
-            mode: "design",
-            propertiesPanel: { parent: mount.panel! },
-        });
+        const modeler = new BpmnModeler(
+            mount.container,
+            {
+                engine: "c8",
+                mode: "design",
+                propertiesPanel: { parent: mount.panel! },
+            },
+            WIRING,
+        );
         await modeler.init();
         modeler.setMode("implement");
 

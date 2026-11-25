@@ -1,4 +1,5 @@
 export * from "./canvasResize";
+export * from "./diagramLifetime";
 export * from "./diffLegendView";
 export * from "./diffSideLabelView";
 export * from "./dom";

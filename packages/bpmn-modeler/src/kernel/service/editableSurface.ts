@@ -1,5 +1,4 @@
-import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-import type { ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
+import type { ElementIdOptions, ElementIdsService } from "@miragon/bpmn-modeler-element-ids";
 import {
     type CleanupService,
     LAYOUT_FORMATTED_EVENT,
@@ -10,49 +9,19 @@ import {
     type CleanupOutcome,
     type Disposer,
     type ElementIdProposals,
-    type DisposableStore,
     type MinimalEventBus,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
-import { installContentEditableClipboardPolyfill } from "../adapter/in/propertiesPanelClipboard";
-import type { ClipboardOptions, ElementIdOptions } from "../../modeler/port/publicApi";
 import type { SurfaceReporter } from "./reporting";
 import type { SurfaceServices } from "./surfaceCore";
 
-// Kept out of SurfaceCore: these value imports (clipboard modules) must stay out of `/viewer`.
+// Kept out of SurfaceCore: the layout value import must stay out of `/viewer`.
 
 // Structural sliver of the non-core append-menu DI service — only the member called here.
 interface AppendMenuOverrideService {
     setFavourites(types: string[]): void;
-}
-
-/**
- * Returns the bpmn-js clipboard modules for a clipboard override and registers
- * the contenteditable text polyfill for `roots` on `store`. Without an override
- * the native browser clipboard applies and nothing is installed.
- */
-export function installClipboardSupport(
-    store: DisposableStore,
-    clipboard: ClipboardOptions | undefined,
-    roots: readonly HTMLElement[],
-): unknown[] {
-    if (!clipboard) {
-        return [];
-    }
-    // FEEL editors sit outside bpmn-js DI and need the document-level text bridge.
-    // Wrap callbacks to preserve the bridge's this binding.
-    const textBridge = clipboard.text ?? clipboard.bridge;
-    store.add(
-        installContentEditableClipboardPolyfill(roots, {
-            requestClipboard: () => textBridge.requestClipboard(),
-            writeClipboard: (text) => {
-                void textBridge.writeClipboard(text);
-            },
-        }),
-    );
-    return createClipboardModules({ element: clipboard.bridge, text: clipboard.text });
 }
 
 const WITHOUT_LAYOUT = "this surface was created without the layout module";
@@ -63,16 +32,6 @@ export async function formatSurfaceDiagram(surface: SurfaceServices): Promise<La
         return { status: "failed", message: WITHOUT_LAYOUT, diagnostics: [] };
     }
     return layouter.format();
-}
-
-// Block bodies: a listener's return value would stop the event reaching later listeners.
-export function subscribeCommandStackChanged(
-    surface: SurfaceServices,
-    listener: () => void,
-): Disposer {
-    return subscribe(surface.service<MinimalEventBus>("eventBus"), "commandStack.changed", () => {
-        listener();
-    });
 }
 
 export function subscribeFormatted(

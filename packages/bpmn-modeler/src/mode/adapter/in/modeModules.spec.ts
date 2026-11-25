@@ -5,6 +5,7 @@ import {
     type SurfaceModeChangedEvent,
 } from "@miragon/bpmn-modeler-types/domain";
 
+import { SURFACE_ROOTS } from "../../../kernel/domain/kernelNames";
 import {
     ModeAttribute,
     stripTemplateEntries,
@@ -129,6 +130,8 @@ describe("PopupMenuModeFilter", () => {
 function attributeHarness(withSurfaceMode: boolean) {
     const container = document.createElement("div");
     const panel = document.createElement("div");
+    const extraRoot = document.createElement("div");
+    const configContainer = document.createElement("div");
     const listeners: Record<string, Array<(event: SurfaceModeChangedEvent) => void>> = {};
     const eventBus = {
         on: (event: string, listener: (event: SurfaceModeChangedEvent) => void) => {
@@ -136,8 +139,9 @@ function attributeHarness(withSurfaceMode: boolean) {
         },
     };
     const services: Record<string, unknown> = {
-        "config.container": container,
-        "config.propertiesPanel": { parent: panel },
+        "config.container": configContainer,
+        "config.propertiesPanel": { parent: configContainer },
+        [SURFACE_ROOTS]: [container, panel, extraRoot],
         [SURFACE_MODE_SERVICE]: withSurfaceMode ? { get: () => "implement" } : null,
     };
     const injector = {
@@ -148,25 +152,27 @@ function attributeHarness(withSurfaceMode: boolean) {
         (listeners[SURFACE_MODE_CHANGED] ?? []).forEach((listener) => listener({ mode }));
     };
     const attributes = (): Array<string | null> =>
-        [container, panel].map((root) => root.getAttribute("data-bpmn-mode"));
+        [container, panel, extraRoot, configContainer].map((root) =>
+            root.getAttribute("data-bpmn-mode"),
+        );
     return { announce, attributes, listeners };
 }
 
 describe("ModeAttribute", () => {
-    it("marks the canvas container and the panel parent with each new mode", () => {
+    it("marks every surface root with each new mode, and nothing it reads from the config", () => {
         const { announce, attributes } = attributeHarness(true);
 
         announce("design");
-        expect(attributes()).toEqual(["design", "design"]);
+        expect(attributes()).toEqual(["design", "design", "design", null]);
 
         announce("implement");
-        expect(attributes()).toEqual(["implement", "implement"]);
+        expect(attributes()).toEqual(["implement", "implement", "implement", null]);
     });
 
     it("leaves the roots alone until the mode changes", () => {
         const { attributes } = attributeHarness(true);
 
-        expect(attributes()).toEqual([null, null]);
+        expect(attributes()).toEqual([null, null, null, null]);
     });
 
     it("listens to nothing on a surface without a mode", () => {

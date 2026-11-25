@@ -156,28 +156,34 @@ modules:
 + bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
 + labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
 + elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
++ clipboardTextPolyfill=factory(clipboardTextPolyfill) init[clipboardTextPolyfill] (after elementClipboardBridge)
 providers:
 + bridgedClipboard: type(BridgedClipboard)
++ clipboardTextPolyfill: factory(clipboardTextPolyfill)
 + elementClipboardBridge: value(Object: clipboard bridge)
 + labelClipboard: type(LabelClipboard)
 + textClipboardBridge: value(Object: clipboard bridge)
 __init__:
 + bridgedClipboard (after the defaults)
 + labelClipboard (after bridgedClipboard)
++ clipboardTextPolyfill (after labelClipboard)
 
 ## clipboard: { bridge, text }
 modules:
 + bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after the defaults)
 + labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
 + elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard text bridge) (after labelClipboard)
++ clipboardTextPolyfill=factory(clipboardTextPolyfill) init[clipboardTextPolyfill] (after elementClipboardBridge)
 providers:
 + bridgedClipboard: type(BridgedClipboard)
++ clipboardTextPolyfill: factory(clipboardTextPolyfill)
 + elementClipboardBridge: value(Object: clipboard bridge)
 + labelClipboard: type(LabelClipboard)
 + textClipboardBridge: value(Object: clipboard text bridge)
 __init__:
 + bridgedClipboard (after the defaults)
 + labelClipboard (after bridgedClipboard)
++ clipboardTextPolyfill (after labelClipboard)
 
 ## moddleExtensions (a new prefix, and the engine's prefix replaced)
 moddle packages:
@@ -209,11 +215,13 @@ modules:
 + bridgedClipboard=type(BridgedClipboard) init[bridgedClipboard] (after inlineScriptingPortForwarder)
 + labelClipboard=type(LabelClipboard) init[labelClipboard] (after bridgedClipboard)
 + elementClipboardBridge=value(Object: clipboard bridge) textClipboardBridge=value(Object: clipboard bridge) (after labelClipboard)
-+ callerProbe=value("caller") (after elementClipboardBridge)
++ clipboardTextPolyfill=factory(clipboardTextPolyfill) init[clipboardTextPolyfill] (after elementClipboardBridge)
++ callerProbe=value("caller") (after clipboardTextPolyfill)
 providers:
 + bpmnLintConfig: type(LintConfigService)
 + bridgedClipboard: type(BridgedClipboard)
 + callerProbe: value("caller")
++ clipboardTextPolyfill: factory(clipboardTextPolyfill)
 + codeLinkContextPadProvider: type(CodeLinkContextPadProvider)
 + codeLinkMapClient: type(CodeLinkMapClient)
 + codeLinkPort: value(Object: codeLink port)
@@ -262,3 +270,4 @@ __init__:
 + inlineScriptingPortForwarder (after scriptSourceWatcher)
 + bridgedClipboard (after inlineScriptingPortForwarder)
 + labelClipboard (after bridgedClipboard)
++ clipboardTextPolyfill (after labelClipboard)

@@ -3,17 +3,20 @@ import {
     type DisposableStore,
     type FlushableDebounceInput,
     NoModelerError,
-    type Translate,
 } from "@miragon/bpmn-modeler-types";
-import { installFitViewportButton, ThemeController } from "@miragon/bpmn-modeler-browser";
+import { ThemeController } from "@miragon/bpmn-modeler-browser";
 
-import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
+import { DEBOUNCE_INPUT, SURFACE_ROOTS } from "../domain/kernelNames";
 import type { ThemeMode } from "../domain/themeMode";
 import type { ViewState } from "../domain/viewState";
 import type { RootElementManager, SelectionManager, ViewportManager } from "../port/canvasManagers";
 import { SurfaceView } from "./viewState";
 
 type SurfaceInstance = Pick<BaseViewer, "get" | "destroy">;
+
+interface DestroyEventBus {
+    fire(event: "diagram.destroy"): unknown;
+}
 
 const THEME_ATTRIBUTE = "data-bpmn-theme";
 
@@ -35,13 +38,17 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
 
     private themeController: ThemeController | undefined;
 
+    // The bus of the instance under construction, so a constructor that throws late can be torn down.
+    private constructingEventBus: DestroyEventBus | undefined;
+
     /**
      * @param container The canvas host the bpmn-js instance attaches to.
-     * @param themeRoots The roots that carry this instance's `data-bpmn-theme`.
+     * @param roots The surface's roots, the container first: `surfaceRoots`,
+     *   and the elements that carry this instance's `data-bpmn-theme`.
      */
     constructor(
         private readonly container: HTMLElement,
-        private readonly themeRoots: readonly HTMLElement[],
+        readonly roots: readonly HTMLElement[],
     ) {}
 
     /** @throws {NoModelerError} If no bpmn-js instance is live. */
@@ -65,47 +72,39 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
     }
 
     /**
-     * Constructs the bpmn-js instance and registers, in this order, its
-     * destruction, its view and the focus features on `store`.
+     * The kernel's `surfaceRoots` module. List it in every construction this
+     * core allocates: it also lets {@link allocate} tear down a constructor
+     * that throws after the modules initialised.
      */
-    allocate(store: DisposableStore, construct: () => T, focus: SurfaceFocusOptions): void {
+    rootsModule(): object {
+        const watchConstruction = (eventBus: DestroyEventBus): void => {
+            this.constructingEventBus = eventBus;
+        };
+        watchConstruction.$inject = ["eventBus"];
+        return { __init__: [watchConstruction], [SURFACE_ROOTS]: ["value", this.roots] };
+    }
+
+    /**
+     * Constructs the bpmn-js instance and registers, in this order, its
+     * destruction and its view on `store`.
+     */
+    allocate(store: DisposableStore, construct: () => T): void {
+        this.constructingEventBus = undefined;
         try {
             this.liveInstance = construct();
         } catch (error) {
-            // A partially-constructed bpmn-js attaches `.bjs-container` with no
-            // handle to destroy; clear the dedicated container before rethrowing.
-            this.container.replaceChildren();
+            this.tearDownPartialConstruction();
             throw error;
+        } finally {
+            this.constructingEventBus = undefined;
         }
         store.add(() => {
             this.liveInstance?.destroy();
             this.liveInstance = undefined;
         });
-        const accessor = <S>(name: string): S => this.service<S>(name);
-        const view = new SurfaceView(accessor);
+        const view = new SurfaceView(<S>(name: string): S => this.service<S>(name));
         this.view = view;
         store.add(() => view.dispose());
-
-        store.add(installSurfaceFocusFeatures(accessor, focus));
-        const canvas = this.service<{
-            getContainer(): HTMLElement;
-            focus(): void;
-            isFocused(): boolean;
-        }>("canvas");
-        const eventBus = this.service<{
-            on(event: "canvas.focus.changed", handler: (event: { focused: boolean }) => void): void;
-        }>("eventBus");
-        store.add(
-            installFitViewportButton({
-                parent: canvas.getContainer(),
-                label: this.service<Translate>("translate")("Fit diagram to view"),
-                fit: () => view.viewport.fitViewport(),
-                focusCanvas: () => canvas.focus(),
-                isCanvasFocused: () => canvas.isFocused(),
-                onCanvasFocusChanged: (listener) =>
-                    eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
-            }),
-        );
     }
 
     /** Drops the managers once the facade's store has torn the instance down. */
@@ -155,7 +154,7 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
             return;
         }
         if (!this.themeController) {
-            this.themeController = new ThemeController(this.themeRoots, THEME_ATTRIBUTE);
+            this.themeController = new ThemeController(this.roots, THEME_ATTRIBUTE);
             store.add(() => {
                 this.themeController?.dispose();
                 // A replacement store on the same surface must be able to rebuild it.
@@ -166,7 +165,18 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
     }
 
     private panelInput(): FlushableDebounceInput | undefined {
-        return this.liveInstance?.get<FlushableDebounceInput>("debounceInput", false) ?? undefined;
+        return this.liveInstance?.get<FlushableDebounceInput>(DEBOUNCE_INPUT, false) ?? undefined;
+    }
+
+    // A half-built bpmn-js has no handle to destroy; its modules still hold page listeners.
+    private tearDownPartialConstruction(): void {
+        try {
+            this.constructingEventBus?.fire("diagram.destroy");
+        } catch {
+            // A secondary teardown failure must not mask the construction error.
+        }
+        // A partially-constructed bpmn-js attaches `.bjs-container`; clear the dedicated container.
+        this.container.replaceChildren();
     }
 
     private liveView(): SurfaceView {

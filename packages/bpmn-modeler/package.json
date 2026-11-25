@@ -74,7 +74,7 @@
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
-        "build": "npm-run-all -s check:inlined-peers typecheck build:lib check:externals build:themes build:viewer-css check:dts check:diff-node check:lint-free check:plugins-free check:design-pure check:mode-pure check:dep-alignment",
+        "build": "npm-run-all -s check:inlined-peers typecheck build:lib check:externals build:themes build:viewer-css check:dts check:diff-node check:lint-free check:plugins-free check:design-pure check:mode-pure check:viewer-base check:dep-alignment",
         "build:lib": "vite build",
         "build:themes": "vite build -c vite.themes.config.mts",
         "build:viewer-css": "vite build -c vite.viewer-css.config.mts",
@@ -86,6 +86,7 @@
         "check:plugins-free": "node scripts/check-plugins-free-entry.mjs",
         "check:design-pure": "node scripts/check-design-pure-entry.mjs",
         "check:mode-pure": "node scripts/check-mode-pure-entry.mjs",
+        "check:viewer-base": "node scripts/check-viewer-surface-bundle.mjs",
         "check:dep-alignment": "yarn constraints",
         "test": "vitest run --coverage",
         "test:unit": "vitest run --project bpmn-modeler",
