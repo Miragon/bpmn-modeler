@@ -1,5 +1,5 @@
 /**
- * A canvas viewbox snapshot — the position and zoom the viewport manager
+ * A canvas viewbox snapshot — the position and zoom {@link ViewportManager}
  * reads and restores. The host persists it (VS Code `setState`) alongside the
  * rest of its webview state.
  */
