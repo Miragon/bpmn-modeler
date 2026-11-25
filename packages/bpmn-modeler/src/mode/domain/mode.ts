@@ -1,6 +1,8 @@
 // Keep the engine modeler alive across mode changes so replace/copy-paste preserves engine extensions.
 
-export type ModelerMode = "design" | "implement";
+import type { EditableSurfaceMode } from "@miragon/bpmn-modeler-types/domain";
+
+export type ModelerMode = EditableSurfaceMode;
 
 export const MODE_ATTRIBUTE = "data-bpmn-mode";
 

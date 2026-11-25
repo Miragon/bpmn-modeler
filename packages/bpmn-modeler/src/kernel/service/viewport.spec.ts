@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CanvasViewportManager, type ViewportData } from "./viewport";
-import type { CoreServiceAccessor } from "./coreServices";
+import type { ViewportData } from "../domain/viewState";
+import { CanvasViewportManager } from "./viewport";
+import type { CoreServiceAccessor } from "../port/coreServices";
 
 /**
  * Builds a `ViewportManager` over a fake bpmn-js canvas whose `viewbox()`

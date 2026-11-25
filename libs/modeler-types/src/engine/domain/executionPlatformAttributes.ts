@@ -1,10 +1,7 @@
-import {
-    MODELER_NAMESPACE_URI,
-    executionPlatformAttributeNames,
-} from "@miragon/bpmn-modeler-types/domain";
+import { MODELER_NAMESPACE_URI, executionPlatformAttributeNames } from "./engine";
 
 /** The part of a moddle `bpmn:Definitions` element the execution platform is read from. */
-export interface ModdleDefinitions {
+export interface ExecutionPlatformDefinitions {
     readonly $attrs: Readonly<Record<string, string>>;
     readonly $model: { getPackage(uriOrPrefix: string): { prefix: string } | undefined };
     get(name: string): unknown;
@@ -12,7 +9,7 @@ export interface ModdleDefinitions {
 
 /** The execution-platform attributes of a moddle `bpmn:Definitions`. */
 export class ExecutionPlatformAttributes {
-    constructor(private readonly definitions: ModdleDefinitions) {}
+    constructor(private readonly definitions: ExecutionPlatformDefinitions) {}
 
     /**
      * The attributes, keyed by their XML names next to the binding of their prefix.

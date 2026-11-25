@@ -4,7 +4,7 @@ import { BpmnModdle } from "bpmn-moddle";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { LintConfigService, type LintTierInit } from "./LintConfigService";
-import type { ModdleDefinitions } from "../../modeler/domain/executionPlatformAttributes";
+import type { ExecutionPlatformDefinitions } from "@miragon/bpmn-modeler-types/domain";
 
 // The tier rules are pinned in lintTierMachine.spec.ts, which never sees what the
 // adapter feeds in. These rows cover that wiring (the live diagram state, the
@@ -42,15 +42,15 @@ const LABEL_RULES: BpmnlintConfig = { rules: { "label-required": "error" } };
 const END_EVENT_RULES: BpmnlintConfig = { rules: { "end-event-required": "error" } };
 const PUSHED: LintResults = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
 
-let definitions: ModdleDefinitions;
-let camunda87Definitions: ModdleDefinitions;
+let definitions: ExecutionPlatformDefinitions;
+let camunda87Definitions: ExecutionPlatformDefinitions;
 
 beforeAll(async () => {
     const { rootElement } = await BpmnModdle().fromXML(XML);
-    definitions = rootElement as unknown as ModdleDefinitions;
+    definitions = rootElement as unknown as ExecutionPlatformDefinitions;
     const zeebe = getDefaultLintConfig({ engine: "c8" }).moddleExtensions;
     const camunda87 = await BpmnModdle(zeebe).fromXML(CAMUNDA_87_SECRET_XML);
-    camunda87Definitions = camunda87.rootElement as unknown as ModdleDefinitions;
+    camunda87Definitions = camunda87.rootElement as unknown as ExecutionPlatformDefinitions;
 });
 
 /** Minimal stand-in for the bpmn-js-bpmnlint `linting` DI service. */
@@ -107,7 +107,7 @@ function makeService(opts: {
     config?: LintTierInit["config"];
     imported?: boolean;
     engine?: LintTierInit["engine"];
-    diagram?: ModdleDefinitions;
+    diagram?: ExecutionPlatformDefinitions;
 }) {
     const linting = fakeLinting();
     const canvas = fakeCanvas();

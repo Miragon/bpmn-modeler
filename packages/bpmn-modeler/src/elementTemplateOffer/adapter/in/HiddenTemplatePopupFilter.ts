@@ -1,6 +1,6 @@
 import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-append-menu";
 
-import { ELEMENT_POPUP_MENUS } from "../../../popupMenuAnnotations/domain/popupMenus";
+import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
 
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;

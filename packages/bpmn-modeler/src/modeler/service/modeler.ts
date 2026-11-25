@@ -35,6 +35,7 @@ import {
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
+import { ExecutionPlatformAttributes } from "@miragon/bpmn-modeler-types/domain";
 import {
     collectInlineScriptTasks,
     OpenScriptEditorsStore,
@@ -65,12 +66,13 @@ import {
 } from "../../kernel/service/editableSurface";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
-import type { ViewportManager } from "../../kernel/service/viewport";
-import type { SelectionManager } from "../../kernel/service/selection";
-import type { RootElementManager } from "../../kernel/service/rootElement";
-import type { ViewState } from "../../kernel/service/viewState";
+import type {
+    RootElementManager,
+    SelectionManager,
+    ViewportManager,
+} from "../../kernel/port/canvasManagers";
+import type { ViewState } from "../../kernel/domain/viewState";
 import { deriveEngines } from "../domain/engines";
-import { ExecutionPlatformAttributes } from "../domain/executionPlatformAttributes";
 import { loadEngineStack } from "../../composition/engineStacks";
 import { initialDiagram } from "../domain/initialDiagram";
 import {
@@ -90,8 +92,8 @@ import type {
     CoreModelerServices,
     CreateModelerOptions,
     ElementIdOptions,
-    ThemeMode,
 } from "../port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import type { LintConfigService } from "../../bpmnlint/service/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this

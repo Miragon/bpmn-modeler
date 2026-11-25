@@ -4,6 +4,11 @@ import type {
     LintRunEvent,
     Translate,
 } from "@miragon/bpmn-modeler-types";
+import {
+    type EditableSurfaceMode,
+    ExecutionPlatformAttributes,
+    type ExecutionPlatformDefinitions,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { BrowserLinter } from "../adapter/out/browserLinter";
 import {
@@ -12,11 +17,6 @@ import {
     type LintTierInit,
     LintTierMachine,
 } from "../domain/lintTierMachine";
-import {
-    ExecutionPlatformAttributes,
-    type ModdleDefinitions,
-} from "../../modeler/domain/executionPlatformAttributes";
-import type { ModelerMode } from "../../mode/domain/mode";
 
 // bpmn-js-bpmnlint ships no types for this service.
 interface Linting {
@@ -31,7 +31,7 @@ interface Canvas {
 }
 
 interface Bpmnjs {
-    getDefinitions(): ModdleDefinitions | undefined;
+    getDefinitions(): ExecutionPlatformDefinitions | undefined;
 }
 
 interface EventBus {
@@ -102,7 +102,7 @@ export class LintConfigService {
         this.dispatch({ type: "inPageLintingRequested", config, configToken });
     }
 
-    setMode(mode: ModelerMode): void {
+    setMode(mode: EditableSurfaceMode): void {
         this.dispatch({ type: "modeChanged", mode });
     }
 

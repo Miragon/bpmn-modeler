@@ -1,13 +1,13 @@
 import {
     surfaceModeSupports,
     type BpmnlintConfig,
+    type EditableSurfaceMode,
     type Engine,
     type LintResults,
 } from "@miragon/bpmn-modeler-types/domain";
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import type { LintConfigByMode, LintConfigOption } from "./lintConfigResolution";
-import type { ModelerMode } from "../../mode/domain/mode";
 
 /**
  * What {@link createLintModule} registers as the `lintTier` DI value.
@@ -19,7 +19,7 @@ import type { ModelerMode } from "../../mode/domain/mode";
 export interface LintTierInit {
     tier: "external" | "in-page";
     engine?: Engine;
-    mode: ModelerMode;
+    mode: EditableSurfaceMode;
     config?: LintConfigOption;
 }
 
@@ -28,7 +28,7 @@ type LintTier = "external" | "in-page" | "in-page-disabled";
 
 export interface LintTierState {
     readonly tier: LintTier;
-    readonly mode: ModelerMode;
+    readonly mode: EditableSurfaceMode;
     readonly engine?: Engine;
     readonly engineVersion?: string;
     readonly explicitConfig?: LintConfigOption;
@@ -44,7 +44,7 @@ export type LintTierEvent =
           readonly config?: BpmnlintConfig;
           readonly configToken?: string;
       }
-    | { readonly type: "modeChanged"; readonly mode: ModelerMode }
+    | { readonly type: "modeChanged"; readonly mode: EditableSurfaceMode }
     | { readonly type: "hostResultsPushed"; readonly results: LintResults | null }
     | { readonly type: "hostDisabledLinting" }
     | { readonly type: "userTurnedLintingOff" }
@@ -157,7 +157,7 @@ export class LintTierMachine {
         return config === undefined && this.state.hostConfig === undefined;
     }
 
-    private changeMode(mode: ModelerMode, diagramLoaded: boolean): LintTierTransition {
+    private changeMode(mode: EditableSurfaceMode, diagramLoaded: boolean): LintTierTransition {
         if (mode === this.state.mode) {
             return this.stay();
         }

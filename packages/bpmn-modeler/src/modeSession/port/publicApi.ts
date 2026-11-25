@@ -1,5 +1,6 @@
 import type { DetectedEngine, Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
-import type { ModelerMode, ThemeMode } from "../../modeler/port/publicApi";
+import type { ModelerMode } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import type { BpmnModelerHandle } from "../../modeler/port/publicApi";
 import type { BpmnViewerHandle } from "../../viewer/port/publicApi";
 import type { BpmnDesignerHandle } from "../../design/port/publicApi";

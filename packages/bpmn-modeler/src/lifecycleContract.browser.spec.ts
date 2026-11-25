@@ -3,7 +3,7 @@ import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./composition/createModeler";
 import { BpmnModeler } from "./modeler/service/modeler";
-import type { ThemeMode } from "./modeler/port/publicApi";
+import type { ThemeMode } from "./kernel/domain/themeMode";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesigner } from "./design/service/designer";
 import { createViewer } from "./composition/createViewer";

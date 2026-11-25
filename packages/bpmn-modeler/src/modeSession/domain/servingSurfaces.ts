@@ -1,29 +1,37 @@
 import type {
     DetectedEngine,
     EditableSurfaceMode,
+    Engine,
     SurfaceMode,
 } from "@miragon/bpmn-modeler-types/domain";
-import type { SurfaceContext, SurfaceFactories, SurfaceHandle } from "../port/publicApi";
-
-export type SurfaceBuilder = (context: SurfaceContext) => Promise<SurfaceHandle>;
 
 /**
- * The injected factory call that builds each mode's surface, `undefined` where
- * none does. The modeler needs an engine; on a tagged model it serves Design
- * too, so Design↔Implement toggles live and keeps the engine's extension data.
+ * Which injected factory builds a mode's surface: the one offered for that
+ * mode (`own`), or the implement factory opened in `mode` (`modeler`).
+ */
+export type ServingFactory =
+    | { readonly kind: "own"; readonly factory: "view" | "design" }
+    | { readonly kind: "modeler"; readonly engine: Engine; readonly mode: EditableSurfaceMode };
+
+/**
+ * The factory that builds each mode's surface, `undefined` where none does.
+ * `offered` names the modes the consumer supplies a factory for. The modeler
+ * needs an engine; on a tagged model it serves Design too, so Design↔Implement
+ * toggles live and keeps the engine's extension data.
  */
 export function servingSurfaces(
-    surfaces: SurfaceFactories,
+    offered: readonly SurfaceMode[],
     engine: DetectedEngine,
-): Record<SurfaceMode, SurfaceBuilder | undefined> {
-    const { view, design, implement } = surfaces;
-    const onModeler = (mode: EditableSurfaceMode): SurfaceBuilder | undefined =>
-        engine !== undefined && implement !== undefined
-            ? (context) => implement({ ...context, engine, mode })
+): Record<SurfaceMode, ServingFactory | undefined> {
+    const onModeler = (mode: EditableSurfaceMode): ServingFactory | undefined =>
+        engine !== undefined && offered.includes("implement")
+            ? { kind: "modeler", engine, mode }
             : undefined;
+    const ownFactory = (factory: "view" | "design"): ServingFactory | undefined =>
+        offered.includes(factory) ? { kind: "own", factory } : undefined;
     return {
-        view,
-        design: onModeler("design") ?? design,
+        view: ownFactory("view"),
+        design: onModeler("design") ?? ownFactory("design"),
         implement: onModeler("implement"),
     };
 }

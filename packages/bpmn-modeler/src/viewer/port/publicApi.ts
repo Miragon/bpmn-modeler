@@ -1,6 +1,7 @@
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
-import type { CoreModelerServices, ThemeMode } from "../../modeler/port/publicApi";
-import type { BpmnSurfaceHandle } from "../../kernel/service/surfaceHandle";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
+import type { CoreModelerServices } from "../../kernel/port/coreServices";
+import type { BpmnSurfaceHandle } from "../../kernel/port/surfaceHandle";
 
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/viewer`: the readonly
