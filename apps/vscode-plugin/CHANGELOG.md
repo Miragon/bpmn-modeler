@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.28.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.27.0...vscode-v1.28.0) (2026-11-24)
+
+
+### 🎉 New Features
+
+* **bpmn-merge:** give a version merged by hand a look of its own ([#2809](https://github.com/Miragon/bpmn-modeler/issues/2809)) [sync 0f8fbc9] ([35cb9d1](https://github.com/Miragon/bpmn-modeler/commit/35cb9d1d99e9f50f19e4e16b81c8a04fb5d49e17))
+* **bpmn-merge:** offer merge xml on an open conflict ([#2786](https://github.com/Miragon/bpmn-modeler/issues/2786)) [sync bd8ad08] ([8091c4a](https://github.com/Miragon/bpmn-modeler/commit/8091c4add02bbd77636c7d95e2ae4d9ea2d86191))
+* **bpmn-merge:** title merge xml's sides current and incoming ([#2800](https://github.com/Miragon/bpmn-modeler/issues/2800)) [sync 572fee9] ([0cf10fa](https://github.com/Miragon/bpmn-modeler/commit/0cf10fa7e384efcd5932bac4dca33821eed7808f))
+* **diff:** name the git version on each pane of a git diff ([#2804](https://github.com/Miragon/bpmn-modeler/issues/2804)) [sync 90a3072] ([26d78d1](https://github.com/Miragon/bpmn-modeler/commit/26d78d1402748420fbc475716b8620e367730e98))
+
 ## [1.27.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.26.0...vscode-v1.27.0) (2026-11-23)
 
 

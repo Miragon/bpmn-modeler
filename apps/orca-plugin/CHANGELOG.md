@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.6.0...orca-v0.7.0) (2026-11-24)
+
+
+### 🎉 New Features
+
+* **orca-plugin:** open bpmn without the mode switch ([#2798](https://github.com/Miragon/bpmn-modeler/issues/2798)) [sync ea74f63] ([02f6297](https://github.com/Miragon/bpmn-modeler/commit/02f62976abd3735543225ef9ae8759b2b044215f))
+
 ## [0.6.0](https://github.com/Miragon/bpmn-modeler/compare/orca-v0.5.0...orca-v0.6.0) (2026-11-23)
 
 
