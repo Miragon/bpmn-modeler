@@ -238,7 +238,7 @@ describe("inline scripting on a C8 modeler with a scripting port", () => {
 
         expect(
             modeler.getService<InjectorService>("injector").get("scriptEditorOpener", false),
-        ).toBeNull();
+        ).toBeUndefined();
         expect(
             modeler.getService<ContextPadService>("contextPad").getEntries(scriptTask),
         ).not.toHaveProperty("edit-script");

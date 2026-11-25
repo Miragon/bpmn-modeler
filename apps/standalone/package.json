@@ -82,13 +82,13 @@
     "vscode.git": "https://open-vsx.org/api/vscode/git/1.95.3/file/vscode.git-1.95.3.vsix"
   },
   "devDependencies": {
-    "@electron/asar": "4.3.1",
+    "@electron/asar": "4.3.2",
     "@theia/application-package": "1.76.0",
     "@theia/bundle-plugin": "1.76.0",
     "@theia/cli": "1.76.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@vscode/vsce": "4.1.0",
+    "@vscode/vsce": "4.1.1",
     "electron": "42.11.18",
     "electron-builder": "26.18.0",
     "npm-run-all": "4.1.5",
