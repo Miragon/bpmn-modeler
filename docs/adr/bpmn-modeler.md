@@ -220,10 +220,11 @@ surface's pending panel input. Both are silent on the viewer and after `destroy(
 **Refresh after an import.** The template engine profile (both engines) and the
 transaction-boundary marks (C7) are refreshed by `import.done` listeners in their own modules at
 250 and 300, below every default listener and bpmn-js-bpmnlint's 500, where the facade's code after
-the awaited import ran. The two are independent, so their order does not matter. They return on `event.error`: bpmn-js fires `import.done` for a failed
-import too. The facade hands the marks' setting to the C7 module again on each `init()`. Costs: a
-higher-priority listener that returns a value skips both refreshes, and a refresh that throws now
-makes bpmn-js fire `import.done` again with the error and reject the import.
+the awaited import ran. The two are independent, so their order does not matter. They return on
+`event.error`: bpmn-js fires `import.done` for a failed import too. The facade hands the marks'
+setting to the C7 module again on each `init()`. Costs: a higher-priority listener that returns a
+value skips both refreshes, and a refresh that throws now makes bpmn-js fire `import.done` again
+with the error and reject the import.
 
 **Re-import.** A re-import on the same instance, after a text editor, Git or an agent changed the
 file, goes through `reloadDiagram(xml)`, which all three handles declare. `SurfaceView.keepAcross`
