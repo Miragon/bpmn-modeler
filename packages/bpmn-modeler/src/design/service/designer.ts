@@ -19,10 +19,12 @@ import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createDefinitionSearchModule } from "@miragon/bpmn-modeler-definition-search";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { DisposableStore } from "@miragon/bpmn-modeler-types";
-import type { ViewportManager } from "../../kernel/service/viewport";
-import type { SelectionManager } from "../../kernel/service/selection";
-import type { RootElementManager } from "../../kernel/service/rootElement";
-import type { ViewState } from "../../kernel/service/viewState";
+import type {
+    RootElementManager,
+    SelectionManager,
+    ViewportManager,
+} from "../../kernel/port/canvasManagers";
+import type { ViewState } from "../../kernel/domain/viewState";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
 import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
@@ -48,7 +50,8 @@ import type {
     ElementIdProposals,
     LintResults,
 } from "@miragon/bpmn-modeler-types";
-import type { ElementIdOptions, ThemeMode } from "../../modeler/port/publicApi";
+import type { ElementIdOptions } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import type { CoreDesignerServices, DesignerOptions } from "../port/publicApi";
 
 /**

@@ -1,7 +1,7 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
-import type { CoreModelerServices } from "../../kernel/service/coreServices";
+import type { CoreModelerServices } from "../../kernel/port/coreServices";
 
-export type { CoreModelerServices } from "../../kernel/service/coreServices";
+export type { CoreModelerServices } from "../../kernel/port/coreServices";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -19,7 +19,7 @@ import type { LintCallbacks, LintTierInit } from "../../bpmnlint/service/LintCon
 import type { LintConfigOption } from "../../bpmnlint/domain/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ModelerMode } from "../../mode/domain/mode";
-import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/service/surfaceHandle";
+import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/port/surfaceHandle";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 
 export type { ModelerMode } from "../../mode/domain/mode";

@@ -1,7 +1,7 @@
 import { isTemplatePopupEntry } from "@miragon/bpmn-modeler-append-menu";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
 
-import { ELEMENT_POPUP_MENUS } from "../../../popupMenuAnnotations/domain/popupMenus";
+import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
 import type { ModelerMode } from "../../domain/mode";
 
 // Run after the default-priority (1000) providers so their template entries can be removed.

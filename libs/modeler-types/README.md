@@ -17,19 +17,19 @@ A `hexagonal` workspace without `port/` or `adapter/`: each file sits in a folde
 inside, and `src/architecture.spec.ts` checks which folder imports which
 ([role folders](../../docs/adr/role-folders.md#domain-imports)).
 
-| Folder        | Holds                                                                                      | Imports               |
-| ------------- | ------------------------------------------------------------------------------------------ | --------------------- |
-| `engine/`     | the engines, their detection and namespaces, the engine versions                           | no folder             |
-| `documents/`  | a blank document, the empty DMN diagram, the XML comment and CDATA scan                    | no folder             |
-| `geometry/`   | the polyline walk, canvas size, the format and cleanup results                             | no folder             |
-| `lint/`       | lint reports and the bpmnlint config                                                       | no folder             |
-| `merge/`      | the merge vocabulary, the build notes and their readers, Git's conflict markers            | no folder             |
-| `scripting/`  | script identity, the script surface, process variables                                     | no folder             |
-| `lifecycle/`  | `service/` only: the async debounce, the flushable input debounce, the disposable store    | no folder             |
-| `surface/`    | settings, surface and theme modes, `Translate`, the modeler errors, the plugin load report | `engine/`             |
-| `diff/`       | the diff origin and viewport, vocabulary, legend and stepper                               | `surface/`            |
-| `elements/`   | element templates, element id conventions, element type names                              | `engine/`, `surface/` |
-| `references/` | reference kinds, implementation references, form previews, workspace definitions           | `documents/`          |
+| Folder        | Holds                                                                                                             | Imports               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `engine/`     | the engines, their detection and namespaces, the execution-platform attributes, the engine versions               | no folder             |
+| `documents/`  | a blank document, the empty DMN diagram, the XML comment and CDATA scan                                           | no folder             |
+| `geometry/`   | the polyline walk, canvas size, the format and cleanup results                                                    | no folder             |
+| `lint/`       | lint reports and the bpmnlint config                                                                              | no folder             |
+| `merge/`      | the merge vocabulary, the build notes and their readers, Git's conflict markers                                   | no folder             |
+| `scripting/`  | script identity, the script surface, process variables                                                            | no folder             |
+| `lifecycle/`  | `service/` only: the async debounce, the flushable input debounce, the disposable store                           | no folder             |
+| `surface/`    | settings, surface and theme modes, the mode-change event, `Translate`, the modeler errors, the plugin load report | `engine/`             |
+| `diff/`       | the diff origin and viewport, vocabulary, legend and stepper                                                      | `surface/`            |
+| `elements/`   | element templates, element id conventions, element type names                                                     | `engine/`, `surface/` |
+| `references/` | reference kinds, implementation references, form previews, workspace definitions                                  | `documents/`          |
 
 ## Entries
 

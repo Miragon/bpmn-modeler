@@ -1,6 +1,6 @@
 import type { BpmnDesignerHandle } from "../../design/port/publicApi";
 import type { BpmnModelerHandle } from "../../modeler/port/publicApi";
-import type { PendingSaveHandle } from "../../kernel/service/surfaceHandle";
+import type { PendingSaveHandle } from "../../kernel/port/surfaceHandle";
 import type { SurfaceHandle } from "../port/publicApi";
 
 /**

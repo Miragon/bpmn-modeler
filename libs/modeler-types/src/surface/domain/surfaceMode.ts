@@ -14,6 +14,13 @@ export type EditableSurfaceMode = Exclude<SurfaceMode, "view">;
 
 export const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
+/** The eventBus event an editable surface fires when it changes its mode. */
+export const SURFACE_MODE_CHANGED = "surface.mode.changed";
+
+export interface SurfaceModeChangedEvent {
+    readonly mode: EditableSurfaceMode;
+}
+
 /**
  * What a mode offers. Every rule that tells the modes apart lives here or in a
  * `Record<SurfaceMode, …>`, so code asks {@link surfaceModeSupports} instead of

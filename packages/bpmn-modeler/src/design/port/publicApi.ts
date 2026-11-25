@@ -15,9 +15,9 @@ import type {
     CoreModelerServices,
     ElementIdOptions,
     LintingOptions,
-    ThemeMode,
 } from "../../modeler/port/publicApi";
-import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/service/surfaceHandle";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
+import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/port/surfaceHandle";
 
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/design`: an

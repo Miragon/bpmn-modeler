@@ -19,8 +19,8 @@ import type {
     StableModelerSurface,
     ThemeMode,
 } from "./modeler/port/publicApi";
-import type { ViewState } from "./kernel/service/viewState";
-import type { PendingInputHandle, PendingSaveHandle } from "./kernel/service/surfaceHandle";
+import type { ViewState } from "./kernel/domain/viewState";
+import type { PendingInputHandle, PendingSaveHandle } from "./kernel/port/surfaceHandle";
 import { isEditableSurface, isModelerSurface } from "./mode";
 import type {
     BpmnViewerHandle,
@@ -216,6 +216,8 @@ void _entryConforms;
 
 // ThemeMode aliases the private SurfaceThemeMode, so an edit there would change the published type.
 expectTypeOf<ThemeMode>().toEqualTypeOf<"light" | "dark" | "automatic">();
+// ModelerMode aliases the private EditableSurfaceMode, so a mode added there would widen the published type.
+expectTypeOf<ModelerMode>().toEqualTypeOf<"design" | "implement">();
 
 // The library's options reach the surface through the public ones, so an option either adds is in both.
 expectTypeOf<keyof ElementIdOptions>().toEqualTypeOf<keyof LibraryElementIdOptions>();

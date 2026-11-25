@@ -11,13 +11,15 @@ import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-pa
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
 import { DisposableStore } from "@miragon/bpmn-modeler-types";
-import type { ViewportManager } from "../../kernel/service/viewport";
-import type { SelectionManager } from "../../kernel/service/selection";
-import type { RootElementManager } from "../../kernel/service/rootElement";
-import type { ViewState } from "../../kernel/service/viewState";
+import type {
+    RootElementManager,
+    SelectionManager,
+    ViewportManager,
+} from "../../kernel/port/canvasManagers";
+import type { ViewState } from "../../kernel/domain/viewState";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
-import type { ThemeMode } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import type { CoreViewerServices, ViewerOptions } from "../port/publicApi";
 
 /**

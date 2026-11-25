@@ -16,12 +16,12 @@ export type { ThemeMode } from "./modeler/port/publicApi";
 export type { ModelNavigationPort, ModelReference } from "@miragon/bpmn-model-navigation";
 export type { ReferenceKind } from "@miragon/bpmn-modeler-types";
 
-export type { BpmnSurfaceHandle } from "./kernel/service/surfaceHandle";
-export type { ViewportManager } from "./kernel/service/viewport";
-export type { ViewportData } from "./kernel/service/viewport";
-export type { SelectionManager } from "./kernel/service/selection";
-export type { RootElementManager } from "./kernel/service/rootElement";
-export type { ViewState } from "./kernel/service/viewState";
+export type { BpmnSurfaceHandle } from "./kernel/port/surfaceHandle";
+export type { ViewportManager } from "./kernel/port/canvasManagers";
+export type { ViewportData } from "./kernel/domain/viewState";
+export type { SelectionManager } from "./kernel/port/canvasManagers";
+export type { RootElementManager } from "./kernel/port/canvasManagers";
+export type { ViewState } from "./kernel/domain/viewState";
 
 // Diff computation is also usable in Node through @miragon/bpmn-modeler/diff.
 export { DiffViewer } from "./diff/service/DiffViewer";

@@ -15,6 +15,7 @@ export * from "./lifecycle/service/asyncDebounce";
 export * from "./lifecycle/service/flushableDebounceInput";
 export * from "./engine/domain/engine";
 export * from "./engine/domain/engineVersions";
+export * from "./engine/domain/executionPlatformAttributes";
 export * from "./elements/domain/elementTemplates";
 export * from "./surface/domain/surfaceMode";
 export * from "./lint/domain/lint";

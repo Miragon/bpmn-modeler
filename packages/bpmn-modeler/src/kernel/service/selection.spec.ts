@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ElementSelectionManager } from "./selection";
-import type { CoreServiceAccessor } from "./coreServices";
+import type { CoreServiceAccessor } from "../port/coreServices";
 
 /**
  * Builds a `SelectionManager` over a fake element registry (only `elements`

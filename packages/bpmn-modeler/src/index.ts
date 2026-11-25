@@ -35,7 +35,7 @@ export type {
     CreateModeler,
     StableModelerSurface,
 } from "./modeler/port/publicApi";
-export type { BpmnSurfaceHandle, PendingInputHandle } from "./kernel/service/surfaceHandle";
+export type { BpmnSurfaceHandle, PendingInputHandle } from "./kernel/port/surfaceHandle";
 export { isEditableSurface, isModelerSurface } from "./modeSession/service/surfaceCapabilities";
 export type { EditableSurfaceHandle } from "./modeSession/service/surfaceCapabilities";
 export type { ModelerCapabilities } from "./modeler/port/capabilities";
@@ -90,11 +90,11 @@ export type {
     ElementIdSettings,
 } from "@miragon/bpmn-modeler-types";
 
-export type { ViewportManager } from "./kernel/service/viewport";
-export type { ViewportData } from "./kernel/service/viewport";
-export type { SelectionManager } from "./kernel/service/selection";
-export type { RootElementManager } from "./kernel/service/rootElement";
-export type { ViewState } from "./kernel/service/viewState";
+export type { ViewportManager } from "./kernel/port/canvasManagers";
+export type { ViewportData } from "./kernel/domain/viewState";
+export type { SelectionManager } from "./kernel/port/canvasManagers";
+export type { RootElementManager } from "./kernel/port/canvasManagers";
+export type { ViewState } from "./kernel/domain/viewState";
 
 // Local aliases preserve @deprecated in the declaration rollup; API Extractor drops it on bare re-exports.
 import { DiffViewer as DiffViewerImpl } from "./diff/service/DiffViewer";

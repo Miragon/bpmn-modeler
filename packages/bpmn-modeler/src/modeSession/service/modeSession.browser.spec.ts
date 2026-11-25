@@ -17,7 +17,7 @@ import {
 import { isEditableSurface, isModelerSurface } from "./surfaceCapabilities";
 import { createModeSession } from "./modeSession";
 import type { ContentSavedEvent } from "../../modeler/port/publicApi";
-import type { ViewportData } from "../../kernel/service/viewport";
+import type { ViewportData } from "../../kernel/domain/viewState";
 import type { ModeSession, SurfaceFactories, SurfaceHandle } from "../port/publicApi";
 
 /**

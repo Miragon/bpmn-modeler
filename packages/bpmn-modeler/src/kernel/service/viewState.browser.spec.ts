@@ -6,7 +6,7 @@ import { createModeler } from "../../composition/createModeler";
 import { createDesigner } from "../../composition/createDesigner";
 import { createViewer } from "../../composition/createViewer";
 import type { BpmnDesignerHandle } from "../../design/port/publicApi";
-import type { ViewState } from "./viewState";
+import type { ViewState } from "../domain/viewState";
 import { FAR_FROM_ORIGIN_XML } from "../../__fixtures__/bpmnXml";
 import { COLLAPSED_SUBPROCESS_BEFORE_XML } from "../../diff/__fixtures__/collapsedSubprocessDiff";
 import {

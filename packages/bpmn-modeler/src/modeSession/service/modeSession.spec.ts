@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
-import type { BpmnModelerHandle, ThemeMode } from "../../modeler/port/publicApi";
+import type { BpmnModelerHandle } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import { createModeSession } from "./modeSession";
 import type {
     ModelerSurfaceContext,

@@ -7,7 +7,8 @@ import {
     resolveInitialMode,
     type SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
-import type { ModelerMode, ThemeMode } from "../../modeler/port/publicApi";
+import type { ModelerMode } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import { holdsPendingSave, isEditableSurface, isModelerSurface } from "./surfaceCapabilities";
 import type { ModeSession, ModeSessionOptions, SurfaceHandle } from "../port/publicApi";
 import { servingSurfaces } from "../domain/servingSurfaces";
@@ -24,7 +25,10 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
     const { container, engine, surfaces } = options;
     let theme: ThemeMode = options.theme ?? DEFAULT_THEME_MODE;
 
-    const serving = servingSurfaces(surfaces, engine);
+    const serving = servingSurfaces(
+        SURFACE_MODES.filter((mode) => surfaces[mode] !== undefined),
+        engine,
+    );
     const available = SURFACE_MODES.filter(
         (mode) => isModeAvailable(mode, engine) && serving[mode] !== undefined,
     );
@@ -79,9 +83,18 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         }
     }
 
-    // Only an available mode is built, and each available mode has a serving surface.
+    // Only an available mode is built, and each available mode has a serving factory.
     function buildSurface(mode: SurfaceMode): Promise<SurfaceHandle> {
-        return serving[mode]!({ container, engine, theme });
+        const servedBy = serving[mode]!;
+        const context = { container, engine, theme };
+        if (servedBy.kind === "modeler") {
+            return surfaces.implement!({
+                ...context,
+                engine: servedBy.engine,
+                mode: servedBy.mode,
+            });
+        }
+        return surfaces[servedBy.factory]!(context);
     }
 
     function isAvailable(mode: SurfaceMode): boolean {

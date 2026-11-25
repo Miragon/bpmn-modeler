@@ -1,39 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { SURFACE_MODES, type DetectedEngine } from "@miragon/bpmn-modeler-types";
-import type { BpmnModelerHandle } from "../../modeler/port/publicApi";
-import type { BpmnDesignerHandle } from "../../design/port/publicApi";
-import type { BpmnViewerHandle } from "../../viewer/port/publicApi";
-import type { SurfaceFactories } from "../port/publicApi";
-import { servingSurfaces } from "./servingSurfaces";
-
-type Factory = keyof SurfaceFactories;
-
-/** Factories whose surface is a description of the call that built it. */
-function describingFactories(offered: readonly Factory[]): SurfaceFactories {
-    const all: Required<SurfaceFactories> = {
-        view: async () => "view" as unknown as BpmnViewerHandle,
-        design: async () => "design" as unknown as BpmnDesignerHandle,
-        implement: async ({ engine, mode }) =>
-            `implement(${engine}, ${mode})` as unknown as BpmnModelerHandle,
-    };
-    return Object.fromEntries(offered.map((factory) => [factory, all[factory]]));
-}
+import type { DetectedEngine, SurfaceMode } from "@miragon/bpmn-modeler-types/domain";
+import { servingSurfaces, type ServingFactory } from "./servingSurfaces";
 
 describe("servingSurfaces", () => {
     it.each<{
         model: string;
         engine: DetectedEngine;
-        offered: readonly Factory[];
-        served: Record<string, string | undefined>;
+        offered: readonly SurfaceMode[];
+        served: Record<SurfaceMode, ServingFactory | undefined>;
     }>([
         {
             model: "a tagged model",
             engine: "c7",
             offered: ["view", "design", "implement"],
             served: {
-                view: "view",
-                design: "implement(c7, design)",
-                implement: "implement(c7, implement)",
+                view: { kind: "own", factory: "view" },
+                design: { kind: "modeler", engine: "c7", mode: "design" },
+                implement: { kind: "modeler", engine: "c7", mode: "implement" },
             },
         },
         {
@@ -42,21 +25,29 @@ describe("servingSurfaces", () => {
             offered: ["implement"],
             served: {
                 view: undefined,
-                design: "implement(c8, design)",
-                implement: "implement(c8, implement)",
+                design: { kind: "modeler", engine: "c8", mode: "design" },
+                implement: { kind: "modeler", engine: "c8", mode: "implement" },
             },
         },
         {
             model: "a tagged model",
             engine: "c7",
             offered: ["view", "design"],
-            served: { view: "view", design: "design", implement: undefined },
+            served: {
+                view: { kind: "own", factory: "view" },
+                design: { kind: "own", factory: "design" },
+                implement: undefined,
+            },
         },
         {
             model: "an untagged model",
             engine: undefined,
             offered: ["view", "design", "implement"],
-            served: { view: "view", design: "design", implement: undefined },
+            served: {
+                view: { kind: "own", factory: "view" },
+                design: { kind: "own", factory: "design" },
+                implement: undefined,
+            },
         },
         {
             model: "an untagged model",
@@ -64,20 +55,7 @@ describe("servingSurfaces", () => {
             offered: ["implement"],
             served: { view: undefined, design: undefined, implement: undefined },
         },
-    ])("serves each mode on $model from $offered", async ({ engine, offered, served }) => {
-        const serving = servingSurfaces(describingFactories(offered), engine);
-        const context = {
-            container: document.createElement("div"),
-            engine,
-            theme: "light" as const,
-        };
-
-        const built = Object.fromEntries(
-            await Promise.all(
-                SURFACE_MODES.map(async (mode) => [mode, await serving[mode]?.(context)]),
-            ),
-        );
-
-        expect(built).toEqual(served);
+    ])("serves each mode on $model from $offered", ({ engine, offered, served }) => {
+        expect(servingSurfaces(offered, engine)).toEqual(served);
     });
 });

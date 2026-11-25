@@ -281,15 +281,22 @@ entry ([README](../../../libs/modeler-types/README.md#layout)).
 
 The BPMN modeler package keeps its subpath entries directly in `src/`
 (`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`, `mode.ts`,
-`plugins.ts`). `kernel/` holds `SurfaceCore`, the surface handle and the canvas
-managers in `service/`; each feature (`modeler`, `design`, `viewer`, `diff`,
-`bpmnlint`, `modeSession`, …) has role folders, with diagram-js and bpmn-js
-modules and DOM UI in `adapter/in/`; `composition/` holds the presets and the
-module lists. A new `port/` file holds only a contract a host or an embedder
-supplies. Until step 2 of #2249 splits them, the surfaces' `port/publicApi.ts`
-files also carry the handle, option and factory types they share a file with,
-and the "port contracts split from the handle types" exceptions mark this. Each
-known exception names the step-2 change of #2249 that removes it
+`plugins.ts`). `kernel/` holds `SurfaceCore` and the canvas managers in
+`service/`, the surface handle, the managers' interfaces and
+`CoreModelerServices` in `port/`, and the vocabulary features meet on
+(`ThemeMode`, `ELEMENT_POPUP_MENUS`, `ViewState`) in `domain/`; each feature
+(`modeler`, `design`, `viewer`, `diff`, `bpmnlint`, `modeSession`, …) has role
+folders, with diagram-js and bpmn-js modules and DOM UI in `adapter/in/`;
+`composition/` holds the presets and the module lists. A type or constant two
+features share goes into `kernel/domain/`, not into one of them, or into
+`libs/modeler-types` when `libs/properties-panel` or the core needs it too (the
+mode type and the `surface.mode.changed` event name) or it reads with the
+engine detection there (`ExecutionPlatformAttributes`). In this package a
+`port/` file holds a contract: one a host or an embedder supplies, or a handle
+type a host calls, whose implementation stays in `service/` (a package
+exception to the role table above). The surfaces' `port/publicApi.ts` files
+also carry their surface's option and factory types. Each known exception names
+the step-2 change of #2249 that removes it
 ([modeler package layout](../../../docs/adr/role-folders.md#modeler-package-layout)).
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint

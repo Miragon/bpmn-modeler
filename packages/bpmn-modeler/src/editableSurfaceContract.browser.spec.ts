@@ -10,7 +10,7 @@ import * as lintModule from "./lint";
 import { createModeler } from "./composition/createModeler";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesignerHandle, DesignerOptions } from "./design/port/publicApi";
-import type { PendingInputHandle, PendingSaveHandle } from "./kernel/service/surfaceHandle";
+import type { PendingInputHandle, PendingSaveHandle } from "./kernel/port/surfaceHandle";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import {
     afterPaint,

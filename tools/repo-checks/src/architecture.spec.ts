@@ -48,8 +48,6 @@ const BPMN_MODELER = "packages/bpmn-modeler/src";
 const CONSTRUCTION_OUT_OF_THE_FACADES = "#2249 step 2: construction out of the facades";
 const KERNEL_DOM_FEATURES_AS_VALUES =
     "#2249 step 2: the kernel takes its DOM features as values, as it takes its module lists";
-const PORT_CONTRACTS_APART_FROM_HANDLE_TYPES =
-    "#2249 step 2: the port contracts split from the handle types they share a file with";
 
 function bpmnModelerException(from: string, to: string, until: string): KnownException {
     return { from: `${BPMN_MODELER}/${from}`, to: `${BPMN_MODELER}/${to}`, until };
@@ -87,27 +85,10 @@ const ROLE_EXCEPTIONS: readonly KnownException[] = [
         "kernel/adapter/in/keyboardFocus.ts",
         KERNEL_DOM_FEATURES_AS_VALUES,
     ),
-    ...["design", "viewer", "modeler"].map((surface) =>
-        bpmnModelerException(
-            `${surface}/port/publicApi.ts`,
-            "kernel/service/surfaceHandle.ts",
-            PORT_CONTRACTS_APART_FROM_HANDLE_TYPES,
-        ),
-    ),
-    bpmnModelerException(
-        "modeler/port/publicApi.ts",
-        "kernel/service/coreServices.ts",
-        PORT_CONTRACTS_APART_FROM_HANDLE_TYPES,
-    ),
     bpmnModelerException(
         "modeler/port/publicApi.ts",
         "bpmnlint/service/LintConfigService.ts",
         "#2249 step 2: LintCallbacks split from LintConfigService into the LintModule port",
-    ),
-    bpmnModelerException(
-        "modeSession/domain/servingSurfaces.ts",
-        "modeSession/port/publicApi.ts",
-        "#2249 step 2: servingSurfaces decides on values, not on the SurfaceFactories port",
     ),
     bpmnModelerException(
         "bpmnlint/service/LintConfigService.ts",

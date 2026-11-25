@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+    SURFACE_MODE_CHANGED,
     defaultMode,
     isModeAvailable,
     parseEditableMode,
     planTransition,
     resolveInitialMode,
     surfaceModeSupports,
+    type EditableSurfaceMode,
     type SurfaceMode,
+    type SurfaceModeChangedEvent,
 } from "./surfaceMode";
 
 describe("surfaceModeSupports", () => {
@@ -125,5 +128,17 @@ describe("planTransition", () => {
     it("recreates design↔implement on an untagged model", () => {
         // implement is unavailable here, but the planner is engine-honest.
         expect(planTransition("design", "implement", undefined)).toBe("recreate");
+    });
+});
+
+describe("SURFACE_MODE_CHANGED", () => {
+    it("names the eventBus event the surface fires and the panel's mode filter listens to", () => {
+        expect(SURFACE_MODE_CHANGED).toBe("surface.mode.changed");
+    });
+
+    it("carries the editable mode the surface changed to", () => {
+        expectTypeOf<SurfaceModeChangedEvent>().toEqualTypeOf<{
+            readonly mode: EditableSurfaceMode;
+        }>();
     });
 });

@@ -1,34 +1,12 @@
 import { MutableDisposable } from "@miragon/bpmn-modeler-types";
 
-import type { CoreServiceAccessor } from "./coreServices";
+import type { ViewState } from "../domain/viewState";
+import type { RootElementManager, SelectionManager, ViewportManager } from "../port/canvasManagers";
+import type { CoreServiceAccessor } from "../port/coreServices";
 import { armInitialViewportPolicy } from "./initialViewport";
-import { CanvasRootElementManager, type RootElementManager } from "./rootElement";
-import { ElementSelectionManager, type SelectionManager } from "./selection";
-import { CanvasViewportManager, type ViewportData, type ViewportManager } from "./viewport";
-
-/**
- * A snapshot of everything about *where the user is looking* — the drill-down
- * plane, the viewbox, and the selection — captured from a live instance and
- * re-applied to another after an instance switch (View ↔ Design ↔ Implement) or
- * a destructive re-import (undo/redo host push, language switch).
- *
- * The point of a switch is to land the user back on the same plane, at the same
- * viewbox and selection, on the freshly created instance. Capture on the old
- * handle, `destroy()` it, create the new one, `loadDiagram(...)`, then apply.
- *
- * - `rootElementId` is the active canvas root (a collapsed sub-process
- *   drill-down). It is `undefined` when the canvas is on the top-level process
- *   plane: the implicit root's id is regenerated on every import, so it is never
- *   captured and applying `undefined` leaves the canvas on the top-level plane.
- * - `selectedElementIds` that no longer exist on apply are silently skipped, so
- *   a snapshot taken against a since-edited diagram still degrades gracefully.
- *   An empty captured selection restores to "nothing selected".
- */
-export interface ViewState {
-    viewport: ViewportData;
-    rootElementId?: string;
-    selectedElementIds: string[];
-}
+import { CanvasRootElementManager } from "./rootElement";
+import { ElementSelectionManager } from "./selection";
+import { CanvasViewportManager } from "./viewport";
 
 /**
  * Owns where the user looks on one bpmn-js instance across the load → initial

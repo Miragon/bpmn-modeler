@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { CoreServiceAccessor } from "./coreServices";
+import type { CoreServiceAccessor } from "../port/coreServices";
 import { CanvasViewportManager } from "./viewport";
 import { DrilldownFit, DrilldownFitModule, SurfaceView } from "./viewState";
 

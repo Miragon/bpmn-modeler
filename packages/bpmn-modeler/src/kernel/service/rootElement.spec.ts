@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CanvasRootElementManager } from "./rootElement";
-import type { CoreServiceAccessor } from "./coreServices";
+import type { CoreServiceAccessor } from "../port/coreServices";
 
 function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
     const setRootElement = vi.fn();

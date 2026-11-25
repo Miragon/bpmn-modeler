@@ -3,7 +3,7 @@ import { DEFAULT_THEME_MODE, type Engine } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "../../composition/createModeler";
 import type { BpmnModeler } from "../../modeler/service/modeler";
-import type { ThemeMode } from "../../modeler/port/publicApi";
+import type { ThemeMode } from "../../kernel/domain/themeMode";
 import { openTemplateGroups } from "./openTemplateGroups";
 import { previewTargetOf } from "../domain/previewTarget";
 

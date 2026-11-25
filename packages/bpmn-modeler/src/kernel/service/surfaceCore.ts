@@ -9,10 +9,9 @@ import { installFitViewportButton, ThemeController } from "@miragon/bpmn-modeler
 
 import { installSurfaceFocusFeatures, type SurfaceFocusOptions } from "./focusFeatures";
 import type { ThemeMode } from "../domain/themeMode";
-import type { RootElementManager } from "./rootElement";
-import type { SelectionManager } from "./selection";
-import { SurfaceView, type ViewState } from "./viewState";
-import type { ViewportManager } from "./viewport";
+import type { ViewState } from "../domain/viewState";
+import type { RootElementManager, SelectionManager, ViewportManager } from "../port/canvasManagers";
+import { SurfaceView } from "./viewState";
 
 type SurfaceInstance = Pick<BaseViewer, "get" | "destroy">;
 

@@ -4,7 +4,7 @@ import { isDifferentType } from "bpmn-js/lib/features/popup-menu/util/TypeUtil";
 import type { Element } from "bpmn-js/lib/model/Types";
 import type { Translate } from "@miragon/bpmn-modeler-types";
 
-import { ELEMENT_POPUP_MENUS } from "../../domain/popupMenus";
+import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
 import {
     annotateEntry,
     popupEntryKeyOf,

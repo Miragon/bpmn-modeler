@@ -1,10 +1,8 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
 import type { ThemeMode } from "../domain/themeMode";
-import type { RootElementManager } from "./rootElement";
-import type { SelectionManager } from "./selection";
-import type { ViewState } from "./viewState";
-import type { ViewportManager } from "./viewport";
+import type { ViewState } from "../domain/viewState";
+import type { RootElementManager, SelectionManager, ViewportManager } from "./canvasManagers";
 
 /**
  * The editable surfaces' properties-panel input that still waits in the
