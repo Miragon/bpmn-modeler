@@ -16,7 +16,7 @@ export interface ClassImplementation {
     readonly interfaceFiles: readonly string[];
     /** The files that build it with `new`; an anonymous class is built where it is declared, if at all. */
     readonly constructedIn: readonly string[];
-    /** Per file declaring an implemented interface, the files with a parameter whose type names one, a default value included. */
+    /** Per file declaring an implemented interface, the files with a parameter whose type names one or whose default value builds the class, whatever its type. */
     readonly receivedIn: readonly {
         readonly interfaceFile: string;
         readonly files: readonly string[];
@@ -50,12 +50,18 @@ export function findImplementations(
             const line =
                 sourceFile.getLineAndCharacterOfPosition(declaration.getStart(sourceFile)).line + 1;
             const constructedIn = constructions.of(path, declaration);
+            const builtAsDefaultIn = parameterTypes.filesDefaultingTo(path, declaration);
             const receivedIn = interfaceFiles
                 .map((interfaceFile) => ({
                     interfaceFile,
-                    files: parameterTypes.filesNaming(
-                        interfaces.filter(({ file }) => file === interfaceFile),
-                    ),
+                    files: [
+                        ...new Set([
+                            ...parameterTypes.filesNaming(
+                                interfaces.filter(({ file }) => file === interfaceFile),
+                            ),
+                            ...builtAsDefaultIn,
+                        ]),
+                    ].sort(compareText),
                 }))
                 .filter(({ files }) => files.length > 0);
             return declaration.name === undefined
@@ -123,14 +129,22 @@ class Constructions {
     }
 }
 
-/** Every type a parameter's annotation names, however nested: a union, an object type or a generic argument. */
+/**
+ * Every type a parameter's annotation names, however nested: a union, an object type or a generic
+ * argument; and every class a parameter's default builds, however the parameter is typed, since a
+ * caller may pass another implementation in its place.
+ */
 class ParameterTypes {
     private constructor(
         private readonly filesByDeclaration: ReadonlyMap<string, ReadonlySet<string>>,
+        private readonly filesByDefaultClass: ReadonlyMap<string, ReadonlySet<string>>,
+        private readonly filesByDefaultClassExpression: ReadonlyMap<ts.Node, ReadonlySet<string>>,
     ) {}
 
     static in(files: readonly ResolvedFile[]): ParameterTypes {
         const filesByDeclaration = new Map<string, Set<string>>();
+        const filesByDefaultClass = new Map<string, Set<string>>();
+        const filesByDefaultClassExpression = new Map<ts.Node, Set<string>>();
         for (const { path, sourceFile, resolver } of files) {
             const visitType = (node: ts.Node): void => {
                 if (ts.isTypeReferenceNode(node)) {
@@ -144,15 +158,52 @@ class ParameterTypes {
                 }
                 ts.forEachChild(node, visitType);
             };
+            const visitDefault = (initializer: ts.Expression): void => {
+                const value = withoutParentheses(initializer);
+                if (!ts.isNewExpression(value)) {
+                    return;
+                }
+                const built = withoutParentheses(value.expression);
+                if (ts.isClassExpression(built)) {
+                    filesByDefaultClassExpression.set(
+                        built,
+                        (filesByDefaultClassExpression.get(built) ?? new Set()).add(path),
+                    );
+                }
+                for (const { file, name } of resolver.declarations(built)) {
+                    const key = declarationKey(file, name);
+                    filesByDefaultClass.set(
+                        key,
+                        (filesByDefaultClass.get(key) ?? new Set()).add(path),
+                    );
+                }
+            };
             const visit = (node: ts.Node): void => {
-                if (ts.isParameter(node) && node.type !== undefined) {
-                    visitType(node.type);
+                if (ts.isParameter(node)) {
+                    if (node.type !== undefined) {
+                        visitType(node.type);
+                    }
+                    if (node.initializer !== undefined) {
+                        visitDefault(node.initializer);
+                    }
                 }
                 ts.forEachChild(node, visit);
             };
             visit(sourceFile);
         }
-        return new ParameterTypes(filesByDeclaration);
+        return new ParameterTypes(
+            filesByDeclaration,
+            filesByDefaultClass,
+            filesByDefaultClassExpression,
+        );
+    }
+
+    filesDefaultingTo(path: string, declaration: ts.ClassLikeDeclaration): string[] {
+        const files =
+            declaration.name === undefined
+                ? this.filesByDefaultClassExpression.get(declaration)
+                : this.filesByDefaultClass.get(declarationKey(path, declaration.name.text));
+        return [...(files ?? [])];
     }
 
     filesNaming(declarations: readonly Declaration[]): string[] {

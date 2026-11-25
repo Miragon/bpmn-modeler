@@ -245,6 +245,114 @@ describe("findImplementations", () => {
         ]);
     });
 
+    it.each([
+        { form: "no type", parameter: "documents = new SystemDocuments()" },
+        {
+            form: "the class itself",
+            parameter: "documents: SystemDocuments = new SystemDocuments()",
+        },
+        { form: "a base interface", parameter: "documents: Reader = new SystemDocuments()" },
+        { form: "an alias of the port", parameter: "documents: Documents = new SystemDocuments()" },
+        {
+            form: "an indexed access",
+            parameter: 'documents: Ports["documents"] = new (SystemDocuments)()',
+        },
+        {
+            form: "an import() type",
+            parameter:
+                'documents: import("../port/DocumentPort").DocumentPort = new SystemDocuments()',
+        },
+    ])(
+        "lists each file with a parameter whose default builds the class, typed by $form",
+        ({ parameter }) => {
+            const tree: SourceFile[] = [
+                PORT,
+                { path: "core/domain/Reader.ts", text: "export interface Reader {}" },
+                {
+                    path: "core/service/SystemDocuments.ts",
+                    text: [
+                        'import type { DocumentPort } from "../port/DocumentPort";',
+                        'import type { Reader } from "../domain/Reader";',
+                        "export class SystemDocuments implements DocumentPort, Reader {}",
+                    ].join("\n"),
+                },
+                {
+                    path: "core/service/Scheduler.ts",
+                    text: [
+                        'import type { DocumentPort } from "../port/DocumentPort";',
+                        'import type { Reader } from "../domain/Reader";',
+                        'import { SystemDocuments } from "./SystemDocuments";',
+                        "type Documents = DocumentPort;",
+                        "interface Ports { documents: DocumentPort }",
+                        `export const schedule = (${parameter}) => documents;`,
+                    ].join("\n"),
+                },
+            ];
+
+            expect(findImplementations(tree)).toEqual([
+                expect.objectContaining({
+                    className: "SystemDocuments",
+                    receivedIn: [
+                        {
+                            interfaceFile: "core/domain/Reader.ts",
+                            files: ["core/service/Scheduler.ts"],
+                        },
+                        {
+                            interfaceFile: "core/port/DocumentPort.ts",
+                            files: ["core/service/Scheduler.ts"],
+                        },
+                    ],
+                }),
+            ]);
+        },
+    );
+
+    it("lists the file whose parameter default builds an anonymous class", () => {
+        expect(
+            implementationsIn(
+                [
+                    'import type { DocumentPort } from "../port/DocumentPort";',
+                    "export const schedule = (documents = new (class implements DocumentPort {})()) => documents;",
+                ].join("\n"),
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                receivedIn: [
+                    {
+                        interfaceFile: "core/port/DocumentPort.ts",
+                        files: ["core/service/Documents.ts"],
+                    },
+                ],
+            }),
+        ]);
+    });
+
+    it("lists no file whose parameter builds the class elsewhere than its default", () => {
+        const tree: SourceFile[] = [
+            PORT,
+            {
+                path: "core/service/SystemDocuments.ts",
+                text: 'import type { DocumentPort } from "../port/DocumentPort";\nexport class SystemDocuments implements DocumentPort {}',
+            },
+            {
+                path: "core/service/Scheduler.ts",
+                text: [
+                    'import { SystemDocuments } from "./SystemDocuments";',
+                    "export const schedule = (make = () => new SystemDocuments()) => make;",
+                    "export class Scheduler { private readonly documents = new SystemDocuments(); }",
+                ].join("\n"),
+            },
+        ];
+
+        expect(findImplementations(tree)).toEqual([
+            expect.objectContaining({
+                className: "SystemDocuments",
+                constructedIn: ["core/service/Scheduler.ts"],
+                receivedIn: [],
+            }),
+        ]);
+    });
+
     it("groups the receiving files by the file that declares each implemented interface", () => {
         const tree: SourceFile[] = [
             PORT,

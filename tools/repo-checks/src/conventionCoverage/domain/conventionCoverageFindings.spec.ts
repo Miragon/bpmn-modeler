@@ -174,7 +174,7 @@ describe("the convention coverage findings", () => {
                 implementation(
                     "libs/core/src/service/HandleImpl.ts",
                     "HandleImpl",
-                    [HANDLE_PORT, "libs/core/src/domain/Disposable.ts"],
+                    [HANDLE_PORT, "libs/shared/src/domain/Disposable.ts"],
                     1,
                     ["libs/core/src/service/HandleImpl.ts", "libs/core/src/service/Surface.ts"],
                     [
@@ -186,7 +186,7 @@ describe("the convention coverage findings", () => {
                             ],
                         },
                         {
-                            interfaceFile: "libs/core/src/domain/Disposable.ts",
+                            interfaceFile: "libs/shared/src/domain/Disposable.ts",
                             files: ["libs/core/src/service/Pool.ts"],
                         },
                     ],
@@ -233,6 +233,13 @@ describe("the convention coverage findings", () => {
             port: CORE_PORT,
         },
         {
+            builtBy: "a service of its workspace, for its own and another workspace's port",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: ["libs/core/src/service/Surface.ts"],
+            port: HANDLE_PORT,
+            ports: [HANDLE_PORT, "libs/shared/src/port/Shared.ts"],
+        },
+        {
             builtBy:
                 "a service of its workspace that receives the port as a parameter and builds the default",
             path: "libs/core/src/service/Impl.ts",
@@ -244,9 +251,9 @@ describe("the convention coverage findings", () => {
         },
     ])(
         "report a port class built by $builtBy",
-        ({ path, constructedIn, receivedIn = [], port }) => {
+        ({ path, constructedIn, receivedIn = [], port, ports = [port] }) => {
             const implementations = [
-                implementation(path, "Impl", [port], 1, constructedIn, receivedIn),
+                implementation(path, "Impl", ports, 1, constructedIn, receivedIn),
             ];
             const inCore = path.startsWith("libs/core/");
             const core = workspace(
@@ -255,8 +262,9 @@ describe("the convention coverage findings", () => {
                 inCore ? implementations : [],
             );
             const host = workspace("apps/host", {}, inCore ? [] : implementations);
+            const shared = workspace("libs/shared", {});
 
-            expect(conventionCoverageFindings([core, host])).toEqual([
+            expect(conventionCoverageFindings([core, host, shared])).toEqual([
                 expect.objectContaining({ key: `${path} — implements a port` }),
             ]);
         },
