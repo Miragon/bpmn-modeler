@@ -1,5 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import { stripTemplateEntries, PopupMenuModeFilter, ModeUiModule } from "./modeModules";
+import {
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeChangedEvent,
+} from "@miragon/bpmn-modeler-types/domain";
+
+import {
+    ModeAttribute,
+    stripTemplateEntries,
+    PopupMenuModeFilter,
+    ModeUiModule,
+} from "./modeModules";
 
 describe("stripTemplateEntries", () => {
     const entries = () => ({
@@ -47,10 +58,10 @@ function harness(mode: "design" | "implement" | undefined) {
             (busListeners[type] ??= []).push({ priority, fn });
         },
     };
-    const modeFilter = mode ? { getMode: () => mode } : null;
+    const surfaceMode = mode ? { get: () => mode } : null;
     const injector = {
         get: <T>(name: string, _strict: false): T | null =>
-            (name === "propertiesPanelModeFilter" ? modeFilter : null) as T | null,
+            (name === SURFACE_MODE_SERVICE ? surfaceMode : null) as T | null,
     };
     const filter = new PopupMenuModeFilter(popupMenu, eventBus, injector);
     return { filter, registered, busListeners };
@@ -88,7 +99,7 @@ describe("PopupMenuModeFilter", () => {
         expect(middleware(menu)).toEqual(menu);
     });
 
-    it("defaults to identity when no panel filter is registered", () => {
+    it("defaults to identity on a surface without a mode", () => {
         const { filter } = harness(undefined);
         const middleware = filter.getPopupMenuEntries(null);
         const menu = { "replace.template-abc": { label: "Tpl" } };
@@ -112,5 +123,60 @@ describe("PopupMenuModeFilter", () => {
     it("exposes the DI module under popupMenuModeFilter", () => {
         expect(ModeUiModule.__init__).toContain("popupMenuModeFilter");
         expect(ModeUiModule.popupMenuModeFilter).toEqual(["type", PopupMenuModeFilter]);
+    });
+});
+
+function attributeHarness(withSurfaceMode: boolean) {
+    const container = document.createElement("div");
+    const panel = document.createElement("div");
+    const listeners: Record<string, Array<(event: SurfaceModeChangedEvent) => void>> = {};
+    const eventBus = {
+        on: (event: string, listener: (event: SurfaceModeChangedEvent) => void) => {
+            (listeners[event] ??= []).push(listener);
+        },
+    };
+    const services: Record<string, unknown> = {
+        "config.container": container,
+        "config.propertiesPanel": { parent: panel },
+        [SURFACE_MODE_SERVICE]: withSurfaceMode ? { get: () => "implement" } : null,
+    };
+    const injector = {
+        get: <T>(name: string, _strict: false): T | null => (services[name] ?? null) as T | null,
+    };
+    new ModeAttribute(eventBus, injector);
+    const announce = (mode: "design" | "implement"): void => {
+        (listeners[SURFACE_MODE_CHANGED] ?? []).forEach((listener) => listener({ mode }));
+    };
+    const attributes = (): Array<string | null> =>
+        [container, panel].map((root) => root.getAttribute("data-bpmn-mode"));
+    return { announce, attributes, listeners };
+}
+
+describe("ModeAttribute", () => {
+    it("marks the canvas container and the panel parent with each new mode", () => {
+        const { announce, attributes } = attributeHarness(true);
+
+        announce("design");
+        expect(attributes()).toEqual(["design", "design"]);
+
+        announce("implement");
+        expect(attributes()).toEqual(["implement", "implement"]);
+    });
+
+    it("leaves the roots alone until the mode changes", () => {
+        const { attributes } = attributeHarness(true);
+
+        expect(attributes()).toEqual([null, null]);
+    });
+
+    it("listens to nothing on a surface without a mode", () => {
+        const { listeners } = attributeHarness(false);
+
+        expect(listeners).toEqual({});
+    });
+
+    it("is part of the mode UI module", () => {
+        expect(ModeUiModule.__init__).toEqual(["popupMenuModeFilter", "modeAttribute"]);
+        expect(ModeUiModule.modeAttribute).toEqual(["type", ModeAttribute]);
     });
 });

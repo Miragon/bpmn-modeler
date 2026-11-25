@@ -92,6 +92,7 @@ connectSnapping=type(BpmnConnectSnapping) createMoveSnapping=type(BpmnCreateMove
 searchPad=type(SearchPad)
 bpmnSearch=type(BpmnSearchProvider) init[bpmnSearch]
 outlineProvider=type(OutlineProvider) init[outlineProvider]
+surfaceMode=factory(surfaceMode)
 minimap=type(Minimap) init[minimap]
 init[fn fixIsExecutable]
 nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
@@ -170,8 +171,9 @@ propertiesPanelRoot=value(HTMLDivElement#3)
 propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter]
 customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups]
 debounceInput=factory(debounceInputFactory)
-popupMenuModeFilter=type(PopupMenuModeFilter) init[popupMenuModeFilter]
+popupMenuModeFilter=type(PopupMenuModeFilter) modeAttribute=type(ModeAttribute) init[popupMenuModeFilter, modeAttribute]
 elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
+elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh]
 drilldownFit=type(DrilldownFit) init[drilldownFit]
 
 ## providers (by DI name)
@@ -309,6 +311,7 @@ elementRegistry: type(ElementRegistry)
 elementSupport: type(ElementSupport)
 elementTemplateChooser: type(ElementTemplateChooser)
 elementTemplateCommands: type(ElementTemplatesCommands)
+elementTemplateEngineRefresh: type(ElementTemplateEngineRefresh)
 elementTemplateIconRenderer: type(ElementTemplateIconRenderer)
 elementTemplateOffer: type(ElementTemplateOffer)
 elementTemplates: type(ElementTemplates)
@@ -384,6 +387,7 @@ messageFlowBehavior: type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior ×3
 minimap: type(Minimap)
 moddle: value(Moddle)
 moddleCopy: type(ModdleCopy)
+modeAttribute: type(ModeAttribute)
 modeling: type(Modeling)
 modelingFeedback: type(ModelingFeedback)
 mouse: type(Mouse)
@@ -461,6 +465,7 @@ subProcessBehavior: type(SubProcessBehavior)
 subProcessPlaneBehavior: type(SubProcessPlaneBehavior)
 subProcessStartEventBehavior: type(SubProcessStartEventBehavior)
 subprocessCompatibility: type(SubprocessCompatibility)
+surfaceMode: factory(surfaceMode)
 templateElementFactory: type(TemplateElementFactory)
 textAnnotationBehavior: type(TextAnnotationBehavior)
 textRenderer: type(TextRenderer)
@@ -746,8 +751,10 @@ idFromNamePropertiesProvider @elementIdCommands
 propertiesPanelModeFilter
 customPropertiesGroups
 popupMenuModeFilter
+modeAttribute @popupMenuModeFilter
 elementTemplateOffer
 hiddenTemplatePopupFilter @elementTemplateOffer
+elementTemplateEngineRefresh
 drilldownFit
 
 ## config (by key path, without `modules` and `moddleExtensions`)
@@ -808,3 +815,6 @@ di http://www.omg.org/spec/DD/20100524/DI
 bioc http://bpmn.io/schema/bpmn/biocolor/1.0
 color http://www.omg.org/spec/BPMN/non-normative/color/1.0
 zeebe http://camunda.org/schema/zeebe/1.0
+
+## surface mode
+surfaceMode.get(): "implement"

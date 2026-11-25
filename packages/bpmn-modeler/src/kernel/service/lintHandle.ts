@@ -1,7 +1,5 @@
 import type { BpmnlintConfig, LintResults } from "@miragon/bpmn-modeler-types";
 
-import type { LintConfigService } from "../../bpmnlint/service/LintConfigService";
-
 /**
  * The three lint handle methods {@link BpmnModeler} and {@link BpmnDesigner}
  * expose. Signature-identical on both surfaces so the designer handle stays a
@@ -16,20 +14,19 @@ export interface LintHandleMethods {
 }
 
 /**
- * Builds the shared host-adapter lint methods over a defensively-resolved
- * {@link LintConfigService}. `resolveService` returns `undefined` for a surface
+ * Builds the shared host-adapter lint methods over the surface's lint service,
+ * which implements the same methods. `resolveService` returns `undefined` for a surface
  * created without a lint module (`get("bpmnLintConfig", false)`), in which case
  * every method is a no-op that warns: linting is opt-in, so an unconditional
  * host push must not depend on how the surface was configured. A destroyed
  * surface is not that case: `resolveService` throws `NoModelerError`, and so
  * does the push.
  *
- * Type-only imports keep this module design-pure (it references the lint service
- * type but never the lint stack), so both `/design` and the root entry can
+ * It never imports the lint stack, so both `/design` and the root entry can
  * delegate here instead of duplicating the ~40-line boilerplate.
  */
 export function createLintHandleMethods(
-    resolveService: () => LintConfigService | undefined,
+    resolveService: () => LintHandleMethods | undefined,
     warn: (message: string) => void,
 ): LintHandleMethods {
     const ignore = (action: string): void =>

@@ -92,6 +92,7 @@ connectSnapping=type(BpmnConnectSnapping) createMoveSnapping=type(BpmnCreateMove
 searchPad=type(SearchPad)
 bpmnSearch=type(BpmnSearchProvider) init[bpmnSearch]
 outlineProvider=type(OutlineProvider) init[outlineProvider]
+surfaceMode=factory(surfaceMode)
 minimap=type(Minimap) init[minimap]
 init[fn fixIsExecutable]
 nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
@@ -161,8 +162,9 @@ propertiesPanelRoot=value(HTMLDivElement#3)
 propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter]
 customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups]
 debounceInput=factory(debounceInputFactory)
-popupMenuModeFilter=type(PopupMenuModeFilter) init[popupMenuModeFilter]
+popupMenuModeFilter=type(PopupMenuModeFilter) modeAttribute=type(ModeAttribute) init[popupMenuModeFilter, modeAttribute]
 elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
+elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh]
 drilldownFit=type(DrilldownFit) init[drilldownFit]
 elementTemplatesAppendProvider=type(ElementTemplatesAppendProvider) init[elementTemplatesAppendProvider]
 elementTemplatesCreateProvider=type(ElementTemplatesCreateProvider) init[elementTemplatesCreateProvider]
@@ -170,6 +172,7 @@ elementTemplatesReplaceProvider=type(ElementTemplatesReplaceProvider) init[eleme
 depends[elementTemplatesAppendProvider, elementTemplatesCreateProvider, elementTemplatesReplaceProvider, removeTemplateReplaceProvider]
 c7ExtendedElementTemplates=type(ExtendElementTemplates) c7TemplateElementFactory=type(TemplateElementFactory) c7ApplyTemplateOnShapeCreateBehavior=type(ApplyTemplateOnShapeCreateBehavior) init[c7ExtendedElementTemplates]
 transactionBoundaries=type(TransactionBoundaries) init[transactionBoundaries]
+transactionBoundaryVisibility=type(TransactionBoundaryVisibility) init[transactionBoundaryVisibility]
 
 ## providers (by DI name)
 activityBehavior: type(ActivityBehavior)
@@ -294,6 +297,7 @@ elementRegistry: type(ElementRegistry)
 elementSupport: type(ElementSupport)
 elementTemplateChooser: type(ElementTemplateChooser)
 elementTemplateCommands: type(ElementTemplatesCommands)
+elementTemplateEngineRefresh: type(ElementTemplateEngineRefresh)
 elementTemplateOffer: type(ElementTemplateOffer)
 elementTemplates: type(ElementTemplates)
 elementTemplatesAppendProvider: type(ElementTemplatesAppendProvider)
@@ -358,6 +362,7 @@ messageFlowBehavior: type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior ×3
 minimap: type(Minimap)
 moddle: value(Moddle)
 moddleCopy: type(ModdleCopy)
+modeAttribute: type(ModeAttribute)
 modeling: type(Modeling)
 modelingFeedback: type(ModelingFeedback)
 mouse: type(Mouse)
@@ -436,6 +441,7 @@ subProcessBehavior: type(SubProcessBehavior)
 subProcessPlaneBehavior: type(SubProcessPlaneBehavior)
 subProcessStartEventBehavior: type(SubProcessStartEventBehavior)
 subprocessCompatibility: type(SubprocessCompatibility)
+surfaceMode: factory(surfaceMode)
 textAnnotationBehavior: type(TextAnnotationBehavior)
 textRenderer: type(TextRenderer)
 toggleCollapseConnectionBehaviour: type(ToggleCollapseConnectionBehaviour)
@@ -449,6 +455,7 @@ toolManager: type(ToolManager)
 tooltips: type(Tooltips)
 transactionBehavior: type(TransactionBehavior)
 transactionBoundaries: type(TransactionBoundaries)
+transactionBoundaryVisibility: type(TransactionBoundaryVisibility)
 translate: factory(translateFactory) @customTranslator ×2 over value(fn translate) @translate
 unclaimIdBehavior: type(UnclaimIdBehavior)
 unsetDefaultFlowBehavior: type(DeleteSequenceFlowBehavior)
@@ -699,14 +706,17 @@ idFromNamePropertiesProvider @elementIdCommands
 propertiesPanelModeFilter
 customPropertiesGroups
 popupMenuModeFilter
+modeAttribute @popupMenuModeFilter
 elementTemplateOffer
 hiddenTemplatePopupFilter @elementTemplateOffer
+elementTemplateEngineRefresh
 drilldownFit
 elementTemplatesAppendProvider
 elementTemplatesCreateProvider
 elementTemplatesReplaceProvider
 c7ExtendedElementTemplates
 transactionBoundaries
+transactionBoundaryVisibility
 
 ## config (by key path, without `modules` and `moddleExtensions`)
 alignToOrigin.alignOnSave: false
@@ -732,3 +742,6 @@ di http://www.omg.org/spec/DD/20100524/DI
 bioc http://bpmn.io/schema/bpmn/biocolor/1.0
 color http://www.omg.org/spec/BPMN/non-normative/color/1.0
 camunda http://camunda.org/schema/1.0/bpmn
+
+## surface mode
+surfaceMode.get(): "implement"

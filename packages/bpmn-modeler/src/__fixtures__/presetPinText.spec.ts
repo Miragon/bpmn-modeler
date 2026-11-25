@@ -6,6 +6,7 @@ import {
     moddlePackageLines,
     optionDelta,
     renderPins,
+    surfaceModeLines,
     surfacePinsOf,
     type ModdlePackage,
     type SurfacePins,
@@ -17,11 +18,13 @@ function pinsOf(
     modules: readonly DiModule[],
     config: object = { modules },
     moddlePackages: readonly ModdlePackage[] = [],
+    surfaceMode?: string,
 ): SurfacePins {
     return {
         assembly: assembleModules(modules),
         config: configLeaves(config),
         moddlePackages: moddlePackageLines(moddlePackages),
+        surfaceMode: surfaceModeLines(surfaceMode),
     };
 }
 
@@ -158,8 +161,30 @@ describe("presetPinText", () => {
                 "bpmn http://www.omg.org/spec/BPMN/20100524/MODEL",
                 "camunda http://camunda.org/schema/1.0/bpmn",
                 "",
+                "## surface mode",
+                "(none)",
+                "",
             ].join("\n"),
         );
+    });
+
+    it("pins what the surfaceMode service holds after the moddle packages", () => {
+        const rendered = renderPins("probe", pinsOf([], {}, [], "design"));
+
+        expect(rendered.slice(rendered.indexOf("## surface mode"))).toBe(
+            ["## surface mode", 'surfaceMode.get(): "design"', ""].join("\n"),
+        );
+    });
+
+    it("shows what an option changes in the surface mode", () => {
+        expect(optionDelta(pinsOf([], {}, [], "implement"), pinsOf([], {}, [], "design"))).toEqual([
+            "surface mode:",
+            '~ surfaceMode.get(): "implement" → "design"',
+        ]);
+        expect(optionDelta(pinsOf([], {}), pinsOf([], {}, [], "design"))).toEqual([
+            "surface mode:",
+            '+ surfaceMode.get(): "design"',
+        ]);
     });
 
     it("shows what an option adds, removes or replaces in the config and the moddle packages", () => {

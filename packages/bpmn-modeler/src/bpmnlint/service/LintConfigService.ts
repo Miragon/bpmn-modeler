@@ -8,8 +8,13 @@ import {
     type EditableSurfaceMode,
     ExecutionPlatformAttributes,
     type ExecutionPlatformDefinitions,
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeChangedEvent,
+    type SurfaceModeService,
 } from "@miragon/bpmn-modeler-types/domain";
 
+import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { BrowserLinter } from "../adapter/out/browserLinter";
 import {
     type LintTierEffect,
@@ -35,8 +40,20 @@ interface Bpmnjs {
 }
 
 interface EventBus {
-    on(event: string, callback: (event: unknown) => void): void;
+    on(event: "import.done", callback: () => void): void;
+    on(
+        event: typeof SURFACE_MODE_CHANGED,
+        priority: number,
+        callback: (event: SurfaceModeChangedEvent) => void,
+    ): void;
 }
+
+interface OptionalInjector {
+    get<T>(name: string, strict: false): T | null;
+}
+
+// Below the default 1000, so the panel filter and the mode attribute follow a change first.
+const LINT_MODE_PRIORITY = 500;
 
 export type { LintTierInit } from "../domain/lintTierMachine";
 
@@ -52,7 +69,7 @@ export interface LintCallbacks {
 }
 
 // Override vendor lint() so every tier reuses its overlay rendering and update lifecycle.
-export class LintConfigService {
+export class LintConfigService implements LintHandleMethods {
     static $inject = [
         "linting",
         "lintTier",
@@ -61,6 +78,7 @@ export class LintConfigService {
         "canvas",
         "bpmnjs",
         "eventBus",
+        "injector",
     ];
 
     private static readonly OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="4" x2="12" y2="12"/></svg>`;
@@ -85,6 +103,7 @@ export class LintConfigService {
         private readonly canvas: Canvas,
         private readonly bpmnjs: Bpmnjs,
         eventBus: EventBus,
+        injector: OptionalInjector,
     ) {
         const start = LintTierMachine.start(tierInit, this.isDiagramLoaded());
         this.machine = start.machine;
@@ -95,6 +114,11 @@ export class LintConfigService {
         eventBus.on("import.done", () => {
             this.dispatch({ type: "diagramImported", engineVersion: this.importedEngineVersion() });
         });
+        if (injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false)) {
+            eventBus.on(SURFACE_MODE_CHANGED, LINT_MODE_PRIORITY, (event) => {
+                this.setMode(event.mode);
+            });
+        }
         this.runEffects(start.effects);
     }
 

@@ -15,6 +15,7 @@ import {
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 // The CJS entry wraps the ESM module in a default export, preventing DI registration under Vite.
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
+import { TransactionBoundaryVisibilityModule } from "../../transactionBoundaries/adapter/in/TransactionBoundaryVisibility";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
 import { C7_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotationOverrides";
@@ -33,6 +34,7 @@ export const c7Stack: EngineStack = {
         CreateAppendElementTemplatesModule,
         CreateAppendC7ElementTemplatesModule,
         TransactionBoundariesModule,
+        TransactionBoundaryVisibilityModule,
     ],
     moddleExtensions: { camunda: camundaModdle },
     propertiesPanelDefaults: { tooltip: CamundaPlatformTooltipProvider },

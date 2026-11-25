@@ -45,7 +45,10 @@ new Modeler({
 ```
 
 The mode defaults to `design`. Set `propertiesPanelMode: "implement"` in the modeler config, or call
-`setMode(mode)` on the `propertiesPanelModeFilter` service.
+`setMode(mode)` on the `propertiesPanelModeFilter` service. On a surface that registers `surfaceMode`
+(the `@miragon/bpmn-modeler` modeler), the filter opens in that mode, follows `surface.mode.changed` and
+ignores the config. There, change the mode through the surface (`setMode` on the modeler): the filter's
+own `setMode` moves only the panel, while `getMode()`, `data-bpmn-mode` and lint keep the old mode.
 
 ## Before you change it
 

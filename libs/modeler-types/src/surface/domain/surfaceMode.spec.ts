@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
     SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
     defaultMode,
     isModeAvailable,
     parseEditableMode,
@@ -10,6 +11,7 @@ import {
     type EditableSurfaceMode,
     type SurfaceMode,
     type SurfaceModeChangedEvent,
+    type SurfaceModeService,
 } from "./surfaceMode";
 
 describe("surfaceModeSupports", () => {
@@ -140,5 +142,15 @@ describe("SURFACE_MODE_CHANGED", () => {
         expectTypeOf<SurfaceModeChangedEvent>().toEqualTypeOf<{
             readonly mode: EditableSurfaceMode;
         }>();
+    });
+});
+
+describe("SURFACE_MODE_SERVICE", () => {
+    it("names the DI service an editable surface holds its mode in", () => {
+        expect(SURFACE_MODE_SERVICE).toBe("surfaceMode");
+    });
+
+    it("lets a feature read the mode, never set it", () => {
+        expectTypeOf<SurfaceModeService>().toEqualTypeOf<{ get(): EditableSurfaceMode }>();
     });
 });

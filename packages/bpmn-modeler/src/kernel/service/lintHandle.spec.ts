@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { NoModelerError, type LintResults } from "@miragon/bpmn-modeler-types";
 
-import type { LintConfigService } from "../../bpmnlint/service/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 
 const RESULTS: LintResults = { "label-required": [] };
@@ -42,10 +41,7 @@ describe("createLintHandleMethods", () => {
         ({ method, push, expectedArgs }) => {
             const service = fakeLintService();
             const warn = vi.fn();
-            const handle = createLintHandleMethods(
-                () => service as unknown as LintConfigService,
-                warn,
-            );
+            const handle = createLintHandleMethods(() => service, warn);
 
             push(handle);
 

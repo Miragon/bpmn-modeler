@@ -25,7 +25,6 @@ import {
     elementIdSettingsOf,
     type ElementTemplateRef,
     Engine,
-    engineSupports,
     getLatestVersion,
     LintResults,
     OpenScriptEditorRef,
@@ -35,7 +34,7 @@ import {
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
-import { ExecutionPlatformAttributes } from "@miragon/bpmn-modeler-types/domain";
+import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
 import {
     collectInlineScriptTasks,
     OpenScriptEditorsStore,
@@ -66,24 +65,19 @@ import {
 } from "../../kernel/service/editableSurface";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
+import { createSurfaceModeModule, type KernelSurfaceMode } from "../../kernel/service/surfaceMode";
 import type {
     RootElementManager,
     SelectionManager,
     ViewportManager,
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
-import { deriveEngines } from "../domain/engines";
 import { loadEngineStack } from "../../composition/engineStacks";
 import { initialDiagram } from "../domain/initialDiagram";
-import {
-    applyMode,
-    normalizeMode,
-    MODE_ATTRIBUTE,
-    type ModePorts,
-    type ModelerMode,
-} from "../../mode/domain/mode";
+import { MODE_ATTRIBUTE, normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
 import { ModeUiModule } from "../../mode/adapter/in/modeModules";
 import {
+    ElementTemplateEngineRefreshModule,
     ElementTemplateOfferModule,
     type ElementTemplateOffer,
 } from "../../elementTemplateOffer/adapter/in/elementTemplateOfferModule";
@@ -94,24 +88,18 @@ import type {
     ElementIdOptions,
 } from "../port/publicApi";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
-import type { LintConfigService } from "../../bpmnlint/service/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
 // facade calls, so the untyped `.get<any>` reaches are gone without adopting a
 // full didi service map (see docs/adr/dependencies.md#private-upstream-apis).
-interface TransactionBoundariesService {
-    readonly active: boolean;
-    show(): void;
-    hide(): void;
+interface TransactionBoundaryVisibilityService {
+    setVisible(visible: boolean): void;
 }
 interface ElementTemplatesLoaderService {
     setTemplates(templates: object[]): void;
 }
 interface AlignToOriginService {
     align(): void;
-}
-interface ElementTemplatesEngineService {
-    setEngines(engines: ReturnType<typeof deriveEngines>): void;
 }
 interface ScriptModelElement {
     businessObject: ScriptTaskBusinessObject;
@@ -257,6 +245,7 @@ export class BpmnModeler {
             FlushableDebounceInputModule,
             ModeUiModule,
             ElementTemplateOfferModule,
+            ElementTemplateEngineRefreshModule,
             DrilldownFitModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
@@ -284,6 +273,7 @@ export class BpmnModeler {
         this.engine = engine;
 
         const additionalModules = [
+            createSurfaceModeModule(normalizeMode(this.options.mode)),
             ...engineStack.upstreamModules,
             ...commonModules,
             ...engineStack.engineModules,
@@ -302,6 +292,7 @@ export class BpmnModeler {
         );
 
         this.applyHiddenElementTemplates();
+        this.transactionBoundaryVisibility()?.setVisible(this.settings.showTransactionBoundaries);
         applyElementIdSettings(this.core, {
             ...elementIdSettingsOf(this.settings),
             convention: lintElementIdConvention(this.options.linting),
@@ -332,11 +323,20 @@ export class BpmnModeler {
             });
         }
 
-        // Apply before the first paint to avoid flashing engine controls in design mode.
-        this.setModeAttribute(normalizeMode(this.options.mode));
+        this.markModeRoots();
+    }
+
+    // Set once the instance is built, so a failed construction leaves no attribute, and before
+    // the first paint, so design mode never flashes engine controls; ModeAttribute moves it later.
+    private markModeRoots(): void {
+        const roots = [this.container, this.options.propertiesPanel.parent];
+        for (const root of roots) {
+            root.setAttribute(MODE_ATTRIBUTE, this.getMode());
+        }
         this.store.add(() => {
-            this.container.removeAttribute(MODE_ATTRIBUTE);
-            this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
+            for (const root of roots) {
+                root.removeAttribute(MODE_ATTRIBUTE);
+            }
         });
     }
 
@@ -433,35 +433,19 @@ export class BpmnModeler {
     async newDiagram(): Promise<ImportXMLResult> {
         const version = this.options.engineVersion ?? getLatestVersion(this.engine!);
         const result = await this.getModeler().importXML(initialDiagram(this.engine!, version));
-        this.refreshAfterImport();
+        this.core.armInitialViewport();
         return result;
     }
 
     async loadDiagram(bpmn: string): Promise<ImportXMLResult> {
         const result = await importDiagram(this.getModeler(), bpmn);
-        this.refreshAfterImport();
+        this.core.armInitialViewport();
         return result;
     }
 
     /** @see BpmnSurfaceHandle.reloadDiagram */
     reloadDiagram(xml: string): Promise<ImportXMLResult> {
         return this.core.keepViewAcross(() => this.loadDiagram(xml));
-    }
-
-    private refreshAfterImport(): void {
-        this.showTransactionBoundariesIfEnabled();
-        this.applyEnginesFromDefinitions();
-        this.core.armInitialViewport();
-    }
-
-    // Import clears the overlays, so every import re-renders the boundaries.
-    private showTransactionBoundariesIfEnabled(): void {
-        if (
-            engineSupports(this.engine, "transactionBoundaries") &&
-            this.settings.showTransactionBoundaries
-        ) {
-            this.getModeler().get<TransactionBoundariesService>("transactionBoundaries").show();
-        }
     }
 
     async exportDiagram(): Promise<string> {
@@ -517,21 +501,8 @@ export class BpmnModeler {
 
         // colorTheme stays inert here; the host controls theme through setTheme.
 
-        const showTransactionBoundaries = settings.showTransactionBoundaries;
-        if (
-            engineSupports(this.engine, "transactionBoundaries") &&
-            showTransactionBoundaries !== undefined
-        ) {
-            const transactionBoundaries =
-                this.getModeler().get<TransactionBoundariesService>("transactionBoundaries");
-            // Hosts re-send every setting on any change; upstream show() is not idempotent.
-            if (showTransactionBoundaries !== transactionBoundaries.active) {
-                if (showTransactionBoundaries) {
-                    transactionBoundaries.show();
-                } else {
-                    transactionBoundaries.hide();
-                }
-            }
+        if (settings.showTransactionBoundaries !== undefined) {
+            this.transactionBoundaryVisibility()?.setVisible(settings.showTransactionBoundaries);
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
@@ -671,60 +642,38 @@ export class BpmnModeler {
 
     /**
      * Switches Design / Implement without re-importing or losing engine data.
-     * Fires onModeChanged once per actual change.
+     * Fires onModeChanged once per actual change, after the panel, the mode
+     * attribute and lint have followed it.
      */
     setMode(mode: ModelerMode): void {
-        applyMode(this.modePorts(), mode);
+        if (this.surfaceMode().set(mode)) {
+            this.options.onModeChanged?.(mode);
+        }
     }
 
     /**
-     * The current design/implement mode, read off the panel filter (the single
-     * source of truth).
+     * The current design/implement mode, held by the surface's `surfaceMode`.
      *
      * @throws {NoModelerError} If {@link init} has not been called.
      */
     getMode(): ModelerMode {
-        return this.getModeler()
-            .get<{ getMode(): ModelerMode }>("propertiesPanelModeFilter")
-            .getMode();
+        return this.surfaceMode().get();
     }
 
-    private modePorts(): ModePorts {
-        const modeler = this.getModeler();
-        const filter = modeler.get<{
-            getMode(): ModelerMode;
-            setMode(mode: ModelerMode): void;
-        }>("propertiesPanelModeFilter");
-        return {
-            getFilterMode: () => filter.getMode(),
-            setFilterMode: (mode) => filter.setMode(mode),
-            setModeAttribute: (mode) => this.setModeAttribute(mode),
-            setLintMode: (mode) =>
-                this.getModeler().get<LintConfigService>("bpmnLintConfig", false)?.setMode(mode),
-            onModeChanged: this.options.onModeChanged,
-        };
+    private surfaceMode(): KernelSurfaceMode {
+        return this.core.service<KernelSurfaceMode>(SURFACE_MODE_SERVICE);
     }
 
-    private setModeAttribute(mode: ModelerMode): void {
-        this.container.setAttribute(MODE_ATTRIBUTE, mode);
-        this.options.propertiesPanel.parent.setAttribute(MODE_ATTRIBUTE, mode);
+    /** Registered by the Camunda 7 stack only. */
+    private transactionBoundaryVisibility(): TransactionBoundaryVisibilityService | undefined {
+        return this.core.optionalService<TransactionBoundaryVisibilityService>(
+            "transactionBoundaryVisibility",
+        );
     }
 
     /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
-    }
-
-    // Read the engine profile from imported definitions to match template engine filtering.
-    // C7 may omit the service; an empty profile clears any previous engine version.
-    private applyEnginesFromDefinitions(): void {
-        const definitions = this.getModeler().getDefinitions();
-        const engines = deriveEngines(
-            definitions ? new ExecutionPlatformAttributes(definitions).read() : {},
-        );
-        this.getModeler()
-            .get<ElementTemplatesEngineService>("elementTemplates", false)
-            ?.setEngines(engines);
     }
 
     /**

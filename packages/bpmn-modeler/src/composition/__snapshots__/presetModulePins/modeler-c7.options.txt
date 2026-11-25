@@ -61,6 +61,8 @@ __init__:
 + lintIssuePopover @lintUpdate (after bpmnLintConfig)
 config:
 ~ propertiesPanelMode: "implement" → "design"
+surface mode:
+~ surfaceMode.get(): "implement" → "design"
 
 ## linting: { module, config }, onLintResults, onLintingToggled and elementTemplates
 modules:
@@ -84,6 +86,8 @@ __init__:
 ## mode: "design"
 config:
 ~ propertiesPanelMode: "implement" → "design"
+surface mode:
+~ surfaceMode.get(): "implement" → "design"
 
 ## capabilities.modelNavigation
 modules:

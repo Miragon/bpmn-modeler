@@ -556,4 +556,80 @@ describe("BpmnModeler design/implement mode", () => {
         await expect.poll(engineRulesInLatestRun).toContain("camunda-compat/implementation");
         modeler.destroy();
     });
+
+    it("applies a mode change in the order panel filter, mode attribute, lint, callback", async () => {
+        const steps: string[] = [];
+        const { container, panel } = mountWithPanel();
+        const live: { modeler?: BpmnModeler } = {};
+        const record = (step: string): void => {
+            steps.push(
+                `${step}: attribute ${container.dataset.bpmnMode}, mode ${live.modeler?.getMode()}`,
+            );
+        };
+        const modeler = await createModeler(container, {
+            engine: "c8",
+            propertiesPanel: { parent: panel },
+            linting: { module: lintModule },
+            onModeChanged: () => record("callback"),
+        });
+        live.modeler = modeler;
+        recordAfter(modeler.getService("propertiesPanelModeFilter"), "setMode", () =>
+            record("filter"),
+        );
+        recordAfter(modeler.getService("bpmnLintConfig"), "setMode", () => record("lint"));
+
+        modeler.setMode("design");
+        modeler.setMode("design");
+
+        expect(steps).toEqual([
+            "filter: attribute implement, mode design",
+            "lint: attribute design, mode design",
+            "callback: attribute design, mode design",
+        ]);
+        modeler.destroy();
+    });
+
+    it("reads the new mode from getMode while the panel re-derives its providers", async () => {
+        const modesSeen: string[] = [];
+        const live: { modeler?: BpmnModeler } = {};
+        class ProvidersChangedProbe {
+            static $inject = ["eventBus"];
+            constructor(eventBus: { on(event: string, listener: () => void): void }) {
+                eventBus.on("propertiesPanel.providersChanged", () => {
+                    if (live.modeler) {
+                        modesSeen.push(live.modeler.getMode());
+                    }
+                });
+            }
+        }
+        const { container, panel } = mountWithPanel();
+        const modeler = await createModeler(container, {
+            engine: "c8",
+            propertiesPanel: { parent: panel },
+            linting: false,
+            additionalModules: [
+                {
+                    __init__: ["providersChangedProbe"],
+                    providersChangedProbe: ["type", ProvidersChangedProbe],
+                },
+            ],
+        });
+        live.modeler = modeler;
+
+        modeler.setMode("design");
+
+        expect(modesSeen).toEqual(["design"]);
+        modeler.destroy();
+    });
+
+    // Calls through first, so each step records the state the step left behind.
+    function recordAfter(service: unknown, method: string, record: () => void): void {
+        const target = service as Record<string, (...args: unknown[]) => unknown>;
+        const original = target[method].bind(target);
+        vi.spyOn(target, method).mockImplementation((...args: unknown[]) => {
+            const result = original(...args);
+            record();
+            return result;
+        });
+    }
 });

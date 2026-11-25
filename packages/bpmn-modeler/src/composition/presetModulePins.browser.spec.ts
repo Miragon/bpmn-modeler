@@ -14,6 +14,7 @@ import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 import { ENGINES, type BpmnlintConfig, type Engine } from "@miragon/bpmn-modeler-types";
+import { SURFACE_MODE_SERVICE, type SurfaceModeService } from "@miragon/bpmn-modeler-types/domain";
 
 import * as lintModule from "../lint";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../popupMenuAnnotations/domain/baseAnnotations";
@@ -53,6 +54,10 @@ import {
 interface BuiltSurface {
     getService<T = unknown>(name: string): T;
     destroy(): void;
+}
+
+interface OptionalLookup {
+    get<T>(name: string, strict: false): T | null;
 }
 
 type Build<O> = (mount: SurfaceMount, options: Partial<O>) => Promise<BuiltSurface>;
@@ -240,14 +245,14 @@ const viewerBuild: Build<ViewerOptions & { withPanel: true }> = (
 
 function pinsOfSurface(surface: BuiltSurface): SurfacePins {
     const moddle = surface.getService<{ getPackages(): ModdlePackage[] }>("moddle");
+    const injector = surface.getService<DidiInjector & OptionalLookup>("injector");
     const pins = surfacePinsOf(
         surface.getService<{ modules: DiModule[] }>("config"),
         moddle.getPackages(),
         VALUE_ROLES,
+        injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false)?.get(),
     );
-    expect(
-        disagreementsWithInjector(pins.assembly, surface.getService<DidiInjector>("injector")),
-    ).toEqual([]);
+    expect(disagreementsWithInjector(pins.assembly, injector)).toEqual([]);
     return pins;
 }
 

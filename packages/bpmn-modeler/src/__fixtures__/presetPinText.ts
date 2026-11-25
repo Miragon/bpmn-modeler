@@ -21,6 +21,8 @@ export interface SurfacePins {
     readonly config: ReadonlyMap<string, string>;
     /** `prefix uri` per moddle package, in registration order. */
     readonly moddlePackages: readonly PinnedLine[];
+    /** What the surface's `surfaceMode` service holds; empty on a surface without one. */
+    readonly surfaceMode: ReadonlyMap<string, string>;
 }
 
 export interface ModdlePackage {
@@ -39,6 +41,7 @@ export function surfacePinsOf(
     config: { readonly modules: readonly DiModule[] },
     moddlePackages: readonly ModdlePackage[],
     roles: ReadonlyMap<object, string>,
+    surfaceMode?: string,
 ): SurfacePins {
     const topLevel = injectorModulesOf(config);
     const names: ValueNames = new Map([
@@ -49,7 +52,12 @@ export function surfacePinsOf(
         assembly: assembleModules(topLevel, names),
         config: configLeaves(config, names),
         moddlePackages: moddlePackageLines(moddlePackages),
+        surfaceMode: surfaceModeLines(surfaceMode),
     };
+}
+
+export function surfaceModeLines(mode: string | undefined): Map<string, string> {
+    return new Map(mode === undefined ? [] : [["surfaceMode.get()", JSON.stringify(mode)]]);
 }
 
 // The mount's nodes all print as one type, so each is numbered by its first appearance:
@@ -108,7 +116,7 @@ export function moddlePackageLines(packages: readonly ModdlePackage[]): PinnedLi
 
 export function renderPins(
     title: string,
-    { assembly, config, moddlePackages }: SurfacePins,
+    { assembly, config, moddlePackages, surfaceMode }: SurfacePins,
 ): string {
     const providers = sortedRegistrations(assembly).map(
         ([name, list]) => `${name}: ${winnerText(list)}`,
@@ -133,6 +141,11 @@ export function renderPins(
         "## moddle packages (registration order)",
         ...moddlePackages.map(({ text }) => text),
         "",
+        "## surface mode",
+        ...(surfaceMode.size > 0
+            ? [...surfaceMode].map(([path, value]) => `${path}: ${value}`)
+            : ["(none)"]),
+        "",
     ].join("\n");
 }
 
@@ -146,6 +159,7 @@ export function optionDelta(base: SurfacePins, variant: SurfacePins): string[] {
         ...section("__init__", sequenceDelta(base.assembly.inits, variant.assembly.inits)),
         ...section("config", keyedDelta(base.config, variant.config)),
         ...section("moddle packages", sequenceDelta(base.moddlePackages, variant.moddlePackages)),
+        ...section("surface mode", keyedDelta(base.surfaceMode, variant.surfaceMode)),
     ];
 }
 

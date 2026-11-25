@@ -292,6 +292,35 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
     });
 });
 
+describe("BpmnModeler construction failing after diagram.init", () => {
+    it("leaves no mode attribute on its roots", async () => {
+        class ThrowsOnDiagramInit {
+            static $inject = ["eventBus"];
+            constructor(eventBus: { on(event: string, listener: () => void): void }) {
+                eventBus.on("diagram.init", () => {
+                    throw new Error("late poison");
+                });
+            }
+        }
+        const mount = mountWithPanelRoots();
+
+        await expect(
+            createModeler(mount.container, {
+                engine: "c8",
+                propertiesPanel: { parent: mount.panel! },
+                additionalModules: [
+                    {
+                        __init__: ["throwsOnDiagramInit"],
+                        throwsOnDiagramInit: ["type", ThrowsOnDiagramInit],
+                    },
+                ],
+            }),
+        ).rejects.toThrow("late poison");
+
+        assertClean(mount.roots);
+    });
+});
+
 describe("BpmnModeler engine stack loading", () => {
     it("allocates nothing when destroyed while its engine stack loads", async () => {
         const mount = mountWithPanelRoots();
@@ -325,6 +354,27 @@ describe("BpmnModeler re-entrant init", () => {
         for (const root of mount.roots) {
             expect(root.getAttribute("data-bpmn-theme")).toBe("dark");
         }
+        modeler.destroy();
+        assertClean(mount.roots);
+    });
+
+    it("marks the roots with the new instance's mode and follows its changes", async () => {
+        const mount = mountWithPanelRoots();
+        const modeler = new BpmnModeler(mount.container, {
+            engine: "c8",
+            mode: "design",
+            propertiesPanel: { parent: mount.panel! },
+        });
+        await modeler.init();
+        modeler.setMode("implement");
+
+        await modeler.init();
+        const afterReinit = mount.roots.map((root) => root.getAttribute("data-bpmn-mode"));
+        modeler.setMode("implement");
+        const afterChange = mount.roots.map((root) => root.getAttribute("data-bpmn-mode"));
+
+        expect(afterReinit).toEqual(["design", "design"]);
+        expect(afterChange).toEqual(["implement", "implement"]);
         modeler.destroy();
         assertClean(mount.roots);
     });

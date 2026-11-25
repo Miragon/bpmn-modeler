@@ -15,7 +15,6 @@ import {
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 
-import type { LintConfigService } from "../../bpmnlint/service/LintConfigService";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { installContentEditableClipboardPolyfill } from "../adapter/in/propertiesPanelClipboard";
 import type { ClipboardOptions, ElementIdOptions } from "../../modeler/port/publicApi";
@@ -56,8 +55,14 @@ export function installClipboardSupport(
     return createClipboardModules({ element: clipboard.bridge, text: clipboard.text });
 }
 
-export function formatSurfaceDiagram(surface: SurfaceServices): Promise<LayoutOutcome> {
-    return surface.service<Layouter>("bpmnLayouter").format();
+const WITHOUT_LAYOUT = "this surface was created without the layout module";
+
+export async function formatSurfaceDiagram(surface: SurfaceServices): Promise<LayoutOutcome> {
+    const layouter = surface.optionalService<Layouter>("bpmnLayouter");
+    if (!layouter) {
+        return { status: "failed", message: WITHOUT_LAYOUT, diagnostics: [] };
+    }
+    return layouter.format();
 }
 
 // Block bodies: a listener's return value would stop the event reaching later listeners.
@@ -95,7 +100,10 @@ export function cleanupSurfaceDiagram(
     surface: SurfaceServices,
     options?: { apply?: boolean },
 ): CleanupOutcome {
-    const cleanup = surface.service<CleanupService>("bpmnCleanup");
+    const cleanup = surface.optionalService<CleanupService>("bpmnCleanup");
+    if (!cleanup) {
+        return { status: "failed", items: [], message: WITHOUT_LAYOUT };
+    }
     return options?.apply ? cleanup.apply() : cleanup.inspect();
 }
 
@@ -140,7 +148,7 @@ export function createSurfaceLintHandle(
     reporter: SurfaceReporter,
 ): LintHandleMethods {
     return createLintHandleMethods(
-        () => surface.optionalService<LintConfigService>("bpmnLintConfig"),
+        () => surface.optionalService<LintHandleMethods>("bpmnLintConfig"),
         (message) => reporter.warn(message),
     );
 }
