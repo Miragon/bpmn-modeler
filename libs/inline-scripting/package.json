@@ -12,11 +12,11 @@
         "@miragon/bpmn-modeler-types": "workspace:*"
     },
     "peerDependencies": {
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.60.2",
         "bpmn-js": "18.31.1"
     },
     "devDependencies": {
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.60.2",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.1.0",
         "jsdom": "30.1.3",

@@ -14,14 +14,14 @@
         "test:orca:docker": "node test/smoke/run-in-container.mjs"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.60.2",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/dmn-modeler": "workspace:*",
-        "bpmn-js": "18.31.1",
+        "bpmn-js": "18.33.1",
         "tslib": "2.9.1"
     },
     "devDependencies": {

@@ -15,8 +15,8 @@
         "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
-        "@bpmn-io/form-js-viewer": "2.1.1",
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/form-js-viewer": "2.2.0",
+        "@bpmn-io/properties-panel": "3.60.2",
         "@bpmn-io/svg-to-image": "1.0.1",
         "@fontsource-variable/geist": "5.3.0",
         "@miragon/bpmn-modeler": "workspace:*",
@@ -28,10 +28,10 @@
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.23.0",
         "bpmn-auto-layout": "2.0.0-alpha.2",
-        "bpmn-js": "18.31.1",
+        "bpmn-js": "18.33.1",
         "bpmn-js-bpmnlint": "0.25.0",
         "bpmnlint": "12.1.1",
-        "diagram-js": "15.28.1",
+        "diagram-js": "15.30.1",
         "tslib": "2.9.1"
     },
     "devDependencies": {

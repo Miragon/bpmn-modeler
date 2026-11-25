@@ -19,7 +19,7 @@
         "tslib": "2.9.1"
     },
     "devDependencies": {
-        "@bpmn-io/form-js": "2.1.1",
+        "@bpmn-io/form-js": "2.2.0",
         "@bpmn-io/form-json-schema": "1.18.0",
         "@miragon/architecture-testing": "workspace:*",
         "@types/mocha": "10.0.10",
