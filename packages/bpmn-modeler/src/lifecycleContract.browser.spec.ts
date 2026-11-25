@@ -462,6 +462,41 @@ describe.each([
     });
 });
 
+describe.each([
+    {
+        name: "modeler",
+        createFailing: (m: Mount) =>
+            createModeler(m.container, {
+                engine: "c8",
+                propertiesPanel: { parent: m.panel! },
+                additionalModules: [POISON_MODULE] as never,
+            }),
+    },
+    {
+        name: "kernel surface",
+        createFailing: (m: Mount) =>
+            createSurface(m.container, {
+                base: Modeler,
+                features: [{ id: "poison", modules: [POISON_MODULE] }],
+            }),
+    },
+])("$name construction failing in a module's __init__", ({ createFailing }) => {
+    // The teardown fires diagram.destroy on a canvas that never initialised.
+    it("rejects with the module's error and logs no secondary teardown error", async () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const mount = mountWithPanelRoots();
+
+            await expect(createFailing(mount)).rejects.toThrow("poison");
+
+            assertClean(mount.roots);
+            expect(consoleError).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+});
+
 describe("BpmnModeler construction failing after diagram.init", () => {
     it("leaves no mode attribute on its roots", async () => {
         class ThrowsOnDiagramInit {

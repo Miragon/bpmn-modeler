@@ -1,3 +1,5 @@
+import Modeler from "bpmn-js/lib/Modeler";
+import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
@@ -5,6 +7,7 @@ import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { createModeler } from "../../composition/createModeler";
 import { createDesigner } from "../../composition/createDesigner";
 import { createViewer } from "../../composition/createViewer";
+import { createSurface } from "../../composition/createSurface";
 import type { BpmnDesignerHandle } from "../../design/port/publicApi";
 import type { ViewState } from "../domain/viewState";
 import { FAR_FROM_ORIGIN_XML } from "../../__fixtures__/bpmnXml";
@@ -57,6 +60,15 @@ const SURFACES: Array<{
                 propertiesPanel: { parent: panel },
                 linting: false,
             }),
+    },
+    {
+        name: "kernel surface (modeler base)",
+        create: ({ container }) => createSurface(container, { base: Modeler, features: [] }),
+    },
+    {
+        name: "kernel surface (viewer base)",
+        create: ({ container }) =>
+            createSurface(container, { base: NavigatedViewer, features: [] }),
     },
 ];
 

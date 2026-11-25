@@ -15,8 +15,11 @@ import { SurfaceView } from "./viewState";
 type SurfaceInstance = Pick<BaseViewer, "get" | "destroy">;
 
 interface DestroyEventBus {
+    on(event: "error", priority: number, listener: () => false): void;
     fire(event: "diagram.destroy"): unknown;
 }
+
+const SWALLOW_ALL_ERRORS = 10_000;
 
 const THEME_ATTRIBUTE = "data-bpmn-theme";
 
@@ -171,6 +174,9 @@ export class SurfaceCore<T extends SurfaceInstance> implements SurfaceServices {
     // A half-built bpmn-js has no handle to destroy; its modules still hold page listeners.
     private tearDownPartialConstruction(): void {
         try {
+            // Listeners of modules that never initialised throw on destroy; handling those
+            // errors keeps them off the console and lets the remaining listeners run.
+            this.constructingEventBus?.on("error", SWALLOW_ALL_ERRORS, () => false);
             this.constructingEventBus?.fire("diagram.destroy");
         } catch {
             // A secondary teardown failure must not mask the construction error.

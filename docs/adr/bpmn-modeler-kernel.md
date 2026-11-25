@@ -60,19 +60,21 @@ Composition hands every surface focus/Escape and the fit button, right after the
 These two and the clipboard text polyfill install on `diagram.init`, after every other listener,
 and leave on `diagram.destroy`. The kernel also fires `diagram.destroy` when a constructor throws
 after its modules initialised (in bpmn-js's `attach` event), so no listener or `execCommand` patch
-survives. Until the presets run on the kernel (#2802 S4), the facades take these modules from
+survives. It handles the errors that listeners of a half-built instance throw then, so every
+listener runs and the console shows only the construction error. Until the presets run on the kernel (#2802 S4), the facades take these modules from
 composition and keep `ModeAttribute`.
 
 ## Consequences and enforcement
 
-A `diagram.destroy` listener that throws on a half-built instance skips the ones after it.
 Narrowing on member presence (`"setMode" in handle`) is weaker than a discriminant field, and the
 guards rely on the handle holding only its kind's members.
 
 The [architecture spec](../../packages/bpmn-modeler/src/architecture.spec.ts) checks that
 `kernel/` imports nothing outside itself but `@miragon/bpmn-modeler-types`,
 `@miragon/bpmn-modeler-browser` and npm. Two exceptions remain until #2802 S4:
-`editableSurface.ts` imports the layout and element-ID libraries. The same spec reads every DI
+`editableSurface.ts` imports the layout and element-ID libraries. Also until S4, the
+`presetWiring.ts` port names the clipboard feature's modules for the facades; its imports pass the
+check. The same spec reads every DI
 name the kernel spells out, in a lookup or an `$inject` list. It allows the names the bpmn-js base
 module trees, the diagram-js core and the kernel provide, and lists the five lookups above as
 known exceptions with their step. A name the kernel builds at runtime instead of writing as a

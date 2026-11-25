@@ -102,6 +102,75 @@ describe("createSurface on the modeler base", () => {
         }
     });
 
+    it.each([
+        { handleGlobalEscape: true, focusesCanvas: true },
+        { handleGlobalEscape: undefined, focusesCanvas: false },
+    ])(
+        "returns Escape on the page body to the canvas only with handleGlobalEscape ($handleGlobalEscape)",
+        async ({ handleGlobalEscape, focusesCanvas }) => {
+            const { container } = mountWithPanel();
+            const surface = await createSurface(container, {
+                base: Modeler,
+                features: [],
+                handleGlobalEscape,
+            });
+            try {
+                await surface.loadDiagram(FAR_FROM_ORIGIN_XML);
+                const canvas = surface.getService<{ isFocused(): boolean }>("canvas");
+
+                document.body.dispatchEvent(
+                    new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+                );
+                await wait(0);
+
+                expect(canvas.isFocused()).toBe(focusesCanvas);
+            } finally {
+                surface.destroy();
+            }
+        },
+    );
+
+    it("renders the diagram as SVG", async () => {
+        const { container } = mountWithPanel();
+        const surface = await createSurface(container, { base: Modeler, features: [] });
+        try {
+            await surface.loadDiagram(FAR_FROM_ORIGIN_XML);
+
+            const svg = await surface.getDiagramSvg();
+
+            expect(svg).toContain("<svg");
+            expect(svg).toContain('data-element-id="Task_1"');
+        } finally {
+            surface.destroy();
+        }
+    });
+
+    it("flushes a feature's pending panel input, and is safe without one", async () => {
+        const flush = vi.fn();
+        const panelInput = {
+            id: "panelInput",
+            modules: [{ debounceInput: ["value", { hasPending: () => true, flush }] }],
+        };
+        const { container } = mountWithPanel();
+        const bare = await createSurface(container, { base: Modeler, features: [] });
+        try {
+            expect(bare.hasPendingInput()).toBe(false);
+            expect(() => bare.flushPendingInput()).not.toThrow();
+        } finally {
+            bare.destroy();
+        }
+        const surface = await createSurface(container, { base: Modeler, features: [panelInput] });
+        try {
+            expect(surface.hasPendingInput()).toBe(true);
+
+            surface.flushPendingInput();
+
+            expect(flush).toHaveBeenCalledOnce();
+        } finally {
+            surface.destroy();
+        }
+    });
+
     it("patches execCommand for the clipboard feature only while the surface lives", async () => {
         const { container, panel } = mountWithPanel();
         const bridge = { requestClipboard: vi.fn(async () => ""), writeClipboard: vi.fn() };

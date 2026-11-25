@@ -135,6 +135,34 @@ describe("SurfaceCore", () => {
         ).toThrow(failure);
     });
 
+    it("runs every diagram.destroy listener and logs nothing when one throws in the teardown", () => {
+        const { core } = mount();
+        const eventBus = new EventBus();
+        const later = vi.fn();
+        eventBus.on("diagram.destroy", 2000, () => {
+            throw new Error("secondary");
+        });
+        eventBus.on("diagram.destroy", 1000, later);
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            expect(() =>
+                core.allocate(new DisposableStore(), () => {
+                    new Injector([
+                        { eventBus: ["value", eventBus] },
+                        core.rootsModule() as ModuleDeclaration,
+                    ]).init();
+                    throw new Error("attach poison");
+                }),
+            ).toThrow("attach poison");
+
+            expect(later).toHaveBeenCalledOnce();
+            expect(consoleError).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it("does not fire diagram.destroy for an earlier instance when the next construction fails first", () => {
         const { container, core } = mount();
         const eventBus = new EventBus();
