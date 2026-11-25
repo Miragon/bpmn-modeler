@@ -59,9 +59,9 @@ that throws in construction still fails the surface.
 Composition hands every surface focus/Escape and the fit button, right after the kernel's modules.
 These two and the clipboard text polyfill install on `diagram.init`, after every other listener,
 and leave on `diagram.destroy`. The kernel also fires `diagram.destroy` when a constructor throws
-after its modules initialised (in `attach`), so no listener or `execCommand` patch survives. Until
-the presets run on the kernel (#2802 S4), the facades take these modules from composition and keep
-`ModeAttribute`.
+after its modules initialised (in bpmn-js's `attach` event), so no listener or `execCommand` patch
+survives. Until the presets run on the kernel (#2802 S4), the facades take these modules from
+composition and keep `ModeAttribute`.
 
 ## Consequences and enforcement
 

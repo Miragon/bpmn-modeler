@@ -2,7 +2,11 @@ import EventBus from "diagram-js/lib/core/EventBus";
 import { Injector, type ModuleDeclaration } from "didi";
 import { afterAll, afterEach, beforeAll, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
-import { SURFACE_MODE_CHANGED, SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
+import {
+    type EditableSurfaceMode,
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import type { BpmnFeature } from "../domain/bpmnFeature";
 import { DIAGRAM_TEMPLATE, SURFACE_ROOTS } from "../domain/kernelNames";
@@ -10,6 +14,7 @@ import type {
     BpmnSurface,
     EditingSurface,
     ModalSurface,
+    ModalSurfaceOptions,
     ViewingSurface,
     ViewingSurfaceServices,
 } from "../port/bpmnSurface";
@@ -534,6 +539,15 @@ describe("KernelSurface handle", () => {
         expectTypeOf<EditingSurface>().not.toHaveProperty("setMode");
         expectTypeOf<ModalSurface>().toHaveProperty("getMode");
         expectTypeOf<ViewingSurfaceServices>().toEqualTypeOf<CoreViewerServices>();
+    });
+
+    it("takes every surface option the port declares, so a new one cannot be dropped unread", () => {
+        expectTypeOf<KernelSurfaceOptions>().branded.toEqualTypeOf<
+            Omit<ModalSurfaceOptions, "base" | "mode" | "handleGlobalEscape"> & {
+                readonly base: unknown;
+                readonly mode?: EditableSurfaceMode;
+            }
+        >();
     });
 
     it("narrows a surface to its mode members by `setMode`, not by `base`", () => {

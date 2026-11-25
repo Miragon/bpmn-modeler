@@ -13,7 +13,7 @@ import type {
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
-import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
+import type { ClipboardOptions } from "@miragon/bpmn-modeler-clipboard";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { LintCallbacks, LintTierInit } from "../../bpmnlint/service/LintConfigService";
 import type { LintConfigOption } from "../../bpmnlint/domain/lintConfigResolution";
@@ -132,23 +132,7 @@ export type LintingOptions =
     | { module: LintModule; config?: LintConfigOption; results?: never }
     | { module: LintModule; results: "external" };
 
-/**
- * [B] Clipboard override. Default (option omitted) is the native browser
- * clipboard. A sandboxed host that cannot reach the system clipboard from the
- * webview supplies a {@link ClipboardBridge} to route copy/paste through its
- * extension host.
- */
-export interface ClipboardOptions {
-    /** Bridge for diagram-element copy/paste; also the default for `text`. */
-    bridge: ClipboardBridge;
-    /**
-     * Optional separate bridge for text surfaces (labels + the
-     * contenteditable/FEEL polyfill). Defaults to `bridge`. A host with two
-     * protocol channels (VS Code) supplies both; a single-bridge consumer omits
-     * it and both surfaces share `bridge`.
-     */
-    text?: ClipboardBridge;
-}
+export type { ClipboardOptions } from "@miragon/bpmn-modeler-clipboard";
 
 /**
  * Outbound content notification. Debounced and owned by the package (300ms,
