@@ -1,8 +1,15 @@
 import { isTemplatePopupEntry } from "@miragon/bpmn-modeler-append-menu";
 import { surfaceModeSupports } from "@miragon/bpmn-modeler-types";
+import {
+    type EditableSurfaceMode,
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeChangedEvent,
+    type SurfaceModeService,
+} from "@miragon/bpmn-modeler-types/domain";
 
 import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
-import type { ModelerMode } from "../../domain/mode";
+import { MODE_ATTRIBUTE } from "../../../kernel/domain/surfaceMode";
 
 // Run after the default-priority (1000) providers so their template entries can be removed.
 const POPUP_MODE_FILTER_PRIORITY = 100;
@@ -25,6 +32,10 @@ interface ModeFilterEventBus {
 
 interface ModeFilterInjector {
     get<T>(name: string, strict: false): T | null;
+}
+
+interface ModeChangeEventBus {
+    on(event: string, listener: (event: SurfaceModeChangedEvent) => void): void;
 }
 
 export function stripTemplateEntries<T extends PopupEntry>(
@@ -66,17 +77,40 @@ export class PopupMenuModeFilter {
         return surfaceModeSupports(this.mode(), "elementTemplates");
     }
 
-    // Read the panel filter each time so popup menus cannot retain a stale mode.
-    private mode(): ModelerMode {
+    // Read the surface's mode each time a menu opens, so a menu cannot keep a stale copy.
+    private mode(): EditableSurfaceMode {
         return (
-            this.injector
-                .get<{ getMode(): ModelerMode }>("propertiesPanelModeFilter", false)
-                ?.getMode() ?? "implement"
+            this.injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false)?.get() ?? "implement"
         );
     }
 }
 
+/**
+ * Moves `data-bpmn-mode` on the canvas container and the panel parent with each
+ * mode change. The facade sets it once the instance is built and removes it on
+ * destroy, so a construction that fails part-way leaves no attribute.
+ */
+export class ModeAttribute {
+    static $inject = ["eventBus", "injector"];
+
+    constructor(eventBus: ModeChangeEventBus, injector: ModeFilterInjector) {
+        if (!injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false)) {
+            return;
+        }
+        const roots = [
+            injector.get<unknown>("config.container", false),
+            injector.get<{ parent?: unknown }>("config.propertiesPanel", false)?.parent,
+        ].filter((root): root is Element => root instanceof Element);
+        eventBus.on(SURFACE_MODE_CHANGED, (event) => {
+            for (const root of roots) {
+                root.setAttribute(MODE_ATTRIBUTE, event.mode);
+            }
+        });
+    }
+}
+
 export const ModeUiModule = {
-    __init__: ["popupMenuModeFilter"],
+    __init__: ["popupMenuModeFilter", "modeAttribute"],
     popupMenuModeFilter: ["type", PopupMenuModeFilter],
+    modeAttribute: ["type", ModeAttribute],
 };

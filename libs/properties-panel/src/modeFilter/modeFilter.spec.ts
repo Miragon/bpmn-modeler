@@ -1,4 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
+import {
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeService,
+} from "@miragon/bpmn-modeler-types";
 
 import { ModeFilterProvider, type PropertiesPanelMode } from "./ModeFilterProvider";
 
@@ -14,10 +19,17 @@ function group(id: string, entryIds: string[] = ["_x"]): TestGroup {
 interface Services {
     mode?: PropertiesPanelMode;
     customIds?: string[];
+    surfaceMode?: SurfaceModeService;
 }
 
 function build(services: Services = {}) {
-    const eventBus = { fire: vi.fn() };
+    const listeners: Record<string, Array<(event: unknown) => void>> = {};
+    const eventBus = {
+        fire: vi.fn(),
+        on: vi.fn((event: string, listener: (event: unknown) => void) => {
+            (listeners[event] ??= []).push(listener);
+        }),
+    };
     const registry =
         services.customIds !== undefined ? { getIds: () => services.customIds } : false;
 
@@ -25,13 +37,17 @@ function build(services: Services = {}) {
         get<T>(name: string, _strict?: boolean): T | null {
             if (name === "config.propertiesPanelMode") return (services.mode ?? null) as T | null;
             if (name === "customPropertiesGroups") return registry as unknown as T;
+            if (name === SURFACE_MODE_SERVICE) return (services.surfaceMode ?? null) as T | null;
             return null;
         },
     };
 
     const propertiesPanel = { registerProvider: vi.fn() };
     const provider = new ModeFilterProvider(propertiesPanel, eventBus, injector);
-    return { provider, eventBus, propertiesPanel };
+    const announce = (mode: PropertiesPanelMode): void => {
+        (listeners[SURFACE_MODE_CHANGED] ?? []).forEach((listener) => listener({ mode }));
+    };
+    return { provider, eventBus, propertiesPanel, announce, listeners };
 }
 
 function run(provider: ModeFilterProvider, groups: TestGroup[]): TestGroup[] {
@@ -159,5 +175,26 @@ describe("ModeFilterProvider", () => {
         provider.setMode("design");
 
         expect(eventBus.fire).not.toHaveBeenCalled();
+    });
+
+    it("opens in the surface's mode, whatever the config says", () => {
+        const { provider } = build({ mode: "implement", surfaceMode: { get: () => "design" } });
+
+        expect(provider.getMode()).toBe("design");
+    });
+
+    it("follows the surface's mode changes and re-derives the panel once per change", () => {
+        const { provider, eventBus, announce } = build({ surfaceMode: { get: () => "implement" } });
+
+        announce("design");
+
+        expect(provider.getMode()).toBe("design");
+        expect(eventBus.fire).toHaveBeenCalledExactlyOnceWith("propertiesPanel.providersChanged");
+    });
+
+    it("listens to no mode change on a surface without a mode", () => {
+        const { listeners } = build({ mode: "implement" });
+
+        expect(listeners[SURFACE_MODE_CHANGED]).toBeUndefined();
     });
 });

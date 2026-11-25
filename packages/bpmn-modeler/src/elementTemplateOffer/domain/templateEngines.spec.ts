@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveEngines, type Engines } from "./engines";
+import { deriveEngines, type Engines } from "./templateEngines";
 
 const MODELER_NAMESPACE = "http://camunda.org/schema/modeler/1.0";
 

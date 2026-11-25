@@ -40,8 +40,8 @@ Both variants share the `commonModules` array in `BpmnModeler.init()` — e.g. `
 - `popupMenu`: `{ defaultTab: BPMN_TAB }`, so the replace menu files element-template entries under a separate Templates tab
 - `alignToOrigin`: `ALIGN_TO_ORIGIN_OPTIONS` — `{ alignOnSave: false, offset: 150, tolerance: 50 }`
 - `moddleExtensions`: the stack's extension merged with the caller's `moddleExtensions`
-- `propertiesPanelMode`: the normalized `mode` option
-- `additionalModules`, in order: upstream (`engineStack.upstreamModules`) → common (`commonModules`) → engine (`engineStack.engineModules`) → capability (`capabilityModules(engine, capabilities)`) → clipboard (`createClipboardModules(...)`, only with a `clipboard` option) → the caller's `additionalModules`
+- `propertiesPanelMode`: the normalized `mode` option (only the designer and viewer filters read it; the modeler's filter follows `surfaceMode`)
+- `additionalModules`, in order: the kernel's `surfaceMode` (`createSurfaceModeModule`) → upstream (`engineStack.upstreamModules`) → common (`commonModules`) → engine (`engineStack.engineModules`) → capability (`capabilityModules(engine, capabilities)`) → clipboard (`createClipboardModules(...)`, only with a `clipboard` option) → the caller's `additionalModules`
 
 ## Core bpmn-js Services
 

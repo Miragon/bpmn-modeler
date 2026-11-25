@@ -18,11 +18,11 @@ import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { LintCallbacks, LintTierInit } from "../../bpmnlint/service/LintConfigService";
 import type { LintConfigOption } from "../../bpmnlint/domain/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
-import type { ModelerMode } from "../../mode/domain/mode";
+import type { ModelerMode } from "../../kernel/domain/surfaceMode";
 import type { BpmnSurfaceHandle, PendingInputHandle } from "../../kernel/port/surfaceHandle";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 
-export type { ModelerMode } from "../../mode/domain/mode";
+export type { ModelerMode } from "../../kernel/domain/surfaceMode";
 export type {
     LintConfigByMode,
     LintConfigOption,

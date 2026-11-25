@@ -104,11 +104,22 @@ navigation only, because definition search edits the model. Neither surface impo
 engine modeler, so its moddle, behaviors, command stack and DI graph stay intact: engine data
 survives replace and copy-paste, and undo history survives. Routing that document through the
 engine-neutral designer would lose extension data, runtime DI module replacement is unsupported,
-and two synchronized documents would be a merge problem. The panel's mode filter owns the mode:
-a change updates the filter, `data-bpmn-mode` and the in-page lint configuration, then fires
-`onModeChanged`, once per actual change. Design hides engine-template popup and chooser chrome
-but not token simulation; minimap, token simulation, focus and the fit button are engine-neutral
-chrome on every surface.
+and two synchronized documents would be a merge problem. Design hides engine-template popup and
+chooser chrome but not token simulation; minimap, token simulation, focus and the fit button are
+engine-neutral chrome on every surface.
+
+**The kernel owns the mode.** The modeler registers `surfaceMode` (features read `get()`; name and
+type in `modeler-types`, which the panel's library can import). A real change fires
+`surface.mode.changed` once. The panel and popup mode filters, `data-bpmn-mode`, in-page lint and
+`onModeChanged` follow the event, so the facade calls none of them and a `set` that bypasses it
+still reaches the host. Lint listens at 500 and the callback at 250, which keeps the facade's old
+order: filter, attribute, lint, callback. Lint takes the initial mode from `lintTier.mode`; the
+filter reads `propertiesPanelMode` only on a surface without `surfaceMode` (designer, viewer). The
+facade still sets the first `data-bpmn-mode` once the instance is built and removes it on destroy,
+so a construction that throws after `diagram.init` leaves the roots clean. Costs: a listener that
+returns a value stops the event before lint and the callback; `getService("surfaceMode")` is
+reachable before the name is published; the filter's own `setMode`, called through `getService`,
+no longer moves `getMode()`.
 
 **`/design` purity.** `/design` stays free of Camunda moddles and behaviors, element templates,
 transaction boundaries and engine settings. `favouriteBpmnElements` is a designer option with a
@@ -205,6 +216,15 @@ The session also offers what every host would otherwise rebuild on each new surf
 `onContentChanged(listener)` reports each command stack change of whichever editable surface is
 live, subscribed again on every recreate and fallback, and `flushPendingInput()` applies the live
 surface's pending panel input. Both are silent on the viewer and after `destroy()`.
+
+**Refresh after an import.** The template engine profile (both engines) and the
+transaction-boundary marks (C7) are refreshed by `import.done` listeners in their own modules at
+250 and 300, below every default listener and bpmn-js-bpmnlint's 500, where the facade's code after
+the awaited import ran. The two are independent, so their order does not matter. They return on
+`event.error`: bpmn-js fires `import.done` for a failed import too. The facade hands the marks'
+setting to the C7 module again on each `init()`. Costs: a higher-priority listener that returns a
+value skips both refreshes, and a refresh that throws now makes bpmn-js fire `import.done` again
+with the error and reject the import.
 
 **Re-import.** A re-import on the same instance, after a text editor, Git or an agent changed the
 file, goes through `reloadDiagram(xml)`, which all three handles declare. `SurfaceView.keepAcross`

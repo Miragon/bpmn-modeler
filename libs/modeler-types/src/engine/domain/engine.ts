@@ -40,16 +40,15 @@ export const ENGINE_EXECUTION_PLATFORM: Record<Engine, string> = {
 };
 
 /**
- * What an engine supports. Every engine rule lives here, so code asks
- * {@link engineSupports} instead of comparing an {@link Engine} value.
+ * What an engine supports. Every engine rule a shared module checks lives here, so code asks
+ * {@link engineSupports} instead of comparing an {@link Engine} value. A module that only one
+ * engine stack registers needs no entry: the stack is the rule.
  */
 export interface EngineCapabilities {
     /** Only Camunda 7 has a deployment lookup to verify a diagram against. */
     readonly verifiesDeployments: boolean;
     /** Inline scripting is a Camunda 7 feature; the Camunda 8 modeler leaves it unregistered. */
     readonly inlineScripting: boolean;
-    /** Transaction boundaries are a Camunda 7 overlay. */
-    readonly transactionBoundaries: boolean;
     /** Only Camunda 8 links user tasks and start events to Camunda Forms by id. */
     readonly formReferenceStatus: boolean;
 }
@@ -60,13 +59,11 @@ const ENGINE_CAPABILITIES: Record<Engine, EngineCapabilities> = {
     c7: {
         verifiesDeployments: true,
         inlineScripting: true,
-        transactionBoundaries: true,
         formReferenceStatus: false,
     },
     c8: {
         verifiesDeployments: false,
         inlineScripting: false,
-        transactionBoundaries: false,
         formReferenceStatus: true,
     },
 };

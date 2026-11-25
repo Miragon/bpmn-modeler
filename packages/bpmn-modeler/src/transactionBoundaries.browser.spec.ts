@@ -86,11 +86,12 @@ afterEach(() => {
     removeMounts();
 });
 
-async function openModeler(): Promise<BpmnModeler> {
+async function openModeler(additionalModules: object[] = []): Promise<BpmnModeler> {
     const { container, panel } = mountWithPanel(1200, 800);
     const handle = await createModeler(container, {
         engine: "c7",
         propertiesPanel: { parent: panel },
+        additionalModules,
     });
     handles.push(handle);
     return handle;
@@ -277,5 +278,64 @@ describe("transaction boundaries", () => {
 
         expect(transactionBoundaries(handle).active).toBe(true);
         expect(renderedMarks(handle)).toHaveLength(1);
+    });
+
+    it("re-shows the marks after every default-priority import.done listener", async () => {
+        const marksAtImportDone: number[] = [];
+        const live: { probed?: BpmnModeler } = {};
+        class ImportDoneProbe {
+            static $inject = ["eventBus"];
+            constructor(eventBus: { on(event: "import.done", listener: () => void): void }) {
+                eventBus.on("import.done", () => {
+                    if (live.probed) {
+                        marksAtImportDone.push(renderedMarks(live.probed).length);
+                    }
+                });
+            }
+        }
+        const handle = await openModeler([
+            { __init__: ["importDoneProbe"], importDoneProbe: ["type", ImportDoneProbe] },
+        ]);
+        await handle.loadDiagram(FIXTURE_XML);
+        live.probed = handle;
+
+        await handle.loadDiagram(FIXTURE_XML);
+
+        expect(marksAtImportDone).toEqual([0]);
+        expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
+    });
+
+    it("keeps the marks of the previous diagram through a failed import", async () => {
+        const handle = await openModeler();
+        await handle.loadDiagram(FIXTURE_XML);
+        const show = vi.spyOn(transactionBoundaries(handle), "show");
+
+        await expect(handle.loadDiagram("<not-bpmn")).rejects.toThrow();
+
+        expect(show).not.toHaveBeenCalled();
+        expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
+    });
+
+    it("keeps marks hidden by the setting across a re-entrant init", async () => {
+        const handle = await openModeler();
+        handle.setSettings({ showTransactionBoundaries: false });
+
+        await handle.init();
+        await handle.loadDiagram(FIXTURE_XML);
+
+        expect(renderedMarks(handle)).toHaveLength(0);
+        handle.setSettings({ showTransactionBoundaries: true });
+        expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
+    });
+
+    it("shows no marks on a modeler destroyed while it imports", async () => {
+        const handle = await openModeler();
+        const show = vi.spyOn(transactionBoundaries(handle), "show");
+
+        const loading = handle.loadDiagram(FIXTURE_XML);
+        handle.destroy();
+
+        await expect(loading).rejects.toThrow();
+        expect(show).not.toHaveBeenCalled();
     });
 });

@@ -141,6 +141,42 @@ describe("createModeSession over the real surfaces", () => {
         expectDrilledInViewState(modeler);
     });
 
+    it("notifies the modeler's own onModeChanged before the session reports the toggle", async () => {
+        const order: string[] = [];
+        const mount = mountWithPanel();
+        const propertiesPanel = { parent: mount.panel };
+        session = await createModeSession({
+            container: mount.container,
+            engine: "c7",
+            surfaces: {
+                ...realSurfaces(mount.panel),
+                implement: ({ container, theme, engine, mode }) =>
+                    createModeler(container, {
+                        engine,
+                        mode,
+                        theme,
+                        propertiesPanel,
+                        linting: false,
+                        onModeChanged: (changed) => order.push(`modeler ${changed}`),
+                    }),
+            },
+            initialMode: "design",
+            onModeChanged: (changed, kind) => {
+                order.push(`session ${changed} ${kind}`);
+            },
+        });
+        await session.getHandle().loadDiagram(tagAsCamunda7(COLLAPSED_SUBPROCESS_BEFORE_XML));
+        order.length = 0;
+
+        await session.requestMode("implement");
+
+        const modeler = session.getHandle();
+        expect(order).toEqual(["modeler implement", "session implement toggle"]);
+        expect(isModelerSurface(modeler) && modeler.getMode()).toBe("implement");
+        expect(mount.container.dataset.bpmnMode).toBe("implement");
+        expect(mount.panel.dataset.bpmnMode).toBe("implement");
+    });
+
     it("hands an untagged model to the designer and back to the viewer", async () => {
         const mount = mountWithPanel();
         const untagged = await openInView(mount, undefined, COLLAPSED_SUBPROCESS_BEFORE_XML);

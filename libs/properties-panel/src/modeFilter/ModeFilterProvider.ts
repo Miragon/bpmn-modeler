@@ -13,12 +13,18 @@
  *      (`timer` / `multiInstance`) — their neutral entries are not restorable;
  *   4. drop any group left with no entries/items.
  *
- * The mode is switchable at runtime via {@link setMode}, which fires
- * `propertiesPanel.providersChanged` so a live panel re-derives immediately.
+ * On a surface that holds a mode (`surfaceMode`) the filter opens in it and
+ * follows `surface.mode.changed`; elsewhere it reads `propertiesPanelMode` from
+ * the config. Either way {@link setMode} fires `propertiesPanel.providersChanged`
+ * so a live panel re-derives immediately.
  */
 import {
     type EditableSurfaceMode,
     parseEditableMode,
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeChangedEvent,
+    type SurfaceModeService,
     surfaceModeSupports,
 } from "@miragon/bpmn-modeler-types";
 
@@ -46,6 +52,7 @@ interface CustomGroupsRegistry {
 }
 interface ModeFilterEventBus {
     fire(event: string): void;
+    on(event: string, listener: (event: SurfaceModeChangedEvent) => void): void;
 }
 interface ModeFilterInjector {
     get<T>(name: string, strict: false): T | null;
@@ -79,7 +86,17 @@ export class ModeFilterProvider {
         private readonly eventBus: ModeFilterEventBus,
         private readonly injector: ModeFilterInjector,
     ) {
-        this.mode = parseEditableMode(injector.get<unknown>("config.propertiesPanelMode", false));
+        const surfaceMode = injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false);
+        if (surfaceMode) {
+            this.mode = surfaceMode.get();
+            eventBus.on(SURFACE_MODE_CHANGED, (event) => {
+                this.setMode(event.mode);
+            });
+        } else {
+            this.mode = parseEditableMode(
+                injector.get<unknown>("config.propertiesPanelMode", false),
+            );
+        }
 
         propertiesPanel.registerProvider(MODE_FILTER_PRIORITY, this);
     }

@@ -4,7 +4,12 @@ import { BpmnModdle } from "bpmn-moddle";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { LintConfigService, type LintTierInit } from "./LintConfigService";
-import type { ExecutionPlatformDefinitions } from "@miragon/bpmn-modeler-types/domain";
+import {
+    type EditableSurfaceMode,
+    type ExecutionPlatformDefinitions,
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+} from "@miragon/bpmn-modeler-types/domain";
 
 // The tier rules are pinned in lintTierMachine.spec.ts, which never sees what the
 // adapter feeds in. These rows cover that wiring (the live diagram state, the
@@ -80,16 +85,43 @@ function fakeCanvas(): { getContainer(): HTMLElement } {
     return { getContainer: () => container };
 }
 
-/** A fake event bus that records handlers so a test can fire `import.done`. */
+/** A fake event bus that, like diagram-js, runs a higher priority first (default 1000). */
 function fakeEventBus() {
-    const handlers: Record<string, Array<(event: unknown) => void>> = {};
+    const handlers: Record<
+        string,
+        Array<{ priority: number; callback: (event: unknown) => void }>
+    > = {};
+    function on(event: string, callback: (event: never) => void): void;
+    function on(event: string, priority: number, callback: (event: never) => void): void;
+    function on(
+        event: string,
+        priorityOrCallback: number | ((event: never) => void),
+        maybeCallback?: (event: never) => void,
+    ): void {
+        const [priority, callback] =
+            typeof priorityOrCallback === "number"
+                ? [priorityOrCallback, maybeCallback!]
+                : [1000, priorityOrCallback];
+        const list = (handlers[event] ??= []);
+        list.push({ priority, callback: callback as (event: unknown) => void });
+        list.sort((left, right) => right.priority - left.priority);
+    }
     return {
-        on: (event: string, callback: (event: unknown) => void) => {
-            (handlers[event] ??= []).push(callback);
+        on,
+        fire: (event: string, payload?: object) => {
+            (handlers[event] ?? []).forEach(({ callback }) => callback(payload));
         },
-        fire: (event: string) => {
-            (handlers[event] ?? []).forEach((handler) => handler(undefined));
-        },
+        priorities: (event: string) => (handlers[event] ?? []).map(({ priority }) => priority),
+    };
+}
+
+/** An injector that holds a `surfaceMode` only on a surface with a mode. */
+function fakeInjector(surfaceMode?: EditableSurfaceMode) {
+    return {
+        get: <T>(name: string, _strict: false): T | null =>
+            (name === SURFACE_MODE_SERVICE && surfaceMode
+                ? { get: () => surfaceMode }
+                : null) as T | null,
     };
 }
 
@@ -108,6 +140,7 @@ function makeService(opts: {
     imported?: boolean;
     engine?: LintTierInit["engine"];
     diagram?: ExecutionPlatformDefinitions;
+    withSurfaceMode?: boolean;
 }) {
     const linting = fakeLinting();
     const canvas = fakeCanvas();
@@ -127,13 +160,26 @@ function makeService(opts: {
         canvas,
         { getDefinitions: () => (imported ? (opts.diagram ?? definitions) : undefined) },
         bus,
+        fakeInjector(opts.withSurfaceMode === false ? undefined : "implement"),
     );
     const container = canvas.getContainer();
     const importDiagram = (): void => {
         imported = true;
         bus.fire("import.done");
     };
-    return { service, linting, container, importDiagram, lintRuns, toggles };
+    const changeSurfaceMode = (mode: EditableSurfaceMode): void => {
+        bus.fire(SURFACE_MODE_CHANGED, { mode });
+    };
+    return {
+        service,
+        linting,
+        container,
+        importDiagram,
+        changeSurfaceMode,
+        bus,
+        lintRuns,
+        toggles,
+    };
 }
 
 function button(container: HTMLElement, selector: string): HTMLButtonElement {
@@ -193,6 +239,48 @@ describe("LintConfigService: in-page tier", () => {
 
         expect(linting.updates).toBe(updatesBefore + 1);
         expect(ruleNames(await linting.lint())).toEqual(["end-event-required"]);
+    });
+
+    it("re-lints with the new mode's rules when the surface changes its mode", async () => {
+        const { changeSurfaceMode, linting } = makeService({
+            tier: "in-page",
+            config: { design: END_EVENT_RULES, implement: LABEL_RULES },
+            imported: true,
+        });
+        const updatesBefore = linting.updates;
+
+        changeSurfaceMode("design");
+
+        expect(linting.updates).toBe(updatesBefore + 1);
+        expect(ruleNames(await linting.lint())).toEqual(["end-event-required"]);
+    });
+
+    it("keeps a mode change made before a diagram is loaded for the import", async () => {
+        const { changeSurfaceMode, importDiagram, linting } = makeService({
+            tier: "in-page",
+            config: { design: END_EVENT_RULES, implement: LABEL_RULES },
+        });
+
+        changeSurfaceMode("design");
+        expect(linting.isActive()).toBe(false);
+        expect(linting.updates).toBe(0);
+
+        importDiagram();
+        expect(linting.isActive()).toBe(true);
+        expect(ruleNames(await linting.lint())).toEqual(["end-event-required"]);
+    });
+
+    it("follows a mode change after the default-priority listeners, such as the panel filter", () => {
+        const { bus } = makeService({ tier: "in-page" });
+
+        expect(bus.priorities(SURFACE_MODE_CHANGED)).toHaveLength(1);
+        expect(bus.priorities(SURFACE_MODE_CHANGED)[0]).toBeLessThan(1000);
+    });
+
+    it("listens to no mode change on a surface without a mode", () => {
+        const { bus } = makeService({ tier: "in-page", withSurfaceMode: false });
+
+        expect(bus.priorities(SURFACE_MODE_CHANGED)).toEqual([]);
     });
 
     it("lints an imported diagram against the engine version it targets", async () => {
@@ -364,6 +452,7 @@ describe("LintConfigService: per-container scoping", () => {
             canvasA,
             { getDefinitions: () => undefined },
             fakeEventBus(),
+            fakeInjector(),
         ).applyLintResults({});
 
         expect(canvasA.getContainer().querySelector(".lint-toolbar")).not.toBeNull();

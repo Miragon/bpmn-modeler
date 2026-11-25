@@ -21,6 +21,14 @@ export interface SurfaceModeChangedEvent {
     readonly mode: EditableSurfaceMode;
 }
 
+/** The DI name under which an editable surface holds its mode; a surface without a mode has none. */
+export const SURFACE_MODE_SERVICE = "surfaceMode";
+
+/** What a feature reads of the surface's mode; only the kernel sets it, and it fires {@link SURFACE_MODE_CHANGED}. */
+export interface SurfaceModeService {
+    get(): EditableSurfaceMode;
+}
+
 /**
  * What a mode offers. Every rule that tells the modes apart lives here or in a
  * `Record<SurfaceMode, …>`, so code asks {@link surfaceModeSupports} instead of
