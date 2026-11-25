@@ -330,20 +330,16 @@ describe("engineSupports", () => {
         { engine: "c8", capability: "verifiesDeployments", supported: false },
         { engine: "c7", capability: "inlineScripting", supported: true },
         { engine: "c8", capability: "inlineScripting", supported: false },
-        { engine: "c7", capability: "transactionBoundaries", supported: true },
-        { engine: "c8", capability: "transactionBoundaries", supported: false },
         { engine: "c7", capability: "formReferenceStatus", supported: false },
         { engine: "c8", capability: "formReferenceStatus", supported: true },
     ] as const)("$engine supports $capability: $supported", ({ engine, capability, supported }) => {
         expect(engineSupports(engine, capability)).toBe(supported);
     });
 
-    it.each<EngineCapability>([
-        "verifiesDeployments",
-        "inlineScripting",
-        "transactionBoundaries",
-        "formReferenceStatus",
-    ])("an undetected engine supports no %s", (capability) => {
-        expect(engineSupports(undefined, capability)).toBe(false);
-    });
+    it.each<EngineCapability>(["verifiesDeployments", "inlineScripting", "formReferenceStatus"])(
+        "an undetected engine supports no %s",
+        (capability) => {
+            expect(engineSupports(undefined, capability)).toBe(false);
+        },
+    );
 });

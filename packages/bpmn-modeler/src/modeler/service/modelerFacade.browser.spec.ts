@@ -533,6 +533,25 @@ describe("BpmnModeler design/implement mode", () => {
         modeler.destroy();
     });
 
+    it("notifies the host of a mode change set on the surface's mode service", async () => {
+        const onModeChanged = vi.fn();
+        const { container, panel } = mountWithPanel();
+        const modeler = await createModeler(container, {
+            engine: "c8",
+            mode: "design",
+            propertiesPanel: { parent: panel },
+            linting: false,
+            onModeChanged,
+        });
+        const surfaceMode = modeler.getService<{ set(mode: string): boolean }>("surfaceMode");
+
+        surfaceMode.set("implement");
+        surfaceMode.set("implement");
+
+        expect(onModeChanged).toHaveBeenCalledExactlyOnceWith("implement");
+        modeler.destroy();
+    });
+
     it("re-resolves the in-page lint rules for the new mode", async () => {
         const lintRuns: LintRunEvent[] = [];
         const { container, panel } = mountWithPanel();

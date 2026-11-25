@@ -108,17 +108,18 @@ and two synchronized documents would be a merge problem. Design hides engine-tem
 chooser chrome but not token simulation; minimap, token simulation, focus and the fit button are
 engine-neutral chrome on every surface.
 
-**The kernel owns the mode.** The modeler registers `surfaceMode` (`{ get() }`; name and type in
-`modeler-types`, which the panel's library can import). A real change fires `surface.mode.changed`
-once, then `onModeChanged`. The panel and popup mode filters, `data-bpmn-mode` and in-page lint
-follow the event, so the facade calls none of them. Lint listens at 500, which keeps the facade's
-old order: filter, attribute, lint, callback. Lint takes the initial mode from `lintTier.mode`; the
+**The kernel owns the mode.** The modeler registers `surfaceMode` (features read `get()`; name and
+type in `modeler-types`, which the panel's library can import). A real change fires
+`surface.mode.changed` once. The panel and popup mode filters, `data-bpmn-mode`, in-page lint and
+`onModeChanged` follow the event, so the facade calls none of them and a `set` that bypasses it
+still reaches the host. Lint listens at 500 and the callback at 250, which keeps the facade's old
+order: filter, attribute, lint, callback. Lint takes the initial mode from `lintTier.mode`; the
 filter reads `propertiesPanelMode` only on a surface without `surfaceMode` (designer, viewer). The
 facade still sets the first `data-bpmn-mode` once the instance is built and removes it on destroy,
 so a construction that throws after `diagram.init` leaves the roots clean. Costs: a listener that
-returns a value stops the event before lint; `getService("surfaceMode")` is reachable before the
-name is published; the filter's own `setMode`, called through `getService`, no longer moves
-`getMode()`.
+returns a value stops the event before lint and the callback; `getService("surfaceMode")` is
+reachable before the name is published; the filter's own `setMode`, called through `getService`,
+no longer moves `getMode()`.
 
 **`/design` purity.** `/design` stays free of Camunda moddles and behaviors, element templates,
 transaction boundaries and engine settings. `favouriteBpmnElements` is a designer option with a

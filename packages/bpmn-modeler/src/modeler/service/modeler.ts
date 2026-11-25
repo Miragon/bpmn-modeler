@@ -34,7 +34,11 @@ import {
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
-import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
+import {
+    SURFACE_MODE_CHANGED,
+    SURFACE_MODE_SERVICE,
+    type SurfaceModeChangedEvent,
+} from "@miragon/bpmn-modeler-types/domain";
 import {
     collectInlineScriptTasks,
     OpenScriptEditorsStore,
@@ -107,6 +111,17 @@ interface ScriptModelElement {
 interface ScriptModelElementRegistry {
     get(id: string): ScriptModelElement | undefined;
 }
+interface ModeChangedEventBus {
+    on(
+        event: typeof SURFACE_MODE_CHANGED,
+        priority: number,
+        listener: (event: SurfaceModeChangedEvent) => void,
+    ): void;
+    off(
+        event: typeof SURFACE_MODE_CHANGED,
+        listener: (event: SurfaceModeChangedEvent) => void,
+    ): void;
+}
 interface ScriptModeling {
     updateModdleProperties(
         element: ScriptModelElement,
@@ -120,6 +135,8 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     showTransactionBoundaries: true,
     colorTheme: "automatic",
 };
+
+const MODE_CALLBACK_PRIORITY = 250;
 
 const ALIGN_TO_ORIGIN_OPTIONS = {
     alignOnSave: false,
@@ -324,6 +341,18 @@ export class BpmnModeler {
         }
 
         this.markModeRoots();
+        this.notifyModeChanges();
+    }
+
+    // From the event, not from setMode, so a change set on the surface's mode service reaches the
+    // host too; below lint's 500, so the host hears of it after the panel, the attribute and lint.
+    private notifyModeChanges(): void {
+        const eventBus = this.core.service<ModeChangedEventBus>("eventBus");
+        const notify = (event: SurfaceModeChangedEvent): void => {
+            this.options.onModeChanged?.(event.mode);
+        };
+        eventBus.on(SURFACE_MODE_CHANGED, MODE_CALLBACK_PRIORITY, notify);
+        this.store.add(() => eventBus.off(SURFACE_MODE_CHANGED, notify));
     }
 
     // Set once the instance is built, so a failed construction leaves no attribute, and before
@@ -646,9 +675,7 @@ export class BpmnModeler {
      * attribute and lint have followed it.
      */
     setMode(mode: ModelerMode): void {
-        if (this.surfaceMode().set(mode)) {
-            this.options.onModeChanged?.(mode);
-        }
+        this.surfaceMode().set(mode);
     }
 
     /**
