@@ -32,7 +32,7 @@ export function createConventionCoverageFitnessFunction({
             "A structural port implementation without an implements clause, such as an object literal typed by the port or a class that only matches its shape.",
             "Kotlin, and every workspace that declares no hexagonal architecture (diagram-js and flat workspaces).",
             "Specs and test folders, which are not read.",
-            "A driven port's implementation that only services of its own workspace build and that no service receives as a parameter typed by the port, such as a module-level singleton in service/, or a default a service builds for a member of an options parameter whose own interface names the port: it reads as a driving port. So does a class its services build that the composition also builds through a re-export renaming it (export { A as B }): that construction is not seen.",
+            "A driven port's implementation that only services of its own workspace build and that no service receives as a parameter typed by the port, such as a field a service initializes itself (private readonly store = new FileStore()), a module-level singleton in service/, or a default a service builds for a member of an options parameter whose own interface names the port: it reads as a driving port. So does a class its services build that the composition also builds through a re-export renaming it (export { A as B }): that construction is not seen.",
             "A construction in a workspace that declares no hexagonal architecture, such as a flat host app: a class its own services build and such a workspace builds too reads as a driving port.",
         ],
         reportsWrongly: [

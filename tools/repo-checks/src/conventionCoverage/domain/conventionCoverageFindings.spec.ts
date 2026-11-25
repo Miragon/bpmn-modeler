@@ -29,7 +29,7 @@ function implementation(
     interfaceFiles: readonly string[] = [CORE_PORT],
     line = 2,
     constructedIn: readonly string[] = [],
-    receivedIn: readonly string[] = [],
+    receivedIn: ClassImplementation["receivedIn"] = [],
 ): ClassImplementation {
     return { path, line, className, interfaceFiles, constructedIn, receivedIn };
 }
@@ -159,7 +159,7 @@ describe("the convention coverage findings", () => {
         ]);
     });
 
-    it("skip a port class that only services of its own workspace build and none receives, and report one that composition builds", () => {
+    it("skip a port class that only services of its own workspace build and whose port none receives, and report one that composition builds", () => {
         const core = workspace(
             "libs/core",
             {
@@ -174,10 +174,22 @@ describe("the convention coverage findings", () => {
                 implementation(
                     "libs/core/src/service/HandleImpl.ts",
                     "HandleImpl",
-                    [HANDLE_PORT],
+                    [HANDLE_PORT, "libs/core/src/domain/Disposable.ts"],
                     1,
                     ["libs/core/src/service/HandleImpl.ts", "libs/core/src/service/Surface.ts"],
-                    ["apps/host/src/service/View.ts", "libs/core/src/adapter/in/view.ts"],
+                    [
+                        {
+                            interfaceFile: HANDLE_PORT,
+                            files: [
+                                "apps/host/src/service/View.ts",
+                                "libs/core/src/adapter/in/view.ts",
+                            ],
+                        },
+                        {
+                            interfaceFile: "libs/core/src/domain/Disposable.ts",
+                            files: ["libs/core/src/service/Pool.ts"],
+                        },
+                    ],
                 ),
                 implementation("libs/core/src/service/Documents.ts", "Documents", [CORE_PORT], 1, [
                     "libs/core/src/composition/wire.ts",
@@ -225,7 +237,9 @@ describe("the convention coverage findings", () => {
                 "a service of its workspace that receives the port as a parameter and builds the default",
             path: "libs/core/src/service/Impl.ts",
             constructedIn: ["libs/core/src/service/Scheduler.ts"],
-            receivedIn: ["libs/core/src/service/Scheduler.ts"],
+            receivedIn: [
+                { interfaceFile: HANDLE_PORT, files: ["libs/core/src/service/Scheduler.ts"] },
+            ],
             port: HANDLE_PORT,
         },
     ])(

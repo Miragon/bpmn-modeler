@@ -235,7 +235,43 @@ describe("findImplementations", () => {
             expect.objectContaining({
                 className: "SystemDocuments",
                 constructedIn: ["core/service/Scheduler.ts"],
-                receivedIn: ["core/service/Scheduler.ts", "core/service/locate.ts"],
+                receivedIn: [
+                    {
+                        interfaceFile: "core/port/DocumentPort.ts",
+                        files: ["core/service/Scheduler.ts", "core/service/locate.ts"],
+                    },
+                ],
+            }),
+        ]);
+    });
+
+    it("groups the receiving files by the file that declares each implemented interface", () => {
+        const tree: SourceFile[] = [
+            PORT,
+            { path: "core/domain/Disposable.ts", text: "export interface Disposable {}" },
+            {
+                path: "core/service/Handle.ts",
+                text: [
+                    'import type { DocumentPort } from "../port/DocumentPort";',
+                    'import type { Disposable } from "../domain/Disposable";',
+                    "export class Handle implements DocumentPort, Disposable {}",
+                ].join("\n"),
+            },
+            {
+                path: "core/service/Pool.ts",
+                text: [
+                    'import type { Disposable } from "../domain/Disposable";',
+                    "export const release = (item: Disposable) => item;",
+                ].join("\n"),
+            },
+        ];
+
+        expect(findImplementations(tree)).toEqual([
+            expect.objectContaining({
+                className: "Handle",
+                receivedIn: [
+                    { interfaceFile: "core/domain/Disposable.ts", files: ["core/service/Pool.ts"] },
+                ],
             }),
         ]);
     });

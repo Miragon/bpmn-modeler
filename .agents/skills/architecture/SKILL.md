@@ -309,7 +309,8 @@ A class that implements a port sits in `adapter/out/` or `testing/`. No spec
 blocks this; the `convention-coverage` fitness function reports it. It skips a
 class that only its own workspace's services build, for that workspace's
 ports, when no service takes such a port as a parameter: it reads one as a
-handle a host calls. It runs rules 1 to 9 without exceptions, so the files of a workspace not yet
+handle a host calls. The skip holds in every hexagonal workspace, although the
+role table allows such a handle only as this package's exception above. It runs rules 1 to 9 without exceptions, so the files of a workspace not yet
 moved show as remaining work. The rules and the reasons are in the
 [ADR](../../../docs/adr/role-folders.md).
 

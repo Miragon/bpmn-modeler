@@ -16,8 +16,11 @@ export interface ClassImplementation {
     readonly interfaceFiles: readonly string[];
     /** The files that build it with `new`; an anonymous class is built where it is declared, if at all. */
     readonly constructedIn: readonly string[];
-    /** The files with a parameter whose type names one of its implemented interfaces, a default value included. */
-    readonly receivedIn: readonly string[];
+    /** Per file declaring an implemented interface, the files with a parameter whose type names one, a default value included. */
+    readonly receivedIn: readonly {
+        readonly interfaceFile: string;
+        readonly files: readonly string[];
+    }[];
 }
 
 export interface ImplementationOptions {
@@ -47,7 +50,14 @@ export function findImplementations(
             const line =
                 sourceFile.getLineAndCharacterOfPosition(declaration.getStart(sourceFile)).line + 1;
             const constructedIn = constructions.of(path, declaration);
-            const receivedIn = parameterTypes.filesNaming(interfaces);
+            const receivedIn = interfaceFiles
+                .map((interfaceFile) => ({
+                    interfaceFile,
+                    files: parameterTypes.filesNaming(
+                        interfaces.filter(({ file }) => file === interfaceFile),
+                    ),
+                }))
+                .filter(({ files }) => files.length > 0);
             return declaration.name === undefined
                 ? { path, line, interfaceFiles, constructedIn, receivedIn }
                 : {

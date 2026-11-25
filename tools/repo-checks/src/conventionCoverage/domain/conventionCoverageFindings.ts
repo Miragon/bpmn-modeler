@@ -101,7 +101,9 @@ function implementsDrivingPorts(
     return (
         constructedIn.length > 0 &&
         constructedIn.every(isOwnService) &&
-        !receivedIn.some(isOwnService) &&
+        !receivedIn.some(
+            ({ interfaceFile, files }) => isPortFile(interfaceFile) && files.some(isOwnService),
+        ) &&
         interfaceFiles.filter(isPortFile).every((path) => path.startsWith(`${dir}/src/`))
     );
 }
