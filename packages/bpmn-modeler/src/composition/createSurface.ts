@@ -1,27 +1,50 @@
+import type {
+    BpmnSurface,
+    EditingSurface,
+    EditingSurfaceOptions,
+    ModalSurface,
+    ModalSurfaceOptions,
+    ViewerSurfaceOptions,
+    ViewingSurface,
+} from "../kernel/port/bpmnSurface";
+import { KernelSurface } from "../kernel/service/kernelSurface";
+import { surfaceHandleOf } from "../kernel/service/kernelSurfaceHandle";
+import { initOrTeardown } from "../kernel/service/surfaceLifecycle";
+import { kernelDefaultModules } from "./kernelDefaults";
+
 /**
- * Owns a surface from allocation through its initial-options phase. If any phase
- * throws, the partial instance is destroyed (guarded, so a secondary teardown
- * failure never masks the root cause) before the original error is rethrown, so
- * a failed factory leaves its container and document exactly as it found them.
+ * @experimental Builds a surface from a bpmn-js base and a list of features.
+ * Internal until the kernel is published: no entry exports it yet.
  *
- * `allocate` stays cheap on purpose — the real allocation risk is the bpmn-js
- * constructor, which each facade runs inside `applyInitialOptions` (its `init`)
- * behind a guard that clears the container of any partially-attached DOM.
+ * Features merge in list order, then plugins; the kernel registers
+ * `surfaceRoots` (and `surfaceMode` with a `mode`), then focus and the fit
+ * button, before any of them. A failure leaves the container as it was.
  */
-export async function createSurface<T extends { destroy(): void }>(
-    allocate: () => T,
-    applyInitialOptions: (surface: T) => void | Promise<void>,
-): Promise<T> {
-    const surface = allocate();
-    try {
-        await applyInitialOptions(surface);
-        return surface;
-    } catch (error) {
-        try {
-            surface.destroy();
-        } catch {
-            // A secondary teardown failure must not mask the root cause.
-        }
-        throw error;
-    }
+export function createSurface(
+    container: HTMLElement,
+    options: ModalSurfaceOptions,
+): Promise<ModalSurface>;
+export function createSurface(
+    container: HTMLElement,
+    options: EditingSurfaceOptions,
+): Promise<EditingSurface>;
+export function createSurface(
+    container: HTMLElement,
+    options: ViewerSurfaceOptions,
+): Promise<ViewingSurface>;
+export async function createSurface(
+    container: HTMLElement,
+    options: ViewerSurfaceOptions | EditingSurfaceOptions | ModalSurfaceOptions,
+): Promise<BpmnSurface> {
+    const { handleGlobalEscape, ...kernelOptions } = options;
+    const kernel = await initOrTeardown(
+        () =>
+            new KernelSurface(
+                container,
+                kernelOptions,
+                kernelDefaultModules({ handleGlobalEscape }),
+            ),
+        (surface) => surface.init(),
+    );
+    return surfaceHandleOf(kernel);
 }

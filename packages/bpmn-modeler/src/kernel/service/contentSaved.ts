@@ -6,11 +6,15 @@ import {
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 import type { SurfaceReporter } from "./reporting";
-import type { ContentSavedEvent } from "../../modeler/port/publicApi";
+
+/** What `onContentSaved` receives; the published `ContentSavedEvent` has this shape. */
+interface SavedContent {
+    readonly xml: string;
+}
 
 export interface ContentSavedWiring {
     exportDiagram: () => Promise<string>;
-    onContentSaved: (event: ContentSavedEvent) => void | Promise<void>;
+    onContentSaved: (event: SavedContent) => void | Promise<void>;
     reporter: SurfaceReporter;
     isDisposed: () => boolean;
 }
@@ -46,7 +50,7 @@ export function wireContentSaved(options: {
     store: DisposableStore;
     eventBus: MinimalEventBus;
     exportDiagram: () => Promise<string>;
-    onContentSaved: (event: ContentSavedEvent) => void | Promise<void>;
+    onContentSaved: (event: SavedContent) => void | Promise<void>;
     reporter: SurfaceReporter;
 }): () => Promise<void> {
     const notifier = createContentSavedNotifier({

@@ -238,7 +238,7 @@ decision.
 - A widget with an ARIA role keeps that role's keys: the Add-ons view dropped its roving tree for plain Tab order, but its `role=tablist` and `role=menu` keep their arrow, Home, End and Escape keys
 - The properties panel uses standard HTML form elements with labels
 - Keyboard shortcuts (Cmd/Ctrl+C/V/A) work in both diagram and properties panel via the polyfills described above
-- The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/kernel/adapter/in/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields
+- The select-all guard (`onSelectAllKeydown` in `packages/bpmn-modeler/src/clipboard/adapter/in/propertiesPanelClipboard.ts`) ensures Cmd/Ctrl+A works correctly in contenteditable fields
 - The BPMN webview makes the page `inert` while a mode switch, a destructive flush or an engine reload runs. Take every such lock from the one `createInertLockGroup(document.body)` in `apps/bpmn-webview/src/composition/bootstrap.ts` (the document session and `adapter/in/modeController.ts` each create theirs from it), so the last release restores the page's own `inert` state
 - Escape on the closed mode strip returns focus to the canvas (`adapter/in/modeController.ts`)
 

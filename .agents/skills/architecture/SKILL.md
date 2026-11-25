@@ -281,14 +281,24 @@ entry ([README](../../../libs/modeler-types/README.md#layout)).
 
 The BPMN modeler package keeps its subpath entries directly in `src/`
 (`index.ts`, `diff.ts`, `lint.ts`, `viewer.ts`, `design.ts`, `mode.ts`,
-`plugins.ts`). `kernel/` holds `SurfaceCore` and the canvas managers in
-`service/`, the surface handle, the managers' interfaces and
-`CoreModelerServices` in `port/`, and the vocabulary features meet on
-(`ThemeMode`, `ELEMENT_POPUP_MENUS`, `ViewState`) in `domain/`; each feature
-(`modeler`, `design`, `viewer`, `diff`, `bpmnlint`, `modeSession`, …) has role
-folders, with diagram-js and bpmn-js modules and DOM UI in `adapter/in/`;
-`composition/` holds the presets and the module lists. A type or constant two
-features share goes into `kernel/domain/`, not into one of them, or into
+`plugins.ts`). `kernel/` is the one kernel and imports nothing outside itself
+but `@miragon/bpmn-modeler-types`, `@miragon/bpmn-modeler-browser` and npm
+(package spec): `KernelSurface` and `SurfaceCore` in `service/`, the surface
+handles, the managers' interfaces and `CoreModelerServices` in `port/`,
+`BpmnFeature`, the pure feature merge, the four kernel DI names and the
+vocabulary features meet on (`ThemeMode`, `ELEMENT_POPUP_MENUS`, `ViewState`)
+in `domain/`, and the focus and fit-button modules in `adapter/in/`. Each
+feature (`modeler`, `design`, `viewer`, `diff`, `bpmnlint`, `clipboard`,
+`modeSession`, …) has role folders, with diagram-js and bpmn-js modules, DOM UI
+and a factory returning a `BpmnFeature` in `adapter/in/`; `composition/` holds
+`createSurface`, the kernel's default modules, the presets and the module
+lists. A feature gets from the package only the kernel DI names
+(`surfaceMode`, `surfaceRoots`, `debounceInput`, `diagramTemplate`) and the
+kernel's port and domain types, never another feature, and declares what
+another feature must provide in `requires`; a helper it shares with the kernel
+goes into `@miragon/bpmn-modeler-browser`. The kernel looks up no feature's DI
+name either (package spec). A type or constant two features share goes into `kernel/domain/`,
+not into one of them, or into
 `libs/modeler-types` when `libs/properties-panel` or the core needs it too (the
 mode type and the `surface.mode.changed` event name) or it reads with the
 engine detection there (`ExecutionPlatformAttributes`). In this package a
@@ -296,7 +306,7 @@ engine detection there (`ExecutionPlatformAttributes`). In this package a
 type a host calls, whose implementation stays in `service/` (a package
 exception to the role table above). The surfaces' `port/publicApi.ts` files
 also carry their surface's option and factory types. Each known exception names
-the step-2 change of #2249 that removes it
+the step of #2802 (formerly #2249 step 2) that removes it
 ([modeler package layout](../../../docs/adr/role-folders.md#modeler-package-layout)).
 
 A `diagram-js` or `flat` workspace holds no role folder (same spec). ESLint

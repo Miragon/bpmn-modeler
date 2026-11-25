@@ -92,6 +92,9 @@ connectSnapping=type(BpmnConnectSnapping) createMoveSnapping=type(BpmnCreateMove
 searchPad=type(SearchPad)
 bpmnSearch=type(BpmnSearchProvider) init[bpmnSearch]
 outlineProvider=type(OutlineProvider) init[outlineProvider]
+surfaceRoots=value([HTMLDivElement#2, HTMLDivElement#3]) init[fn watchConstruction]
+surfaceKeyboardFocus=factory(surfaceKeyboardFocus) init[surfaceKeyboardFocus]
+fitViewportButton=type(FitViewportButton) init[fitViewportButton]
 customTranslator=value(CustomTranslator) translate=factory(translateFactory) init[customTranslator]
 init[fn CommandInitializer]
 debounceInput=factory(debounceInputFactory)
@@ -256,6 +259,7 @@ exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
 exclusiveGatewaySettings: type(ExclusiveGatewaySettings)
 feelPopup: type(Popup)
 feelPopupRenderer: type(PopupRenderer)
+fitViewportButton: type(FitViewportButton)
 fixHoverBehavior: type(FixHoverBehavior)
 flowNavigation: type(FlowNavigation)
 followNameBehavior: type(FollowNameBehavior)
@@ -373,6 +377,8 @@ subProcessBehavior: type(SubProcessBehavior)
 subProcessPlaneBehavior: type(SubProcessPlaneBehavior)
 subProcessStartEventBehavior: type(SubProcessStartEventBehavior)
 subprocessCompatibility: type(SubprocessCompatibility)
+surfaceKeyboardFocus: factory(surfaceKeyboardFocus)
+surfaceRoots: value([HTMLDivElement#2, HTMLDivElement#3])
 textAnnotationBehavior: type(TextAnnotationBehavior)
 textRenderer: type(TextRenderer)
 toggleCollapseConnectionBehaviour: type(ToggleCollapseConnectionBehaviour)
@@ -536,6 +542,9 @@ connectSnapping
 createMoveSnapping @connectSnapping
 bpmnSearch
 outlineProvider
+fn watchConstruction @surfaceRoots
+surfaceKeyboardFocus
+fitViewportButton
 customTranslator
 fn CommandInitializer
 feelPopup

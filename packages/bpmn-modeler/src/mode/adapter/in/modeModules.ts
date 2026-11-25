@@ -8,8 +8,10 @@ import {
     type SurfaceModeService,
 } from "@miragon/bpmn-modeler-types/domain";
 
+import { SURFACE_ROOTS } from "../../../kernel/domain/kernelNames";
 import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
 import { MODE_ATTRIBUTE } from "../../../kernel/domain/surfaceMode";
+import type { SurfaceRoots } from "../../../kernel/port/kernelServices";
 
 // Run after the default-priority (1000) providers so their template entries can be removed.
 const POPUP_MODE_FILTER_PRIORITY = 100;
@@ -86,9 +88,9 @@ export class PopupMenuModeFilter {
 }
 
 /**
- * Moves `data-bpmn-mode` on the canvas container and the panel parent with each
- * mode change. The facade sets it once the instance is built and removes it on
- * destroy, so a construction that fails part-way leaves no attribute.
+ * Moves `data-bpmn-mode` on the surface roots with each mode change. The kernel
+ * sets it once the instance is built and removes it on destroy, so a
+ * construction that fails part-way leaves no attribute.
  */
 export class ModeAttribute {
     static $inject = ["eventBus", "injector"];
@@ -97,10 +99,7 @@ export class ModeAttribute {
         if (!injector.get<SurfaceModeService>(SURFACE_MODE_SERVICE, false)) {
             return;
         }
-        const roots = [
-            injector.get<unknown>("config.container", false),
-            injector.get<{ parent?: unknown }>("config.propertiesPanel", false)?.parent,
-        ].filter((root): root is Element => root instanceof Element);
+        const roots = injector.get<SurfaceRoots>(SURFACE_ROOTS, false) ?? [];
         eventBus.on(SURFACE_MODE_CHANGED, (event) => {
             for (const root of roots) {
                 root.setAttribute(MODE_ATTRIBUTE, event.mode);

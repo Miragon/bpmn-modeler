@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createSurface } from "./createSurface";
+import { initOrTeardown } from "./surfaceLifecycle";
 
-describe("createSurface", () => {
+describe("initOrTeardown", () => {
     it("returns the allocated surface without destroying it on success", async () => {
         const destroy = vi.fn();
         const surface = { destroy };
 
         await expect(
-            createSurface(
+            initOrTeardown(
                 () => surface,
                 () => {},
             ),
@@ -21,7 +21,7 @@ describe("createSurface", () => {
         const error = new Error("boom");
 
         await expect(
-            createSurface(
+            initOrTeardown(
                 () => ({ destroy }),
                 () => {
                     throw error;
@@ -36,7 +36,7 @@ describe("createSurface", () => {
         const error = new Error("boom");
 
         await expect(
-            createSurface(
+            initOrTeardown(
                 () => ({ destroy }),
                 () => Promise.reject(error),
             ),
@@ -51,7 +51,7 @@ describe("createSurface", () => {
         });
 
         await expect(
-            createSurface(
+            initOrTeardown(
                 () => ({ destroy }),
                 () => {
                     throw error;
@@ -67,7 +67,7 @@ describe("createSurface", () => {
             throw error;
         });
 
-        await expect(createSurface(allocate, () => {})).rejects.toBe(error);
+        await expect(initOrTeardown(allocate, () => {})).rejects.toBe(error);
         expect(allocate).toHaveBeenCalledTimes(1);
     });
 
@@ -85,7 +85,7 @@ describe("createSurface", () => {
         };
 
         await expect(
-            createSurface(
+            initOrTeardown(
                 () => ({ destroy }),
                 async () => {
                     await phases.init();

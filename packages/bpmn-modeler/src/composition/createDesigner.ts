@@ -3,7 +3,9 @@ import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import { DEFAULT_THEME_MODE } from "@miragon/bpmn-modeler-types";
 import { BpmnDesigner } from "../design/service/designer";
 import type { DesignerOptions } from "../design/port/publicApi";
-import { createSurface } from "./createSurface";
+import { clipboardModulesOf } from "../clipboard/adapter/in/clipboardFeature";
+import { initOrTeardown } from "../kernel/service/surfaceLifecycle";
+import { kernelDefaultModules } from "./kernelDefaults";
 
 /**
  * Stands up one independent engine-neutral designer bound to `container` and its
@@ -23,8 +25,12 @@ export async function createDesigner(
     // (or the bootstrap's own call) re-invoking it is harmless.
     i18n.extend(i18nExtras);
 
-    return createSurface(
-        () => new BpmnDesigner(container, options),
+    return initOrTeardown(
+        () =>
+            new BpmnDesigner(container, options, {
+                defaultModules: kernelDefaultModules(),
+                clipboardModules: clipboardModulesOf(options.clipboard),
+            }),
         async (designer) => {
             await designer.init();
 

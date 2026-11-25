@@ -1,4 +1,5 @@
 import Modeler from "bpmn-js/lib/Modeler";
+import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import bpmnLintingModule from "bpmn-js-bpmnlint";
 import type { ModuleDeclaration } from "didi";
 import type EventBus from "diagram-js/lib/core/EventBus";
@@ -131,5 +132,16 @@ describe("saveXML (bpmn-js export contract pin)", () => {
 
         await expect(modeler!.saveXML({ format: true })).rejects.toBe(failure);
         consoleError.mockRestore();
+    });
+});
+
+describe("bpmn-js base constructors (the kernel's base pin)", () => {
+    it("carries importXML on both bases and createDiagram on the modeler only", () => {
+        expect(typeof Modeler.prototype.importXML).toBe("function");
+        expect(typeof NavigatedViewer.prototype.importXML).toBe("function");
+        expect(typeof Modeler.prototype.createDiagram).toBe("function");
+        expect(
+            (NavigatedViewer.prototype as { createDiagram?: unknown }).createDiagram,
+        ).toBeUndefined();
     });
 });

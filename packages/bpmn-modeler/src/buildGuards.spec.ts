@@ -7,6 +7,11 @@ import { checkDts } from "../scripts/check-dts.mjs";
 import { checkExternals, collectModuleSpecifiers } from "../scripts/check-externals.mjs";
 import { checkInlinedPeers } from "../scripts/check-inlined-peers.mjs";
 import { checkPluginsFreeEntries } from "../scripts/check-plugins-free-entry.mjs";
+import {
+    featureLibraryDirs,
+    missingViewerSurfaceControls,
+    modulesOutsideViewerSurface,
+} from "../scripts/check-viewer-surface-bundle.mjs";
 
 const temporaryDirectories: string[] = [];
 
@@ -373,5 +378,57 @@ describe("plugins-free entry guard", () => {
         expect(() => checkPluginsFreeEntries({ distDir: temporaryDirectory() })).toThrow(
             /not found/,
         );
+    });
+});
+
+describe("viewer-surface bundle guard", () => {
+    const packageDir = "/repo/packages/bpmn-modeler";
+    const featureDirs = ["/repo/libs/bpmn-clipboard/"];
+    const options = { packageDir, featureDirs };
+    const kernel = [
+        "/repo/node_modules/bpmn-js/lib/NavigatedViewer.js",
+        `${packageDir}/src/kernel/service/kernelSurface.ts`,
+        `${packageDir}/src/kernel/adapter/in/keyboardFocusModule.ts`,
+        `${packageDir}/src/composition/createSurface.ts`,
+        `${packageDir}/src/composition/kernelDefaults.ts`,
+    ];
+
+    it("passes the kernel, the viewer and the code viewer modules share with the modeler", () => {
+        const ids = [
+            ...kernel,
+            "/repo/node_modules/bpmn-js/lib/features/modeling/util/ModelingUtil.js",
+            "/repo/libs/modeler-browser/src/index.ts",
+        ];
+
+        expect(modulesOutsideViewerSurface(ids, options)).toEqual([]);
+        expect(missingViewerSurfaceControls(ids, { packageDir })).toEqual([]);
+    });
+
+    it.each([
+        "/repo/node_modules/bpmn-js/lib/Modeler.js",
+        "/repo/node_modules/bpmn-js/lib/BaseModeler.js",
+        "/repo/node_modules/bpmn-js/dist/bpmn-modeler.development.js",
+        "/repo/node_modules/bpmn-js/dist/bpmn-modeler.production.min.js",
+        "/repo/libs/bpmn-clipboard/src/index.ts",
+        `${packageDir}/src/composition/createModeler.ts`,
+        `${packageDir}/src/clipboard/adapter/in/clipboardFeature.ts`,
+        `${packageDir}/src/modeler/service/modeler.ts`,
+    ])("rejects %s", (id) => {
+        expect(modulesOutsideViewerSurface([...kernel, id], options)).toEqual([id]);
+    });
+
+    it("refuses to pass a bundle that misses the viewer or the kernel", () => {
+        expect(missingViewerSurfaceControls(kernel.slice(1), { packageDir })).toEqual([
+            "/bpmn-js/lib/NavigatedViewer.js",
+        ]);
+        expect(missingViewerSurfaceControls([kernel[0]], { packageDir })).toHaveLength(2);
+    });
+
+    it("reads the feature libraries from the manifests' declared kind", () => {
+        const dirs = featureLibraryDirs();
+
+        expect(dirs.some((dir) => dir.endsWith("/libs/bpmn-clipboard/"))).toBe(true);
+        expect(dirs.some((dir) => dir.endsWith("/libs/modeler-browser/"))).toBe(false);
+        expect(dirs.some((dir) => dir.endsWith("/libs/modeler-types/"))).toBe(false);
     });
 });

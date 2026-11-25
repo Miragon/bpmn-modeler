@@ -15,6 +15,7 @@ preserves earlier decisions and their evolution.
 | [Role folders](role-folders.md) | Hexagonal role folders, workspace kinds and the rules that read them |
 | [IntelliJ bridge](intellij-bridge.md) | Bun binary, stdio JSON-RPC and protocol contract, process lifecycle and recovery, document causation, host-replicated state |
 | [BPMN modeler](bpmn-modeler.md) | Public API and capabilities, surfaces and modes, document identity, mode session and lifecycle |
+| [BPMN modeler kernel](bpmn-modeler-kernel.md) | `createSurface` and its bases, the four kernel DI names, the feature and plugin merge, the kernel's default modules |
 | [BPMN modeler features](bpmn-modeler-features.md) | Properties panel, themes and locale, linked form previews, transaction boundaries, formatting and cleanup |
 | [BPMN linting](bpmn-linting.md) | The lint injection contract and tiers, host linting, workspace rule packages: the gate, updates without a reload, asking only when needed |
 | [Diff](diff.md) | BPMN and DMN model diff: data libraries and the diff library's folders, navigation order, shared vocabulary and legend, diff panes |
