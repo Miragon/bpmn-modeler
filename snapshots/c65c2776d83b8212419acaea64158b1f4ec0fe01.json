@@ -906,7 +906,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "packages/bpmn-modeler/src/bpmnlint/service/LintConfigService.ts — service/ imports no adapter/, composition/, testing/ or entry",
@@ -942,27 +942,6 @@
           "line": 3,
           "message": "breaks “service/ imports no adapter/, composition/, testing/ or entry” by importing `kernel/adapter/in/keyboardFocus.ts`",
           "group": "divergent-import"
-        },
-        {
-          "key": "packages/bpmn-modeler/src/kernel/service/rootElement.ts — implements a port",
-          "path": "packages/bpmn-modeler/src/kernel/service/rootElement.ts",
-          "line": 23,
-          "message": "`CanvasRootElementManager` implements the port in `packages/bpmn-modeler/src/kernel/port/canvasManagers.ts` outside adapter/out/ and testing/",
-          "group": "misplaced-port-implementation"
-        },
-        {
-          "key": "packages/bpmn-modeler/src/kernel/service/selection.ts — implements a port",
-          "path": "packages/bpmn-modeler/src/kernel/service/selection.ts",
-          "line": 10,
-          "message": "`ElementSelectionManager` implements the port in `packages/bpmn-modeler/src/kernel/port/canvasManagers.ts` outside adapter/out/ and testing/",
-          "group": "misplaced-port-implementation"
-        },
-        {
-          "key": "packages/bpmn-modeler/src/kernel/service/viewport.ts — implements a port",
-          "path": "packages/bpmn-modeler/src/kernel/service/viewport.ts",
-          "line": 18,
-          "message": "`CanvasViewportManager` implements the port in `packages/bpmn-modeler/src/kernel/port/canvasManagers.ts` outside adapter/out/ and testing/",
-          "group": "misplaced-port-implementation"
         },
         {
           "key": "packages/bpmn-modeler/src/modeler/port/publicApi.ts — only adapter/in/, service/, composition/, testing/ and entries import a service",

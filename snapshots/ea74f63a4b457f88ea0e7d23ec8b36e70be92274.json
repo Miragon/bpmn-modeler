@@ -850,7 +850,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "packages/bpmn-modeler/src/bpmnlint/service/LintConfigService.ts — service/ imports no adapter/, composition/, testing/ or entry",

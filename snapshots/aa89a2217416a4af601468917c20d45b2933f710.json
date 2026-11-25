@@ -885,7 +885,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "findings": []
     },
     "host-text": {
