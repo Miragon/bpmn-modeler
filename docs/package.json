@@ -11,7 +11,7 @@
     },
     "devDependencies": {
         "@braintree/sanitize-url": "7.1.2",
-        "@miragon/docs-starter": "1.0.1",
+        "@miragon/docs-starter": "1.1.0",
         "cytoscape": "3.35.0",
         "cytoscape-cose-bilkent": "4.1.0",
         "dayjs": "1.11.23",
