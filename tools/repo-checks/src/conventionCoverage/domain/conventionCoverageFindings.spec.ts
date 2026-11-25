@@ -12,6 +12,7 @@ import {
 import type { HexagonalWorkspaceSources } from "./hexagonalWorkspaceSources";
 
 const CORE_PORT = "libs/core/src/port/DocumentPort.ts";
+const HANDLE_PORT = "libs/core/src/port/Handle.ts";
 
 function workspace(
     dir: string,
@@ -27,8 +28,10 @@ function implementation(
     className: string,
     interfaceFiles: readonly string[] = [CORE_PORT],
     line = 2,
+    constructedIn: readonly string[] = [],
+    receivedIn: ClassImplementation["receivedIn"] = [],
 ): ClassImplementation {
-    return { path, line, className, interfaceFiles };
+    return { path, line, className, interfaceFiles, constructedIn, receivedIn };
 }
 
 const CORE_FILES = { "port/DocumentPort.ts": "export interface DocumentPort {}" };
@@ -156,10 +159,127 @@ describe("the convention coverage findings", () => {
         ]);
     });
 
+    it("skip a port class that only services of its own workspace build and whose port none receives, and report one that composition builds", () => {
+        const core = workspace(
+            "libs/core",
+            {
+                ...CORE_FILES,
+                "port/Handle.ts": "export interface Handle {}",
+                "service/HandleImpl.ts": "export class HandleImpl {}",
+                "service/Documents.ts": "export class Documents {}",
+                "service/Surface.ts": "",
+                "composition/wire.ts": "",
+            },
+            [
+                implementation(
+                    "libs/core/src/service/HandleImpl.ts",
+                    "HandleImpl",
+                    [HANDLE_PORT, "libs/shared/src/domain/Disposable.ts"],
+                    1,
+                    ["libs/core/src/service/HandleImpl.ts", "libs/core/src/service/Surface.ts"],
+                    [
+                        {
+                            interfaceFile: HANDLE_PORT,
+                            files: [
+                                "apps/host/src/service/View.ts",
+                                "libs/core/src/adapter/in/view.ts",
+                            ],
+                        },
+                        {
+                            interfaceFile: "libs/shared/src/domain/Disposable.ts",
+                            files: ["libs/core/src/service/Pool.ts"],
+                        },
+                    ],
+                ),
+                implementation("libs/core/src/service/Documents.ts", "Documents", [CORE_PORT], 1, [
+                    "libs/core/src/composition/wire.ts",
+                ]),
+            ],
+        );
+
+        expect(conventionCoverageFindings([core])).toEqual([
+            expect.objectContaining({
+                key: "libs/core/src/service/Documents.ts — implements a port",
+            }),
+        ]);
+    });
+
+    it.each([
+        {
+            builtBy: "a service and the composition of its workspace",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: [
+                "libs/core/src/composition/wire.ts",
+                "libs/core/src/service/Surface.ts",
+            ],
+            port: HANDLE_PORT,
+        },
+        {
+            builtBy: "nothing outside a spec",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: [],
+            port: HANDLE_PORT,
+        },
+        {
+            builtBy: "a service of another workspace",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: ["apps/host/src/service/Wiring.ts"],
+            port: HANDLE_PORT,
+        },
+        {
+            builtBy: "a service of its workspace, for another workspace's port",
+            path: "apps/host/src/service/Impl.ts",
+            constructedIn: ["apps/host/src/service/Wiring.ts"],
+            port: CORE_PORT,
+        },
+        {
+            builtBy: "a service of its workspace, for its own and another workspace's port",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: ["libs/core/src/service/Surface.ts"],
+            port: HANDLE_PORT,
+            ports: [HANDLE_PORT, "libs/shared/src/port/Shared.ts"],
+        },
+        {
+            builtBy:
+                "a service of its workspace that receives the port as a parameter and builds the default",
+            path: "libs/core/src/service/Impl.ts",
+            constructedIn: ["libs/core/src/service/Scheduler.ts"],
+            receivedIn: [
+                { interfaceFile: HANDLE_PORT, files: ["libs/core/src/service/Scheduler.ts"] },
+            ],
+            port: HANDLE_PORT,
+        },
+    ])(
+        "report a port class built by $builtBy",
+        ({ path, constructedIn, receivedIn = [], port, ports = [port] }) => {
+            const implementations = [
+                implementation(path, "Impl", ports, 1, constructedIn, receivedIn),
+            ];
+            const inCore = path.startsWith("libs/core/");
+            const core = workspace(
+                "libs/core",
+                { ...CORE_FILES, "port/Handle.ts": "" },
+                inCore ? implementations : [],
+            );
+            const host = workspace("apps/host", {}, inCore ? [] : implementations);
+            const shared = workspace("libs/shared", {});
+
+            expect(conventionCoverageFindings([core, host, shared])).toEqual([
+                expect.objectContaining({ key: `${path} — implements a port` }),
+            ]);
+        },
+    );
+
     it("name every port class of a file and point at the first", () => {
         const core = workspace("libs/core", { ...CORE_FILES, "service/d.ts": "" }, [
             implementation("libs/core/src/service/d.ts", "Later", [CORE_PORT], 9),
-            { path: "libs/core/src/service/d.ts", line: 4, interfaceFiles: [CORE_PORT] },
+            {
+                path: "libs/core/src/service/d.ts",
+                line: 4,
+                interfaceFiles: [CORE_PORT],
+                constructedIn: [],
+                receivedIn: [],
+            },
         ]);
 
         expect(conventionCoverageFindings([core])).toEqual([

@@ -87,6 +87,27 @@ function importsOf(
         .sort((left, right) => left.line - right.line);
 }
 
+/**
+ * Only its own workspace's services build the class, for ports that workspace declares, and none
+ * of them takes such a port as a parameter: it is a handle the workspace hands out, not one a host
+ * or composition supplies and a service builds only as the default.
+ */
+function implementsDrivingPorts(
+    dir: string,
+    { constructedIn, receivedIn, interfaceFiles }: ClassImplementation,
+    isPortFile: (path: string) => boolean,
+): boolean {
+    const isOwnService = (path: string): boolean => roleInWorkspace(dir, path) === "service";
+    return (
+        constructedIn.length > 0 &&
+        constructedIn.every(isOwnService) &&
+        !receivedIn.some(
+            ({ interfaceFile, files }) => isPortFile(interfaceFile) && files.some(isOwnService),
+        ) &&
+        interfaceFiles.filter(isPortFile).every((path) => path.startsWith(`${dir}/src/`))
+    );
+}
+
 function portImplementationFindings(
     { dir, implementations }: HexagonalWorkspaceSources,
     isPortFile: (path: string) => boolean,
@@ -95,7 +116,11 @@ function portImplementationFindings(
     for (const implementation of implementations) {
         const role = roleInWorkspace(dir, implementation.path);
         const isPlaced = role !== undefined && PORT_IMPLEMENTATION_ROLES.includes(role);
-        if (!isPlaced && implementation.interfaceFiles.some(isPortFile)) {
+        if (
+            !isPlaced &&
+            implementation.interfaceFiles.some(isPortFile) &&
+            !implementsDrivingPorts(dir, implementation, isPortFile)
+        ) {
             misplacedByFile.set(implementation.path, [
                 ...(misplacedByFile.get(implementation.path) ?? []),
                 implementation,

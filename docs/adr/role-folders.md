@@ -228,10 +228,12 @@ diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` hold
   `RootElementManager`) and `CoreModelerServices`; their implementations stay in
   `kernel/service/`, and the snapshots they hand over (`ViewState`, `ViewportData`) are
   `kernel/domain/`. For this package only, `port/` departs from the role table above, which
-  reads it as driven ports. A handle a host calls is a driving port; with the surface handle in
-  `kernel/port/`, the surfaces' `publicApi.ts` files import no `service/`. Because `port/`
-  imports only `domain/` and `port/`, the managers' interfaces, which the handle names, move
-  with it instead of staying beside their classes in `kernel/service/`. Each surface's
+  reads it as driven ports. A handle a host calls is a driving port: only `kernel/service/`
+  builds the managers and no service receives one, so `convention-coverage` does not report
+  their classes. With the surface handle in `kernel/port/`, the surfaces' `publicApi.ts` files
+  import no `service/`. Because `port/` imports only `domain/` and `port/`, the managers'
+  interfaces, which the handle names, move with it instead of staying beside their classes in
+  `kernel/service/`. Each surface's
   `port/publicApi.ts` also carries its surface's handle, option and factory types
   (`BpmnModelerHandle`, `ModelerOptions`, `CreateModeler`, `BpmnDesignerHandle`,
   `BpmnViewerHandle`, `ModeSessionOptions`, `ModeSession`). Only the modeler port still imports
@@ -244,10 +246,7 @@ diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` hold
   change of #2249 that removes it: construction out of the facades (8), the kernel's DOM
   features as values (2), `LintCallbacks` into the `LintModule` port (1), the linter injected
   into `LintConfigService` (1), the template preview as a preset (1) and, for purity, the
-  default lint config as a value (1). `convention-coverage` reports the three manager classes as
-  implementing a port outside `adapter/out/`: they implement a contract a host calls, not a
-  driven port, and the function does not tell the two apart yet. The three findings stay until
-  it skips a handle interface a host calls (proposed under #2562). The kernel keeps type imports
+  default lint config as a value (1). The kernel keeps type imports
   from `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
   `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A
   `new Modeler()` in a feature's `service/` passes every import rule; only review and the browser
