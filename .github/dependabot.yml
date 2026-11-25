@@ -32,6 +32,18 @@ updates:
       - dependency-name: "preact"
         update-types:
           - "version-update:semver-major"
+      # Theia 1.77 is ESM-only and needs Electron 44 (#2820).
+      - dependency-name: "@theia/*"
+        versions: [">=1.77.0"]
+      # The panel's close-time FEEL pop-up draft escapes the pending-input flush,
+      # and element-templates 2.40 needs that panel (#2344).
+      - dependency-name: "@bpmn-io/properties-panel"
+        versions: [">=3.58.0"]
+      - dependency-name: "bpmn-js-element-templates"
+        versions: [">=2.40.0"]
+      # chokidar 6 breaks the bridge's Linux watcher takeover spec (#2822).
+      - dependency-name: "chokidar"
+        versions: [">=6.0.0"]
     groups:
       # bpmnlint must move in lockstep with the bundled resolver in
       # @miragon/bpmnlint-plugin-rules.

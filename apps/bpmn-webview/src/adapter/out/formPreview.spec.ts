@@ -105,6 +105,10 @@ describe("anchored linked form preview", () => {
         const node = panel()!;
         const header = node.querySelector("header")!;
         Object.defineProperty(header, "offsetHeight", { get: () => 100 });
+        // jsdom applies the UA stylesheet's 1em paragraph margins; keep the header the only chrome.
+        node.querySelectorAll("p").forEach((paragraph) => {
+            paragraph.style.margin = "0";
+        });
         for (let i = 0; i < 4; i++) {
             handle.reposition();
             await new Promise(requestAnimationFrame);

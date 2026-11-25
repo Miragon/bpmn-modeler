@@ -8,7 +8,7 @@ import { modelerBundlePreset, webviewBuildGuards } from "../../vite.shared";
 const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/adapter/out/lazySvgToImage.ts");
 // Helpers of a few KB that every surface imports, which would each be a chunk of their own.
 const SMALL_HELPERS = [
-    /node_modules[\\/](?:min-dash|ids|domify|lodash|semver-compare|classnames)[\\/]/,
+    /node_modules[\\/](?:min-dash|ids|domify|lodash|semver-compare|classnames|didi)[\\/]/,
     /node_modules[\\/]@bpmn-io[\\/]moddle-utils[\\/]/,
     /node_modules[\\/]bpmn-js[\\/]lib[\\/]util[\\/]ModelUtil\.js$/,
     /node_modules[\\/]diagram-js[\\/]lib[\\/]util[\\/]EscapeUtil\.js$/,

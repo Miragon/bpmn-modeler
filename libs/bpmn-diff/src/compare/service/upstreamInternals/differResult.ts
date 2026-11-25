@@ -35,7 +35,7 @@ export function assertDiffResultShape(result: unknown): asserts result is DiffRe
         isPlainObject(candidate?._layoutChanged);
     if (!shapeOk) {
         throw new Error(
-            "bpmn-js-differ 3.2.0 result shape changed: expected `_added`, " +
+            "bpmn-js-differ result shape changed: expected `_added`, " +
                 "`_removed`, `_changed`, and `_layoutChanged` to be objects. Update " +
                 "differResult.ts and its shape test.",
         );
