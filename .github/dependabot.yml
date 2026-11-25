@@ -41,6 +41,9 @@ updates:
         versions: [">=3.58.0"]
       - dependency-name: "bpmn-js-element-templates"
         versions: [">=2.40.0"]
+      # chokidar 6 breaks the bridge's Linux watcher takeover spec (#2822).
+      - dependency-name: "chokidar"
+        versions: [">=6.0.0"]
     groups:
       # bpmnlint must move in lockstep with the bundled resolver in
       # @miragon/bpmnlint-plugin-rules.
