@@ -222,32 +222,38 @@ diagram-js and bpmn-js modules and DOM UI are `adapter/in/`. `composition/` hold
 `styles/` and `types/` hold CSS and declarations, which no rule reads.
 
 - **Ports:** `port/` holds contracts and no code: what a host or an embedder supplies (the
-  clipboard and lint injection options, `SurfaceFactories`, the capability ports) and the
-  handle types a host calls. `kernel/port/` holds the surface handle (`BpmnSurfaceHandle`,
-  `PendingInputHandle`), the canvas managers' interfaces (`ViewportManager`,
-  `SelectionManager`, `RootElementManager`) and `CoreModelerServices`; their implementations
-  stay in `kernel/service/`, and the snapshots they hand over (`ViewState`, `ViewportData`) are
-  `kernel/domain/`. Each surface's `port/publicApi.ts` also carries its surface's handle, option
-  and factory types (`BpmnModelerHandle`, `ModelerOptions`, `CreateModeler`,
-  `BpmnDesignerHandle`, `BpmnViewerHandle`, `ModeSessionOptions`, `ModeSession`). Only the
-  modeler port still imports a service, for `LintCallbacks`. No technology rule reads
-  `service/`, because the kernel builds bpmn-js.
+  clipboard and lint injection options, `SurfaceFactories`, the capability ports) and the handle
+  types a host calls. `kernel/port/` holds the surface handle (`BpmnSurfaceHandle`,
+  `PendingInputHandle`), the canvas managers' interfaces (`ViewportManager`, `SelectionManager`,
+  `RootElementManager`) and `CoreModelerServices`; their implementations stay in
+  `kernel/service/`, and the snapshots they hand over (`ViewState`, `ViewportData`) are
+  `kernel/domain/`. For this package only, `port/` departs from the role table above, which
+  reads it as driven ports. A handle a host calls is a driving port; with the surface handle in
+  `kernel/port/`, the surfaces' `publicApi.ts` files import no `service/`. Because `port/`
+  imports only `domain/` and `port/`, the managers' interfaces, which the handle names, move
+  with it instead of staying beside their classes in `kernel/service/`. Each surface's
+  `port/publicApi.ts` also carries its surface's handle, option and factory types
+  (`BpmnModelerHandle`, `ModelerOptions`, `CreateModeler`, `BpmnDesignerHandle`,
+  `BpmnViewerHandle`, `ModeSessionOptions`, `ModeSession`). Only the modeler port still imports
+  a service, for `LintCallbacks`. No technology rule reads `service/`, because the kernel builds
+  bpmn-js.
 - **Why:** as `diagram-js` the package was checked only for holding no role folder, and
   `convention-coverage` skipped it. A kind of its own would need rules of its own; these rules,
   `convention-coverage` and the purity rule exist already for the core.
-- **Cost:** 13 pairs stay role exceptions and one a purity exception, each naming the
-  step-2 change of #2249 that removes it: construction out of the facades (8), the kernel's
-  DOM features as values (2), `LintCallbacks` into the `LintModule` port (1), the linter
-  injected into `LintConfigService` (1), the template preview as a preset (1) and, for purity,
-  the default lint config as a value (1). `convention-coverage` reports the three manager
-  classes as implementing a port outside `adapter/out/`: they implement a contract a host
-  calls, not a driven port, and the function does not tell the two apart. The kernel keeps type imports from
-  `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
-  `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A `new Modeler()` in a feature's
-  `service/` passes every import rule; only review and the browser specs catch it. The
-  bundle checks read `bpmnlint` anywhere in a chunk, its source path comments included, so a
-  file the root, `/design` or `/mode` entry reaches stays out of `bpmnlint/`: the lint handle
-  sits in `kernel/`.
+- **Cost:** 13 pairs stay role exceptions and one a purity exception, each naming the step-2
+  change of #2249 that removes it: construction out of the facades (8), the kernel's DOM
+  features as values (2), `LintCallbacks` into the `LintModule` port (1), the linter injected
+  into `LintConfigService` (1), the template preview as a preset (1) and, for purity, the
+  default lint config as a value (1). `convention-coverage` reports the three manager classes as
+  implementing a port outside `adapter/out/`: they implement a contract a host calls, not a
+  driven port, and the function does not tell the two apart yet. The three findings stay until
+  it skips a handle interface a host calls (proposed under #2562). The kernel keeps type imports
+  from `bpmnlint/service/LintConfigService` and the modeler port (`ContentSavedEvent`,
+  `ClipboardOptions`, `ElementIdOptions`) until step 2 runs the core's kernel rule here. A
+  `new Modeler()` in a feature's `service/` passes every import rule; only review and the browser
+  specs catch it. The bundle checks read `bpmnlint` anywhere in a chunk, its source path
+  comments included, so a file the root, `/design` or `/mode` entry reaches stays out of
+  `bpmnlint/`: the lint handle sits in `kernel/`.
 
 ### Migration
 

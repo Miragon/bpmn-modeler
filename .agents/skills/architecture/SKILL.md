@@ -213,7 +213,7 @@ has role folders; the first one in a file's path is its role:
 ```
 <context>/
   domain/        pure core: decisions, state transitions, display logic, texts and message tables
-  port/          types only: interfaces the services call, or a handle a host calls
+  port/          types only: interfaces the services call
   service/       orchestration, session participants included
   adapter/in/    calls into the workspace: commands, message handlers, UI
   adapter/out/   implements a port: VS Code, Node, HTTP
@@ -291,9 +291,10 @@ folders, with diagram-js and bpmn-js modules and DOM UI in `adapter/in/`;
 features share goes into `kernel/domain/`, not into one of them, or into
 `libs/modeler-types` when `libs/properties-panel` or the core needs it too (the
 mode type and the `surface.mode.changed` event name) or it reads with the
-engine detection there (`ExecutionPlatformAttributes`). A `port/` file holds
-a contract: one a host or an embedder supplies, or a handle type a host calls;
-the implementation stays in `service/`. The surfaces' `port/publicApi.ts` files
+engine detection there (`ExecutionPlatformAttributes`). In this package a
+`port/` file holds a contract: one a host or an embedder supplies, or a handle
+type a host calls, whose implementation stays in `service/` (a package
+exception to the role table above). The surfaces' `port/publicApi.ts` files
 also carry their surface's option and factory types. Each known exception names
 the step-2 change of #2249 that removes it
 ([modeler package layout](../../../docs/adr/role-folders.md#modeler-package-layout)).
