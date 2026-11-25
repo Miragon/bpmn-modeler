@@ -1100,7 +1100,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "libs/modeler-core/src/editorSession/service/EditorSessionDocuments.ts — implements a port",

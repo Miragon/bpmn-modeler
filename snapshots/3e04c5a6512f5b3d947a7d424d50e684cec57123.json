@@ -1016,7 +1016,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "unmeasurable": "no workspace manifest declares \"architecture\": \"hexagonal\""
     },
     "host-text": {

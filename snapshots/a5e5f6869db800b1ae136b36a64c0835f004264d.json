@@ -1498,7 +1498,7 @@
       ]
     },
     "convention-coverage": {
-      "version": 2,
+      "version": 3,
       "findings": [
         {
           "key": "apps/bpmn-webview/src/bootstrap.ts — nothing imports an entry",
