@@ -76,7 +76,7 @@ export function subscribeModeChanged(
 /**
  * Set once the instance is built, so a failed construction leaves no attribute,
  * and before the first paint, so design mode never flashes engine controls;
- * `ModeAttribute` moves it with each change.
+ * {@link holdModeOnRoots} moves it with each change.
  */
 export function markModeRoots(
     store: DisposableStore,

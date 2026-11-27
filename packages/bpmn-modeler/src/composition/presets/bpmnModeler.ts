@@ -1,24 +1,9 @@
-import Modeler from "bpmn-js/lib/Modeler";
+import type Modeler from "bpmn-js/lib/Modeler";
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
-import type { ModuleDeclaration } from "didi";
-import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { applyImplementationStatus } from "@miragon/bpmn-modeler-code-link";
-import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
-import {
-    cleanupWithoutLayout,
-    createBpmnLayoutModule,
-    formatWithoutLayout,
-} from "@miragon/bpmn-modeler-layout";
+import { cleanupWithoutLayout, formatWithoutLayout } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome, SurfaceInjector } from "@miragon/bpmn-modeler-layout";
-import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
-// The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
-// its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
-import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
-import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
-import { FlushableDebounceInputModule } from "@miragon/bpmn-modeler-properties-panel/debounceInput/flushableDebounceInput";
-import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -27,62 +12,39 @@ import {
     type ElementIdProposals,
     elementIdSettingsOf,
     type ElementTemplateRef,
-    Engine,
-    getLatestVersion,
-    initialDiagram,
     LintResults,
     OpenScriptEditorRef,
     type ScriptField,
     type ScriptIdentity,
     ScriptKind,
     ScriptTaskScript,
-    subscribe,
 } from "@miragon/bpmn-modeler-types";
-import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
 import {
     applyOpenScriptEditors,
     collectInlineScriptTasks,
     writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
-import { buildLintModules, lintElementIdConvention } from "../lintModules";
+import { lintElementIdConvention } from "../lintModules";
+import { alignToOriginOf } from "../../alignToOrigin/service/alignToOriginAccessor";
 import { appendMenuOf } from "../../appendMenu/service/appendMenuAccessor";
 import { elementIdsOf } from "../../elementIds/service/elementIdsAccessor";
+import { elementTemplatesOf } from "../../elementTemplates/service/elementTemplatesAccessor";
 import { layoutOf } from "../../layout/service/layoutAccessor";
-import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
-import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
+import { transactionBoundariesOf } from "../../transactionBoundaries/service/transactionBoundariesAccessor";
+import type { ModalSurface } from "../../kernel/port/bpmnSurface";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
-import { capabilityModules } from "../capabilityModules";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
-import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
 import { createSurfaceLintHandle } from "../../kernel/service/editableSurface";
-import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
-import { SurfaceCore } from "../../kernel/service/surfaceCore";
-import {
-    createSurfaceModeModule,
-    type KernelSurfaceMode,
-    markModeRoots,
-    subscribeModeChanged,
-} from "../../kernel/service/surfaceMode";
-import type { PresetWiring } from "../../kernel/port/presetWiring";
+import type { SurfaceServices } from "../../kernel/service/surfaceCore";
+import { initOrTeardown } from "../../kernel/service/surfaceLifecycle";
 import type {
     RootElementManager,
     SelectionManager,
     ViewportManager,
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
-import { loadEngineStack } from "../engineStacks";
-import { normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
-import { ModeAttribute } from "../../mode/adapter/in/modeModules";
-import {
-    BPMN_TAB,
-    ElementTemplateEngineRefreshModule,
-    ElementTemplateOfferModule,
-    type ElementTemplateOffer,
-    PopupMenuModeFilter,
-    ReplaceTemplatesTabModule,
-} from "../../elementTemplates/adapter/in/elementTemplatesModules";
-import { DrilldownFitModule } from "../../kernel/service/viewState";
+import type { ModelerMode } from "../../kernel/domain/surfaceMode";
 import type {
     CoreModelerServices,
     CreateModelerOptions,
@@ -90,27 +52,12 @@ import type {
 } from "../../modeler/port/publicApi";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 
-// Structural slivers of non-core bpmn-js DI services — only the members this
-// facade calls, so the untyped `.get<any>` reaches are gone without adopting a
-// full didi service map (see docs/adr/dependencies.md#private-upstream-apis).
-interface TransactionBoundaryVisibilityService {
-    setVisible(visible: boolean): void;
-}
-interface ElementTemplatesLoaderService {
-    setTemplates(templates: object[]): void;
-}
-interface AlignToOriginService {
-    align(): void;
+interface OptionalLookup {
+    get<T>(name: string, strict: false): T | null;
 }
 
 // A surface built without the layout feature never formats, so nothing to unsubscribe.
 const NO_SUBSCRIPTION = (): void => undefined;
-
-const ModeUiModule = {
-    __init__: ["popupMenuModeFilter", "modeAttribute"],
-    popupMenuModeFilter: ["type", PopupMenuModeFilter],
-    modeAttribute: ["type", ModeAttribute],
-};
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -118,67 +65,101 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     colorTheme: "automatic",
 };
 
-const ALIGN_TO_ORIGIN_OPTIONS = {
-    alignOnSave: false,
-    offset: 150,
-    tolerance: 50,
-};
+function servicesOf(surface: ModalSurface): SurfaceServices {
+    return {
+        service: (name) => surface.getService(name),
+        optionalService: (name) =>
+            surface.getService<OptionalLookup>("injector").get(name, false) ?? undefined,
+    };
+}
+
+type WrapSurface = (surface: ModalSurface, options: CreateModelerOptions) => Promise<BpmnModeler>;
+
+// Assigned in the class's static block, so the factory reaches the private constructor while the
+// published declaration shows neither it nor the kernel's surface types.
+let wrapSurface: WrapSurface;
+
+/** Wraps the surface `createModeler` built; a failure while attaching destroys it. */
+export function bpmnModelerOver(
+    surface: ModalSurface,
+    options: CreateModelerOptions,
+): Promise<BpmnModeler> {
+    return wrapSurface(surface, options);
+}
 
 /**
  * An independent Camunda BPMN modeler with its own canvas and properties panel.
  * Create it with {@link createModeler}; accessors require a live instance.
  */
 export class BpmnModeler {
+    static {
+        wrapSurface = (surface, options) =>
+            initOrTeardown(
+                () => new BpmnModeler(surface, options),
+                (modeler) => modeler.attach(),
+            );
+    }
+
     private settings: BpmnModelerSetting = { ...DEFAULT_SETTINGS };
-
-    private engine: Engine | undefined = undefined;
-
-    private readonly core: SurfaceCore<Modeler>;
 
     private readonly reporter: SurfaceReporter;
 
     private readonly lintHandle: LintHandleMethods;
 
-    // Reset on every init() so a re-entry starts from a clean disposal ledger.
-    private store = new DisposableStore();
+    private readonly store = new DisposableStore();
 
     private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
 
-    // Kept on the facade so every bpmn-js instance init() builds starts with them.
-    private hiddenElementTemplates: readonly ElementTemplateRef[] = [];
-
-    /**
-     * @param container The canvas host element (bpmn-js `container`).
-     * @param options Per-instance config — see {@link CreateModelerOptions}.
-     * @param wiring The kernel's default modules and the clipboard modules, from composition.
-     */
-    constructor(
-        private readonly container: HTMLElement,
+    private constructor(
+        private readonly surface: ModalSurface,
         private readonly options: CreateModelerOptions,
-        private readonly wiring: PresetWiring,
     ) {
-        this.core = new SurfaceCore(container, [container, options.propertiesPanel.parent]);
         this.reporter = createReporter({ onWarning: options.onWarning, onError: options.onError });
-        this.lintHandle = createSurfaceLintHandle(this.core, this.reporter);
+        this.lintHandle = createSurfaceLintHandle(servicesOf(surface), this.reporter);
+    }
+
+    private attach(): void {
+        elementIdsOf(this.surface)?.configure({
+            ...elementIdSettingsOf(this.settings),
+            convention: lintElementIdConvention(this.options.linting),
+        });
+
+        // Subscribe before initial templates are supplied so their validation errors are observed.
+        const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
+        const templates = elementTemplatesOf(this.surface);
+        if (onElementTemplatesErrors && templates) {
+            this.store.add(templates.onErrors(onElementTemplatesErrors));
+        }
+
+        const onContentSaved = this.options.onContentSaved;
+        if (onContentSaved) {
+            this.deliverPendingContentSave = wireContentSaved({
+                store: this.store,
+                eventBus: this.surface.getService("eventBus"),
+                exportDiagram: () => this.exportDiagram(),
+                onContentSaved,
+                reporter: this.reporter,
+            });
+        }
     }
 
     /**
-     * Access the viewport manager after {@link init}.
+     * Access the viewport manager while the modeler lives.
      */
     get viewport(): ViewportManager {
-        return this.core.viewport;
+        return this.surface.viewport;
     }
 
     /**
-     * Access the selection manager after {@link init}.
+     * Access the selection manager while the modeler lives.
      */
     get selection(): SelectionManager {
-        return this.core.selection;
+        return this.surface.selection;
     }
 
-    /** Access the root element manager after {@link init}. */
+    /** Access the root element manager while the modeler lives. */
     get rootElement(): RootElementManager {
-        return this.core.rootElement;
+        return this.surface.rootElement;
     }
 
     /**
@@ -188,7 +169,7 @@ export class BpmnModeler {
      * {@link ViewState} for the plane/selection degradation rules.
      */
     captureViewState(): ViewState {
-        return this.core.captureViewState();
+        return this.surface.captureViewState();
     }
 
     /**
@@ -196,136 +177,7 @@ export class BpmnModeler {
      * and selection in the required root → viewport → selection order.
      */
     applyViewState(state: ViewState): void {
-        this.core.applyViewState(state);
-    }
-
-    /**
-     * @internal Loads the engine's module stack before constructing it.
-     * @throws {UnsupportedEngineError} If the engine string is not recognised.
-     */
-    async init(): Promise<void> {
-        const engine = this.options.engine;
-        this.store.dispose();
-        const store = new DisposableStore();
-        this.store = store;
-
-        const engineStack = await loadEngineStack(engine);
-        // destroy() or a re-entrant init() replaced the store while the stack loaded.
-        if (this.store !== store || store.isDisposed) {
-            return;
-        }
-
-        // Inject the panel root so script controls cannot target a sibling modeler's panel.
-        const propertiesPanelRootModule = {
-            propertiesPanelRoot: ["value", this.options.propertiesPanel.parent],
-        };
-        const commonModules = [
-            TranslateModule,
-            TokenSimulationBehaviorNamesModule,
-            ...buildLintModules(
-                this.options.linting,
-                { engine, mode: normalizeMode(this.options.mode) },
-                {
-                    onLintResults: this.options.onLintResults,
-                    onLintingToggled: this.options.onLintingToggled,
-                },
-            ),
-            ElementTemplateChooserModule,
-            AppendMenuModule,
-            createPopupMenuAnnotationsModule(engineStack.popupMenuAnnotations),
-            ReplaceTemplatesTabModule,
-            FlowNavigationModule,
-            createBpmnLayoutModule(),
-            ElementIdsModule,
-            propertiesPanelRootModule,
-            ModeFilterModule,
-            CustomGroupsModule,
-            // After the upstream panel, so its `debounceInput` is the flushable one.
-            FlushableDebounceInputModule,
-            ModeUiModule,
-            ElementTemplateOfferModule,
-            ElementTemplateEngineRefreshModule,
-            DrilldownFitModule,
-        ];
-        const capModules = capabilityModules(engine, this.options.capabilities);
-        const extra = (this.options.additionalModules as ModuleDeclaration[]) ?? [];
-
-        const modelerOptions = {
-            container: this.container,
-            propertiesPanel: {
-                ...engineStack.propertiesPanelDefaults,
-                parent: this.options.propertiesPanel.parent,
-                // Keep popups within this instance's theme scope instead of document.body.
-                feelPopupContainer: this.container,
-            },
-            popupMenu: { defaultTab: BPMN_TAB },
-            alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
-            moddleExtensions: { ...engineStack.moddleExtensions, ...this.options.moddleExtensions },
-            // The panel defaults to design if this config is absent.
-            propertiesPanelMode: normalizeMode(this.options.mode),
-        };
-
-        this.engine = engine;
-
-        const additionalModules = [
-            createSurfaceModeModule(normalizeMode(this.options.mode)),
-            this.core.rootsModule(),
-            ...this.wiring.defaultModules,
-            ...engineStack.upstreamModules,
-            ...commonModules,
-            ...engineStack.engineModules,
-            ...capModules,
-            ...this.wiring.clipboardModules,
-            ...extra,
-        ];
-        this.core.allocate(this.store, () =>
-            this.constructModeler(modelerOptions, additionalModules),
-        );
-
-        this.applyHiddenElementTemplates();
-        this.transactionBoundaryVisibility()?.setVisible(this.settings.showTransactionBoundaries);
-        elementIdsOf(this)?.configure({
-            ...elementIdSettingsOf(this.settings),
-            convention: lintElementIdConvention(this.options.linting),
-        });
-
-        // Subscribe before initial templates are supplied so their validation errors are observed.
-        const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
-        if (onElementTemplatesErrors) {
-            this.store.add(
-                subscribe(
-                    this.getModeler(),
-                    "elementTemplates.errors",
-                    (event: { errors?: unknown[] }) => {
-                        onElementTemplatesErrors(event.errors ?? []);
-                    },
-                ),
-            );
-        }
-
-        const onContentSaved = this.options.onContentSaved;
-        if (onContentSaved) {
-            this.deliverPendingContentSave = wireContentSaved({
-                store: this.store,
-                eventBus: this.core.service("eventBus"),
-                exportDiagram: () => this.exportDiagram(),
-                onContentSaved,
-                reporter: this.reporter,
-            });
-        }
-
-        markModeRoots(this.store, this.core.roots, this.getMode());
-        const onModeChanged = this.options.onModeChanged;
-        if (onModeChanged) {
-            this.store.add(subscribeModeChanged(this.core.service("eventBus"), onModeChanged));
-        }
-    }
-
-    private constructModeler(modelerOptions: object, additionalModules: unknown[]): Modeler {
-        return new Modeler({
-            ...modelerOptions,
-            additionalModules: additionalModules as ModuleDeclaration[],
-        });
+        this.surface.applyViewState(state);
     }
 
     /**
@@ -369,27 +221,27 @@ export class BpmnModeler {
      */
     destroy(): void {
         this.store.dispose();
-        this.core.releaseManagers();
+        this.surface.destroy();
     }
 
     /** @see BpmnModelerHandle.onCommandStackChanged */
     onCommandStackChanged(listener: () => void): () => void {
-        return subscribeCommandStackChanged(this.core, listener);
+        return this.surface.onCommandStackChanged(listener);
     }
 
     /** @see BpmnModelerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
-        return layoutOf(this)?.onFormatted(listener) ?? NO_SUBSCRIPTION;
+        return layoutOf(this.surface)?.onFormatted(listener) ?? NO_SUBSCRIPTION;
     }
 
     /** @see PendingInputHandle.hasPendingInput */
     hasPendingInput(): boolean {
-        return this.core.hasPendingInput();
+        return this.surface.hasPendingInput();
     }
 
     /** @see PendingInputHandle.flushPendingInput */
     flushPendingInput(): void {
-        this.core.flushPendingInput();
+        this.surface.flushPendingInput();
     }
 
     /** @internal See {@link PendingSaveHandle.flushContentSaved}. */
@@ -403,7 +255,7 @@ export class BpmnModeler {
      * for script IntelliSense — without round-tripping through XML.
      */
     getDefinitions(): ReturnType<Modeler["getDefinitions"]> {
-        return this.getModeler().getDefinitions();
+        return this.surface.getService<Modeler>("bpmnjs").getDefinitions();
     }
 
     /** @internal */
@@ -411,30 +263,25 @@ export class BpmnModeler {
         return collectInlineScriptTasks(this.getService("elementRegistry"));
     }
 
-    async newDiagram(): Promise<ImportXMLResult> {
-        const version = this.options.engineVersion ?? getLatestVersion(this.engine!);
-        const result = await this.getModeler().importXML(initialDiagram(this.engine!, version));
-        this.core.armInitialViewport();
-        return result;
+    newDiagram(): Promise<ImportXMLResult> {
+        return this.surface.newDiagram();
     }
 
-    async loadDiagram(bpmn: string): Promise<ImportXMLResult> {
-        const result = await importDiagram(this.getModeler(), bpmn);
-        this.core.armInitialViewport();
-        return result;
+    loadDiagram(bpmn: string): Promise<ImportXMLResult> {
+        return this.surface.loadDiagram(bpmn);
     }
 
     /** @see BpmnSurfaceHandle.reloadDiagram */
     reloadDiagram(xml: string): Promise<ImportXMLResult> {
-        return this.core.keepViewAcross(() => this.loadDiagram(xml));
+        return this.surface.reloadDiagram(xml);
     }
 
-    async exportDiagram(): Promise<string> {
-        return exportFormattedXml(this.getModeler());
+    exportDiagram(): Promise<string> {
+        return this.surface.exportDiagram();
     }
 
-    async getDiagramSvg(): Promise<string> {
-        return exportSvg(this.getModeler());
+    getDiagramSvg(): Promise<string> {
+        return this.surface.getDiagramSvg();
     }
 
     /**
@@ -443,7 +290,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.formatDiagram
      */
     async formatDiagram(): Promise<LayoutOutcome> {
-        return layoutOf(this)?.formatDiagram() ?? formatWithoutLayout();
+        return layoutOf(this.surface)?.formatDiagram() ?? formatWithoutLayout();
     }
 
     /**
@@ -452,45 +299,37 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.cleanupDiagram
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
-        return layoutOf(this)?.cleanupDiagram(options) ?? cleanupWithoutLayout();
+        return layoutOf(this.surface)?.cleanupDiagram(options) ?? cleanupWithoutLayout();
     }
 
     setElementTemplates(templates: object[]): void {
-        this.getModeler()
-            .get<ElementTemplatesLoaderService>("elementTemplatesLoader")
-            .setTemplates(templates);
+        elementTemplatesOf(this.surface)?.setTemplates(templates);
     }
 
     /** @see BpmnModelerHandle.setHiddenElementTemplates */
     setHiddenElementTemplates(refs: readonly ElementTemplateRef[]): void {
-        this.hiddenElementTemplates = [...refs];
-        this.applyHiddenElementTemplates();
-    }
-
-    private applyHiddenElementTemplates(): void {
-        this.getModeler()
-            .get<ElementTemplateOffer>("elementTemplateOffer")
-            .setHidden(this.hiddenElementTemplates);
+        elementTemplatesOf(this.surface)?.setHidden(refs);
     }
 
     setSettings(settings: Partial<BpmnModelerSetting> | undefined): void {
         if (!settings) {
             return;
         }
-        this.getModeler();
+        // Throws NoModelerError on a destroyed modeler before any setting is kept.
+        this.surface.getService("injector");
         this.settings = { ...this.settings, ...settings };
 
         // colorTheme stays inert here; the host controls theme through setTheme.
 
         if (settings.showTransactionBoundaries !== undefined) {
-            this.transactionBoundaryVisibility()?.setVisible(settings.showTransactionBoundaries);
+            transactionBoundariesOf(this.surface)?.setVisible(settings.showTransactionBoundaries);
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
-            appendMenuOf(this)?.setFavourites(settings.favouriteBpmnElements);
+            appendMenuOf(this.surface)?.setFavourites(settings.favouriteBpmnElements);
         }
 
-        elementIdsOf(this)?.configure(elementIdSettingsOf(settings));
+        elementIdsOf(this.surface)?.configure(elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
@@ -503,23 +342,23 @@ export class BpmnModeler {
         if (followName !== undefined) {
             this.setSettings({ elementIdsFollowName: followName });
         }
-        elementIdsOf(this)?.configure(options);
+        elementIdsOf(this.surface)?.configure(options);
     }
 
     /** @see BpmnModelerHandle.proposeElementIds */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
-        return elementIdsOf(this)?.propose(unchecked) ?? { rows: [] };
+        return elementIdsOf(this.surface)?.propose(unchecked) ?? { rows: [] };
     }
 
     /** @see BpmnModelerHandle.renameElementIds */
     renameElementIds(unchecked: readonly string[]): number {
-        return elementIdsOf(this)?.rename(unchecked) ?? 0;
+        return elementIdsOf(this.surface)?.rename(unchecked) ?? 0;
     }
 
     /** @internal */
     alignElementsToOrigin(): void {
         if (this.settings.alignToOrigin) {
-            this.getModeler().get<AlignToOriginService>("alignToOrigin").align();
+            alignToOriginOf(this.surface)?.align();
         }
     }
 
@@ -537,7 +376,7 @@ export class BpmnModeler {
     getService<K extends keyof CoreModelerServices>(name: K): CoreModelerServices[K];
     getService<T = unknown>(name: string): T;
     getService<T = unknown>(name: string): T {
-        return this.core.service<T>(name);
+        return this.surface.getService<T>(name);
     }
 
     /** @internal */
@@ -587,7 +426,7 @@ export class BpmnModeler {
      * the adapter.
      */
     setTheme(theme: ThemeMode): void {
-        this.core.setTheme(this.store, theme);
+        this.surface.setTheme(theme);
     }
 
     /**
@@ -596,27 +435,16 @@ export class BpmnModeler {
      * attribute and lint have followed it.
      */
     setMode(mode: ModelerMode): void {
-        this.surfaceMode().set(mode);
+        this.surface.setMode(mode);
     }
 
     /**
      * The current design/implement mode, held by the surface's `surfaceMode`.
      *
-     * @throws {NoModelerError} If {@link init} has not been called.
+     * @throws {NoModelerError} If the modeler was destroyed.
      */
     getMode(): ModelerMode {
-        return this.surfaceMode().get();
-    }
-
-    private surfaceMode(): KernelSurfaceMode {
-        return this.core.service<KernelSurfaceMode>(SURFACE_MODE_SERVICE);
-    }
-
-    /** Registered by the Camunda 7 stack only. */
-    private transactionBoundaryVisibility(): TransactionBoundaryVisibilityService | undefined {
-        return this.core.optionalService<TransactionBoundaryVisibilityService>(
-            "transactionBoundaryVisibility",
-        );
+        return this.surface.getMode();
     }
 
     /** @internal A missing code-link capability must tolerate host status pushes. */
@@ -625,13 +453,6 @@ export class BpmnModeler {
     }
 
     private injector(): SurfaceInjector {
-        return this.core.service<SurfaceInjector>("injector");
-    }
-
-    /**
-     * @throws {NoModelerError} If {@link init} has not been called.
-     */
-    private getModeler(): Modeler {
-        return this.core.instance;
+        return this.surface.getService<SurfaceInjector>("injector");
     }
 }

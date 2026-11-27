@@ -79,7 +79,7 @@ function createDefinitionSearchRequests(host: HostChannel): {
  * the host's answers come back through {@link ProtocolCapabilities.handlers}.
  *
  * `scripting` is always populated even though its DI cluster is C7-only;
- * `capabilityModules` gates the registration, so the surplus port on C8 is inert.
+ * The modeler preset gates the registration, so the surplus port on C8 is inert.
  */
 export function createProtocolCapabilities(
     host: HostChannel,

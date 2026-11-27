@@ -1,11 +1,13 @@
+import Modeler from "bpmn-js/lib/Modeler";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
-import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
-import { DEFAULT_THEME_MODE } from "@miragon/bpmn-modeler-types";
-import type { CreateModelerOptions } from "../modeler/port/publicApi";
-import { BpmnModeler } from "./presets/bpmnModeler";
-import { clipboardModulesOf } from "../clipboard/adapter/in/clipboardFeature";
+
+import { moddlePrefixUnderTwoKeys } from "../kernel/domain/featureMerge";
+import { normalizeMode } from "../kernel/domain/surfaceMode";
 import { initOrTeardown } from "../kernel/service/surfaceLifecycle";
-import { kernelDefaultModules } from "./kernelDefaults";
+import type { CreateModelerOptions } from "../modeler/port/publicApi";
+import { createSurface } from "./createSurface";
+import { type BpmnModeler, bpmnModelerOver } from "./presets/bpmnModeler";
+import { modelerFeatures } from "./presets/modelerFeatures";
 
 /**
  * Creates an independent modeler in `container` with its own properties panel.
@@ -15,28 +17,34 @@ export async function createModeler(
     container: HTMLElement,
     options: CreateModelerOptions,
 ): Promise<BpmnModeler> {
-    // Register missing translations before construction can render labels.
-    i18n.extend(i18nExtras);
-
+    // Awaited here, so a failed engine chunk rejects with its own error, not the kernel's wrapper.
+    const features = await Promise.all(modelerFeatures(container, options));
+    // The kernel would keep the later package; plugins rely on moddle's rejection to fall back.
+    const prefix = moddlePrefixUnderTwoKeys(features);
+    if (prefix !== undefined) {
+        throw new Error(`package with prefix <${prefix}> already defined`);
+    }
+    const surface = await createSurface(container, {
+        base: Modeler,
+        features,
+        mode: normalizeMode(options.mode),
+        extraRoots: [options.propertiesPanel.parent],
+        theme: options.theme,
+        handleGlobalEscape: options.handleGlobalEscape,
+        onWarning: options.onWarning,
+        onError: options.onError,
+        onModeChanged: options.onModeChanged,
+    });
+    const modeler = await bpmnModelerOver(surface, options);
     return initOrTeardown(
-        () =>
-            new BpmnModeler(container, options, {
-                defaultModules: kernelDefaultModules({
-                    handleGlobalEscape: options.handleGlobalEscape,
-                }),
-                clipboardModules: clipboardModulesOf(options.clipboard),
-            }),
-        async (modeler) => {
-            await modeler.init();
-
+        () => modeler,
+        (built) => {
             if (options.elementTemplates) {
-                modeler.setElementTemplates(options.elementTemplates);
+                built.setElementTemplates(options.elementTemplates);
             }
             if (options.settings) {
-                modeler.setSettings(options.settings);
+                built.setSettings(options.settings);
             }
-            // Apply the default on the first frame, even when the caller omitted a theme.
-            modeler.setTheme(options.theme ?? DEFAULT_THEME_MODE);
             // Locale is page-global; an omitted option must preserve the host's existing language.
             if (options.locale) {
                 i18n.setLanguage(options.locale as SupportedLocale);

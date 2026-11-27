@@ -14,7 +14,7 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({ i18n: { setLanguage: mocks.setLan
 vi.mock("bpmn-js/lib/Modeler", () => ({ default: class Modeler {} }));
 vi.mock("./createSurface", () => ({ createSurface: mocks.createSurface }));
 vi.mock("./presets/modelerFeatures", () => ({ modelerFeatures: mocks.modelerFeatures }));
-vi.mock("./presets/bpmnModeler", () => ({ BpmnModeler: { over: mocks.over } }));
+vi.mock("./presets/bpmnModeler", () => ({ bpmnModelerOver: mocks.over }));
 
 import Modeler from "bpmn-js/lib/Modeler";
 import { createModeler } from "./createModeler";
@@ -85,7 +85,9 @@ describe("createModeler", () => {
             base: Modeler,
             features: [engineFeature, callerFeature],
             mode: "design",
-            extraRoots: [(opts as { propertiesPanel: { parent: HTMLElement } }).propertiesPanel.parent],
+            extraRoots: [
+                (opts as { propertiesPanel: { parent: HTMLElement } }).propertiesPanel.parent,
+            ],
             theme: "dark",
             handleGlobalEscape: true,
             onWarning,
@@ -185,9 +187,7 @@ describe("createModeler", () => {
             throw new Error("teardown failure");
         };
 
-        await expect(createModeler(document.createElement("main"), options())).rejects.toBe(
-            error,
-        );
+        await expect(createModeler(document.createElement("main"), options())).rejects.toBe(error);
         expect(modeler.destroy).toHaveBeenCalledOnce();
     });
 });

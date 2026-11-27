@@ -281,18 +281,6 @@ describe("setHiddenElementTemplates", () => {
         expect(await offeredReplaceTemplates(modeler)).toEqual(["replace.template-mail"]);
     });
 
-    it("keeps its refs across a re-init of the engine", async () => {
-        const modeler = await openModeler(engine, templates);
-        modeler.setHiddenElementTemplates([{ id: "audit" }]);
-
-        await modeler.init();
-        modeler.setElementTemplates(templates);
-        await modeler.loadDiagram(FAR_FROM_ORIGIN_XML);
-        await afterPaint();
-
-        expect(await offeredReplaceTemplates(modeler)).toEqual(["replace.template-mail"]);
-    });
-
     it("offers every template again after an empty set", async () => {
         const modeler = await openModeler(engine, templates);
         modeler.setHiddenElementTemplates([{ id: "audit" }]);

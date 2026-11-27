@@ -15,7 +15,7 @@ const VERIFICATION_SERVICE =
     "libs/modeler-core/src/deployment/service/DeploymentVerificationService.ts";
 const DEPLOYMENT_PROMPTS = "libs/modeler-core/src/deployment/domain/deploymentPrompts.ts";
 const DEPLOYMENT_SERVICE = "libs/modeler-core/src/deployment/service/DeploymentService.ts";
-const CAPABILITY_MODULES = "packages/bpmn-modeler/src/composition/capabilityModules.ts";
+const MODELER_FEATURES = "packages/bpmn-modeler/src/composition/presets/modelerFeatures.ts";
 
 // The first lint builds the type program of the whole repository.
 const FIRST_PROGRAM_BUILD_MS = 60_000;
@@ -114,7 +114,7 @@ export const guardedIsC8 = "c8" == guardedEngine;`,
         },
         {
             comparison: "a type parameter constrained to an engine",
-            file: CAPABILITY_MODULES,
+            file: MODELER_FEATURES,
             snippet: `export const guardedIsC8 = <E extends ${ENGINE}>(engine: E) => engine === "c8";`,
             errors: 1,
         },

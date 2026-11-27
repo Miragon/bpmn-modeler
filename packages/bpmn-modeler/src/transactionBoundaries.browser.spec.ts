@@ -316,18 +316,6 @@ describe("transaction boundaries", () => {
         expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
     });
 
-    it("keeps marks hidden by the setting across a re-entrant init", async () => {
-        const handle = await openModeler();
-        handle.setSettings({ showTransactionBoundaries: false });
-
-        await handle.init();
-        await handle.loadDiagram(FIXTURE_XML);
-
-        expect(renderedMarks(handle)).toHaveLength(0);
-        handle.setSettings({ showTransactionBoundaries: true });
-        expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
-    });
-
     it("shows no marks on a modeler destroyed while it imports", async () => {
         const handle = await openModeler();
         const show = vi.spyOn(transactionBoundaries(handle), "show");

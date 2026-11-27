@@ -122,7 +122,7 @@ export class BpmnDesigner {
     async init(): Promise<void> {
         const extra = (this.options.additionalModules as unknown[]) ?? [];
 
-        // capabilityModules imports engine features and CSS, which must stay out of the design entry.
+        // The modeler's capability features carry engine code and CSS the design entry must not.
         const { modelNavigation, definitionSearch } = this.options.capabilities ?? {};
         const capModules = [
             ...(modelNavigation ? [createModelNavigationModule(modelNavigation)] : []),
