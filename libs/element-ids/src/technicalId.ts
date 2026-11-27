@@ -56,7 +56,7 @@ const CASE_SPELLINGS: Readonly<Record<string, (parts: readonly string[]) => stri
     "any": camelCase,
 };
 
-/** The rule's cases this spells; technicalId.spec holds each to a case the rule knows. */
+/** The labels of the rule's cases this spells. */
 export const SPELLED_CASES: readonly string[] = Object.keys(CASE_SPELLINGS);
 
 const COUNTER_SEPARATORS: Readonly<Record<string, string>> = {

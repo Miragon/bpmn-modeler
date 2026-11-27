@@ -8,16 +8,9 @@ import {
 
 import { elementIdConventionOptionsOf } from "./elementIdConvention";
 
-// `naming` exports QualifierMode only as a value; the constructor's options carry the type.
-type RuleQualifierMode = NonNullable<
-    NonNullable<
-        ConstructorParameters<typeof naming.ElementIdConvention>[0]
-    >["eventDefinitionQualifier"]
->;
-
 describe("elementIdConventionOptionsOf", () => {
     it("knows every qualifier mode the rule takes, and no other", () => {
-        expectTypeOf<EventDefinitionQualifierMode>().toEqualTypeOf<RuleQualifierMode>();
+        expectTypeOf<EventDefinitionQualifierMode>().toEqualTypeOf<naming.QualifierMode>();
     });
 
     it.each(EVENT_DEFINITION_QUALIFIER_MODES)("keeps the qualifier mode %s", (mode) => {

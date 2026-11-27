@@ -8,17 +8,11 @@ import { SPELLED_CASES, technicalIdFor } from "./technicalId";
 const element = (type: string, attrs: Record<string, unknown> = {}) => moddle.create(type, attrs);
 const miragon = new naming.ElementIdConvention();
 
-type ConventionConfig = ConstructorParameters<typeof naming.ElementIdConvention>[0];
-
 // The rule bpmn-js-properties-panel applies to an ID typed into the panel.
 const VALID_ID = /^[a-z_][\w-.]*$/i;
 
 /** What the lint rule itself says about an element carrying `id`. */
-function violation(
-    convention: InstanceType<typeof naming.ElementIdConvention>,
-    node: object,
-    id: string,
-) {
+function violation(convention: naming.ElementIdConvention, node: object, id: string) {
     return convention.violationOf(Object.assign(Object.create(node), { id }));
 }
 
@@ -63,7 +57,7 @@ describe("technicalIdFor", () => {
         );
     });
 
-    it.each<[ConventionConfig, string, string, string]>([
+    it.each<[naming.ElementIdNamingConfig, string, string, string]>([
         [{ case: "PascalCase" }, "Check order", "bpmn:ServiceTask", "serviceTask_CheckOrder"],
         [{ case: "snake_case" }, "Check orderID", "bpmn:ServiceTask", "serviceTask_check_order_id"],
         [{ case: "kebab-case" }, "Check order", "bpmn:ServiceTask", "serviceTask_check-order"],
@@ -110,12 +104,15 @@ describe("technicalIdFor", () => {
         expect(technicalIdFor(name, element("bpmn:Task"), miragon)).toBeUndefined();
     });
 
-    // An unknown name resolves to PascalCase, so a case the rule renamed or dropped fails here.
-    it.each(SPELLED_CASES)("spells %s, a case the rule knows by that name", (label) => {
-        expect(naming.resolveCase(label).label).toBe(label);
+    // Spellings are looked up by the case's label, so a case the rule adds, renames or drops
+    // fails here; an unspelled case would silently fall back to camelCase.
+    it("spells exactly the cases the rule knows", () => {
+        const ruleLabels = naming.CASE_NAMES.map((name) => naming.resolveCase(name).label);
+
+        expect([...SPELLED_CASES].sort()).toEqual(ruleLabels.sort());
     });
 
-    it.each(SPELLED_CASES)(
+    it.each(naming.CASE_NAMES)(
         "builds only IDs the properties panel and the rule accept in %s",
         (namingCase) => {
             const convention = new naming.ElementIdConvention({ case: namingCase });
