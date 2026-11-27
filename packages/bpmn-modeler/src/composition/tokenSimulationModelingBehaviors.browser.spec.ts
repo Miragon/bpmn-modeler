@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import SimulationSupportModule from "bpmn-js-token-simulation/lib/simulation-support";
 
 import { createDesigner } from "./createDesigner";
 import { createModeler } from "./createModeler";
 import {
     EVENT_BASED_GATEWAY_TARGETS_XML,
     MESSAGE_FLOWS_BETWEEN_POOLS_XML,
+    SIMULATED_GATEWAY_AND_BOUNDARY_XML,
+    SIMULATED_MESSAGE_FLOW_XML,
     tagAsCamunda7,
 } from "../__fixtures__/bpmnXml";
 import {
@@ -17,7 +20,7 @@ import {
 /**
  * bpmn-js's event-based gateway, boundary event and message flow modeling behaviours run on
  * every editable preset, although token simulation provides simulator behaviours under the
- * same DI names.
+ * same DI names, and token simulation still simulates those elements.
  */
 
 interface DiagramElement {
@@ -48,30 +51,51 @@ interface BpmnReplace {
     ): DiagramElement;
 }
 
+interface SimulationSupport {
+    toggleSimulation(active: boolean): void;
+    getElementTrigger(id: string): unknown;
+    triggerElement(id: string): void;
+    elementEnter(id: string): Promise<unknown>;
+    getHistory(): string[];
+}
+
+interface Animation {
+    setAnimationSpeed(speed: number): void;
+    animate(connection: DiagramElement, scope: unknown, done: () => void): void;
+}
+
 interface EditableSurfaceDescriptor {
     name: string;
     tagDiagram(xml: string): string;
-    create(mount: SurfaceMount): Promise<EditableSurface>;
+    create(mount: SurfaceMount, additionalModules?: unknown[]): Promise<EditableSurface>;
 }
 
 const EDITABLE_SURFACES: EditableSurfaceDescriptor[] = [
     {
         name: "C7 modeler",
         tagDiagram: tagAsCamunda7,
-        create: ({ container, panel }) =>
-            createModeler(container, { engine: "c7", propertiesPanel: { parent: panel } }),
+        create: ({ container, panel }, additionalModules) =>
+            createModeler(container, {
+                engine: "c7",
+                propertiesPanel: { parent: panel },
+                additionalModules,
+            }),
     },
     {
         name: "C8 modeler",
         tagDiagram: (xml) => xml,
-        create: ({ container, panel }) =>
-            createModeler(container, { engine: "c8", propertiesPanel: { parent: panel } }),
+        create: ({ container, panel }, additionalModules) =>
+            createModeler(container, {
+                engine: "c8",
+                propertiesPanel: { parent: panel },
+                additionalModules,
+            }),
     },
     {
         name: "designer",
         tagDiagram: (xml) => xml,
-        create: ({ container, panel }) =>
-            createDesigner(container, { propertiesPanel: { parent: panel } }),
+        create: ({ container, panel }, additionalModules) =>
+            createDesigner(container, { propertiesPanel: { parent: panel }, additionalModules }),
     },
 ];
 
@@ -105,6 +129,31 @@ function replace(
     return surface
         .getService<BpmnReplace>("bpmnReplace")
         .replaceElement(elementOf(surface, id), target);
+}
+
+// Short, so a simulation that never gets there fails with a readable message.
+const SIMULATION_STEP_TIMEOUT = 2000;
+
+function within<T>(promise: Promise<T>, what: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+            setTimeout(
+                () => reject(new Error(`the simulation never reached ${what}`)),
+                SIMULATION_STEP_TIMEOUT,
+            ),
+        ),
+    ]);
+}
+
+async function trigger(simulation: SimulationSupport, id: string): Promise<void> {
+    await expect
+        .poll(() => simulation.getElementTrigger(id), {
+            timeout: SIMULATION_STEP_TIMEOUT,
+            message: `no trigger for <${id}>`,
+        })
+        .toBeTruthy();
+    simulation.triggerElement(id);
 }
 
 describe.each(EDITABLE_SURFACES)(
@@ -185,3 +234,64 @@ describe.each(EDITABLE_SURFACES)(
         });
     },
 );
+
+describe.each(EDITABLE_SURFACES)("$name token simulation", (descriptor) => {
+    let surface: EditableSurface | undefined;
+
+    async function simulate(xml: string): Promise<EditableSurface> {
+        surface = await descriptor.create(mountWithPanel(), [SimulationSupportModule]);
+        await surface.loadDiagram(descriptor.tagDiagram(xml));
+        surface.getService<Animation>("animation").setAnimationSpeed(50);
+        surface.getService<SimulationSupport>("simulationSupport").toggleSimulation(true);
+        surface.getService<{ start(): void }>("simulationTrace").start();
+        return surface;
+    }
+
+    afterEach(async () => {
+        await afterPaint();
+        surface?.destroy();
+        surface = undefined;
+        removeMounts();
+    });
+
+    it("follows the triggered event of an event-based gateway", async () => {
+        const handle = await simulate(SIMULATED_GATEWAY_AND_BOUNDARY_XML);
+        const simulation = handle.getService<SimulationSupport>("simulationSupport");
+
+        await trigger(simulation, "Start_G");
+        const messagePathEnded = simulation.elementEnter("End_M");
+        await trigger(simulation, "Catch_M");
+        await within(messagePathEnded, "End_M");
+
+        expect(simulation.getHistory()).toContain("End_M");
+        expect(simulation.getHistory()).not.toContain("End_T");
+    });
+
+    it("leaves a task through its triggered boundary event", async () => {
+        const handle = await simulate(SIMULATED_GATEWAY_AND_BOUNDARY_XML);
+        const simulation = handle.getService<SimulationSupport>("simulationSupport");
+        handle
+            .getService<{ waitAtElement(element: DiagramElement): void }>("simulator")
+            .waitAtElement(elementOf(handle, "Task_W"));
+
+        await trigger(simulation, "Start_W");
+        const boundaryPathEnded = simulation.elementEnter("End_B");
+        await trigger(simulation, "Boundary_W");
+        await within(boundaryPathEnded, "End_B");
+
+        expect(simulation.getHistory()).not.toContain("End_W");
+    });
+
+    it("animates a message flow and starts the process it targets", async () => {
+        const handle = await simulate(SIMULATED_MESSAGE_FLOW_XML);
+        const simulation = handle.getService<SimulationSupport>("simulationSupport");
+        const animate = vi.spyOn(handle.getService<Animation>("animation"), "animate");
+
+        const receivingProcessEnded = simulation.elementEnter("End_B");
+        await trigger(simulation, "Start_A");
+        await within(receivingProcessEnded, "End_B");
+
+        const animatedIds = animate.mock.calls.map(([connection]) => connection.id);
+        expect(animatedIds).toContain("MessageFlow_1");
+    });
+});

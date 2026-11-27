@@ -39,6 +39,19 @@ Callers use narrow public concepts, never private member names.
 | Properties-panel `engineGroupData` | Copied engine group/entry IDs; real providers in Chromium and a template-prefix test in the library |
 | Lint `lintingInternals` | The vendor's private formatting and overlay helpers; the upstream-shape test |
 
+Token simulation reuses three DI names of bpmn-js's modeling behaviours
+(`boundaryEventBehavior`, `eventBasedGatewayBehavior`, `messageFlowBehavior`), so
+bpmn-js's interceptors for them never run, and no release fixes it
+(bpmn-io/bpmn-js-token-simulation#139). The package's
+`tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule.ts` depends on token
+simulation, so it loads after it wherever a preset lists it, gives bpmn-js its names back
+and builds the simulator's behaviours under `simulator*` names upstream does not use. It reads no private member, so it sits outside
+`upstreamInternals/`, but it assumes token simulation's behaviour index modules and a
+simulator that finds a behaviour by element type, not DI name. The
+[behaviour and simulation specs](../../packages/bpmn-modeler/src/composition/tokenSimulationModelingBehaviors.browser.spec.ts)
+fail where a bump breaks either side, and the preset pins show the providers; drop the
+module once upstream stops reusing the names.
+
 - The [package architecture tests](../../packages/bpmn-modeler/src/architecture.spec.ts)
   scan the package and inlined libraries and reject a private-member reach outside
   an `upstreamInternals/` folder (the vendored panel fork excepted). They read the

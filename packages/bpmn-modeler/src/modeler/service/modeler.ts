@@ -47,6 +47,7 @@ import {
     createPopupMenuAnnotationsModule,
     ReplaceTemplatesTabModule,
 } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { capabilityModules } from "../../composition/capabilityModules";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
@@ -230,6 +231,7 @@ export class BpmnModeler {
         const commonModules = [
             TranslateModule,
             TokenSimulationModule,
+            TokenSimulationBehaviorNamesModule,
             ...buildLintModules(
                 this.options.linting,
                 { engine, mode: normalizeMode(this.options.mode) },

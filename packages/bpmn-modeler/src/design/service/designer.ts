@@ -27,6 +27,7 @@ import type {
 import type { ViewState } from "../../kernel/domain/viewState";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
 import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
@@ -180,6 +181,7 @@ export class BpmnDesigner {
                 ElementIdsModule,
                 MinimapModule,
                 TokenSimulationModule,
+                TokenSimulationBehaviorNamesModule,
                 // Design never enabled linting implicitly, so omission needs no migration notice.
                 ...buildLintModules(
                     this.options.linting,

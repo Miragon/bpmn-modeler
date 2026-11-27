@@ -219,8 +219,8 @@ needs too, the mode type and the `surface.mode.changed` event name, lives in
 because it reads the platform with the engine detection beside it
 (`executionPlatformAttributeNames`, `MODELER_NAMESPACE_URI`). The features (`modeler`,
 `design`, `viewer`, `diff`, `mode`, `modeSession`, `bpmnlint`, `clipboard`,
-`elementTemplateOffer`, `popupMenuAnnotations`, `plugins`, `templatePreview`) have role folders
-inside; diagram-js and bpmn-js modules and DOM UI are `adapter/in/`, and a feature's factory that
+`elementTemplateOffer`, `popupMenuAnnotations`, `plugins`, `templatePreview`, `tokenSimulation`)
+have role folders inside; diagram-js and bpmn-js modules and DOM UI are `adapter/in/`, and a feature's factory that
 returns a `BpmnFeature` (`clipboard(bridge)`) sits there too. `composition/` holds `createSurface`,
 the kernel's default modules, the presets `createModeler`, `createDesigner` and `createViewer`, the
 module lists and the engine stacks.

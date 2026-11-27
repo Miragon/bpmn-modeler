@@ -144,6 +144,7 @@ toggleMode=type(ToggleMode) init[toggleMode]
 tokenSimulationEditorActions=type(EditorActions) init[tokenSimulationEditorActions]
 tokenSimulationKeyboardBindings=type(KeyboardBindings) init[tokenSimulationKeyboardBindings]
 depends[[…, tokenSimulationPalette], canvasLock, disableModeling, toggleMode, tokenSimulationEditorActions, tokenSimulationKeyboardBindings]
+simulatorBoundaryEventBehavior=type(BoundaryEventBehavior) simulatorEventBasedGatewayBehavior=type(EventBasedGatewayBehavior) simulatorMessageFlowBehavior=type(AnimatedMessageFlowBehavior) boundaryEventBehavior=type(BoundaryEventBehavior) eventBasedGatewayBehavior=type(EventBasedGatewayBehavior) messageFlowBehavior=type(MessageFlowBehavior) init[simulatorBoundaryEventBehavior, simulatorEventBasedGatewayBehavior, simulatorMessageFlowBehavior]
 nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
 
 ## providers (by DI name)
@@ -170,7 +171,7 @@ bendpointMove: type(BendpointMove)
 bendpointMovePreview: type(BendpointMovePreview)
 bendpointSnapping: type(BendpointSnapping)
 bendpoints: type(Bendpoints)
-boundaryEventBehavior: type(BoundaryEventBehavior) @startEventBehavior ×2 over type(BoundaryEventBehavior) @adaptiveLabelPositioningBehavior
+boundaryEventBehavior: type(BoundaryEventBehavior) @simulatorBoundaryEventBehavior ×3 over type(BoundaryEventBehavior) @startEventBehavior, type(BoundaryEventBehavior) @adaptiveLabelPositioningBehavior
 bpmnAlignElements: type(BpmnAlignElements)
 bpmnAutoPlace: type(AutoPlace)
 bpmnAutoResize: type(BpmnAutoResize)
@@ -252,7 +253,7 @@ elementNotifications: type(ElementNotifications)
 elementRegistry: type(ElementRegistry)
 elementSupport: type(ElementSupport)
 endEventBehavior: type(EndEventBehavior)
-eventBasedGatewayBehavior: type(EventBasedGatewayBehavior) @startEventBehavior ×2 over type(EventBasedGatewayBehavior) @adaptiveLabelPositioningBehavior
+eventBasedGatewayBehavior: type(EventBasedGatewayBehavior) @simulatorBoundaryEventBehavior ×3 over type(EventBasedGatewayBehavior) @startEventBehavior, type(EventBasedGatewayBehavior) @adaptiveLabelPositioningBehavior
 eventBehaviors: type(EventBehaviors)
 eventBus: type(EventBus)
 exclusiveGatewayBehavior: type(ExclusiveGatewayBehavior)
@@ -301,7 +302,7 @@ layoutPaletteProvider: type(LayoutPaletteProvider)
 layouter: type(BpmnLayouter)
 linkNavigation: type(LinkNavigation)
 log: type(Log)
-messageFlowBehavior: type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior ×3 over type(MessageFlowBehavior) @startEventBehavior, type(MessageFlowBehavior) @adaptiveLabelPositioningBehavior
+messageFlowBehavior: type(MessageFlowBehavior) @simulatorBoundaryEventBehavior ×4 over type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior, type(MessageFlowBehavior) @startEventBehavior, type(MessageFlowBehavior) @adaptiveLabelPositioningBehavior
 minimap: type(Minimap)
 moddle: value(Moddle)
 moddleCopy: type(ModdleCopy)
@@ -367,6 +368,9 @@ showScopes: type(ShowScopes)
 simulationState: type(SimulationState)
 simulationStyles: type(SimulationStyles)
 simulator: type(Simulator)
+simulatorBoundaryEventBehavior: type(BoundaryEventBehavior)
+simulatorEventBasedGatewayBehavior: type(EventBasedGatewayBehavior)
+simulatorMessageFlowBehavior: type(AnimatedMessageFlowBehavior)
 snapping: type(Snapping)
 spaceTool: type(BpmnSpaceTool) @spaceTool ×2 over type(SpaceTool) @spaceTool
 spaceToolBehavior: type(SpaceToolBehavior)
@@ -607,6 +611,9 @@ disableModeling
 toggleMode
 tokenSimulationEditorActions
 tokenSimulationKeyboardBindings
+simulatorBoundaryEventBehavior
+simulatorEventBasedGatewayBehavior @simulatorBoundaryEventBehavior
+simulatorMessageFlowBehavior @simulatorBoundaryEventBehavior
 nativeCopyPaste
 
 ## config (by key path, without `modules` and `moddleExtensions`)
