@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.28.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.28.0...vscode-v1.28.1) (2026-11-27)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** restore the modeling behaviours token simulation replaces ([#2828](https://github.com/Miragon/bpmn-modeler/issues/2828)) [sync 5b55e74] ([657801a](https://github.com/Miragon/bpmn-modeler/commit/657801a65b5110f95d4fc8767e18de6c6e4853ed))
+* **deps:** bump bpmnlint to 12.2.0 and Miragon rules to 0.25.0 ([#2832](https://github.com/Miragon/bpmn-modeler/issues/2832)) [sync b2ef03d] ([3486190](https://github.com/Miragon/bpmn-modeler/commit/34861903f2fa38c5cf463eee6cc87feb5f8ec03f))
+
 ## [1.28.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.27.0...vscode-v1.28.0) (2026-11-24)
 
 
