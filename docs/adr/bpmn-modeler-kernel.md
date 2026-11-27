@@ -84,7 +84,7 @@ nothing.
 
 `createModeler` is a preset in `composition/`: it awaits `modelerFeatures` (the feature list,
 in `composition/presets/`), calls `createSurface({ base: Modeler, features, mode, extraRoots:
-[panel parent], … })` and wraps the surface in the `@internal` `BpmnModeler`
+[panel parent], … })` and wraps the surface in `BpmnModeler`
 (`composition/presets/bpmnModeler.ts`). Every `BpmnModeler` method delegates to the surface or an
 accessor; the settings fan-out stays in the facade, because the kernel keeps no settings bag.
 Options become features, and `additionalModules`/`moddleExtensions` one `caller` feature at the
@@ -95,12 +95,17 @@ end. Plugins still arrive as those two options until #2802 S8. Choices and their
   that registers a value adds a module line, so the facade wires `onErrors` and the ID settings
   through the accessors after construction instead, and the module list stays as before. The cost
   is a facade step between construction and the first diagram.
+- **The constructor stays public in the types.** Its 1.x signature (container, options, an opaque
+  third argument) still compiles for `new` and `extends`, so the switch needs no major release. It
+  throws unless it receives the module-private surface handoff from `createModeler`, which keeps
+  the kernel's surface types out of `index.d.ts`. The cost is a runtime error where 1.x returned
+  an instance that never initialised.
 - **The preset awaits the features itself**, so a failed engine chunk rejects with its own error
   rather than the kernel's "feature #n failed to load". No handle exists yet, so no destroy guard
   is lost; the cost is that this preset skips the kernel's wrapping.
 - **One moddle prefix under two keys still fails.** The kernel merges moddle by prefix and would
   keep the later package; moddle itself rejects the pair, and a plugin build relies on that throw
-  to fall back without its plugins. `moddlePrefixUnderTwoKeys` (in the merge's domain) keeps the
+  to fall back without its plugins. `moddlePrefixUnderTwoKeys` (beside `createModeler`) keeps the
   rejection until plugins are features (#2802 S8). A caller that lists another prefix under the
   engine's key keeps both packages, where bpmn-js kept only the caller's.
 - **The caller feature is a built-in**, so it meets the built-in rules: providing `surfaceRoots` or

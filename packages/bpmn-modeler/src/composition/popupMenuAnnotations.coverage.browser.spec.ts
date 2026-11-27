@@ -16,10 +16,10 @@ import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     C7_POPUP_MENU_ANNOTATIONS,
     C8_POPUP_MENU_ANNOTATIONS,
-} from "../../../engines/domain/popupMenuAnnotationOverrides";
-import { createPopupMenuAnnotationsModule } from "./popupMenuAnnotationsModule";
-import type { PopupMenuAnnotations } from "../../domain/popupMenuAnnotations";
-import type { PopupMenuAnnotationOverrides } from "../../../kernel/domain/popupMenus";
+} from "../engines/domain/popupMenuAnnotationOverrides";
+import { createPopupMenuAnnotationsModule } from "../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import type { PopupMenuAnnotations } from "../popupMenuAnnotations/domain/popupMenuAnnotations";
+import type { PopupMenuAnnotationOverrides } from "../kernel/domain/popupMenus";
 
 // bpmn-js and bpmn-js-create-append-anything are the source of the entries we annotate, so a
 // bump that adds an element fails here until it is described.

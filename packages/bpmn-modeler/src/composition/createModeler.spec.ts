@@ -94,7 +94,7 @@ describe("createModeler", () => {
             onError,
             onModeChanged,
         });
-        expect(mocks.over).toHaveBeenCalledWith(SURFACE, opts);
+        expect(mocks.over).toHaveBeenCalledWith(container, SURFACE, opts);
     });
 
     it("defaults to implement mode", async () => {

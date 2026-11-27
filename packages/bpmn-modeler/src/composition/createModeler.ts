@@ -1,11 +1,11 @@
 import Modeler from "bpmn-js/lib/Modeler";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
-import { moddlePrefixUnderTwoKeys } from "../kernel/domain/featureMerge";
 import { normalizeMode } from "../kernel/domain/surfaceMode";
 import { initOrTeardown } from "../kernel/service/surfaceLifecycle";
 import type { CreateModelerOptions } from "../modeler/port/publicApi";
 import { createSurface } from "./createSurface";
+import { moddlePrefixUnderTwoKeys } from "./moddlePrefixUnderTwoKeys";
 import { type BpmnModeler, bpmnModelerOver } from "./presets/bpmnModeler";
 import { modelerFeatures } from "./presets/modelerFeatures";
 
@@ -35,7 +35,7 @@ export async function createModeler(
         onError: options.onError,
         onModeChanged: options.onModeChanged,
     });
-    const modeler = await bpmnModelerOver(surface, options);
+    const modeler = await bpmnModelerOver(container, surface, options);
     return initOrTeardown(
         () => modeler,
         (built) => {

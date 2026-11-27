@@ -138,30 +138,10 @@ function providedNames(modules: readonly unknown[], seen = new Set<unknown>()): 
     });
 }
 
-function moddlePrefixOf(key: string, extension: object): string {
+/** A moddle package's prefix, or the key it is listed under when it names none. */
+export function moddlePrefixOf(key: string, extension: object): string {
     const prefix = (extension as { prefix?: unknown }).prefix;
     return typeof prefix === "string" ? prefix : key;
-}
-
-/**
- * The prefix two different keys carry once the features' moddle extensions merge
- * by key, as bpmn-js's own `moddleExtensions` option merges; moddle rejects such
- * a pair, where {@link mergeFeatures} would keep the later package.
- */
-export function moddlePrefixUnderTwoKeys(features: readonly BpmnFeature[]): string | undefined {
-    const byKey: Record<string, object> = Object.assign(
-        {},
-        ...features.map((feature) => feature.moddleExtensions ?? {}),
-    );
-    const seen = new Set<string>();
-    for (const [key, extension] of Object.entries(byKey)) {
-        const prefix = moddlePrefixOf(key, extension);
-        if (seen.has(prefix)) {
-            return prefix;
-        }
-        seen.add(prefix);
-    }
-    return undefined;
 }
 
 function moddlePrefixes(feature: BpmnFeature): string[] {

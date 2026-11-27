@@ -494,6 +494,33 @@ describe("BpmnModeler align to origin", () => {
     });
 });
 
+interface ContextPadService {
+    getEntries(target: unknown): Record<string, unknown>;
+}
+
+// The keyboard "Element actions" menu lists getEntries in key order, without the pad's groups.
+describe.each(["c7", "c8"] as const)("BpmnModeler %s context-pad entry order", (engine) => {
+    afterEach(removeMounts);
+
+    it("lists Set color before Append element", async () => {
+        const { container, panel } = mountWithPanel();
+        const modeler = await createModeler(container, {
+            engine,
+            propertiesPanel: { parent: panel },
+            linting: false,
+        });
+        await modeler.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const task = modeler.getService("elementRegistry").get("Task_1");
+
+        const entryIds = Object.keys(
+            modeler.getService<ContextPadService>("contextPad").getEntries(task),
+        ).filter((entryId) => entryId === "set-color" || entryId === "append");
+        modeler.destroy();
+
+        expect(entryIds).toEqual(["set-color", "append"]);
+    });
+});
+
 describe("BpmnModeler design/implement mode", () => {
     afterEach(removeMounts);
 

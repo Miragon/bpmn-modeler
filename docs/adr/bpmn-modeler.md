@@ -147,7 +147,7 @@ ours ([`popupMenuAnnotations/`](../../packages/bpmn-modeler/src/popupMenuAnnotat
 engine-neutral base set (`/design` loads it as is) plus per-engine overrides only where semantics
 differ (service-task wording), attached by one provider; keywords are spelled as i18n dictionary
 keys because the translator looks keys up verbatim. A
-[coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/adapter/in/popupMenuAnnotations.coverage.browser.spec.ts)
+[coverage test](../../packages/bpmn-modeler/src/composition/popupMenuAnnotations.coverage.browser.spec.ts)
 requires every bpmn-js replace action and create option to have a description on all three
 surfaces and every description and keyword a translation in every locale, so a bpmn-js bump that
 adds an element fails until it is described. Copying upstream's implementation would have carried

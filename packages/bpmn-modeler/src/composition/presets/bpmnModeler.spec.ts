@@ -3,7 +3,9 @@ import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import type { ModalSurface } from "../../kernel/port/bpmnSurface";
 import type { CreateModelerOptions } from "../../modeler/port/publicApi";
-import { bpmnModelerOver } from "./bpmnModeler";
+import { BpmnModeler, bpmnModelerOver } from "./bpmnModeler";
+
+const host = document.createElement("div");
 
 function fakeSurface(services: Record<string, unknown> = {}) {
     let destroyed = false;
@@ -32,12 +34,19 @@ function options(extra: Partial<CreateModelerOptions> = {}): CreateModelerOption
 }
 
 describe("bpmnModelerOver", () => {
+    it("leaves a public constructor that refuses anything but createModeler's surface", () => {
+        expect(() => new BpmnModeler(host, options(), {})).toThrow(
+            "Create a BpmnModeler with createModeler()",
+        );
+    });
+
     it("hands the lint module's ID convention to the element-ID feature", async () => {
         const convention = { pattern: "x" };
         const elementIds = { configure: vi.fn() };
         const { surface } = fakeSurface({ elementIds });
 
         await bpmnModelerOver(
+            host,
             surface,
             options({
                 linting: {
@@ -53,7 +62,7 @@ describe("bpmnModelerOver", () => {
         const transactionBoundaryVisibility = { setVisible: vi.fn() };
         const { surface } = fakeSurface({ transactionBoundaryVisibility });
 
-        await bpmnModelerOver(surface, options());
+        await bpmnModelerOver(host, surface, options());
 
         expect(transactionBoundaryVisibility.setVisible).toHaveBeenCalledWith(true);
     });
@@ -64,6 +73,7 @@ describe("bpmnModelerOver", () => {
 
         await expect(
             bpmnModelerOver(
+                host,
                 surface,
                 options({
                     linting: {
@@ -86,7 +96,7 @@ describe("bpmnModelerOver", () => {
             elementTemplateOffer: { setHidden: vi.fn() },
         });
 
-        const modeler = await bpmnModelerOver(surface, options({ onElementTemplatesErrors }));
+        const modeler = await bpmnModelerOver(host, surface, options({ onElementTemplatesErrors }));
         listeners.get("elementTemplates.errors")?.({ errors: ["bad"] });
         modeler.destroy();
 
@@ -102,7 +112,7 @@ describe("BpmnModeler.setSettings", () => {
             appendMenuOverride: { setFavourites: vi.fn() },
             elementIds: { configure: vi.fn() },
         };
-        const modeler = await bpmnModelerOver(fakeSurface(services).surface, options());
+        const modeler = await bpmnModelerOver(host, fakeSurface(services).surface, options());
 
         modeler.setSettings({
             showTransactionBoundaries: false,
@@ -119,7 +129,7 @@ describe("BpmnModeler.setSettings", () => {
 
     it("throws NoModelerError on a destroyed modeler and keeps nothing", async () => {
         const services = { alignToOrigin: { align: vi.fn() } };
-        const modeler = await bpmnModelerOver(fakeSurface(services).surface, options());
+        const modeler = await bpmnModelerOver(host, fakeSurface(services).surface, options());
         modeler.destroy();
 
         expect(() => modeler.setSettings({ alignToOrigin: true })).toThrow(NoModelerError);
@@ -127,7 +137,7 @@ describe("BpmnModeler.setSettings", () => {
 
     it("aligns to the origin only when the setting asks for it", async () => {
         const services = { alignToOrigin: { align: vi.fn() } };
-        const modeler = await bpmnModelerOver(fakeSurface(services).surface, options());
+        const modeler = await bpmnModelerOver(host, fakeSurface(services).surface, options());
 
         modeler.alignElementsToOrigin();
         modeler.setSettings({ alignToOrigin: true });

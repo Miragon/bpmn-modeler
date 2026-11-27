@@ -73,18 +73,24 @@ function servicesOf(surface: ModalSurface): SurfaceServices {
     };
 }
 
-type WrapSurface = (surface: ModalSurface, options: CreateModelerOptions) => Promise<BpmnModeler>;
+/** Carries the built surface into the constructor; module-private, so only the preset constructs. */
+class SurfaceHandoff {
+    constructor(readonly surface: ModalSurface) {}
+}
 
-// Assigned in the class's static block, so the factory reaches the private constructor while the
-// published declaration shows neither it nor the kernel's surface types.
-let wrapSurface: WrapSurface;
+// Assigned in the class's static block, so the factory reaches the private `attach`.
+let attachModeler: (modeler: BpmnModeler) => void;
 
-/** Wraps the surface `createModeler` built; a failure while attaching destroys it. */
+/** Wraps the surface `createModeler` built in `container`; a failure while attaching destroys it. */
 export function bpmnModelerOver(
+    container: HTMLElement,
     surface: ModalSurface,
     options: CreateModelerOptions,
 ): Promise<BpmnModeler> {
-    return wrapSurface(surface, options);
+    return initOrTeardown(
+        () => new BpmnModeler(container, options, new SurfaceHandoff(surface)),
+        attachModeler,
+    );
 }
 
 /**
@@ -93,11 +99,7 @@ export function bpmnModelerOver(
  */
 export class BpmnModeler {
     static {
-        wrapSurface = (surface, options) =>
-            initOrTeardown(
-                () => new BpmnModeler(surface, options),
-                (modeler) => modeler.attach(),
-            );
+        attachModeler = (modeler) => modeler.attach();
     }
 
     private settings: BpmnModelerSetting = { ...DEFAULT_SETTINGS };
@@ -110,12 +112,26 @@ export class BpmnModeler {
 
     private deliverPendingContentSave: () => Promise<void> = () => Promise.resolve();
 
-    private constructor(
-        private readonly surface: ModalSurface,
+    private readonly surface: ModalSurface;
+
+    /**
+     * Throws unless {@link createModeler} calls it; kept public so 1.x code that names it compiles.
+     *
+     * @param container The canvas host element.
+     * @param options Per-instance config — see {@link CreateModelerOptions}.
+     * @param wiring The surface `createModeler` built, opaque to callers.
+     */
+    constructor(
+        container: HTMLElement,
         private readonly options: CreateModelerOptions,
+        wiring: unknown,
     ) {
+        if (!(wiring instanceof SurfaceHandoff)) {
+            throw new Error("Create a BpmnModeler with createModeler()");
+        }
+        this.surface = wiring.surface;
         this.reporter = createReporter({ onWarning: options.onWarning, onError: options.onError });
-        this.lintHandle = createSurfaceLintHandle(servicesOf(surface), this.reporter);
+        this.lintHandle = createSurfaceLintHandle(servicesOf(this.surface), this.reporter);
     }
 
     private attach(): void {
