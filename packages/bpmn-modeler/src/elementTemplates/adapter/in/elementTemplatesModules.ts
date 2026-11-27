@@ -1,3 +1,4 @@
+import { ELEMENT_TEMPLATE_OFFER } from "../../domain/elementTemplateNames";
 import { ElementTemplateEngineRefresh } from "./ElementTemplateEngineRefresh";
 import { ElementTemplateOffer } from "./ElementTemplateOffer";
 import { HiddenTemplatePopupFilter } from "./HiddenTemplatePopupFilter";
@@ -9,8 +10,8 @@ export { PopupMenuModeFilter, PopupMenuModeFilterModule } from "./PopupMenuModeF
 
 /** Keeps hidden element templates out of new choices; registered on the modeler only. */
 export const ElementTemplateOfferModule = {
-    __init__: ["elementTemplateOffer", "hiddenTemplatePopupFilter"],
-    elementTemplateOffer: ["type", ElementTemplateOffer],
+    __init__: [ELEMENT_TEMPLATE_OFFER, "hiddenTemplatePopupFilter"],
+    [ELEMENT_TEMPLATE_OFFER]: ["type", ElementTemplateOffer],
     hiddenTemplatePopupFilter: ["type", HiddenTemplatePopupFilter],
 };
 

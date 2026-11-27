@@ -1,6 +1,7 @@
 import { templateIdOfEntryKey } from "@miragon/bpmn-modeler-append-menu";
 
 import { ELEMENT_POPUP_MENUS } from "../../../kernel/domain/popupMenus";
+import { ELEMENT_TEMPLATE_OFFER } from "../../domain/elementTemplateNames";
 
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;
@@ -18,7 +19,7 @@ const FILTER_PRIORITY = 100;
 
 /** Drops the template entries of hidden templates from the replace, append and create menus. */
 export class HiddenTemplatePopupFilter {
-    static $inject = ["popupMenu", "elementTemplateOffer"];
+    static $inject = ["popupMenu", ELEMENT_TEMPLATE_OFFER];
 
     constructor(
         popupMenu: PopupMenuRegistry,
