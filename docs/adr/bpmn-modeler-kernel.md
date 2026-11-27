@@ -45,7 +45,9 @@ in the feature's `service/` (`layoutOf`, `elementIdsOf`, `appendMenuOf`, `elemen
 feature, so a host never holds the didi injector. An accessor over a library wraps helpers there,
 which keep the lookup, the presence check and the logic usable without this package; an accessor
 over a feature folder takes its DI names from that folder's `domain/`, which its module uses too.
-Either way each DI name is written once. The cost is one more file per feature, and each preset
+Either way each DI name is written once in this package. The chooser library looks
+`elementTemplateOffer` up by its own literal; `elementTemplateChooser.browser.spec.ts` ("lists no
+hidden template") pins the two spellings together. The cost is one more file per feature, and each preset
 keeps its own answer for a missing feature. The modeler preset calls the code-link status push and the
 inline-script writes as helpers in `libs/code-link` and `libs/inline-scripting`, as the facade
 glue they replace; neither has an accessor yet. Only `editableSurface.ts`'s `bpmnLintConfig`

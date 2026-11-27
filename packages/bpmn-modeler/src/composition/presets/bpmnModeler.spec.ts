@@ -49,6 +49,15 @@ describe("bpmnModelerOver", () => {
         expect(elementIds.configure).toHaveBeenCalledWith(expect.objectContaining({ convention }));
     });
 
+    it("applies its default transaction-boundary visibility when it attaches", async () => {
+        const transactionBoundaryVisibility = { setVisible: vi.fn() };
+        const { surface } = fakeSurface({ transactionBoundaryVisibility });
+
+        await bpmnModelerOver(surface, options());
+
+        expect(transactionBoundaryVisibility.setVisible).toHaveBeenCalledWith(true);
+    });
+
     it("destroys the surface and rethrows when attaching fails", async () => {
         const error = new Error("convention boom");
         const { surface, destroy } = fakeSurface({ elementIds: { configure: vi.fn() } });

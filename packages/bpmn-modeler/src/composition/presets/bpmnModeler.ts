@@ -123,6 +123,7 @@ export class BpmnModeler {
             ...elementIdSettingsOf(this.settings),
             convention: lintElementIdConvention(this.options.linting),
         });
+        transactionBoundariesOf(this.surface)?.setVisible(this.settings.showTransactionBoundaries);
 
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
