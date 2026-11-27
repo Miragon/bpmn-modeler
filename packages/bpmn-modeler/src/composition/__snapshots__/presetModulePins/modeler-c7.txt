@@ -99,28 +99,42 @@ fitViewportButton=type(FitViewportButton) init[fitViewportButton]
 minimap=type(Minimap) init[minimap]
 init[fn fixIsExecutable]
 nativeCopyPaste=type(NativeCopyPaste) init[nativeCopyPaste]
+elementsRenderer=type(ElementsRenderer)
+copyAsImageEditorActions=type(CopyAsImageEditorActions) copyAsImageKeyboardBindings=type(CopyAsImageKeyboardBindings) init[copyAsImageEditorActions, copyAsImageKeyboardBindings]
 init[fn CommandInitializer]
 debounceInput=factory(debounceInput)
 feelPopup=type(Popup) feelPopupRenderer=type(PopupRenderer) init[feelPopup, feelPopupRenderer]
 propertiesPanel=type(BpmnPropertiesPanelRenderer) init[propertiesPanel]
+debounceInput=factory(debounceInputFactory)
+depends[propertiesPanel, debounceInput]
 bpmnPropertiesProvider=type(BpmnPropertiesProvider) init[bpmnPropertiesProvider]
-elementsRenderer=type(ElementsRenderer)
-copyAsImageEditorActions=type(CopyAsImageEditorActions) copyAsImageKeyboardBindings=type(CopyAsImageKeyboardBindings) init[copyAsImageEditorActions, copyAsImageKeyboardBindings]
 copyPasteBehavior=type(CopyPasteBehavior) copyPasteRootElementBehavior=type(CopyPasteRootElementBehavior) deleteErrorEventDefinitionBehavior=type(DeleteErrorEventDefinitionBehavior) deleteParticipantBehaviour=type(DeleteParticipantBehaviour) deleteRetryTimeCycleBehavior=type(DeleteRetryTimeCycleBehavior) orderExtensionElementsBehavior=type(OrderExtensionElementsBehavior) removeInitiatorBehaviour=type(RemoveInitiatorBehaviour) removeVariableEventBehaviour=type(RemoveVariableEventBehaviour) updateCamundaExclusiveBehavior=type(UpdateCamundaExclusiveBehavior) updateResultVariableBehavior=type(UpdateResultVariableBehavior) updateInputOutputBehavior=type(UpdateInputOutputBehavior) userTaskFormsBehavior=type(UserTaskFormsBehavior) userTaskGeneratedFormsBehavior=type(UserTaskFormsBehavior) init[copyPasteBehavior, copyPasteRootElementBehavior, deleteErrorEventDefinitionBehavior, deleteParticipantBehaviour, deleteRetryTimeCycleBehavior, orderExtensionElementsBehavior, removeInitiatorBehaviour, removeVariableEventBehaviour, updateCamundaExclusiveBehavior, updateResultVariableBehavior, updateInputOutputBehavior, userTaskFormsBehavior, userTaskGeneratedFormsBehavior]
 camundaPlatformPropertiesProvider=type(CamundaPlatformPropertiesProvider) init[camundaPlatformPropertiesProvider]
-elementTemplateCommands=type(ElementTemplatesCommands) init[elementTemplateCommands]
-elementTemplatesReplaceBehavior=type(ReplaceBehavior) init[elementTemplatesReplaceBehavior]
-elementTemplates=type(ElementTemplates) elementTemplatesLoader=type(ElementTemplatesLoader) init[elementTemplatesLoader]
-elementTemplatesPropertiesProvider=type(ElementTemplatesPropertiesProvider) init[elementTemplatesPropertiesProvider]
-depends[elementTemplates, elementTemplatesPropertiesProvider]
 colorContextPadProvider=type(ColorContextPadProvider) colorPopupProvider=type(ColorPopupProvider) init[colorContextPadProvider, colorPopupProvider]
+variableResolver=type(CamundaVariableResolver) init[variableResolver]
+diagramTemplate=value({newDiagramXml: fn newDiagramXml})
+popupMenuAnnotationOverrides=value({"additionalKeywords":{"message-end":["Java delegate","External task"],"message-intermediate-throw":["Java delegate","External task"],"send-task":["Java delegate","External task"],"service-task":["Java delegate","External task"]},"descriptions":{"service-task":"Automated work carried out by a Java delegate, expression, or external task"}})
 appendMenuProvider=type(AppendMenuProvider) appendContextPadProvider=type(AppendContextPadProvider) appendRules=type(AppendRules) init[appendMenuProvider, appendContextPadProvider, appendRules]
 createMenuProvider=type(CreateMenuProvider) createPaletteProvider=type(CreatePaletteProvider) init[createMenuProvider, createPaletteProvider]
 createAppendEditorActions=type(CreateAppendEditorActions) init[createAppendEditorActions]
 createAppendKeyboardBindings=type(CreateAppendKeyboardBindings) init[createAppendKeyboardBindings]
 depends[appendMenuProvider, createMenuProvider, createAppendEditorActions, createAppendKeyboardBindings]
-variableResolver=type(CamundaVariableResolver) init[variableResolver]
+elementTemplateCommands=type(ElementTemplatesCommands) init[elementTemplateCommands]
+elementTemplatesReplaceBehavior=type(ReplaceBehavior) init[elementTemplatesReplaceBehavior]
+elementTemplates=type(ElementTemplates) elementTemplatesLoader=type(ElementTemplatesLoader) init[elementTemplatesLoader]
+elementTemplatesPropertiesProvider=type(ElementTemplatesPropertiesProvider) init[elementTemplatesPropertiesProvider]
+depends[elementTemplates, elementTemplatesPropertiesProvider]
 removeTemplateReplaceProvider=type(RemoveTemplateReplaceProvider) init[removeTemplateReplaceProvider]
+elementTemplateChooser=type(ElementTemplateChooser) init[elementTemplateChooser]
+replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTemplatesTabProvider]
+popupMenuModeFilter=type(PopupMenuModeFilter) init[popupMenuModeFilter]
+elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
+elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh]
+elementTemplatesAppendProvider=type(ElementTemplatesAppendProvider) init[elementTemplatesAppendProvider]
+elementTemplatesCreateProvider=type(ElementTemplatesCreateProvider) init[elementTemplatesCreateProvider]
+elementTemplatesReplaceProvider=type(ElementTemplatesReplaceProvider) init[elementTemplatesReplaceProvider]
+depends[elementTemplatesAppendProvider, elementTemplatesCreateProvider, elementTemplatesReplaceProvider, removeTemplateReplaceProvider]
+c7ExtendedElementTemplates=type(ExtendElementTemplates) c7TemplateElementFactory=type(TemplateElementFactory) c7ApplyTemplateOnShapeCreateBehavior=type(ApplyTemplateOnShapeCreateBehavior) init[c7ExtendedElementTemplates]
 alignToOrigin=type(AlignToOrigin) init[alignToOrigin]
 grid=type(Grid) init[grid]
 customTranslator=value(CustomTranslator) translate=factory(translateFactory) init[customTranslator]
@@ -155,26 +169,15 @@ tokenSimulationEditorActions=type(EditorActions) init[tokenSimulationEditorActio
 tokenSimulationKeyboardBindings=type(KeyboardBindings) init[tokenSimulationKeyboardBindings]
 depends[[â€¦, tokenSimulationPalette], canvasLock, disableModeling, toggleMode, tokenSimulationEditorActions, tokenSimulationKeyboardBindings]
 simulatorBoundaryEventBehavior=type(BoundaryEventBehavior) simulatorEventBasedGatewayBehavior=type(EventBasedGatewayBehavior) simulatorMessageFlowBehavior=type(AnimatedMessageFlowBehavior) boundaryEventBehavior=type(BoundaryEventBehavior) eventBasedGatewayBehavior=type(EventBasedGatewayBehavior) messageFlowBehavior=type(MessageFlowBehavior) init[simulatorBoundaryEventBehavior, simulatorEventBasedGatewayBehavior, simulatorMessageFlowBehavior]
-elementTemplateChooser=type(ElementTemplateChooser) init[elementTemplateChooser]
 appendMenuOverride=type(AppendMenuOverride) init[appendMenuOverride]
-popupMenuAnnotations=value(PopupMenuAnnotations) popupMenuAnnotationProvider=type(PopupMenuAnnotationProvider) init[popupMenuAnnotationProvider]
-replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTemplatesTabProvider]
+popupMenuAnnotations=factory(popupMenuAnnotationsFactory) popupMenuAnnotationProvider=type(PopupMenuAnnotationProvider) init[popupMenuAnnotationProvider]
 flowNavigation=type(FlowNavigation) deleteSelectionBehavior=type(DeleteSelectionBehavior) contextPadKeyboard=type(ContextPadKeyboard) planeNavigation=type(PlaneNavigation) linkNavigation=type(LinkNavigation) init[flowNavigation, deleteSelectionBehavior, contextPadKeyboard, planeNavigation, linkNavigation]
 bpmnLayoutCommands=type(LayoutCommandInitializer) bpmnLayouter=type(Layouter) bpmnCleanup=type(CleanupService) layoutEngine=value(BpmnAutoLayoutEngine) layoutKeyboard=type(LayoutKeyboard) layoutPaletteProvider=type(LayoutPaletteProvider) init[bpmnLayoutCommands, layoutKeyboard, layoutPaletteProvider]
 elementIdCommands=type(ElementIdCommands) elementIds=type(ElementIdsService) followNameBehavior=type(FollowNameBehavior) idFromNamePropertiesProvider=type(IdFromNamePropertiesProvider) init[elementIdCommands, followNameBehavior, idFromNamePropertiesProvider]
 propertiesPanelRoot=value(HTMLDivElement#3)
 propertiesPanelModeFilter=type(ModeFilterProvider) init[propertiesPanelModeFilter]
 customPropertiesGroups=type(CustomGroupsRegistry) init[customPropertiesGroups]
-debounceInput=factory(debounceInputFactory)
-popupMenuModeFilter=type(PopupMenuModeFilter) modeAttribute=type(ModeAttribute) init[popupMenuModeFilter, modeAttribute]
-elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
-elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh]
 drilldownFit=type(DrilldownFit) init[drilldownFit]
-elementTemplatesAppendProvider=type(ElementTemplatesAppendProvider) init[elementTemplatesAppendProvider]
-elementTemplatesCreateProvider=type(ElementTemplatesCreateProvider) init[elementTemplatesCreateProvider]
-elementTemplatesReplaceProvider=type(ElementTemplatesReplaceProvider) init[elementTemplatesReplaceProvider]
-depends[elementTemplatesAppendProvider, elementTemplatesCreateProvider, elementTemplatesReplaceProvider, removeTemplateReplaceProvider]
-c7ExtendedElementTemplates=type(ExtendElementTemplates) c7TemplateElementFactory=type(TemplateElementFactory) c7ApplyTemplateOnShapeCreateBehavior=type(ApplyTemplateOnShapeCreateBehavior) init[c7ExtendedElementTemplates]
 transactionBoundaries=type(TransactionBoundaries) init[transactionBoundaries]
 transactionBoundaryVisibility=type(TransactionBoundaryVisibility) init[transactionBoundaryVisibility]
 
@@ -281,6 +284,7 @@ deleteParticipantBehaviour: type(DeleteParticipantBehaviour)
 deleteRetryTimeCycleBehavior: type(DeleteRetryTimeCycleBehavior)
 deleteSelectionBehavior: type(DeleteSelectionBehavior)
 detachEventBehavior: type(DetachEventBehavior)
+diagramTemplate: value({newDiagramXml: fn newDiagramXml})
 directEditing: type(DirectEditing)
 disableModeling: type(DisableModeling)
 distributeElements: type(DistributeElements)
@@ -367,7 +371,6 @@ messageFlowBehavior: type(MessageFlowBehavior) @simulatorBoundaryEventBehavior Ã
 minimap: type(Minimap)
 moddle: value(Moddle)
 moddleCopy: type(ModdleCopy)
-modeAttribute: type(ModeAttribute)
 modeling: type(Modeling)
 modelingFeedback: type(ModelingFeedback)
 mouse: type(Mouse)
@@ -391,8 +394,9 @@ pathMap: type(PathMap)
 pauseSimulation: type(PauseSimulation)
 planeNavigation: type(PlaneNavigation)
 popupMenu: type(PopupMenu)
+popupMenuAnnotationOverrides: value({"additionalKeywords":{"message-end":["Java delegate","External task"],"message-intermediate-throw":["Java delegate","External task"],"send-task":["Java delegate","External task"],"service-task":["Java delegate","External task"]},"descriptions":{"service-task":"Automated work carried out by a Java delegate, expression, or external task"}})
 popupMenuAnnotationProvider: type(PopupMenuAnnotationProvider)
-popupMenuAnnotations: value(PopupMenuAnnotations)
+popupMenuAnnotations: factory(popupMenuAnnotationsFactory)
 popupMenuModeFilter: type(PopupMenuModeFilter)
 previewSupport: type(PreviewSupport)
 processBehavior: type(ProcessBehavior)
@@ -629,13 +633,13 @@ fitViewportButton
 minimap
 fn fixIsExecutable
 nativeCopyPaste
+copyAsImageEditorActions
+copyAsImageKeyboardBindings @copyAsImageEditorActions
 fn CommandInitializer
 feelPopup
 feelPopupRenderer @feelPopup
 propertiesPanel
 bpmnPropertiesProvider
-copyAsImageEditorActions
-copyAsImageKeyboardBindings @copyAsImageEditorActions
 copyPasteBehavior
 copyPasteRootElementBehavior @copyPasteBehavior
 deleteErrorEventDefinitionBehavior @copyPasteBehavior
@@ -650,12 +654,9 @@ updateInputOutputBehavior @copyPasteBehavior
 userTaskFormsBehavior @copyPasteBehavior
 userTaskGeneratedFormsBehavior @copyPasteBehavior
 camundaPlatformPropertiesProvider
-elementTemplateCommands
-elementTemplatesReplaceBehavior
-elementTemplatesLoader @elementTemplates
-elementTemplatesPropertiesProvider
 colorContextPadProvider
 colorPopupProvider @colorContextPadProvider
+variableResolver
 appendMenuProvider
 appendContextPadProvider @appendMenuProvider
 appendRules @appendMenuProvider
@@ -663,8 +664,21 @@ createMenuProvider
 createPaletteProvider @createMenuProvider
 createAppendEditorActions
 createAppendKeyboardBindings
-variableResolver
+elementTemplateCommands
+elementTemplatesReplaceBehavior
+elementTemplatesLoader @elementTemplates
+elementTemplatesPropertiesProvider
 removeTemplateReplaceProvider
+elementTemplateChooser
+replaceTemplatesTabProvider
+popupMenuModeFilter
+elementTemplateOffer
+hiddenTemplatePopupFilter @elementTemplateOffer
+elementTemplateEngineRefresh
+elementTemplatesAppendProvider
+elementTemplatesCreateProvider
+elementTemplatesReplaceProvider
+c7ExtendedElementTemplates
 alignToOrigin
 grid
 customTranslator
@@ -704,10 +718,8 @@ tokenSimulationKeyboardBindings
 simulatorBoundaryEventBehavior
 simulatorEventBasedGatewayBehavior @simulatorBoundaryEventBehavior
 simulatorMessageFlowBehavior @simulatorBoundaryEventBehavior
-elementTemplateChooser
 appendMenuOverride
 popupMenuAnnotationProvider @popupMenuAnnotations
-replaceTemplatesTabProvider
 flowNavigation
 deleteSelectionBehavior @flowNavigation
 contextPadKeyboard @flowNavigation
@@ -721,16 +733,7 @@ followNameBehavior @elementIdCommands
 idFromNamePropertiesProvider @elementIdCommands
 propertiesPanelModeFilter
 customPropertiesGroups
-popupMenuModeFilter
-modeAttribute @popupMenuModeFilter
-elementTemplateOffer
-hiddenTemplatePopupFilter @elementTemplateOffer
-elementTemplateEngineRefresh
 drilldownFit
-elementTemplatesAppendProvider
-elementTemplatesCreateProvider
-elementTemplatesReplaceProvider
-c7ExtendedElementTemplates
 transactionBoundaries
 transactionBoundaryVisibility
 
