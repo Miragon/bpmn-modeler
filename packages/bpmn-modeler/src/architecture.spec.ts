@@ -603,18 +603,7 @@ const KERNEL_LIBRARIES: readonly string[] = [
 ];
 
 /** Keyed by file and specifier; each names the step that removes it. */
-const KERNEL_IMPORT_EXCEPTIONS: readonly KnownException[] = [
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "@miragon/bpmn-modeler-layout",
-        until: "#2802 S4: format, cleanup and onFormatted move into the layout() feature's accessor",
-    },
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "@miragon/bpmn-modeler-element-ids",
-        until: "#2802 S4: the element-ID helpers move into the elementIds() feature's accessor",
-    },
-];
+const KERNEL_IMPORT_EXCEPTIONS: readonly KnownException[] = [];
 
 function kernelImportViolations(workspaces: readonly Workspace[]) {
     return ({ edges }: ImportGraph): Violation[] =>
@@ -776,26 +765,6 @@ function kernelDiNameViolations(isAllowed: (name: string) => boolean) {
 
 /** Keyed by file and DI name; each names the step that moves the lookup into its feature. */
 const KERNEL_DI_NAME_EXCEPTIONS: readonly KnownException[] = [
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "bpmnLayouter",
-        until: "#2802 S4: format moves into the layout() feature's accessor",
-    },
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "bpmnCleanup",
-        until: "#2802 S4: cleanup moves into the layout() feature's accessor",
-    },
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "elementIds",
-        until: "#2802 S4: the element-ID helpers move into the elementIds() feature's accessor",
-    },
-    {
-        from: "kernel/service/editableSurface.ts",
-        to: "appendMenuOverride",
-        until: "#2802 S4: favourites move into the append-menu feature's accessor",
-    },
     {
         from: "kernel/service/editableSurface.ts",
         to: "bpmnLintConfig",

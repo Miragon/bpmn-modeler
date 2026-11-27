@@ -2,12 +2,22 @@ import Modeler from "bpmn-js/lib/Modeler";
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
+import { AppendMenuModule, applyFavouriteBpmnElements } from "@miragon/bpmn-modeler-append-menu";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
-import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
-import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
-import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
+import {
+    cleanupSurfaceDiagram,
+    createBpmnLayoutModule,
+    formatSurfaceDiagram,
+    subscribeFormatted,
+} from "@miragon/bpmn-modeler-layout";
+import type { LayoutOutcome, SurfaceInjector } from "@miragon/bpmn-modeler-layout";
+import {
+    applyElementIdSettings,
+    ElementIdsModule,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
+} from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
@@ -51,16 +61,7 @@ import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { capabilityModules } from "../../composition/capabilityModules";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
-import {
-    applyElementIdSettings,
-    applyFavouriteBpmnElements,
-    cleanupSurfaceDiagram,
-    createSurfaceLintHandle,
-    formatSurfaceDiagram,
-    proposeSurfaceElementIds,
-    renameSurfaceElementIds,
-    subscribeFormatted,
-} from "../../kernel/service/editableSurface";
+import { createSurfaceLintHandle } from "../../kernel/service/editableSurface";
 import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
@@ -292,7 +293,7 @@ export class BpmnModeler {
 
         this.applyHiddenElementTemplates();
         this.transactionBoundaryVisibility()?.setVisible(this.settings.showTransactionBoundaries);
-        applyElementIdSettings(this.core, {
+        applyElementIdSettings(this.injector(), {
             ...elementIdSettingsOf(this.settings),
             convention: lintElementIdConvention(this.options.linting),
         });
@@ -387,7 +388,7 @@ export class BpmnModeler {
 
     /** @see BpmnModelerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
-        return subscribeFormatted(this.core, listener);
+        return subscribeFormatted(this.injector(), listener);
     }
 
     /** @see PendingInputHandle.hasPendingInput */
@@ -451,7 +452,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.formatDiagram
      */
     async formatDiagram(): Promise<LayoutOutcome> {
-        return formatSurfaceDiagram(this.core);
+        return formatSurfaceDiagram(this.injector());
     }
 
     /**
@@ -460,7 +461,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.cleanupDiagram
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
-        return cleanupSurfaceDiagram(this.core, options);
+        return cleanupSurfaceDiagram(this.injector(), options);
     }
 
     setElementTemplates(templates: object[]): void {
@@ -495,10 +496,10 @@ export class BpmnModeler {
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
-            applyFavouriteBpmnElements(this.core, settings.favouriteBpmnElements);
+            applyFavouriteBpmnElements(this.injector(), settings.favouriteBpmnElements);
         }
 
-        applyElementIdSettings(this.core, elementIdSettingsOf(settings));
+        applyElementIdSettings(this.injector(), elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
@@ -511,17 +512,17 @@ export class BpmnModeler {
         if (followName !== undefined) {
             this.setSettings({ elementIdsFollowName: followName });
         }
-        applyElementIdSettings(this.core, options);
+        applyElementIdSettings(this.injector(), options);
     }
 
     /** @see BpmnModelerHandle.proposeElementIds */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
-        return proposeSurfaceElementIds(this.core, unchecked);
+        return proposeSurfaceElementIds(this.injector(), unchecked);
     }
 
     /** @see BpmnModelerHandle.renameElementIds */
     renameElementIds(unchecked: readonly string[]): number {
-        return renameSurfaceElementIds(this.core, unchecked);
+        return renameSurfaceElementIds(this.injector(), unchecked);
     }
 
     /** @internal */
@@ -661,6 +662,10 @@ export class BpmnModeler {
     /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
+    }
+
+    private injector(): SurfaceInjector {
+        return this.core.service<SurfaceInjector>("injector");
     }
 
     /**

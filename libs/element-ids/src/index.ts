@@ -22,6 +22,12 @@ import {
 export type { IdConvention } from "./convention";
 export { ID_FROM_NAME_KEYS } from "./idFromNameTexts";
 export type { ElementIdOptions, ElementIdProposal, ElementIdsService } from "./ElementIdsService";
+export {
+    applyElementIdSettings,
+    proposeSurfaceElementIds,
+    renameSurfaceElementIds,
+} from "./surfaceElementIds";
+export type { ElementIdsInjector } from "./surfaceElementIds";
 
 interface EventBusLike {
     on(event: string, listener: () => void): void;
