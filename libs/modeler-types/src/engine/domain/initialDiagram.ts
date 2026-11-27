@@ -1,4 +1,4 @@
-import { ENGINE_EXECUTION_PLATFORM, type Engine } from "@miragon/bpmn-modeler-types/domain";
+import { ENGINE_EXECUTION_PLATFORM, type Engine } from "./engine";
 
 /**
  * bpmn-js ships only an engine-neutral initial diagram. Hosts derive engine and mode availability from the

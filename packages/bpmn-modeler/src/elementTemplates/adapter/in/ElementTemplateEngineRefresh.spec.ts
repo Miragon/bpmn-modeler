@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExecutionPlatformDefinitions } from "@miragon/bpmn-modeler-types/domain";
 
 import { ElementTemplateEngineRefresh } from "./ElementTemplateEngineRefresh";
-import { ElementTemplateEngineRefreshModule } from "./elementTemplateOfferModule";
+import { ElementTemplateEngineRefreshModule } from "./elementTemplatesModules";
 
 type ImportDone = { error: unknown };
 

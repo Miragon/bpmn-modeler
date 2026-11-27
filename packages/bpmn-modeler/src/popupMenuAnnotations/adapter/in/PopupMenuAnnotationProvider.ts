@@ -9,10 +9,10 @@ import {
     annotateEntry,
     popupEntryKeyOf,
     type AnnotatableEntry,
-    type PopupEntryKey,
     type PopupMenuAnnotation,
     type PopupMenuAnnotations,
 } from "../../domain/popupMenuAnnotations";
+import type { PopupEntryKey } from "../../../kernel/domain/popupMenus";
 
 interface PopupMenuRegistry {
     registerProvider(menuId: string, priority: number, provider: object): void;

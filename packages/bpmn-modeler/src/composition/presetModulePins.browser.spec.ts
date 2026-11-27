@@ -18,8 +18,11 @@ import { SURFACE_MODE_SERVICE, type SurfaceModeService } from "@miragon/bpmn-mod
 
 import * as lintModule from "../lint";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../popupMenuAnnotations/domain/baseAnnotations";
-import type { PopupMenuAnnotationOverrides } from "../popupMenuAnnotations/domain/popupMenuAnnotations";
-import { C7_POPUP_MENU_ANNOTATIONS, C8_POPUP_MENU_ANNOTATIONS } from "./engineStacks";
+import type { PopupMenuAnnotationOverrides } from "../kernel/domain/popupMenus";
+import {
+    C7_POPUP_MENU_ANNOTATIONS,
+    C8_POPUP_MENU_ANNOTATIONS,
+} from "../engines/domain/popupMenuAnnotationOverrides";
 import { createDesigner } from "./createDesigner";
 import { createModeler } from "./createModeler";
 import { createViewer } from "./createViewer";

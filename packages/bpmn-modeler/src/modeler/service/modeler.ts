@@ -35,6 +35,7 @@ import {
     type ElementTemplateRef,
     Engine,
     getLatestVersion,
+    initialDiagram,
     LintResults,
     OpenScriptEditorRef,
     type ScriptField,
@@ -50,11 +51,7 @@ import {
     writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
-import {
-    BPMN_TAB,
-    createPopupMenuAnnotationsModule,
-    ReplaceTemplatesTabModule,
-} from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { capabilityModules } from "../../composition/capabilityModules";
@@ -78,14 +75,16 @@ import type {
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
 import { loadEngineStack } from "../../composition/engineStacks";
-import { initialDiagram } from "../domain/initialDiagram";
 import { normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
-import { ModeUiModule } from "../../mode/adapter/in/modeModules";
+import { ModeAttribute } from "../../mode/adapter/in/modeModules";
 import {
+    BPMN_TAB,
     ElementTemplateEngineRefreshModule,
     ElementTemplateOfferModule,
     type ElementTemplateOffer,
-} from "../../elementTemplateOffer/adapter/in/elementTemplateOfferModule";
+    PopupMenuModeFilter,
+    ReplaceTemplatesTabModule,
+} from "../../elementTemplates/adapter/in/elementTemplatesModules";
 import { DrilldownFitModule } from "../../kernel/service/viewState";
 import type {
     CoreModelerServices,
@@ -106,6 +105,12 @@ interface ElementTemplatesLoaderService {
 interface AlignToOriginService {
     align(): void;
 }
+
+const ModeUiModule = {
+    __init__: ["popupMenuModeFilter", "modeAttribute"],
+    popupMenuModeFilter: ["type", PopupMenuModeFilter],
+    modeAttribute: ["type", ModeAttribute],
+};
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,

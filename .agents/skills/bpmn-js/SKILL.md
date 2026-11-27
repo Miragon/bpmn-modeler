@@ -157,7 +157,7 @@ Element templates are JSON files that define custom property configurations for 
 3. A later `HiddenElementTemplatesQuery` calls only `setHiddenElementTemplates(refs)`
 
 Hidden templates are filtered where a template is offered, never at loading: the
-`elementTemplateOffer` service (`packages/bpmn-modeler/src/elementTemplateOffer/`)
+`elementTemplateOffer` service (`packages/bpmn-modeler/src/elementTemplates/`)
 narrows the chooser, a popup filter at priority 100 drops the append, create and
 replace entries, and `getDefault` is narrowed on the `elementTemplates` instance
 so no hidden default is applied on shape or connection create. `get`, `getLatest`

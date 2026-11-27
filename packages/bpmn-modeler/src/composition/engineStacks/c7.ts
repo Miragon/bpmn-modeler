@@ -18,7 +18,7 @@ import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/inde
 import { TransactionBoundaryVisibilityModule } from "../../transactionBoundaries/adapter/in/TransactionBoundaryVisibility";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
-import { C7_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotationOverrides";
+import { C7_POPUP_MENU_ANNOTATIONS } from "../../engines/domain/popupMenuAnnotationOverrides";
 
 export const c7Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([

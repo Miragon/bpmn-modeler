@@ -1,4 +1,4 @@
-import type { PopupMenuAnnotationOverrides } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import type { PopupMenuAnnotationOverrides } from "../../kernel/domain/popupMenus";
 
 const JAVA_IMPLEMENTATION_KEYWORDS = ["Java delegate", "External task"];
 const JOB_WORKER_KEYWORDS = ["Job worker"];

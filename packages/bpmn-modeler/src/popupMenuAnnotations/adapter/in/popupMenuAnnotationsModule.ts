@@ -1,10 +1,7 @@
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../../domain/baseAnnotations";
 import { PopupMenuAnnotationProvider } from "./PopupMenuAnnotationProvider";
-import type { PopupMenuAnnotationOverrides } from "../../domain/popupMenuAnnotations";
-import { ReplaceTemplatesTabProvider } from "./ReplaceTemplatesTabProvider";
+import type { PopupMenuAnnotationOverrides } from "../../../kernel/domain/popupMenus";
 
-export { BPMN_TAB } from "./ReplaceTemplatesTabProvider";
-export type { PopupMenuAnnotationOverrides } from "../../domain/popupMenuAnnotations";
 
 export function createPopupMenuAnnotationsModule(
     engineOverrides: PopupMenuAnnotationOverrides = {},
@@ -15,8 +12,3 @@ export function createPopupMenuAnnotationsModule(
         popupMenuAnnotationProvider: ["type", PopupMenuAnnotationProvider],
     };
 }
-
-export const ReplaceTemplatesTabModule = {
-    __init__: ["replaceTemplatesTabProvider"],
-    replaceTemplatesTabProvider: ["type", ReplaceTemplatesTabProvider],
-};

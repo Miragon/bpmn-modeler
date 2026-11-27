@@ -1,6 +1,7 @@
-import { detectEngine, getLatestVersion } from "@miragon/bpmn-modeler-types";
 import { describe, expect, it } from "vitest";
 
+import { detectEngine } from "./engine";
+import { getLatestVersion } from "./engineVersions";
 import { initialDiagram } from "./initialDiagram";
 
 describe("initialDiagram", () => {

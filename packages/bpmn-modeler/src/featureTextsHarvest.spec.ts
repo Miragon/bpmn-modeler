@@ -13,7 +13,10 @@ import {
 import { MODEL_NAVIGATION_KEYS } from "@miragon/bpmn-model-navigation";
 import { ENGINES, SURFACE_MODES, type DetectedEngine } from "@miragon/bpmn-modeler-types";
 
-import { C7_POPUP_MENU_ANNOTATIONS, C8_POPUP_MENU_ANNOTATIONS } from "./composition/engineStacks";
+import {
+    C7_POPUP_MENU_ANNOTATIONS,
+    C8_POPUP_MENU_ANNOTATIONS,
+} from "./engines/domain/popupMenuAnnotationOverrides";
 import { mountModeStrip } from "./modeSession/adapter/in/modeStrip";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotations/domain/baseAnnotations";
 

@@ -12,7 +12,7 @@ import {
 } from "bpmn-js-create-append-anything";
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
-import { C8_POPUP_MENU_ANNOTATIONS } from "./popupMenuAnnotationOverrides";
+import { C8_POPUP_MENU_ANNOTATIONS } from "../../engines/domain/popupMenuAnnotationOverrides";
 
 const FEEL_POPUP_LINKS = {
     feel: {

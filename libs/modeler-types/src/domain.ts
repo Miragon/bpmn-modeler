@@ -35,5 +35,6 @@ export * from "./documents/domain/xmlMarkup";
 export * from "./references/domain/formPreview";
 export * from "./documents/domain/blankDocument";
 export * from "./documents/domain/emptyDmn";
+export * from "./engine/domain/initialDiagram";
 export * from "./surface/domain/pluginLoadReport";
 export * from "./geometry/domain/polyline";
