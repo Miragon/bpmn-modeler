@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyFavouriteBpmnElements } from "./favourites";
+import { applyFavouriteBpmnElements, hasAppendMenu } from "./favourites";
 
 describe("applyFavouriteBpmnElements", () => {
     it("hands the append menu a copy of the types", () => {
@@ -17,5 +17,14 @@ describe("applyFavouriteBpmnElements", () => {
         expect(() =>
             applyFavouriteBpmnElements({ get: () => null }, ["bpmn:UserTask"]),
         ).not.toThrow();
+    });
+});
+
+describe("hasAppendMenu", () => {
+    it("tells a surface built with the append menu from one without", () => {
+        expect(
+            hasAppendMenu({ get: (name) => (name === "appendMenuOverride" ? {} : null) as never }),
+        ).toBe(true);
+        expect(hasAppendMenu({ get: () => null })).toBe(false);
     });
 });

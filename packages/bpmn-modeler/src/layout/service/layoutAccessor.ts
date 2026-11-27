@@ -1,6 +1,7 @@
 import {
     cleanupSurfaceDiagram,
     formatSurfaceDiagram,
+    hasSurfaceLayout,
     type LayoutOutcome,
     subscribeFormatted,
     type SurfaceInjector,
@@ -19,7 +20,7 @@ export interface LayoutAccessor {
 /** @experimental `undefined` on a surface built without the layout feature. */
 export function layoutOf(surface: Pick<EditingSurface, "getService">): LayoutAccessor | undefined {
     const injector = surface.getService<SurfaceInjector>("injector");
-    if (!injector.get("bpmnLayouter", false)) {
+    if (!hasSurfaceLayout(injector)) {
         return undefined;
     }
     return {

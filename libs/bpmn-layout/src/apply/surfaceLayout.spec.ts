@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { LAYOUT_FORMATTED_EVENT } from "./Layouter";
-import { cleanupSurfaceDiagram, formatSurfaceDiagram, subscribeFormatted } from "./surfaceLayout";
+import {
+    cleanupSurfaceDiagram,
+    formatSurfaceDiagram,
+    hasSurfaceLayout,
+    subscribeFormatted,
+} from "./surfaceLayout";
 
 function injectorWith(services: Record<string, unknown>) {
     return {
@@ -14,6 +19,13 @@ function injectorWith(services: Record<string, unknown>) {
         },
     };
 }
+
+describe("hasSurfaceLayout", () => {
+    it("tells a surface built with the layout module from one without", () => {
+        expect(hasSurfaceLayout(injectorWith({ bpmnLayouter: {} }))).toBe(true);
+        expect(hasSurfaceLayout(injectorWith({}))).toBe(false);
+    });
+});
 
 describe("formatSurfaceDiagram", () => {
     it("formats through the surface's layouter", async () => {

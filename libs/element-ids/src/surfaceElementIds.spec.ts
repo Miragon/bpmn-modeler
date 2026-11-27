@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
     applyElementIdSettings,
+    hasSurfaceElementIds,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
 } from "./surfaceElementIds";
@@ -25,6 +26,11 @@ describe("element IDs on a surface", () => {
     };
     const withElementIds = injectorWith({ elementIds });
     const without = injectorWith({});
+
+    it("tells a surface built with the element-ID module from one without", () => {
+        expect(hasSurfaceElementIds(withElementIds)).toBe(true);
+        expect(hasSurfaceElementIds(without)).toBe(false);
+    });
 
     it("proposes through the surface's service, passing the unchecked IDs as a set", () => {
         expect(proposeSurfaceElementIds(withElementIds, ["Task_2"])).toBe(rows);

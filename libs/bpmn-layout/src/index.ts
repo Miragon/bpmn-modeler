@@ -43,6 +43,7 @@ export {
     cleanupWithoutLayout,
     formatSurfaceDiagram,
     formatWithoutLayout,
+    hasSurfaceLayout,
     subscribeFormatted,
 } from "./apply/surfaceLayout";
 export type { SurfaceInjector } from "./apply/surfaceLayout";

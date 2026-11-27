@@ -24,6 +24,7 @@ export { ID_FROM_NAME_KEYS } from "./idFromNameTexts";
 export type { ElementIdOptions, ElementIdProposal, ElementIdsService } from "./ElementIdsService";
 export {
     applyElementIdSettings,
+    hasSurfaceElementIds,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
 } from "./surfaceElementIds";

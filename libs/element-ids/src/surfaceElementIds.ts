@@ -13,6 +13,10 @@ function elementIdsOf(injector: ElementIdsInjector): ElementIdsService | null {
     return injector.get<ElementIdsService>("elementIds", false);
 }
 
+export function hasSurfaceElementIds(injector: ElementIdsInjector): boolean {
+    return elementIdsOf(injector) !== null;
+}
+
 /** No rows on a surface built without the element-ID module. */
 export function proposeSurfaceElementIds(
     injector: ElementIdsInjector,

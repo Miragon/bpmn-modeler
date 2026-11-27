@@ -26,8 +26,16 @@ export function cleanupWithoutLayout(): CleanupOutcome {
     return { status: "failed", items: [], message: WITHOUT_LAYOUT };
 }
 
+export function hasSurfaceLayout(injector: SurfaceInjector): boolean {
+    return layouterOf(injector) !== null;
+}
+
+function layouterOf(injector: SurfaceInjector): Pick<Layouter, "format"> | null {
+    return injector.get<Pick<Layouter, "format">>("bpmnLayouter", false);
+}
+
 export async function formatSurfaceDiagram(injector: SurfaceInjector): Promise<LayoutOutcome> {
-    const layouter = injector.get<Pick<Layouter, "format">>("bpmnLayouter", false);
+    const layouter = layouterOf(injector);
     if (!layouter) {
         return formatWithoutLayout();
     }

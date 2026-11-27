@@ -1,6 +1,7 @@
 import {
     type AppendMenuInjector,
     applyFavouriteBpmnElements,
+    hasAppendMenu,
 } from "@miragon/bpmn-modeler-append-menu";
 
 import type { EditingSurface } from "../../kernel/port/bpmnSurface";
@@ -15,7 +16,7 @@ export function appendMenuOf(
     surface: Pick<EditingSurface, "getService">,
 ): AppendMenuAccessor | undefined {
     const injector = surface.getService<AppendMenuInjector>("injector");
-    if (!injector.get("appendMenuOverride", false)) {
+    if (!hasAppendMenu(injector)) {
         return undefined;
     }
     return {

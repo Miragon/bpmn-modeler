@@ -41,8 +41,8 @@ The kernel names no feature's DI service either. It looks up only what a bpmn-js
 diagram-js core or its own four names provide. A host reaches a feature through a typed accessor
 in the feature's `service/` (`layoutOf(surface)`, `elementIdsOf(surface)`, `appendMenuOf(surface)`),
 which returns `undefined` when the surface lacks the feature, so a host never holds the didi
-injector. An accessor wraps helpers in the feature's library, which keep the lookup and the logic
-usable without this package. The cost is one more file per feature, and each preset keeps its own
+injector. An accessor wraps helpers in the feature's library, which keep the lookup, the presence
+check and the logic usable without this package, so each DI name is written only in its library. The cost is one more file per feature, and each preset keeps its own
 answer for a missing feature. The modeler preset calls the code-link status push and the
 inline-script writes as helpers in `libs/code-link` and `libs/inline-scripting`, as the facade
 glue they replace; neither has an accessor yet. Only `editableSurface.ts`'s `bpmnLintConfig`
@@ -74,8 +74,9 @@ dynamic import, so a page parses only the engine it opens; the cost is an async 
 and `bpmnPropertiesProvider`, because the forked panel provides the first too, and on C7 the
 template provider module depends on the engine's provider, so requiring that one would prove
 nothing. `composition/presets/modelerFeatures.ts` lists `createModeler`'s features in the order
-its switch to `createSurface` uses (#2802 S4). Until the switch, the engine stacks and the engine
-features list the same upstream modules twice.
+its switch to `createSurface` uses (#2802 S4). Until the switch, the facade and composition
+register the same modules, config and capability gating as the feature factories, and the
+switch-delta spec pins the two against each other.
 
 ### Defaults and failure
 

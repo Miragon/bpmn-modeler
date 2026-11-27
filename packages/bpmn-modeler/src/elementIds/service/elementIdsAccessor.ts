@@ -2,6 +2,7 @@ import {
     applyElementIdSettings,
     type ElementIdOptions,
     type ElementIdsInjector,
+    hasSurfaceElementIds,
     proposeSurfaceElementIds,
     renameSurfaceElementIds,
 } from "@miragon/bpmn-modeler-element-ids";
@@ -21,7 +22,7 @@ export function elementIdsOf(
     surface: Pick<EditingSurface, "getService">,
 ): ElementIdsAccessor | undefined {
     const injector = surface.getService<ElementIdsInjector>("injector");
-    if (!injector.get("elementIds", false)) {
+    if (!hasSurfaceElementIds(injector)) {
         return undefined;
     }
     return {
