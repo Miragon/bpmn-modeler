@@ -16,7 +16,7 @@
     },
     "dependencies": {
         "@bpmn-io/form-js-viewer": "2.2.0",
-        "@bpmn-io/properties-panel": "3.57.0",
+        "@bpmn-io/properties-panel": "3.57.1",
         "@bpmn-io/svg-to-image": "1.0.1",
         "@fontsource-variable/geist": "5.3.0",
         "@miragon/bpmn-modeler": "workspace:*",
@@ -28,7 +28,7 @@
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.25.0",
         "bpmn-auto-layout": "2.0.0-alpha.2",
-        "bpmn-js": "18.33.0",
+        "bpmn-js": "18.33.1",
         "bpmn-js-bpmnlint": "0.25.0",
         "bpmnlint": "12.2.0",
         "diagram-js": "15.30.1",

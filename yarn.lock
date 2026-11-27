@@ -1200,7 +1200,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.57.0, @bpmn-io/properties-panel@npm:^3.55.0":
+"@bpmn-io/properties-panel@npm:3.57.1":
+  version: 3.57.1
+  resolution: "@bpmn-io/properties-panel@npm:3.57.1"
+  dependencies:
+    "@bpmn-io/feel-editor": "npm:^2.7.1"
+    "@bpmn-io/feelers-editor": "npm:^1.1.1"
+    "@codemirror/autocomplete": "npm:^6.18.6"
+    "@codemirror/commands": "npm:^6.10.3"
+    "@codemirror/lang-json": "npm:^6.0.2"
+    "@codemirror/language": "npm:^6.11.0"
+    "@codemirror/lint": "npm:^6.9.5"
+    "@codemirror/state": "npm:^6.6.0"
+    "@codemirror/view": "npm:^6.28.1"
+    classnames: "npm:^2.5.1"
+    focus-trap: "npm:^8.0.0"
+    min-dash: "npm:^5.1.0"
+    min-dom: "npm:^5.3.0"
+  checksum: 10c0/7164fc716a2516c6328907774cfa20ed3cc39ed3b35ed7fa33cb2cb266324b8efadcffd42909c50c141e0efd3637f753fd21caf724e915b72fb34b11c3641022
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/properties-panel@npm:^3.55.0":
   version: 3.57.0
   resolution: "@bpmn-io/properties-panel@npm:3.57.0"
   dependencies:
@@ -3027,12 +3048,12 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    bpmn-js: 18.33.0
+    bpmn-js: 18.33.1
   languageName: unknown
   linkType: soft
 
@@ -3065,14 +3086,14 @@ __metadata:
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     jsdom: "npm:31.0.0"
     preact: "npm:10.29.8"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    bpmn-js: 18.33.0
+    bpmn-js: 18.33.1
   languageName: unknown
   linkType: soft
 
@@ -3136,12 +3157,12 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    bpmn-js: 18.33.0
+    bpmn-js: 18.33.1
   languageName: unknown
   linkType: soft
 
@@ -3176,19 +3197,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-definition-search@workspace:libs/definition-search"
   dependencies:
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     bpmn-moddle: "npm:10.3.1"
     jsdom: "npm:31.0.0"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    "@bpmn-io/properties-panel": 3.57.0
-    bpmn-js: 18.33.0
+    "@bpmn-io/properties-panel": 3.57.1
+    bpmn-js: 18.33.1
   languageName: unknown
   linkType: soft
 
@@ -3253,7 +3274,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-element-ids@workspace:libs/element-ids"
   dependencies:
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.25.0"
     "@typescript/native": "npm:typescript@7.0.2"
@@ -3266,7 +3287,7 @@ __metadata:
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    "@bpmn-io/properties-panel": 3.57.0
+    "@bpmn-io/properties-panel": 3.57.1
     bpmn-js: 18.33.0
     diagram-js: 15.30.1
   languageName: unknown
@@ -3277,7 +3298,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-element-template-builder@workspace:libs/element-template-builder"
   dependencies:
     "@bpmn-io/element-templates-validator": "npm:2.26.0"
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/architecture-testing": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@types/node": "npm:26.6.6"
@@ -3289,7 +3310,7 @@ __metadata:
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    "@bpmn-io/properties-panel": 3.57.0
+    "@bpmn-io/properties-panel": 3.57.1
   languageName: unknown
   linkType: soft
 
@@ -3299,7 +3320,7 @@ __metadata:
   dependencies:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     diagram-js: "npm:15.30.1"
     jsdom: "npm:31.0.0"
     minisearch: "npm:7.2.0"
@@ -3308,7 +3329,7 @@ __metadata:
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    bpmn-js: 18.33.0
+    bpmn-js: 18.33.1
   languageName: unknown
   linkType: soft
 
@@ -3351,7 +3372,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-inline-scripting@workspace:libs/inline-scripting"
   dependencies:
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
@@ -3360,7 +3381,7 @@ __metadata:
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    "@bpmn-io/properties-panel": 3.57.0
+    "@bpmn-io/properties-panel": 3.57.1
     bpmn-js: 18.33.0
   languageName: unknown
   linkType: soft
@@ -3374,14 +3395,14 @@ __metadata:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     diagram-js: "npm:15.30.1"
     jsdom: "npm:31.0.0"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    bpmn-js: 18.33.0
+    bpmn-js: 18.33.1
     diagram-js: 15.30.1
   languageName: unknown
   linkType: soft
@@ -3406,7 +3427,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-orca@workspace:apps/orca-plugin"
   dependencies:
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
@@ -3417,7 +3438,7 @@ __metadata:
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     jsdom: "npm:31.0.0"
     playwright: "npm:1.65.1"
     tslib: "npm:2.9.1"
@@ -3432,11 +3453,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel"
   dependencies:
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     bpmn-js-element-templates: "npm:2.39.0"
     bpmn-moddle: "npm:10.3.1"
     diagram-js: "npm:15.30.1"
@@ -3448,8 +3469,8 @@ __metadata:
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
   peerDependencies:
-    "@bpmn-io/properties-panel": 3.57.0
-    bpmn-js: 18.33.0
+    "@bpmn-io/properties-panel": 3.57.1
+    bpmn-js: 18.33.1
     diagram-js: 15.30.1
     ids: 3.0.2
     min-dash: 5.1.0
@@ -3582,7 +3603,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
     "@bpmn-io/form-js-viewer": "npm:2.2.0"
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@bpmn-io/svg-to-image": "npm:1.0.1"
     "@fontsource-variable/geist": "npm:5.3.0"
     "@miragon/bpmn-modeler": "workspace:*"
@@ -3597,7 +3618,7 @@ __metadata:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     bpmn-js-bpmnlint: "npm:0.25.0"
     bpmnlint: "npm:12.2.0"
     diagram-js: "npm:15.30.1"
@@ -3618,7 +3639,7 @@ __metadata:
     "@bpmn-io/align-to-origin": "npm:0.7.0"
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/element-template-icon-renderer": "npm:1.0.1"
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@bpmn-io/variable-resolver": "npm:3.3.1"
     "@camunda/example-data-properties-provider": "npm:1.5.2"
     "@lezer/lr": "npm:1.4.12"
@@ -3647,7 +3668,7 @@ __metadata:
     "@vitest/browser-playwright": "npm:5.1.1"
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
-    bpmn-js: "npm:18.33.0"
+    bpmn-js: "npm:18.33.1"
     bpmn-js-bpmnlint: "npm:0.25.0"
     bpmn-js-color-picker: "npm:0.7.2"
     bpmn-js-copy-as-image: "npm:0.4.1"
@@ -3761,7 +3782,7 @@ __metadata:
   resolution: "@miragon/dmn-modeler@workspace:packages/dmn-modeler"
   dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
-    "@bpmn-io/properties-panel": "npm:3.57.0"
+    "@bpmn-io/properties-panel": "npm:3.57.1"
     "@emaarco/dmn-js-simulation": "npm:0.4.1"
     "@microsoft/api-extractor": "npm:7.60.1"
     "@miragon/architecture-testing": "workspace:*"
@@ -9438,9 +9459,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js@npm:18.33.0":
-  version: 18.33.0
-  resolution: "bpmn-js@npm:18.33.0"
+"bpmn-js@npm:18.33.1":
+  version: 18.33.1
+  resolution: "bpmn-js@npm:18.33.1"
   dependencies:
     bpmn-moddle: "npm:^10.3.1"
     diagram-js: "npm:^15.30.0"
@@ -9450,7 +9471,7 @@ __metadata:
     min-dash: "npm:^5.1.0"
     min-dom: "npm:^5.3.0"
     tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/2309d4f43652e663f14408f36993415b2a983be6e52e01bff653b2409eff16cba418d50c24345c95d26751e57b45a0816dd8a1f92ffb252c28d56822df804657
+  checksum: 10c0/fc453f3f09ba8400d9b6ffb0e9d22f74bdefd2a05a73a16c30c4ca40c8def85026440e686f91f324828d011a2a2137bcab686d851bd08f62521adcd17c80a1c5
   languageName: node
   linkType: hard
 
