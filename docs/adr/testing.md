@@ -34,7 +34,7 @@ ResizeObserver delivery need a real browser (mocks can test viewport-latch
 decisions but not that a delayed initial fit leaves a restored view state
 intact). The package's `test` runs both projects in one invocation so their V8
 coverage merges; measured separately, code only the browser specs exercise
-(modeler composition, engine stacks, linting) reads as uncovered. A separate
+(modeler composition, engine features, linting) reads as uncovered. A separate
 Playwright test runner would duplicate the Vite module graph, aliases and
 conventions. The mode-session recreate transaction is still tested with jsdom
 doubles, with real-viewer tests covering the post-import viewport behavior it

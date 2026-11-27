@@ -142,7 +142,7 @@ The webview runs two **bpmn-js DI modules** (from the shared
 elements and contenteditable labels have different event handling. The webview
 only supplies the `clipboard` option (`apps/bpmn-webview/src/adapter/out/protocolClipboard.ts`);
 `@miragon/bpmn-modeler` builds the DI modules from it via
-`createClipboardModules` in `packages/bpmn-modeler/src/modeler/service/modeler.ts`. Each module
+`createClipboardModules` in the `clipboard()` feature (`packages/bpmn-modeler/src/clipboard/adapter/in/clipboardFeature.ts`). Each module
 receives its host bridge through didi value injection: a `{ requestClipboard,
 writeClipboard }` pair.
 
@@ -197,7 +197,7 @@ const receive = (reply: Reply) => pendingReply.done(reply);
 options = { bridge: elementChannel.bridge, text: textChannel.bridge };
 ```
 
-`BpmnModeler.init()` turns that into
+The `clipboard()` feature turns that into
 `createClipboardModules({ element: clip.bridge, text: clip.text })` and installs
 the FEEL/contenteditable polyfill off `text ?? bridge`; `BpmnDesigner`
 (`packages/bpmn-modeler/src/design/service/designer.ts`) does the same.

@@ -3,7 +3,7 @@
 Replaces the dropdown of `bpmn-js-create-append-anything` (**Append element** on the context pad or `A`,
 **Create element** in the palette or `N`) with a two-panel Preact overlay: element templates on the left,
 BPMN elements by category with pinned favourites on the right. `@miragon/bpmn-modeler` registers it on
-the modeler (`src/modeler/service/modeler.ts`) and the design surface (`src/design/service/designer.ts`).
+the modeler (the `appendMenu()` feature) and the design surface (`src/design/service/designer.ts`).
 
 Internal workspace, not published on its own.
 
@@ -37,6 +37,6 @@ modeler.get("appendMenuOverride", false)?.setFavourites(["bpmn:ServiceTask", "bp
 ```
 
 Template entries also need `CreateAppendElementTemplatesModule` and an `elementTemplates` service, as
-`packages/bpmn-modeler/src/composition/engineStacks/` registers them. On Camunda 7 that service lacks
+the modeler's `elementTemplates(engine)` feature registers them. On Camunda 7 that service lacks
 `createElement`, so register `CreateAppendC7ElementTemplatesModule` from `@miragon/create-append-c7`
 (1.0.1 or later) too.
