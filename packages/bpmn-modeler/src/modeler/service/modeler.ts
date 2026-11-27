@@ -1,7 +1,6 @@
 import Modeler from "bpmn-js/lib/Modeler";
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
-import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
@@ -230,7 +229,6 @@ export class BpmnModeler {
         };
         const commonModules = [
             TranslateModule,
-            TokenSimulationModule,
             TokenSimulationBehaviorNamesModule,
             ...buildLintModules(
                 this.options.linting,

@@ -9,7 +9,6 @@ import {
 import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
 import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import MinimapModule from "diagram-js-minimap";
-import TokenSimulationModule from "bpmn-js-token-simulation";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
@@ -180,7 +179,6 @@ export class BpmnDesigner {
                 // Names and IDs are engine-neutral, so IDs follow names here too.
                 ElementIdsModule,
                 MinimapModule,
-                TokenSimulationModule,
                 TokenSimulationBehaviorNamesModule,
                 // Design never enabled linting implicitly, so omission needs no migration notice.
                 ...buildLintModules(

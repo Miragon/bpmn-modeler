@@ -43,8 +43,8 @@ Token simulation reuses three DI names of bpmn-js's modeling behaviours
 (`boundaryEventBehavior`, `eventBasedGatewayBehavior`, `messageFlowBehavior`), so
 bpmn-js's interceptors for them never run, and no release fixes it
 (bpmn-io/bpmn-js-token-simulation#139). The package's
-`tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule.ts` depends on token
-simulation, so it loads after it wherever a preset lists it, gives bpmn-js its names back
+`tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule.ts` is the presets' only
+entry for token simulation: it depends on it, so it loads after it, gives bpmn-js its names back
 and builds the simulator's behaviours under `simulator*` names upstream does not use. It reads no private member, so it sits outside
 `upstreamInternals/`, but it assumes token simulation's behaviour index modules and a
 simulator that finds a behaviour by element type, not DI name. The
