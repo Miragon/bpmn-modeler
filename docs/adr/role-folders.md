@@ -251,9 +251,9 @@ module lists and the engine stacks.
   #2249 step 2 (now #2802) that removes it: construction out of the facades (8),
   `LintCallbacks` into the `LintModule` port (1), the linter injected into `LintConfigService`
   (1), the template preview as a preset (1) and, for purity, the default lint config as a value
-  (1). The kernel rule keeps two exceptions until #2802 S4: `editableSurface.ts` imports the
-  layout and element-ID libraries; the [DI-name rule](bpmn-modeler-kernel.md#kernel-di-names)
-  keeps its five lookups there until #2802 S4 and S5. A
+  (1). The kernel rule has no exception left; the
+  [DI-name rule](bpmn-modeler-kernel.md#kernel-di-names) keeps the `bpmnLintConfig` lookup in
+  `editableSurface.ts` until #2802 S5. A
   `new Modeler()` in a feature's `service/` passes every import rule; only review and the browser
   specs catch it. The bundle checks read `bpmnlint` anywhere in a chunk, its source path
   comments included, so a file the root, `/design` or `/mode` entry reaches stays out of

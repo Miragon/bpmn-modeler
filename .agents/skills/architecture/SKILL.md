@@ -297,7 +297,9 @@ lists. A feature gets from the package only the kernel DI names
 kernel's port and domain types, never another feature, and declares what
 another feature must provide in `requires`; a helper it shares with the kernel
 goes into `@miragon/bpmn-modeler-browser`. The kernel looks up no feature's DI
-name either (package spec). A type or constant two features share goes into `kernel/domain/`,
+name either (package spec): a host reaches a feature through a helper in the
+feature's library that takes the surface's injector (`formatSurfaceDiagram`,
+`proposeSurfaceElementIds`), or through the feature's accessor. A type or constant two features share goes into `kernel/domain/`,
 not into one of them, or into
 `libs/modeler-types` when `libs/properties-panel` or the core needs it too (the
 mode type and the `surface.mode.changed` event name) or it reads with the
