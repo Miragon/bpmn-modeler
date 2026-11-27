@@ -70,7 +70,7 @@ const ROLE_EXCEPTIONS: readonly KnownException[] = [
         "composition/engineStacks/index.ts",
         "popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule.ts",
         "mode/adapter/in/modeModules.ts",
-        "elementTemplateOffer/adapter/in/elementTemplateOfferModule.ts",
+        "elementTemplates/adapter/in/elementTemplatesModules.ts",
         "tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule.ts",
     ].map((to) =>
         bpmnModelerException("modeler/service/modeler.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),

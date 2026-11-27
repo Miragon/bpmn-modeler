@@ -3,10 +3,14 @@ import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { applyImplementationStatus } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
-import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
-import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import {
+    cleanupWithoutLayout,
+    createBpmnLayoutModule,
+    formatWithoutLayout,
+} from "@miragon/bpmn-modeler-layout";
+import type { LayoutOutcome, SurfaceInjector } from "@miragon/bpmn-modeler-layout";
 import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
@@ -25,42 +29,32 @@ import {
     type ElementTemplateRef,
     Engine,
     getLatestVersion,
+    initialDiagram,
     LintResults,
     OpenScriptEditorRef,
-    resolveScriptWriteTarget,
-    ScriptField,
+    type ScriptField,
+    type ScriptIdentity,
     ScriptKind,
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
 import {
+    applyOpenScriptEditors,
     collectInlineScriptTasks,
-    OpenScriptEditorsStore,
-    ScriptSourceWatcher,
+    writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
-import type { ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
-import {
-    BPMN_TAB,
-    createPopupMenuAnnotationsModule,
-    ReplaceTemplatesTabModule,
-} from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import { appendMenuOf } from "../../appendMenu/service/appendMenuAccessor";
+import { elementIdsOf } from "../../elementIds/service/elementIdsAccessor";
+import { layoutOf } from "../../layout/service/layoutAccessor";
+import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { capabilityModules } from "../../composition/capabilityModules";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
-import {
-    applyElementIdSettings,
-    applyFavouriteBpmnElements,
-    cleanupSurfaceDiagram,
-    createSurfaceLintHandle,
-    formatSurfaceDiagram,
-    proposeSurfaceElementIds,
-    renameSurfaceElementIds,
-    subscribeFormatted,
-} from "../../kernel/service/editableSurface";
+import { createSurfaceLintHandle } from "../../kernel/service/editableSurface";
 import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
 import { createReporter, type SurfaceReporter } from "../../kernel/service/reporting";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
@@ -78,14 +72,16 @@ import type {
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
 import { loadEngineStack } from "../../composition/engineStacks";
-import { initialDiagram } from "../domain/initialDiagram";
 import { normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
-import { ModeUiModule } from "../../mode/adapter/in/modeModules";
+import { ModeAttribute } from "../../mode/adapter/in/modeModules";
 import {
+    BPMN_TAB,
     ElementTemplateEngineRefreshModule,
     ElementTemplateOfferModule,
     type ElementTemplateOffer,
-} from "../../elementTemplateOffer/adapter/in/elementTemplateOfferModule";
+    PopupMenuModeFilter,
+    ReplaceTemplatesTabModule,
+} from "../../elementTemplates/adapter/in/elementTemplatesModules";
 import { DrilldownFitModule } from "../../kernel/service/viewState";
 import type {
     CoreModelerServices,
@@ -106,19 +102,15 @@ interface ElementTemplatesLoaderService {
 interface AlignToOriginService {
     align(): void;
 }
-interface ScriptModelElement {
-    businessObject: ScriptTaskBusinessObject;
-}
-interface ScriptModelElementRegistry {
-    get(id: string): ScriptModelElement | undefined;
-}
-interface ScriptModeling {
-    updateModdleProperties(
-        element: ScriptModelElement,
-        moddleElement: unknown,
-        properties: Record<string, unknown>,
-    ): void;
-}
+
+// A surface built without the layout feature never formats, so nothing to unsubscribe.
+const NO_SUBSCRIPTION = (): void => undefined;
+
+const ModeUiModule = {
+    __init__: ["popupMenuModeFilter", "modeAttribute"],
+    popupMenuModeFilter: ["type", PopupMenuModeFilter],
+    modeAttribute: ["type", ModeAttribute],
+};
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -292,7 +284,7 @@ export class BpmnModeler {
 
         this.applyHiddenElementTemplates();
         this.transactionBoundaryVisibility()?.setVisible(this.settings.showTransactionBoundaries);
-        applyElementIdSettings(this.core, {
+        elementIdsOf(this)?.configure({
             ...elementIdSettingsOf(this.settings),
             convention: lintElementIdConvention(this.options.linting),
         });
@@ -387,7 +379,7 @@ export class BpmnModeler {
 
     /** @see BpmnModelerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
-        return subscribeFormatted(this.core, listener);
+        return layoutOf(this)?.onFormatted(listener) ?? NO_SUBSCRIPTION;
     }
 
     /** @see PendingInputHandle.hasPendingInput */
@@ -451,7 +443,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.formatDiagram
      */
     async formatDiagram(): Promise<LayoutOutcome> {
-        return formatSurfaceDiagram(this.core);
+        return layoutOf(this)?.formatDiagram() ?? formatWithoutLayout();
     }
 
     /**
@@ -460,7 +452,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.cleanupDiagram
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
-        return cleanupSurfaceDiagram(this.core, options);
+        return layoutOf(this)?.cleanupDiagram(options) ?? cleanupWithoutLayout();
     }
 
     setElementTemplates(templates: object[]): void {
@@ -495,10 +487,10 @@ export class BpmnModeler {
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
-            applyFavouriteBpmnElements(this.core, settings.favouriteBpmnElements);
+            appendMenuOf(this)?.setFavourites(settings.favouriteBpmnElements);
         }
 
-        applyElementIdSettings(this.core, elementIdSettingsOf(settings));
+        elementIdsOf(this)?.configure(elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
@@ -511,17 +503,17 @@ export class BpmnModeler {
         if (followName !== undefined) {
             this.setSettings({ elementIdsFollowName: followName });
         }
-        applyElementIdSettings(this.core, options);
+        elementIdsOf(this)?.configure(options);
     }
 
     /** @see BpmnModelerHandle.proposeElementIds */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
-        return proposeSurfaceElementIds(this.core, unchecked);
+        return elementIdsOf(this)?.propose(unchecked) ?? { rows: [] };
     }
 
     /** @see BpmnModelerHandle.renameElementIds */
     renameElementIds(unchecked: readonly string[]): number {
-        return renameSurfaceElementIds(this.core, unchecked);
+        return elementIdsOf(this)?.rename(unchecked) ?? 0;
     }
 
     /** @internal */
@@ -555,10 +547,7 @@ export class BpmnModeler {
         listenerIndex: number | undefined,
         scriptFormat: string,
     ): void {
-        const element = this.findScriptElement(elementId);
-        if (element) {
-            this.writeScriptField(element, elementId, kind, listenerIndex, "format", scriptFormat);
-        }
+        this.writeScriptField({ elementId, kind, listenerIndex }, "format", scriptFormat);
     }
 
     /** @internal */
@@ -568,52 +557,24 @@ export class BpmnModeler {
         listenerIndex: number | undefined,
         content: string,
     ): void {
-        const element = this.findScriptElement(elementId);
-        if (!element) {
-            return;
-        }
-        // commandStack.changed fires during the write; set the baseline first to avoid echoing our own edit.
-        this.getModeler()
-            .get<ScriptSourceWatcher>("scriptSourceWatcher", false)
-            ?.noteApplied(elementId, kind, listenerIndex, content);
-        this.writeScriptField(element, elementId, kind, listenerIndex, "content", content);
+        this.writeScriptField({ elementId, kind, listenerIndex }, "content", content);
     }
 
-    private findScriptElement(elementId: string): ScriptModelElement | undefined {
-        const element = this.getModeler()
-            .get<ScriptModelElementRegistry>("elementRegistry")
-            .get(elementId);
-        if (!element) {
-            this.reporter.warn(`Element not found: ${elementId}`);
-        }
-        return element;
-    }
-
-    private writeScriptField(
-        element: ScriptModelElement,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        field: ScriptField,
-        value: string,
-    ): void {
-        const target = resolveScriptWriteTarget(element.businessObject, kind, listenerIndex, field);
-        if (!target) {
+    private writeScriptField(script: ScriptIdentity, field: ScriptField, value: string): void {
+        const outcome = writeSurfaceScriptField(this.injector(), script, field, value);
+        if (outcome === "elementNotFound") {
+            this.reporter.warn(`Element not found: ${script.elementId}`);
+        } else if (outcome === "noInlineScript") {
+            const { elementId, kind, listenerIndex } = script;
             this.reporter.warn(
                 `${describeScriptSurface(elementId, kind, listenerIndex)} has no inline script`,
             );
-            return;
         }
-        this.getModeler()
-            .get<ScriptModeling>("modeling")
-            .updateModdleProperties(element, target.moddleElement, {
-                [target.propertyName]: value,
-            });
     }
 
     /** @internal C7 only; C8 does not register the script-editor store. */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
-        this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
+        applyOpenScriptEditors(this.injector(), refs);
     }
 
     /**
@@ -660,7 +621,11 @@ export class BpmnModeler {
 
     /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
-        this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
+        applyImplementationStatus(this.injector(), resolved);
+    }
+
+    private injector(): SurfaceInjector {
+        return this.core.service<SurfaceInjector>("injector");
     }
 
     /**

@@ -1,7 +1,13 @@
+import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import { type ClipboardOptions, createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 
 import type { BpmnFeature } from "../../../kernel/domain/bpmnFeature";
 import { createClipboardTextPolyfillModule } from "./clipboardTextPolyfillModule";
+
+/** @experimental Copy and paste between surfaces and pages through the browser clipboard. */
+export function nativeCopyPaste(): BpmnFeature {
+    return { id: "nativeCopyPaste", modules: [NativeCopyPasteModule] };
+}
 
 /**
  * @experimental Routes copy and paste through a host bridge instead of the

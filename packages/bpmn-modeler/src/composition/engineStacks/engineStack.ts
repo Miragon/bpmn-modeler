@@ -1,5 +1,5 @@
 import type { ModuleDeclaration } from "didi";
-import type { PopupMenuAnnotationOverrides } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import type { PopupMenuAnnotationOverrides } from "../../kernel/domain/popupMenus";
 
 export interface EngineStack {
     /** Upstream engine plugins wrapped in the shared modules, in registration order. */

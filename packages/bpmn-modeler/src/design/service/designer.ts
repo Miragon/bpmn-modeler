@@ -11,7 +11,11 @@ import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import MinimapModule from "diagram-js-minimap";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
-import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
+import {
+    cleanupWithoutLayout,
+    createBpmnLayoutModule,
+    formatWithoutLayout,
+} from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
@@ -25,21 +29,15 @@ import type {
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
+import { appendMenuOf } from "../../appendMenu/service/appendMenuAccessor";
+import { elementIdsOf } from "../../elementIds/service/elementIdsAccessor";
+import { layoutOf } from "../../layout/service/layoutAccessor";
 import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
-import {
-    applyElementIdSettings,
-    applyFavouriteBpmnElements,
-    cleanupSurfaceDiagram,
-    createSurfaceLintHandle,
-    formatSurfaceDiagram,
-    proposeSurfaceElementIds,
-    renameSurfaceElementIds,
-    subscribeFormatted,
-} from "../../kernel/service/editableSurface";
+import { createSurfaceLintHandle } from "../../kernel/service/editableSurface";
 import { subscribeCommandStackChanged } from "../../kernel/service/commandStackChanged";
 import type { PresetWiring } from "../../kernel/port/presetWiring";
 import { SurfaceCore } from "../../kernel/service/surfaceCore";
@@ -53,6 +51,9 @@ import type {
 import type { ElementIdOptions } from "../../modeler/port/publicApi";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 import type { CoreDesignerServices, DesignerOptions } from "../port/publicApi";
+
+// A surface built without the layout feature never formats, so nothing to unsubscribe.
+const NO_SUBSCRIPTION = (): void => undefined;
 
 /**
  * An independent, editable BPMN surface without an execution platform.
@@ -222,12 +223,12 @@ export class BpmnDesigner {
 
     /** @see BpmnDesignerHandle.formatDiagram */
     async formatDiagram(): Promise<LayoutOutcome> {
-        return formatSurfaceDiagram(this.core);
+        return layoutOf(this)?.formatDiagram() ?? formatWithoutLayout();
     }
 
     /** @see BpmnDesignerHandle.cleanupDiagram */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
-        return cleanupSurfaceDiagram(this.core, options);
+        return layoutOf(this)?.cleanupDiagram(options) ?? cleanupWithoutLayout();
     }
 
     async getDiagramSvg(): Promise<string> {
@@ -236,22 +237,22 @@ export class BpmnDesigner {
 
     /** @see BpmnDesignerHandle.setFavouriteBpmnElements */
     setFavouriteBpmnElements(types: readonly string[]): void {
-        applyFavouriteBpmnElements(this.core, types);
+        appendMenuOf(this)?.setFavourites(types);
     }
 
     /** @see BpmnDesignerHandle.setElementIdSettings */
     setElementIdSettings(options: ElementIdOptions): void {
-        applyElementIdSettings(this.core, options);
+        elementIdsOf(this)?.configure(options);
     }
 
     /** @see BpmnDesignerHandle.proposeElementIds */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
-        return proposeSurfaceElementIds(this.core, unchecked);
+        return elementIdsOf(this)?.propose(unchecked) ?? { rows: [] };
     }
 
     /** @see BpmnDesignerHandle.renameElementIds */
     renameElementIds(unchecked: readonly string[]): number {
-        return renameSurfaceElementIds(this.core, unchecked);
+        return elementIdsOf(this)?.rename(unchecked) ?? 0;
     }
 
     /**
@@ -305,7 +306,7 @@ export class BpmnDesigner {
 
     /** @see BpmnDesignerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
-        return subscribeFormatted(this.core, listener);
+        return layoutOf(this)?.onFormatted(listener) ?? NO_SUBSCRIPTION;
     }
 
     /** @see PendingInputHandle.hasPendingInput */

@@ -20,6 +20,8 @@ export type { PopupMenuContext } from "./upstreamInternals/popupMenuInternals";
 export { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "./plainEntryCatalog";
 export { isTemplatePopupEntry, templateIdOfEntryKey } from "./templatePopupEntry";
 export { APPEND_MENU_KEYS } from "./appendMenuTexts";
+export { applyFavouriteBpmnElements, hasAppendMenu } from "./favourites";
+export type { AppendMenuInjector } from "./favourites";
 
 export const AppendMenuModule = {
     __init__: ["appendMenuOverride"],

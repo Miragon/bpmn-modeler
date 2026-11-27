@@ -38,6 +38,15 @@ export { BpmnAutoLayoutEngine } from "./engine/autoLayoutEngine";
 export { LAYOUT_APPLY_COMMAND, LAYOUT_FORMATTED_EVENT, Layouter } from "./apply/Layouter";
 export type { LayoutOutcome } from "./apply/Layouter";
 export { CleanupService } from "./apply/CleanupService";
+export {
+    cleanupSurfaceDiagram,
+    cleanupWithoutLayout,
+    formatSurfaceDiagram,
+    formatWithoutLayout,
+    hasSurfaceLayout,
+    subscribeFormatted,
+} from "./apply/surfaceLayout";
+export type { SurfaceInjector } from "./apply/surfaceLayout";
 export { CLEANUP_COMMAND, CLEANUP_MODDLE_COMMAND } from "./apply/CleanupHandlers";
 
 export { analyzeLayoutability } from "./preflight";

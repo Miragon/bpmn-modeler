@@ -1,0 +1,143 @@
+# createModeler (c8) built by createSurface(modelerFeatures): what changes against createModeler (c8)
+
+## default options
+modules:
++ elementsRenderer=type(ElementsRenderer) (after nativeCopyPaste)
++ copyAsImageEditorActions=type(CopyAsImageEditorActions) copyAsImageKeyboardBindings=type(CopyAsImageKeyboardBindings) init[copyAsImageEditorActions, copyAsImageKeyboardBindings] (after elementsRenderer)
++ debounceInput=factory(debounceInputFactory) (after propertiesPanel)
++ depends[propertiesPanel, debounceInput] (after debounceInput)
+- elementsRenderer=type(ElementsRenderer)
+- copyAsImageEditorActions=type(CopyAsImageEditorActions) copyAsImageKeyboardBindings=type(CopyAsImageKeyboardBindings) init[copyAsImageEditorActions, copyAsImageKeyboardBindings]
+- elementTemplateIconRenderer=type(ElementTemplateIconRenderer) init[elementTemplateIconRenderer]
++ colorContextPadProvider=type(ColorContextPadProvider) colorPopupProvider=type(ColorPopupProvider) init[colorContextPadProvider, colorPopupProvider] (after zeebePropertiesProvider)
++ variableResolver=type(ZeebeVariableResolver) connectorVariableProvider=type(ConnectorVariableProvider) init[variableResolver, connectorVariableProvider] (after colorContextPadProvider)
++ exampleProvider=type(ExampleJsonProvider) init[exampleProvider] (after variableResolver)
++ dataPropertiesProvider=type(DataPropertiesProvider) init[dataPropertiesProvider] (after exampleProvider)
++ depends[exampleProvider, dataPropertiesProvider] (after dataPropertiesProvider)
++ diagramTemplate=value({newDiagramXml: fn newDiagramXml}) (after […, dataPropertiesProvider])
++ popupMenuAnnotationOverrides=value({"additionalKeywords":{"message-end":["Job worker"],"message-intermediate-throw":["Job worker"],"script-task":["Job worker"],"send-task":["Job worker"],"service-task":["Job worker"]},"descriptions":{"service-task":"Automated work carried out by a job worker or connector"}}) (after diagramTemplate)
++ appendMenuProvider=type(AppendMenuProvider) appendContextPadProvider=type(AppendContextPadProvider) appendRules=type(AppendRules) init[appendMenuProvider, appendContextPadProvider, appendRules] (after popupMenuAnnotationOverrides)
++ createMenuProvider=type(CreateMenuProvider) createPaletteProvider=type(CreatePaletteProvider) init[createMenuProvider, createPaletteProvider] (after appendMenuProvider)
++ createAppendEditorActions=type(CreateAppendEditorActions) init[createAppendEditorActions] (after createMenuProvider)
++ createAppendKeyboardBindings=type(CreateAppendKeyboardBindings) init[createAppendKeyboardBindings] (after createAppendEditorActions)
++ depends[appendMenuProvider, createMenuProvider, createAppendEditorActions, createAppendKeyboardBindings] (after createAppendKeyboardBindings)
++ elementTemplateIconRenderer=type(ElementTemplateIconRenderer) init[elementTemplateIconRenderer] (after […, createAppendKeyboardBindings])
+- appendMenuProvider=type(AppendMenuProvider) appendContextPadProvider=type(AppendContextPadProvider) appendRules=type(AppendRules) init[appendMenuProvider, appendContextPadProvider, appendRules]
+- createMenuProvider=type(CreateMenuProvider) createPaletteProvider=type(CreatePaletteProvider) init[createMenuProvider, createPaletteProvider]
+- createAppendEditorActions=type(CreateAppendEditorActions) init[createAppendEditorActions]
+- createAppendKeyboardBindings=type(CreateAppendKeyboardBindings) init[createAppendKeyboardBindings]
+- depends[appendMenuProvider, createMenuProvider, createAppendEditorActions, createAppendKeyboardBindings]
++ elementTemplateChooser=type(ElementTemplateChooser) init[elementTemplateChooser] (after […, removeTemplateReplaceProvider])
++ replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTemplatesTabProvider] (after elementTemplateChooser)
++ popupMenuModeFilter=type(PopupMenuModeFilter) init[popupMenuModeFilter] (after replaceTemplatesTabProvider)
++ elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter] (after popupMenuModeFilter)
++ elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh] (after elementTemplateOffer)
+- colorContextPadProvider=type(ColorContextPadProvider) colorPopupProvider=type(ColorPopupProvider) init[colorContextPadProvider, colorPopupProvider]
+- variableResolver=type(ZeebeVariableResolver) connectorVariableProvider=type(ConnectorVariableProvider) init[variableResolver, connectorVariableProvider]
+- exampleProvider=type(ExampleJsonProvider) init[exampleProvider]
+- dataPropertiesProvider=type(DataPropertiesProvider) init[dataPropertiesProvider]
+- depends[exampleProvider, dataPropertiesProvider]
+- elementTemplateChooser=type(ElementTemplateChooser) init[elementTemplateChooser]
++ popupMenuAnnotations=factory(popupMenuAnnotationsFactory) popupMenuAnnotationProvider=type(PopupMenuAnnotationProvider) init[popupMenuAnnotationProvider] (after appendMenuOverride)
+- popupMenuAnnotations=value(PopupMenuAnnotations) popupMenuAnnotationProvider=type(PopupMenuAnnotationProvider) init[popupMenuAnnotationProvider]
+- replaceTemplatesTabProvider=type(ReplaceTemplatesTabProvider) init[replaceTemplatesTabProvider]
+- debounceInput=factory(debounceInputFactory)
+- popupMenuModeFilter=type(PopupMenuModeFilter) modeAttribute=type(ModeAttribute) init[popupMenuModeFilter, modeAttribute]
+- elementTemplateOffer=type(ElementTemplateOffer) hiddenTemplatePopupFilter=type(HiddenTemplatePopupFilter) init[elementTemplateOffer, hiddenTemplatePopupFilter]
+- elementTemplateEngineRefresh=type(ElementTemplateEngineRefresh) init[elementTemplateEngineRefresh]
+providers:
++ diagramTemplate: value({newDiagramXml: fn newDiagramXml})
+- modeAttribute: type(ModeAttribute)
++ popupMenuAnnotationOverrides: value({"additionalKeywords":{"message-end":["Job worker"],"message-intermediate-throw":["Job worker"],"script-task":["Job worker"],"send-task":["Job worker"],"service-task":["Job worker"]},"descriptions":{"service-task":"Automated work carried out by a job worker or connector"}})
+~ popupMenuAnnotations: value(PopupMenuAnnotations) → factory(popupMenuAnnotationsFactory)
+__init__:
++ copyAsImageEditorActions (after nativeCopyPaste)
++ copyAsImageKeyboardBindings @copyAsImageEditorActions (after copyAsImageEditorActions)
+- copyAsImageEditorActions
+- copyAsImageKeyboardBindings @copyAsImageEditorActions
+- elementTemplateIconRenderer
++ colorContextPadProvider (after zeebePropertiesProvider)
++ colorPopupProvider @colorContextPadProvider (after colorContextPadProvider)
++ variableResolver (after colorPopupProvider)
++ connectorVariableProvider @variableResolver (after variableResolver)
++ exampleProvider (after connectorVariableProvider)
++ dataPropertiesProvider (after exampleProvider)
++ appendMenuProvider (after dataPropertiesProvider)
++ appendContextPadProvider @appendMenuProvider (after appendMenuProvider)
++ appendRules @appendMenuProvider (after appendContextPadProvider)
++ createMenuProvider (after appendRules)
++ createPaletteProvider @createMenuProvider (after createMenuProvider)
++ createAppendEditorActions (after createPaletteProvider)
++ createAppendKeyboardBindings (after createAppendEditorActions)
++ elementTemplateIconRenderer (after createAppendKeyboardBindings)
+- appendMenuProvider
+- appendContextPadProvider @appendMenuProvider
+- appendRules @appendMenuProvider
+- createMenuProvider
+- createPaletteProvider @createMenuProvider
+- createAppendEditorActions
+- createAppendKeyboardBindings
++ elementTemplateChooser (after removeTemplateReplaceProvider)
++ replaceTemplatesTabProvider (after elementTemplateChooser)
++ popupMenuModeFilter (after replaceTemplatesTabProvider)
++ elementTemplateOffer (after popupMenuModeFilter)
++ hiddenTemplatePopupFilter @elementTemplateOffer (after elementTemplateOffer)
++ elementTemplateEngineRefresh (after hiddenTemplatePopupFilter)
+- colorContextPadProvider
+- colorPopupProvider @colorContextPadProvider
+- variableResolver
+- connectorVariableProvider @variableResolver
+- exampleProvider
+- dataPropertiesProvider
+- elementTemplateChooser
+- replaceTemplatesTabProvider
+- popupMenuModeFilter
+- modeAttribute @popupMenuModeFilter
+- elementTemplateOffer
+- hiddenTemplatePopupFilter @elementTemplateOffer
+- elementTemplateEngineRefresh
+
+## linting: false
+(as the defaults)
+
+## linting: { module } (in-page tier)
+(as the defaults)
+
+## linting: { module, results: "external" }
+(as the defaults)
+
+## linting: { module } (in-page tier) with mode: "design"
+(as the defaults)
+
+## linting: { module, config }, onLintResults, onLintingToggled and elementTemplates
+(as the defaults)
+
+## mode: "design"
+(as the defaults)
+
+## capabilities.modelNavigation
+(as the defaults)
+
+## capabilities.codeLink
+(as the defaults)
+
+## capabilities.definitionSearch
+(as the defaults)
+
+## capabilities.scripting
+(as the defaults)
+
+## clipboard: { bridge }
+(as the defaults)
+
+## clipboard: { bridge, text }
+(as the defaults)
+
+## moddleExtensions (a new prefix, and the engine's prefix replaced)
+(as the defaults)
+
+## additionalModules
+(as the defaults)
+
+## in-page linting, every capability, clipboard and additionalModules at once
+(as the defaults)

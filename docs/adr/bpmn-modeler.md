@@ -276,7 +276,8 @@ inside, and the presets and module lists in `composition/`
 ([modeler package layout](role-folders.md#modeler-package-layout)). The export map and every
 exported name stayed as they were. The facades still build their bpmn-js instance and
 orchestrate it, so the role-folder rules list them as known exceptions until #2802 S4 puts the
-presets on the kernel.
+presets on the kernel. The modeler's feature factories and its feature list for that switch are
+in place ([kernel](bpmn-modeler-kernel.md#feature-factories)).
 
 ## Consequences and enforcement
 

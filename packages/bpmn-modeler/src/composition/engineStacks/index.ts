@@ -2,10 +2,6 @@ import { isEngine, UnsupportedEngineError, type Engine } from "@miragon/bpmn-mod
 import type { EngineStack } from "./engineStack";
 
 export type { EngineStack } from "./engineStack";
-export {
-    C7_POPUP_MENU_ANNOTATIONS,
-    C8_POPUP_MENU_ANNOTATIONS,
-} from "./popupMenuAnnotationOverrides";
 
 // Dynamic so a page only parses the plugin stack of the engine it opens.
 const ENGINE_STACK_LOADERS: Record<Engine, () => Promise<EngineStack>> = {

@@ -1,16 +1,10 @@
 import type { Translate } from "@miragon/bpmn-modeler-types/domain";
 
-/** A bpmn-js popup entry id, e.g. `service-task`; create and append entries use it as action name. */
-export type PopupEntryKey = string;
+import type { PopupEntryKey, PopupMenuAnnotationOverrides } from "../../kernel/domain/popupMenus";
 
 export interface PopupMenuAnnotation {
     readonly description?: string;
     readonly keywords: readonly string[];
-}
-
-export interface PopupMenuAnnotationOverrides {
-    readonly descriptions?: Readonly<Record<PopupEntryKey, string>>;
-    readonly additionalKeywords?: Readonly<Record<PopupEntryKey, readonly string[]>>;
 }
 
 export interface AnnotatableEntry {

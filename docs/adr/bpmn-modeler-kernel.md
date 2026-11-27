@@ -1,7 +1,7 @@
 # BPMN modeler kernel
 
 - Status: accepted
-- Last reviewed: 2026-11-25
+- Last reviewed: 2026-11-27
 
 ## Context
 
@@ -38,9 +38,19 @@ kernel's port and domain types. A helper that features and the kernel share, suc
 does not make kernel internals part of the export map.
 
 The kernel names no feature's DI service either. It looks up only what a bpmn-js base, the
-diagram-js core or its own four names provide. Until a feature's accessor takes over,
-`editableSurface.ts` still looks up `bpmnLayouter`, `bpmnCleanup`, `elementIds` and
-`appendMenuOverride` (#2802 S4) and `bpmnLintConfig` (#2802 S5).
+diagram-js core or its own four names provide. A host reaches a feature through a typed accessor
+in the feature's `service/` (`layoutOf(surface)`, `elementIdsOf(surface)`, `appendMenuOf(surface)`),
+which returns `undefined` when the surface lacks the feature, so a host never holds the didi
+injector. An accessor wraps helpers in the feature's library, which keep the lookup, the presence
+check and the logic usable without this package, so each DI name is written only in its library. The cost is one more file per feature, and each preset keeps its own
+answer for a missing feature. The modeler preset calls the code-link status push and the
+inline-script writes as helpers in `libs/code-link` and `libs/inline-scripting`, as the facade
+glue they replace; neither has an accessor yet. Only `editableSurface.ts`'s `bpmnLintConfig`
+lookup is left (#2802 S5).
+
+Two features meet on shared vocabulary in `kernel/domain/`, which is not a kernel DI name: the
+engine feature provides the optional `popupMenuAnnotationOverrides` value and the popup-menu
+annotations read it.
 
 ### The two-list merge
 
@@ -53,6 +63,20 @@ name, or claims a kernel name or config key. A plugin that does any of these, or
 built-in's moddle prefix, is dropped and reported through `onWarning`. `requires` reads only what
 features and the kernel provide, so base services (`copyPaste`) are not listed. A plugin module
 that throws in construction still fails the surface.
+
+### Feature factories
+
+Each feature folder offers a factory in `adapter/in/` that returns a `BpmnFeature` with what the
+presets register today, so putting a preset on the kernel changes no DI winner, config or moddle.
+The engine features, the engine's template modules and the transaction boundaries load through a
+dynamic import, so a page parses only the engine it opens; the cost is an async factory.
+`requires` names only what proves the dependency: `elementTemplates` requires `propertiesPanel`
+and `bpmnPropertiesProvider`, because the forked panel provides the first too, and on C7 the
+template provider module depends on the engine's provider, so requiring that one would prove
+nothing. `composition/presets/modelerFeatures.ts` lists `createModeler`'s features in the order
+its switch to `createSurface` uses (#2802 S4). Until the switch, the facade and composition
+register the same modules, config and capability gating as the feature factories, and the
+switch-delta spec pins the two against each other.
 
 ### Defaults and failure
 
@@ -71,13 +95,12 @@ guards rely on the handle holding only its kind's members.
 
 The [architecture spec](../../packages/bpmn-modeler/src/architecture.spec.ts) checks that
 `kernel/` imports nothing outside itself but `@miragon/bpmn-modeler-types`,
-`@miragon/bpmn-modeler-browser` and npm. Two exceptions remain until #2802 S4:
-`editableSurface.ts` imports the layout and element-ID libraries. Also until S4, the
+`@miragon/bpmn-modeler-browser` and npm, with no exception left. Until #2802 S4, the
 `presetWiring.ts` port names the clipboard feature's modules for the facades; its imports pass the
 check. The same spec reads every DI
 name the kernel spells out, in a lookup or an `$inject` list. It allows the names the bpmn-js base
-module trees, the diagram-js core and the kernel provide, and lists the five lookups above as
-known exceptions with their step. A name the kernel builds at runtime instead of writing as a
+module trees, the diagram-js core and the kernel provide, and lists the `bpmnLintConfig` lookup as
+the one known exception, until #2802 S5. A name the kernel builds at runtime instead of writing as a
 literal escapes the check.
 
 The [viewer-surface check](../../packages/bpmn-modeler/scripts/check-viewer-surface-bundle.mjs)
@@ -86,4 +109,7 @@ builds a viewer-only client and reads its module ids. It allows no `Modeler`, no
 `createSurface` and the kernel defaults. The
 [feature merge spec](../../packages/bpmn-modeler/src/kernel/domain/featureMerge.spec.ts) pins the
 merge order and the failure rules. A type spec in `kernelSurface.spec.ts` pins the
-`"setMode" in handle` narrowing.
+`"setMode" in handle` narrowing. The
+[switch delta](../../packages/bpmn-modeler/src/composition/presets/presetOnKernel.browser.spec.ts)
+and [builds-alone](../../packages/bpmn-modeler/src/composition/presets/featuresBuildAlone.browser.spec.ts)
+specs cover the modeler's feature list.

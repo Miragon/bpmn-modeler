@@ -51,6 +51,8 @@ export {
 };
 export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPort };
 export type { ScriptTaskBusinessObject } from "./bpmnTypes";
+export { applyOpenScriptEditors, writeSurfaceScriptField } from "./surfaceScripts";
+export type { ScriptingInjector, ScriptWriteOutcome } from "./surfaceScripts";
 
 /**
  * All C7 inline-scripting DI modules for the given host port, in registration
