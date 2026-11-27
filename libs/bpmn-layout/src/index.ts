@@ -40,7 +40,9 @@ export type { LayoutOutcome } from "./apply/Layouter";
 export { CleanupService } from "./apply/CleanupService";
 export {
     cleanupSurfaceDiagram,
+    cleanupWithoutLayout,
     formatSurfaceDiagram,
+    formatWithoutLayout,
     subscribeFormatted,
 } from "./apply/surfaceLayout";
 export type { SurfaceInjector } from "./apply/surfaceLayout";

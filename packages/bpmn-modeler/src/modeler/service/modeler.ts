@@ -2,22 +2,16 @@ import Modeler from "bpmn-js/lib/Modeler";
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-import { AppendMenuModule, applyFavouriteBpmnElements } from "@miragon/bpmn-modeler-append-menu";
+import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { applyImplementationStatus } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import {
-    cleanupSurfaceDiagram,
+    cleanupWithoutLayout,
     createBpmnLayoutModule,
-    formatSurfaceDiagram,
-    subscribeFormatted,
+    formatWithoutLayout,
 } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome, SurfaceInjector } from "@miragon/bpmn-modeler-layout";
-import {
-    applyElementIdSettings,
-    ElementIdsModule,
-    proposeSurfaceElementIds,
-    renameSurfaceElementIds,
-} from "@miragon/bpmn-modeler-element-ids";
+import { ElementIdsModule } from "@miragon/bpmn-modeler-element-ids";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
@@ -51,6 +45,9 @@ import {
     writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
+import { appendMenuOf } from "../../appendMenu/service/appendMenuAccessor";
+import { elementIdsOf } from "../../elementIds/service/elementIdsAccessor";
+import { layoutOf } from "../../layout/service/layoutAccessor";
 import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
@@ -105,6 +102,9 @@ interface ElementTemplatesLoaderService {
 interface AlignToOriginService {
     align(): void;
 }
+
+// A surface built without the layout feature never formats, so nothing to unsubscribe.
+const NO_SUBSCRIPTION = (): void => undefined;
 
 const ModeUiModule = {
     __init__: ["popupMenuModeFilter", "modeAttribute"],
@@ -284,7 +284,7 @@ export class BpmnModeler {
 
         this.applyHiddenElementTemplates();
         this.transactionBoundaryVisibility()?.setVisible(this.settings.showTransactionBoundaries);
-        applyElementIdSettings(this.injector(), {
+        elementIdsOf(this)?.configure({
             ...elementIdSettingsOf(this.settings),
             convention: lintElementIdConvention(this.options.linting),
         });
@@ -379,7 +379,7 @@ export class BpmnModeler {
 
     /** @see BpmnModelerHandle.onFormatted */
     onFormatted(listener: (outcome: LayoutOutcome) => void): () => void {
-        return subscribeFormatted(this.injector(), listener);
+        return layoutOf(this)?.onFormatted(listener) ?? NO_SUBSCRIPTION;
     }
 
     /** @see PendingInputHandle.hasPendingInput */
@@ -443,7 +443,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.formatDiagram
      */
     async formatDiagram(): Promise<LayoutOutcome> {
-        return formatSurfaceDiagram(this.injector());
+        return layoutOf(this)?.formatDiagram() ?? formatWithoutLayout();
     }
 
     /**
@@ -452,7 +452,7 @@ export class BpmnModeler {
      * @see BpmnModelerHandle.cleanupDiagram
      */
     cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
-        return cleanupSurfaceDiagram(this.injector(), options);
+        return layoutOf(this)?.cleanupDiagram(options) ?? cleanupWithoutLayout();
     }
 
     setElementTemplates(templates: object[]): void {
@@ -487,10 +487,10 @@ export class BpmnModeler {
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
-            applyFavouriteBpmnElements(this.injector(), settings.favouriteBpmnElements);
+            appendMenuOf(this)?.setFavourites(settings.favouriteBpmnElements);
         }
 
-        applyElementIdSettings(this.injector(), elementIdSettingsOf(settings));
+        elementIdsOf(this)?.configure(elementIdSettingsOf(settings));
     }
 
     /** @see BpmnModelerHandle.setFavouriteBpmnElements */
@@ -503,17 +503,17 @@ export class BpmnModeler {
         if (followName !== undefined) {
             this.setSettings({ elementIdsFollowName: followName });
         }
-        applyElementIdSettings(this.injector(), options);
+        elementIdsOf(this)?.configure(options);
     }
 
     /** @see BpmnModelerHandle.proposeElementIds */
     proposeElementIds(unchecked?: readonly string[]): ElementIdProposals {
-        return proposeSurfaceElementIds(this.injector(), unchecked);
+        return elementIdsOf(this)?.propose(unchecked) ?? { rows: [] };
     }
 
     /** @see BpmnModelerHandle.renameElementIds */
     renameElementIds(unchecked: readonly string[]): number {
-        return renameSurfaceElementIds(this.injector(), unchecked);
+        return elementIdsOf(this)?.rename(unchecked) ?? 0;
     }
 
     /** @internal */

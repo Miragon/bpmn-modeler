@@ -16,10 +16,20 @@ export interface SurfaceInjector {
 
 const WITHOUT_LAYOUT = "this surface was created without the layout module";
 
+/** What formatting answers on a surface built without the layout module. */
+export function formatWithoutLayout(): LayoutOutcome {
+    return { status: "failed", message: WITHOUT_LAYOUT, diagnostics: [] };
+}
+
+/** What cleanup answers on a surface built without the layout module. */
+export function cleanupWithoutLayout(): CleanupOutcome {
+    return { status: "failed", items: [], message: WITHOUT_LAYOUT };
+}
+
 export async function formatSurfaceDiagram(injector: SurfaceInjector): Promise<LayoutOutcome> {
     const layouter = injector.get<Pick<Layouter, "format">>("bpmnLayouter", false);
     if (!layouter) {
-        return { status: "failed", message: WITHOUT_LAYOUT, diagnostics: [] };
+        return formatWithoutLayout();
     }
     return layouter.format();
 }
@@ -30,7 +40,7 @@ export function cleanupSurfaceDiagram(
 ): CleanupOutcome {
     const cleanup = injector.get<Pick<CleanupService, "inspect" | "apply">>("bpmnCleanup", false);
     if (!cleanup) {
-        return { status: "failed", items: [], message: WITHOUT_LAYOUT };
+        return cleanupWithoutLayout();
     }
     return options?.apply ? cleanup.apply() : cleanup.inspect();
 }

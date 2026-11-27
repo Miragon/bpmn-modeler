@@ -38,11 +38,15 @@ kernel's port and domain types. A helper that features and the kernel share, suc
 does not make kernel internals part of the export map.
 
 The kernel names no feature's DI service either. It looks up only what a bpmn-js base, the
-diagram-js core or its own four names provide. Format, cleanup, `onFormatted`, element IDs,
-favourites, the code-link status and the inline-script writes are helpers in their libraries
-(`libs/bpmn-layout`, `libs/element-ids`, `libs/append-menu`, `libs/code-link`,
-`libs/inline-scripting`) that take the surface's injector and keep today's answer for a surface
-without the feature. Only `editableSurface.ts`'s `bpmnLintConfig` lookup is left (#2802 S5).
+diagram-js core or its own four names provide. A host reaches a feature through a typed accessor
+in the feature's `service/` (`layoutOf(surface)`, `elementIdsOf(surface)`, `appendMenuOf(surface)`),
+which returns `undefined` when the surface lacks the feature, so a host never holds the didi
+injector. An accessor wraps helpers in the feature's library, which keep the lookup and the logic
+usable without this package. The cost is one more file per feature, and each preset keeps its own
+answer for a missing feature. The modeler preset calls the code-link status push and the
+inline-script writes as helpers in `libs/code-link` and `libs/inline-scripting`, as the facade
+glue they replace; neither has an accessor yet. Only `editableSurface.ts`'s `bpmnLintConfig`
+lookup is left (#2802 S5).
 
 Two features meet on shared vocabulary in `kernel/domain/`, which is not a kernel DI name: the
 engine feature provides the optional `popupMenuAnnotationOverrides` value and the popup-menu
@@ -62,27 +66,16 @@ that throws in construction still fails the surface.
 
 ### Feature factories
 
-Each feature folder offers a factory in `adapter/in/` that returns a `BpmnFeature` with the
-modules, config and moddle the presets register today: `camunda7()`/`camunda8()` (the upstream
-panel behind a wrapper that `__depends__` on it and on the flushable `debounceInput`, behaviours,
-engine providers, colour picker, variables, example data on C8, the `diagramTemplate` slot and
-the annotation overrides), `elementTemplates(engine)`, `propertiesPanel({ parent, … })`,
-`popupMenuAnnotations()`, `transactionBoundaries()`, the capabilities with their ports and one
-factory per single-module feature. The engine features, the engine's template modules and the
-transaction boundaries load through a dynamic import, so a page still parses only the engine it
-opens. `elementTemplates` requires `propertiesPanel` and `bpmnPropertiesProvider`: the forked
-panel provides the first too, and on C7 the template provider module depends on the engine's
-provider, so requiring that name would prove nothing.
-
-`composition/presets/modelerFeatures.ts` lists `createModeler`'s features in the order the switch
-to `createSurface` uses (#2802 S4). Until then only specs build it: one pins what the switch would
-change against the preset pins, for both engines and every option variant, and one builds each
-feature alone on the kernel with stubs for its `requires`. The switch moves copy as image before
-the panel, the engine's colour picker, variables and example data before the templates, and the
-template modules together after create-append-anything; it adds the wrapper, `diagramTemplate`
-and the overrides lines, drops `ModeAttribute` and turns `popupMenuAnnotations` into a factory.
-No DI name changes its winner, and the config and moddle stay. Until it lands, the engine stacks and the engine features list the same upstream
-modules twice; they share only the panel defaults.
+Each feature folder offers a factory in `adapter/in/` that returns a `BpmnFeature` with what the
+presets register today, so putting a preset on the kernel changes no DI winner, config or moddle.
+The engine features, the engine's template modules and the transaction boundaries load through a
+dynamic import, so a page parses only the engine it opens; the cost is an async factory.
+`requires` names only what proves the dependency: `elementTemplates` requires `propertiesPanel`
+and `bpmnPropertiesProvider`, because the forked panel provides the first too, and on C7 the
+template provider module depends on the engine's provider, so requiring that one would prove
+nothing. `composition/presets/modelerFeatures.ts` lists `createModeler`'s features in the order
+its switch to `createSurface` uses (#2802 S4). Until the switch, the engine stacks and the engine
+features list the same upstream modules twice.
 
 ### Defaults and failure
 

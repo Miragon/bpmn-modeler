@@ -10,7 +10,7 @@ export function createAppendAnything(): BpmnFeature {
 
 /**
  * @experimental The two-panel append menu over the upstream one, with favourites
- * the append-menu library's helper sets on a surface.
+ * a host sets with `appendMenuOf`.
  */
 export function appendMenu(): BpmnFeature {
     return { id: "appendMenu", modules: [AppendMenuModule], requires: ["appendMenuProvider"] };
