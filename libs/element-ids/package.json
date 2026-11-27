@@ -19,11 +19,11 @@
     },
     "devDependencies": {
         "@bpmn-io/properties-panel": "3.57.0",
-        "@miragon/bpmnlint-plugin-rules": "0.23.0",
+        "@miragon/bpmnlint-plugin-rules": "0.25.0",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "5.1.1",
         "bpmn-moddle": "10.3.1",
-        "bpmnlint": "12.1.1",
+        "bpmnlint": "12.2.0",
         "jsdom": "31.0.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.8",
