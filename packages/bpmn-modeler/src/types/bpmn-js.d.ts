@@ -74,6 +74,21 @@ declare module "bpmn-js-token-simulation/lib/viewer" {
     export default TokenSimulationViewerModule;
 }
 
+declare module "bpmn-js-token-simulation/lib/simulator/behaviors" {
+    const SimulatorBehaviorModule;
+    export default SimulatorBehaviorModule;
+}
+
+declare module "bpmn-js-token-simulation/lib/animation/behaviors" {
+    const AnimationBehaviorModule;
+    export default AnimationBehaviorModule;
+}
+
+declare module "bpmn-js-token-simulation/lib/simulation-support" {
+    const SimulationSupportModule;
+    export default SimulationSupportModule;
+}
+
 declare module "bpmn-js-create-append-anything" {
     export const CreateAppendElementTemplatesModule;
     export const CreateAppendAnythingModule;

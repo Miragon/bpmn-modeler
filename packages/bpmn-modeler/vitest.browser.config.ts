@@ -18,6 +18,13 @@ export default defineConfig({
     // oxc flag above only governs Vitest's own transform, not esbuild's scan.
     optimizeDeps: {
         rolldownOptions: { transform: { jsx: { development: false } } },
+        // Deep imports found mid-run re-optimise the deps and fail that run's specs.
+        include: [
+            "bpmn-js/lib/features/modeling/behavior",
+            "bpmn-js-token-simulation/lib/simulator/behaviors",
+            "bpmn-js-token-simulation/lib/animation/behaviors",
+            "bpmn-js-token-simulation/lib/simulation-support",
+        ],
     },
     // Standing up the full modeler pulls in the FEEL editor; without deduping
     // these singletons the runner loads two @codemirror/state copies and their

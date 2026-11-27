@@ -308,21 +308,30 @@ const TOKEN_SIMULATION_ANIMATION: Record<string, Override> = {
     },
 };
 
-// Token simulation's simulator behaviours take three DI names of bpmn-js's modeling
-// behaviours, whose `__init__` then builds the simulator's; pinned as it is, not as intended.
+// Token simulation's simulator behaviours take three DI names of bpmn-js's modeling behaviours;
+// the module labelled @simulatorBoundaryEventBehavior registers bpmn-js's classes over them
+// again. Both sides' classes share a name, so these lines show where the winner was registered,
+// not which class it is: the behaviour specs beside this one tell the classes apart.
 const EDITING_OVERRIDES: Record<string, Override> = {
     ...TOKEN_SIMULATION_ANIMATION,
     boundaryEventBehavior: {
-        winner: "type(BoundaryEventBehavior) @startEventBehavior",
-        over: ["type(BoundaryEventBehavior) @adaptiveLabelPositioningBehavior"],
+        winner: "type(BoundaryEventBehavior) @simulatorBoundaryEventBehavior",
+        over: [
+            "type(BoundaryEventBehavior) @startEventBehavior",
+            "type(BoundaryEventBehavior) @adaptiveLabelPositioningBehavior",
+        ],
     },
     eventBasedGatewayBehavior: {
-        winner: "type(EventBasedGatewayBehavior) @startEventBehavior",
-        over: ["type(EventBasedGatewayBehavior) @adaptiveLabelPositioningBehavior"],
+        winner: "type(EventBasedGatewayBehavior) @simulatorBoundaryEventBehavior",
+        over: [
+            "type(EventBasedGatewayBehavior) @startEventBehavior",
+            "type(EventBasedGatewayBehavior) @adaptiveLabelPositioningBehavior",
+        ],
     },
     messageFlowBehavior: {
-        winner: "type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior",
+        winner: "type(MessageFlowBehavior) @simulatorBoundaryEventBehavior",
         over: [
+            "type(AnimatedMessageFlowBehavior) @sequenceFlowBehavior",
             "type(MessageFlowBehavior) @startEventBehavior",
             "type(MessageFlowBehavior) @adaptiveLabelPositioningBehavior",
         ],

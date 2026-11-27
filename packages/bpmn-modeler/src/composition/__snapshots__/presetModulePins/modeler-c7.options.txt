@@ -5,7 +5,7 @@
 
 ## linting: { module } (in-page tier)
 modules:
-+ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after simulatorBoundaryEventBehavior)
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 providers:
 + bpmnLintConfig: type(LintConfigService)
@@ -16,7 +16,7 @@ providers:
 + linting: type(Linting)
 + lintingEditorActions: type(EditorActions)
 __init__:
-+ linting (after tokenSimulationKeyboardBindings)
++ linting (after simulatorMessageFlowBehavior)
 + lintingEditorActions @linting (after linting)
 + lintUpdate (after lintingEditorActions)
 + bpmnLintConfig @lintUpdate (after lintUpdate)
@@ -24,7 +24,7 @@ __init__:
 
 ## linting: { module, results: "external" }
 modules:
-+ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after simulatorBoundaryEventBehavior)
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"implement","tier":"external"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 providers:
 + bpmnLintConfig: type(LintConfigService)
@@ -35,7 +35,7 @@ providers:
 + linting: type(Linting)
 + lintingEditorActions: type(EditorActions)
 __init__:
-+ linting (after tokenSimulationKeyboardBindings)
++ linting (after simulatorMessageFlowBehavior)
 + lintingEditorActions @linting (after linting)
 + lintUpdate (after lintingEditorActions)
 + bpmnLintConfig @lintUpdate (after lintUpdate)
@@ -43,7 +43,7 @@ __init__:
 
 ## linting: { module } (in-page tier) with mode: "design"
 modules:
-+ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after simulatorBoundaryEventBehavior)
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"design","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 providers:
 + bpmnLintConfig: type(LintConfigService)
@@ -54,7 +54,7 @@ providers:
 + linting: type(Linting)
 + lintingEditorActions: type(EditorActions)
 __init__:
-+ linting (after tokenSimulationKeyboardBindings)
++ linting (after simulatorMessageFlowBehavior)
 + lintingEditorActions @linting (after linting)
 + lintUpdate (after lintingEditorActions)
 + bpmnLintConfig @lintUpdate (after lintUpdate)
@@ -66,7 +66,7 @@ surface mode:
 
 ## linting: { module, config }, onLintResults, onLintingToggled and elementTemplates
 modules:
-+ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after simulatorBoundaryEventBehavior)
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"config":{"rules":{"label-required":"off"}},"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value({onLintResults: fn onLintResults, onLintingToggled: fn onLintingToggled}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 providers:
 + bpmnLintConfig: type(LintConfigService)
@@ -77,7 +77,7 @@ providers:
 + linting: type(Linting)
 + lintingEditorActions: type(EditorActions)
 __init__:
-+ linting (after tokenSimulationKeyboardBindings)
++ linting (after simulatorMessageFlowBehavior)
 + lintingEditorActions @linting (after linting)
 + lintUpdate (after lintingEditorActions)
 + bpmnLintConfig @lintUpdate (after lintUpdate)
@@ -199,7 +199,7 @@ providers:
 
 ## in-page linting, every capability, clipboard and additionalModules at once
 modules:
-+ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after […, tokenSimulationKeyboardBindings])
++ linting=type(Linting) lintingEditorActions=type(EditorActions) init[linting, lintingEditorActions] (after simulatorBoundaryEventBehavior)
 + lintUpdate=type(LintUpdateService) bpmnLintConfig=type(LintConfigService) lintIssuePopover=type(LintIssuePopover) lintTier=value({"engine":"c7","mode":"implement","tier":"in-page"}) lintCallbacks=value({}) init[lintUpdate, bpmnLintConfig, lintIssuePopover] (after linting)
 + formPreviewController=type(FormPreviewController) formReferenceStatusClient=type(FormReferenceStatusClient) navigateContextPadProvider=type(NavigateContextPadProvider) modelNavigationPort=value(Object: modelNavigation port) init[formReferenceStatusClient, formPreviewController, navigateContextPadProvider] (after the defaults)
 + codeLinkMapClient=type(CodeLinkMapClient) codeLinkContextPadProvider=type(CodeLinkContextPadProvider) codeLinkPort=value(Object: codeLink port) init[codeLinkMapClient, codeLinkContextPadProvider] (after formPreviewController)
@@ -250,7 +250,7 @@ providers:
 + scriptTaskContextPadProvider: type(ScriptTaskContextPadProvider)
 + textClipboardBridge: value(Object: clipboard bridge)
 __init__:
-+ linting (after tokenSimulationKeyboardBindings)
++ linting (after simulatorMessageFlowBehavior)
 + lintingEditorActions @linting (after linting)
 + lintUpdate (after lintingEditorActions)
 + bpmnLintConfig @lintUpdate (after lintUpdate)
