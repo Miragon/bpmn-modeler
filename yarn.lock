@@ -3046,8 +3046,8 @@ __metadata:
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
-    lucide: "npm:1.75.0"
+    jsdom: "npm:31.0.1"
+    lucide: "npm:1.77.0"
     marked: "npm:18.2.1"
     portless: "npm:0.18.1"
     tslib: "npm:2.9.1"
@@ -3066,7 +3066,7 @@ __metadata:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-js: "npm:18.33.0"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     preact: "npm:10.29.8"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
@@ -3103,7 +3103,7 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
@@ -3120,7 +3120,7 @@ __metadata:
     bpmn-moddle: "npm:10.3.1"
     diagram-js: "npm:15.30.1"
     didi: "npm:12.0.0"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
@@ -3182,7 +3182,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-js: "npm:18.33.0"
     bpmn-moddle: "npm:10.3.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
@@ -3201,7 +3201,7 @@ __metadata:
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     portless: "npm:0.18.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3235,7 +3235,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-docs@workspace:docs"
   dependencies:
     "@braintree/sanitize-url": "npm:7.1.2"
-    "@miragon/docs-starter": "npm:1.0.1"
+    "@miragon/docs-starter": "npm:1.1.0"
     cytoscape: "npm:3.35.0"
     cytoscape-cose-bilkent: "npm:4.1.0"
     dayjs: "npm:1.11.23"
@@ -3260,7 +3260,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-moddle: "npm:10.3.1"
     bpmnlint: "npm:12.2.0"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     preact: "npm:10.29.8"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
@@ -3283,7 +3283,7 @@ __metadata:
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     jsonc-parser: "npm:3.3.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
@@ -3301,7 +3301,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-js: "npm:18.33.0"
     diagram-js: "npm:15.30.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     minisearch: "npm:7.2.0"
     preact: "npm:10.29.8"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3355,7 +3355,7 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
@@ -3376,7 +3376,7 @@ __metadata:
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.33.0"
     diagram-js: "npm:15.30.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
@@ -3413,12 +3413,12 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/dmn-modeler": "workspace:*"
-    "@miragon/modeler-shell": "npm:0.14.2"
+    "@miragon/modeler-shell": "npm:0.15.0"
     "@types/node": "npm:26.6.6"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
     bpmn-js: "npm:18.33.0"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     playwright: "npm:1.65.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3441,7 +3441,7 @@ __metadata:
     bpmn-moddle: "npm:10.3.1"
     diagram-js: "npm:15.30.1"
     ids: "npm:3.0.2"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     min-dash: "npm:5.1.0"
     min-dom: "npm:5.3.0"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3482,7 +3482,7 @@ __metadata:
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
@@ -3502,7 +3502,7 @@ __metadata:
     "@types/react-dom": "npm:19.3.0"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     react: "npm:19.3.1"
     react-dom: "npm:19.3.1"
     rimraf: "npm:6.1.4"
@@ -3601,7 +3601,7 @@ __metadata:
     bpmn-js-bpmnlint: "npm:0.25.0"
     bpmnlint: "npm:12.2.0"
     diagram-js: "npm:15.30.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     portless: "npm:0.18.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3668,7 +3668,7 @@ __metadata:
     diagram-js-minimap: "npm:5.6.0"
     didi: "npm:12.0.0"
     ids: "npm:3.0.2"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     lodash: "npm:4.18.1"
     min-dash: "npm:5.1.0"
     min-dom: "npm:5.3.0"
@@ -3746,7 +3746,7 @@ __metadata:
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     portless: "npm:0.18.1"
     tslib: "npm:2.9.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -3777,7 +3777,7 @@ __metadata:
     diagram-js: "npm:15.30.1"
     dmn-js: "npm:18.1.0"
     dmn-js-properties-panel: "npm:3.13.0"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     lodash: "npm:4.18.1"
     npm-run-all: "npm:4.1.5"
     playwright: "npm:1.65.1"
@@ -3792,9 +3792,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/docs-starter@npm:1.0.1":
-  version: 1.0.1
-  resolution: "@miragon/docs-starter@npm:1.0.1"
+"@miragon/docs-starter@npm:1.1.0":
+  version: 1.1.0
+  resolution: "@miragon/docs-starter@npm:1.1.0"
   dependencies:
     "@fontsource-variable/geist": "npm:5.3.0"
     "@fontsource-variable/geist-mono": "npm:5.3.0"
@@ -3803,7 +3803,7 @@ __metadata:
     vitepress: ^1.6.4
     vitepress-plugin-mermaid: ^2.0.17
     vue: ^3.5.0
-  checksum: 10c0/0f703cc528ed70859af2daeb81e361d6d91f758dd47764468d75905b6980731f8c193eac86571787be8f3da5ced8dc0fc47b59e3905d2d4b88ed5d686548fd1b
+  checksum: 10c0/1f4e96c0dab5856ff6e84a5daf45e84f138b09e43402dc94d888da4ebbc4237e97fe41685869e7f95894a4c6f4e5b3e98a3cdee01cc6475950df8351c11c464b
   languageName: node
   linkType: hard
 
@@ -3822,7 +3822,7 @@ __metadata:
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:5.1.1"
-    jsdom: "npm:31.0.0"
+    jsdom: "npm:31.0.1"
     portless: "npm:0.18.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
@@ -3831,9 +3831,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/modeler-shell@npm:0.14.2":
-  version: 0.14.2
-  resolution: "@miragon/modeler-shell@npm:0.14.2"
+"@miragon/modeler-shell@npm:0.15.0":
+  version: 0.15.0
+  resolution: "@miragon/modeler-shell@npm:0.15.0"
   peerDependencies:
     "@vscode/test-electron": ^3.1.0
     playwright-core: ^1.50.0
@@ -3845,7 +3845,7 @@ __metadata:
   bin:
     modeler-shell-orca-docker: dist/orca-docker.js
     modeler-shell-vscode-docker: dist/vscode-docker.js
-  checksum: 10c0/01a3ad3b3850792064cff48f4ab1b6f52e9c712e4ec6cf6c17e9c16979cfce351b9b21c113e5ba0b528c20fff5a59d42c5f85cd3a15664fb1750514912763346
+  checksum: 10c0/32ae067f87a5e0b3255e4431993771d354997e681d5d462240a94a019ef9f8d87d766d6ed29739cfbcad0b4fadca954f2d2ad9a98344f8db7acfcbf8445071b2
   languageName: node
   linkType: hard
 
@@ -9482,9 +9482,9 @@ __metadata:
     eslint: "npm:10.15.0"
     eslint-config-prettier: "npm:10.1.8"
     globals: "npm:17.14.0"
-    jsdom: "npm:31.0.0"
-    knip: "npm:6.46.1"
-    lint-staged: "npm:17.6.1"
+    jsdom: "npm:31.0.1"
+    knip: "npm:6.47.0"
+    lint-staged: "npm:17.6.2"
     npm-run-all: "npm:4.1.5"
     playwright: "npm:1.65.1"
     prettier: "npm:3.10.1"
@@ -11968,12 +11968,12 @@ __metadata:
   linkType: hard
 
 "enhanced-resolve@npm:^5.24.0, enhanced-resolve@npm:^5.24.4, enhanced-resolve@npm:^5.7.0":
-  version: 5.26.1
-  resolution: "enhanced-resolve@npm:5.26.1"
+  version: 5.27.0
+  resolution: "enhanced-resolve@npm:5.27.0"
   dependencies:
     graceful-fs: "npm:^4.2.4"
     tapable: "npm:^2.3.3"
-  checksum: 10c0/5b5594412e2e0e67d70d28c908c3f84d7809fcf7dea8d0e3716d2c9ad2b83548fab149aae8f8c6295b46b92ea865fc8f85a7eb091df0368ce0ff18b6ca2f18ce
+  checksum: 10c0/13bf96a1d49fdd752b8583c3f93e8afeca88f8e6ec9c5db7335d06b292839010ea66583d6dffe56728c6ec4491d840d393b8f44bbe02dcdb87645a3f891c65c3
   languageName: node
   linkType: hard
 
@@ -14845,9 +14845,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsdom@npm:31.0.0":
-  version: 31.0.0
-  resolution: "jsdom@npm:31.0.0"
+"jsdom@npm:31.0.1":
+  version: 31.0.1
+  resolution: "jsdom@npm:31.0.1"
   dependencies:
     "@exodus/bytes": "npm:^1.16.0"
     bcp-47: "npm:^2.1.2"
@@ -14872,7 +14872,7 @@ __metadata:
   peerDependenciesMeta:
     "@napi-rs/canvas":
       optional: true
-  checksum: 10c0/e7240d72bfd6aab3e06ef2bcbd9656e39011707958d57b30c25caf840503a433ba56ba384f43e07938125f49e835f679856db58a9f762496a1811ec6ab580740
+  checksum: 10c0/e0f5567543401f2897984682a4139e42b8190fe8ed3f5d53f7e391333cb98b553870018685dbea5eb98549649ac8d5980800a774729a19aabca6fa0fd2b5f83d
   languageName: node
   linkType: hard
 
@@ -15137,9 +15137,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"knip@npm:6.46.1":
-  version: 6.46.1
-  resolution: "knip@npm:6.46.1"
+"knip@npm:6.47.0":
+  version: 6.47.0
+  resolution: "knip@npm:6.47.0"
   dependencies:
     formatly: "npm:^0.11.4"
     get-tsconfig: "npm:4.14.3"
@@ -15155,7 +15155,7 @@ __metadata:
   bin:
     knip: bin/knip.js
     knip-bun: bin/knip-bun.js
-  checksum: 10c0/a3ec310f5d3a3c912a4e06549cdb2b201d73041c6b2d8673ec45f6e9b23003629fd0fe29e8b30000597fa054a1937a0d8a991f150a9080d210283a042a4f05d8
+  checksum: 10c0/5abb7feba98eac44f89047f819ec1e2ffae376e49807d5f9815493fb33314255f0b4b81e441c590c2f9e7407017537544816e3f07983ce6347b720009eadc3d6
   languageName: node
   linkType: hard
 
@@ -15351,9 +15351,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lint-staged@npm:17.6.1":
-  version: 17.6.1
-  resolution: "lint-staged@npm:17.6.1"
+"lint-staged@npm:17.6.2":
+  version: 17.6.2
+  resolution: "lint-staged@npm:17.6.2"
   dependencies:
     picomatch: "npm:^4.0.7"
     string-argv: "npm:^0.4.0"
@@ -15364,7 +15364,7 @@ __metadata:
       optional: true
   bin:
     lint-staged: bin/lint-staged.js
-  checksum: 10c0/4c7433079bc174c531ccaab68bc7171f726a65c1961abbc9b26617f6d427bae76c926688124c2c2519c7540150755025207644dba50de0ba3ce65bfb1b05f7e8
+  checksum: 10c0/9a5831c45885ae2a3cf6c6eaf16c8313ee746512523d26a5e9d87a78e4d1a1835350f08623e1d34a8aa01e59ea3750d46d1b0a4d188d4ee1208a07d1977be7b5
   languageName: node
   linkType: hard
 
@@ -15613,10 +15613,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide@npm:1.75.0":
-  version: 1.75.0
-  resolution: "lucide@npm:1.75.0"
-  checksum: 10c0/ccaff19810b1f6193dbf806c0f4b0576c2c5f95c096f6d7b651c69a4214f951d190a51f9cf5c3c9af181e29732c1dd2f72eda2cf0cf75e9dbbcae46e9ffa7f5a
+"lucide@npm:1.77.0":
+  version: 1.77.0
+  resolution: "lucide@npm:1.77.0"
+  checksum: 10c0/1e026d6805d9ed7b036c69e219139de9e510067bfab6b67aea66543bd78c9ddfa6da3e5097e30d5f458bb0317dd83c7b14094084b386aad1095cc5f3a1189dea
   languageName: node
   linkType: hard
 
@@ -16127,11 +16127,11 @@ __metadata:
   linkType: hard
 
 "minimizer-webpack-plugin@npm:^5.7.0":
-  version: 5.14.0
-  resolution: "minimizer-webpack-plugin@npm:5.14.0"
+  version: 5.14.1
+  resolution: "minimizer-webpack-plugin@npm:5.14.1"
   dependencies:
     jest-worker: "npm:^27.4.5"
-    schema-utils: "npm:^4.6.0"
+    schema-utils: "npm:^4.8.5"
     terser: "npm:^5.51.0"
   peerDependencies:
     webpack: ^5.1.0
@@ -16168,7 +16168,7 @@ __metadata:
       optional: true
     uglify-js:
       optional: true
-  checksum: 10c0/76138580b7e58b2fd4476bb7ffc5ef2345e9b0ad45db2e318be04fbcc6c191a61d50a3479712591ae7fbab9af8ee13122c5c2ccd760330cfdf4234d4998b4093
+  checksum: 10c0/5effe05ea9cd1d17b0532c1abd550bba2be533f5e185cd91d5c3f62dbf566b5bedca043f35a3d401dd7c329e044c2a48e5352f2a2736a322b37589ccbdc963b0
   languageName: node
   linkType: hard
 
@@ -18891,22 +18891,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"schema-utils@npm:^4.2.0, schema-utils@npm:^4.3.3, schema-utils@npm:^4.6.0":
-  version: 4.8.2
-  resolution: "schema-utils@npm:4.8.2"
+"schema-utils@npm:^4.2.0, schema-utils@npm:^4.3.3, schema-utils@npm:^4.8.5":
+  version: 4.8.5
+  resolution: "schema-utils@npm:4.8.5"
   dependencies:
     "@types/json-schema": "npm:^7.0.15"
     ajv: "npm:^8.20.0"
     ajv-formats: "npm:^3.0.1"
     ajv-keywords: "npm:^5.1.0"
   peerDependencies:
-    webpack: ^5.112.0
+    webpack: ^5.0.0
   peerDependenciesMeta:
     webpack:
       optional: true
   bin:
     schema-utils: bin/schema-utils.js
-  checksum: 10c0/2b882206924e75b31c2319abd102dc591942e2549761b1e730851feb3aec55bd091ef681242fb043dff1f64c796598d27ebb3bcd569d69a39daa5a8f2761305a
+  checksum: 10c0/fc8b01eef99310cb51efdc7af01d3c00a663f3f1a8f5971165a108ff27a7d1e2eb9300e947456de60bfcd5384a0892ce14054ab64b692fc9c1f60aef97c30d56
   languageName: node
   linkType: hard
 
@@ -19924,9 +19924,9 @@ __metadata:
   linkType: hard
 
 "tapable@npm:^2.2.1, tapable@npm:^2.3.0, tapable@npm:^2.3.3":
-  version: 2.3.3
-  resolution: "tapable@npm:2.3.3"
-  checksum: 10c0/47992e861053f861154e92fb4a98ac4ab47b6463717e60792dd1e8c755da0c4964cd8bb68c308a9066d6da89000b6310457b4d5d985c30de4ccc29066068cc17
+  version: 2.3.4
+  resolution: "tapable@npm:2.3.4"
+  checksum: 10c0/63be31c49fabdcf51bba1ba9b5864ec2b60e50b67b23b510f664e3df3e337899e66797198a722bf03240ab96732f327619672ce3c5402439fd9fa3079be2db06
   languageName: node
   linkType: hard
 
@@ -21398,7 +21398,7 @@ __metadata:
     typescript: "npm:@typescript/typescript6@6.0.2"
     vite: "npm:8.3.8"
     vitest: "npm:5.1.1"
-    webpack: "npm:5.112.2"
+    webpack: "npm:5.113.0"
     webpack-cli: "npm:7.3.1"
   languageName: unknown
   linkType: soft
@@ -21504,11 +21504,11 @@ __metadata:
   linkType: hard
 
 "watchpack@npm:^2.5.2":
-  version: 2.6.3
-  resolution: "watchpack@npm:2.6.3"
+  version: 2.6.4
+  resolution: "watchpack@npm:2.6.4"
   dependencies:
     graceful-fs: "npm:^4.1.2"
-  checksum: 10c0/c0630d3b9a6bab485a5edce6c0b240e7c7565119023a03f5d12329c9ec6561e897e0b80c58c7117d11719cc4549f14db4b889aae2d74dd4f1e7d4ccf57fde5d7
+  checksum: 10c0/246dde04213b2dbd99cbb9cd9a210018a05a8d1384119793489b1487106cfccf9050e30d13ef2221c2bac991f136d7d40661057c9000ba94ac5301238778a45d
   languageName: node
   linkType: hard
 
@@ -21594,9 +21594,9 @@ __metadata:
   linkType: hard
 
 "webpack-sources@npm:^3.5.1":
-  version: 3.7.0
-  resolution: "webpack-sources@npm:3.7.0"
-  checksum: 10c0/4236c75efbac5919660de37b150f97c8d1e636982998e90283669f946870e353632b6932e7ce3ad6a03a3bd3a4f72ed30efec69986312af04b9e2e52161dc460
+  version: 3.7.1
+  resolution: "webpack-sources@npm:3.7.1"
+  checksum: 10c0/5d47cfa230e28ecb4d67f618d6e30e3b8ad0aa0ca8bec7515540f371e740a54505f1807689c9041150dd0dd637425102c92e308c00f8d3c17d5f3e3d26cb56c2
   languageName: node
   linkType: hard
 
