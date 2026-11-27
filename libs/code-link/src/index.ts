@@ -29,6 +29,8 @@ export type { ImplementationKind, ImplementationReference } from "./extractImple
 export { collectImplementations, IMPLEMENTABLE_TYPES } from "./collectImplementations";
 export { CodeLinkMapClient } from "./CodeLinkMapClient";
 export type { CodeLinkPort } from "./CodeLinkPort";
+export { applyImplementationStatus } from "./implementationStatus";
+export type { CodeLinkInjector } from "./implementationStatus";
 
 /**
  * Builds the DI bundle for the given host port. `codeLinkMapClient` is listed

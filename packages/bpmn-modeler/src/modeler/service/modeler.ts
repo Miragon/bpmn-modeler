@@ -3,7 +3,7 @@ import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
 import { AppendMenuModule, applyFavouriteBpmnElements } from "@miragon/bpmn-modeler-append-menu";
-import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { applyImplementationStatus } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import {
     cleanupSurfaceDiagram,
@@ -37,19 +37,18 @@ import {
     getLatestVersion,
     LintResults,
     OpenScriptEditorRef,
-    resolveScriptWriteTarget,
-    ScriptField,
+    type ScriptField,
+    type ScriptIdentity,
     ScriptKind,
     ScriptTaskScript,
     subscribe,
 } from "@miragon/bpmn-modeler-types";
 import { SURFACE_MODE_SERVICE } from "@miragon/bpmn-modeler-types/domain";
 import {
+    applyOpenScriptEditors,
     collectInlineScriptTasks,
-    OpenScriptEditorsStore,
-    ScriptSourceWatcher,
+    writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
-import type { ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
 import {
     BPMN_TAB,
@@ -106,19 +105,6 @@ interface ElementTemplatesLoaderService {
 }
 interface AlignToOriginService {
     align(): void;
-}
-interface ScriptModelElement {
-    businessObject: ScriptTaskBusinessObject;
-}
-interface ScriptModelElementRegistry {
-    get(id: string): ScriptModelElement | undefined;
-}
-interface ScriptModeling {
-    updateModdleProperties(
-        element: ScriptModelElement,
-        moddleElement: unknown,
-        properties: Record<string, unknown>,
-    ): void;
 }
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -556,10 +542,7 @@ export class BpmnModeler {
         listenerIndex: number | undefined,
         scriptFormat: string,
     ): void {
-        const element = this.findScriptElement(elementId);
-        if (element) {
-            this.writeScriptField(element, elementId, kind, listenerIndex, "format", scriptFormat);
-        }
+        this.writeScriptField({ elementId, kind, listenerIndex }, "format", scriptFormat);
     }
 
     /** @internal */
@@ -569,52 +552,24 @@ export class BpmnModeler {
         listenerIndex: number | undefined,
         content: string,
     ): void {
-        const element = this.findScriptElement(elementId);
-        if (!element) {
-            return;
-        }
-        // commandStack.changed fires during the write; set the baseline first to avoid echoing our own edit.
-        this.getModeler()
-            .get<ScriptSourceWatcher>("scriptSourceWatcher", false)
-            ?.noteApplied(elementId, kind, listenerIndex, content);
-        this.writeScriptField(element, elementId, kind, listenerIndex, "content", content);
+        this.writeScriptField({ elementId, kind, listenerIndex }, "content", content);
     }
 
-    private findScriptElement(elementId: string): ScriptModelElement | undefined {
-        const element = this.getModeler()
-            .get<ScriptModelElementRegistry>("elementRegistry")
-            .get(elementId);
-        if (!element) {
-            this.reporter.warn(`Element not found: ${elementId}`);
-        }
-        return element;
-    }
-
-    private writeScriptField(
-        element: ScriptModelElement,
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        field: ScriptField,
-        value: string,
-    ): void {
-        const target = resolveScriptWriteTarget(element.businessObject, kind, listenerIndex, field);
-        if (!target) {
+    private writeScriptField(script: ScriptIdentity, field: ScriptField, value: string): void {
+        const outcome = writeSurfaceScriptField(this.injector(), script, field, value);
+        if (outcome === "elementNotFound") {
+            this.reporter.warn(`Element not found: ${script.elementId}`);
+        } else if (outcome === "noInlineScript") {
+            const { elementId, kind, listenerIndex } = script;
             this.reporter.warn(
                 `${describeScriptSurface(elementId, kind, listenerIndex)} has no inline script`,
             );
-            return;
         }
-        this.getModeler()
-            .get<ScriptModeling>("modeling")
-            .updateModdleProperties(element, target.moddleElement, {
-                [target.propertyName]: value,
-            });
     }
 
     /** @internal C7 only; C8 does not register the script-editor store. */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
-        this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
+        applyOpenScriptEditors(this.injector(), refs);
     }
 
     /**
@@ -661,7 +616,7 @@ export class BpmnModeler {
 
     /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
-        this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
+        applyImplementationStatus(this.injector(), resolved);
     }
 
     private injector(): SurfaceInjector {
