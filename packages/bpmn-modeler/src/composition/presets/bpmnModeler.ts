@@ -117,12 +117,12 @@ export class BpmnModeler {
     /**
      * Throws unless {@link createModeler} calls it; kept public so 1.x code that names it compiles.
      *
-     * @param container The canvas host element.
+     * @param _container The canvas host element; the surface already holds it.
      * @param options Per-instance config — see {@link CreateModelerOptions}.
      * @param wiring The surface `createModeler` built, opaque to callers.
      */
     constructor(
-        container: HTMLElement,
+        _container: HTMLElement,
         private readonly options: CreateModelerOptions,
         wiring: unknown,
     ) {
