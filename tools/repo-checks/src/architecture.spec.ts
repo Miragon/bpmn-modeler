@@ -64,17 +64,6 @@ const ROLE_EXCEPTIONS: readonly KnownException[] = [
     ].map((to) =>
         bpmnModelerException("design/service/designer.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),
     ),
-    ...[
-        "composition/lintModules.ts",
-        "composition/capabilityModules.ts",
-        "composition/engineStacks/index.ts",
-        "popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule.ts",
-        "mode/adapter/in/modeModules.ts",
-        "elementTemplates/adapter/in/elementTemplatesModules.ts",
-        "tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule.ts",
-    ].map((to) =>
-        bpmnModelerException("modeler/service/modeler.ts", to, CONSTRUCTION_OUT_OF_THE_FACADES),
-    ),
     bpmnModelerException(
         "modeler/port/publicApi.ts",
         "bpmnlint/service/LintConfigService.ts",

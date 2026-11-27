@@ -412,7 +412,7 @@ describe("viewer-surface bundle guard", () => {
         "/repo/libs/bpmn-clipboard/src/index.ts",
         `${packageDir}/src/composition/createModeler.ts`,
         `${packageDir}/src/clipboard/adapter/in/clipboardFeature.ts`,
-        `${packageDir}/src/modeler/service/modeler.ts`,
+        `${packageDir}/src/composition/presets/bpmnModeler.ts`,
     ])("rejects %s", (id) => {
         expect(modulesOutsideViewerSurface([...kernel, id], options)).toEqual([id]);
     });

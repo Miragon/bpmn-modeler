@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import "./styles/themes.css";
 
 import { createModeler } from "./composition/createModeler";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 interface TransactionBoundariesService {

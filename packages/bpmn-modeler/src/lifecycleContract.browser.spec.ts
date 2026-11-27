@@ -10,7 +10,7 @@ import type { BpmnSurface, EditingSurface } from "./kernel/port/bpmnSurface";
 
 import { createModeler } from "./composition/createModeler";
 import { kernelDefaultModules } from "./composition/kernelDefaults";
-import { BpmnModeler } from "./modeler/service/modeler";
+import { BpmnModeler } from "./composition/presets/bpmnModeler";
 import type { ThemeMode } from "./kernel/domain/themeMode";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesigner } from "./design/service/designer";

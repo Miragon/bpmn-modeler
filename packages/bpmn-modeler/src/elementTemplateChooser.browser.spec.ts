@@ -3,7 +3,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { createModeler } from "./composition/createModeler";
 import type { ModelerMode } from "./kernel/domain/surfaceMode";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 

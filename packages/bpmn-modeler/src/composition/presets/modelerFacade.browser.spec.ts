@@ -3,8 +3,8 @@ import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting
 import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 
 import * as lintModule from "../../lint";
-import { createModeler } from "../../composition/createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "../createModeler";
+import type { BpmnModeler } from "./bpmnModeler";
 import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML, START_EVENT_XML } from "../../__fixtures__/bpmnXml";
 import { MODELER_MODDLE, declaringCamunda87Under } from "../../__fixtures__/modelerModdle";
 import {

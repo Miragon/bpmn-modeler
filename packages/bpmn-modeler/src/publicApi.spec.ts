@@ -1,7 +1,7 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { ElementIdOptions as LibraryElementIdOptions } from "@miragon/bpmn-modeler-element-ids";
-import { BpmnModeler } from "./modeler/service/modeler";
+import { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { BpmnViewer } from "./viewer/service/viewer";
 import { BpmnDesigner } from "./design/service/designer";
 import type {

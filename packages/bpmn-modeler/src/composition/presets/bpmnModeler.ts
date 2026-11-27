@@ -44,14 +44,14 @@ import {
     collectInlineScriptTasks,
     writeSurfaceScriptField,
 } from "@miragon/bpmn-modeler-inline-scripting";
-import { buildLintModules, lintElementIdConvention } from "../../composition/lintModules";
+import { buildLintModules, lintElementIdConvention } from "../lintModules";
 import { appendMenuOf } from "../../appendMenu/service/appendMenuAccessor";
 import { elementIdsOf } from "../../elementIds/service/elementIdsAccessor";
 import { layoutOf } from "../../layout/service/layoutAccessor";
 import { createPopupMenuAnnotationsModule } from "../../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
 import { TokenSimulationBehaviorNamesModule } from "../../tokenSimulation/adapter/in/tokenSimulationBehaviorNamesModule";
 import type { LintHandleMethods } from "../../kernel/service/lintHandle";
-import { capabilityModules } from "../../composition/capabilityModules";
+import { capabilityModules } from "../capabilityModules";
 import { wireContentSaved } from "../../kernel/service/contentSaved";
 import { exportFormattedXml, exportSvg, importDiagram } from "../../kernel/service/diagramXml";
 import { createSurfaceLintHandle } from "../../kernel/service/editableSurface";
@@ -71,7 +71,7 @@ import type {
     ViewportManager,
 } from "../../kernel/port/canvasManagers";
 import type { ViewState } from "../../kernel/domain/viewState";
-import { loadEngineStack } from "../../composition/engineStacks";
+import { loadEngineStack } from "../engineStacks";
 import { normalizeMode, type ModelerMode } from "../../kernel/domain/surfaceMode";
 import { ModeAttribute } from "../../mode/adapter/in/modeModules";
 import {
@@ -87,7 +87,7 @@ import type {
     CoreModelerServices,
     CreateModelerOptions,
     ElementIdOptions,
-} from "../port/publicApi";
+} from "../../modeler/port/publicApi";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
