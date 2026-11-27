@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { c8Stack } from "./c8";
+import { C8_PROPERTIES_PANEL_DEFAULTS } from "./c8EngineModules";
 
 type FeelPopupLinks = (type: string) => { title: string; href: string }[] | undefined;
 
-const getFeelPopupLinks = c8Stack.propertiesPanelDefaults.getFeelPopupLinks as FeelPopupLinks;
+const getFeelPopupLinks = C8_PROPERTIES_PANEL_DEFAULTS.getFeelPopupLinks as FeelPopupLinks;
 
 describe("C8 FEEL popup links", () => {
     it.each([

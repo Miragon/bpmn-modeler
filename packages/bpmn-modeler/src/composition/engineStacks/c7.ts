@@ -1,9 +1,6 @@
 import camundaModdle from "camunda-bpmn-moddle/resources/camunda.json";
 import CamundaPlatformBehaviorsModule from "camunda-bpmn-js-behaviors/lib/camunda-platform";
-import {
-    CamundaPlatformPropertiesProviderModule,
-    CamundaPlatformTooltipProvider,
-} from "bpmn-js-properties-panel";
+import { CamundaPlatformPropertiesProviderModule } from "bpmn-js-properties-panel";
 import { ElementTemplatesPropertiesProviderModule } from "bpmn-js-element-templates";
 import { CamundaVariableResolverModule } from "@bpmn-io/variable-resolver";
 import ColorPickerModule from "bpmn-js-color-picker";
@@ -19,6 +16,7 @@ import { TransactionBoundaryVisibilityModule } from "../../transactionBoundaries
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
 import { C7_POPUP_MENU_ANNOTATIONS } from "../../engines/domain/popupMenuAnnotationOverrides";
+import { C7_PROPERTIES_PANEL_DEFAULTS } from "../../engines/adapter/in/c7EngineModules";
 
 export const c7Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -37,6 +35,6 @@ export const c7Stack: EngineStack = {
         TransactionBoundaryVisibilityModule,
     ],
     moddleExtensions: { camunda: camundaModdle },
-    propertiesPanelDefaults: { tooltip: CamundaPlatformTooltipProvider },
+    propertiesPanelDefaults: C7_PROPERTIES_PANEL_DEFAULTS,
     popupMenuAnnotations: C7_POPUP_MENU_ANNOTATIONS,
 };

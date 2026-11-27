@@ -6,17 +6,9 @@
 // A bump of bpmn-js, diagram-js, token simulation or the properties panel updates the pins with
 // `-u` in the bump PR; `yarn.lock` selects this package's test target.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import camundaModdle from "camunda-bpmn-moddle/resources/camunda.json";
-import zeebeModdle from "zeebe-bpmn-moddle/resources/zeebe.json";
-import type { CodeLinkPort } from "@miragon/bpmn-modeler-code-link";
-import type { DefinitionSearchPort } from "@miragon/bpmn-modeler-definition-search";
-import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting";
-import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
-import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
-import { ENGINES, type BpmnlintConfig, type Engine } from "@miragon/bpmn-modeler-types";
+import { ENGINES, type Engine } from "@miragon/bpmn-modeler-types";
 import { SURFACE_MODE_SERVICE, type SurfaceModeService } from "@miragon/bpmn-modeler-types/domain";
 
-import * as lintModule from "../lint";
 import { BASE_POPUP_MENU_ANNOTATIONS } from "../popupMenuAnnotations/domain/baseAnnotations";
 import type { PopupMenuAnnotationOverrides } from "../kernel/domain/popupMenus";
 import {
@@ -47,6 +39,22 @@ import {
     type Override,
 } from "../__fixtures__/diModuleAssembly";
 import {
+    ACME_MODDLE,
+    bridge,
+    CALLER_MODULE,
+    definitionSearch,
+    LINT_VARIANTS,
+    lintModule,
+    modelerVariants,
+    modelNavigation,
+    onLintingToggled,
+    onLintResults,
+    PREVIEW_TEMPLATES,
+    textBridge,
+    VALUE_ROLES,
+    type OptionVariant,
+} from "../__fixtures__/presetPinOptions";
+import {
     optionDelta,
     renderPins,
     surfacePinsOf,
@@ -64,7 +72,6 @@ interface OptionalLookup {
 }
 
 type Build<O> = (mount: SurfaceMount, options: Partial<O>) => Promise<BuiltSurface>;
-type OptionVariant<O> = readonly [label: string, options: Partial<O>];
 
 const PINS = "./__snapshots__/presetModulePins";
 const PIN_FILES = [
@@ -78,113 +85,6 @@ const PIN_FILES = [
     "viewer.txt",
     "viewer.options.txt",
 ];
-
-const modelNavigation: ModelNavigationPort = { openReference: vi.fn() };
-const codeLink: CodeLinkPort = { navigateToImplementation: vi.fn(), syncActivities: vi.fn() };
-const definitionSearch: DefinitionSearchPort = { search: vi.fn(async () => []) };
-const scripting: InlineScriptingPort = { openScriptEditor: vi.fn(), scriptSourceChanged: vi.fn() };
-const bridge: ClipboardBridge = {
-    requestClipboard: vi.fn(async () => ""),
-    writeClipboard: vi.fn(),
-};
-const textBridge: ClipboardBridge = {
-    requestClipboard: vi.fn(async () => ""),
-    writeClipboard: vi.fn(),
-};
-const VALUE_ROLES = new Map<object, string>([
-    [modelNavigation, "modelNavigation port"],
-    [codeLink, "codeLink port"],
-    [definitionSearch, "definitionSearch port"],
-    [scripting, "scripting port"],
-    [bridge, "clipboard bridge"],
-    [textBridge, "clipboard text bridge"],
-]);
-
-const CALLER_MODULE = { callerProbe: ["value", "caller"] };
-const ACME_MODDLE = { name: "Acme", prefix: "acme", uri: "http://acme.example/bpmn", types: [] };
-const ENGINE_MODDLE: Record<Engine, { readonly prefix: string; readonly moddle: unknown }> = {
-    c7: { prefix: "camunda", moddle: camundaModdle },
-    c8: { prefix: "zeebe", moddle: zeebeModdle },
-};
-const LINT_CONFIG: BpmnlintConfig = { rules: { "label-required": "off" } };
-// Named after their slots, so crossed callbacks read as crossed in the pins.
-const onLintResults = (): undefined => undefined;
-const onLintingToggled = (): undefined => undefined;
-
-const LINT_VARIANTS = [
-    ["linting: false", { linting: false }],
-    ["linting: { module } (in-page tier)", { linting: { module: lintModule } }],
-    [
-        'linting: { module, results: "external" }',
-        { linting: { module: lintModule, results: "external" } },
-    ],
-] as const;
-
-const PREVIEW_TEMPLATES: Record<Engine, object> = {
-    c7: {
-        $schema: "https://unpkg.com/@camunda/element-templates-json-schema/resources/schema.json",
-        name: "Pinned task",
-        id: "com.example.pinned",
-        appliesTo: ["bpmn:ServiceTask"],
-        properties: [],
-    },
-    c8: {
-        $schema:
-            "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
-        name: "Pinned task",
-        id: "com.example.pinned",
-        appliesTo: ["bpmn:ServiceTask"],
-        properties: [],
-    },
-};
-
-function modelerVariants(engine: Engine): readonly OptionVariant<CreateModelerOptions>[] {
-    const { prefix, moddle } = ENGINE_MODDLE[engine];
-    return [
-        ...LINT_VARIANTS,
-        [
-            'linting: { module } (in-page tier) with mode: "design"',
-            { linting: { module: lintModule }, mode: "design" },
-        ],
-        [
-            "linting: { module, config }, onLintResults, onLintingToggled and elementTemplates",
-            {
-                linting: { module: lintModule, config: LINT_CONFIG },
-                onLintResults,
-                onLintingToggled,
-                elementTemplates: [PREVIEW_TEMPLATES[engine]],
-            },
-        ],
-        ['mode: "design"', { mode: "design" }],
-        ["capabilities.modelNavigation", { capabilities: { modelNavigation } }],
-        ["capabilities.codeLink", { capabilities: { codeLink } }],
-        ["capabilities.definitionSearch", { capabilities: { definitionSearch } }],
-        ["capabilities.scripting", { capabilities: { scripting } }],
-        ["clipboard: { bridge }", { clipboard: { bridge } }],
-        ["clipboard: { bridge, text }", { clipboard: { bridge, text: textBridge } }],
-        [
-            "moddleExtensions (a new prefix, and the engine's prefix replaced)",
-            {
-                moddleExtensions: {
-                    acme: ACME_MODDLE,
-                    [prefix]: Object.assign({}, moddle, {
-                        uri: `http://override.example/${prefix}`,
-                    }),
-                },
-            },
-        ],
-        ["additionalModules", { additionalModules: [CALLER_MODULE] }],
-        [
-            "in-page linting, every capability, clipboard and additionalModules at once",
-            {
-                linting: { module: lintModule },
-                capabilities: { modelNavigation, codeLink, definitionSearch, scripting },
-                clipboard: { bridge },
-                additionalModules: [CALLER_MODULE],
-            },
-        ],
-    ];
-}
 
 const DESIGNER_VARIANTS: readonly OptionVariant<DesignerOptions>[] = [
     ...LINT_VARIANTS,

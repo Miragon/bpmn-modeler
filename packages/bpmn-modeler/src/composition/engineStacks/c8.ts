@@ -1,7 +1,7 @@
 import zeebeModdle from "zeebe-bpmn-moddle/resources/zeebe.json";
 import ElementTemplateIconRendererModule from "@bpmn-io/element-template-icon-renderer";
 import CamundaCloudBehaviorsModule from "camunda-bpmn-js-behaviors/lib/camunda-cloud";
-import { ZeebePropertiesProviderModule, ZeebeTooltipProvider } from "bpmn-js-properties-panel";
+import { ZeebePropertiesProviderModule } from "bpmn-js-properties-panel";
 import { CloudElementTemplatesPropertiesProviderModule } from "bpmn-js-element-templates";
 import { ZeebeVariableResolverModule } from "@bpmn-io/variable-resolver";
 import ExampleDataPropertiesProviderModule from "@camunda/example-data-properties-provider";
@@ -13,17 +13,7 @@ import {
 import { composeUpstreamModules } from "./sharedModules";
 import type { EngineStack } from "./engineStack";
 import { C8_POPUP_MENU_ANNOTATIONS } from "../../engines/domain/popupMenuAnnotationOverrides";
-
-const FEEL_POPUP_LINKS = {
-    feel: {
-        title: "Learn FEEL expressions",
-        href: "https://docs.camunda.io/docs/components/modeler/feel/what-is-feel/",
-    },
-    feelers: {
-        title: "Learn templating",
-        href: "https://docs.camunda.io/docs/components/modeler/forms/configuration/forms-config-templating-syntax/",
-    },
-} as const;
+import { C8_PROPERTIES_PANEL_DEFAULTS } from "../../engines/adapter/in/c8EngineModules";
 
 export const c8Stack: EngineStack = {
     upstreamModules: composeUpstreamModules([
@@ -39,12 +29,6 @@ export const c8Stack: EngineStack = {
     ]),
     engineModules: [],
     moddleExtensions: { zeebe: zeebeModdle },
-    propertiesPanelDefaults: {
-        tooltip: ZeebeTooltipProvider,
-        getFeelPopupLinks: (type: string) => {
-            const link = FEEL_POPUP_LINKS[type as keyof typeof FEEL_POPUP_LINKS];
-            return link ? [link] : undefined;
-        },
-    },
+    propertiesPanelDefaults: C8_PROPERTIES_PANEL_DEFAULTS,
     popupMenuAnnotations: C8_POPUP_MENU_ANNOTATIONS,
 };
