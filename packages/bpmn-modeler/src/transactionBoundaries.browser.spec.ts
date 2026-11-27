@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import "./styles/themes.css";
 
 import { createModeler } from "./composition/createModeler";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 interface TransactionBoundariesService {
@@ -313,18 +313,6 @@ describe("transaction boundaries", () => {
         await expect(handle.loadDiagram("<not-bpmn")).rejects.toThrow();
 
         expect(show).not.toHaveBeenCalled();
-        expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
-    });
-
-    it("keeps marks hidden by the setting across a re-entrant init", async () => {
-        const handle = await openModeler();
-        handle.setSettings({ showTransactionBoundaries: false });
-
-        await handle.init();
-        await handle.loadDiagram(FIXTURE_XML);
-
-        expect(renderedMarks(handle)).toHaveLength(0);
-        handle.setSettings({ showTransactionBoundaries: true });
         expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
     });
 

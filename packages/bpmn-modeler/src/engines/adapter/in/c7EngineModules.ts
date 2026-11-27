@@ -11,7 +11,7 @@ import ColorPickerModule from "bpmn-js-color-picker";
 import type { EngineModules } from "./engineModules";
 import { UpstreamPropertiesPanelModule } from "./upstreamPanel";
 
-export const C7_PROPERTIES_PANEL_DEFAULTS = { tooltip: CamundaPlatformTooltipProvider };
+const C7_PROPERTIES_PANEL_DEFAULTS = { tooltip: CamundaPlatformTooltipProvider };
 
 export const c7EngineModules: EngineModules = {
     modules: [

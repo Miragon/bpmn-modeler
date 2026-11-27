@@ -1,3 +1,5 @@
+import { TRANSACTION_BOUNDARY_VISIBILITY } from "../../domain/transactionBoundaryNames";
+
 // Below every default import.done listener and bpmn-js-bpmnlint's 500: the facade
 // re-showed the marks after the import resolved, so after all of those.
 const TRANSACTION_BOUNDARY_RESHOW_PRIORITY = 300;
@@ -59,6 +61,6 @@ export class TransactionBoundaryVisibility {
 }
 
 export const TransactionBoundaryVisibilityModule = {
-    __init__: ["transactionBoundaryVisibility"],
-    transactionBoundaryVisibility: ["type", TransactionBoundaryVisibility],
+    __init__: [TRANSACTION_BOUNDARY_VISIBILITY],
+    [TRANSACTION_BOUNDARY_VISIBILITY]: ["type", TransactionBoundaryVisibility],
 };

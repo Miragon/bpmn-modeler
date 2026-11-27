@@ -9,39 +9,39 @@ This skill covers how the BPMN webview (`apps/bpmn-webview/`) uses the bpmn-js l
 
 ## Modeler Initialization
 
-The modeler is encapsulated in `packages/bpmn-modeler/src/modeler/service/modeler.ts` as a `BpmnModeler` class, created through the public `createModeler(container, options)` factory (`composition/createModeler.ts`). `BpmnModeler.init()` constructs `bpmn-js/lib/Modeler` itself from the selected engine stack.
+The public `createModeler(container, options)` factory (`packages/bpmn-modeler/src/composition/createModeler.ts`) is a preset on the kernel: it awaits the feature list from `composition/presets/modelerFeatures.ts`, builds `bpmn-js/lib/Modeler` through `createSurface`, and wraps the surface in the `@internal` `BpmnModeler` class (`composition/presets/bpmnModeler.ts`), whose methods delegate to the surface and the features' typed accessors (`elementTemplatesOf`, `layoutOf`, `elementIdsOf`, …).
 
 ### Engine Variants
 
 The modeler supports two Camunda engine variants, selected by the `engine` option:
 
-Each engine stack (`packages/bpmn-modeler/src/composition/engineStacks/c7.ts`, `c8.ts`) is data: the upstream plugin modules (wrapped by `composeUpstreamModules` with the shared leading/trailing modules), the engine-only modules, the engine moddle extension, the properties-panel option defaults, and the engine's popup-menu annotation overrides. Popup-menu descriptions, search keywords and the replace-menu Templates tab come from `src/popupMenuAnnotations/`: an engine-neutral base set that Design loads as is and each engine overrides where its semantics differ. `loadEngineStack(engine)` imports it dynamically, so a page only parses the stack it opens.
+Each engine is a feature: `camunda7()` / `camunda8()` in `packages/bpmn-modeler/src/engines/adapter/in/engineFeatures.ts` carry the upstream panel, behaviours and providers, the engine moddle extension, the properties-panel option defaults, the popup-menu annotation overrides (as the DI value `popupMenuAnnotationOverrides`) and the `diagramTemplate` `newDiagram` opens. `elementTemplates(engine)` adds the engine's template modules. Both load their modules through a dynamic import, so a page only parses the engine it opens. Popup-menu descriptions, search keywords and the replace-menu Templates tab come from `src/popupMenuAnnotations/` and `src/elementTemplates/`: an engine-neutral base set that Design loads as is and each engine overrides where its semantics differ.
 
-- **Camunda 7** — `camunda` moddle extension. Engine modules: `CreateAppendElementTemplatesModule`, `CreateAppendC7ElementTemplatesModule`, `TransactionBoundariesModule`.
-- **Camunda 8** — `zeebe` moddle extension. No engine modules beyond its upstream set.
+- **Camunda 7** — `camunda` moddle extension, plus the C7-late template modules and `transactionBoundaries()`.
+- **Camunda 8** — `zeebe` moddle extension, plus example data.
 
-Both variants share the `commonModules` array in `BpmnModeler.init()` — e.g. `TokenSimulationModule`, `ElementTemplateChooserModule`, `AppendMenuModule`, plus translation, lint, layout, and mode modules. Read the array for the full set.
+Both variants share the other features in `modelerFeatures` — e.g. `tokenSimulation()`, `appendMenu()`, `createAppendAnything()`, plus translation, lint, layout and element IDs. Read the list for the full set.
 
 ### Lifecycle
 
 1. `apps/bpmn-webview/src/main.ts` calls `bootstrap(getHostApi(), { extraModules })`; `composition/bootstrap.ts` is the composition root: it wires the adapters and services of the role folders, resolving the `clipboard` option (see Copy-Paste below), and starts `run()`, the boot phases, once the window has loaded
 2. `run()` registers the message listener, starts the host theme adapter, sends `GetBpmnFileCommand` / `GetBpmnModelerSettingCommand` / `GetPropertiesPanelStateCommand`, and awaits the `BpmnFileQuery` from `service/documentSession.ts` (a diff pane branches off to `DiffMode` here and swaps in a router that only follows `LanguageQuery`)
 3. `adapter/in/modeController.ts` starts `createModeSession`, which builds the initial surface from the factories in `adapter/out/surfaceFactories.ts`: View → `createViewer`, Design on an untagged model → `createDesigner`, otherwise `createModeler` (each lazily imported via `adapter/out/surfaceModules.ts`)
-4. `createModeler` constructs `BpmnModeler` and awaits `init()` — load the engine stack, build the module list, install the FEEL/contenteditable clipboard polyfill when `clipboard` is set, then construct `bpmn-js/lib/Modeler` — and afterwards applies the `elementTemplates`, `settings`, `theme`, and `locale` options
+4. `createModeler` awaits the engine and template features, builds the surface with `createSurface` (the kernel merges the features, installs the FEEL/contenteditable clipboard polyfill when `clipboard` is set, constructs `bpmn-js/lib/Modeler` and applies the `theme`), wraps it in `BpmnModeler`, and afterwards applies the `elementTemplates`, `settings` and `locale` options
 5. The webview requests element templates (modeler only) and the lint config (designer/modeler only), then the document session imports the XML through `adapter/out/surfaceDocument.ts`: `loadDiagram(xml)` (`newDiagram()` for an empty file on an editable surface)
 6. `bindSurface` (`adapter/in/surfaceBinding.ts`) subscribes the editable handle's `onCommandStackChanged` to the debounced `SyncDocumentCommand` and its `onFormatted` to `DiagramFormattedCommand`, and creates the `WebviewStateManager`; the mode controller binds the initial surface after its import and rebinds every surface a mode switch stands up before its import
 7. `WebviewStateManager` restores the viewport from `host.getState()`, then — once element templates and settings have arrived — the selection and panel UI state, after which the mode controller opens the strip for mode switches, and finally starts persisting viewport, selection, and drill-down changes
 
 ### Modeler Options
 
-`BpmnModeler.init()` passes these options to `new Modeler(...)`:
+The kernel passes the merged feature config to `new Modeler(...)`:
 - `container`: the element passed to `createModeler` (the webview's `#js-canvas`)
-- `propertiesPanel`: the stack's `propertiesPanelDefaults`, `parent` from the `propertiesPanel.parent` option (the webview's `#js-properties-panel-mount`), and `feelPopupContainer: container` so FEEL popups stay in the instance's theme scope
-- `popupMenu`: `{ defaultTab: BPMN_TAB }`, so the replace menu files element-template entries under a separate Templates tab
-- `alignToOrigin`: `ALIGN_TO_ORIGIN_OPTIONS` — `{ alignOnSave: false, offset: 150, tolerance: 50 }`
-- `moddleExtensions`: the stack's extension merged with the caller's `moddleExtensions`
+- `propertiesPanel`: the engine feature's panel defaults, then `parent` from the `propertiesPanel.parent` option (the webview's `#js-properties-panel-mount`) and `feelPopupContainer: container` from `propertiesPanel()`, so FEEL popups stay in the instance's theme scope
+- `popupMenu`: `{ defaultTab: BPMN_TAB }` from `elementTemplates()`, so the replace menu files element-template entries under a separate Templates tab
+- `alignToOrigin`: `{ alignOnSave: false, offset: 150, tolerance: 50 }` from `alignToOrigin()`
+- `moddleExtensions`: merged by prefix, the engine's first and the caller's `moddleExtensions` last; one prefix under two keys still fails, as moddle does
 - `propertiesPanelMode`: the normalized `mode` option (only the designer and viewer filters read it; the modeler's filter follows `surfaceMode`)
-- `additionalModules`, in order: the kernel's `surfaceMode` (`createSurfaceModeModule`) and `surfaceRoots` (`SurfaceCore.rootsModule()`) → the kernel defaults from composition (focus/Escape, fit button) → upstream (`engineStack.upstreamModules`) → common (`commonModules`) → engine (`engineStack.engineModules`) → capability (`capabilityModules(engine, capabilities)`) → clipboard (the `clipboard()` feature's modules, text polyfill last, only with a `clipboard` option) → the caller's `additionalModules`
+- `additionalModules`, in order: the kernel's `surfaceMode` and `surfaceRoots` → the kernel defaults from composition (focus/Escape, fit button) → each feature's modules in `modelerFeatures` order (the capability features, then the `clipboard()` feature with the text polyfill last, only with a `clipboard` option) → the caller's `additionalModules`. The module pins (`composition/__snapshots__/presetModulePins/`) hold the flattened order.
 
 ## Core bpmn-js Services
 
@@ -68,7 +68,7 @@ Services are accessed via `modeler.get('serviceName')`. Key services used:
 | `canvas.viewbox.changed`   | `packages/bpmn-modeler/src/kernel/service/viewport.ts`                                  | Triggered on scroll/zoom. Debounced (100ms); `WebviewStateManager` (`service/state.ts`) persists it through its injected `WebviewStateStore.merge`, which calls `host.updateState()`. |
 | `copyPaste.elementsCopied` | `libs/bpmn-clipboard/src/BridgedClipboardModule.ts`                      | Triggered when elements are copied. Intercepted to write descriptor JSON to system clipboard via extension host. |
 | `copyPaste.pasteElements`  | `libs/bpmn-clipboard/src/BridgedClipboardModule.ts`                      | Triggered when paste occurs. Intercepted to read descriptor JSON from system clipboard via extension host.       |
-| `elementTemplates.errors`  | `packages/bpmn-modeler/src/modeler/service/modeler.ts`                                   | Triggered when element template loading produces errors. Forwarded to the `onElementTemplatesErrors` callback.   |
+| `elementTemplates.errors`  | `packages/bpmn-modeler/src/elementTemplates/service/elementTemplatesAccessor.ts` (`onErrors`) | Triggered when element template loading produces errors. Forwarded to the `onElementTemplatesErrors` callback.   |
 
 ### Event Priority System
 
@@ -83,7 +83,7 @@ bpmn-js events use a priority system. Higher priority listeners fire first and c
 ## Copy-Paste Architecture (Three Layers)
 
 Copy-paste in this project operates at three distinct layers. The **default is
-the native browser clipboard** — the engine stacks and the designer register
+the native browser clipboard** — the modeler's `nativeCopyPaste()` feature and the designer register
 `bpmn-js-native-copy-paste`'s `NativeCopyPaste`, so a plain browser (the webview
 `serve` preview) needs nothing extra (#1374). The first two layers below are the
 **host-bridge override**: bpmn-js DI modules in the shared `libs/bpmn-clipboard`
@@ -194,7 +194,7 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — [DMN modele
 ## Key Files
 
 - **Public factory**: `packages/bpmn-modeler/src/composition/createModeler.ts`
-- **Modeler wrapper** (builds the clipboard modules via `createClipboardModules`): `packages/bpmn-modeler/src/modeler/service/modeler.ts` (engine stacks in `packages/bpmn-modeler/src/composition/engineStacks/`)
+- **Modeler preset**: `packages/bpmn-modeler/src/composition/presets/modelerFeatures.ts` (the feature list; the clipboard modules come from `clipboard()` in `src/clipboard/adapter/in/clipboardFeature.ts`) and the `@internal` facade `packages/bpmn-modeler/src/composition/presets/bpmnModeler.ts`
 - **Webview composition root and boot phases**: `apps/bpmn-webview/src/composition/bootstrap.ts` (entry: `main.ts`)
 - **Document session** (engine-reload latch, deferred language refresh and focus): `apps/bpmn-webview/src/service/documentSession.ts`, on top of the `WebviewDocumentSync` it shares with the DMN webview (host revisions, the serialized modeler-operation queue every import, refresh, mode switch and the engine-reload teardown runs on, debounced host import and outbound sync, flush handshake): `libs/shared/src/lib/webviewDocumentSync.ts`
 - **Surface document adapter** (view-preserving re-import, blank diagram, import warnings, align-to-origin after a sync): `apps/bpmn-webview/src/adapter/out/surfaceDocument.ts`

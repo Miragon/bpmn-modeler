@@ -4,7 +4,7 @@ import { createElementIdConvention } from "./lint";
 import { createModeler } from "./composition/createModeler";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesigner } from "./design/service/designer";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import type { ElementIdConvention } from "./modeler/port/publicApi";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 

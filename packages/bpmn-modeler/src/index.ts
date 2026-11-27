@@ -131,6 +131,6 @@ export const DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 
 /** @internal */
-export { BpmnModeler } from "./modeler/service/modeler";
+export { BpmnModeler } from "./composition/presets/bpmnModeler";
 /** @internal */
 export type { CreateModelerOptions } from "./modeler/port/publicApi";

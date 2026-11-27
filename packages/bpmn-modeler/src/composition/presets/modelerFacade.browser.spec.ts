@@ -3,8 +3,8 @@ import type { InlineScriptingPort } from "@miragon/bpmn-modeler-inline-scripting
 import type { LintRunEvent } from "@miragon/bpmn-modeler-types";
 
 import * as lintModule from "../../lint";
-import { createModeler } from "../../composition/createModeler";
-import type { BpmnModeler } from "./modeler";
+import { createModeler } from "../createModeler";
+import type { BpmnModeler } from "./bpmnModeler";
 import { C7_SCRIPTS_XML, FAR_FROM_ORIGIN_XML, START_EVENT_XML } from "../../__fixtures__/bpmnXml";
 import { MODELER_MODDLE, declaringCamunda87Under } from "../../__fixtures__/modelerModdle";
 import {
@@ -491,6 +491,33 @@ describe("BpmnModeler align to origin", () => {
         expect(commandStack.canUndo()).toBe(false);
         expect(boundsOf(modeler, "StartEvent_1")).toMatchObject({ x: 5000, y: 4000 });
         expect(boundsOf(modeler, "Task_2")).toMatchObject({ x: 5300, y: 3980 });
+    });
+});
+
+interface ContextPadService {
+    getEntries(target: unknown): Record<string, unknown>;
+}
+
+// The keyboard "Element actions" menu lists getEntries in key order, without the pad's groups.
+describe.each(["c7", "c8"] as const)("BpmnModeler %s context-pad entry order", (engine) => {
+    afterEach(removeMounts);
+
+    it("lists Set color before Append element", async () => {
+        const { container, panel } = mountWithPanel();
+        const modeler = await createModeler(container, {
+            engine,
+            propertiesPanel: { parent: panel },
+            linting: false,
+        });
+        await modeler.loadDiagram(FAR_FROM_ORIGIN_XML);
+        const task = modeler.getService("elementRegistry").get("Task_1");
+
+        const entryIds = Object.keys(
+            modeler.getService<ContextPadService>("contextPad").getEntries(task),
+        ).filter((entryId) => entryId === "set-color" || entryId === "append");
+        modeler.destroy();
+
+        expect(entryIds).toEqual(["set-color", "append"]);
     });
 });
 

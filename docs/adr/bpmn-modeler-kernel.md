@@ -7,8 +7,9 @@
 
 `@miragon/bpmn-modeler` is moving to one minimal kernel. Every feature, built-in or plugin,
 reaches it through one `BpmnFeature` contract (#2802). The kernel sits next to the presets
-(`createModeler`, `createDesigner`, `createViewer`). The presets keep building their own
-bpmn-js instance until #2802 S4 moves them onto it. Surfaces, modes and the lifecycle contract
+(`createModeler`, `createDesigner`, `createViewer`). `createModeler` builds on it; the designer
+and the viewer keep building their own bpmn-js instance until #2802 S4b and S4c, and the template
+preview stays a `createModeler` caller until S4d. Surfaces, modes and the lifecycle contract
 are in [BPMN modeler](bpmn-modeler.md). The folder rules are in
 [Role folders](role-folders.md#modeler-package-layout).
 
@@ -39,11 +40,15 @@ does not make kernel internals part of the export map.
 
 The kernel names no feature's DI service either. It looks up only what a bpmn-js base, the
 diagram-js core or its own four names provide. A host reaches a feature through a typed accessor
-in the feature's `service/` (`layoutOf(surface)`, `elementIdsOf(surface)`, `appendMenuOf(surface)`),
-which returns `undefined` when the surface lacks the feature, so a host never holds the didi
-injector. An accessor wraps helpers in the feature's library, which keep the lookup, the presence
-check and the logic usable without this package, so each DI name is written only in its library. The cost is one more file per feature, and each preset keeps its own
-answer for a missing feature. The modeler preset calls the code-link status push and the
+in the feature's `service/` (`layoutOf`, `elementIdsOf`, `appendMenuOf`, `elementTemplatesOf`,
+`transactionBoundariesOf`, `alignToOriginOf`), which returns `undefined` when the surface lacks the
+feature, so a host never holds the didi injector. An accessor over a library wraps helpers there,
+which keep the lookup, the presence check and the logic usable without this package; an accessor
+over a feature folder takes its DI names from that folder's `domain/`, which its module uses too.
+Either way each DI name is written once in this package. The chooser library looks
+`elementTemplateOffer` up by its own literal; `elementTemplateChooser.browser.spec.ts` ("lists no
+hidden template") pins the two spellings together. The cost is one more file per feature, and each preset
+keeps its own answer for a missing feature. The modeler preset calls the code-link status push and the
 inline-script writes as helpers in `libs/code-link` and `libs/inline-scripting`, as the facade
 glue they replace; neither has an accessor yet. Only `editableSurface.ts`'s `bpmnLintConfig`
 lookup is left (#2802 S5).
@@ -73,10 +78,42 @@ dynamic import, so a page parses only the engine it opens; the cost is an async 
 `requires` names only what proves the dependency: `elementTemplates` requires `propertiesPanel`
 and `bpmnPropertiesProvider`, because the forked panel provides the first too, and on C7 the
 template provider module depends on the engine's provider, so requiring that one would prove
-nothing. `composition/presets/modelerFeatures.ts` lists `createModeler`'s features in the order
-its switch to `createSurface` uses (#2802 S4). Until the switch, the facade and composition
-register the same modules, config and capability gating as the feature factories, and the
-switch-delta spec pins the two against each other.
+nothing.
+
+### The modeler preset
+
+`createModeler` is a preset in `composition/`: it awaits `modelerFeatures` (the feature list,
+in `composition/presets/`), calls `createSurface({ base: Modeler, features, mode, extraRoots:
+[panel parent], … })` and wraps the surface in `BpmnModeler`
+(`composition/presets/bpmnModeler.ts`). Every `BpmnModeler` method delegates to the surface or an
+accessor; the settings fan-out stays in the facade, because the kernel keeps no settings bag.
+Options become features, and `additionalModules`/`moddleExtensions` one `caller` feature at the
+end. Plugins still arrive as those two options until #2802 S8. Choices and their costs:
+
+- **Host callbacks through accessors, not factory options.** The design gave the factories their
+  host contract (`elementTemplates(engine, { onErrors })`, `elementIds({ settings })`). An option
+  that registers a value adds a module line, so the facade wires `onErrors` and the ID settings
+  through the accessors after construction instead, and the module list stays as before. The cost
+  is a facade step between construction and the first diagram.
+- **The constructor stays public in the types.** Its 1.x signature (container, options, an opaque
+  third argument) still compiles for `new` and `extends`, so the switch needs no major release. It
+  throws unless it receives the module-private surface handoff from `createModeler`, which keeps
+  the kernel's surface types out of `index.d.ts`. The cost is a runtime error where 1.x returned
+  an instance that never initialised.
+- **The preset awaits the features itself**, so a failed engine chunk rejects with its own error
+  rather than the kernel's "feature #n failed to load". No handle exists yet, so no destroy guard
+  is lost; the cost is that this preset skips the kernel's wrapping.
+- **One moddle prefix under two keys still fails.** The kernel merges moddle by prefix and would
+  keep the later package; moddle itself rejects the pair, and a plugin build relies on that throw
+  to fall back without its plugins. `moddlePrefixUnderTwoKeys` (beside `createModeler`) keeps the
+  rejection until plugins are features (#2802 S8). A caller that lists another prefix under the
+  engine's key keeps both packages, where bpmn-js kept only the caller's.
+- **The caller feature is a built-in**, so it meets the built-in rules: providing `surfaceRoots` or
+  `surfaceMode` fails the build instead of overriding silently, and a `diagramTemplate` it provides
+  changes what `newDiagram` opens.
+- **The kernel moves `data-bpmn-mode`** after construction, so a caller's listener on
+  `surface.mode.changed` at the default priority now runs before the attribute moves; the panel
+  filter, lint and the host callback keep their order.
 
 ### Defaults and failure
 
@@ -85,8 +122,8 @@ These two and the clipboard text polyfill install on `diagram.init`, after every
 and leave on `diagram.destroy`. The kernel also fires `diagram.destroy` when a constructor throws
 after its modules initialised (in bpmn-js's `attach` event), so no listener or `execCommand` patch
 survives. It handles the errors that listeners of a half-built instance throw then, so every
-listener runs and the console shows only the construction error. Until the presets run on the kernel (#2802 S4), the facades take these modules from
-composition and keep `ModeAttribute`.
+listener runs and the console shows only the construction error. Until the designer and the
+viewer run on the kernel (#2802 S4b, S4c), their facades take these modules from composition.
 
 ## Consequences and enforcement
 
@@ -95,9 +132,9 @@ guards rely on the handle holding only its kind's members.
 
 The [architecture spec](../../packages/bpmn-modeler/src/architecture.spec.ts) checks that
 `kernel/` imports nothing outside itself but `@miragon/bpmn-modeler-types`,
-`@miragon/bpmn-modeler-browser` and npm, with no exception left. Until #2802 S4, the
-`presetWiring.ts` port names the clipboard feature's modules for the facades; its imports pass the
-check. The same spec reads every DI
+`@miragon/bpmn-modeler-browser` and npm, with no exception left. Until #2802 S4b and S4c, the
+`presetWiring.ts` port names the clipboard feature's modules for the designer and viewer facades;
+its imports pass the check. The same spec reads every DI
 name the kernel spells out, in a lookup or an `$inject` list. It allows the names the bpmn-js base
 module trees, the diagram-js core and the kernel provide, and lists the `bpmnLintConfig` lookup as
 the one known exception, until #2802 S5. A name the kernel builds at runtime instead of writing as a
@@ -110,6 +147,7 @@ builds a viewer-only client and reads its module ids. It allows no `Modeler`, no
 [feature merge spec](../../packages/bpmn-modeler/src/kernel/domain/featureMerge.spec.ts) pins the
 merge order and the failure rules. A type spec in `kernelSurface.spec.ts` pins the
 `"setMode" in handle` narrowing. The
-[switch delta](../../packages/bpmn-modeler/src/composition/presets/presetOnKernel.browser.spec.ts)
-and [builds-alone](../../packages/bpmn-modeler/src/composition/presets/featuresBuildAlone.browser.spec.ts)
-specs cover the modeler's feature list.
+[preset module pins](../../packages/bpmn-modeler/src/composition/presetModulePins.browser.spec.ts)
+hold the order the modeler's feature list flattens to, and the
+[builds-alone](../../packages/bpmn-modeler/src/composition/presets/featuresBuildAlone.browser.spec.ts)
+spec builds each factory on the kernel by itself.

@@ -2,7 +2,7 @@ import type { Element, Shape } from "bpmn-js/lib/model/Types";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createModeler } from "./composition/createModeler";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { FAR_FROM_ORIGIN_XML } from "./__fixtures__/bpmnXml";
 import { afterPaint, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
@@ -277,18 +277,6 @@ describe("setHiddenElementTemplates", () => {
         modeler.setHiddenElementTemplates([{ id: "audit" }]);
 
         modeler.setElementTemplates(templates);
-
-        expect(await offeredReplaceTemplates(modeler)).toEqual(["replace.template-mail"]);
-    });
-
-    it("keeps its refs across a re-init of the engine", async () => {
-        const modeler = await openModeler(engine, templates);
-        modeler.setHiddenElementTemplates([{ id: "audit" }]);
-
-        await modeler.init();
-        modeler.setElementTemplates(templates);
-        await modeler.loadDiagram(FAR_FROM_ORIGIN_XML);
-        await afterPaint();
 
         expect(await offeredReplaceTemplates(modeler)).toEqual(["replace.template-mail"]);
     });

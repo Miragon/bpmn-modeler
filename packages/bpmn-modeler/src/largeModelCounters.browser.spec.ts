@@ -5,7 +5,7 @@ import { generateLargeC7Model, largeModelPresets } from "../../../scripts/perf/l
 import { BrowserLinter } from "./bpmnlint/adapter/out/browserLinter";
 import * as lintModule from "./lint";
 import { createModeler } from "./composition/createModeler";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { animationFrames, mountWithPanel, removeMounts } from "./__fixtures__/surfaceMount";
 
 // Pinned values are today's behaviour, not targets: a fix that removes redundant work

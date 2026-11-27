@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
 import { createModeler } from "./composition/createModeler";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { START_EVENT_XML } from "./__fixtures__/bpmnXml";
 import { mountWithPanel, removeMounts, trackDocumentListeners } from "./__fixtures__/surfaceMount";
 

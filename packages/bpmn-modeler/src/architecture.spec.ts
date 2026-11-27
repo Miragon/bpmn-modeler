@@ -382,24 +382,33 @@ describe("bpmn-modeler import direction", TREE_PARSE, () => {
         // out of their closure by intent stops the mode wiring from leaking into
         // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
         // design side at the built-graph level; this is the source-level intent.
-        const MODE_FOLDER = "mode";
+        const MODELER_PRESET = [
+            "composition/createModeler.ts",
+            "composition/presets/bpmnModeler.ts",
+            "composition/presets/modelerFeatures.ts",
+        ];
         const MODE_LESS_SURFACES = [DESIGN_SUBPATH, VIEWER_SUBPATH, MODE_SESSION_SUBPATH];
         const graph = buildImportGraph(packageSources);
-        sourcesIn(MODE_FOLDER);
-        MODE_LESS_SURFACES.forEach(sourcesOf);
-        const offenders = graph.edges
-            .filter(
-                ({ from, to }) =>
-                    MODE_LESS_SURFACES.some((surface) => inSubpath(surface, from)) &&
-                    to !== undefined &&
-                    to.startsWith(`${MODE_FOLDER}/`),
-            )
-            .map(({ from, specifier }) => `${from} → ${specifier}`);
+        for (const file of MODELER_PRESET) {
+            requireMatches(
+                file,
+                packageSources.filter(({ path }) => path === file),
+            );
+        }
+        const reached = new Set(MODE_LESS_SURFACES.flatMap(sourcesOf).map(({ path }) => path));
+        const pending = [...reached];
+        for (let from = pending.pop(); from !== undefined; from = pending.pop()) {
+            for (const { to } of graph.edges.filter((edge) => edge.from === from)) {
+                if (to !== undefined && !reached.has(to)) {
+                    reached.add(to);
+                    pending.push(to);
+                }
+            }
+        }
         expect(
-            offenders,
-            `the /design, /viewer and /mode subpaths must not import mode/ ` +
-                `(runtime mode is a createModeler-only concern):\n` +
-                `${offenders.join("\n")}`,
+            MODELER_PRESET.filter((file) => reached.has(file)),
+            `the /design, /viewer and /mode subpaths must not reach the modeler preset ` +
+                `(runtime mode is a createModeler-only concern)`,
         ).toEqual([]);
     });
 

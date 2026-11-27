@@ -16,7 +16,7 @@ import { PLAIN_ENTRY_ACTION_BY_BPMN_TYPE } from "@miragon/bpmn-modeler-append-me
 import { createModeler } from "./composition/createModeler";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesigner } from "./design/service/designer";
-import type { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
 import { afterPaint } from "./__fixtures__/surfaceMount";
 
 interface MenuPosition {

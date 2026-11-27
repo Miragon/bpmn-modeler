@@ -2,7 +2,7 @@ import Modeler from "bpmn-js/lib/Modeler";
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NoModelerError } from "@miragon/bpmn-modeler-types";
+import { type Engine, NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { clipboard } from "./clipboard/adapter/in/clipboardFeature";
 import { createSurface } from "./composition/createSurface";
@@ -10,7 +10,9 @@ import type { BpmnSurface, EditingSurface } from "./kernel/port/bpmnSurface";
 
 import { createModeler } from "./composition/createModeler";
 import { kernelDefaultModules } from "./composition/kernelDefaults";
-import { BpmnModeler } from "./modeler/service/modeler";
+import type { BpmnModeler } from "./composition/presets/bpmnModeler";
+import { modelerFeatures } from "./composition/presets/modelerFeatures";
+import { KernelSurface } from "./kernel/service/kernelSurface";
 import type { ThemeMode } from "./kernel/domain/themeMode";
 import { createDesigner } from "./composition/createDesigner";
 import type { BpmnDesigner } from "./design/service/designer";
@@ -49,8 +51,6 @@ const POISON_MODULE = {
         },
     ],
 };
-
-const WIRING = { defaultModules: kernelDefaultModules(), clipboardModules: [] };
 
 // Throws from bpmn-js's `attach`, which its constructor fires after every module initialised.
 class ThrowsOnAttach {
@@ -526,62 +526,54 @@ describe("BpmnModeler construction failing after diagram.init", () => {
     });
 });
 
-describe("BpmnModeler engine stack loading", () => {
-    it("allocates nothing when destroyed while its engine stack loads", async () => {
-        const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(
-            mount.container,
-            {
-                engine: "c7",
-                propertiesPanel: { parent: mount.panel! },
-            },
-            WIRING,
-        );
+function modelerKernel(mount: Mount, engine: Engine) {
+    const options = { engine, propertiesPanel: { parent: mount.panel! } };
+    return new KernelSurface(
+        mount.container,
+        {
+            base: Modeler,
+            features: modelerFeatures(mount.container, options),
+            mode: "design",
+            extraRoots: [mount.panel!],
+        },
+        kernelDefaultModules(),
+    );
+}
 
-        const initialized = modeler.init();
-        modeler.destroy();
+describe("the modeler's kernel surface while its engine chunks load", () => {
+    it("allocates nothing when destroyed during the load", async () => {
+        const mount = mountWithPanelRoots();
+        const kernel = modelerKernel(mount, "c7");
+
+        const initialized = kernel.init();
+        kernel.destroy();
         await initialized;
 
         assertClean(mount.roots);
-        expect(() => modeler.getService("canvas")).toThrow(NoModelerError);
+        expect(() => kernel.getService("canvas")).toThrow(NoModelerError);
     });
 });
 
-describe("BpmnModeler re-entrant init", () => {
+describe("the modeler's kernel surface initialised again", () => {
     it("keeps setTheme working after init() disposes the previous store", async () => {
         const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(
-            mount.container,
-            {
-                engine: "c8",
-                propertiesPanel: { parent: mount.panel! },
-            },
-            WIRING,
-        );
-        await modeler.init();
-        modeler.setTheme("dark");
+        const kernel = modelerKernel(mount, "c8");
+        await kernel.init();
+        kernel.setTheme("dark");
 
-        await modeler.init();
-        modeler.setTheme("dark");
+        await kernel.init();
+        kernel.setTheme("dark");
 
         for (const root of mount.roots) {
             expect(root.getAttribute("data-bpmn-theme")).toBe("dark");
         }
-        modeler.destroy();
+        kernel.destroy();
         assertClean(mount.roots);
     });
 
     it("marks the roots with the new instance's mode and follows its changes", async () => {
         const mount = mountWithPanelRoots();
-        const modeler = new BpmnModeler(
-            mount.container,
-            {
-                engine: "c8",
-                mode: "design",
-                propertiesPanel: { parent: mount.panel! },
-            },
-            WIRING,
-        );
+        const modeler = modelerKernel(mount, "c8");
         await modeler.init();
         modeler.setMode("implement");
 

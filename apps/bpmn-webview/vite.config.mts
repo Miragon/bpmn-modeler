@@ -12,6 +12,8 @@ const SMALL_HELPERS = [
     /node_modules[\\/]@bpmn-io[\\/]moddle-utils[\\/]/,
     /node_modules[\\/]bpmn-js[\\/]lib[\\/]util[\\/]ModelUtil\.js$/,
     /node_modules[\\/]diagram-js[\\/]lib[\\/]util[\\/]EscapeUtil\.js$/,
+    // A module of a few bytes that two lazy chunks share; alone it costs a fetch of its own.
+    /libs[\\/]properties-panel[\\/]src[\\/]debounceInput[\\/]flushableDebounceInput\.ts$/,
 ];
 // The Lezer runtime, the FEEL grammars and the semver parser element templates use.
 const PARSERS = [

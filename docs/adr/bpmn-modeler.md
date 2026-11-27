@@ -131,11 +131,12 @@ the absence of editing services, not by an allowlist. Viewer and designer entrie
 (consumers load `viewer.css` or `design.css`), preserving scoped themes without pulling the root
 editor stylesheet through the shared CSS build.
 
-**Engine stacks.** The root modeler constructs `bpmn-js/lib/Modeler` itself and each engine stack
-is data (upstream plugin modules, the engine's moddle extension, panel option defaults, popup-menu
-annotation overrides). The stacks started from camunda-bpmn-js 5.36.0's composition and keep its
-order, but the package no longer depends on it: its Modeler classes added popup-menu providers
-across releases that the custom append menu then had to disable, and its caret ranges overlap
+**Engine features.** The root modeler builds `bpmn-js/lib/Modeler` on the kernel, and each engine
+is a feature (`camunda7()`, `camunda8()`: upstream plugin modules, the engine's moddle extension,
+panel option defaults, popup-menu annotation overrides, the new-diagram template). The engine
+modules started from camunda-bpmn-js 5.36.0's composition, but the package no longer depends on
+it: its Modeler classes added popup-menu providers across releases that the custom append menu
+then had to disable, and its caret ranges overlap
 most of our exact pins, so Yarn Berry consumers got a second bpmn-js and diagram-js nested under
 it. Upstream options and features we do not use stay unwired (`disableAdjustOrigin`/`disableGrid`,
 the upstream template chooser, the create/append group providers that would regroup the flat
@@ -146,7 +147,7 @@ ours ([`popupMenuAnnotations/`](../../packages/bpmn-modeler/src/popupMenuAnnotat
 engine-neutral base set (`/design` loads it as is) plus per-engine overrides only where semantics
 differ (service-task wording), attached by one provider; keywords are spelled as i18n dictionary
 keys because the translator looks keys up verbatim. A
-[coverage test](../../packages/bpmn-modeler/src/popupMenuAnnotations/adapter/in/popupMenuAnnotations.coverage.browser.spec.ts)
+[coverage test](../../packages/bpmn-modeler/src/composition/popupMenuAnnotations.coverage.browser.spec.ts)
 requires every bpmn-js replace action and create option to have a description on all three
 surfaces and every description and keyword a translation in every locale, so a bpmn-js bump that
 adds an element fails until it is described. Copying upstream's implementation would have carried
@@ -274,10 +275,10 @@ The package is a `hexagonal` workspace laid out like the core: the subpath entri
 `src/`, [the kernel](bpmn-modeler-kernel.md) in `kernel/`, feature folders with role folders
 inside, and the presets and module lists in `composition/`
 ([modeler package layout](role-folders.md#modeler-package-layout)). The export map and every
-exported name stayed as they were. The facades still build their bpmn-js instance and
-orchestrate it, so the role-folder rules list them as known exceptions until #2802 S4 puts the
-presets on the kernel. The modeler's feature factories and its feature list for that switch are
-in place ([kernel](bpmn-modeler-kernel.md#feature-factories)).
+exported name stayed as they were. `createModeler` runs on the kernel
+([modeler preset](bpmn-modeler-kernel.md#the-modeler-preset)). The designer facade still builds
+its bpmn-js instance and orchestrates it, and the template preview calls `createModeler`, so the
+role-folder rules list them as known exceptions until #2802 S4b and S4d.
 
 ## Consequences and enforcement
 

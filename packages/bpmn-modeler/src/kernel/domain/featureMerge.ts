@@ -138,7 +138,8 @@ function providedNames(modules: readonly unknown[], seen = new Set<unknown>()): 
     });
 }
 
-function moddlePrefixOf(key: string, extension: object): string {
+/** A moddle package's prefix, or the key it is listed under when it names none. */
+export function moddlePrefixOf(key: string, extension: object): string {
     const prefix = (extension as { prefix?: unknown }).prefix;
     return typeof prefix === "string" ? prefix : key;
 }

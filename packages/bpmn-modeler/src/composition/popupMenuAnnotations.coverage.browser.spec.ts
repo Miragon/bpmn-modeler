@@ -13,10 +13,13 @@ import { describe, expect, it } from "vitest";
 import { dictionaries, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras } from "@miragon/bpmn-modeler-i18n-extras";
 
-import { loadEngineStack } from "../../../composition/engineStacks";
-import { createPopupMenuAnnotationsModule } from "./popupMenuAnnotationsModule";
-import type { PopupMenuAnnotations } from "../../domain/popupMenuAnnotations";
-import type { PopupMenuAnnotationOverrides } from "../../../kernel/domain/popupMenus";
+import {
+    C7_POPUP_MENU_ANNOTATIONS,
+    C8_POPUP_MENU_ANNOTATIONS,
+} from "../engines/domain/popupMenuAnnotationOverrides";
+import { createPopupMenuAnnotationsModule } from "../popupMenuAnnotations/adapter/in/popupMenuAnnotationsModule";
+import type { PopupMenuAnnotations } from "../popupMenuAnnotations/domain/popupMenuAnnotations";
+import type { PopupMenuAnnotationOverrides } from "../kernel/domain/popupMenus";
 
 // bpmn-js and bpmn-js-create-append-anything are the source of the entries we annotate, so a
 // bump that adds an element fails here until it is described.
@@ -47,8 +50,8 @@ const SURFACE_OVERRIDES: readonly (readonly [
     () => Promise<PopupMenuAnnotationOverrides>,
 ])[] = [
     ["Design", async () => ({})],
-    ["C7", async () => (await loadEngineStack("c7")).popupMenuAnnotations],
-    ["C8", async () => (await loadEngineStack("c8")).popupMenuAnnotations],
+    ["C7", async () => C7_POPUP_MENU_ANNOTATIONS],
+    ["C8", async () => C8_POPUP_MENU_ANNOTATIONS],
 ];
 
 function annotationsWith(overrides: PopupMenuAnnotationOverrides): PopupMenuAnnotations {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createModeler } from "../../composition/createModeler";
-import type { BpmnModeler } from "../../modeler/service/modeler";
+import type { BpmnModeler } from "../../composition/presets/bpmnModeler";
 import { START_EVENT_XML } from "../../__fixtures__/bpmnXml";
 import { mountWithPanel, removeMounts } from "../../__fixtures__/surfaceMount";
 import { buildWithPluginsOrWithout } from "./buildWithPlugins";

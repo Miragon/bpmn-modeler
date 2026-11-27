@@ -2,7 +2,6 @@ import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { DEFAULT_THEME_MODE, type Engine } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "../../composition/createModeler";
-import type { BpmnModeler } from "../../modeler/service/modeler";
 import type { ThemeMode } from "../../kernel/domain/themeMode";
 import { openTemplateGroups } from "./openTemplateGroups";
 import { previewTargetOf } from "../domain/previewTarget";
@@ -43,6 +42,8 @@ interface Shown {
     template: object;
     engine: Engine;
 }
+
+type BpmnModeler = Awaited<ReturnType<typeof createModeler>>;
 
 const SHAPE_POSITION = { x: 200, y: 150 };
 
