@@ -84,9 +84,11 @@ function callerFeature({ additionalModules, moddleExtensions }: CreateModelerOpt
 }
 
 /**
- * `createModeler`'s features for `createSurface`, in the order its pins list them:
- * the engine feature's panel, behaviours and providers first, the templates after
- * create-append-anything, lint right after token simulation and the caller's last.
+ * `createModeler`'s features for `createSurface`, in the order slice 2 switches to
+ * (its differences from today's pins are in
+ * `__snapshots__/presetOnKernel/modeler-{c7,c8}.delta.txt`): the engine feature's
+ * panel, behaviours and providers first, the templates after create-append-anything,
+ * lint right after token simulation and the caller's last.
  */
 export function modelerFeatures(
     container: HTMLElement,
